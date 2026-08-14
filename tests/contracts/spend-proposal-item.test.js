@@ -38,7 +38,9 @@ test("validateSpendProposal preserves proposal attribution fields on approved li
         quantity: 5,
         category: "delvers",
         artifactRef: { id: "artifact_actor_1", schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1 },
-        subjectRef: { id: "actor_1", schema: "agent-kernel/ActorState", schemaVersion: 1 },
+        // PA.2 retired agent-kernel/ActorState. actor_1 lives inside the InitialStateArtifact,
+        // so pointing the subject at that schema is both live and more accurate.
+        subjectRef: { id: "actor_1", schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1 },
         detail: { vital: "health", target: "actor_1" },
       },
     ],

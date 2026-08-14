@@ -1,4 +1,4 @@
-import { calculateActorConfigurationUnitCost } from "../configurator/spend-proposal.js";
+import { calculateActorConfigurationUnitCost } from "./spend-proposal.js";
 import { buildPriceMap } from "./validate-spend.js";
 
 function isInteger(value) {
@@ -27,11 +27,28 @@ function resolveActorCostEntry(selection) {
     : null;
   const vitals = requested?.vitals || firstInstance?.vitals;
   const affinities = Array.isArray(requested?.affinities) ? requested.affinities : firstInstance?.affinities;
-  if (!vitals && !Array.isArray(affinities)) return null;
-  return { vitals, affinities };
+  // P1.4: motivations are priced configuration too — omitting them
+  // undercharged every selected actor by its motivation stack (found by the
+  // Codex sweep's rulebook derivation: patrolling actor 3 tokens short).
+  // Selections carry either a motivations array or the catalog's singular
+  // `motivation` kind string; normalize both into the array shape
+  // extractMotivations understands.
+  let motivations = Array.isArray(requested?.motivations)
+    ? requested.motivations
+    : Array.isArray(firstInstance?.motivations)
+      ? firstInstance.motivations
+      : undefined;
+  if (!motivations) {
+    const singular = requested?.motivation ?? firstInstance?.motivation;
+    if (typeof singular === "string" && singular) {
+      motivations = [{ kind: singular }];
+    }
+  }
+  if (!vitals && !Array.isArray(affinities) && !Array.isArray(motivations)) return null;
+  return { vitals, affinities, motivations };
 }
 
-function deriveSelectionCost(selection, priceMap) {
+function deriveSelectionCost(selection, priceMap, normalizeMotivations) {
   const kind = selection?.kind;
   const appliedId = selection?.applied?.id || selection?.requested?.id;
   let baseCost = 0;
@@ -56,6 +73,7 @@ function deriveSelectionCost(selection, priceMap) {
       const computed = calculateActorConfigurationUnitCost({
         entry,
         priceMap,
+        normalizeMotivations,
       });
       configCost = isInteger(computed?.cost) && computed.cost > 0 ? computed.cost : 0;
       configDetail = computed?.detail;
@@ -84,7 +102,7 @@ function cloneSelectionWithCount(selection, count) {
   return next;
 }
 
-export function evaluateSelectionSpend({ selections = [], budgetTokens, priceList } = {}) {
+export function evaluateSelectionSpend({ selections = [], budgetTokens, priceList, normalizeMotivations } = {}) {
   const warnings = [];
   const decisions = [];
   const approvedSelections = [];
@@ -99,7 +117,7 @@ export function evaluateSelectionSpend({ selections = [], budgetTokens, priceLis
   let cheapestRequestedUnitCost = null;
   selections.forEach((selection, index) => {
     const requestedCount = deriveSelectionCount(selection);
-    const costInfo = deriveSelectionCost(selection, priceMap);
+    const costInfo = deriveSelectionCost(selection, priceMap, normalizeMotivations);
     const unitCost = costInfo.unitCost;
     const base = {
       index,

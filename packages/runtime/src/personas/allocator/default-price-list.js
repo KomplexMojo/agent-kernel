@@ -1,7 +1,17 @@
-const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
+import { UNUSED_CLOCK } from "../_shared/require-clock.js";
+
+import BASE_COSTS from "./base-costs.json" with { type: "json" };
+import { PRICE_LIST_SCHEMA } from "../../contracts/artifacts.ts";
+
 
 /**
  * Canonical default price list for agent-kernel simulations.
+ *
+ * DATA vs LOGIC: the base costs live in `base-costs.json` and are tunable there.
+ * The formulas that consume them live HERE, in code:
+ *   - which ids scale quadratically (QUADRATIC_IDS)
+ *   - the resource free-floating premium (buildResourceItems)
+ * Edit numbers in the JSON; edit maths here.
  *
  * Base unit: 1 point of health = 1 token.
  * Scaling rules:
@@ -10,76 +20,157 @@ const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
  *   - Affinity stacks: quadratic — n stacks costs n² tokens
  *   - Everything else: linear at the listed unitCost
  *
- * "formula" field on each item tells consumers how to compute totalCost:
+ * "formula" field on each emitted item tells consumers how to compute totalCost:
  *   "linear":    totalCost = unitCost × quantity
  *   "quadratic": totalCost = unitCost × quantity²
  */
+
+/** Ids whose quantity scales quadratically. This is logic, not data. */
+const QUADRATIC_IDS = new Set([
+  "vital_health_regen_tick",
+  "vital_mana_regen_tick",
+  "vital_stamina_regen_tick",
+  "vital_durability_regen_tick",
+  "affinity_stack",
+]);
+
+/**
+ * Human-readable descriptions only. The NUMBERS live in base-costs.json —
+ * this map must never carry a cost, or the base costs would have two homes again.
+ */
+const DESCRIPTIONS = {
+  "vital_health_point": "1 point of max health (base unit: 1 health = 1 token)",
+  "vital_mana_point": "1 point of max mana",
+  "vital_stamina_point": "1 point of max stamina",
+  "vital_durability_point": "1 point of max durability",
+  "vital_health_regen_tick": "Health regen rate — n regen/tick costs n² tokens",
+  "vital_mana_regen_tick": "Mana regen rate — n regen/tick costs n² tokens",
+  "vital_stamina_regen_tick": "Stamina regen rate — n regen/tick costs n² tokens",
+  "vital_durability_regen_tick": "Durability regen rate — n regen/tick costs n² tokens",
+  "affinity_stack": "Affinity stack — n stacks costs n² tokens",
+  "affinity_base": "Base cost to add any affinity kind",
+  "affinity_expression_externalize": "External expression (push/pull)",
+  "affinity_expression_internalize": "External expression (internalize/pull)",
+  "affinity_expression_localized": "Internal expression (emit/localized)",
+  "affinity_expression_sustain": "Internal expression (draw/sustain)",
+  "motivation_stationary": "Stationary — no movement cost",
+  "motivation_random": "Random movement",
+  "motivation_exploring": "Exploring",
+  "motivation_patrolling": "Patrolling",
+  "motivation_attacking": "Attacking posture",
+  "motivation_defending": "Defending posture",
+  "motivation_stealthy": "Stealthy posture",
+  "motivation_friendly": "Friendly posture",
+  "motivation_reflexive": "Reflexive cognition",
+  "motivation_goal_oriented": "Goal-oriented cognition",
+  "motivation_strategy_focused": "Strategy-focused cognition",
+  "actor_spawn": "Spawn one actor (delver or warden)",
+  "tile_floor": "One floor tile",
+  "tile_hallway": "One hallway/connector tile — walkable area, priced as a floor tile",
+  // CR.9 M5: `hazard_base` (10) was deleted. `hazard_basic` (5) is the enforced base every
+  // hazard pays; `hazard_base` was a second id for the same idea, published for the life of
+  // the branch and charged by nothing. Two names for one charge is the CR.1 shape, and a
+  // price nothing spends is dead vocabulary — the census in
+  // tests/personas/allocator/allocator-everything-costs.test.js now fails on both.
+  "hazard_basic": "Basic hazard placement — the base every hazard pays",
+  "resource_base": "Consumable resource — costs same as its vital grant value",
+  "resource_level": "Level-scoped resource — 5× vital grant value",
+  "resource_permanent": "Permanent resource — 10× vital grant value",
+};
+
+function itemFrom(id, unitCost, description) {
+  return {
+    id,
+    kind: KIND_BY_GROUP[GROUP_BY_ID[id]] || "misc",
+    unitCost,
+    formula: QUADRATIC_IDS.has(id) ? "quadratic" : "linear",
+    ...(description ? { description } : {}),
+  };
+}
+
+const GROUP_BY_ID = {};
+// The JSON groups that ARE the price list. Other groups in base-costs.json
+// (actorModel, motivationFallback) hold numbers for models consumed elsewhere
+// (cost-model.js, motivation-price-policy.js) and must NOT become list items.
+const KIND_BY_GROUP = {
+  vitals: "vital",
+  regen: "vital",
+  affinity: "affinity",
+  motivation: "motivation",
+  actor: "actor",
+  tile: "tile",
+  hazard: "hazard",
+  resource: "resource",
+};
+for (const [group, entries] of Object.entries(BASE_COSTS)) {
+  if (!(group in KIND_BY_GROUP) || typeof entries !== "object") continue;
+  for (const id of Object.keys(entries)) GROUP_BY_ID[id] = group;
+}
+
+/**
+ * Resource-specific items carrying the free-floating premium.
+ *
+ * A resource is unattached: it sits on the floor and grants its payload to
+ * whichever actor walks over it. That is worth a premium over the same payload
+ * bolted to one specific actor — so resource_* ids cost `premium × base`, rounded
+ * to whole tokens (every other cost in this system is an integer).
+ *
+ * Hazards are deliberately NOT premiumed: a hazard only threatens, it grants
+ * nothing, so the two are not symmetric.
+ *
+ * The premium is the ONLY thing these ids add. Their quadratic/linear behaviour is
+ * inherited from the id they mirror, so a resource's affinity stacks scale exactly
+ * like an actor's.
+ */
+function buildResourceItems() {
+  const premium = BASE_COSTS.freeFloatingPremium;
+  const mirrored = [
+    ...Object.keys(BASE_COSTS.affinity),
+    ...Object.keys(BASE_COSTS.vitals),
+    ...Object.keys(BASE_COSTS.regen),
+  ];
+  return mirrored.map((baseId) => {
+    const group = GROUP_BY_ID[baseId];
+    const base = BASE_COSTS[group][baseId];
+    const id = `resource_${baseId}`;
+    return {
+      id,
+      kind: "resource",
+      unitCost: Math.round(base * premium),
+      // Mirror the base id's scaling — premium changes price, never shape.
+      formula: QUADRATIC_IDS.has(baseId) ? "quadratic" : "linear",
+      description: `${DESCRIPTIONS[baseId] || baseId} — free-floating resource (${premium}× ${base}, rounded)`,
+    };
+  });
+}
+
 const DEFAULT_ITEMS = [
-  // --- Vitals (linear, 1 token per point) ---
-  { id: "vital_health_point",    kind: "vital", unitCost: 1, formula: "linear",    description: "1 point of max health (base unit: 1 health = 1 token)" },
-  { id: "vital_mana_point",      kind: "vital", unitCost: 1, formula: "linear",    description: "1 point of max mana" },
-  { id: "vital_stamina_point",   kind: "vital", unitCost: 1, formula: "linear",    description: "1 point of max stamina" },
-  { id: "vital_durability_point",kind: "vital", unitCost: 1, formula: "linear",    description: "1 point of max durability" },
-
-  // --- Regen (quadratic: n units/tick costs n² tokens) ---
-  { id: "vital_health_regen_tick",    kind: "vital", unitCost: 1, formula: "quadratic", description: "Health regen rate — n regen/tick costs n² tokens" },
-  { id: "vital_mana_regen_tick",      kind: "vital", unitCost: 1, formula: "quadratic", description: "Mana regen rate — n regen/tick costs n² tokens" },
-  { id: "vital_stamina_regen_tick",   kind: "vital", unitCost: 1, formula: "quadratic", description: "Stamina regen rate — n regen/tick costs n² tokens" },
-  { id: "vital_durability_regen_tick",kind: "vital", unitCost: 1, formula: "quadratic", description: "Durability regen rate — n regen/tick costs n² tokens" },
-
-  // --- Affinities (stack cost is quadratic; expressions and base are linear) ---
-  { id: "affinity_stack",                     kind: "affinity", unitCost: 1,  formula: "quadratic", description: "Affinity stack — n stacks costs n² tokens" },
-  { id: "affinity_base",                      kind: "affinity", unitCost: 10, formula: "linear",    description: "Base cost to add any affinity kind" },
-  { id: "affinity_expression_externalize",    kind: "affinity", unitCost: 35, formula: "linear",    description: "External expression (push/pull)" },
-  { id: "affinity_expression_internalize",    kind: "affinity", unitCost: 35, formula: "linear",    description: "External expression (internalize/pull)" },
-  { id: "affinity_expression_localized",      kind: "affinity", unitCost: 25, formula: "linear",    description: "Internal expression (emit/localized)" },
-  { id: "affinity_expression_sustain",        kind: "affinity", unitCost: 25, formula: "linear",    description: "Internal expression (draw/sustain)" },
-
-  // --- Motivations (linear flat costs) ---
-  { id: "motivation_stationary",       kind: "motivation", unitCost: 0,  formula: "linear", description: "Stationary — no movement cost" },
-  { id: "motivation_random",           kind: "motivation", unitCost: 1,  formula: "linear", description: "Random movement" },
-  { id: "motivation_exploring",        kind: "motivation", unitCost: 2,  formula: "linear", description: "Exploring" },
-  { id: "motivation_patrolling",       kind: "motivation", unitCost: 3,  formula: "linear", description: "Patrolling" },
-  { id: "motivation_attacking",        kind: "motivation", unitCost: 3,  formula: "linear", description: "Attacking posture" },
-  { id: "motivation_defending",        kind: "motivation", unitCost: 2,  formula: "linear", description: "Defending posture" },
-  { id: "motivation_stealthy",         kind: "motivation", unitCost: 4,  formula: "linear", description: "Stealthy posture" },
-  { id: "motivation_friendly",         kind: "motivation", unitCost: 1,  formula: "linear", description: "Friendly posture" },
-  { id: "motivation_reflexive",        kind: "motivation", unitCost: 1,  formula: "linear", description: "Reflexive cognition" },
-  { id: "motivation_goal_oriented",    kind: "motivation", unitCost: 5,  formula: "linear", description: "Goal-oriented cognition" },
-  { id: "motivation_strategy_focused", kind: "motivation", unitCost: 10, formula: "linear", description: "Strategy-focused cognition" },
-
-  // --- Actor spawn ---
-  { id: "actor_spawn", kind: "actor", unitCost: 5, formula: "linear", description: "Spawn one actor (delver or warden)" },
-
-  // --- Floor tiles (rooms are priced by component; tiles are atomic) ---
-  { id: "tile_floor",   kind: "tile", unitCost: 1, formula: "linear", description: "One floor tile" },
-  { id: "tile_hallway", kind: "tile", unitCost: 3, formula: "linear", description: "One hallway tile (more complex pathing)" },
-
-  // --- Hazards ---
-  { id: "hazard_basic", kind: "hazard", unitCost: 5, formula: "linear", description: "Basic hazard placement" },
-
-  // --- Hazards (mana-powered; base cost excludes mana vital which is priced separately) ---
-  { id: "hazard_base", kind: "hazard", unitCost: 10, formula: "linear", description: "Base hazard instantiation cost" },
-
-  // --- Resources ---
-  // consumable=1×, level=5×, permanent=10× the resource's vital grant value
-  { id: "resource_base",      kind: "resource", unitCost: 1,  formula: "linear", description: "Consumable resource — costs same as its vital grant value" },
-  { id: "resource_level",     kind: "resource", unitCost: 5,  formula: "linear", description: "Level-scoped resource — 5× vital grant value" },
-  { id: "resource_permanent", kind: "resource", unitCost: 10, formula: "linear", description: "Permanent resource — 10× vital grant value" },
+  ...Object.entries(BASE_COSTS)
+    .filter(([group, entries]) => group in KIND_BY_GROUP && typeof entries === "object")
+    .flatMap(([, entries]) =>
+      Object.entries(entries).map(([id, unitCost]) => itemFrom(id, unitCost, DESCRIPTIONS[id])),
+    ),
+  ...buildResourceItems(),
 ];
 
 /**
  * Returns a fresh default PriceList artifact.
  * The caller may override meta fields; items are canonical and must not be mutated.
  */
-export function buildDefaultPriceList({ meta } = {}) {
+export function buildDefaultPriceList({ meta, createdAt } = {}) {
   return {
     schema: PRICE_LIST_SCHEMA,
     schemaVersion: 1,
     meta: meta || {
       id: "default-price-list-v1",
       runId: "system",
-      createdAt: new Date().toISOString(),
+      // PX.3 (M6): was `new Date().toISOString()`. Bare `buildDefaultPriceList()` is a
+      // legitimate, common call — the item list is read without any interest in the meta —
+      // so requiring a clock here would be noise. What is NOT acceptable is wall-clock time
+      // silently entering a PriceList artifact, so the fallback is the sanctioned
+      // deterministic marker instead: greppable via `rg UNUSED_CLOCK`, and it can never
+      // make two runs of the same build differ.
+      createdAt: createdAt || UNUSED_CLOCK(),
       producedBy: "allocator",
       note: "Canonical default price list. Base unit: 1 health point = 1 token.",
     },

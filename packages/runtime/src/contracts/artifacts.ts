@@ -102,7 +102,147 @@ export const ADAPTIVE_WORKFLOW_FAILURE_SCHEMA = "agent-kernel/AdaptiveWorkflowFa
 export const ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA = "agent-kernel/AdaptiveWorkflowPatchRequest";
 export const ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA = "agent-kernel/AdaptiveWorkflowPatchReceipt";
 export const ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionEvent";
-export const ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA = "agent-kernel/AdaptiveWorkflowRunRecord";
+
+// M7 (2026-08-08) — the twelve that were declared OUTSIDE this file.
+//
+// The charter requires boundary data to carry a schema from artifacts.ts. These twelve did
+// not: six were declared in `adaptive-workflow/` modules or in `adapters-cli`, and six had
+// NO CONSTANT AT ALL — the literal was retyped at each use site, twice in one file for
+// `AdaptiveWorkflowReplay` and once per package for `AdaptiveWorkflowIdempotencyRecord`.
+//
+// ⚠️ That second group is why the cluster was miscounted three times (9 → 15 → 20): a census
+// keyed on `const X = "agent-kernel/…"` cannot see a schema that never had a const. The
+// guard in `tests/architecture/schema-declaration-origin.test.js` now matches LITERALS, not
+// declarations, for exactly that reason.
+//
+// Relocation only: every string value is unchanged, so no artifact's identity moves and no
+// schemaVersion is affected. TypeScript interfaces for these twelve are deliberately NOT
+// part of M7 — the constant is what the charter rule is about, and inventing twelve
+// interfaces would be new contract surface rather than a relocation.
+export const ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA = "agent-kernel/AdaptiveWorkflowExecutionReceipt";
+export const ADAPTIVE_WORKFLOW_METRICS_SCHEMA = "agent-kernel/AdaptiveWorkflowMetrics";
+export const ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA = "agent-kernel/AdaptiveWorkflowStrategyPolicy";
+export const ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA = "agent-kernel/SelectedStrategy";
+export const ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA = "agent-kernel/BenchmarkEvidence";
+export const ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA = "agent-kernel/ContextBudget";
+// The six that had no constant anywhere before M7.
+export const ADAPTIVE_WORKFLOW_CLI_REQUEST_SCHEMA = "agent-kernel/AdaptiveWorkflowCliRequest";
+export const ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA = "agent-kernel/AdaptiveWorkflowCliRunInput";
+export const ADAPTIVE_WORKFLOW_CONFIGURATION_SCHEMA = "agent-kernel/AdaptiveWorkflowConfiguration";
+export const ADAPTIVE_WORKFLOW_IDEMPOTENCY_RECORD_SCHEMA = "agent-kernel/AdaptiveWorkflowIdempotencyRecord";
+export const ADAPTIVE_WORKFLOW_PLAN_SCHEMA = "agent-kernel/AdaptiveWorkflowPlan";
+export const ADAPTIVE_WORKFLOW_REPLAY_SCHEMA = "agent-kernel/AdaptiveWorkflowReplay";
+
+// -------------------------
+// Persona CLI invocation contracts (DECISION D-j)
+// -------------------------
+// The in/out envelope for `ak-persona <name> --in <spec.json> --out <result.json>`:
+// artifact in, artifact out, one process. This is the contract the G1
+// CLI-differential tests diff against — capture what the production path handed a
+// persona, run the persona standalone on the same input, and compare. A mismatch
+// means glue computed a different answer than the owning persona would have.
+//
+// The pair maps 1:1 onto the existing `advance({phase, event, payload, tick})`
+// signature, so adding the CLI required no persona code changes.
+
+export const PERSONA_INVOCATION_SCHEMA = "agent-kernel/PersonaInvocation";
+export const PERSONA_RESULT_SCHEMA = "agent-kernel/PersonaResult";
+
+export type PersonaName =
+  | "orchestrator"
+  | "director"
+  | "configurator"
+  | "actor"
+  | "allocator"
+  | "annotator"
+  | "moderator";
+
+export interface PersonaInvocationV1 {
+  schema: typeof PERSONA_INVOCATION_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  persona: PersonaName;
+
+  /**
+   * REQUIRED — there is no default anywhere in this envelope.
+   * A defaulted clock is how determinism degrades silently (PX.3): 28 persona
+   * factories default to a real wall clock, so any caller that forgets to inject
+   * one still "works". Making it mandatory here is a deliberate forcing function.
+   */
+  clock: IsoUtcTimestamp;
+
+  /**
+   * Serialized persona state to resume from, or null to construct fresh at the
+   * persona's initial state.
+   *
+   * **`null` is the only supported value today.** No persona can be rebuilt from
+   * its own `view()` — every factory takes a state LABEL, not a context (finding
+   * PX.4) — so restoring is not yet possible. `restore(view)` lands in HANDOFF-4;
+   * until then a non-null value is rejected rather than silently ignored.
+   */
+  state: Record<string, unknown> | null;
+
+  /** Actor only: the seed its randomness derives from. Null for other personas. */
+  seed: number | null;
+
+  /**
+   * Allocator only: the price list it prices against, and that list's meta.
+   *
+   * NOT IN D-j AS ORIGINALLY DECIDED — added when the envelope met the code.
+   * `createAllocatorPersona` takes `{priceList, priceListMeta}` at construction,
+   * and the Allocator is built to fail loudly rather than default a price
+   * (P1.4/CR.1), so without these it can be invoked but cannot price anything.
+   * D-j accounted for the Actor's `seed` and missed this.
+   */
+  priceList?: Record<string, unknown> | null;
+  priceListMeta?: Record<string, unknown> | null;
+
+  invocation: {
+    phase: "init" | "observe" | "decide" | "apply" | "emit" | "summarize";
+    event: string;
+    payload: Record<string, unknown>;
+    tick: number;
+  };
+}
+
+export interface PersonaResultV1 {
+  schema: typeof PERSONA_RESULT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+
+  persona: PersonaName;
+
+  /** The persona's `view()` after the round: `{state, context}`. */
+  state: Record<string, unknown>;
+
+  /**
+   * Whether the persona subscribes to the invoked phase and therefore actually
+   * ran a round.
+   *
+   * NOT IN D-j — added because without it the envelope is misleading. Each persona
+   * subscribes to only some phases (the Director to `decide` alone), and an
+   * unsubscribed phase returns the current snapshot with empty outputs. That is
+   * indistinguishable from "ran and changed nothing", which is exactly the
+   * distinction a G1 differential test needs to make.
+   */
+  subscribed: boolean;
+
+  actions: unknown[];
+  effects: unknown[];
+
+  /**
+   * Director-produced artifacts. Always present, empty for the other six.
+   *
+   * NOT IN D-j — the Director's `advance` returns an extra `artifacts` array that
+   * the other six do not. Emitting the field uniformly keeps the output shape
+   * identical across personas, which matters more for differential comparison than
+   * matching each persona's native return exactly.
+   */
+  artifacts: unknown[];
+
+  telemetry: unknown | null;
+}
 
 export type AdaptiveWorkflowPhase =
   | "intake"
@@ -328,30 +468,6 @@ export interface AdaptiveWorkflowRunStateV1 {
   updatedAt: IsoUtcTimestamp;
 }
 
-export interface AdaptiveWorkflowRunRecordV1 {
-  schema: typeof ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA;
-  schemaVersion: 1;
-  meta: ArtifactMeta;
-  runId: string;
-  stateRef: ArtifactRef;
-  policyRef: ArtifactRef;
-  runtimeProfileRef?: ArtifactRef;
-  finalPhase: AdaptiveWorkflowPhase;
-  events: AdaptiveWorkflowExecutionEventV1[];
-  promptRefs?: Array<ArtifactRef | ContentAddressedRefV1>;
-  responseRefs?: Array<ArtifactRef | ContentAddressedRefV1>;
-  validationResultRefs: ArtifactRef[];
-  failureRefs: ArtifactRef[];
-  executionResultRefs?: ArtifactRef[];
-  tokenUsage?: {
-    inputTokens?: number;
-    outputTokens?: number;
-    toolTokens?: number;
-    totalTokens?: number;
-  };
-  latencyMs?: number;
-}
-
 // -------------------------
 // Visualization snapshot
 // -------------------------
@@ -463,6 +579,12 @@ export type AgentCommandOptimizationGoalKind =
   | "maximize_budget_spend"
   | "maximize_vital_max"
   | "maximize_vital_regen";
+/**
+ * Type mirror of `AUTHORING_VALIDATION_OUTCOMES` in `contracts/spend-protocol.js`,
+ * which is the runtime origin these values are read from (CR.9 M4). `build-spec.js`
+ * validates against it and `allocator/budget-fulfillment.js` produces two of the four;
+ * `invalid_requirements` is an accepted input value with no producer here.
+ */
 export type AgentCommandValidationOutcome =
   | "valid"
   | "invalid_requirements"
@@ -714,7 +836,9 @@ export interface BuildSpecV1 {
     priceListRef?: ArtifactRef;
     receiptRef?: ArtifactRef;
     budget?: BudgetArtifact;
-    priceList?: PriceList;
+    // M9: was `PriceList`, which is not a type in this file — only the SCHEMA constant
+    // has that name. Its two neighbours already used the artifact aliases.
+    priceList?: PriceListArtifact;
     receipt?: BudgetReceiptArtifact;
   };
 
@@ -841,14 +965,11 @@ export interface HazardProposalEffect {
 // Budgeting (Director/Configurator/Actor → Allocator)
 // -------------------------
 
-export const BUDGET_REQUEST_SCHEMA = "agent-kernel/BudgetRequest";
-export const BUDGET_RECEIPT_SCHEMA = "agent-kernel/BudgetReceipt";
 export const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
 export const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
 export const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
 export const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 export const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
-export const BUDGET_LEDGER_ARTIFACT_SCHEMA = "agent-kernel/BudgetLedgerArtifact";
 
 export interface BudgetCategoryCaps {
   /**
@@ -857,68 +978,6 @@ export interface BudgetCategoryCaps {
    */
   caps: Record<string, number>;
 }
-
-/**
- * Legacy request contract for budget evaluation.
- * Live build/runtime flows use BudgetArtifact + PriceList + BudgetReceiptArtifact,
- * but this schema is retained for compatibility and fixture coverage.
- */
-export interface BudgetRequestV1 {
-  schema: typeof BUDGET_REQUEST_SCHEMA;
-  schemaVersion: 1;
-  meta: ArtifactMeta;
-
-  /** The plan being evaluated (if applicable). */
-  planRef?: ArtifactRef;
-
-  /**
-   * Proposed complexity inputs. Keep numeric where possible so evaluation is deterministic.
-   * Examples: actorCount, layoutComplexity, maxMotivationsPerActor, solverDepth.
-   */
-  proposal: Record<string, number>;
-
-  /** Optional requested caps (Allocator may accept/override). */
-  requestedCaps?: BudgetCategoryCaps;
-
-  /** Optional rationale for trace/debug. */
-  rationale?: string;
-}
-
-export interface BudgetReceiptV1 {
-  schema: typeof BUDGET_RECEIPT_SCHEMA;
-  schemaVersion: 1;
-  meta: ArtifactMeta;
-
-  /** Reference to the request being answered. */
-  requestRef: ArtifactRef;
-
-  /** Decision outcome. */
-  decision: "approved" | "rejected" | "approved_with_constraints";
-
-  /** Effective caps/limits to be enforced downstream (policy-free enforcement happens in `core-ts`). */
-  effectiveCaps: BudgetCategoryCaps;
-
-  /**
-   * Additional hard constraints/limits (counts, sizes, horizons) expressed as numbers.
-   * Configurator should embed these into executable configuration.
-   */
-  limits?: Record<string, number>;
-
-  /** Diagnostics for rejection or constrained approvals. */
-  diagnostics?: {
-    reasons: string[];
-    suggestions?: Array<{
-      key: string;
-      /** Suggested new value for the proposal key. */
-      value: number;
-      note?: string;
-    }>;
-  };
-}
-
-export type BudgetRequest = BudgetRequestV1;
-/** Legacy receipt contract retained for compatibility with older fixtures and refs. */
-export type BudgetReceipt = BudgetReceiptV1;
 
 // -------------------------
 // Token budgets (Orchestrator → Director → Configurator → Allocator)
@@ -986,7 +1045,8 @@ export interface BudgetReceiptArtifactV1 {
     categories: {
       rooms: ScenarioCategorySpend;
       floor_tiles: ScenarioCategorySpend;
-      hazards: ScenarioCategorySpend;
+      // M9: `hazards` was declared twice here. The real key set is these seven, and the
+      // fixture named "full-categories" carries exactly seven.
       hazards: ScenarioCategorySpend;
       resources: ScenarioCategorySpend;
       delvers: ScenarioCategorySpend;
@@ -1029,30 +1089,13 @@ export interface BudgetAllocationArtifactV1 {
 
 export type BudgetAllocationArtifact = BudgetAllocationArtifactV1;
 
-export interface BudgetSpendEventV1 {
-  id: string;
-  kind: string;
-  quantity: number;
-  unitCost: number;
-  totalCost: number;
-}
-
-export interface BudgetLedgerArtifactV1 {
-  schema: typeof BUDGET_LEDGER_ARTIFACT_SCHEMA;
-  schemaVersion: 1;
-  meta: ArtifactMeta;
-  budgetRef: ArtifactRef;
-  receiptRef?: ArtifactRef;
-  remaining: number;
-  spendEvents: BudgetSpendEventV1[];
-}
-
-export type BudgetLedgerArtifact = BudgetLedgerArtifactV1;
-
+// M9: `"hazards"` appeared twice. A duplicate union member is legal TypeScript and raises
+// nothing, which is why this copy outlived the interface's — the same duplication is in
+// `SandboxEntityCategory` below and in `allocator/incentive-model.js`'s REPORT_CATEGORIES,
+// where every use runs through Object.fromEntries and the repeat is inert.
 export type SpendProposalCategory =
   | "rooms"
   | "floor_tiles"
-  | "hazards"
   | "hazards"
   | "resources"
   | "delvers"
@@ -1087,6 +1130,161 @@ export interface SpendProposalV1 {
 }
 
 export type SpendProposal = SpendProposalV1;
+
+// -------------------------------------------------------------------------
+// Propose / judge protocol (Allocator <-> Configurator) — CR.9 M3
+// -------------------------------------------------------------------------
+//
+// The finding: budget maximization was building its own cards. The Allocator
+// enumerated (manaRegen, manaMax) pairs, assembled candidate cards, filled their
+// vitals and encoded configuration-validity rules — the Configurator's chartered
+// role — and then priced the result. "The Allocator prices a config it did not
+// author" was false; it authored and then priced its own work.
+//
+// These three types are the exchange that makes it true. The negotiation loop was
+// already present, FUSED inside `maximizeBudgetCappedDelverCard`: propose -> price
+// -> reject -> revise -> re-price. M3 splits the halves across the persona line.
+//
+//   Allocator    -> Configurator   BudgetEnvelope         "spend up to this"
+//   Configurator -> Allocator      ConfigurationCandidate "here is a valid card"
+//   Allocator    -> Configurator   SpendVerdict           "approved at N / rejected because"
+//
+// THE CAP IS VISIBLE, THE PRICES ARE NOT. The Configurator must see the cap or its
+// enumeration is unbounded — today's bounds are budget-derived
+// (`floor(sqrt(perUnitBudget/5)) + 2`), and termination depends on that. It must NOT
+// see prices, or it is pricing again and nothing has changed. Cap-visible /
+// price-opaque is the only line that satisfies both, and it is what "prices what it
+// did not author" means operationally.
+//
+// WHY NO `meta`. ArtifactMeta is documented above as the metadata of *top-level*
+// artifacts, and these are neither top-level nor persisted: a single delver round
+// exchanges hundreds of candidates inside one pure, deterministic search. Stamping
+// each with an id and a `createdAt` would require a clock inside the maximizer —
+// which the charter forbids reading and which would make the search non-reproducible
+// — to produce identifiers nothing ever reads. They carry `schema`/`schemaVersion`
+// so the exchange is still versioned and discriminable.
+
+export const BUDGET_ENVELOPE_SCHEMA = "agent-kernel/BudgetEnvelope";
+
+/**
+ * Allocator -> Configurator. The spending room available for one card, and nothing
+ * else. Deliberately carries no prices, no price list and no line items.
+ */
+export interface BudgetEnvelopeV1 {
+  schema: typeof BUDGET_ENVELOPE_SCHEMA;
+  schemaVersion: 1;
+  /** Total tokens available for this card across all of its copies. */
+  capTokens: number;
+  /** Tokens available for a single copy (`floor(capTokens / count)`). */
+  perUnitCapTokens: number;
+  /** Copies of this card the cap has to cover. */
+  count: number;
+}
+
+export type BudgetEnvelope = BudgetEnvelopeV1;
+
+export const CONFIGURATION_CANDIDATE_SCHEMA = "agent-kernel/ConfigurationCandidate";
+
+/**
+ * Configurator -> Allocator. One structurally valid, fully assembled card the
+ * Allocator may price. The Configurator guarantees validity; the Allocator
+ * guarantees nothing about it except a verdict.
+ *
+ * `preference` is the Configurator's own ordering signal, and it is OPAQUE by
+ * design: the Allocator compares tuples lexicographically as plain numbers and
+ * never learns that index 0 means "mana regen". That is what keeps
+ * `optimizationGoals` — Director/Configurator intent — out of Allocator policy while
+ * still reproducing today's exact tie-breaking.
+ *
+ * `motivations` arrive NORMALIZED. Before M3 the Allocator imported the
+ * Configurator's `normalizeMotivations` to clean raw input mid-price; now the author
+ * publishes the normalized form and the Allocator prices only published fields.
+ */
+export interface ConfigurationCandidateV1 {
+  schema: typeof CONFIGURATION_CANDIDATE_SCHEMA;
+  schemaVersion: 1;
+  /** Stable identity of the candidate within its round (`delver[1]#12`). */
+  candidateId: string;
+  /**
+   * The assembled card, exactly as it should be handed back downstream if this
+   * candidate wins. Its `motivations` stay in the AUTHORED form the caller supplied.
+   */
+  card: Record<string, unknown>;
+  /**
+   * The published projection the Allocator is allowed to price, and the only part of
+   * the candidate it reads. `motivations` here are normalized by the Configurator, so
+   * the Allocator never runs the vocabulary rules itself.
+   */
+  priceable: {
+    normalizedMotivations: unknown[];
+    affinities: unknown[];
+    vitals: Record<string, unknown>;
+  };
+  /** Opaque ordering signal, compared lexicographically by the Allocator. */
+  preference: number[];
+}
+
+export type ConfigurationCandidate = ConfigurationCandidateV1;
+
+export const SPEND_VERDICT_SCHEMA = "agent-kernel/SpendVerdict";
+
+/**
+ * Reject reasons. Closed union, so a verdict cannot carry an unclassifiable refusal.
+ *
+ * ⚠️ CR.9 M4 NARROWED THIS, and the correction is the milestone's finding. The union
+ * used to also list `invalid_requirements` and `conflicting_requirements`, which
+ * NOTHING has ever produced on a verdict: they are `AgentCommandValidationOutcome`
+ * values (above), misfiled here. The M4 plan row read "promote
+ * AUTHORING_VALIDATION_OUTCOMES into the SpendVerdict reason codes", which assumed the
+ * two sets merge; reading the code says they answer different questions and merging
+ * them would make both vaguer. A CANDIDATE is judged `over_cap` or `not_priceable`; a
+ * REQUEST is judged `insufficient_budget` or `conflicting_requirements`. A candidate is
+ * never short of budget — the budget is what it is being judged against.
+ *
+ * The runtime origin for both vocabularies is `contracts/spend-protocol.js`, which
+ * runtime `.js` modules can import (this file they cannot). This union is its type
+ * mirror; `single-origin.test.js` fails if either is declared anywhere else, and
+ * `allocator-spend-verdict-reasons.test.js` asserts the two agree member-for-member.
+ */
+export type SpendVerdictRejectReason =
+  | "over_cap"
+  | "not_priceable";
+
+/**
+ * Allocator -> Configurator. The judgement on exactly one candidate.
+ *
+ * A rejection is a first-class result, not a `continue`. In the fused loop both
+ * over-cap outcomes were bare `continue` statements, so "why did the budget not get
+ * spent" had no answer anywhere in the system.
+ */
+export interface SpendVerdictV1 {
+  schema: typeof SPEND_VERDICT_SCHEMA;
+  schemaVersion: 1;
+  candidateId: string;
+  approved: boolean;
+  /** Cost of one copy. Present only when approved. */
+  unitCostTokens?: number;
+  /** Total token cost across all copies (`unitCostTokens × count`). Approved only. */
+  costTokens?: number;
+  /**
+   * Tokens still unspent under the per-unit cap (`perUnitCapTokens - unitCostTokens`).
+   *
+   * This is what makes revision a ROUND TRIP rather than a field. Today's fill step
+   * spends `perUnitBudget - candidateCost` on stamina/mana, so the revised card is a
+   * function of the PRICE — the Configurator cannot supply it up front without
+   * pricing. So the Allocator judges, publishes the remaining room, and asks the
+   * Configurator to revise; the Allocator still never assembles a card.
+   *
+   * Publishing a remainder does not breach the price-opaque rule in any way that
+   * matters: remaining budget is a spend fact, which is the Allocator's to state, and
+   * it is the same class of disclosure as the cap itself.
+   */
+  remainingTokens?: number;
+  /** Why the candidate was refused. Present only when rejected. */
+  reason?: SpendVerdictRejectReason;
+}
+
+export type SpendVerdict = SpendVerdictV1;
 
 // -------------------------
 // Price list (Orchestrator → Allocator)
@@ -1418,10 +1616,12 @@ export interface AffinitySummaryV1 {
 export type AffinitySummary = AffinitySummaryV1;
 
 // -------------------------
-// Core Actor State (core-ts)
+// Actor vital/capability records (shared by the live actor-carrying schemas)
+//
+// PA.2 retired the `agent-kernel/ActorState` artifact — it had no producer and no
+// consumer. These two record types are NOT dead: they are the field types used by
+// InitialStateArtifact actors and the other live actor-carrying contracts below.
 // -------------------------
-
-export const ACTOR_STATE_SCHEMA = "agent-kernel/ActorState";
 
 export interface VitalRecordV1 {
   current: number;
@@ -1434,25 +1634,6 @@ export interface CapabilityRecordV1 {
   actionCostMana?: number;
   actionCostStamina?: number;
 }
-
-export interface ActorStateV1 {
-  schema: typeof ACTOR_STATE_SCHEMA;
-  schemaVersion: 1;
-  actor: {
-    id: string;
-    kind: "stationary" | "barrier" | "motivated";
-    position: { x: number; y: number };
-    vitals: {
-      health: VitalRecordV1;
-      mana: VitalRecordV1;
-      stamina: VitalRecordV1;
-      durability: VitalRecordV1;
-    };
-    capabilities?: CapabilityRecordV1;
-  };
-}
-
-export type ActorState = ActorStateV1;
 
 // -------------------------
 // Solver artifacts (runtime adapters)
@@ -1510,18 +1691,88 @@ export type SolverRequest = SolverRequestV1;
 export type SolverResult = SolverResultV1;
 
 // -------------------------
+// LLM artifacts (runtime adapters) — CR.4 M2
+// -------------------------
+
+/**
+ * The request/response pair the Orchestrator exchanges with an LLM adapter.
+ *
+ * WHY THIS IS NOT A CORE `EffectKind`. core-ts's `EffectKind` is backed by `Int32Array`s
+ * and carries only integers (actor ids, coordinates, deltas). A prompt string, a model
+ * name and an options bag cannot be represented on that bus at all, so the LLM effect
+ * rides the runtime's STRUCTURED effect layer under the string kind `"llm_request"` —
+ * the same place `solver_request` lives. PX.1 is unaffected: core-ts is still the sole
+ * origin of the numeric `EffectKind`, and this adds no fifteenth member to it.
+ *
+ * WHY IT EXISTS (CR.4). `runLlmSession` currently `await`s `adapter.generate(...)` at
+ * three sites inside the Orchestrator, so external IO happens inline, is not returned as
+ * data, and never passes through `ports/effects.js` — inside the persona whose chartered
+ * role is external interaction. These artifacts are what the persona returns INSTEAD of
+ * performing the call.
+ */
+export const LLM_REQUEST_SCHEMA = "agent-kernel/LlmRequest";
+export const LLM_RESPONSE_SCHEMA = "agent-kernel/LlmResponse";
+
+export interface LlmRequestV1 {
+  schema: typeof LLM_REQUEST_SCHEMA;
+  schemaVersion: 1;
+
+  /** Correlates the response back to this request. Derived, never generated — replay depends on it. */
+  requestId: string;
+
+  /** Model identifier the adapter should call. */
+  model: string;
+
+  /** The fully-resolved prompt. Captured here so a replay needs nothing else. */
+  prompt: string;
+
+  /** Which stage of the build conversation this request belongs to. */
+  phase?: string;
+
+  /** Adapter call configuration, captured for replay (`num_predict`, `format`, …). */
+  options?: Record<string, unknown>;
+
+  /** Response format hint passed through to the adapter. */
+  format?: string;
+
+  /** Whether the adapter should stream. Captured because it changes the response shape. */
+  stream?: boolean;
+
+  /** Optional endpoint, recorded for provenance rather than routing. */
+  baseUrl?: string;
+}
+
+export interface LlmResponseV1 {
+  schema: typeof LLM_RESPONSE_SCHEMA;
+  schemaVersion: 1;
+
+  /** Reference back to the request that produced it. */
+  requestId: string;
+
+  /**
+   * The adapter's raw payload, unnormalized. `runLlmSession`'s `extractResponseText`
+   * accepts four different shapes (`response`, `message.content`, `choices[0].message
+   * .content`, `choices[0].text`), so normalization stays a reader concern and the
+   * artifact records exactly what came back.
+   */
+  payload: Record<string, unknown>;
+
+  /** Set when the adapter itself failed, as distinct from returning an unusable response. */
+  error?: { code: string; message: string };
+}
+
+export type LlmRequest = LlmRequestV1;
+export type LlmResponse = LlmResponseV1;
+
+// -------------------------
 // Runtime ↔ core-ts execution contracts
 // -------------------------
 
 export const ACTION_SCHEMA = "agent-kernel/Action";
-export const OBSERVATION_SCHEMA = "agent-kernel/Observation";
-export const EVENT_SCHEMA = "agent-kernel/Event";
 export const EFFECT_SCHEMA = "agent-kernel/Effect";
 
 /** Effect fulfillment category used by the Moderator to route effects deterministically. */
 export type EffectFulfillment = "deterministic" | "deferred";
-export const SNAPSHOT_SCHEMA = "agent-kernel/Snapshot";
-export const DEBUG_DUMP_SCHEMA = "agent-kernel/DebugDump";
 
 export const TICK_FRAME_SCHEMA = "agent-kernel/TickFrame";
 
@@ -1587,20 +1838,6 @@ export interface ActionV1 {
  * - Breaking changes require a schemaVersion bump.
  * - Do not embed internal memory layouts.
  */
-export interface ObservationV1 {
-  schema: typeof OBSERVATION_SCHEMA;
-  schemaVersion: 1;
-
-  actorId: string;
-  tick: number;
-
-  /**
-   * Minimal world view. Keep generic; do not leak internal core state layouts.
-   * Consider versioning snapshots separately if you need richer inspector views.
-   */
-  view: Record<string, unknown>;
-}
-
 /**
  * Facts emitted by `core-ts` after applying actions (or advancing ticks).
  * Annotator consumes these as read-only inputs.
@@ -1610,10 +1847,14 @@ export interface ObservationV1 {
  * - Breaking changes require a schemaVersion bump.
  * - Do not embed internal memory layouts.
  */
+/**
+ * NOT a standalone artifact (PA.4, 2026-07-28). `agent-kernel/Event` was retired — nothing
+ * ever produced or consumed an Event artifact. This shape survives because it is the element
+ * type of `TickFrameV1.emittedEvents`, which IS live: ak-impl.mjs reads it when narrating a
+ * run. Consumers use `kind`, `actorId`, `targetActorId`, `targetId` and `data` — never a
+ * schema envelope — so the envelope was removed rather than versioned.
+ */
 export interface EventV1 {
-  schema: typeof EVENT_SCHEMA;
-  schemaVersion: 1;
-
   tick: number;
 
   /** Stable event kind. */
@@ -1726,10 +1967,14 @@ export interface EffectV1 {
  * - Breaking changes require a schemaVersion bump.
  * - Do not embed internal memory layouts.
  */
+/**
+ * NOT a standalone artifact (PA.4, 2026-07-28). `agent-kernel/Snapshot` was retired — it had
+ * no producer and no consumer. This shape survives only as the type of the optional
+ * `TickFrameV1.emittedSnapshot` field, which no producer populates today. `BudgetLedgerViewV1`
+ * below is retained for the same reason and is unrelated to the deleted BudgetLedgerArtifact
+ * (P3.3) despite the similar name.
+ */
 export interface SnapshotV1 {
-  schema: typeof SNAPSHOT_SCHEMA;
-  schemaVersion: 1;
-
   tick: number;
 
   /** Reference to the config this snapshot belongs to. */
@@ -1740,23 +1985,6 @@ export interface SnapshotV1 {
 
   /** Optional budget ledger view (caps/spend/available) for inspection. */
   budgetLedger?: BudgetLedgerViewV1;
-}
-
-/**
- * Debug-only full state dump. Not stable and not guaranteed for determinism or replay.
- * Use for troubleshooting only; do not depend on this in UI or runtime logic.
- */
-export interface DebugDumpV1 {
-  schema: typeof DEBUG_DUMP_SCHEMA;
-  schemaVersion: 1;
-
-  tick: number;
-
-  /** Full internal state; format is intentionally opaque and unstable. */
-  state: Record<string, unknown>;
-
-  /** Explicit warning to prevent misuse. */
-  warning: "debug_only_not_for_replay";
 }
 
 /**
@@ -1810,14 +2038,12 @@ export interface TickFrameV1 {
 }
 
 export type Action = ActionV1;
-export type Observation = ObservationV1;
 export type Event = EventV1;
 export type BudgetEventData = BudgetEventDataV1;
 export type BudgetLedgerView = BudgetLedgerViewV1;
 export type Effect = EffectV1;
 export type EffectFulfillmentRecord = EffectFulfillmentRecordV1;
 export type Snapshot = SnapshotV1;
-export type DebugDump = DebugDumpV1;
 export type TickFrame = TickFrameV1;
 
 // -------------------------
@@ -1829,8 +2055,20 @@ export const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
 export const NARRATIVE_ARTIFACT_SCHEMA = "agent-kernel/NarrativeArtifact";
 
 /**
- * Canonical telemetry record emitted by Annotator. These can be streamed or stored.
+ * Canonical telemetry record. These can be streamed or stored.
  * Telemetry must never affect simulation outcomes.
+ *
+ * PRODUCER DEPENDS ON PLANE (corrected 2026-07-28, P3.4/D2a — the previous blanket claim
+ * "emitted by Annotator" was inaccurate for build scope and sent P3.2 down a wrong premise):
+ * - TICK/RUN scope (`run`, `replay`) — emitted by the **Annotator**, which subscribes to the
+ *   EMIT and SUMMARIZE tick phases. This is the persona-owned case.
+ * - BUILD scope (`build`, `llm-plan`) — produced by GLUE (`build/telemetry.js`,
+ *   `buildBuildTelemetryRecord`), stamped with the caller's `producedBy` (e.g. "cli-build").
+ *   Builds run no tick at all, so the Annotator structurally cannot participate; giving build
+ *   telemetry a persona producer would require inventing a fake tick round for authoring builds.
+ *   That was considered and REJECTED (maintainer, 2026-07-26/28).
+ * Do not "fix" a build-scope record to claim Annotator provenance — check which plane it came
+ * from first.
  */
 export interface TelemetryRecordV1 {
   schema: typeof TELEMETRY_RECORD_SCHEMA;
@@ -2102,12 +2340,34 @@ export interface ResourceArtifactV2 {
 export type ResourcePermanenceMode = "consumable" | "level" | "permanent";
 
 /** V3: replaces `permanent: boolean` with explicit three-way permanenceMode. */
+/**
+ * The affinity a resource grants to whichever actor passes over it.
+ *
+ * `manaRegen` is the only thing that distinguishes a permanent grant from a
+ * temporary one — regen refills the pool, so the affinity never expires. There is
+ * deliberately no tier or permanence flag here: `manaRegen > 0` is the single
+ * source of truth. Note this is orthogonal to `permanenceMode`, which governs the
+ * VITAL payload (current vs max).
+ */
+export interface ResourceAffinityGrant {
+  kind: string;
+  expression: string;
+  stacks: number;
+  /** Mana pool the grant carries. Drained to 0 with no regen, the grant is lost. */
+  mana: number;
+  /** Refill per tick. > 0 makes the granted affinity permanent. */
+  manaRegen: number;
+}
+
 export interface ResourceArtifactV3 {
   schema: typeof RESOURCE_ARTIFACT_SCHEMA;
   schemaVersion: 3;
   meta: ArtifactMeta;
+  /** Vital payload. Empty for an affinity-only resource; always present. */
   vitals: ResourceVitalGrant[];
   permanenceMode: ResourcePermanenceMode;
+  /** Optional affinity payload — additive, so V3 readers are unaffected. */
+  affinity?: ResourceAffinityGrant;
 }
 
 export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2 | ResourceArtifactV3;
@@ -2268,7 +2528,8 @@ export interface SandboxArtifactIndexV1 {
  * Supported entity categories for the sandbox at launch.
  * Future entity kinds may be added as the sandbox surface evolves.
  */
-export type SandboxEntityCategory = "delver" | "warden" | "hazard" | "hazard" | "resource";
+// M9: `"hazard"` was listed twice — see the note on SpendProposalCategory above.
+export type SandboxEntityCategory = "delver" | "warden" | "hazard" | "resource";
 
 /**
  * Session envelope for a standalone Phaser sandbox.
@@ -2310,3 +2571,34 @@ export interface SandboxSessionArtifactV1 {
 }
 
 export type SandboxSessionArtifact = SandboxSessionArtifactV1;
+
+// -------------------------
+// M8 (2026-08-11) — the seven M7 enumerated and left outside this file
+// -------------------------
+//
+// M7 relocated the AdaptiveWorkflow cluster and recorded these seven in
+// `KNOWN_OUTSTANDING` rather than silencing them: the same charter violation
+// (boundary data carrying a schema declared somewhere other than artifacts.ts),
+// elsewhere in the tree. That list is now empty.
+//
+// Two of the seven had a constant, in two places at once: `GAMEPLAY_BUNDLE_SCHEMA`
+// was declared independently in `adapters-cli/src/cli/ak-impl.mjs` AND in
+// `ui-web/src/phaser-surface-ingestion.js` — a CLI writer and a browser reader of the
+// same bundle, each free to drift from the other. The remaining five had no constant
+// anywhere; the literal was retyped at each use site, four times for `ActorArtifact`
+// and `LayoutArtifact` inside a single Allocator module.
+//
+// Relocation only: every string value is unchanged, so no artifact identity moves and
+// no schemaVersion is affected. TypeScript interfaces are deliberately NOT part of M8,
+// for the same reason M7 excluded them — the charter rule is about where the constant
+// lives, and inventing seven interfaces would be new contract surface rather than a
+// move. `ActorArtifact` and `LayoutArtifact` are not even artifacts that get written:
+// they appear only as the type half of a `subjectRef`, naming what a spend line is
+// about.
+export const ACTION_SEQUENCE_SCHEMA = "agent-kernel/ActionSequence";
+export const ACTOR_ARTIFACT_SCHEMA = "agent-kernel/ActorArtifact";
+export const AFFINITY_RULES_ARTIFACT_SCHEMA = "agent-kernel/AffinityRulesArtifact";
+export const GAMEPLAY_BUNDLE_SCHEMA = "agent-kernel/GameplayBundle";
+export const LAYOUT_ARTIFACT_SCHEMA = "agent-kernel/LayoutArtifact";
+export const MOTIVATION_RULES_ARTIFACT_SCHEMA = "agent-kernel/MotivationRulesArtifact";
+export const POOL_CATALOG_SCHEMA = "agent-kernel/PoolCatalog";

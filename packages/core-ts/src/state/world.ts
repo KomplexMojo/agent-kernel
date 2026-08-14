@@ -7,6 +7,7 @@ import {
   getOppositeAffinityKind,
   isValidAffinityKind,
   isValidAffinityExpression,
+  MAX_AFFINITY_GRANTS_PER_ACTOR,
 } from "./affinity.ts";
 import { computeAffinityRadius, computeAffinityIntensity } from "./affinity-spatial.ts";
 import { VitalKind } from "./vitals.ts";
@@ -88,6 +89,16 @@ export function createWorldState() {
   let resourceVitalKindByCell = new Int32Array(0);
   let resourceDeltaByCell = new Int32Array(0);
   let resourceModeByCell = new Int32Array(0);
+  // Vital regen the resource hands over. Independent of resourceModeByCell, which
+  // governs the delta only. A granted rate is permanent — actors have no regen pool.
+  let resourceVitalRegenByCell = new Int32Array(0);
+  // Affinity payload — a resource may carry this instead of, or alongside, a vital
+  // payload. manaRegen > 0 is what makes the granted affinity permanent.
+  let resourceAffinityKindByCell = new Int32Array(0);
+  let resourceAffinityExpressionByCell = new Int32Array(0);
+  let resourceAffinityStacksByCell = new Int32Array(0);
+  let resourceManaByCell = new Int32Array(0);
+  let resourceManaRegenByCell = new Int32Array(0);
   let resourceCount = 0;
 
   // ── Actor placements ──
@@ -140,6 +151,14 @@ export function createWorldState() {
   let motivatedActorAffinityKindArr = new Int32Array(0);
   let motivatedActorAffinityExpressionArr = new Int32Array(0);
   let motivatedActorAffinityStacksArr = new Int32Array(0);
+  // Affinity grants — stride layout, MAX_AFFINITY_GRANTS_PER_ACTOR slots per actor.
+  // Slot is occupied iff grantKind > 0; occupied slots are kept contiguous from 0.
+  let motivatedActorGrantKindArr = new Int32Array(0);
+  let motivatedActorGrantExpressionArr = new Int32Array(0);
+  let motivatedActorGrantStacksArr = new Int32Array(0);
+  let motivatedActorGrantManaArr = new Int32Array(0);
+  let motivatedActorGrantManaMaxArr = new Int32Array(0);
+  let motivatedActorGrantManaRegenArr = new Int32Array(0);
   let activeMotivatedActorIndex = 0;
   let currentTick = 0;
 
@@ -151,6 +170,14 @@ export function createWorldState() {
 
   function vitalIndexFor(actorIndex: number, kind: number): number {
     return actorIndex * VITAL_COUNT + kind;
+  }
+
+  function grantIndexFor(actorIndex: number, slot: number): number {
+    return actorIndex * MAX_AFFINITY_GRANTS_PER_ACTOR + slot;
+  }
+
+  function isValidGrantSlot(slot: number): boolean {
+    return Number.isInteger(slot) && slot >= 0 && slot < MAX_AFFINITY_GRANTS_PER_ACTOR;
   }
 
   function withinBounds(x: number, y: number): boolean {
@@ -186,6 +213,12 @@ export function createWorldState() {
     resourceVitalKindByCell = new Int32Array(cellCount);
     resourceDeltaByCell = new Int32Array(cellCount);
     resourceModeByCell = new Int32Array(cellCount);
+    resourceVitalRegenByCell = new Int32Array(cellCount);
+    resourceAffinityKindByCell = new Int32Array(cellCount);
+    resourceAffinityExpressionByCell = new Int32Array(cellCount);
+    resourceAffinityStacksByCell = new Int32Array(cellCount);
+    resourceManaByCell = new Int32Array(cellCount);
+    resourceManaRegenByCell = new Int32Array(cellCount);
     placementActorId = new Int32Array(maxMotivatedActors);
     placementActorX = new Int32Array(maxMotivatedActors);
     placementActorY = new Int32Array(maxMotivatedActors);
@@ -202,6 +235,14 @@ export function createWorldState() {
     motivatedActorAffinityKindArr = new Int32Array(maxMotivatedActors);
     motivatedActorAffinityExpressionArr = new Int32Array(maxMotivatedActors);
     motivatedActorAffinityStacksArr = new Int32Array(maxMotivatedActors);
+
+    const grantSize = maxMotivatedActors * MAX_AFFINITY_GRANTS_PER_ACTOR;
+    motivatedActorGrantKindArr = new Int32Array(grantSize);
+    motivatedActorGrantExpressionArr = new Int32Array(grantSize);
+    motivatedActorGrantStacksArr = new Int32Array(grantSize);
+    motivatedActorGrantManaArr = new Int32Array(grantSize);
+    motivatedActorGrantManaMaxArr = new Int32Array(grantSize);
+    motivatedActorGrantManaRegenArr = new Int32Array(grantSize);
 
     const fieldSize = AFFINITY_KIND_COUNT * cellCount;
     affinityFieldIntensity = new Float64Array(fieldSize);
@@ -321,6 +362,12 @@ export function createWorldState() {
     resourceVitalKindByCell.fill(RESOURCE_VITAL_NONE);
     resourceDeltaByCell.fill(0);
     resourceModeByCell.fill(0);
+    resourceVitalRegenByCell.fill(0);
+    resourceAffinityKindByCell.fill(0);
+    resourceAffinityExpressionByCell.fill(0);
+    resourceAffinityStacksByCell.fill(0);
+    resourceManaByCell.fill(0);
+    resourceManaRegenByCell.fill(0);
   }
 
   // ── Motivated occupancy ──
@@ -422,6 +469,12 @@ export function createWorldState() {
     motivatedActorAffinityKindArr.fill(0);
     motivatedActorAffinityExpressionArr.fill(0);
     motivatedActorAffinityStacksArr.fill(0);
+    motivatedActorGrantKindArr.fill(0);
+    motivatedActorGrantExpressionArr.fill(0);
+    motivatedActorGrantStacksArr.fill(0);
+    motivatedActorGrantManaArr.fill(0);
+    motivatedActorGrantManaMaxArr.fill(0);
+    motivatedActorGrantManaRegenArr.fill(0);
   }
 
   function resetMotivatedActors(): void {
@@ -621,6 +674,62 @@ export function createWorldState() {
     resetActorPlacementsState();
   }
 
+  // ── Affinity grants ──
+
+  function grantSlotCount(actorIndex: number): number {
+    let count = 0;
+    for (let slot = 0; slot < MAX_AFFINITY_GRANTS_PER_ACTOR; slot++) {
+      if (motivatedActorGrantKindArr[grantIndexFor(actorIndex, slot)] > 0) count++;
+    }
+    return count;
+  }
+
+  /** A grant contributes stacks unless it is a pooled grant sitting at zero mana. */
+  function grantContributes(offset: number): boolean {
+    if (motivatedActorGrantKindArr[offset] <= 0) return false;
+    if (motivatedActorGrantManaMaxArr[offset] === 0) return true; // innate
+    return motivatedActorGrantManaArr[offset] > 0;
+  }
+
+  /** Removes a grant and shifts later grants down so occupied slots stay contiguous. */
+  function removeGrantAt(actorIndex: number, slot: number): void {
+    for (let s = slot; s < MAX_AFFINITY_GRANTS_PER_ACTOR - 1; s++) {
+      const dst = grantIndexFor(actorIndex, s);
+      const src = grantIndexFor(actorIndex, s + 1);
+      motivatedActorGrantKindArr[dst] = motivatedActorGrantKindArr[src];
+      motivatedActorGrantExpressionArr[dst] = motivatedActorGrantExpressionArr[src];
+      motivatedActorGrantStacksArr[dst] = motivatedActorGrantStacksArr[src];
+      motivatedActorGrantManaArr[dst] = motivatedActorGrantManaArr[src];
+      motivatedActorGrantManaMaxArr[dst] = motivatedActorGrantManaMaxArr[src];
+      motivatedActorGrantManaRegenArr[dst] = motivatedActorGrantManaRegenArr[src];
+    }
+    const last = grantIndexFor(actorIndex, MAX_AFFINITY_GRANTS_PER_ACTOR - 1);
+    motivatedActorGrantKindArr[last] = 0;
+    motivatedActorGrantExpressionArr[last] = 0;
+    motivatedActorGrantStacksArr[last] = 0;
+    motivatedActorGrantManaArr[last] = 0;
+    motivatedActorGrantManaMaxArr[last] = 0;
+    motivatedActorGrantManaRegenArr[last] = 0;
+  }
+
+  /** A pooled, non-regenerating grant drained to zero is spent and must be dropped. */
+  function isExhaustedGrant(offset: number): boolean {
+    return (
+      motivatedActorGrantKindArr[offset] > 0 &&
+      motivatedActorGrantManaMaxArr[offset] > 0 &&
+      motivatedActorGrantManaRegenArr[offset] === 0 &&
+      motivatedActorGrantManaArr[offset] <= 0
+    );
+  }
+
+  function dropExhaustedGrants(actorIndex: number): void {
+    for (let slot = MAX_AFFINITY_GRANTS_PER_ACTOR - 1; slot >= 0; slot--) {
+      if (isExhaustedGrant(grantIndexFor(actorIndex, slot))) {
+        removeGrantAt(actorIndex, slot);
+      }
+    }
+  }
+
   // ── Tick regen ──
 
   function clampVitalValue(current: number, max: number, regen: number): number {
@@ -643,10 +752,25 @@ export function createWorldState() {
     }
   }
 
+  function applyGrantRegenForActorIndex(index: number): void {
+    for (let slot = 0; slot < MAX_AFFINITY_GRANTS_PER_ACTOR; slot++) {
+      const offset = grantIndexFor(index, slot);
+      if (motivatedActorGrantKindArr[offset] <= 0) continue;
+      const regen = motivatedActorGrantManaRegenArr[offset];
+      if (regen <= 0) continue;
+      const max = motivatedActorGrantManaMaxArr[offset];
+      const current = motivatedActorGrantManaArr[offset];
+      if (current < max) {
+        motivatedActorGrantManaArr[offset] = Math.min(max, current + regen);
+      }
+    }
+  }
+
   function applyTickRegen(): void {
     if (motivatedActorCount > 0) {
       for (let i = 0; i < motivatedActorCount; i++) {
         applyRegenForActorIndex(i);
+        applyGrantRegenForActorIndex(i);
       }
     } else if (actorActive) {
       for (let kind = 0; kind < VITAL_COUNT; kind++) {
@@ -1325,9 +1449,129 @@ export function createWorldState() {
 
     // ── Resources ──
 
+    /** A resource exists if it carries a vital payload, an affinity payload, or both. */
     hasResourceAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
-      return resourceVitalKindByCell[indexFor(x, y)] !== RESOURCE_VITAL_NONE ? 1 : 0;
+      const idx = indexFor(x, y);
+      const hasVital = resourceVitalKindByCell[idx] !== RESOURCE_VITAL_NONE;
+      const hasAffinity = resourceAffinityKindByCell[idx] > 0;
+      return hasVital || hasAffinity ? 1 : 0;
+    },
+
+    /**
+     * Places a vital payload: mode 0 raises the current vital, 1/2 raise its max.
+     *
+     * `regen` is a third, independent grant handed over on top of the delta whatever
+     * the mode — it is not governed by it. A granted rate is permanent: actors hold
+     * vital regen as a plain rate with no pool and no expiry.
+     */
+    placeResourceAt(
+      x: number,
+      y: number,
+      vitalKind: number,
+      delta: number,
+      mode: number,
+      regen?: number,
+    ): number {
+      if (!withinBounds(x, y)) return 0;
+      if (!isValidVitalKind(vitalKind)) return 0;
+      if (!Number.isFinite(delta)) return 0;
+      if (!Number.isFinite(mode) || mode < 0 || mode > 2) return 0;
+      const resolvedRegen = regen === undefined ? 0 : regen;
+      if (!Number.isFinite(resolvedRegen) || resolvedRegen < 0) return 0;
+      const idx = indexFor(x, y);
+      const wasEmpty = this.hasResourceAt(x, y) === 0;
+      resourceVitalKindByCell[idx] = vitalKind;
+      resourceDeltaByCell[idx] = delta;
+      resourceModeByCell[idx] = mode;
+      resourceVitalRegenByCell[idx] = resolvedRegen;
+      if (wasEmpty) resourceCount++;
+      return 1;
+    },
+
+    getResourceVitalRegenAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return resourceVitalRegenByCell[indexFor(x, y)];
+    },
+
+    /**
+     * Places an affinity payload. mana and manaRegen ride through to the grant an
+     * actor receives on pass-over, so the resource's tier stays derived: mana-only
+     * grants temporary affinity, mana + regen grants permanent affinity.
+     */
+    placeAffinityResourceAt(
+      x: number,
+      y: number,
+      kind: number,
+      expression: number,
+      stacks: number,
+      mana: number,
+      manaRegen: number,
+    ): number {
+      if (!withinBounds(x, y)) return 0;
+      if (!isValidAffinityKind(kind)) return 0;
+      if (!isValidAffinityExpression(expression)) return 0;
+      if (!Number.isFinite(stacks) || stacks <= 0) return 0;
+      if (!Number.isFinite(mana) || mana < 0) return 0;
+      if (!Number.isFinite(manaRegen) || manaRegen < 0) return 0;
+      const idx = indexFor(x, y);
+      const wasEmpty = this.hasResourceAt(x, y) === 0;
+      resourceAffinityKindByCell[idx] = kind;
+      resourceAffinityExpressionByCell[idx] = expression;
+      resourceAffinityStacksByCell[idx] = stacks;
+      resourceManaByCell[idx] = mana;
+      resourceManaRegenByCell[idx] = manaRegen;
+      if (wasEmpty) resourceCount++;
+      return 1;
+    },
+
+    getResourceAffinityKindAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return resourceAffinityKindByCell[indexFor(x, y)];
+    },
+
+    getResourceAffinityExpressionAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return resourceAffinityExpressionByCell[indexFor(x, y)];
+    },
+
+    getResourceAffinityStacksAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return resourceAffinityStacksByCell[indexFor(x, y)];
+    },
+
+    getResourceManaAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return resourceManaByCell[indexFor(x, y)];
+    },
+
+    getResourceManaRegenAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return resourceManaRegenByCell[indexFor(x, y)];
+    },
+
+    /**
+     * Grants an affinity to the ACTIVE motivated actor — the same active-actor
+     * idiom setActorVital uses, which is how resource capture reaches an actor
+     * from the movement rules.
+     */
+    grantActiveActorAffinity(
+      kind: number,
+      expression: number,
+      stacks: number,
+      mana: number,
+      manaRegen: number,
+    ): number {
+      if (motivatedActorCount <= 0) return 0;
+      return this.grantMotivatedActorAffinity(
+        normalizedActiveMotivatedActorIndex(),
+        kind,
+        expression,
+        stacks,
+        mana,
+        mana,
+        manaRegen,
+      );
     },
 
     getResourceVitalKindAt(x: number, y: number): number {
@@ -1347,11 +1591,17 @@ export function createWorldState() {
 
     removeResourceAt(x: number, y: number): void {
       if (!withinBounds(x, y)) return;
+      if (this.hasResourceAt(x, y) === 0) return;
       const idx = indexFor(x, y);
-      if (resourceVitalKindByCell[idx] === RESOURCE_VITAL_NONE) return;
       resourceVitalKindByCell[idx] = RESOURCE_VITAL_NONE;
       resourceDeltaByCell[idx] = 0;
       resourceModeByCell[idx] = 0;
+      resourceVitalRegenByCell[idx] = 0;
+      resourceAffinityKindByCell[idx] = 0;
+      resourceAffinityExpressionByCell[idx] = 0;
+      resourceAffinityStacksByCell[idx] = 0;
+      resourceManaByCell[idx] = 0;
+      resourceManaRegenByCell[idx] = 0;
       if (resourceCount > 0) resourceCount--;
     },
 
@@ -1477,6 +1727,149 @@ export function createWorldState() {
 
     getMotivatedActorAffinityStacksByIndex(index: number): number {
       return isValidMotivatedActorIndex(index) ? motivatedActorAffinityStacksArr[index] : 0;
+    },
+
+    // ── Motivated actor affinity grants ──
+
+    /**
+     * Appends an affinity grant to an actor. manaMax defaults to mana (mirroring
+     * armStaticHazardAt), so a grant with no pool (mana 0) is innate.
+     *
+     * Appending never mutates an existing grant. Only when every slot is occupied
+     * does the grant merge into a slot with the same kind, expression, and
+     * regen-ness; with no such slot the grant is rejected.
+     */
+    grantMotivatedActorAffinity(
+      index: number,
+      kind: number,
+      expression: number,
+      stacks: number,
+      mana: number,
+      manaMax?: number,
+      manaRegen?: number,
+    ): number {
+      if (!isValidMotivatedActorIndex(index)) return 0;
+      if (!isValidAffinityKind(kind)) return 0;
+      if (!isValidAffinityExpression(expression)) return 0;
+      if (!Number.isFinite(stacks) || stacks <= 0) return 0;
+      if (!Number.isFinite(mana) || mana < 0) return 0;
+
+      const resolvedMax = manaMax === undefined ? mana : manaMax;
+      const resolvedRegen = manaRegen === undefined ? 0 : manaRegen;
+      if (!Number.isFinite(resolvedMax) || resolvedMax < 0) return 0;
+      if (!Number.isFinite(resolvedRegen) || resolvedRegen < 0) return 0;
+
+      for (let slot = 0; slot < MAX_AFFINITY_GRANTS_PER_ACTOR; slot++) {
+        const offset = grantIndexFor(index, slot);
+        if (motivatedActorGrantKindArr[offset] > 0) continue;
+        motivatedActorGrantKindArr[offset] = kind;
+        motivatedActorGrantExpressionArr[offset] = expression;
+        motivatedActorGrantStacksArr[offset] = stacks;
+        motivatedActorGrantManaArr[offset] = mana;
+        motivatedActorGrantManaMaxArr[offset] = resolvedMax;
+        motivatedActorGrantManaRegenArr[offset] = resolvedRegen;
+        return 1;
+      }
+
+      // Slots full — merge into a like-for-like grant rather than lose the pickup.
+      for (let slot = 0; slot < MAX_AFFINITY_GRANTS_PER_ACTOR; slot++) {
+        const offset = grantIndexFor(index, slot);
+        if (motivatedActorGrantKindArr[offset] !== kind) continue;
+        if (motivatedActorGrantExpressionArr[offset] !== expression) continue;
+        const existingRegenerates = motivatedActorGrantManaRegenArr[offset] > 0;
+        if (existingRegenerates !== resolvedRegen > 0) continue;
+        motivatedActorGrantStacksArr[offset] += stacks;
+        motivatedActorGrantManaArr[offset] += mana;
+        motivatedActorGrantManaMaxArr[offset] += resolvedMax;
+        return 1;
+      }
+      return 0;
+    },
+
+    /**
+     * Drains `amount` mana from an actor's grants of `kind`, returning how much was
+     * actually drained. Temporary grants drain before permanent ones so the
+     * perishable grant is spent first; innate grants have no pool and never drain.
+     * Grants emptied by the spend are removed whole.
+     */
+    spendMotivatedActorAffinityMana(
+      index: number,
+      kind: number,
+      amount: number,
+    ): number {
+      if (!isValidMotivatedActorIndex(index)) return 0;
+      if (!isValidAffinityKind(kind)) return 0;
+      if (!Number.isFinite(amount) || amount <= 0) return 0;
+
+      let remaining = amount;
+      // Pass 0: temporary grants (regen 0). Pass 1: permanent grants (regen > 0).
+      for (let pass = 0; pass < 2 && remaining > 0; pass++) {
+        for (let slot = 0; slot < MAX_AFFINITY_GRANTS_PER_ACTOR && remaining > 0; slot++) {
+          const offset = grantIndexFor(index, slot);
+          if (motivatedActorGrantKindArr[offset] !== kind) continue;
+          if (motivatedActorGrantManaMaxArr[offset] === 0) continue; // innate: no pool
+          const regenerates = motivatedActorGrantManaRegenArr[offset] > 0;
+          if (regenerates !== (pass === 1)) continue;
+          const available = motivatedActorGrantManaArr[offset];
+          if (available <= 0) continue;
+          const drained = Math.min(available, remaining);
+          motivatedActorGrantManaArr[offset] = available - drained;
+          remaining -= drained;
+        }
+      }
+      dropExhaustedGrants(index);
+      return amount - remaining;
+    },
+
+    /** Effective magnitude for a kind: the sum of stacks across contributing grants. */
+    getMotivatedActorAffinityStacksForKind(index: number, kind: number): number {
+      if (!isValidMotivatedActorIndex(index)) return 0;
+      if (!isValidAffinityKind(kind)) return 0;
+      let total = 0;
+      if (motivatedActorAffinityKindArr[index] === kind) {
+        total += motivatedActorAffinityStacksArr[index];
+      }
+      for (let slot = 0; slot < MAX_AFFINITY_GRANTS_PER_ACTOR; slot++) {
+        const offset = grantIndexFor(index, slot);
+        if (motivatedActorGrantKindArr[offset] !== kind) continue;
+        if (!grantContributes(offset)) continue;
+        total += motivatedActorGrantStacksArr[offset];
+      }
+      return total;
+    },
+
+    getMotivatedActorAffinityGrantCountByIndex(index: number): number {
+      return isValidMotivatedActorIndex(index) ? grantSlotCount(index) : 0;
+    },
+
+    getMotivatedActorAffinityGrantKindAt(index: number, slot: number): number {
+      if (!isValidMotivatedActorIndex(index) || !isValidGrantSlot(slot)) return 0;
+      return motivatedActorGrantKindArr[grantIndexFor(index, slot)];
+    },
+
+    getMotivatedActorAffinityGrantExpressionAt(index: number, slot: number): number {
+      if (!isValidMotivatedActorIndex(index) || !isValidGrantSlot(slot)) return 0;
+      return motivatedActorGrantExpressionArr[grantIndexFor(index, slot)];
+    },
+
+    getMotivatedActorAffinityGrantStacksAt(index: number, slot: number): number {
+      if (!isValidMotivatedActorIndex(index) || !isValidGrantSlot(slot)) return 0;
+      return motivatedActorGrantStacksArr[grantIndexFor(index, slot)];
+    },
+
+    getMotivatedActorAffinityGrantManaAt(index: number, slot: number): number {
+      if (!isValidMotivatedActorIndex(index) || !isValidGrantSlot(slot)) return 0;
+      return motivatedActorGrantManaArr[grantIndexFor(index, slot)];
+    },
+
+    getMotivatedActorAffinityGrantManaMaxAt(index: number, slot: number): number {
+      if (!isValidMotivatedActorIndex(index) || !isValidGrantSlot(slot)) return 0;
+      return motivatedActorGrantManaMaxArr[grantIndexFor(index, slot)];
+    },
+
+    getMotivatedActorAffinityGrantManaRegenAt(index: number, slot: number): number {
+      if (!isValidMotivatedActorIndex(index) || !isValidGrantSlot(slot)) return 0;
+      return motivatedActorGrantManaRegenArr[grantIndexFor(index, slot)];
     },
   };
 }

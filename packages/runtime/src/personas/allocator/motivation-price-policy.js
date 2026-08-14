@@ -11,23 +11,20 @@
  * Legacy cognition ordering preserved:
  *   reflexive (1) < goal_oriented (5) < strategy_focused (10)
  */
+import { MOTIVATION_FAMILIES } from "../../contracts/domain-constants.js";
+
+// Motivation families come from contracts/domain-constants.js. This module used to
+// hand-maintain its OWN copy — byte-identical, but a real duplicate rather than an
+// alias, so it could silently diverge — and its comment named
+// motivation-loadouts.js as the source of truth, which was itself only an alias of
+// contracts/game-elements.js. Found by the G2 single-origin guard the moment its
+// pattern was broadened (P5.1 D2), not by reading. Where a guard can enumerate,
+// prefer it to reading.
 
 /**
- * Motivation families and the kinds they contain.
- * The family grouping mirrors the canonical vocabulary, but the
- * source-of-truth for which kinds exist lives in motivation-loadouts.js.
- * This module only cares about pricing.
- */
-export const MOTIVATION_FAMILIES = Object.freeze({
-  mobility: Object.freeze(["random", "stationary", "exploring", "patrolling"]),
-  posture: Object.freeze(["attacking", "defending", "stealthy", "friendly"]),
-  cognition: Object.freeze(["reflexive", "goal_oriented", "strategy_focused"]),
-  control: Object.freeze(["user_controlled"]),
-});
-
-/**
- * Motivation tier classification (design §6.6).
- * Simple motivations cost 25 tokens; advanced motivations cost 50 tokens.
+ * Motivation tier classification (design §6.6). Classification only — tier
+ * PRICES were removed in P1.4: the price list is the single pricing source
+ * and a missing entry is a structured error, never a fallback.
  */
 export const MOTIVATION_TIER = Object.freeze({
   // Simple motivations (25 tokens)
@@ -45,36 +42,6 @@ export const MOTIVATION_TIER = Object.freeze({
   stealthy: "advanced",
   goal_oriented: "advanced",
   strategy_focused: "advanced",
-});
-
-/** Simple motivation flat cost (design §6.6). */
-export const SIMPLE_MOTIVATION_COST = 25;
-
-/** Advanced motivation flat cost (design §6.6). */
-export const ADVANCED_MOTIVATION_COST = 50;
-
-/**
- * Default per-kind cost in tokens (design §6.6).
- * Simple motivations = 25, advanced motivations = 50.
- */
-export const DEFAULT_MOTIVATION_COSTS = Object.freeze({
-  // Mobility — simple
-  random: SIMPLE_MOTIVATION_COST,
-  stationary: SIMPLE_MOTIVATION_COST,
-  exploring: SIMPLE_MOTIVATION_COST,
-  patrolling: SIMPLE_MOTIVATION_COST,
-
-  // Posture — simple except stealthy
-  attacking: SIMPLE_MOTIVATION_COST,
-  defending: SIMPLE_MOTIVATION_COST,
-  stealthy: ADVANCED_MOTIVATION_COST,
-  friendly: SIMPLE_MOTIVATION_COST,
-
-  // Cognition — reflexive is simple; goal_oriented and strategy_focused are advanced
-  reflexive: SIMPLE_MOTIVATION_COST,
-  goal_oriented: ADVANCED_MOTIVATION_COST,
-  strategy_focused: ADVANCED_MOTIVATION_COST,
-  user_controlled: 10,
 });
 
 /**
@@ -99,27 +66,29 @@ export const MOTIVATION_PRICE_IDS = Object.freeze({
 const MOTIVATION_PRICE_KIND = "motivation";
 
 /**
- * Resolve the unit cost for a single motivation kind.
+ * Resolve the unit cost for a single motivation kind from the price list.
  *
- * Resolution order:
- *   1. PriceList artifact (via priceMap)
- *   2. DEFAULT_MOTIVATION_COSTS fallback
+ * FAIL-LOUD (P1.4): there is no fallback. A missing or invalid entry returns
+ * null and the caller must surface it as an error.
  *
  * @param {string} kind - The motivation kind (e.g. "reflexive").
- * @param {Map<string,number>} [priceMap] - Optional map from "kind:id" → costTokens.
- * @returns {number} The resolved unit cost (>= 0).
+ * @param {Map<string,number>} [priceMap] - Map from "kind:id" → costTokens.
+ * @returns {number|null} The resolved unit cost (>= 0), or null when the
+ *   price list has no usable entry for this kind.
  */
 export function resolveMotivationUnitCost(kind, priceMap) {
   const priceId = MOTIVATION_PRICE_IDS[kind];
   if (priceMap && priceId) {
     const key = `${MOTIVATION_PRICE_KIND}:${priceId}`;
     const fromList = priceMap.get(key);
-    if (Number.isFinite(fromList) && fromList >= 0) {
-      return fromList;
+    // Accept both map shapes: a bare unitCost number (buildPriceMap) or a
+    // price item object (normalizePriceItems). Motivations are linear either way.
+    const unit = fromList && typeof fromList === "object" ? fromList.unitCost : fromList;
+    if (Number.isFinite(unit) && unit >= 0) {
+      return unit;
     }
   }
-  const fallback = DEFAULT_MOTIVATION_COSTS[kind];
-  return Number.isFinite(fallback) && fallback >= 0 ? fallback : 0;
+  return null;
 }
 
 /**
@@ -141,12 +110,16 @@ export function resolveMotivationFamily(kind) {
  * Each motivation contributes its unit cost × intensity.
  * Costs are additive across families.
  *
+ * FAIL-LOUD (P1.4): kinds without a price list entry contribute no cost and
+ * are reported in `errors` — never silently defaulted.
+ *
  * @param {Array<{kind:string, intensity?:number}>} motivations
  * @param {Map<string,number>} [priceMap]
- * @returns {{cost:number, lineItems:Array<{kind:string, motivationKind:string, id:string, unitCost:number, intensity:number, spendTokens:number}>}}
+ * @returns {{cost:number, lineItems:Array, errors?:string[]}}
  */
 export function calculateMotivationStackCost(motivations, priceMap) {
   const lineItems = [];
+  const errors = [];
   let totalCost = 0;
 
   if (!Array.isArray(motivations)) {
@@ -160,6 +133,10 @@ export function calculateMotivationStackCost(motivations, priceMap) {
       ? entry.intensity
       : 1;
     const unitCost = resolveMotivationUnitCost(kind, priceMap);
+    if (unitCost === null) {
+      errors.push(`motivation "${kind}" has no price list entry (expected ${MOTIVATION_PRICE_KIND}:${MOTIVATION_PRICE_IDS[kind] || "?"})`);
+      continue;
+    }
     const spend = unitCost * intensity;
     totalCost += spend;
 
@@ -178,109 +155,24 @@ export function calculateMotivationStackCost(motivations, priceMap) {
     }
   }
 
-  return { cost: totalCost, lineItems };
+  return { cost: totalCost, lineItems, ...(errors.length ? { errors } : {}) };
 }
 
-/**
- * Build PriceList items for all motivation kinds.
- * Useful for seeding a PriceList artifact with motivation entries.
- *
- * @returns {Array<{id:string, kind:string, costTokens:number, description:string}>}
- */
-export function buildMotivationPriceListItems() {
-  return Object.entries(MOTIVATION_PRICE_IDS).map(([kind, id]) => ({
-    id,
-    kind: MOTIVATION_PRICE_KIND,
-    costTokens: DEFAULT_MOTIVATION_COSTS[kind] || 0,
-    description: `Motivation: ${kind}`,
-  }));
-}
+// buildMotivationPriceListItems was deleted in P1.4: it seeded PriceList
+// artifacts from the fallback tier table (25/50/10), which contradicted the
+// canonical price list (2/3/…). The default price list in
+// default-price-list.js already carries every motivation entry.
 
-// ── core-delegated cost computation ──
+// MOTIVATION_KIND_TO_CODE moved to contracts/domain-constants.js (P5.1 D1).
+// The comment that used to sit here said it plainly — "this is codebook data
+// (live consumer: configurator/motivation-evaluation-core.js), not pricing" — so
+// it had no business in the Allocator, and the Configurator had to cross a
+// persona boundary to read it. It is now DERIVED from GAME_MOTIVATION_KINDS
+// order rather than hand-listed, which was verified to produce a byte-identical
+// map and retires 12 pairs that had to stay in sync with an array by convention.
 
-/**
- * Reverse map: motivation kind string → core-ts code (1-based).
- * Matches MOTIVATION_KIND_BY_CODE in core-ts.
- */
-export const MOTIVATION_KIND_TO_CODE = Object.freeze({
-  random: 1,
-  stationary: 2,
-  exploring: 3,
-  patrolling: 4,
-  attacking: 5,
-  defending: 6,
-  stealthy: 7,
-  friendly: 8,
-  reflexive: 9,
-  goal_oriented: 10,
-  strategy_focused: 11,
-  user_controlled: 12,
-});
-
-/**
- * Calculate motivation stack cost using the core cost accumulator.
- *
- * Delegates to the core codebook for unit cost resolution, ensuring the
- * runtime matches core-ts exactly. Returns the same shape as
- * calculateMotivationStackCost for drop-in substitution.
- *
- * Does NOT support PriceList overrides — when overrides are needed,
- * use the JS-based calculateMotivationStackCost instead.
- *
- * @param {object} core - Core object from core-ts.
- * @param {Array<{kind:string, intensity?:number}|string>} motivations
- * @returns {{cost:number, lineItems:Array}}
- */
-export function calculateMotivationStackCostFromCore(core, motivations) {
-  const lineItems = [];
-
-  if (!core || typeof core.resetMotivationCostAccumulator !== "function") {
-    return { cost: 0, lineItems };
-  }
-  if (!Array.isArray(motivations) || motivations.length === 0) {
-    return { cost: 0, lineItems };
-  }
-
-  core.resetMotivationCostAccumulator();
-
-  const entries = [];
-  for (const entry of motivations) {
-    const kind = typeof entry === "string" ? entry : entry?.kind;
-    if (typeof kind !== "string") continue;
-    const code = MOTIVATION_KIND_TO_CODE[kind];
-    if (!code) continue;
-    const intensity = typeof entry === "object" && Number.isInteger(entry.intensity) && entry.intensity > 0
-      ? entry.intensity
-      : 1;
-    core.addMotivationCostEntry(code, intensity);
-    entries.push({ kind, code, intensity });
-  }
-
-  const total = core.getMotivationCostTotal();
-  const lineCount = core.getMotivationCostLineCount();
-
-  for (let i = 0; i < lineCount; i += 1) {
-    const lineKindCode = core.getMotivationCostLineKind(i);
-    const quantity = core.getMotivationCostLineQuantity(i);
-    const unitCost = core.getMotivationCostLineUnitCost(i);
-    const spend = core.getMotivationCostLineSpend(i);
-
-    // Find the matching entry to get the string kind name
-    const matched = entries.find((e) => e.code === lineKindCode);
-    const kindName = matched?.kind || "unknown";
-    const priceId = MOTIVATION_PRICE_IDS[kindName];
-
-    lineItems.push({
-      category: "motivation",
-      id: priceId || `motivation_${kindName}`,
-      motivationKind: kindName,
-      family: resolveMotivationFamily(kindName),
-      label: `motivation:${kindName}`,
-      quantity,
-      unitCostTokens: unitCost,
-      spendTokens: spend,
-    });
-  }
-
-  return { cost: total, lineItems };
-}
+// calculateMotivationStackCostFromCore was deleted in P1.2 (Persona
+// Enforcement Program): it was the ONLY reachable path into core-ts's
+// motivation cost surface, and nothing outside its own module ever called it.
+// Core's cost accumulator went with it. Pricing resolves exclusively through
+// calculateMotivationStackCost above.

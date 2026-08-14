@@ -1,10 +1,13 @@
 import {
+  ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA,
+  ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA,
+  ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA,
+  ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA,
   ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA,
   ADAPTIVE_WORKFLOW_FAILURE_SCHEMA,
   ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA,
   ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA,
   ADAPTIVE_WORKFLOW_POLICY_SCHEMA,
-  ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA,
   ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA,
   ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA,
   ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA,
@@ -21,7 +24,6 @@ import type {
   AdaptiveWorkflowPatchRequestV1,
   AdaptiveWorkflowPhase,
   AdaptiveWorkflowPolicyV1,
-  AdaptiveWorkflowRunRecordV1,
   AdaptiveWorkflowRunStateV1,
   AdaptiveWorkflowRuntimeProfileV1,
   AdaptiveWorkflowValidationIssueV1,
@@ -34,12 +36,16 @@ import type {
 } from "../contracts/artifacts.ts";
 
 export {
+  // M7 — these three were declared HERE and again in the modules that use them; both copies
+  // are gone and the single origin is contracts/artifacts.ts.
+  ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA,
+  ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA,
+  ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA,
   ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA,
   ADAPTIVE_WORKFLOW_FAILURE_SCHEMA,
   ADAPTIVE_WORKFLOW_PATCH_RECEIPT_SCHEMA,
   ADAPTIVE_WORKFLOW_PATCH_REQUEST_SCHEMA,
   ADAPTIVE_WORKFLOW_POLICY_SCHEMA,
-  ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA,
   ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA,
   ADAPTIVE_WORKFLOW_RUNTIME_PROFILE_SCHEMA,
   ADAPTIVE_WORKFLOW_VALIDATION_RESULT_SCHEMA,
@@ -56,7 +62,6 @@ export type {
   AdaptiveWorkflowPatchRequestV1,
   AdaptiveWorkflowPhase,
   AdaptiveWorkflowPolicyV1,
-  AdaptiveWorkflowRunRecordV1,
   AdaptiveWorkflowRunStateV1,
   AdaptiveWorkflowRuntimeProfileV1,
   AdaptiveWorkflowValidationIssueV1,
@@ -72,9 +77,6 @@ export const ADAPTIVE_WORKFLOW_SCHEMA_VERSION = 1;
 export const ADAPTIVE_WORKFLOW_STATE_VERSION = "adaptive-workflow-state-v1";
 export const ADAPTIVE_WORKFLOW_POLICY_VERSION = "adaptive-workflow-policy-v1";
 export const ADAPTIVE_WORKFLOW_STRATEGY_POLICY_VERSION = "adaptive-workflow-strategy-policy-v1";
-export const ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA = "agent-kernel/SelectedStrategy";
-export const ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA = "agent-kernel/BenchmarkEvidence";
-export const ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA = "agent-kernel/ContextBudget";
 
 export const ADAPTIVE_WORKFLOW_PHASES: ReadonlyArray<AdaptiveWorkflowPhase> = Object.freeze([
   "intake",
@@ -121,7 +123,7 @@ export const ADAPTIVE_WORKFLOW_IMMUTABLE_PATCH_PATHS: ReadonlyArray<string> = Ob
 export type DeclaredModelCapabilityV1 = { schemaVersion: 1; providerId: string; modelId: string | null; source: "declared"; contextWindowTokens: number | null; maxOutputTokens: number | null; providerContextWindowTokens?: number; supports: { textGeneration: boolean; structuredOutput: boolean; streaming: boolean } };
 export type RuntimeProfileSnapshotV1 = AdaptiveWorkflowRuntimeProfileV1;
 export type BenchmarkEvidenceV1 = { schema: typeof ADAPTIVE_WORKFLOW_BENCHMARK_EVIDENCE_SCHEMA; schemaVersion: 1; evidenceId: string; strategyId: string; sampleSize: number; stability: number; confidence: number; capturedAt: string; source: string; averageScore?: number; metrics?: Record<string, unknown> };
-export type StrategyPolicyV1 = { schema: "agent-kernel/AdaptiveWorkflowStrategyPolicy"; schemaVersion: 1; policyVersion: string; strategies: Array<{ id: string; precedence: number; score: number; minContextTokens: number; requires: Record<string, boolean>; resourcePolicy: { maxConcurrency: number; candidateCount: number; routing: string }; benchmark?: Record<string, unknown> }>; fallbackOrder: string[]; thresholds: Record<string, number>; context: Record<string, number>; tieBreakers: string[] };
+export type StrategyPolicyV1 = { schema: typeof ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA; schemaVersion: 1; policyVersion: string; strategies: Array<{ id: string; precedence: number; score: number; minContextTokens: number; requires: Record<string, boolean>; resourcePolicy: { maxConcurrency: number; candidateCount: number; routing: string }; benchmark?: Record<string, unknown> }>; fallbackOrder: string[]; thresholds: Record<string, number>; context: Record<string, number>; tieBreakers: string[] };
 export type SelectedStrategyV1 = { schema: typeof ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA; schemaVersion: 1; strategyId: string; policyVersion: string; selectedAt: string | null; selectedStrategyRef: ArtifactRef; resourcePolicy: { maxConcurrency: number; candidateCount: number; routing: string }; candidates: unknown[]; provenance: Record<string, unknown> };
 export type ContextBudgetResultV1 = { schema: typeof ADAPTIVE_WORKFLOW_CONTEXT_BUDGET_SCHEMA; schemaVersion: 1; contextWindowTokens: number; outputReserveTokens: number; toolReserveTokens: number; inputBudgetTokens: number; limitingSources: string[]; provenance: Record<string, unknown> };
 
@@ -763,52 +765,3 @@ export function validateAdaptiveWorkflowRunState(value: unknown): AdaptiveWorkfl
   return result;
 }
 
-export function validateAdaptiveWorkflowRunRecord(value: unknown): AdaptiveWorkflowValidationReport {
-  const result = report();
-  validateEnvelope(value, "runRecord", ADAPTIVE_WORKFLOW_RUN_RECORD_SCHEMA, result);
-  if (!isObject(value)) {
-    return result;
-  }
-  if (!isNonEmptyString(value.runId)) {
-    addIssue(result, "runRecord.runId", "required_string", "expected non-empty string");
-  }
-  validateMetaRunId(value.meta, "runRecord.meta", value.runId, result);
-  validateArtifactRef(value.stateRef, "runRecord.stateRef", result);
-  validateArtifactRef(value.policyRef, "runRecord.policyRef", result);
-  if (value.runtimeProfileRef !== undefined) {
-    validateArtifactRef(value.runtimeProfileRef, "runRecord.runtimeProfileRef", result);
-  }
-  validatePhase(value.finalPhase, "runRecord.finalPhase", result);
-  validateExecutionEventArray(
-    value.events,
-    "runRecord.events",
-    result,
-    isNonEmptyString(value.runId) ? value.runId : undefined,
-  );
-  if (value.promptRefs !== undefined) {
-    validateArtifactOrContentRefArray(value.promptRefs, "runRecord.promptRefs", result);
-  }
-  if (value.responseRefs !== undefined) {
-    validateArtifactOrContentRefArray(value.responseRefs, "runRecord.responseRefs", result);
-  }
-  validateRefArray(value.validationResultRefs, "runRecord.validationResultRefs", result);
-  validateRefArray(value.failureRefs, "runRecord.failureRefs", result);
-  if (value.executionResultRefs !== undefined) {
-    validateRefArray(value.executionResultRefs, "runRecord.executionResultRefs", result);
-  }
-  if (value.tokenUsage !== undefined) {
-    if (!isObject(value.tokenUsage)) {
-      addIssue(result, "runRecord.tokenUsage", "expected_object", "expected object");
-    } else {
-      for (const key of ["inputTokens", "outputTokens", "toolTokens", "totalTokens"]) {
-        if (value.tokenUsage[key] !== undefined) {
-          validateNonNegativeIntegerField(value.tokenUsage[key], `runRecord.tokenUsage.${key}`, result);
-        }
-      }
-    }
-  }
-  if (value.latencyMs !== undefined) {
-    validateNonNegativeIntegerField(value.latencyMs, "runRecord.latencyMs", result);
-  }
-  return result;
-}

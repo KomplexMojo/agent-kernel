@@ -1,0 +1,26 @@
+{
+  "schema": "agent-kernel/PersonaInvocation",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "persona_cli_director",
+    "runId": "run_persona_cli",
+    "createdAt": "2026-07-29T00:00:00.000Z",
+    "producedBy": "persona-cli-fixture"
+  },
+  "persona": "director",
+  "clock": "2026-07-29T00:00:00.000Z",
+  "state": null,
+  "seed": null,
+  "invocation": {
+    "phase": "decide",
+    "event": "bootstrap",
+    "payload": {
+      "intentEnvelope": {
+        "schema": "agent-kernel/IntentEnvelope",
+        "schemaVersion": 1,
+        "goal": "persona-cli smoke"
+      }
+    },
+    "tick": 0
+  }
+}

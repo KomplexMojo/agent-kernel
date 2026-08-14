@@ -358,6 +358,7 @@ test("step forward at last frame and step back at first frame are no-ops", async
   assert.equal(renderer.calls.length, before);
 });
 
+// STAYS SKIPPED — fails today: reset clears the run rather than returning to frame 0 (checked 2026-08-01).
 test.skip("reset playback returns to frame 0 instead of clearing the run", async () => {
   const root = createFakeRoot();
   let controls = null;
@@ -372,7 +373,7 @@ test.skip("reset playback returns to frame 0 instead of clearing the run", async
   assert.equal(view.isRunActive(), true);
 });
 
-test.skip("browser resize during fullscreen reflows the renderer camera without throwing", async () => {
+test("browser resize during fullscreen reflows the renderer camera without throwing", async () => {
   const root = createFakeRoot(["gameplay-fullscreen"]);
   const renderer = createFakeRenderer();
   const view = wireGameplayView({ root, createRenderer: () => renderer });

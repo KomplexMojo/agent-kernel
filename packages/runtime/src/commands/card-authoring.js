@@ -1,3 +1,4 @@
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import {
   AFFINITY_EXPRESSION_SET,
   AFFINITY_KIND_SET,
@@ -9,34 +10,75 @@ import {
   VITAL_KEYS,
   normalizeVitals as normalizeDomainVitals,
 } from "../contracts/domain-constants.js";
-import { evaluateRoomCardLayoutSpend } from "../personas/allocator/layout-spend.js";
-import { normalizePriceItems } from "../personas/allocator/validate-spend.js";
+import { createAllocatorPersona } from "../personas/allocator/persona.js";
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { createDirectorPersona } from "../personas/director/persona.js";
+// CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
 import {
   calculateActorConfigurationUnitCost,
   buildDesignSpendLedger,
-} from "../personas/configurator/spend-proposal.js";
+} from "../personas/allocator/persona.js";
 import {
+  coerceMotivationKinds,
   getConflictingMotivationKinds,
-  normalizeMotivationKindList,
-} from "../personas/configurator/motivation-loadouts.js";
-import {
-  buildCardSetFromSummary,
-  extractSummaryFromCardSet,
-  normalizeCardEntry,
-} from "../personas/director/summary-selections.js";
-import {
-  normalizeCardType,
   normalizeCardCount,
+  normalizeCardType,
   normalizeRoomCardSize,
-  deriveLayoutFromRoomCards,
-  deriveLevelGenFromRoomCards,
-  buildRoomDesignFromRoomCards,
-} from "../personas/configurator/card-model.js";
+} from "../contracts/domain-constants.js";
 
-// Removed from domain-constants in cost refactor (046f786); kept local to preserve display scale.
-const ROOM_AFFINITY_STACK_COST_FACTOR = 0.1;
+// CR.9 M2: room tile counts are Configurator geometry, so the Allocator is handed
+// the Configurator's own derivation rather than importing card-model.js to compute a
+// second answer. Same wiring shape as CR.6's
+// `createActorPersona({ admitProposals: allocator.admitProposals })`, and it goes
+// through the persona's PUBLIC surface — the D6 internal import above is a separate
+// disposition that this does not touch.
+// CR.9 M3 adds the other two capabilities from the same persona: candidate authoring
+// (card assembly, structural validity, enumeration) and the motivation vocabulary.
+// All three go through the Configurator's PUBLIC surface — the D6 internal import
+// above is a separate disposition that this does not touch.
+const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+const configuratorGeometry = configurator.deriveRoomLayout;
+// D8.3 — the Director refuses to derive level geometry from room cards; it asks the
+// Configurator. Taken from the PUBLIC persona barrel, so no boundary is crossed.
+// CR.7 / WP-5 — card-set TRANSLATION is the Director's, taken from its PUBLIC barrel.
+// This file used to import `director/summary-selections.js` for three functions and was the
+// last of the eight orphaned allowlist rows. All three are ungated on the controller, because
+// they read and normalize a card set this surface already holds and stamp nothing — see the
+// note on `resolveSummary` in director-services.js for why that is not a gate bypass.
+//
+// `resolveSummary` fetches the Configurator's room geometry itself (D8.3), so the
+// `configuratorRoomGeometry` pair this file used to assemble for it is gone.
+const director = createDirectorPersona({ clock: UNUSED_CLOCK });
 
-const DEFAULT_LEVEL_BUDGET_TOKENS = 2500;
+// CR.7 / WP-5 — disposition D6 ("it needs a controller method") is answered. Two of these
+// three were ALREADY published, as `deriveRoomLayout` and `buildRoomDesign`; only
+// `deriveLevelGenFromRoomCards` had no public name, so this row cost one publication rather
+// than three. Level geometry from room cards stays Configurator law either way.
+const deriveLayoutFromRoomCards = configurator.deriveRoomLayout;
+const buildRoomDesignFromRoomCards = configurator.buildRoomDesign;
+const deriveLevelGenFromRoomCards = configurator.deriveLevelGenFromRoomCards;
+const directorResolveSummary = director.resolveSummary;
+const normalizeCardEntry = director.normalizeCard;
+const buildCardSetFromSummary = director.cardSetFromSummary;
+const configuratorAuthoring = configurator.authorCandidates;
+const configuratorMotivations = configurator.normalizeMotivations;
+const allocatorFor = (priceList) => createAllocatorPersona({
+  priceList,
+  clock: UNUSED_CLOCK,
+  deriveRoomLayout: configuratorGeometry,
+  authorCandidates: configuratorAuthoring,
+  normalizeMotivations: configuratorMotivations,
+});
+
+// CR.1 — the level-authoring economy is the ALLOCATOR's, not glue's. These were
+// numeric literals declared here, feeding calculateCardValue, card receipts, UI
+// guidance and auto-generation: pricing policy with a second origin. They are now
+// read from the Allocator's public surface. DEFAULT_LEVEL_BUDGET_TOKENS is gone as a
+// separate name — it was 2500 alongside the Allocator's REFERENCE_BUDGET_TOKENS =
+// 2500, the same reference budget declared twice.
+const LEVEL_ECONOMY = allocatorFor(null).pricing.levelAuthoring();
+const ROOM_AFFINITY_STACK_COST_FACTOR = LEVEL_ECONOMY.roomAffinityStackCostFactor;
+const DEFAULT_LEVEL_BUDGET_TOKENS = LEVEL_ECONOMY.referenceBudgetTokens;
 
 const CARD_TYPE_ORDER = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
 
@@ -56,19 +98,13 @@ const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden", "hazard",
 
 const RESOURCE_VITAL_KEYS = Object.freeze(["health", "mana", "stamina"]);
 
-const RESOURCE_VITAL_COST_PER_DELTA = 1;
+const RESOURCE_VITAL_COST_PER_DELTA = LEVEL_ECONOMY.resourceVitalCostPerDelta;
 
-const RESOURCE_VITAL_COST_PER_REGEN = 2;
+const RESOURCE_VITAL_COST_PER_REGEN = LEVEL_ECONOMY.resourceVitalCostPerRegen;
 
-const RESOURCE_PERMANENT_MULTIPLIER = 10;
+const RESOURCE_PERMANENT_MULTIPLIER = LEVEL_ECONOMY.resourcePermanentMultiplier;
 
-const DEFAULT_BUDGET_SPLIT = Object.freeze({
-  room: 44,
-  delver: 20,
-  warden: 16,
-  hazard: 12,
-  resource: 8,
-});
+const DEFAULT_BUDGET_SPLIT = Object.freeze({ ...LEVEL_ECONOMY.budgetSplitPercent });
 
 function formatDisplayLabel(value, fallback = "") {
   if (typeof value !== "string" || !value.trim()) return fallback;
@@ -130,17 +166,11 @@ function normalizeExpression(value, fallback = DEFAULT_AFFINITY_EXPRESSION) {
 }
 
 function normalizeMotivationList(values, fallback = "defending") {
-  return normalizeMotivationKindList(values, {
-    fallback,
-    fieldBase: "motivations",
-  }).value;
+  return coerceMotivationKinds(values, { fallback });
 }
 
 function normalizeMotivationListAllowEmpty(values) {
-  return normalizeMotivationKindList(values, {
-    allowEmpty: true,
-    fieldBase: "motivations",
-  }).value;
+  return coerceMotivationKinds(values, { allowEmpty: true });
 }
 
 function findMotivationConflict(currentMotivations = [], nextMotivation = "") {
@@ -1167,13 +1197,14 @@ function buildCardReceipt(card, { unitTokens, totalTokens, lineItems: inputLineI
 
 function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
   // Accept both canonical PriceListItemLegacyV1 (`unitCost`) and legacy PriceListItemTokenV1
-  // (`costTokens`) shapes via normalizePriceItems (BUG-2 fix).
+  // (`costTokens`) shapes via the Allocator pricing surface (BUG-2 fix).
+  const allocator = allocatorFor(priceList);
   const priceMap = new Map(
-    Array.from(normalizePriceItems(priceList))
+    Array.from(priceList ? allocator.pricing.priceMap() : new Map())
       .filter(([key]) => typeof key === "string" && key.includes(":") && !key.startsWith("legacy:"))
       .map(([key, entry]) => [key, entry.unitCost]),
   );
-  const spend = evaluateRoomCardLayoutSpend({
+  const spend = allocator.evaluateRoomCardLayoutSpend({
     cardSet: [{ ...card, count: 1, type: "room" }],
     budgetTokens: undefined,
     priceList,
@@ -1196,6 +1227,7 @@ function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
     pricing: {
       affinityCostScale: ROOM_AFFINITY_STACK_COST_FACTOR,
     },
+    normalizeMotivations: configuratorMotivations,
   });
   const affinityLineItems = Array.isArray(affinityCost?.detail?.lineItems)
     ? affinityCost.detail.lineItems.map((item, index) => ({
@@ -1214,9 +1246,10 @@ function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
 
 function calculateActorCardUnitValue(card, { priceList } = {}) {
   // Accept both canonical PriceListItemLegacyV1 (`unitCost`) and legacy PriceListItemTokenV1
-  // (`costTokens`) shapes via normalizePriceItems (BUG-2 fix).
+  // (`costTokens`) shapes via the Allocator pricing surface (BUG-2 fix).
+  const allocator = allocatorFor(priceList);
   const priceMap = new Map(
-    Array.from(normalizePriceItems(priceList))
+    Array.from(priceList ? allocator.pricing.priceMap() : new Map())
       .filter(([key]) => typeof key === "string" && key.includes(":") && !key.startsWith("legacy:"))
       .map(([key, entry]) => [key, entry.unitCost]),
   );
@@ -1226,6 +1259,7 @@ function calculateActorCardUnitValue(card, { priceList } = {}) {
       vitals: card?.vitals,
     },
     priceMap,
+    normalizeMotivations: configuratorMotivations,
   });
   const lineItems = Array.isArray(cost?.detail?.lineItems)
     ? cost.detail.lineItems.map((item, index) => ({
@@ -1313,7 +1347,8 @@ function calculateCardValue(card, { tileCosts, priceList } = {}) {
 
 function enrichCardsWithBudget(cards, { budgetTokens, tileCosts, priceList } = {}) {
   const normalizedCards = normalizeDesignCardSet(cards);
-  const roomBudget = evaluateRoomCardLayoutSpend({
+  const allocator = allocatorFor(priceList);
+  const roomBudget = allocator.evaluateRoomCardLayoutSpend({
     cardSet: normalizedCards,
     budgetTokens,
     priceList,
@@ -1366,7 +1401,7 @@ function buildSummaryFromCardSet({
       { id: "resources", weight: readBoundedPercent(budgetSplitPercent.resource, DEFAULT_BUDGET_SPLIT.resource) / 100 },
     ];
   }
-  const summary = extractSummaryFromCardSet(summaryInput);
+  const summary = directorResolveSummary(summaryInput);
   const cardsWithBudget = enrichCardsWithBudget(normalizedCards, {
     budgetTokens: summaryInput.budgetTokens,
     tileCosts,
@@ -1393,6 +1428,13 @@ function buildSummaryFromCardSet({
     },
     priceList,
     tileCosts,
+    deriveRoomLayout: configuratorGeometry,
+    normalizeMotivations: configuratorMotivations,
+    // D8 follow-up — the Allocator no longer imports the Director to read a card set.
+    // This glue already holds the Director's translation (it calls it above on the
+    // unenriched cards); the ledger re-reads the BUDGET-ENRICHED set, so the second
+    // call is load-bearing, not a duplicate of the first.
+    resolveSummary: (input) => directorResolveSummary(input),
   });
   return {
     summary: finalSummary,

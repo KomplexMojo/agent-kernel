@@ -49,6 +49,67 @@ They do **not**:
 
 ---
 
+## `ak-persona` — run one persona standalone
+
+A second entry point alongside `ak`. Artifact in, artifact out, one process:
+
+```bash
+ak-persona <persona> --in <spec.json> --out <result.json>
+ak-persona <persona> < spec.json > result.json      # stdin/stdout when --in/--out are absent
+```
+
+`<persona>` is one of `orchestrator`, `director`, `configurator`, `actor`,
+`allocator`, `annotator`, `moderator`.
+
+| Flag | Meaning |
+|---|---|
+| `--in <path>` | `agent-kernel/PersonaInvocation` artifact (default: stdin) |
+| `--out <path>` | `agent-kernel/PersonaResult` artifact (default: stdout) |
+| `--help` | Usage; exits 0 without reading input |
+
+**It is a first-class entry point, not a test harness** — it happens to be used
+heavily by the G1 CLI-differential tests, whose mechanism is to capture the inputs
+the production path handed a persona, run the persona standalone on those same
+inputs, and compare the artifacts. A mismatch means glue computed a different
+answer than the owning persona would have. Independently of that it buys
+per-persona golden fixtures, single-persona replay, and the ability to bisect a bad
+build by running one persona in isolation.
+
+The envelope pair is defined in `packages/runtime/src/contracts/artifacts.ts`
+(`PERSONA_INVOCATION_SCHEMA` / `PERSONA_RESULT_SCHEMA`) and maps 1:1 onto the
+persona `advance({phase, event, payload, tick})` signature, so no persona code
+changed to add this.
+
+```jsonc
+{ "schema": "agent-kernel/PersonaInvocation", "schemaVersion": 1,
+  "meta": { "id": "…", "runId": "…", "createdAt": "…", "producedBy": "…" },
+  "persona": "allocator",
+  "clock": "2026-07-29T00:00:00.000Z",   // REQUIRED — never defaulted
+  "state": null,                          // null is the only supported value today
+  "seed": null,                           // actor only
+  "priceList": null,                      // allocator only
+  "invocation": { "phase": "observe", "event": "budget", "payload": {}, "tick": 0 } }
+```
+
+Two rules the CLI enforces, both to stop silent degradation:
+
+- **`clock` is required and never defaulted.** 28 persona factories default to a real
+  wall clock, so a caller that forgets to inject one still "works" while determinism
+  quietly degrades (finding PX.3). Here it is mandatory.
+- **A non-null `state` is refused, not ignored.** No persona can yet be rebuilt from
+  its own `view()` — every factory takes a state *label*, not a context (finding
+  PX.4) — so resuming is impossible and pretending otherwise would be worse than
+  failing. `restore(view)` is planned; until then the CLI rejects the input.
+
+Invalid input exits non-zero with a structured JSON error on stderr listing **every**
+problem, not just the first. The result carries `subscribed`, which distinguishes
+"this persona does not subscribe to that phase, so no round ran" from "a round ran
+and changed nothing" — each persona subscribes to only some tick phases (the
+Director to `decide` alone). Working fixtures for all seven live in
+`tests/fixtures/persona-cli/`.
+
+---
+
 ## CLI Commands
 
 Default output layout: `artifacts/runs/<runId>/<command>`. Older layouts
@@ -138,9 +199,13 @@ layout-only → actors-only loop with remaining budget hints and stop reasons
 (`done`, `missing`, `no_viable_spend`). Each phase is captured as a distinct
 `CapturedInputArtifact` with `payload.phase` and deterministic phase-indexed ids.
 llm-plan requires a total budget (`--budget-tokens` or scenario `budgetTokens`) to be set.
-Layout tile costs default to 1 token each (llm-plan does not yet ingest price lists);
-when a price list is supplied to the budget loop, `tile_wall`, `tile_floor`, and
-`tile_hallway` items (kind `tile`) override the defaults.
+Layout tile costs come from the Allocator's price list — `base-costs.json` prices both
+`tile_floor` and `tile_hallway` at 1 token, and `tile` items in a supplied price list
+override those. There is no separate default table: the one that used to live in
+`contracts/domain-constants.js` disagreed with `base-costs.json` about hallways (1 vs 3)
+and was deleted in CR.9 M5. **Hallway tiles are charged.** They were counted and then
+zeroed before pricing, so a level's connectors were free; a medium room card's minimum
+spend is now 64 tokens (48 room floor + 16 connector) rather than 48.
 Budget pools can be customized with `--budget-pool id=weight` (repeatable) and
 `--budget-reserve N` to reserve tokens before pooling. Defaults are
 player=0.2, layout=0.4, wardens=0.4, resource=0.0.
@@ -248,8 +313,53 @@ Inputs/outputs:
   rejected instead of leaving declared rooms uncarved.
 - `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
   Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
-- `--resource` format: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>]`, or legacy `tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]`
-  Produces a `ResourceArtifact` written to `resource-artifact-<n>.json` in the output directory.
+- `--resource` format: a resource carries a **vital payload**, an **affinity payload**, or both.
+  - Vital payload: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]`
+  - Affinity payload: `affinity=<fire|water|earth|wind|life|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]`
+  - Legacy: `tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]`
+
+  Produces a `ResourceArtifact` written to `resource-<n>.json` in the output directory.
+
+  Any actor — delver or warden — that passes over a resource consumes it automatically. There is
+  no claim step and no decline path: entering the tile is the whole trigger.
+
+  **Affinity payload.** The actor gains the affinity, and `manaRegen` alone decides for how long:
+  - `manaRegen=0` (or omitted) — **temporary**. The actor holds the affinity until that grant's
+    mana is spent, then loses it. Other grants of the same affinity are unaffected.
+  - `manaRegen>0` — **permanent**. Regen refills the pool, so the grant never empties and the
+    affinity never expires.
+
+  There is no tier or permanence flag on the affinity payload; `manaRegen > 0` is the single
+  source of truth. Grants stack additively: an actor at water+1 consuming a water+2 resource
+  reads as water+3, and drops back to water+1 when the temporary grant expires.
+
+  **Vital payload.** `permanenceMode` governs the `delta` only (`consumable` raises the actor's
+  current vital; `level`/`permanent` raise its max). `regen` is a third, independent grant handed
+  over on top, whatever the mode — `vital=health;delta=5;regen=2` means "+5 health now and +2
+  health per tick from now on". A granted vital regen is permanent, and `delta` may be omitted
+  when `regen` is given (a regen-only resource).
+
+  **Cost.** Resources are charged against the build budget by the price list, using `resource_*`
+  items that carry a free-floating premium (`round(1.5 × base)`) — a resource grants power to
+  whoever takes it, unlike a hazard, which only threatens and pays no premium. Because regen is
+  priced quadratically, permanence is expensive: a permanent water+2 resource costs 538 tokens
+  against a temporary one's 338. That gap is what limits how many permanent resources a level can
+  afford; there is deliberately no hard per-level cap.
+
+  ```bash
+  # Temporary water affinity — held until its 50 mana is spent
+  node packages/adapters-cli/src/cli/ak.mjs resource-plan \
+    --resource "affinity=water;expression=emit;stacks=2;mana=50" --budget-tokens 5000
+
+  # Permanent water affinity — regen refills the pool, so it never expires
+  node packages/adapters-cli/src/cli/ak.mjs resource-plan \
+    --resource "affinity=water;expression=emit;stacks=2;mana=50;manaRegen=5" --budget-tokens 5000
+
+  # Heal 5 now and regenerate 2/tick forever, plus a fire affinity, from one resource
+  node packages/adapters-cli/src/cli/ak.mjs resource-plan \
+    --resource "permanenceMode=consumable;vital=health;delta=5;regen=2;affinity=fire;expression=push;stacks=1;mana=20" \
+    --budget-tokens 5000
+  ```
 - `--delver` accepts `goals=max_mana[:<priority>],mana_regen[:<priority>]` to record qualitative
   vitals goals as optimization directions over the existing deterministic vitals and regen cost model.
 - Hard constraints are recorded separately from optimization goals in the embedded authoring request under `spec.json`.
@@ -635,7 +745,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - blockchain-load: `blockchain-load.json`
 - llm: `llm.json`
 - solve: `solver-request.json`, `solver-result.json`
-- run: `tick-frames.json`, `effects-log.json`, `runtime-decision-captures.json`, `run-summary.json`, `action-log.json`
+- run: `tick-frames.json`, `effects-log.json`, `runtime-decision-captures.json`, `run-summary.json`, `action-log.json`, and `deferred-coordination.json` **only when the run deferred something** (P5.5)
 - room-plan / hazard-plan / resource-plan / delver-plan / warden-plan: build handoff artifacts plus command-specific sidecars such as `hazard-<n>.json` and `resource-artifact-<n>.json`
 - configurator: `sim-config.json`, `initial-state.json` (plus `budget-receipt.json` when `--budget` + `--price-list` are provided)
 

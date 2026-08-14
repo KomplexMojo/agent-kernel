@@ -1,4 +1,4 @@
-import { normalizePoolCatalog } from "../configurator/pool-catalog.js";
+import { normalizePoolCatalog } from "../../contracts/pool-catalog.js";
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
 
 function snapSelection({ entries, motivation, affinity, tokenHint }) {

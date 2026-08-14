@@ -1,4 +1,9 @@
-config/llm-host.env
+# Operator config: real host addresses, ports, and firewall policy.
+# Never commit these — only the *.example templates are tracked.
+# The wildcard catches any future config/*.env before it can be added.
+config/*.env
+!config/*.env.example
+
 results/*
 !results/.gitkeep
 *.log

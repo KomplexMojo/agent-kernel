@@ -5,30 +5,41 @@ import {
   LLM_STOP_REASONS,
   deriveAllowedOptionsFromCatalog,
 } from "./prompt-contract.js";
-import { runLlmSession } from "./llm-session.js";
-import { mapSummaryToPool } from "../director/pool-mapper.js";
-import { deriveLevelGen } from "../director/buildspec-assembler.js";
-import { buildCardSetFromSummary } from "../director/summary-selections.js";
-import { buildBudgetAllocation } from "../director/budget-allocation.js";
-import { validateLayoutAndActors, validateLayoutCountsAndActors } from "../configurator/feasibility.js";
-import { normalizePoolCatalog } from "../configurator/pool-catalog.js";
-import {
-  evaluateLayoutSpend,
-  LAYOUT_TILE_FIELDS,
-  normalizeLayoutCounts,
-  resolveLayoutTileCosts,
-  sumLayoutTiles,
-} from "../allocator/layout-spend.js";
-import { evaluateSelectionSpend } from "../allocator/selection-spend.js";
+import { requireClock } from "../_shared/require-clock.js";
+import { normalizePoolCatalog } from "../../contracts/pool-catalog.js";
+// ✅ CR.4 M5b IS COMPLETE HERE: THIS FILE IMPORTS NO OTHER PERSONA'S INTERNALS.
+//
+// What left, and by which milestone:
+//   M5b.2b  `resolveLayoutTileCosts` · `buildBudgetAllocation` · `evaluateSelectionSpend`
+//   M5b.2c  the whole auto-fit search            → `allocator/layout-fit.js`
+//   M5b.2d  `evaluateLayoutSpend`                → the last of the Allocator's pricing
+//   M5b.2e  `buildCardSetFromSummary`            → `director.buildCardSet`
+//   M5b.2f  `validateFeasibility`, THRESHOLD AND ALL → `configurator/feasibility.js`
+//
+// Every one of them is now a REQUIRED capability with no default, all asked of the DIRECTOR
+// (Option 1, maintainer 2026-08-07). What remains imported here is the Orchestrator's own
+// prompt contract and SHARED VOCABULARY from `contracts/` — which is not a crossing.
+//
+// The lesson this file paid for four times over: a boundary crossing is not fixed by moving
+// the import. `evaluateLayoutSpend`'s allowlist row survived three separate fixes because
+// each was dispositioned "absorbed by finding X" while a different importer still stood
+// behind it, and M5b.2f's threshold would have stayed here had only its two call sites been
+// threaded. **Ask what DECIDES, not what imports.**
 import {
   DOMAIN_CONSTRAINTS,
   LLM_REPAIR_TEXT,
   buildLlmPhasePromptTemplate,
   buildLlmRepairPromptTemplate,
+  // D8-V: layout counting is vocabulary and now lives here, not in the Allocator.
+  normalizeLayoutCounts,
+  sumLayoutTiles,
 } from "../../contracts/domain-constants.js";
+import {
+  BUDGET_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
 const DEFAULT_MAX_ACTOR_ROUNDS = 2;
-const MAX_EXACT_LAYOUT_FEASIBILITY_TILES = 1_000_000;
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -205,8 +216,14 @@ function buildPhaseRepairPrompt({
     allowedPairsText: isLayoutPhase ? "" : allowedPairsText,
     phaseRequirement,
     extraLines: [
+      // CR.9 M5: was `layoutCosts?.floorTiles ?? 1`. The caller resolves these from the
+      // Allocator's PriceList before the loop starts, so the fallback could only ever fire
+      // by quoting the model a price nobody set — a second origin, in prompt text, where a
+      // wrong number becomes wrong content rather than a loud failure. The WORDING is
+      // unchanged (floor only): the response contract has no hallway field, so quoting its
+      // price would add noise to a benchmark-gated prompt for no decision the model makes.
       phase === "layout_only"
-        ? `Tile costs: floor ${layoutCosts?.floorTiles ?? 1} tokens each.`
+        ? `Tile costs: floor ${layoutCosts.floorTiles} tokens each.`
         : null,
       missingSelections ? `Unmatched picks: ${missingSelections}` : null,
       phase === "layout_only"
@@ -341,42 +358,6 @@ function snapActorsSummaryToCatalog({ summary, catalogEntries, remainingBudgetTo
   };
 }
 
-function validateFeasibility({ roomCount, actorCount, layout }) {
-  if (layout) {
-    const normalizationWarnings = [];
-    const normalizedLayout = normalizeLayoutCounts(layout, normalizationWarnings);
-    const hasInvalidCounts = normalizationWarnings.some((warning) => (
-      warning?.code === "invalid_layout" || warning?.code === "invalid_tile_count"
-    ));
-    const walkableTiles = sumLayoutTiles(normalizedLayout);
-    if (normalizedLayout && !hasInvalidCounts && walkableTiles > MAX_EXACT_LAYOUT_FEASIBILITY_TILES) {
-      const errors = [];
-      if (walkableTiles <= 0) {
-        errors.push({ field: "layout", code: "empty_layout" });
-      }
-      if (Number.isInteger(actorCount) && actorCount > 0) {
-        const floorTiles = normalizedLayout.floorTiles || 0;
-        if (floorTiles < actorCount) {
-          errors.push({
-            field: "actors",
-            code: "insufficient_floor_tiles",
-            detail: {
-              actorCount,
-              floorTiles,
-            },
-          });
-        }
-      }
-      return { ok: errors.length === 0, errors };
-    }
-    const result = validateLayoutCountsAndActors({ layout, actorCount });
-    return { ok: result.ok, errors: result.errors || [] };
-  }
-  const levelGen = deriveLevelGen({ roomCount });
-  const result = validateLayoutAndActors({ levelGen, actorCount });
-  return { ok: result.ok, errors: result.errors || [] };
-}
-
 function isAmbulatoryMotivation(motivation) {
   return typeof motivation === "string" && motivation.trim() !== "" && motivation !== "stationary";
 }
@@ -405,7 +386,15 @@ function validateActorMobilityVitals(selections = []) {
   };
 }
 
-function validateLayoutSummary({ summary, remainingBudgetTokens, priceList, layoutCosts }) {
+function validateLayoutSummary({
+  summary,
+  remainingBudgetTokens,
+  priceList,
+  layoutCosts,
+  // CR.4 M5b.2d: threaded, not imported. Pricing the LLM's proposed layout is the
+  // Allocator's answer; this function only decides what to do with it.
+  evaluateLayoutSpend,
+}) {
   const errors = [];
   const layout = normalizeLayoutCounts(summary?.layout);
   if (!layout) {
@@ -430,172 +419,6 @@ function validateLayoutSummary({ summary, remainingBudgetTokens, priceList, layo
     });
   }
   return { ok: errors.length === 0, errors, layout, spend };
-}
-
-function isWalkableField(field) {
-  return field === "floorTiles" || field === "hallwayTiles";
-}
-
-function resolveTileCost(costs, field) {
-  const value = costs && Number.isInteger(costs[field]) && costs[field] > 0 ? costs[field] : 1;
-  return value;
-}
-
-function pickCheapestField({ costs, fields, budgetTokens }) {
-  if (!Array.isArray(fields) || fields.length === 0) return null;
-  const affordable = Number.isInteger(budgetTokens)
-    ? fields.filter((field) => resolveTileCost(costs, field) <= budgetTokens)
-    : fields.slice();
-  const pool = affordable.length > 0 ? affordable : fields;
-  return pool.reduce((best, field) => {
-    if (!best) return field;
-    const currentCost = resolveTileCost(costs, field);
-    const bestCost = resolveTileCost(costs, best);
-    if (currentCost < bestCost) return field;
-    return best;
-  }, null);
-}
-
-function selectReductionField(layout, costs) {
-  const fieldsWithTiles = LAYOUT_TILE_FIELDS.filter((field) => Number.isInteger(layout?.[field]) && layout[field] > 0);
-  if (fieldsWithTiles.length === 0) return null;
-  const walkableTiles = (layout.floorTiles || 0) + (layout.hallwayTiles || 0);
-  const safeCandidates = fieldsWithTiles.filter((field) => {
-    if (!isWalkableField(field)) return true;
-    return walkableTiles > 1;
-  });
-  const pool = safeCandidates.length > 0 ? safeCandidates : fieldsWithTiles;
-  return pool.reduce((best, field) => {
-    if (!best) return field;
-    const currentCost = resolveTileCost(costs, field);
-    const bestCost = resolveTileCost(costs, best);
-    if (currentCost > bestCost) return field;
-    if (currentCost < bestCost) return best;
-    return layout[field] > layout[best] ? field : best;
-  }, null);
-}
-
-function fitLayoutToBudget({
-  layout,
-  remainingBudgetTokens,
-  priceList,
-  layoutCosts,
-} = {}) {
-  if (!Number.isInteger(remainingBudgetTokens) || remainingBudgetTokens < 0) {
-    return { ok: false };
-  }
-  const normalized = normalizeLayoutCounts(layout);
-  if (!normalized) {
-    return { ok: false };
-  }
-
-  let working = { ...normalized };
-  let spend = evaluateLayoutSpend({
-    layout: working,
-    budgetTokens: remainingBudgetTokens,
-    priceList,
-    tileCosts: layoutCosts,
-  });
-  if (!spend.overBudget && sumLayoutTiles(working) > 0) {
-    return { ok: true, layout: spend.layout || working, layoutSpend: spend, adjusted: false };
-  }
-
-  const costs = spend.tileCosts || layoutCosts || {};
-  const originalSpent = spend.spentTokens;
-  const scale = originalSpent > 0 ? remainingBudgetTokens / originalSpent : 0;
-  if (scale > 0 && scale < 1) {
-    LAYOUT_TILE_FIELDS.forEach((field) => {
-      const count = Number.isInteger(working[field]) ? working[field] : 0;
-      working[field] = Math.max(0, Math.floor(count * scale));
-    });
-  }
-
-  const cheapestWalkableField = pickCheapestField({
-    costs,
-    fields: ["floorTiles", "hallwayTiles"],
-    budgetTokens: remainingBudgetTokens,
-  });
-  const cheapestAnyField = pickCheapestField({
-    costs,
-    fields: LAYOUT_TILE_FIELDS,
-    budgetTokens: remainingBudgetTokens,
-  });
-  const ensureNonEmpty = () => {
-    if (sumLayoutTiles(working) > 0) return;
-    if (cheapestAnyField) {
-      working[cheapestAnyField] = (working[cheapestAnyField] || 0) + 1;
-    }
-  };
-
-  ensureNonEmpty();
-  spend = evaluateLayoutSpend({
-    layout: working,
-    budgetTokens: remainingBudgetTokens,
-    priceList,
-    tileCosts: layoutCosts,
-  });
-
-  let guard = 0;
-  const maxGuard = Math.max(100, sumLayoutTiles(working) * 2 + 10);
-  while (spend.overBudget && guard < maxGuard) {
-    const field = selectReductionField(working, costs);
-    if (!field) break;
-    working[field] -= 1;
-    if (working[field] < 0) working[field] = 0;
-    ensureNonEmpty();
-    spend = evaluateLayoutSpend({
-      layout: working,
-      budgetTokens: remainingBudgetTokens,
-      priceList,
-      tileCosts: layoutCosts,
-    });
-    guard += 1;
-  }
-
-  const walkableTiles = (working.floorTiles || 0) + (working.hallwayTiles || 0);
-  if (walkableTiles <= 0 && cheapestWalkableField) {
-    const walkableCost = resolveTileCost(costs, cheapestWalkableField);
-    while (spend.spentTokens + walkableCost > remainingBudgetTokens) {
-      const field = selectReductionField(working, costs);
-      if (!field) break;
-      working[field] -= 1;
-      if (working[field] < 0) working[field] = 0;
-      spend = evaluateLayoutSpend({
-        layout: working,
-        budgetTokens: remainingBudgetTokens,
-        priceList,
-        tileCosts: layoutCosts,
-      });
-    }
-    if (spend.spentTokens + walkableCost <= remainingBudgetTokens) {
-      working[cheapestWalkableField] = (working[cheapestWalkableField] || 0) + 1;
-      spend = evaluateLayoutSpend({
-        layout: working,
-        budgetTokens: remainingBudgetTokens,
-        priceList,
-        tileCosts: layoutCosts,
-      });
-    }
-  }
-
-  if (spend.overBudget || sumLayoutTiles(working) <= 0) {
-    return { ok: false };
-  }
-  return { ok: true, layout: spend.layout || working, layoutSpend: spend, adjusted: true };
-}
-
-function fitLayoutToPhaseConstraints({
-  layout,
-  remainingBudgetTokens,
-  priceList,
-  layoutCosts,
-} = {}) {
-  return fitLayoutToBudget({
-    layout,
-    remainingBudgetTokens,
-    priceList,
-    layoutCosts,
-  });
 }
 
 async function runPhase({
@@ -626,6 +449,17 @@ async function runPhase({
   nextCaptureMeta,
   extraValidator,
   options,
+  // CR.4 M5b: threaded from runLlmBudgetLoop. runPhase drives both sessions (primary and
+  // its own repair), so it is where the IO used to happen inside the persona.
+  runSession,
+  // CR.7 / WP-5: forwarded to both sessions runPhase drives. The session attaches a cardSet
+  // to its own phase summary, and that translation is the Director's.
+  buildCardSet,
+  // CR.4 M5b.2a′: mapping an LLM summary onto catalog pools is the DIRECTOR's decision.
+  // runPhase serves both phases, so all four mapping sites migrate together.
+  mapPool,
+  fitLayout,
+  evaluateLayoutSpend,
 } = {}) {
   const startedAt = typeof clock === "function" ? clock() : undefined;
   const startMs = startedAt ? Date.parse(startedAt) : NaN;
@@ -649,10 +483,13 @@ async function runPhase({
     motivations: promptMotivations,
   });
 
-  const session = await runLlmSession({
+  const session = await runSession({
     adapter,
     model,
     baseUrl,
+    // CR.7 / WP-5: the session builds a cardSet for its own phase summary and must not
+    // import the Director to do it either. The loop already holds the capability.
+    buildCardSet,
     prompt: basePrompt,
     goal,
     notes,
@@ -705,12 +542,13 @@ async function runPhase({
       remainingBudgetTokens,
       priceList,
       layoutCosts,
+      evaluateLayoutSpend,
     });
     layoutPlan = layoutValidation.layout;
     layoutSpend = layoutValidation.spend;
     validation = { ok: layoutValidation.ok, errors: layoutValidation.errors || [], missingSelections: [] };
     if (!validation.ok && !strict) {
-      const fitted = fitLayoutToBudget({
+      const fitted = fitLayout({
         layout: layoutPlan,
         remainingBudgetTokens,
         priceList,
@@ -726,7 +564,7 @@ async function runPhase({
       }
     }
   } else {
-    const mapped = mapSummaryToPool({ summary: phaseSummary, catalog });
+    const mapped = mapPool({ summary: phaseSummary, catalog });
     selections = mapped.selections;
     validation = validatePhaseSelections(mapped.selections, phase);
     if (!strict && phase === "actors_only" && hasValidationCode(validation.errors, "missing_catalog_match")) {
@@ -739,7 +577,7 @@ async function runPhase({
           allowedOptions,
         });
         if (snapped.changed) {
-          const remapped = mapSummaryToPool({ summary: snapped.summary, catalog });
+          const remapped = mapPool({ summary: snapped.summary, catalog });
           const revalidated = validatePhaseSelections(remapped.selections, phase);
           if (countInstances(remapped.selections, "actor") > 0) {
             validationErrors = [...validationErrors, ...(validation.errors || [])];
@@ -789,7 +627,7 @@ async function runPhase({
   }
 
   if (phase === "layout_only" && !strict) {
-    const recovered = fitLayoutToPhaseConstraints({
+    const recovered = fitLayout({
       layout: layoutPlan || phaseSummary?.layout,
       remainingBudgetTokens,
       priceList,
@@ -805,6 +643,7 @@ async function runPhase({
         remainingBudgetTokens,
         priceList,
         layoutCosts,
+        evaluateLayoutSpend,
       });
       const recoveredValidation = {
         ok: recoveredValidationResult.ok,
@@ -866,10 +705,11 @@ async function runPhase({
     layoutCosts,
   });
 
-  const repairSession = await runLlmSession({
+  const repairSession = await runSession({
     adapter,
     model,
     baseUrl,
+    buildCardSet,
     prompt: repairPrompt,
     goal,
     notes,
@@ -922,12 +762,13 @@ async function runPhase({
       remainingBudgetTokens,
       priceList,
       layoutCosts,
+      evaluateLayoutSpend,
     });
     repairLayoutPlan = layoutValidation.layout;
     repairLayoutSpend = layoutValidation.spend;
     repairValidation = { ok: layoutValidation.ok, errors: layoutValidation.errors || [], missingSelections: [] };
     if (!repairValidation.ok && !strict) {
-      const fitted = fitLayoutToBudget({
+      const fitted = fitLayout({
         layout: repairLayoutPlan,
         remainingBudgetTokens,
         priceList,
@@ -943,7 +784,7 @@ async function runPhase({
       }
     }
   } else {
-    const repairMapped = mapSummaryToPool({ summary: repairSummary, catalog });
+    const repairMapped = mapPool({ summary: repairSummary, catalog });
     repairSelections = repairMapped.selections;
     repairValidation = validatePhaseSelections(repairMapped.selections, phase);
     if (!strict && phase === "actors_only" && hasValidationCode(repairValidation.errors, "missing_catalog_match")) {
@@ -956,7 +797,7 @@ async function runPhase({
           allowedOptions,
         });
         if (snapped.changed) {
-          const remapped = mapSummaryToPool({ summary: snapped.summary, catalog });
+          const remapped = mapPool({ summary: snapped.summary, catalog });
           const revalidated = validatePhaseSelections(remapped.selections, phase);
           if (countInstances(remapped.selections, "actor") > 0) {
             validationErrors = [...validationErrors, ...(repairValidation.errors || [])];
@@ -1132,11 +973,163 @@ export async function runLlmBudgetLoop({
   optionsByPhase,
   wardenAffinities,
   layoutPhaseContext = "",
+  // CR.9 M3: selection spend prices raw actor motivations, and motivation vocabulary
+  // is Configurator law. It is threaded in from the composition root rather than
+  // imported here — the Orchestrator has no business importing the Configurator, and
+  // the Allocator no longer owns a second copy of the rules.
+  normalizeMotivations,
+  // CR.4 M5b stage 1: the loop no longer performs LLM IO itself. It drives TWO sessions —
+  // a primary and its own repair session — and each used to await the session helper
+  // directly, which awaits `adapter.generate` inline inside the persona. The runner is
+  // threaded in from the composition root instead, exactly as `normalizeMotivations` is
+  // above: glue supplies `commands/llm-host.js`, which drives an Orchestrator round and
+  // dispatches its requests through ports/effects.js.
+  //
+  // REQUIRED, with no default. Defaulting to the old helper would leave the inline IO in
+  // place as a silent fallback — the defect class this branch has now found six times —
+  // and a caller that forgot to thread it would silently keep the old path. PX.3 made the
+  // same call for the clock, and requiring it exposed four callers that never passed one.
+  runSession,
+  // CR.4 M5b.2a′: mapping an LLM summary onto catalog pools is a DIRECTOR decision, and
+  // `director.mapPool` is FSM-gated behind an open build round. Until now the loop mapped
+  // summaries with no Director round existing at all — an artifact produced with no round,
+  // the same defect as CR.4's `producedBy` stamp and CR.3's discarded plan.
+  //
+  // REQUIRED, no default, for the same reason as `runSession`: falling back to the
+  // Director's internals would leave TWO live mappers and a caller that silently kept the
+  // ungated one.
+  mapPool,
+  // CR.4 M5b.2b: pricing is the ALLOCATOR's, and this loop was doing three pieces of it
+  // inline — resolving layout tile costs, splitting the budget, and judging selection
+  // spend — by importing that persona's internals. Under Option 1 (maintainer decision,
+  // 2026-08-07) the loop's sole counterpart is the DIRECTOR, which asks the Allocator
+  // through its public barrel and hands the answer back.
+  //
+  // REQUIRED, no defaults, for the reason `runSession` and `mapPool` are: a default would
+  // keep the inline pricing live as a silent fallback. This class of defect is especially
+  // invisible here — a wrongly-priced build still returns a well-formed number, so no
+  // schema, no guard and no golden would notice. Only the absence of a fallback does.
+  resolveTileCosts,
+  allocateBudget,
+  evaluateSelectionSpend,
+  // CR.4 M5b.2c: the auto-fit search — revise an over-budget layout until it fits. It lived
+  // here as ~150 lines until 2026-08-08, and it was never merely a caller of Allocator
+  // pricing: its reduction policy chose which tile to drop BY THAT TILE'S COST. Deciding
+  // what a token is best spent on is the Allocator's, so the whole search moved there
+  // (`allocator/layout-fit.js`) and the loop asks the Director for a fitted layout.
+  //
+  // REQUIRED, no default, like its four siblings. A fallback to a local copy would be worse
+  // here than anywhere else in this file: a drifted search still returns a well-formed
+  // layout that is still under budget — just a different one — so nothing downstream could
+  // tell. `tests/personas/allocator/allocator-layout-fit.test.js` pins 660 cases for exactly
+  // that reason.
+  fitLayout,
+  // CR.4 M5b.2d: the LAST piece of pricing this loop performed itself — what a proposed
+  // layout costs, and whether it fits what is left of the budget. `fitLayout` above revises
+  // a layout; this one only judges it, which is why they are separate answers rather than
+  // one. With this threaded, `allocator/layout-spend.js` is no longer imported here at all
+  // and the allowlist row dies rather than moves.
+  //
+  // REQUIRED, no default, like its five siblings — and here the silent-fallback risk is at
+  // its worst: a stale local copy would report a well-formed `spentTokens` on a layout the
+  // Allocator would have judged over budget, so the build would proceed and every artifact
+  // downstream would look correct.
+  evaluateLayoutSpend,
+  // CR.4 M5b.2e: `summary.cardSet` is the DIRECTOR's translation, not the loop's. The loop
+  // stamped it by importing `director/summary-selections.js` and calling
+  // `buildCardSetFromSummary` directly — a persona producing another persona's artifact.
+  //
+  // REQUIRED, no default. The failure mode of a fallback here is quieter than the pricing
+  // ones: an un-normalized cardSet is still a well-formed array, so it serializes, replays
+  // and renders — it just carries the wrong affinity defaults.
+  buildCardSet,
+  // CR.4 M5b.2f: "can this level host these actors?" is CONFIGURATOR law, and the loop
+  // answered it inline — including a 1,000,000-tile threshold above which it substituted
+  // its OWN approximation of that law. Threading the two `validateLayout*` calls while
+  // leaving the threshold behind would have cleared both allowlist rows and moved no
+  // decision. The whole function went to `configurator/feasibility.js`; the Director
+  // derives the levelGen the no-layout path needs and relays the verdict.
+  //
+  // REQUIRED, no default. A stale local copy would answer with a different threshold and
+  // still return `{ ok, errors }` in the same shape — an infeasible level accepted, or a
+  // feasible one rejected, with nothing downstream able to tell which law ran.
+  assessFeasibility,
 } = {}) {
   if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
     return { ok: false, errors: [{ field: "budgetTokens", code: "missing_budget_tokens" }], captures: [] };
   }
-  const clockFn = typeof clock === "function" ? clock : () => new Date().toISOString();
+  if (typeof mapPool !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "mapPool", code: "missing_pool_mapper" }],
+      captures: [],
+    };
+  }
+  if (typeof runSession !== "function") {
+    // Required, not defaulted: see the `runSession` note in the signature. Reported
+    // rather than thrown, because every caller reads `{ ok, errors }` and a throw would
+    // change how failures surface rather than where IO happens.
+    return {
+      ok: false,
+      errors: [{ field: "runSession", code: "missing_session_runner" }],
+      captures: [],
+    };
+  }
+  // CR.4 M5b.2b — the three Allocator answers. Refused before any LLM request is made, so
+  // a misconfigured caller cannot spend tokens on a build it could never price.
+  if (typeof resolveTileCosts !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "resolveTileCosts", code: "missing_tile_cost_resolver" }],
+      captures: [],
+    };
+  }
+  if (typeof allocateBudget !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "allocateBudget", code: "missing_budget_allocator" }],
+      captures: [],
+    };
+  }
+  if (typeof evaluateSelectionSpend !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "evaluateSelectionSpend", code: "missing_selection_spend_evaluator" }],
+      captures: [],
+    };
+  }
+  if (typeof fitLayout !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "fitLayout", code: "missing_layout_fitter" }],
+      captures: [],
+    };
+  }
+  if (typeof evaluateLayoutSpend !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "evaluateLayoutSpend", code: "missing_layout_spend_evaluator" }],
+      captures: [],
+    };
+  }
+  if (typeof buildCardSet !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "buildCardSet", code: "missing_card_set_builder" }],
+      captures: [],
+    };
+  }
+  if (typeof assessFeasibility !== "function") {
+    return {
+      ok: false,
+      errors: [{ field: "assessFeasibility", code: "missing_feasibility_assessor" }],
+      captures: [],
+    };
+  }
+  // PX.3 (M6): the ternary here was a wall-clock fallback in the persona that stamps
+  // every LLM capture and the budget allocation — the timestamps most likely to reach
+  // a persisted artifact and a replay. Required now, loud when absent.
+  const clockFn = requireClock(clock, "orchestrator");
   const resolvedRunId = isNonEmptyString(runId) ? runId : "run_budget_loop";
   let captureIndex = 0;
   const nextCaptureMeta = (phase) => {
@@ -1170,7 +1163,7 @@ export async function runLlmBudgetLoop({
   const allowedPairs = deriveAllowedPairs(catalog);
   const allowedPairsText = allowedPairs.length > 0 ? formatAllowedPairs(allowedPairs) : "";
   const cheapestCost = computeCheapestCost(entries);
-  const layoutCostResult = resolveLayoutTileCosts(priceList);
+  const layoutCostResult = resolveTileCosts({ priceList });
   const layoutCosts = layoutCostResult.costs;
 
   const allocationMeta = {
@@ -1180,12 +1173,12 @@ export async function runLlmBudgetLoop({
     producedBy,
   };
   const budgetRef = Number.isInteger(budgetTokens)
-    ? { id: `budget_${resolvedRunId}`, schema: "agent-kernel/BudgetArtifact", schemaVersion: 1 }
+    ? { id: `budget_${resolvedRunId}`, schema: BUDGET_ARTIFACT_SCHEMA, schemaVersion: 1 }
     : undefined;
   const priceListRef = priceList
     ? undefined
-    : { id: `price_list_${resolvedRunId}`, schema: "agent-kernel/PriceList", schemaVersion: 1 };
-  const allocationResult = buildBudgetAllocation({
+    : { id: `price_list_${resolvedRunId}`, schema: PRICE_LIST_SCHEMA, schemaVersion: 1 };
+  const allocationResult = allocateBudget({
     budgetTokens,
     priceList,
     meta: allocationMeta,
@@ -1212,6 +1205,11 @@ export async function runLlmBudgetLoop({
   let remainingBudgetTokens = layoutBudgetTokens;
 
   const layoutPhase = await runPhase({
+    runSession,
+    buildCardSet,
+    mapPool,
+    fitLayout,
+    evaluateLayoutSpend,
     adapter,
     model,
     baseUrl,
@@ -1238,7 +1236,7 @@ export async function runLlmBudgetLoop({
     options: resolvePhaseLlmOptions({ phase: "layout_only", optionsByPhase }),
     extraValidator: ({ summary, layout }) => {
       const layoutPlan = layout || normalizeLayoutCounts(summary?.layout);
-      return validateFeasibility({ layout: layoutPlan, actorCount: 1 });
+      return assessFeasibility({ layout: layoutPlan, actorCount: 1 });
     },
   });
 
@@ -1261,10 +1259,10 @@ export async function runLlmBudgetLoop({
   });
   const wardenBudgetWithRollover = wardensBudgetTokens + layoutSpendResult.remainingBudgetTokens;
   remainingBudgetTokens = wardenBudgetWithRollover;
-  const layoutWarnings = [
-    ...(layoutCostResult.warnings || []),
-    ...(layoutSpendResult.warnings || []),
-  ].filter(Boolean);
+  // `resolveLayoutTileCosts` no longer returns warnings: a missing tile price used to be a
+  // `missing_tile_cost` warning nothing read, on a spend that still looked well-formed.
+  // It now throws `allocator_tile_price_required` (CR.9 M5).
+  const layoutWarnings = [...(layoutSpendResult.warnings || [])].filter(Boolean);
   trace.push({
     phase: "layout_only",
     spentTokens: layoutSpendResult.spentTokens,
@@ -1302,6 +1300,11 @@ export async function runLlmBudgetLoop({
     const approvedActors = approvedSelections.filter((sel) => sel.kind === "actor");
 
     const actorsPhase = await runPhase({
+    runSession,
+    buildCardSet,
+    mapPool,
+    fitLayout,
+    evaluateLayoutSpend,
       adapter,
       model,
       baseUrl,
@@ -1331,7 +1334,7 @@ export async function runLlmBudgetLoop({
         const mobility = validateActorMobilityVitals(selections);
         const actorCount = countRequestedSelections(approvedActors, "actor")
           + countRequestedSelections(selections, "actor");
-        const feasibility = validateFeasibility({ layout: layoutPlan, actorCount });
+        const feasibility = assessFeasibility({ layout: layoutPlan, actorCount });
         return {
           ok: mobility.ok && feasibility.ok,
           errors: [...mobility.errors, ...(feasibility.errors || [])],
@@ -1349,6 +1352,7 @@ export async function runLlmBudgetLoop({
       selections: actorSelections,
       budgetTokens: remainingBudgetTokens,
       priceList,
+      normalizeMotivations,
     });
 
     remainingBudgetTokens = actorSpend.remainingBudgetTokens;
@@ -1402,7 +1406,7 @@ export async function runLlmBudgetLoop({
   if (stopReason) {
     summary.stop = stopReason;
   }
-  summary.cardSet = buildCardSetFromSummary(summary);
+  summary.cardSet = buildCardSet(summary);
 
   return {
     ok: true,

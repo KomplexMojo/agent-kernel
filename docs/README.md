@@ -49,7 +49,6 @@ Key facts:
 - Card-authoring semantics live in `packages/runtime/src/commands/card-authoring.js`; `packages/ui-web/src/card-builder-controller.js` is the headless controller used by DOM and Phaser renderers.
 - `packages/ui-web/src/views/card-builder-phaser-renderer.js` renders the Card Builder surface inside the Phaser frame.
 - `packages/ui-web/src/phaser-surface-ingestion.js` routes existing versioned artifacts to the correct UI surface.
-- `tests/playwright/phaser-frame.spec.mjs` is the Phaser frame browser smoke test.
 
 ## Common Commands
 

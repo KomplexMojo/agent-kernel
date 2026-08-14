@@ -15,13 +15,15 @@ import {
   getMotivationPatternCodeAt,
   getDefaultMotivationPattern,
   getMotivationTier,
-  getMotivationDefaultUnitCost,
   normalizeMotivationIntensity,
-  getMotivationProfileCost,
-  getMotivationDefaultDesignCost,
   getMotivationDefaultFlagMask,
   getMotivationFlagCount,
 } from "../../packages/core-ts/src/state/motivation.ts";
+
+// Core's motivation COST surface (unit/profile/design costs, the cost
+// accumulator) was deleted in P1.2 — pricing is Allocator policy, not core.
+// Its tests went with it; transferable coverage (validity guard, reset,
+// instance isolation) moved onto the evaluation accumulator below.
 
 describe("core-ts motivation codebook", () => {
   test("getMotivationKindCount returns 12", () => {
@@ -97,7 +99,7 @@ describe("core-ts motivation codebook", () => {
     expect(getDefaultMotivationPattern(MotivationKind.Random)).toBe(0);
   });
 
-  test("tier and default costs", () => {
+  test("tier classification", () => {
     expect(getMotivationTier(MotivationKind.Random)).toBe(
       MotivationTier.Simple,
     );
@@ -108,10 +110,6 @@ describe("core-ts motivation codebook", () => {
       MotivationTier.Control,
     );
     expect(getMotivationTier(0)).toBe(-1);
-
-    expect(getMotivationDefaultUnitCost(MotivationKind.Random)).toBe(25);
-    expect(getMotivationDefaultUnitCost(MotivationKind.Stealthy)).toBe(50);
-    expect(getMotivationDefaultUnitCost(MotivationKind.UserControlled)).toBe(10);
   });
 
   test("intensity normalization clamps", () => {
@@ -120,21 +118,7 @@ describe("core-ts motivation codebook", () => {
     expect(normalizeMotivationIntensity(15)).toBe(10);
   });
 
-  test("profile cost sums mobility + combat + cognition axes", () => {
-    // Random: exploring=1 + none=0 + reflexive=1 = 2
-    expect(getMotivationProfileCost(MotivationKind.Random)).toBe(2);
-    // Attacking: exploring=1 + attacking=5 + goal_oriented=5 = 11
-    expect(getMotivationProfileCost(MotivationKind.Attacking)).toBe(11);
-    // StrategyFocused: stationary=0 + none=0 + strategy_focused=20 = 20
-    expect(getMotivationProfileCost(MotivationKind.StrategyFocused)).toBe(20);
-  });
-
-  test("design costs and flag masks", () => {
-    expect(getMotivationDefaultDesignCost(MotivationKind.Reflexive)).toBe(1);
-    expect(getMotivationDefaultDesignCost(MotivationKind.GoalOriented)).toBe(5);
-    expect(getMotivationDefaultDesignCost(MotivationKind.StrategyFocused)).toBe(20);
-    expect(getMotivationDefaultDesignCost(MotivationKind.Random)).toBe(0);
-
+  test("flag masks", () => {
     expect(getMotivationDefaultFlagMask(MotivationKind.Attacking)).toBe(
       MotivationFlag.CanMove | MotivationFlag.AggroRangeBoost,
     );
@@ -148,40 +132,7 @@ describe("core-ts motivation codebook", () => {
   });
 });
 
-describe("core-ts motivation state (cost + evaluation accumulators)", () => {
-  test("cost accumulator stores and retrieves line items", () => {
-    const core = createCore();
-
-    call(core.resetMotivationCostAccumulator);
-    call(core.addMotivationCostEntry, MotivationKind.Random, 5);
-    call(core.addMotivationCostEntry, MotivationKind.Stealthy, 3);
-
-    expect(call(core.getMotivationCostLineCount)).toBe(2);
-    expect(call(core.getMotivationCostLineKind, 0)).toBe(MotivationKind.Random);
-    expect(call(core.getMotivationCostLineFamily, 0)).toBe(
-      MotivationFamily.Mobility,
-    );
-    expect(call(core.getMotivationCostLineQuantity, 0)).toBe(5);
-    expect(call(core.getMotivationCostLineUnitCost, 0)).toBe(25);
-    expect(call(core.getMotivationCostLineSpend, 0)).toBe(125);
-
-    expect(call(core.getMotivationCostLineKind, 1)).toBe(
-      MotivationKind.Stealthy,
-    );
-    expect(call(core.getMotivationCostLineSpend, 1)).toBe(150);
-
-    expect(call(core.getMotivationCostTotal)).toBe(275);
-  });
-
-  test("cost accumulator clamps intensity", () => {
-    const core = createCore();
-
-    call(core.resetMotivationCostAccumulator);
-    call(core.addMotivationCostEntry, MotivationKind.Random, 0);
-
-    expect(call(core.getMotivationCostLineQuantity, 0)).toBe(1);
-  });
-
+describe("core-ts motivation state (evaluation accumulator)", () => {
   test("evaluation accumulator computes profile axes and flags", () => {
     const core = createCore();
 
@@ -243,13 +194,15 @@ describe("core-ts motivation state (cost + evaluation accumulators)", () => {
     const a = createCore();
     const b = createCore();
 
-    call(a.resetMotivationCostAccumulator);
-    call(a.addMotivationCostEntry, MotivationKind.Random, 5);
+    call(a.resetMotivationEvaluation);
+    call(a.addMotivationEvaluationEntry, MotivationKind.Attacking, 5, 1, 0);
+    call(a.evaluateMotivations);
 
-    call(b.resetMotivationCostAccumulator);
+    call(b.resetMotivationEvaluation);
+    call(b.evaluateMotivations);
 
-    expect(call(a.getMotivationCostLineCount)).toBe(1);
-    expect(call(b.getMotivationCostLineCount)).toBe(0);
+    expect(call(a.getLastMotivationCombatTier)).toBe(1);
+    expect(call(b.getLastMotivationCombatTier)).toBe(0);
   });
 });
 
@@ -306,25 +259,24 @@ describe("core-ts motivation permutations", () => {
     expect(motivationKindsConflict(MotivationKind.UserControlled, MotivationKind.Random)).toBe(false);
   });
 
-  test("cost accumulator rejects invalid kinds (0 and 13)", () => {
+  test("evaluation accumulator rejects invalid kinds (0 and 13)", () => {
     const core = createCore();
-    call(core.resetMotivationCostAccumulator);
-    // Kind 0 is invalid
-    call(core.addMotivationCostEntry, 0, 5);
-    expect(call(core.getMotivationCostLineCount)).toBe(0);
+    call(core.resetMotivationEvaluation);
+    call(core.addMotivationEvaluationEntry, 0, 5, 0, 0);
+    call(core.addMotivationEvaluationEntry, 13, 5, 0, 0);
+    expect(call(core.evaluateMotivations)).toBe(0);
   });
 
-  test("cost accumulator reset clears all line items and total", () => {
+  test("evaluation reset clears tiers and flags", () => {
     const core = createCore();
-    call(core.resetMotivationCostAccumulator);
-    call(core.addMotivationCostEntry, MotivationKind.Random, 5);
-    call(core.addMotivationCostEntry, MotivationKind.Stealthy, 3);
-    expect(call(core.getMotivationCostLineCount)).toBe(2);
-    expect(call(core.getMotivationCostTotal)).toBeGreaterThan(0);
+    call(core.resetMotivationEvaluation);
+    call(core.addMotivationEvaluationEntry, MotivationKind.Stealthy, 3, 0, 0);
+    call(core.evaluateMotivations);
+    expect(call(core.getLastMotivationFlags)).not.toBe(0);
 
-    call(core.resetMotivationCostAccumulator);
-    expect(call(core.getMotivationCostLineCount)).toBe(0);
-    expect(call(core.getMotivationCostTotal)).toBe(0);
+    call(core.resetMotivationEvaluation);
+    expect(call(core.getLastMotivationFlags)).toBe(0);
+    expect(call(core.getLastMotivationCognitionTier)).toBe(0);
   });
 
   test("reasoning class derivation for all cognition tiers", () => {

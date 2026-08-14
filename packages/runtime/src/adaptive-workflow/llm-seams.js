@@ -1,5 +1,9 @@
-import { runLlmBudgetLoop } from "../personas/orchestrator/llm-budget-loop.js";
-import { runLlmSession } from "../personas/orchestrator/llm-session.js";
+import { runLlmBudgetLoop } from "../personas/orchestrator/persona.js";
+// CR.4 M5: the LLM session runs as an Orchestrator round; this host dispatches its
+// `llm_request` effects through ports/effects.js so the IO happens in the adapter.
+// Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
+import { runLlmSessionHosted } from "../commands/llm-host.js";
+import { beginDirectorBuildCapabilities } from "../commands/director-round.js";
 
 export async function runFlagshipLlmSeam({
   adapter,
@@ -12,7 +16,7 @@ export async function runFlagshipLlmSeam({
   format,
   stream,
 } = {}) {
-  const result = await runLlmSession({
+  const result = await runLlmSessionHosted({
     adapter,
     model,
     prompt,
@@ -24,6 +28,11 @@ export async function runFlagshipLlmSeam({
     stream,
     strict: false,
     producedBy: "adaptive-workflow",
+    // CR.7 / WP-5: the session attaches a cardSet to its summary, and that translation is the
+    // Director's. Bound to an open build round here for the same reason
+    // `runSectionalBudgetLlmSeam` below does it — this root had no Director otherwise.
+    buildCardSet: beginDirectorBuildCapabilities({ runId, createdAt: clock(), goal: prompt })
+      .buildCardSet,
   });
   return { ...result, captures: result.capture ? [result.capture] : [] };
 }
@@ -43,6 +52,13 @@ export async function runSectionalBudgetLlmSeam({
   optionsByPhase,
 } = {}) {
   const result = await runLlmBudgetLoop({
+        // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
+        runSession: runLlmSessionHosted,
+        // M5b.2a′: pool mapping is the Director's decision, and mapPool is FSM-gated
+        // behind an open build round. This root had no Director at all until now.
+        // M5b.2b: the same round also answers the three Allocator pricing questions the
+        // loop used to compute inline.
+        ...beginDirectorBuildCapabilities({ runId, createdAt: clock(), goal }),
     adapter,
     model,
     goal,

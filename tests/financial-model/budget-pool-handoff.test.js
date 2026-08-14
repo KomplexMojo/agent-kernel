@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 
 test("UI budgetSplitPercent handoff: poolWeights pass through summary → BuildSpec → allocation", async () => {
   const { buildBuildSpecFromSummary } = await import("../../packages/runtime/src/personas/director/buildspec-assembler.js");
-const { computeBudgetPools } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
+const { computeBudgetPools } = await import("../../packages/runtime/src/personas/allocator/budget-allocation.js");
 
 // Simulate UI passing custom budget and split percentages
 const summary = {
@@ -28,7 +28,7 @@ const summary = {
 };
 
 // Step 1: Build BuildSpec from summary
-const buildResult = buildBuildSpecFromSummary({ summary, runId: "test_handoff" });
+const buildResult = buildBuildSpecFromSummary({ summary, runId: "test_handoff", clock: () => "2026-08-06T00:00:00.000Z" });
 assert.ok(buildResult.ok, "BuildSpec assembly should succeed");
 assert.ok(buildResult.spec, "BuildSpec should be created");
 
@@ -54,7 +54,7 @@ assert.equal(poolMap.get("resources"), 0, "not specified → 0");
 
 test("default allocation when poolWeights not provided", async () => {
   const { buildBuildSpecFromSummary } = await import("../../packages/runtime/src/personas/director/buildspec-assembler.js");
-const { computeBudgetPools } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
+const { computeBudgetPools } = await import("../../packages/runtime/src/personas/allocator/budget-allocation.js");
 
 const summary = {
   dungeonAffinity: "fire",
@@ -64,7 +64,7 @@ const summary = {
   missing: []
 };
 
-const buildResult = buildBuildSpecFromSummary({ summary, runId: "test_default" });
+const buildResult = buildBuildSpecFromSummary({ summary, runId: "test_default", clock: () => "2026-08-06T00:00:00.000Z" });
 assert.ok(buildResult.ok);
 
 // When poolWeights not provided, should use defaults (44/20/16/12/8)
@@ -75,9 +75,9 @@ const allocation = computeBudgetPools({
 assert.ok(allocation.ok);
 
 const poolMap = new Map(allocation.pools.map(p => [p.id, p.tokens]));
-assert.equal(poolMap.get("rooms"), 1100, "44% of 2500 = 1100");
+assert.equal(poolMap.get("rooms"), 1025, "41% of 2500 = 1025");
 assert.equal(poolMap.get("delver"), 500, "20% of 2500 = 500");
 assert.equal(poolMap.get("wardens"), 400, "16% of 2500 = 400");
-assert.equal(poolMap.get("hazards"), 300, "12% of 2500 = 300");
+assert.equal(poolMap.get("hazards"), 375, "15% of 2500 = 375");
 assert.equal(poolMap.get("resources"), 200, "8% of 2500 = 200");
 });

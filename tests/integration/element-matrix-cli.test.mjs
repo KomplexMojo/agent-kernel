@@ -51,7 +51,7 @@ describe("affinity kinds (hazard, emit)", () => {
       const run = runCreate([
         "--room", "size=medium;count=1",
         "--hazard", `x=3;y=3;affinity=${affinity};expression=emit;stacks=2`,
-        "--budget-tokens", "300",
+        "--budget-tokens", "700",
       ]);
       expect(run.json.ok, JSON.stringify(run.json.errors || run.json.error)).toBe(true);
       const sim = run.read("sim-config.json");
@@ -93,7 +93,7 @@ describe("hazard expression policy (pending — records actual behavior)", () =>
       const run = runCreate([
         "--room", "size=medium;count=1",
         "--hazard", `x=3;y=3;affinity=dark;expression=${expression};stacks=1`,
-        "--budget-tokens", "300",
+        "--budget-tokens", "700",
       ]);
       // Deterministic outcome either way: ok true, or false with reasons.
       expect(typeof run.json.ok).toBe("boolean");
@@ -167,7 +167,7 @@ describe("vital keys (actor structure)", () => {
 // ---------------------------------------------------------------------------
 describe("room sizes scale grid dimensions", () => {
   const area = (size) => {
-    const run = runCreate(["--room", `size=${size};count=1`, "--budget-tokens", "300"]);
+    const run = runCreate(["--room", `size=${size};count=1`, "--budget-tokens", "700"]);
     expect(run.json.ok, JSON.stringify(run.json.errors || run.json.error)).toBe(true);
     const room = (run.read("sim-config.json")?.layout?.data?.rooms ?? [])[0];
     expect(room).toBeTruthy();
@@ -218,7 +218,7 @@ describe("negative cases fail deterministically", () => {
     const run = runCreate([
       "--room", "size=medium;count=1",
       "--hazard", "x=3;y=3;affinity=plasma;expression=emit;stacks=1",
-      "--budget-tokens", "300",
+      "--budget-tokens", "700",
     ]);
     expect(run.json.ok).toBe(false);
     expect(run.json.errors?.length || run.json.error).toBeTruthy();
@@ -232,7 +232,7 @@ describe("negative cases fail deterministically", () => {
     const run = runCreate([
       "--room", "size=small;count=1",
       "--hazard", "x=8;y=8;affinity=dark;expression=emit;stacks=1",
-      "--budget-tokens", "300",
+      "--budget-tokens", "700",
     ]);
     expect(run.json.ok).toBe(false);
     expect(String(run.json.error)).toContain("hazard_outside_room");

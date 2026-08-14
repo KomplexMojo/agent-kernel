@@ -22,7 +22,7 @@ function clockFactory() {
 }
 
 async function loadMachine() {
-  return import("../../packages/runtime/src/adaptive-workflow/state-machine.mts");
+  return import("../../packages/runtime/src/adaptive-workflow/state-machine.js");
 }
 
 test("adaptive workflow state machine follows deterministic happy path transitions", async () => {

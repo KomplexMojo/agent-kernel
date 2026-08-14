@@ -35,19 +35,10 @@ function currentDefaultIncluded(relativePath) {
   return relativePath.startsWith("tests/") && relativePath.endsWith(".test.js");
 }
 
-function detectBrowserDependency(relativePath, content) {
-  return relativePath.startsWith("tests/ui-web/")
-    || relativePath === "tests/scripts/serve-ui.test.js"
-    || relativePath.startsWith("tests/playwright/")
-    || content.includes("playwright-cli")
-    || content.includes("from \"@playwright/test\"")
-    || content.includes("from '@playwright/test'");
-}
-
-function detectRunner(relativePath, content) {
-  if (detectBrowserDependency(relativePath, content)) {
-    return "playwright";
-  }
+// Vitest is the only runner. The Playwright subsystem was removed once Phaser
+// became the sole UI implementation; the browser-facing coverage that survived is
+// fixture-backed and runs under Vitest (tests/ui-web/, tests/scripts/serve-ui.test.js).
+function detectRunner() {
   return "vitest";
 }
 
@@ -57,7 +48,6 @@ function detectRecipe(relativePath, content) {
   }
   if (
     relativePath.startsWith("tests/ui-web/")
-    || relativePath.startsWith("tests/playwright/")
     || relativePath.startsWith("tests/integration/ui-")
     || relativePath === "tests/ui-startup-readiness.test.js"
   ) {
@@ -118,16 +108,13 @@ export function collectTestInventory() {
     .map((absolutePath) => {
       const relativePath = normalizePath(absolutePath);
       const content = readFileSync(absolutePath, "utf8");
-      const browserDependent = detectBrowserDependency(relativePath, content);
-      const runner = detectRunner(relativePath, content);
       return {
         path: relativePath,
         suite: suiteFromPath(relativePath),
         extension: relativePath.split(".").pop() ?? "",
         moduleSystem: detectModuleSystem(relativePath, content),
         sizeBytes: statSync(absolutePath).size,
-        browserDependent,
-        runner,
+        runner: detectRunner(),
         recipe: detectRecipe(relativePath, content),
         currentDefaultIncluded: currentDefaultIncluded(relativePath),
       };
@@ -138,7 +125,7 @@ export function collectTestInventory() {
     total: files.length,
     currentDefaultIncluded: files.filter((entry) => entry.currentDefaultIncluded).length,
     currentDefaultMissed: files.filter((entry) => !entry.currentDefaultIncluded).length,
-    byRunner: Object.fromEntries(["vitest", "playwright"].map((runner) => [
+    byRunner: Object.fromEntries(["vitest"].map((runner) => [
       runner,
       files.filter((entry) => entry.runner === runner).length,
     ])),

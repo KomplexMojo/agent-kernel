@@ -11,6 +11,10 @@ import {
   getSandboxBridgeState,
   pushGameplayBundle,
 } from "../bridge-server.mjs";
+import {
+  RESOURCE_BUNDLE_SCHEMA as SCHEMA_RESOURCE_BUNDLE,
+  SIM_CONFIG_SCHEMA as SCHEMA_SIM_CONFIG,
+} from "../../../../runtime/src/contracts/artifacts.ts";
 
 const DEFAULT_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
 
@@ -104,8 +108,6 @@ export const sandboxUiTools = [
         };
       }
 
-      const SCHEMA_SIM_CONFIG = "agent-kernel/SimConfigArtifact";
-      const SCHEMA_RESOURCE_BUNDLE = "agent-kernel/ResourceBundleArtifact";
       const simConfigArtifact = Array.isArray(bundle.artifacts)
         ? bundle.artifacts.find((a) => a?.schema === SCHEMA_SIM_CONFIG)
         : null;

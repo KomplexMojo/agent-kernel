@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
+const { configuratorRoomGeometry } = require("../helpers/configurator-capabilities.js");
 
 const ROOT = resolve(__dirname, "../..");
 const specBasicPath = resolve(ROOT, "tests/fixtures/artifacts/build-spec-v1-basic.json");
@@ -157,7 +158,9 @@ test("orchestrateBuild places delvers at entry and wardens inside rooms", async 
 
   const buildResult = await orchestrateBuild({ spec: buildSpecResult.spec, producedBy: "runtime-test" });
   const actors = buildResult.initialState.actors;
-  const actorConfig = buildResult.spec.configurator.inputs.actors;
+  // PX.6: what the build RESOLVED is published as output; `inputs` is the causal record
+  // the Configurator locked and is no longer mutated by the build.
+  const actorConfig = buildResult.spec.configurator.resolved.actors;
   assert.equal(actors.length, 8);
 
   const data = buildResult.simConfig.layout.data;
@@ -272,6 +275,7 @@ test("orchestrateBuild translates cardSet delvers/wardens and applies strategic 
 
   const buildSpecResult = buildBuildSpecFromSummary({
     summary,
+    roomGeometry: await configuratorRoomGeometry(),
     runId: "run_cardset_translation_placement",
     createdAt: "2025-01-01T00:00:00Z",
     source: "runtime-test",

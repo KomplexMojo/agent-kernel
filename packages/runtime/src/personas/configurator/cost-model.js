@@ -1,82 +1,38 @@
+/**
+ * Affinity SHAPE and affinity RUNTIME MATH for the Configurator.
+ *
+ * ⚠️ **THIS MODULE NO LONGER PRICES ANYTHING — P1.4, 2026-08-12.** It used to carry a
+ * second set of cost constants that disagreed with the Allocator's price list on nearly
+ * every value: affinity base 30 vs 10, stacks `Σ(10 + 8·(n-1)²)` vs linear, vital points
+ * `2·H` vs 1 each, regen `12·R²` vs per-tick. Those constants, and the four
+ * `calculate*Cost` functions that used them, are gone.
+ *
+ * **They were DEAD when they were deleted, and that is the whole finding.** The census
+ * (repo-wide, `packages/` + `scripts/` + `tools/`) found their only consumer to be
+ * `configurator/actor-config-generation.js` — a module with zero production importers,
+ * reachable solely from its own test. The live actor pricing is the Allocator's
+ * `spend-proposal.js#calculateActorConfigurationUnitCost`, which reads the price list
+ * through `requireEntry` and pushes an error on a miss. For an unknown stretch this file's
+ * header, `allocator/README.md` and a "pinned divergence" test all described the divergence
+ * as charging real receipts; it had stopped.
+ *
+ * ⇒ **Pricing has ONE origin: `personas/allocator/`.** `tests/architecture/single-origin.js`
+ * now forbids a second declaration of vital / regen / affinity price constants outside it,
+ * so this cannot grow back quietly the way it grew in the first place.
+ *
+ * What legitimately lives here, and why it is not pricing:
+ *   - **Normalizers** (`normalizeVitals`, `normalizeRegen`, `normalizeAffinityList`) and
+ *     **prerequisites** (`validateAffinityPrereqs`) — configuration SHAPE, which is
+ *     Configurator law.
+ *   - **Runtime affinity math** (`computeExternalManaUse`, `computeInternalManaUpkeep`,
+ *     `computeExternalRange`, `computeInternalRadius`, `computeDrawNet`,
+ *     `computeEmitStrength`) — what an affinity DOES during a tick, in mana and tiles, with
+ *     its own literals. None of it is denominated in tokens, and none of it ever read the
+ *     deleted constants.
+ */
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
 
 const REGEN_KEYS = Object.freeze([...VITAL_KEYS]);
-
-/**
- * Per-vital max cost multipliers (design §7):
- *   health: 2H, mana: 2M, stamina: S, durability: 2D
- */
-const VITAL_MAX_COST_MULTIPLIER = Object.freeze({
-  health: 2,
-  mana: 2,
-  stamina: 1,
-  durability: 2,
-});
-
-/**
- * Per-vital regen cost coefficients (design §8, quadratic):
- *   health: 12·R², mana: 5·R², stamina: 4·R², durability: 10·R²
- */
-const REGEN_COST_COEFFICIENT = Object.freeze({
-  health: 12,
-  mana: 5,
-  stamina: 4,
-  durability: 10,
-});
-
-const COST_DEFAULTS = Object.freeze({
-  /** @deprecated Use VITAL_MAX_COST_MULTIPLIER per-vital instead. */
-  tokensPerVital: 1,
-  /** @deprecated Use REGEN_COST_COEFFICIENT per-vital instead. */
-  tokensPerRegen: 2,
-  affinityBaseCost: 30,
-  /**
-   * Affinity stack cost formula: 10 + 8·(n-1)² per stack n (design §6.2).
-   * affinityStackExponent is kept for legacy callers but the canonical
-   * formula is now computeStackCost().
-   */
-  affinityStackExponent: 2,
-  /** Build-time cost for external expressions (push/pull) (design §6.4). */
-  externalExpressionCost: 35,
-  /** Build-time cost for internal expressions (emit/draw) (design §6.4). */
-  internalExpressionCost: 25,
-  /** Flat cost for a simple motivation (design §6.6). */
-  simpleMotivationCost: 25,
-  /** Flat cost for an advanced motivation (design §6.6). */
-  advancedMotivationCost: 50,
-});
-
-const COST_FORMULAS = Object.freeze({
-  vitalCost: "vitalCost = 2·H + 2·M + S + 2·D",
-  regenCost: "regenCost = 12·Rh² + 5·Rm² + 4·Rs² + 10·Rd²",
-  affinityCost: "affinityCost = 30·A + Σ(10 + 8·(n-1)²) + 35·Ex + 25·Ei",
-  totalCost: "totalCost = vitalCost + regenCost + affinityCost + motivationCost",
-  notes: [
-    "Affinities require mana > 0 and manaRegen > 0.",
-    "Durability regen is supported (10·Rd²).",
-  ],
-});
-
-/**
- * Canonical affinity stack cost for stack number n (1-indexed).
- * Formula: 10 + 8·(n-1)²  (design §6.2)
- */
-export function computeStackCost(n) {
-  if (!Number.isInteger(n) || n < 1) return 0;
-  return 10 + 8 * Math.pow(n - 1, 2);
-}
-
-/**
- * Cumulative cost for stacks 1..totalStacks in one affinity.
- */
-export function computeCumulativeStackCost(totalStacks) {
-  if (!Number.isInteger(totalStacks) || totalStacks < 1) return 0;
-  let sum = 0;
-  for (let n = 1; n <= totalStacks; n++) {
-    sum += computeStackCost(n);
-  }
-  return sum;
-}
 
 /**
  * External expression runtime mana cost for stack s (design §9.1).
@@ -231,83 +187,6 @@ export function normalizeAffinityList(affinities, errors, fieldBase = "affinitie
   }, []);
 }
 
-export function calculateVitalCost({
-  vitals,
-  tokensPerVital,
-} = {}) {
-  const errors = [];
-  const normalizedVitals = normalizeVitals(vitals, errors);
-  const points = VITAL_KEYS.reduce((sum, key) => sum + (normalizedVitals[key] || 0), 0);
-  if (errors.length > 0) {
-    return { ok: false, errors, cost: 0, points, vitals: normalizedVitals };
-  }
-  // Per-vital cost: health×2 + mana×2 + stamina×1 + durability×2 (design §7)
-  let cost = 0;
-  VITAL_KEYS.forEach((key) => {
-    const value = normalizedVitals[key] || 0;
-    const multiplier = tokensPerVital != null ? tokensPerVital : VITAL_MAX_COST_MULTIPLIER[key];
-    cost += value * multiplier;
-  });
-  return {
-    ok: true,
-    errors: [],
-    cost,
-    points,
-    vitals: normalizedVitals,
-  };
-}
-
-export function calculateRegenCost({
-  regen,
-  tokensPerRegen,
-} = {}) {
-  const errors = [];
-  const normalizedRegen = normalizeRegen(regen, errors);
-  const points = REGEN_KEYS.reduce((sum, key) => sum + (normalizedRegen[key] || 0), 0);
-  if (errors.length > 0) {
-    return { ok: false, errors, cost: 0, points, regen: normalizedRegen };
-  }
-  // Per-vital quadratic regen cost (design §8):
-  //   health: 12·R², mana: 5·R², stamina: 4·R², durability: 10·R²
-  let cost = 0;
-  REGEN_KEYS.forEach((key) => {
-    const value = normalizedRegen[key] || 0;
-    if (tokensPerRegen != null) {
-      // Legacy linear mode for callers that override
-      cost += value * tokensPerRegen;
-    } else {
-      const coeff = REGEN_COST_COEFFICIENT[key];
-      cost += coeff * value * value;
-    }
-  });
-  return {
-    ok: true,
-    errors: [],
-    cost,
-    points,
-    regen: normalizedRegen,
-  };
-}
-
-export function calculateAffinityCost({
-  stacks,
-  affinityBaseCost = COST_DEFAULTS.affinityBaseCost,
-} = {}) {
-  const errors = [];
-  if (!Number.isInteger(affinityBaseCost) || affinityBaseCost <= 0) {
-    addError(errors, "affinityBaseCost", "invalid_positive_int");
-  }
-  if (!Number.isInteger(stacks) || stacks < 1) {
-    addError(errors, "stacks", "invalid_stacks");
-  }
-  if (errors.length > 0) {
-    return { ok: false, errors, cost: 0 };
-  }
-  // Design §6: affinity base (30) + cumulative stack cost Σ(10 + 8·(n-1)²)
-  const stackCost = computeCumulativeStackCost(stacks);
-  const cost = affinityBaseCost + stackCost;
-  return { ok: true, errors: [], cost };
-}
 
 export function validateAffinityPrereqs({
   vitals,
@@ -331,139 +210,4 @@ export function validateAffinityPrereqs({
   return { ok: errors.length === 0, errors };
 }
 
-/**
- * Full agent cost calculation (design §13).
- *
- * AgentCost = 30·A + Σ stackCosts + 35·Ex + 25·Ei + motivationCost
- *           + 2H + 2M + S + 2D + 12·Rh² + 5·Rm² + 4·Rs² + 10·Rd²
- *
- * @param {Object} options
- * @param {Object} options.vitals - { health, mana, stamina, durability } max values
- * @param {Object} options.regen - { health, mana, stamina, durability } regen-per-turn values
- * @param {Array} options.affinities - Array of { kind, stacks, expression } packages
- * @param {Array} options.motivations - Array of { kind, tier } where tier is "simple" or "advanced"
- * @param {number} options.simpleMotivationCost - Override for simple motivation flat cost
- * @param {number} options.advancedMotivationCost - Override for advanced motivation flat cost
- */
-export function calculateActorCost({
-  vitals,
-  regen,
-  affinityStacks = 1,
-  affinities,
-  motivations,
-  simpleMotivationCost = COST_DEFAULTS.simpleMotivationCost,
-  advancedMotivationCost = COST_DEFAULTS.advancedMotivationCost,
-} = {}) {
-  const errors = [];
-  const vitalResult = calculateVitalCost({ vitals });
-  if (!vitalResult.ok) {
-    errors.push(...vitalResult.errors);
-  }
-  const regenResult = calculateRegenCost({ regen });
-  if (!regenResult.ok) {
-    errors.push(...regenResult.errors);
-  }
 
-  if (vitalResult.points <= 0 && regenResult.points <= 0) {
-    addError(errors, "vitals", "empty_vitals");
-  }
-
-  // Affinity cost: per-affinity base (30) + cumulative stack cost + expression cost
-  let affinityCost = 0;
-  let totalAffinityStacks = 0;
-  let externalExpressions = 0;
-  let internalExpressions = 0;
-
-  const affinityList = Array.isArray(affinities) ? affinities : [];
-  if (affinityList.length > 0) {
-    affinityList.forEach((entry, index) => {
-      const stacks = Number.isInteger(entry?.stacks) && entry.stacks >= 1 ? entry.stacks : 1;
-      const expression = entry?.expression;
-      totalAffinityStacks += stacks;
-
-      // Validate: each affinity package needs an expression
-      if (!expression) {
-        addError(errors, `affinities[${index}]`, "affinity_requires_expression");
-      }
-
-      // Base cost (30) + cumulative stack cost
-      affinityCost += COST_DEFAULTS.affinityBaseCost + computeCumulativeStackCost(stacks);
-
-      // Expression cost
-      if (expression === "push" || expression === "pull") {
-        externalExpressions += 1;
-        affinityCost += COST_DEFAULTS.externalExpressionCost;
-      } else if (expression === "emit" || expression === "draw") {
-        internalExpressions += 1;
-        affinityCost += COST_DEFAULTS.internalExpressionCost;
-      }
-    });
-  } else if (Number.isInteger(affinityStacks) && affinityStacks >= 1) {
-    // Legacy single-affinity mode
-    totalAffinityStacks = affinityStacks;
-    affinityCost = COST_DEFAULTS.affinityBaseCost + computeCumulativeStackCost(affinityStacks);
-  }
-
-  // Mana prereqs for affinities
-  const mana = vitalResult.vitals?.mana || 0;
-  const manaRegen = regenResult.regen?.mana || 0;
-  if (affinityCost > 0) {
-    if (mana <= 0) addError(errors, "affinities", "affinity_requires_mana");
-    if (manaRegen <= 0) addError(errors, "affinities", "affinity_requires_mana_regen");
-  }
-
-  // Motivation cost (design §6.6)
-  let motivationCost = 0;
-  if (Array.isArray(motivations)) {
-    motivations.forEach((m) => {
-      if (m?.tier === "advanced") {
-        motivationCost += advancedMotivationCost;
-      } else {
-        motivationCost += simpleMotivationCost;
-      }
-    });
-  }
-
-  if (errors.length > 0) {
-    return {
-      ok: false,
-      errors,
-      cost: 0,
-      detail: {
-        vitalPoints: vitalResult.points,
-        regenPoints: regenResult.points,
-        affinityStacks: totalAffinityStacks,
-        externalExpressions,
-        internalExpressions,
-        motivationCost,
-      },
-    };
-  }
-
-  const cost = vitalResult.cost + regenResult.cost + affinityCost + motivationCost;
-  return {
-    ok: true,
-    errors: [],
-    cost,
-    detail: {
-      vitalCost: vitalResult.cost,
-      regenCost: regenResult.cost,
-      affinityCost,
-      motivationCost,
-      vitalPoints: vitalResult.points,
-      regenPoints: regenResult.points,
-      affinityStacks: totalAffinityStacks,
-      externalExpressions,
-      internalExpressions,
-    },
-  };
-}
-
-export {
-  COST_DEFAULTS,
-  COST_FORMULAS,
-  VITAL_KEYS,
-  REGEN_KEYS,
-  VITAL_MAX_COST_MULTIPLIER,
-  REGEN_COST_COEFFICIENT,
-};

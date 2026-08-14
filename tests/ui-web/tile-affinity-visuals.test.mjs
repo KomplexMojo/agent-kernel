@@ -378,6 +378,7 @@ describe("deriveTileAffinityVisuals permutations", () => {
     }
   });
 
+  // STAYS SKIPPED — fails today: emit strength still derives from emitStrength, not stack count (checked 2026-08-01).
   it.skip("derives emit field strength from affinity stack count instead of emitStrength", () => {
     const visuals = deriveTileAffinityVisuals({
       tiles: [".....", ".....", ".....", ".....", "....."],

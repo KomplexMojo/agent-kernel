@@ -1,5 +1,5 @@
 import { VITAL_KEYS } from "../../runtime/src/contracts/domain-constants.js";
-import { normalizeMotivationKindList } from "../../runtime/src/personas/configurator/motivation-loadouts.js";
+import { coerceMotivationKinds } from "../../runtime/src/contracts/domain-constants.js";
 import { calculateCardValue } from "./design-guidance.js";
 import { collectBuildSpecCardSet } from "./build-spec-ui.js";
 import { resolveIconHTML } from "./icon-resolver.js";
@@ -205,10 +205,7 @@ function normalizeMotivations(card, fallbackType = "defender") {
   const source = Array.isArray(card?.motivations) ? card.motivations : [];
   const fallback = normalizeName(card?.motivation || card?.role)
     || (fallbackType === "attacker" ? "attacking" : "defending");
-  return normalizeMotivationKindList(source.length > 0 ? source : fallback, {
-    fallback,
-    fieldBase: "motivations",
-  }).value;
+  return coerceMotivationKinds(source.length > 0 ? source : fallback, { fallback });
 }
 
 function sortById(list = [], key = "id") {
@@ -375,7 +372,15 @@ function deriveFallbackCardFromActor(actor, specActor) {
 
 function buildInspectorModel({ simConfig, initialState, spec } = {}) {
   const templateCards = collectTemplateCards(spec);
-  const specActors = sortById(Array.isArray(spec?.configurator?.inputs?.actors) ? spec.configurator.inputs.actors : []);
+  // PX.6: prefer what the build RESOLVED; fall back to the Configurator's inputs for a
+  // spec that has not been built yet. The fallback is not ambiguity — an absent
+  // `resolved` is exactly the statement "no build has happened to this spec".
+  const specActorSource = Array.isArray(spec?.configurator?.resolved?.actors)
+    ? spec.configurator.resolved.actors
+    : Array.isArray(spec?.configurator?.inputs?.actors)
+      ? spec.configurator.inputs.actors
+      : [];
+  const specActors = sortById(specActorSource);
   const specActorsById = new Map(specActors.map((entry) => [normalizeName(entry?.id), entry]));
   const runtimeActors = sortById(Array.isArray(initialState?.actors) ? initialState.actors : []);
   const hasRuntimeActors = runtimeActors.length > 0;
@@ -707,12 +712,71 @@ function resolveEntityValue(entity, liveActor) {
   return runtimeCost;
 }
 
+/**
+ * Summarizes an actor's affinity grants into one entry per kind.
+ *
+ * An actor's magnitude for a kind is the sum of its contributing grants, so the
+ * inspector must also show how much of that total is perishable — "water+3" means
+ * something different when 2 of those stacks disappear once a pool drains.
+ *
+ * Categories are derived exactly as core derives them, keyed on manaMax, so the UI
+ * cannot disagree with the simulation:
+ *   manaMax === 0              → innate, always contributes
+ *   manaMax > 0, manaRegen 0   → temporary, contributes while mana > 0
+ *   manaMax > 0, manaRegen > 0 → permanent, refills; contributes while mana > 0
+ *
+ * manaMax is what separates a drained temporary grant from an innate one — both sit
+ * at mana 0, but only the innate one still grants its stacks.
+ *
+ * @param {Object} actor - actor with an `affinities` grant list
+ * @returns {Array<{kind, stacks, permanentStacks, temporaryStacks, temporaryMana}>}
+ */
+function summarizeActorAffinityGrants(actor) {
+  const byKind = new Map();
+  const grants = Array.isArray(actor?.affinities) ? actor.affinities : [];
+
+  grants.forEach((grant) => {
+    const kind = normalizeName(grant?.kind).toLowerCase();
+    if (!kind) return;
+    const stacks = readPositiveInt(grant?.stacks, 0);
+    if (stacks <= 0) return;
+
+    const hasPool = Number.isFinite(grant?.manaMax) && grant.manaMax > 0;
+    const mana = Number.isFinite(grant?.mana) ? grant.mana : 0;
+    const manaRegen = Number.isFinite(grant?.manaRegen) ? grant.manaRegen : 0;
+    // A pooled grant sitting at zero mana is represented but projects nothing.
+    const contributes = !hasPool || mana > 0;
+    const perishable = hasPool && manaRegen === 0;
+
+    const entry = byKind.get(kind) || {
+      kind,
+      stacks: 0,
+      permanentStacks: 0,
+      temporaryStacks: 0,
+      temporaryMana: 0,
+    };
+    if (contributes) {
+      entry.stacks += stacks;
+      if (perishable) {
+        entry.temporaryStacks += stacks;
+        entry.temporaryMana += mana;
+      } else {
+        entry.permanentStacks += stacks;
+      }
+    }
+    byKind.set(kind, entry);
+  });
+
+  return [...byKind.values()].sort((a, b) => a.kind.localeCompare(b.kind));
+}
+
 export {
   deriveTemplateInstanceId,
   formatActorProfile,
   formatActorCapabilities,
   formatActorConstraints,
   formatActorLiveState,
+  summarizeActorAffinityGrants,
 };
 
 export function createActorInspector({

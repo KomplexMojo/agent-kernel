@@ -6,7 +6,7 @@
  * packages/runtime/src/contracts/game-elements.js GAME_MOTIVATION_FAMILIES).
  *
  * Today, resolveActorMotivationKind() / buildMotivatedProposals() in
- * packages/runtime/src/personas/actor/controller.mts (~line 754-824) only
+ * packages/runtime/src/personas/actor/persona.js (~line 754-824) only
  * special-case "stationary", "attacking", and "defending". Any other kind,
  * including "random", falls through to buildMoveProposal(), which pathfinds
  * toward the level exit. That is the gap this file specifies and MUST FAIL
@@ -91,7 +91,7 @@ let actorPersonaModulesPromise;
 
 async function loadActorPersonaModules() {
   actorPersonaModulesPromise ??= Promise.all([
-    import("../../packages/runtime/src/personas/actor/controller.mts"),
+    import("../../packages/runtime/src/personas/actor/persona.js"),
     import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
   ]);
   return actorPersonaModulesPromise;
@@ -155,8 +155,8 @@ async function runRandomTrajectory({ seed, actorId = "delver_1", ticks = 8 } = {
 // Random motivation: legal adjacent-tile movement over several ticks
 // ---------------------------------------------------------------------------
 
-test.skip("random-motivation delver emits only legal adjacent-tile move proposals over several ticks", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+test("random-motivation delver emits only legal adjacent-tile move proposals over several ticks", async () => {
+  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
   const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(7, 7);
@@ -216,8 +216,8 @@ test.skip("random-motivation delver emits only legal adjacent-tile move proposal
   }
 });
 
-test.skip("random-motivation warden also proposes legal random moves (not exit-directed)", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+test("random-motivation warden also proposes legal random moves (not exit-directed)", async () => {
+  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
   const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(7, 7);
@@ -255,7 +255,7 @@ test.skip("random-motivation warden also proposes legal random moves (not exit-d
 // ---------------------------------------------------------------------------
 
 test("random actor bounces to another legal tile when boxed against walls on three sides", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
   const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   // Actor sits in the northwest interior corner (1,1) of a walled room:
@@ -297,8 +297,8 @@ test("random actor bounces to another legal tile when boxed against walls on thr
   }
 });
 
-test.skip("random actor waits (no move proposal) when fully boxed in by walls and actors", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+test("random actor waits (no move proposal) when fully boxed in by walls and actors", async () => {
+  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
   const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   // Actor at (1,1) in a 3x3 walled room: the only interior neighbor tiles
@@ -351,7 +351,7 @@ test.skip("random actor waits (no move proposal) when fully boxed in by walls an
 // ---------------------------------------------------------------------------
 
 test("two independent persona instances with the same seed produce identical random-move trajectories", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
   const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(9, 9);
@@ -397,8 +397,8 @@ test("two independent persona instances with the same seed produce identical ran
   );
 });
 
-test.skip("different seeds are permitted to diverge in random-move trajectory", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/controller.mts");
+test("different seeds are permitted to diverge in random-move trajectory", async () => {
+  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
   const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(9, 9);
@@ -472,7 +472,7 @@ test("random actor adjacent to a single wall never proposes the wall direction a
   }
 });
 
-test.skip("random actor treats impassable hazard tiles as blocked like walls", async () => {
+test("random actor treats impassable hazard tiles as blocked like walls", async () => {
   const { persona, TickPhases } = await createRandomHarness(22);
   const action = await proposeRandomAction({
     persona,
@@ -484,18 +484,18 @@ test.skip("random actor treats impassable hazard tiles as blocked like walls", a
   assert.notDeepEqual(action.params.to, { x: 3, y: 2 });
 });
 
-test.skip("two adjacent random actors never both propose moving into the same tile in the same tick", async () => {
+test("two adjacent random actors never both propose moving into the same tile in the same tick", async () => {
   const first = await runRandomTrajectory({ seed: 31, actorId: "delver_1", ticks: 1 });
   const second = await runRandomTrajectory({ seed: 31, actorId: "delver_2", ticks: 1 });
   assert.notDeepEqual(first[0]?.params?.to, second[0]?.params?.to);
 });
 
-test.skip("random actor can move into a tile vacated by another actor on the next tick", async () => {
+test("random actor can move into a tile vacated by another actor on the next tick", async () => {
   const firstTick = await runRandomTrajectory({ seed: 44, actorId: "delver_1", ticks: 1 });
   assert.ok(firstTick.length > 0);
 });
 
-test.skip("random actor surrounded by walls and actors waits until one neighboring tile opens", async () => {
+test("random actor surrounded by walls and actors waits until one neighboring tile opens", async () => {
   const baseTiles = makeFloorGrid(5, 5);
   const { persona, TickPhases } = await createRandomHarness(5);
   const blockerPositions = [
@@ -544,10 +544,27 @@ test("same seed reproduces identical random trajectory across a 24 tick run", as
   assert.deepEqual(runA, runB);
 });
 
-test.skip("same seed across different actor ids follows the documented actor-id scoping contract", async () => {
+// REPLACED 2026-08-01. The previous test here asserted the OPPOSITE — that two
+// different actors sharing a seed produce IDENTICAL trajectories — which would put
+// every random actor in lockstep. It had never run (added already-skipped in
+// d1a2b6e2), nothing documented the contract it claimed, and it contradicted the
+// sibling test that two adjacent random actors never claim the same tile.
+//
+// The real contract is stated in the implementation (actor/controller.js): "The RNG
+// is a pure function of (seed, actorId, tick)" — actorId is hashed in deliberately,
+// so identical seeds MUST diverge per actor. That is what the siblings leave
+// uncovered: they pin same-seed/same-actor as identical and different-seeds as
+// divergent, but not this.
+test("the same seed on different actor ids produces different trajectories (actor-id scoping)", async () => {
   const runA = await runRandomTrajectory({ seed: 2468, actorId: "delver_a", ticks: 8 });
   const runB = await runRandomTrajectory({ seed: 2468, actorId: "delver_b", ticks: 8 });
-  assert.deepEqual(runA, runB);
+
+  assert.equal(runA.length, 8, "precondition: the trajectory must actually be generated");
+  assert.ok(
+    runA.some((step, i) => JSON.stringify(step) !== JSON.stringify(runB[i])),
+    "two actors sharing a seed must diverge — otherwise every random actor moves in lockstep, "
+      + "and the no-shared-tile guarantee below has nothing to rely on",
+  );
 });
 
 test("numeric and string seed representations normalize to the same random trajectory", async () => {

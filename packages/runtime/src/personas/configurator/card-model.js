@@ -1,6 +1,15 @@
-export const CARD_TYPE_IDS = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
-export const ROOM_CARD_SIZE_IDS = Object.freeze(["small", "medium", "large"]);
-export const DEFAULT_ROOM_CARD_SIZE = "medium";
+// Card TYPE/SIZE vocabulary and its normalizers live in contracts/domain-constants.js
+// (P5.1 D1): they are not Configurator decisions, and keeping them here forced the
+// CLI, the Allocator, the Director and the UI to import a persona internal. The
+// SIZE -> LAYOUT table below stays: those tile counts and room dimensions ARE
+// Configurator geometry.
+import {
+  coercePositiveInt as normalizePositiveInt,
+  DEFAULT_ROOM_CARD_SIZE,
+  normalizeCardCount,
+  normalizeCardType,
+  normalizeRoomCardSize,
+} from "../../contracts/domain-constants.js";
 
 const ROOM_CARD_SIZE_LAYOUT = Object.freeze({
   small: Object.freeze({ roomFloorTiles: 24, connectorFloorTiles: 8, roomMinSize: 3, roomMaxSize: 5 }),
@@ -9,30 +18,6 @@ const ROOM_CARD_SIZE_LAYOUT = Object.freeze({
 });
 
 const WALKABLE_DENSITY_TARGET = 0.5;
-
-function normalizePositiveInt(value, fallback = 1) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
-  return Math.max(1, Math.floor(parsed));
-}
-
-export function normalizeCardType(value) {
-  if (typeof value !== "string") return "";
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "attacker") return "delver";
-  if (normalized === "defender") return "warden";
-  return CARD_TYPE_IDS.includes(normalized) ? normalized : "";
-}
-
-export function normalizeRoomCardSize(value) {
-  if (typeof value !== "string") return DEFAULT_ROOM_CARD_SIZE;
-  const normalized = value.trim().toLowerCase();
-  return ROOM_CARD_SIZE_IDS.includes(normalized) ? normalized : DEFAULT_ROOM_CARD_SIZE;
-}
-
-export function normalizeCardCount(value, fallback = 1) {
-  return normalizePositiveInt(value, fallback);
-}
 
 export function isRoomCard(entry) {
   if (!entry || typeof entry !== "object") return false;

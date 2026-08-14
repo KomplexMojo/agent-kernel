@@ -24,6 +24,36 @@ This document focuses on the **Actor persona** as a decision-making and behavior
 | Primary outputs | Proposed actions and runtime-decision request artifacts |
 | Boundary | `core-ts` remains authoritative for accepted/rejected outcomes |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:actor -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `actor/serializable-decision` — the decision is a pure function of serialized state | A4 | ✅ owned (CR.6) | `tests/architecture/persona-authority.test.js` |
+| `actor/no-budget-policy` — the Actor proposes; budget admissibility is not its call | A1 | ✅ owned (CR.6) | `tests/architecture/persona-authority.test.js` |
+| `actor/motivation-to-proposal` — turning motivations and an observation into proposed actions | A2 | ✅ owned (P5.4) | `tests/personas/actor/actor-proposes-or-nothing-does.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **The third row is the one the persona exists for, and it was the last to get a proof.** The
+other two cover what the Actor must *not* do — hold state outside `view()`, decide budget
+admissibility. Neither asks whether production could produce an action stream without it, and the
+movement and filter tests below cannot: they drive the persona and check its output, which
+demonstrates the function works.
+
+P5.4 answered it with an **ablation**: two runs of the same fixture through the same registry,
+differing only in whether the Actor proposes anything. The control emits three `move` actions across
+three ticks; the neutered run emits **none**, so nothing else in the tick makes up the difference.
+Both runs use the same registry shape on purpose — a caller-supplied persona registry replaces the
+defaults, so building one from defaults and one by hand would have varied two things at once.
+
 ## Persona Scope
 
 The Actor persona is responsible for **deciding what to do**, not for enforcing what happens.
@@ -98,6 +128,21 @@ To support deterministic replay and analysis:
 
 This allows actors driven by humans, scripts, heuristics, or AI models to be replayed and compared on equal footing.
 
+**Every decision input arrives in the payload (CR.6).** This persona holds **no state outside its FSM**.
+It used to cache the last observation, base tiles, simConfig, affinity effects and hazards in its
+controller closure, and none of them appeared in `view()` — so two Actors with identical serialized state
+could propose different actions, which is an A4 violation and defeats the replay guarantee above.
+
+Practical consequence for **direct callers**: `observation` and `baseTiles` must be supplied on *every*
+`advance()` that needs them, not just on the `observe` call. The runner has always done this; only
+in-process callers were relying on the carry-over. A `propose` with no observation in its payload now
+proposes nothing rather than deciding from a remembered one.
+
+**Restoration is supported (PX.4 / HANDOFF-4).** Pass a JSON-round-tripped `view()` as `{ from }` when
+creating an Actor persona. The shared restore boundary validates the Actor state and object context;
+the G4 gate then advances the original and restored instances with the same next event and requires
+identical state, actions, effects, and telemetry.
+
 ---
 
 ## Architectural Intent
@@ -105,8 +150,8 @@ This allows actors driven by humans, scripts, heuristics, or AI models to be rep
 Cross-persona artifacts live in `packages/runtime/src/contracts/artifacts.ts`. Actor state-machine
 inputs/outputs belong in `packages/runtime/src/personas/actor/contracts.ts`.
 
-Persona controllers/state machines are authored as `.mts` sources, with `.js` runtime entrypoints
-checked in for consumers. Use the `.js` entrypoints directly (no `ts-node/esm` required).
+Persona controllers and state machines are authored as `.js` — that is the only implementation.
+Consumers import `persona.js`, the controller barrel.
 
 This separation ensures that:
 
@@ -122,7 +167,7 @@ Actors are therefore modeled as **decision-makers layered on top of a determinis
 - Outputs: proposed actions only (data); no IO or simulation mutation.
 
 ## Drift guardrails
-- Canonical source: `controller.mts` + `state-machine.mts` + `contracts.ts`; runtime entrypoints are `.js`. Import controllers (not state machines) from consumers.
+- Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
 - Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
-- Entry points are `.js`; `.mts` sources remain for TS-aware tooling (no `ts-node/esm` required).
+- Entry points are `.js`. There is no `.mts` twin (no `ts-node/esm` required).

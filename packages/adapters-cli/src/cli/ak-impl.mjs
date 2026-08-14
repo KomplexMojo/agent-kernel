@@ -1,3 +1,4 @@
+import { UNUSED_CLOCK } from "../../../runtime/src/personas/_shared/require-clock.js";
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, dirname, isAbsolute, join, sep } from "node:path";
@@ -20,28 +21,32 @@ import {
   createCommandKernel,
 } from "../../../runtime/src/commands/kernel.js";
 import { orchestrateBuild } from "../../../runtime/src/build/orchestrate-build.js";
-import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../../../runtime/src/build/mixed-room-summary.js";
+import { attachMixedRoomAssembliesToBuildResult } from "../../../runtime/src/build/authoring-build.js";
+import { formatMixedRoomAssembliesCliLines } from "../../../runtime/src/build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../../../runtime/src/build/telemetry.js";
 import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtime/src/contracts/schema-catalog.js";
-import { buildBuildSpecFromSummary } from "../../../runtime/src/personas/director/buildspec-assembler.js";
-import { mapSummaryToPool } from "../../../runtime/src/personas/director/pool-mapper.js";
-import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/personas/configurator/card-model.js";
+
+import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/contracts/domain-constants.js";
+import { createAllocatorPersona } from "../../../runtime/src/personas/allocator/persona.js";
+import { createConfiguratorPersona } from "../../../runtime/src/personas/configurator/persona.js";
+// CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
+// it. `prompt-contract.js` only renamed these (P5.1 D1: one value, three names), so the
+// boundary crossing died with the hop rather than being republished. Aliased on import so
+// the call sites below are untouched.
 import {
-  calculateActorConfigurationUnitCost,
-  calculateRoomCardUnitCost,
-} from "../../../runtime/src/personas/configurator/spend-proposal.js";
-import { validateAffinityPrereqs } from "../../../runtime/src/personas/configurator/cost-model.js";
-import { buildPriceMap } from "../../../runtime/src/personas/allocator/validate-spend.js";
-import {
-  ALLOWED_AFFINITIES,
-  ALLOWED_AFFINITY_EXPRESSIONS,
-  ALLOWED_DELVER_SETUP_MODES,
-  ALLOWED_MOTIVATIONS,
-  deriveAllowedOptionsFromCatalog,
-  normalizeSummary,
-} from "../../../runtime/src/personas/orchestrator/prompt-contract.js";
-import { runLlmSession } from "../../../runtime/src/personas/orchestrator/llm-session.js";
-import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/llm-budget-loop.js";
+  AFFINITY_KINDS as ALLOWED_AFFINITIES,
+  AFFINITY_EXPRESSIONS as ALLOWED_AFFINITY_EXPRESSIONS,
+  DELVER_SETUP_MODES as ALLOWED_DELVER_SETUP_MODES,
+  MOTIVATION_KINDS as ALLOWED_MOTIVATIONS,
+} from "../../../runtime/src/contracts/domain-constants.js";
+// Genuinely Orchestrator law — the prompt contract itself — so taken from its barrel.
+import { deriveAllowedOptionsFromCatalog, normalizeSummary } from "../../../runtime/src/personas/orchestrator/persona.js";
+// CR.4 M5: the LLM session runs as an Orchestrator round; this host dispatches its
+// `llm_request` effects through ports/effects.js so the IO happens in the adapter.
+// Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
+import { runLlmSessionHosted } from "../../../runtime/src/commands/llm-host.js";
+import { beginDirectorRound, directorBuildCapabilities } from "../../../runtime/src/commands/director-round.js";
+import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/persona.js";
 import {
   applyActorOverrides,
   applyTileOverrides,
@@ -78,42 +83,67 @@ import {
   buildLlmConstraintSection,
   buildLlmRepairPromptTemplate,
 } from "../../../runtime/src/contracts/domain-constants.js";
+// M9: this file's whole schema vocabulary — the SCHEMAS alias table below, the four
+// AdaptiveWorkflow constants it already imported, and the scattered literals in between —
+// now has one origin.
+import {
+  ACTOR_LOADOUT_SCHEMA,
+  ADAPTIVE_WORKFLOW_CLI_REQUEST_SCHEMA,
+  ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA,
+  ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA,
+  ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA,
+  AFFINITY_PRESET_SCHEMA,
+  AFFINITY_SUMMARY_SCHEMA,
+  AGENT_COMMAND_REQUEST_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA,
+  BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  CAPTURED_INPUT_SCHEMA,
+  EFFECT_SCHEMA,
+  EXECUTION_POLICY_SCHEMA,
+  GAMEPLAY_BUNDLE_SCHEMA,
+  HAZARD_ARTIFACT_SCHEMA,
+  INITIAL_STATE_SCHEMA,
+  INTENT_ENVELOPE_SCHEMA,
+  NARRATIVE_ARTIFACT_SCHEMA,
+  PLAN_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+  RESOURCE_ARTIFACT_SCHEMA,
+  RUN_SUMMARY_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+  SOLVER_REQUEST_SCHEMA,
+  SOLVER_RESULT_SCHEMA,
+  TELEMETRY_RECORD_SCHEMA,
+  TICK_FRAME_SCHEMA,
+} from "../../../runtime/src/contracts/artifacts.ts";
 
 const SCHEMAS = Object.freeze({
-  intent: "agent-kernel/IntentEnvelope",
-  plan: "agent-kernel/PlanArtifact",
-  budgetReceipt: "agent-kernel/BudgetReceiptArtifact",
-  budgetArtifact: "agent-kernel/BudgetArtifact",
-  budgetReceiptArtifact: "agent-kernel/BudgetReceiptArtifact",
-  priceList: "agent-kernel/PriceList",
-  simConfig: "agent-kernel/SimConfigArtifact",
-  initialState: "agent-kernel/InitialStateArtifact",
-  executionPolicy: "agent-kernel/ExecutionPolicy",
-  solverRequest: "agent-kernel/SolverRequest",
-  solverResult: "agent-kernel/SolverResult",
-  tickFrame: "agent-kernel/TickFrame",
-  effect: "agent-kernel/Effect",
-  telemetry: "agent-kernel/TelemetryRecord",
-  runSummary: "agent-kernel/RunSummary",
-  narrative: "agent-kernel/NarrativeArtifact",
-  agentCommandRequest: "agent-kernel/AgentCommandRequestArtifact",
-  affinityPreset: "agent-kernel/AffinityPresetArtifact",
-  actorLoadout: "agent-kernel/ActorLoadoutArtifact",
-  affinitySummary: "agent-kernel/AffinitySummary",
-  capturedInput: "agent-kernel/CapturedInputArtifact",
+  intent: INTENT_ENVELOPE_SCHEMA,
+  plan: PLAN_ARTIFACT_SCHEMA,
+  budgetReceipt: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  budgetArtifact: BUDGET_ARTIFACT_SCHEMA,
+  budgetReceiptArtifact: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  priceList: PRICE_LIST_SCHEMA,
+  simConfig: SIM_CONFIG_SCHEMA,
+  initialState: INITIAL_STATE_SCHEMA,
+  executionPolicy: EXECUTION_POLICY_SCHEMA,
+  solverRequest: SOLVER_REQUEST_SCHEMA,
+  solverResult: SOLVER_RESULT_SCHEMA,
+  tickFrame: TICK_FRAME_SCHEMA,
+  effect: EFFECT_SCHEMA,
+  telemetry: TELEMETRY_RECORD_SCHEMA,
+  runSummary: RUN_SUMMARY_SCHEMA,
+  narrative: NARRATIVE_ARTIFACT_SCHEMA,
+  agentCommandRequest: AGENT_COMMAND_REQUEST_SCHEMA,
+  affinityPreset: AFFINITY_PRESET_SCHEMA,
+  actorLoadout: ACTOR_LOADOUT_SCHEMA,
+  affinitySummary: AFFINITY_SUMMARY_SCHEMA,
+  capturedInput: CAPTURED_INPUT_SCHEMA,
 });
 
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 const DEFAULT_RUNS_DIR = "runs";
 const DEFAULT_TICKS = 1;
 const AUTHORING_GOAL_PRIORITIES = new Set(["low", "medium", "high"]);
-const AUTHORING_VALIDATION_OUTCOMES = Object.freeze({
-  valid: "valid",
-  invalidRequirements: "invalid_requirements",
-  conflictingRequirements: "conflicting_requirements",
-  insufficientBudget: "insufficient_budget",
-});
-
 function usage() {
   const filename = fileURLToPath(new URL("./ak.mjs", import.meta.url));
   const base = resolve(dirname(filename), "../../../..");
@@ -188,7 +218,16 @@ Options:
   --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
   --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
-  --resource      Resource artifact spec for create/configure/resource-plan (repeatable): permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>] or legacy tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
+  --resource      Resource artifact spec for create/configure/resource-plan (repeatable).
+                  Vital payload:   permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]
+                  permanenceMode governs delta only (consumable raises current, level/permanent raise max).
+                  regen is a third, independent grant: the actor permanently gains that regen rate on top
+                  of the delta. delta may be omitted when regen is given (a regen-only resource).
+                  Affinity payload: affinity=<fire|water|earth|wind|life|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]
+                  Both payloads may be combined in one spec. manaRegen defaults to 0, which grants the
+                  affinity temporarily until its mana is spent; manaRegen>0 refills the pool, making the
+                  granted affinity permanent (and costing 5*manaRegen^2 more tokens to author).
+                  Legacy: tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
   --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
@@ -561,17 +600,6 @@ function buildAuthoringSection({
     authoring.optimizationGoals = aggregatedGoals;
   }
   return authoring;
-}
-
-function applyAuthoringSection(spec, authoring, commandName) {
-  if (!authoring) {
-    return;
-  }
-  spec.authoring = authoring;
-  const validation = validateBuildSpec(spec);
-  if (!validation.ok) {
-    throw new Error(`${commandName} build spec failed: ${validation.errors.join("; ")}`);
-  }
 }
 
 function parsePositiveIntStrict(value, label) {
@@ -1081,6 +1109,55 @@ const RESOURCE_ALLOWED_STATS = new Set([
 ]);
 const RESOURCE_ALLOWED_PERMANENCE_MODES = new Set(["consumable", "level", "permanent"]);
 const RESOURCE_ALLOWED_VITAL_KEYS = new Set(["health", "mana", "stamina"]);
+const RESOURCE_ALLOWED_AFFINITY_KINDS = new Set([
+  "fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark",
+]);
+const RESOURCE_ALLOWED_AFFINITY_EXPRESSIONS = new Set(["push", "pull", "emit", "draw"]);
+
+function readResourceInt(fields, key, resourceIndex, { required = false, min = 0 } = {}) {
+  if (!fields.has(key)) {
+    if (required) {
+      throw new Error(`resource[${resourceIndex}] ${key} is required for an affinity payload.`);
+    }
+    return 0;
+  }
+  const raw = fields.get(key);
+  const value = Number(raw);
+  if (!Number.isInteger(value)) {
+    throw new Error(`resource[${resourceIndex}] ${key} must be an integer; got "${raw}".`);
+  }
+  if (value < min) {
+    throw new Error(`resource[${resourceIndex}] ${key} must be >= ${min}; got ${value}.`);
+  }
+  return value;
+}
+
+/**
+ * Parses the affinity payload of a resource spec.
+ *
+ * manaRegen is what makes the granted affinity permanent — there is no tier field.
+ * It defaults to 0, which yields a temporary grant that ends when its mana runs out.
+ */
+function parseResourceAffinityPayload(fields, resourceIndex) {
+  const kind = fields.get("affinity");
+  if (!RESOURCE_ALLOWED_AFFINITY_KINDS.has(kind)) {
+    throw new Error(`resource[${resourceIndex}] affinity must be one of: ${[...RESOURCE_ALLOWED_AFFINITY_KINDS].join(", ")}.`);
+  }
+  const expression = fields.get("expression");
+  if (!expression) {
+    throw new Error(`resource[${resourceIndex}] expression is required for an affinity payload.`);
+  }
+  if (!RESOURCE_ALLOWED_AFFINITY_EXPRESSIONS.has(expression)) {
+    throw new Error(`resource[${resourceIndex}] expression must be one of: ${[...RESOURCE_ALLOWED_AFFINITY_EXPRESSIONS].join(", ")}.`);
+  }
+  const stacks = readResourceInt(fields, "stacks", resourceIndex, { required: true, min: 1 });
+  const mana = readResourceInt(fields, "mana", resourceIndex, { required: true, min: 0 });
+  const manaRegen = readResourceInt(fields, "manaRegen", resourceIndex, { min: 0 });
+  if (manaRegen > 0 && mana <= 0) {
+    throw new Error(`resource[${resourceIndex}] manaRegen requires mana > 0 — regen would refill nothing.`);
+  }
+  return { kind, expression, stacks, mana, manaRegen };
+}
 
 function parseResourceSpec(value, resourceIndex) {
   const raw = String(value || "").trim();
@@ -1096,12 +1173,16 @@ function parseResourceSpec(value, resourceIndex) {
   // Detect schema version from first key seen
   const isV3 = segments.some((seg) => {
     const key = seg.split("=")[0].trim();
-    return key === "permanenceMode" || key === "vital";
+    return key === "permanenceMode" || key === "vital" || key === "affinity";
   });
 
   if (isV3) {
-    // V3: permanenceMode + vital + delta
-    const allowedFields = new Set(["id", "permanenceMode", "vital", "delta"]);
+    // V3: a vital payload (permanenceMode + vital + delta), an affinity payload
+    // (affinity + expression + stacks + mana [+ manaRegen]), or both.
+    const allowedFields = new Set([
+      "id", "permanenceMode", "vital", "delta", "regen",
+      "affinity", "expression", "stacks", "mana", "manaRegen",
+    ]);
     segments.forEach((segment) => {
       if (!segment.includes("=")) {
         throw new Error(`resource[${resourceIndex}] segment "${segment}" is invalid; expected key=value.`);
@@ -1117,27 +1198,57 @@ function parseResourceSpec(value, resourceIndex) {
       }
       fields.set(key, val);
     });
-    const permanenceMode = fields.get("permanenceMode");
-    if (!RESOURCE_ALLOWED_PERMANENCE_MODES.has(permanenceMode)) {
-      throw new Error(`resource[${resourceIndex}] permanenceMode must be one of: ${[...RESOURCE_ALLOWED_PERMANENCE_MODES].join(", ")}.`);
+
+    const hasVitalPayload = fields.has("permanenceMode") || fields.has("vital")
+      || fields.has("delta") || fields.has("regen");
+    const hasAffinityPayload = fields.has("affinity");
+    if (!hasVitalPayload && !hasAffinityPayload) {
+      throw new Error(`resource[${resourceIndex}] requires a vital payload, an affinity payload, or both.`);
     }
-    const vitalKey = fields.get("vital");
-    if (!vitalKey || !RESOURCE_ALLOWED_VITAL_KEYS.has(vitalKey)) {
-      throw new Error(`resource[${resourceIndex}] vital must be one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(", ")}.`);
+
+    let vitals = [];
+    let permanenceMode = "consumable";
+    if (hasVitalPayload) {
+      permanenceMode = fields.get("permanenceMode");
+      if (!RESOURCE_ALLOWED_PERMANENCE_MODES.has(permanenceMode)) {
+        throw new Error(`resource[${resourceIndex}] permanenceMode must be one of: ${[...RESOURCE_ALLOWED_PERMANENCE_MODES].join(", ")}.`);
+      }
+      const vitalKey = fields.get("vital");
+      if (!vitalKey || !RESOURCE_ALLOWED_VITAL_KEYS.has(vitalKey)) {
+        throw new Error(`resource[${resourceIndex}] vital must be one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(", ")}.`);
+      }
+      // delta is optional once regen is present: a regen-only resource is legal.
+      if (!fields.has("delta") && !fields.has("regen")) {
+        throw new Error(`resource[${resourceIndex}] delta is required unless regen is given.`);
+      }
+      let delta = 0;
+      if (fields.has("delta")) {
+        delta = Number(fields.get("delta"));
+        if (!Number.isFinite(delta)) {
+          throw new Error(`resource[${resourceIndex}] delta must be a number.`);
+        }
+      }
+      // regen is a third, independent grant — permanenceMode governs delta only.
+      // Omitted when absent so existing vital-only artifacts stay byte-identical
+      // (ResourceVitalGrant.regen is optional).
+      const vitalGrant = { key: vitalKey, delta };
+      if (fields.has("regen")) {
+        vitalGrant.regen = readResourceInt(fields, "regen", resourceIndex, { min: 0 });
+      }
+      vitals = [vitalGrant];
     }
-    if (!fields.has("delta")) {
-      throw new Error(`resource[${resourceIndex}] delta is required.`);
-    }
-    const delta = Number(fields.get("delta"));
-    if (!Number.isFinite(delta)) {
-      throw new Error(`resource[${resourceIndex}] delta must be a number.`);
-    }
-    return {
+
+    const parsed = {
       id: fields.has("id") ? fields.get("id") : `resource_${resourceIndex}`,
       permanenceMode,
-      vitals: [{ key: vitalKey, delta }],
+      vitals,
       _schemaVersion: 3,
     };
+
+    if (hasAffinityPayload) {
+      parsed.affinity = parseResourceAffinityPayload(fields, resourceIndex);
+    }
+    return parsed;
   }
 
   // V1 (backward compat): tier + stat + delta + dropRate
@@ -1402,577 +1513,44 @@ function parseWardenSpecs(rawWardens, { defaultAffinity = DEFAULT_DUNGEON_AFFINI
   return values.map((value, index) => parseWardenSpec(value, index + 1, { defaultAffinity }));
 }
 
-function hasNonStationaryMobilityMotivation(motivations = []) {
-  return motivations.some((motivation) => motivation === "random" || motivation === "exploring" || motivation === "patrolling");
-}
+// Budget maximization + feasibility are Allocator policy (charter: "budget
+// maximization is Allocator policy"). The CLI reaches them only through the
+// persona surface; the maximizer/assessor domain logic itself lives in
+// personas/allocator/budget-fulfillment.js (moved there in P2.3.4).
+// CR.9 M2: both price ROOM cards, and room tile counts are Configurator geometry.
+// The Allocator is handed the Configurator's own derivation instead of computing a
+// second answer — the wiring mirrors CR.6's
+// `createActorPersona({ admitProposals: allocator.admitProposals })`, one persona's
+// capability injected into another at the composition root, through public surfaces
+// on both sides.
+// CR.9 M3: the maximizer also ASSEMBLES cards and the assessor decides configuration
+// validity, so the Configurator's candidate-authoring surface and motivation
+// vocabulary are injected alongside the geometry. The Allocator refuses all three
+// jobs without them rather than answering a Configurator question itself.
+const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+// D8.3 — the Director refuses to derive level geometry from room cards; it asks the
+// Configurator. Taken from the PUBLIC persona barrel, so no boundary is crossed.
+const configuratorRoomGeometry = Object.freeze({
+  deriveRoomLayout: configurator.deriveRoomLayout,
+  buildRoomDesign: configurator.buildRoomDesign,
+});
+const configuratorGeometry = configurator.deriveRoomLayout;
 
-function requiresMovementStamina(card = null) {
-  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  return card?.type === "delver" || hasNonStationaryMobilityMotivation(motivations);
-}
-
-function cloneVitals(vitals = DEFAULT_VITALS) {
-  return VITAL_KEYS.reduce((acc, key) => {
-    const source = vitals?.[key] && typeof vitals[key] === "object"
-      ? vitals[key]
-      : DEFAULT_VITALS[key];
-    const max = Number.isInteger(source?.max) ? source.max : DEFAULT_VITALS[key].max;
-    const current = Number.isInteger(source?.current) ? source.current : max;
-    const regen = Number.isInteger(source?.regen) ? source.regen : DEFAULT_VITALS[key].regen;
-    acc[key] = {
-      current: Math.max(0, current),
-      max: Math.max(0, max),
-      regen: Math.max(0, regen),
-    };
-    return acc;
-  }, {});
-}
-
-function calculateDelverCardUnitCost(card, priceMap) {
-  return calculateActorConfigurationUnitCost({
-    entry: {
-      motivations: Array.isArray(card?.motivations) ? card.motivations : [],
-      affinities: Array.isArray(card?.affinities) ? card.affinities : [],
-      vitals: cloneVitals(card?.vitals),
-    },
-    priceMap,
-  }).cost;
-}
-
-function createAuthoringValidationIssue({ code, message, path } = {}) {
-  const issue = {
-    code,
-    message,
-  };
-  if (path) {
-    issue.path = path;
-  }
-  return issue;
-}
-
-function createAuthoringValidation({ outcome, summary, issues = [] } = {}) {
-  return {
-    outcome,
-    summary,
-    issues: issues
-      .filter((issue) => issue && typeof issue === "object")
-      .map((issue) => createAuthoringValidationIssue(issue))
-      .sort((left, right) => {
-        const leftPath = left.path || "";
-        const rightPath = right.path || "";
-        if (leftPath !== rightPath) {
-          return leftPath.localeCompare(rightPath);
-        }
-        return left.code.localeCompare(right.code);
-      }),
-  };
-}
-
-function formatAffinityList(affinities = []) {
-  return normalizeList(affinities)
-    .map((entry) => {
-      const kind = String(entry?.kind || "affinity").trim().toLowerCase();
-      const expression = String(entry?.expression || DEFAULT_ROOM_AFFINITY_EXPRESSION).trim().toLowerCase();
-      const stacks = Number.isInteger(entry?.stacks) && entry.stacks > 0 ? entry.stacks : 1;
-      return `${kind}:${expression}:${stacks}`;
-    })
-    .join(", ");
-}
-
-function joinConstraintClauses(clauses = []) {
-  const filtered = clauses.filter((entry) => isNonEmptyString(entry));
-  if (filtered.length === 0) {
-    return "";
-  }
-  if (filtered.length === 1) {
-    return filtered[0];
-  }
-  if (filtered.length === 2) {
-    return `${filtered[0]} and ${filtered[1]}`;
-  }
-  return `${filtered.slice(0, -1).join(", ")}, and ${filtered.at(-1)}`;
-}
-
-function formatAuthoringValidationMessage(commandName, validation) {
-  const issues = Array.isArray(validation?.issues) ? validation.issues : [];
-  const details = issues.map((issue) => issue.message).join("; ");
-  return `${commandName} infeasible (${validation.outcome}): ${validation.summary}${details ? ` Blocking constraints: ${details}` : ""}`;
-}
-
-function toRequirementVitals(vitals = DEFAULT_VITALS) {
-  return VITAL_KEYS.reduce((acc, key) => {
-    const source = vitals?.[key] && typeof vitals[key] === "object"
-      ? vitals[key]
-      : DEFAULT_VITALS[key];
-    acc[key] = Number.isInteger(source?.max) ? source.max : 0;
-    return acc;
-  }, {});
-}
-
-function toRequirementRegen(vitals = DEFAULT_VITALS) {
-  return VITAL_KEYS.reduce((acc, key) => {
-    const source = vitals?.[key] && typeof vitals[key] === "object"
-      ? vitals[key]
-      : DEFAULT_VITALS[key];
-    acc[key] = Number.isInteger(source?.regen) ? source.regen : 0;
-    return acc;
-  }, {});
-}
-
-function buildMinimumRequiredDelverCard(card) {
-  const next = {
-    ...card,
-    vitals: cloneVitals(card?.vitals),
-  };
-  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
-
-  if (affinities.length > 0) {
-    next.vitals.mana.max = Math.max(next.vitals.mana.max, 1);
-    next.vitals.mana.current = next.vitals.mana.max;
-    next.vitals.mana.regen = Math.max(next.vitals.mana.regen, 1);
-  }
-  if (requiresMovementStamina(card)) {
-    next.vitals.stamina.regen = Math.max(next.vitals.stamina.regen, 1);
-  }
-
-  return next;
-}
-
-function collectBudgetedDelverConflictIssues(entry, delverIndex) {
-  const issues = [];
-  if (entry?.vitalsFlexible === true) {
-    return issues;
-  }
-
-  const card = entry?.value;
-  const path = `delver[${delverIndex}]`;
-  const vitals = cloneVitals(card?.vitals);
-  const prereqResult = validateAffinityPrereqs({
-    vitals: toRequirementVitals(vitals),
-    regen: toRequirementRegen(vitals),
-    affinities: Array.isArray(card?.affinities) ? card.affinities : [],
-    fieldBase: `${path}.affinities`,
+function allocatorWithGeometry() {
+  return createAllocatorPersona({
+    clock: UNUSED_CLOCK,
+    deriveRoomLayout: configuratorGeometry,
+    authorCandidates: configurator.authorCandidates,
+    normalizeMotivations: configurator.normalizeMotivations,
   });
-
-  prereqResult.errors.forEach((error) => {
-    if (error.code === "affinity_requires_mana") {
-      issues.push(createAuthoringValidationIssue({
-        code: error.code,
-        path: `${path}.vitals.mana.max`,
-        message: `${path} affinities require mana.max >= 1.`,
-      }));
-      return;
-    }
-    if (error.code === "affinity_requires_mana_regen") {
-      issues.push(createAuthoringValidationIssue({
-        code: error.code,
-        path: `${path}.vitals.mana.regen`,
-        message: `${path} affinities require mana.regen >= 1.`,
-      }));
-    }
-  });
-
-  if (requiresMovementStamina(card) && vitals?.stamina?.regen <= 0) {
-    issues.push(createAuthoringValidationIssue({
-      code: "movement_requires_stamina_regen",
-      path: `${path}.vitals.stamina.regen`,
-      message: `${path} movement requires stamina.regen >= 1.`,
-    }));
-  }
-
-  return issues;
 }
 
-function assessBudgetedRoomRequirement(entry, roomIndex, priceListArtifact) {
-  const candidateSizes = entry?.sizeFlexible === true
-    ? ROOM_CARD_SIZE_IDS
-    : [String(entry?.value?.roomSize || entry?.value?.size || "medium").trim().toLowerCase()];
-  let minimum = null;
-
-  candidateSizes.forEach((roomSize, sizeIndex) => {
-    if (!ROOM_CARD_SIZE_IDS.includes(roomSize)) {
-      return;
-    }
-    const candidateCard = {
-      ...entry.value,
-      size: roomSize,
-      roomSize,
-    };
-    const count = Number.isInteger(candidateCard?.count) && candidateCard.count > 0 ? candidateCard.count : 1;
-    const totalCost = calculateRoomCardUnitCost({
-      card: candidateCard,
-      priceList: priceListArtifact,
-    }).cost * count;
-    const requirementSummary = entry?.sizeFlexible === true
-      ? `requested affinities ${formatAffinityList(candidateCard.affinities)} at the smallest supported room size`
-      : `requested room size ${roomSize} with affinities ${formatAffinityList(candidateCard.affinities)}`;
-    const assessment = {
-      path: `room[${roomIndex}]`,
-      totalCost,
-      requirementSummary,
-      sizeIndex,
-    };
-    if (!minimum || assessment.totalCost < minimum.totalCost || (
-      assessment.totalCost === minimum.totalCost && assessment.sizeIndex < minimum.sizeIndex
-    )) {
-      minimum = assessment;
-    }
-  });
-
-  return minimum;
+function ensureBudgetedFulfillmentFeasible(args) {
+  return allocatorWithGeometry().assessFeasibility(args);
 }
 
-function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact) {
-  const candidateCard = buildMinimumRequiredDelverCard(entry.value);
-  const count = Number.isInteger(candidateCard?.count) && candidateCard.count > 0 ? candidateCard.count : 1;
-  const priceMap = buildPriceMap(priceListArtifact);
-  const totalCost = calculateDelverCardUnitCost(candidateCard, priceMap) * count;
-  const requirementParts = [];
-  if (Array.isArray(candidateCard?.affinities) && candidateCard.affinities.length > 0) {
-    requirementParts.push(`affinities ${formatAffinityList(candidateCard.affinities)}`);
-    requirementParts.push("mana.max >= 1");
-    requirementParts.push("mana.regen >= 1");
-  }
-  if (!(Array.isArray(candidateCard?.motivations) ? candidateCard.motivations : []).includes("stationary")) {
-    requirementParts.push("stamina.regen >= 1");
-  }
-  return {
-    path: `delver[${delverIndex}]`,
-    totalCost,
-    requirementSummary: requirementParts.length > 0
-      ? `requested ${joinConstraintClauses(requirementParts)}`
-      : "requested delver configuration",
-  };
-}
-
-function assessBudgetedWardenRequirement(entry, wardenIndex, priceListArtifact) {
-  const card = entry?.value && typeof entry.value === "object" ? entry.value : {};
-  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
-  const priceMap = buildPriceMap(priceListArtifact);
-  const totalCost = calculateDelverCardUnitCost(card, priceMap) * count;
-  const requirementParts = [];
-  if (Array.isArray(card?.affinities) && card.affinities.length > 0) {
-    requirementParts.push(`affinities ${formatAffinityList(card.affinities)}`);
-  }
-  if (card?.vitals && typeof card.vitals === "object") {
-    requirementParts.push("explicit vitals");
-  }
-  return {
-    path: `warden[${wardenIndex}]`,
-    totalCost,
-    requirementSummary: requirementParts.length > 0
-      ? `requested ${joinConstraintClauses(requirementParts)}`
-      : "requested warden configuration",
-  };
-}
-
-function requirementKind(path = "") {
-  if (path.startsWith("room[")) return "room";
-  if (path.startsWith("warden[")) return "warden";
-  return "delver";
-}
-
-function ensureBudgetedFulfillmentFeasible({
-  commandName,
-  budgetTokens,
-  rooms = [],
-  delvers = [],
-  wardens = [],
-  priceListArtifact,
-} = {}) {
-  if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
-    return;
-  }
-
-  const conflictIssues = delvers.flatMap((entry, index) => collectBudgetedDelverConflictIssues(entry, index + 1));
-  if (conflictIssues.length > 0) {
-    const validation = createAuthoringValidation({
-      outcome: AUTHORING_VALIDATION_OUTCOMES.conflictingRequirements,
-      summary: "explicit hard requirements conflict with the minimum support needed for the requested configuration.",
-      issues: conflictIssues,
-    });
-    const error = new Error(formatAuthoringValidationMessage(commandName, validation));
-    error.validation = validation;
-    throw error;
-  }
-
-  const roomRequirements = rooms.map((entry, index) => assessBudgetedRoomRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
-  const delverRequirements = delvers.map((entry, index) => assessBudgetedDelverRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
-  const wardenRequirements = wardens.map((entry, index) => assessBudgetedWardenRequirement(entry, index + 1, priceListArtifact)).filter(Boolean);
-  const requirements = [...roomRequirements, ...delverRequirements, ...wardenRequirements];
-  const minimumRequiredTokens = requirements.reduce((sum, entry) => sum + entry.totalCost, 0);
-
-  if (minimumRequiredTokens > budgetTokens) {
-    const validation = createAuthoringValidation({
-      outcome: AUTHORING_VALIDATION_OUTCOMES.insufficientBudget,
-      summary: `hard budget is ${budgetTokens} tokens but minimum required spend is ${minimumRequiredTokens} tokens.`,
-      issues: requirements.map((entry) => createAuthoringValidationIssue({
-        code: `${requirementKind(entry.path)}_minimum_cost_exceeds_budget`,
-        path: entry.path,
-        message: `${entry.path} requires at least ${entry.totalCost} tokens to preserve ${entry.requirementSummary}.`,
-      })),
-    });
-    const error = new Error(formatAuthoringValidationMessage(commandName, validation));
-    error.validation = validation;
-    throw error;
-  }
-}
-
-function compareNumericTuple(left = [], right = []) {
-  const length = Math.max(left.length, right.length);
-  for (let index = 0; index < length; index += 1) {
-    const leftValue = Number(left[index] || 0);
-    const rightValue = Number(right[index] || 0);
-    if (leftValue !== rightValue) {
-      return leftValue - rightValue;
-    }
-  }
-  return 0;
-}
-
-function resolveDelverGoalOrder(goals = []) {
-  const ordered = [];
-  normalizeList(goals).forEach((goal) => {
-    if (goal?.kind === "maximize_vital_max" && goal?.vital === "mana") {
-      ordered.push("mana_max");
-      return;
-    }
-    if (goal?.kind === "maximize_vital_regen" && goal?.vital === "mana") {
-      ordered.push("mana_regen");
-    }
-  });
-  if (ordered.length > 0) return ordered;
-  return ["mana_max", "mana_regen"];
-}
-
-function fillFlexibleDelverVitals(vitals, remainingTokens) {
-  const next = cloneVitals(vitals);
-  let remaining = Number.isInteger(remainingTokens) ? remainingTokens : 0;
-  if (remaining <= 0) {
-    return next;
-  }
-  if (remaining % 2 === 1) {
-    next.stamina.max += 1;
-    next.stamina.current = next.stamina.max;
-    remaining -= 1;
-  }
-  if (remaining <= 0) {
-    return next;
-  }
-  const manaIncrease = Math.floor(remaining / 2);
-  if (manaIncrease > 0) {
-    next.mana.max += manaIncrease;
-    next.mana.current = next.mana.max;
-  }
-  return next;
-}
-
-function maximizeBudgetCappedDelverCard(card, {
-  availableTokens,
-  priceListArtifact,
-  optimizationGoals = [],
-  allowVitalTuning = false,
-} = {}) {
-  if (!allowVitalTuning || !Number.isInteger(availableTokens) || availableTokens <= 0) {
-    return card;
-  }
-
-  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
-  const perUnitBudget = Math.floor(availableTokens / count);
-  if (perUnitBudget <= 0) {
-    return card;
-  }
-
-  const priceMap = buildPriceMap(priceListArtifact);
-  const goals = resolveDelverGoalOrder(optimizationGoals);
-  const baseVitals = cloneVitals(card?.vitals);
-  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
-  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-
-  if (affinities.length > 0) {
-    baseVitals.mana.max = Math.max(baseVitals.mana.max, 1);
-    baseVitals.mana.current = baseVitals.mana.max;
-    baseVitals.mana.regen = Math.max(baseVitals.mana.regen, 1);
-  }
-  if (requiresMovementStamina(card)) {
-    baseVitals.stamina.regen = Math.max(baseVitals.stamina.regen, 1);
-  }
-
-  const maximumManaRegen = Math.max(
-    baseVitals.mana.regen,
-    Math.floor(Math.sqrt(Math.max(0, perUnitBudget) / 5)) + 2,
-  );
-  const maximumMana = Math.max(
-    baseVitals.mana.max,
-    Math.floor(Math.max(0, perUnitBudget) / 2) + baseVitals.mana.max,
-  );
-
-  let best = null;
-  for (let manaRegen = baseVitals.mana.regen; manaRegen <= maximumManaRegen; manaRegen += 1) {
-    for (let manaMax = baseVitals.mana.max; manaMax <= maximumMana; manaMax += 1) {
-      const candidateVitals = cloneVitals(baseVitals);
-      candidateVitals.mana.max = manaMax;
-      candidateVitals.mana.current = manaMax;
-      candidateVitals.mana.regen = manaRegen;
-
-      const candidateCost = calculateActorConfigurationUnitCost({
-        entry: {
-          motivations,
-          affinities,
-          vitals: candidateVitals,
-        },
-        priceMap,
-      }).cost;
-      if (!Number.isInteger(candidateCost) || candidateCost <= 0 || candidateCost > perUnitBudget) {
-        continue;
-      }
-
-      const filledVitals = fillFlexibleDelverVitals(candidateVitals, perUnitBudget - candidateCost);
-      const filledCost = calculateActorConfigurationUnitCost({
-        entry: {
-          motivations,
-          affinities,
-          vitals: filledVitals,
-        },
-        priceMap,
-      }).cost;
-      if (!Number.isInteger(filledCost) || filledCost <= 0 || filledCost > perUnitBudget) {
-        continue;
-      }
-
-      const goalTuple = goals.map((goal) => (
-        goal === "mana_regen"
-          ? filledVitals.mana.regen
-          : filledVitals.mana.max
-      ));
-      const candidate = {
-        card: {
-          ...card,
-          vitals: filledVitals,
-        },
-        totalCost: filledCost * count,
-        goalTuple,
-      };
-      if (!best) {
-        best = candidate;
-        continue;
-      }
-      if (candidate.totalCost !== best.totalCost) {
-        if (candidate.totalCost > best.totalCost) best = candidate;
-        continue;
-      }
-      if (compareNumericTuple(candidate.goalTuple, best.goalTuple) > 0) {
-        best = candidate;
-      }
-    }
-  }
-
-  return best?.card || card;
-}
-
-function maximizeBudgetCappedRoomCard(card, {
-  availableTokens,
-  priceListArtifact,
-  allowSizeTuning = false,
-} = {}) {
-  if (!allowSizeTuning || !Number.isInteger(availableTokens) || availableTokens <= 0) {
-    return card;
-  }
-  const count = Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
-  let best = null;
-
-  ROOM_CARD_SIZE_IDS.forEach((roomSize, sizeIndex) => {
-    const candidateCard = {
-      ...card,
-      size: roomSize,
-      roomSize,
-    };
-    const unitCost = calculateRoomCardUnitCost({
-      card: candidateCard,
-      priceList: priceListArtifact,
-    }).cost;
-    const totalCost = unitCost * count;
-    if (!Number.isInteger(totalCost) || totalCost <= 0 || totalCost > availableTokens) {
-      return;
-    }
-    const candidate = {
-      card: candidateCard,
-      totalCost,
-      sizeIndex,
-    };
-    if (!best || candidate.totalCost > best.totalCost || (
-      candidate.totalCost === best.totalCost && candidate.sizeIndex > best.sizeIndex
-    )) {
-      best = candidate;
-    }
-  });
-
-  return best?.card || card;
-}
-
-function applyBudgetCappedFulfillment({
-  rooms = [],
-  delvers = [],
-  priceListArtifact,
-  budgetTokens,
-} = {}) {
-  if (!Number.isInteger(budgetTokens) || budgetTokens <= 0) {
-    return {
-      rooms: rooms.map((entry) => ({ ...entry })),
-      delvers: delvers.map((entry) => ({ ...entry })),
-    };
-  }
-
-  const nextRooms = rooms.map((entry) => ({
-    ...entry,
-    value: entry?.value && typeof entry.value === "object" ? { ...entry.value } : entry?.value,
-  }));
-  const nextDelvers = delvers.map((entry) => ({
-    ...entry,
-    value: entry?.value && typeof entry.value === "object" ? { ...entry.value } : entry?.value,
-    optimizationGoals: Array.isArray(entry?.optimizationGoals) ? entry.optimizationGoals.slice() : [],
-  }));
-  const priceMap = buildPriceMap(priceListArtifact);
-
-  const calculateCurrentTotal = () => {
-    const roomTotal = nextRooms.reduce((sum, entry) => sum + calculateRoomCardUnitCost({
-      card: entry.value,
-      priceList: priceListArtifact,
-    }).cost * (entry?.value?.count || 1), 0);
-    const delverTotal = nextDelvers.reduce((sum, entry) => sum + calculateDelverCardUnitCost(entry.value, priceMap) * (entry?.value?.count || 1), 0);
-    return roomTotal + delverTotal;
-  };
-
-  nextRooms.forEach((entry, roomIndex) => {
-    const currentCardCost = calculateRoomCardUnitCost({
-      card: entry.value,
-      priceList: priceListArtifact,
-    }).cost * (entry?.value?.count || 1);
-    const otherCost = calculateCurrentTotal() - currentCardCost;
-    const availableTokens = Math.max(0, budgetTokens - otherCost);
-    nextRooms[roomIndex].value = maximizeBudgetCappedRoomCard(entry.value, {
-      availableTokens,
-      priceListArtifact,
-      allowSizeTuning: entry?.sizeFlexible === true,
-    });
-  });
-
-  nextDelvers.forEach((entry, delverIndex) => {
-    const currentCardCost = calculateDelverCardUnitCost(entry.value, priceMap) * (entry?.value?.count || 1);
-    const otherCost = calculateCurrentTotal() - currentCardCost;
-    const availableTokens = Math.max(0, budgetTokens - otherCost);
-    nextDelvers[delverIndex].value = maximizeBudgetCappedDelverCard(entry.value, {
-      availableTokens,
-      priceListArtifact,
-      optimizationGoals: entry.optimizationGoals,
-      allowVitalTuning: entry?.vitalsFlexible === true,
-    });
-  });
-
-  return {
-    rooms: nextRooms,
-    delvers: nextDelvers,
-  };
+function applyBudgetCappedFulfillment(args) {
+  return allocatorWithGeometry().maximizeFulfillment(args);
 }
 
 function resolvePath(input, cwd = process.cwd()) {
@@ -2536,7 +2114,9 @@ async function summarizeBuildLikeOutput({
   });
 }
 
-const GAMEPLAY_BUNDLE_SCHEMA = "agent-kernel/GameplayBundle";
+// M8: GAMEPLAY_BUNDLE_SCHEMA now comes from contracts/artifacts.ts. It was declared
+// here AND in ui-web/src/phaser-surface-ingestion.js — the writer and the reader of the
+// same bundle, each with its own origin.
 
 // Assemble a post-run agent-kernel/GameplayBundle by merging the resolved
 // SimConfig/InitialState artifacts that `run` writes with the tick frames it
@@ -4092,117 +3672,9 @@ function deriveGoalForAgentCommand({ action, goal, objects }) {
   return `${action === "configure" ? "Configure" : "Author"} ${labels.join(", ")} into a playable dungeon bundle.`;
 }
 
-// Minimum room dimensions when placedHazards/hazards occupy floor tiles alongside entrance + exit.
-// A room smaller than medium (roomMinSize=5) compresses all elements into too few walkable cells.
-const MIN_ROOM_SIZE_WITH_ITEMS = 5;
-const MIN_ROOM_MAX_SIZE_WITH_ITEMS = 8;
-
-// Room size profiles: map CLI size token → { roomMinSize, roomMaxSize }
-const ROOM_SIZE_PROFILES = {
-  small:  { roomMinSize: 3,  roomMaxSize: 5  },
-  medium: { roomMinSize: 5,  roomMaxSize: 8  },
-  large:  { roomMinSize: 8,  roomMaxSize: 12 },
-};
-
-// Pick the largest profile requested by any room in parsedRooms.
-// Falls back to medium when no rooms are present.
-function resolveRoomSizeProfile(rooms) {
-  const order = ["small", "medium", "large"];
-  let best = "medium";
-  for (const entry of (rooms || [])) {
-    const size = String(entry?.value?.size || entry?.value?.roomSize || "medium").toLowerCase();
-    if (order.indexOf(size) > order.indexOf(best)) best = size;
-  }
-  return ROOM_SIZE_PROFILES[best] || ROOM_SIZE_PROFILES.medium;
-}
-
-function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, placedHazards, rooms }) {
-  const blockingHazardCount = placedHazards.reduce((sum, hazard) => sum + (hazard.blocking === true ? 1 : 0), 0);
-  const walkableTarget = Number.isInteger(walkableTilesTarget) && walkableTilesTarget > 0 ? walkableTilesTarget : 0;
-  // Authored hazard x/y are room-relative (mapped into a room's interior by
-  // level-layout.js's mapHazardsToRooms), not absolute grid coordinates, so
-  // they must not drive grid sizing here — doing so previously let e.g.
-  // hazard x=99;y=99 silently inflate the grid to 102x102 to contain a raw
-  // coordinate. Out-of-bounds room-relative placedHazards are now rejected with a
-  // structured error by the layout layer instead.
-  const requestedWalkable = walkableTarget + blockingHazardCount;
-  const walkableSide = requestedWalkable > 0
-    ? Math.max(5, Math.ceil(Math.sqrt(Math.ceil(requestedWalkable / 0.5))) + 2)
-    : 5;
-
-  // Resolve the room-size profile early so we can size the grid to fit it.
-  // level-layout.js clamps roomMinSize to (min(width,height) - 2), so the grid must be at
-  // least (roomMinSize + 4) on each side for the profile to take effect.
-  const sizeProfile = resolveRoomSizeProfile(rooms);
-  const profileMinSize = placedHazards.length > 0
-    ? Math.max(MIN_ROOM_SIZE_WITH_ITEMS, sizeProfile.roomMinSize)
-    : sizeProfile.roomMinSize;
-  // +4 = 2 walls + 2 padding so the clamp in readRoomSettings allows the full room size
-  const profileGridSide = profileMinSize + 4;
-
-  // Grid capacity must also scale with the TOTAL requested room count, not just a single
-  // room's size profile. level-layout.js's placeRooms() lays candidate rooms out in a
-  // roughly-square grid of surface slots (buildRoomSurfaceSlots); if the interior is only
-  // just big enough for one room of roomMaxSize, additional rooms silently fail to place
-  // and orchestrateBuild returns fewer rooms than requested (confirmed: a 15x15 grid with
-  // roomCount=5/roomMinSize=roomMaxSize=5 deterministically yields only 4 placed rooms).
-  // Size the grid so a sqrt(roomCount) x sqrt(roomCount) arrangement of roomMaxSize rooms
-  // (plus 1-tile spacing per room and a 4-tile wall/padding border) always fits. Only
-  // applies when more than one room is requested — profileGridSide already sizes the
-  // single-room case correctly, and widening it here would shift absolute tile
-  // coordinates that other authoring flags (e.g. --hazard x=..;y=..) depend on.
-  const requestedRoomCount = rooms.reduce((sum, entry) => {
-    const count = Number.isInteger(entry?.value?.count) && entry.value.count > 0 ? entry.value.count : 1;
-    return sum + count;
-  }, 0);
-  const roomCapacitySide = requestedRoomCount > 1
-    ? (() => {
-      const columns = Math.ceil(Math.sqrt(requestedRoomCount));
-      const gridRows = Math.max(1, Math.ceil(requestedRoomCount / columns));
-      return Math.max(columns, gridRows) * (sizeProfile.roomMaxSize + 1) + 4;
-    })()
-    : 0;
-
-  const width = Math.max(
-    Number.isInteger(levelGen?.width) ? levelGen.width : 0,
-    walkableSide,
-    profileGridSide,
-    roomCapacitySide,
-  );
-  const height = Math.max(
-    Number.isInteger(levelGen?.height) ? levelGen.height : 0,
-    walkableSide,
-    profileGridSide,
-    roomCapacitySide,
-  );
-  const shape = levelGen?.shape && typeof levelGen.shape === "object" && !Array.isArray(levelGen.shape)
-    ? { ...levelGen.shape }
-    : {};
-  if (!Number.isInteger(shape.roomCount) || shape.roomCount <= 0) {
-    shape.roomCount = 1;
-  }
-  // When placedHazards are present, enforce the requested room-size profile (at least medium) to avoid
-  // compressing entrance, exit, and hazard tiles into an unusably small floor area.
-  const minRoomSize = profileMinSize;
-  if (!Number.isInteger(shape.roomMinSize) || shape.roomMinSize < minRoomSize) {
-    shape.roomMinSize = minRoomSize;
-  }
-  const minRoomMax = placedHazards.length > 0
-    ? Math.max(shape.roomMinSize, sizeProfile.roomMaxSize)
-    : Math.max(shape.roomMinSize, 3);
-  if (!Number.isInteger(shape.roomMaxSize) || shape.roomMaxSize < minRoomMax) {
-    shape.roomMaxSize = minRoomMax;
-  }
-  if (!Number.isInteger(shape.corridorWidth) || shape.corridorWidth <= 0) {
-    shape.corridorWidth = 1;
-  }
-  return {
-    ...levelGen,
-    width,
-    height,
-    shape,
-  };
-}
+// Configurator input preparation (grid sizing, room-size profiles, hazard
+// capacity) moved to personas/configurator/input-preparation.js in P2.2 and is
+// consumed here through the Configurator persona surface (P2.3.1).
 
 async function writeBuildOutputs({
   outDir,
@@ -4320,7 +3792,7 @@ async function writeHazardArtifactFiles({ parsedHazards = [], outDir, runId, cre
     const h = parsedHazards[i].value;
     const hazardVersion = h._schemaVersion ?? 3;
     const hazardArtifact = {
-      schema: "agent-kernel/HazardArtifact",
+      schema: HAZARD_ARTIFACT_SCHEMA,
       schemaVersion: hazardVersion,
       meta: {
         id: h.id,
@@ -4357,15 +3829,16 @@ async function writeResourceArtifactFiles({ parsedResources = [], outDir, runId,
     let resourceArtifact;
     if (resourceVersion === 3) {
       resourceArtifact = {
-        schema: "agent-kernel/ResourceArtifact",
+        schema: RESOURCE_ARTIFACT_SCHEMA,
         schemaVersion: 3,
         meta,
         vitals: r.vitals,
         permanenceMode: r.permanenceMode,
       };
+      if (r.affinity) resourceArtifact.affinity = r.affinity;
     } else {
       resourceArtifact = {
-        schema: "agent-kernel/ResourceArtifact",
+        schema: RESOURCE_ARTIFACT_SCHEMA,
         schemaVersion: 1,
         meta,
         tier: r.tier,
@@ -4378,13 +3851,25 @@ async function writeResourceArtifactFiles({ parsedResources = [], outDir, runId,
   }
 }
 
-const AUTHORING_POOL_WEIGHT_DEFAULTS = Object.freeze({
-  rooms: 0.44,
-  hazards: 0.12,
-  wardens: 0.16,
-  resources: 0.08,
-  delver: 0.20,
-});
+/**
+ * The per-kind budget split, READ FROM THE ALLOCATOR — never declared here.
+ *
+ * ⚠️ CR.1, found again at CR.9 M5 and this time in glue. This was a hardcoded object
+ * (`rooms: 0.44, hazards: 0.12, wardens: 0.16, resources: 0.08, delver: 0.20`) — a FOURTH
+ * copy of the split, in an adapter, and the one that actually drives `ak create`. It hid
+ * through the whole milestone that closed CR.1 because the single-origin guard was scoped
+ * to `packages/runtime/src` and stopped at the runtime package boundary. The proof it was
+ * load-bearing: retuning the canonical split in `base-costs.json` (hazard 12 -> 15) changed
+ * nothing on the real path, because this copy answered instead.
+ *
+ * The charter's rule is that the Director — and glue even more so — may CALL the Allocator
+ * for a split, never define one. So this asks. The guard now scopes to all of `packages`.
+ */
+const AUTHORING_POOL_WEIGHT_DEFAULTS = Object.freeze(Object.fromEntries(
+  createAllocatorPersona({ clock: UNUSED_CLOCK })
+    .pricing.defaultPoolWeights()
+    .map((pool) => [pool.id, pool.weight]),
+));
 
 function buildPoolWeightsForAuthoredKinds({
   rooms = [],
@@ -4690,6 +4175,17 @@ async function validateScenarioDryRun(args) {
   let mappedSelections;
   let budgetPoolWeights = null;
 
+  // CR.7 / WP-5 (2026-08-12) — ONE Director round for the whole llm-plan build.
+  //
+  // Each branch below used to open its own (the loop branch via
+  // beginDirectorBuildCapabilities, the direct branch via beginDirectorRound), and the
+  // BuildSpec was then assembled OUTSIDE both by importing `director/buildspec-assembler.js`
+  // — this file's last allowlist row, and an artifact produced with no round. Hoisting the
+  // round is what lets the assembly be `director.assembleBuildSpec`, which is FSM-gated and
+  // CLOSES the round. The third path (a scenario or summary fixture, no LLM at all) reaches
+  // the same assembly, so it needs the round too.
+  const director = beginDirectorRound({ runId, createdAt, goal, producedBy: "cli" });
+
   if (isLlmLiveEnabled() || Boolean(fixturePath)) {
     if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
       throw new Error("llm-plan requires --fixture unless AK_ALLOW_NETWORK=1 or base URL is local.");
@@ -4726,6 +4222,15 @@ async function validateScenarioDryRun(args) {
     if (budgetLoopEnabled) {
       const poolPolicy = Number.isFinite(budgetReserveTokens) ? { reserveTokens: budgetReserveTokens } : undefined;
       const loopResult = await runLlmBudgetLoop({
+        // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
+        runSession: runLlmSessionHosted,
+        // M5b.2a′: pool mapping is the Director's decision, and mapPool is FSM-gated
+        // behind an open build round. This root had no Director at all until now.
+        // M5b.2b: the same round also answers the three Allocator pricing questions the
+        // loop used to compute inline.
+        // 2026-08-12: taken from the round opened above rather than opening one here —
+        // the BuildSpec assembly below runs on that same round and closes it.
+        ...directorBuildCapabilities(director),
         adapter,
         model,
         baseUrl,
@@ -4749,11 +4254,19 @@ async function validateScenarioDryRun(args) {
       mappedSelections = loopResult.selections;
       budgetPoolWeights = loopResult.poolWeights || null;
     } else {
-      let session = await runLlmSession({
+      // D8 follow-up 2026-08-08 — the non-loop branch mapped summaries onto the catalog by
+      // importing `director/pool-mapper.js`, so this file kept an allowlist row that the
+      // budget-loop branch three lines above had already retired. Same defect as M5b.2a′:
+      // an artifact produced with no round. `mapPool` is FSM-gated, so the round is the
+      // substance, not the import. The round itself is now opened once above.
+      let session = await runLlmSessionHosted({
         adapter,
         model,
         baseUrl,
         prompt: isNonEmptyString(finalPrompt) ? finalPrompt : undefined,
+        // CR.7 / WP-5: a cardSet is the Director's translation, injected rather than
+        // imported. Uses the round opened just above.
+        buildCardSet: director.buildCardSet,
         goal,
         budgetTokens: resolvedBudgetTokens,
         strict: isLlmStrictEnabled(),
@@ -4770,7 +4283,7 @@ async function validateScenarioDryRun(args) {
       summary = session.summary;
       capture = session.capture;
 
-      let mapped = mapSummaryToPool({ summary, catalog });
+      let mapped = director.mapPool({ summary, catalog });
       let actorInstances = countInstances(mapped.selections, "actor");
       if (actorInstances === 0) {
         const missingSelections = summarizeMissingSelections(mapped.selections);
@@ -4779,11 +4292,14 @@ async function validateScenarioDryRun(args) {
           allowedPairsText,
           missingSelections,
         });
-        session = await runLlmSession({
+        session = await runLlmSessionHosted({
           adapter,
           model,
           baseUrl,
           prompt: catalogRepairPrompt,
+          // CR.7 / WP-5: a cardSet is the Director's translation, injected rather than
+          // imported. Uses the round opened just above.
+          buildCardSet: director.buildCardSet,
           goal,
           budgetTokens: resolvedBudgetTokens,
           strict: isLlmStrictEnabled(),
@@ -4799,7 +4315,7 @@ async function validateScenarioDryRun(args) {
         }
         summary = session.summary;
         capture = session.capture;
-        mapped = mapSummaryToPool({ summary, catalog });
+        mapped = director.mapPool({ summary, catalog });
         actorInstances = countInstances(mapped.selections, "actor");
         if (actorInstances === 0) {
           const finalMissing = summarizeMissingSelections(mapped.selections);
@@ -4849,9 +4365,14 @@ async function validateScenarioDryRun(args) {
     }
   }
 
-  const buildSpecResult = buildBuildSpecFromSummary({
+  // CR.7 / WP-5 — assembled BY the round opened at the top of this function, not by
+  // reaching past it into `buildspec-assembler.js`. `roomGeometry` stays explicit: the
+  // round's Director has no Configurator injected, so its own `roomGeometry()` is
+  // `undefined` and a summary with room cards would be refused. Same pair either way.
+  const buildSpecResult = director.assembleBuildSpec({
     summary: summaryForSpec,
     catalog,
+    roomGeometry: configuratorRoomGeometry,
     selections: mappedSelections || undefined,
     runId,
     createdAt,
@@ -4906,70 +4427,6 @@ function buildArtifactRefs(entries) {
     schema: entry.schema,
     schemaVersion: entry.schemaVersion,
   }));
-}
-
-// Extract the primary motivation string from a parsed delver/warden card's
-// `motivations` array. Delver cards append a synthetic "user_controlled" tag
-// (see parseDelverSpec) alongside the actual requested motivation, so that
-// tag must be excluded when resolving the single motivation.kind value the
-// runtime persona layer reads (resolveActorMotivationKind expects
-// actor.motivation.kind — see packages/runtime/src/personas/actor/controller.js).
-function resolvePrimaryCardMotivation(card) {
-  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  return motivations.find((entry) => entry && entry !== "user_controlled") || null;
-}
-
-// ak_create/ak_configure accept --delver/--warden "motivation=<kind>" but
-// orchestrateBuild (packages/runtime) does not carry that value through onto
-// the actor records it writes into InitialStateArtifact — it is only used
-// authoring-side for cost calculation (hasNonStationaryMobilityMotivation /
-// requiresMovementStamina). Patch `motivation: { kind }` onto each actor here,
-// matched by archetype + base-id prefix back to the parsed CLI card that
-// produced it. InitialStateArtifactV1.actors entries are not a closed/enumerated
-// key set (packages/runtime/src/contracts/artifacts.ts), so adding this field
-// does not require a schemaVersion bump.
-function applyMotivationToInitialStateActors(initialState, { parsedDelvers = [], parsedWardens = [] } = {}) {
-  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
-  if (actors.length === 0) {
-    return;
-  }
-
-  const cardsByArchetype = {
-    delver: parsedDelvers.map((entry) => ({
-      baseId: entry?.value?.id,
-      motivation: resolvePrimaryCardMotivation(entry?.value),
-    })).filter((entry) => isNonEmptyString(entry.baseId) && isNonEmptyString(entry.motivation)),
-    warden: parsedWardens.map((entry) => ({
-      baseId: entry?.value?.id,
-      motivation: resolvePrimaryCardMotivation(entry?.value),
-    })).filter((entry) => isNonEmptyString(entry.baseId) && isNonEmptyString(entry.motivation)),
-  };
-
-  if (cardsByArchetype.delver.length === 0 && cardsByArchetype.warden.length === 0) {
-    return;
-  }
-
-  actors.forEach((actor) => {
-    const cards = cardsByArchetype[actor?.archetype];
-    if (!cards || cards.length === 0) {
-      return;
-    }
-    const match = cards.find((card) => actor.id === card.baseId || actor.id.startsWith(`${card.baseId}-`));
-    if (match) {
-      actor.motivation = { kind: match.motivation };
-    }
-  });
-}
-
-function attachMixedRoomAssembliesToBuildResult(buildResult) {
-  const assemblies = summarizeMixedRoomAssemblies(buildResult?.simConfig?.layout?.data?.rooms);
-  if (buildResult?.affinitySummary && typeof buildResult.affinitySummary === "object") {
-    buildResult.affinitySummary = {
-      ...buildResult.affinitySummary,
-      mixedRoomAssemblies: assemblies,
-    };
-  }
-  return assemblies;
 }
 
 function logMixedRoomAssembliesFromBuildResult(buildResult) {
@@ -5400,7 +4857,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
 
   // No size=small precheck for placed hazards: size=small generates the identical
-  // grid/room geometry size=medium does (ensureAuthoringLevelGenCapacity bumps
+  // grid/room geometry size=medium does (the Configurator's input preparation bumps
   // roomMinSize to MIN_ROOM_SIZE_WITH_ITEMS when placedHazards are present), so rejecting
   // small rooms contradicts the geometry the generator actually produces. Hazard
   // placement is validated against the real generated room: room-relative
@@ -5564,7 +5021,9 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     poolWeights: buildPoolWeightsForAuthoredKinds({
       rooms: fulfilled.rooms,
       floorTiles: parsedFloorTiles,
-      hazards: parsedHazards,
+      // Was written twice, `parsedHazards` then `canonicalHazardEntries`. Inert here only
+      // by coincidence: `canonicalHazardEntries` IS `parsedHazards` (same binding, line
+      // ~4809), so the two keys held the same reference. The last one wins regardless.
       hazards: canonicalHazardEntries,
       resources: parsedResources,
       delvers: fulfilled.delvers,
@@ -5582,60 +5041,6 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   }
   if (delverBudgetTokensFlag !== undefined) {
     summary.delverBudgetTokens = delverBudgetTokensFlag;
-  }
-
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: `cli-${commandName}`,
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok || !built.spec) {
-    throw new Error(`${commandName} build spec failed: ${built.errors.join("; ")}`);
-  }
-
-  const walkableTilesTarget = parsedFloorTiles.reduce((sum, entry) => sum + entry.value.count, 0);
-  const placedHazards = canonicalHazardEntries
-    .map((entry) => entry.value)
-    .filter((entry) => entry.x !== undefined && entry.y !== undefined);
-  const levelGen = ensureAuthoringLevelGenCapacity(
-    built.spec.configurator?.inputs?.levelGen || {},
-    { walkableTilesTarget, placedHazards, rooms: parsedRooms },
-  );
-  if (walkableTilesTarget > 0) {
-    levelGen.walkableTilesTarget = walkableTilesTarget;
-  }
-  if (canonicalHazardEntries.length > 0) {
-    levelGen.hazards = canonicalHazardEntries.map(({ value: entry }) => {
-      if (entry.x === undefined || entry.y === undefined) {
-        return { ...entry };
-      }
-      return {
-        id: entry.id,
-        x: entry.x,
-        y: entry.y,
-        blocking: entry.blocking === true,
-        affinity: { ...entry.affinityStacks[0] },
-        vitals: { ...entry.vitals },
-      };
-    });
-  }
-  built.spec.configurator.inputs.levelGen = levelGen;
-
-  if (sharedOptimizationGoals.some((entry) => entry.kind === "maximize_budget_spend")) {
-    built.spec.configurator.inputs.maximizeBudget = true;
-  }
-
-  const resources = parsedResources.map((entry) => entry.value);
-  if (resources.length > 0) {
-    built.spec.configurator.inputs.resources = resources.map((entry) => {
-      if (entry._schemaVersion === 3) {
-        return { id: entry.id, permanenceMode: entry.permanenceMode, vitals: entry.vitals };
-      }
-      return { id: entry.id, tier: entry.tier, stat: entry.stat, delta: entry.delta, dropRate: entry.dropRate };
-    });
   }
 
   const sharedConfig = {
@@ -5744,20 +5149,35 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     objectRequests,
     sharedConfig,
   });
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: Array.from(new Set(objectRequests.map((entry) => entry.kind))),
     request: requestArtifact,
     constraints: authoringConstraints,
     sharedOptimizationGoals,
     objectOptimizationGoals: objectRequests.flatMap((entry) => entry.optimizationGoals || []),
-  }), commandName);
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: `cli-${commandName}`,
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
-  applyMotivationToInitialStateActors(buildResult.initialState, { parsedDelvers, parsedWardens });
+
+  // Authoring domain build runs in the kernel (P2.3.2): assemble the BuildSpec
+  // through the Director controller, Configurator input prep, orchestrateBuild,
+  // and post-process. The CLI keeps parse/maximize/summary+request assembly
+  // (above) and all writing (below, including the dry-run branch).
+  const { buildResult } = await commandKernel.authoringBuild({
+    summary,
+    authoring,
+    requestArtifact,
+    commandName,
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+    rooms: parsedRooms,
+    floorTiles: parsedFloorTiles,
+    hazards: canonicalHazardEntries,
+    resources: parsedResources.map((entry) => entry.value),
+    maximizeBudget: shouldMaximizeSpend,
+    parsedDelvers,
+    parsedWardens,
+  });
 
   if (args["dry-run"]) {
     emitJsonStdout(buildDryRunSuccess({
@@ -5913,28 +5333,20 @@ async function roomPlanCommand(argv) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: "cli-room-plan",
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok) {
-    throw new Error(`room-plan build spec failed: ${built.errors.join("; ")}`);
-  }
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: ["room"],
     constraints: authoringConstraints,
     sharedOptimizationGoals,
-  }), "room-plan");
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: "cli-room-plan",
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const { buildResult } = await commandKernel.planBuild({
+    summary,
+    authoring,
+    commandName: "room-plan",
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+  });
   emitJsonStdout(await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
@@ -6016,28 +5428,20 @@ async function hazardPlanCommand(argv) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: "cli-hazard-plan",
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok) {
-    throw new Error(`hazard-plan build spec failed: ${built.errors.join("; ")}`);
-  }
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: ["hazard"],
     constraints: authoringConstraints,
     sharedOptimizationGoals,
-  }), "hazard-plan");
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: "cli-hazard-plan",
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const { buildResult } = await commandKernel.planBuild({
+    summary,
+    authoring,
+    commandName: "hazard-plan",
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+  });
   const stdoutSummary = await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
@@ -6127,28 +5531,20 @@ async function resourcePlanCommand(argv) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: "cli-resource-plan",
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok) {
-    throw new Error(`resource-plan build spec failed: ${built.errors.join("; ")}`);
-  }
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: ["resource"],
     constraints: authoringConstraints,
     sharedOptimizationGoals,
-  }), "resource-plan");
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: "cli-resource-plan",
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const { buildResult } = await commandKernel.planBuild({
+    summary,
+    authoring,
+    commandName: "resource-plan",
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+  });
   const stdoutSummary = await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
@@ -6272,29 +5668,21 @@ async function delverPlanCommand(argv) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: "cli-delver-plan",
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok) {
-    throw new Error(`delver-plan build spec failed: ${built.errors.join("; ")}`);
-  }
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: ["delver"],
     constraints: authoringConstraints,
     sharedOptimizationGoals,
     objectOptimizationGoals: delverOptimizationGoals,
-  }), "delver-plan");
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: "cli-delver-plan",
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const { buildResult } = await commandKernel.planBuild({
+    summary,
+    authoring,
+    commandName: "delver-plan",
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+  });
   emitJsonStdout(await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
@@ -6392,29 +5780,21 @@ async function wardenPlanCommand(argv) {
     summary.budgetTokens = resolvedBudgetTokens;
   }
 
-  const built = buildBuildSpecFromSummary({
-    summary,
-    runId,
-    createdAt,
-    source: "cli-warden-plan",
-    budgetArtifact: budgetArtifact || undefined,
-    priceListArtifact: priceListArtifact || undefined,
-  });
-  if (!built.ok) {
-    throw new Error(`warden-plan build spec failed: ${built.errors.join("; ")}`);
-  }
-  applyAuthoringSection(built.spec, buildAuthoringSection({
+  const authoring = buildAuthoringSection({
     objectKinds: ["warden"],
     constraints: authoringConstraints,
     sharedOptimizationGoals,
     objectOptimizationGoals: textVitalGoals,
-  }), "warden-plan");
-
-  const buildResult = await orchestrateBuild({
-    spec: built.spec,
-    producedBy: "cli-warden-plan",
   });
-  attachMixedRoomAssembliesToBuildResult(buildResult);
+  const { buildResult } = await commandKernel.planBuild({
+    summary,
+    authoring,
+    commandName: "warden-plan",
+    runId,
+    createdAt,
+    budgetArtifact,
+    priceListArtifact,
+  });
   emitJsonStdout(await writeBuildOutputs({
     outDir,
     spec: buildResult.spec,
@@ -6811,7 +6191,7 @@ async function sandboxCreateCommand(argv) {
     }
     budgetReceiptRef = {
       id: `budget_receipt_${runId}`,
-      schema: "agent-kernel/BudgetReceiptArtifact",
+      schema: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
       schemaVersion: 1,
     };
   }
@@ -6964,7 +6344,7 @@ async function workflowCommand(argv) {
 async function resolveWorkflowInput(args) {
   if (args.input && args.objective) throw new Error("workflow accepts either --objective or --input, not both");
   const input = args.input ? await readJson(resolvePath(args.input)) : {};
-  if (args.input && (input.schema !== "agent-kernel/AdaptiveWorkflowCliRunInput" || input.schemaVersion !== 1)) throw new Error("Invalid AdaptiveWorkflowCliRunInput");
+  if (args.input && (input.schema !== ADAPTIVE_WORKFLOW_CLI_RUN_INPUT_SCHEMA || input.schemaVersion !== 1)) throw new Error("Invalid AdaptiveWorkflowCliRunInput");
   validateWorkflowInputFields(input, args);
   const objective = args.objective || input.objective;
   if (!isNonEmptyString(objective)) throw new Error("workflow requires --objective <text> or --input <path>");
@@ -6973,7 +6353,7 @@ async function resolveWorkflowInput(args) {
   const clock = () => createdAt;
   const runtimeProfile = await createRuntimeProfileAdapter({ clock }).snapshot({ path: resolvePath(args["runtime-profile"]), runId });
   const rawPolicy = args.policy ? await readJson(resolvePath(args.policy)) : undefined;
-  if (rawPolicy && (rawPolicy.schema !== "agent-kernel/AdaptiveWorkflowStrategyPolicy" || rawPolicy.schemaVersion !== 1)) throw new Error("Invalid AdaptiveWorkflowStrategyPolicy");
+  if (rawPolicy && (rawPolicy.schema !== ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA || rawPolicy.schemaVersion !== 1)) throw new Error("Invalid AdaptiveWorkflowStrategyPolicy");
   assertNoSensitiveFields(rawPolicy, "workflow policy");
   const policy = rawPolicy ? createStrategyPolicyV1(rawPolicy) : undefined;
   const model = args.model || input.model || DEFAULT_LLM_MODEL;
@@ -6993,7 +6373,16 @@ function workflowValidator(requiredKeys = []) {
 function workflowExecution({ operationId, counter, pushUi = false, store, requireClient = false } = {}) {
   if (pushUi) {
     const gameplay = createGameplayBridgeOperation({
-      assembleSpec: buildBuildSpecFromSummary,
+      // CR.7 / WP-5 — one Director round PER BRIDGE REQUEST, opened from the args the
+      // bridge already supplies (`{ summary, runId, createdAt, source }`). A round per
+      // request rather than one hoisted here: each request assembles its own BuildSpec, and
+      // `assembleBuildSpec` closes the round it runs in.
+      assembleSpec: (args) => beginDirectorRound({
+        runId: args.runId,
+        createdAt: args.createdAt,
+        goal: args.summary?.goal,
+        producedBy: args.source || "cli-workflow",
+      }).assembleBuildSpec({ roomGeometry: configuratorRoomGeometry, ...args }),
       compile: compileBuildSpecToGameplayBundle,
       requireClient,
       onBundle: store ? async (bundle) => { await store.writeArtifact("bundle.json", bundle); } : undefined,
@@ -7003,7 +6392,7 @@ function workflowExecution({ operationId, counter, pushUi = false, store, requir
   if (!operationId) return undefined;
   return createControlledExecutionAdapter({ operationId, operations: { record: ({ runId, selectedStrategy }) => {
     counter.count += 1;
-    return { schema: "agent-kernel/AdaptiveWorkflowExecutionReceipt", schemaVersion: 1, runId, operation: "record", strategyId: selectedStrategy.strategyId };
+    return { schema: ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA, schemaVersion: 1, runId, operation: "record", strategyId: selectedStrategy.strategyId };
   } } });
 }
 
@@ -7015,7 +6404,7 @@ async function workflowRun({ args, outDir }) {
   const idempotencyKey = resolved.input.idempotencyKey || `${resolved.runId}:execution:${operationId || "none"}`;
   const attemptInput = args["max-model-attempts"] ?? resolved.input.maxModelAttempts;
   const maxModelAttempts = attemptInput === undefined ? 2 : parsePositiveIntStrict(String(attemptInput), "workflow --max-model-attempts");
-  const request = { schema: "agent-kernel/AdaptiveWorkflowCliRequest", schemaVersion: 1, runId: resolved.runId, createdAt: resolved.createdAt, objective: resolved.objective, model: resolved.model, declaredCapability: resolved.declaredCapability, requiredKeys: resolved.input.requiredKeys || [], idempotencyKey, ...(resolved.policy ? { policy: resolved.policy } : {}), ...(operationId ? { executionOperation: operationId } : {}) };
+  const request = { schema: ADAPTIVE_WORKFLOW_CLI_REQUEST_SCHEMA, schemaVersion: 1, runId: resolved.runId, createdAt: resolved.createdAt, objective: resolved.objective, model: resolved.model, declaredCapability: resolved.declaredCapability, requiredKeys: resolved.input.requiredKeys || [], idempotencyKey, ...(resolved.policy ? { policy: resolved.policy } : {}), ...(operationId ? { executionOperation: operationId } : {}) };
   await store.writeArtifact("runtime-profile.json", resolved.runtimeProfile);
   await store.writeArtifact("request.json", request);
   const result = await runAdaptiveWorkflow({

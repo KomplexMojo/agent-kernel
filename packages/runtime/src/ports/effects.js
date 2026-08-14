@@ -1,19 +1,16 @@
-const EFFECT_SCHEMA = "agent-kernel/Effect";
+import { EffectKind } from "../../../core-ts/src/ports/effects.ts";
+import { LLM_REQUEST_EFFECT_KIND, LLM_MISSING_ADAPTER_REASON } from "../contracts/llm-protocol.js";
+import {
+  EFFECT_SCHEMA,
+  INTENT_ENVELOPE_SCHEMA,
+} from "../contracts/artifacts.ts";
+
 const TARGET_ADAPTER_HINTS = ["fixtures", "ipfs", "ollama"];
 const REQUEST_DETAIL_MASK = 0xff;
 
-export const EffectKind = Object.freeze({
-  Log: 1,
-  InitInvalid: 2,
-  ActionRejected: 3,
-  LimitReached: 4,
-  LimitViolated: 5,
-  NeedExternalFact: 6,
-  Telemetry: 7,
-  SolverRequest: 8,
-  EffectFulfilled: 9,
-  EffectDeferred: 10,
-});
+// PX.1: the numeric core effect codebook is domain-owned. Runtime re-exports the
+// canonical value for compatibility, but never declares a second copy.
+export { EffectKind };
 
 function buildEffectId(tick, index, kind, value) {
   return `eff_${tick}_${index}_${kind}_${value}`;
@@ -30,7 +27,7 @@ function buildRequestId(prefix, seq) {
   return `${prefix}-${seq}`;
 }
 
-export function buildEffectFromCore({ tick, index, kind, value }) {
+export function buildEffectFromCore({ tick, index, kind, value, actorId, x, y, reason, delta }) {
   const base = {
     schema: EFFECT_SCHEMA,
     schemaVersion: 1,
@@ -91,7 +88,7 @@ export function buildEffectFromCore({ tick, index, kind, value }) {
         targetAdapter,
         data: { query: `fact-${detail}`, detail },
         sourceRef: hasSourceRef
-          ? { id: `fact-${detail}`, schema: "agent-kernel/IntentEnvelope", schemaVersion: 1 }
+          ? { id: `fact-${detail}`, schema: INTENT_ENVELOPE_SCHEMA, schemaVersion: 1 }
           : undefined,
         fulfillment: hasSourceRef ? "deterministic" : "deferred",
       };
@@ -129,12 +126,37 @@ export function buildEffectFromCore({ tick, index, kind, value }) {
         data: { status: "deferred" },
         fulfillment: "deferred",
       };
-    default:
+    // The core models movement/blockage/durability as structured simulation
+    // facts. EffectV1 has no actor_* kinds, so runtime exposes them through the
+    // existing telemetry route without changing the artifact schema. Config
+    // invalidity follows InitInvalid's error-log route.
+    case EffectKind.ActorMoved:
       return {
         ...base,
-        kind: "custom",
-        data: { kind, value },
+        kind: "telemetry",
+        data: { event: "actor_moved", actorId, x, y },
       };
+    case EffectKind.ConfigInvalid:
+      return {
+        ...base,
+        kind: "log",
+        severity: "error",
+        data: { reason: "config_invalid", code: value },
+      };
+    case EffectKind.DurabilityChanged:
+      return {
+        ...base,
+        kind: "telemetry",
+        data: { event: "durability_changed", actorId, delta },
+      };
+    case EffectKind.ActorBlocked:
+      return {
+        ...base,
+        kind: "telemetry",
+        data: { event: "actor_blocked", actorId, x, y, reason },
+      };
+    default:
+      throw new RangeError(`Unknown core effect kind: ${kind}`);
   }
 }
 
@@ -193,6 +215,32 @@ export function dispatchEffect(adapters, effect) {
         return { status: "deferred", reason: "missing_solver" };
       }
       return { status: "fulfilled", result: adapters.solver.solve(effect) };
+    // CR.4 M2. This case MUST exist explicitly. The `default:` branch below reports
+    // `status: "fulfilled"` for any unrecognised kind after merely logging a warning —
+    // for an LLM request that would mean the model was never called and the caller was
+    // told it was, a silent no-op wearing a success status. Deferring is the only honest
+    // answer when no adapter is wired. Guarded by tests/runtime/llm-request-effect.test.js.
+    case LLM_REQUEST_EFFECT_KIND:
+      if (!adapters?.llm?.generate) {
+        return { status: "deferred", reason: LLM_MISSING_ADAPTER_REASON };
+      }
+      // The adapter is the only thing that performs IO; the result may be a promise and
+      // the host awaits it, exactly as `solver_request` already works.
+      return { status: "fulfilled", result: adapters.llm.generate(effect.request) };
+    // P5.5. This case MUST exist explicitly, for exactly the reason the LLM case above
+    // does: without it a post-run external-fact request falls through to `default:`,
+    // which warns and then reports `fulfilled` — a fact that was never fetched, wearing a
+    // success status, which the coordination round would then capture as provenance.
+    //
+    // ⚠️ It cannot fire during a tick. The Moderator's fulfilment plan resolves every
+    // `need_external_fact` to DETERMINISTIC (it has a sourceRef) or DEFER (it does not)
+    // and never to DISPATCH, so the only caller that reaches here is the post-run
+    // coordination round — which is the one place the charter permits this IO.
+    case "need_external_fact":
+      if (!adapters?.externalFacts?.fetch) {
+        return { status: "deferred", reason: "missing_external_fact_adapter" };
+      }
+      return { status: "fulfilled", result: adapters.externalFacts.fetch(effect) };
     case "limit_violation":
       if (!adapters?.logger?.warn) {
         return { status: "deferred", reason: "missing_logger" };

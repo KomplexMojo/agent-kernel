@@ -15,10 +15,11 @@ Personas are modeled as deterministic finite-state machines (FSMs) with explicit
 - Each persona exposes: `state`, `context/view()`, `advance(event, payload)` returning { state, actions, effects, telemetry }.
 - Transition tables declare `from`, `to`, `event`, `guard`, optional `onTransition` to emit data.
 - Per-persona README/state machine doc enumerates allowed states and required inputs.
-- Module format: persona controllers/state machines ship as `.js` entrypoints for runtime usage; `.mts` sources remain for TS-aware tooling and fixtures. Consumers should import the `.js` path (no `ts-node/esm` required).
+- Module format: persona controllers/state machines are plain `.js`, with no `.mts` twin (no `ts-node/esm` required). Consumers import `persona.js`, the controller barrel.
 
 ## Drift guardrails
-- Canonical source: `controller.mts` + `state-machine.mts` + `contracts.ts`; runtime entrypoints are `.js` wrappers. Downstream code should import controllers, not state machines, to preserve the phase-aware wrapper.
+- Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. Downstream code should import controllers, not state machines, to preserve the phase-aware wrapper.
+- **`.js`/`.mts` duplication is structurally impossible (since 2026-07-27; the shims themselves were removed 2026-08-01).** Persona modules previously kept full copies in both files; two pairs had already drifted silently (director/controller by ~100 lines, allocator/controller by 2). There is now exactly one implementation per module, so the old "apply every edit to both files" rule is retired.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change (update docs + tests in the same change set).
 - Table-driven persona fixtures guard transitions/phases; enable type-checking in CI (disable `TS_NODE_TRANSPILE_ONLY`) for persona packages to catch signature drift early.
 

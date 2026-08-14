@@ -7,7 +7,6 @@ const outputPath = process.argv[2]
 
 const inventory = collectTestInventory();
 const missed = inventory.files.filter((entry) => !entry.currentDefaultIncluded);
-const browser = inventory.files.filter((entry) => entry.runner === "playwright");
 
 const lines = [
   "# Test Classification",
@@ -20,7 +19,6 @@ const lines = [
   `- Covered by current default script: ${inventory.summary.currentDefaultIncluded}`,
   `- Missed by current default script: ${inventory.summary.currentDefaultMissed}`,
   `- Targeted for Vitest: ${inventory.summary.byRunner.vitest ?? 0}`,
-  `- Targeted for Playwright: ${inventory.summary.byRunner.playwright ?? 0}`,
   "",
   "## Suites",
   "",
@@ -44,17 +42,9 @@ if (missed.length === 0) {
   lines.push(...missed.map((entry) => `- ${entry.path} -> ${entry.runner}`));
 }
 
-lines.push("", "## Browser-Native Candidates", "");
-if (browser.length === 0) {
-  lines.push("- None");
-} else {
-  lines.push(...browser.map((entry) => `- ${entry.path} (${entry.recipe})`));
-}
-
 writeText(outputPath, `${lines.join("\n")}\n`);
 console.log(JSON.stringify({
   ok: true,
   outputPath,
   missed: missed.length,
-  browserCandidates: browser.length,
 }, null, 2));

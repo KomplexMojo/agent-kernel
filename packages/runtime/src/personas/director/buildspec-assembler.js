@@ -1,3 +1,5 @@
+import { requireClock } from "../_shared/require-clock.js";
+
 import { mapSummaryToPool } from "./pool-mapper.js";
 import {
   buildCardSetFromSummary,
@@ -9,14 +11,20 @@ import {
   DEFAULT_VITALS,
   normalizeVitals as normalizeDomainVitals,
 } from "../../contracts/domain-constants.js";
+import {
+  BUDGET_ARTIFACT_SCHEMA,
+  BUILD_SPEC_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
-function defaultMeta({ runId, source, createdAt, summary }) {
+function defaultMeta({ runId, source, createdAt, summary, clock }) {
   const dungeonAffinity = summary?.dungeonAffinity || "unknown";
   const id = runId || `pool_${dungeonAffinity}`;
   return {
     id,
     runId: runId || id,
-    createdAt: createdAt || new Date().toISOString(),
+    // PX.3: the Director stamps this onto a persisted BuildSpec, so an absent
+    // createdAt must come from an injected clock, never from the wall clock.
+    createdAt: createdAt || requireClock(clock, "director")(),
     source: source || "director-pool",
   };
 }
@@ -182,6 +190,103 @@ function deriveLevelGenFromLayout(layout = {}, roomDesign) {
   return levelGen;
 }
 
+/**
+ * The single origin of "what level geometry does this summary imply?" (D8.1).
+ *
+ * Deriving `levelGen` is **intent translation** — a design summary becoming a configuration
+ * input — so it is the Director's, and the Configurator consumes the answer rather than
+ * computing one. `guidance-level-builder.js` used to get it by building a whole throwaway
+ * BuildSpec here and reading `spec.configurator.inputs.levelGen` back out, with its own
+ * near-duplicate of this formula as the fallback: the same sizing rule with two origins,
+ * differing by a `max(3, …)` guard and an empty `shape`. Both are gone.
+ *
+ * Extracted rather than copied: `buildBuildSpecFromSummary` and `deriveLevelGenFromSummary`
+ * below both call this, so the rule cannot drift between the build path and the preview path.
+ */
+/**
+ * Hazard entries as they ride on `levelGen` (D8.1).
+ *
+ * Extracted verbatim so `buildBuildSpecFromSummary` and `deriveLevelGenFromSummary` cannot
+ * disagree about hazard shape. The characterization fixture caught this: the preview path
+ * used to receive hazards because it read levelGen back out of an assembled BuildSpec, and
+ * a naive extraction silently dropped them.
+ */
+function normalizeSummaryHazards(resolvedSummary) {
+  return Array.isArray(resolvedSummary?.hazards)
+    ? resolvedSummary.hazards
+      .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
+      .map((entry) => ({
+        id: entry.id,
+        affinity: entry.affinity,
+        expression: entry.expression,
+        proximityRadius: entry.proximityRadius,
+        ...(Array.isArray(entry.affinityStacks)
+          ? { affinityStacks: entry.affinityStacks.map((affinity) => ({ ...affinity })) }
+          : {}),
+        ...(entry.vitals && typeof entry.vitals === "object"
+          ? {
+            vitals: {
+              ...(entry.vitals.mana ? { mana: { ...entry.vitals.mana } } : {}),
+              ...(entry.vitals.durability ? { durability: { ...entry.vitals.durability } } : {}),
+            },
+          }
+          : {}),
+        ...(entry.mana
+          ? { mana: { ...entry.mana } }
+          : (entry.vitals?.mana ? { mana: { ...entry.vitals.mana } } : {})),
+        ...(entry.durability
+          ? { durability: { ...entry.durability } }
+          : (entry.vitals?.durability ? { durability: { ...entry.vitals.durability } } : {})),
+      }))
+    : [];
+}
+
+function resolveLevelGen({ resolvedSummary, layout, roomDesign, roomCount, hazards = [] }) {
+  const prebuiltLevelGen = resolvedSummary?.levelGen && typeof resolvedSummary.levelGen === "object"
+    ? { ...resolvedSummary.levelGen }
+    : null;
+  const levelGen = prebuiltLevelGen
+    || (layout || roomDesign
+      ? deriveLevelGenFromLayout(layout || {}, roomDesign)
+      : deriveLevelGen({ roomCount }));
+  // These decorations used to live in buildBuildSpecFromSummary, which meant the preview path
+  // only received them by reading levelGen back out of a whole assembled spec.
+  if (resolvedSummary?.budgetScaffold === true) {
+    levelGen.budgetScaffold = true;
+  }
+  if (Array.isArray(hazards) && hazards.length > 0) {
+    levelGen.hazards = hazards;
+  }
+  return levelGen;
+}
+
+/**
+ * `levelGen` for callers that want the geometry WITHOUT a BuildSpec — the level preview.
+ *
+ * Published on the Director's controller as `deriveLevelGen`, stateless and ungated for the
+ * same reason `configurator.deriveRoomLayout` and the Allocator's `pricing.*` are: it reads
+ * a summary the caller already holds, touches no FSM state, and issues no artifact. Gating a
+ * preview behind an open build round would be a label, not a rule.
+ */
+export function deriveLevelGenFromSummary(summary, roomGeometry) {
+  const resolvedSummary = extractSummaryFromCardSet(summary || {}, roomGeometry);
+  const layout = resolvedSummary?.layout && typeof resolvedSummary.layout === "object"
+    ? resolvedSummary.layout
+    : null;
+  const roomDesign = resolvedSummary?.roomDesign && typeof resolvedSummary.roomDesign === "object"
+    ? resolvedSummary.roomDesign
+    : null;
+  const rooms = buildSelectionsFromSummary(resolvedSummary, roomGeometry).filter((sel) => sel.kind === "room");
+  const roomCount = rooms.reduce((sum, sel) => sum + (sel.instances?.length || 0), 0);
+  return resolveLevelGen({
+    resolvedSummary,
+    layout,
+    roomDesign,
+    roomCount,
+    hazards: normalizeSummaryHazards(resolvedSummary),
+  });
+}
+
 function normalizeActorVitals(vitals) {
   return normalizeDomainVitals(vitals, DEFAULT_VITALS);
 }
@@ -262,6 +367,9 @@ function buildActorsAndGroups(selections) {
 export function buildBuildSpecFromSummary({
   summary,
   catalog,
+  // D8.3 — `{ deriveRoomLayout, buildRoomDesign }` from a Configurator. Required when the
+  // summary carries ROOM cards; the Director asks for level geometry, it does not derive it.
+  roomGeometry,
   runId,
   source,
   createdAt,
@@ -271,14 +379,15 @@ export function buildBuildSpecFromSummary({
   budgetArtifact,
   priceListArtifact,
   receiptArtifact,
+  clock,
 } = {}) {
-  const resolvedSummary = extractSummaryFromCardSet(summary || {});
+  const resolvedSummary = extractSummaryFromCardSet(summary || {}, roomGeometry);
   const cardSet = buildCardSetFromSummary(resolvedSummary);
   const mapped = selections
     ? { ok: true, selections }
     : catalog
       ? mapSummaryToPool({ summary: resolvedSummary, catalog })
-      : { ok: true, selections: buildSelectionsFromSummary(resolvedSummary) };
+      : { ok: true, selections: buildSelectionsFromSummary(resolvedSummary, roomGeometry) };
   if (!mapped.ok) {
     return { ok: false, errors: mapped.errors, spec: null, selections: mapped.selections || [] };
   }
@@ -292,33 +401,7 @@ export function buildBuildSpecFromSummary({
   const roomDesign = resolvedSummary?.roomDesign && typeof resolvedSummary.roomDesign === "object"
     ? resolvedSummary.roomDesign
     : null;
-  const hazards = Array.isArray(resolvedSummary?.hazards)
-    ? resolvedSummary.hazards
-      .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
-      .map((entry) => ({
-        id: entry.id,
-        affinity: entry.affinity,
-        expression: entry.expression,
-        proximityRadius: entry.proximityRadius,
-        ...(Array.isArray(entry.affinityStacks)
-          ? { affinityStacks: entry.affinityStacks.map((affinity) => ({ ...affinity })) }
-          : {}),
-        ...(entry.vitals && typeof entry.vitals === "object"
-          ? {
-            vitals: {
-              ...(entry.vitals.mana ? { mana: { ...entry.vitals.mana } } : {}),
-              ...(entry.vitals.durability ? { durability: { ...entry.vitals.durability } } : {}),
-            },
-          }
-          : {}),
-        ...(entry.mana
-          ? { mana: { ...entry.mana } }
-          : (entry.vitals?.mana ? { mana: { ...entry.vitals.mana } } : {})),
-        ...(entry.durability
-          ? { durability: { ...entry.durability } }
-          : (entry.vitals?.durability ? { durability: { ...entry.vitals.durability } } : {})),
-      }))
-    : [];
+  const hazards = normalizeSummaryHazards(resolvedSummary);
   const resources = Array.isArray(resolvedSummary?.resources)
     ? resolvedSummary.resources
       .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
@@ -326,6 +409,10 @@ export function buildBuildSpecFromSummary({
         id: entry.id,
         permanenceMode: entry.permanenceMode,
         vitals: Array.isArray(entry.vitals) ? entry.vitals.map((v) => ({ ...v })) : undefined,
+        // The affinity payload must survive into the spec or it never reaches the
+        // budget: this normalizer is an allowlist, and anything absent here is
+        // silently dropped between authoring and the spend proposal.
+        affinity: entry.affinity && typeof entry.affinity === "object" ? { ...entry.affinity } : undefined,
         resourceVitals: entry.resourceVitals && typeof entry.resourceVitals === "object" ? { ...entry.resourceVitals } : undefined,
         permanent: entry.permanent === true,
         tier: entry.tier,
@@ -335,19 +422,7 @@ export function buildBuildSpecFromSummary({
         budgetCeiling: entry.budgetCeiling,
       }))
     : [];
-  const prebuiltLevelGen = resolvedSummary?.levelGen && typeof resolvedSummary.levelGen === "object"
-    ? { ...resolvedSummary.levelGen }
-    : null;
-  const levelGen = prebuiltLevelGen
-    || (layout || roomDesign
-      ? deriveLevelGenFromLayout(layout || {}, roomDesign)
-      : deriveLevelGen({ roomCount }));
-  if (resolvedSummary?.budgetScaffold === true) {
-    levelGen.budgetScaffold = true;
-  }
-  if (hazards.length > 0) {
-    levelGen.hazards = hazards;
-  }
+  const levelGen = resolveLevelGen({ resolvedSummary, layout, roomDesign, roomCount, hazards });
   const delverConfigs = Array.isArray(resolvedSummary?.delverConfigs)
     ? resolvedSummary.delverConfigs
       .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
@@ -363,9 +438,9 @@ export function buildBuildSpecFromSummary({
       : undefined;
 
   const spec = {
-    schema: "agent-kernel/BuildSpec",
+    schema: BUILD_SPEC_SCHEMA,
     schemaVersion: 1,
-    meta: defaultMeta({ runId, source, createdAt, summary: resolvedSummary }),
+    meta: defaultMeta({ runId, source, createdAt, summary: resolvedSummary, clock }),
     intent: {
       goal: resolvedSummary?.goal || `Dungeon plan for ${resolvedSummary?.dungeonAffinity || "unknown"}`,
       tags: resolvedSummary?.tags || (resolvedSummary?.dungeonAffinity ? [resolvedSummary.dungeonAffinity] : []),
@@ -418,7 +493,7 @@ export function buildBuildSpecFromSummary({
   }
   const syntheticBudgetArtifact = !budgetArtifact && Number.isInteger(resolvedSummary?.budgetTokens) && resolvedSummary.budgetTokens > 0
     ? {
-        schema: "agent-kernel/BudgetArtifact",
+        schema: BUDGET_ARTIFACT_SCHEMA,
         schemaVersion: 1,
         meta: { id: `budget_${spec.meta.runId}`, runId: spec.meta.runId, createdAt: spec.meta.createdAt, producedBy: source || "cli" },
         budget: { tokens: resolvedSummary.budgetTokens },

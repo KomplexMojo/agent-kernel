@@ -1,6 +1,9 @@
 // Deterministic state machine for the Configurator persona.
 // Manages configuration lifecycle without IO.
 
+import { requireClock } from "../_shared/require-clock.js";
+import { restorePersonaView } from "../_shared/restore-view.js";
+
 export const ConfiguratorStates = Object.freeze({
   UNINITIALIZED: "uninitialized",
   PENDING_CONFIG: "pending_config",
@@ -43,9 +46,14 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createConfiguratorStateMachine({ initialState = ConfiguratorStates.UNINITIALIZED, clock = () => new Date().toISOString() } = {}) {
-  let state = initialState;
-  let context = {
+export function createConfiguratorStateMachine({ initialState = ConfiguratorStates.UNINITIALIZED, clock, from } = {}) {
+  requireClock(clock, "configurator");
+  const restored = restorePersonaView(from, {
+    persona: "configurator",
+    states: Object.values(ConfiguratorStates),
+  });
+  let state = restored?.state ?? initialState;
+  let context = restored?.context ?? {
     lastEvent: null,
     updatedAt: clock(),
     lastConfigRef: null,

@@ -43,18 +43,12 @@ switch (mode) {
     process.exit(vitest.status ?? 1);
     break;
   }
-  case "playwright": {
-    const playwright = runNodeScript("run-playwright.mjs", extraArgs);
-    process.exit(playwright.status ?? 1);
-    break;
-  }
   case "all": {
     assertProcessOk(runNodeScript("inventory-tests.mjs", [resolve(LOCAL_CODEX_DIR, "test-inventory.json")]), "inventory");
     assertProcessOk(runNodeScript("classify-tests.mjs", [resolve(LOCAL_CODEX_DIR, "test-classification.md")]), "classify");
     assertProcessOk(runNodeScript("check-runner-coverage.mjs"), "coverage");
     assertProcessOk(runNodeScript("check-test-recipe-adoption.mjs"), "recipe-adoption");
     assertProcessOk(runNodeScript("run-vitest.mjs", extraArgs), "vitest");
-    assertProcessOk(runNodeScript("run-playwright.mjs", extraArgs), "playwright");
     break;
   }
   default:

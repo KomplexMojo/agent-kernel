@@ -1,0 +1,27 @@
+{
+  "schema": "agent-kernel/PersonaInvocation",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "persona_cli_configurator",
+    "runId": "run_persona_cli",
+    "createdAt": "2026-07-29T00:00:00.000Z",
+    "producedBy": "persona-cli-fixture"
+  },
+  "persona": "configurator",
+  "clock": "2026-07-29T00:00:00.000Z",
+  "state": null,
+  "seed": null,
+  "invocation": {
+    "phase": "observe",
+    "event": "provide_config",
+    "payload": {
+      "config": {
+        "levelGen": {
+          "width": 9,
+          "height": 9
+        }
+      }
+    },
+    "tick": 0
+  }
+}

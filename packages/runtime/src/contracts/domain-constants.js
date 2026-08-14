@@ -1,6 +1,9 @@
 import {
   GAME_AFFINITY_EXPRESSIONS,
   GAME_AFFINITY_KINDS,
+  GAME_MOTIVATION_DISPLAY_GROUPS,
+  GAME_MOTIVATION_FAMILIES,
+  GAME_MOTIVATION_KINDS,
   GAME_VITAL_KEYS,
 } from "./game-elements.js";
 
@@ -75,18 +78,261 @@ export const AFFINITY_OPPOSITES = Object.freeze({
 export const ROOM_AFFINITY_EMIT_PERCENT_PER_STACK = 10;
 export const DELVER_SETUP_MODES = Object.freeze(["auto", "user", "hybrid"]);
 export const DEFAULT_DELVER_SETUP_MODE = DELVER_SETUP_MODES[0];
+
+// ── Motivation vocabulary (P5.1 D1: promoted out of personas/) ──────────────
+// These are the runtime-facing names for the game-elements motivation registry,
+// exactly as AFFINITY_KINDS is for GAME_AFFINITY_KINDS above.
+//
+// They previously lived in personas/configurator/motivation-loadouts.js, which
+// created a three-hop alias chain — GAME_MOTIVATION_KINDS -> MOTIVATION_KINDS
+// (Configurator) -> ALLOWED_MOTIVATIONS (Orchestrator prompt-contract) -> glue —
+// so one value wore three names across two personas and every consumer outside
+// the Configurator had to reach into it. Neither persona added anything; the
+// boundary crossings existed purely because of the renaming.
+export const MOTIVATION_KINDS = GAME_MOTIVATION_KINDS;
+export const MOTIVATION_DISPLAY_GROUPS = GAME_MOTIVATION_DISPLAY_GROUPS;
+export const MOTIVATION_FAMILIES = GAME_MOTIVATION_FAMILIES;
+
+// Mutual exclusivity is a DERIVED property of the vocabulary: pick two kinds from
+// one family and they conflict. `control` (user_controlled) is deliberately absent
+// — it coexists with any other kind, which is what lets delver cards carry it as a
+// synthetic extra tag.
+export const MOTIVATION_EXCLUSIVE_GROUPS = Object.freeze([
+  Object.freeze({ id: "mobility", kinds: MOTIVATION_FAMILIES.mobility }),
+  Object.freeze({ id: "posture", kinds: MOTIVATION_FAMILIES.posture }),
+  Object.freeze({ id: "cognition", kinds: MOTIVATION_FAMILIES.cognition }),
+]);
+
+const MOTIVATION_EXCLUSIVE_GROUP_BY_KIND = Object.freeze(
+  MOTIVATION_EXCLUSIVE_GROUPS.reduce((acc, group) => {
+    group.kinds.forEach((kind) => {
+      acc[kind] = group;
+    });
+    return acc;
+  }, {}),
+);
+
+/** Canonicalize one motivation kind, or null if it is not in the vocabulary. */
+export function normalizeMotivationKind(raw) {
+  if (typeof raw !== "string") return null;
+  const normalized = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (MOTIVATION_KINDS.includes(normalized)) return normalized;
+  return null;
+}
+
+export function getMotivationExclusiveGroup(kind) {
+  const normalized = normalizeMotivationKind(kind);
+  if (!normalized) return null;
+  return MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[normalized] || null;
+}
+
+/** The kinds that cannot coexist with `kind` (its family, minus itself). */
+export function getConflictingMotivationKinds(kind) {
+  const normalized = normalizeMotivationKind(kind);
+  if (!normalized) return [];
+  const group = MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[normalized];
+  if (!group) return [];
+  return group.kinds.filter((entry) => entry !== normalized);
+}
+
+/**
+ * Best-effort coercion of user-ish input into a clean motivation-kind list:
+ * canonicalize, drop unknown kinds, dedupe, first-wins on an intra-family
+ * conflict, and apply `fallback` if nothing survives.
+ *
+ * **This is the SALVAGING form — it never reports why anything was dropped.**
+ * It exists because that is what all three cross-boundary callers were already
+ * doing: card-authoring, director/summary-selections and ui-web/actor-inspector
+ * each called the Configurator's `normalizeMotivationKindList` and used only
+ * `.value`, discarding `ok`/`errors`/`warnings` (P5.1 D2, decision D-n). Ingesting
+ * loose input is not a persona decision, so it lives here.
+ *
+ * The REJECTING form — structured errors for a caller that should refuse invalid
+ * input — stays with the Configurator as `normalizeMotivationKindList`, because
+ * "is this configuration valid?" is that persona's chartered call.
+ * `tests/runtime/motivation-coercion-agreement.test.js` pins the two forms to the
+ * same `value` so this split cannot become another "two codebooks, one concept".
+ */
+export function coerceMotivationKinds(input, { fallback = "", allowEmpty = false } = {}) {
+  if (input === undefined) {
+    const fallbackKind = normalizeMotivationKind(fallback);
+    return allowEmpty || !fallbackKind ? [] : [fallbackKind];
+  }
+
+  const list = Array.isArray(input) ? input : typeof input === "string" ? [input] : null;
+  if (!list) return [];
+
+  const value = [];
+  const seen = new Set();
+  const selectedGroupKinds = new Map();
+  for (const entry of list) {
+    const kind = normalizeMotivationKind(entry);
+    if (!kind) continue;
+    if (seen.has(kind)) continue;
+    const group = MOTIVATION_EXCLUSIVE_GROUP_BY_KIND[kind];
+    if (group) {
+      const selectedKind = selectedGroupKinds.get(group.id);
+      if (selectedKind && selectedKind !== kind) continue;
+      selectedGroupKinds.set(group.id, kind);
+    }
+    seen.add(kind);
+    value.push(kind);
+  }
+
+  if (value.length === 0 && !allowEmpty) {
+    const fallbackKind = normalizeMotivationKind(fallback);
+    if (fallbackKind) value.push(fallbackKind);
+  }
+
+  return value;
+}
+
+// Motivation kind -> core-ts code (1-based); the reverse of core-ts's
+// MOTIVATION_KIND_BY_CODE. Moved from personas/allocator/motivation-price-policy.js,
+// whose own comment already said "this is codebook data … not pricing" — it had
+// no business in the Allocator, and the Configurator had to cross a persona
+// boundary to read it.
+export const MOTIVATION_KIND_TO_CODE = Object.freeze(
+  GAME_MOTIVATION_KINDS.reduce((acc, kind, index) => {
+    acc[kind] = index + 1;
+    return acc;
+  }, {}),
+);
+
+// ── Card vocabulary (P5.1 D1: promoted out of personas/configurator/) ───────
+// Type/size identifiers and their normalizers. The SIZE->LAYOUT table
+// (roomFloorTiles/roomMinSize/…) deliberately stays in the Configurator: those
+// are level-geometry decisions, not vocabulary.
+export const CARD_TYPE_IDS = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
+export const ROOM_CARD_SIZE_IDS = Object.freeze(["small", "medium", "large"]);
+export const DEFAULT_ROOM_CARD_SIZE = "medium";
+
+/**
+ * Coerce a value to a positive integer, accepting numeric strings.
+ *
+ * Moved verbatim from card-model.js. **NOT interchangeable with this module's
+ * private `asPositiveInt()`**, which rejects numeric STRINGS outright
+ * (`Number.isFinite("3")` is false). Card counts and grid dimensions arrive from
+ * CLI text, so the coercing form is required — swapping them would silently make
+ * every string-valued count fall back to its default.
+ */
+export function coercePositiveInt(value, fallback = 1) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.max(1, Math.floor(parsed));
+}
+
+/** Canonicalize a card type to a domain term ("attacker" -> "delver"). */
+export function normalizeCardType(value) {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "attacker") return "delver";
+  if (normalized === "defender") return "warden";
+  return CARD_TYPE_IDS.includes(normalized) ? normalized : "";
+}
+
+export function normalizeRoomCardSize(value) {
+  if (typeof value !== "string") return DEFAULT_ROOM_CARD_SIZE;
+  const normalized = value.trim().toLowerCase();
+  return ROOM_CARD_SIZE_IDS.includes(normalized) ? normalized : DEFAULT_ROOM_CARD_SIZE;
+}
+
+export function normalizeCardCount(value, fallback = 1) {
+  return coercePositiveInt(value, fallback);
+}
 export const DEFAULT_LLM_MODEL = "phi4";
 export const DEFAULT_LLM_BASE_URL = "http://localhost:11434";
 export const DEFAULT_LLM_CONTEXT_WINDOW_TOKENS = 256000;
 export const LAYOUT_TILE_FIELDS = Object.freeze(["floorTiles", "hallwayTiles"]);
-export const DEFAULT_LAYOUT_TILE_COSTS = Object.freeze({
-  floorTiles: 1,
-  hallwayTiles: 1,
-});
+/**
+ * CR.1's LAST CENSUS ENTRY, closed 2026-08-05 by DELETION rather than by retune.
+ *
+ * `DEFAULT_LAYOUT_TILE_COSTS` used to sit here — floor 1, hallway 1 — beside
+ * `base-costs.json`'s floor 1, hallway 3. Two codebooks for one price, disagreeing, with
+ * nothing able to notice: the divergence never reached the build path, so goldens held
+ * and the suite stayed green. Aligning the numbers would have left the second origin in
+ * place to diverge again on the next edit, so the constant is gone. Tile prices come from
+ * the Allocator's PriceList and their absence raises `allocator_tile_price_required`
+ * (`personas/allocator/layout-spend.js`). The charter's rule is literal here: "an
+ * incomplete price list is a structured error, never a quiet default."
+ *
+ * What stays in contracts is VOCABULARY, not economy: which tile fields exist, and which
+ * price id each maps to. That is the same line P5.1 D1 drew for card types and sizes.
+ */
 export const LAYOUT_TILE_PRICE_IDS = Object.freeze({
   floorTiles: { id: "tile_floor", kind: "tile" },
   hallwayTiles: { id: "tile_hallway", kind: "tile" },
 });
+
+/**
+ * Layout tile COUNTS — the lenient reader, relocated 2026-08-08 (D8-V).
+ *
+ * ⚠️ MOVED from `personas/allocator/layout-spend.js` by maintainer decision: counting
+ * tiles is shared vocabulary, not the Allocator's. It normalizes and counts; it **prices
+ * nothing**. `normalizeLayoutTileCosts` (prices, below) is its sibling and always lived
+ * here — the counts sitting one directory deeper inside a persona was the anomaly.
+ *
+ * 🔴 THIS IS NOT THE ONLY `normalizeLayoutCounts` IN THE TREE, AND THE OTHERS ARE NOT
+ * EQUIVALENT. Two personas carry private copies under the same name, and they behave
+ * differently on every interesting input:
+ *
+ * | | this (was allocator) | `prompt-contract.js#normalizeLayoutCountsStrict` | `feasibility.js#normalizeLayoutCountsOrZero` |
+ * |---|---|---|---|
+ * | missing field | `0` | **omitted from the result** | `0` |
+ * | numeric string `"5"` | **coerced to 5** | rejected | rejected |
+ * | bad value | warn, then `0` | error, field **omitted** | error, then `0` |
+ * | bad layout | warn, `null` | `invalid_layout`, `undefined` | `missing_layout`, `null` |
+ * | diagnostics | `warnings` | `errors` | `errors` |
+ *
+ * They were **deliberately not merged** in D8-V: collapsing them changes prompt text and
+ * feasibility verdicts, which is benchmark-relevant, and a relocation that also changes
+ * behavior is the one shape this branch has repeatedly failed to unpick afterwards. The
+ * other two were RENAMED instead, so nothing can mistake them for this, and
+ * `single-origin.test.js` now fails if the bare name reappears under `personas/`.
+ * ⇒ *Three functions with one name is a single-origin violation that no vocabulary guard
+ * could see, because none of them declared a vocabulary.*
+ */
+function normalizeTileCount(value, field, warnings) {
+  if (value === undefined) return 0;
+  let parsed = value;
+  if (typeof value === "string" && value.trim().length > 0) {
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      parsed = numeric;
+    }
+  }
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    if (warnings) warnings.push({ code: "invalid_tile_count", field, value });
+    return 0;
+  }
+  return parsed;
+}
+
+export function normalizeLayoutCounts(layout, warnings) {
+  if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
+    if (warnings) warnings.push({ code: "invalid_layout" });
+    return null;
+  }
+  const counts = {};
+  LAYOUT_TILE_FIELDS.forEach((field) => {
+    counts[field] = normalizeTileCount(layout[field], field, warnings);
+  });
+  return counts;
+}
+
+/**
+ * Walkable tiles, which today means floor tiles only.
+ *
+ * ⚠️ The name over-promises and the body is the contract: hallway tiles are walkable and
+ * are CHARGED (CR.9 M5 deleted the filter that made them free), but they are deliberately
+ * not counted here — the auto-fit search and the budget loop both use this as "how much
+ * room area is there", and connectors are not room area. Left exactly as it behaved inside
+ * the Allocator; D8-V was a relocation, not a redefinition.
+ */
+export function sumLayoutTiles(layout) {
+  if (!layout) return 0;
+  return layout.floorTiles || 0;
+}
 export const PHI4_MODEL_CONTEXT_WINDOW_TOKENS = 16384;
 export const PHI4_LAYOUT_MAX_LATENCY_MS = 10000;
 export const PHI4_RESPONSE_TOKEN_BUDGET = Object.freeze({
@@ -250,11 +496,27 @@ function buildStructuredPrompt({
   return lines.join("\n");
 }
 
-export function normalizeLayoutTileCosts(tileCosts = {}) {
+/**
+ * Tile prices for prompt text, or `null` when the caller has none to state.
+ *
+ * CR.9 M5: this used to complete a partial `tileCosts` from `DEFAULT_LAYOUT_TILE_COSTS`,
+ * so a caller that passed nothing still got a prompt asserting "floor tiles cost 1 tokens
+ * each" on no authority at all. In prompt text a wrong price does not fail — it becomes
+ * wrong content, and the model spends against a number the Allocator never set.
+ *
+ * Returning `null` rather than throwing is deliberate. A missing price here is not a
+ * caller bug (several prompt paths legitimately have no PriceList in hand); it is simply
+ * nothing to say, and the template omits the line. Production threads the real prices from
+ * `resolveLayoutTileCosts(priceList)`, so the omission is a fallback, not the norm.
+ */
+export function normalizeLayoutTileCosts(tileCosts) {
+  if (!tileCosts || typeof tileCosts !== "object") return null;
   const normalized = {};
-  LAYOUT_TILE_FIELDS.forEach((field) => {
-    normalized[field] = asPositiveInt(tileCosts[field], DEFAULT_LAYOUT_TILE_COSTS[field]);
-  });
+  for (const field of LAYOUT_TILE_FIELDS) {
+    const value = asPositiveInt(tileCosts[field], 0);
+    if (value <= 0) return null;
+    normalized[field] = value;
+  }
   return normalized;
 }
 
@@ -344,7 +606,12 @@ export function buildLlmLevelPromptTemplate({
     role: "You are a dungeon level planner.",
     goal: "Plan the dungeon layout using rooms only.",
     context: contextLines,
-    assumption: [`floor tiles cost ${normalizedCosts.floorTiles} tokens each.`],
+    // Stated only when the caller supplied real prices. The wording is unchanged from
+    // before CR.9 M5 on purpose: prompt text is the benchmark surface, and this milestone
+    // is about where the number COMES FROM, not about telling the model something new.
+    assumption: normalizedCosts
+      ? [`floor tiles cost ${normalizedCosts.floorTiles} tokens each.`]
+      : [],
     constraints,
     instructions,
     responseFormat,

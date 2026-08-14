@@ -1,5 +1,10 @@
 const assert = require("node:assert/strict");
 
+// PX.3 (M6): the Director requires an injected clock — it stamps BuildSpec.meta.createdAt,
+// and a defaulted clock there is wall-clock time inside a persisted artifact. Production
+// threads one; these tests now do what production does.
+const CLOCK = () => "2026-08-06T00:00:00.000Z";
+
 async function loadSelections() {
   return import("../../packages/runtime/src/personas/director/summary-selections.js");
 }
@@ -130,7 +135,7 @@ test("buildBuildSpecFromSummary: V3 resources appear in plan.hints and configura
       },
     ],
   };
-  const { spec } = buildBuildSpecFromSummary({ summary });
+  const { spec } = buildBuildSpecFromSummary({ summary, clock: CLOCK });
   assert.ok(spec, "spec must be produced");
   const planResources = spec.plan?.hints?.resources;
   assert.ok(Array.isArray(planResources) && planResources.length === 1,
@@ -164,7 +169,7 @@ test("buildBuildSpecFromSummary: V2 hazard in cardSet has no durability in plan.
       },
     ],
   };
-  const { spec } = buildBuildSpecFromSummary({ summary });
+  const { spec } = buildBuildSpecFromSummary({ summary, clock: CLOCK });
   const planHazards = spec.plan?.hints?.hazards;
   assert.ok(Array.isArray(planHazards) && planHazards.length === 1);
   assert.equal(planHazards[0].durability, undefined, "plan.hints hazard must not have durability");
@@ -195,7 +200,7 @@ test("buildBuildSpecFromSummary: actor card instances keep role and unique posit
     ],
   };
 
-  const { spec } = buildBuildSpecFromSummary({ summary });
+  const { spec } = buildBuildSpecFromSummary({ summary, clock: CLOCK });
   const actors = spec.configurator.inputs.actors;
   assert.equal(actors.length, 5);
   assert.deepEqual(actors.map((actor) => actor.archetype), [
@@ -281,6 +286,7 @@ test("room tile card durability survives normalizeCardEntry", async () => {
 test("buildBuildSpecFromSummary omits resources key when no resources are present", async () => {
   const { buildBuildSpecFromSummary } = await loadAssembler();
   const { spec } = buildBuildSpecFromSummary({
+    clock: CLOCK,
     summary: {
       dungeonAffinity: "fire",
       goal: "no resources",

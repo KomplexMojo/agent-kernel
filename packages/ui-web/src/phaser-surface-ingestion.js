@@ -1,7 +1,14 @@
-const BUILD_SPEC_SCHEMA = "agent-kernel/BuildSpec";
-const GAMEPLAY_BUNDLE_SCHEMA = "agent-kernel/GameplayBundle";
-const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
-const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
+// M8 relocated GAMEPLAY_BUNDLE_SCHEMA, which this file and `adapters-cli/src/cli/ak-impl.mjs`
+// each declared for themselves — the browser reader and the CLI writer of the same bundle,
+// two origins for the string that decides whether a payload is recognized at all. M9
+// finished the file with the other three. `serve-ui.mjs` transpiles `.ts` on request and
+// preserves the `.ts` specifier, so the browser receives valid JavaScript.
+import {
+  BUILD_SPEC_SCHEMA,
+  GAMEPLAY_BUNDLE_SCHEMA,
+  INITIAL_STATE_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+} from "../../runtime/src/contracts/artifacts.ts";
 
 function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);

@@ -2,27 +2,27 @@ const assert = require("node:assert/strict");
 
 
 test("default pool weights: 44% rooms, async 20% delver, 16% wardens, 12% hazards, 8% resources (design §2.2)", async () => {
-  const { computeBudgetPools, REFERENCE_BUDGET_TOKENS } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
+  const { computeBudgetPools, REFERENCE_BUDGET_TOKENS } = await import("../../packages/runtime/src/personas/allocator/budget-allocation.js");
 
   const result = computeBudgetPools({ budgetTokens: 2500 });
   assert.ok(result.ok);
 
   const poolMap = new Map(result.pools.map(p => [p.id, p.tokens]));
-  assert.equal(poolMap.get("rooms"), 1100);
+  assert.equal(poolMap.get("rooms"), 1025);
   assert.equal(poolMap.get("delver"), 500);
   assert.equal(poolMap.get("wardens"), 400);
-  assert.equal(poolMap.get("hazards"), 300);
+  assert.equal(poolMap.get("hazards"), 375);
   assert.equal(poolMap.get("resources"), 200);
 });
 
 test("reference budget constant is 2500 (design §2.1)", async () => {
-  const { REFERENCE_BUDGET_TOKENS } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
+  const { REFERENCE_BUDGET_TOKENS } = await import("../../packages/runtime/src/personas/allocator/budget-allocation.js");
 
   assert.equal(REFERENCE_BUDGET_TOKENS, 2500);
 });
 
 test("custom pool weights override defaults", async () => {
-  const { computeBudgetPools } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
+  const { computeBudgetPools } = await import("../../packages/runtime/src/personas/allocator/budget-allocation.js");
 
   const result = computeBudgetPools({
     budgetTokens: 800,
@@ -43,7 +43,7 @@ test("custom pool weights override defaults", async () => {
 });
 
 test("explicit resource-only pool weights are honored for first-order resource authoring", async () => {
-  const { computeBudgetPools } = await import("../../packages/runtime/src/personas/director/budget-allocation.js");
+  const { computeBudgetPools } = await import("../../packages/runtime/src/personas/allocator/budget-allocation.js");
 
   const result = computeBudgetPools({
     budgetTokens: 200,

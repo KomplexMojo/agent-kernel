@@ -7,7 +7,7 @@ Use the agent-kernel MCP test tools before writing or running tests manually.
 - Prefer `ak_test_scaffold_case` over freehand test creation when the recipe fits.
 - Prefer `ak_test_run` on the narrowest relevant mode first.
 - Use Vitest-backed suites for contracts, runtime logic, CLI flows, WASM, and non-browser integrations.
-- Use Playwright-backed suites for browser-native and served-page behavior.
+- Use fixture-backed Vitest suites under `tests/ui-web/` for browser-facing and served-page behavior; there is no browser-native runner.
 - Do not replace domain or contract tests with UI-only tests.
 - Preserve existing assertion meaning when migrating tests.
 

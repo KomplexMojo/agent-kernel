@@ -1,0 +1,30 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "golden_g4_initial_state",
+    "runId": "golden_g4",
+    "createdAt": "2026-07-18T00:00:00.000Z",
+    "producedBy": "cli-resource-plan",
+    "cost": {
+      "runTotalTokens": 538,
+      "budgetTokens": 5000,
+      "receiptRef": {
+        "id": "golden_g4_budget_receipt",
+        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schemaVersion": 1
+      },
+      "proposalRef": {
+        "id": "golden_g4_spend_proposal",
+        "schema": "agent-kernel/SpendProposal",
+        "schemaVersion": 1
+      }
+    }
+  },
+  "simConfigRef": {
+    "id": "golden_g4_sim_config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": []
+}

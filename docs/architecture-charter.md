@@ -7,6 +7,241 @@
 - **`core-ts`**: simulation state, transition rules, validation, render buffers, affinity field computation, motivation evaluation, and data-only effects.
 - **Runtime personas**: long-lived controllers that coordinate planning, tick phases, action ordering, telemetry, and adapter interaction.
 - **Adapters/UI**: host-specific IO and presentation. They call runtime or consume artifacts; they do not own simulation rules.
+- **Effect contract:** `core-ts/src/ports/effects.ts` is the sole origin of `EffectKind`. Runtime may
+  compatibility-re-export it and map core effects to runtime records, but must not redeclare the codebook
+  or silently degrade an unknown core kind; extensions enter only through an explicit injected seam.
+
+## Persona Model — ENFORCED
+
+The persona model is the primary unit of comprehension for this project. Every piece of domain
+logic belongs to exactly one persona; if the maintainer cannot say which persona a behavior
+belongs to and why, the code is in the wrong place. All other runtime code — the command kernel,
+card-authoring, orchestrate-build, the tick runner — is **glue**: it sequences persona calls and
+moves artifacts between them, and it must not contain domain decisions of its own.
+
+| Persona | What it does | Why it exists |
+|---|---|---|
+| **Orchestrator** | Owns every external interaction seam: LLM sessions, budget loops, prompt contracts, workflow coordination. | So no other persona (and no adapter) talks to the outside world about intent. |
+| **Director** | Translates intent into structure: IntentEnvelope → PlanArtifact → BuildSpec. | So "what the user asked for" has one interpreter. |
+| **Configurator** | Assembles, validates, and locks configurations: levels, actors, cards, pools, feasibility. | So a locked config has one producer and one meaning. |
+| **Allocator** | The economy. Owns price lists, base costs, all pricing formulas, spend validation, budget maximization, receipts, and reconciliation. | So every token cost in the system has one author and receipts are auditable. |
+| **Actor** | Proposes actions for simulated agents from observations, motivations, and solver/LLM decisions. | So agent behavior is deterministic, replayable, and separately testable. |
+| **Moderator** | Controls the tick: ordering, affinity resolution, effect fulfillment, and pausing — `pausing` is a real gate that refuses to advance `step()`, not a label. | So tick semantics are policy, not accidents of the runner loop. |
+| **Annotator** | Captures and normalizes run observability: per-tick TelemetryRecords and the end-of-run RunSummary (including its derived `outcome`). Build-scope `telemetry.json` is **not** its own and never will be — see rule 3 (plane boundary). Spend auditing is likewise **not** Annotator work: it is settled Allocator territory via `scenarioSpendReport` (Plan P3.3, which deleted the never-wired budget ledger rather than routing it here). | So observability is a contract, not scattered console writes. |
+
+### Ownership — what "belongs to a persona" means (A1–A5)
+
+*Adopted 2026-07-29. The sentence "every piece of domain logic belongs to exactly one persona" was
+found to be satisfiable by a **façade**: route the call through the persona, let it stamp the result,
+keep the decision in glue. An adversarial review found eight such violations **under a fully green test
+suite**, because every gate the project had was an **output** gate — goldens, schemas, integration
+results — and a façade produces byte-identical output by construction. A1–A5 replace the ambiguous
+sentence with a testable definition.*
+
+**A persona OWNS a behavior if and only if all five hold. Fewer than five is a figurehead, not an owner.**
+
+| # | Criterion | Obligation | Violated when |
+|---|---|---|---|
+| **A1** | **Sole implementation** | The logic exists in exactly ONE place, inside the owning persona. | The same decision has a second origin — another persona, glue, or core. |
+| **A2** | **Necessary path** | Production **cannot** produce the outcome without invoking the persona. | The persona can be neutered and production still works. |
+| **A3** | **Real gate** | The persona's FSM state determines whether and how the behavior happens. | The same call in two different states does the same thing. |
+| **A4** | **Serializable decision** | The decision is a pure function of (serialized state, event, payload). | Hidden instance state changes the outcome; replay diverges. |
+| **A5** | **Honest provenance** | An artifact naming the persona was produced by an instance that actually performed the round. | The stamp is applied by an instance that did no work. |
+
+**A2 is load-bearing.** It is the only criterion no output test can satisfy vacuously, and it is what
+"not a figurehead" actually means. A behavior whose ownership cannot be demonstrated by A2 is not owned,
+however cleanly it is routed.
+
+**Consequences for review.** "The call goes through the controller" is *not* evidence of ownership —
+it establishes routing (structure) and says nothing about authority (semantics). Ask instead: if this
+persona were removed, would production break? If the answer is no, the diff does not satisfy this charter
+regardless of how it is layered.
+
+**Enforcement.** Each criterion has a mechanical gate family, specified in the Plan's test architecture:
+G1 CLI-differential/ablation (A2) · G2 single-origin guards (A1) · G3 state-gate tests (A3) ·
+G4 serialization-equivalence (A4) · G5 provenance-lineage (A5). **A chartered behavior with no G1 test is
+not owned**, and a milestone closes when its G1 test flips red→green — not when its call sites are threaded.
+
+**Enforcement rules (blocking on every diff):**
+
+1. **Controller-only boundary.** Code outside a persona's directory may import only that persona's
+   `controller.js`, `persona.js`, or `contracts.ts`. Importing a persona's internal modules (`validate-spend.js`, `cost-model.js`,
+   `llm-session.js`, …) from outside its directory is a violation. Adapters never import persona
+   internals. Enforced by `tests/architecture/persona-boundary.test.js`, which fails on any NEW
+   violation; `persona-boundary-allowlist.json` records today's known debt and must only shrink.
+   **TARGET DECIDED 2026-07-29: the allowlist goes to ZERO — no exceptions, including persona→persona.**
+   An internal import bypasses the controller, so the persona's FSM never runs: that is an **A2**
+   violation by definition. Every entry needs an explicit disposition — thread it through a controller
+   or artifact exchange, or delete the dependency. **Silent allowlist membership is not a disposition.**
+   The guard becomes a hard error once the list is empty (Phase 5).
+   All entries now carry one: dispositions live in `local-codex/allowlist-dispositions.md`, which is the
+   working checklist and is regenerated from the allowlist itself. **Do not cite an entry count here** —
+   it changes as the list shrinks (it was 74 when the target was set); read
+   `jq length tests/architecture/persona-boundary-allowlist.json` instead.
+   **Two facts that shape the remaining work.** Only **2** of the original 74 crossings imported a symbol
+   that already had a public-surface equivalent, so "thread it through a controller" is a design task per
+   entry, not a re-point. And roughly **40%** are owned by CR.1/CR.4/CR.9 rather than by Phase 5 — the
+   list largely empties as those land, which is why the enforcement flip depends on the economy work.
+2. **Personas own logic; glue owns sequence.** A conditional that encodes a domain rule (a price,
+   a validation, an ordering policy) belongs inside a persona. Glue may branch only on artifact
+   shape and persona results.
+3. **Two planes, same personas.** The simulation tick (observe→decide→emit phases) and the build
+   pipeline are both persona rounds.
+   - **Build plane (today):** Director (IntentEnvelope → PlanArtifact → BuildSpec) → Configurator
+     (level-gen sizing, resource mapping, validation) → Allocator (feasibility, budget maximization,
+     receipts). Receipts come from the Allocator.
+   - **Tick plane:** Moderator gates advancement, Actor proposes, Allocator prices, Annotator
+     summarizes the run.
+   - **Not a gap — a plane boundary (settled 2026-07-28, P3.4).** The Annotator persona is fully
+     implemented and live *in the tick plane* — it cycles idle→recording→summarizing every tick and
+     emits `TelemetryRecord`s plus the end-of-run `RunSummary`. It is **absent from the build plane**
+     because `build`/`llm-plan` run no tick at all and the Annotator subscribes only to the
+     EMIT/SUMMARIZE tick phases. Build-scope `telemetry.json` therefore comes from glue
+     (`build/telemetry.js`): a structural consequence, not a missing persona.
+     **RESOLVED:** the real defect was the false label — `build/orchestrate-build.js` stamped
+     `producedBy: "annotator"` on an affinity-summary artifact the persona never touched. It now
+     stamps the caller's `producedBy` (e.g. `cli-build`), matching every sibling build artifact, and
+     `tests/runtime/build/build-provenance.test.js` is a standing guard against any build-plane glue
+     hardcoding a persona name. The open decision is closed: build-scope telemetry stays glue-owned,
+     and the `TelemetryRecord` contract comment now states producer-by-plane explicitly. Giving
+     authoring builds a persona round was considered and rejected as a category error.
+   - **The rule this leaves behind:** glue must never claim persona provenance it did not earn.
+     Provenance is legitimate only where the persona actually ran — so `producedBy: "annotator"` on
+     the run summary (routed through the Annotator controller) and `producedBy: "moderator"` on tick
+     frames are correct, while the same labels on any build artifact are not. Check the plane before
+     assigning a producer.
+4. **Pure FSMs.** `view()` + `advance(event, payload)`, clock injected, context serializable,
+   effects returned as data. A persona state must gate real behavior — a state that nothing
+   consults is a defect, not a feature (**A3**). "Context serializable" is **A4** and is stronger than
+   it reads: any value that influences the next decision must be *in* the serialized context. State
+   held in a factory closure and omitted from `view()` breaks replay — two instances with identical
+   serialized state can then produce different outcomes — and is a violation even though nothing
+   mutates a class instance.
+   **A4 is mechanically verifiable as of 2026-08-01 (PX.4 / HANDOFF-4).** Every persona factory accepts
+   `{ from: view }`; the shared restore boundary validates a state from that persona's state codebook and
+   an object context before copying the serialized context into a fresh FSM. G4 drives each of the seven
+   personas, JSON-round-trips `view()`, restores a fresh instance, advances both with the same next event,
+   and requires identical `{state, actions, effects, telemetry}`. Restorability is a verification and
+   snapshot-resume seam; it does not replace deterministic replay from tick zero.
+5. **Cross-persona interaction** happens through versioned artifacts (`contracts/artifacts.ts`),
+   persona events, or effects — never lateral imports of another persona's internals.
+6. **Tests align to personas, and must test authority — not routing.** Persona behavior tests live in
+   `tests/personas/<persona>/` and are named `<persona>-<behavior>.test.*`. **The layout half of this
+   rule is enforced by `tests/architecture/persona-test-layout.test.js`** — a flat file under
+   `tests/personas/`, a misnamed file inside a persona directory, or a directory named for something
+   that is not a chartered persona each fail it. Four files span the whole roster (the tick FSM, tick
+   orchestrator, tick inspection, and dual-surface shadowing) and are excused **by name** in that guard,
+   so a fifth is a deliberate edit rather than a filename that slips a pattern. The *authority* half is
+   not path-checkable and is answered by the G1 registry, not by this layout. A test that asserts only a
+   state label (not behavior the state gates) is a legacy test and must be replaced, not extended.
+   **This is not a stylistic preference.** The `<persona>-state-machine` / `<persona>-persona-phase`
+   families assert `result.state === expected` and `context.lastEvent === event` — they verify that a
+   *label changed*, so "persona tests pass" has never implied "personas decide". Every new persona
+   behavior needs a gate from the A1–A5 families above; **G1 (does production break without this
+   persona?) is the acceptance criterion**, and byte-identical goldens are not evidence of ownership.
+7. **One implementation per module — `.js` is canonical.** Persona controllers and state machines
+   are plain `.js`, with no `.mts` twin: the 1-line re-export shims were deleted 2026-08-01 and every
+   importer now uses `persona.js` or `controller.js`. Two full copies of a module must never exist — that arrangement previously drifted
+   undetected (director/controller by ~100 lines, allocator/controller by 2), which is why the old
+   "apply every edit to both files" rule was retired rather than restated.
+
+**Migration status:** enforcement is being phased in per `local-codex/Plan.md` (Persona Enforcement
+Program). Until a phase lands, its violations are documented debt, **not license** — new code is held
+to the full rules above regardless of phase.
+
+⚠️ **CORRECTED 2026-07-29 — this paragraph previously overstated what had landed, and the overstatement
+is exactly the failure A1–A5 exist to prevent.** An adversarial review of the whole program (verdict
+NO-SHIP, 8 findings, `local-codex/Plan.md` CR.1–CR.8, plus CR.9 found separately) established that
+several phases achieved **structural** routing without **semantic** authority:
+
+- **Phase 1 — the Allocator is NOT yet the sole pricing authority.** Economic values still have three
+  origins: pool-split constants inside the *Director's* directory, card-cost constants in glue
+  (`commands/card-authoring.js`), and a silent `DEFAULT_ACTION_COST` fallback in `core-ts` (**A1**).
+- **Phase 2 — the Configurator assembles, but does not validate or lock.** `validate()`/`lock()`
+  perform no schema check and no freeze, and the production authoring path never calls them
+  (**A2 + A3**). The Director's persisted PlanArtifact is reconstructed *after* the spec is built by a
+  second Director instance; the plan that actually ran is discarded (**A2 + A5**).
+- **Phase 3 — closed.** The Moderator's pause gate genuinely gates, and as of CR.5 tick
+  *ordering* and *effect fulfilment* are its decisions too: the canonical persona order and the
+  per-effect disposition are declared only inside the persona, and the runner executes the returned
+  plan without keeping a fallback of its own (dispatch itself stays behind `ports/effects.js`).
+  As of CR.8 the RunSummary is produced by the Annotator that actually observed the run: the kernel
+  goes through `runtime.summarizeRun()`, which refuses to summarize a ticked run from an instance
+  still `idle` (**A5**). Phase 3 has no open gaps.
+- **Closed by CR.6 and PX.4:** the Actor no longer holds decision-relevant state in a closure — it keeps nothing
+  outside its FSM, so its decision is a function of (`view()`, event, payload) (**A4**) — and it no longer
+  defines budget admissibility, which now lives in the Allocator and reaches the Actor only as that
+  persona's injected judge (**A1**). All seven personas can now be rebuilt from a serialized `view()` via
+  `{ from }`, and the G4 serialization-equivalence gate passes across the full persona set.
+- **Also open:** the Allocator authors and grows card configurations, which is Configurator work
+  (**A1**, see the Economy section).
+
+Still open by design: the Orchestrator inversion (Phase 4) and the enforcement flip that empties the
+boundary allowlist to zero (Phase 5). **Consult the Plan for current state; do not treat any claim in
+this paragraph as evidence that a behavior is owned — require its G1 test.**
+
+## Economy — Allocator Authority
+
+- There is **one price model**, owned by the Allocator. Base cost numbers live in
+  `personas/allocator/base-costs.json` (data, tunable); formulas — linear/quadratic shaping and
+  the free-floating resource premium — live in Allocator code. A base cost literal in any other
+  file is a violation, **in any package**. The budget split is a base cost in this sense: the
+  per-card-type percentages live in the JSON, and the pool ids, reference targets and authoring
+  weights are all derived from them. CR.9 M5 found a fourth copy of that split hardcoded in
+  `adapters-cli` — outside the single-origin guard's then-scope of `packages/runtime/src`, and
+  the copy the CLI actually used, so retuning the canonical split changed nothing on the real
+  path. The guard now scopes to all of `packages`: an economy that stops at a package boundary
+  is not a single origin.
+- Every priced element (vitals, regen, affinity, motivations, tiles, hazards, resources, actors)
+  is charged through the Allocator's price list. Silent fallbacks to alternate cost tables are
+  forbidden: an incomplete price list is a structured error, never a quiet default.
+- **Everything has a cost, even if only the 1-token base (maintainer rule 2026-08-05).** The
+  budget is the only limit on how much content an author can conjure, so a free element is an
+  exploit rather than a discount. Two things make an element free and both are defects: a
+  published price of **zero**, and a published price with **no charging path**. The second is
+  the dangerous one — the price list reads complete, so nobody looks — and it is how hazard
+  affinities, hazard vitals, connector tiles and `tile_hallway` were all free under a green
+  suite. A charging path that matches one *shape* of a payload is not a charging path for that
+  payload. Enforced by `tests/personas/allocator/allocator-everything-costs.test.js`, which
+  drives real payloads and compares what was charged against what is published.
+- Receipts (`BudgetReceiptArtifact`) are issued only by the Allocator and are the audit trail for
+  every spend. Budget maximization ("spend the rest") is Allocator policy, not adapter code.
+- **The Allocator JUDGES; it does not AUTHOR (decided 2026-07-29; ENFORCED 2026-08-04, Plan CR.9 M3).**
+  Pricing authority does not extend to building the thing being priced. `budget-fulfillment.js` used to
+  construct and grow cards (`buildMinimumRequiredDelverCard`, `fillFlexibleDelverVitals`, `maximize*Card`)
+  and encode configuration *validity* rules such as "a mobility motivation requires stamina" — all
+  Configurator work, and the reason the Allocator imported Configurator internals at all. The import was
+  the symptom; the mis-assignment was the cause.
+  **The protocol, now in force:** the Configurator assembles a candidate configuration
+  (`configurator/candidate-authoring.js`); the Allocator prices it and returns *approve with a cost* or
+  *reject with a structured reason*; the Configurator revises. The exchange uses versioned contracts
+  (rule 5) — `BudgetEnvelope`, `ConfigurationCandidate`, `SpendVerdict`, whose **shapes** are declared in
+  `contracts/artifacts.ts` and whose **values and builders** live in `contracts/spend-protocol.js` — and
+  the Allocator reads only a candidate's published `priceable` projection, never a Configurator function.
+  Maximization is a bounded deterministic negotiation, not a monolith inside the Allocator.
+  Four rules make this checkable rather than aspirational:
+  1. **The cap is visible; prices are not.** The Configurator must see the budget or its enumeration is
+     unbounded and termination stops being structural. It must never see prices, or it is pricing again.
+  2. **Capabilities are injected and their absence is a loud error, never a default.**
+     `authorCandidates` and `normalizeMotivations` are passed from the Configurator's public surface at
+     the composition root; missing ones raise `allocator_candidate_authoring_required` /
+     `allocator_motivation_vocabulary_required`. A default would be a second, silently-diverging author of
+     a chartered decision — invisible, because the resulting price stays well-formed.
+  3. **Ordering intent stays opaque.** Candidates carry a numeric `preference` tuple that the Allocator
+     compares lexicographically without learning what any index means, which keeps `optimizationGoals`
+     out of Allocator policy.
+  4. **A refusal names a reason from a closed, published set, and every member of that set has a
+     producer (CR.9 M4).** The protocol's two vocabularies are declared once, in
+     `contracts/spend-protocol.js`: `SPEND_VERDICT_REJECT_REASONS` (what judging one *candidate* can
+     conclude — `over_cap`, `not_priceable`) and `AUTHORING_VALIDATION_OUTCOMES` (what assessing a whole
+     *request* can conclude). They are **not** one vocabulary and must not be merged: a candidate is never
+     short of budget, because the budget is what it is being judged against. The builders refuse an
+     unpublished reason, and a published reason nothing emits is dead vocabulary — the defect M4 found,
+     one level down from the one CR.9 fixed.
+  This **supersedes** the P2.3.4 D1 decision ("Configurator keeps costing, Allocator consults"): D1 asked
+  who owns *costing* when the real seam is who *authors* versus who *judges*.
+- `core-ts` may hold invariant enforcement only (caps, spend accounting) fed by Allocator-provided
+  data — never prices, tiers, or policy.
 
 ## Dependency Direction
 
@@ -23,7 +258,9 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - Pure validation and deterministic rule enforcement.
 - Data-only effects with deterministic ids/requestIds and adapter hints.
 - Affinity system: 10-kind codebook, spatial formulas, interaction matrix, static hazard and actor field computation.
-- Motivation system: 12-kind codebook, cost formulas, behavior flags, and profile derivation.
+- Motivation system: 12-kind codebook, behavior flags, and profile derivation. (Motivation
+  *pricing* is Allocator policy, not core; core enforces only invariant budget rules — caps and
+  spend accounting — when provided by the Allocator.)
 - Render buffers and observations derived from canonical state.
 
 ## Runtime Responsibilities
@@ -31,7 +268,9 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - Tick FSM and persona orchestration.
 - Action proposal, ordering, replay, and telemetry capture.
 - Artifact normalization and schema boundary enforcement.
-- Card-authoring semantics: card normalization, property application, budget receipts, and summary construction live in `packages/runtime/src/commands/card-authoring.js`.
+- Card-authoring glue: card normalization and property application live in
+  `packages/runtime/src/commands/card-authoring.js`. Budget receipts are issued by the
+  **Allocator persona**; card-authoring requests them, it does not compute them.
 - Solver/external fact request routing through ports.
 - UI-facing visualization assembly from core outputs and resource bundles.
 - UI-facing core access facades for preview/playback setup. Browser UI code must
@@ -45,6 +284,9 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - The LLM proposes plans, configurations, and repairs but is never the authority on validity or completion. Deterministic validators own the `validate` and `verify` gates; a model can never mark a workflow complete.
 - Model, MCP, and CLI calls are mockable; deterministic tests use fixtures and never hit a live service. Benchmark measurements are offline evidence only and cannot rewrite routing policy without an explicit, versioned promotion.
 - CLI (`ak workflow …`) and MCP (`ak_workflow_*`) surfaces are additive; existing commands and tools are unchanged. See [`adaptive-workflow.md`](adaptive-workflow.md).
+- **Every schema in this cluster is declared in `packages/runtime/src/contracts/artifacts.ts` and imported from there (CR.4 M7, 2026-08-08).** This is the general artifact rule, recorded here because this cluster is where it was broken worst: twelve of its twenty schemas were declared elsewhere — six in `adaptive-workflow/` modules, one in an *adapter* — and **six had no constant at all**, the string retyped at each use site. `tests/architecture/schema-declaration-origin.test.js` enforces it by matching **literals, not declarations**: a schema with no constant is invisible to any instrument that looks for constants, which is precisely how the cluster was miscounted three times (9 → 15 → 20). The guard's `KNOWN_OUTSTANDING` list enumerated the seven production schemas elsewhere in the tree that still violated the rule; it was an inventory of debt, not a silencer. **M8 (2026-08-11) emptied it** — every production schema literal in the tree is declared in `artifacts.ts`, so the declaration rule has no exemptions left and a new undeclared schema fails on arrival.
+- **Declared centrally and *used from* the declaration are different properties, and only the second is single origin.** A file that retypes `"agent-kernel/Whatever"` inline passes a declaration check — the schema *is* declared, it simply is not being read from there — while remaining free to drift from it. Both prior failures were exactly this: `RUNTIME_PROFILE_SNAPSHOT_SCHEMA`, a second origin under a name that read like a different schema, and `GAMEPLAY_BUNDLE_SCHEMA`, declared once in the CLI that writes bundles and once in the browser module that reads them.
+- **THE RULE IS NOW ABSOLUTE (M9, 2026-08-11): no production file outside `artifacts.ts` may write an `agent-kernel/*` string literal at all.** M7 and M8 held a *named set* of schemas to this stricter rule while 182 sites across 50 files still retyped a centrally declared schema — 68 of them rival `const` declarations, five inside `contracts/` itself. That backlog is closed, so the guard needs no list: a rule that enumerates what it protects is a rule someone has to remember to extend, and M8's named ten would have covered none of the other 172. The single `KNOWN_OUTSTANDING` list is now the only exemption, is empty, and is honoured by every check — an exemption that silences one check but not another is not an escape hatch, it just looks like one.
 
 ## Builder Port
 
@@ -59,7 +301,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 ## Motivation And Action Flow
 
-- Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.mts` (`controller.js` is a thin runtime re-export of it).
+- Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.js`.
 - `buildMotivatedProposals()` reads `motivation.kind` from the observation actor record or `payload.initialState.actors`. It uses `resolveNearestHostile()` to choose the closest other actor by Chebyshev distance.
 - Current simple motivation kinds are `attacking`, `defending`, `stationary`, and `random`: attacking actors attack adjacent hostiles or pursue distant hostiles, defending actors attack adjacent hostiles or hold position when distant, stationary actors emit no movement proposal, and random actors move to a seed-derived legal adjacent tile.
 - `random` movement is deterministic pseudo-random: the choice derives from `seed:actorId:tick` (FNV/mulberry), never `Math.random()`, and synthesizes a `wait` when no legal adjacent tile exists. Replays of the same seed produce identical movement.

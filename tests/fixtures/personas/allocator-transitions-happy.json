@@ -7,7 +7,7 @@
     { "event": "budget", "payload": {}, "expectState": "budgeting" },
     { "event": "allocate", "payload": { "budgets": [{ "category": "movement", "cap": 5 }] }, "expectState": "allocating", "expectBudgetCount": 1 },
     { "event": "monitor", "payload": {}, "expectState": "monitoring" },
-    { "event": "rebalance", "payload": { "signals": [{ "category": "movement", "delta": -1 }] }, "expectState": "rebalancing", "expectSignalCount": 1 },
+    { "event": "rebalance", "payload": { "signals": [{ "category": "movement", "delta": -1 }], "ledger": { "categories": [{ "category": "movement", "categoryId": 0, "issued": 5, "spent": 6 }] } }, "expectState": "rebalancing", "expectSignalCount": 1 },
     { "event": "monitor", "payload": {}, "expectState": "monitoring" }
   ]
 }

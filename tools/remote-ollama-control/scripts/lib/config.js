@@ -3,8 +3,107 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
+
+const ROUTE_ALIASES = {
+  internal: 'internal',
+  lan: 'internal',
+  external: 'external',
+  vpn: 'external'
+};
+
+// Probe results are stable for the life of one invocation; commands call
+// hostForRoute repeatedly and must not re-probe each time.
+const routeCache = new Map();
+
+/**
+ * Can we open a TCP connection to host:port within timeoutMs?
+ *
+ * Runs in a child process because the callers here are synchronous and node
+ * has no synchronous socket API. A closed port and a silently dropped packet
+ * both answer "no", which is exactly what route selection needs.
+ */
+function probeTcp(host, port, timeoutMs) {
+  if (!host) return false;
+  const script =
+    'const net=require("net");' +
+    'const s=net.connect({host:process.argv[1],port:Number(process.argv[2])});' +
+    's.setTimeout(Number(process.argv[3]));' +
+    'const done=(ok)=>{try{s.destroy();}catch(e){}process.exit(ok?0:1);};' +
+    's.on("connect",()=>done(true));' +
+    's.on("timeout",()=>done(false));' +
+    's.on("error",()=>done(false));';
+  const result = spawnSync(
+    process.execPath,
+    ['-e', script, String(host), String(port), String(timeoutMs)],
+    { timeout: timeoutMs + 2000, stdio: 'ignore' }
+  );
+  return result.status === 0;
+}
+
+/**
+ * Turn a requested route into a concrete one.
+ *
+ * An explicit route is always honoured — auto-detection never overrides what
+ * the caller asked for. For 'auto', the internal route is probed first and
+ * preferred whenever it answers, because it is the faster path.
+ *
+ * Note the probe is doing real work here, not guessing from VPN state. Whether
+ * a VPN leaves the LAN reachable depends on its tunneling mode, and that is not
+ * stable: both behaviours were observed on this setup within minutes of each
+ * other (split tunneling kept the LAN reachable; full tunneling did not). So
+ * "is the VPN on?" cannot decide the route — only "does this host answer?" can.
+ */
+function resolveRoute(config, routeName) {
+  const requested = routeName || config.host.defaultRoute || 'auto';
+  if (requested !== 'auto') {
+    const canonical = ROUTE_ALIASES[requested];
+    if (!canonical) {
+      throw new Error(`Unknown route '${requested}'. Use internal, external, or auto.`);
+    }
+    return canonical;
+  }
+
+  const { internalHost, externalHost, sshPort, routeProbeMs, routeProbeInternalMs } = config.host;
+  const cacheKey = `${internalHost}|${externalHost}|${sshPort}`;
+  if (routeCache.has(cacheKey)) return routeCache.get(cacheKey);
+
+  // The internal probe gets a much shorter deadline than the external one. A
+  // host on the same LAN answers in well under 100ms, so a longer wait cannot
+  // turn a "no" into a "yes" — it only taxes every off-LAN run, which pays this
+  // timeout in full before falling through to the route it was always going to
+  // use. The external probe keeps the generous budget: it crosses the internet.
+  let resolved = null;
+  if (probeTcp(internalHost, sshPort, routeProbeInternalMs)) {
+    resolved = 'internal';
+  } else if (probeTcp(externalHost, sshPort, routeProbeMs)) {
+    resolved = 'external';
+  }
+
+  if (!resolved) {
+    throw new Error(
+      `Route auto-detection failed: neither the internal host (${routeProbeInternalMs}ms) nor the external ` +
+        `host (${routeProbeMs}ms) answered on port ${sshPort}.\n` +
+        `  - On the host's own network, check LLM_INTERNAL_HOST and that the host is up.\n` +
+        `  - Off it, check that any required VPN is connected and that LLM_EXTERNAL_HOST still resolves ` +
+        `to the current address (a dynamic-DNS record can go stale).\n` +
+        `  - Force a specific path with --route internal|external to see the underlying error.`
+    );
+  }
+
+  // Announce the choice on stderr, never stdout: print-env writes shell exports
+  // to stdout and --json emits parseable output there.
+  process.stderr.write(`[route] auto-detected: ${resolved}\n`);
+
+  routeCache.set(cacheKey, resolved);
+  return resolved;
+}
+
+function clearRouteCache() {
+  routeCache.clear();
+}
 
 function stripInlineComment(value) {
   let quote = null;
@@ -121,12 +220,19 @@ function loadConfig(rootDir = ROOT_DIR) {
     },
     host: {
       remoteUser: env.LLM_REMOTE_USER || 'darren',
-      internalHost: env.LLM_INTERNAL_HOST || '192.168.1.143',
-      externalHost: env.LLM_EXTERNAL_HOST || '207.6.34.73',
-      sshPort: numberFrom(env.LLM_SSH_PORT, 2222),
-      sshKey: resolveMaybeRelative(rootDir, env.LLM_SSH_KEY || '~/.ssh/ubuntu_llm_ed25519'),
+      // Deliberately no defaults: site addresses are operator data and must not
+      // be committed. Both come from the untracked config/llm-host.env.
+      internalHost: env.LLM_INTERNAL_HOST || '',
+      externalHost: env.LLM_EXTERNAL_HOST || '',
+      // Standard SSH port as the fallback. A site running SSH elsewhere sets
+      // LLM_SSH_PORT in the untracked env file rather than committing it here.
+      sshPort: numberFrom(env.LLM_SSH_PORT, 22),
+      sshKey: env.LLM_SSH_KEY ? resolveMaybeRelative(rootDir, env.LLM_SSH_KEY) : '',
       sshHostAlias: env.LLM_SSH_HOST_ALIAS || '',
-      defaultRoute: env.LLM_DEFAULT_ROUTE || 'external',
+      // 'auto' probes and prefers the internal route when it answers.
+      defaultRoute: env.LLM_DEFAULT_ROUTE || 'auto',
+      routeProbeMs: positiveIntegerFrom(env.LLM_ROUTE_PROBE_MS, 1500),
+      routeProbeInternalMs: positiveIntegerFrom(env.LLM_ROUTE_PROBE_INTERNAL_MS, 600),
       remoteProjectDir: env.LLM_REMOTE_PROJECT_DIR || '/home/darren/Documents/GitHub/agent-kernel',
       remoteScriptsDir,
       remotePackageDir: env.LLM_REMOTE_PACKAGE_DIR || '/home/darren/remote-ollama-control',
@@ -148,15 +254,23 @@ function getProfile(config, profileName) {
   return profile;
 }
 
+function requireHost(value, envVar, route) {
+  if (!value) {
+    throw new Error(
+      `${envVar} is not set, so route '${route}' has no address. ` +
+        `Copy config/llm-host.env.example to config/llm-host.env and fill it in. ` +
+        `That file is untracked on purpose — host addresses are never committed.`
+    );
+  }
+  return value;
+}
+
 function hostForRoute(config, routeName) {
-  const route = routeName || config.host.defaultRoute || 'internal';
-  if (route === 'internal' || route === 'lan') {
-    return config.host.internalHost;
+  const route = resolveRoute(config, routeName);
+  if (route === 'internal') {
+    return requireHost(config.host.internalHost, 'LLM_INTERNAL_HOST', route);
   }
-  if (route === 'external' || route === 'vpn') {
-    return config.host.externalHost;
-  }
-  throw new Error(`Unknown route '${route}'. Use internal or external.`);
+  return requireHost(config.host.externalHost, 'LLM_EXTERNAL_HOST', route);
 }
 
 function endpointFor(config, profile, routeName) {
@@ -187,10 +301,13 @@ function shellQuote(value) {
 
 module.exports = {
   ROOT_DIR,
+  clearRouteCache,
   endpointFor,
   expandHome,
   getProfile,
   hostForRoute,
+  probeTcp,
+  resolveRoute,
   loadConfig,
   localEndpointForProfile,
   parseEnvFile,

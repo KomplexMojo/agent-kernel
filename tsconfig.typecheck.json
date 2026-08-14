@@ -1,0 +1,29 @@
+{
+  // Typecheck gate. Separate from tsconfig.json on purpose: that one is scoped wide
+  // so editors and the Serena language server can navigate the whole repo, which is
+  // the opposite of what a gate wants. This one is scoped to the code that is
+  // actually type-safe today and is expected to STAY at zero errors.
+  //
+  // Scope is deliberately small. core-ts is the deterministic core, is fully
+  // self-contained (it imports nothing outside itself, per charter rule), and is
+  // already clean under `strict` — so this locks in a property the repo has rather
+  // than announcing one it does not. Widening it is a separate decision per package:
+  // see `pnpm run typecheck:report` for what each would cost.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Inherited from the base: strict, noEmit, allowImportingTsExtensions,
+    // module/moduleResolution NodeNext, allowJs, checkJs:false.
+    //
+    // allowJs + checkJs:false matters here: a few core-ts tests import JS modules
+    // from runtime (e.g. contracts/domain-constants.js). Without allowJs those are
+    // TS7016 "implicitly any"; with it, TS infers their shape without type-checking
+    // the JS itself. That is the intended split — this gate covers TypeScript, and
+    // turning checkJs on is the separate, much larger project.
+    "types": ["node"]
+  },
+  "include": [
+    "packages/core-ts/src/**/*",
+    "packages/runtime/src/personas/_shared/**/*",
+    "tests/core-ts/**/*"
+  ]
+}

@@ -452,11 +452,13 @@ test("mcp ak_test_plan_from_change maps changed paths to runner and suite recomm
     });
     assert.equal(result.ok, true);
     assert.ok(Array.isArray(result.runners));
-    assert.ok(result.runners.includes("vitest"), "adapters-cli change must recommend vitest");
-    assert.ok(result.runners.includes("playwright"), "ui-web change must recommend playwright");
+    // Vitest is the only runner since the Playwright subsystem was removed: a ui-web
+    // change is still routed to the ui-web suite, but it runs under Vitest against the
+    // fixture-backed tests/ui-web/ coverage rather than a browser.
+    assert.deepEqual(result.runners, ["vitest"], "every change must recommend vitest and nothing else");
     assert.ok(Array.isArray(result.suites));
     assert.ok(result.suites.includes("adapters-cli"));
-    assert.ok(result.suites.includes("ui-web"));
+    assert.ok(result.suites.includes("ui-web"), "a ui-web change must still route to the ui-web suite");
   } finally {
     await harness.close();
   }
@@ -603,7 +605,9 @@ test("mcp ak_test_lint_structure returns structural lint envelope", async () => 
     assert.ok(Array.isArray(result.uncategorized));
     assert.equal(typeof result.codemodExceptionCount, "number");
     assert.ok(Array.isArray(result.codemodExceptions));
-    assert.equal(typeof result.browserCandidateCount, "number");
+    // browserCandidateCount is gone with the Playwright subsystem: every test now
+    // targets Vitest, so a "browser candidate" is no longer a distinguishable class.
+    assert.equal(result.browserCandidateCount, undefined);
     assert.ok(Array.isArray(result.scaffoldableRecipes));
   } finally {
     await harness.close();

@@ -1,5 +1,9 @@
 import { BUILD_SPEC_SCHEMA, BUILD_SPEC_SCHEMA_VERSION } from "../../runtime/src/contracts/build-spec.js";
 import { DEFAULT_LLM_MODEL, buildBuildSpecPromptTemplate } from "../../runtime/src/contracts/domain-constants.js";
+import {
+  BUDGET_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+} from "../../runtime/src/contracts/artifacts.ts";
 
 export const BUILD_SPEC_SCHEMA_SNIPPET = `{
   "schema": "${BUILD_SPEC_SCHEMA}",
@@ -46,8 +50,8 @@ export const BUILD_SPEC_SCHEMA_SNIPPET = `{
     }
   },
   "budget": {
-    "budgetRef": { "id": "budget_id", "schema": "agent-kernel/BudgetArtifact", "schemaVersion": 1 },
-    "priceListRef": { "id": "price_list_id", "schema": "agent-kernel/PriceList", "schemaVersion": 1 }
+    "budgetRef": { "id": "budget_id", "schema": BUDGET_ARTIFACT_SCHEMA, "schemaVersion": 1 },
+    "priceListRef": { "id": "price_list_id", "schema": PRICE_LIST_SCHEMA, "schemaVersion": 1 }
   },
   "adapters": {
     "capture": [

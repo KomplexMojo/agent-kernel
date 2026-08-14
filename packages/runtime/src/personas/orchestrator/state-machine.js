@@ -1,6 +1,9 @@
 // Deterministic state machine for the Orchestrator persona.
 // Coordinates workflow phases without IO.
 
+import { requireClock } from "../_shared/require-clock.js";
+import { restorePersonaView } from "../_shared/restore-view.js";
+
 export const OrchestratorStates = Object.freeze({
   IDLE: "idle",
   PLANNING: "planning",
@@ -37,9 +40,14 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createOrchestratorStateMachine({ initialState = OrchestratorStates.IDLE, clock = () => new Date().toISOString() } = {}) {
-  let state = initialState;
-  let context = {
+export function createOrchestratorStateMachine({ initialState = OrchestratorStates.IDLE, clock, from } = {}) {
+  requireClock(clock, "orchestrator");
+  const restored = restorePersonaView(from, {
+    persona: "orchestrator",
+    states: Object.values(OrchestratorStates),
+  });
+  let state = restored?.state ?? initialState;
+  let context = restored?.context ?? {
     lastEvent: null,
     updatedAt: clock(),
     planRef: null,

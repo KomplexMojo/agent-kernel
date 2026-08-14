@@ -31,7 +31,10 @@ import { getAffinitySpriteAsset } from "./generated/affinity-sprite-assets.js";
 import { getGameSpriteAsset } from "./generated/game-sprite-assets.js";
 import { SPATIAL_WEIGHTS } from "../contracts/affinity-spatial-rules.js";
 
-export const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
+// M9: declared in contracts/artifacts.ts, re-exported here under the name importers use.
+import { RESOURCE_BUNDLE_SCHEMA } from "../contracts/artifacts.ts";
+
+export { RESOURCE_BUNDLE_SCHEMA };
 export const RESOURCE_BUNDLE_VERSION = 2;
 export const DEFAULT_RESOURCE_TILE_SIZE = 32;
 const RESOURCE_BUNDLE_VERSION_V1 = 1;

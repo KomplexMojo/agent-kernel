@@ -500,7 +500,7 @@ test("panel stays open while a new frame is rendered", async () => {
   renderer.dispose();
 });
 
-test.skip("opening panel while quick-view is visible hides or layers quick-view deterministically", async () => {
+test("opening panel while quick-view is visible hides or layers quick-view deterministically", async () => {
   const records = {};
   const { renderer } = await setupRenderer(records);
   renderer.showQuickView?.(makePlayerPanelModel());

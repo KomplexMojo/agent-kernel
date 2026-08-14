@@ -225,7 +225,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     // only carry id/kind/position/vitals/archetype/traits). This is the core
     // M6->M7 gap for the acceptance scenario: without motivation.kind
     // "random" reaching InitialState, the runtime persona layer
-    // (packages/runtime/src/personas/actor/controller.mts, see
+    // (packages/runtime/src/personas/actor/persona.js, see
     // tests/runtime/random-movement-ticks.test.js) has nothing to key off of
     // for these CLI-authored actors, even though the persona-level "random"
     // behavior itself is already implemented and working (M3, verified below

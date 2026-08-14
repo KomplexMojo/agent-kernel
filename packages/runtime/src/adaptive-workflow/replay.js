@@ -1,9 +1,10 @@
+import { ADAPTIVE_WORKFLOW_REPLAY_SCHEMA } from "../contracts/artifacts.ts";
 export function createReplayEnvelope(result) {
   if (!result?.state?.runId || !Array.isArray(result.state.refs?.replayResponseRefs)) throw replayError("invalid_replay_source", "Replay source has no recorded responses");
   if (result.state.refs.replayResponseRefs.length === 0 || !result.state.refs.replayResponseRefs.every(isSha256Ref)) throw replayError("invalid_replay_source", "Replay source has invalid recorded response hashes");
   const meta = Object.freeze({ id: `${result.state.runId}:replay`, runId: result.state.runId, createdAt: result.state.updatedAt, producedBy: "adaptive-workflow" });
   return Object.freeze({
-    schema: "agent-kernel/AdaptiveWorkflowReplay",
+    schema: ADAPTIVE_WORKFLOW_REPLAY_SCHEMA,
     schemaVersion: 1,
     meta,
     runId: result.state.runId,
@@ -12,7 +13,7 @@ export function createReplayEnvelope(result) {
 }
 
 export function createReplayModelAdapter({ store, envelope } = {}) {
-  if (envelope?.schema !== "agent-kernel/AdaptiveWorkflowReplay" || envelope.schemaVersion !== 1 || !envelope.runId || envelope.meta?.runId !== envelope.runId || !Array.isArray(envelope.responseRefs)) {
+  if (envelope?.schema !== ADAPTIVE_WORKFLOW_REPLAY_SCHEMA || envelope.schemaVersion !== 1 || !envelope.runId || envelope.meta?.runId !== envelope.runId || !Array.isArray(envelope.responseRefs)) {
     throw replayError("invalid_replay_envelope", "Invalid adaptive workflow replay envelope");
   }
   if (envelope.responseRefs.length === 0 || !envelope.responseRefs.every(isSha256Ref)) throw replayError("replay_response_missing", "Recorded response hash is missing or invalid");

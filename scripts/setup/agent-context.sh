@@ -11,7 +11,9 @@ results into a stable per-worktree cache under ~/vault/codex-context.
 Options:
   --context-home PATH   Override the cache root.
   --skip-graphify      Do not rebuild Graphify.
-  --skip-cgc           Do not index CodeGraphContext via the cgc CLI.
+  --with-cgc           Also index via the legacy cgc CLI (off by default;
+                       structural queries now go through the Serena MCP, which
+                       needs no index).
   --watch-cgc          Start cgc watch in the background for this worktree.
   --no-local-snapshot  Do not write local-codex/CodeContext.md.
   -h, --help           Show this help.
@@ -117,15 +119,14 @@ write_code_context() {
     printf '%s\n' "- Graphify mirror: \`$CONTEXT_DIR/graphify-out\`"
     printf '\n'
     printf '## Agent Startup\n\n'
-    printf 'Use CodeContextGraph against this worktree path:\n\n'
-    printf '```text\n%s\n```\n\n' "$REPO_ROOT"
-    printf 'Recommended MCP calls from the agent session:\n\n'
+    printf 'Structural queries go through the Serena MCP (live language-server answers, no index to go stale):\n\n'
     printf '```text\n'
-    printf 'mcp__CodeGraphContext__watch_directory(path="%s")\n' "$REPO_ROOT"
-    printf 'mcp__CodeGraphContext__get_repository_stats(repo_path="%s")\n' "$REPO_ROOT"
-    printf 'mcp__CodeGraphContext__analyze_code_relationships(repo_path="%s", query_type="module_deps", target="<target-module>")\n' "$REPO_ROOT"
-    printf 'mcp__CodeGraphContext__find_most_complex_functions(repo_path="%s", limit=10)\n' "$REPO_ROOT"
+    printf 'mcp__serena__find_symbol(name_path="<Symbol>")            # definition lookup\n'
+    printf 'mcp__serena__find_referencing_symbols(name_path="<Symbol>", relative_path="<file>")  # callers / importers\n'
+    printf 'mcp__serena__get_symbols_overview(relative_path="<file>") # file structure\n'
+    printf 'mcp__serena__find_implementations(name_path="<Symbol>")   # implementers of an interface\n'
     printf '```\n\n'
+    printf 'grep/rg remain correct for literal text (prose, fixture strings, exact messages).\n\n'
 
     if [[ -s "$graph_report" ]]; then
       printf '## Graphify Summary\n\n'
@@ -154,7 +155,7 @@ write_code_context() {
 }
 
 SKIP_GRAPHIFY=0
-SKIP_CGC=0
+SKIP_CGC=1
 WATCH_CGC=0
 WRITE_LOCAL=1
 CONTEXT_HOME="${AGENT_CONTEXT_HOME:-}"
@@ -172,6 +173,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-cgc)
       SKIP_CGC=1
+      shift
+      ;;
+    --with-cgc)
+      SKIP_CGC=0
       shift
       ;;
     --watch-cgc)

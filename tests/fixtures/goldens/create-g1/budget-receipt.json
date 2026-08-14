@@ -1,0 +1,304 @@
+{
+  "schema": "agent-kernel/BudgetReceiptArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "golden_g1_budget_receipt",
+    "runId": "golden_g1",
+    "createdAt": "2026-07-18T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "budgetRef": {
+    "id": "budget_golden_g1",
+    "schema": "agent-kernel/BudgetArtifact",
+    "schemaVersion": 1
+  },
+  "priceListRef": {
+    "id": "golden_g1_default_price_list",
+    "schema": "agent-kernel/PriceList",
+    "schemaVersion": 1
+  },
+  "proposalRef": {
+    "id": "golden_g1_spend_proposal",
+    "schema": "agent-kernel/SpendProposal",
+    "schemaVersion": 1
+  },
+  "allocationRef": {
+    "id": "golden_g1_budget_allocation",
+    "schema": "agent-kernel/BudgetAllocationArtifact",
+    "schemaVersion": 1
+  },
+  "status": "approved",
+  "totalCost": 123,
+  "remaining": 4877,
+  "lineItems": [
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "unitCost": 5,
+      "totalCost": 5,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_base",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 10,
+      "totalCost": 10,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_expression_externalize",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 35,
+      "totalCost": 35,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_stack",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "motivation_attacking",
+      "kind": "motivation",
+      "quantity": 1,
+      "unitCost": 3,
+      "totalCost": 3,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_health_point",
+      "kind": "vital",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "tile_floor",
+      "kind": "tile",
+      "quantity": 25,
+      "unitCost": 1,
+      "totalCost": 25,
+      "status": "approved",
+      "category": "floor_tiles",
+      "subjectRef": {
+        "id": "layout",
+        "schema": "agent-kernel/LayoutArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_base",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 10,
+      "totalCost": 10,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_expression_localized",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 25,
+      "totalCost": 25,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_stack",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "hazard_basic",
+      "kind": "hazard",
+      "quantity": 1,
+      "unitCost": 5,
+      "totalCost": 5,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    }
+  ],
+  "poolStatuses": [
+    {
+      "id": "rooms",
+      "capTokens": 2697,
+      "spentTokens": 25,
+      "remainingTokens": 2672,
+      "status": "approved"
+    },
+    {
+      "id": "hazards",
+      "capTokens": 987,
+      "spentTokens": 42,
+      "remainingTokens": 945,
+      "status": "approved"
+    },
+    {
+      "id": "wardens",
+      "capTokens": 0,
+      "spentTokens": 0,
+      "remainingTokens": 0,
+      "status": "approved"
+    },
+    {
+      "id": "resources",
+      "capTokens": 0,
+      "spentTokens": 0,
+      "remainingTokens": 0,
+      "status": "approved"
+    },
+    {
+      "id": "delver",
+      "capTokens": 1316,
+      "spentTokens": 56,
+      "remainingTokens": 1260,
+      "status": "approved"
+    }
+  ],
+  "scenarioSpendReport": {
+    "budget": 5000,
+    "totalSpend": 123,
+    "remainingBudget": 4877,
+    "overBudget": false,
+    "categories": {
+      "rooms": {
+        "actual": 25,
+        "target": 2697,
+        "usagePercent": 1
+      },
+      "floor_tiles": {
+        "actual": 25,
+        "target": 2697,
+        "usagePercent": 1
+      },
+      "hazards": {
+        "actual": 42,
+        "target": 987,
+        "usagePercent": 4
+      },
+      "resources": {
+        "actual": 0,
+        "target": 0,
+        "usagePercent": 0
+      },
+      "delvers": {
+        "actual": 56,
+        "target": 1316,
+        "usagePercent": 4
+      },
+      "wardens": {
+        "actual": 0,
+        "target": 0,
+        "usagePercent": 0
+      },
+      "shared_system": {
+        "actual": 0,
+        "target": 2697,
+        "usagePercent": 0
+      }
+    },
+    "totalBudgetUsagePercent": 2,
+    "incentive": {
+      "actualRatio": 0,
+      "targetRatio": 0.8,
+      "mismatch": 0.8,
+      "multiplier": 0
+    }
+  }
+}

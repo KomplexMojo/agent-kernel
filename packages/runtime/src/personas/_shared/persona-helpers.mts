@@ -1,12 +1,58 @@
-const ACTION_SCHEMA = "agent-kernel/Action";
-const TELEMETRY_SCHEMA = "agent-kernel/TelemetryRecord";
-const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
+import { requireClock } from "./require-clock.js";
+import { LLM_REQUEST_SCHEMA, LLM_REQUEST_EFFECT_KIND } from "../../contracts/llm-protocol.js";
+import {
+  ACTION_SCHEMA,
+  RUN_SUMMARY_SCHEMA,
+  TELEMETRY_RECORD_SCHEMA as TELEMETRY_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
-function stableId(parts) {
+type JsonRecord = Record<string, unknown>;
+
+type ArtifactRef = JsonRecord & { id?: string };
+
+type SolverRequest = JsonRecord & {
+  id?: string;
+  requestId?: string;
+  targetAdapter?: string;
+  intentRef?: ArtifactRef;
+  planRef?: ArtifactRef;
+  problem?: unknown;
+};
+
+type PersonaEffect = JsonRecord & {
+  kind?: string;
+  id?: string;
+  requestId?: string;
+  tick?: number;
+  sourceRef?: ArtifactRef;
+  targetAdapter?: string;
+};
+
+type PersonaObservation = JsonRecord & {
+  tick?: number;
+  persona?: string;
+  effects?: PersonaEffect[];
+  fulfilledEffects?: PersonaEffect[];
+  notes?: unknown;
+};
+
+function stableId(parts: Array<string | number | null | undefined | false>) {
   return parts.filter(Boolean).join("_");
 }
 
-export function buildAction({ tick = 0, kind, actorId = "persona", params = {}, personaRef }) {
+export function buildAction({
+  tick = 0,
+  kind,
+  actorId = "persona",
+  params = {},
+  personaRef
+}: {
+  tick?: number;
+  kind: string;
+  actorId?: string;
+  params?: JsonRecord;
+  personaRef?: string;
+}) {
   return {
     schema: ACTION_SCHEMA,
     schemaVersion: 1,
@@ -18,7 +64,19 @@ export function buildAction({ tick = 0, kind, actorId = "persona", params = {}, 
   };
 }
 
-export function buildSolverRequestEffect({ solverRequest = null, intentRef, planRef, personaRef, targetAdapter = "fixtures" }) {
+export function buildSolverRequestEffect({
+  solverRequest = null,
+  intentRef,
+  planRef,
+  personaRef,
+  targetAdapter = "fixtures"
+}: {
+  solverRequest?: SolverRequest | null;
+  intentRef?: ArtifactRef;
+  planRef?: ArtifactRef;
+  personaRef?: string;
+  targetAdapter?: string;
+}) {
   const hasRequest = solverRequest && Object.keys(solverRequest).length > 0;
   if (!hasRequest && !planRef && !intentRef) {
     return null;
@@ -43,7 +101,92 @@ export function buildSolverRequestEffect({ solverRequest = null, intentRef, plan
   };
 }
 
-export function buildRequestActionsFromEffects(effects = [], { tick = 0, personaRef = "persona", actorId = "persona", budgetRemaining = Infinity } = {}) {
+/**
+ * FNV-1a over the prompt, so a request id is DERIVED rather than generated.
+ *
+ * A counter or a random id would make two identical rounds produce different artifacts,
+ * and replay compares artifacts. The prompt is the only input that distinguishes one
+ * request from the next within a phase, and it is far too long to put in an id.
+ */
+function promptFingerprint(prompt: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < prompt.length; index += 1) {
+    hash ^= prompt.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
+}
+
+/**
+ * Build the LLM request the Orchestrator RETURNS instead of performing (CR.4).
+ *
+ * Mirrors `buildSolverRequestEffect`: the persona emits an effect as data, the host
+ * dispatches it through `ports/effects.js`, and the ADAPTER does the IO. Returns `null`
+ * when the request could not be made well-formed — a caller with no model or no prompt
+ * has nothing to ask, and emitting a half-formed request would push the failure into the
+ * adapter where it reads as an IO error rather than a programming one.
+ */
+export function buildLlmRequestEffect({
+  model,
+  prompt,
+  phase,
+  options,
+  format,
+  stream,
+  baseUrl,
+  personaRef = "orchestrator"
+}: {
+  model?: string;
+  prompt?: string;
+  phase?: string;
+  options?: JsonRecord;
+  format?: string;
+  stream?: boolean;
+  baseUrl?: string;
+  personaRef?: string;
+}) {
+  const hasModel = typeof model === "string" && model.trim().length > 0;
+  const hasPrompt = typeof prompt === "string" && prompt.trim().length > 0;
+  if (!hasModel || !hasPrompt) {
+    return null;
+  }
+
+  const requestId = stableId(["llm", phase, model, promptFingerprint(prompt as string)]);
+  const request = {
+    schema: LLM_REQUEST_SCHEMA,
+    schemaVersion: 1,
+    requestId,
+    model,
+    prompt,
+    ...(phase ? { phase } : {}),
+    ...(options && typeof options === "object" ? { options } : {}),
+    ...(typeof format === "string" && format ? { format } : {}),
+    ...(stream === undefined ? {} : { stream: Boolean(stream) }),
+    ...(baseUrl ? { baseUrl } : {}),
+  };
+
+  return {
+    kind: LLM_REQUEST_EFFECT_KIND,
+    request,
+    requestId,
+    personaRef,
+  };
+}
+
+export function buildRequestActionsFromEffects(
+  effects: PersonaEffect[] = [],
+  {
+    tick = 0,
+    personaRef = "persona",
+    actorId = "persona",
+    budgetRemaining = Infinity
+  }: {
+    tick?: number;
+    personaRef?: string;
+    actorId?: string;
+    budgetRemaining?: number;
+  } = {},
+) {
   const actions = [];
   let remaining = budgetRemaining;
   for (const effect of effects) {
@@ -80,7 +223,17 @@ export function buildRequestActionsFromEffects(effects = [], { tick = 0, persona
   return { actions, remaining };
 }
 
-export function buildTelemetry({ observations = [], runId = "run", clock = () => new Date().toISOString(), personaRef = "annotator" }) {
+export function buildTelemetry({
+  observations = [],
+  runId = "run",
+  clock,
+  personaRef = "annotator"
+}: {
+  observations?: PersonaObservation[];
+  runId?: string;
+  clock?: () => string;
+  personaRef?: string;
+}) {
   const records = [];
   let effectsTotal = 0;
   for (const obs of observations) {
@@ -94,7 +247,7 @@ export function buildTelemetry({ observations = [], runId = "run", clock = () =>
       meta: {
         id: metaId,
         runId,
-        createdAt: clock(),
+        createdAt: requireClock(clock, personaRef)(),
         producedBy: personaRef,
       },
       scope: "tick",
@@ -116,7 +269,7 @@ export function buildTelemetry({ observations = [], runId = "run", clock = () =>
     meta: {
       id: stableId(["run_summary", personaRef, runId]),
       runId,
-      createdAt: clock(),
+      createdAt: requireClock(clock, personaRef)(),
       producedBy: personaRef,
     },
     outcome: "unknown",

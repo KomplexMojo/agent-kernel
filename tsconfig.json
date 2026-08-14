@@ -10,13 +10,24 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": ["node"],
+
+    // Editor/language-server tooling only — this repo has no `tsc` or typecheck script.
+    // `.js` is the canonical source here (211 of 268 production files), and without
+    // allowJs those files are never in the TypeScript program: the language server then
+    // resolves their DEFINITIONS (syntactic, per-file) but returns nothing for their
+    // REFERENCES (semantic, program-wide). That is why find_referencing_symbols answered
+    // `{}` for essentially the whole codebase. checkJs stays off — this buys navigation,
+    // not type enforcement.
+    "allowJs": true,
+    "checkJs": false
   },
   "include": [
-    "packages/runtime/src/personas/**/*",
-    "packages/core-ts/src/**/*",
+    // Broadened alongside allowJs: the previous list covered only personas/, core-ts/ and
+    // contracts/, leaving runner/, build/, commands/, ports/, adaptive-workflow/, render/
+    // and every adapter package outside the program.
+    "packages/*/src/**/*",
     "tests/**/*",
-    "docs/**/*",
-    "packages/runtime/src/contracts/**/*"
+    "docs/**/*"
   ]
 }

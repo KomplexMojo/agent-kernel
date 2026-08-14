@@ -1,3 +1,4 @@
+import { requireClock } from "./require-clock.js";
 // Deterministic super FSM for tick phases.
 // Phases describe the runtime loop; personas subscribe to phases.
 
@@ -10,9 +11,36 @@ export const TickPhases = Object.freeze({
   SUMMARIZE: "summarize",
 });
 
-export const TickPhaseList = Object.values(TickPhases);
+export type TickPhase = (typeof TickPhases)[keyof typeof TickPhases];
+export type TickEvent = "observe" | "decide" | "apply" | "emit" | "summarize" | "next_tick";
 
-const transitions = [
+type TickTransition = {
+  from: TickPhase;
+  event: TickEvent;
+  to: TickPhase;
+  advanceTick?: boolean;
+};
+
+type TickContext = {
+  tick: number;
+  phase: TickPhase;
+  lastEvent: TickEvent | null;
+  updatedAt: string;
+  notes: unknown;
+};
+
+type TickTransitionLog = {
+  kind: "tick_transition";
+  from: TickPhase;
+  to: TickPhase;
+  event: TickEvent;
+  tick: number;
+  timestamp: string;
+};
+
+export const TickPhaseList: TickPhase[] = Object.values(TickPhases);
+
+const transitions: TickTransition[] = [
   { from: TickPhases.INIT, event: "observe", to: TickPhases.OBSERVE },
   { from: TickPhases.OBSERVE, event: "decide", to: TickPhases.DECIDE },
   { from: TickPhases.DECIDE, event: "apply", to: TickPhases.APPLY },
@@ -21,27 +49,36 @@ const transitions = [
   { from: TickPhases.SUMMARIZE, event: "next_tick", to: TickPhases.OBSERVE, advanceTick: true },
 ];
 
-function findTransition(fromState, event) {
+function findTransition(fromState: TickPhase, event: TickEvent) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-function allowedEventsFor(state) {
+function allowedEventsFor(state: TickPhase) {
   return transitions.filter((entry) => entry.from === state).map((entry) => entry.event);
 }
 
 export function createTickStateMachine({
   initialState = TickPhases.INIT,
-  clock = () => new Date().toISOString(),
+  clock,
   debug = false,
   logger = null,
+}: {
+  initialState?: TickPhase;
+  clock?: () => string;
+  debug?: boolean;
+  logger?: ((entry: TickTransitionLog) => void) | null;
 } = {}) {
+  // PX.3 (M6): enforced at CONSTRUCTION, exactly as the 14 persona factories are — this
+  // is the tick FSM every persona round runs through, so a defaulted clock here degrades
+  // determinism for all of them at once.
+  const clockFn = requireClock(clock, "tick-state-machine");
   let state = initialState;
   let tick = 0;
-  let context = {
+  let context: TickContext = {
     tick,
     phase: state,
     lastEvent: null,
-    updatedAt: clock(),
+    updatedAt: clockFn(),
     notes: null,
   };
 
@@ -54,7 +91,7 @@ export function createTickStateMachine({
     };
   }
 
-  function advance(event, payload = {}) {
+  function advance(event: TickEvent, payload: { notes?: unknown } = {}) {
     const transition = findTransition(state, event);
     if (!transition) {
       const allowed = allowedEventsFor(state);
@@ -68,7 +105,7 @@ export function createTickStateMachine({
       tick: nextTick,
       phase: nextState,
       lastEvent: event,
-      updatedAt: clock(),
+      updatedAt: clockFn(),
       notes: payload.notes ?? context.notes ?? null,
     };
 

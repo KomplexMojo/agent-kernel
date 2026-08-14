@@ -1,5 +1,9 @@
-const CAPTURED_INPUT_SCHEMA = "agent-kernel/CapturedInputArtifact";
-const TELEMETRY_RECORD_SCHEMA = "agent-kernel/TelemetryRecord";
+import { requireClock } from "../_shared/require-clock.js";
+import {
+  CAPTURED_INPUT_SCHEMA,
+  TELEMETRY_RECORD_SCHEMA,
+} from "../../contracts/artifacts.ts";
+
 const LLM_ADAPTERS = new Set(["llm", "ollama"]);
 
 function isObject(value) {
@@ -121,13 +125,15 @@ export function buildLlmTraceTelemetryRecord({
   captures = [],
   runId,
   createdAt,
-  clock = () => new Date().toISOString(),
+  clock,
   producedBy = "annotator",
 } = {}) {
   const turns = buildLlmTraceTurns(captures);
   const summary = summarizeLlmTrace(captures);
   const resolvedRunId = runId || turns[0]?.runId || "run_unknown";
-  const timestamp = createdAt || clock();
+  // PX.3: mint only against an injected clock; an absent one is a loud error, not
+  // wall-clock time on a persisted TelemetryRecord.
+  const timestamp = createdAt || requireClock(clock, "annotator")();
   return {
     schema: TELEMETRY_RECORD_SCHEMA,
     schemaVersion: 1,

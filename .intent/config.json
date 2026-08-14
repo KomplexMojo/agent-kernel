@@ -7,18 +7,6 @@
       "category": "test"
     },
     {
-      "name": "test:wasm-check",
-      "command": "pnpm test:wasm-check",
-      "mode": "command",
-      "category": "test"
-    },
-    {
-      "name": "build:wasm",
-      "command": "pnpm build:wasm",
-      "mode": "command",
-      "category": "build"
-    },
-    {
       "name": "serve:ui",
       "command": "pnpm serve:ui",
       "mode": "command",

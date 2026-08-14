@@ -1,18 +1,14 @@
-const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
-const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
-const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
-const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
+import {
+  BUDGET_ALLOCATION_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA,
+  BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
-const CATEGORY_POOL_IDS = Object.freeze({
-  rooms: "rooms",
-  floor_tiles: "rooms",
-  hazards: "rooms",
-  hazards: "hazards",
-  resources: "resources",
-  delvers: "delver",
-  wardens: "wardens",
-  shared_system: "rooms",
-});
+// The category → pool map has ONE origin, in budget-allocation.js beside the pools it names.
+// This file declared it verbatim alongside incentive-model.js — the copy is why the `hazards`
+// duplicate-key defect existed in two places at once.
+import { POOL_ID_BY_SPEND_CATEGORY } from "./budget-allocation.js";
 
 function isFiniteNumber(value) {
   return Number.isFinite(value);
@@ -79,7 +75,7 @@ function buildAllocationAudit({ allocation, lineItems, errors }) {
 
   const spendByPool = new Map(pools.map((pool) => [pool.id, 0]));
   lineItems.forEach((item) => {
-    const poolId = CATEGORY_POOL_IDS[item.category];
+    const poolId = POOL_ID_BY_SPEND_CATEGORY[item.category];
     if (!poolId) {
       item.status = "denied";
       errors.push(`Unattributed spend item: ${item.kind}:${item.id}`);
@@ -96,7 +92,7 @@ function buildAllocationAudit({ allocation, lineItems, errors }) {
     if (status === "denied") {
       errors.push(`Pool ${pool.id} exceeds allocation: spent ${spentTokens}, cap ${capTokens}.`);
       lineItems.forEach((item) => {
-        if (CATEGORY_POOL_IDS[item.category] === pool.id) item.status = "denied";
+        if (POOL_ID_BY_SPEND_CATEGORY[item.category] === pool.id) item.status = "denied";
       });
     }
     return {

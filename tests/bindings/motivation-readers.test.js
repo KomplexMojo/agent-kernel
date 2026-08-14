@@ -1,6 +1,10 @@
 const assert = require("node:assert/strict");
 
-test("motivation bindings: code maps, readMotivationCost, readMotivationEvaluation", async () => {
+// readMotivationCost and core's cost accumulator were deleted in P1.2 —
+// pricing is Allocator policy, not core. This file tests the surviving
+// codebook maps and evaluation reader.
+
+test("motivation bindings: code maps, readMotivationEvaluation", async () => {
   const {
     createCore,
     MOTIVATION_KIND_BY_CODE,
@@ -11,7 +15,6 @@ test("motivation bindings: code maps, readMotivationCost, readMotivationEvaluati
     MOTIVATION_COMBAT_BY_CODE,
     MOTIVATION_COGNITION_BY_CODE,
     MOTIVATION_FLAG_NAMES,
-    readMotivationCost,
     readMotivationEvaluation,
   } = await import("../../packages/core-ts/src/index.ts");
 
@@ -54,31 +57,6 @@ test("motivation bindings: code maps, readMotivationCost, readMotivationEvaluati
   assert.equal(MOTIVATION_FLAG_NAMES[1], "canMove");
   assert.equal(MOTIVATION_FLAG_NAMES[8], "aggroRangeBoost");
 
-  // ── readMotivationCost ──
-
-  core.resetMotivationCostAccumulator();
-  core.addMotivationCostEntry(5, 3); // attacking, intensity=3
-  core.addMotivationCostEntry(9, 1); // reflexive, intensity=1
-
-  const cost = readMotivationCost(core);
-  assert.ok(cost.total > 0, "total > 0");
-  assert.equal(cost.lines.length, 2, "two cost lines");
-
-  // First line: attacking
-  assert.equal(cost.lines[0].kind, 5);
-  assert.equal(cost.lines[0].kindName, "attacking");
-  assert.equal(cost.lines[0].quantity, 3);
-  assert.ok(cost.lines[0].unitCost > 0, "attacking unit cost > 0");
-  assert.equal(cost.lines[0].spend, cost.lines[0].quantity * cost.lines[0].unitCost, "spend = qty * unit");
-
-  // Second line: reflexive
-  assert.equal(cost.lines[1].kind, 9);
-  assert.equal(cost.lines[1].kindName, "reflexive");
-  assert.equal(cost.lines[1].quantity, 1);
-
-  // Total matches sum of spends
-  assert.equal(cost.total, cost.lines[0].spend + cost.lines[1].spend, "total = sum of spends");
-
   // ── readMotivationEvaluation: attacking + reflexive ──
 
   core.resetMotivationEvaluation();
@@ -115,13 +93,6 @@ test("motivation bindings: code maps, readMotivationCost, readMotivationEvaluati
   assert.equal(emptyEval.mobilityName, "stationary", "empty mobility");
   assert.equal(emptyEval.reasoningClassName, "instinctual", "empty reasoning");
 
-  // ── readMotivationCost: empty ──
-
-  core.resetMotivationCostAccumulator();
-  const emptyCost = readMotivationCost(core);
-  assert.equal(emptyCost.total, 0, "empty total");
-  assert.equal(emptyCost.lines.length, 0, "empty lines");
-
   // ── Core codebook exports through bindings ──
 
   assert.equal(core.getMotivationKindCount(), 12, "12 kinds");
@@ -147,36 +118,6 @@ test("motivation bindings round-trip all 12 kind names", async () => {
     "strategy_focused",
     "user_controlled",
   ]);
-});
-
-test("readMotivationCost reports one line for each motivation kind", async () => {
-  const { createCore, readMotivationCost, MOTIVATION_KIND_BY_CODE } = await import(
-    "../../packages/core-ts/src/index.ts"
-  );
-  const core = createCore();
-  core.init(0);
-  core.resetMotivationCostAccumulator();
-  for (let kind = 1; kind <= 12; kind += 1) {
-    core.addMotivationCostEntry(kind, 1);
-  }
-  const cost = readMotivationCost(core);
-  assert.equal(cost.lines.length, 12);
-  cost.lines.forEach((line, index) => {
-    const kind = index + 1;
-    assert.equal(line.kind, kind);
-    assert.equal(line.kindName, MOTIVATION_KIND_BY_CODE[kind]);
-  });
-});
-
-test("readMotivationCost uses max intensity in spend calculation", async () => {
-  const { createCore, readMotivationCost } = await import("../../packages/core-ts/src/index.ts");
-  const core = createCore();
-  core.init(0);
-  core.resetMotivationCostAccumulator();
-  core.addMotivationCostEntry(5, 10);
-  const line = readMotivationCost(core).lines[0];
-  assert.equal(line.quantity, 10);
-  assert.equal(line.spend, 10 * line.unitCost);
 });
 
 test("readMotivationEvaluation reports strategic reasoning for strategy_focused", async () => {
@@ -228,19 +169,6 @@ test("motivation code maps cover every core kind code", async () => {
   }
 });
 
-test("readMotivationCost reset clears previous accumulations", async () => {
-  const { createCore, readMotivationCost } = await import("../../packages/core-ts/src/index.ts");
-  const core = createCore();
-  core.init(0);
-  core.resetMotivationCostAccumulator();
-  core.addMotivationCostEntry(5, 3);
-  assert.equal(readMotivationCost(core).lines.length, 1);
-  core.resetMotivationCostAccumulator();
-  const cost = readMotivationCost(core);
-  assert.equal(cost.total, 0);
-  assert.deepEqual(cost.lines, []);
-});
-
 test("core motivation codebook functions are callable through createCore", async () => {
   const { createCore } = await import("../../packages/core-ts/src/index.ts");
   const core = createCore();
@@ -253,10 +181,7 @@ test("core motivation codebook functions are callable through createCore", async
     "getMotivationPatternCodeAt",
     "getDefaultMotivationPattern",
     "getMotivationTier",
-    "getMotivationDefaultUnitCost",
     "normalizeMotivationIntensity",
-    "getMotivationProfileCost",
-    "getMotivationDefaultDesignCost",
     "getMotivationDefaultFlagMask",
     "getMotivationFlagCount",
   ].forEach((name) => assert.equal(typeof core[name], "function", `${name} export`));

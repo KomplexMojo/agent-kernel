@@ -1,3 +1,8 @@
+import {
+  INITIAL_STATE_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+} from "../../contracts/artifacts.ts";
+
 function isPlainObject(value) {
   return value && typeof value === "object" && !Array.isArray(value);
 }
@@ -98,7 +103,7 @@ export function buildSimConfigArtifact({
   constraints,
 } = {}) {
   const artifact = {
-    schema: "agent-kernel/SimConfigArtifact",
+    schema: SIM_CONFIG_SCHEMA,
     schemaVersion: 1,
     meta,
     planRef,
@@ -143,7 +148,7 @@ export function buildInitialStateArtifact({ meta, simConfigRef, actors = [], res
   });
 
   return {
-    schema: "agent-kernel/InitialStateArtifact",
+    schema: INITIAL_STATE_SCHEMA,
     schemaVersion: 1,
     meta,
     simConfigRef,

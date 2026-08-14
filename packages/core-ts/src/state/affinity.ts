@@ -35,6 +35,16 @@ export const AffinityRelationship = {
   Neutral: 2,
 } as const;
 
+/**
+ * Affinity grant slots held per motivated actor — one per AffinityKind.
+ *
+ * A grant's category is derived, never flagged:
+ *   manaMax === 0            → innate  (no pool, never expires)
+ *   manaMax > 0, regen === 0 → temporary (removed whole at mana 0)
+ *   manaMax > 0, regen > 0   → permanent (refills, never removed)
+ */
+export const MAX_AFFINITY_GRANTS_PER_ACTOR = 10;
+
 const AFFINITY_KIND_COUNT = 10;
 const AFFINITY_KIND_MIN = 1;
 const AFFINITY_KIND_MAX = 10;

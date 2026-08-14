@@ -696,7 +696,12 @@ const cases = [
     title: "Constrained Two Warden Patrol",
     task: "create a base room with two patrolling wardens",
     budgetMode: "constrained",
-    budgetTokens: 400,
+    // Retuned 400→440 (P1.6, 2026-07-20). The spec needs a 112-token warden
+    // pool; 400 allotted 107. The old feasibility relied on the pre-P1.4
+    // receipt bug that omitted affinity_base (+10/actor affinity). Total
+    // budget was never the constraint — 263 tokens sat unspent. 440 gives ~6
+    // tokens of pool headroom; a third warden is still denied.
+    budgetTokens: 440,
     room: ["size=medium;count=1"],
     warden: ["count=2;affinity=earth;motivation=patrolling"],
   },
@@ -740,7 +745,14 @@ const cases = [
     title: "Constrained Three Warden Hold",
     task: "create a base room with three defending wardens",
     budgetMode: "constrained",
-    budgetTokens: 550,
+    // Retuned 550→650 (P1.6, 2026-07-20). Same cause as scenario 59: the spec
+    // needs a 165-token warden pool, 550 allotted 147, with 321 tokens left
+    // unspent overall. 650 gives ~9 tokens of pool headroom; a fourth warden
+    // is still denied. NOTE: 2 of 3 baseline runs failed for a different
+    // reason — the model requested a ~1254-token configuration of its own —
+    // which no constrained-tier budget can absorb; expect this scenario to
+    // improve but not necessarily reach 3/3.
+    budgetTokens: 650,
     room: ["size=large;count=1"],
     warden: ["count=3;affinity=dark;motivation=defending"],
   },

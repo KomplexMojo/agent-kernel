@@ -29,7 +29,15 @@ test("orchestrated build produces deterministic bundle/manifest/telemetry output
   const scenario = readJson(resolve(ROOT, "tests/fixtures/e2e/e2e-scenario-v1-basic.json"));
   const summaryFixture = readJson(resolve(ROOT, scenario.summaryPath));
   const catalog = readJson(resolve(ROOT, scenario.catalogPath));
-  const budgetFixture = readJson(resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json"));
+  // CR.9 M5 raised this scenario's budget from the shared fixture's 1000. Its hazard used
+  // to cost 5 tokens — its affinity payload and vitals were charged nothing at all — and
+  // now costs what a delver pays for the same payload. The shared fixture stays at 1000
+  // because a dozen tests assert on it and three pair it with an explicit --budget-tokens
+  // flag the CLI requires to agree; the budget is raised here, where the content is.
+  const budgetFixture = {
+    ...readJson(resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json")),
+    budget: { tokens: 2000 },
+  };
   const priceListFixture = readJson(resolve(ROOT, "tests/fixtures/allocator/price-list-v1-basic.json"));
 
   const { normalizeSummary } = await import(

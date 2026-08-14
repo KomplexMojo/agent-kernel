@@ -11,7 +11,7 @@ test("index.html loads main.js as a static module script (not dynamically)", () 
   // executes before the browser fires the `load` event.  Dynamic loading via a
   // fetch-and-createElement approach introduces a race condition: `page.goto()`
   // returns on `load`, but the dynamic fetch is still pending, so globals like
-  // `window.__ak_setActiveTab` are not yet defined when Playwright tests run.
+  // `window.__ak_setActiveTab` are not yet defined when the page is first evaluated.
   assert.ok(
     html.includes('<script type="module" src="./src/main.js">'),
     "index.html must use a static <script type=\"module\" src=\"./src/main.js\"> tag",

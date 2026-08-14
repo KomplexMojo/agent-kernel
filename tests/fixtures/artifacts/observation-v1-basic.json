@@ -1,9 +1,0 @@
-{
-  "schema": "agent-kernel/Observation",
-  "schemaVersion": 1,
-  "actorId": "actor_1",
-  "tick": 1,
-  "view": {
-    "counter": 1
-  }
-}

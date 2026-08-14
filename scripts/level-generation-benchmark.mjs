@@ -4,6 +4,9 @@ import { performance } from "node:perf_hooks";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runLlmBudgetLoop } from "../packages/runtime/src/personas/orchestrator/llm-budget-loop.js";
+// CR.4 M5b: the loop no longer performs LLM IO; the composition root supplies the runner.
+import { runLlmSessionHosted } from "../packages/runtime/src/commands/llm-host.js";
+import { beginDirectorBuildCapabilities } from "../packages/runtime/src/commands/director-round.js";
 
 const DEFAULT_SWEEP = Object.freeze([
   { totalBudgetTokens: 1_000_000, runs: 3 },
@@ -148,6 +151,14 @@ async function runSingleBenchmark({ catalog, totalBudgetTokens, layoutPercent, r
 
   const started = performance.now();
   const result = await runLlmBudgetLoop({
+    runSession: runLlmSessionHosted,
+    // M5b.2a′: pool mapping is the Director's decision, FSM-gated behind an open round.
+    // M5b.2b: the same round answers the three Allocator pricing questions too.
+    ...beginDirectorBuildCapabilities({
+      runId: `benchmark_walkability_${totalBudgetTokens}_${runIndex}`,
+      createdAt: "2026-08-06T00:00:00.000Z",
+      goal: "Level generation walkability benchmark",
+    }),
     adapter,
     model: "fixture",
     catalog,
@@ -156,6 +167,10 @@ async function runSingleBenchmark({ catalog, totalBudgetTokens, layoutPercent, r
     poolWeights: DEFAULT_POOL_WEIGHTS,
     runId: `benchmark_walkability_${totalBudgetTokens}_${runIndex}`,
     maxActorRounds: 0,
+    // PX.3 (M6): the Orchestrator requires an injected clock instead of defaulting one.
+    // A benchmark measures elapsed time with performance.now(); the artifact timestamps it
+    // stamps are irrelevant and must not vary run to run, so it pins one.
+    clock: () => "2026-08-06T00:00:00.000Z",
   });
   const elapsedMs = performance.now() - started;
   const walkableTiles = (result.summary?.layout?.floorTiles || 0) + (result.summary?.layout?.hallwayTiles || 0);

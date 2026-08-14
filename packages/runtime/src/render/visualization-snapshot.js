@@ -1,6 +1,9 @@
 import { normalizeVitals } from "../contracts/domain-constants.js";
 
-export const VISUALIZATION_SNAPSHOT_SCHEMA = "agent-kernel/VisualizationSnapshot";
+// M9: declared in contracts/artifacts.ts, re-exported here under the name importers use.
+import { VISUALIZATION_SNAPSHOT_SCHEMA } from "../contracts/artifacts.ts";
+
+export { VISUALIZATION_SNAPSHOT_SCHEMA };
 export const VISUALIZATION_SNAPSHOT_VERSION = 1;
 
 function buildBlankGrid(width, height) {

@@ -1,6 +1,9 @@
 // Deterministic state machine for the Director persona.
 // Handles plan/intent intake and refinement without performing IO.
 
+import { requireClock } from "../_shared/require-clock.js";
+import { restorePersonaView } from "../_shared/restore-view.js";
+
 export const DirectorStates = Object.freeze({
   UNINITIALIZED: "uninitialized",
   INTAKE: "intake",
@@ -10,7 +13,27 @@ export const DirectorStates = Object.freeze({
   STALE: "stale",
 });
 
+// PX.5 — `observe` is the TICK-PLANE event: a state-preserving self-loop.
+//
+// Everything below is BUILD-plane vocabulary, driven by director-services.js:
+// beginBuild sends bootstrap → ingest_intent, assembleBuildSpec sends
+// draft_complete → refinement_complete. Reaching `ready` is therefore a claim that a
+// build round completed. The tick plane used to send those same events directly, so
+// a run reported `ready` with buildSpecCount 0 and planId null — and, worse, minted
+// a PlanArtifact mid-run, which is build-plane work (IntentEnvelope → PlanArtifact →
+// BuildSpec) leaking into a loop that should be consuming an already-built plan.
+//
+// The tick plane still needs a round so the Director's payload-driven output (solver
+// effects, and a plan artifact when the payload carries one) can flow, so it now
+// sends `observe`, which does that work without asserting a completed build round.
+export const DIRECTOR_TICK_EVENT = "observe";
+
 const transitions = [
+  ...Object.values(DirectorStates).map((state) => ({
+    from: state,
+    event: DIRECTOR_TICK_EVENT,
+    to: state,
+  })),
   {
     from: DirectorStates.UNINITIALIZED,
     event: "bootstrap",
@@ -71,9 +94,14 @@ function findTransition(fromState, event) {
   return transitions.find((entry) => entry.from === fromState && entry.event === event);
 }
 
-export function createDirectorStateMachine({ initialState = DirectorStates.UNINITIALIZED, clock = () => new Date().toISOString() } = {}) {
-  let state = initialState;
-  let context = {
+export function createDirectorStateMachine({ initialState = DirectorStates.UNINITIALIZED, clock, from } = {}) {
+  requireClock(clock, "director");
+  const restored = restorePersonaView(from, {
+    persona: "director",
+    states: Object.values(DirectorStates),
+  });
+  let state = restored?.state ?? initialState;
+  let context = restored?.context ?? {
     intentRef: null,
     planRef: null,
     updatedAt: clock(),

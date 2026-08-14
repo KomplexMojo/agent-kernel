@@ -18,6 +18,37 @@ This document defines the Orchestrator as a **runtime integration role**. Planni
 | Primary outputs | Normalized request envelopes, captured external inputs, post-run side effects |
 | Boundary | Interacts with the outside world around execution, not inside deterministic core execution |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:orchestrator -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `orchestrator/llm-session` — the external interaction seam: LLM sessions run as persona rounds | A5 | ✅ owned (CR.4 M1–M7, `2be417d6`) | `tests/architecture/cr4-llm-call-site-inventory.test.js` |
+| `orchestrator/deferred-side-effects` — effects deferred during execution are coordinated after the run | A2, A5 | ✅ owned (P5.5) | `tests/personas/orchestrator/orchestrator-coordinates-deferred-effects.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **This row read "blocked by CR.4" for two days after CR.4 closed** — while a guard in the same
+directory asserted the opposite. Flipped 2026-08-12 on re-derived evidence, not on the finding's
+closure note: the inventory guard scans `packages/`, `scripts/` and `tools/` and asserts **zero**
+direct `runLlmSession` call sites, and every capture stamped `producedBy: "orchestrator"` is built
+inside `llm-round.js`'s `settle()`, which cannot run before a terminal state. The `producedBy` that
+`kernel.js` and `ak-impl.mjs` pass is an *option into a round-hosted call*, not glue stamping an
+artifact of its own.
+
+**Residue worth knowing before you edit this persona:** `runLlmBudgetLoop` is still a plain function
+rather than an FSM round. It performs no IO (the runner is injected) and mints no artifact of its own,
+so it does not violate A5 — whether the loop itself becomes a round is WP-4's question.
+`runLlmSession` survives only as the differential's reference implementation; its only callers are
+tests, and a reintroduced production call fails the inventory guard.
+
 ## Persona Scope
 
 The Orchestrator persona is responsible for **managing external interaction**, not for deciding what the simulation should do internally.
@@ -46,8 +77,15 @@ All external inputs are normalized into explicit, auditable request envelopes.
 ### LLM Interaction (Director Prompt Plans)
 When LLMs are used for level design or strategy:
 - The Director authors the prompt intent and a small response contract (what to ask / what shape to return).
-- The Orchestrator executes the call (IO), captures the full prompt + raw response for replay, and surfaces parse/contract errors.
-- The Orchestrator normalizes/validates results and translates them into buildable inputs (e.g. BuildSpec/configurator inputs) without inventing strategy content.
+- The Orchestrator **decides**: `llm.beginRound()` returns an `llm_request` effect **as data** and awaits
+  nothing. Escalation (retry → repair → sanitize) is a sequence of states, not inline `await` branches.
+- **Glue dispatches and the adapter performs the IO.** `commands/llm-host.js` routes each request through
+  `ports/effects.js` and hands the response back via `fulfill()`. ⚠️ Since CR.4 this persona no longer
+  performs the call itself — the older wording here said it did, which described the pre-inversion code.
+- The round captures the full prompt + raw response for replay and surfaces parse/contract errors; the
+  capture artifact is built in `settle()`, so it cannot exist before the round reaches a terminal state.
+- Results are normalized/validated and translated into buildable inputs (e.g. BuildSpec/configurator
+  inputs) without inventing strategy content.
 
 ---
 
@@ -74,6 +112,30 @@ The Orchestrator does not interpret or refine intent beyond routing and normaliz
 ---
 
 ### External Side-Effect Coordination
+
+🟢 **IMPLEMENTED — P5.5, 2026-08-13.** This section described intent for as long as the persona
+model has been enforced: `dispatchEffect` marked IO-bound effects `deferred`, the Moderator's
+fulfilment plan recorded the disposition, and the only thing downstream was `ak inspect`, which
+**counted** them. The records then went nowhere — and a run that dropped every deferral looked
+identical, in every output test, to a run that had none.
+
+It now runs as a round (`post-run-round.js`), opened by the runtime's `coordinateDeferredEffects()`
+after the ticks are done, and reached in production through `ak run`, which writes
+`deferred-coordination.json`.
+
+- **The round performs no IO.** `begin()` returns the deferred effects as data; the host dispatches
+  them through `ports/effects.js`; results arrive via `fulfill()`. Same shape as `llm-round.js`,
+  for the same reason CR.4 existed.
+- **What was answered becomes a `CapturedInputArtifact`** — the existing schema for adapter-captured
+  payloads, not a new one — stamped by a round that actually reached a terminal state.
+- **What was not answered is reported `outstanding`, never dropped.** Today there is no
+  external-fact adapter in the tree, so a real run reports `missing_external_fact_adapter`. That is
+  the honest outcome, and it is the whole change: the deferrals are now visible instead of silent.
+- **A run that deferred nothing returns `null`, not an empty settlement.** "Nothing was deferred"
+  and "everything was coordinated" must stay distinguishable.
+- **The runtime refuses to coordinate through any Orchestrator but the one that ran the run**
+  (`orchestrator_required`) — CR.8's façade rule applied to the captures.
+
 Based on simulation outputs, the Orchestrator is responsible for handling **deferred side effects**
 that were explicitly not fulfilled during simulation execution.
 
@@ -146,13 +208,45 @@ This separation ensures that:
 
 The Orchestrator is therefore a **boundary guardian**, responsible for safely interfacing the simulation with the outside world while keeping the inner system pure.
 
+## Public surface
+
+`persona.js` (`export * from "./controller.js"`) publishes:
+
+| Export | What |
+|---|---|
+| `createOrchestratorPersona` | the FSM controller |
+| `orchestratorSubscribePhases` | `observe`, `decide`, `emit` |
+| `runLlmBudgetLoop` | the LLM budget loop — a plain function, re-exported from `llm-budget-loop.js` |
+| `buildLlmCaptureArtifact` | the LLM capture-artifact builder, re-exported from `llm-capture.js` |
+
+`runLlmBudgetLoop` is **published on the controller surface** (CR.7 / WP-5, 2026-08-12) for the same
+reason as `FulfillmentDispositions` on the Moderator: callers need it and must not import persona
+internals. It is safe to publish as a plain function rather than a controller method because it
+takes **no FSM state** — adapter, catalog, priceList, clock and the rest are all injected by the
+caller, so nothing about internal state escapes with it.
+
+⚠️ **`commands/llm-host.js` is NOT a substitute for it.** `runLlmSessionHosted` hosts a *session*;
+this runs the budget loop. They are different capabilities and two callers legitimately import
+both. The allowlist previously carried four rows pointing straight at `llm-budget-loop.js`
+(`ak-impl.mjs`, `adaptive-workflow/llm-seams.js`, `commands/kernel.js`, `ui-web/design-guidance.js`)
+and CR.4's D4 predicted a use case returning LLM-request effects would replace them; it did not.
+Those four now import `persona.js` and the rows are gone (allowlist 35 → 31).
+
+`buildLlmCaptureArtifact` is published for the same reason and on the same terms — a pure builder
+with the clock injected. Its consumer is `personas/_shared/tick-orchestrator.mts`, which runs the
+**tick plane's** own LLM call and stamps its own capture (`producedBy: "runtime-llm"`): a genuinely
+separate exchange from the build plane's rounds, and one that must not grow a second artifact
+builder. ⚠️ Note this retires the second reason given in `llm-round.js#settle`'s docblock — that the
+builder was persona-internal. The provenance reason stated there still stands and always was the
+stronger one: a reachable builder still cannot stamp a round that is not running.
+
 ## State machine & phases
 - States: idle → planning → running/replaying → completed/errored.
 - Subscribed tick phases: observe, decide, emit.
 - Outputs: routed intents/requests as data; no direct IO during execution phases.
 
 ## Drift guardrails
-- Canonical source: `controller.mts` + `state-machine.mts` + `contracts.ts`; runtime entrypoints are `.js`. Import controllers (not state machines) from consumers.
+- Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
 - Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
-- Entry points are `.js`; `.mts` sources remain for TS-aware tooling (no `ts-node/esm` required).
+- Entry points are `.js`. There is no `.mts` twin (no `ts-node/esm` required).

@@ -1,0 +1,67 @@
+{
+  "schema": "agent-kernel/SpendProposal",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "golden_g4_spend_proposal",
+    "runId": "golden_g4",
+    "createdAt": "2026-07-18T00:00:00.000Z",
+    "producedBy": "cli-resource-plan"
+  },
+  "items": [
+    {
+      "id": "resource_affinity_base",
+      "kind": "resource",
+      "quantity": 2,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_affinity_expression_localized",
+      "kind": "resource",
+      "quantity": 2,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_affinity_stack",
+      "kind": "resource",
+      "quantity": 4,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_vital_mana_point",
+      "kind": "resource",
+      "quantity": 100,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_vital_mana_regen_tick",
+      "kind": "resource",
+      "quantity": 10,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    }
+  ]
+}

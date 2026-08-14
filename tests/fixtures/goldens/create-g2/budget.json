@@ -1,0 +1,13 @@
+{
+  "schema": "agent-kernel/BudgetArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "budget_golden_g2",
+    "runId": "golden_g2",
+    "createdAt": "2026-07-18T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "budget": {
+    "tokens": 5000
+  }
+}

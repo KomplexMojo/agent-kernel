@@ -32,7 +32,7 @@ export async function compileScenarioToBundle(scenario) {
 /**
  * Convenience: fetch a scenario JSON from a URL and compile it.
  * Used by the UI's optional "Load Scenario" affordance and by the
- * Playwright test to inject a scenario without a server-side step.
+ * test to inject a scenario without a server-side step.
  */
 export async function loadScenarioFromUrl(url) {
   const res = await fetch(url);

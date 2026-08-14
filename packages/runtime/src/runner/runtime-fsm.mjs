@@ -1,4 +1,5 @@
-import { applyBudgetCaps } from "../ports/budget.js";
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
+import { applyBudgetCaps, applyActionBudgetCosts, readBudgetLedger } from "../ports/budget.js";
 import * as effects from "../ports/effects.js";
 import { createSolverPort } from "../ports/solver.js";
 import { createTickOrchestrator } from "../personas/_shared/tick-orchestrator.mts";
@@ -8,13 +9,18 @@ import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createAnnotatorPersona } from "../personas/annotator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
-import { createModeratorPersona } from "../personas/moderator/persona.js";
-import { createOrchestratorPersona } from "../personas/orchestrator/persona.js";
+import { createModeratorPersona, FulfillmentDispositions } from "../personas/moderator/persona.js";
+import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs";
 import { applyMoveAction, packMoveAction, readObservation, renderBaseTiles } from "../../../core-ts/src/index.ts";
 import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../contracts/domain-constants.js";
 import { computeAuraMap, serializeAuraMap } from "../render/affinity-aura.js";
 import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../contracts/affinity-spatial-rules.js";
+import {
+  EFFECT_SCHEMA,
+  PLAN_ARTIFACT_SCHEMA,
+  TICK_FRAME_SCHEMA,
+} from "../contracts/artifacts.ts";
 
 const ACTION_KIND = Object.freeze({
   IncrementCounter: 1,
@@ -43,15 +49,10 @@ const AFFINITY_EXPRESSION_CODES = Object.freeze(
   }, {}),
 );
 
-const DEFAULT_PERSONA_ORDER = Object.freeze([
-  "orchestrator",
-  "director",
-  "configurator",
-  "allocator",
-  "actor",
-  "moderator",
-  "annotator",
-]);
+// CR.5 — the persona execution order used to be declared here, as a private
+// DEFAULT_PERSONA_ORDER constant. It is now Moderator policy
+// (personas/moderator/tick-ordering.js) and the runner asks for it; see
+// ensureOrchestrator().
 
 const DEFAULT_LOG_LEVELS = Object.freeze({
   debug: 0,
@@ -60,7 +61,6 @@ const DEFAULT_LOG_LEVELS = Object.freeze({
   error: 3,
 });
 
-const PLAN_ARTIFACT_SCHEMA = "agent-kernel/PlanArtifact";
 
 function toInt(value) {
   const num = Number(value);
@@ -258,25 +258,42 @@ function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layo
 function buildEffectRecordFactory({ core, effectFactory, tick }) {
   const buildEffectFromCore = typeof effects.buildEffectFromCore === "function"
     ? effects.buildEffectFromCore
-    : ({ tick: t, index: i, kind: k, value: v }) => ({
-        schema: "agent-kernel/Effect",
-        schemaVersion: 1,
-        id: `eff_${t}_${i}_${k}_${v}`,
-        tick: t,
-        fulfillment: "deterministic",
-        kind: "custom",
-        data: { kind: k, value: v },
-      });
+    : () => {
+        throw new Error("Missing core effect mapper");
+      };
 
   return ({ kind, value, index }) => {
-    const fallback = buildEffectFromCore({ tick, index, kind, value });
+    const coreEffect = {
+      tick,
+      index,
+      kind,
+      value,
+      actorId: typeof core?.getEffectActorId === "function" ? core.getEffectActorId(index) : undefined,
+      x: typeof core?.getEffectX === "function" ? core.getEffectX(index) : undefined,
+      y: typeof core?.getEffectY === "function" ? core.getEffectY(index) : undefined,
+      reason: typeof core?.getEffectReason === "function" ? core.getEffectReason(index) : undefined,
+      delta: typeof core?.getEffectDelta === "function" ? core.getEffectDelta(index) : undefined,
+    };
+
+    // effectFactory is the explicit extension seam for caller-defined custom
+    // kinds. It is resolved before the closed core codebook so injected kinds
+    // remain supported while unknown core kinds fail loud.
     if (typeof effectFactory === "function") {
-      const customEffect = effectFactory({ tick, kind, value, index });
+      const customEffect = effectFactory(coreEffect);
       if (customEffect) {
-        return { ...fallback, ...customEffect, id: customEffect.id || fallback.id };
+        const base = {
+          schema: EFFECT_SCHEMA,
+          schemaVersion: 1,
+          id: `eff_${tick}_${index}_${kind}_${value}`,
+          tick,
+          fulfillment: "deterministic",
+          personaRef: "core",
+          tags: ["core"],
+        };
+        return { ...base, ...customEffect, id: customEffect.id || base.id };
       }
     }
-    return fallback;
+    return buildEffectFromCore(coreEffect);
   };
 }
 
@@ -295,53 +312,62 @@ function normalizeEffectKind(effect) {
   effect.kind = String(effect.kind);
 }
 
-function flushEffects({ core, adapters, effectFactory, tick, effectLog }) {
+// CR.5 — the runner reads core, then EXECUTES the Moderator's fulfilment plan. It
+// no longer decides dispositions: which effects are satisfied deterministically,
+// which defer and which are dispatched is Moderator policy
+// (personas/moderator/effect-fulfillment.js), as is the emission order. Actual
+// dispatch stays here, behind ports/effects.js — the persona decides, glue does IO.
+function flushEffects({ core, adapters, effectFactory, tick, effectLog, moderator }) {
   const count = core.getEffectCount();
   const buildEffectRecord = buildEffectRecordFactory({ core, effectFactory, tick });
-  const records = [];
+  const built = [];
   for (let i = 0; i < count; i += 1) {
     const kind = core.getEffectKind(i);
     const value = core.getEffectValue(i);
     const effect = buildEffectRecord({ kind, value, index: i });
     normalizeEffectKind(effect);
+    built.push({ effect, coreKind: kind, coreValue: value });
+  }
+
+  const plan = moderator.advance({
+    phase: TickPhases.EMIT,
+    event: "plan_effect_fulfillment",
+    payload: { effects: built.map((entry) => entry.effect) },
+    tick,
+  })?.fulfillmentPlan;
+  if (!Array.isArray(plan)) {
+    throw new Error(
+      "Moderator did not return a fulfilment plan: effect fulfilment is Moderator policy (CR.5), "
+      + "so the runner has no disposition of its own to fall back on.",
+    );
+  }
+
+  const records = [];
+  for (const decision of plan) {
+    const { effect, coreKind, coreValue } = built[decision.index];
+    if (decision.fulfillment) {
+      effect.fulfillment = decision.fulfillment;
+    }
     let outcome;
-    if (effect?.kind === "need_external_fact") {
-      if (effect.sourceRef) {
-        effect.fulfillment = "deterministic";
-        outcome = {
-          status: "fulfilled",
-          result: { sourceRef: effect.sourceRef, requestId: effect.requestId, targetAdapter: effect.targetAdapter },
-        };
-      } else {
-        effect.fulfillment = "deferred";
-        outcome = { status: "deferred", reason: "missing_source_ref" };
-      }
-    } else if (effect?.fulfillment === "deferred") {
-      outcome = { status: "deferred", reason: "deferred_effect" };
-    } else {
+    if (decision.disposition === FulfillmentDispositions.DISPATCH) {
       const dispatch = typeof effects.dispatchEffect === "function"
         ? effects.dispatchEffect
         : () => ({ status: "deferred", reason: "missing_dispatchEffect" });
       outcome = dispatch(adapters, effect);
+    } else {
+      outcome = { status: decision.status, result: decision.result, reason: decision.reason };
     }
     records.push({
       effect,
       outcome,
-      index: i,
-      coreKind: kind,
-      coreValue: value,
+      index: decision.index,
+      coreKind,
+      coreValue,
     });
   }
+  // Kept AFTER dispatch, exactly where it sat pre-CR.5: clearing earlier would
+  // change which effects survive should a dispatch ever write back to core.
   core.clearEffects();
-
-  records.sort((a, b) => {
-    const left = a.effect?.id || "";
-    const right = b.effect?.id || "";
-    if (left === right) {
-      return a.index - b.index;
-    }
-    return left < right ? -1 : 1;
-  });
 
   const emittedEffects = records.map((record) => record.effect);
   const fulfilledEffects = records.map((record) => ({
@@ -369,32 +395,20 @@ function flushEffects({ core, adapters, effectFactory, tick, effectLog }) {
 }
 
 function buildDefaultPersonas({ clock }) {
+  // CR.6 — the Actor is handed the Allocator's own admissibility judge rather than
+  // carrying a copy of the policy. Built first so the wiring is explicit: budget
+  // admissibility has one definition, in the persona that owns the economy, and
+  // the Actor cannot reach a verdict the Allocator would not.
+  const allocator = createAllocatorPersona({ clock });
   return {
     orchestrator: createOrchestratorPersona({ clock }),
     director: createDirectorPersona({ clock }),
     configurator: createConfiguratorPersona({ clock }),
-    allocator: createAllocatorPersona({ clock }),
-    actor: createActorPersona({ clock }),
+    allocator,
+    actor: createActorPersona({ clock, admitProposals: allocator.admitProposals }),
     moderator: createModeratorPersona({ clock }),
     annotator: createAnnotatorPersona({ clock }),
   };
-}
-
-function orderPersonas(personas) {
-  const ordered = [];
-  const seen = new Set();
-  for (const name of DEFAULT_PERSONA_ORDER) {
-    if (personas[name]) {
-      ordered.push([name, personas[name]]);
-      seen.add(name);
-    }
-  }
-  for (const [name, persona] of Object.entries(personas)) {
-    if (!seen.has(name)) {
-      ordered.push([name, persona]);
-    }
-  }
-  return ordered;
 }
 
 function resolveActionParams(action) {
@@ -596,6 +610,11 @@ export function createFsmRuntime({
   }
 
   let tick = 0;
+  let moderator = null;
+  let annotator = null;
+  // P5.5 — the Orchestrator PERSONA from the registry, not the tick orchestrator that
+  // shares its name in this file. Post-run deferred-effect coordination is its work.
+  let orchestratorPersona = null;
   const effectLog = [];
   const tickFrames = [];
   let activeRunId = typeof runId === "string" && runId.length > 0 ? runId : `run_${Date.now().toString(36)}`;
@@ -610,6 +629,9 @@ export function createFsmRuntime({
   let baseTiles = null;
   let lastEffects = [];
   let lastFulfilled = [];
+  // P5.5 — applyBudgetCaps's own return value: the categories a cap was actually
+  // issued for. The Allocator's reconciliation reads spend against exactly these.
+  let appliedBudgetCaps = [];
   let observationLog = [];
   let affinityEffects = null;
   let orchestrator = null;
@@ -639,7 +661,7 @@ export function createFsmRuntime({
     solverFulfilled = null,
   } = {}) {
     const frame = {
-      schema: "agent-kernel/TickFrame",
+      schema: TICK_FRAME_SCHEMA,
       schemaVersion: 1,
       meta: nextFrameMeta(),
       tick,
@@ -673,10 +695,34 @@ export function createFsmRuntime({
       llmAdapter: adapters?.llm || adapters?.ollama || null,
     });
 
-    const registry = personas && typeof personas === "object" ? personas : buildDefaultPersonas({ clock: activeClock });
-    const ordered = orderPersonas(registry);
-    for (const [name, persona] of ordered) {
-      orchestrator.registerPersona(name, persona);
+    const registry = personas && typeof personas === "object"
+      ? { ...personas }
+      : buildDefaultPersonas({ clock: activeClock });
+    // CR.5 — the Moderator controls the tick, so a runtime that runs ticks has one.
+    // buildDefaultPersonas always provides it; a caller-supplied registry that omits
+    // it still gets one, which is what keeps ordering and fulfilment policy to a
+    // single origin instead of needing a runner-side fallback copy.
+    if (!registry.moderator) {
+      registry.moderator = createModeratorPersona({ clock: activeClock });
+    }
+    moderator = registry.moderator;
+    annotator = registry.annotator ?? null;
+    orchestratorPersona = registry.orchestrator ?? null;
+
+    const order = moderator.advance({
+      phase: TickPhases.INIT,
+      event: "plan_persona_order",
+      payload: { personaNames: Object.keys(registry) },
+      tick,
+    })?.personaOrder;
+    if (!Array.isArray(order)) {
+      throw new Error(
+        "Moderator did not return a persona order: tick ordering is Moderator policy (CR.5), "
+        + "so a registry whose `moderator` cannot answer plan_persona_order cannot run a tick.",
+      );
+    }
+    for (const name of order) {
+      orchestrator.registerPersona(name, registry[name]);
     }
   }
 
@@ -759,6 +805,14 @@ export function createFsmRuntime({
       }
       allocatorPayload.signals = signals;
     }
+    // P5.5 — the reconciliation input. `signals` are COUNTS of effects, fulfilments
+    // and actions: they say something happened, never what it cost. The ledger is
+    // the issued-versus-actual pair the charter's reconciliation is actually about,
+    // and it is read here (glue reads core) so the persona only ever decides.
+    if (allocatorPayload.ledger === undefined) {
+      const ledger = readBudgetLedger(core, appliedBudgetCaps);
+      if (ledger) allocatorPayload.ledger = ledger;
+    }
 
     const personaPayloads = {
       actor: actorPayload,
@@ -778,7 +832,12 @@ export function createFsmRuntime({
     const events = { ...overrides };
     const personaStates = orchestrator?.view?.().personaStates || {};
     const hasIntent = Boolean(intentEnvelope);
-    const hasPlanArtifact = Boolean(planArtifact);
+    // PX.5 — "a plan exists" now also counts the SimConfig's planRef, which is the
+    // CORRECT source during a run: the plan was produced on the build plane and the
+    // SimConfig names it. Previously this was true only once the Director had minted
+    // a plan mid-tick, so the Orchestrator's progression depended on build-plane work
+    // happening inside the run loop.
+    const hasPlanArtifact = Boolean(planArtifact || simConfig?.planRef);
     const planRef = planArtifact
       ? { id: planArtifact.meta?.id, schema: planArtifact.schema, schemaVersion: planArtifact.schemaVersion }
       : simConfig?.planRef ?? null;
@@ -792,8 +851,29 @@ export function createFsmRuntime({
     const hasSignals = Array.isArray(allocatorSignals) && allocatorSignals.length > 0;
     const controlEvent = phaseInputs.controlEvent || phaseInputs.control || phaseInputs.moderatorEvent;
 
+    // PX.5 / Option A — the tick plane does NOT drive the Configurator's build round.
+    //
+    // It used to inject `provide_config` here, then `validate` in OBSERVE and `lock`
+    // in SUMMARIZE, walking the FSM uninitialized -> pending_config -> configured ->
+    // locked on every run. That walk was ceremony: the only reader of the resulting
+    // state was the code choosing the next event to send, and none of it performed
+    // the work the states claim — the service surface (provideConfig/validate/lock)
+    // was never called, so a run reached `locked` with hasConfig false and no
+    // published snapshot.
+    //
+    // Configuration assembly, validation and locking are BUILD-plane concerns
+    // (charter rule 3, "build plane ≠ tick plane"): the tick plane consumes an
+    // already-built SimConfig, it does not author one. The clinching detail is that
+    // the two planes do not even pass the same TYPE — the build plane's `config` is
+    // `spec.configurator.inputs`, the tick plane's was the SimConfigArtifact — so
+    // routing these events through the service methods would have validated nothing
+    // while appearing to (see tests/personas/dual-surface-shadowing.test.js).
+    //
+    // The CAPABILITY is retained, only the automatic ceremony is gone: `events` is
+    // seeded from `phaseInputs.personaEvents`, so a caller that genuinely wants to
+    // drive the Configurator on the tick plane still can, and subscribePhases is
+    // deliberately left intact so that path keeps working.
     if (phase === TickPhases.INIT) {
-      if (!events.configurator && simConfig) events.configurator = "provide_config";
       if (!events.moderator) {
         const moderatorState = personaStates?.moderator?.state;
         if (moderatorState === "initializing") events.moderator = "start";
@@ -802,10 +882,6 @@ export function createFsmRuntime({
 
     if (phase === TickPhases.OBSERVE) {
       if (!events.actor) events.actor = "observe";
-      if (!events.configurator) {
-        const cfgState = orchestrator?.view?.().personaStates?.configurator?.state;
-        if (cfgState === "pending_config") events.configurator = "validate";
-      }
       if (!events.moderator) {
         const moderatorState = personaStates?.moderator?.state;
         if (moderatorState === "initializing") events.moderator = "start";
@@ -814,13 +890,18 @@ export function createFsmRuntime({
         const orchState = personaStates?.orchestrator?.state;
         if (orchState === "idle" && hasPlanArtifact) events.orchestrator = "plan";
       }
+      // PX.5 — the tick plane drives the Allocator's OWN loop (monitor/rebalance),
+      // never the build-plane budget vocabulary. `budget`/`allocate` are sent by
+      // allocator-services.js (registerBudget/validateSpend); sending them from here
+      // made a run report `allocating` with budgetTokens null and receiptCount 0 —
+      // a state claiming a budget round that never happened. `monitor` can now be
+      // entered from idle, so the runtime loop no longer has to pass through that
+      // claim to get going. `observe` is a state-preserving round for the phases
+      // where nothing should move: the Allocator's tick work is payload-driven, so
+      // it still emits its request actions.
       if (!events.allocator) {
         const allocState = personaStates?.allocator?.state;
-        if (allocState === "idle" && hasBudgets) {
-          events.allocator = "budget";
-        } else if (allocState === "allocating" || allocState === "rebalancing") {
-          events.allocator = "monitor";
-        }
+        events.allocator = allocState === "idle" || allocState === "rebalancing" ? "monitor" : "observe";
       }
       if (controlEvent) {
         if (!events.moderator) {
@@ -840,29 +921,56 @@ export function createFsmRuntime({
         const orchState = personaStates?.orchestrator?.state;
         if (orchState === "planning" && hasPlanArtifact) events.orchestrator = "start_run";
       }
+      // PX.5 — the tick plane walks the Director's build round ONLY when there is no
+      // plan to consume.
+      //
+      // bootstrap/ingest_intent/draft_complete/refinement_complete are
+      // director-services.js's events (beginBuild, assembleBuildSpec), so sending
+      // them asserts a build round. In the normal run — a SimConfig that already
+      // names its plan via planRef — that assertion was false: the Director reported
+      // `ready` with buildSpecCount 0 and planId null while minting a PlanArtifact
+      // mid-run, which is build-plane work inside a loop whose plan already exists.
+      //
+      // But a runtime CAN legitimately be started from a bare IntentEnvelope with no
+      // SimConfig (runtime-plan-artifact.test.js does exactly that), and then the
+      // Director drafting a plan in-loop is the feature, not the defect. So the walk
+      // is preserved for that case only, and every run that has a plan gets the
+      // state-preserving `observe`.
       if (!events.director) {
         const directorState = personaStates?.director?.state;
-        if (hasIntent || hasPlanArtifact) {
+        const hasPlanToConsume = Boolean(planArtifact || simConfig?.planRef);
+        if (!hasPlanToConsume && hasIntent) {
           if (directorState === "uninitialized") {
             events.director = "bootstrap";
           } else if (directorState === "intake") {
-            events.director = hasPlanArtifact ? "ingest_plan" : "ingest_intent";
+            events.director = "ingest_intent";
           } else if (directorState === "draft_plan" && planRef) {
             events.director = "draft_complete";
           } else if (directorState === "refine" && planRef) {
             events.director = "refinement_complete";
           } else if (directorState === "stale") {
             events.director = "refresh";
+          } else {
+            events.director = "observe";
           }
+        } else {
+          events.director = "observe";
         }
       }
+      // PX.5 — rebalance is signal-driven and tick-native; `allocate` is not sent
+      // here any more (it is validateSpend's event, a claim this plane cannot make).
+      //
+      // P5.5 — and it now also requires a LEDGER, because `rebalance` stopped being a
+      // label the day REBALANCING started gating reconciliation. The persona refuses to
+      // reconcile without one, so sending the event with nothing to reconcile would
+      // throw mid-tick. A run whose core exposes no usage counter therefore stays in
+      // `monitoring`: the honest state, since no reconciliation happened. That is the
+      // charter's rule applied to the trigger as well as to the state — an event that
+      // announces work must only be sent when the work can be done.
       if (!events.allocator) {
         const allocState = personaStates?.allocator?.state;
-        if (allocState === "budgeting" && hasBudgets) {
-          events.allocator = "allocate";
-        } else if (allocState === "monitoring" && hasSignals) {
-          events.allocator = "rebalance";
-        }
+        const canReconcile = hasSignals && Boolean(personaPayloads?.allocator?.ledger);
+        events.allocator = allocState === "monitoring" && canReconcile ? "rebalance" : "observe";
       }
     }
 
@@ -886,10 +994,6 @@ export function createFsmRuntime({
 
     if (phase === TickPhases.SUMMARIZE) {
       if (!events.annotator) events.annotator = "summarize";
-      if (!events.configurator) {
-        const cfgState = orchestrator?.view?.().personaStates?.configurator?.state;
-        if (cfgState === "configured") events.configurator = "lock";
-      }
     }
 
     return events;
@@ -1052,11 +1156,17 @@ export function createFsmRuntime({
       }
 
       baseTiles = resolveBaseTiles(simConfig, core);
-      applyBudgetCaps(core, simConfig);
+      // P5.5 — the applied caps are RETAINED now, because they are the "issued"
+      // half of the Allocator's reconciliation. Previously this return value was
+      // dropped, which is a small part of why nothing could compare issued spend
+      // against actual: one half was discarded and the other was never read.
+      appliedBudgetCaps = applyBudgetCaps(core, simConfig);
+      // Action costs are Allocator policy; core enforces but must not price.
+      applyActionBudgetCosts(core, createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.actionBudgetCosts());
 
       ensureOrchestrator();
 
-      const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog });
+      const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog, moderator });
       lastEffects = frameEffects.emittedEffects;
       lastFulfilled = frameEffects.fulfilledEffects;
 
@@ -1089,6 +1199,17 @@ export function createFsmRuntime({
     async step(stepOptions = {}) {
       if (!orchestrator) {
         ensureOrchestrator();
+      }
+
+      // Moderator "pausing" must gate real tick advancement, not just record a
+      // label (charter: label-only states are defects). A tick already in
+      // flight when pause is requested still completes this call; only a call
+      // that BEGINS already-paused is refused. "resume" (any of the aliases
+      // buildPersonaEvents accepts) unblocks within the same call.
+      const moderatorState = orchestrator.view().personaStates?.moderator?.state;
+      const requestedControlEvent = stepOptions.controlEvent || stepOptions.control || stepOptions.moderatorEvent;
+      if (moderatorState === "pausing" && requestedControlEvent !== "resume") {
+        return core.getCounter ? core.getCounter() : null;
       }
 
       const currentPhase = orchestrator.view().phase;
@@ -1274,7 +1395,7 @@ export function createFsmRuntime({
         solverFulfilled: applyRecord.solverFulfilled,
       });
 
-      const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog });
+      const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog, moderator });
       lastEffects = frameEffects.emittedEffects;
       lastFulfilled = frameEffects.fulfilledEffects;
       observationLog.push({ tick, effects: lastEffects, fulfilledEffects: lastFulfilled, persona: "core" });
@@ -1352,6 +1473,104 @@ export function createFsmRuntime({
 
     getTickFrames() {
       return tickFrames.slice();
+    },
+    // CR.8 — the RunSummary is produced by the Annotator that actually observed the
+    // run. kernel.js used to mint a fresh `createAnnotatorPersona({ clock: UNUSED_CLOCK })`
+    // purely to call summarizeRun and stamp producedBy:"annotator": the instance that
+    // recorded every tick frame was discarded, and one that had recorded nothing signed
+    // the artifact (A5, honest provenance).
+    //
+    // Deliberately narrow: the persona registry stays private, so glue still cannot
+    // reach persona internals. The derivation itself is unchanged — P3.2's
+    // deriveRunOutcome is correct and this only fixes WHO runs it.
+    summarizeRun(args = {}) {
+      if (!annotator || typeof annotator.summarizeRun !== "function") {
+        const error = new Error(
+          "Runtime has no Annotator to summarize the run: the RunSummary is Annotator work (CR.8), "
+          + "so glue must not synthesize one to sign the artifact.",
+        );
+        error.code = "annotator_required";
+        throw error;
+      }
+      // The A5 gate. A run that actually TICKED drove this instance through
+      // recording -> summarizing; an instance still `idle` cannot have observed it,
+      // which is exactly what a freshly constructed stand-in looks like.
+      //
+      // Keyed on ticked frames, not on frame count: init() alone records one "init"
+      // frame, so a zero-tick run legitimately ends with an unobserved Annotator and
+      // an empty summary. That is honest, and gating on `length > 0` wrongly failed it.
+      const ticked = tickFrames.some((frame) => frame?.phaseDetail && frame.phaseDetail !== "init");
+      const state = annotator.view?.().state;
+      if (ticked && state === "idle") {
+        const error = new Error(
+          `Annotator never observed this run (state=${state}) but was asked to summarize a run that `
+          + "ticked: the summary would carry a provenance stamp it did not earn.",
+        );
+        error.code = "annotator_did_not_observe";
+        throw error;
+      }
+      return annotator.summarizeRun(args);
+    },
+
+    /**
+     * P5.5 — coordinate the effects this run deferred, after the run.
+     *
+     * Chartered Orchestrator work that did not exist: `dispatchEffect` marked IO-bound
+     * effects `deferred`, the Moderator recorded the disposition, and the only thing
+     * downstream was `ak inspect`, which counted them. The records then went nowhere, and
+     * a run that dropped every deferral looked identical to one that had none.
+     *
+     * The sequencing is the charter's, not a convenience: this runs only after the ticks
+     * are done and the run's facts are final, and nothing it obtains is fed back into the
+     * simulation. The round decides and returns effects; the port dispatches them; the
+     * adapter does the IO.
+     *
+     * @returns {{runId: string|null, deferredCount: number, captures: Array<object>,
+     *   outstanding: Array<object>} | null} null when the run deferred nothing — which is
+     *   distinct from a settlement with an empty capture list, and the round refuses to
+     *   blur the two.
+     */
+    coordinateDeferredEffects({ clock: overrideClock, meta } = {}) {
+      // The A5 gate, the same shape as summarizeRun's: the persona that hosts the round
+      // must be the one in this run's registry. A stand-in minted here to sign the
+      // captures is the CR.8 façade, one artifact over.
+      if (typeof orchestratorPersona?.createPostRunCoordinationRound !== "function") {
+        const error = new Error(
+          "Runtime has no Orchestrator that can coordinate deferred effects: post-run "
+          + "side-effect coordination is Orchestrator work (charter), so glue must not "
+          + "fulfil the deferrals itself.",
+        );
+        error.code = "orchestrator_required";
+        throw error;
+      }
+
+      const deferred = collectDeferredEffects(tickFrames);
+      if (deferred.length === 0) {
+        return null;
+      }
+
+      const round = orchestratorPersona.createPostRunCoordinationRound({
+        deferred,
+        runId: activeRunId,
+        clock: overrideClock || activeClock,
+        meta,
+      });
+      const { effects: postRunEffects } = round.begin();
+
+      for (const effect of postRunEffects) {
+        const outcome = typeof effects.dispatchEffect === "function"
+          ? effects.dispatchEffect(adapters, effect)
+          : { status: "deferred", reason: "missing_dispatchEffect" };
+        round.fulfill({
+          coordinationId: effect.coordinationId,
+          status: outcome?.status,
+          payload: outcome?.result,
+          reason: outcome?.reason,
+          adapter: effect.targetAdapter,
+        });
+      }
+
+      return round.settle().result;
     },
   };
 }

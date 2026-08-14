@@ -8,7 +8,7 @@
  * This exercises the same actor-controller gap covered at the persona level
  * in tests/runtime/random-movement-ticks.test.js, but end-to-end: today
  * "random" motivation is not special-cased in
- * packages/runtime/src/personas/actor/controller.mts buildMotivatedProposals()
+ * packages/runtime/src/personas/actor/persona.js buildMotivatedProposals()
  * (~line 787), so every "random" actor falls back to buildMoveProposal(),
  * which pathfinds toward the shared level exit. That collapses what should be
  * independent random trajectories into a single deterministic beeline, which
@@ -255,7 +255,7 @@ test("all delver and warden ids remain present in tick frame observations across
 // fallback (the actual M3 gap under test)
 // ---------------------------------------------------------------------------
 
-test.skip("random-motivation actors move independently rather than converging on a shared exit path", async () => {
+test("random-motivation actors move independently rather than converging on a shared exit path", async () => {
   const { createRuntime, createCore } = await loadRuntimeDeps();
 
   const simConfig = buildSimConfig();
@@ -391,6 +391,7 @@ test("same simConfig seed reproduces identical accepted move sequences", async (
   assert.deepEqual(acceptedMoveSignature(runA.frames), acceptedMoveSignature(runB.frames));
 });
 
+// STAYS SKIPPED — fails today: describes seed/zero-step behavior the runtime does not implement (checked 2026-08-01).
 test.skip("changing only simConfig seed changes at least one random move sequence", async () => {
   const simA = buildSimConfig();
   const simB = buildSimConfig();
@@ -410,6 +411,7 @@ test("single-tick random run keeps all configured actors in core state", async (
   assert.equal(core.getMotivatedActorCount(), buildInitialState().actors.length);
 });
 
+// STAYS SKIPPED — fails today: describes seed/zero-step behavior the runtime does not implement (checked 2026-08-01).
 test.skip("zero-step random run produces no tick frames while preserving actors", async () => {
   const { core, frames } = await runRuntimeScenario({ ticks: 0, seed: 4 });
 

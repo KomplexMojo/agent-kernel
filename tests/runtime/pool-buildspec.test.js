@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
+const { configuratorRoomGeometry } = require("../helpers/configurator-capabilities.js");
 
 const catalogPath = resolve(__dirname, "../fixtures/pool/catalog-basic.json");
 
@@ -126,6 +127,7 @@ test("hazard cards become configurator levelGen hazards in BuildSpec", async () 
 
   const result = buildBuildSpecFromSummary({
     summary,
+    roomGeometry: await configuratorRoomGeometry(),
     runId: "hazard_card_buildspec",
     createdAt: "2026-04-15T00:00:00Z",
     source: "runtime-test",

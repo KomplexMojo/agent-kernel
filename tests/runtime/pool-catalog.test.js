@@ -6,7 +6,7 @@ const catalogPath = resolve(__dirname, "../fixtures/pool/catalog-basic.json");
 
 test("normalizePoolCatalog loads and sorts entries deterministically", async () => {
   const { normalizePoolCatalog } = await import(
-    "../../packages/runtime/src/personas/configurator/pool-catalog.js"
+    "../../packages/runtime/src/contracts/pool-catalog.js"
   );
   const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
   const result = normalizePoolCatalog(catalog);
@@ -26,7 +26,7 @@ test("normalizePoolCatalog loads and sorts entries deterministically", async () 
 
 test("normalizePoolCatalog rejects invalid entries", async () => {
   const { normalizePoolCatalog } = await import(
-    "../../packages/runtime/src/personas/configurator/pool-catalog.js"
+    "../../packages/runtime/src/contracts/pool-catalog.js"
   );
   const result = normalizePoolCatalog({
     entries: [

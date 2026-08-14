@@ -29,22 +29,19 @@ import {
   getAffinityVisualStateCount,
   resolveAffinityMergedStacks,
 } from "./state/affinity-spatial.ts";
-import { createBudgetState } from "./state/budget.ts";
+import { createBudgetState, BudgetCategory } from "./state/budget.ts";
 import { createCounterState } from "./state/counter.ts";
 import { createEffectState } from "./state/effects.ts";
 import {
   createMotivationState,
   getDefaultMotivationPattern,
-  getMotivationDefaultDesignCost,
   getMotivationDefaultFlagMask,
-  getMotivationDefaultUnitCost,
   getMotivationExclusiveGroup,
   getMotivationFamily,
   getMotivationFlagCount,
   getMotivationKindCount,
   getMotivationPatternCodeAt,
   getMotivationPatternCount,
-  getMotivationProfileCost,
   getMotivationTier,
   motivationKindsConflict,
   normalizeMotivationIntensity,
@@ -52,13 +49,15 @@ import {
 import { createWorldState } from "./state/world.ts";
 import { ActionKind, validateAction, validateSeed, ValidationError } from "./validate/inputs.ts";
 
+export { BudgetCategory } from "./state/budget.ts";
+// Core owns the action codebook; runtime maps names onto these codes.
+export { ActionKind } from "./validate/inputs.ts";
 export * from "./affinity-readers.ts";
 export * from "./motivation-readers.ts";
 export * from "./mvp-movement.ts";
 
 export const CORE_API_KEYS = [
   "addActorPlacement",
-  "addMotivationCostEntry",
   "addMotivationEvaluationEntry",
   "advanceTick",
   "affinityExpressionAllowsEnvironmentMutation",
@@ -147,8 +146,16 @@ export const CORE_API_KEYS = [
   "getMotivatedActorActionCostManaByIndex",
   "getMotivatedActorActionCostStaminaByIndex",
   "getMotivatedActorAffinityExpressionByIndex",
+  "getMotivatedActorAffinityGrantCountByIndex",
+  "getMotivatedActorAffinityGrantExpressionAt",
+  "getMotivatedActorAffinityGrantKindAt",
+  "getMotivatedActorAffinityGrantManaAt",
+  "getMotivatedActorAffinityGrantManaMaxAt",
+  "getMotivatedActorAffinityGrantManaRegenAt",
+  "getMotivatedActorAffinityGrantStacksAt",
   "getMotivatedActorAffinityKindByIndex",
   "getMotivatedActorAffinityStacksByIndex",
+  "getMotivatedActorAffinityStacksForKind",
   "getMotivatedActorCount",
   "getMotivatedActorIdByIndex",
   "getMotivatedActorMovementCostByIndex",
@@ -157,25 +164,24 @@ export const CORE_API_KEYS = [
   "getMotivatedActorVitalRegenByIndex",
   "getMotivatedActorXByIndex",
   "getMotivatedActorYByIndex",
-  "getMotivationCostLineCount",
-  "getMotivationCostLineFamily",
-  "getMotivationCostLineKind",
-  "getMotivationCostLineQuantity",
-  "getMotivationCostLineSpend",
-  "getMotivationCostLineUnitCost",
-  "getMotivationCostTotal",
-  "getMotivationDefaultDesignCost",
   "getMotivationDefaultFlagMask",
-  "getMotivationDefaultUnitCost",
   "getMotivationExclusiveGroup",
   "getMotivationFamily",
   "getMotivationFlagCount",
   "getMotivationKindCount",
   "getMotivationPatternCodeAt",
   "getMotivationPatternCount",
-  "getMotivationProfileCost",
   "getMotivationTier",
   "getOppositeAffinityKind",
+  "getResourceAffinityExpressionAt",
+  "getResourceAffinityKindAt",
+  "getResourceAffinityStacksAt",
+  "getResourceDeltaAt",
+  "getResourceManaAt",
+  "getResourceManaRegenAt",
+  "getResourceModeAt",
+  "getResourceVitalKindAt",
+  "getResourceVitalRegenAt",
   "getStaticHazardAffinityAt",
   "getStaticHazardCount",
   "getStaticHazardDurabilityAt",
@@ -196,6 +202,8 @@ export const CORE_API_KEYS = [
   "getTileActorKindByIndex",
   "getTileActorXByIndex",
   "getTileActorYByIndex",
+  "grantMotivatedActorAffinity",
+  "hasResourceAt",
   "init",
   "loadMvpBarrierScenario",
   "loadMvpScenario",
@@ -203,17 +211,20 @@ export const CORE_API_KEYS = [
   "memory",
   "motivationKindsConflict",
   "normalizeMotivationIntensity",
+  "placeAffinityResourceAt",
+  "placeResourceAt",
   "prepareTileBuffer",
   "raiseBarrierAt",
+  "removeResourceAt",
   "renderBaseCellChar",
   "renderCellChar",
-  "resetMotivationCostAccumulator",
   "resetMotivationEvaluation",
   "resolveAffinityInteraction",
   "resolveAffinityMergedStacks",
   "resolveAffinityRelationshipCode",
   "resolveAffinityStackCancellation",
   "resolveMotivatedActorAffinityInteraction",
+  "setActionBudgetCost",
   "setActiveMotivatedActor",
   "setActorActionCostMana",
   "setActorActionCostStamina",
@@ -229,6 +240,7 @@ export const CORE_API_KEYS = [
   "setSpawnPosition",
   "setTileAt",
   "spawnActorAt",
+  "spendMotivatedActorAffinityMana",
   "step",
   "validateActorCapabilities",
   "validateActorPlacement",
@@ -245,8 +257,10 @@ function notImplemented(name: string): CoreFunction {
   };
 }
 
-const DEFAULT_BUDGET_CATEGORY = 0;
-const EFFECT_BUDGET_CATEGORY = 1;
+// Core owns the budget category ids; the codebook lives with the budget state
+// so runtime can import it rather than duplicating the numbering.
+const DEFAULT_BUDGET_CATEGORY = BudgetCategory.Default;
+const EFFECT_BUDGET_CATEGORY = BudgetCategory.Effects;
 const REQUEST_DETAIL_MASK = 0xff;
 
 function encodeRequestPayload(seq: number, detail: number): number {
@@ -302,7 +316,9 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
     const budgetCategory = kind === ActionKind.RequestExternalFact || kind === ActionKind.RequestSolver
       ? EFFECT_BUDGET_CATEGORY
       : DEFAULT_BUDGET_CATEGORY;
-    const budgetCost = kind === ActionKind.RequestSolver ? 2 : 1;
+    // Cost is Allocator policy, injected via setActionBudgetCost; core only
+    // enforces. Defaults to 1 unit per action when nothing injected.
+    const budgetCost = budget.getActionCost(kind);
     const nextSpent = budget.chargeBudget(budgetCategory, budgetCost);
     emitBudgetEffects(budgetCategory, nextSpent);
   }
@@ -386,6 +402,7 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.version = () => 1;
   core.getCounter = counter.getCounterValue as CoreFunction;
   core.setBudget = budget.setBudgetCap as CoreFunction;
+  core.setActionBudgetCost = budget.setActionCost as CoreFunction;
   core.getBudget = budget.getBudgetCap as CoreFunction;
   core.getBudgetUsage = budget.getBudgetSpent as CoreFunction;
   core.getEffectCount = effects.getEffectCount as CoreFunction;
@@ -466,23 +483,11 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getMotivationPatternCodeAt = getMotivationPatternCodeAt as CoreFunction;
   core.getDefaultMotivationPattern = getDefaultMotivationPattern as CoreFunction;
   core.getMotivationTier = getMotivationTier as CoreFunction;
-  core.getMotivationDefaultUnitCost = getMotivationDefaultUnitCost as CoreFunction;
   core.normalizeMotivationIntensity = normalizeMotivationIntensity as CoreFunction;
-  core.getMotivationProfileCost = getMotivationProfileCost as CoreFunction;
-  core.getMotivationDefaultDesignCost = getMotivationDefaultDesignCost as CoreFunction;
   core.getMotivationDefaultFlagMask = getMotivationDefaultFlagMask as CoreFunction;
   core.getMotivationFlagCount = getMotivationFlagCount as CoreFunction;
 
   // Motivation state (per-instance)
-  core.resetMotivationCostAccumulator = motivation.resetMotivationCostAccumulator as CoreFunction;
-  core.addMotivationCostEntry = motivation.addMotivationCostEntry as CoreFunction;
-  core.getMotivationCostTotal = motivation.getMotivationCostTotal as CoreFunction;
-  core.getMotivationCostLineCount = motivation.getMotivationCostLineCount as CoreFunction;
-  core.getMotivationCostLineKind = motivation.getMotivationCostLineKind as CoreFunction;
-  core.getMotivationCostLineFamily = motivation.getMotivationCostLineFamily as CoreFunction;
-  core.getMotivationCostLineQuantity = motivation.getMotivationCostLineQuantity as CoreFunction;
-  core.getMotivationCostLineUnitCost = motivation.getMotivationCostLineUnitCost as CoreFunction;
-  core.getMotivationCostLineSpend = motivation.getMotivationCostLineSpend as CoreFunction;
   core.resetMotivationEvaluation = motivation.resetMotivationEvaluation as CoreFunction;
   core.addMotivationEvaluationEntry = motivation.addMotivationEvaluationEntry as CoreFunction;
   core.evaluateMotivations = motivation.evaluateMotivations as CoreFunction;
@@ -581,6 +586,30 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getMotivatedActorAffinityKindByIndex = world.getMotivatedActorAffinityKindByIndex as CoreFunction;
   core.getMotivatedActorAffinityExpressionByIndex = world.getMotivatedActorAffinityExpressionByIndex as CoreFunction;
   core.getMotivatedActorAffinityStacksByIndex = world.getMotivatedActorAffinityStacksByIndex as CoreFunction;
+  core.grantMotivatedActorAffinity = world.grantMotivatedActorAffinity as CoreFunction;
+  core.spendMotivatedActorAffinityMana = world.spendMotivatedActorAffinityMana as CoreFunction;
+  core.getMotivatedActorAffinityStacksForKind = world.getMotivatedActorAffinityStacksForKind as CoreFunction;
+  core.getMotivatedActorAffinityGrantCountByIndex = world.getMotivatedActorAffinityGrantCountByIndex as CoreFunction;
+  core.getMotivatedActorAffinityGrantKindAt = world.getMotivatedActorAffinityGrantKindAt as CoreFunction;
+  core.getMotivatedActorAffinityGrantExpressionAt = world.getMotivatedActorAffinityGrantExpressionAt as CoreFunction;
+  core.getMotivatedActorAffinityGrantStacksAt = world.getMotivatedActorAffinityGrantStacksAt as CoreFunction;
+  core.getMotivatedActorAffinityGrantManaAt = world.getMotivatedActorAffinityGrantManaAt as CoreFunction;
+  core.getMotivatedActorAffinityGrantManaMaxAt = world.getMotivatedActorAffinityGrantManaMaxAt as CoreFunction;
+  core.getMotivatedActorAffinityGrantManaRegenAt = world.getMotivatedActorAffinityGrantManaRegenAt as CoreFunction;
+
+  core.hasResourceAt = world.hasResourceAt.bind(world) as CoreFunction;
+  core.placeResourceAt = world.placeResourceAt.bind(world) as CoreFunction;
+  core.placeAffinityResourceAt = world.placeAffinityResourceAt.bind(world) as CoreFunction;
+  core.removeResourceAt = world.removeResourceAt.bind(world) as CoreFunction;
+  core.getResourceVitalKindAt = world.getResourceVitalKindAt as CoreFunction;
+  core.getResourceDeltaAt = world.getResourceDeltaAt as CoreFunction;
+  core.getResourceModeAt = world.getResourceModeAt as CoreFunction;
+  core.getResourceAffinityKindAt = world.getResourceAffinityKindAt as CoreFunction;
+  core.getResourceAffinityExpressionAt = world.getResourceAffinityExpressionAt as CoreFunction;
+  core.getResourceAffinityStacksAt = world.getResourceAffinityStacksAt as CoreFunction;
+  core.getResourceManaAt = world.getResourceManaAt as CoreFunction;
+  core.getResourceManaRegenAt = world.getResourceManaRegenAt as CoreFunction;
+  core.getResourceVitalRegenAt = world.getResourceVitalRegenAt as CoreFunction;
 
   core.init = ((seed: number) => {
     effects.clearEffects();

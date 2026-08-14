@@ -11,7 +11,9 @@ function createStatusSink() {
   const status = { message: "", level: "info", hidden: true };
   return {
     el: {
-      dataset: {},
+      // `dataset: {}` stood here and was shadowed by the `get dataset()` accessor below —
+      // a data property and an accessor for one key, where the later accessor wins. The
+      // getter already lazily creates the object, so the literal was never read.
       style: {},
       set textContent(value) {
         status.message = String(value ?? "");
@@ -56,6 +58,11 @@ export function createCardBuilderController({ llmConfig = {} } = {}) {
       runId: typeof runId === "string" && runId.trim() ? runId.trim() : `card_builder_${Date.now()}`,
       source,
       createdAt,
+      // PX.3 (M6): the Director requires an injected clock rather than defaulting one.
+      // Reading the wall clock is an ADAPTER's job and always was — ui-web is an adapter,
+      // and this is the composition root for the browser path, so the clock enters here.
+      // The persona stays clock-free; only its caller knows what "now" means.
+      clock: () => new Date().toISOString(),
     });
   }
 

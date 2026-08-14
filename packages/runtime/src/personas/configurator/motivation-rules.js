@@ -1,7 +1,11 @@
-import {
-  GAME_MOTIVATION_KIND_IDS,
-  GAME_MOTIVATION_KINDS,
-} from "../../contracts/game-elements.js";
+import { GAME_MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
+// MOTIVATION_KINDS comes from contracts/domain-constants.js. This file used to
+// declare `export const MOTIVATION_KINDS = GAME_MOTIVATION_KINDS` — a FOURTH
+// name for one value (see P5.1 D1), exported but never imported by anything.
+import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
+// M8: same relocation as affinity-rules.js — the validator's expected schema and the
+// default artifact's declared schema were two retyped copies of one string.
+import { MOTIVATION_RULES_ARTIFACT_SCHEMA } from "../../contracts/artifacts.ts";
 
 export const BEHAVIOR_COMPLEXITY_CLASSES = Object.freeze(["instinctual", "tactical", "strategic"]);
 
@@ -46,7 +50,6 @@ export const MOTIVATION_PROFILE_ITEM_IDS = Object.freeze({
 });
 
 export const MOTIVATION_FLAG_KEYS = Object.freeze(Object.keys(DEFAULT_MOTIVATION_FLAGS));
-export const MOTIVATION_KINDS = GAME_MOTIVATION_KINDS;
 
 function cloneJson(value) {
   return JSON.parse(JSON.stringify(value));
@@ -240,7 +243,7 @@ export function normalizeMotivationRulesArtifact(input = {}) {
     addError(errors, "artifact", "invalid_artifact");
     return { ok: false, errors, warnings, value: null };
   }
-  if (input.schema !== "agent-kernel/MotivationRulesArtifact") {
+  if (input.schema !== MOTIVATION_RULES_ARTIFACT_SCHEMA) {
     addError(errors, "schema", "invalid_schema");
   }
   if (input.schemaVersion !== 1) {
@@ -314,7 +317,7 @@ export function resolveMotivationRules(rules) {
 }
 
 export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
-  schema: "agent-kernel/MotivationRulesArtifact",
+  schema: MOTIVATION_RULES_ARTIFACT_SCHEMA,
   schemaVersion: 1,
   meta: Object.freeze({
     id: "motivation_rules_basic",

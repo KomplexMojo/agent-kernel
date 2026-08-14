@@ -8,15 +8,25 @@
 
 import {
   computeBudgetPools,
+  POOL_ID_BY_SPEND_CATEGORY,
   REFERENCE_BUDGET_TOKENS,
   REFERENCE_TARGETS,
   TARGET_DELVER_WARDEN_RATIO,
-} from "../director/budget-allocation.js";
+} from "./budget-allocation.js";
 
+// ⚠️ `hazards` was listed TWICE in each of the vocabularies below and in the category → pool
+// map, which at the time existed twice — five duplicates telling one story.
+// Hazards used to bill to the ROOMS pool; when they got their own pool (15% of the dungeon
+// split, `DEFAULT_DUNGEON_SUB_POOLS`) the new line was added BELOW the old one instead of
+// replacing it. It worked only because a JS object literal takes the LAST duplicate key,
+// so `hazards → "hazards"` has been the live mapping all along and `hazards → "rooms"` was
+// dead code that still read like policy.
+//
+// Removing the dead entries is behavior-preserving by construction — the surviving value
+// is the one that was already winning — and the goldens are the gate.
 const REPORT_CATEGORIES = Object.freeze([
   "rooms",
   "floor_tiles",
-  "hazards",
   "hazards",
   "resources",
   "delvers",
@@ -24,16 +34,34 @@ const REPORT_CATEGORIES = Object.freeze([
   "shared_system",
 ]);
 
-const CATEGORY_POOL_IDS = Object.freeze({
-  rooms: "rooms",
-  floor_tiles: "rooms",
-  hazards: "rooms",
-  hazards: "hazards",
-  resources: "resources",
-  delvers: "delver",
-  wardens: "wardens",
-  shared_system: "rooms",
-});
+// `POOL_ID_BY_SPEND_CATEGORY` was declared here and, verbatim, in validate-spend.js — which is
+// exactly why the `hazards` duplicate-key defect above existed in both: the map was copied, so
+// the bug was copied with it. It now has one origin, in budget-allocation.js beside the pools
+// it names, and `tests/architecture/single-origin.test.js` forbids a second declaration.
+
+/**
+ * The categories the `rooms` ROW rolls up — DERIVED from the map, not restated.
+ *
+ * `rooms` in the report is not the `rooms` category, it is the rooms POOL: the row's target
+ * is the pool's allocation, so its actual has to be every category drawing on that pool.
+ *
+ * ⚠️ IT WAS HAND-WRITTEN AS `floor_tiles + hazards + shared_system` AND HAD GONE STALE.
+ * Hazards have their own pool (15% of the dungeon split) and their own row with their own
+ * target, so folding them into `rooms` compared a hazards-INCLUSIVE actual against a
+ * hazards-EXCLUSIVE target, and reported the same tokens in two rows. It was the identical
+ * pre-pool-split policy that `POOL_ID_BY_SPEND_CATEGORY` carried as a dead `hazards: "rooms"`
+ * entry — a third spelling of one stale fact, in arithmetic, where neither the duplicate-key
+ * guard nor the single-origin guard could see it.
+ *
+ * Deriving it from the map is the fix for the class, not just the instance: repoint a category
+ * and the rollup follows, and no future pool split can leave this line behind.
+ */
+const ROOMS_POOL_CATEGORIES = Object.freeze(
+  REPORT_CATEGORIES.filter(
+    (category) => category !== "rooms"
+      && POOL_ID_BY_SPEND_CATEGORY[category] === POOL_ID_BY_SPEND_CATEGORY.rooms,
+  ),
+);
 
 /**
  * Compute the incentive multiplier (design §3.3).
@@ -70,7 +98,9 @@ function buildCategoryTargets({ budgetTokens, allocation } = {}) {
   const fallback = {
     rooms: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
     floor_tiles: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
-    hazards: Math.round(REFERENCE_TARGETS.rooms * fallbackScale),
+    // The dead `REFERENCE_TARGETS.rooms` twin is gone; `REFERENCE_TARGETS.hazards` is what
+    // this key has actually resolved to. `floor_tiles` still falls back to the rooms
+    // target on purpose — floor tiles have no pool of their own.
     hazards: Math.round((REFERENCE_TARGETS.hazards || 0) * fallbackScale),
     resources: Math.round(REFERENCE_TARGETS.resources * fallbackScale),
     delvers: Math.round(REFERENCE_TARGETS.delvers * fallbackScale),
@@ -78,7 +108,7 @@ function buildCategoryTargets({ budgetTokens, allocation } = {}) {
     shared_system: 0,
   };
   return Object.fromEntries(REPORT_CATEGORIES.map((category) => {
-    const poolId = CATEGORY_POOL_IDS[category];
+    const poolId = POOL_ID_BY_SPEND_CATEGORY[category];
     const poolTarget = poolId ? poolTargets.get(poolId) : undefined;
     return [category, Number.isInteger(poolTarget) ? poolTarget : fallback[category] || 0];
   }));
@@ -98,7 +128,6 @@ function buildLegacyCategorySpend({ roomsSpend, delverSpend, wardenSpend, resour
   return {
     rooms: normalizeSpend(roomsSpend),
     floor_tiles: 0,
-    hazards: 0,
     hazards: 0,
     resources: normalizeSpend(resourcesSpend),
     delvers: normalizeSpend(delverSpend),
@@ -159,10 +188,23 @@ export function buildScenarioSpendReport({
     lineItems,
     categorySpend,
   });
-  spend.rooms += spend.floor_tiles + spend.hazards + spend.shared_system;
+  // Every category, each counted ONCE, taken BEFORE the rooms rollup below so this total
+  // cannot be changed by redefining what the rollup absorbs. The previous form spelled the
+  // sum out as `spend.rooms + spend.hazards + …` AFTER the rollup, which double-counted
+  // hazards for as long as the rollup was absorbing them.
+  //
+  // ⚠️ HARDENING, NOT A SECOND FIX, and the perturbation says so: with the rollup corrected,
+  // the old spelled-out form gives the same answer, so no black-box test can tell the two
+  // apart. The double-count was a CONSEQUENCE of the stale rollup rather than an independent
+  // defect. What this form buys is that the next change to the rollup cannot silently move
+  // the total — which is exactly how the last one did.
+  const categoryTotal = REPORT_CATEGORIES.reduce((sum, c) => sum + normalizeSpend(spend[c]), 0);
+
+  spend.rooms += ROOMS_POOL_CATEGORIES.reduce((sum, c) => sum + normalizeSpend(spend[c]), 0);
+
   const totalSpend = Array.isArray(lineItems)
     ? lineItems.reduce((sum, item) => sum + normalizeSpend(item.totalCost), 0)
-    : spend.rooms + spend.hazards + spend.resources + spend.delvers + spend.wardens;
+    : categoryTotal;
   const targets = buildCategoryTargets({ budgetTokens: budget, allocation });
 
   const actualRatio = spend.wardens > 0 ? spend.delvers / spend.wardens : 0;

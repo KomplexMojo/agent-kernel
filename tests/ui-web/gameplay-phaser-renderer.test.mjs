@@ -1658,7 +1658,7 @@ test("renderRun with null observation renders tiles without throwing", async () 
   renderer.dispose();
 });
 
-test.skip("resourceBundle asset mappings pass texture keys to image nodes for actor medallions", async () => {
+test("resourceBundle asset mappings pass texture keys to image nodes for actor medallions", async () => {
   const records = {};
   const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
   renderer.mount(makeContainer());
@@ -1666,10 +1666,12 @@ test.skip("resourceBundle asset mappings pass texture keys to image nodes for ac
   assert.ok(records.images.length > 0);
 });
 
+// STAYS SKIPPED — fails today: describes medallion/affinity behavior the renderer does not implement (checked 2026-08-01).
 test.skip("v2 ResourceBundle duplicate actor ids refresh the same medallion texture safely", async () => {
   assert.equal(true, false, "fake Phaser harness does not expose generated medallion texture lifecycle");
 });
 
+// STAYS SKIPPED — fails today: describes medallion/affinity behavior the renderer does not implement (checked 2026-08-01).
 test.skip("v2 ResourceBundle actor without id falls back to deterministic state-based medallion key", async () => {
   assert.equal(true, false, "fake Phaser harness does not expose generated medallion texture keys");
 });
@@ -1774,6 +1776,7 @@ test("tileVisuals on walls or without overlayAssetId tint tiles without image ov
   renderer.dispose();
 });
 
+// STAYS SKIPPED — fails today: describes medallion/affinity behavior the renderer does not implement (checked 2026-08-01).
 test.skip("overlapping affinity visuals from two hazards use combined intensity", async () => {
   assert.equal(true, false, "tileVisuals map currently carries already-resolved per-tile intensity");
 });
@@ -1792,6 +1795,7 @@ test("renderFrame preserves non-zero tileVisuals across frame updates", async ()
   renderer.dispose();
 });
 
+// STAYS SKIPPED — fails today: describes medallion/affinity behavior the renderer does not implement (checked 2026-08-01).
 test.skip("tileVisuals with intensity of 0 produces no visual change on the tile", async () => {
   const records = {};
   const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });

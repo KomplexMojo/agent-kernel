@@ -44,11 +44,13 @@ test("normalizeMotivations surfaces invalid kinds/patterns and clamps intensity"
 });
 
 test("normalizeMotivations rejects contradictory motivations from the same exclusive group", async () => {
+  const { normalizeMotivations } = await import("../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
   const {
-    MOTIVATION_DISPLAY_GROUPS,
     getConflictingMotivationKinds,
-    normalizeMotivations,
-  } = await import("../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
+    MOTIVATION_DISPLAY_GROUPS,
+  } = await import(
+    "../../packages/runtime/src/contracts/domain-constants.js"
+  );
 
   const postureGroup = MOTIVATION_DISPLAY_GROUPS.find((group) => group.id === "posture_attacking_defending");
   assert.ok(postureGroup);
@@ -74,7 +76,7 @@ test("normalizeMotivations rejects contradictory motivations from the same exclu
 
 test("MOTIVATION_FAMILIES defines canonical motivation families", async () => {
   const { MOTIVATION_FAMILIES, MOTIVATION_KINDS } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   assert.deepEqual(MOTIVATION_FAMILIES.mobility, ["random", "stationary", "exploring", "patrolling"]);
@@ -104,7 +106,7 @@ test("user_controlled composes outside posture and mobility exclusivity", async 
 
 test("stealthy and friendly are valid motivation kinds", async () => {
   const { normalizeMotivationKind, MOTIVATION_KINDS } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   assert.ok(MOTIVATION_KINDS.includes("stealthy"));
@@ -115,7 +117,7 @@ test("stealthy and friendly are valid motivation kinds", async () => {
 
 test("exclusive groups use family names: mobility, posture, cognition", async () => {
   const { MOTIVATION_EXCLUSIVE_GROUPS } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   const groupIds = MOTIVATION_EXCLUSIVE_GROUPS.map((g) => g.id);
@@ -177,8 +179,9 @@ test("cross-family motivations compose freely", async () => {
 });
 
 test("shorthand string inputs continue to work for new kinds", async () => {
-  const { normalizeMotivations, normalizeMotivationKind } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+  const { normalizeMotivations } = await import("../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
+  const { normalizeMotivationKind } = await import(
+    "../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   // String normalization (case, whitespace, hyphens)

@@ -13,10 +13,11 @@ fi
 
 ROUTE="${1:-${LLM_DEFAULT_ROUTE:-internal}}"
 REMOTE_USER="${LLM_REMOTE_USER:-darren}"
-REMOTE_SSH_PORT="${LLM_SSH_PORT:-2222}"
-INTERNAL_HOST="${LLM_INTERNAL_HOST:-192.168.1.143}"
-EXTERNAL_HOST="${LLM_EXTERNAL_HOST:-207.6.34.73}"
-SSH_KEY="${LLM_SSH_KEY:-$HOME/.ssh/ubuntu_llm_ed25519}"
+REMOTE_SSH_PORT="${LLM_SSH_PORT:-22}"
+# No defaults on purpose: host addresses are operator data, never committed.
+INTERNAL_HOST="${LLM_INTERNAL_HOST:-}"
+EXTERNAL_HOST="${LLM_EXTERNAL_HOST:-}"
+SSH_KEY="${LLM_SSH_KEY:-}"
 SSH_HOST_ALIAS="${LLM_SSH_HOST_ALIAS:-}"
 REMOTE_PACKAGE_DIR="${LLM_REMOTE_PACKAGE_DIR:-/home/darren/remote-ollama-control}"
 REMOTE_SCRIPTS_DIR="${LLM_REMOTE_SCRIPTS_DIR:-/home/darren/bin}"
@@ -27,10 +28,17 @@ if [ -n "$SSH_HOST_ALIAS" ]; then
   REMOTE="$SSH_HOST_ALIAS"
 else
   case "$ROUTE" in
-    internal|lan) REMOTE_HOST="$INTERNAL_HOST" ;;
-    external|vpn) REMOTE_HOST="$EXTERNAL_HOST" ;;
+    internal|lan) REMOTE_HOST="$INTERNAL_HOST"; HOST_VAR=LLM_INTERNAL_HOST ;;
+    external|vpn) REMOTE_HOST="$EXTERNAL_HOST"; HOST_VAR=LLM_EXTERNAL_HOST ;;
     *) printf 'Invalid route: %s\n' "$ROUTE" >&2; exit 2 ;;
   esac
+
+  if [ -z "$REMOTE_HOST" ]; then
+    printf 'ERROR: %s is not set, so route %s has no address.\n' "$HOST_VAR" "$ROUTE" >&2
+    printf '       Copy config/llm-host.env.example to config/llm-host.env and fill it in.\n' >&2
+    printf '       That file is untracked on purpose — host addresses are never committed.\n' >&2
+    exit 2
+  fi
 
   SSH_OPTS=(-p "$REMOTE_SSH_PORT" -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o BatchMode=yes)
   if [ -f "$SSH_KEY" ]; then

@@ -2,9 +2,9 @@ import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { createVisualizationSnapshot } from "../../runtime/src/render/visualization-snapshot.js";
+import { TICK_CURSOR_SCHEMA } from "../../runtime/src/contracts/artifacts.ts";
 
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
-const TICK_CURSOR_SCHEMA = "agent-kernel/TickCursor";
 
 export function resolveRunDir(runId) {
   const artifactsDir = process.env.AK_ARTIFACTS_DIR

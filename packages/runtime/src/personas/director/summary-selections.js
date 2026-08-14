@@ -7,16 +7,50 @@ import {
   DEFAULT_ROOM_CARD_AFFINITY,
   DEFAULT_VITALS,
   VITAL_KEYS,
-  normalizeVitals as normalizeDomainVitals,
-} from "../../contracts/domain-constants.js";
-import {
-  buildRoomDesignFromRoomCards,
-  deriveLayoutFromRoomCards,
   normalizeCardCount,
   normalizeCardType,
   normalizeRoomCardSize,
-} from "../configurator/card-model.js";
-import { normalizeMotivationKindList } from "../configurator/motivation-loadouts.js";
+  normalizeVitals as normalizeDomainVitals,
+} from "../../contracts/domain-constants.js";
+// ✅ D8.3, 2026-08-08 — THE CROSSING IS GONE, AND IT WAS NEVER VOCABULARY.
+//
+// This file used to `import { buildRoomDesignFromRoomCards, deriveLayoutFromRoomCards }
+// from "../configurator/card-model.js"` — the last leg of the Director↔Configurator cycle.
+// D8-V's test was applied to it first and it FAILED that test: these read the SIZE →
+// LAYOUT table (small 24 tiles / 3–5, medium 48 / 5–8, large 96 / 8–12) that
+// `card-model.js` records as Configurator geometry, so unlike `normalizePoolCatalog` they
+// could not be relocated to contracts. They are a decision with an owner, and the fix is
+// to ASK that owner: `configurator.deriveRoomLayout` (already published, CR.9 M2) and
+// `configurator.buildRoomDesign` (published for this).
+//
+// Injected and REQUIRED, never defaulted — the same shape as the Allocator's
+// `AllocatorRoomGeometryError` for the very same functions, one milestone earlier. A
+// Director-side fallback would make it a second author of room geometry, and the
+// divergence would be invisible because a summary with the wrong tile count is still a
+// well-formed summary that prices and builds.
+import { coerceMotivationKinds } from "../../contracts/domain-constants.js";
+
+/**
+ * Raised when a card set holding ROOM cards must be resolved with no Configurator geometry.
+ *
+ * Scoped to room cards on purpose: `deriveLayoutFromRoomCards` and
+ * `buildRoomDesignFromRoomCards` both return null for a set with no room cards, so a
+ * summary of actors and hazards has no geometry to derive and needs no capability. A
+ * refusal that fired on every card set would be an outage rather than a boundary — the
+ * D8-G rule, applied again.
+ */
+export class DirectorRoomGeometryError extends Error {
+  constructor() {
+    super(
+      "Director cannot resolve a room card set without the Configurator's geometry: pass "
+      + "{ deriveRoomLayout, buildRoomDesign } from createConfiguratorPersona(). Room tile "
+      + "counts and room shape are Configurator geometry (card-model.js); the Director "
+      + "translates intent, it does not derive level structure (finding D8.3).",
+    );
+    this.name = "DirectorRoomGeometryError";
+    this.code = "director_room_geometry_required";
+  }
+}
 
 function normalizePositiveInt(value, fallback = 1) {
   const num = Number(value);
@@ -141,10 +175,7 @@ function normalizeMotivationKinds(value, fallback) {
     : typeof fallback === "string" && fallback.trim()
       ? [fallback.trim()]
       : [];
-  return normalizeMotivationKindList(raw, {
-    allowEmpty: true,
-    fieldBase: "motivations",
-  }).value;
+  return coerceMotivationKinds(raw, { allowEmpty: true });
 }
 
 function isAttackingMotivation(value) {
@@ -594,7 +625,15 @@ export function buildCardSetFromSummary(summary) {
   return normalizeCardSet([...roomCards, ...hazardCards, ...delverCardsFromConfigs, ...actorCards], { dungeonAffinity });
 }
 
-export function extractSummaryFromCardSet(summary) {
+/**
+ * A card set read as a structured summary: rooms, hazards, resources, actors — plus the
+ * level geometry those room cards imply, which the CONFIGURATOR answers (D8.3).
+ *
+ * `roomGeometry` is `{ deriveRoomLayout, buildRoomDesign }` from a Configurator persona.
+ * It is required exactly when the card set contains room cards; see
+ * `DirectorRoomGeometryError`.
+ */
+export function extractSummaryFromCardSet(summary, roomGeometry) {
   if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
     return summary;
   }
@@ -640,8 +679,15 @@ export function extractSummaryFromCardSet(summary) {
       : cardEntryToWardenPick(card, dungeonAffinity)
   ));
   const delverConfigs = expandDelverConfigsFromCards(delverCards, dungeonAffinity);
-  const layoutFromCards = deriveLayoutFromRoomCards(roomCards);
-  const roomDesignFromCards = buildRoomDesignFromRoomCards(roomCards);
+  // Both derivations return null for a set with no room cards, so the capability is
+  // required only when there is geometry to derive — and then it is required absolutely.
+  const { deriveRoomLayout, buildRoomDesign } = roomGeometry || {};
+  if (roomCards.length > 0
+    && (typeof deriveRoomLayout !== "function" || typeof buildRoomDesign !== "function")) {
+    throw new DirectorRoomGeometryError();
+  }
+  const layoutFromCards = roomCards.length > 0 ? deriveRoomLayout(roomCards) : null;
+  const roomDesignFromCards = roomCards.length > 0 ? buildRoomDesign(roomCards) : null;
 
   const resolved = {
     ...summary,
@@ -743,8 +789,8 @@ function pickToSelection(pick, kind, index, dungeonAffinity) {
   };
 }
 
-export function buildSelectionsFromSummary(summary) {
-  const resolvedSummary = extractSummaryFromCardSet(summary);
+export function buildSelectionsFromSummary(summary, roomGeometry) {
+  const resolvedSummary = extractSummaryFromCardSet(summary, roomGeometry);
   const dungeonAffinity = typeof resolvedSummary?.dungeonAffinity === "string"
     ? resolvedSummary.dungeonAffinity
     : DEFAULT_DUNGEON_AFFINITY;

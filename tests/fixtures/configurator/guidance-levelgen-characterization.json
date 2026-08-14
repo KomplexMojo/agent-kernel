@@ -1,0 +1,405 @@
+{
+  "schema": "agent-kernel/test-fixture/GuidanceLevelGenCharacterization",
+  "generatedFor": "CR.4 D8.1",
+  "note": "Captured from personas/configurator/guidance-level-builder.js BEFORE it stopped importing director/buildspec-assembler.js. Any diff is a behavior change in the derived levelGen.",
+  "cases": [
+    {
+      "input": null,
+      "output": {
+        "value": null,
+        "threw": null
+      }
+    },
+    {
+      "input": {},
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {
+            "roomCount": 1
+          }
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "cardSet": []
+      },
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {
+            "roomCount": 1
+          }
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "cardSet": [
+          {
+            "kind": "room",
+            "schema": "agent-kernel/RoomCard",
+            "size": "medium",
+            "affinity": "fire"
+          }
+        ]
+      },
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {
+            "roomCount": 1
+          }
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "cardSet": [
+          {
+            "kind": "room",
+            "schema": "agent-kernel/RoomCard",
+            "size": "medium",
+            "affinity": "fire"
+          },
+          {
+            "kind": "room",
+            "schema": "agent-kernel/RoomCard",
+            "size": "large",
+            "affinity": "fire"
+          }
+        ]
+      },
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {
+            "roomCount": 1
+          }
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "cards": [
+          {
+            "kind": "room",
+            "schema": "agent-kernel/RoomCard",
+            "size": "medium",
+            "affinity": "fire"
+          }
+        ]
+      },
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {
+            "roomCount": 1
+          }
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "levelGen": {
+          "width": 21,
+          "height": 21,
+          "shape": {
+            "roomCount": 4
+          },
+          "walkableTilesTarget": 88
+        }
+      },
+      "output": {
+        "value": {
+          "width": 21,
+          "height": 21,
+          "shape": {
+            "roomCount": 4
+          },
+          "walkableTilesTarget": 88
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "levelGen": {
+          "width": 9,
+          "height": 9,
+          "shape": {}
+        }
+      },
+      "output": {
+        "value": {
+          "width": 9,
+          "height": 9,
+          "shape": {}
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 1
+        }
+      },
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {},
+          "walkableTilesTarget": 1
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 12
+        }
+      },
+      "output": {
+        "value": {
+          "width": 7,
+          "height": 7,
+          "shape": {},
+          "walkableTilesTarget": 12
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 200
+        }
+      },
+      "output": {
+        "value": {
+          "width": 22,
+          "height": 22,
+          "shape": {},
+          "walkableTilesTarget": 200
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 0
+        }
+      },
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {}
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 40,
+          "hallwayTiles": 10
+        }
+      },
+      "output": {
+        "value": {
+          "width": 11,
+          "height": 11,
+          "shape": {},
+          "walkableTilesTarget": 40
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "roomDesign": {
+          "roomCount": 3
+        }
+      },
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {
+            "roomCount": 3,
+            "roomMinSize": 3,
+            "roomMaxSize": 3,
+            "corridorWidth": 1
+          }
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "roomDesign": {
+          "shape": {
+            "roomCount": 5,
+            "pattern": "grid"
+          }
+        }
+      },
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {
+            "roomCount": 5,
+            "roomMinSize": 3,
+            "roomMaxSize": 3,
+            "corridorWidth": 1,
+            "pattern": "grid"
+          }
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 30
+        },
+        "roomDesign": {
+          "shape": {
+            "roomCount": 2,
+            "pattern": "grid"
+          }
+        }
+      },
+      "output": {
+        "value": {
+          "width": 10,
+          "height": 10,
+          "shape": {
+            "roomCount": 2,
+            "roomMinSize": 3,
+            "roomMaxSize": 3,
+            "corridorWidth": 1,
+            "pattern": "grid"
+          },
+          "walkableTilesTarget": 30
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 30
+        },
+        "roomDesign": {
+          "totalFloorTilesUsed": 30
+        }
+      },
+      "output": {
+        "value": {
+          "width": 10,
+          "height": 10,
+          "shape": {
+            "roomCount": 1,
+            "roomMinSize": 3,
+            "roomMaxSize": 3,
+            "corridorWidth": 1
+          },
+          "walkableTilesTarget": 30
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "roomCount": 1
+      },
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {
+            "roomCount": 1
+          }
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "roomCount": 6
+      },
+      "output": {
+        "value": {
+          "width": 5,
+          "height": 5,
+          "shape": {
+            "roomCount": 1
+          }
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 25
+        },
+        "budgetScaffold": true
+      },
+      "output": {
+        "value": {
+          "width": 10,
+          "height": 10,
+          "shape": {},
+          "walkableTilesTarget": 25,
+          "budgetScaffold": true
+        },
+        "threw": null
+      }
+    },
+    {
+      "input": {
+        "layout": {
+          "floorTiles": 25
+        },
+        "hazards": [
+          {
+            "affinity": "fire",
+            "roomIndex": 0
+          }
+        ]
+      },
+      "output": {
+        "value": {
+          "width": 10,
+          "height": 10,
+          "shape": {},
+          "walkableTilesTarget": 25,
+          "hazards": [
+            {
+              "affinity": "fire"
+            }
+          ]
+        },
+        "threw": null
+      }
+    }
+  ]
+}

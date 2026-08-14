@@ -9,6 +9,9 @@ import {
   createCardBuilderController,
   buildPropertyCatalog,
 } from "../../packages/ui-web/src/card-builder-controller.js";
+import { buildDefaultPriceList } from "../../packages/runtime/src/personas/allocator/default-price-list.js";
+
+const defaultPriceList = buildDefaultPriceList({ createdAt: "2026-07-20T00:00:00.000Z" });
 
 function activeCardId(controller) {
   return controller.getActiveCard().id;
@@ -63,7 +66,7 @@ test("applyPropertyDrop routes through the existing card-builder actions", () =>
 });
 
 test("count, vital, and affinity-stack adjustments recompute receipt and budget", () => {
-  const controller = createCardBuilderController();
+  const controller = createCardBuilderController({ llmConfig: { priceList: defaultPriceList } });
   const blank = activeCardId(controller);
   controller.applyPropertyDrop(blank, { group: "type", value: "delver" });
   const delver = controller.getActiveCard();

@@ -378,7 +378,11 @@ test("cli create maximizes delver spend deterministically when explicitly asked 
   const delver = listDelverCards(spec)[0];
   assert.ok(delver);
   assert.ok(spec.authoring.optimizationGoals.some((entry) => entry.kind === "maximize_budget_spend"));
-  assert.equal(delver.vitals.mana.max, 29);
+  // Canonical pricing gives fixed spend 65 + mana.max + mana.regen².
+  // The search cap permits mana.max <= 101, so the highest-mana exact fit is
+  // mana.max 99 with mana.regen 6: 65 + 99 + 6² = 200.
+  assert.equal(delver.vitals.mana.max, 99);
+  assert.equal(delver.vitals.mana.regen, 6);
   assert.ok(delver.vitals.mana.regen >= 1);
   assert.ok(delver.vitals.stamina.regen >= 1);
 });
@@ -425,8 +429,11 @@ test("cli room-plan rejects insufficient hard budgets instead of silently degrad
   ]);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /insufficient_budget/);
-  assert.match(result.stderr, /hard budget is 40 tokens but minimum required spend is 48 tokens/i);
-  assert.match(result.stderr, /room\[1\] requires at least 48 tokens/i);
+  // CR.9 M5: a medium room's minimum spend is 48 room floor tiles + 16 CONNECTOR tiles.
+  // The connectors were excluded from billing, so the minimum read 48 and a level could be
+  // "affordable" while a quarter of its walkable area was unpriced.
+  assert.match(result.stderr, /hard budget is 40 tokens but minimum required spend is 64 tokens/i);
+  assert.match(result.stderr, /room\[1\] requires at least 64 tokens/i);
   assert.equal(existsSync(join(outDir, "bundle.json")), false);
 });
 

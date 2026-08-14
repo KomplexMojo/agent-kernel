@@ -20,6 +20,40 @@ This document defines the Annotator as a **runtime observation and formatting ro
 | Primary outputs | Telemetry records, summaries, timeline/inspection artifacts |
 | Boundary | Observes runtime truth; never changes it |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:annotator -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `annotator/run-summary-provenance` — the end-of-run RunSummary is produced by the instance that observed the run | A2, A5 | ✅ owned (CR.8) | `tests/architecture/persona-authority.test.js` |
+| `annotator/per-tick-telemetry` — per-tick TelemetryRecords are captured by the Annotator, not assembled by the runner | A2, A5 | ✅ owned (P5.4) | `tests/personas/annotator/annotator-per-tick-telemetry.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **Provenance is why the first row exists, and why an output test could never have settled it.**
+`summarizeRun` is a pure derivation, so a freshly constructed Annotator that observed nothing
+produces a **byte-identical** summary — which is exactly how the violation survived a green suite.
+The gate is therefore the refusal: a run that ticked cannot be summarized by an instance still in
+`idle` (`annotator_did_not_observe`).
+
+**The per-tick row (P5.4) is an ablation, not a refusal, and the difference is structural.** A
+silent Annotator means the tick frames carry no records — the runner keeps no fallback that
+assembles them from the observations it already holds, which it could trivially do. There is no
+refusal to add here because the tick loop drives the Annotator itself: unlike `summarizeRun`, no
+glue-side call exists to intercept. **If one is ever added** — an out-of-band emit for a run someone
+else ticked — it needs CR.8's refusal, and this ablation will not catch it.
+
+**Build-scope `telemetry.json` is deliberately absent from this table.** It is glue-owned by charter
+rule 3 (the plane boundary): `build`/`llm-plan` run no tick, and the Annotator subscribes only to the
+EMIT/SUMMARIZE tick phases. That is a structural consequence, not a missing G1 entry.
+
 ## Persona Scope
 
 The Annotator persona is responsible for **recording and describing what happened**, not for deciding what should happen.
@@ -113,7 +147,7 @@ This separation ensures that:
 The Annotator is therefore a **steward of recorded truth**, providing clarity and insight without altering the course of execution.
 
 ## Drift guardrails
-- Canonical source: `controller.mts` + `state-machine.mts` + `contracts.ts`; runtime entrypoints are `.js`. Import controllers (not state machines) from consumers.
+- Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
 - Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
-- Entry points are `.js`; `.mts` sources remain for TS-aware tooling (no `ts-node/esm` required).
+- Entry points are `.js`. There is no `.mts` twin (no `ts-node/esm` required).

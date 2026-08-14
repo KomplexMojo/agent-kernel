@@ -3,6 +3,7 @@ import { createBlockchainAdapter } from "../../adapters-web/src/adapters/blockch
 import { createLlmAdapter } from "../../adapters-web/src/adapters/llm/index.js";
 import { createWebSolverAdapter } from "../../adapters-web/src/adapters/solver/index.js";
 import { DEFAULT_LLM_BASE_URL, DEFAULT_LLM_MODEL, DOMAIN_CONSTRAINTS } from "../../runtime/src/contracts/domain-constants.js";
+import { SOLVER_REQUEST_SCHEMA } from "../../runtime/src/contracts/artifacts.ts";
 
 export const DEFAULT_FIXTURES = Object.freeze({
   ipfs: "/tests/fixtures/adapters/ipfs-price-list.json",
@@ -103,7 +104,7 @@ export async function runLlmDemo({
 }
 
 export async function runSolverDemo({
-  request = { schema: "agent-kernel/SolverRequest", schemaVersion: 1 },
+  request = { schema: SOLVER_REQUEST_SCHEMA, schemaVersion: 1 },
   mode = "fixture",
   fixturePath = DEFAULT_FIXTURES.solverResult,
   fixtureResult,

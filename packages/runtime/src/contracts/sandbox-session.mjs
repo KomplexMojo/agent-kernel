@@ -10,7 +10,10 @@
  * stable and versioned.
  */
 
-export const SANDBOX_SESSION_SCHEMA = "agent-kernel/SandboxSessionArtifact";
+// M9: declared in artifacts.ts, re-exported here under the name importers use.
+import { SANDBOX_SESSION_SCHEMA } from "./artifacts.ts";
+
+export { SANDBOX_SESSION_SCHEMA };
 export const SANDBOX_SESSION_SCHEMA_VERSION = 1;
 
 const SUPPORTED_ENTITY_CATEGORIES = new Set([

@@ -1,25 +1,44 @@
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { orchestrateBuild } from "../build/orchestrate-build.js";
+import { runAuthoringBuild, runPlanBuild } from "../build/authoring-build.js";
 import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../build/telemetry.js";
 import { buildManualMoveAction } from "./manual-movement.js";
 import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
-import { buildBuildSpecFromSummary } from "../personas/director/buildspec-assembler.js";
-import { mapSummaryToPool } from "../personas/director/pool-mapper.js";
-import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
-import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
+import { createDirectorPersona } from "../personas/director/persona.js";
+import { createAllocatorPersona } from "../personas/allocator/persona.js";
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+// CR.7 / WP-5 — level geometry, artifact assembly and affinity resolution are Configurator
+// law; this file is glue. They came off three persona internals and now come off the public
+// surface, retiring three allowlist rows. Local names unchanged, so call sites are untouched.
+const {
+  generateGridLayoutFromInput,
+  buildSimConfigArtifact,
+  buildInitialStateArtifact,
+  resolveAffinityEffects,
+} = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 import { createCore } from "../../../core-ts/src/index.ts";
-import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
-import { resolveAffinityEffects } from "../personas/configurator/affinity-effects.js";
-import { runLlmSession } from "../personas/orchestrator/llm-session.js";
-import { runLlmBudgetLoop } from "../personas/orchestrator/llm-budget-loop.js";
+// CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
+import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
+// CR.4 M4b: the LLM session now runs as an Orchestrator ROUND — the persona returns
+// `llm_request` effects and this host dispatches them through ports/effects.js, so the
+// IO happens in the adapter instead of inline inside the persona. Drop-in replacement:
+// same arguments, same result shape (proven by the differential in
+// tests/runtime/llm-host-loop.test.js).
+import { runLlmSessionHosted } from "./llm-host.js";
+import { runLlmBudgetLoop } from "../personas/orchestrator/persona.js";
 import { createRuntime } from "../runner/runtime.js";
+// CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
+// it. `prompt-contract.js` only renamed these (P5.1 D1: one value, three names), so the
+// boundary crossing died with the hop rather than being republished. Aliased on import so
+// the call sites below are untouched.
 import {
-  ALLOWED_AFFINITIES,
-  ALLOWED_AFFINITY_EXPRESSIONS,
-  ALLOWED_MOTIVATIONS,
-  deriveAllowedOptionsFromCatalog,
-  normalizeSummary,
-} from "../personas/orchestrator/prompt-contract.js";
+  AFFINITY_KINDS as ALLOWED_AFFINITIES,
+  AFFINITY_EXPRESSIONS as ALLOWED_AFFINITY_EXPRESSIONS,
+  MOTIVATION_KINDS as ALLOWED_MOTIVATIONS,
+} from "../contracts/domain-constants.js";
+// Genuinely Orchestrator law — the prompt contract itself — so taken from its barrel.
+import { deriveAllowedOptionsFromCatalog, normalizeSummary } from "../personas/orchestrator/persona.js";
 import {
   applyActorOverrides,
   applyTileOverrides,
@@ -45,27 +64,51 @@ import {
   buildLlmConstraintSection,
   buildLlmRepairPromptTemplate,
 } from "../contracts/domain-constants.js";
+// M9: the SCHEMAS alias table below, and the two ActionSequence sites M8 relocated, all
+// read from contracts/artifacts.ts. The table stays — short keys are what this file's call
+// sites use — but its VALUES have one origin now instead of eighteen.
+import {
+  ACTION_SEQUENCE_SCHEMA,
+  ACTOR_LOADOUT_SCHEMA,
+  AFFINITY_PRESET_SCHEMA,
+  AFFINITY_SUMMARY_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA,
+  BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  CAPTURED_INPUT_SCHEMA,
+  EFFECT_SCHEMA,
+  EXECUTION_POLICY_SCHEMA,
+  INITIAL_STATE_SCHEMA,
+  INTENT_ENVELOPE_SCHEMA,
+  PLAN_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+  RUN_SUMMARY_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+  SOLVER_REQUEST_SCHEMA,
+  SOLVER_RESULT_SCHEMA,
+  TELEMETRY_RECORD_SCHEMA,
+  TICK_FRAME_SCHEMA,
+} from "../contracts/artifacts.ts";
 
 const SCHEMAS = Object.freeze({
-  intent: "agent-kernel/IntentEnvelope",
-  plan: "agent-kernel/PlanArtifact",
-  budgetReceipt: "agent-kernel/BudgetReceiptArtifact",
-  budgetArtifact: "agent-kernel/BudgetArtifact",
-  budgetReceiptArtifact: "agent-kernel/BudgetReceiptArtifact",
-  priceList: "agent-kernel/PriceList",
-  simConfig: "agent-kernel/SimConfigArtifact",
-  initialState: "agent-kernel/InitialStateArtifact",
-  executionPolicy: "agent-kernel/ExecutionPolicy",
-  solverRequest: "agent-kernel/SolverRequest",
-  solverResult: "agent-kernel/SolverResult",
-  tickFrame: "agent-kernel/TickFrame",
-  effect: "agent-kernel/Effect",
-  telemetry: "agent-kernel/TelemetryRecord",
-  runSummary: "agent-kernel/RunSummary",
-  affinityPreset: "agent-kernel/AffinityPresetArtifact",
-  actorLoadout: "agent-kernel/ActorLoadoutArtifact",
-  affinitySummary: "agent-kernel/AffinitySummary",
-  capturedInput: "agent-kernel/CapturedInputArtifact",
+  intent: INTENT_ENVELOPE_SCHEMA,
+  plan: PLAN_ARTIFACT_SCHEMA,
+  budgetReceipt: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  budgetArtifact: BUDGET_ARTIFACT_SCHEMA,
+  budgetReceiptArtifact: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  priceList: PRICE_LIST_SCHEMA,
+  simConfig: SIM_CONFIG_SCHEMA,
+  initialState: INITIAL_STATE_SCHEMA,
+  executionPolicy: EXECUTION_POLICY_SCHEMA,
+  solverRequest: SOLVER_REQUEST_SCHEMA,
+  solverResult: SOLVER_RESULT_SCHEMA,
+  tickFrame: TICK_FRAME_SCHEMA,
+  effect: EFFECT_SCHEMA,
+  telemetry: TELEMETRY_RECORD_SCHEMA,
+  runSummary: RUN_SUMMARY_SCHEMA,
+  affinityPreset: AFFINITY_PRESET_SCHEMA,
+  actorLoadout: ACTOR_LOADOUT_SCHEMA,
+  affinitySummary: AFFINITY_SUMMARY_SCHEMA,
+  capturedInput: CAPTURED_INPUT_SCHEMA,
 });
 
 function isObject(value) {
@@ -76,13 +119,17 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-const SUMMARY_POOL_WEIGHT_DEFAULTS = Object.freeze({
-  rooms: 0.44,
-  hazards: 0.12,
-  wardens: 0.16,
-  resources: 0.08,
-  delver: 0.20,
-});
+// CR.1 — pool weights are the Allocator's. This was a hand-maintained copy of its
+// DEFAULT_BUDGET_POOLS, byte-identical but free to diverge: a real duplicate, not an
+// alias, and one CR.1's own inventory missed (found by running the G2 guard as a
+// census). Read from the Allocator's public surface instead.
+const SUMMARY_POOL_WEIGHT_DEFAULTS = Object.freeze(
+  Object.fromEntries(
+    createAllocatorPersona({ clock: UNUSED_CLOCK })
+      .pricing.defaultPoolWeights()
+      .map((pool) => [pool.id, pool.weight]),
+  ),
+);
 
 function buildSummaryPoolWeights(summary = {}) {
   const cards = Array.isArray(summary.cardSet)
@@ -997,14 +1044,14 @@ export function createCommandKernel(host = {}) {
       if (!Array.isArray(actionLog.actions)) {
         throw new Error("actions file must include an actions array.");
       }
-      actionLog.schema = actionLog.schema || "agent-kernel/ActionSequence";
+      actionLog.schema = actionLog.schema || ACTION_SEQUENCE_SCHEMA;
       actionLog.schemaVersion = actionLog.schemaVersion || 1;
       actionLog.meta = actionLog.meta || createMeta({ producedBy: "cli-run", runId });
       actionLog.simConfigRef = actionLog.simConfigRef || toRef(simConfig);
       actionLog.initialStateRef = actionLog.initialStateRef || toRef(initialState);
     } else {
       actionLog = {
-        schema: "agent-kernel/ActionSequence",
+        schema: ACTION_SEQUENCE_SCHEMA,
         schemaVersion: 1,
         meta: createMeta({ producedBy: "cli-run", runId }),
         simConfigRef: toRef(simConfig),
@@ -1079,22 +1126,39 @@ export function createCommandKernel(host = {}) {
     const tickFrames = runtime.getTickFrames();
     const effectLog = runtime.getEffectLog();
     const runtimeDecisionCaptures = summarizeRuntimeDecisionCaptures(tickFrames).captures;
-    const runSummary = {
-      schema: SCHEMAS.runSummary,
-      schemaVersion: 1,
-      meta: createMeta({ producedBy: "cli-run", runId }),
+    // P3.2: the Annotator owns the run summary (artifacts.ts: "Run-level summary
+    // emitted by Annotator at end of run"). It derives a REAL outcome from the
+    // collected frames/effects — this was hardcoded "unknown" on every run before.
+    // CR.8: this used to be `createAnnotatorPersona({ clock: UNUSED_CLOCK }).summarizeRun(...)`
+    // — a fresh, idle instance minted purely to sign the artifact, while the Annotator that
+    // recorded every tick frame was discarded. The runtime now delegates to that real
+    // instance, which refuses to summarize a run it did not observe.
+    const runSummary = runtime.summarizeRun({
+      tickFrames,
+      effectLog,
+      ticksRequested: ticks,
+      meta: createMeta({ producedBy: "annotator", runId }),
       simConfigRef: toRef(simConfig),
-      outcome: "unknown",
-      metrics: {
-        ticks,
-        frames: tickFrames.length,
-        effects: effectLog.length,
-      },
-    };
+    });
+
+    // P5.5 — the chartered post-run step, after the run and after the summary: effects the
+    // run could not satisfy deterministically are coordinated by the Orchestrator, and what
+    // came back is captured for future deterministic runs. Before this they were marked
+    // `deferred`, counted by `ak inspect`, and dropped.
+    //
+    // Written only when there was something to coordinate. `null` means the run deferred
+    // nothing, and a file recording an empty settlement would read as "all coordinated" —
+    // the same conflation the round itself refuses.
+    const deferredCoordination = runtime.coordinateDeferredEffects({
+      meta: createMeta({ producedBy: "orchestrator", runId }),
+    });
 
     await writeJson(join(outDir, "tick-frames.json"), tickFrames);
     await writeJson(join(outDir, "effects-log.json"), effectLog);
     await writeJson(join(outDir, "runtime-decision-captures.json"), runtimeDecisionCaptures);
+    if (deferredCoordination) {
+      await writeJson(join(outDir, "deferred-coordination.json"), deferredCoordination);
+    }
     await writeJson(join(outDir, "run-summary.json"), runSummary);
     await writeJson(join(outDir, "action-log.json"), actionLog);
     if (affinitySummary && affinitySummaryPath) {
@@ -1313,11 +1377,11 @@ export function createCommandKernel(host = {}) {
     let affinityLoadouts = null;
     if (affinityPresetsPath) {
       affinityPresets = await readJson(affinityPresetsPath);
-      assertSchema(affinityPresets, "agent-kernel/AffinityPresetArtifact");
+      assertSchema(affinityPresets, AFFINITY_PRESET_SCHEMA);
     }
     if (affinityLoadoutsPath) {
       affinityLoadouts = await readJson(affinityLoadoutsPath);
-      assertSchema(affinityLoadouts, "agent-kernel/ActorLoadoutArtifact");
+      assertSchema(affinityLoadouts, ACTOR_LOADOUT_SCHEMA);
     }
 
     const layout = layoutResult.value;
@@ -1340,6 +1404,9 @@ export function createCommandKernel(host = {}) {
         actors: actorsInput.actors,
         proposalMeta: createMeta({ producedBy: "cli-configurator", runId }),
         receiptMeta: createMeta({ producedBy: "cli-configurator", runId }),
+        // CR.9 M3: motivation vocabulary is the Configurator's, injected here rather
+        // than owned a second time inside the Allocator's pricing.
+        normalizeMotivations: createConfiguratorPersona({ clock: UNUSED_CLOCK }).normalizeMotivations,
       });
       budgetReceipt = spendResult.receipt;
     }
@@ -1880,6 +1947,22 @@ export function createCommandKernel(host = {}) {
     let budgetPoolBudgets = null;
     let budgetPoolPolicy = null;
 
+    // Open the Director's build round (P2.1b). Translation — pool mapping and
+    // BuildSpec assembly — runs through the persona controller, not direct
+    // imports of its internals. The IntentEnvelope is synthesized here at the
+    // CLI boundary (its intended origin per the artifact contract); the
+    // Director structures it into a PlanArtifact. beginBuild must precede the
+    // first mapPool/assembleBuildSpec, which are FSM-gated behind a plan.
+    const director = createDirectorPersona({ clock: () => createdAt });
+    const intentEnvelope = {
+      schema: SCHEMAS.intent,
+      schemaVersion: 1,
+      meta: { id: `intent_${runId}`, runId, createdAt, producedBy: "cli" },
+      source: "cli",
+      intent: { goal: isNonEmptyString(goal) ? goal : `build ${runId}` },
+    };
+    director.beginBuild(intentEnvelope, { runId });
+
     if (adapterFlowEnabled) {
       if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
         throw new Error("llm-plan requires --fixture unless AK_ALLOW_NETWORK=1 or base URL is local.");
@@ -1915,6 +1998,22 @@ export function createCommandKernel(host = {}) {
       if (budgetLoopEnabled) {
         const poolPolicy = Number.isFinite(budgetReserveTokens) ? { reserveTokens: budgetReserveTokens } : undefined;
         const loopResult = await runLlmBudgetLoop({
+        // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
+        runSession: runLlmSessionHosted,
+        // M5b.2a′: pool mapping is the Director's decision. This round is already open
+        // above (beginBuild), which is what the FSM gate on mapPool requires.
+        // M5b.2b: the same already-open round answers the three Allocator pricing
+        // questions too. Deliberately NOT beginDirectorBuildCapabilities() — that opens a
+        // round, and this root already has one. A second round for the same build is the
+        // defect the gate exists to catch, not a convenience.
+        mapPool: director.mapPool,
+        buildCardSet: director.buildCardSet,
+        resolveTileCosts: director.resolveTileCosts,
+        allocateBudget: director.allocateBudget,
+        evaluateSelectionSpend: director.evaluateSelectionSpend,
+        fitLayout: director.fitLayoutToBudget,
+        evaluateLayoutSpend: director.evaluateLayoutSpend,
+        assessFeasibility: director.assessFeasibility,
           adapter,
           model,
           baseUrl,
@@ -1929,6 +2028,7 @@ export function createCommandKernel(host = {}) {
           runId,
           clock: () => createdAt,
           producedBy: "orchestrator",
+          normalizeMotivations: createConfiguratorPersona({ clock: UNUSED_CLOCK }).normalizeMotivations,
         });
         captures = loopResult.captures || [];
         loopTrace = loopResult.trace || null;
@@ -1949,11 +2049,15 @@ export function createCommandKernel(host = {}) {
         summary = loopResult.summary;
         mappedSelections = loopResult.selections;
       } else {
-        let session = await runLlmSession({
+        let session = await runLlmSessionHosted({
           adapter,
           model,
           baseUrl,
           prompt: isNonEmptyString(finalPrompt) ? finalPrompt : undefined,
+          // CR.7 / WP-5: the session attaches a cardSet to its summary, and that is the
+          // Director's translation. Uses THIS round's director, deliberately not
+          // beginDirectorBuildCapabilities() — see the budget-loop note above.
+          buildCardSet: director.buildCardSet,
           goal,
           budgetTokens: resolvedBudgetTokens,
           strict: isLlmStrictEnabled(),
@@ -1974,7 +2078,7 @@ export function createCommandKernel(host = {}) {
         summary = session.summary;
         capture = session.capture;
 
-        let mapped = mapSummaryToPool({ summary, catalog });
+        let mapped = director.mapPool({ summary, catalog });
         let actorInstances = countInstances(mapped.selections, "actor");
         if (actorInstances === 0) {
           const missingSelections = summarizeMissingSelections(mapped.selections);
@@ -1984,11 +2088,15 @@ export function createCommandKernel(host = {}) {
             missingSelections,
           });
 
-          session = await runLlmSession({
+          session = await runLlmSessionHosted({
             adapter,
             model,
             baseUrl,
             prompt: catalogRepairPrompt,
+            // CR.7 / WP-5: the session attaches a cardSet to its summary, and that is the
+            // Director's translation. Uses THIS round's director, deliberately not
+            // beginDirectorBuildCapabilities() — see the budget-loop note above.
+            buildCardSet: director.buildCardSet,
             goal,
             budgetTokens: resolvedBudgetTokens,
             strict: isLlmStrictEnabled(),
@@ -2010,7 +2118,7 @@ export function createCommandKernel(host = {}) {
 
           summary = session.summary;
           capture = session.capture;
-          mapped = mapSummaryToPool({ summary, catalog });
+          mapped = director.mapPool({ summary, catalog });
           actorInstances = countInstances(mapped.selections, "actor");
           if (actorInstances === 0) {
             const finalMissing = summarizeMissingSelections(mapped.selections);
@@ -2061,7 +2169,7 @@ export function createCommandKernel(host = {}) {
       }
     }
 
-    const buildSpecResult = buildBuildSpecFromSummary({
+    const buildSpecResult = director.assembleBuildSpec({
       summary: summaryForSpec,
       catalog,
       selections: mappedSelections || undefined,
@@ -2170,6 +2278,23 @@ export function createCommandKernel(host = {}) {
     });
   }
 
+  // Authoring build (P2.3.2): the create/configure domain build pipeline the
+  // CLI previously reimplemented inline. Needs no host IO of its own — the CLI
+  // keeps parse/maximize/summary+request assembly and all writing — so this is a
+  // thin pass-through to the runtime pipeline (routes translation through the
+  // Director controller, like llmPlan).
+  async function authoringBuild(input) {
+    return runAuthoringBuild(input);
+  }
+
+  // Plain authored build (P2.3.3): the *-plan commands' build pipeline
+  // (room/hazard/resource/delver/warden-plan) — Director-routed spec assembly,
+  // no Configurator input prep or motivation patching. Thin pass-through, same
+  // as authoringBuild.
+  async function planBuild(input) {
+    return runPlanBuild(input);
+  }
+
   return {
     solve,
     build,
@@ -2186,6 +2311,8 @@ export function createCommandKernel(host = {}) {
     blockchainLoad,
     llm,
     llmPlan,
+    authoringBuild,
+    planBuild,
     manualMove,
   };
 }

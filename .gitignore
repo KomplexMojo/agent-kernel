@@ -8,14 +8,26 @@ yarn-debug.log*
 yarn-error.log*
 
 # Build outputs
-build/
-!packages/runtime/src/build/
+# DELIBERATELY NO `build/` RULE. It existed only for the retired WASM build output and, because it
+# matches ANY directory of that name at any depth, it silently swallowed real SOURCE and TESTS —
+# this repo keeps both in directories called `build` (`packages/runtime/src/build/`,
+# `tests/runtime/build/`). The negations that were meant to rescue them worked for git but not for
+# tooling that reads .gitignore with its own matcher, so the build plane kept going invisible.
+# The only build output left is `artifacts/runs/*/build`, already covered by `/artifacts/` below.
+# Do not reintroduce a bare `build/` rule; ignore the specific output path instead.
 dist/
 coverage/
 *.wasm
 *.wat
 *.map
 /artifacts/
+
+# Regeneratable QA review sheets from tools/visual-assets/generate-actor-medallion-assets.mts.
+# They are review aids, not runtime assets — the runtime reads `components/` and the
+# generated-assets manifest, never `review/`. Fully qualified ON PURPOSE: a bare `review/`
+# would match any directory of that name at any depth, which is exactly the mistake that
+# hid real source five times in this repo (see the `build/` note above).
+/packages/runtime/src/render/visual-assets/actor-medallions/review/
 
 # CLI-generated artifacts
 packages/adapters-cli/artifacts/solve_cli_test/*.json
@@ -62,3 +74,6 @@ test-results.txt
 /telemetry.json
 /initial-state.json
 ollama-test-generation.log
+
+# Serena's local memories — machine-local agent scratch, not project state.
+.serena/memories/

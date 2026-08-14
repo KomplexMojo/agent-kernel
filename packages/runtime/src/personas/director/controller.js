@@ -1,10 +1,15 @@
 import { createDirectorStateMachine, DirectorStates } from "./state-machine.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
-import { computeBudgetPools } from "./budget-allocation.js";
+import { createAllocatorPersona } from "../allocator/persona.js";
+import { createConfiguratorPersona } from "../configurator/persona.js";
+import { requireClock, UNUSED_CLOCK } from "../_shared/require-clock.js";
+import { attachDirectorServices } from "./director-services.js";
+import {
+  INTENT_ENVELOPE_SCHEMA as INTENT_SCHEMA,
+  PLAN_ARTIFACT_SCHEMA,
+} from "../../contracts/artifacts.ts";
 
-const PLAN_ARTIFACT_SCHEMA = "agent-kernel/PlanArtifact";
-const INTENT_SCHEMA = "agent-kernel/IntentEnvelope";
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -47,7 +52,11 @@ function buildPlanArtifactFromIntent({ intentEnvelope, intentRef, runId, clock, 
     ? { ...intentEnvelope.intent.hints }
     : null;
   const resolvedRunId = runId || intentEnvelope?.meta?.runId || "run_director";
-  const createdAt = typeof clock === "function" ? clock() : new Date().toISOString();
+  // PX.3: no wall-clock fallback. createDirectorStateMachine already ran
+  // requireClock, so a constructed Director always has one — the old ternary could
+  // only ever fire on a path that construction rejects, while quietly licensing a
+  // defaulted clock into the PERSISTED PlanArtifact's createdAt if one ever opened.
+  const createdAt = requireClock(clock, "director")();
   return {
     schema: PLAN_ARTIFACT_SCHEMA,
     schemaVersion: 1,
@@ -127,8 +136,13 @@ function buildHazardProposalEffects({ intentEnvelope, planRef, personaRef = "dir
   const budgetTokens = Number.isInteger(hints.budgetTokens) && hints.budgetTokens > 0
     ? hints.budgetTokens
     : 0;
+  // CR.1 — the Director ASKS the Allocator for a split; it does not define one.
+  // This used to call computeBudgetPools out of a module that lived in the Director's
+  // own folder, which is how budget-allocation policy came to have a second origin.
+  // The call goes through the Allocator's PUBLIC controller (persona.js), so it is a
+  // controller-to-controller call, not a persona-internal import.
   const pools = budgetTokens > 0
-    ? computeBudgetPools({ budgetTokens }).pools
+    ? createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.budgetPools({ budgetTokens }).pools
     : [];
   const layoutPool = pools.find((p) => p.id === LAYOUT_POOL_ID);
   const budgetCeiling = layoutPool ? layoutPool.tokens : 0;
@@ -193,11 +207,44 @@ function buildArtifactProposalEffects({ intentEnvelope, planRef, personaRef = "d
 export const directorSubscribePhases = Object.freeze([TickPhases.DECIDE]);
 
 // Phase-aware Director persona wrapper. Pure/deterministic; no IO.
-export function createDirectorPersona({ initialState = DirectorStates.UNINITIALIZED, clock = () => new Date().toISOString() } = {}) {
-  const fsm = createDirectorStateMachine({ initialState, clock });
+export function createDirectorPersona({ initialState = DirectorStates.UNINITIALIZED, clock, from } = {}) {
+  const fsm = createDirectorStateMachine({ initialState, clock, from });
+
+  // Shared by both planes: resolve the plan for this event, then move the FSM.
+  function advanceWithPlan(event, payload = {}, tick) {
+    const resolved = resolvePlanArtifact({ event, payload, tick, clock });
+    const payloadWithPlan = resolved.planRef
+      ? { ...payload, planRef: resolved.planRef, planArtifact: resolved.planArtifact, intentRef: resolved.intentRef ?? payload.intentRef }
+      : payload;
+    const result = fsm.advance(event, payloadWithPlan);
+    return { result, resolved, payloadWithPlan, planArtifact: resolved.planArtifact };
+  }
+
+  const services = attachDirectorServices({
+    fsm,
+    advanceWithPlan: (event, payload) => advanceWithPlan(event, payload),
+    clock,
+    // CR.4 M5b.2b — the Director answers the Orchestrator's pricing questions by asking
+    // the Allocator, never by computing them. Injected as a factory rather than imported
+    // inside director-services.js so this file stays the persona's only Allocator seam:
+    // the call already above (hazard pool split, CR.1) goes through the same public barrel.
+    //
+    // Per-call construction, with the CALLER's price list, is deliberate. A persona built
+    // once without one would answer every question against the DEFAULT price list, and a
+    // silently defaulted price is still a well-formed number — nothing would report it.
+    createAllocator: (options = {}) => createAllocatorPersona({ clock: UNUSED_CLOCK, ...options }),
+    // D8.3 — the same seam for room geometry. `configurator/persona.js` is the PUBLIC
+    // barrel, already not an allowlist row, so asking here does not launder the crossing
+    // the way reaching into `configurator/card-model.js` did: that import is deleted, and
+    // no new one replaces it. Constructed once rather than per call, unlike the Allocator:
+    // `deriveRoomLayout` and `buildRoomDesign` are stateless, ungated and take no policy
+    // input, so there is no caller-supplied value a shared instance could silently default.
+    createConfigurator: () => createConfiguratorPersona({ clock: UNUSED_CLOCK }),
+  });
 
   function view() {
-    return fsm.view();
+    const snapshot = fsm.view();
+    return { ...snapshot, context: { ...snapshot.context, ...services.serviceContext() } };
   }
 
   function advance({ phase, event, payload = {}, tick } = {}) {
@@ -209,11 +256,7 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
       const snapshot = view();
       return { ...snapshot, actions: [], effects: [], artifacts: [], telemetry: null };
     }
-    const resolved = resolvePlanArtifact({ event, payload, tick, clock });
-    const payloadWithPlan = resolved.planRef
-      ? { ...payload, planRef: resolved.planRef, planArtifact: resolved.planArtifact, intentRef: resolved.intentRef ?? payload.intentRef }
-      : payload;
-    const result = fsm.advance(event, payloadWithPlan);
+    const { result, resolved, payloadWithPlan } = advanceWithPlan(event, payload, tick);
     const effects = [];
     const artifacts = [];
     const solverEffect = buildSolverRequestEffect({
@@ -259,5 +302,34 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     advance,
     view,
     subscribePhases: directorSubscribePhases,
+    beginBuild: services.beginBuild,
+    currentPlan: services.currentPlan,
+    mapPool: services.mapPool,
+    // D8.1 — level geometry for callers that want no BuildSpec (the preview path).
+    deriveLevelGen: services.deriveLevelGen,
+    // CR.4 M5b.2e — summary → cardSet; the budget loop used to do this by importing
+    // `summary-selections.js`.
+    buildCardSet: services.buildCardSet,
+    // CR.7 / WP-5 — card-set TRANSLATION for authoring and preview surfaces. Ungated, unlike
+    // `buildCardSet` directly above: these read/normalize a card set the caller already holds
+    // and stamp nothing. `cardSetFromSummary` is an ungated sibling of `buildCardSet` on
+    // purpose — read the long note in director-services.js before using either.
+    resolveSummary: services.resolveSummary,
+    normalizeCard: services.normalizeCard,
+    cardSetFromSummary: services.cardSetFromSummary,
+    // CR.7 / WP-5 — budget trimming for ui-flow. GATED: it decides which selections
+    // survive, and the result reaches a BuildSpec.
+    enforceBudget: services.enforceBudget,
+    assembleBuildSpec: services.assembleBuildSpec,
+    // CR.4 M5b.2b — the Orchestrator's budget loop asks the Director for these; the
+    // Director asks the Allocator. One counterpart for the loop, one owner for pricing.
+    resolveTileCosts: services.resolveTileCosts,
+    allocateBudget: services.allocateBudget,
+    evaluateSelectionSpend: services.evaluateSelectionSpend,
+    fitLayoutToBudget: services.fitLayoutToBudget,
+    evaluateLayoutSpend: services.evaluateLayoutSpend,
+    // CR.4 M5b.2f — layout feasibility; the Director derives the levelGen, the Configurator
+    // returns the verdict.
+    assessFeasibility: services.assessFeasibility,
   };
 }

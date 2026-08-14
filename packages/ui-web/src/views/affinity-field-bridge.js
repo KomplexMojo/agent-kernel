@@ -14,10 +14,12 @@ import {
   readCoreAffinityFieldRecordsFromArtifacts,
 } from "../../../runtime/src/runner/core-facade.js";
 import { deriveTileAffinityVisuals } from "./tile-affinity-visuals.js";
+import {
+  INITIAL_STATE_SCHEMA,
+  RESOURCE_BUNDLE_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+} from "../../../runtime/src/contracts/artifacts.ts";
 
-const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
-const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
-const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 
 let cachedCore = null;
 

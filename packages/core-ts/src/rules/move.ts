@@ -64,6 +64,19 @@ export interface MoveWorld {
   getResourceVitalKindAt(x: number, y: number): number;
   getResourceDeltaAt(x: number, y: number): number;
   getResourceModeAt(x: number, y: number): number;
+  getResourceVitalRegenAt?(x: number, y: number): number;
+  getResourceAffinityKindAt?(x: number, y: number): number;
+  getResourceAffinityExpressionAt?(x: number, y: number): number;
+  getResourceAffinityStacksAt?(x: number, y: number): number;
+  getResourceManaAt?(x: number, y: number): number;
+  getResourceManaRegenAt?(x: number, y: number): number;
+  grantActiveActorAffinity?(
+    kind: number,
+    expression: number,
+    stacks: number,
+    mana: number,
+    manaRegen: number,
+  ): number;
   removeResourceAt(x: number, y: number): void;
   isActorAtExit(): boolean;
   isMotivatedOccupied(x: number, y: number): boolean;
@@ -216,24 +229,49 @@ export function createMoveRules(world: MoveWorld) {
     return cardinalCost + diagonalExtra;
   }
 
+  /**
+   * Consumes whatever the entered cell holds. A resource may carry a vital
+   * payload, an affinity payload, or both; each is applied if present. Capture is
+   * unconditional — entering the cell is the whole trigger.
+   */
   function applyResourceCaptureAt(x: number, y: number): void {
     if (world.hasResourceAt(x, y) === 0) return;
     const vitalKind = world.getResourceVitalKindAt(x, y);
     const delta = world.getResourceDeltaAt(x, y);
     const mode = world.getResourceModeAt(x, y);
+    const grantedVitalRegen = world.getResourceVitalRegenAt?.(x, y) ?? 0;
+    const affinityKind = world.getResourceAffinityKindAt?.(x, y) ?? 0;
+    const affinityExpression = world.getResourceAffinityExpressionAt?.(x, y) ?? 0;
+    const affinityStacks = world.getResourceAffinityStacksAt?.(x, y) ?? 0;
+    const mana = world.getResourceManaAt?.(x, y) ?? 0;
+    const manaRegen = world.getResourceManaRegenAt?.(x, y) ?? 0;
     world.removeResourceAt(x, y);
+
+    if (affinityKind > 0 && affinityStacks > 0) {
+      world.grantActiveActorAffinity?.(
+        affinityKind,
+        affinityExpression,
+        affinityStacks,
+        mana,
+        manaRegen,
+      );
+    }
+
     if (vitalKind < 0) return;
 
     const current = world.getActorVitalCurrent(vitalKind);
     const max = world.getActorVitalMax(vitalKind);
     const regen = world.getActorVitalRegen(vitalKind);
+    // Granted regen adds to whatever the actor already has. It is independent of
+    // `mode`, which governs the delta only, and it is permanent once taken.
+    const nextRegen = regen + grantedVitalRegen;
     if (mode === ResourceMode.Consumable) {
       const nextCurrent = Math.min(Math.max(current + delta, 0), max);
-      world.setActorVital(vitalKind, nextCurrent, max, regen);
+      world.setActorVital(vitalKind, nextCurrent, max, nextRegen);
     } else {
       const nextMax = Math.max(max + delta, 0);
       const nextCurrent = Math.max(current + delta, 0);
-      world.setActorVital(vitalKind, nextCurrent, nextMax, regen);
+      world.setActorVital(vitalKind, nextCurrent, nextMax, nextRegen);
     }
   }
 

@@ -1,4 +1,7 @@
 const assert = require("node:assert/strict");
+// CR.9 M3: the Allocator refuses to price raw motivations without the Configurator's
+// vocabulary. Injected here exactly as the CLI composition root injects it.
+const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
 const { spawnSync } = require("node:child_process");
 const { mkdtempSync, readFileSync, existsSync } = require("node:fs");
 const { resolve, join } = require("node:path");
@@ -166,9 +169,10 @@ test("cli delver-plan supports advanced affinities, vitals, setup mode, and rece
 
   const receipt = readJson(join(outDir, "budget-receipt.json"));
   const byId = new Map(receipt.lineItems.map((item) => [item.id, item]));
+  assert.equal(byId.get("affinity_base")?.quantity, 2);
   assert.equal(byId.get("affinity_stack")?.quantity, 5);
-  assert.equal(byId.get("affinity_expression_externalize")?.quantity, 3);
-  assert.equal(byId.get("affinity_expression_localized")?.quantity, 2);
+  assert.equal(byId.get("affinity_expression_externalize")?.quantity, 1);
+  assert.equal(byId.get("affinity_expression_localized")?.quantity, 1);
   assert.equal(byId.get("vital_health_point")?.quantity, 12);
   assert.equal(byId.get("vital_mana_regen_tick")?.quantity, 2);
 });
@@ -228,42 +232,13 @@ test("cli delver-plan requires --budget and --price-list together", async () => 
 test("cli delver-plan maximizes mana-focused spend within a 200-token budget", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-delver-plan-budgeted-"));
   const outDir = join(workDir, "out");
-  const budgetPath = join(workDir, "budget.json");
-  const priceListPath = join(workDir, "price-list.json");
-
-  require("node:fs").writeFileSync(budgetPath, JSON.stringify({
-    schema: "agent-kernel/BudgetArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "budget_delver_200",
-      runId: "run_delver_plan_budgeted",
-      createdAt: "2026-04-09T00:00:00.000Z",
-      producedBy: "test",
-    },
-    budget: {
-      tokens: 200,
-    },
-  }, null, 2));
-  require("node:fs").writeFileSync(priceListPath, JSON.stringify({
-    schema: "agent-kernel/PriceList",
-    schemaVersion: 1,
-    meta: {
-      id: "price_list_delver_200",
-      runId: "run_delver_plan_budgeted",
-      createdAt: "2026-04-09T00:00:00.000Z",
-      producedBy: "test",
-    },
-    items: [],
-  }, null, 2));
 
   runCliOk([
     "delver-plan",
     "--delver",
     "count=1;affinity=fire;motivation=attacking;affinities=fire:push:2;goals=max_mana,mana_regen",
-    "--budget",
-    budgetPath,
-    "--price-list",
-    priceListPath,
+    "--budget-tokens",
+    "200",
     "--run-id",
     "run_delver_plan_budgeted",
     "--created-at",
@@ -282,7 +257,9 @@ test("cli delver-plan maximizes mana-focused spend within a 200-token budget", a
   assert.ok(delver.vitals.mana.regen > 0);
   assert.ok(delver.vitals.stamina.regen > 0);
 
-  const { calculateActorConfigurationUnitCost } = await import("../../packages/runtime/src/personas/configurator/spend-proposal.js");
+  const { calculateActorConfigurationUnitCost } = await import("../../packages/runtime/src/personas/allocator/spend-proposal.js");
+  const { buildDefaultPriceList } = await import("../../packages/runtime/src/personas/allocator/default-price-list.js");
+  const { normalizePriceItems } = await import("../../packages/runtime/src/personas/allocator/validate-spend.js");
 
 const card = delver;
 const unitCost = calculateActorConfigurationUnitCost({
@@ -291,10 +268,13 @@ const unitCost = calculateActorConfigurationUnitCost({
     affinities: card.affinities,
     vitals: card.vitals,
   },
-  priceMap: new Map(),
+  priceMap: normalizePriceItems(buildDefaultPriceList({ createdAt: "2026-04-09T00:00:00.000Z" })),
+  normalizeMotivations: await configuratorNormalizeMotivations(),
 }).cost;
 
 assert.equal(unitCost, 200);
-assert.ok(card.vitals.mana.max >= 29, "mana max should still be driven up by the budgeted fulfillment after manual-control pricing");
-assert.ok(card.vitals.mana.regen >= 1);
+// Fixed spend is 65; 65 + mana.max 99 + mana.regen 6² = 200.
+assert.equal(card.vitals.mana.max, 99);
+assert.equal(card.vitals.mana.regen, 6);
+assert.equal(card.vitals.stamina.regen, 1);
 });

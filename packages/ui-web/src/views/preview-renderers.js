@@ -4,6 +4,7 @@ import {
   positionFromCanvasEvent,
   renderBundleBoardToCanvas,
 } from "../resource-bundle-view.js";
+import { RESOURCE_BUNDLE_SCHEMA } from "../../../runtime/src/contracts/artifacts.ts";
 
 export const PREVIEW_RENDERER_STORAGE_KEY = "agent-kernel.preview.renderer";
 export const PREVIEW_RENDERER_IDS = Object.freeze({
@@ -229,7 +230,7 @@ function inferPrimaryAffinity(actor = {}) {
 
 function resolveResourceBundle(bundle) {
   const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
-  return artifacts.find((artifact) => artifact?.schema === "agent-kernel/ResourceBundleArtifact") || null;
+  return artifacts.find((artifact) => artifact?.schema === RESOURCE_BUNDLE_SCHEMA) || null;
 }
 
 function findAsset(resourceBundle, assetId) {

@@ -1,14 +1,45 @@
-export const BUILD_SPEC_SCHEMA = "agent-kernel/BuildSpec";
+import {
+  AUTHORING_VALIDATION_OUTCOMES,
+  AUTHORING_VALIDATION_OUTCOME_IDS,
+} from "./spend-protocol.js";
+// M9: every schema string this module used to declare now comes from artifacts.ts. Five
+// were exported and have importers, so they are re-exported under the same names —
+// written as `import …; export { … }` rather than `export { X } from "…"`, which
+// re-exports without binding locally and throws ReferenceError at the first internal use
+// (the ESM trap M7 hit in four modules at once).
+//
+// ⚠️ THE HAZARD THIS FILE RECORDED IS GONE, AND CHECKING THAT WAS THE POINT. A comment
+// here warned that its local `BUDGET_RECEIPT_SCHEMA` deliberately avoided the artifacts.ts
+// export of that name, whose value was the DIFFERENT (now retired, PA.3)
+// "agent-kernel/BudgetReceipt" — importing by name would have silently validated against
+// the wrong schema. artifacts.ts no longer exports that name at all, so the trap is dead;
+// the const was already renamed to `BUDGET_RECEIPT_ARTIFACT_SCHEMA` for the same reason.
+// M9 keys every replacement on the schema VALUE rather than the constant name precisely so
+// a live version of this hazard could not be walked into. A tree-wide check found no
+// remaining case where one name carries two values.
+import {
+  AGENT_COMMAND_REQUEST_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA as BUDGET_SCHEMA,
+  BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  BUILD_SPEC_SCHEMA,
+  HAZARD_ARTIFACT_SCHEMA,
+  PRICE_LIST_SCHEMA,
+  RESOURCE_ARTIFACT_SCHEMA,
+  ROOM_TILE_CONFIG_SCHEMA,
+} from "./artifacts.ts";
+
+export {
+  AGENT_COMMAND_REQUEST_SCHEMA,
+  BUILD_SPEC_SCHEMA,
+  HAZARD_ARTIFACT_SCHEMA,
+  RESOURCE_ARTIFACT_SCHEMA,
+  ROOM_TILE_CONFIG_SCHEMA,
+};
+
 export const BUILD_SPEC_SCHEMA_VERSION = 1;
-export const AGENT_COMMAND_REQUEST_SCHEMA = "agent-kernel/AgentCommandRequestArtifact";
-export const HAZARD_ARTIFACT_SCHEMA = "agent-kernel/HazardArtifact";
 export const HAZARD_ARTIFACT_SCHEMA_VERSION = 3;
-export const RESOURCE_ARTIFACT_SCHEMA = "agent-kernel/ResourceArtifact";
 export const RESOURCE_ARTIFACT_SCHEMA_VERSION = 1;
 
-const BUDGET_SCHEMA = "agent-kernel/BudgetArtifact";
-const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
-const BUDGET_RECEIPT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
 const AGENT_COMMAND_ACTIONS = new Set(["author", "configure"]);
 const AGENT_COMMAND_OBJECT_KINDS = new Set([
   "room",
@@ -37,12 +68,12 @@ const AGENT_COMMAND_OPTIMIZATION_GOAL_KINDS = new Set([
   "maximize_vital_max",
   "maximize_vital_regen",
 ]);
-const AGENT_COMMAND_VALIDATION_OUTCOMES = new Set([
-  "valid",
-  "invalid_requirements",
-  "conflicting_requirements",
-  "insufficient_budget",
-]);
+// CR.9 M4: derived, not restated. This Set was one of three identical copies of the
+// same four values — the others in `artifacts.ts` (the type mirror) and, wrongly,
+// inside `personas/allocator/budget-fulfillment.js`. The builder for the shape this
+// validates now sits beside the vocabulary in spend-protocol.js, so a change to what
+// the Allocator emits and a change to what this accepts are made in one place.
+const AGENT_COMMAND_VALIDATION_OUTCOMES = new Set(AUTHORING_VALIDATION_OUTCOME_IDS);
 const VITAL_KEYS = new Set(["health", "mana", "stamina", "durability"]);
 
 function isObject(value) {
@@ -434,7 +465,7 @@ function validateAuthoringValidation(value, path, errors) {
   value.issues.forEach((entry, index) => {
     validateAuthoringValidationIssue(entry, `${path}.issues[${index}]`, errors);
   });
-  if (value.outcome !== "valid" && value.issues.length === 0) {
+  if (value.outcome !== AUTHORING_VALIDATION_OUTCOMES.valid && value.issues.length === 0) {
     addError(errors, `${path}.issues`, "expected blocking issues for non-valid outcome");
   }
 }
@@ -725,7 +756,7 @@ export function validateResourceArtifact(artifact) {
 // RoomTileActorConfig validator
 // -------------------------
 
-export const ROOM_TILE_CONFIG_SCHEMA = "agent-kernel/RoomTileActorConfig";
+// M9: ROOM_TILE_CONFIG_SCHEMA is imported and re-exported at the top of this file.
 const ROOM_TILE_CONFIG_SCHEMA_VERSION = 1;
 const ROOM_TILE_FORBIDDEN_FIELDS = ["health", "mana", "stamina", "affinityExpression", "region"];
 
@@ -870,7 +901,7 @@ export function validateBuildSpec(spec) {
         validateInlineArtifact(spec.budget.priceList, "budget.priceList", PRICE_LIST_SCHEMA, errors);
       }
       if (spec.budget.receipt !== undefined) {
-        validateInlineArtifact(spec.budget.receipt, "budget.receipt", BUDGET_RECEIPT_SCHEMA, errors);
+        validateInlineArtifact(spec.budget.receipt, "budget.receipt", BUDGET_RECEIPT_ARTIFACT_SCHEMA, errors);
       }
     }
   }

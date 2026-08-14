@@ -1,5 +1,6 @@
 import { applyMoveAction, packMoveAction, renderBaseTiles, renderFrameBuffer } from "../../../core-ts/src/index.ts";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
+import { ACTION_SCHEMA } from "../contracts/artifacts.ts";
 
 function assertCoreSupportsGrid(core) {
   const required = [
@@ -144,7 +145,7 @@ export function runMvpMovement({
     const packed = packMoveAction({ actorId: actorIdValue, from, to, direction: directionFromDelta({ dx: to.x - from.x, dy: to.y - from.y }), tick });
     applyMoveAction(core, packed);
     const action = {
-      schema: "agent-kernel/Action",
+      schema: ACTION_SCHEMA,
       schemaVersion: 1,
       actorId: actorIdLabel,
       tick,

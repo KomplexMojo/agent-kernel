@@ -1,3 +1,4 @@
+import { ADAPTIVE_WORKFLOW_IDEMPOTENCY_RECORD_SCHEMA } from "../../../../runtime/src/contracts/artifacts.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { link, lstat, mkdir, readFile, realpath, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
@@ -67,7 +68,7 @@ export async function createFilesystemWorkflowStore({ root, create = true } = {}
   async function reserveSideEffect({ idempotencyKey, payloadRef }) {
     assertRef(payloadRef); await getContent(payloadRef); const path = await recordPath(idempotencyKey); const existing = await readJson(path, true);
     if (existing) return reconcileReservation(existing, payloadRef, path);
-    const record = { schema: "agent-kernel/AdaptiveWorkflowIdempotencyRecord", schemaVersion: 1, idempotencyKey, payloadRef: clone(payloadRef), status: "pending" };
+    const record = { schema: ADAPTIVE_WORKFLOW_IDEMPOTENCY_RECORD_SCHEMA, schemaVersion: 1, idempotencyKey, payloadRef: clone(payloadRef), status: "pending" };
     return await atomicJson(path, record, true) ? { status: "claimed", record: clone(record) } : reconcileReservation(await readJson(path), payloadRef, path);
   }
   async function reconcileReservation(existing, payloadRef, path) {

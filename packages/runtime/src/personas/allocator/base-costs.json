@@ -1,0 +1,74 @@
+{
+  "_comment": "Base costs ONLY \u2014 tunable data. The formulas that consume these (linear vs quadratic, and the resource free-floating premium) live in code in default-price-list.js. Edit the numbers here; do not add logic.",
+  "_baseUnit": "1 point of max health = 1 token",
+  "vitals": {
+    "vital_health_point": 1,
+    "vital_mana_point": 1,
+    "vital_stamina_point": 1,
+    "vital_durability_point": 1
+  },
+  "regen": {
+    "vital_health_regen_tick": 1,
+    "vital_mana_regen_tick": 1,
+    "vital_stamina_regen_tick": 1,
+    "vital_durability_regen_tick": 1
+  },
+  "affinity": {
+    "affinity_stack": 1,
+    "affinity_base": 10,
+    "affinity_expression_externalize": 35,
+    "affinity_expression_internalize": 35,
+    "affinity_expression_localized": 25,
+    "affinity_expression_sustain": 25
+  },
+  "motivation": {
+    "motivation_stationary": 1,
+    "motivation_random": 1,
+    "motivation_exploring": 2,
+    "motivation_patrolling": 3,
+    "motivation_attacking": 3,
+    "motivation_defending": 2,
+    "motivation_stealthy": 4,
+    "motivation_friendly": 1,
+    "motivation_reflexive": 1,
+    "motivation_goal_oriented": 5,
+    "motivation_strategy_focused": 10,
+    "motivation_user_controlled": 10
+  },
+  "actor": {
+    "actor_spawn": 5
+  },
+  "tile": {
+    "tile_floor": 1,
+    "tile_hallway": 1
+  },
+  "hazard": {
+    "hazard_basic": 5
+  },
+  "resource": {
+    "resource_base": 1,
+    "resource_level": 5,
+    "resource_permanent": 10
+  },
+  "_actionBudgetNote": "Runtime action costs charged against core's per-run budget ledger (NOT the authoring price list). core-ts enforces caps and emits limit events; these numbers are the Allocator's policy, injected via ports/budget.js. action_default applies to every action kind; specific kinds override it.",
+  "actionBudget": {
+    "action_default": 1,
+    "action_request_solver": 2
+  },
+  "freeFloatingPremium": 1.5,
+  "_levelAuthoringNote": "Level-authoring economy knobs, moved out of commands/card-authoring.js by CR.1 \u2014 they were pricing policy sitting in glue, feeding calculateCardValue, card receipts, UI guidance and auto-generation. budget_split_percent must sum to 100. The reference budget is NOT here: it is REFERENCE_BUDGET_TOKENS in budget-allocation.js, which card-authoring duplicated as DEFAULT_LEVEL_BUDGET_TOKENS (both 2500) until CR.1 collapsed them.",
+  "levelAuthoring": {
+    "resource_vital_cost_per_delta": 1,
+    "resource_vital_cost_per_regen": 2,
+    "resource_permanent_multiplier": 10,
+    "room_affinity_stack_cost_factor": 0.1
+  },
+  "_levelBudgetSplitNote": "Per-card-type share of a level budget, as percentages summing to 100. Its own group because the base-cost standard requires every item to be a NUMBER \u2014 a nested object here would be formula selection in JSON, which the standard puts in code. RETUNED at CR.9 M5 (room 44->41, hazard 12->15): the old split was calibrated when a hazard cost 5 tokens with its affinity payload and vitals charged NOTHING. Those are charged now, so a hazard costs ~52 and three of them no longer fit a 12% share \u2014 content-gen scenario 51 failed on hazards 157/156. The share follows the prices, not the other way around.",
+  "levelBudgetSplitPercent": {
+    "room": 41,
+    "delver": 20,
+    "warden": 16,
+    "hazard": 15,
+    "resource": 8
+  }
+}

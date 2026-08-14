@@ -1,0 +1,155 @@
+{
+  "schema": "agent-kernel/SpendProposal",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "golden_g1_spend_proposal",
+    "runId": "golden_g1",
+    "createdAt": "2026-07-18T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "items": [
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_base",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_expression_externalize",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_stack",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "motivation_attacking",
+      "kind": "motivation",
+      "quantity": 1,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "quantity": 1,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_health_point",
+      "kind": "vital",
+      "quantity": 1,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "tile_floor",
+      "kind": "tile",
+      "quantity": 25,
+      "category": "floor_tiles",
+      "subjectRef": {
+        "id": "layout",
+        "schema": "agent-kernel/LayoutArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_base",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_expression_localized",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_stack",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "hazard_basic",
+      "kind": "hazard",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    }
+  ]
+}

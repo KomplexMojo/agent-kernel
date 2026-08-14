@@ -20,10 +20,12 @@ keys as empty defaults, so a presence-only check would mark garbage as complete.
 
 ## Run it against the remote box
 
-The remote Ollama binds to loopback, so tunnel first (see the LLM host notes):
+The remote Ollama binds to loopback, so tunnel first. Host, port, and user come
+from your untracked `tools/remote-ollama-control/config/llm-host.env`; the
+simplest form is an SSH alias from your own `~/.ssh/config`:
 
 ```bash
-ssh -f -N -L 21436:127.0.0.1:11436 -p 2222 darren@66.183.217.141
+ssh -f -N -L 21436:127.0.0.1:11436 <ssh-alias>
 
 AK_ALLOW_NETWORK=1 node tools/adaptive-workflow-benchmark/run-agent-benchmark.mjs \
   --base-url http://localhost:21436 \

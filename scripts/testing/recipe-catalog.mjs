@@ -30,13 +30,16 @@ export const RECIPE_CATALOG = {
     description: "Browser-host and CLI artifact flows remain equivalent.",
   },
   serve_ui_redirect_health: {
-    runner: "playwright",
+    runner: "vitest",
     scaffoldable: true,
     description: "Served UI falls back to an open port and reports readiness.",
   },
   browser_bundle_load_flow: {
-    runner: "playwright",
-    scaffoldable: true,
+    runner: "vitest",
+    // Not scaffoldable since the Playwright subsystem was removed: this recipe needs a
+    // real browser (navigation, file input, rendered state) and there is no headless
+    // equivalent to generate. Existing coverage is the fixture-backed tests/ui-web/ suite.
+    scaffoldable: false,
     description: "Browser-native UI flow loads and renders expected state.",
   },
   adapter_port_contract: {

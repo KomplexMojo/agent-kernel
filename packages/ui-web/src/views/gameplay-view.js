@@ -1,9 +1,11 @@
 import { createGameplayPhaserRenderer } from "./gameplay-phaser-renderer.js";
 import { deriveTileAffinityVisuals } from "./tile-affinity-visuals.js";
+import {
+  INITIAL_STATE_SCHEMA,
+  RESOURCE_BUNDLE_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+} from "../../../runtime/src/contracts/artifacts.ts";
 
-const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
-const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
-const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 
 function findArtifact(bundle, schema) {
   const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];

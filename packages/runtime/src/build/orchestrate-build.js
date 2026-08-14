@@ -1,31 +1,64 @@
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { mapBuildSpecToArtifacts } from "./map-build-spec.js";
 import { solveWithAdapter } from "../ports/solver.js";
-import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
-import { resolveAffinityEffects } from "../personas/configurator/affinity-effects.js";
-import { buildAmbientAffinityPressure } from "../personas/configurator/affinity-pressure.js";
-import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "../personas/configurator/affinity-rules.js";
-import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
-import { evaluateConfiguratorSpend } from "../personas/configurator/spend-proposal.js";
-import { maximizeActorBudget } from "../personas/configurator/budget-maximizer.js";
-import { buildDefaultPriceList } from "../personas/allocator/default-price-list.js";
-import { buildBudgetAllocation } from "../personas/director/budget-allocation.js";
-import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
+// CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
+import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
-import { buildScenarioSpendReport } from "../personas/allocator/incentive-model.js";
-import { computeInternalManaUpkeep } from "../personas/configurator/cost-model.js";
 import {
   DEFAULT_ROOM_CARD_AFFINITY,
   ROOM_AFFINITY_EMIT_PERCENT_PER_STACK,
 } from "../contracts/domain-constants.js";
+// M9: every value in SCHEMAS below now comes from contracts/artifacts.ts. M8 relocated the
+// two rules schemas here; the other five were the tree-wide retype backlog it deferred.
+import {
+  ACTOR_LOADOUT_SCHEMA,
+  AFFINITY_PRESET_SCHEMA,
+  AFFINITY_RULES_ARTIFACT_SCHEMA,
+  AFFINITY_SUMMARY_SCHEMA,
+  MOTIVATION_RULES_ARTIFACT_SCHEMA,
+  SOLVER_REQUEST_SCHEMA,
+  SOLVER_RESULT_SCHEMA,
+} from "../contracts/artifacts.ts";
+
+// CR.7 / WP-5 — the build-geometry helpers this file used to import out of seven Configurator
+// internals now come off the persona's PUBLIC surface, which retired seven allowlist rows. The
+// local names are unchanged, so every call site below reads exactly as it did.
+const configuratorBuild = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+const {
+  generateGridLayoutFromInput,
+  buildSimConfigArtifact,
+  buildInitialStateArtifact,
+  resolveAffinityEffects,
+  normalizeAffinityRulesArtifact,
+  resolveAffinityRules,
+  buildAmbientAffinityPressure,
+  computeInternalManaUpkeep,
+  normalizeMotivationRulesArtifact,
+  resolveMotivationRules,
+} = configuratorBuild;
+
+// CR.9 M3: spend proposals price raw actor motivations, and motivation vocabulary is
+// Configurator law. The Allocator no longer owns a copy of it, so this composition
+// root hands over the Configurator's own function.
+const configuratorMotivations = configuratorBuild.normalizeMotivations;
+
+// WP-5/D10: same pattern for budget maximization. Scaling authored actors to fill an
+// unspent budget is Configurator work, so it comes off the Configurator's public
+// surface rather than out of `configurator/budget-maximizer.js` directly — the prices
+// it scales against are supplied separately, by the Allocator.
+const configuratorMaximizeActorBudget = createConfiguratorPersona({ clock: UNUSED_CLOCK })
+  .authorCandidates.maximizeActorBudget;
 
 const SCHEMAS = Object.freeze({
-  solverRequest: "agent-kernel/SolverRequest",
-  solverResult: "agent-kernel/SolverResult",
-  affinityPreset: "agent-kernel/AffinityPresetArtifact",
-  actorLoadout: "agent-kernel/ActorLoadoutArtifact",
-  affinityRules: "agent-kernel/AffinityRulesArtifact",
-  motivationRules: "agent-kernel/MotivationRulesArtifact",
-  affinitySummary: "agent-kernel/AffinitySummary",
+  solverRequest: SOLVER_REQUEST_SCHEMA,
+  solverResult: SOLVER_RESULT_SCHEMA,
+  affinityPreset: AFFINITY_PRESET_SCHEMA,
+  actorLoadout: ACTOR_LOADOUT_SCHEMA,
+  affinityRules: AFFINITY_RULES_ARTIFACT_SCHEMA,
+  motivationRules: MOTIVATION_RULES_ARTIFACT_SCHEMA,
+  affinitySummary: AFFINITY_SUMMARY_SCHEMA,
 });
 
 function createBuildMeta(spec, producedBy, suffix) {
@@ -58,7 +91,7 @@ function toRef(artifact) {
 }
 
 function mergePriceListWithDefaults(priceList, { meta } = {}) {
-  const defaults = buildDefaultPriceList({ meta });
+  const defaults = createAllocatorPersona({ priceListMeta: meta, clock: UNUSED_CLOCK }).pricing.priceList();
   if (!priceList) return defaults;
   const itemsByKey = new Map();
   defaults.items.forEach((item) => {
@@ -1340,12 +1373,23 @@ function normalizeActorPositions(actors, layout, { delverCount = 1 } = {}) {
   return { actors: normalized, changed };
 }
 
-export async function orchestrateBuild({ spec, producedBy = "runtime-build", solver, capturedInputs } = {}) {
+export async function orchestrateBuild({
+  spec,
+  producedBy = "runtime-build",
+  solver,
+  capturedInputs,
+  // CR.3: `{intent, plan}` from the Director round that produced this spec, when
+  // the caller ran one. Without it map-build-spec reconstructs a plan from the
+  // finished spec, which is a lineage derived from the product rather than the
+  // cause. Callers that never ran a Director (sandbox bridge, fixture-driven
+  // tests) legitimately omit it.
+  directorRound,
+} = {}) {
   if (!spec) {
     throw new Error("orchestrateBuild requires spec");
   }
 
-  const mapped = mapBuildSpecToArtifacts(spec, { producedBy });
+  const mapped = mapBuildSpecToArtifacts(spec, { producedBy, directorRound });
 
   let solverRequest = null;
   let solverResult = null;
@@ -1383,6 +1427,11 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
   let affinitySummary = null;
   let affinityRules = null;
   let motivationRules = null;
+  // PX.6: the actors the build actually resolved (budget-maximized, then position-
+  // normalized). Function-scoped because `actorsInput` is block-scoped inside the layout
+  // branch, and this is published as build OUTPUT at the end rather than written back over
+  // the Configurator's locked inputs.
+  let resolvedActors = null;
   let resourceBundle = null;
   let resolvedPriceList = null;
   let budgetAllocation = null;
@@ -1438,10 +1487,10 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
     if (affinityLoadouts) {
       assertSchema(affinityLoadouts, SCHEMAS.actorLoadout);
     }
-    if (spec?.configurator?.inputs) {
-      spec.configurator.inputs.affinityRules = affinityRules;
-      spec.configurator.inputs.motivationRules = motivationRules;
-    }
+    // PX.6: these used to be written INTO spec.configurator.inputs — the artifact recorded
+    // as the build's causal input — after the Configurator's round had closed. Both are
+    // already returned as top-level build results, and both are now republished on the spec
+    // under `configurator.resolved` instead. See the publish site near the return.
 
     const layout = layoutResult.value;
     if (levelGenInput?.budgetScaffold === true) {
@@ -1481,7 +1530,13 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       })
       : null;
     if (mapped.budget?.budget && resolvedPriceList) {
-      const allocationResult = buildBudgetAllocation({
+      // CR.7 / WP-5 — asked of the Allocator's public surface rather than by importing
+      // `budget-allocation.js`. `allocateBudget` IS `buildBudgetAllocation`, wrapped only to
+      // default an absent `priceList` from the persona's own — and this call site supplies one
+      // explicitly, so the wrapper is a no-op here and the allocation is byte-identical.
+      // Constructed inline with `UNUSED_CLOCK` because that is this file's existing idiom for
+      // asking the Allocator a stateless question (see `scenarioSpendReport` below).
+      const allocationResult = createAllocatorPersona({ clock: UNUSED_CLOCK }).allocateBudget({
         budget: mapped.budget.budget,
         priceList: resolvedPriceList,
         meta: createBuildMeta(spec, producedBy, "budget_allocation"),
@@ -1506,6 +1561,7 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
         resources: configuratorResources,
         proposalMeta: createBuildMeta(spec, producedBy, "spend_proposal_probe"),
         receiptMeta: createBuildMeta(spec, producedBy, "budget_receipt_probe"),
+        normalizeMotivations: configuratorMotivations,
       });
       const probeRemaining = probeResult.receipt?.remaining ?? 0;
       const actorPoolRemaining = resolveActorPoolRemaining(probeResult.receipt);
@@ -1513,14 +1569,20 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
         ? probeRemaining
         : Math.min(probeRemaining, actorPoolRemaining);
       if (maximizeRemaining > 0) {
-        actorsInput.actors = maximizeActorBudget({
+        // The prices are the Allocator's, read off its published surface against
+        // the very price list this build resolved — not derived here, and not
+        // derived inside the Configurator from the Allocator's own tools.
+        const { pricing } = createAllocatorPersona({
+          priceList: resolvedPriceList,
+          clock: UNUSED_CLOCK,
+        });
+        actorsInput.actors = configuratorMaximizeActorBudget({
           actors: actorsInput.actors,
           remaining: maximizeRemaining,
-          priceList: resolvedPriceList,
+          unitCosts: pricing.unitCosts(),
+          priceItems: pricing.priceMap(),
         });
-        if (spec?.configurator?.inputs) {
-          spec.configurator.inputs.actors = actorsInput.actors;
-        }
+        resolvedActors = actorsInput.actors;
       }
     }
 
@@ -1536,10 +1598,11 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
         affinityRules,
         proposalMeta: createBuildMeta(spec, producedBy, "spend_proposal"),
         receiptMeta: createBuildMeta(spec, producedBy, "budget_receipt"),
+        normalizeMotivations: configuratorMotivations,
       });
       spendProposal = spendResult.proposal;
       budgetReceipt = spendResult.receipt;
-      budgetReceipt.scenarioSpendReport = buildScenarioSpendReport({
+      budgetReceipt.scenarioSpendReport = createAllocatorPersona({ clock: UNUSED_CLOCK }).scenarioSpendReport({
         lineItems: budgetReceipt.lineItems,
         allocation: budgetAllocation,
         budgetTokens: mapped.budget.budget?.budget?.tokens,
@@ -1552,14 +1615,13 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       throw new Error(formatBudgetReceiptDenial(budgetReceipt));
     }
 
+    resolvedActors = resolvedActors || actorsInput.actors;
     const normalizedActors = normalizeActorPositions(actorsInput.actors, layout, {
       delverCount: configuratorInputs?.delverCount,
     });
     if (normalizedActors.changed) {
       actorsInput.actors = normalizedActors.actors;
-      if (spec?.configurator?.inputs?.actors) {
-        spec.configurator.inputs.actors = normalizedActors.actors;
-      }
+      resolvedActors = normalizedActors.actors;
     }
 
     simConfig = buildSimConfigArtifact({
@@ -1588,7 +1650,10 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
       affinitySummary = {
         schema: SCHEMAS.affinitySummary,
         schemaVersion: 1,
-        meta: createBuildMeta(spec, "annotator", "affinity_summary"),
+        // Builds run NO tick, and the Annotator subscribes only to the EMIT/SUMMARIZE tick
+        // phases — so it cannot have produced this. Stamp the real caller, as every sibling
+        // artifact here does; glue must not claim persona provenance it did not earn (P3.4).
+        meta: createBuildMeta(spec, producedBy, "affinity_summary"),
         presetsRef: toRef(affinityPresets),
         loadoutsRef: toRef(affinityLoadouts),
         affinityRulesRef: affinityRules ? toRef(affinityRules) : undefined,
@@ -1628,6 +1693,27 @@ export async function orchestrateBuild({ spec, producedBy = "runtime-build", sol
         artifact.meta.cost = runCostContext;
       }
     }
+  }
+
+  // ── PX.6: what the build RESOLVED, published as output ──────────────────────────
+  //
+  // The Configurator's `inputs` are the causal record: what it was asked to build from,
+  // locked when its round closed. The build then resolves them further — affinity and
+  // motivation rules get expanded, actors get budget-maximized and normalized — and those
+  // results USED to be written back on top of `inputs`, which made the artifact recorded as
+  // the cause partly a product of the effect. Nothing failed, because the mutated shape is
+  // still well-formed; you simply could not tell afterwards what the Configurator had
+  // actually approved.
+  //
+  // Same data, honest location. `inputs` is now immutable after the round, and a consumer
+  // that wants "what the build used" reads `resolved`. A spec with no `resolved` has not
+  // been built yet, which is a fact worth being able to observe.
+  if (spec?.configurator && typeof spec.configurator === "object") {
+    spec.configurator.resolved = {
+      affinityRules,
+      motivationRules,
+      ...(Array.isArray(resolvedActors) ? { actors: resolvedActors } : {}),
+    };
   }
 
   return {

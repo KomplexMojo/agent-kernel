@@ -7,13 +7,12 @@ function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-test("allocator receipts and ledger link to buildspec budget refs", async () => {
+test("allocator receipts link to buildspec budget refs", async () => {
   const scenario = readJson(resolve(ROOT, "tests/fixtures/e2e/e2e-scenario-v1-basic.json"));
   const summaryFixture = readJson(resolve(ROOT, scenario.summaryPath));
   const catalog = readJson(resolve(ROOT, scenario.catalogPath));
   const budget = readJson(resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json"));
   const priceList = readJson(resolve(ROOT, "tests/fixtures/allocator/price-list-v1-basic.json"));
-  const spendEvents = readJson(resolve(ROOT, "tests/fixtures/allocator/spend-events-v1-basic.json"));
 
   const { normalizeSummary } = await import(
     "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
@@ -26,9 +25,6 @@ test("allocator receipts and ledger link to buildspec budget refs", async () => 
   );
   const { orchestrateBuild } = await import(
     "../../packages/runtime/src/build/orchestrate-build.js"
-  );
-  const { updateBudgetLedger } = await import(
-    "../../packages/runtime/src/personas/allocator/budget-ledger.js"
   );
 
   const normalized = normalizeSummary(summaryFixture);
@@ -77,24 +73,9 @@ test("allocator receipts and ledger link to buildspec budget refs", async () => 
   assert.deepEqual(receipt.priceListRef, priceListRef);
   assert.equal(receipt.proposalRef?.id, buildResult.spendProposal.meta.id);
 
-  const ledgerMeta = {
-    id: "ledger_e2e",
-    runId: buildSpecResult.spec.meta.runId,
-    createdAt: "2025-01-01T00:00:00.000Z",
-    producedBy: "allocator",
-  };
-  const ledgerResult = updateBudgetLedger({
-    receipt,
-    spendEvents: spendEvents.events,
-    meta: ledgerMeta,
-  });
-
-  assert.equal(ledgerResult.ledger.schema, "agent-kernel/BudgetLedgerArtifact");
-  assert.equal(ledgerResult.ledger.meta.runId, buildSpecResult.spec.meta.runId);
-  assert.deepEqual(ledgerResult.ledger.budgetRef, budgetRef);
-  assert.equal(ledgerResult.ledger.receiptRef.id, receipt.meta.id);
-
-  // Verify scenario spend report is attached to budget receipt
+  // Verify scenario spend report is attached to budget receipt — this is the LIVE
+  // build-plane spend audit surface (Allocator-produced), and what remains after the
+  // never-wired BudgetLedgerArtifact was deleted in P3.3.
   assert.ok(receipt.scenarioSpendReport, "scenarioSpendReport should be present on budget receipt");
   assert.ok(Number.isFinite(receipt.scenarioSpendReport.budget));
   assert.ok(Number.isFinite(receipt.scenarioSpendReport.totalSpend));

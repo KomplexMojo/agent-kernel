@@ -1,7 +1,13 @@
 export const FLAGSHIP_FULL_CONTEXT_STRATEGY_ID = "flagship_full_context_v1";
 export const LOCAL_SECTIONAL_REPAIR_STRATEGY_ID = "local_sectional_repair_v1";
-export const STRATEGY_POLICY_SCHEMA = "agent-kernel/AdaptiveWorkflowStrategyPolicy";
-export const SELECTED_STRATEGY_SCHEMA = "agent-kernel/SelectedStrategy";
+// M7: both declared in contracts/artifacts.ts. Re-exported under their local names so no
+// call site changes; the schema string now has exactly one origin.
+import {
+  ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA as STRATEGY_POLICY_SCHEMA,
+  ADAPTIVE_WORKFLOW_SELECTED_STRATEGY_SCHEMA as SELECTED_STRATEGY_SCHEMA,
+} from "../contracts/artifacts.ts";
+
+export { STRATEGY_POLICY_SCHEMA, SELECTED_STRATEGY_SCHEMA };
 export const STRATEGY_POLICY_VERSION = "adaptive-workflow-strategy-policy-v1";
 const TIE_BREAKERS = Object.freeze(["score_desc", "precedence_asc", "fallback_order", "strategy_id"]);
 const DEFAULT_THRESHOLDS = Object.freeze({ minBenchmarkSampleSize: 10, minBenchmarkStability: 0.8, minBenchmarkConfidence: 0.75, maxBenchmarkAgeMs: 2592000000 });

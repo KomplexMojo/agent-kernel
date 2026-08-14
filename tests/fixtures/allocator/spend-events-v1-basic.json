@@ -1,8 +1,0 @@
-{
-  "events": [
-    { "id": "layout_grid_9x9", "kind": "layout", "quantity": 1 },
-    { "id": "hazard_basic", "kind": "hazard", "quantity": 2 },
-    { "id": "actor_spawn", "kind": "actor", "quantity": 1 },
-    { "id": "unknown_item", "kind": "unknown", "quantity": 3 }
-  ]
-}

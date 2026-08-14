@@ -204,6 +204,7 @@ test("two ticks of combat decrement warden HP each tick and keep runtime state c
   assert.equal(acceptedAttacks.length, 2);
 });
 
+// STAYS SKIPPED — fails today: no defeated-actor gate exists, so attacks continue past HP 0 (checked 2026-08-01).
 test.skip("lethal attack reaches HP 0 and subsequent ticks show no further attacks against defeated actor", async () => {
   // Current combat rules/persona targeting do not filter defeated actors.
   const [{ createRuntime }, { createCore }] = await Promise.all([
@@ -228,7 +229,7 @@ test.skip("lethal attack reaches HP 0 and subsequent ticks show no further attac
   assert.equal(acceptedAttacks.length, 1);
 });
 
-test.skip("counter-attack lets warden attack delver on the same tick and changes both HP values", async () => {
+test("counter-attack lets warden attack delver on the same tick and changes both HP values", async () => {
   // Runtime currently advances the primary actor persona only; no same-tick multi-actor counter-attack pass exists.
   const [{ createRuntime }, { createCore }] = await Promise.all([
     import("../../packages/runtime/src/runner/runtime.js"),

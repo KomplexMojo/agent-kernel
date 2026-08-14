@@ -1,6 +1,14 @@
 import { createLlmAdapter } from "../../adapters-web/src/adapters/llm/index.js";
-import { runLlmBudgetLoop } from "../../runtime/src/personas/orchestrator/llm-budget-loop.js";
-import { runLlmSession } from "../../runtime/src/personas/orchestrator/llm-session.js";
+import { runLlmBudgetLoop } from "../../runtime/src/personas/orchestrator/persona.js";
+// CR.4 M5: the LLM session runs as an Orchestrator round; this host dispatches its
+// `llm_request` effects through ports/effects.js so the IO happens in the adapter.
+// Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
+import { runLlmSessionHosted } from "../../runtime/src/commands/llm-host.js";
+import { beginDirectorBuildCapabilities } from "../../runtime/src/commands/director-round.js";
+// M8: the empty-catalog fallback below was the only place in the tree that named
+// PoolCatalog, and it named it as a literal — one use site is exactly the case a
+// declaration-keyed census cannot distinguish from "this schema does not exist".
+import { POOL_CATALOG_SCHEMA } from "../../runtime/src/contracts/artifacts.ts";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
@@ -17,11 +25,9 @@ import { resolveIconHTML } from "./icon-resolver.js";
 import {
   MOTIVATION_DISPLAY_GROUPS,
   MOTIVATION_KINDS,
-} from "../../runtime/src/personas/configurator/motivation-loadouts.js";
-import {
-  normalizeCardType,
   normalizeCardCount,
-} from "../../runtime/src/personas/configurator/card-model.js";
+  normalizeCardType,
+} from "../../runtime/src/contracts/domain-constants.js";
 import {
   BUDGET_BUCKET_ORDER,
   CARD_PROPERTY_GROUP_ORDER,
@@ -2466,17 +2472,31 @@ export function wireDesignGuidance({
           baseUrl: llmConfig.baseUrl || DEFAULT_LLM_BASE_URL,
           fetchFn: llmConfig.fetchFn || fetch,
         }));
+      // M5b.2a′: hoisted so the Director round and the loop share ONE identity — two
+      // Date.now() reads would give the round and the artifacts different run ids.
+      const uiRunId = `ui_card_ai_${Date.now()}`;
+      const uiCreatedAt = new Date().toISOString();
       const result = await runLlmBudgetLoop({
+        // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
+        runSession: runLlmSessionHosted,
+        // M5b.2b: one round answers the pool mapping AND the three Allocator pricing
+        // questions the loop used to compute inline.
+        ...beginDirectorBuildCapabilities({
+          runId: uiRunId,
+          createdAt: uiCreatedAt,
+          goal: prompt,
+          producedBy: "ui",
+        }),
         adapter,
         model: llmConfig.model || DEFAULT_LLM_MODEL,
-        catalog: llmConfig.catalog || { schema: "agent-kernel/PoolCatalog", schemaVersion: 1, entries: [] },
+        catalog: llmConfig.catalog || { schema: POOL_CATALOG_SCHEMA, schemaVersion: 1, entries: [] },
         goal: prompt,
         notes: "Generate card-ready room, delver, and warden outputs.",
         budgetTokens: state.budgetTokens,
         priceList: llmConfig.priceList,
         maxActorRounds: 1,
-        runId: `ui_card_ai_${Date.now()}`,
-        clock: () => new Date().toISOString(),
+        runId: uiRunId,
+        clock: () => uiCreatedAt,
       });
       if (!result.ok) {
         throw new Error(result.errors?.[0]?.code || "ai_loop_failed");
@@ -2492,13 +2512,22 @@ export function wireDesignGuidance({
         fetchFn: llmConfig.fetchFn || fetch,
       }));
 
-    const session = await runLlmSession({
+    const sessionRunId = `ui_card_session_${Date.now()}`;
+    const sessionClock = () => new Date().toISOString();
+    const session = await runLlmSessionHosted({
       adapter,
       model: llmConfig.model || DEFAULT_LLM_MODEL,
       prompt,
-      runId: `ui_card_session_${Date.now()}`,
-      clock: () => new Date().toISOString(),
+      runId: sessionRunId,
+      clock: sessionClock,
       strict: false,
+      // CR.7 / WP-5: a cardSet is the Director's translation, injected rather than imported.
+      // Bound to an open build round, as the budget-loop path above already does.
+      buildCardSet: beginDirectorBuildCapabilities({
+        runId: sessionRunId,
+        createdAt: sessionClock(),
+        goal: prompt,
+      }).buildCardSet,
     });
     if (!session.ok) {
       throw new Error(session.errors?.[0]?.code || "ai_session_failed");

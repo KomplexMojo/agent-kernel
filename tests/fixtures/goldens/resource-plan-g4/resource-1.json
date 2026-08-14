@@ -1,0 +1,19 @@
+{
+  "schema": "agent-kernel/ResourceArtifact",
+  "schemaVersion": 3,
+  "meta": {
+    "id": "resource_1",
+    "runId": "golden_g4",
+    "createdAt": "2026-07-18T00:00:00.000Z",
+    "producedBy": "cli-resource-plan"
+  },
+  "vitals": [],
+  "permanenceMode": "consumable",
+  "affinity": {
+    "kind": "water",
+    "expression": "emit",
+    "stacks": 2,
+    "mana": 50,
+    "manaRegen": 5
+  }
+}

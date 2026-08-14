@@ -13,11 +13,13 @@ import { resolveIcon } from "./icon-resolver.js";
 import { shouldHydrateDesignFromBundleSource } from "./build-spec-ui.js";
 import { connectSandboxBridge } from "./sandbox-bridge-client.js";
 import { createDefaultResourceBundleArtifact } from "../../runtime/src/render/resource-bundle.js";
+import {
+  AFFINITY_SUMMARY_SCHEMA,
+  INITIAL_STATE_SCHEMA,
+  RESOURCE_BUNDLE_SCHEMA,
+  SIM_CONFIG_SCHEMA,
+} from "../../runtime/src/contracts/artifacts.ts";
 
-const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
-const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
-const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
-const RESOURCE_BUNDLE_SCHEMA = "agent-kernel/ResourceBundleArtifact";
 
 const tabButtons = document.querySelectorAll("[data-tab]");
 const tabPanels = document.querySelectorAll("[data-tab-panel]");
@@ -198,7 +200,7 @@ tabs = wireTabs({
 globalThis.__ak_setActiveTab = (id) => tabs?.setActive(id);
 
 // M7: scenario loader — compile a scenario JSON into a gameplay bundle and load it.
-// Used by the UI sandbox controls and by Playwright tests that inject scenarios.
+// Used by the UI sandbox controls and by tests that inject scenarios.
 globalThis.__ak_loadScenario = async (scenario, options = {}) => {
   const { compileScenarioToBundle } = await import("./scenario-loader.js");
   const bundle = await compileScenarioToBundle(scenario);

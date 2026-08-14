@@ -106,71 +106,45 @@ ${forbiddenArtifacts.map((artifact) => `  assert.equal(existsSync(join(outDir, $
 
 function scaffoldServeUiRedirect(args) {
   const title = args.title ?? "serve-ui falls back and stays healthy";
-  return `import { test, expect } from "@playwright/test";
-import { createServer } from "node:http";
-import { listenWithPortFallback } from "../../scripts/serve-ui.mjs";
+  const startPort = Number(args.startPort ?? 8010);
+  return `const assert = require("node:assert/strict");
+const { createServer } = require("node:http");
+const { once } = require("node:events");
 
 async function listen(server, port) {
-  await new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", resolve);
-  });
+  server.listen(port, "127.0.0.1");
+  await once(server, "listening");
 }
 
 async function closeServer(server) {
-  await new Promise((resolve) => server.close(resolve));
+  server.close();
+  await once(server, "close");
 }
 
-test(${JSON.stringify(title)}, async ({ page, request }) => {
+test(${JSON.stringify(title)}, async () => {
+  const { listenWithPortFallback } = await import("../../scripts/serve-ui.mjs");
+
   const blocker = createServer((_req, res) => {
     res.statusCode = 200;
     res.end("blocked");
   });
-  await listen(blocker, ${Number(args.startPort ?? 8010)});
+  await listen(blocker, ${startPort});
 
   const { port, server } = await listenWithPortFallback({
-    startPort: ${Number(args.startPort ?? 8010)},
+    startPort: ${startPort},
     maxAttempts: 3,
     hostname: "127.0.0.1",
   });
 
   try {
-    expect(port).toBe(${Number(args.startPort ?? 8010) + 1});
-    const health = await request.get(\`http://127.0.0.1:\${port}/health\`);
-    expect(health.ok()).toBeTruthy();
-    await page.goto(\`http://127.0.0.1:\${port}/\`);
-    await expect(page).toHaveURL(new RegExp("/packages/ui-web/index.html$"));
+    assert.equal(port, ${startPort + 1});
+    const health = await fetch(\`http://127.0.0.1:\${port}/health\`);
+    assert.equal(health.ok, true);
+    const root = await fetch(\`http://127.0.0.1:\${port}/\`, { redirect: "follow" });
+    assert.match(new URL(root.url).pathname, /\\/packages\\/ui-web\\/index\\.html$/);
   } finally {
     await closeServer(server);
     await closeServer(blocker);
-  }
-});
-`;
-}
-
-function scaffoldBrowserBundleLoadFlow(args) {
-  const bundlePath = args.bundlePath ?? "tests/fixtures/ui/build-spec-bundle/bundle.json";
-  const title = args.title ?? "browser bundle load flow stays healthy";
-  return `import { test, expect } from "@playwright/test";
-import { resolveFixturePath, startServeUi, stopProcess } from "./helpers/serve-ui.mjs";
-
-const bundlePath = resolveFixturePath(...${JSON.stringify(bundlePath.split("/"))});
-
-test(${JSON.stringify(title)}, async ({ page }) => {
-  const served = await startServeUi();
-
-  try {
-    await page.goto(served.url);
-    await page.locator('[data-tab="diagnostics"]').click();
-    await expect(page.locator('[data-tab-panel="diagnostics"]').first()).toBeVisible();
-
-    await page.setInputFiles("#bundle-file", bundlePath);
-    await expect(page.locator("#bundle-status")).toContainText("Bundle loaded");
-
-    await page.locator('[data-tab="simulation"]').click();
-    await expect(page.locator('[data-tab-panel="simulation"]').first()).toBeVisible();
-  } finally {
-    await stopProcess(served.proc);
   }
 });
 `;
@@ -680,7 +654,7 @@ export const testingTools = [
       const suites = new Set();
       for (const path of paths) {
         if (path.startsWith("packages/ui-web/") || path.startsWith("tests/ui-web/") || path.includes("serve-ui")) {
-          runners.add("playwright");
+          runners.add("vitest");
           suites.add("ui-web");
           continue;
         }
@@ -699,11 +673,11 @@ export const testingTools = [
   }),
   createHandlerTool({
     name: "ak_test_run",
-    description: "Run the test harness inventory, Vitest, Playwright, legacy, or combined matrix scripts.",
+    description: "Run the test harness inventory, Vitest, legacy, or combined matrix scripts.",
     inputSchema: {
       required: ["mode"],
       properties: {
-        mode: stringSchema("One of inventory, classify, coverage, recipe-adoption, parity, vitest, playwright, legacy, all."),
+        mode: stringSchema("One of inventory, classify, coverage, recipe-adoption, parity, vitest, legacy, all."),
         args: stringArraySchema("Additional args passed to the selected runner script."),
       },
     },
@@ -777,9 +751,6 @@ export const testingTools = [
           break;
         case "manifest_bundle_consistency":
           content = scaffoldManifestBundleConsistency(args);
-          break;
-        case "browser_bundle_load_flow":
-          content = scaffoldBrowserBundleLoadFlow(args);
           break;
         case "adapter_port_contract":
           content = scaffoldAdapterPortContract(args);
@@ -876,9 +847,6 @@ export const testingTools = [
         case "manifest_bundle_consistency":
           fragment = scaffoldManifestBundleConsistency(args).trim();
           break;
-        case "browser_bundle_load_flow":
-          fragment = scaffoldBrowserBundleLoadFlow(args).trim();
-          break;
         case "adapter_port_contract":
           fragment = scaffoldAdapterPortContract(args).trim();
           break;
@@ -932,14 +900,13 @@ export const testingTools = [
   }),
   createHandlerTool({
     name: "ak_test_lint_structure",
-    description: "Report structural migration gaps: uncategorized recipes, codemod exceptions, and browser candidates.",
+    description: "Report structural migration gaps: uncategorized recipes and codemod exceptions.",
     inputSchema: {
       properties: {},
     },
     handler: async () => {
       const inventory = ensureInventory();
       const codemod = readCodemodExceptions();
-      const browserCandidates = inventory.files.filter((entry) => entry.runner === "playwright");
       const uncategorized = inventory.files.filter((entry) => entry.recipe === "general");
       const adoption = runNodeScript("scripts/testing/check-test-recipe-adoption.mjs");
       return {
@@ -948,8 +915,6 @@ export const testingTools = [
         uncategorized: uncategorized.map((entry) => entry.path),
         codemodExceptionCount: codemod.count ?? 0,
         codemodExceptions: codemod.exceptions ?? [],
-        browserCandidateCount: browserCandidates.length,
-        browserCandidates: browserCandidates.map((entry) => entry.path),
         recipeAdoption: adoption.parsed ?? null,
         scaffoldableRecipes: SCAFFOLDABLE_RECIPES,
       };

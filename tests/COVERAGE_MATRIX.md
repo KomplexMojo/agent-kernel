@@ -16,13 +16,12 @@ a missing case becomes a failing test, never silent drift.
 |---|---|---|
 | **L1 — CLI/MCP per-element** | [`integration/element-matrix-cli.test.mjs`](integration/element-matrix-cli.test.mjs) | `ak create`/`run`; asserts each element round-trips into sim-config / initial-state / spec |
 | **Ladder — author→build→run** | [`integration/complexity-ladder.test.mjs`](integration/complexity-ladder.test.mjs) + [`fixtures/scenarios/complexity-ladder/`](fixtures/scenarios/complexity-ladder/) | escalating T0→T3 fixtures through the full pipeline |
-| **L2 — UI element render** | [`playwright/element-matrix-ui.spec.mjs`](playwright/element-matrix-ui.spec.mjs) | `index_c.html` via `serve:c`; build → gameplay render |
+| **L2 — UI element render** | _removed with the Playwright subsystem (2026-08-01)_ | was `index_c.html` via `serve:c`; build → gameplay render. **This layer is now uncovered** — L1 and L3 assert the data round-trip, but nothing asserts the rendered frame. |
 | **L3 — UI↔CLI parity** | [`integration/ui-cli-equivalence.test.js`](integration/ui-cli-equivalence.test.js) (ladder block) | CLI `build` vs in-process cli-worker (browser) adapter |
 
 Run: `pnpm run test:vitest -- tests/integration/element-matrix-cli.test.mjs`
 · `pnpm run test:vitest -- tests/integration/complexity-ladder.test.mjs`
 · `pnpm run test:vitest -- tests/integration/ui-cli-equivalence.test.js`
-· `pnpm run test:playwright -- tests/playwright/element-matrix-ui.spec.mjs`
 
 ## Element coverage
 
