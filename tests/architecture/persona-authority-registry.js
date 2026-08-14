@@ -56,6 +56,7 @@ const REGISTRY = Object.freeze([
   // ── Orchestrator ───────────────────────────────────────────────────────────
   {
     id: "orchestrator/llm-session",
+    chartered: "orchestrator/llm-sessions",
     persona: "orchestrator",
     behavior: "Owns every external interaction seam: LLM sessions run as persona rounds",
     criteria: ["A5"],
@@ -92,6 +93,7 @@ const REGISTRY = Object.freeze([
 
   {
     id: "orchestrator/deferred-side-effects",
+    chartered: "orchestrator/workflow-coordination",
     persona: "orchestrator",
     behavior: "Effects deferred during execution are coordinated by the Orchestrator after the run",
     criteria: ["A2", "A5"],
@@ -127,6 +129,7 @@ const REGISTRY = Object.freeze([
   // ── Director ───────────────────────────────────────────────────────────────
   {
     id: "director/plan-artifact",
+    chartered: "director/intent-to-plan",
     persona: "director",
     behavior: "Translates intent into structure: the persisted PlanArtifact is the plan that drove the spec",
     criteria: ["A2", "A5"],
@@ -143,6 +146,7 @@ const REGISTRY = Object.freeze([
   // nothing walks from a test back to the registry.
   {
     id: "director/pool-mapping",
+    chartered: "director/plan-to-buildspec",
     persona: "director",
     behavior: "Mapping an LLM summary onto catalog pools is the Director's decision, inside an open round",
     criteria: ["A2", "A3"],
@@ -162,6 +166,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "director/card-set-translation",
+    chartered: "director/plan-to-buildspec",
     persona: "director",
     behavior: "Summary → cardSet is the Director's translation; the gated and ungated surfaces share one origin",
     criteria: ["A3"],
@@ -182,6 +187,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "director/pricing-relay",
+    chartered: "director/plan-to-buildspec",
     persona: "director",
     behavior: "The Director relays the Allocator's pricing answers; neither it nor the loop computes them",
     criteria: ["A1", "A2"],
@@ -204,6 +210,7 @@ const REGISTRY = Object.freeze([
   // ── Configurator ───────────────────────────────────────────────────────────
   {
     id: "configurator/feasibility-verdict",
+    chartered: "configurator/feasibility",
     persona: "configurator",
     behavior: "Layout feasibility is the Configurator's verdict; the Director derives the geometry it judges",
     criteria: ["A1", "A2"],
@@ -224,6 +231,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "configurator/input-preparation",
+    chartered: "configurator/levels",
     persona: "configurator",
     behavior: "Grid sizing, hazard placement and resource mapping run behind the persona's CONFIG-plane surface",
     criteria: ["A3"],
@@ -245,6 +253,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "configurator/validate-lock@build",
+    chartered: "configurator/validate-and-lock",
     persona: "configurator",
     behavior: "Assembles, validates and locks configurations — BUILD plane",
     criteria: ["A2", "A3"],
@@ -256,6 +265,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "configurator/validate-lock@tick",
+    chartered: "configurator/validate-and-lock",
     persona: "configurator",
     behavior: "Assembles, validates and locks configurations — TICK plane",
     criteria: ["A3"],
@@ -274,6 +284,7 @@ const REGISTRY = Object.freeze([
 
   {
     id: "configurator/locked-config-is-the-input",
+    chartered: "configurator/validate-and-lock",
     persona: "configurator",
     behavior: "The config a build consumes is the one the Configurator locked, unedited afterwards",
     criteria: ["A5"],
@@ -297,6 +308,7 @@ const REGISTRY = Object.freeze([
   // ── Allocator ──────────────────────────────────────────────────────────────
   {
     id: "allocator/pricing-single-origin",
+    chartered: "allocator/pricing-formulas",
     persona: "allocator",
     behavior: "The economy: every token cost has one author inside the Allocator",
     criteria: ["A1"],
@@ -321,6 +333,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "allocator/judges-not-authors",
+    chartered: "allocator/price-lists",
     persona: "allocator",
     behavior: "The Allocator prices a config it did not author, by reading the artifact's published fields",
     criteria: ["A1"],
@@ -346,6 +359,7 @@ const REGISTRY = Object.freeze([
 
   {
     id: "allocator/spend-authority",
+    chartered: "allocator/spend-validation",
     persona: "allocator",
     behavior: "A build the Allocator will not fund does not happen: the receipt gates production",
     criteria: ["A2"],
@@ -375,6 +389,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "allocator/budget-maximization",
+    chartered: "allocator/budget-maximization",
     persona: "allocator",
     behavior: "Maximizing a config against a budget spends the Allocator's prices, never an assumed one",
     criteria: ["A1"],
@@ -396,6 +411,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "allocator/reconciliation",
+    chartered: "allocator/reconciliation",
     persona: "allocator",
     behavior: "Reconciling actual spend against the issued budget, and adjusting",
     criteria: ["A1", "A2"],
@@ -432,6 +448,7 @@ const REGISTRY = Object.freeze([
   // ── Actor ──────────────────────────────────────────────────────────────────
   {
     id: "actor/serializable-decision",
+    chartered: "actor/action-proposal",
     persona: "actor",
     behavior: "Proposes actions deterministically: the decision is a pure function of serialized state",
     criteria: ["A4"],
@@ -446,6 +463,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "actor/no-budget-policy",
+    chartered: "actor/action-proposal",
     persona: "actor",
     behavior: "The Actor emits candidate proposals; budget admissibility is not its call",
     criteria: ["A1"],
@@ -460,6 +478,7 @@ const REGISTRY = Object.freeze([
 
   {
     id: "actor/motivation-to-proposal",
+    chartered: "actor/action-proposal",
     persona: "actor",
     behavior: "Turning motivations and an observation into proposed actions is the Actor's decision",
     criteria: ["A2"],
@@ -483,6 +502,7 @@ const REGISTRY = Object.freeze([
   // ── Moderator ──────────────────────────────────────────────────────────────
   {
     id: "moderator/tick-ordering",
+    chartered: "moderator/tick-ordering",
     persona: "moderator",
     behavior: "Controls the tick: ordering strategy and effect fulfilment are the Moderator's decision",
     criteria: ["A1", "A2"],
@@ -498,6 +518,7 @@ const REGISTRY = Object.freeze([
 
   {
     id: "moderator/pausing-gates-advancement",
+    chartered: "moderator/pausing",
     persona: "moderator",
     behavior: "`pausing` is a real gate: a paused Moderator refuses to advance step()",
     criteria: ["A3"],
@@ -517,6 +538,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "moderator/affinity-target-resolution",
+    chartered: "moderator/affinity-resolution",
     persona: "moderator",
     behavior: "Resolving which actors an affinity targets, and the effects that follow, is Moderator policy",
     criteria: ["A1", "A2"],
@@ -542,6 +564,7 @@ const REGISTRY = Object.freeze([
   // ── Annotator ──────────────────────────────────────────────────────────────
   {
     id: "annotator/per-tick-telemetry",
+    chartered: "annotator/per-tick-telemetry",
     persona: "annotator",
     behavior: "Per-tick TelemetryRecords are captured by the Annotator, not assembled by the runner",
     criteria: ["A2", "A5"],
@@ -564,6 +587,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "annotator/run-summary-provenance",
+    chartered: "annotator/run-summary",
     persona: "annotator",
     behavior: "The end-of-run RunSummary is produced by the instance that observed the run",
     criteria: ["A2", "A5"],
