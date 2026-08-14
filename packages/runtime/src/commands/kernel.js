@@ -8,26 +8,37 @@ import { filterSchemaCatalogEntries } from "../contracts/schema-catalog.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
-import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
-import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
+// CR.7 / WP-5 — level geometry, artifact assembly and affinity resolution are Configurator
+// law; this file is glue. They came off three persona internals and now come off the public
+// surface, retiring three allowlist rows. Local names unchanged, so call sites are untouched.
+const {
+  generateGridLayoutFromInput,
+  buildSimConfigArtifact,
+  buildInitialStateArtifact,
+  resolveAffinityEffects,
+} = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 import { createCore } from "../../../core-ts/src/index.ts";
-import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
-import { resolveAffinityEffects } from "../personas/configurator/affinity-effects.js";
+// CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
+import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
 // CR.4 M4b: the LLM session now runs as an Orchestrator ROUND — the persona returns
 // `llm_request` effects and this host dispatches them through ports/effects.js, so the
 // IO happens in the adapter instead of inline inside the persona. Drop-in replacement:
 // same arguments, same result shape (proven by the differential in
 // tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "./llm-host.js";
-import { runLlmBudgetLoop } from "../personas/orchestrator/llm-budget-loop.js";
+import { runLlmBudgetLoop } from "../personas/orchestrator/persona.js";
 import { createRuntime } from "../runner/runtime.js";
+// CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
+// it. `prompt-contract.js` only renamed these (P5.1 D1: one value, three names), so the
+// boundary crossing died with the hop rather than being republished. Aliased on import so
+// the call sites below are untouched.
 import {
-  ALLOWED_AFFINITIES,
-  ALLOWED_AFFINITY_EXPRESSIONS,
-  ALLOWED_MOTIVATIONS,
-  deriveAllowedOptionsFromCatalog,
-  normalizeSummary,
-} from "../personas/orchestrator/prompt-contract.js";
+  AFFINITY_KINDS as ALLOWED_AFFINITIES,
+  AFFINITY_EXPRESSIONS as ALLOWED_AFFINITY_EXPRESSIONS,
+  MOTIVATION_KINDS as ALLOWED_MOTIVATIONS,
+} from "../contracts/domain-constants.js";
+// Genuinely Orchestrator law — the prompt contract itself — so taken from its barrel.
+import { deriveAllowedOptionsFromCatalog, normalizeSummary } from "../personas/orchestrator/persona.js";
 import {
   applyActorOverrides,
   applyTileOverrides,
@@ -1130,9 +1141,24 @@ export function createCommandKernel(host = {}) {
       simConfigRef: toRef(simConfig),
     });
 
+    // P5.5 — the chartered post-run step, after the run and after the summary: effects the
+    // run could not satisfy deterministically are coordinated by the Orchestrator, and what
+    // came back is captured for future deterministic runs. Before this they were marked
+    // `deferred`, counted by `ak inspect`, and dropped.
+    //
+    // Written only when there was something to coordinate. `null` means the run deferred
+    // nothing, and a file recording an empty settlement would read as "all coordinated" —
+    // the same conflation the round itself refuses.
+    const deferredCoordination = runtime.coordinateDeferredEffects({
+      meta: createMeta({ producedBy: "orchestrator", runId }),
+    });
+
     await writeJson(join(outDir, "tick-frames.json"), tickFrames);
     await writeJson(join(outDir, "effects-log.json"), effectLog);
     await writeJson(join(outDir, "runtime-decision-captures.json"), runtimeDecisionCaptures);
+    if (deferredCoordination) {
+      await writeJson(join(outDir, "deferred-coordination.json"), deferredCoordination);
+    }
     await writeJson(join(outDir, "run-summary.json"), runSummary);
     await writeJson(join(outDir, "action-log.json"), actionLog);
     if (affinitySummary && affinitySummaryPath) {
@@ -2028,6 +2054,10 @@ export function createCommandKernel(host = {}) {
           model,
           baseUrl,
           prompt: isNonEmptyString(finalPrompt) ? finalPrompt : undefined,
+          // CR.7 / WP-5: the session attaches a cardSet to its summary, and that is the
+          // Director's translation. Uses THIS round's director, deliberately not
+          // beginDirectorBuildCapabilities() — see the budget-loop note above.
+          buildCardSet: director.buildCardSet,
           goal,
           budgetTokens: resolvedBudgetTokens,
           strict: isLlmStrictEnabled(),
@@ -2063,6 +2093,10 @@ export function createCommandKernel(host = {}) {
             model,
             baseUrl,
             prompt: catalogRepairPrompt,
+            // CR.7 / WP-5: the session attaches a cardSet to its summary, and that is the
+            // Director's translation. Uses THIS round's director, deliberately not
+            // beginDirectorBuildCapabilities() — see the budget-loop note above.
+            buildCardSet: director.buildCardSet,
             goal,
             budgetTokens: resolvedBudgetTokens,
             strict: isLlmStrictEnabled(),

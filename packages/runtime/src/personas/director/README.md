@@ -4,7 +4,7 @@ The Director is the **planning and intent-translation persona**.
 
 It is responsible for turning high-level strategy into **structured, actionable plans** that can be executed by downstream personas. The Director bridges the gap between external intent and internal execution by shaping goals, constraints, and tactics into a form the system can reason about.
 
-When LLMs are used, the Director authors the prompt plan and response contract. The Orchestrator performs the IO, captures the exchange, and hands the resulting guidance back as explicit artifacts.
+When LLMs are used, the Director authors the prompt plan and response contract. The Orchestrator runs the exchange as a persona round that *asks* for the call; glue dispatches it and the adapter performs the IO. The captured exchange comes back as explicit artifacts.
 
 This document defines the Director as a **runtime planning role**. Simulation rules, configuration assembly, budgeting policy, and execution remain the responsibility of other personas and the simulation core (`core-ts`).
 
@@ -19,6 +19,34 @@ This document defines the Director as a **runtime planning role**. Simulation ru
 | Primary inputs | Human/agent intent, scenario objectives, external guidance artifacts |
 | Primary outputs | Planning artifacts, constraints, directives, prompt plans |
 | Boundary | Defines what should be attempted; downstream personas decide feasibility and execution |
+
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:director -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `director/plan-artifact` — the persisted PlanArtifact is the plan that actually drove the spec | A2, A5 | ✅ owned (CR.3) | `tests/architecture/persona-authority.test.js` |
+| `director/pool-mapping` — mapping a summary onto catalog pools, inside an open round | A2, A3 | ✅ owned (CR.4 M5b.2a′) | `tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js` |
+| `director/card-set-translation` — summary → cardSet, with one gated and one ungated surface | A3 | ✅ owned (CR.4 M5b.2e / CR.7) | `tests/personas/director/director-card-translation.test.js` |
+| `director/pricing-relay` — it relays the Allocator's pricing answers and computes none of them | A1, A2 | ✅ owned (CR.4 M5b.2b–2d) | `tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **The three translation rows were registered on 2026-08-12, and their proofs already existed.**
+An earlier version of this section said they had no G1 entry and were therefore unowned. That was
+true of the *registry* and false of the *tree*: `orchestrator-llm-budget-loop.test.js` had been
+asserting "the loop REFUSES to run without a Director pool mapper" — and the same for each relayed
+Allocator answer — since CR.4 M5b. **A required capability with no default is the A2 question asked
+in production**: the persona cannot be neutered, because its absence is a refusal rather than a
+fallback. Nothing walked from those tests back to the registry, which is the same gap in the
+opposite direction from the stale CR.4 entry fixed the same day.
 
 ## Persona Scope
 
@@ -64,7 +92,7 @@ When using an LLM (e.g. Ollama), the Director owns the prompt plan:
 - Keep the contract small (design intent/constraints), leaving schema completion and defaults to the Orchestrator.
 - Provide a repair prompt strategy for invalid responses (e.g. "return JSON only; fix field X").
 
-The Director does not perform IO; the Orchestrator executes the prompt plan and captures results as artifacts.
+The Director does not perform IO. The Orchestrator's round asks for the call and captures the result as an artifact; the IO itself happens in an adapter, dispatched by `commands/llm-host.js` (CR.4).
 
 ---
 
@@ -129,10 +157,50 @@ interchangeable** — `({ roomCount })` in `buildspec-assembler.js`, and `(summa
 controller. This method uses the former; the import is aliased `deriveLevelGenFromRoomCount` so the
 call site says which. Nothing guards the name.
 
-⚠️ **`roomCount` is accepted and no caller supplies one.** Both budget-loop call sites pass a layout,
-so the no-layout path always derives from `undefined` and returns a two-error refusal. That is
-pre-existing behavior, captured in the characterization fixture and preserved deliberately — a latent
-defect to fix in its own diff, against the fixture.
+⚠️ **`roomCount` is accepted and no production caller supplies one** — both budget-loop call sites
+pass a layout. The no-layout path is still a real capability: an integer `roomCount` derives valid
+geometry and answers normally.
+
+**Fixed as ITEM C (2026-08-12).** A *missing* `roomCount` with no layout used to derive from
+`undefined` — `deriveLevelGen` computes `Math.max(5, roomCount * 2 + 5)`, so the levelGen came out
+`{ width: NaN, height: NaN }` and the refusal blamed `levelGen.width`/`levelGen.height`, fields the
+caller never supplied. It now refuses with `{ field: "roomCount", code:
+"missing_layout_or_room_count" }`, naming the caller's actual omission. The guard tests
+`Number.isInteger`, not truthiness: `roomCount: 0` derives a valid minimum-side level and is not the
+broken input.
+
+The refusal lives in `director-services.js`, **not** in `configurator/feasibility.js`. Deriving
+geometry from an intent is this persona's translation, so validating that the intent is derivable is
+this persona's job — and the Configurator's `assessLayoutFeasibility` is characterized by 185
+captured cases, 56 of them on the absent-layout branch recording the old NaN verdict. A guard pushed
+down there would drift that fixture.
+
+### Card-set translation — `resolveSummary` / `normalizeCard` / `cardSetFromSummary` (CR.7 / WP-5)
+
+Published 2026-08-12, ungated. `commands/card-authoring.js` imported these three from
+`summary-selections.js` directly and was the last of the eight orphaned allowlist rows; the charter
+names `card-authoring` as glue, and glue holds no domain logic.
+
+⚠️ **`cardSetFromSummary` is an ungated sibling of the gated `buildCardSet` below, and they call the
+same function.** The distinction is the caller's situation, not the computation:
+
+| | For | Gate |
+|---|---|---|
+| `buildCardSet` | a cardSet stamped into a **persisted BuildSpec**, during a build round | `PLANNED_STATES` |
+| `cardSetFromSummary`, `resolveSummary`, `normalizeCard` | reading/normalizing a card set the caller **already holds**, on an authoring or preview surface that stamps nothing | none |
+
+Gating the translation surface would refuse the card-authoring and preview paths, where no build
+round exists or should — an outage rather than a boundary, which is the D8.3 trap. It is the same
+split `deriveLevelGen` (ungated preview) already makes against `assembleBuildSpec` (gated).
+
+**The Orchestrator must keep using `buildCardSet`**, which it receives injected from
+`beginDirectorBuildCapabilities` bound to an open round. Its gate was a *label* until M5b.2e's
+perturbation forced it to be real, so `tests/personas/director/director-card-translation.test.js`
+asserts both halves: the translation answers with no round, **and** `buildCardSet` is still gated and
+returns exactly what `cardSetFromSummary` returns — one origin, two entry points.
+
+`resolveSummary` fetches the Configurator's room geometry itself (D8.3), so callers no longer
+assemble the `deriveRoomLayout`/`buildRoomDesign` pair.
 
 ### `buildCardSet` — the Director's own translation, not a relay (CR.4 M5b.2e)
 

@@ -452,6 +452,9 @@ async function runPhase({
   // CR.4 M5b: threaded from runLlmBudgetLoop. runPhase drives both sessions (primary and
   // its own repair), so it is where the IO used to happen inside the persona.
   runSession,
+  // CR.7 / WP-5: forwarded to both sessions runPhase drives. The session attaches a cardSet
+  // to its own phase summary, and that translation is the Director's.
+  buildCardSet,
   // CR.4 M5b.2a′: mapping an LLM summary onto catalog pools is the DIRECTOR's decision.
   // runPhase serves both phases, so all four mapping sites migrate together.
   mapPool,
@@ -484,6 +487,9 @@ async function runPhase({
     adapter,
     model,
     baseUrl,
+    // CR.7 / WP-5: the session builds a cardSet for its own phase summary and must not
+    // import the Director to do it either. The loop already holds the capability.
+    buildCardSet,
     prompt: basePrompt,
     goal,
     notes,
@@ -703,6 +709,7 @@ async function runPhase({
     adapter,
     model,
     baseUrl,
+    buildCardSet,
     prompt: repairPrompt,
     goal,
     notes,
@@ -1199,6 +1206,7 @@ export async function runLlmBudgetLoop({
 
   const layoutPhase = await runPhase({
     runSession,
+    buildCardSet,
     mapPool,
     fitLayout,
     evaluateLayoutSpend,
@@ -1293,6 +1301,7 @@ export async function runLlmBudgetLoop({
 
     const actorsPhase = await runPhase({
     runSession,
+    buildCardSet,
     mapPool,
     fitLayout,
     evaluateLayoutSpend,

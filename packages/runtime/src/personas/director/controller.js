@@ -310,6 +310,16 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     // CR.4 M5b.2e — summary → cardSet; the budget loop used to do this by importing
     // `summary-selections.js`.
     buildCardSet: services.buildCardSet,
+    // CR.7 / WP-5 — card-set TRANSLATION for authoring and preview surfaces. Ungated, unlike
+    // `buildCardSet` directly above: these read/normalize a card set the caller already holds
+    // and stamp nothing. `cardSetFromSummary` is an ungated sibling of `buildCardSet` on
+    // purpose — read the long note in director-services.js before using either.
+    resolveSummary: services.resolveSummary,
+    normalizeCard: services.normalizeCard,
+    cardSetFromSummary: services.cardSetFromSummary,
+    // CR.7 / WP-5 — budget trimming for ui-flow. GATED: it decides which selections
+    // survive, and the result reaches a BuildSpec.
+    enforceBudget: services.enforceBudget,
     assembleBuildSpec: services.assembleBuildSpec,
     // CR.4 M5b.2b — the Orchestrator's budget loop asks the Director for these; the
     // Director asks the Allocator. One counterpart for the loop, one owner for pricing.

@@ -1,8 +1,13 @@
-import {
+// CR.7 / WP-5 — level preview rendering is Configurator geometry, taken from the persona's
+// PUBLIC surface. An adapter owns the IO around a preview, not the geometry inside it.
+import { createConfiguratorPersona } from "../../../../runtime/src/personas/configurator/persona.js";
+import { UNUSED_CLOCK } from "../../../../runtime/src/personas/_shared/require-clock.js";
+
+const {
   buildLevelPreviewFromGuidanceSummary,
   buildLevelPreviewFromLevelGen,
   buildLevelRenderArtifactsFromTiles,
-} from "../../../../runtime/src/personas/configurator/guidance-level-builder.js";
+} = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 import { createDirectorPersona } from "../../../../runtime/src/personas/director/persona.js";
 
 // D8.1 — the Director derives level geometry; the Configurator consumes it.

@@ -1,18 +1,11 @@
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { mapBuildSpecToArtifacts } from "./map-build-spec.js";
 import { solveWithAdapter } from "../ports/solver.js";
-import { generateGridLayoutFromInput } from "../personas/configurator/level-layout.js";
-import { resolveAffinityEffects } from "../personas/configurator/affinity-effects.js";
-import { buildAmbientAffinityPressure } from "../personas/configurator/affinity-pressure.js";
-import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "../personas/configurator/affinity-rules.js";
-import { buildSimConfigArtifact, buildInitialStateArtifact } from "../personas/configurator/artifact-builders.js";
-import { evaluateConfiguratorSpend } from "../personas/allocator/spend-proposal.js";
+// CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
+import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
-import { buildBudgetAllocation } from "../personas/allocator/budget-allocation.js";
-import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "../personas/configurator/motivation-rules.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
-import { computeInternalManaUpkeep } from "../personas/configurator/cost-model.js";
 import {
   DEFAULT_ROOM_CARD_AFFINITY,
   ROOM_AFFINITY_EMIT_PERCENT_PER_STACK,
@@ -29,11 +22,27 @@ import {
   SOLVER_RESULT_SCHEMA,
 } from "../contracts/artifacts.ts";
 
+// CR.7 / WP-5 — the build-geometry helpers this file used to import out of seven Configurator
+// internals now come off the persona's PUBLIC surface, which retired seven allowlist rows. The
+// local names are unchanged, so every call site below reads exactly as it did.
+const configuratorBuild = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+const {
+  generateGridLayoutFromInput,
+  buildSimConfigArtifact,
+  buildInitialStateArtifact,
+  resolveAffinityEffects,
+  normalizeAffinityRulesArtifact,
+  resolveAffinityRules,
+  buildAmbientAffinityPressure,
+  computeInternalManaUpkeep,
+  normalizeMotivationRulesArtifact,
+  resolveMotivationRules,
+} = configuratorBuild;
+
 // CR.9 M3: spend proposals price raw actor motivations, and motivation vocabulary is
 // Configurator law. The Allocator no longer owns a copy of it, so this composition
-// root hands over the Configurator's own function — through the persona's PUBLIC
-// surface, unlike the internal build-geometry imports above.
-const configuratorMotivations = createConfiguratorPersona({ clock: UNUSED_CLOCK }).normalizeMotivations;
+// root hands over the Configurator's own function.
+const configuratorMotivations = configuratorBuild.normalizeMotivations;
 
 // WP-5/D10: same pattern for budget maximization. Scaling authored actors to fill an
 // unspent budget is Configurator work, so it comes off the Configurator's public
@@ -1521,7 +1530,13 @@ export async function orchestrateBuild({
       })
       : null;
     if (mapped.budget?.budget && resolvedPriceList) {
-      const allocationResult = buildBudgetAllocation({
+      // CR.7 / WP-5 — asked of the Allocator's public surface rather than by importing
+      // `budget-allocation.js`. `allocateBudget` IS `buildBudgetAllocation`, wrapped only to
+      // default an absent `priceList` from the persona's own — and this call site supplies one
+      // explicitly, so the wrapper is a no-op here and the allocation is byte-identical.
+      // Constructed inline with `UNUSED_CLOCK` because that is this file's existing idiom for
+      // asking the Allocator a stateless question (see `scenarioSpendReport` below).
+      const allocationResult = createAllocatorPersona({ clock: UNUSED_CLOCK }).allocateBudget({
         budget: mapped.budget.budget,
         priceList: resolvedPriceList,
         meta: createBuildMeta(spec, producedBy, "budget_allocation"),

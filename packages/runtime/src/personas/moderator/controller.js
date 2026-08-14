@@ -9,6 +9,20 @@ import { planEffectFulfillment, FulfillmentDispositions } from "./effect-fulfill
 // controllers only).
 export { FulfillmentDispositions };
 
+/**
+ * CR.7 / WP-5 — affinity TARGET resolution, published for the Configurator.
+ *
+ * `configurator/affinity-effects.js` imported `moderator/affinity-target-effects.js` directly —
+ * the one persona-to-persona row left in this direction. Which entities an affinity targets, and
+ * what it does to them, is Moderator law: it plans affinity actions during the tick. The
+ * Configurator resolves affinity effects at build time and needs the same vocabulary, so it now
+ * asks through this barrel rather than holding a second route to it.
+ */
+export {
+  normalizeAffinityTargetType,
+  resolveAffinityTargetEffectsForEntry,
+} from "./affinity-target-effects.js";
+
 export const moderatorSubscribePhases = Object.freeze([
   TickPhases.INIT,
   TickPhases.OBSERVE,

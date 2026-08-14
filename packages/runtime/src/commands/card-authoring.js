@@ -12,15 +12,12 @@ import {
 } from "../contracts/domain-constants.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { createDirectorPersona } from "../personas/director/persona.js";
+// CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
 import {
   calculateActorConfigurationUnitCost,
   buildDesignSpendLedger,
-} from "../personas/allocator/spend-proposal.js";
-import {
-  buildCardSetFromSummary,
-  extractSummaryFromCardSet,
-  normalizeCardEntry,
-} from "../personas/director/summary-selections.js";
+} from "../personas/allocator/persona.js";
 import {
   coerceMotivationKinds,
   getConflictingMotivationKinds,
@@ -28,14 +25,6 @@ import {
   normalizeCardType,
   normalizeRoomCardSize,
 } from "../contracts/domain-constants.js";
-// The derive*/build* helpers remain Configurator level-geometry logic; only the
-// card TYPE/SIZE vocabulary moved to contracts (P5.1 D1). This import is still an
-// allowlisted boundary crossing (disposition D6 — it needs a controller method).
-import {
-  buildRoomDesignFromRoomCards,
-  deriveLayoutFromRoomCards,
-  deriveLevelGenFromRoomCards,
-} from "../personas/configurator/card-model.js";
 
 // CR.9 M2: room tile counts are Configurator geometry, so the Allocator is handed
 // the Configurator's own derivation rather than importing card-model.js to compute a
@@ -51,10 +40,26 @@ const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 const configuratorGeometry = configurator.deriveRoomLayout;
 // D8.3 — the Director refuses to derive level geometry from room cards; it asks the
 // Configurator. Taken from the PUBLIC persona barrel, so no boundary is crossed.
-const configuratorRoomGeometry = Object.freeze({
-  deriveRoomLayout: configurator.deriveRoomLayout,
-  buildRoomDesign: configurator.buildRoomDesign,
-});
+// CR.7 / WP-5 — card-set TRANSLATION is the Director's, taken from its PUBLIC barrel.
+// This file used to import `director/summary-selections.js` for three functions and was the
+// last of the eight orphaned allowlist rows. All three are ungated on the controller, because
+// they read and normalize a card set this surface already holds and stamp nothing — see the
+// note on `resolveSummary` in director-services.js for why that is not a gate bypass.
+//
+// `resolveSummary` fetches the Configurator's room geometry itself (D8.3), so the
+// `configuratorRoomGeometry` pair this file used to assemble for it is gone.
+const director = createDirectorPersona({ clock: UNUSED_CLOCK });
+
+// CR.7 / WP-5 — disposition D6 ("it needs a controller method") is answered. Two of these
+// three were ALREADY published, as `deriveRoomLayout` and `buildRoomDesign`; only
+// `deriveLevelGenFromRoomCards` had no public name, so this row cost one publication rather
+// than three. Level geometry from room cards stays Configurator law either way.
+const deriveLayoutFromRoomCards = configurator.deriveRoomLayout;
+const buildRoomDesignFromRoomCards = configurator.buildRoomDesign;
+const deriveLevelGenFromRoomCards = configurator.deriveLevelGenFromRoomCards;
+const directorResolveSummary = director.resolveSummary;
+const normalizeCardEntry = director.normalizeCard;
+const buildCardSetFromSummary = director.cardSetFromSummary;
 const configuratorAuthoring = configurator.authorCandidates;
 const configuratorMotivations = configurator.normalizeMotivations;
 const allocatorFor = (priceList) => createAllocatorPersona({
@@ -1396,7 +1401,7 @@ function buildSummaryFromCardSet({
       { id: "resources", weight: readBoundedPercent(budgetSplitPercent.resource, DEFAULT_BUDGET_SPLIT.resource) / 100 },
     ];
   }
-  const summary = extractSummaryFromCardSet(summaryInput, configuratorRoomGeometry);
+  const summary = directorResolveSummary(summaryInput);
   const cardsWithBudget = enrichCardsWithBudget(normalizedCards, {
     budgetTokens: summaryInput.budgetTokens,
     tileCosts,
@@ -1429,7 +1434,7 @@ function buildSummaryFromCardSet({
     // This glue already holds the Director's translation (it calls it above on the
     // unenriched cards); the ledger re-reads the BUDGET-ENRICHED set, so the second
     // call is load-bearing, not a duplicate of the first.
-    resolveSummary: (input) => extractSummaryFromCardSet(input, configuratorRoomGeometry),
+    resolveSummary: (input) => directorResolveSummary(input),
   });
   return {
     summary: finalSummary,

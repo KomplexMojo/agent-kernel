@@ -2,7 +2,8 @@ import { wireBuildOrchestrator } from "../build-orchestrator.js";
 import { wireBundleReview } from "../bundle-review.js";
 import { wireBudgetPanels } from "../budget-panels.js";
 import { createCliWorkerAdapter } from "../../../adapters-web/src/adapters/cli-worker/index.js";
-import { isLlmCaptureArtifact } from "../../../runtime/src/personas/annotator/llm-trace.js";
+// CR.7 / WP-5 — recognising a capture artifact is Annotator law, not a view's to decide.
+import { isLlmCaptureArtifact } from "../../../runtime/src/personas/annotator/persona.js";
 
 function captureKey(capture, index) {
   const metaId = capture?.meta?.id;

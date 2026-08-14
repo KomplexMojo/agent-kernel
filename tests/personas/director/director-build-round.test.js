@@ -78,6 +78,44 @@ test("translation REFUSES before a build begins — the state gates real behavio
   assert.equal(d.view().state, "uninitialized", "a refusal does not move the FSM");
 });
 
+/**
+ * ITEM C (2026-08-12) — `assessFeasibility` names the CALLER's omission, not derived geometry.
+ *
+ * The no-layout path derives a levelGen from `roomCount` via `deriveLevelGen`, which computes
+ * `Math.max(5, roomCount * 2 + 5)` — `NaN` for any non-integer roomCount. The verdict that came
+ * back therefore blamed `levelGen.width` and `levelGen.height`: two fields the caller never
+ * supplied, describing an internal derivation instead of the missing input. No production caller
+ * reaches it (both budget-loop sites pass a layout), which is precisely why it survived the move.
+ *
+ * ⚠️ **THE SCOPE OF THE REFUSAL IS THE POINT**, as with D8.3's card-free geometry. A guard that
+ * fired whenever a layout was absent would delete the no-layout capability rather than fix it —
+ * a supplied roomCount derives valid geometry and answers normally, so only the NaN case refuses.
+ */
+test("assessFeasibility refuses when it has neither a layout nor a usable roomCount", async () => {
+  const d = await makeDirector();
+  d.beginBuild(INTENT);
+
+  const verdict = d.assessFeasibility({ actorCount: 1 });
+  assert.equal(verdict.ok, false);
+  assert.deepEqual(
+    verdict.errors,
+    [{ field: "roomCount", code: "missing_layout_or_room_count" }],
+    "the refusal names what the caller omitted, not the NaN geometry it would have derived",
+  );
+
+  // An integer roomCount still derives and still answers. `0` is included deliberately:
+  // `Math.max(5, ...)` floors the side length, so zero rooms is a valid derivation rather than
+  // the broken input, and a guard keyed on truthiness would have wrongly caught it.
+  assert.deepEqual(d.assessFeasibility({ roomCount: 3, actorCount: 1 }), { ok: true, errors: [] });
+  assert.deepEqual(d.assessFeasibility({ roomCount: 0, actorCount: 1 }), { ok: true, errors: [] });
+
+  // And the path production actually takes is untouched.
+  assert.deepEqual(
+    d.assessFeasibility({ layout: { floorTiles: 10 }, actorCount: 1 }),
+    { ok: true, errors: [] },
+  );
+});
+
 test("beginBuild is idempotent-guarded: a second call in-round throws", async () => {
   const d = await makeDirector();
   d.beginBuild(INTENT);

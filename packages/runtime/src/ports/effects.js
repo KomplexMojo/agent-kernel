@@ -227,6 +227,20 @@ export function dispatchEffect(adapters, effect) {
       // The adapter is the only thing that performs IO; the result may be a promise and
       // the host awaits it, exactly as `solver_request` already works.
       return { status: "fulfilled", result: adapters.llm.generate(effect.request) };
+    // P5.5. This case MUST exist explicitly, for exactly the reason the LLM case above
+    // does: without it a post-run external-fact request falls through to `default:`,
+    // which warns and then reports `fulfilled` — a fact that was never fetched, wearing a
+    // success status, which the coordination round would then capture as provenance.
+    //
+    // ⚠️ It cannot fire during a tick. The Moderator's fulfilment plan resolves every
+    // `need_external_fact` to DETERMINISTIC (it has a sourceRef) or DEFER (it does not)
+    // and never to DISPATCH, so the only caller that reaches here is the post-run
+    // coordination round — which is the one place the charter permits this IO.
+    case "need_external_fact":
+      if (!adapters?.externalFacts?.fetch) {
+        return { status: "deferred", reason: "missing_external_fact_adapter" };
+      }
+      return { status: "fulfilled", result: adapters.externalFacts.fetch(effect) };
     case "limit_violation":
       if (!adapters?.logger?.warn) {
         return { status: "deferred", reason: "missing_logger" };

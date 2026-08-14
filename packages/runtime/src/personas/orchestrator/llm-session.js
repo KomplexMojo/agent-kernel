@@ -9,7 +9,6 @@ import {
   buildLlmPhasePromptTemplate,
 } from "../../contracts/domain-constants.js";
 import { buildLlmCaptureArtifact } from "./llm-capture.js";
-import { buildCardSetFromSummary } from "../director/summary-selections.js";
 
 // ── CR.4 M3: the pure decision layer, shared rather than duplicated ────────────
 // `llm-round.js` runs the SAME escalation ladder without performing IO. Two
@@ -437,11 +436,41 @@ function hasErrorCode(errors, code) {
   return errors.some((entry) => entry && typeof entry === "object" && entry.code === code);
 }
 
-export function buildRepairRequestOptions(options, { errors, phase } = {}) {
-  const codeTriggered = hasErrorCode(errors, "invalid_json")
+/**
+ * Is this a failure a RETRY can plausibly fix?
+ *
+ * Decision 2, 2026-08-13 — this predicate is new, and extracting it IS the fix.
+ *
+ * The retry rung used to be gated on `retryPredict > previousPredict`: a numeric side
+ * effect of `buildRepairRequestOptions`. That one comparison was standing in for two
+ * different questions —
+ *
+ *   1. is this error the kind a retry can fix?
+ *   2. can we afford to ask for more tokens?
+ *
+ * — which agree everywhere except at the 2048 clamp. There, (2) is no, so the gate
+ * silently answered no to (1) as well and **the ladder disabled itself exactly when the
+ * token budget was largest**: the identical malformed response that recovered in two
+ * calls at default options failed permanently in one at the cap, with no error and no
+ * warning. Characterized by CR.4 M1, fixed here.
+ *
+ * The fix is NOT raising the cap — 2048 is a model limit, and raising it would be a
+ * guess. The rung asks question (1) directly; options are still raised whenever they can
+ * be raised, and the clamp still holds.
+ *
+ * ⇒ Same defect class this branch keeps recording: a guard matching one SPELLING of a
+ * condition rather than the condition itself.
+ */
+export function isRetryTriggeringError({ errors, phase } = {}) {
+  return hasErrorCode(errors, "invalid_json")
     || hasErrorCode(errors, "missing_response_text")
     || (phase === "actors_only" && hasErrorCode(errors, "missing_actors"));
-  if (!codeTriggered) {
+}
+
+export function buildRepairRequestOptions(options, { errors, phase } = {}) {
+  // Single origin: the trigger vocabulary lives in isRetryTriggeringError, so the rung
+  // and the option expansion cannot drift apart on which errors count.
+  if (!isRetryTriggeringError({ errors, phase })) {
     return options && typeof options === "object" ? { ...options } : options;
   }
   const next = options && typeof options === "object" ? { ...options } : {};
@@ -463,9 +492,21 @@ export function sanitizeSummaryResponse(responseText, { allowedAffinities, allow
   return sanitizeSummaryValue(value, { allowedAffinities, allowedExpressions, phase });
 }
 
-export function buildCardModelFromLlmSummary(summary) {
-  return buildCardSetFromSummary(summary || {});
-}
+/**
+ * CR.7 / WP-5 (2026-08-12) — `buildCardModelFromLlmSummary` STOOD HERE AND IS GONE.
+ *
+ * It was a one-line rename of `director/summary-selections.js#buildCardSetFromSummary`,
+ * imported straight across the persona boundary, and it was this file's allowlist row. A
+ * cardSet is the DIRECTOR's translation (M5b.2e), so the builder is now an injected
+ * capability on `runLlmSession` and `createLlmRound` — REQUIRED, with no default, for the
+ * same reason the budget loop's `buildCardSet` and `runSession` are: a default would let the
+ * Orchestrator author another persona's artifact with nothing reporting it, and an
+ * un-normalized cardSet is still a well-formed array that serializes and replays.
+ *
+ * Callers get it from `beginDirectorBuildCapabilities` (`commands/director-round.js`), which
+ * binds `director.buildCardSet` to an OPEN build round — that binding matters, because the
+ * Director gates `buildCardSet` on PLANNED_STATES.
+ */
 
 export function normalizeSessionPrompt({
   prompt,
@@ -530,10 +571,25 @@ export async function runLlmSession({
   producedBy = "orchestrator",
   clock,
   requestId,
+  // CR.7 / WP-5 — the Director's cardSet translation, injected. REQUIRED, no default: see
+  // the note where `buildCardModelFromLlmSummary` used to live.
+  buildCardSet,
 } = {}) {
   const sessionErrors = [];
   if (!adapter || typeof adapter.generate !== "function") {
     addSessionError(sessionErrors, "adapter", "missing_adapter", "adapter.generate is required");
+  }
+  // Reported as a session error rather than thrown, unlike the round's precondition of the
+  // same name. That asymmetry is deliberate and documented in `commands/llm-host.js`:
+  // `runLlmSession` RETURNS `{ ok: false, errors, capture: null }` for a bad precondition
+  // where the round throws, and the host preserves each style.
+  if (typeof buildCardSet !== "function") {
+    addSessionError(
+      sessionErrors,
+      "buildCardSet",
+      "missing_card_set_builder",
+      "buildCardSet is required: a cardSet is the Director's translation, not the Orchestrator's",
+    );
   }
   if (!isNonEmptyString(model)) {
     addSessionError(sessionErrors, "model", "missing_model", "model is required");
@@ -611,9 +667,11 @@ export async function runLlmSession({
 
   if (!strict && capture.errors.length > 0) {
     const retryOptions = buildRepairRequestOptions(requestOptions, { errors: capture.errors, phase });
-    const previousPredict = getNumPredict(requestOptions);
-    const retryPredict = getNumPredict(retryOptions);
-    if (retryPredict > previousPredict) {
+    // Decision 2 — the rung asks whether the ERROR is retryable, not whether the options
+    // happened to grow. At the 2048 clamp they cannot grow, and gating on that silently
+    // turned the ladder off at the largest budgets. `retryOptions` is still used, so the
+    // retry gets more tokens wherever more tokens exist.
+    if (isRetryTriggeringError({ errors: capture.errors, phase })) {
       responsePayload = await adapter.generate({
         model,
         prompt: finalPrompt,
@@ -696,7 +754,7 @@ export async function runLlmSession({
     endedAt,
     durationMs,
   };
-  const cardSet = buildCardModelFromLlmSummary(capture.summary || {});
+  const cardSet = buildCardSet(capture.summary || {});
   const summaryWithCards = capture.summary && typeof capture.summary === "object"
     ? {
       ...capture.summary,

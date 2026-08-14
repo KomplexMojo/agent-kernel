@@ -1,6 +1,76 @@
 import { createOrchestratorStateMachine, OrchestratorStates } from "./state-machine.js";
 import { createLlmRound } from "./llm-round.js";
+import { createPostRunCoordinationRound } from "./post-run-round.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
+
+/**
+ * Published on the controller surface so callers can run the budget loop without importing
+ * persona internals (charter: external code imports persona controllers only) — the same
+ * treatment, and the same reason, as `FulfillmentDispositions` on the Moderator's controller.
+ *
+ * ⚠️ CR.7 / WP-5, 2026-08-12. Four modules imported `orchestrator/llm-budget-loop.js`
+ * directly (`ak-impl.mjs`, `adaptive-workflow/llm-seams.js`, `commands/kernel.js`,
+ * `ui-web/design-guidance.js`) and were four of the allowlist's live rows. CR.4's D4 predicted
+ * one Orchestrator use case returning LLM-request effects would replace them; CR.4 delivered
+ * `commands/llm-host.js`, but that hosts a SESSION (`runLlmSessionHosted`) and is a different
+ * capability — two of the four already imported it on the line beside this one and still
+ * needed the loop. Re-pointing them at `llm-host.js` was therefore never the mechanical fix
+ * the board recorded; publishing the capability the callers actually use is.
+ *
+ * This is safe to publish as a plain function rather than a controller method because it takes
+ * no FSM state: every capability it needs (adapter, catalog, priceList, clock, …) is injected
+ * by the caller, so nothing about the persona's internal state escapes with it.
+ */
+export { runLlmBudgetLoop } from "./llm-budget-loop.js";
+
+/**
+ * CR.7 / WP-5, 2026-08-12 — the LLM capture artifact builder, published for the TICK plane.
+ *
+ * `personas/_shared/tick-orchestrator.mts` performs the tick plane's own LLM call and stamps
+ * its own capture (`producedBy: "runtime-llm"`), which is a legitimately separate exchange from
+ * the build plane's rounds. It reached in for `llm-capture.js` directly and was an allowlist row.
+ *
+ * Published for the same reason as `runLlmBudgetLoop` above: the artifact's shape is Orchestrator
+ * law — it stamps `CAPTURED_INPUT_SCHEMA` — so the answer is to publish the one builder, not to
+ * let a second caller grow a second one. It is a pure function with the clock injected, so no FSM
+ * state escapes with it.
+ */
+export { buildLlmCaptureArtifact } from "./llm-capture.js";
+
+/**
+ * CR.7 / WP-5 — the PROMPT CONTRACT's two glue-facing functions.
+ *
+ * `ak-impl.mjs`, `kernel.js` and `ui-flow.js` imported `prompt-contract.js` directly and were
+ * three allowlist rows. Both of these are Orchestrator law: `normalizeSummary` validates an LLM
+ * summary against the prompt contract, and `deriveAllowedOptionsFromCatalog` merges the base
+ * vocabulary with a catalog's entries to produce the option set a prompt may offer.
+ *
+ * ⚠️ THE FOUR `ALLOWED_*` CONSTANTS ARE DELIBERATELY **NOT** PUBLISHED HERE. They are pure
+ * aliases of `contracts/domain-constants.js` values (`AFFINITY_KINDS`, `AFFINITY_EXPRESSIONS`,
+ * `MOTIVATION_KINDS`, `DELVER_SETUP_MODES`), and `domain-constants.js` records why that mattered
+ * as P5.1 D1: one value wore three names across two personas, and the boundary crossings existed
+ * "purely because of the renaming". Publishing the alias would add a fourth name for the same
+ * value. Glue imports the contracts names instead, so the hop is gone rather than relocated.
+ */
+export {
+  deriveAllowedOptionsFromCatalog,
+  normalizeSummary,
+} from "./prompt-contract.js";
+
+/**
+ * P5.5 — post-run coordination of deferred side effects.
+ *
+ * Published rather than kept internal because the RUNNER is the only thing that holds a
+ * finished run's tick frames, so it is the only thing that can open this round — and it must
+ * do so through the persona's controller, not by importing the round module. `collectDeferredEffects`
+ * travels with it for the same reason `planEffectFulfillment` is one function: the runner and the
+ * round must share one definition of "deferred", or they would coordinate one set and report on
+ * another, both looking correct.
+ *
+ * The round performs no IO of its own — it returns effects and the host dispatches them — which is
+ * what keeps this consistent with CR.4's whole finding about the LLM session.
+ */
+export { collectDeferredEffects, PostRunRoundStates } from "./post-run-round.js";
 
 export const orchestratorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE, TickPhases.EMIT]);
 
@@ -62,5 +132,19 @@ export function createOrchestratorPersona({ initialState = OrchestratorStates.ID
     advance,
     view,
     llm,
+    /**
+     * P5.5 — open a post-run coordination round on THIS persona instance.
+     *
+     * On the instance, not only as a module export, for the reason CR.8 established for the
+     * run summary: the runner must coordinate through the Orchestrator that was in this
+     * run's registry, and a surface reachable only as a free function invites glue to mint a
+     * fresh persona purely to sign the captures.
+     *
+     * Supplies the persona's own injected clock, and `clock: undefined` from a caller must
+     * not clobber it — the CR.9 M5 precedence lesson, same as `llm.beginRound` above.
+     */
+    createPostRunCoordinationRound: (args = {}) => createPostRunCoordinationRound(
+      args.clock === undefined ? { ...args, clock } : args,
+    ),
   };
 }

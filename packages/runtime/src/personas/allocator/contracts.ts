@@ -24,6 +24,45 @@ export interface SpendProposal {
   items: SpendProposalItem[];
 }
 
+// ── Reconciliation (P5.5) — what REBALANCING gates ────────────────────────────
+// Charter: the Allocator owns "reconciliation". The ledger is the issued caps
+// beside the spend core actually charged; the verdict is this persona's.
+
+export type ReconciliationDisposition = "unlimited" | "within" | "at_limit" | "exceeded";
+
+export interface BudgetLedgerRow {
+  category: string;
+  categoryId?: number;
+  /** The cap as issued to core. -1 is core's "no cap set" sentinel. */
+  issued: number;
+  /** What core has charged against that category. */
+  spent: number;
+}
+
+export interface BudgetLedger {
+  categories: BudgetLedgerRow[];
+}
+
+export interface ReconciliationCategory extends BudgetLedgerRow {
+  /** null when the category is uncapped — there is no headroom to report. */
+  remaining: number | null;
+  disposition: ReconciliationDisposition;
+}
+
+export interface ReconciliationAdjustment {
+  kind: "reduce_scope" | "hold";
+  category: string | null;
+  /** Present only on reduce_scope. */
+  overspend?: number;
+}
+
+export interface ReconciliationVerdict {
+  /** The WORST category's disposition, not an average. */
+  disposition: ReconciliationDisposition;
+  categories: ReconciliationCategory[];
+  adjustments: ReconciliationAdjustment[];
+}
+
 export interface AllocatorContext {
   state: AllocatorState;
   priceList?: PriceListInput;
@@ -33,6 +72,12 @@ export interface AllocatorContext {
   lastSignalCount: number;
   budgetRemaining?: number;
   lastSolverRequest?: unknown;
+  /**
+   * Absent until a reconciliation happens — deliberately not `null`, because a
+   * replayed view carrying `reconciliation: null` reads as "reconciled, found
+   * nothing", which is a claim this persona has not made.
+   */
+  reconciliation?: ReconciliationVerdict;
 }
 
 export interface AllocatorView {
@@ -121,4 +166,11 @@ export interface AllocatorServiceSurface {
   evaluateLayoutSpend(args: Record<string, unknown>): unknown;
   evaluateRoomCardLayoutSpend(args: Record<string, unknown>): unknown;
   scenarioSpendReport(args: Record<string, unknown>): unknown;
+  /**
+   * P5.5. State-gated to monitoring|rebalancing, unlike the pricing surface: a
+   * reconciliation cannot exist before the Allocator is watching a run, the same
+   * way a receipt cannot exist without a registered budget. Throws
+   * `allocator_reconciliation_input_required` when handed no ledger.
+   */
+  reconcile(args: { ledger?: BudgetLedger }): ReconciliationVerdict;
 }

@@ -31,8 +31,13 @@ import {
   deriveLevelGenFromSummary,
   deriveLevelGen as deriveLevelGenFromRoomCount,
 } from "./buildspec-assembler.js";
-import { buildCardSetFromSummary } from "./summary-selections.js";
+import {
+  buildCardSetFromSummary,
+  extractSummaryFromCardSet,
+  normalizeCardEntry,
+} from "./summary-selections.js";
 import { mapSummaryToPool } from "./pool-mapper.js";
+import { enforceBudget as enforceBudgetOnSelections } from "./budget-enforcer.js";
 import { DirectorStates } from "./state-machine.js";
 
 export class DirectorStateError extends Error {
@@ -216,15 +221,34 @@ export function attachDirectorServices({
    * "artifact produced with no round" defect. `deriveLevelGen` above stays ungated because it
    * previews; this decides.
    *
-   * ⚠️ `roomCount` is accepted but no caller supplies one — both loop call sites pass a
-   * layout. The no-layout path therefore always derives from `undefined`, which yields
-   * `{ width: NaN, height: NaN }` and a two-error refusal. That is the PRE-EXISTING behavior,
-   * captured in the characterization fixture and preserved deliberately. It is a latent
-   * defect, not this milestone's to fix.
+   * ⚠️ `roomCount` is accepted and no production caller supplies one — both loop call sites
+   * pass a layout. The no-layout path is a real capability (an integer roomCount derives
+   * valid geometry), but until ITEM C it answered a MISSING roomCount by deriving from
+   * `undefined`: `deriveLevelGen` computes `Math.max(5, roomCount * 2 + 5)`, so the levelGen
+   * came out `{ width: NaN, height: NaN }` and the refusal blamed `levelGen.width` and
+   * `levelGen.height` — fields the caller never supplied, describing this function's own
+   * derivation rather than the input that was absent.
+   *
+   * ITEM C (2026-08-12) refuses that case explicitly instead. The guard is keyed on
+   * `Number.isInteger` rather than truthiness because `roomCount: 0` derives a valid
+   * minimum-side level and is not the broken input; only a non-integer produces NaN.
+   *
+   * ⚠️ The refusal lives HERE and not in `configurator/feasibility.js` on purpose. Deriving
+   * geometry from an intent is the Director's translation, so validating that the intent is
+   * derivable is the Director's job too — and the Configurator's `assessLayoutFeasibility` is
+   * under characterization by 185 captured cases, 56 of which take the absent-layout branch
+   * with `roomCount: null` and record the NaN verdict. Moving the guard down there would drift
+   * that fixture, which is the one piece of evidence the M5b.2f relocation did not shift.
    */
   function assessFeasibility({ layout, roomCount, actorCount } = {}) {
     requireState(PLANNED_STATES, "assess layout feasibility");
     requireConfigurator("assess layout feasibility");
+    if (!layout && !Number.isInteger(roomCount)) {
+      return {
+        ok: false,
+        errors: [{ field: "roomCount", code: "missing_layout_or_room_count" }],
+      };
+    }
     const levelGen = layout ? undefined : deriveLevelGenFromRoomCount({ roomCount });
     return createConfigurator().assessFeasibility({ layout, levelGen, actorCount });
   }
@@ -265,6 +289,72 @@ export function attachDirectorServices({
     return buildCardSetFromSummary(summary);
   }
 
+  /**
+   * CR.7 / WP-5 (2026-08-12) — the card-set TRANSLATION surface, for authoring and preview.
+   *
+   * `commands/card-authoring.js` imported `extractSummaryFromCardSet`, `normalizeCardEntry`
+   * and `buildCardSetFromSummary` from `summary-selections.js` directly, and was the last of
+   * the eight orphaned allowlist rows. The charter names `card-authoring` as glue, and glue
+   * may hold no domain logic, so the translation is published rather than reached past.
+   *
+   * ⚠️ **D8.3 DEFERRED THIS PUBLICATION AND THEN LANDED WITHOUT IT.**
+   * `tests/helpers/director-capabilities.js` says `extractSummaryFromCardSet` is "not published
+   * on the controller yet, and deliberately so… when D8.3 publishes it, change both together."
+   * D8.3 shipped at `7bdd1c8b` and the publication never happened, leaving a helper and a
+   * production file both reaching for an internal on a promise nothing was tracking. This is
+   * that deferred change, and the helper moves to the controller in the same diff.
+   *
+   * ⚠️ **UNGATED, AND `cardSetFromSummary` IS AN UNGATED SIBLING OF THE GATED `buildCardSet`
+   * ABOVE. THAT IS THE ONE THING TO UNDERSTAND HERE.** They call the same function. The
+   * distinction is the CALLER's situation, not the computation:
+   *
+   *   - `buildCardSet` — a cardSet that will be stamped into a PERSISTED BuildSpec, produced
+   *     during a build round. Gated on PLANNED_STATES (M5b.2e), and that gate was a LABEL until
+   *     a perturbation forced it to be real. **The Orchestrator must keep using this one**; it
+   *     receives it injected from `beginDirectorBuildCapabilities`, bound to an open round.
+   *   - these three — reading, normalizing and re-rendering a card set the caller ALREADY
+   *     HOLDS, on an authoring surface that stamps nothing and issues no artifact.
+   *
+   * Gating these would refuse the card-authoring and preview paths, where no build round
+   * exists or should — an outage rather than a boundary, which is the D8.3 trap. It is the same
+   * split `deriveLevelGen` (ungated preview) already makes against `assembleBuildSpec` (gated).
+   * `director-card-translation.test.js` pins both halves: these answer with no round, and
+   * `cardSetFromSummary` returns exactly what the gated `buildCardSet` returns, so the sibling
+   * is one origin and not a second implementation.
+   *
+   * `resolveSummary` fetches the Configurator's room geometry ITSELF via `roomGeometry()`,
+   * rather than taking it as an argument. D8.3's rule is that the Director asks the Configurator
+   * for geometry; making every caller assemble that pair first is how `card-authoring.js` came
+   * to hold a copy of it.
+   */
+  function resolveSummary(summaryInput) {
+    return extractSummaryFromCardSet(summaryInput, roomGeometry());
+  }
+
+  function normalizeCard(entry, options) {
+    return normalizeCardEntry(entry, options);
+  }
+
+  function cardSetFromSummary(summary) {
+    return buildCardSetFromSummary(summary);
+  }
+
+  /**
+   * CR.7 / WP-5 — trimming selections to fit a budget, published for `commands/ui-flow.js`.
+   *
+   * ui-flow imported `director/budget-enforcer.js` directly and was an allowlist row. It calls
+   * this immediately after `director.mapPool` on an already-open round, so the gate below is
+   * exercised by the one production caller rather than being a label.
+   *
+   * GATED, unlike the card-set translation above, and the difference is what it does: this
+   * DECIDES which selections survive a budget, and its output flows into the BuildSpec. That is
+   * the same reasoning that gates `mapPool` and the pricing relays.
+   */
+  function enforceBudget(args = {}) {
+    requireState(PLANNED_STATES, "enforce a budget");
+    return enforceBudgetOnSelections(args);
+  }
+
   function assembleBuildSpec(args = {}) {
     requireState(PLANNED_STATES, "assemble a build spec");
     // PX.3 (M6): the assembler stamps BuildSpec.meta.createdAt and now requires a clock.
@@ -300,6 +390,10 @@ export function attachDirectorServices({
     mapPool,
     deriveLevelGen,
     buildCardSet,
+    resolveSummary,
+    normalizeCard,
+    cardSetFromSummary,
+    enforceBudget,
     assembleBuildSpec,
     // CR.4 M5b.2b — Allocator answers, given on the budget loop's behalf.
     resolveTileCosts,

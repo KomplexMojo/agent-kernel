@@ -193,7 +193,36 @@ const LAYOUT_COUNT_READER_DECLARATION =
 const CATEGORY_POOL_MAP_DECLARATION =
   /\b(?:function|const|let)\s+(?:POOL_ID_BY_SPEND_CATEGORY|CATEGORY_POOL_IDS)\b/g;
 
+// P1.4 (2026-08-12) — READING `base-costs.json` FROM OUTSIDE THE ALLOCATOR IS A SECOND
+// PRICE MODEL, EVEN THOUGH THE NUMBERS ARE SHARED.
+//
+// 🔴 THIS EXISTS BECAUSE THE GUARD ABOVE COULD NOT SEE THE MODEL IT WAS WRITTEN TO STOP,
+// and the reason is worth reading before touching either. `PRICE_OR_BUDGET_CONSTANT`
+// matches a price-shaped NAME assigned to something containing a NUMERIC LITERAL.
+// `configurator/cost-model.js` declared `VITAL_MAX_COST_MULTIPLIER`,
+// `REGEN_COST_COEFFICIENT` and `COST_DEFAULTS` — three names that match perfectly — and the
+// guard reported clean for months, because P1.2 had moved their numbers into
+// `base-costs.json`. The declarations then read `ACTOR_MODEL.vital_max_health`, with no digit
+// anywhere in the file. **Complying with "numbers live in JSON" is exactly what made the
+// second model invisible.**
+//
+// So the concept this guard protects is not "a number in code" but "a price model with a
+// second author". The JSON lives inside the Allocator; importing it from elsewhere is that
+// second author, whatever the constant is named. `keepStringLiterals` is required — the
+// evidence IS the import path.
+const BASE_COSTS_ACCESS = new RegExp(
+  String.raw`(?:from\s*|require\(\s*|readFileSync\(\s*)["'\`][^"'\`]*base-costs\.json`,
+  "gi",
+);
+
 const SINGLE_ORIGIN_GUARDS = [
+  {
+    concept: "price data read from base-costs.json",
+    canonicalHome: ["packages/runtime/src/personas/allocator"],
+    forbiddenPattern: BASE_COSTS_ACCESS,
+    scope: "packages",
+    keepStringLiterals: true,
+  },
   {
     concept: "layout tile-count reader",
     canonicalHome: ["packages/runtime/src/contracts"],

@@ -1,4 +1,4 @@
-import { runLlmBudgetLoop } from "../personas/orchestrator/llm-budget-loop.js";
+import { runLlmBudgetLoop } from "../personas/orchestrator/persona.js";
 // CR.4 M5: the LLM session runs as an Orchestrator round; this host dispatches its
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
@@ -28,6 +28,11 @@ export async function runFlagshipLlmSeam({
     stream,
     strict: false,
     producedBy: "adaptive-workflow",
+    // CR.7 / WP-5: the session attaches a cardSet to its summary, and that translation is the
+    // Director's. Bound to an open build round here for the same reason
+    // `runSectionalBudgetLlmSeam` below does it — this root had no Director otherwise.
+    buildCardSet: beginDirectorBuildCapabilities({ runId, createdAt: clock(), goal: prompt })
+      .buildCardSet,
   });
   return { ...result, captures: result.capture ? [result.capture] : [] };
 }

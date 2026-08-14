@@ -27,6 +27,10 @@
  *      one the benchmark runs against.
  */
 const assert = require("node:assert/strict");
+// CR.7 / WP-5: the session REQUIRES the Director's cardSet builder injected and no longer
+// imports `director/summary-selections.js`. Wired from the shared helper so tests wire what
+// production wires — a stub here would be the second implementation the refusal prevents.
+const { directorBuildCapabilities } = require("../helpers/orchestrator-capabilities.js");
 
 const HOST = "../../packages/runtime/src/commands/llm-host.js";
 
@@ -47,7 +51,7 @@ async function host(extra, responses) {
   const { runLlmSessionHosted } = await import(HOST);
   const adapter = recordingAdapter(responses);
   const result = await runLlmSessionHosted({
-    adapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter,
     model: "fixture",
     prompt: "Return JSON only.",
     runId: "run_host",
@@ -102,7 +106,7 @@ test("REFUSAL: a deferred dispatch fails the session — it is not fed back as a
 
   // No adapter at all ⇒ dispatchEffect defers ⇒ the model was never called.
   const result = await runLlmSessionHosted({
-    adapter: { generate: undefined },
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter: { generate: undefined },
     model: "fixture",
     prompt: "Return JSON only.",
     runId: "run_host",
@@ -143,7 +147,7 @@ test("an empty prompt is NOT a failure mode — normalization always produces on
 
   const legacyAdapter = recordingAdapter([{ response: GOOD }]);
   const legacy = await runLlmSession({
-    adapter: legacyAdapter,
+    buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter: legacyAdapter,
     model: "fixture",
     runId: "run_host",
     clock: () => "2025-01-01T00:00:00Z",
@@ -185,7 +189,7 @@ for (const [label, config, script] of CASES) {
 
     const legacyAdapter = recordingAdapter(script);
     const legacy = await runLlmSession({
-      adapter: legacyAdapter,
+      buildCardSet: (await directorBuildCapabilities()).buildCardSet,adapter: legacyAdapter,
       model: "fixture",
       prompt: "Return JSON only.",
       runId: "run_host",

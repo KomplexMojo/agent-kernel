@@ -745,7 +745,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - blockchain-load: `blockchain-load.json`
 - llm: `llm.json`
 - solve: `solver-request.json`, `solver-result.json`
-- run: `tick-frames.json`, `effects-log.json`, `runtime-decision-captures.json`, `run-summary.json`, `action-log.json`
+- run: `tick-frames.json`, `effects-log.json`, `runtime-decision-captures.json`, `run-summary.json`, `action-log.json`, and `deferred-coordination.json` **only when the run deferred something** (P5.5)
 - room-plan / hazard-plan / resource-plan / delver-plan / warden-plan: build handoff artifacts plus command-specific sidecars such as `hazard-<n>.json` and `resource-artifact-<n>.json`
 - configurator: `sim-config.json`, `initial-state.json` (plus `budget-receipt.json` when `--budget` + `--price-list` are provided)
 

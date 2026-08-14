@@ -1,4 +1,20 @@
 import { createAllocatorStateMachine, AllocatorStates } from "./state-machine.js";
+/**
+ * CR.7 / WP-5 — the design-spend surface, published so glue stops importing `spend-proposal.js`.
+ *
+ * `build/orchestrate-build.js`, `commands/kernel.js` and `commands/card-authoring.js` imported it
+ * directly and were three allowlist rows. Pricing is the Allocator's authority ("Economy —
+ * Allocator Authority"), so the answer is to publish the functions rather than let glue reach in.
+ *
+ * Stateless, like the pricing surface above: each prices what it is handed against the price list
+ * it is handed. Gating them behind `registerBudget` would refuse the authoring and build paths
+ * that have always called them and move no decision.
+ */
+export {
+  evaluateConfiguratorSpend,
+  calculateActorConfigurationUnitCost,
+  buildDesignSpendLedger,
+} from "./spend-proposal.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 import { attachAllocatorServices } from "./allocator-services.js";
@@ -101,6 +117,24 @@ export function createAllocatorPersona({
         );
         remaining -= 1;
       }
+    }
+
+    // P5.5 — REBALANCING now GATES the chartered reconciliation instead of naming it.
+    //
+    // The edge `monitoring → rebalance → rebalancing` has existed since PX.5 and moved
+    // nothing but a label: every other branch of this function is payload-driven and
+    // runs identically in all five states, so a run could report `rebalancing` while
+    // doing precisely what it did in `monitoring`. Charter (Enforcement → Personas):
+    // "persona states must gate real behavior — label-only states are defects."
+    //
+    // ⚠️ The ledger is REQUIRED, not defaulted. `services.reconcile` throws when it is
+    // absent, and that refusal is the point: the runner only sends `rebalance` when it
+    // has a ledger to hand over, so reaching this branch without one is a wiring defect
+    // that must be loud. Defaulting to an empty ledger would report every run as within
+    // budget — the well-formed wrong answer this persona keeps refusing to give.
+    if (event === "rebalance") {
+      const reconciliation = services.reconcile({ ledger: payload.ledger });
+      result.context = { ...result.context, reconciliation };
     }
 
     const solverEffect = buildSolverRequestEffect({

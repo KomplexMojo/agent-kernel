@@ -18,6 +18,53 @@ This document defines the Moderator as a **runtime execution role**. Simulation 
 | Primary outputs | Ordered action batches, TickFrames, effects logs, run summaries |
 | Boundary | Calls `core-ts`; does not replace `core-ts` rule enforcement |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:moderator -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `moderator/tick-ordering` — ordering strategy and effect fulfilment are the Moderator's decision | A1, A2 | ✅ owned (CR.5) | `tests/architecture/persona-authority.test.js` |
+| `moderator/pausing-gates-advancement` — a paused Moderator refuses to advance `step()` | A3 | ✅ owned (P3.1) | `tests/personas/moderator/moderator-pause-gates-tick.test.js` |
+| `moderator/affinity-target-resolution` — who an affinity targets, and the effects that follow | A1, A2 | ✅ owned (P5.4) | `tests/personas/moderator/moderator-affinity-resolution.test.js` |
+| `all/port-contract-single-origin` — one effect codebook; the port contract is not redeclared | A1 | ✅ owned (PX.1) | `tests/architecture/single-origin.test.js` |
+| `all/injected-clock` — no persona reads a clock; time is injected, never defaulted | A4 | ✅ owned (PX.3 M6) | `tests/architecture/single-origin.test.js` |
+| `all/restorable-from-view` — a persona can be rebuilt from its own serialized `view()` | A4 | ✅ owned (PX.4) | `tests/architecture/persona-serialization-equivalence.test.js` |
+| `all/controller-only-boundary` — external code imports persona controllers only | A1, A2 | ✅ owned (CR.7 / P5.1 flip) | `tests/architecture/persona-boundary.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+**Four of these five are cross-persona infrastructure, registered here rather than owned here.**
+The registry files them under the Moderator because they are tick-plane invariants that no single
+domain persona could hold — not because the Moderator implements them. `moderator/tick-ordering` is
+the one row about this persona's own decisions.
+
+🟢 **`all/controller-only-boundary` flipped on 2026-08-12 — the allowlist is EMPTY and the guard is
+a hard error.** It ran 74 → 62 → 55 → 53 → 35 → 3 → 1 → 0, and the last row died by *deleting* a
+dead price model rather than by re-pointing its import. The empty file is still there on purpose: a
+guard that reads an empty list can be re-opened with a one-line JSON edit, so a separate test now
+refuses a non-empty allowlist outright. Adding an entry does not make a crossing legal — it stops
+the persona's FSM running for that call, which is what **A2** forbids.
+
+**Affinity target resolution closed on 2026-08-13, and how it closed is worth knowing.** Its only
+test used to drive `resolveAffinityTargetEffectsForList` **directly** — proof the function works,
+silence on whether production consults the persona. It now has both an **ablation** (a Moderator
+that plans no affinity actions leaves the core untouched, against a control that sets one tile and
+arms one hazard) and a **differential** (what production applied equals what a fresh standalone
+Moderator plans from the payload production actually sent, captured through a proxy).
+
+⚠️ **Only the ablation has teeth against the defect that matters, and this was measured.** Perturb
+the runner into calling `planModeratorAffinityActions` itself: the ablation fails, the differential
+**passes** — a runner duplicating the persona's own function agrees with it by construction. Same
+shape as CR.8's provenance pair, where the output test could not see the façade and the refusal
+could.
+
 ## Persona Scope
 
 The Moderator persona is responsible for **how the simulation is executed**, not for deciding what should be attempted or how the world is configured.
@@ -95,6 +142,13 @@ post-run handling by the Orchestrator and adapters.
 For `need_external_fact` effects:
 - Deterministic fulfillment is allowed only when `sourceRef` points to pre-captured artifacts.
 - If no deterministic source is provided, fulfillment must be deferred and handled post-run.
+
+🟢 **"Handled post-run" became true in P5.5 (2026-08-13).** This paragraph described the intended
+design for as long as the persona model has been enforced, and nothing downstream of the deferral
+existed: `ak inspect` counted the records and they went nowhere. The Orchestrator's post-run
+coordination round now picks them up — see `personas/orchestrator/README.md` → "External Side-Effect
+Coordination". What the Moderator does here is unchanged; what happens to its `DEFER` decisions is
+no longer nothing.
 
 The Moderator does not interpret events or effects beyond what is required for sequencing
 and routing.

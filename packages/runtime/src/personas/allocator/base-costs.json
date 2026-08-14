@@ -50,34 +50,10 @@
     "resource_level": 5,
     "resource_permanent": 10
   },
-  "_actorModelNote": "actorModel = the legacy actor-attached cost model (design \u00a76\u2013\u00a78), consumed by configurator/cost-model.js. It deliberately DIVERGES from the price-list groups above until P1.4 unifies pricing \u2014 values must stay identical to their pre-migration literals. Formulas (quadratic regen, \u03a3(base + coeff\u00b7(n-1)\u00b2) stacks) stay in code.",
-  "actorModel": {
-    "vital_max_health": 2,
-    "vital_max_mana": 2,
-    "vital_max_stamina": 1,
-    "vital_max_durability": 2,
-    "regen_coeff_health": 12,
-    "regen_coeff_mana": 5,
-    "regen_coeff_stamina": 4,
-    "regen_coeff_durability": 10,
-    "tokens_per_vital": 1,
-    "tokens_per_regen": 2,
-    "affinity_base_attached": 30,
-    "affinity_stack_base": 10,
-    "affinity_stack_quad_coeff": 8,
-    "expression_external": 35,
-    "expression_internal": 25
-  },
   "_actionBudgetNote": "Runtime action costs charged against core's per-run budget ledger (NOT the authoring price list). core-ts enforces caps and emits limit events; these numbers are the Allocator's policy, injected via ports/budget.js. action_default applies to every action kind; specific kinds override it.",
   "actionBudget": {
     "action_default": 1,
     "action_request_solver": 2
-  },
-  "_motivationFallbackNote": "motivationFallback = DEFAULT_MOTIVATION_COSTS tier prices (design \u00a76.6) used when a price map lacks motivation entries. These are the numbers behind the pinned silent-overcharge bug; P1.4 eliminates the fallback entirely.",
-  "motivationFallback": {
-    "fallback_simple": 25,
-    "fallback_advanced": 50,
-    "fallback_user_controlled": 10
   },
   "freeFloatingPremium": 1.5,
   "_levelAuthoringNote": "Level-authoring economy knobs, moved out of commands/card-authoring.js by CR.1 \u2014 they were pricing policy sitting in glue, feeding calculateCardValue, card receipts, UI guidance and auto-generation. budget_split_percent must sum to 100. The reference budget is NOT here: it is REFERENCE_BUDGET_TOKENS in budget-allocation.js, which card-authoring duplicated as DEFAULT_LEVEL_BUDGET_TOKENS (both 2500) until CR.1 collapsed them.",

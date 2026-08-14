@@ -1,7 +1,7 @@
 import { requireClock } from "./require-clock.js";
 import { createTickStateMachine, TickPhases } from "./tick-state-machine.mts";
 import type { TickEvent, TickPhase } from "./tick-state-machine.mts";
-import { buildLlmCaptureArtifact } from "../orchestrator/llm-capture.js";
+import { buildLlmCaptureArtifact } from "../orchestrator/persona.js";
 import {
   allowsLiveLlmRuntime,
   buildRuntimeDecisionLlmPrompt,

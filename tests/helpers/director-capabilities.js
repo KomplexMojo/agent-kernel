@@ -11,22 +11,25 @@
  * from one place, because a hand-rolled stub here would be exactly the second
  * silently-diverging implementation the refusal exists to prevent.
  *
- * ⚠️ This reaches the Director's INTERNAL module rather than its controller, unlike the
- * Configurator helper. `extractSummaryFromCardSet` is not published on the controller
- * yet, and deliberately so: it is the function D8.3 is about (it calls
- * `deriveLayoutFromRoomCards` / `buildRoomDesignFromRoomCards`, the Director→Configurator
- * forward edges). Production wires it the same way, from `commands/card-authoring.js`,
- * which is an existing allowlist row. When D8.3 publishes it, change both together.
+ * ✅ **NOW REACHES THE CONTROLLER, as this note asked (CR.7 / WP-5, 2026-08-12).** It used to
+ * import the Director's INTERNAL `summary-selections.js`, because
+ * `extractSummaryFromCardSet` was not published on the controller — deliberately, pending
+ * D8.3, with the instruction "when D8.3 publishes it, change both together".
+ *
+ * ⚠️ **D8.3 SHIPPED (`7bdd1c8b`) AND THE PUBLICATION NEVER HAPPENED**, so this helper and
+ * `commands/card-authoring.js` both went on reaching for an internal on a promise nothing was
+ * tracking. `director.resolveSummary` is now published and both moved in one diff — which is
+ * what "change both together" meant. ⇒ *A deferral whose trigger is another milestone needs
+ * something that fails when that milestone lands; a comment is not that.*
+ *
+ * `resolveSummary` also fetches the Configurator's room geometry itself now, so this helper no
+ * longer assembles the `deriveRoomLayout`/`buildRoomDesign` pair by hand.
  */
 const { resolve } = require("node:path");
 const { pathToFileURL } = require("node:url");
 
-const DIRECTOR_SUMMARY_SELECTIONS = pathToFileURL(
-  resolve(__dirname, "../../packages/runtime/src/personas/director/summary-selections.js"),
-).href;
-
-const CONFIGURATOR_PERSONA = pathToFileURL(
-  resolve(__dirname, "../../packages/runtime/src/personas/configurator/persona.js"),
+const DIRECTOR_PERSONA = pathToFileURL(
+  resolve(__dirname, "../../packages/runtime/src/personas/director/persona.js"),
 ).href;
 
 let cached = null;
@@ -34,17 +37,12 @@ let cached = null;
 /** The Director's card-set → summary translation, as the ledger's `resolveSummary`. */
 async function directorResolveSummary() {
   if (!cached) {
-    const { extractSummaryFromCardSet } = await import(DIRECTOR_SUMMARY_SELECTIONS);
-    // D8.3: the Director refuses to resolve ROOM cards without the Configurator's
-    // geometry, so the capability is bound here exactly as `commands/card-authoring.js`
-    // binds it in production. A ledger built from room cards is the common case.
-    const { createConfiguratorPersona } = await import(CONFIGURATOR_PERSONA);
-    const configurator = createConfiguratorPersona({ clock: () => "2026-08-08T00:00:00.000Z" });
-    const roomGeometry = Object.freeze({
-      deriveRoomLayout: configurator.deriveRoomLayout,
-      buildRoomDesign: configurator.buildRoomDesign,
-    });
-    cached = (summary) => extractSummaryFromCardSet(summary, roomGeometry);
+    const { createDirectorPersona } = await import(DIRECTOR_PERSONA);
+    // Bound exactly as `commands/card-authoring.js` binds it in production: from the PUBLIC
+    // barrel, with no round opened, because `resolveSummary` is ungated — it reads a card set
+    // the caller already holds. The Director fetches the Configurator's room geometry itself
+    // (D8.3), so nothing is assembled here; a ledger built from room cards is the common case.
+    cached = createDirectorPersona({ clock: () => "2026-08-08T00:00:00.000Z" }).resolveSummary;
   }
   return cached;
 }

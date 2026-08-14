@@ -56,23 +56,80 @@ const REGISTRY = Object.freeze([
   // ── Orchestrator ───────────────────────────────────────────────────────────
   {
     id: "orchestrator/llm-session",
+    chartered: "orchestrator/llm-sessions",
     persona: "orchestrator",
     behavior: "Owns every external interaction seam: LLM sessions run as persona rounds",
     criteria: ["A5"],
     productionEntryPoint: "packages/runtime/src/personas/orchestrator/llm-session.js",
     invocation: "none",
+    // FLIPPED 2026-08-12, and it had been stale since CR.4 closed on 2026-08-10
+    // (2be417d6, M1-M7). The entry still read "eight production call sites bypass any
+    // controller" while a live guard asserted there were none — the registry
+    // UNDER-reporting this time, which reads as backlog rather than as coverage but is
+    // the same rot e7501e9a had to correct. Re-derived at HEAD before flipping.
     status: {
-      blockedBy: "CR.4",
+      owned: true,
+      since: "CR.4 M1-M7 (2be417d6)",
+      provenBy: "tests/architecture/cr4-llm-call-site-inventory.test.js",
       why:
-        "runLlmSession awaits adapter.generate() directly at three sites and stamps "
-        + "producedBy:\"orchestrator\" with no FSM round. Eight production call sites across "
-        + "four importers bypass any controller.",
+        "A5 is the criterion, and two things now hold at once. (1) NO production caller "
+        + "reaches runLlmSession: the inventory guard scans packages/, scripts/ and tools/ "
+        + "and asserts zero direct call sites, so a reintroduced inline await fails a gate "
+        + "rather than a review. (2) Every capture artifact stamped producedBy:\"orchestrator\" "
+        + "is built inside llm-round.js's settle(), which cannot run before a terminal state "
+        + "— pinned by \"CR.4: the round's capture is stamped by a round that actually "
+        + "reached a terminal state\" in tests/personas/orchestrator/orchestrator-llm-round.test.js. "
+        + "The producedBy that kernel.js and ak-impl.mjs pass is an OPTION into a "
+        + "round-hosted call, not glue stamping an artifact of its own; every one of the "
+        + "six sites was checked, not sampled. runLlmSession itself survives only as the "
+        + "differential's reference implementation, which is why its call sites are tests.",
+      residue:
+        "runLlmBudgetLoop is still a free function rather than an FSM round. It performs "
+        + "no IO (stage 1 injected the runner) and produces no artifact of its own — every "
+        + "capture it returns came from a settled round — so it does not violate A5. "
+        + "Whether the loop itself becomes a round is WP-4's question, not this entry's.",
+    },
+  },
+
+  {
+    id: "orchestrator/deferred-side-effects",
+    chartered: "orchestrator/workflow-coordination",
+    persona: "orchestrator",
+    behavior: "Effects deferred during execution are coordinated by the Orchestrator after the run",
+    criteria: ["A2", "A5"],
+    productionEntryPoint: "packages/runtime/src/personas/orchestrator/post-run-round.js",
+    invocation: "cli",
+    status: {
+      owned: true,
+      since: "P5.5",
+      provenBy: "tests/personas/orchestrator/orchestrator-coordinates-deferred-effects.test.js",
+      why:
+        "BUILT in P5.5 — it was registered blocked because it did not exist. The round "
+        + "returns effects and STOPS, exactly like llm-round.js: the host dispatches, the "
+        + "adapter does the IO, and results come back through fulfill(). A5 is the gate that "
+        + "matters: `coordinateDeferredEffects` refuses unless the Orchestrator in THIS run's "
+        + "registry can host the round, so glue cannot mint a fresh persona to sign the "
+        + "captures — the CR.8 façade, one artifact over. Reaches production through "
+        + "`ak run`, which writes `deferred-coordination.json`. "
+        + "⚠️ The A2 ablation is deliberately not the headline: production used to do NOTHING "
+        + "here, so 'nothing happens without the Orchestrator' was true before the feature "
+        + "and proves nothing. The load-bearing test is that deferrals are coordinated at all.",
+      residue:
+        "There is no external-fact ADAPTER in the tree yet, so a real run reports its "
+        + "deferrals as `outstanding` with reason `missing_external_fact_adapter`. That is the "
+        + "honest outcome and it is visible, which is the whole change: before this the "
+        + "records went nowhere and a run that dropped every deferral looked identical to one "
+        + "that had none. Wiring an adapter is adapter-layer work, not this entry's. "
+        + "⚠️ `dispatchEffect` gained an explicit `need_external_fact` case for the same reason "
+        + "CR.4 M2 gave the LLM one: the `default:` branch warns and then reports `fulfilled`, "
+        + "so a fact that was never fetched would have been captured as provenance.",
     },
   },
 
   // ── Director ───────────────────────────────────────────────────────────────
   {
     id: "director/plan-artifact",
+    chartered: "director/intent-to-plan",
     persona: "director",
     behavior: "Translates intent into structure: the persisted PlanArtifact is the plan that drove the spec",
     criteria: ["A2", "A5"],
@@ -81,9 +138,122 @@ const REGISTRY = Object.freeze([
     status: { owned: true, since: "CR.3" },
   },
 
+  // Registered 2026-08-12 (P5.4). The Director's other three translations had no entry, so
+  // by this registry's own premise they were unowned — while a required-capability census in
+  // `orchestrator-llm-budget-loop.test.js` had been proving the A2 half of each all along.
+  // ⇒ *The proof existed and the entry did not, which reads as backlog exactly like a real
+  // gap.* This is the reverse of the CR.4 rot fixed earlier the same day and the same root:
+  // nothing walks from a test back to the registry.
+  {
+    id: "director/pool-mapping",
+    chartered: "director/plan-to-buildspec",
+    persona: "director",
+    behavior: "Mapping an LLM summary onto catalog pools is the Director's decision, inside an open round",
+    criteria: ["A2", "A3"],
+    productionEntryPoint: "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "CR.4 M5b.2a′",
+      provenBy: "tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js",
+      why:
+        "A2 by refusal: `mapPool` is REQUIRED with no default, so the loop cannot map a "
+        + "summary at all without the Director — \"the loop REFUSES to run without a Director "
+        + "pool mapper\". A3 on top of it: the method is gated on PLANNED_STATES, and "
+        + "director-build-round.test.js pins that translation refuses before a build begins. "
+        + "Before M5b.2a′ the loop mapped summaries with no Director in existence.",
+    },
+  },
+  {
+    id: "director/card-set-translation",
+    chartered: "director/plan-to-buildspec",
+    persona: "director",
+    behavior: "Summary → cardSet is the Director's translation; the gated and ungated surfaces share one origin",
+    criteria: ["A3"],
+    productionEntryPoint: "packages/runtime/src/personas/director/director-services.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "CR.4 M5b.2e / CR.7 (2026-08-12)",
+      provenBy: "tests/personas/director/director-card-translation.test.js",
+      why:
+        "A3 is the criterion and the pair is the point: `buildCardSet` is gated behind an open "
+        + "round because its output reaches a PERSISTED BuildSpec, while `cardSetFromSummary` "
+        + "is deliberately ungated for authoring and preview, where no round exists or should. "
+        + "The test pins both halves — gating the second would be an outage, not a boundary "
+        + "(D8.3's rule), and the gate on the first was a LABEL until a perturbation forced it "
+        + "to be real.",
+    },
+  },
+  {
+    id: "director/pricing-relay",
+    chartered: "director/plan-to-buildspec",
+    persona: "director",
+    behavior: "The Director relays the Allocator's pricing answers; neither it nor the loop computes them",
+    criteria: ["A1", "A2"],
+    productionEntryPoint: "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "CR.4 M5b.2b–2d",
+      provenBy: "tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js",
+      why:
+        "Four separate refusals, one per relayed answer: the loop will not run without an "
+        + "Allocator tile-cost resolver, budget allocator, selection-spend evaluator or layout "
+        + "fitter. A1 because the loop used to compute all four inline out of the Allocator's "
+        + "internals — the second author is gone, not merely re-routed — and A2 because a "
+        + "missing capability is a refusal rather than a fallback. A required capability is a "
+        + "census you cannot opt out of: it enumerates its callers by breaking them.",
+    },
+  },
+
   // ── Configurator ───────────────────────────────────────────────────────────
   {
+    id: "configurator/feasibility-verdict",
+    chartered: "configurator/feasibility",
+    persona: "configurator",
+    behavior: "Layout feasibility is the Configurator's verdict; the Director derives the geometry it judges",
+    criteria: ["A1", "A2"],
+    productionEntryPoint: "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "CR.4 M5b.2f",
+      provenBy: "tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js",
+      why:
+        "\"The loop REFUSES to run without a Configurator feasibility assessor\" — A2 by "
+        + "refusal. A1 because the loop carried its own approximation of the verdict before "
+        + "M5b.2f, and the threshold moved home with it. The split is deliberate and is what "
+        + "makes the pair checkable: deriving a levelGen from intent is Director translation, "
+        + "judging whether it fits is Configurator law, and `director-build-round.test.js` "
+        + "pins the derivation half refusing an input it cannot derive from.",
+    },
+  },
+  {
+    id: "configurator/input-preparation",
+    chartered: "configurator/levels",
+    persona: "configurator",
+    behavior: "Grid sizing, hazard placement and resource mapping run behind the persona's CONFIG-plane surface",
+    criteria: ["A3"],
+    productionEntryPoint: "packages/runtime/src/build/authoring-build.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "P2.2 / P2.3.1",
+      provenBy: "tests/personas/configurator/configurator-input-prep.test.js",
+      why:
+        "⚠️ **A3 ONLY, deliberately.** The cited test proves the state GATES the behavior — "
+        + "`prepareLevelGen` and `mapResources` refuse before `provideConfig` opens the round, "
+        + "and `provideConfig` rejects an invalid config and stays uninitialized. That is "
+        + "exactly criterion A3 and nothing more: it does not ablate the persona out of "
+        + "`authoring-build.js` to show production cannot size a grid without it. Claiming A2 "
+        + "here would be the overclaim this registry exists to prevent — the sibling "
+        + "validate-lock@build entry carries A2 because it has a real differential.",
+    },
+  },
+  {
     id: "configurator/validate-lock@build",
+    chartered: "configurator/validate-and-lock",
     persona: "configurator",
     behavior: "Assembles, validates and locks configurations — BUILD plane",
     criteria: ["A2", "A3"],
@@ -95,6 +265,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "configurator/validate-lock@tick",
+    chartered: "configurator/validate-and-lock",
     persona: "configurator",
     behavior: "Assembles, validates and locks configurations — TICK plane",
     criteria: ["A3"],
@@ -113,6 +284,7 @@ const REGISTRY = Object.freeze([
 
   {
     id: "configurator/locked-config-is-the-input",
+    chartered: "configurator/validate-and-lock",
     persona: "configurator",
     behavior: "The config a build consumes is the one the Configurator locked, unedited afterwards",
     criteria: ["A5"],
@@ -136,6 +308,7 @@ const REGISTRY = Object.freeze([
   // ── Allocator ──────────────────────────────────────────────────────────────
   {
     id: "allocator/pricing-single-origin",
+    chartered: "allocator/pricing-formulas",
     persona: "allocator",
     behavior: "The economy: every token cost has one author inside the Allocator",
     criteria: ["A1"],
@@ -160,6 +333,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "allocator/judges-not-authors",
+    chartered: "allocator/price-lists",
     persona: "allocator",
     behavior: "The Allocator prices a config it did not author, by reading the artifact's published fields",
     criteria: ["A1"],
@@ -183,9 +357,98 @@ const REGISTRY = Object.freeze([
     },
   },
 
+  {
+    id: "allocator/spend-authority",
+    chartered: "allocator/spend-validation",
+    persona: "allocator",
+    behavior: "A build the Allocator will not fund does not happen: the receipt gates production",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/build/orchestrate-build.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "P1 / CR.1",
+      provenBy: "tests/adapters-cli/ak-hazard-resource-plan.test.js",
+      why:
+        "A2 through the real CLI: when the Allocator denies the receipt, `orchestrateBuild` "
+        + "throws `Budget receipt denied: …` and the command exits non-zero. "
+        + "⚠️ **THE CITATION IS THE FINDING.** This entry first cited "
+        + "`ak-warden-plan.test.js`, the obvious candidate — it names the denial string and "
+        + "asserts a non-zero exit. Perturbing the refusal away leaves it GREEN, because its "
+        + "regex accepts three different messages "
+        + "(`/budget|minimum_cost_exceeds_budget|Budget receipt denied/i`) and that scenario "
+        + "actually fails at an EARLIER gate. A test that mentions a behavior is not a test "
+        + "that pins it. "
+        + "⚠️ And the first perturbation was itself wrong: `orchestrate-build.js` throws on a "
+        + "denied receipt at TWO sites, one a superset of the other, so neutralizing one left "
+        + "the whole suite green and briefly read as \"nothing guards this\". Both had to go "
+        + "before the real guard showed itself. "
+        + "⚠️ SCOPE: this proves the verdict is load-bearing, not that the persona cannot be "
+        + "bypassed by a caller that never asks for a receipt at all.",
+    },
+  },
+  {
+    id: "allocator/budget-maximization",
+    chartered: "allocator/budget-maximization",
+    persona: "allocator",
+    behavior: "Maximizing a config against a budget spends the Allocator's prices, never an assumed one",
+    criteria: ["A1"],
+    productionEntryPoint: "packages/runtime/src/personas/configurator/budget-maximizer.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "CR.7 / WP-5 D10",
+      provenBy: "tests/personas/configurator/configurator-maximizer-prices-from-allocator.test.js",
+      why:
+        "A1 with real teeth, and the teeth are the story: the maximizer used to carry a "
+        + "private fallback price of `1`, and every vital in the Allocator's default list "
+        + "costs exactly 1 — so the private price and the real price were numerically "
+        + "identical and NO output test could distinguish them. The TEETH case quadruples the "
+        + "Allocator's price and requires the result to move; unpriced vitals and regen ticks "
+        + "are refusals that name the missing key. ⚠️ A1 only: this is about who authors the "
+        + "prices, not about whether production could maximize without the Allocator.",
+    },
+  },
+  {
+    id: "allocator/reconciliation",
+    chartered: "allocator/reconciliation",
+    persona: "allocator",
+    behavior: "Reconciling actual spend against the issued budget, and adjusting",
+    criteria: ["A1", "A2"],
+    productionEntryPoint: "packages/runtime/src/personas/allocator/reconciliation.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "P5.5",
+      provenBy: "tests/personas/allocator/allocator-reconciles-or-nothing-does.test.js",
+      why:
+        "BUILT in P5.5 — it was registered blocked because it did not exist, not because it "
+        + "was unproven. A2 by ablation: an Allocator that walks the same states and emits "
+        + "the same payload-driven actions but never reconciles leaves production with NO "
+        + "verdict anywhere, and the twin is exact (it delegates to a real persona, so the "
+        + "spend core charges is identical — a stub emitting nothing would have removed the "
+        + "signals that trigger the reconciliation and proved nothing). A1 because the "
+        + "disposition boundaries and the adjustment vocabulary are authored here: the test "
+        + "asserts the overspend arithmetic, not merely that a verdict appeared. "
+        + "⚠️ What made this possible at all was that the ACTUAL half existed and was never "
+        + "read: `core.getBudgetUsage` had no runtime consumer, so caps went in and nothing "
+        + "ever compared them against spend.",
+      residue:
+        "REBALANCING was a label-only state before this — a charter defect (Enforcement → "
+        + "Personas) that no guard reported, because a state gating nothing is indistinguishable "
+        + "from a state gating something in every output test. It gates the reconciliation now, "
+        + "and its FSM guard requires the ledger rather than the old signal COUNTS. "
+        + "⚠️ Separately: `core.applyAction` returns for ActionKind.Move BEFORE charging, so a "
+        + "`movement` cap is inert against moves and reconciles as spend 0. That is a core "
+        + "defect this entry does not cover and did not introduce; the G1 test caps `effects` "
+        + "and says so in place.",
+    },
+  },
+
   // ── Actor ──────────────────────────────────────────────────────────────────
   {
     id: "actor/serializable-decision",
+    chartered: "actor/action-proposal",
     persona: "actor",
     behavior: "Proposes actions deterministically: the decision is a pure function of serialized state",
     criteria: ["A4"],
@@ -200,6 +463,7 @@ const REGISTRY = Object.freeze([
   },
   {
     id: "actor/no-budget-policy",
+    chartered: "actor/action-proposal",
     persona: "actor",
     behavior: "The Actor emits candidate proposals; budget admissibility is not its call",
     criteria: ["A1"],
@@ -212,9 +476,33 @@ const REGISTRY = Object.freeze([
     status: { owned: true, since: "CR.6" },
   },
 
+  {
+    id: "actor/motivation-to-proposal",
+    chartered: "actor/action-proposal",
+    persona: "actor",
+    behavior: "Turning motivations and an observation into proposed actions is the Actor's decision",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/personas/actor/controller.js",
+    invocation: "cli",
+    status: {
+      owned: true,
+      since: "P5.4 (2026-08-12)",
+      provenBy: "tests/personas/actor/actor-proposes-or-nothing-does.test.js",
+      why:
+        "The ablation the entry asked for, built: two runs of the same fixture through the same "
+        + "registry, differing only in whether the Actor proposes. The control emits 3 real "
+        + "`move` actions across 3 ticks; the neutered run emits NONE, so nothing else in the "
+        + "tick makes up the difference. Both runs use the same registry SHAPE deliberately — a "
+        + "caller-supplied registry replaces the defaults, so building one from defaults and one "
+        + "by hand would vary two things. Perturbation: a stub that does propose fails the "
+        + "assertion, which proves it reads production rather than a constant.",
+    },
+  },
+
   // ── Moderator ──────────────────────────────────────────────────────────────
   {
     id: "moderator/tick-ordering",
+    chartered: "moderator/tick-ordering",
     persona: "moderator",
     behavior: "Controls the tick: ordering strategy and effect fulfilment are the Moderator's decision",
     criteria: ["A1", "A2"],
@@ -228,9 +516,78 @@ const REGISTRY = Object.freeze([
     status: { owned: true, since: "CR.5" },
   },
 
+  {
+    id: "moderator/pausing-gates-advancement",
+    chartered: "moderator/pausing",
+    persona: "moderator",
+    behavior: "`pausing` is a real gate: a paused Moderator refuses to advance step()",
+    criteria: ["A3"],
+    productionEntryPoint: "packages/runtime/src/runner/runtime-fsm.mjs",
+    invocation: "cli",
+    status: {
+      owned: true,
+      since: "P3.1",
+      provenBy: "tests/personas/moderator/moderator-pause-gates-tick.test.js",
+      why:
+        "The charter names this one explicitly — \"pausing is a real gate that refuses to "
+        + "advance step(), not a label\" — because the test that used to cover it asserted only "
+        + "that the state label changed. A3 is exactly that distinction, and the replacement "
+        + "test asserts the tick does not advance while paused, plus that the labels still move "
+        + "correctly across pause/resume/stop so the gate is not just a permanent stop.",
+    },
+  },
+  {
+    id: "moderator/affinity-target-resolution",
+    chartered: "moderator/affinity-resolution",
+    persona: "moderator",
+    behavior: "Resolving which actors an affinity targets, and the effects that follow, is Moderator policy",
+    criteria: ["A1", "A2"],
+    productionEntryPoint: "packages/runtime/src/personas/moderator/affinity-target-effects.js",
+    invocation: "cli",
+    status: {
+      owned: true,
+      since: "P5.4 (2026-08-12)",
+      provenBy: "tests/personas/moderator/moderator-affinity-resolution.test.js",
+      why:
+        "Ablation plus differential. A Moderator that plans no affinity actions leaves the core "
+        + "untouched (control: the real one sets one tile and arms one hazard), and what "
+        + "production applies equals what a FRESH standalone Moderator plans from the payload "
+        + "production actually sent — captured through a proxy, because asserting against a "
+        + "hand-written payload would test the fixture and not the seam. "
+        + "⚠️ Perturbation-verified WITH A RECORDED LIMIT: making the runner call "
+        + "`planModeratorAffinityActions` itself fails the ABLATION and passes the DIFFERENTIAL, "
+        + "since a runner duplicating the persona's own function agrees with it by construction. "
+        + "Only the ablation answers A2 — the same split as CR.8's provenance pair.",
+    },
+  },
+
   // ── Annotator ──────────────────────────────────────────────────────────────
   {
+    id: "annotator/per-tick-telemetry",
+    chartered: "annotator/per-tick-telemetry",
+    persona: "annotator",
+    behavior: "Per-tick TelemetryRecords are captured by the Annotator, not assembled by the runner",
+    criteria: ["A2", "A5"],
+    productionEntryPoint: "packages/runtime/src/runner/runtime-fsm.mjs",
+    invocation: "cli",
+    status: {
+      owned: true,
+      since: "P5.4 (2026-08-12)",
+      provenBy: "tests/personas/annotator/annotator-per-tick-telemetry.test.js",
+      why:
+        "Ablation: a silent Annotator means the tick frames carry NO records, so the runner "
+        + "keeps no fallback that assembles them from the observations it already holds — which "
+        + "it could trivially do. Plus provenance per record (`meta.producedBy`, `meta.runId`) "
+        + "from an instance the run demonstrably moved out of `idle`. "
+        + "⚠️ SCOPE, stated in the test: this does not force the record to come from THE SAME "
+        + "instance the way CR.8's refusal does for the summary, because the tick loop drives "
+        + "the Annotator itself and there is no glue-side call to intercept. An out-of-band "
+        + "emit for a run someone else ticked would need CR.8's refusal, not this test.",
+    },
+  },
+  {
     id: "annotator/run-summary-provenance",
+    chartered: "annotator/run-summary",
     persona: "annotator",
     behavior: "The end-of-run RunSummary is produced by the instance that observed the run",
     criteria: ["A2", "A5"],
@@ -311,10 +668,19 @@ const REGISTRY = Object.freeze([
     productionEntryPoint: "tests/architecture/persona-boundary-allowlist.json",
     invocation: "none",
     status: {
-      blockedBy: "CR.7",
+      owned: true,
+      since: "CR.7 / P5.1 flip (2026-08-12)",
+      provenBy: "tests/architecture/persona-boundary.test.js",
       why:
-        "The allowlist records the crossings that bypass controllers. Shrinking (74 -> 62, "
-        + "counted from persona-boundary-allowlist.json); the guard becomes a hard error at zero.",
+        "The allowlist is EMPTY and the guard is a hard error. It ran 74 -> 62 -> 55 -> 53 "
+        + "-> 35 -> 3 -> 1 -> 0; the last row was configurator/cost-model.js reading the "
+        + "Allocator's base-costs.json, and P1.4 closed it by DELETING the import with the "
+        + "dead price model behind it rather than re-pointing it — re-pointing would have "
+        + "satisfied the guard and left a second price author standing. The file remains, "
+        + "empty, and a separate test now refuses a non-empty allowlist: a guard that reads "
+        + "an empty list can be re-opened with a one-line JSON edit, and one that has no "
+        + "list cannot. Perturbation-verified both ways — a new crossing fails, and so does "
+        + "re-adding an entry for a crossing that genuinely exists.",
     },
   },
 ]);

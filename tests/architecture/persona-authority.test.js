@@ -65,7 +65,51 @@ const OPEN_FINDINGS = Object.freeze([
   // PX.6 closed 2026-08-06: orchestrateBuild no longer mutates the artifact it records as
   // its causal input. Proven by a freeze differential plus a by-value comparison, both
   // perturbation-verified against the restored write-backs.
-  "CR.4", "CR.7",
+  // CR.4 closed 2026-08-10 at 2be417d6 (M1-M7) and this list said otherwise until
+  // 2026-08-12 — TWO DAYS in which the backlog over-reported by one and the registry
+  // described eight production call sites that a guard in this same directory asserted
+  // did not exist. Nothing reported the contradiction, because a closure updates the
+  // finding and nothing re-reads the instruments that named it. Same shape as the
+  // orphaned allowlist dispositions: "the finding is closed" is not a query.
+  //
+  // CR.7 closed 2026-08-12 with the P5.1 flip: the persona boundary allowlist is empty and
+  // the guard is a hard error. It was the last open finding of the program.
+  //
+  // P5.4 opened the same day, and it is what an empty finding list actually revealed: eight
+  // chartered behaviors had NO registry entry, so the registry's own premise ("assumed not
+  // owned until an entry says otherwise") made them invisible rather than tracked. Five went
+  // straight in as OWNED — their proofs already existed, unclaimed, in the budget loop's
+  // required-capability refusals — and three had no proof at all.
+  //
+  // Those three CLOSED 2026-08-13: the Actor ablation, the Moderator affinity
+  // ablation+differential and the Annotator per-tick telemetry ablation now exist, each
+  // perturbation-verified. So this list is empty again — and, as the backlog test below says
+  // at length, that means every REGISTERED behavior is owned and nothing more.
+  //
+  // P5.5 opened 2026-08-13, when that list was worked through. Three of the five went in as
+  // owned on proofs that already existed (spend authority through the real CLI, budget
+  // maximization's price teeth, input preparation's state gate — the last claiming A3 ONLY,
+  // because that is all its test proves). The other two are not unproven behaviors; they are
+  // UNIMPLEMENTED ones, and that is the finding:
+  //   orchestrator/deferred-side-effects — dispatchEffect defers, `ak inspect` counts, and
+  //     nothing in the Orchestrator ever picks them up. The charter and two READMEs describe
+  //     post-run coordination that does not exist.
+  //   allocator/reconciliation — chartered, has its own README section, and `rg reconcil`
+  //     over packages/runtime/src finds only the Configurator's layout tile reconciliation.
+  // A G1 test cannot come before the behavior, so P5.5 is implementation work first.
+  //
+  // P5.5 CLOSED 2026-08-13: both behaviors were BUILT, and both are now owned with
+  // perturbation-verified proofs. What had kept each of them unbuilt is the part worth
+  // carrying, because in both cases it was a missing consumer rather than missing effort:
+  //   allocator/reconciliation — `core.getBudgetUsage`, the ACTUAL half of "actual versus
+  //     issued", had no runtime consumer anywhere. Caps went in and nothing read them back,
+  //     so there was no second number to reconcile against. No instrument could report that:
+  //     a counter nobody reads is indistinguishable from a counter that agrees.
+  //   orchestrator/deferred-side-effects — the Moderator's DEFER decisions were recorded and
+  //     then consumed by nothing but `ak inspect`'s counter. A run that dropped every
+  //     deferral looked identical, in every output test, to a run that had none.
+  // ⇒ Both are the same shape as the stale-instrument failures above, inverted: not an
+  // instrument outliving its subject, but a subject with no instrument at all.
 ]);
 
 // ---------------------------------------------------------------------------
@@ -166,17 +210,34 @@ test("every cli-invocable entry has a standalone fixture", () => {
   }
 });
 
+/**
+ * The backlog, and what its emptiness does NOT mean.
+ *
+ * This used to assert `blocked.length >= 1` — "if nothing is blocked, either the program is
+ * finished or the registry stopped tracking". As of 2026-08-12 the first branch is the true
+ * one: CR.7 was the last open finding, and the P5.1 flip closed it. So the tripwire was
+ * removed rather than left to fail on success.
+ *
+ * ⚠️ **AN EMPTY BACKLOG MEANS "EVERY REGISTERED BEHAVIOR IS OWNED", NOT "EVERY CHARTERED
+ * BEHAVIOR IS OWNED".** The registry's own premise is that a behavior with no entry is
+ * assumed NOT owned, and several have no entry — the Director's `mapPool`, `buildCardSet`,
+ * `resolveTileCosts` and `assessFeasibility` are gated and tested but have no G1 asking the
+ * A2 question, and each persona README says so under its status table. The next honest move
+ * for this file is new ENTRIES, not a green count.
+ */
 test("the backlog is measured: report owned vs blocked", () => {
   const owned = REGISTRY.filter(isOwned);
   const blocked = REGISTRY.filter((entry) => blockingFinding(entry));
   assert.equal(owned.length + blocked.length, REGISTRY.length);
-  // Not an aspiration — a tripwire. When a finding closes, its entry flips to
-  // owned:true and this number moves. If it never moves, nothing is being proven.
   assert.ok(owned.length >= 1, "at least one behavior must be provably owned");
-  assert.ok(
-    blocked.length >= 1,
-    "if nothing is blocked, either the program is finished or the registry stopped tracking",
-  );
+  // Every entry must still resolve to exactly one of the two states — the shape check that
+  // survives the backlog reaching zero.
+  for (const entry of REGISTRY) {
+    assert.ok(
+      isOwned(entry) !== Boolean(blockingFinding(entry)),
+      `${entry.id}: neither owned nor blocked`,
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------

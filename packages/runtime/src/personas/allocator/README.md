@@ -18,6 +18,70 @@ This document defines the Allocator as a **policy and coordination role**. Detai
 | Primary outputs | Budget receipts, approval/rejection decisions, reconciliation signals |
 | Boundary | `core-ts` enforces provided caps; Allocator defines policy |
 
+## Ownership status (A1–A5)
+
+Ownership is not "the call goes through the controller". The charter defines it as **A1–A5**
+(`docs/architecture-charter.md` → *Ownership — what "belongs to a persona" means*), and **a chartered
+behavior with no G1 test is not owned**. The rows below mirror
+`tests/architecture/persona-authority-registry.js`, which is the single origin for that status;
+`tests/architecture/persona-readme-authority.test.js` fails if this table and the registry disagree.
+
+<!-- A1-A5-STATUS:allocator -->
+
+| Behavior | Criteria | Status | Proof |
+|---|---|---|---|
+| `allocator/pricing-single-origin` — every token cost has one author, inside the Allocator | A1 | ✅ owned (CR.1, closed at CR.9 M5) | `tests/architecture/single-origin.test.js` |
+| `allocator/judges-not-authors` — it prices a config it did not author, from the artifact's published fields | A1 | ✅ owned (CR.9 M3) | `tests/personas/allocator/allocator-judges-not-authors.test.js` |
+| `allocator/spend-authority` — a build it will not fund does not happen: the receipt gates production | A2 | ✅ owned (P1 / CR.1) | `tests/adapters-cli/ak-hazard-resource-plan.test.js` |
+| `allocator/budget-maximization` — maximizing against a budget spends its prices, never an assumed one | A1 | ✅ owned (CR.7 / WP-5 D10) | `tests/personas/configurator/configurator-maximizer-prices-from-allocator.test.js` |
+| `allocator/reconciliation` — reconciling actual spend against the issued budget | A1, A2 | ✅ owned (P5.5) | `tests/personas/allocator/allocator-reconciles-or-nothing-does.test.js` |
+
+<!-- /A1-A5-STATUS -->
+
+⚠️ **Three of the five rows are A1 — sole implementation — because that is the criterion this
+persona keeps losing.** A second price table does not fail an output test when its numbers happen to
+agree: the D10 finding caught a private fallback price of `1` against an Allocator price of `1`,
+where quadrupling the real price changed nothing observable. Which is why the guards are a **census
+over the tree** rather than tests over a result, and why unpriced inputs are refusals that name the
+missing key instead of defaults.
+
+**`allocator/spend-authority` is the A2 row, and it runs through the real CLI:** when this persona
+denies the receipt, the build throws `Budget receipt denied: …` and the command exits non-zero.
+
+⚠️ **The citation on that row is itself a finding.** It first named `ak-warden-plan.test.js` — the
+obvious candidate, which mentions the denial string and asserts a non-zero exit. Perturb the refusal
+away and that test stays **green**: its regex accepts three different messages
+(`/budget|minimum_cost_exceeds_budget|Budget receipt denied/i`) and its scenario actually fails at an
+earlier gate. *A test that mentions a behavior is not a test that pins it.* The proof that does fail
+is `ak-hazard-resource-plan.test.js`, and finding it required neutralizing **both** throw sites in
+`orchestrate-build.js` — one is a superset of the other, so removing one left the entire suite green
+and briefly read as "nothing guards this at all".
+
+🟢 **`allocator/reconciliation` IS IMPLEMENTED — P5.5, 2026-08-13.** It was chartered, described
+below under "Reconciliation and Adjustment", and absent from the tree for as long as both had said
+otherwise; `rg reconcil` over `packages/runtime/src` used to find only the Configurator's layout tile
+reconciliation, a different word for a different thing. It now lives in `reconciliation.js`, the
+`monitoring → rebalancing` edge gates it, and the section below describes behavior rather than intent.
+
+⚠️ **What had made it unbuildable was that half the comparison was write-only.** Caps went into core
+through `ports/budget.js`, and `core.getBudgetUsage` — the actual-spend counter, present since core
+had a budget at all — had **no runtime consumer anywhere**. There was nothing to reconcile the issued
+half against, and no instrument could report that, because a counter nobody reads looks exactly like
+a counter that agrees.
+
+🟢 **THERE IS NOW ONE PRICE MODEL. P1.4 landed 2026-08-12.** The second one —
+`configurator/cost-model.js`'s affinity base 30, `Σ(10+8(n-1)²)` stacks, `2·H` vital points and
+quadratic regen — is deleted, along with its only consumer (`actor-config-generation.js`, which had
+no production importers), the `actorModel` / `motivationFallback` groups in `base-costs.json`, and
+the eight tests that pinned the divergence as tolerated.
+
+⚠️ **It was dead when it was deleted, and it had been dead for an unknown stretch while three
+documents said otherwise** — including an earlier version of this paragraph. Prices now have exactly
+one home, and two guards keep it that way: the older one forbids price-shaped constants in code, and
+a new one forbids reading `base-costs.json` from outside this directory. That second guard exists
+because the first was structurally blind to the model it was meant to stop — once P1.2 moved the
+numbers into JSON, the divergent declarations held no literals to match.
+
 ## Persona Scope
 
 The Allocator persona is responsible for **deciding whether proposed activity is affordable**, not for enforcing the effects of that activity.
@@ -245,18 +309,15 @@ Resource items (`resource_*`) are **derived in code** from the ids they mirror a
 `round(freeFloatingPremium × base)`, inheriting the mirrored id's linear/quadratic shape — the
 premium changes price, never scaling. Hazards pay no premium: a hazard threatens, a resource grants.
 
-> **Known bug — the motivation fallback silently overcharges.** `resolveMotivationUnitCost` consults
-> the price list first and, on a miss, falls back to `DEFAULT_MOTIVATION_COSTS`. The two disagree by
-> up to 12× (list `exploring = 2`, fallback `25`). A caller holding a price map without motivation
-> entries is charged the fallback with **no error and no warning**. This fires in production today:
-> the budget maximizer charges 25 for `attacking`, which the list prices at 3 — an ~8× overcharge
-> that silently costs a delver ~18 tokens of mana.
->
-> The right contract is to reject an incomplete price list. It is not yet implemented because doing
-> so changes what the maximizer can afford (`mana.max` 29 → 47), which needs its own milestone and a
-> benchmark re-baseline. The fix order is: give the maximizer a complete price map so `attacking`
-> resolves to 3, *then* reject incomplete lists. Pinned by
-> `tests/personas/motivation-price-fallback-strict.test.js`.
+> **✅ CLOSED — the motivation fallback that silently overcharged is GONE.** It read: on a price-map
+> miss, `resolveMotivationUnitCost` fell back to `DEFAULT_MOTIVATION_COSTS`, which disagreed with
+> the list by up to 12× (list `exploring = 2`, fallback `25`) and charged it with no error and no
+> warning. Today that function returns `null` on a miss and `calculateMotivationStackCost` pushes
+> `motivation "<kind>" has no price list entry` — a refusal that names the missing key, which is the
+> contract the note said was "not yet implemented".
+> ⚠️ The note also cited `tests/personas/motivation-price-fallback-strict.test.js` as its pin. **That
+> file does not exist** — it was renamed or absorbed and the citation was never updated, so the doc
+> pointed at a guard nobody could run. Verified 2026-08-12 against the code, not the citation.
 
 > **Known bug — `ak create` does not charge affinity-only resources.** Found 2026-07-18 while
 > building P0.2 goldens: `create` charges an affinity-only resource **zero tokens** (empty receipt)
@@ -276,21 +337,31 @@ premium changes price, never scaling. Hazards pay no premium: a hazard threatens
 > `configurator/motivation-rules.js` (`profileCosts`: exploring 1, attacking 5, strategy 20…),
 > embedded in the behavior-rules document — P1.4 must reconcile all three.
 
-> **Known divergence — `configurator/cost-model.js` DOES charge live paths.** (An earlier revision
-> of this note claimed it charges nobody; that was wrong.) *(`spend-proposal.js` named below is an
-> **Allocator** file as of 2026-08-04 — CR.9 M1 moved it here from `configurator/`; this note predates
-> the move and described it by its old address.)* It holds a second set of cost constants
-> that disagree with this price list on nearly every value (vital points `2·H` vs `1`, regen
-> `12·R²` vs `n²`, affinity base `30` vs `10`, stacks `Σ(10+8(n-1)²)` vs `n²`), and those constants
-> reach real receipts through `spend-proposal.js#calculateActorConfigurationUnitCost` — used by
-> card authoring, `selection-spend.js`, and the CLI delver-card maximizer. Inside that function:
-> vital points and expression costs consult the price list first and silently fall back to
-> cost-model constants; **affinity base + stacks never consult the price list at all** (always
-> `30 + Σ(10+8(n-1)²)`); regen is linear when the list has an entry but quadratic
-> (`REGEN_COST_COEFFICIENT · R²`) on a miss. `budget-maximizer.js` prices regen exclusively from
-> `REGEN_COST_COEFFICIENT`, never from the list. So an actor's affinity and a resource's affinity
-> are charged by two different models today. Unification is planned work (see
-> `local-codex/Plan.md` M18–M21); until then do not add costs to `cost-model.js`.
+> **✅ CLOSED BY DELETION — P1.4, 2026-08-12. There is no second price model.**
+> This note used to describe `configurator/cost-model.js` as holding cost constants that disagreed
+> with this price list on nearly every value (vital points `2·H` vs `1`, regen `12·R²`, affinity base
+> `30` vs `10`, stacks `Σ(10+8(n-1)²)`) and reaching real receipts through
+> `spend-proposal.js#calculateActorConfigurationUnitCost`.
+>
+> **The first half was true and the second half stopped being true, and nothing noticed.** The census
+> at `05e27e43` found that function reading the price list through `requireEntry` and erroring on a
+> miss, and found the divergent constants reachable only from `configurator/actor-config-generation.js`
+> — a module with zero production importers. P1.4 deleted both, plus the `actorModel` and
+> `motivationFallback` groups in `base-costs.json` that fed them, and the eight tests that pinned the
+> divergence as tolerated.
+>
+> ⚠️ **The old single-origin guard could not have caught this, and that is the lesson worth keeping.**
+> `PRICE_OR_BUDGET_CONSTANT` matches a price-shaped name assigned to a numeric literal;
+> `VITAL_MAX_COST_MULTIPLIER` matched the name perfectly but held `ACTOR_MODEL.vital_max_health`,
+> because P1.2 had moved the numbers into JSON. **Complying with "numbers live in JSON" is what made
+> the second model invisible.** The new guard forbids reading `base-costs.json` from outside
+> `personas/allocator/` at all — the concept is "a price model with a second author", not "a number
+> in code".
+>
+> The third table the old note named — `configurator/motivation-rules.js#profileCosts` — is design
+> data inside the DEFAULT rules artifact; its derived `MOTIVATION_COST_DEFAULTS` has no consumers
+> anywhere in the repo, so it prices nothing. Left in place deliberately: deleting authored design
+> numbers is a content decision, not a pricing one.
 
 ### Budget Policy and Cost Modeling
 The Allocator defines and applies:
@@ -459,12 +530,31 @@ Note: Sensing can be modeled as an affinity kind with mana drain; externalize (p
 ---
 
 ### Reconciliation and Adjustment
-When budgets are exceeded or threatened, the Allocator may:
-- Require simplification (e.g. reduce actors, truncate motivations).
-- Reject configurations outright.
-- Propose alternative allocations that fit the purse.
 
-These decisions are expressed as data and remain auditable.
+Implemented in `reconciliation.js` (P5.5), gated by the `monitoring → rebalancing` edge.
+
+`reconcileBudget({ ledger })` takes the issued caps beside the spend core actually charged and
+returns a verdict per category — `unlimited` / `within` / `at_limit` / `exceeded` — plus the
+run-level disposition, which is the **worst** category rather than an average: a run that blew one
+cap has not "mostly" stayed in budget. Adjustments come out as data (`reduce_scope` with the
+overspend, `hold` at the limit), so the Allocator signals and the plane that owns the work acts.
+
+The ledger is **required**, not defaulted: reconciling nothing would report a run that blew its cap
+as within budget — well-formed, auditable-looking and wrong, the same defect class the injected
+Configurator capabilities refuse rather than guess at. `ports/budget.js` reads core's counters
+(glue reads; the persona decides) and the runner only sends `rebalance` when it has a ledger to hand
+over, so the state is never entered with nothing to do in it.
+
+⚠️ **REBALANCING was a label-only state until this landed** — the charter's enforcement checklist
+calls that a defect, and no guard reported it, because a state that gates nothing is
+indistinguishable from a state that gates something in every output test. Its FSM guard used to
+accept any non-empty `signals` array, and signals are counts of effects, fulfilments and actions:
+enough to say a tick was busy, never enough to compare spend against a cap.
+
+⚠️ **A `movement` cap is inert against moves, and that is a core defect this does not fix.**
+`core.applyAction` returns for `ActionKind.Move` before `chargeBudgetForAction`, so moves are never
+charged to any category and a run that moves three hundred times reconciles as spend 0. The
+reconciliation reports what core charged; it does not audit whether core charged correctly.
 
 ---
 
