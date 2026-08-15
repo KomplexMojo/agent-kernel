@@ -51,6 +51,11 @@ const configuratorMotivations = configuratorBuild.normalizeMotivations;
 const configuratorMaximizeActorBudget = createConfiguratorPersona({ clock: UNUSED_CLOCK })
   .authorCandidates.maximizeActorBudget;
 
+// AM.2b — what an actor's motivation REQUIRES of its vitals is configuration
+// validity, so it comes off the same public surface for the same reason.
+const configuratorApplyMotivationVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
+  .authorCandidates.applyMotivationDerivedVitalRequirements;
+
 const SCHEMAS = Object.freeze({
   solverRequest: SOLVER_REQUEST_SCHEMA,
   solverResult: SOLVER_RESULT_SCHEMA,
@@ -1461,6 +1466,18 @@ export async function orchestrateBuild({
     if (!actorsInput || !Array.isArray(actorsInput.actors)) {
       throw new Error("configurator inputs must include an actors array.");
     }
+
+    // AM.2b — raise each actor's vitals to what its motivation requires BEFORE
+    // anything prices them.
+    //
+    // An actor whose motivation implies movement needs a stamina POOL, not just
+    // stamina regen: core clamps regen to max, so the {0,0,0} default made every
+    // move it ever proposed fail InsufficientStamina (F12). Applying the floor
+    // here rather than after the build is what keeps the Allocator whole — the
+    // spend proposal below is built from `actorsInput.actors`, so the stamina
+    // appears as priced line items instead of a vital the actor was handed for
+    // free. An unpriced grant is exactly the silent fallback the charter forbids.
+    actorsInput.actors.forEach((actor) => configuratorApplyMotivationVitalRequirements(actor));
 
     const affinityPresets = configuratorInputs?.affinityPresets || null;
     const affinityLoadouts = configuratorInputs?.affinityLoadouts || null;

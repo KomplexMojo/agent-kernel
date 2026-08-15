@@ -101,6 +101,13 @@ test("bindings expose MVP movement helpers and stable shapes", async () => {
     assert.deepEqual(decoded.to, action.params.to);
     assert.equal(decoded.tick, action.tick);
     applyMoveAction(core, packed);
+    // AM.3 — the tick is no longer advanced as a side effect of a successful
+    // move (rules/move.ts commitMove); whoever drives the simulation closes the
+    // tick. This loop replays one action per tick, so it advances once per
+    // action. Without it, every action after the first fails TickMismatch and
+    // the frames below stop matching the fixture. The fixture is unchanged —
+    // the cadence it encodes is unchanged; only who advances the tick moved.
+    core.advanceTick();
     frames.push(renderFrameBuffer(core).buffer);
   }
 

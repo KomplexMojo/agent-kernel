@@ -110,6 +110,10 @@ export function applyMotivationToInitialStateActors(initialState, { parsedDelver
     const match = cards.find((card) => actor.id === card.baseId || actor.id.startsWith(`${card.baseId}-`));
     if (match) {
       actor.motivation = { kind: match.motivation };
+      // NOTE (AM.2b): what this motivation requires of the actor's vitals is NOT
+      // applied here. It is applied in build/orchestrate-build.js, before the
+      // Allocator prices the actor list. Raising a vital at this point — after
+      // pricing — would give the actor something the budget never paid for.
     }
   });
 }

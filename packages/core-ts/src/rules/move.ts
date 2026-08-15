@@ -48,6 +48,13 @@ export interface MoveAction {
 export interface MoveWorld {
   advanceTick(): void;
   getActorId(): number;
+  /**
+   * AM.2 — repoint the singleton actor mirror at the actor a move belongs to.
+   * Returns ValidationError.None on success, WrongActor when no motivated actor
+   * carries that id. Optional so single-actor MoveWorld doubles keep working.
+   */
+  setActiveMotivatedActor?(id: number): number;
+  getMotivatedActorCount?(): number;
   getActorMovementCost(): number;
   getActorVitalCurrent(vitalKind: number): number;
   getActorVitalMax(vitalKind: number): number;
@@ -182,8 +189,31 @@ export function createMoveRules(world: MoveWorld) {
     return action.fromX + dx === action.toX && action.fromY + dy === action.toY;
   }
 
+  /**
+   * AM.2 — resolve the move to the actor that owns it.
+   *
+   * The world keeps a singleton "active actor" mirror over the motivated-actor
+   * arrays. It was pinned to index 0 at placement and never repointed
+   * (setActiveMotivatedActor had no caller anywhere in production), so every
+   * move proposed by any actor other than index 0 failed identity validation
+   * with WrongActor, and every write — position, vitals, hazard damage on
+   * entry, resource affinity grants — landed on index 0 regardless of who
+   * moved. In a multi-actor run only one actor could ever move.
+   *
+   * Repointing here, before validation, makes the whole downstream move path
+   * operate on the correct actor without duplicating any of it.
+   */
+  function focusActorForMove(action: MoveAction): number {
+    const motivatedCount = world.getMotivatedActorCount?.() ?? 0;
+    if (motivatedCount <= 0) return ValidationError.None; // legacy single-actor path
+    if (typeof world.setActiveMotivatedActor !== "function") return ValidationError.None;
+    return world.setActiveMotivatedActor(action.actorId);
+  }
+
   function validateMoveIdentityAndTiming(action: MoveAction): number {
     if (!world.hasActor()) return ValidationError.WrongActor;
+    const focusError = focusActorForMove(action);
+    if (focusError !== ValidationError.None) return focusError;
     if (action.actorId !== world.getActorId()) return ValidationError.WrongActor;
     if (action.tick !== world.getCurrentTick() + 1) return ValidationError.TickMismatch;
     if (action.fromX !== world.getActorX() || action.fromY !== world.getActorY()) {
@@ -286,7 +316,16 @@ export function createMoveRules(world: MoveWorld) {
     staminaMax: number,
     staminaRegen: number,
   ): void {
-    world.advanceTick();
+    // AM.3 — a move no longer advances the tick.
+    //
+    // `world.advanceTick()` used to be called here, and this was its ONLY caller
+    // in production, so the tick — and with it all vital and hazard regen — was
+    // a side effect of a successful move rather than a property of the
+    // simulation. A tick in which nothing moved advanced nothing; a tick in
+    // which N actors moved regenerated N times; and `getCurrentTick()` drifted
+    // away from the runtime's own tick count. Tick control is chartered
+    // Moderator authority (§29), so the runtime now advances the core tick
+    // exactly once per step(), after actions are applied.
     world.setActorVital(VitalKind.Stamina, staminaRemaining, staminaMax, staminaRegen);
     world.setActorPosition(action.toX, action.toY);
     applyTileEntryEffects(action.toX, action.toY);

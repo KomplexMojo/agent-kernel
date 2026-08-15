@@ -84,6 +84,28 @@
         "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
+    },
+    {
+      "id": "vital_stamina_point",
+      "kind": "vital",
+      "quantity": 2,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_stamina_regen_tick",
+      "kind": "vital",
+      "quantity": 2,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
     }
   ]
 }

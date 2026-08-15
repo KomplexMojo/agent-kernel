@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "producedBy": "cli-create",
     "cost": {
-      "runTotalTokens": 123,
+      "runTotalTokens": 129,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g1_budget_receipt",
@@ -46,9 +46,9 @@
           "regen": 0
         },
         "stamina": {
-          "current": 0,
-          "max": 0,
-          "regen": 0
+          "current": 2,
+          "max": 2,
+          "regen": 2
         },
         "durability": {
           "current": 1,

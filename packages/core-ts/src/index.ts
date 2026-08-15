@@ -51,7 +51,7 @@ import { ActionKind, validateAction, validateSeed, ValidationError } from "./val
 
 export { BudgetCategory } from "./state/budget.ts";
 // Core owns the action codebook; runtime maps names onto these codes.
-export { ActionKind } from "./validate/inputs.ts";
+export { ActionKind, ValidationError, getValidationErrorName } from "./validate/inputs.ts";
 export * from "./affinity-readers.ts";
 export * from "./motivation-readers.ts";
 export * from "./mvp-movement.ts";
@@ -359,43 +359,56 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
     }
   }
 
-  function handleMoveAction(value: number): void {
+  function handleMoveAction(value: number): number {
     const action = move.decodeMove(value);
     const moveError = move.applyMove(action);
     if (moveError !== ValidationError.None) {
       if (moveError === ValidationError.BlockedByWall || moveError === ValidationError.ActorCollision) {
         effects.pushActorBlocked(action.actorId, action.toX, action.toY, moveError);
-        return;
+        return moveError;
       }
       effects.pushEffect(EffectKind.ActionRejected, moveError);
-      return;
+      return moveError;
     }
     effects.pushActorMoved(action.actorId, action.toX, action.toY);
     if (world.isActorAtExit()) {
       effects.pushEffect(EffectKind.LimitReached, action.tick);
     }
+    return ValidationError.None;
   }
 
-  function applyAction(kind: number, value: number): void {
+  /**
+   * AM.1 — returns the ValidationError code (0 == None) instead of void.
+   *
+   * Rejection used to be reported ONLY by pushing ActionRejected into the effect
+   * ring, which no caller read: the runtime's applyActionsToCore recorded every
+   * move as accepted regardless of outcome, so a run in which core rejected
+   * every move still reported every actor as having acted. The return value is
+   * the caller-visible channel; the effect ring is unchanged and still carries
+   * the same records for consumers that want them.
+   *
+   * Additive for existing callers — they ignore the return value.
+   */
+  function applyAction(kind: number, value: number): number {
     if (kind === ActionKind.Move) {
-      handleMoveAction(value);
-      return;
+      return handleMoveAction(value);
     }
 
     const actionError = validateAction(kind, value);
     if (actionError !== ValidationError.None) {
       effects.pushEffect(EffectKind.ActionRejected, actionError);
-      return;
+      return actionError;
     }
 
     const pendingRequestError = validatePendingRequestAction(kind, value);
     if (pendingRequestError !== ValidationError.None) {
       effects.pushEffect(EffectKind.ActionRejected, pendingRequestError);
-      return;
+      return pendingRequestError;
     }
 
     chargeBudgetForAction(kind);
     dispatchNonMoveAction(kind, value);
+    return ValidationError.None;
   }
 
   core.memory = new ArrayBuffer(0);

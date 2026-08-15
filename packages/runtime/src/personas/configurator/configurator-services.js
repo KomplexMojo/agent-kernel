@@ -41,6 +41,7 @@ import {
 import { normalizeMotivations } from "./motivation-loadouts.js";
 import { assessLayoutFeasibility } from "./feasibility.js";
 import {
+  applyMotivationDerivedVitalRequirements,
   assessDelverStructure,
   buildBudgetEnvelope,
   buildMinimumDelverCard,
@@ -353,6 +354,13 @@ export function attachConfiguratorServices({ fsm } = {}) {
     proposeRoomCandidates,
     assessDelverStructure,
     buildMinimumDelverCard,
+    /**
+     * AM.2b — apply what an actor's motivation REQUIRES of its vitals, once the
+     * motivation kind is known. Published because the authoring pipeline patches
+     * motivation onto actor records after the build, and glue holds no domain
+     * logic: it asks the Configurator, which owns configuration validity.
+     */
+    applyMotivationDerivedVitalRequirements,
     /**
      * "What are this card's vitals, with defaults applied?" — a question about card
      * shape, which is why the Allocator asks it rather than answering it. It priced

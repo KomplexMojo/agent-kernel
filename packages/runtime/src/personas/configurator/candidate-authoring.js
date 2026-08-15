@@ -95,6 +95,113 @@ export function requiresMovementStamina(card = null) {
   return card?.type === "delver" || hasNonStationaryMobilityMotivation(motivations);
 }
 
+// ── AM.2b — movement stamina: the POOL, not just the regen ──────────────────
+//
+// The movement-stamina requirement existed before this and was enforced as
+// `stamina.regen >= 1`, in three places, none of which touched `stamina.max`.
+// `DEFAULT_VITALS.stamina` is `{0, 0, 0}`, and core's
+// computeNextStaminaAfterRegen clamps to max — `min(current + regen, max)` — so
+// with `max === 0` the regen never accumulates and stamina is permanently 0.
+// core's applyMove then rejects every move with InsufficientStamina. The result:
+// no actor authored through `ak create` could move, ever, in any run (F12).
+//
+// The rule was written against one SPELLING of the requirement (regen) rather
+// than the capability it exists to guarantee (can this actor take a step?), so
+// it passed while the capability was absent. Stated as a capability instead:
+//
+//   an actor whose motivation implies movement must be able to move EVERY tick,
+//   including the most expensive single move it can make (a diagonal).
+//
+// so the pool must cover one worst-case move and regen must refill it.
+// Both derive from movementCost — no second constant to drift.
+
+const DEFAULT_MOVEMENT_COST = 1;
+
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/** Worst-case cost of one step: core charges a diagonal extra (rules/move.ts computeMovementCost). */
+export function resolveWorstCaseMoveCost(movementCost = DEFAULT_MOVEMENT_COST) {
+  const cardinal = Number.isInteger(movementCost) && movementCost > 0
+    ? movementCost
+    : DEFAULT_MOVEMENT_COST;
+  const diagonalExtra = cardinal > 1 ? Math.max(1, Math.trunc(cardinal / 2)) : 1;
+  return cardinal + diagonalExtra;
+}
+
+/**
+ * Raise a card's stamina to the floor its motivation requires. Single origin —
+ * every site that used to write `stamina.regen = max(regen, 1)` calls this, so
+ * the pool and the regen can never again be set in one place and forgotten in
+ * another. Pure: returns the mutated vitals object it was handed.
+ *
+ * The Allocator prices the result through the existing vitals price path; this
+ * module still reads no price list.
+ */
+export function applyMovementStaminaFloor(vitals, card = null) {
+  if (!vitals?.stamina || !requiresMovementStamina(card)) return vitals;
+  const floor = resolveWorstCaseMoveCost(card?.capabilities?.movementCost);
+  vitals.stamina.max = Math.max(vitals.stamina.max, floor);
+  vitals.stamina.current = Math.max(vitals.stamina.current, vitals.stamina.max);
+  vitals.stamina.regen = Math.max(vitals.stamina.regen, floor);
+  return vitals;
+}
+
+/**
+ * Apply the requirements an actor's MOTIVATION implies to its vitals, in place.
+ *
+ * The card-level helpers above only run inside budget-driven candidate
+ * enumeration. A plain `ak create` with no budget never enters that path, so its
+ * actors kept `DEFAULT_VITALS` — stamina {0,0,0} — and could not move (F12).
+ * Motivation is not known until it is patched onto the actor record, so this is
+ * the funnel every authoring path passes through once the kind is resolved.
+ *
+ * Glue calls this; the Configurator decides. Configuration validity is chartered
+ * Configurator authority (charter §288, "a mobility motivation requires
+ * stamina") — that sentence has been in the charter with nothing enforcing the
+ * part that matters.
+ *
+ * Accepts either shape a motivated entity carries in this codebase: the singular
+ * `motivation: { kind }` patched onto InitialState actors, or the
+ * `motivations: [{ kind, intensity }]` / `motivations: ["random"]` list the
+ * Configurator's actor generator and the parsed CLI cards use. One function for
+ * both, so the requirement cannot be enforced on one shape and missed on the
+ * other — which is how it came to be enforced on `regen` and missed on `max`.
+ *
+ * @param {{archetype?: string, type?: string, motivation?: {kind?: string}, motivations?: Array, vitals?: object, capabilities?: object}} actor
+ * @returns {boolean} true when the actor's vitals were raised.
+ */
+function collectMotivationKinds(actor) {
+  const kinds = [];
+  if (isNonEmptyString(actor?.motivation?.kind)) kinds.push(actor.motivation.kind);
+  if (Array.isArray(actor?.motivations)) {
+    actor.motivations.forEach((entry) => {
+      const kind = typeof entry === "string" ? entry : entry?.kind;
+      if (isNonEmptyString(kind)) kinds.push(kind);
+    });
+  }
+  return kinds;
+}
+
+export function applyMotivationDerivedVitalRequirements(actor) {
+  const kinds = collectMotivationKinds(actor);
+  if (kinds.length === 0 || !actor?.vitals?.stamina) return false;
+  const card = {
+    type: actor.archetype || actor.type,
+    motivations: kinds,
+    capabilities: actor.capabilities,
+  };
+  if (!requiresMovementStamina(card)) return false;
+  const before = { ...actor.vitals.stamina };
+  applyMovementStaminaFloor(actor.vitals, card);
+  return (
+    before.max !== actor.vitals.stamina.max
+    || before.current !== actor.vitals.stamina.current
+    || before.regen !== actor.vitals.stamina.regen
+  );
+}
+
 /**
  * Spend leftover room on stamina, then mana. Pure, applied exactly once per candidate.
  *
@@ -136,9 +243,7 @@ export function buildMinimumDelverCard(card) {
     next.vitals.mana.current = next.vitals.mana.max;
     next.vitals.mana.regen = Math.max(next.vitals.mana.regen, 1);
   }
-  if (requiresMovementStamina(card)) {
-    next.vitals.stamina.regen = Math.max(next.vitals.stamina.regen, 1);
-  }
+  applyMovementStaminaFloor(next.vitals, card);
 
   return next;
 }
@@ -199,12 +304,26 @@ export function assessDelverStructure({ card, path = "delver" } = {}) {
     }
   });
 
-  if (requiresMovementStamina(card) && vitals?.stamina?.regen <= 0) {
-    issues.push({
-      code: "movement_requires_stamina_regen",
-      path: `${path}.vitals.stamina.regen`,
-      message: `${path} movement requires stamina.regen >= 1.`,
-    });
+  if (requiresMovementStamina(card)) {
+    const floor = resolveWorstCaseMoveCost(card?.capabilities?.movementCost);
+    // AM.2b — the POOL check is the one that matters: core clamps regen to max,
+    // so `regen >= 1` with `max === 0` still yields an actor that can never
+    // move. Checking regen alone is what let F12 stand. Both are asserted.
+    if (!(vitals?.stamina?.max >= floor)) {
+      issues.push({
+        code: "movement_requires_stamina_pool",
+        path: `${path}.vitals.stamina.max`,
+        message: `${path} movement requires stamina.max >= ${floor} (one worst-case move); `
+          + "regen alone cannot accumulate past max.",
+      });
+    }
+    if (vitals?.stamina?.regen <= 0) {
+      issues.push({
+        code: "movement_requires_stamina_regen",
+        path: `${path}.vitals.stamina.regen`,
+        message: `${path} movement requires stamina.regen >= 1.`,
+      });
+    }
   }
 
   return issues;
@@ -302,9 +421,7 @@ export function proposeDelverCandidates({ card, envelope, optimizationGoals = []
     baseVitals.mana.current = baseVitals.mana.max;
     baseVitals.mana.regen = Math.max(baseVitals.mana.regen, 1);
   }
-  if (requiresMovementStamina(card)) {
-    baseVitals.stamina.regen = Math.max(baseVitals.stamina.regen, 1);
-  }
+  applyMovementStaminaFloor(baseVitals, card);
 
   const maximumManaRegen = Math.max(
     baseVitals.mana.regen,

@@ -12,7 +12,14 @@ import { createDirectorPersona } from "../personas/director/persona.js";
 import { createModeratorPersona, FulfillmentDispositions } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs";
-import { applyMoveAction, packMoveAction, readObservation, renderBaseTiles } from "../../../core-ts/src/index.ts";
+import {
+  applyMoveAction,
+  getValidationErrorName,
+  packMoveAction,
+  readObservation,
+  renderBaseTiles,
+  ValidationError,
+} from "../../../core-ts/src/index.ts";
 import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../contracts/domain-constants.js";
 import { computeAuraMap, serializeAuraMap } from "../render/affinity-aura.js";
 import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../contracts/affinity-spatial-rules.js";
@@ -617,8 +624,20 @@ export function createFsmRuntime({
   let orchestratorPersona = null;
   const effectLog = [];
   const tickFrames = [];
-  let activeRunId = typeof runId === "string" && runId.length > 0 ? runId : `run_${Date.now().toString(36)}`;
-  let activeClock = typeof clock === "function" ? clock : () => new Date().toISOString();
+  // PX.3 extended to the runner. `activeClock` defaulted to
+  // `() => new Date().toISOString()` and the fallback run id came from
+  // `Date.now()` — the exact defaulted-clock pattern PX.3 removed from every
+  // persona, still live in the file that drives them. A defaulted clock does not
+  // fail, it degrades determinism and replay quietly, which is why it survived.
+  //
+  // UNUSED_CLOCK is the repo's existing marker for "a clock is structurally
+  // required here but no round is being timed": it is a fixed epoch, so a
+  // caller that forgets to inject gets a reproducible run rather than one
+  // stamped with wall-clock time. The fallback run id is derived from it.
+  let activeClock = typeof clock === "function" ? clock : UNUSED_CLOCK;
+  let activeRunId = typeof runId === "string" && runId.length > 0
+    ? runId
+    : `run_${activeClock().replace(/[^0-9]/g, "")}`;
   let frameCounter = 0;
   let simConfig = null;
   let initialState = null;
@@ -1089,10 +1108,23 @@ export function createFsmRuntime({
           preCoreRejections.push({ action, reason: "missing_move_exports" });
           continue;
         }
+        // AM.1 — a move core REFUSED is not an accepted action. Before this,
+        // applyMoveAction returned void and only a thrown error was caught, so
+        // a rejection (WrongActor, BlockedByWall, TickMismatch, ...) was
+        // recorded as acceptance and the run reported movement that never
+        // happened. The reason name comes from core-ts, not a local table.
+        let moveResult;
         try {
-          applyMoveAction(core, adaptation.value);
+          moveResult = applyMoveAction(core, adaptation.value);
         } catch (err) {
           preCoreRejections.push({ action, reason: err?.message || "move_failed" });
+          continue;
+        }
+        if (moveResult !== ValidationError.None) {
+          preCoreRejections.push({
+            action,
+            reason: `move_rejected_by_core:${getValidationErrorName(moveResult)}`,
+          });
           continue;
         }
       } else if (typeof core?.applyAction === "function") {
@@ -1460,6 +1492,25 @@ export function createFsmRuntime({
         solverFulfilled: summarizeRecord.solverFulfilled,
       });
 
+      // AM.3 — the tick closes HERE, once, after every phase of this step.
+      //
+      // core.advanceTick() applies per-tick regen (actor vitals, hazard mana and
+      // durability) and increments the tick. It used to be reachable only from
+      // move.ts commitMove, which made all of that a function of how many actors
+      // happened to move. Advancing once per step() makes elapsed time a
+      // property of the simulation.
+      //
+      // Placed after SUMMARIZE so actions applied during this step belong to the
+      // tick they were proposed for: `action.tick === getCurrentTick() + 1` still
+      // holds during APPLY, and every actor acting in the same step now shares
+      // one tick number instead of each successful move bumping it for the next.
+      //
+      // A step that begins while the Moderator is `pausing` already returns
+      // before reaching this point, so a paused tick advances nothing.
+      if (typeof core.advanceTick === "function") {
+        core.advanceTick();
+      }
+
       return core.getCounter ? core.getCounter() : null;
     },
 
@@ -1510,6 +1561,39 @@ export function createFsmRuntime({
         throw error;
       }
       return annotator.summarizeRun(args);
+    },
+
+    /**
+     * AM.0b — the end-of-run world-state snapshot (closes F11).
+     *
+     * Same ownership and the same provenance gate as summarizeRun: capturing and
+     * normalizing run observability is Annotator work, so glue asks the persona
+     * that observed the run rather than minting a stand-in to sign the artifact.
+     *
+     * `core` and `actorIdMap` are supplied HERE rather than by the caller: they
+     * are the runtime's own handles, and a caller passing its own core could
+     * snapshot a world this run never touched.
+     */
+    captureWorldState(args = {}) {
+      if (!annotator || typeof annotator.captureWorldState !== "function") {
+        const error = new Error(
+          "Runtime has no Annotator to capture world state: the snapshot is Annotator work, "
+          + "so glue must not synthesize one to sign the artifact.",
+        );
+        error.code = "annotator_required";
+        throw error;
+      }
+      const ticked = tickFrames.some((frame) => frame?.phaseDetail && frame.phaseDetail !== "init");
+      const state = annotator.view?.().state;
+      if (ticked && state === "idle") {
+        const error = new Error(
+          `Annotator never observed this run (state=${state}) but was asked to snapshot a run that `
+          + "ticked: the snapshot would carry a provenance stamp it did not earn.",
+        );
+        error.code = "annotator_did_not_observe";
+        throw error;
+      }
+      return annotator.captureWorldState({ ...args, core, actorIdMap });
     },
 
     /**
