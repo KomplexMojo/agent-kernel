@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "agent-kernel-abstract-plan-catalog/v1",
+  "scenarios": [
+    {
+      "index": 1,
+      "id": "ap-001",
+      "title": "Minimum-cost multi-category constrained assembly",
+      "expectedOutcome": "success",
+      "problem": {
+        "schemaVersion": "abstract-component-selection/v1",
+        "objective": "minimize_total_cost",
+        "constraints": {
+          "categoryQuantities": {
+            "enclosure": 3,
+            "surface": 1,
+            "field": 6,
+            "supply": 2,
+            "cohort-alpha": 3,
+            "cohort-beta": 3
+          },
+          "minimumCapacityByCategory": {
+            "enclosure": 12,
+            "surface": 48
+          },
+          "requiredSignalsByCategory": {
+            "field": ["f1", "f2", "f3", "f4", "f5", "f6"],
+            "supply": ["s1", "s2"],
+            "cohort-alpha": ["a1", "a2", "a3"],
+            "cohort-beta": ["b1", "b2", "b3"]
+          },
+          "maximumTotalCost": 400
+        },
+        "components": [
+          { "id": "E-L", "category": "enclosure", "unitCost": 30, "capacity": 4, "signals": [], "maxQuantity": 3 },
+          { "id": "E-M", "category": "enclosure", "unitCost": 25, "capacity": 3, "signals": [], "maxQuantity": 4 },
+          { "id": "P-48", "category": "surface", "unitCost": 12, "capacity": 48, "signals": [], "maxQuantity": 1 },
+          { "id": "P-40", "category": "surface", "unitCost": 9, "capacity": 40, "signals": [], "maxQuantity": 1 },
+          { "id": "F-01", "category": "field", "unitCost": 11, "capacity": 0, "signals": ["f1"], "maxQuantity": 1 },
+          { "id": "F-02", "category": "field", "unitCost": 12, "capacity": 0, "signals": ["f2"], "maxQuantity": 1 },
+          { "id": "F-03", "category": "field", "unitCost": 13, "capacity": 0, "signals": ["f3"], "maxQuantity": 1 },
+          { "id": "F-04", "category": "field", "unitCost": 14, "capacity": 0, "signals": ["f4"], "maxQuantity": 1 },
+          { "id": "F-05", "category": "field", "unitCost": 15, "capacity": 0, "signals": ["f5"], "maxQuantity": 1 },
+          { "id": "F-06", "category": "field", "unitCost": 16, "capacity": 0, "signals": ["f6"], "maxQuantity": 1 },
+          { "id": "F-01X", "category": "field", "unitCost": 21, "capacity": 0, "signals": ["f1"], "maxQuantity": 1 },
+          { "id": "F-23X", "category": "field", "unitCost": 35, "capacity": 0, "signals": ["f2", "f3"], "maxQuantity": 1 },
+          { "id": "S-01", "category": "supply", "unitCost": 18, "capacity": 0, "signals": ["s1"], "maxQuantity": 1 },
+          { "id": "S-02", "category": "supply", "unitCost": 19, "capacity": 0, "signals": ["s2"], "maxQuantity": 1 },
+          { "id": "S-01X", "category": "supply", "unitCost": 30, "capacity": 0, "signals": ["s1"], "maxQuantity": 1 },
+          { "id": "A-01", "category": "cohort-alpha", "unitCost": 21, "capacity": 0, "signals": ["a1"], "maxQuantity": 1 },
+          { "id": "A-02", "category": "cohort-alpha", "unitCost": 22, "capacity": 0, "signals": ["a2"], "maxQuantity": 1 },
+          { "id": "A-03", "category": "cohort-alpha", "unitCost": 23, "capacity": 0, "signals": ["a3"], "maxQuantity": 1 },
+          { "id": "A-01X", "category": "cohort-alpha", "unitCost": 32, "capacity": 0, "signals": ["a1"], "maxQuantity": 1 },
+          { "id": "B-01", "category": "cohort-beta", "unitCost": 24, "capacity": 0, "signals": ["b1"], "maxQuantity": 1 },
+          { "id": "B-02", "category": "cohort-beta", "unitCost": 25, "capacity": 0, "signals": ["b2"], "maxQuantity": 1 },
+          { "id": "B-03", "category": "cohort-beta", "unitCost": 26, "capacity": 0, "signals": ["b3"], "maxQuantity": 1 },
+          { "id": "B-01X", "category": "cohort-beta", "unitCost": 36, "capacity": 0, "signals": ["b1"], "maxQuantity": 1 }
+        ]
+      },
+      "reference": {
+        "selections": [
+          { "componentId": "E-L", "quantity": 3 },
+          { "componentId": "P-48", "quantity": 1 },
+          { "componentId": "F-01", "quantity": 1 },
+          { "componentId": "F-02", "quantity": 1 },
+          { "componentId": "F-03", "quantity": 1 },
+          { "componentId": "F-04", "quantity": 1 },
+          { "componentId": "F-05", "quantity": 1 },
+          { "componentId": "F-06", "quantity": 1 },
+          { "componentId": "S-01", "quantity": 1 },
+          { "componentId": "S-02", "quantity": 1 },
+          { "componentId": "A-01", "quantity": 1 },
+          { "componentId": "A-02", "quantity": 1 },
+          { "componentId": "A-03", "quantity": 1 },
+          { "componentId": "B-01", "quantity": 1 },
+          { "componentId": "B-02", "quantity": 1 },
+          { "componentId": "B-03", "quantity": 1 }
+        ],
+        "minimumCost": 361
+      },
+      "mapping": {
+        "text": "Compile the selected abstract components into the deterministic benchmark build.",
+        "fixedArgs": {},
+        "components": {
+          "E-L": { "target": "room", "spec": { "size": "large" } },
+          "E-M": { "target": "room", "spec": { "size": "medium" } },
+          "P-48": { "target": "floorTile", "spec": { "count": 48 } },
+          "P-40": { "target": "floorTile", "spec": { "count": 40 } },
+          "F-01": { "target": "hazard", "spec": { "affinity": "dark", "expression": "emit", "proximityRadius": 2, "stacks": 1 } },
+          "F-02": { "target": "hazard", "spec": { "affinity": "dark", "expression": "pull", "proximityRadius": 2, "stacks": 1 } },
+          "F-03": { "target": "hazard", "spec": { "affinity": "fire", "expression": "emit", "proximityRadius": 2, "stacks": 1 } },
+          "F-04": { "target": "hazard", "spec": { "affinity": "water", "expression": "draw", "proximityRadius": 2, "stacks": 1 } },
+          "F-05": { "target": "hazard", "spec": { "affinity": "earth", "expression": "push", "proximityRadius": 2, "stacks": 1 } },
+          "F-06": { "target": "hazard", "spec": { "affinity": "life", "expression": "emit", "proximityRadius": 2, "stacks": 1 } },
+          "F-01X": { "target": "hazard", "spec": { "affinity": "wind", "expression": "push", "proximityRadius": 2, "stacks": 1 } },
+          "F-23X": { "target": "hazard", "spec": { "affinity": "light", "expression": "emit", "proximityRadius": 2, "stacks": 1 } },
+          "S-01": { "target": "resource", "spec": { "tier": "level", "stat": "vitalMax", "delta": 2, "dropRate": 20 } },
+          "S-02": { "target": "resource", "spec": { "tier": "permanent", "stat": "vitalRegen", "delta": 1, "dropRate": 10 } },
+          "S-01X": { "target": "resource", "spec": { "tier": "level", "stat": "vitalMax", "delta": 1, "dropRate": 25 } },
+          "A-01": { "target": "delver", "spec": { "affinity": "fire", "motivation": "exploring" } },
+          "A-02": { "target": "delver", "spec": { "affinity": "life", "motivation": "friendly" } },
+          "A-03": { "target": "delver", "spec": { "affinity": "light", "motivation": "goal_oriented" } },
+          "A-01X": { "target": "delver", "spec": { "affinity": "wind", "motivation": "exploring" } },
+          "B-01": { "target": "warden", "spec": { "affinity": "dark", "motivation": "defending" } },
+          "B-02": { "target": "warden", "spec": { "affinity": "earth", "motivation": "stationary" } },
+          "B-03": { "target": "warden", "spec": { "affinity": "water", "motivation": "patrolling" } },
+          "B-01X": { "target": "warden", "spec": { "affinity": "corrode", "motivation": "attacking" } }
+        }
+      }
+    }
+  ]
+}

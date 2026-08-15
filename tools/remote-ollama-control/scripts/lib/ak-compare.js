@@ -200,6 +200,7 @@ function affinityByType(cardSet) {
   const affinities = {};
   for (const card of cardSet || []) {
     const type = card.type || 'unknown';
+    if (type === 'room') continue;
     if (!affinities[type]) affinities[type] = new Set();
     if (card.affinity) affinities[type].add(card.affinity);
   }
@@ -229,6 +230,9 @@ function compactReferenceMetrics(reference) {
   }
   const affinities = {};
   for (const [type, values] of Object.entries(affinitiesByType)) {
+    if (type === 'room') {
+      fail('room affinities are not part of the program construct');
+    }
     if (!type || !Array.isArray(values) || values.some((value) => typeof value !== 'string' || !value)) {
       fail(`invalid affinity list for ${type || '<empty>'}`);
     }

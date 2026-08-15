@@ -84,6 +84,9 @@ function validateReference(reference, label) {
     }
   }
   for (const [type, affinities] of Object.entries(reference.affinitiesByType)) {
+    if (type === 'room') {
+      throw new Error(`${label}.reference room affinities are not part of the program construct`);
+    }
     assertNonEmptyString(type, `${label}.reference affinity type`);
     assertStringArray(affinities, `${label}.reference.affinitiesByType.${type}`);
   }

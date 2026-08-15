@@ -39,9 +39,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "water"
           ]
@@ -89,9 +86,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "life"
           ]
@@ -139,9 +133,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "fortify"
           ]
@@ -193,9 +184,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "earth"
           ],
@@ -253,9 +241,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "life"
           ],
@@ -306,9 +291,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "decay"
           ]
@@ -359,9 +341,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "corrode"
           ]
@@ -409,9 +388,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "fortify"
           ]
@@ -459,9 +435,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "light"
           ]
@@ -509,9 +482,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "dark"
           ]
@@ -563,9 +533,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire",
             "water"
@@ -617,9 +584,6 @@
           "delver": 4
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "wind"
           ]
@@ -667,9 +631,6 @@
           "warden": 3
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "dark"
           ]
@@ -722,9 +683,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "light"
           ],
@@ -777,9 +735,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "light"
           ]
@@ -828,9 +783,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fortify"
           ]
@@ -883,9 +835,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "life"
           ]
@@ -936,9 +885,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "water"
           ],
@@ -960,9 +906,9 @@
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests earth and wind opposition through actors and room affinity. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests earth and wind opposition through actors and contained hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests earth and wind opposition through actors and room affinity. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests earth and wind opposition through actors and contained hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
         "runId": "ak_prompt_28_create_opposed_earth_wind_room",
         "createdAt": "2026-05-03T17:00:00.000Z",
@@ -993,9 +939,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "wind"
           ],
@@ -1049,9 +992,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "life"
           ],
@@ -1105,9 +1045,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "light"
           ],
@@ -1155,9 +1092,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ]
@@ -1201,9 +1135,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "water"
           ]
@@ -1252,9 +1183,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "life"
           ],
@@ -1302,9 +1230,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "dark"
           ]

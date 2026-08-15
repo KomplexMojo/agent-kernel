@@ -40,9 +40,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "light"
           ],
@@ -99,9 +96,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ],
@@ -155,9 +149,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ],
@@ -210,9 +201,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire",
             "light"
@@ -258,9 +246,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ]
@@ -301,9 +286,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "dark"
           ]
@@ -348,9 +330,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ],
@@ -394,9 +373,6 @@
           "delver": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "water"
           ]
@@ -437,9 +413,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "earth"
           ]
@@ -484,9 +457,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ],
@@ -530,9 +500,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "wind"
           ]
@@ -576,9 +543,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "fortify"
           ]
@@ -626,9 +590,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "water"
           ],
@@ -672,9 +633,6 @@
           "warden": 3
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "dark"
           ]
@@ -863,9 +821,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ],
@@ -913,9 +868,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ],
@@ -959,9 +911,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "water"
           ]
@@ -1005,9 +954,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "water"
           ]
@@ -1051,9 +997,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "life"
           ]
@@ -1094,9 +1037,6 @@
           "delver": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "water"
           ]
@@ -1140,9 +1080,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "dark"
           ]

@@ -24,7 +24,7 @@ Use this tool when local agent workflows should spend inference work on the Ubun
 | Run Claude/Codex-side work through remote Ollama | `claude`, `run-local`, `use-remote-ollama` |
 | Run Claude/Codex-side work offline on the Mac's own Ollama | `claude --local`, `run-local --local`, `print-env --local` |
 | Run commands on Ubuntu | `exec` |
-| Benchmark models or tool-call generation | `benchmark`, `benchmark-matrix`, `benchmark-hardware`, `run-content-gen` |
+| Benchmark models or tool-call generation | `benchmark`, `benchmark-matrix`, `benchmark-hardware`, `run-content-gen`, `run-abstract-plan` |
 | Keep the remote checkout safe | `project-safety-check`, `project-sync`, `project-push-main` |
 
 ## Profiles
@@ -461,7 +461,11 @@ Compare how well the primary single-card profile and the two-card dual profile h
 
 The benchmark questions are versioned under `benchmarks/content-gen/` as four reviewed tier catalogs with 25 simple, 25 affinity, 25 complex, and 25 constrained scenarios. `loadScenarioCatalog()` validates the complete 1–100 id range and returns a canonical SHA-256, so a scenario-set change is visible in Git and has a stable identity. Canonical payloads use `$RUN_OUTPUT/create` rather than a machine-specific output path.
 
-Scoring reads compact entity-count, affinity, and spend expectations from each catalog entry. `scoreRun` retains its legacy `spec.json` and `budget-receipt.json` inputs as a tested compatibility fallback, but `run-content-gen` has no runtime dependency on the vault.
+Scoring reads compact entity-count, affinity, and spend expectations from each catalog entry. Room
+affinity is deliberately excluded: rooms are containers, while hazards carry the affinity that can
+give a room a descriptive theme. `scoreRun` retains its legacy `spec.json` and
+`budget-receipt.json` inputs as a tested compatibility fallback, but `run-content-gen` has no runtime
+dependency on the vault.
 
 ```bash
 # Dry-run: plan the complete model × GPU-profile qualification matrix without network access
@@ -510,6 +514,49 @@ Scoring (100 pts per run):
 | Entity counts match | 20 | Same count-per-type as reference |
 | Affinity match | 20 | Same primary affinity per type |
 | Budget delta | 10 | Total spend within 80% of reference |
+
+## Abstract Planning Benchmark
+
+`run-abstract-plan` separates reasoning quality from game vocabulary. The model receives only a
+domain-neutral component catalog, exact quantity/capacity/signal/budget constraints, and a
+minimum-cost objective. It returns opaque component ids through `submit_abstract_build_plan`.
+A hidden deterministic mapping then translates those ids into production `ak_create` arguments and
+runs `ak.mjs create`.
+
+The catalog is versioned under `benchmarks/abstract-plan/`. `pilot.json` is one hand-authored stress
+case. `parallel.json` contains 100 generated cases aligned one-to-one with the content-generation
+catalog; `tools/benchmark/generate-abstract-parallel.mjs --check` fails when it is stale. Every visible
+problem contains no
+room, hazard, actor, dungeon, or affinity terms. The hidden map puts environmental affinity on
+hazards rather than rooms; room specs contain size and count only. Actors retain their own
+affinities. Results keep three verdicts separate: abstract planning score, mapping success, and
+program execution success.
+
+```bash
+# Inspect the visible problem and scenario-set identity without network access
+./bin/remote-ollama-mac run-abstract-plan --dry-run
+
+# Inspect the complete one-to-one abstract set
+./bin/remote-ollama-mac run-abstract-plan --abstract-set parallel --dry-run
+
+# Run the pilot on the primary single-GPU profile
+./bin/remote-ollama-mac run-abstract-plan --profile primary --model qwen3.5:9b --route internal
+
+# Run against an already-running dual profile without restarting it
+./bin/remote-ollama-mac run-abstract-plan --profile dual --model qwen3.5:27b --route internal --no-start
+
+# Compare two paired result directories by profile/model/scenario/repeat
+node scripts/compare-abstract-content.js \
+  --content-dir results/<timestamp>-content-gen \
+  --abstract-dir results/<timestamp>-abstract-plan
+```
+
+Results are written to `results/<timestamp>-abstract-plan/` as `runs.jsonl`, `result.json`,
+`summary.md`, and the mapped production artifacts under `raw/<runId>/create/`.
+The comparator writes `comparison/comparison.json` and `comparison/summary.md` beneath the abstract
+result directory. It refuses incomplete attempt pairs, stale source-catalog identities, and
+profile/model/context/output mismatches. Domain semantic scores and abstract planning scores remain
+separate native metrics; only end-to-end verdict, raw execution, and latency receive paired deltas.
 
 ## Smoke Test
 

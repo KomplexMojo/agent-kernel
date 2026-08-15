@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-kernel.local/schemas/abstract-plan-catalog-v1.json",
+  "title": "Agent Kernel abstract planning benchmark catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "scenarios"],
+  "properties": {
+    "schemaVersion": { "const": "agent-kernel-abstract-plan-catalog/v1" },
+    "sourceScenarioSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count", "sha256"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["index", "id", "title", "expectedOutcome", "problem", "reference", "mapping"],
+        "properties": {
+          "index": { "type": "integer", "minimum": 1 },
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "expectedOutcome": { "enum": ["success", "budget_denied"] },
+          "sourceScenario": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["index", "tier"],
+            "properties": {
+              "index": { "type": "integer", "minimum": 1 },
+              "tier": { "enum": ["simple", "affinity", "complex", "constrained"] }
+            }
+          },
+          "problem": { "$ref": "#/$defs/problem" },
+          "reference": { "$ref": "#/$defs/reference" },
+          "mapping": { "$ref": "#/$defs/mapping" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["componentId", "quantity"],
+      "properties": {
+        "componentId": { "type": "string", "minLength": 1 },
+        "quantity": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "component": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "category", "unitCost", "capacity", "signals", "maxQuantity"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "category": { "type": "string", "minLength": 1 },
+        "unitCost": { "type": "integer", "minimum": 0 },
+        "capacity": { "type": "integer", "minimum": 0 },
+        "signals": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "maxQuantity": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "problem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "objective", "constraints", "components"],
+      "properties": {
+        "schemaVersion": { "const": "abstract-component-selection/v1" },
+        "objective": { "const": "minimize_total_cost" },
+        "constraints": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["categoryQuantities", "minimumCapacityByCategory", "requiredSignalsByCategory", "maximumTotalCost"],
+          "properties": {
+            "categoryQuantities": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+            "minimumCapacityByCategory": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } },
+            "requiredSignalsByCategory": {
+              "type": "object",
+              "additionalProperties": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+            },
+            "maximumTotalCost": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "components": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/component" } }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["selections", "minimumCost"],
+      "properties": {
+        "selections": { "type": "array", "items": { "$ref": "#/$defs/selection" } },
+        "minimumCost": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "fixedArgs", "components"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "fixedArgs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "budgetTokens": { "type": "integer", "minimum": 1 },
+            "dungeonAffinity": { "type": "string", "minLength": 1 }
+          }
+        },
+        "components": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["target", "spec"],
+            "properties": {
+              "target": { "enum": ["room", "floorTile", "hazard", "resource", "delver", "warden"] },
+              "spec": { "oneOf": [{ "type": "object" }, { "type": "string", "minLength": 1 }] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

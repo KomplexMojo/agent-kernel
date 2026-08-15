@@ -104,11 +104,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 72
       },
       "referenceSpend": 72,
@@ -147,11 +143,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 58
       },
       "referenceSpend": 58,
@@ -190,11 +182,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 61
       },
       "referenceSpend": 61,
@@ -356,9 +344,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ],
@@ -400,11 +385,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 12
       },
       "referenceSpend": 12,
@@ -439,11 +420,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 45
       },
       "referenceSpend": 45,
@@ -478,11 +455,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 45
       },
       "referenceSpend": 45,
@@ -521,11 +494,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 58
       },
       "referenceSpend": 58,
@@ -564,11 +533,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 68
       },
       "referenceSpend": 68,
@@ -607,11 +572,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 68
       },
       "referenceSpend": 68,
@@ -650,11 +611,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 58
       },
       "referenceSpend": 58,
@@ -686,11 +643,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 25
       },
       "referenceSpend": 25,
@@ -722,11 +675,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 25
       },
       "referenceSpend": 25,
@@ -758,11 +707,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 64
       },
       "referenceSpend": 64,
@@ -794,11 +739,7 @@
         "entityCounts": {
           "room": 2
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 61
       },
       "referenceSpend": 61,

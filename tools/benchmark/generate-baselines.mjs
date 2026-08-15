@@ -136,6 +136,7 @@ export function deriveReference(spec, receipt) {
   for (const card of cardSet) {
     const type = card?.type || "unknown";
     entityCounts[type] = (entityCounts[type] || 0) + (card?.count || 1);
+    if (type === "room") continue;
     if (!affinitySets[type]) affinitySets[type] = new Set();
     if (card?.affinity) affinitySets[type].add(card.affinity);
   }

@@ -103,6 +103,7 @@
             },
             "affinitiesByType": {
               "type": "object",
+              "propertyNames": { "not": { "const": "room" } },
               "additionalProperties": { "$ref": "#/$defs/stringArray" }
             },
             "totalSpend": { "type": "number", "minimum": 0 }

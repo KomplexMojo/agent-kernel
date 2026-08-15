@@ -12,7 +12,7 @@ const {
 } = require("../../tools/remote-ollama-control/scripts/lib/ak-scenarios");
 const { scoreRun } = require("../../tools/remote-ollama-control/scripts/lib/ak-compare");
 
-const EXPECTED_HASH = "6e5abc67edaaea2f1d2d1e06ce0e8d074b4e46e808f3a01bbcaf0a3c7efd4960";
+const EXPECTED_HASH = "0558024373ad3720a866f24c911f7293fbc7e0a01ec6abfb4c31571654767264";
 const TIERS = ["simple", "affinity", "complex", "constrained"];
 const REMOTE_CONTROL_ROOT = resolve(__dirname, "../../tools/remote-ollama-control");
 const MAC_SCRIPT = join(REMOTE_CONTROL_ROOT, "scripts/remote-ollama-mac.js");
@@ -74,7 +74,7 @@ function scoringFixture() {
     },
     compactReference: {
       entityCounts: { delver: 1, room: 2 },
-      affinitiesByType: { delver: ["fire"], room: ["dark"] },
+      affinitiesByType: { delver: ["fire"] },
       totalSpend: 100,
     },
   };
@@ -225,7 +225,7 @@ test("baseline helpers preserve canonical payloads and derive compact references
     },
   }, { totalCost: 321 }), {
     entityCounts: { room: 2, delver: 3 },
-    affinitiesByType: { room: ["dark"], delver: ["fire", "water"] },
+    affinitiesByType: { delver: ["fire", "water"] },
     totalSpend: 321,
   });
   assert.equal(classifyOutcome({ exitCode: 0, json: { ok: true } }), "success");
@@ -279,6 +279,15 @@ test("catalog rejects unknown fields and non-canonical output paths", (context) 
 
   assert.throws(() => loadScenarioCatalog(unknownDir), /scenario 1 has unknown field: surprise/);
   assert.throws(() => loadScenarioCatalog(pathDir), /canonical \$RUN_OUTPUT\/create placeholder/);
+});
+
+test("catalog rejects room affinities because rooms are untyped containers", (context) => {
+  const dir = mutateCatalog("simple", (document) => {
+    document.scenarios[0].reference.affinitiesByType.room = ["dark"];
+  });
+  context.onTestFinished(() => rmSync(dir, { recursive: true, force: true }));
+
+  assert.throws(() => loadScenarioCatalog(dir), /room affinities are not part of the program construct/);
 });
 
 test("compact references produce the exact legacy score without readable vault files", (context) => {

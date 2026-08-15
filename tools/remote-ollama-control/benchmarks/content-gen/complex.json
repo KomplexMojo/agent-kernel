@@ -38,9 +38,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "fortify"
           ]
@@ -91,9 +88,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "dark"
           ],
@@ -147,9 +141,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ],
@@ -203,9 +194,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "wind"
           ],
@@ -259,9 +247,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "light"
           ],
@@ -312,9 +297,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire"
           ],
@@ -365,9 +347,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "water"
           ]
@@ -416,9 +395,6 @@
           "delver": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "life",
             "water"
@@ -470,9 +446,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "wind"
           ],
@@ -524,9 +497,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "light"
           ]
@@ -569,11 +539,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 77
       },
       "referenceSpend": 77,
@@ -612,11 +578,7 @@
         "entityCounts": {
           "room": 1
         },
-        "affinitiesByType": {
-          "room": [
-            "dark"
-          ]
-        },
+        "affinitiesByType": {},
         "totalSpend": 66
       },
       "referenceSpend": 66,
@@ -660,9 +622,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "wind"
           ]
@@ -710,9 +669,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "warden": [
             "earth"
           ]
@@ -766,9 +722,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire",
             "light"
@@ -827,9 +780,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "light"
           ],
@@ -886,9 +836,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "water"
           ],
@@ -950,9 +897,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire",
             "life"
@@ -1011,9 +955,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire",
             "life"
@@ -1082,9 +1023,6 @@
           "warden": 3
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire",
             "life",
@@ -1140,9 +1078,6 @@
           "warden": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "life",
             "wind"
@@ -1194,9 +1129,6 @@
           "delver": 1
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "earth"
           ]
@@ -1246,9 +1178,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "corrode"
           ],
@@ -1294,9 +1223,6 @@
           "delver": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "fire",
             "water"
@@ -1355,9 +1281,6 @@
           "warden": 2
         },
         "affinitiesByType": {
-          "room": [
-            "dark"
-          ],
           "delver": [
             "life",
             "water"
