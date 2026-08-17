@@ -273,7 +273,12 @@ test("EQUAL opposite stacks cancel to nothing, and BOTH sides are cleared", asyn
 });
 
 // ---------------------------------------------------------------------------
-// Resolution is ORDER-DEPENDENT within a tick — pinned, not endorsed
+// Resolution is ORDER-DEPENDENT within a tick, and ACTOR INDEX is the tie-break
+//
+// Ratified by the maintainer 2026-08-14. It is arbitrary in the sense that
+// nothing about the affinities decides which pair resolves first — but it is
+// deterministic, which is what replay requires, and no alternative (strongest
+// stacks, nearest, oldest) is more principled without a rule saying why.
 // ---------------------------------------------------------------------------
 
 test("the Moderator plans every overlapping pair, but resolution consumes what it cancels", async () => {
@@ -306,11 +311,38 @@ test("the Moderator plans every overlapping pair, but resolution consumes what i
   assert.equal(
     resolved.length,
     1,
-    "resolution MUTATES the state later pairs depend on, so a plan of three yields one outcome. "
-      + "The order is deterministic (lower index first), so replay is safe — but which pair gets "
-      + "to cancel is decided by ACTOR INDEX, not by anything about the affinities.",
+    "resolution MUTATES the state later pairs depend on, so a plan of three yields one outcome: "
+      + "the first pair cancels both actors to zero and clears them, and the remaining pairs then "
+      + "fail core's precondition",
+  );
+  assert.deepEqual(
+    [resolved[0].sourceIndex, resolved[0].targetIndex],
+    [0, 1],
+    "the LOWEST-INDEXED pair is the one that resolves — actor index is the ratified tie-break, so "
+      + "this is a guarantee callers may rely on, not an accident of iteration",
   );
   assert.equal(core.getMotivatedActorAffinityStacksByIndex(2), 2, "the third actor is untouched");
+});
+
+test("the tie-break is stable under input reordering, so replay is safe", async () => {
+  const { planAffinityInteractions } = await import(
+    "../../packages/runtime/src/personas/moderator/affinity-interactions.js"
+  );
+  const computeRadius = () => 3;
+  const forward = [
+    { index: 0, x: 5, y: 5, kind: 1, expression: 3, stacks: 2 },
+    { index: 1, x: 6, y: 5, kind: 2, expression: 3, stacks: 2 },
+    { index: 2, x: 5, y: 6, kind: 3, expression: 3, stacks: 2 },
+  ];
+  const shuffled = [forward[2], forward[0], forward[1]];
+
+  assert.deepEqual(
+    planAffinityInteractions({ actors: shuffled, computeRadius }),
+    planAffinityInteractions({ actors: forward, computeRadius }),
+    "the plan must depend on actor INDEX, not on the order the caller happened to hand them over. "
+      + "If it did not, two runs of the same scenario could resolve different pairs and `ak replay` "
+      + "would mismatch.",
+  );
 });
 
 test("a zero radius means no contact, even on adjacent tiles", async () => {

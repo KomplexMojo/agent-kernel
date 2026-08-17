@@ -51,10 +51,25 @@ export function planAffinityInteractions({ actors = [], computeRadius } = {}) {
       const reach = computeRadius(source.expression, source.stacks)
         + computeRadius(target.expression, target.stacks);
       if (distance > reach) continue;
-      // Lower index is always the source, so a pair resolves identically
-      // regardless of iteration order. The matrix is not symmetric — source and
-      // target effects differ per cell — so which actor is "source" is a
-      // decision, not a detail, and it must be reproducible.
+      // ── ACTOR INDEX IS THE TIE-BREAK (maintainer decision, 2026-08-14) ──
+      //
+      // Lower index is always the source, and pairs are emitted in ascending
+      // index order. Two consequences, both deliberate:
+      //
+      //  1. The matrix is NOT symmetric — source and target effects differ per
+      //     cell — so which actor is "source" changes the outcome. Index order
+      //     makes that reproducible.
+      //  2. Resolution MUTATES what later pairs depend on. A pair that cancels
+      //     both actors to zero clears their affinities, and any later pair
+      //     involving either of them then fails core's precondition. So with
+      //     three mutually overlapping actors the planner returns three pairs
+      //     and exactly one resolves — the lowest-indexed one wins.
+      //
+      // ⇒ *Whichever pair resolves first consumes what it cancels.* That is
+      // arbitrary in the sense that nothing about the affinities decides it, and
+      // ratified anyway: it is deterministic, which is what replay requires, and
+      // no alternative tie-break (strongest stacks, nearest, oldest) is more
+      // principled without a rule saying why. Revisit only with such a rule.
       pairs.push({ sourceIndex: source.index, targetIndex: target.index, distance });
     }
   }
