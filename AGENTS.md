@@ -202,6 +202,33 @@ code that changes them, not as a trailing pass after merge.
 
 ---
 
+## Review — this is a solo project, and self-merge is the normal path
+
+**There is no second reviewer, and there never will be.** Do not write, plan, or report as though a
+PR is waiting on one.
+
+- **`main` is not review-gated.** The `Protect Main` ruleset carries `deletion` and
+  `non_fast_forward` only — **no `pull_request` rule and no required approving reviews** — plus an
+  admin bypass. Verified 2026-08-14 via `gh api repos/.../rulesets`.
+- ⇒ *An unreviewed PR may be merged by the maintainer at any time.* The recurring note that
+  "GitHub refuses the PR author, so a second account is needed" was **wrong**: nothing was ever
+  requiring the approval it described. It appeared in the plan, was repeated into PR bodies, and was
+  never checked against the actual ruleset.
+- A PR is still worth opening — it is the reviewable unit and the place the reasoning is indexed —
+  but it is a **record, not a gate**. Never block on, or ask the maintainer to arrange, a review.
+
+**What replaces review here, and is therefore not optional:**
+
+| Instead of a reviewer | The obligation |
+|---|---|
+| a second pair of eyes on correctness | the **gates**: `pnpm run test`, `pnpm run typecheck` at zero, architecture guards, allowlist |
+| someone asking "does this test actually work?" | a **perturbation check** per milestone — the specific change that must turn the test red, run and reported |
+| a reviewer noticing a judgement call | judgement calls stated **in the commit message**, not left implicit |
+| a reviewer catching a stale claim | any factual claim about repo or GitHub state is **checked before it is written**, not carried forward from an earlier note |
+
+⇒ *Losing the reviewer raises the bar on the evidence, it does not lower it.* The commit message is
+where a future reader — who will be an agent, not a human reviewer — reconstructs why.
+
 ## Working agreement
 
 - Always connect requirements → tests → code in the same change set when feasible.

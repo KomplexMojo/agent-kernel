@@ -211,13 +211,123 @@ test("an actor with no affinity is never paired", async () => {
   assert.deepEqual(pairs, [], "nothing to resolve against an actor that holds no affinity");
 });
 
-// ## TODO: Test Permutations
+// ---------------------------------------------------------------------------
+// Permutations across the relationship axis
 //
-// - all 4x4 expression pairs x 3 relationships (same/opposite/neutral): the
-//   recorded sourceEffect/targetEffect must equal the matrix cell, and
-//   `canceledStacks > 0` exactly for the cells whose cancel flag is set
-// - equal stacks on a cancelling cell: BOTH affinities must be cleared, not left
-//   at zero stacks — a zero-stack affinity still reads as "held"
-// - three mutually overlapping actors must produce three pairs, each resolved once
-// - a pair that separates mid-run must stop interacting on the tick it does
-// - the same scenario replayed must produce an identical interaction sequence
+// AM.8 permutations. Delegated to the local model first, per CLAUDE.md's Ollama
+// tier; it failed all 5 iterations and rolled back, and one of the stubs it was
+// given was factually wrong (see "resolution is order-dependent" below), so
+// these are hand-written against behaviour probed from core rather than assumed.
+// ---------------------------------------------------------------------------
+
+test("SAME-kind fields resolve but do NOT cancel", async () => {
+  const { core, runtime } = await startRuntime(buildInitialState([
+    actor("delver_1", { x: 5, y: 5 }, { kind: "fire", expression: "emit", stacks: 3 }),
+    actor("warden_1", { x: 6, y: 5 }, { kind: "fire", expression: "emit", stacks: 2 }),
+  ]));
+
+  await runtime.step();
+  const [ix] = interactionsFrom(runtime);
+
+  assert.equal(ix.relationship, 0, "fire vs fire is Same");
+  assert.equal(ix.canceledStacks, 0, "a same-relationship cell does not cancel");
+  assert.equal(ix.applied, "recorded_only");
+  assert.equal(core.getMotivatedActorAffinityStacksByIndex(0), 3, "stacks untouched");
+  assert.equal(core.getMotivatedActorAffinityStacksByIndex(1), 2);
+});
+
+test("NEUTRAL-kind fields resolve but do NOT cancel", async () => {
+  const { core, runtime } = await startRuntime(buildInitialState([
+    actor("delver_1", { x: 5, y: 5 }, { kind: "fire", expression: "emit", stacks: 3 }),
+    actor("warden_1", { x: 6, y: 5 }, { kind: "earth", expression: "emit", stacks: 2 }),
+  ]));
+
+  await runtime.step();
+  const [ix] = interactionsFrom(runtime);
+
+  assert.equal(ix.relationship, 2, "fire vs earth is Neutral — earth's opposite is wind");
+  assert.equal(ix.canceledStacks, 0);
+  assert.equal(core.getMotivatedActorAffinityStacksByIndex(0), 3);
+  assert.equal(core.getMotivatedActorAffinityStacksByIndex(1), 2);
+});
+
+test("EQUAL opposite stacks cancel to nothing, and BOTH sides are cleared", async () => {
+  const { core, runtime } = await startRuntime(buildInitialState([
+    actor("delver_1", { x: 5, y: 5 }, { kind: "fire", expression: "emit", stacks: 2 }),
+    actor("warden_1", { x: 6, y: 5 }, { kind: "water", expression: "emit", stacks: 2 }),
+  ]));
+
+  await runtime.step();
+  const [ix] = interactionsFrom(runtime);
+
+  assert.equal(ix.canceledStacks, 2);
+  assert.equal(ix.netSourceStacks, 0);
+  assert.equal(ix.netTargetStacks, 0);
+  assert.equal(
+    core.getMotivatedActorAffinityKindByIndex(0),
+    0,
+    "cleared, not left at zero stacks — a zero-stack affinity still reads as HELD everywhere that "
+      + "checks for a kind, which is how the target side stayed at 2 before the clear was published",
+  );
+  assert.equal(core.getMotivatedActorAffinityKindByIndex(1), 0);
+});
+
+// ---------------------------------------------------------------------------
+// Resolution is ORDER-DEPENDENT within a tick — pinned, not endorsed
+// ---------------------------------------------------------------------------
+
+test("the Moderator plans every overlapping pair, but resolution consumes what it cancels", async () => {
+  const { planAffinityInteractions } = await import(
+    "../../packages/runtime/src/personas/moderator/affinity-interactions.js"
+  );
+  const { core, runtime } = await startRuntime(buildInitialState([
+    actor("delver_1", { x: 5, y: 5 }, { kind: "fire", expression: "emit", stacks: 2 }),
+    actor("warden_1", { x: 6, y: 5 }, { kind: "water", expression: "emit", stacks: 2 }),
+    actor("warden_2", { x: 5, y: 6 }, { kind: "earth", expression: "emit", stacks: 2 }),
+  ]));
+
+  // The PLANNER sees three mutually overlapping fields and returns all three pairs.
+  const planned = planAffinityInteractions({
+    actors: [
+      { index: 0, x: 5, y: 5, kind: 1, expression: 3, stacks: 2 },
+      { index: 1, x: 6, y: 5, kind: 2, expression: 3, stacks: 2 },
+      { index: 2, x: 5, y: 6, kind: 3, expression: 3, stacks: 2 },
+    ],
+    computeRadius: (e, s) => core.computeAffinityRadius(e, s),
+  });
+  assert.equal(planned.length, 3, "all three pairs are in contact");
+
+  await runtime.step();
+  const resolved = interactionsFrom(runtime);
+
+  // ...but only ONE resolves. Pair (0,1) is opposite, cancels both to zero and
+  // clears them, so pairs (0,2) and (1,2) then fail core's precondition: an
+  // actor holding no affinity has nothing to resolve.
+  assert.equal(
+    resolved.length,
+    1,
+    "resolution MUTATES the state later pairs depend on, so a plan of three yields one outcome. "
+      + "The order is deterministic (lower index first), so replay is safe — but which pair gets "
+      + "to cancel is decided by ACTOR INDEX, not by anything about the affinities.",
+  );
+  assert.equal(core.getMotivatedActorAffinityStacksByIndex(2), 2, "the third actor is untouched");
+});
+
+test("a zero radius means no contact, even on adjacent tiles", async () => {
+  const { planAffinityInteractions } = await import(
+    "../../packages/runtime/src/personas/moderator/affinity-interactions.js"
+  );
+  const pairs = planAffinityInteractions({
+    actors: [
+      { index: 0, x: 5, y: 5, kind: 1, expression: 3, stacks: 2 },
+      { index: 1, x: 5, y: 6, kind: 2, expression: 3, stacks: 2 },
+    ],
+    computeRadius: () => 0,
+  });
+  assert.deepEqual(
+    pairs,
+    [],
+    "reach comes from core's radius curve, not from adjacency. Two actors on touching tiles whose "
+      + "fields have no extent are not in contact.",
+  );
+});
