@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "producedBy": "cli-create",
     "cost": {
-      "runTotalTokens": 62,
+      "runTotalTokens": 65,
       "budgetTokens": 2000,
       "receiptRef": {
         "id": "golden_g3_budget_receipt",
@@ -41,9 +41,9 @@
           "regen": 0
         },
         "mana": {
-          "current": 0,
-          "max": 0,
-          "regen": 0
+          "current": 2,
+          "max": 2,
+          "regen": 1
         },
         "stamina": {
           "current": 2,
@@ -62,6 +62,13 @@
           "water": 1
         }
       },
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
       "motivation": {
         "kind": "attacking"
       }

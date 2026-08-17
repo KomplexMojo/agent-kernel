@@ -154,7 +154,7 @@ const showStateTool = createHandlerTool({
       return { ok: false, command: "tick", action: "state", runId, error: state.error };
     }
     const { runDir, tick, maxTick } = state;
-    const [ascii, tickFrame] = await Promise.all([renderAscii(runDir), readTickFrame(runDir, tick)]);
+    const [ascii, tickFrame] = await Promise.all([renderAscii(runDir, tick), readTickFrame(runDir, tick)]);
     const result = { ok: true, command: "tick", action: "state", runId, tick, maxTick, ascii, tickFrame };
     if (visualization) {
       result.visualization = await buildVisualizationSnapshot(runDir, runId, tick, tickFrame, visualization);

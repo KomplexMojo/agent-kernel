@@ -41,6 +41,7 @@ import {
 import { normalizeMotivations } from "./motivation-loadouts.js";
 import { assessLayoutFeasibility } from "./feasibility.js";
 import {
+  applyAffinityDerivedVitalRequirements,
   applyMotivationDerivedVitalRequirements,
   assessDelverStructure,
   buildBudgetEnvelope,
@@ -72,7 +73,7 @@ import { maximizeActorBudget } from "./budget-maximizer.js";
 import { generateGridLayoutFromInput } from "./level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "./artifact-builders.js";
 import { resolveAffinityEffects } from "./affinity-effects.js";
-import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "./affinity-rules.js";
+import { normalizeAffinityRulesArtifact, resolveAffinityRules, resolveAffinityManaCost } from "./affinity-rules.js";
 import { buildAmbientAffinityPressure } from "./affinity-pressure.js";
 import { computeInternalManaUpkeep } from "./cost-model.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "./motivation-rules.js";
@@ -361,6 +362,8 @@ export function attachConfiguratorServices({ fsm } = {}) {
      * logic: it asks the Configurator, which owns configuration validity.
      */
     applyMotivationDerivedVitalRequirements,
+    /** AM.5/F14 — an actor holding an affinity must be able to pay to express it. */
+    applyAffinityDerivedVitalRequirements,
     /**
      * "What are this card's vitals, with defaults applied?" — a question about card
      * shape, which is why the Allocator asks it rather than answering it. It priced
@@ -411,6 +414,9 @@ export function attachConfiguratorServices({ fsm } = {}) {
     resolveAffinityEffects,
     normalizeAffinityRulesArtifact,
     resolveAffinityRules,
+    // AM.5 — the authored per-cast mana cost. Published because the tick plane needs it:
+    // core-ts charges 0 mana for push and pull, so the kernel cannot answer this.
+    resolveAffinityManaCost,
     buildAmbientAffinityPressure,
     computeInternalManaUpkeep,
     normalizeMotivationRulesArtifact,

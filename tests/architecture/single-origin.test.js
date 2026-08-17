@@ -276,6 +276,30 @@ const SINGLE_ORIGIN_GUARDS = [
     // neither may the guard that protects it.
     scope: "packages",
   },
+  // AM.4 (2026-08-14) — A COST TABLE AUTHORED AS ARTIFACT FIELDS IS A PRICE MODEL TOO,
+  // AND THE TWO GUARDS ABOVE COULD NOT SEE IT.
+  //
+  // 🔴 This is the THIRD time this concept has escaped a guard written to catch it, and the
+  // reason is the same each time: each guard matched a SHAPE (a price-shaped declaration
+  // name; an import of base-costs.json) rather than the concept. The Configurator's rules
+  // artifacts carried FOUR cost tables as ordinary object properties — no matching
+  // declaration name, no import — so both guards reported clean:
+  //   - `affinity-rules.js` stackTiers `defaultDesignCostTokens` 4/16/36/64/100, and a
+  //     `4 * tier²` FORMULA (§73 gives all pricing formulas to the Allocator)
+  //   - `motivation-rules.js` per-kind `defaultDesignCostTokens` (strategy_focused 20 vs
+  //     the Allocator's 10 — it did not merely duplicate, it DISAGREED)
+  //   - `motivation-rules.js` `globals.profileCosts` (attacking 5 / defending 4 vs the
+  //     Allocator's 3 / 2), feeding a `MOTIVATION_COST_DEFAULTS` export nothing imported
+  // None had a charging path. All four are deleted; this guard is what keeps them deleted.
+  //
+  // ⇒ *A price does not need a price-shaped name or an import to be a second price model.
+  // It only needs a number denominated in tokens, sitting outside the Allocator.*
+  {
+    concept: "token-denominated cost table outside the Allocator",
+    canonicalHome: ["packages/runtime/src/personas/allocator"],
+    forbiddenPattern: /(?:CostTokens\s*:\s*\d|[Cc]osts\s*:\s*(?:Object\.freeze\(\s*)?\{)/g,
+    scope: "packages",
+  },
 ];
 
 // CR.9 M5 emptied this. The price/budget guard was skipped from the day it was written,

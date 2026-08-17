@@ -138,29 +138,6 @@ function normalizePatternList(patterns, fieldBase, errors) {
   return value;
 }
 
-function normalizeProfileCosts(profileCosts, fieldBase, errors) {
-  if (!isPlainObject(profileCosts)) {
-    addError(errors, fieldBase, "invalid_profile_costs");
-    return null;
-  }
-  const output = {};
-  Object.entries(MOTIVATION_AXIS_VALUES).forEach(([axis, allowedValues]) => {
-    const axisBase = `${fieldBase}.${axis}`;
-    const rawAxis = isPlainObject(profileCosts[axis]) ? profileCosts[axis] : {};
-    output[axis] = {};
-    allowedValues.forEach((value) => {
-      const rawCost = rawAxis[value];
-      if (!isNonNegativeInteger(rawCost)) {
-        addError(errors, `${axisBase}.${value}`, "invalid_non_negative_int");
-        output[axis][value] = 0;
-        return;
-      }
-      output[axis][value] = rawCost;
-    });
-  });
-  return output;
-}
-
 function normalizeReasoningClasses(reasoningClasses, fieldBase, errors) {
   if (!isPlainObject(reasoningClasses)) {
     addError(errors, fieldBase, "invalid_reasoning_classes");
@@ -199,7 +176,6 @@ function normalizeGlobals(globals, errors) {
     defaultIntensity: Number.isInteger(defaultIntensity) && defaultIntensity > 0 ? defaultIntensity : 1,
     maxIntensity: Number.isInteger(maxIntensity) && maxIntensity > 0 ? maxIntensity : 10,
     reasoningClasses: normalizeReasoningClasses(globals.reasoningClasses, "globals.reasoningClasses", errors),
-    profileCosts: normalizeProfileCosts(globals.profileCosts, "globals.profileCosts", errors),
   };
 }
 
@@ -221,9 +197,11 @@ function normalizeMotivationRule(entry, fieldBase, errors) {
   if (defaultPattern !== undefined && patterns.length > 0 && !patterns.includes(defaultPattern)) {
     addError(errors, `${fieldBase}.defaultPattern`, "unknown_default_pattern");
   }
-  if (entry.defaultDesignCostTokens !== undefined && !isNonNegativeInteger(entry.defaultDesignCostTokens)) {
-    addError(errors, `${fieldBase}.defaultDesignCostTokens`, "invalid_non_negative_int");
-  }
+  // AM.4 — `defaultDesignCostTokens` removed for the same reason as in
+  // affinity-rules.js: a design cost in tokens is the Allocator's alone
+  // (charter §261-263, §271-273). This copy DISAGREED with the Allocator —
+  // it published strategy_focused = 20 where `base-costs.json` charges 10 —
+  // while having no charging path and no consumer outside this file.
   return {
     kind,
     profile: normalizeProfile(entry.profile, `${fieldBase}.profile`, errors),
@@ -232,7 +210,6 @@ function normalizeMotivationRule(entry, fieldBase, errors) {
     patterns,
     defaultPattern,
     defaultFlags: normalizeFlags(entry.defaultFlags, `${fieldBase}.defaultFlags`, errors),
-    defaultDesignCostTokens: isNonNegativeInteger(entry.defaultDesignCostTokens) ? entry.defaultDesignCostTokens : 0,
   };
 }
 
@@ -337,24 +314,10 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       goal_oriented: "tactical",
       strategy_focused: "strategic",
     }),
-    profileCosts: Object.freeze({
-      mobility: Object.freeze({
-        stationary: 0,
-        exploring: 1,
-        patrolling: 2,
-      }),
-      combat: Object.freeze({
-        none: 0,
-        attacking: 5,
-        defending: 4,
-      }),
-      cognition: Object.freeze({
-        none: 0,
-        reflexive: 1,
-        goal_oriented: 5,
-        strategy_focused: 20,
-      }),
-    }),
+    // AM.4 — `profileCosts` removed: a fourth cost table outside the Allocator.
+    // It priced attacking 5 / defending 4 / exploring 1 / patrolling 2 while
+    // `base-costs.json` charges 3 / 2 / 2 / 3 for the same motivations. It fed
+    // only MOTIVATION_COST_DEFAULTS, which was exported and imported by nothing.
   }),
   motivations: Object.freeze([
     Object.freeze({
@@ -363,7 +326,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       exclusiveGroup: "planning",
       displayGroup: "planning",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
-      defaultDesignCostTokens: 0,
     }),
     Object.freeze({
       kind: "stationary",
@@ -371,7 +333,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       exclusiveGroup: "mobility",
       displayGroup: "mobility",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
-      defaultDesignCostTokens: 0,
     }),
     Object.freeze({
       kind: "exploring",
@@ -379,7 +340,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       exclusiveGroup: "mobility",
       displayGroup: "mobility",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
-      defaultDesignCostTokens: 0,
     }),
     Object.freeze({
       kind: "attacking",
@@ -389,7 +349,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       patterns: Object.freeze(["melee", "ranged", "mixed"]),
       defaultPattern: "melee",
       defaultFlags: Object.freeze({ canMove: true, prefersStealth: false, prefersCover: false, aggroRangeBoost: true }),
-      defaultDesignCostTokens: 0,
     }),
     Object.freeze({
       kind: "defending",
@@ -399,7 +358,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       patterns: Object.freeze(["hold_point", "bodyguard"]),
       defaultPattern: "hold_point",
       defaultFlags: Object.freeze({ canMove: true, prefersStealth: false, prefersCover: true, aggroRangeBoost: false }),
-      defaultDesignCostTokens: 0,
     }),
     Object.freeze({
       kind: "stealthy",
@@ -407,7 +365,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       exclusiveGroup: "posture",
       displayGroup: "posture",
       defaultFlags: Object.freeze({ canMove: true, prefersStealth: true, prefersCover: false, aggroRangeBoost: false }),
-      defaultDesignCostTokens: 0,
     }),
     Object.freeze({
       kind: "friendly",
@@ -415,7 +372,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       exclusiveGroup: "posture",
       displayGroup: "posture",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
-      defaultDesignCostTokens: 0,
     }),
     Object.freeze({
       kind: "patrolling",
@@ -425,7 +381,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       patterns: Object.freeze(["loop", "ping_pong", "random_walk"]),
       defaultPattern: "loop",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
-      defaultDesignCostTokens: 0,
     }),
     Object.freeze({
       kind: "reflexive",
@@ -433,7 +388,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       exclusiveGroup: "response",
       displayGroup: "response",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
-      defaultDesignCostTokens: 1,
     }),
     Object.freeze({
       kind: "goal_oriented",
@@ -441,7 +395,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       exclusiveGroup: "response",
       displayGroup: "response",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
-      defaultDesignCostTokens: 5,
     }),
     Object.freeze({
       kind: "strategy_focused",
@@ -449,7 +402,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       exclusiveGroup: "planning",
       displayGroup: "planning",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
-      defaultDesignCostTokens: 20,
     }),
     Object.freeze({
       kind: "user_controlled",
@@ -457,7 +409,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       exclusiveGroup: "control",
       displayGroup: "control",
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
-      defaultDesignCostTokens: 0,
     }),
   ]),
 });
@@ -472,14 +423,6 @@ if (!DEFAULT_MOTIVATION_RULES_RESULT.ok) {
 
 export const DEFAULT_MOTIVATION_RULES = Object.freeze(DEFAULT_MOTIVATION_RULES_RESULT.value);
 export const MOTIVATION_REASONING_CLASSES = Object.freeze({ ...DEFAULT_MOTIVATION_RULES.globals.reasoningClasses });
-export const MOTIVATION_COST_DEFAULTS = Object.freeze(
-  Object.entries(MOTIVATION_PROFILE_ITEM_IDS).reduce((acc, [axis, values]) => {
-    Object.entries(values).forEach(([value, id]) => {
-      acc[id] = DEFAULT_MOTIVATION_RULES.globals.profileCosts[axis][value] || 0;
-    });
-    return acc;
-  }, {}),
-);
 
 function buildRuleGroups(rules, fieldName) {
   return Object.freeze(

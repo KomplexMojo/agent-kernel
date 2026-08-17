@@ -20,6 +20,7 @@
  * knows whether a run happened; this surface stays a pure derivation on purpose.
  */
 import { buildRunSummary, deriveRunOutcome } from "./run-summary.js";
+import { buildWorldState } from "./world-state.js";
 
 export function attachAnnotatorServices() {
   /**
@@ -35,8 +36,18 @@ export function attachAnnotatorServices() {
     return deriveRunOutcome(args);
   }
 
+  /**
+   * AM.0b — the end-of-run world-state snapshot: what the simulation looked
+   * like, as opposed to what it decided. Same contract as summarizeRun — a pure
+   * derivation, with persistence left to the caller.
+   */
+  function captureWorldState(args = {}) {
+    return buildWorldState(args);
+  }
+
   return {
     summarizeRun,
     classifyRunOutcome,
+    captureWorldState,
   };
 }

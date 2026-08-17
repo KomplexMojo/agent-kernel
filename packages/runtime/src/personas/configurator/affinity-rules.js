@@ -108,12 +108,20 @@ function normalizeStackTiers(stackTiers, fieldBase, errors) {
     if (tierEntry.potency !== undefined && !isNonNegativeNumber(tierEntry.potency)) {
       addError(errors, `${tierBase}.potency`, "invalid_non_negative_number");
     }
-    if (tierEntry.defaultDesignCostTokens !== undefined && !Number.isInteger(tierEntry.defaultDesignCostTokens)) {
-      addError(errors, `${tierBase}.defaultDesignCostTokens`, "invalid_non_negative_int");
-    }
-    if (tierEntry.defaultDesignCostTokens !== undefined && tierEntry.defaultDesignCostTokens < 0) {
-      addError(errors, `${tierBase}.defaultDesignCostTokens`, "invalid_non_negative_int");
-    }
+    // AM.4 — `defaultDesignCostTokens` is NOT normalized here any more.
+    //
+    // A design cost in tokens is the Allocator's, exclusively: the charter gives
+    // it price lists, base costs and all pricing formulas, and forbids a base
+    // cost literal in any other module (§261-263) and any alternate cost table
+    // (§271-273). This artifact published 4/16/36/64/100 per tier while the
+    // Allocator charged affinity from `base-costs.json` — different numbers for
+    // the same concept. No code ever charged from these, which is the charter's
+    // own named danger (§277-281): a published price with no charging path,
+    // where "the price list reads complete, so nobody looks".
+    //
+    // Removing it is backward-compatible: the normalizer builds an explicit
+    // object and rejects no unknown keys, so an older artifact still loads and
+    // the field is simply dropped. No schemaVersion bump — nothing read it.
     if (tierEntry.complexityClass !== undefined && !BEHAVIOR_COMPLEXITY_CLASSES.includes(tierEntry.complexityClass)) {
       addError(errors, `${tierBase}.complexityClass`, "invalid_complexity_class");
     }
@@ -122,9 +130,13 @@ function normalizeStackTiers(stackTiers, fieldBase, errors) {
     }
     return {
       tier: tierEntry.tier,
+      // manaCost is the SIMULATION resource a cast consumes, not a design price:
+      // a different currency, owned here as authored tuning data. core-ts cannot
+      // supply it — its own formula charges 0 mana for push and pull at every
+      // stack count (AM.4 finding F10c) — so this table is what the Moderator
+      // and Actor read at tick time.
       manaCost: tierEntry.manaCost,
       potency: tierEntry.potency,
-      defaultDesignCostTokens: Number.isInteger(tierEntry.defaultDesignCostTokens) ? tierEntry.defaultDesignCostTokens : undefined,
       complexityClass: BEHAVIOR_COMPLEXITY_CLASSES.includes(tierEntry.complexityClass) ? tierEntry.complexityClass : undefined,
       unlockedEffects: Array.isArray(tierEntry.unlockedEffects) ? tierEntry.unlockedEffects.filter(isNonEmptyString) : undefined,
     };
@@ -445,11 +457,11 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
           verb: "push",
           defaultTargetType: "enemy",
           stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 3, potency: 1, defaultDesignCostTokens: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 6, potency: 2, defaultDesignCostTokens: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 9, potency: 4, defaultDesignCostTokens: 36, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 12, potency: 8, defaultDesignCostTokens: 64, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 15, potency: 16, defaultDesignCostTokens: 100, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
+            Object.freeze({ tier: 1, manaCost: 3, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
+            Object.freeze({ tier: 2, manaCost: 6, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
+            Object.freeze({ tier: 3, manaCost: 9, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
+            Object.freeze({ tier: 4, manaCost: 12, potency: 8, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
+            Object.freeze({ tier: 5, manaCost: 15, potency: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
           ]),
         }),
         Object.freeze({
@@ -457,11 +469,11 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
           verb: "pull",
           defaultTargetType: "self",
           stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 1, potency: 1, defaultDesignCostTokens: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 2, potency: 2, defaultDesignCostTokens: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 3, potency: 3, defaultDesignCostTokens: 36, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 4, potency: 4, defaultDesignCostTokens: 64, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 5, potency: 5, defaultDesignCostTokens: 100, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
+            Object.freeze({ tier: 1, manaCost: 1, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
+            Object.freeze({ tier: 2, manaCost: 2, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
+            Object.freeze({ tier: 3, manaCost: 3, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
+            Object.freeze({ tier: 4, manaCost: 4, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
+            Object.freeze({ tier: 5, manaCost: 5, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
           ]),
         }),
         Object.freeze({
@@ -469,11 +481,11 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
           verb: "emit",
           defaultTargetType: "area",
           stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 2, potency: 1, defaultDesignCostTokens: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 4, potency: 2, defaultDesignCostTokens: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 6, potency: 3, defaultDesignCostTokens: 36, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 8, potency: 4, defaultDesignCostTokens: 64, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 10, potency: 5, defaultDesignCostTokens: 100, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
+            Object.freeze({ tier: 1, manaCost: 2, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
+            Object.freeze({ tier: 2, manaCost: 4, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
+            Object.freeze({ tier: 3, manaCost: 6, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
+            Object.freeze({ tier: 4, manaCost: 8, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
+            Object.freeze({ tier: 5, manaCost: 10, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
           ]),
           manaScaling: Object.freeze({
             persistentAreaSurcharge: 2,
@@ -485,11 +497,11 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
           verb: "draw",
           defaultTargetType: "self",
           stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 1, potency: 1, defaultDesignCostTokens: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 2, potency: 2, defaultDesignCostTokens: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 3, potency: 3, defaultDesignCostTokens: 36, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 4, potency: 4, defaultDesignCostTokens: 64, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 5, potency: 5, defaultDesignCostTokens: 100, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
+            Object.freeze({ tier: 1, manaCost: 1, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
+            Object.freeze({ tier: 2, manaCost: 2, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
+            Object.freeze({ tier: 3, manaCost: 3, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
+            Object.freeze({ tier: 4, manaCost: 4, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
+            Object.freeze({ tier: 5, manaCost: 5, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
           ]),
         }),
       ]),
@@ -504,11 +516,11 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
           verb: "push",
           defaultTargetType: "enemy",
           stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 2, potency: 1, defaultDesignCostTokens: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 4, potency: 2, defaultDesignCostTokens: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 6, potency: 3, defaultDesignCostTokens: 36, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 8, potency: 4, defaultDesignCostTokens: 64, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 10, potency: 5, defaultDesignCostTokens: 100, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
+            Object.freeze({ tier: 1, manaCost: 2, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
+            Object.freeze({ tier: 2, manaCost: 4, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
+            Object.freeze({ tier: 3, manaCost: 6, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
+            Object.freeze({ tier: 4, manaCost: 8, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
+            Object.freeze({ tier: 5, manaCost: 10, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
           ]),
         }),
         Object.freeze({
@@ -516,11 +528,11 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
           verb: "pull",
           defaultTargetType: "self",
           stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 1, potency: 1, defaultDesignCostTokens: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 2, potency: 2, defaultDesignCostTokens: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 3, potency: 3, defaultDesignCostTokens: 36, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 4, potency: 4, defaultDesignCostTokens: 64, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 5, potency: 5, defaultDesignCostTokens: 100, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
+            Object.freeze({ tier: 1, manaCost: 1, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
+            Object.freeze({ tier: 2, manaCost: 2, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
+            Object.freeze({ tier: 3, manaCost: 3, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
+            Object.freeze({ tier: 4, manaCost: 4, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
+            Object.freeze({ tier: 5, manaCost: 5, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
           ]),
         }),
         Object.freeze({
@@ -528,11 +540,11 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
           verb: "emit",
           defaultTargetType: "area",
           stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 2, potency: 1, defaultDesignCostTokens: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 3, potency: 2, defaultDesignCostTokens: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 5, potency: 3, defaultDesignCostTokens: 36, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 7, potency: 4, defaultDesignCostTokens: 64, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 9, potency: 5, defaultDesignCostTokens: 100, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
+            Object.freeze({ tier: 1, manaCost: 2, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
+            Object.freeze({ tier: 2, manaCost: 3, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
+            Object.freeze({ tier: 3, manaCost: 5, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
+            Object.freeze({ tier: 4, manaCost: 7, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
+            Object.freeze({ tier: 5, manaCost: 9, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
           ]),
           manaScaling: Object.freeze({
             persistentAreaSurcharge: 1,
@@ -543,11 +555,11 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
           verb: "draw",
           defaultTargetType: "self",
           stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 1, potency: 1, defaultDesignCostTokens: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 2, potency: 2, defaultDesignCostTokens: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 3, potency: 3, defaultDesignCostTokens: 36, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 4, potency: 4, defaultDesignCostTokens: 64, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 5, potency: 5, defaultDesignCostTokens: 100, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
+            Object.freeze({ tier: 1, manaCost: 1, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
+            Object.freeze({ tier: 2, manaCost: 2, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
+            Object.freeze({ tier: 3, manaCost: 3, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
+            Object.freeze({ tier: 4, manaCost: 4, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
+            Object.freeze({ tier: 5, manaCost: 5, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
           ]),
         }),
       ]),
@@ -611,7 +623,6 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
             stackTiers: Object.freeze(pushCosts.map((manaCost, index) => Object.freeze({
               tier: index + 1,
               manaCost,
-              defaultDesignCostTokens: 4 * Math.pow(index + 1, 2),
               complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[index + 1],
             }))),
           }),
@@ -624,7 +635,6 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
               const base = {
                 tier,
                 manaCost,
-                defaultDesignCostTokens: 4 * Math.pow(tier, 2),
                 complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[tier],
               };
               if (Array.isArray(potencyByTier)) {
@@ -640,7 +650,6 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
             stackTiers: Object.freeze(emitCosts.map((manaCost, index) => Object.freeze({
               tier: index + 1,
               manaCost,
-              defaultDesignCostTokens: 4 * Math.pow(index + 1, 2),
               complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[index + 1],
             }))),
           }),
@@ -653,7 +662,6 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
               const base = {
                 tier,
                 manaCost,
-                defaultDesignCostTokens: 4 * Math.pow(tier, 2),
                 complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[tier],
               };
               if (Array.isArray(potencyByTier)) {
@@ -725,146 +733,47 @@ export function findExpressionRule(rules, kind, expression) {
   return affinity.expressions.find((entry) => entry.id === expression || entry.verb === expression) || null;
 }
 
-export function resolveAffinityCastProfile({
-  rules,
-  kind,
-  expression,
-  stacks = 1,
-  context = {},
-} = {}) {
-  const resolvedRules = resolveAffinityRules(rules);
-  const expressionRule = findExpressionRule(resolvedRules, kind, expression);
-  if (!expressionRule) return null;
+
+/**
+ * AM.5 — the authored mana cost of one cast. A READER, not an evaluator.
+ *
+ * The distinction matters, because a 143-line evaluator was just deleted from
+ * this file (see below) and this must not become its seed. This resolves one
+ * authored number from the rules artifact and returns it. It compares nothing,
+ * decides no outcome, and spends nothing: applying an interaction is Moderator
+ * work through core's matrix, and pricing in tokens is the Allocator's.
+ *
+ * It exists because core-ts cannot answer this question — `computeAffinityManaCost`
+ * charges **0 mana for push and pull at every stack count** (F10c), so making the
+ * kernel authoritative for cast cost would make both single-target expressions
+ * free. Mana is campaign-tunable data, and this artifact is where it is authored.
+ *
+ * Tiers are 1..5 and clamp; a kind or expression the rules do not describe
+ * returns null so the caller can refuse rather than invent a price.
+ */
+export function resolveAffinityManaCost({ rules, kind, expression, stacks = 1 } = {}) {
+  const expressionRule = findExpressionRule(resolveAffinityRules(rules), kind, expression);
+  if (!expressionRule || !Array.isArray(expressionRule.stackTiers)) return null;
   const tier = Math.max(1, Math.min(5, Number.isInteger(stacks) ? stacks : 1));
   const tierRule = expressionRule.stackTiers.find((entry) => entry.tier === tier);
-  if (!tierRule) return null;
-  const scaling = expressionRule.manaScaling || {};
-  const areaSize = Number.isFinite(context.areaSize) ? context.areaSize : 0;
-  const targetCount = Number.isFinite(context.targetCount) ? context.targetCount : 0;
-  const duration = Number.isFinite(context.duration) ? context.duration : 0;
-  let manaCost = tierRule.manaCost;
-  manaCost += areaSize * (scaling.areaSizeMultiplier || 0);
-  manaCost += targetCount * (scaling.targetCountMultiplier || 0);
-  manaCost += duration * (scaling.durationMultiplier || 0);
-  if (context.persistentArea) manaCost += scaling.persistentAreaSurcharge || 0;
-  if (context.environmentMutation) manaCost += scaling.environmentMutationSurcharge || 0;
-  if (context.overrideAffinity) manaCost += scaling.overrideAffinitySurcharge || 0;
-  return {
-    tier,
-    expressionId: expressionRule.id,
-    verb: expressionRule.verb,
-    targetType: expressionRule.defaultTargetType,
-    potency: tierRule.potency,
-    defaultDesignCostTokens: tierRule.defaultDesignCostTokens,
-    complexityClass: tierRule.complexityClass || DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[tier],
-    unlockedEffects: tierRule.unlockedEffects || [],
-    manaCost: Math.max(0, Math.round(manaCost)),
-  };
+  return Number.isInteger(tierRule?.manaCost) ? tierRule.manaCost : null;
 }
 
-function findInteractionRule(rules, sourceKind, targetKind) {
-  if (!Array.isArray(rules?.interactions)) return null;
-  return rules.interactions.find((entry) => entry.sourceKind === sourceKind && entry.targetKind === targetKind) || null;
-}
-
-function applySpendPolicy(cost, policy) {
-  if (policy === "none") return 0;
-  if (policy === "half") return Math.round(cost / 2);
-  return cost;
-}
-
-export function resolveAffinityInteraction({ rules, source = {}, target = {} } = {}) {
-  const resolvedRules = resolveAffinityRules(rules);
-  const sourceProfile = resolveAffinityCastProfile({
-    rules: resolvedRules,
-    kind: source.kind,
-    expression: source.expression,
-    stacks: source.stacks,
-    context: source.context,
-  });
-  const targetProfile = resolveAffinityCastProfile({
-    rules: resolvedRules,
-    kind: target.kind,
-    expression: target.expression,
-    stacks: target.stacks,
-    context: target.context,
-  });
-  const sourceTier = sourceProfile?.tier || Math.max(1, Math.min(5, Number.isInteger(source.stacks) ? source.stacks : 1));
-  const targetTier = targetProfile?.tier || Math.max(1, Math.min(5, Number.isInteger(target.stacks) ? target.stacks : 1));
-  const sourceAffinity = findAffinityRule(resolvedRules, source.kind);
-  const targetAffinity = findAffinityRule(resolvedRules, target.kind);
-  const directRule = findInteractionRule(resolvedRules, source.kind, target.kind);
-  const defaultMana = resolvedRules?.globals?.defaultMana || {};
-  const sourceBaseCost = sourceProfile?.manaCost || 0;
-  const targetBaseCost = targetProfile?.manaCost || 0;
-
-  let winner = "tie";
-  if (sourceTier > targetTier) {
-    winner = "source";
-  } else if (targetTier > sourceTier) {
-    winner = "target";
-  } else {
-    const sourcePriority = sourceAffinity?.basePriority || 0;
-    const targetPriority = targetAffinity?.basePriority || 0;
-    if (sourcePriority > targetPriority) {
-      winner = "source";
-    } else if (targetPriority > sourcePriority) {
-      winner = "target";
-    }
-  }
-
-  const manaRule = {
-    ...defaultMana,
-    ...(directRule?.mana || {}),
-  };
-  const delta = Math.abs(sourceTier - targetTier);
-  let outcome = resolvedRules?.globals?.defaultOutcomeOnTie || "cancel";
-  let sourceManaSpent = sourceBaseCost;
-  let targetManaSpent = targetBaseCost;
-
-  if (winner === "source") {
-    outcome = directRule?.outcomeOnSourceWin || resolvedRules?.globals?.defaultOutcomeOnWin || "suppress";
-    sourceManaSpent = applySpendPolicy(sourceBaseCost, manaRule.winnerSpend || "full");
-    targetManaSpent = applySpendPolicy(targetBaseCost, manaRule.loserSpend || "full");
-    sourceManaSpent += delta > 0 ? manaRule.overpowerBonusCost || 0 : 0;
-    targetManaSpent += manaRule.drainOnFail || 0;
-    if (manaRule.refundPercent) {
-      targetManaSpent = Math.max(0, Math.round(targetManaSpent * (1 - (manaRule.refundPercent / 100))));
-    }
-  } else if (winner === "target") {
-    outcome = directRule?.outcomeOnTargetWin || resolvedRules?.globals?.defaultOutcomeOnWin || "suppress";
-    sourceManaSpent = applySpendPolicy(sourceBaseCost, manaRule.loserSpend || "full");
-    targetManaSpent = applySpendPolicy(targetBaseCost, manaRule.winnerSpend || "full");
-    targetManaSpent += delta > 0 ? manaRule.overpowerBonusCost || 0 : 0;
-    sourceManaSpent += manaRule.drainOnFail || 0;
-    if (manaRule.refundPercent) {
-      sourceManaSpent = Math.max(0, Math.round(sourceManaSpent * (1 - (manaRule.refundPercent / 100))));
-    }
-  } else {
-    outcome = directRule?.outcomeOnTie || resolvedRules?.globals?.defaultOutcomeOnTie || "cancel";
-    sourceManaSpent = applySpendPolicy(sourceBaseCost, manaRule.tieSpend || "full") + (manaRule.clashCost || 0);
-    targetManaSpent = applySpendPolicy(targetBaseCost, manaRule.tieSpend || "full") + (manaRule.clashCost || 0);
-  }
-
-  return {
-    source: {
-      kind: source.kind,
-      expression: source.expression,
-      tier: sourceTier,
-      manaCost: sourceBaseCost,
-      manaSpent: sourceManaSpent,
-      expressionAlias: sourceProfile?.expressionId,
-    },
-    target: {
-      kind: target.kind,
-      expression: target.expression,
-      tier: targetTier,
-      manaCost: targetBaseCost,
-      manaSpent: targetManaSpent,
-      expressionAlias: targetProfile?.expressionId,
-    },
-    winner,
-    tierDelta: delta,
-    outcome,
-  };
-}
+// ── AM.4 — the parallel cast/interaction EVALUATOR was deleted here ─────────
+//
+// `resolveAffinityCastProfile`, `resolveAffinityInteraction`, and their helpers
+// `findInteractionRule` / `applySpendPolicy` (143 lines) computed cast profiles,
+// tier comparisons, winners and mana spend from this artifact — a second
+// evaluator for a concept core-ts already evaluates through the affinity field,
+// the radius/intensity formulas and the 48-cell interaction matrix.
+//
+// They had NO consumers outside this file: nothing but each other ever called
+// them. So this was never two live authorities competing — it was one live
+// mechanic (core-ts, wired to the world) plus one dead duplicate that read like
+// an authority to anyone who found it first.
+//
+// What stays here is what the Configurator actually owns: the artifact's SHAPE
+// and VALIDITY — vocabulary, prerequisites, tier bounds, mana-cost monotonicity
+// — plus `manaCost` as authored tuning data. Applying an interaction at tick
+// time is Moderator authority (charter §29/§81) and runs through core's matrix;
+// pricing in tokens is Allocator authority and runs through its price list.

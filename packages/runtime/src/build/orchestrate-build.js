@@ -56,6 +56,11 @@ const configuratorMaximizeActorBudget = createConfiguratorPersona({ clock: UNUSE
 const configuratorApplyMotivationVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
   .authorCandidates.applyMotivationDerivedVitalRequirements;
 
+// AM.5/F14 — and what an actor's AFFINITIES require of its mana, for the same
+// reason and at the same point: before anything prices the actor list.
+const configuratorApplyAffinityVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
+  .authorCandidates.applyAffinityDerivedVitalRequirements;
+
 const SCHEMAS = Object.freeze({
   solverRequest: SOLVER_REQUEST_SCHEMA,
   solverResult: SOLVER_RESULT_SCHEMA,
@@ -1477,7 +1482,26 @@ export async function orchestrateBuild({
     // spend proposal below is built from `actorsInput.actors`, so the stamina
     // appears as priced line items instead of a vital the actor was handed for
     // free. An unpriced grant is exactly the silent fallback the charter forbids.
-    actorsInput.actors.forEach((actor) => configuratorApplyMotivationVitalRequirements(actor));
+    // COPY, never mutate in place. `actorsInput.actors` may be the Configurator's
+    // LOCKED input — deep-frozen, and recorded as this build's causal input. An
+    // earlier draft of this called the two helpers on the actors directly and
+    // `build-locked-input-immutability.test.js` caught it twice over: a
+    // TypeError on the frozen vital, and the byte-identity check that exists
+    // precisely because affinityRules/motivationRules/actors used to be written
+    // back over the locked artifact after the Configurator's round had closed.
+    actorsInput.actors = actorsInput.actors.map((actor) => {
+      const draft = {
+        ...actor,
+        vitals: actor?.vitals
+          ? Object.fromEntries(
+            Object.entries(actor.vitals).map(([key, vital]) => [key, { ...vital }]),
+          )
+          : actor?.vitals,
+      };
+      configuratorApplyMotivationVitalRequirements(draft);
+      configuratorApplyAffinityVitalRequirements(draft);
+      return draft;
+    });
 
     const affinityPresets = configuratorInputs?.affinityPresets || null;
     const affinityLoadouts = configuratorInputs?.affinityLoadouts || null;

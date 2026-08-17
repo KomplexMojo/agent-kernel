@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 129,
-  "remaining": 4871,
+  "totalCost": 132,
+  "remaining": 4868,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -117,6 +117,34 @@
     },
     {
       "id": "vital_health_point",
+      "kind": "vital",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_mana_point",
+      "kind": "vital",
+      "quantity": 2,
+      "unitCost": 1,
+      "totalCost": 2,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_mana_regen_tick",
       "kind": "vital",
       "quantity": 1,
       "unitCost": 1,
@@ -274,15 +302,15 @@
     {
       "id": "delver",
       "capTokens": 1316,
-      "spentTokens": 62,
-      "remainingTokens": 1254,
+      "spentTokens": 65,
+      "remainingTokens": 1251,
       "status": "approved"
     }
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 129,
-    "remainingBudget": 4871,
+    "totalSpend": 132,
+    "remainingBudget": 4868,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -306,7 +334,7 @@
         "usagePercent": 0
       },
       "delvers": {
-        "actual": 62,
+        "actual": 65,
         "target": 1316,
         "usagePercent": 5
       },

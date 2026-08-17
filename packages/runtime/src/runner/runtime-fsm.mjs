@@ -43,6 +43,22 @@ const TILE_CODES = Object.freeze({
   floor: 1,
   barrier: 4,
 });
+/** Vital index for mana, matching core's VitalKind ordering. */
+const VITAL_MANA = 1;
+
+/**
+ * AM.5 — the authored per-cast mana price, read off the Configurator's public
+ * surface. The rules artifact is the authority (AM.4); its published default
+ * applies when a run supplies no artifact of its own, which is a documented
+ * default table rather than a silent fallback to a second price model.
+ */
+const configuratorAffinityManaCost = createConfiguratorPersona({ clock: UNUSED_CLOCK })
+  .resolveAffinityManaCost;
+
+function resolveCastManaCost({ kind, expression, stacks }) {
+  return configuratorAffinityManaCost({ rules: null, kind, expression, stacks });
+}
+
 const AFFINITY_KIND_CODES = Object.freeze(
   AFFINITY_KINDS.reduce((acc, kind, index) => {
     acc[kind] = index + 1;
@@ -582,6 +598,69 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
         },
       };
     }
+    case "cast_affinity": {
+      // AM.5 — an actor expressing an affinity at a target.
+      //
+      // Routed by TARGET CLASS to the three core entry points that already
+      // existed and had no production caller (F5). Nothing about the effect is
+      // decided here: core owns the matrix, the vital routing and the range
+      // rule. This resolves ids to indices and hands over.
+      const affinityKind = AFFINITY_KIND_CODES[String(params.kind || "").toLowerCase()];
+      const affinityExpression = AFFINITY_EXPRESSION_CODES[String(params.expression || "").toLowerCase()];
+      const stacks = toInt(params.stacks);
+      if (!Number.isFinite(affinityKind) || !Number.isFinite(affinityExpression)) {
+        return { ok: false, reason: "invalid_affinity_spec" };
+      }
+      if (!Number.isFinite(stacks) || stacks <= 0) {
+        return { ok: false, reason: "invalid_affinity_stacks" };
+      }
+      const casterNumeric = resolveActorIdNumeric({ actorId: action.actorId, actorIdMap, core });
+      if (!Number.isFinite(casterNumeric)) {
+        return { ok: false, reason: "unknown_caster" };
+      }
+
+      const targetX = toInt(params.target?.x);
+      const targetY = toInt(params.target?.y);
+      const hasCell = Number.isFinite(targetX) && Number.isFinite(targetY);
+      if (params.targetId) {
+        const targetNumeric = resolveActorIdNumeric({ actorId: params.targetId, actorIdMap, core });
+        if (!Number.isFinite(targetNumeric)) {
+          return { ok: false, reason: "unknown_cast_target" };
+        }
+        return {
+          ok: true,
+          action: { ...action, tick: actionTick },
+          direct: {
+            kind: "cast_affinity_actor",
+            casterNumeric,
+            targetNumeric,
+            affinityKind,
+            affinityExpression,
+            stacks,
+            expressionName: String(params.expression || "").toLowerCase(),
+            kindName: String(params.kind || "").toLowerCase(),
+          },
+        };
+      }
+      if (!hasCell) {
+        return { ok: false, reason: "missing_cast_target" };
+      }
+      return {
+        ok: true,
+        action: { ...action, tick: actionTick },
+        direct: {
+          kind: "cast_affinity_cell",
+          casterNumeric,
+          x: targetX,
+          y: targetY,
+          affinityKind,
+          affinityExpression,
+          stacks,
+          expressionName: String(params.expression || "").toLowerCase(),
+          kindName: String(params.kind || "").toLowerCase(),
+        },
+      };
+    }
     case "disarm_static_hazard": {
       const x = toInt(params.x);
       const y = toInt(params.y);
@@ -671,6 +750,7 @@ export function createFsmRuntime({
     fulfilledEffects = [],
     acceptedActions = [],
     preCoreRejections = [],
+    affinityInteractions = [],
     personaViews = null,
     personaActions = null,
     personaEffects = null,
@@ -693,6 +773,11 @@ export function createFsmRuntime({
     };
     if (preCoreRejections.length) {
       frame.preCoreRejections = preCoreRejections;
+    }
+    // AM.8 — only when something actually met, so a frame with no contact stays
+    // the same shape it always was.
+    if (affinityInteractions.length) {
+      frame.affinityInteractions = affinityInteractions;
     }
     if (personaViews) frame.personaViews = personaViews;
     if (personaActions) frame.personaActions = personaActions;
@@ -1025,6 +1110,107 @@ export function createFsmRuntime({
     }
   }
 
+  /**
+   * AM.8 — resolve every affinity pair in contact this tick (closes F6).
+   *
+   * core's `resolveMotivatedActorAffinityInteraction` has existed and been
+   * unit-tested throughout; its only consumer was the Configurator, at DESIGN
+   * time. During play, two actors could stand inside each other's fields for a
+   * whole run and nothing was ever resolved between them.
+   *
+   * What is APPLIED here is stack cancellation, and only that. The matrix yields
+   * an effect CODE per side (Damage, ManaGain, AmplifiedDamage, ...) but no
+   * magnitude for those codes, and inventing numbers for them would be authoring
+   * game design rather than wiring what exists. Canceled stacks are different:
+   * core computes the net figure itself, so writing it back is applying a value
+   * the kernel defined. Every other outcome is RECORDED in the tick frame, so it
+   * is observable and can be given semantics deliberately later.
+   */
+  function resolveAffinityInteractionsForTick() {
+    if (typeof core.resolveMotivatedActorAffinityInteraction !== "function") return [];
+    if (typeof core.getMotivatedActorCount !== "function") return [];
+
+    const count = core.getMotivatedActorCount();
+    if (count < 2) return [];
+
+    const actorsForPlanning = [];
+    for (let index = 0; index < count; index += 1) {
+      actorsForPlanning.push({
+        index,
+        x: core.getMotivatedActorXByIndex(index),
+        y: core.getMotivatedActorYByIndex(index),
+        kind: core.getMotivatedActorAffinityKindByIndex?.(index) ?? 0,
+        expression: core.getMotivatedActorAffinityExpressionByIndex?.(index) ?? 0,
+        stacks: core.getMotivatedActorAffinityStacksByIndex?.(index) ?? 0,
+      });
+    }
+
+    const pairs = moderator.advance({
+      phase: TickPhases.APPLY,
+      event: "plan_affinity_interactions",
+      payload: {
+        actors: actorsForPlanning,
+        // core's own radius curve, injected — the runner does not decide where a
+        // field ends, and a copy of the formula here would be a second authority.
+        computeRadius: (expression, stacks) => core.computeAffinityRadius(expression, stacks),
+      },
+      tick,
+    })?.affinityInteractions;
+    if (!Array.isArray(pairs) || pairs.length === 0) return [];
+
+    const resolved = [];
+    for (const pair of pairs) {
+      const ok = core.resolveMotivatedActorAffinityInteraction(pair.sourceIndex, pair.targetIndex);
+      if (!ok) continue;
+
+      const canceled = core.getLastInteractionCanceledStacks?.() ?? 0;
+      const netSource = core.getLastInteractionNetSourceStacks?.() ?? 0;
+      const netTarget = core.getLastInteractionNetTargetStacks?.() ?? 0;
+      const record = {
+        sourceIndex: pair.sourceIndex,
+        targetIndex: pair.targetIndex,
+        distance: pair.distance,
+        relationship: core.getLastInteractionRelationship?.() ?? -1,
+        sourceEffect: core.getLastInteractionSourceEffect?.() ?? 0,
+        targetEffect: core.getLastInteractionTargetEffect?.() ?? 0,
+        visualState: core.getLastInteractionVisualState?.() ?? 0,
+        canceledStacks: canceled,
+        netSourceStacks: netSource,
+        netTargetStacks: netTarget,
+      };
+
+      // Cancellation is the one outcome with a magnitude core defines, so it is
+      // the one that reaches the world. An affinity cancelled to zero stacks is
+      // cleared outright rather than left at zero — a zero-stack affinity would
+      // still read as "held" everywhere that checks for a kind.
+      if (canceled > 0 && typeof core.setMotivatedActorAffinity === "function") {
+        const source = actorsForPlanning[pair.sourceIndex];
+        const target = actorsForPlanning[pair.targetIndex];
+        // No `typeof` guard on the clear. An earlier draft had one, and because
+        // `clearMotivatedActorAffinity` was missing from the core surface at the
+        // time, an affinity cancelled to ZERO stacks silently kept its stacks —
+        // the interaction reported netTarget 0 while core still read 2. A
+        // capability this depends on is a requirement, not an option.
+        if (netSource > 0) {
+          core.setMotivatedActorAffinity(pair.sourceIndex, source.kind, source.expression, netSource);
+        } else {
+          core.clearMotivatedActorAffinity(pair.sourceIndex);
+        }
+        if (netTarget > 0) {
+          core.setMotivatedActorAffinity(pair.targetIndex, target.kind, target.expression, netTarget);
+        } else {
+          core.clearMotivatedActorAffinity(pair.targetIndex);
+        }
+        record.applied = "stack_cancellation";
+      } else {
+        // Recorded, not applied: the matrix gives a code without a magnitude.
+        record.applied = "recorded_only";
+      }
+      resolved.push(record);
+    }
+    return resolved;
+  }
+
   function applyActionsToCore(actions) {
     const acceptedActions = [];
     const preCoreRejections = [];
@@ -1078,6 +1264,81 @@ export function createFsmRuntime({
         }
         if (directive.kind === "disarm_static_hazard") {
           core.disarmStaticHazardAt(directive.x, directive.y);
+          acceptedActions.push(adaptation.action);
+          continue;
+        }
+        if (directive.kind === "cast_affinity_actor" || directive.kind === "cast_affinity_cell") {
+          // AM.5 — the caster pays FIRST, then the effect applies.
+          //
+          // Order is deliberate: a cast whose mana cannot be paid must not reach
+          // the world at all. The price is the authored one from the affinity
+          // rules artifact (AM.4) — core cannot supply it, since its own formula
+          // charges 0 for push and pull, and a free cast is an unpriced resource.
+          const manaCost = resolveCastManaCost({
+            kind: directive.kindName,
+            expression: directive.expressionName,
+            stacks: directive.stacks,
+          });
+          if (manaCost === null) {
+            preCoreRejections.push({ action, reason: "affinity_rules_have_no_price_for_cast" });
+            continue;
+          }
+          const casterIndex = directive.casterNumeric - 1;
+          if (manaCost > 0) {
+            const spent = typeof core.spendMotivatedActorAffinityMana === "function"
+              ? core.spendMotivatedActorAffinityMana(casterIndex, directive.affinityKind, manaCost)
+              : 0;
+            if (spent < manaCost) {
+              // Grants could not cover it. Fall back to the actor's mana VITAL,
+              // which is the pool a cast without a pooled grant draws on.
+              const remaining = manaCost - spent;
+              const current = core.getMotivatedActorVitalCurrentByIndex(casterIndex, VITAL_MANA);
+              if (current < remaining) {
+                preCoreRejections.push({ action, reason: "insufficient_affinity_mana" });
+                continue;
+              }
+              core.setMotivatedActorVital(
+                casterIndex,
+                VITAL_MANA,
+                current - remaining,
+                core.getMotivatedActorVitalMaxByIndex(casterIndex, VITAL_MANA),
+                core.getMotivatedActorVitalRegenByIndex(casterIndex, VITAL_MANA),
+              );
+            }
+          }
+
+          let applied = 0;
+          if (directive.kind === "cast_affinity_actor") {
+            applied = core.applyAffinityDamage(
+              casterIndex,
+              directive.targetNumeric - 1,
+              directive.affinityKind,
+              directive.affinityExpression,
+              directive.stacks,
+            );
+          } else if (directive.expressionName === "pull") {
+            // A pull at an armed hazard neutralizes it and banks its mana.
+            applied = core.applyAffinityPullFromHazard(
+              casterIndex,
+              directive.x,
+              directive.y,
+              directive.affinityKind,
+              directive.stacks,
+            );
+          } else {
+            applied = core.applyAffinityDamageToHazard(
+              casterIndex,
+              directive.x,
+              directive.y,
+              directive.affinityKind,
+              directive.affinityExpression,
+              directive.stacks,
+            );
+          }
+          if (!applied) {
+            preCoreRejections.push({ action, reason: "cast_rejected_by_core" });
+            continue;
+          }
           acceptedActions.push(adaptation.action);
           continue;
         }
@@ -1413,11 +1674,17 @@ export function createFsmRuntime({
       const applyActions = Array.isArray(applyRecord.actions) ? applyRecord.actions : [];
       const applied = applyActionsToCore(actions.concat(applyActions));
 
+      // AM.8 — resolve the affinity fields that are in CONTACT, after the tick's
+      // actions have moved everyone. The Moderator decides which pairs meet;
+      // core's 48-cell matrix decides what happens between them.
+      const affinityInteractions = resolveAffinityInteractionsForTick();
+
       applyPersonaArtifacts(applyRecord);
       recordTickFrame({
         phaseDetail: TickPhases.APPLY,
         acceptedActions: applied.acceptedActions,
         preCoreRejections: applied.preCoreRejections,
+        affinityInteractions,
         personaViews: applyRecord.personaViews,
         personaActions: applyRecord.actions,
         personaEffects: applyRecord.effects,
@@ -1492,23 +1759,45 @@ export function createFsmRuntime({
         solverFulfilled: summarizeRecord.solverFulfilled,
       });
 
-      // AM.3 — the tick closes HERE, once, after every phase of this step.
+      // AM.3 / AM.3b / AM.7 — the tick closes HERE, once, and the MODERATOR
+      // decides what closing means.
       //
       // core.advanceTick() applies per-tick regen (actor vitals, hazard mana and
-      // durability) and increments the tick. It used to be reachable only from
+      // durability) and increments the tick; it used to be reachable only from
       // move.ts commitMove, which made all of that a function of how many actors
-      // happened to move. Advancing once per step() makes elapsed time a
-      // property of the simulation.
+      // happened to move. computeAffinityField() ran only during setup, so auras
+      // stayed where actors had started (F7).
       //
-      // Placed after SUMMARIZE so actions applied during this step belong to the
-      // tick they were proposed for: `action.tick === getCurrentTick() + 1` still
-      // holds during APPLY, and every actor acting in the same step now shares
-      // one tick number instead of each successful move bumping it for the next.
-      //
-      // A step that begins while the Moderator is `pausing` already returns
-      // before reaching this point, so a paused tick advances nothing.
-      if (typeof core.advanceTick === "function") {
+      // Both describe the same instant, so both belong to one decision. Glue asks
+      // and executes; it does not decide. Placed after SUMMARIZE so actions
+      // applied during this step belong to the tick they were proposed for —
+      // `action.tick === getCurrentTick() + 1` still holds during APPLY, and every
+      // actor acting in the same step shares one tick number.
+      // Asked of the Moderator DIRECTLY, the same way tick ordering and effect
+      // fulfilment are (plan_persona_order / plan_effect_fulfillment). A planning
+      // event answers a question as data; routing it through the shared phase FSM
+      // would ask every persona to make a transition none of them has.
+      const tickClose = moderator.advance({
+        phase: TickPhases.SUMMARIZE,
+        event: "plan_tick_close",
+        payload: {},
+        tick,
+      })?.tickClose;
+      if (!tickClose || typeof tickClose.advanceTick !== "boolean") {
+        throw new Error(
+          "Moderator did not return a tick-close plan: advancing the tick and recomputing the "
+          + "affinity field are Moderator policy (charter §29/§81), so the runner has no decision "
+          + "of its own to fall back on.",
+        );
+      }
+
+      if (tickClose.advanceTick && typeof core.advanceTick === "function") {
         core.advanceTick();
+      }
+      if (tickClose.recomputeAffinityField && typeof core.computeAffinityField === "function") {
+        // Actors have moved; their auras must move with them. Without this the
+        // field is a snapshot of the starting positions for the whole run.
+        core.computeAffinityField();
       }
 
       return core.getCounter ? core.getCounter() : null;

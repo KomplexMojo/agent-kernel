@@ -6094,7 +6094,7 @@ async function tickCommand(argv) {
   }
 
   // subcommand === "state"
-  const [ascii, tickFrame] = await Promise.all([renderAscii(runDir), readTickFrame(runDir, currentTick)]);
+  const [ascii, tickFrame] = await Promise.all([renderAscii(runDir, currentTick), readTickFrame(runDir, currentTick)]);
   const stateResult = {
     ok: true,
     command: "tick",

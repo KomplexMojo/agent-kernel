@@ -48,6 +48,7 @@ import {
   SPEND_PROTOCOL_SCHEMA_VERSION,
 } from "../../contracts/spend-protocol.js";
 import { validateAffinityPrereqs } from "./cost-model.js";
+import { resolveAffinityManaCost } from "./affinity-rules.js";
 import { normalizeMotivations } from "./motivation-loadouts.js";
 
 /**
@@ -182,6 +183,48 @@ function collectMotivationKinds(actor) {
     });
   }
   return kinds;
+}
+
+/**
+ * AM.5/F14 — an actor that HOLDS an affinity must be able to express it.
+ *
+ * The same defect as F12, one vital over. `DEFAULT_VITALS.mana` is
+ * `{0, 0, 0}`, so a `create`-authored actor carrying `water:push` had no mana
+ * and every cast it proposed was refused `insufficient_affinity_mana`. The
+ * Configurator already had the rule — `assessDelverStructure` reports
+ * `affinity_requires_mana` — but, exactly like the stamina rule, it only ran
+ * inside budget-driven candidate enumeration, so the plain path never saw it.
+ *
+ * The floor is the authored cost of one cast at the tier the actor holds, taken
+ * from the rules artifact (AM.4), plus regen so the actor can cast again. A
+ * pool sized to a cost we did not read would be a second price.
+ */
+export function applyAffinityDerivedVitalRequirements(actor) {
+  const affinities = Array.isArray(actor?.affinities) ? actor.affinities : [];
+  if (affinities.length === 0 || !actor?.vitals?.mana) return false;
+
+  let required = 0;
+  for (const affinity of affinities) {
+    const kind = typeof affinity?.kind === "string" ? affinity.kind.trim().toLowerCase() : "";
+    if (!kind) continue;
+    const expression = typeof affinity?.expression === "string" && affinity.expression.trim()
+      ? affinity.expression.trim().toLowerCase()
+      : "push";
+    const stacks = Number.isInteger(affinity?.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
+    const cost = resolveAffinityManaCost({ rules: null, kind, expression, stacks });
+    if (Number.isInteger(cost) && cost > required) required = cost;
+  }
+  if (required <= 0) return false;
+
+  const before = { ...actor.vitals.mana };
+  actor.vitals.mana.max = Math.max(actor.vitals.mana.max, required);
+  actor.vitals.mana.current = Math.max(actor.vitals.mana.current, actor.vitals.mana.max);
+  actor.vitals.mana.regen = Math.max(actor.vitals.mana.regen, 1);
+  return (
+    before.max !== actor.vitals.mana.max
+    || before.current !== actor.vitals.mana.current
+    || before.regen !== actor.vitals.mana.regen
+  );
 }
 
 export function applyMotivationDerivedVitalRequirements(actor) {

@@ -69,6 +69,8 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     resolveAffinityEffects: services.resolveAffinityEffects,
     normalizeAffinityRulesArtifact: services.normalizeAffinityRulesArtifact,
     resolveAffinityRules: services.resolveAffinityRules,
+    // AM.5 — the authored per-cast mana price, needed on the tick plane.
+    resolveAffinityManaCost: services.resolveAffinityManaCost,
     buildAmbientAffinityPressure: services.buildAmbientAffinityPressure,
     computeInternalManaUpkeep: services.computeInternalManaUpkeep,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,

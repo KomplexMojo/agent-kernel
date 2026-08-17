@@ -52,6 +52,23 @@ import { ActionKind, validateAction, validateSeed, ValidationError } from "./val
 export { BudgetCategory } from "./state/budget.ts";
 // Core owns the action codebook; runtime maps names onto these codes.
 export { ActionKind, ValidationError, getValidationErrorName } from "./validate/inputs.ts";
+// AM.10 — core owns the motivation exclusive groups, so it answers whether two
+// kinds contradict each other. Imported above for the `core.*` surface but never
+// re-exported, which is part of why it had no production caller: the Configurator
+// could not reach it without holding a core instance.
+export { getMotivationExclusiveGroup, getMotivationFamily, motivationKindsConflict } from "./state/motivation.ts";
+// AM.9 — the profile axes, so behavior can branch on what a motivation IS rather
+// than on its name. `MotivationFlag` travels with them: the flag mask is only
+// meaningful against the bit names that define it.
+export {
+  MotivationFlag,
+  ReasoningClass,
+  getMotivationCognitionTier,
+  getMotivationCombatTier,
+  getMotivationDefaultFlagMask,
+  getMotivationMobilityTier,
+  getMotivationReasoningClass,
+} from "./state/motivation.ts";
 export * from "./affinity-readers.ts";
 export * from "./motivation-readers.ts";
 export * from "./mvp-movement.ts";
@@ -73,6 +90,7 @@ export const CORE_API_KEYS = [
   "clearActorPlacements",
   "clearAffinityField",
   "clearEffects",
+  "clearMotivatedActorAffinity",
   "computeActorAffinityField",
   "computeAffinityField",
   "computeAffinityIntensity",
@@ -596,6 +614,13 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.computeActorAffinityField = world.computeActorAffinityField as CoreFunction;
   core.computeAffinityField = world.computeAffinityField.bind(world) as CoreFunction;
   core.setMotivatedActorAffinity = world.setMotivatedActorAffinity as CoreFunction;
+  // AM.8 — `clearMotivatedActorAffinity` existed on the world and was used
+  // internally by rules/affinity-damage.ts, but was never published on the core
+  // surface. A caller outside core could set an affinity and never remove one,
+  // so a `typeof core.clearMotivatedActorAffinity === "function"` guard silently
+  // did nothing — which is how an interaction that cancelled an affinity to zero
+  // stacks left it standing.
+  core.clearMotivatedActorAffinity = world.clearMotivatedActorAffinity as CoreFunction;
   core.getMotivatedActorAffinityKindByIndex = world.getMotivatedActorAffinityKindByIndex as CoreFunction;
   core.getMotivatedActorAffinityExpressionByIndex = world.getMotivatedActorAffinityExpressionByIndex as CoreFunction;
   core.getMotivatedActorAffinityStacksByIndex = world.getMotivatedActorAffinityStacksByIndex as CoreFunction;

@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 62,
+      "runTotalTokens": 65,
       "budgetTokens": 2000,
       "receiptRef": {
         "id": "golden_g3_budget_receipt",
@@ -129,9 +129,9 @@
               "regen": 0
             },
             "stamina": {
-              "current": 2,
-              "max": 2,
-              "regen": 2
+              "current": 0,
+              "max": 0,
+              "regen": 0
             },
             "durability": {
               "current": 1,
@@ -1935,9 +1935,9 @@
               "regen": 0
             },
             "mana": {
-              "current": 0,
-              "max": 0,
-              "regen": 0
+              "current": 2,
+              "max": 2,
+              "regen": 1
             },
             "stamina": {
               "current": 2,

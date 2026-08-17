@@ -10,6 +10,20 @@ import {
   resolveRuntimeDecisionProviderPolicy,
 } from "../_shared/runtime-decision.mts";
 import { SOLVER_REQUEST_SCHEMA } from "../../contracts/artifacts.ts";
+import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
+import { getMotivationCombatTier, getMotivationMobilityTier } from "../../../../core-ts/src/index.ts";
+
+/**
+ * AM.9 — motivation name -> core's 1-based kind code, derived from the shared
+ * vocabulary. core's `MotivationKind` is documented as matching this order, so
+ * the index IS the mapping; a hand-written second table would drift.
+ */
+const MOTIVATION_KIND_CODES = Object.freeze(
+  MOTIVATION_KINDS.reduce((acc, name, index) => {
+    acc[name] = index + 1;
+    return acc;
+  }, {}),
+);
 
 export const actorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 
@@ -837,6 +851,82 @@ function isReserved(position, reservedTargets) {
  * actors evaluated in the same tick could both choose an identical
  * currently-unoccupied tile before core state is updated at APPLY time.
  */
+/**
+ * AM.6 — choose an affinity this actor can actually land on `hostile`, if any.
+ *
+ * Deterministic: affinities are compared in a stable order (kind, then
+ * expression) and the first that can reach wins, so two Actors given the same
+ * observation propose the same cast.
+ *
+ * Reach mirrors core exactly (rules/affinity-damage.ts):
+ *   push / pull  single target, Chebyshev distance <= stacks
+ *   emit / draw  diffuse; the caller iterates an area, so a directed cast at a
+ *                specific target is only proposed when already adjacent
+ * Proposing something core would refuse would show up as an accepted action that
+ * changed nothing, which is the class of lie AM.1 exists to prevent.
+ */
+/**
+ * AM.9 — does this motivation hold position?
+ *
+ * Answered from core's profile table rather than a name list here. `random`,
+ * `exploring`, `patrolling`, `attacking`, `stealthy` and `friendly` carry a
+ * mobility tier above 0; the rest hold position. An unknown name is treated as
+ * mobile, which preserves the previous default for anything outside the
+ * vocabulary rather than silently freezing it.
+ */
+function motivationHoldsPosition(motivationKind) {
+  if (typeof motivationKind !== "string" || !motivationKind.trim()) return false;
+  const code = MOTIVATION_KIND_CODES[motivationKind.trim().toLowerCase()];
+  if (!Number.isFinite(code)) return false;
+  return getMotivationMobilityTier(code) === 0;
+}
+
+/** AM.9 — combat tier: none=0, attacking=1, defending=2. */
+function motivationHasCombatRole(motivationKind) {
+  if (typeof motivationKind !== "string" || !motivationKind.trim()) return false;
+  const code = MOTIVATION_KIND_CODES[motivationKind.trim().toLowerCase()];
+  if (!Number.isFinite(code)) return false;
+  return getMotivationCombatTier(code) > 0;
+}
+
+function buildAffinityCastProposal({ actor, affinities: rawAffinities, hostile }) {
+  const affinities = Array.isArray(rawAffinities) ? rawAffinities : [];
+  if (affinities.length === 0) return null;
+
+  const distance = Number.isFinite(hostile?.distance)
+    ? hostile.distance
+    : Math.max(
+      Math.abs((hostile?.actor?.position?.x ?? 0) - actor.position.x),
+      Math.abs((hostile?.actor?.position?.y ?? 0) - actor.position.y),
+    );
+
+  const ordered = affinities
+    .filter((entry) => typeof entry?.kind === "string" && entry.kind.trim())
+    .slice()
+    .sort((a, b) => String(a.kind).localeCompare(String(b.kind))
+      || String(a.expression || "").localeCompare(String(b.expression || "")));
+
+  for (const entry of ordered) {
+    const expression = typeof entry.expression === "string" && entry.expression.trim()
+      ? entry.expression.trim().toLowerCase()
+      : "push";
+    const stacks = Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1;
+    const focused = expression === "push" || expression === "pull";
+    const canReach = focused ? distance <= stacks : distance <= 1;
+    if (!canReach) continue;
+    return {
+      kind: "cast_affinity",
+      params: {
+        kind: entry.kind.trim().toLowerCase(),
+        expression,
+        stacks,
+        targetId: hostile.actor.id,
+      },
+    };
+  }
+  return null;
+}
+
 function buildRandomMoveProposals({ observation, payload, simConfig, personaSeed }) {
   const view = resolveObservationView(observation);
   const actorId = payload?.actorId;
@@ -882,8 +972,27 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
 
   const motivationKind = resolveActorMotivationKind(view, actorId, payload);
 
-  // Stationary: never propose movement
-  if (motivationKind === "stationary") {
+  // AM.9 — gate on the motivation's PROFILE, not on its name.
+  //
+  // This read `motivationKind === "stationary"`. Every other kind fell through
+  // to movement by default, so a kind whose profile says it holds position — and
+  // core's table says `defending`, `reflexive`, `goal_oriented`,
+  // `strategy_focused` and `user_controlled` all do — moved anyway, because
+  // nobody had written an `if` for it. The behavior lived in the list of names
+  // someone remembered, not in the data.
+  //
+  // Mobility tier 0 means stationary; 1 exploring; 2 patrolling. Asking core
+  // means a new motivation kind gets correct movement behavior from its profile
+  // row, with no branch to add here.
+  //
+  // Holding position suppresses MOVEMENT, not every proposal. `defending` has
+  // mobility 0 and combat 2: it holds ground and still strikes what comes to it
+  // (charter §382). Returning early for everything that holds position is the
+  // mistake this comment exists to prevent — it silenced defending actors
+  // entirely, and three tests said so.
+  const holdsPosition = motivationHoldsPosition(motivationKind);
+  const hasCombatRole = motivationHasCombatRole(motivationKind);
+  if (holdsPosition && !hasCombatRole) {
     return [];
   }
 
@@ -896,6 +1005,29 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
 
   if (hostile) {
     const adjacent = hostile.distance <= 1;
+
+    // AM.6 — an actor that HOLDS an affinity able to reach this hostile expresses
+    // it, in preference to a generic attack.
+    //
+    // Before this, an actor's affinities were data it carried and never used:
+    // the only combat proposal was `attack` with a flat damage number, so the
+    // whole affinity system — kinds, expressions, stacks, the vital matrix — sat
+    // outside play entirely (F5). Range matches core's own rule for push/pull
+    // (Chebyshev distance <= stacks, rules/affinity-damage.ts), so a proposal
+    // this makes is one core will accept rather than one it will refuse.
+    if (motivationKind === "attacking" || motivationKind === "defending") {
+      // `resolveActor` deliberately returns only id + position, so the affinity
+      // list comes from the full record. Reading it off the trimmed one would
+      // silently find no affinities and never cast — the failure would look
+      // exactly like an actor that simply has none.
+      const record = resolveActorRecord(view, actorId, observation);
+      const cast = buildAffinityCastProposal({
+        actor,
+        affinities: record?.affinities,
+        hostile,
+      });
+      if (cast) return [cast];
+    }
 
     // Adjacent hostile + attacking or defending → attack
     if (adjacent && (motivationKind === "attacking" || motivationKind === "defending")) {
@@ -912,8 +1044,10 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
       ];
     }
 
-    // Non-adjacent + attacking → move toward hostile
-    if (!adjacent && motivationKind === "attacking") {
+    // Non-adjacent + a motivation that both fights and MOVES → close distance.
+    // Gated on the profile: a combat motivation with mobility 0 holds its ground
+    // instead of pursuing, which is what separates defending from attacking.
+    if (!adjacent && hasCombatRole && !holdsPosition) {
       const baseTiles = resolveBaseTiles(payload, view, simConfig);
       const tileKinds = resolveTileKinds(view, payload);
       const path = findPath(actor.position, hostile.actor.position, tileKinds, baseTiles);
@@ -930,8 +1064,8 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
       }
     }
 
-    // Non-adjacent + defending → hold position (no action)
-    if (!adjacent && motivationKind === "defending") {
+    // Non-adjacent + a combat motivation that holds position → wait it out
+    if (!adjacent && hasCombatRole && holdsPosition) {
       return [];
     }
   }
