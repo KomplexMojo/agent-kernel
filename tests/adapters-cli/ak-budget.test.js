@@ -7,12 +7,16 @@ const os = require("node:os");
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 
-function runCli(args, options = {}) {
-  const result = spawnSync(process.execPath, [CLI, ...args], {
+function runCliRaw(args, options = {}) {
+  return spawnSync(process.execPath, [CLI, ...args], {
     cwd: ROOT,
     encoding: "utf8",
     ...options,
   });
+}
+
+function runCli(args, options = {}) {
+  const result = runCliRaw(args, options);
   if (result.status !== 0) {
     const output = [result.stdout, result.stderr].filter(Boolean).join("\n");
     throw new Error(`CLI failed (${result.status}): ${output}`);
@@ -51,8 +55,28 @@ test("cli budget prints and writes budget artifacts", () => {
   assert.ok(existsSync(join(outDir, "budget-receipt.json")));
 });
 
-test.skip("budget without --price-list returns a clear validation envelope", () => {});
-test.skip("budget supports legacy costTokens-only price list items", () => {});
-test.skip("budget supports canonical unitCost price list items with legacy parity", () => {});
-test.skip("budget with a missing receipt path returns ok:false with a stable reason", () => {});
-test.skip("budget --out-dir side-effect limitation is reported explicitly", () => {});
+test("budget accepts a budget artifact without requiring a price list or receipt", () => {
+  const budgetPath = resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json");
+
+  const result = runCli(["budget", "--budget", budgetPath]);
+  const output = JSON.parse(result.stdout);
+
+  assert.equal(output.ok, true);
+  assert.equal(output.command, "budget");
+  assert.equal(output.budget.schema, "agent-kernel/BudgetArtifact");
+  assert.equal(output.priceList, undefined);
+  assert.equal(output.receipt, undefined);
+});
+
+test("budget with a missing receipt path returns ok:false with a stable filesystem error", () => {
+  const missingReceipt = join(makeTempDir("agent-kernel-budget-missing-receipt-"), "missing.json");
+
+  const result = runCliRaw(["budget", "--receipt", missingReceipt]);
+
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.equal(output.command, "budget");
+  assert.match(output.error, /ENOENT|no such file/i);
+  assert.match(output.error, /missing\.json/);
+});

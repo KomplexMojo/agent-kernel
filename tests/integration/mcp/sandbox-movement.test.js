@@ -176,16 +176,18 @@ function makeTempDir(prefix) {
 // Shared setup helper — create session + place delver at (2,2)
 // ---------------------------------------------------------------------------
 
-async function setupSessionWithDelver(harness, outDir) {
+async function setupSessionWithDelver(harness, outDir, { x = 2, y = 2, width, height } = {}) {
   const createResult = await harness.callTool("ak_sandbox_create", {
     budgetReceipt: BUDGET_RECEIPT_APPROVED,
     outDir,
+    ...(width === undefined ? {} : { width }),
+    ...(height === undefined ? {} : { height }),
   });
   const sessionPath = join(createResult.outDir, "sandbox-session.json");
   await harness.callTool("ak_sandbox_place", {
     session: sessionPath,
     entityType: "delver",
-    spec: "id=delver_1;x=2;y=2;affinity=water;motivation=exploring",
+    spec: `id=delver_1;x=${x};y=${y};affinity=water;motivation=exploring`,
   });
   return sessionPath;
 }
@@ -918,25 +920,180 @@ test("mcp ak_sandbox_move rejects actor with string position coordinates", async
   }
 });
 
-test.skip("mcp ak_sandbox_move south from 2,2 to 2,3 floor succeeds", () => {});
-test.skip("mcp ak_sandbox_move west from 2,2 to 1,2 floor succeeds", () => {});
-test.skip("mcp ak_sandbox_move north from 2,2 to 2,1 floor succeeds", () => {});
-test.skip("mcp ak_sandbox_move southeast from 2,2 to 3,3 succeeds with direction enum 3", () => {});
-test.skip("mcp ak_sandbox_move southwest from 2,2 to 1,3 succeeds with direction enum 5", () => {});
-test.skip("mcp ak_sandbox_move west from 1,1 to wall reports blockedByWall", () => {});
-test.skip("mcp ak_sandbox_move south from 1,8 to wall reports blockedByWall", () => {});
-test.skip("mcp ak_sandbox_move east from 8,8 to wall reports blockedByWall", () => {});
-test.skip("mcp ak_sandbox_move southeast from 8,8 to wall corner reports blockedByWall", () => {});
-test.skip("mcp ak_sandbox_move three consecutive moves produce actions with ticks 1,2,3", () => {});
-test.skip("mcp ak_sandbox_move auto-creates missing actionsOut directory", () => {});
-test.skip("mcp ak_sandbox_move actor with no position field returns error", () => {});
-test.skip("mcp ak_sandbox_move uppercase NORTH normalizes and succeeds", () => {});
-test.skip("mcp ak_sandbox_move northeast is rejected outside cardinal set", () => {});
-test.skip("mcp ak_sandbox_move missing actorId is rejected with validation error", () => {});
-test.skip("mcp ak_sandbox_move missing direction is rejected with validation error", () => {});
-test.skip("mcp ak_sandbox_move missing actionsOut is rejected with validation error", () => {});
-test.skip("mcp ak_sandbox_move pre-existing non-ActionSequence JSON is handled gracefully", () => {});
-test.skip("mcp ak_sandbox_move action sequence simConfigRef matches session", () => {});
-test.skip("mcp ak_sandbox_move action sequence initialStateRef matches session", () => {});
-test.skip("mcp ak_sandbox_move succeeds for every interior floor tile in 10x10 grid", () => {});
-test.skip("mcp ak_sandbox_move supports custom 5x5 room dimensions", () => {});
+test("mcp ak_sandbox_move covers the remaining walkable direction enum permutations", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const cases = [
+      { direction: "south", to: { x: 2, y: 3 }, value: 4 },
+      { direction: "west", to: { x: 1, y: 2 }, value: 6 },
+      { direction: "north", to: { x: 2, y: 1 }, value: 0 },
+      { direction: "southeast", to: { x: 3, y: 3 }, value: 3 },
+      { direction: "southwest", to: { x: 1, y: 3 }, value: 5 },
+    ];
+
+    for (const entry of cases) {
+      const outDir = makeTempDir(`agent-kernel-sandbox-move-${entry.direction}-`);
+      const sessionPath = await setupSessionWithDelver(harness, outDir);
+      const actionsOut = join(outDir, "actions.json");
+      const result = await harness.callTool("ak_sandbox_move", {
+        session: sessionPath,
+        actorId: "delver_1",
+        direction: entry.direction,
+        actionsOut,
+      });
+
+      assert.deepEqual(result.from, { x: 2, y: 2 });
+      assert.deepEqual(result.to, entry.to);
+      const sequence = JSON.parse(readFileSync(actionsOut, "utf8"));
+      assert.equal(sequence.actions[0].params.direction, entry.value);
+    }
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_move rejects cardinal and diagonal moves into every tested wall edge", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const cases = [
+      { x: 1, y: 1, direction: "west" },
+      { x: 1, y: 8, direction: "south" },
+      { x: 8, y: 8, direction: "east" },
+      { x: 8, y: 8, direction: "southeast" },
+    ];
+
+    for (const entry of cases) {
+      const outDir = makeTempDir(`agent-kernel-sandbox-wall-${entry.direction}-`);
+      const sessionPath = await setupSessionWithDelver(harness, outDir, entry);
+      const actionsOut = join(outDir, "actions.json");
+      const result = await harness.callToolRaw("ak_sandbox_move", {
+        session: sessionPath,
+        actorId: "delver_1",
+        direction: entry.direction,
+        actionsOut,
+      });
+
+      assert.equal(result.ok, false);
+      assert.equal(result.blockedByWall, true);
+      assert.equal(existsSync(actionsOut), false);
+    }
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_move creates nested output, appends three ticks, and preserves session refs", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-move-three-ticks-");
+    const sessionPath = await setupSessionWithDelver(harness, outDir);
+    const actionsOut = join(outDir, "nested", "actions", "actions.json");
+
+    for (const direction of ["east", "south", "west"]) {
+      await harness.callTool("ak_sandbox_move", {
+        session: sessionPath,
+        actorId: "delver_1",
+        direction,
+        actionsOut,
+      });
+    }
+
+    const session = JSON.parse(readFileSync(sessionPath, "utf8"));
+    const sequence = JSON.parse(readFileSync(actionsOut, "utf8"));
+    assert.deepEqual(sequence.actions.map((action) => action.tick), [1, 2, 3]);
+    assert.deepEqual(sequence.simConfigRef, session.artifacts.simConfigRef);
+    assert.deepEqual(sequence.initialStateRef, session.artifacts.initialStateRef);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_move returns validation errors for each missing required argument", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-move-required-");
+    const sessionPath = await setupSessionWithDelver(harness, outDir);
+    const valid = {
+      session: sessionPath,
+      actorId: "delver_1",
+      direction: "east",
+      actionsOut: join(outDir, "actions.json"),
+    };
+
+    for (const key of ["actorId", "direction", "actionsOut"]) {
+      const args = { ...valid };
+      delete args[key];
+      const result = await harness.callToolRaw("ak_sandbox_move", args);
+      assert.equal(result.ok, false);
+      assert.match(result.error, new RegExp(key, "i"));
+    }
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_move rejects a missing actor position and replaces malformed action JSON safely", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const invalidDir = makeTempDir("agent-kernel-sandbox-move-missing-position-");
+    const invalidSession = await setupSessionWithDelver(harness, invalidDir);
+    const invalidStatePath = join(invalidDir, "initial-state.json");
+    const invalidState = JSON.parse(readFileSync(invalidStatePath, "utf8"));
+    delete invalidState.actors[0].position;
+    writeFileSync(invalidStatePath, JSON.stringify(invalidState, null, 2), "utf8");
+
+    const invalidResult = await harness.callToolRaw("ak_sandbox_move", {
+      session: invalidSession,
+      actorId: "delver_1",
+      direction: "east",
+      actionsOut: join(invalidDir, "actions.json"),
+    });
+    assert.equal(invalidResult.ok, false);
+    assert.match(invalidResult.error, /invalid position coordinates/i);
+
+    const malformedDir = makeTempDir("agent-kernel-sandbox-move-malformed-actions-");
+    const malformedSession = await setupSessionWithDelver(harness, malformedDir);
+    const actionsOut = join(malformedDir, "actions.json");
+    writeFileSync(actionsOut, "{not-json", "utf8");
+    await harness.callTool("ak_sandbox_move", {
+      session: malformedSession,
+      actorId: "delver_1",
+      direction: "east",
+      actionsOut,
+    });
+    const sequence = JSON.parse(readFileSync(actionsOut, "utf8"));
+    assert.equal(sequence.schema, "agent-kernel/ActionSequence");
+    assert.equal(sequence.actions.length, 1);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_move normalizes direction case and supports custom 5x5 rooms", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-move-custom-room-");
+    const sessionPath = await setupSessionWithDelver(harness, outDir, { width: 5, height: 5 });
+    const actionsOut = join(outDir, "actions.json");
+
+    const result = await harness.callTool("ak_sandbox_move", {
+      session: sessionPath,
+      actorId: "delver_1",
+      direction: " NORTH ",
+      actionsOut,
+    });
+
+    assert.deepEqual(result.to, { x: 2, y: 1 });
+    assert.equal(result.direction, "north");
+    const session = JSON.parse(readFileSync(sessionPath, "utf8"));
+    assert.deepEqual(session.rooms[0], { id: session.rooms[0].id, width: 5, height: 5 });
+  } finally {
+    await harness.close();
+  }
+});

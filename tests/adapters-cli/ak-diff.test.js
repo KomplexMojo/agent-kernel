@@ -72,6 +72,21 @@ function createFrame(runId, tick, details = {}) {
   };
 }
 
+function writeComparableRun(workDir, runId, frames) {
+  const buildDir = join(workDir, "artifacts", "runs", runId, "build");
+  const runDir = join(workDir, "artifacts", "runs", runId, "run");
+  writeJson(join(buildDir, "sim-config.json"), createSimConfig(runId));
+  writeJson(join(buildDir, "initial-state.json"), createInitialState(runId, []));
+  writeJson(join(runDir, "run-summary.json"), {
+    schema: "agent-kernel/RunSummary",
+    schemaVersion: 1,
+    meta: createMeta(runId, `summary_${runId}`),
+    outcome: "success",
+    metrics: { ticks: frames.length, effects: 0 },
+  });
+  writeJson(join(runDir, "tick-frames.json"), frames);
+}
+
 test("cli diff compares two prior runs and reports divergence, effects, damage, and actor presence", () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-"));
   const runA = "run_diff_alpha";
@@ -250,7 +265,51 @@ test("cli diff between two create-only runs returns an ok:false envelope for doc
   assert.equal(output.command, "diff");
 });
 
-test.skip("cli diff with --run-a equal to --run-b short-circuits to a stable no-diff result", () => {});
+test("cli diff with --run-a equal to --run-b returns a stable no-diff result", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-same-run-"));
+  const runId = "run_same";
+  writeComparableRun(workDir, runId, [createFrame(runId, 1)]);
+
+  const result = runCli(["diff", "--run-a", runId, "--run-b", runId], { cwd: workDir });
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.divergesAtTick, null);
+  assert.equal(output.divergence, null);
+  assert.deepEqual(output.ticks, { a: 1, b: 1, delta: 0 });
+  assert.deepEqual(output.effects, { a: 0, b: 0, delta: 0 });
+});
+
+// STAYS SKIPPED — a missing tick-frames file is currently normalized to an empty run (checked 2026-08-14).
 test.skip("cli diff names missing tick-frames artifact when run-summary exists", () => {});
-test.skip("cli diff with identical tick-frames reports zero divergence deterministically", () => {});
-test.skip("cli diff reports longer-run tail frames as additions", () => {});
+
+test("cli diff with identical tick-frames reports zero divergence deterministically", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-identical-"));
+  const runA = "run_identical_a";
+  const runB = "run_identical_b";
+  writeComparableRun(workDir, runA, [createFrame(runA, 1), createFrame(runA, 2)]);
+  writeComparableRun(workDir, runB, [createFrame(runB, 1), createFrame(runB, 2)]);
+
+  const result = runCli(["diff", "--run-a", runA, "--run-b", runB], { cwd: workDir });
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.divergesAtTick, null);
+  assert.equal(output.divergence, null);
+  assert.deepEqual(output.ticks, { a: 2, b: 2, delta: 0 });
+});
+
+test("cli diff reports longer-run tail frames as additions", () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-diff-tail-"));
+  const runA = "run_tail_a";
+  const runB = "run_tail_b";
+  writeComparableRun(workDir, runA, [createFrame(runA, 1)]);
+  writeComparableRun(workDir, runB, [createFrame(runB, 1), createFrame(runB, 2)]);
+
+  const result = runCli(["diff", "--run-a", runA, "--run-b", runB], { cwd: workDir });
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.divergesAtTick, 2);
+  assert.equal(output.divergence.reason, "missing_run_a_frame");
+  assert.equal(output.divergence.frameA, null);
+  assert.equal(output.divergence.frameB.tick, 2);
+  assert.deepEqual(output.ticks, { a: 1, b: 2, delta: 1 });
+});
