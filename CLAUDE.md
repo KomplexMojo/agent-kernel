@@ -108,12 +108,48 @@ Fixed by adding `"allowJs": true`, `"checkJs": false` and broadening `include` t
 | Who calls / imports X? (port → adapter, blast radius) | Serena `find_referencing_symbols` |
 | What's in this file? | Serena `get_symbols_overview` |
 | What implements this interface / where is it declared? | Serena `find_implementations` / `find_declaration` |
-| How do concepts cluster? / High-level orientation | graphify wiki (`graphify-out/wiki/index.md`) |
+| How do concepts cluster? / High-level orientation | `graphify-out/GRAPH_REPORT.md` (**not** a wiki — see below) |
 | Literal text: prose, fixture strings, exact commands/messages | `grep`/`rg` — no justification needed |
 
 - **Scope:** Serena is for relational/structural queries only. grep is legitimate for literal content and needs no prior MCP query — the old "name the query you tried first" rule is retired.
 - **Failure policy:** if Serena is unavailable, say so and fall back to reading files — don't guess structure from filenames.
 - **Re-run `/graphify` only for:** post-milestone docs passes, onboarding a new agent, or a major structural refactor.
+
+### graphify — keeping the graph and the picture current
+
+The knowledge graph lives in `graphify-out/`. These rules moved here from
+`/Users/darren/CLAUDE.md` on 2026-08-17: they are **project** instructions, and sitting in a
+home-directory file meant they were machine-local — invisible to a fresh clone, to CI, and to anyone
+but this machine. Only genuinely machine-level facts (which Python has graphify) stay there.
+
+**Rebuild after changing code, and redraw the picture with it:**
+
+```bash
+graphify update . && python3 scripts/setup/regenerate-graph-viz.py
+```
+
+- `graphify update .` re-extracts every code file and rewrites `graph.json` + `GRAPH_REPORT.md`.
+  No LLM, no network.
+- ⚠️ **A rebuild does NOT redraw `graph.html`.** `to_html` is called only from the full `/graphify`
+  skill flow, and `graph.html` is gitignored — so it drifts with nothing to surface the gap. It was
+  **three months stale** when this was written. That is why the regeneration is chained above.
+- `scripts/setup/regenerate-graph-viz.py` re-execs under the interpreter recorded in
+  `graphify-out/.graphify_python`, so it works whichever `python3` is on PATH. It reads graphify's
+  own `MAX_NODES_FOR_VIZ` rather than restating it, and **skips with exit 0** above that ceiling —
+  a graph too large to draw is not a failed rebuild. Headroom is worth watching: ~3400 of 5000, and
+  it grew ~113 nodes in a single session.
+- ⚠️ **`graphify-out/wiki/` does not exist and never has.** `to_wiki` is a graphify export that has
+  simply never been run here. The navigation table above pointed at `graphify-out/wiki/index.md` for
+  months — permanently inert, and phrased as a live instruction. Navigate `GRAPH_REPORT.md` and
+  `graph.json` instead. If you ever do generate the wiki, say so here and restore the preference.
+- ⚠️ **`graphify-out/manifest.json` is tracked but a rebuild does not refresh it** — it is the
+  watch-mode change-detection cache, not a record of the graph. After a rebuild the graph contains
+  files the manifest does not list. Expected, not drift.
+- `GRAPH_REPORT.md` looks permanently modified because **the report is inside the corpus**, so each
+  rebuild counts the previous report and the word count shifts. A no-op rebuild still dirties it.
+- The visualization is an interactive vis-network view (search, click-to-inspect, community filter).
+  Open `graphify-out/graph.html` directly; no server needed. Community names will be generic
+  `Community N` — naming needs the LLM pass of a full `/graphify` run, which the no-LLM rebuild skips.
 
 **Codex handoffs:** run `bash scripts/setup/agent-context.sh` to write `local-codex/CodeContext.md` and mirror Graphify. Codex reads the snapshot, then verifies structural claims against its own tooling; Claude cites Serena queries when justifying a target area.
 
