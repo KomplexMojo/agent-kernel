@@ -35,7 +35,7 @@ The maintainer reads chat for **two things only**: *is this going the right way*
 
 Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form — **not optional**; a stale vault or missing deps produce wrong structural answers that compound:
 
-1. Read `~/vault/hot.md` (last-session context); `~/vault/index.md` only if `hot.md` is sparse
+1. Read `~/vault/plans/active/Plan.md` — the START HERE block is the last-session handoff; `~/vault/index.md` only if it is sparse
 2. `git pull --ff-only` — confirm on HEAD
 3. `pnpm install --frozen-lockfile` — confirm lockfile match
 4. `pnpm run test` — confirm no pre-existing failures
@@ -292,4 +292,28 @@ Non-load-bearing knowledge (plans, design rationale, dictation, scratch notes) l
 - **Paths:** Mac `~/Documents/Obsidian/agent-kernel-vault/` · Linux `~/agent-kernel-vault/` · cite via the `~/vault` symlink.
 - `local-codex/{Plan,Prompt,Implement,Documentation,Dictation,CodeContext}.md` are symlinks into `~/vault/plans/active/...` and `~/vault/sources/codex-snapshots/...`.
 - Design decisions → `~/vault/decisions/` via `/save`. Cite vault code links as `[[ccg://<pkg>/<path>]]` or `[[graphify://community/<name>]]` (`wiki-lint` validates on demand).
-- Setup `bash scripts/setup/setup-km.sh` · sync via Syncthing (Mac ↔ Ubuntu) · per-machine `hot.mac.md`/`hot.linux.md` merged into `hot.md` by the SessionStart hook.
+- Setup `bash scripts/setup/setup-km.sh` · sync via Syncthing (Mac ↔ Ubuntu). Cross-machine handoff rides on
+  `plans/active/Plan.md`, which syncs like everything else.
+- ⚠️ **The `hot.md` hot cache was removed 2026-08-18 and must not be reintroduced.** Its write side never
+  existed — `km-stop.sh` only `touch`ed the per-machine file, and no agent was ever told to write one — so
+  both caches held nothing but their template header for four months while `hot.md` sat at step 1 of a
+  mandatory checklist. Worse, the SessionStart merge globbed `hot.*.md`, which matched Syncthing's
+  conflict copies **of its own output**: each session re-concatenated every prior snapshot until the file
+  reached 327 KB / 10,941 lines of self-reference. ⇒ *Reading noise and reading nothing look identical, so
+  nothing could ever surface the gap.* The retired files are in `~/vault/.retired/hot-cache-20260818/`.
+- ⚠️ **All three `km-*` session hooks are retired (2026-08-18). None comes back as written.** Swept with
+  `hot.md` because each failed the same way — real machinery, no observable output:
+  | Retired | Why it was a no-op |
+  |---|---|
+  | `km-session-start.sh` | the `hot.md` merge above |
+  | `km-stop.sh` → `log.md` | appended `\| <ts> \| <plat> \| session-stop \| (auto) \|`. **1,217 rows, every one identical.** A log whose only variable field is the clock records that time passed, nothing else. |
+  | `km-stop.sh` + `km-post-tool-use.sh` → vault git | auto-committed to a git repo **inside** the Syncthing folder. `git log` there answers `fatal: your current branch appears to be broken`: `refs/heads/master` was zeroed to a null SHA and 48 sync-conflict copies sit inside `.git`, orphaning **23,167 objects**. |
+  ⇒ *`.git` cannot live in a Syncthing-replicated folder — Syncthing copies files individually with no
+  transactional ordering, so refs and objects arrive interleaved. Repairing the ref only restarts the
+  countdown.* `~/vault/.stignore` now excludes `.git` and `.retired`, and `setup-km.sh` phase 5 writes it
+  (phase 8 verifies it). ⚠️ **The vault therefore has NO backup** beyond Syncthing replication — which
+  zeroed `Plan.md` once already. A real one is a bare repo *outside* the synced tree; not yet built.
+- ⚠️ **This machine only.** The hook files and `~/.claude/settings.json` registrations were removed on the
+  Mac. **The Ubuntu box still has all three registered** and will keep recreating `hot.md` and `log.md`
+  into the shared vault until the same sweep runs there: delete `~/.claude/hooks/km-*.sh` and
+  `jq 'del(.hooks.SessionStart) | del(.hooks.PostToolUse) | del(.hooks.Stop)'` over its settings.

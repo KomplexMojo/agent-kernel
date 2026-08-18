@@ -2,7 +2,7 @@
 # setup-km.sh — Knowledge Management setup for agent-kernel
 #
 # Sets up an Obsidian vault, Claude wiki skills, MCP filesystem server,
-# session hooks, Syncthing, and migrates non-essential repo docs into the vault.
+# the Syncthing guard, Syncthing itself, and migrates non-essential repo docs into the vault.
 #
 # Designed to run on:
 #   - macOS (primary)  — runs the migration phase, commits to repo
@@ -194,9 +194,6 @@ phase_2_vault() {
   done
 
   write_if_missing "$VAULT_HOME/index.md" "$(template_index)"
-  write_if_missing "$VAULT_HOME/log.md" "$(template_log)"
-  write_if_missing "$VAULT_HOME/hot.md" "$(template_hot)"
-  write_if_missing "$VAULT_HOME/hot.$PLATFORM.md" "$(template_hot_machine)"
   write_if_missing "$VAULT_HOME/overview.md" "$(template_overview)"
   write_if_missing "$VAULT_HOME/CLAUDE.md" "$(template_vault_claude)"
   write_if_missing "$VAULT_HOME/AGENTS.md" "$(template_vault_agents)"
@@ -337,38 +334,26 @@ phase_4_mcp() {
 }
 
 # ============================================================================
-# Phase 5 — Session hooks
+# Phase 5 — Syncthing guard (was: session hooks, all three retired 2026-08-18)
 # ============================================================================
-phase_5_hooks() {
-  log "Phase 5: Install session hooks"
-  local hooks_dir="$HOME/.claude/hooks"
-  run mkdir -p "$hooks_dir"
-
-  write_if_missing "$hooks_dir/km-session-start.sh" "$(hook_session_start)"
-  write_if_missing "$hooks_dir/km-post-tool-use.sh"  "$(hook_post_tool_use)"
-  write_if_missing "$hooks_dir/km-stop.sh"           "$(hook_stop)"
-  [[ "$DRY_RUN" == "1" ]] || chmod +x "$hooks_dir"/km-*.sh
-
-  local settings="$HOME/.claude/settings.json"
-  [[ -f "$settings" ]] || echo '{}' > "$settings"
-  require jq
-  local tmp; tmp="$(mktemp)"
-  jq --arg start "$hooks_dir/km-session-start.sh" \
-     --arg post  "$hooks_dir/km-post-tool-use.sh" \
-     --arg stop  "$hooks_dir/km-stop.sh" '
-    .hooks //= {}
-    | .hooks.SessionStart //= []
-    | .hooks.PostToolUse  //= []
-    | .hooks.Stop         //= []
-    | .hooks.SessionStart = ((.hooks.SessionStart + [{command: $start}]) | unique_by(.command))
-    | .hooks.PostToolUse  = ((.hooks.PostToolUse  + [{command: $post}])  | unique_by(.command))
-    | .hooks.Stop         = ((.hooks.Stop         + [{command: $stop}])  | unique_by(.command))
-  ' "$settings" > "$tmp"
-  if [[ "$DRY_RUN" == "1" ]]; then rm -f "$tmp"; else mv "$tmp" "$settings"; fi
+# The three km-* hooks this phase used to install are GONE, and none should come back
+# as written:
+#   - SessionStart merged `hot.*.md` into `hot.md`. Nothing ever wrote a hot cache, and the
+#     glob matched Syncthing's conflict copies of its own output — 327 KB of self-reference.
+#   - Stop appended `| <ts> | <plat> | session-stop | (auto) |` to `log.md`. 1,217 rows, all
+#     identical: a log with no variable field records nothing.
+#   - PostToolUse auto-committed the vault to a git repo INSIDE the synced folder. Syncthing
+#     replicates `.git` file-by-file with no transactional ordering, so `refs/heads/master`
+#     was zeroed and 48 conflict copies landed inside `.git`, orphaning 23,167 objects. The
+#     "backup" had been a no-op for an unknown stretch, and could not report that.
+# ⇒ A write side that nobody implements, and a backup that its own storage layer corrupts,
+#   both fail silently. What this folder actually needs is the exclusion below.
+phase_5_sync_guard() {
+  log "Phase 5: Syncthing guard (.stignore)"
+  write_if_missing "$VAULT_HOME/.stignore" "$(template_stignore)"
   ok "Phase 5 done"
 }
 
-# ============================================================================
 # Phase 6 — Repo → Vault migration (PRIMARY ONLY, ONE-SHOT)
 # ============================================================================
 phase_6_migrate() {
@@ -558,11 +543,11 @@ phase_8_verify() {
   command -v node >/dev/null;                  check "$?" "node present (for npx MCP)"
   if [[ -f "$HOME/.claude/settings.json" ]]; then
     jq -e '.mcpServers.vault' "$HOME/.claude/settings.json" >/dev/null 2>&1; check "$?" "vault MCP registered"
-    jq -e '.hooks.SessionStart | length > 0' "$HOME/.claude/settings.json" >/dev/null 2>&1; check "$?" "SessionStart hook registered"
   else
     warn "FAIL: ~/.claude/settings.json missing"; fails=$((fails+1))
   fi
   command -v syncthing >/dev/null;             check "$?" "syncthing installed"
+  grep -qx '\.git' "$VAULT_LINK/.stignore" 2>/dev/null; check "$?" "vault/.stignore excludes .git from sync"
 
   if [[ "$ROLE" == "primary" ]]; then
     [[ -f "$REPO_ROOT/docs/VAULT.md" ]];       check "$?" "docs/VAULT.md present"
@@ -582,9 +567,6 @@ template_index() { cat <<'EOF'
 
 > The compounding wiki for this project. Code is the truth for *what is*; this vault is the truth for *why we did it*.
 
-## Hot context
-- [hot.md](hot.md) — last-session summary; Claude reads this first.
-
 ## Areas
 - [concepts/](concepts/) — design patterns, mental models, ingested cheatsheets
 - [decisions/](decisions/) — ADR-style decisions with contradictions flagged
@@ -597,35 +579,8 @@ template_index() { cat <<'EOF'
 
 ## See also
 - [overview.md](overview.md) — executive summary
-- [log.md](log.md) — append-only operation log
 - [CLAUDE.md](CLAUDE.md) — vault-local instructions for Claude
 - [AGENTS.md](AGENTS.md) — vault-local instructions for Codex
-EOF
-}
-
-template_log() { cat <<'EOF'
-# Vault Log
-
-Append-only operation log. Newest entries at the bottom. Hooks update this on Stop.
-
-| timestamp | machine | event | detail |
-|-----------|---------|-------|--------|
-EOF
-}
-
-template_hot() { cat <<'EOF'
-# Hot Cache (merged)
-
-Auto-merged from `hot.mac.md` and `hot.linux.md` by the SessionStart hook.
-Empty until the first session writes to a per-machine cache.
-EOF
-}
-
-template_hot_machine() { cat <<EOF
-# Hot Cache — $PLATFORM
-
-Per-machine recent-session context. The Stop hook updates this; SessionStart on the *other*
-machine reads it through the merged \`hot.md\`. Keep entries terse and scoped to "what's in flight".
 EOF
 }
 
@@ -662,8 +617,8 @@ You are inside the agent-kernel knowledge vault. The repo lives elsewhere; this 
 1. **Code is not here.** Do not write production code in this vault. If a question requires
    code, switch to the agent-kernel repo.
 2. **One-way ingest.** Vault may cite graphify/CCG nodes. Vault never *generates* code structure.
-3. **Hot cache discipline.** Update this machine's `hot.<platform>.md` at session end. Keep entries
-   terse and current; old entries belong in `log.md`.
+3. **Cross-machine handoff rides on `plans/active/Plan.md`.** There is no hot cache: `hot.md` was
+   removed 2026-08-18 because nothing ever wrote to it. Do not reintroduce one without a write side.
 4. **Cite stable IDs.** When referencing code, use `[[ccg://<package>/<path>]]` or
    `[[graphify://community/<name>]]` — these are checked by `wiki-lint`.
 5. **Append, don't overwrite, decisions.** A new decision that supersedes an older one creates a
@@ -767,61 +722,14 @@ real skill from the Karpathy LLM-Wiki implementation.
 EOF
 }
 
-hook_session_start() { cat <<'EOF'
-#!/usr/bin/env bash
-# Vault SessionStart hook — orient Claude with vault hot.md before tool use.
-set -euo pipefail
-VAULT="${HOME}/vault"
-[[ -d "$VAULT" ]] || exit 0
+template_stignore() { cat <<'EOF'
+// Git metadata must never be synced: Syncthing replicates .git file-by-file with no
+// transactional ordering, which zeroed refs/heads/master and left 48 conflict copies
+// inside .git (retired 2026-08-18). Any future git backup lives OUTSIDE this folder.
+.git
 
-# Merge per-machine hot caches into hot.md (newest first)
-{
-  printf '# Hot Cache (merged %s)\n\n' "$(date -u +%FT%TZ)"
-  for f in "$VAULT"/hot.*.md; do
-    [[ -f "$f" ]] || continue
-    printf '\n## From %s\n\n' "$(basename "$f")"
-    cat "$f"
-  done
-} > "$VAULT/hot.md.tmp"
-mv "$VAULT/hot.md.tmp" "$VAULT/hot.md"
-exit 0
-EOF
-}
-
-hook_post_tool_use() { cat <<'EOF'
-#!/usr/bin/env bash
-# Vault PostToolUse hook — auto-commit vault changes to its local git backup.
-set -euo pipefail
-VAULT="${HOME}/vault"
-[[ -d "$VAULT/.git" ]] || exit 0
-cd "$VAULT"
-if ! git diff --quiet || ! git diff --cached --quiet || [[ -n "$(git ls-files --others --exclude-standard)" ]]; then
-  git add -A
-  git commit -qm "auto: post-tool-use $(date -u +%FT%TZ)" || true
-fi
-exit 0
-EOF
-}
-
-hook_stop() { cat <<'EOF'
-#!/usr/bin/env bash
-# Vault Stop hook — append session summary to log.md and refresh per-machine hot cache.
-set -euo pipefail
-VAULT="${HOME}/vault"
-[[ -d "$VAULT" ]] || exit 0
-case "$(uname -s)" in
-  Darwin) PLAT=mac ;;
-  Linux)  PLAT=linux ;;
-  *)      PLAT=other ;;
-esac
-TS="$(date -u +%FT%TZ)"
-printf '| %s | %s | session-stop | (auto) |\n' "$TS" "$PLAT" >> "$VAULT/log.md"
-# Touch the per-machine hot cache so we know last activity (Claude can write into it directly during the session)
-touch "$VAULT/hot.$PLAT.md"
-if [[ -d "$VAULT/.git" ]]; then
-  cd "$VAULT" && git add -A && git commit -qm "auto: stop $TS" || true
-fi
-exit 0
+// Retired machinery kept locally for recovery; not worth replicating.
+.retired
 EOF
 }
 
@@ -868,8 +776,8 @@ an Obsidian vault outside this repo. Code-binding contracts (charter, vision, ru
 
 ### Session-start orientation order (revised)
 
-1. Read `~/vault/hot.md`           — last-session compounding context
-2. Read `~/vault/index.md`         — vault catalog (only if `hot.md` is sparse)
+1. Read `~/vault/plans/active/Plan.md` — START HERE block: last-session handoff
+2. Read `~/vault/index.md`         — vault catalog (only if the plan is sparse)
 3. Read `graphify-out/wiki/index.md` — code-organization map
 4. Query CodeGraphContext MCP just-in-time for the area you're touching
 
@@ -899,7 +807,7 @@ moved. The test "would breaking this doc break a build, test, or agent workflow?
 
 - Initial setup: `bash scripts/setup/setup-km.sh`
 - Sync: Syncthing peer-to-peer between Mac and Ubuntu (manual pairing once)
-- Per-machine `hot.mac.md` / `hot.linux.md`; merged into `hot.md` by SessionStart hook
+- No hot cache: `hot.md` was removed 2026-08-18 (never written to). Handoff rides on `plans/active/Plan.md`.
 EOF
 }
 
@@ -933,7 +841,7 @@ EOF
 # Main
 # ============================================================================
 
-PHASES=(phase_1_prereqs phase_2_vault phase_3_skills phase_4_mcp phase_5_hooks phase_6_migrate phase_7_syncthing phase_8_verify)
+PHASES=(phase_1_prereqs phase_2_vault phase_3_skills phase_4_mcp phase_5_sync_guard phase_6_migrate phase_7_syncthing phase_8_verify)
 
 main() {
   parse_args "$@"

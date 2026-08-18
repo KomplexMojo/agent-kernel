@@ -9,7 +9,7 @@ Every agent that writes code must complete this checklist at the start of each s
 
 | Step | Command / Action | Confirms |
 |------|-----------------|---------|
-| 1. Prior context | Read `~/vault/hot.md`; read `~/vault/index.md` only if `hot.md` is sparse | Last-session context loaded |
+| 1. Prior context | Read `~/vault/plans/active/Plan.md` (START HERE block); read `~/vault/index.md` only if it is sparse | Last-session context loaded |
 | 2. Latest source | `git pull --ff-only` | Working from HEAD, no stale files |
 | 3. Dependencies | `pnpm install --frozen-lockfile` | All packages match lockfile |
 | 4. Tests baseline | `pnpm run test` | No pre-existing failures before changes begin |
