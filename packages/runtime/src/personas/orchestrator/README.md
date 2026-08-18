@@ -32,6 +32,8 @@ behavior with no G1 test is not owned**. The rows below mirror
 |---|---|---|---|
 | `orchestrator/llm-session` — the external interaction seam: LLM sessions run as persona rounds | A5 | ✅ owned (CR.4 M1–M7, `2be417d6`) | `tests/architecture/cr4-llm-call-site-inventory.test.js` |
 | `orchestrator/deferred-side-effects` — effects deferred during execution are coordinated after the run | A2, A5 | ✅ owned (P5.5) | `tests/personas/orchestrator/orchestrator-coordinates-deferred-effects.test.js` |
+| `orchestrator/budget-loops` — budget loops over model interaction: runLlmBudgetLoop sequences rounds under a token cap | A2 | ✅ owned (THE NINE, 2026-08-18) | `tests/architecture/orchestrator-budget-loop-authority.test.js` |
+| `orchestrator/prompt-contracts` — prompt contracts: what a prompt may offer and what a response must satisfy | A2 | ✅ owned (THE NINE, 2026-08-18) | `tests/architecture/orchestrator-prompt-contract-authority.test.js` |
 
 <!-- /A1-A5-STATUS -->
 

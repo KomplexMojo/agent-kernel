@@ -35,6 +35,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 | `configurator/locked-config-is-the-input` — the config a build consumes is the one that was locked, unedited afterwards | A5 | ✅ owned (PX.6) | `tests/runtime/build-locked-input-immutability.test.js` |
 | `configurator/feasibility-verdict` — layout feasibility is its verdict; the Director derives the geometry judged | A1, A2 | ✅ owned (CR.4 M5b.2f) | `tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js` |
 | `configurator/input-preparation` — grid sizing, hazard placement and resource mapping run behind the CONFIG-plane surface | A3 | ✅ owned (P2.2 / P2.3.1) | `tests/personas/configurator/configurator-input-prep.test.js` |
+| `configurator/cards` — card configuration: assembling and validating candidate delver/room cards | A2 | ✅ owned (THE NINE, 2026-08-18) | `tests/architecture/configurator-cards-authority.test.js` |
 
 <!-- /A1-A5-STATUS -->
 

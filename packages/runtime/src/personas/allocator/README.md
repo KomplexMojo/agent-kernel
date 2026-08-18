@@ -35,6 +35,8 @@ behavior with no G1 test is not owned**. The rows below mirror
 | `allocator/spend-authority` — a build it will not fund does not happen: the receipt gates production | A2 | ✅ owned (P1 / CR.1) | `tests/adapters-cli/ak-hazard-resource-plan.test.js` |
 | `allocator/budget-maximization` — maximizing against a budget spends its prices, never an assumed one | A1 | ✅ owned (CR.7 / WP-5 D10) | `tests/personas/configurator/configurator-maximizer-prices-from-allocator.test.js` |
 | `allocator/reconciliation` — reconciling actual spend against the issued budget | A1, A2 | ✅ owned (P5.5) | `tests/personas/allocator/allocator-reconciles-or-nothing-does.test.js` |
+| `allocator/base-costs` — base costs: the tunable numbers every formula prices from | A2 | ✅ owned (THE NINE, 2026-08-18) | `tests/architecture/allocator-base-costs-authority.test.js` |
+| `allocator/receipts` — receipts: the audit trail of what a build actually spent and whether it was approved | A2 | ✅ owned (THE NINE, 2026-08-18) | `tests/architecture/allocator-receipt-authority.test.js` |
 
 <!-- /A1-A5-STATUS -->
 
