@@ -23,7 +23,7 @@ moves artifacts between them, and it must not contain domain decisions of its ow
 |---|---|---|
 | **Orchestrator** | Owns every external interaction seam: LLM sessions, budget loops, prompt contracts, workflow coordination. | So no other persona (and no adapter) talks to the outside world about intent. |
 | **Director** | Translates intent into structure: IntentEnvelope → PlanArtifact → BuildSpec. | So "what the user asked for" has one interpreter. |
-| **Configurator** | Assembles, validates, and locks configurations: levels, actors, cards, pools, feasibility. | So a locked config has one producer and one meaning. |
+| **Configurator** | Assembles, validates, and locks configurations: levels, actors, cards, feasibility. | So a locked config has one producer and one meaning. |
 | **Allocator** | The economy. Owns price lists, base costs, all pricing formulas, spend validation, budget maximization, receipts, and reconciliation. | So every token cost in the system has one author and receipts are auditable. |
 | **Actor** | Proposes actions for simulated agents from observations, motivations, and solver/LLM decisions. | So agent behavior is deterministic, replayable, and separately testable. |
 | **Moderator** | Controls the tick: ordering, affinity resolution, effect fulfillment, and pausing — `pausing` is a real gate that refuses to advance `step()`, not a label. | So tick semantics are policy, not accidents of the runner loop. |
@@ -65,7 +65,6 @@ mirror, and something refuses to let it drift.
 | `configurator/levels` | Level configuration |
 | `configurator/actors` | Actor configuration |
 | `configurator/cards` | Card configuration |
-| `configurator/pools` | Pool configuration |
 | `configurator/feasibility` | Feasibility of a configuration |
 | `configurator/validate-and-lock` | Validating and locking a configuration so it has one meaning |
 | `allocator/price-lists` | Price lists |
@@ -95,6 +94,23 @@ would make this read like ownership coverage when it is only registration covera
 the numbered **enforcement rules** below — controller-only boundary, injected clock, restorability —
 not a row of the persona table, and forcing them into a persona's roster would misattribute a rule to
 whichever persona happened to be listed first.
+
+⚠️ **`configurator/pools` REMOVED 2026-08-18 — the row was stale, not unbuilt.** The Configurator
+row and roster both said "pools" from when this table was first written, but decision D8-V
+(2026-08-08, `~/vault/decisions/2026-08-08-D8-persona-dependency-order.md`) had already settled
+the adjacent question the OTHER way: `normalizePoolCatalog` (a pool catalog's shape validator) was
+relocated from `personas/configurator/` to `contracts/pool-catalog.js` specifically *because* it
+"prices nothing and decides nothing" — shared vocabulary, not persona authority, the same
+reasoning `domain-constants.js` already carries for tile fields. `charter-coverage.test.js`'s
+`KNOWN_UNREGISTERED` entry for `configurator/pools` read this as an unbuilt responsibility (*"no
+dedicated file... covers it"*) and was correct about the code, but the code was correctly absent —
+D8-V had already ruled against giving the Configurator this authority, months before the roster
+called its absence a gap. No pool-related responsibility currently exists anywhere in the persona
+layer, checked directly: catalog CONTENTS (as opposed to catalog *shape*) are external data, read
+from disk by adapter glue (`ak-impl.mjs`'s `--catalog` flag) exactly like a scenario asset — not
+unauthored persona work. If a future need arises for the Configurator to actually AUTHOR pool
+catalogs (rather than validate their shape), that is new product scope needing its own decision,
+not a resurrection of this row. See `local-codex/Plan.md` §POST-AM/Z for the full trail.
 
 ### Ownership — what "belongs to a persona" means (A1–A5)
 

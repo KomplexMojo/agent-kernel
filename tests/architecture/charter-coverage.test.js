@@ -49,10 +49,16 @@ const CHARTER = resolve(__dirname, "../../docs/architecture-charter.md");
  *
  * Every one of these was found by writing the roster. None was known before.
  */
-const KNOWN_UNREGISTERED = Object.freeze({
-  "configurator/pools":
-    "director/pool-mapping covers the Director asking; nothing covers the Configurator answering.",
-});
+/**
+ * ⚠️ Empty as of 2026-08-18. `configurator/pools`, the only remaining entry, was removed
+ * from the roster itself rather than closed here — decision D8-V (2026-08-08) had already
+ * ruled the adjacent mechanism (pool-catalog validation) shared vocabulary, not persona
+ * authority, months before this list called its absence a gap. See the charter's own note
+ * at the `configurator/pools` removal site for the full reasoning. An empty object here
+ * means the roster and the registry currently partition cleanly with nothing outstanding —
+ * not that nothing will ever need this list again.
+ */
+const KNOWN_UNREGISTERED = Object.freeze({});
 
 /**
  * Normalized fingerprints of each persona table row, recorded 2026-08-14.
@@ -64,7 +70,7 @@ const KNOWN_UNREGISTERED = Object.freeze({
 const PERSONA_ROW_FINGERPRINTS = Object.freeze({
   orchestrator: "f6592f7057d2671a",
   director: "bd007e8f08544c3b",
-  configurator: "adf0d6dbc934c822",
+  configurator: "815ec79abb301c91",
   allocator: "4e0c673af359ccbf",
   actor: "b96b3a6e3bbde10d",
   moderator: "bfc2b7133a019501",
