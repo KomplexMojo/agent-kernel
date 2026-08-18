@@ -55,11 +55,6 @@ import { maximizeActorBudget } from "./budget-maximizer.js";
 // configurator/actors (2026-08-18) — defaulting, enum validation and assembly of a
 // build/run request's delver roster entry, moved out of ak-impl.mjs's CLI glue.
 import { authorDelverCandidate } from "./actor-authoring.js";
-// Z.2 — the Configurator poses `configurator_satisfiability`, and only it may.
-import {
-  buildSatisfiabilityProblem,
-  resolveSatisfiabilityFromConstraintResult,
-} from "./constraint-problems.js";
 /**
  * CR.7 / WP-5 — the BUILD-PLANE helpers, published so glue stops reaching past the persona.
  *
@@ -428,11 +423,6 @@ export function attachConfiguratorServices({ fsm } = {}) {
     // AM.5 — the authored per-cast mana cost. Published because the tick plane needs it:
     // core-ts charges 0 mana for push and pull, so the kernel cannot answer this.
     resolveAffinityManaCost,
-    // Z.2 — configuration satisfiability as a constraint problem. The value is
-    // not "is it valid" (imperative checks already answer that) but WHICH
-    // requirement fails — the half that F12 and F14 both needed and neither had.
-    buildSatisfiabilityProblem,
-    resolveSatisfiabilityFromConstraintResult,
     buildAmbientAffinityPressure,
     computeInternalManaUpkeep,
     normalizeMotivationRulesArtifact,

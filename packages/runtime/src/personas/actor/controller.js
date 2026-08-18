@@ -10,11 +10,6 @@ import {
   resolveRuntimeDecisionProviderPolicy,
 } from "../_shared/runtime-decision.mts";
 import { SOLVER_REQUEST_SCHEMA } from "../../contracts/artifacts.ts";
-// Z.2 — the Actor poses `actor_action_selection`, and only the Actor may.
-import {
-  buildActionSelectionProblem,
-  resolveActionFromConstraintResult,
-} from "./constraint-problems.js";
 import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
 import { getMotivationCombatTier, getMotivationMobilityTier } from "../../../../core-ts/src/index.ts";
 
@@ -1250,11 +1245,5 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     subscribePhases: actorSubscribePhases,
     advance,
     view,
-    // Z.2 — the Actor's own constraint domain, published on its controller so
-    // callers reach it through the persona rather than the module. Exposed
-    // rather than merely imported: a builder nothing can call is the same
-    // "published with no path" defect this program spent the session removing.
-    buildActionSelectionProblem,
-    resolveActionFromConstraintResult,
   };
 }

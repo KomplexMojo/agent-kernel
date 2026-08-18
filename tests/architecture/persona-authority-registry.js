@@ -727,9 +727,11 @@ const REGISTRY = Object.freeze([
         + "here. Perturbation run for real: neutered resolveActionFromSolverResult to "
         + "always return ok:false — five assertions in that e2e test failed immediately, "
         + "confirming it is genuinely load-bearing, not merely present. Reverted after. "
-        + "The §Z.2 module remains completely unwired; that is a NEW finding, not fixed by "
-        + "this entry — see Plan.md §POST-AM/Z, 'Z.2 constraint-problems.js is built but "
-        + "unwired in all three personas'.",
+        + "The §Z.2 module was DELETED 2026-08-18 (ruled: delete, not wire-in or leave — "
+        + "see Plan.md §POST-AM/Z) across all three personas, along with its dedicated "
+        + "9-test suite; the maintainer asked directly for the ruling and this is it. "
+        + "actor-runtime-decisioning-authority.test.js's third test now guards against "
+        + "reintroduction rather than merely documenting the parked state.",
     },
   },
 

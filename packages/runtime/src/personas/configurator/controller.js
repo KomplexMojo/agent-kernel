@@ -73,9 +73,6 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     resolveAffinityRules: services.resolveAffinityRules,
     // AM.5 — the authored per-cast mana price, needed on the tick plane.
     resolveAffinityManaCost: services.resolveAffinityManaCost,
-    // Z.2 — the Configurator's own constraint domain.
-    buildSatisfiabilityProblem: services.buildSatisfiabilityProblem,
-    resolveSatisfiabilityFromConstraintResult: services.resolveSatisfiabilityFromConstraintResult,
     buildAmbientAffinityPressure: services.buildAmbientAffinityPressure,
     computeInternalManaUpkeep: services.computeInternalManaUpkeep,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,
