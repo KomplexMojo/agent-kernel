@@ -1,3 +1,9 @@
+// PX.3 extended beyond personas: this module defaulted its clock to
+// `() => new Date().toISOString()`, the exact pattern require-clock.js removed from
+// every persona. The rule was enforced on personas/ only, so five modules kept the
+// default and nothing objected. UNUSED_CLOCK is the repo's deterministic marker: a
+// caller that forgets to inject now gets a reproducible value, not wall-clock time.
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import {
   ADAPTIVE_WORKFLOW_RUN_STATE_SCHEMA as RUN_STATE_SCHEMA,
   ADAPTIVE_WORKFLOW_EXECUTION_EVENT_SCHEMA as EXECUTION_EVENT_SCHEMA,
@@ -461,7 +467,7 @@ export function createAdaptiveWorkflowStateMachine({
   runId = "adaptive-workflow-run",
   policyRef = defaultArtifactRef("adaptive-workflow-policy", POLICY_SCHEMA),
   runtimeProfileRef,
-  clock = () => new Date().toISOString(),
+  clock = UNUSED_CLOCK,
 } = {}) {
   let context = providedContext ? clone(providedContext) : initialContext({ runId, policyRef, runtimeProfileRef, clock });
 
@@ -573,7 +579,7 @@ export function createAdaptiveWorkflowFailure({
   code,
   message,
   retryable = false,
-  clock = () => new Date().toISOString(),
+  clock = UNUSED_CLOCK,
   timeoutMs,
 }) {
   const now = clock();
@@ -598,7 +604,7 @@ export function createAdaptiveWorkflowValidationResult({
   validatorId = "adaptive-workflow",
   validatorVersion = "1",
   issues = [],
-  clock = () => new Date().toISOString(),
+  clock = UNUSED_CLOCK,
 }) {
   const now = clock();
   return {

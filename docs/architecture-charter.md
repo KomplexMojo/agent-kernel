@@ -23,11 +23,94 @@ moves artifacts between them, and it must not contain domain decisions of its ow
 |---|---|---|
 | **Orchestrator** | Owns every external interaction seam: LLM sessions, budget loops, prompt contracts, workflow coordination. | So no other persona (and no adapter) talks to the outside world about intent. |
 | **Director** | Translates intent into structure: IntentEnvelope → PlanArtifact → BuildSpec. | So "what the user asked for" has one interpreter. |
-| **Configurator** | Assembles, validates, and locks configurations: levels, actors, cards, pools, feasibility. | So a locked config has one producer and one meaning. |
+| **Configurator** | Assembles, validates, and locks configurations: levels, actors, cards, feasibility. | So a locked config has one producer and one meaning. |
 | **Allocator** | The economy. Owns price lists, base costs, all pricing formulas, spend validation, budget maximization, receipts, and reconciliation. | So every token cost in the system has one author and receipts are auditable. |
 | **Actor** | Proposes actions for simulated agents from observations, motivations, and solver/LLM decisions. | So agent behavior is deterministic, replayable, and separately testable. |
 | **Moderator** | Controls the tick: ordering, affinity resolution, effect fulfillment, and pausing — `pausing` is a real gate that refuses to advance `step()`, not a label. | So tick semantics are policy, not accidents of the runner loop. |
 | **Annotator** | Captures and normalizes run observability: per-tick TelemetryRecords and the end-of-run RunSummary (including its derived `outcome`). Build-scope `telemetry.json` is **not** its own and never will be — see rule 3 (plane boundary). Spend auditing is likewise **not** Annotator work: it is settled Allocator territory via `scenarioSpendReport` (Plan P3.3, which deleted the never-wired budget ledger rather than routing it here). | So observability is a contract, not scattered console writes. |
+
+### Chartered responsibilities — the machine-readable roster (G1.C)
+
+*Added 2026-08-14.* The table above is prose, and prose cannot be checked. Until this roster existed,
+the strongest coverage guard in the tree was *"every charter persona has at least one registered
+behavior"* — **one entry per persona, not one per responsibility** — so a chartered responsibility
+with no G1 registry entry was invisible and the suite stayed green. That is not hypothetical: it is
+exactly how the Orchestrator's post-run side-effect coordination and the Allocator's reconciliation
+sat in this charter, and in three READMEs, while **neither existed in the tree at all**, until someone
+read the table above by hand.
+
+**This roster is the same table, enumerated.** It adds no responsibility and removes none; it makes
+the rows countable. Each id is stable and is what a G1 registry entry names in its `chartered` field.
+`tests/architecture/charter-coverage.test.js` enforces the relationship in both directions and fails
+when this section and the registry disagree.
+
+⚠️ **Deriving this by parsing the prose above was considered and rejected.** A regex would be a guard
+matching a *spelling*: the Annotator row carries **negative** clauses (*"Build-scope `telemetry.json`
+is **not** its own"*, *"Spend auditing is likewise **not** Annotator work"*) that a naive split turns
+into phantom responsibilities; the Director row is an arrow chain, not a list; the Moderator row
+embeds a clarification. So the roster is written out, and the guard instead **fingerprints each
+persona row** — reword a row and the suite fails until this roster is revisited. The roster is a
+mirror, and something refuses to let it drift.
+
+<!-- CHARTER-ROSTER:BEGIN -->
+
+| Id | Chartered responsibility |
+|---|---|
+| `orchestrator/llm-sessions` | LLM sessions — the external model interaction seam |
+| `orchestrator/budget-loops` | Budget loops over model interaction |
+| `orchestrator/prompt-contracts` | Prompt contracts: what a prompt may offer and what a response must satisfy |
+| `orchestrator/workflow-coordination` | Workflow coordination, including post-run fulfilment of deferred side effects |
+| `director/intent-to-plan` | IntentEnvelope → PlanArtifact |
+| `director/plan-to-buildspec` | PlanArtifact → BuildSpec |
+| `configurator/levels` | Level configuration |
+| `configurator/actors` | Actor configuration |
+| `configurator/cards` | Card configuration |
+| `configurator/feasibility` | Feasibility of a configuration |
+| `configurator/validate-and-lock` | Validating and locking a configuration so it has one meaning |
+| `allocator/price-lists` | Price lists |
+| `allocator/base-costs` | Base costs |
+| `allocator/pricing-formulas` | All pricing formulas |
+| `allocator/spend-validation` | Spend validation |
+| `allocator/budget-maximization` | Budget maximization ("spend the rest") |
+| `allocator/receipts` | Receipts as the audit trail for every spend |
+| `allocator/reconciliation` | Reconciling actual spend against the issued budget |
+| `actor/action-proposal` | Proposing actions from observations and motivations |
+| `actor/runtime-decisioning` | Proposals that route through solver/LLM decisions |
+| `moderator/tick-ordering` | Tick ordering |
+| `moderator/affinity-resolution` | Affinity resolution |
+| `moderator/effect-fulfillment` | Effect fulfilment disposition |
+| `moderator/pausing` | Pausing — a real gate that refuses to advance `step()` |
+| `annotator/per-tick-telemetry` | Per-tick TelemetryRecords |
+| `annotator/run-summary` | The end-of-run RunSummary, including its derived `outcome` |
+
+<!-- CHARTER-ROSTER:END -->
+
+⚠️ **What this roster does NOT claim.** It says a responsibility is *chartered*, not that it is
+*owned* — ownership is A1–A5's question and still needs a G1 proof per entry. A roster id with a
+registry entry has been **claimed**; whether the claim is true is a separate gate. Conflating the two
+would make this read like ownership coverage when it is only registration coverage.
+
+⚠️ **Cross-cutting registry entries (`all/*`) are deliberately outside this roster.** They discharge
+the numbered **enforcement rules** below — controller-only boundary, injected clock, restorability —
+not a row of the persona table, and forcing them into a persona's roster would misattribute a rule to
+whichever persona happened to be listed first.
+
+⚠️ **`configurator/pools` REMOVED 2026-08-18 — the row was stale, not unbuilt.** The Configurator
+row and roster both said "pools" from when this table was first written, but decision D8-V
+(2026-08-08, `~/vault/decisions/2026-08-08-D8-persona-dependency-order.md`) had already settled
+the adjacent question the OTHER way: `normalizePoolCatalog` (a pool catalog's shape validator) was
+relocated from `personas/configurator/` to `contracts/pool-catalog.js` specifically *because* it
+"prices nothing and decides nothing" — shared vocabulary, not persona authority, the same
+reasoning `domain-constants.js` already carries for tile fields. `charter-coverage.test.js`'s
+`KNOWN_UNREGISTERED` entry for `configurator/pools` read this as an unbuilt responsibility (*"no
+dedicated file... covers it"*) and was correct about the code, but the code was correctly absent —
+D8-V had already ruled against giving the Configurator this authority, months before the roster
+called its absence a gap. No pool-related responsibility currently exists anywhere in the persona
+layer, checked directly: catalog CONTENTS (as opposed to catalog *shape*) are external data, read
+from disk by adapter glue (`ak-impl.mjs`'s `--catalog` flag) exactly like a scenario asset — not
+unauthored persona work. If a future need arises for the Configurator to actually AUTHOR pool
+catalogs (rather than validate their shape), that is new product scope needing its own decision,
+not a resurrection of this row. See `local-codex/Plan.md` §POST-AM/Z for the full trail.
 
 ### Ownership — what "belongs to a persona" means (A1–A5)
 
@@ -61,6 +144,15 @@ regardless of how it is layered.
 G1 CLI-differential/ablation (A2) · G2 single-origin guards (A1) · G3 state-gate tests (A3) ·
 G4 serialization-equivalence (A4) · G5 provenance-lineage (A5). **A chartered behavior with no G1 test is
 not owned**, and a milestone closes when its G1 test flips red→green — not when its call sites are threaded.
+
+**G1.C closes the loop between that sentence and this document (2026-08-14).** "A chartered behavior
+with no G1 test is not owned" was unenforceable while nothing could enumerate the chartered behaviors:
+the registry's own coverage guard asserted only *one entry per persona*, so a responsibility with no
+entry was not merely unowned, it was **uncounted**. `tests/architecture/charter-coverage.test.js` reads
+the roster above, requires every id to be claimed by a registry entry or explicitly declared
+unregistered with a reason, refuses entries citing ids this charter does not declare, and fingerprints
+each persona row so the roster cannot fall behind the prose. **Its first run recorded nine chartered
+responsibilities with no G1 entry** — none of which was known before it existed.
 
 **Enforcement rules (blocking on every diff):**
 

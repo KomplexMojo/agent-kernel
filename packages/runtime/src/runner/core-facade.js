@@ -1,3 +1,9 @@
+// PX.3 extended beyond personas: this module defaulted its clock to
+// `() => new Date().toISOString()`, the exact pattern require-clock.js removed from
+// every persona. The rule was enforced on personas/ only, so five modules kept the
+// default and nothing objected. UNUSED_CLOCK is the repo's deterministic marker: a
+// caller that forgets to inject now gets a reproducible value, not wall-clock time.
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import {
   AFFINITY_KIND_BY_CODE,
   applyMoveAction,
@@ -92,7 +98,7 @@ export function readCoreAffinityFieldRecordsFromArtifacts(core, { simConfig, ini
   };
 }
 
-export async function compileScenarioPlaybackBundle(scenario, { now = () => new Date().toISOString() } = {}) {
+export async function compileScenarioPlaybackBundle(scenario, { now = UNUSED_CLOCK } = {}) {
   if (!scenario?.simConfig || !scenario?.initialState) {
     throw new Error("compileScenarioPlaybackBundle: scenario must include simConfig and initialState");
   }

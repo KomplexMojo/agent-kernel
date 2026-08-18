@@ -137,6 +137,12 @@ export function generateActorSet({
     const expression = expressionOrder[index % expressionOrder.length];
     const motivation = motivationOrder[index % motivationOrder.length];
     const id = `${idPrefix}_${index + 1}`;
+    // Vitals default to DEFAULT_VITALS here. What the actor's MOTIVATION
+    // requires of them (AM.2b — a mobility motivation needs a stamina pool, not
+    // just regen) is applied once, in build/orchestrate-build.js, immediately
+    // before the Allocator prices the actor list. Doing it there rather than
+    // here keeps a single application point on the priced path: a floor applied
+    // after pricing would hand the actor a vital it never paid for.
     return {
       id,
       kind,

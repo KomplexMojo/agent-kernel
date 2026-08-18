@@ -270,6 +270,44 @@ export function getMotivationDefaultFlagMask(kind: number): number {
   return DEFAULT_FLAG_MASK[kind];
 }
 
+// ── AM.9 — the profile axes as PURE lookups ────────────────────────────────
+//
+// The axes above were reachable only through the closure-based evaluation
+// accumulator (reset -> addEntry -> evaluate -> getLast*), which needs a core
+// instance and a three-call sequence. The Actor persona holds no core, so the
+// profile was unreachable from the one place that most needs it, and behavior
+// branched on motivation NAMES instead — meaning a new kind gets no behavior
+// until someone adds an `if` for it, however complete its profile row is.
+//
+// These read the same tables the accumulator reads. No second source of truth:
+// the accumulator still exists and still aggregates across several motivations;
+// this answers the single-kind question it could not.
+
+/** stationary=0, exploring=1, patrolling=2. -1 for an invalid kind. */
+export function getMotivationMobilityTier(kind: number): number {
+  if (!isValidMotivationKind(kind)) return -1;
+  return PROFILE_MOBILITY[kind];
+}
+
+/** none=0, attacking=1, defending=2. -1 for an invalid kind. */
+export function getMotivationCombatTier(kind: number): number {
+  if (!isValidMotivationKind(kind)) return -1;
+  return PROFILE_COMBAT[kind];
+}
+
+/** none=0, reflexive=1, goal_oriented=2, strategy_focused=3. -1 for invalid. */
+export function getMotivationCognitionTier(kind: number): number {
+  if (!isValidMotivationKind(kind)) return -1;
+  return PROFILE_COGNITION[kind];
+}
+
+/** The reasoning class implied by a single kind's cognition tier. */
+export function getMotivationReasoningClass(kind: number): number {
+  const cognition = getMotivationCognitionTier(kind);
+  if (cognition < 0) return -1;
+  return reasoningClassFromCognition(cognition);
+}
+
 // ── Reasoning class derivation from cognition tier ──
 
 function reasoningClassFromCognition(cognition: number): number {

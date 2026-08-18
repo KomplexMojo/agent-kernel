@@ -13,6 +13,27 @@
  * This test drives the exact executeCommand seam the MCP server uses (same
  * harness as mcp-cli-ui-random-scenario.test.js) and asserts per-actor action
  * coverage, which no other test pins at this seam.
+ *
+ * ── AM.0 SCOPE WARNING — READ BEFORE TRUSTING THIS FILE ────────────────────
+ * Every assertion here is on the ACTION LEDGER (`frame.acceptedActions`), not on
+ * the world. `applyActionsToCore` in runtime-fsm.mjs pushes a move into
+ * `acceptedActions` unconditionally — `applyMoveAction` returns void and core
+ * signals rejection through the effect ring, which the runtime never reads — so
+ * "every actor acted" here means "every actor's action was recorded", NOT "every
+ * actor moved". A run in which core rejected every move keeps this file green.
+ *
+ * It is not strengthened in place because it CANNOT be, at this seam: a CLI run
+ * writes no world-state artifact at all (finding F11). `run` emits tick-frames,
+ * effects, action and summary logs, and `ak_show_state` / `renderAscii`
+ * (packages/adapters-cli/src/tick-session.mjs) rebuild core from
+ * `initial-state.json` and render base tiles — so they report tick 0 regardless
+ * of the session cursor, and never draw actors. There is nothing on disk that
+ * records where anything ended up.
+ *
+ * World-state coverage therefore lives at the runtime seam, in
+ * tests/runtime/multi-tick-world-state.test.js, until AM.0b gives `run` a
+ * world-state output this file can assert against.
+ * ──────────────────────────────────────────────────────────────────────────
  */
 "use strict";
 

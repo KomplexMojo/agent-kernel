@@ -26,5 +26,18 @@ export function createSolverAdapter({ fixturePath } = {}) {
     };
   }
 
-  return { solve };
+  return {
+    solve,
+    kind: "solver-z3-stub",
+    /**
+     * Z.3 — a fixture stub. It replays whatever it was handed, so it is
+     * deterministic by construction, but it models no domain and must never be
+     * routed a real question: an adapter that answers a domain it never claimed
+     * produces a confidently wrong decision rather than a clean deferral.
+     */
+    capabilities: {
+      domains: [],
+      deterministic: true,
+    },
+  };
 }

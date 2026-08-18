@@ -35,7 +35,7 @@ The maintainer reads chat for **two things only**: *is this going the right way*
 
 Run the full checklist in `AGENTS.md → Session-Start Checklist`. Short form — **not optional**; a stale vault or missing deps produce wrong structural answers that compound:
 
-1. Read `~/vault/hot.md` (last-session context); `~/vault/index.md` only if `hot.md` is sparse
+1. Read `~/vault/plans/active/Plan.md` — the START HERE block is the last-session handoff; `~/vault/index.md` only if it is sparse
 2. `git pull --ff-only` — confirm on HEAD
 3. `pnpm install --frozen-lockfile` — confirm lockfile match
 4. `pnpm run test` — confirm no pre-existing failures
@@ -108,12 +108,48 @@ Fixed by adding `"allowJs": true`, `"checkJs": false` and broadening `include` t
 | Who calls / imports X? (port → adapter, blast radius) | Serena `find_referencing_symbols` |
 | What's in this file? | Serena `get_symbols_overview` |
 | What implements this interface / where is it declared? | Serena `find_implementations` / `find_declaration` |
-| How do concepts cluster? / High-level orientation | graphify wiki (`graphify-out/wiki/index.md`) |
+| How do concepts cluster? / High-level orientation | `graphify-out/GRAPH_REPORT.md` (**not** a wiki — see below) |
 | Literal text: prose, fixture strings, exact commands/messages | `grep`/`rg` — no justification needed |
 
 - **Scope:** Serena is for relational/structural queries only. grep is legitimate for literal content and needs no prior MCP query — the old "name the query you tried first" rule is retired.
 - **Failure policy:** if Serena is unavailable, say so and fall back to reading files — don't guess structure from filenames.
 - **Re-run `/graphify` only for:** post-milestone docs passes, onboarding a new agent, or a major structural refactor.
+
+### graphify — keeping the graph and the picture current
+
+The knowledge graph lives in `graphify-out/`. These rules moved here from
+`/Users/darren/CLAUDE.md` on 2026-08-17: they are **project** instructions, and sitting in a
+home-directory file meant they were machine-local — invisible to a fresh clone, to CI, and to anyone
+but this machine. Only genuinely machine-level facts (which Python has graphify) stay there.
+
+**Rebuild after changing code, and redraw the picture with it:**
+
+```bash
+graphify update . && python3 scripts/setup/regenerate-graph-viz.py
+```
+
+- `graphify update .` re-extracts every code file and rewrites `graph.json` + `GRAPH_REPORT.md`.
+  No LLM, no network.
+- ⚠️ **A rebuild does NOT redraw `graph.html`.** `to_html` is called only from the full `/graphify`
+  skill flow, and `graph.html` is gitignored — so it drifts with nothing to surface the gap. It was
+  **three months stale** when this was written. That is why the regeneration is chained above.
+- `scripts/setup/regenerate-graph-viz.py` re-execs under the interpreter recorded in
+  `graphify-out/.graphify_python`, so it works whichever `python3` is on PATH. It reads graphify's
+  own `MAX_NODES_FOR_VIZ` rather than restating it, and **skips with exit 0** above that ceiling —
+  a graph too large to draw is not a failed rebuild. Headroom is worth watching: ~3400 of 5000, and
+  it grew ~113 nodes in a single session.
+- ⚠️ **`graphify-out/wiki/` does not exist and never has.** `to_wiki` is a graphify export that has
+  simply never been run here. The navigation table above pointed at `graphify-out/wiki/index.md` for
+  months — permanently inert, and phrased as a live instruction. Navigate `GRAPH_REPORT.md` and
+  `graph.json` instead. If you ever do generate the wiki, say so here and restore the preference.
+- ⚠️ **`graphify-out/manifest.json` is tracked but a rebuild does not refresh it** — it is the
+  watch-mode change-detection cache, not a record of the graph. After a rebuild the graph contains
+  files the manifest does not list. Expected, not drift.
+- `GRAPH_REPORT.md` looks permanently modified because **the report is inside the corpus**, so each
+  rebuild counts the previous report and the word count shifts. A no-op rebuild still dirties it.
+- The visualization is an interactive vis-network view (search, click-to-inspect, community filter).
+  Open `graphify-out/graph.html` directly; no server needed. Community names will be generic
+  `Community N` — naming needs the LLM pass of a full `/graphify` run, which the no-LLM rebuild skips.
 
 **Codex handoffs:** run `bash scripts/setup/agent-context.sh` to write `local-codex/CodeContext.md` and mirror Graphify. Codex reads the snapshot, then verifies structural claims against its own tooling; Claude cites Serena queries when justifying a target area.
 
@@ -256,4 +292,28 @@ Non-load-bearing knowledge (plans, design rationale, dictation, scratch notes) l
 - **Paths:** Mac `~/Documents/Obsidian/agent-kernel-vault/` · Linux `~/agent-kernel-vault/` · cite via the `~/vault` symlink.
 - `local-codex/{Plan,Prompt,Implement,Documentation,Dictation,CodeContext}.md` are symlinks into `~/vault/plans/active/...` and `~/vault/sources/codex-snapshots/...`.
 - Design decisions → `~/vault/decisions/` via `/save`. Cite vault code links as `[[ccg://<pkg>/<path>]]` or `[[graphify://community/<name>]]` (`wiki-lint` validates on demand).
-- Setup `bash scripts/setup/setup-km.sh` · sync via Syncthing (Mac ↔ Ubuntu) · per-machine `hot.mac.md`/`hot.linux.md` merged into `hot.md` by the SessionStart hook.
+- Setup `bash scripts/setup/setup-km.sh` · sync via Syncthing (Mac ↔ Ubuntu). Cross-machine handoff rides on
+  `plans/active/Plan.md`, which syncs like everything else.
+- ⚠️ **The `hot.md` hot cache was removed 2026-08-18 and must not be reintroduced.** Its write side never
+  existed — `km-stop.sh` only `touch`ed the per-machine file, and no agent was ever told to write one — so
+  both caches held nothing but their template header for four months while `hot.md` sat at step 1 of a
+  mandatory checklist. Worse, the SessionStart merge globbed `hot.*.md`, which matched Syncthing's
+  conflict copies **of its own output**: each session re-concatenated every prior snapshot until the file
+  reached 327 KB / 10,941 lines of self-reference. ⇒ *Reading noise and reading nothing look identical, so
+  nothing could ever surface the gap.* The retired files are in `~/vault/.retired/hot-cache-20260818/`.
+- ⚠️ **All three `km-*` session hooks are retired (2026-08-18). None comes back as written.** Swept with
+  `hot.md` because each failed the same way — real machinery, no observable output:
+  | Retired | Why it was a no-op |
+  |---|---|
+  | `km-session-start.sh` | the `hot.md` merge above |
+  | `km-stop.sh` → `log.md` | appended `\| <ts> \| <plat> \| session-stop \| (auto) \|`. **1,217 rows, every one identical.** A log whose only variable field is the clock records that time passed, nothing else. |
+  | `km-stop.sh` + `km-post-tool-use.sh` → vault git | auto-committed to a git repo **inside** the Syncthing folder. `git log` there answers `fatal: your current branch appears to be broken`: `refs/heads/master` was zeroed to a null SHA and 48 sync-conflict copies sit inside `.git`, orphaning **23,167 objects**. |
+  ⇒ *`.git` cannot live in a Syncthing-replicated folder — Syncthing copies files individually with no
+  transactional ordering, so refs and objects arrive interleaved. Repairing the ref only restarts the
+  countdown.* `~/vault/.stignore` now excludes `.git` and `.retired`, and `setup-km.sh` phase 5 writes it
+  (phase 8 verifies it). ⚠️ **The vault therefore has NO backup** beyond Syncthing replication — which
+  zeroed `Plan.md` once already. A real one is a bare repo *outside* the synced tree; not yet built.
+- ⚠️ **This machine only.** The hook files and `~/.claude/settings.json` registrations were removed on the
+  Mac. **The Ubuntu box still has all three registered** and will keep recreating `hot.md` and `log.md`
+  into the shared vault until the same sweep runs there: delete `~/.claude/hooks/km-*.sh` and
+  `jq 'del(.hooks.SessionStart) | del(.hooks.PostToolUse) | del(.hooks.Stop)'` over its settings.

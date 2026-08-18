@@ -272,9 +272,20 @@ const unitCost = calculateActorConfigurationUnitCost({
   normalizeMotivations: await configuratorNormalizeMotivations(),
 }).cost;
 
+// The assertion that carries the test's intent: the maximizer still spends the
+// WHOLE 200-token budget, and still spends it on mana. That is unchanged.
 assert.equal(unitCost, 200);
-// Fixed spend is 65; 65 + mana.max 99 + mana.regen 6² = 200.
-assert.equal(card.vitals.mana.max, 99);
+// AM.2b re-baseline. Fixed spend rose 65 -> 70 because a delver now funds the
+// stamina it needs to move at all:
+//     stamina.max  0 -> 2   costs 2   (2 points x 1 token)
+//     stamina.regen 1 -> 2  costs 3   (regen is quadratic: 2² - 1²)
+// so 5 tokens moved out of mana and mana.max fell by exactly 5, 99 -> 94:
+//     70 + mana.max 94 + mana.regen 6² = 200.
+// Before this, the delver was priced for stamina REGEN with a zero-sized pool,
+// which core clamps regen against — it bought an actor that could never take a
+// step. The extra 5 tokens are what movement actually costs.
+assert.equal(card.vitals.mana.max, 94);
 assert.equal(card.vitals.mana.regen, 6);
-assert.equal(card.vitals.stamina.regen, 1);
+assert.equal(card.vitals.stamina.max, 2);
+assert.equal(card.vitals.stamina.regen, 2);
 });

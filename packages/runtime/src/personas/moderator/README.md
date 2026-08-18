@@ -30,7 +30,8 @@ behavior with no G1 test is not owned**. The rows below mirror
 
 | Behavior | Criteria | Status | Proof |
 |---|---|---|---|
-| `moderator/tick-ordering` — ordering strategy and effect fulfilment are the Moderator's decision | A1, A2 | ✅ owned (CR.5) | `tests/architecture/persona-authority.test.js` |
+| `moderator/tick-ordering` — ordering strategy is the Moderator's decision | A1, A2 | ✅ owned (CR.5) | `tests/architecture/persona-authority.test.js` |
+| `moderator/effect-fulfillment` — effect fulfilment disposition: which status and reason each effect resolves to | A1, A2 | ✅ owned (CR.5, split 2026-08-18) | `tests/architecture/persona-authority.test.js` |
 | `moderator/pausing-gates-advancement` — a paused Moderator refuses to advance `step()` | A3 | ✅ owned (P3.1) | `tests/personas/moderator/moderator-pause-gates-tick.test.js` |
 | `moderator/affinity-target-resolution` — who an affinity targets, and the effects that follow | A1, A2 | ✅ owned (P5.4) | `tests/personas/moderator/moderator-affinity-resolution.test.js` |
 | `all/port-contract-single-origin` — one effect codebook; the port contract is not redeclared | A1 | ✅ owned (PX.1) | `tests/architecture/single-origin.test.js` |

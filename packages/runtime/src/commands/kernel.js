@@ -456,6 +456,46 @@ function requireHostFunction(host, name) {
   return fn;
 }
 
+/**
+ * AM.5/F13 — build the observation's affinity payload from the initial state.
+ *
+ * Reshapes what the actor already carries (`affinities: [{kind, expression,
+ * stacks}]`) into the `affinityStacks` map the observation builder reads. A run
+ * that already has a richer resolved-effects payload keeps it: this only fills
+ * the gap for actors whose affinity would otherwise be invisible to the Actor.
+ *
+ * Kept in glue on purpose — it is a shape translation between two records that
+ * already exist, deciding nothing. What an affinity DOES stays with core and the
+ * Moderator; what it COSTS stays with the Configurator and the Allocator.
+ */
+function buildAffinityEffectsFromInitialState(initialState) {
+  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
+  const entries = [];
+  for (const actor of actors) {
+    if (!actor?.id) continue;
+    if (Array.isArray(actor.resolvedEffects) && actor.resolvedEffects.length > 0) {
+      entries.push({ actorId: actor.id, resolvedEffects: actor.resolvedEffects });
+      continue;
+    }
+    const affinities = Array.isArray(actor.affinities) ? actor.affinities : [];
+    if (affinities.length === 0) continue;
+    const affinityStacks = {};
+    for (const affinity of affinities) {
+      const kind = typeof affinity?.kind === "string" ? affinity.kind.trim().toLowerCase() : "";
+      if (!kind) continue;
+      const expression = typeof affinity?.expression === "string" && affinity.expression.trim()
+        ? affinity.expression.trim().toLowerCase()
+        : "push";
+      const stacks = Number.isInteger(affinity?.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
+      affinityStacks[`${kind}:${expression}`] = stacks;
+    }
+    if (Object.keys(affinityStacks).length > 0) {
+      entries.push({ actorId: actor.id, affinityStacks });
+    }
+  }
+  return entries.length > 0 ? { actors: entries } : null;
+}
+
 function createCommandRuntimeCore() {
   // Expose the FULL core surface. This used to be a hand-picked subset, but
   // the runtime's capability checks (canReadObservation, canApplyActorPlacements,
@@ -1108,7 +1148,13 @@ export function createCommandKernel(host = {}) {
     const clock = createDeterministicClock(resolveClockSeed(simConfig, initialState));
     const core = createCommandRuntimeCore();
     const runtime = createRuntime({ core, adapters: {}, runId, clock });
-    await runtime.init({ seed, simConfig, initialState, clock });
+    // AM.5/F13 — an actor's affinities must reach the OBSERVATION, or the Actor
+    // persona cannot see what it holds and never expresses it. The observation's
+    // affinity list is built from this payload (core-ts mvp-movement
+    // buildAffinitiesAndAbilities); `run` passed nothing, so every actor looked
+    // affinity-less to the persona that decides what to do with one.
+    const affinityEffects = buildAffinityEffectsFromInitialState(initialState);
+    await runtime.init({ seed, simConfig, initialState, clock, affinityEffects });
     for (let i = 0; i < ticks; i += 1) {
       const effectCountBeforeStep = runtime.getEffectLog().length;
       await runtime.step();
@@ -1152,6 +1198,20 @@ export function createCommandKernel(host = {}) {
     const deferredCoordination = runtime.coordinateDeferredEffects({
       meta: createMeta({ producedBy: "orchestrator", runId }),
     });
+
+    // AM.0b — what the world looked like when the run ended (closes F11).
+    //
+    // Every other output below records a DECISION. Without this one, nothing on
+    // disk says where anything ended up, so no CLI or MCP caller — and no test
+    // at this seam — can tell a run in which every actor moved from one in which
+    // core refused every move. The Annotator derives it; this writes it, through
+    // the injected host `writeJson` like every other artifact, so the runtime
+    // still performs no IO of its own.
+    const worldState = runtime.captureWorldState({
+      meta: createMeta({ producedBy: "annotator", runId }),
+      simConfigRef: toRef(simConfig),
+    });
+    await writeJson(join(outDir, "world-state.json"), worldState);
 
     await writeJson(join(outDir, "tick-frames.json"), tickFrames);
     await writeJson(join(outDir, "effects-log.json"), effectLog);

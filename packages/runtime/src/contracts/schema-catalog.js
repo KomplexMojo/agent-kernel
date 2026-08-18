@@ -1,3 +1,9 @@
+// PX.3 extended beyond personas: this module defaulted its clock to
+// `() => new Date().toISOString()`, the exact pattern require-clock.js removed from
+// every persona. The rule was enforced on personas/ only, so five modules kept the
+// default and nothing objected. UNUSED_CLOCK is the repo's deterministic marker: a
+// caller that forgets to inject now gets a reproducible value, not wall-clock time.
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import {
   ACTION_SCHEMA,
   ACTION_SEQUENCE_SCHEMA,
@@ -54,6 +60,9 @@ import {
   RESOURCE_BUNDLE_SCHEMA,
   ROOM_TILE_CONFIG_SCHEMA,
   RUN_SUMMARY_SCHEMA,
+  WORLD_STATE_SCHEMA,
+  CONSTRAINT_PROBLEM_SCHEMA,
+  CONSTRAINT_RESULT_SCHEMA,
   SANDBOX_SESSION_SCHEMA,
   SIM_CONFIG_SCHEMA,
   SOLVER_REQUEST_SCHEMA,
@@ -142,6 +151,9 @@ export const SCHEMA_KIND_BY_SCHEMA = Object.freeze({
   [RESOURCE_BUNDLE_SCHEMA]: SCHEMA_KINDS.PERSISTED_ARTIFACT,
   [ROOM_TILE_CONFIG_SCHEMA]: SCHEMA_KINDS.PERSISTED_ARTIFACT,
   [RUN_SUMMARY_SCHEMA]: SCHEMA_KINDS.PERSISTED_ARTIFACT,
+  [WORLD_STATE_SCHEMA]: SCHEMA_KINDS.PERSISTED_ARTIFACT,
+  [CONSTRAINT_PROBLEM_SCHEMA]: SCHEMA_KINDS.PERSISTED_ARTIFACT,
+  [CONSTRAINT_RESULT_SCHEMA]: SCHEMA_KINDS.PERSISTED_ARTIFACT,
   [SANDBOX_SESSION_SCHEMA]: SCHEMA_KINDS.PERSISTED_ARTIFACT,
   [SIM_CONFIG_SCHEMA]: SCHEMA_KINDS.PERSISTED_ARTIFACT,
   [SOLVER_REQUEST_SCHEMA]: SCHEMA_KINDS.PERSISTED_ARTIFACT,
@@ -364,6 +376,27 @@ const CATALOG = [
     fields: ["meta", "intentRef", "planRef", "simConfigRef", "budgetReceiptRef", "outcome"],
   },
   {
+    schema: CONSTRAINT_PROBLEM_SCHEMA,
+    schemaVersion: 1,
+    category: SCHEMA_CATEGORIES.PROTOCOL,
+    description: "Constraint problem posed to a solver by its owning persona.",
+    fields: ["meta", "domain", "posedBy", "variables", "constraints", "objective", "context"],
+  },
+  {
+    schema: CONSTRAINT_RESULT_SCHEMA,
+    schemaVersion: 1,
+    category: SCHEMA_CATEGORIES.PROTOCOL,
+    description: "Normalized solver answer to a constraint problem.",
+    fields: ["meta", "domain", "status", "model", "reason"],
+  },
+  {
+    schema: WORLD_STATE_SCHEMA,
+    schemaVersion: 1,
+    category: SCHEMA_CATEGORIES.OBSERVABILITY,
+    description: "End-of-run world state: actor positions, vitals and affinity grants, and hazard state.",
+    fields: ["meta", "simConfigRef", "tick", "dimensions", "actors", "hazards"],
+  },
+  {
     schema: NARRATIVE_ARTIFACT_SCHEMA,
     schemaVersion: 1,
     category: SCHEMA_CATEGORIES.OBSERVABILITY,
@@ -437,7 +470,7 @@ export function filterSchemaCatalogEntries({ schemaRefs, entries = CATALOG } = {
   return sortSchemas(entries.filter((entry) => allowed.has(schemaKey(entry.schema, entry.schemaVersion))));
 }
 
-export function createSchemaCatalog({ clock = () => new Date().toISOString(), schemaRefs } = {}) {
+export function createSchemaCatalog({ clock = UNUSED_CLOCK, schemaRefs } = {}) {
   const schemas = filterSchemaCatalogEntries({ schemaRefs });
   return {
     generatedAt: clock(),

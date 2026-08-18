@@ -144,6 +144,20 @@ export function buildInitialStateArtifact({ meta, simConfigRef, actors = [], res
     if (actor.archetype) entry.archetype = actor.archetype;
     if (actor.capabilities) entry.capabilities = actor.capabilities;
     if (traits) entry.traits = traits;
+    // AM.5/F13 — carry the AFFINITIES ARRAY through, not just `traits.affinities`.
+    //
+    // The authored actor arrives here with `affinities: [{kind, expression,
+    // stacks}]` and this builder dropped it, emitting only the trait map
+    // (`{water: 1}`). But `runner/core-setup.mjs` seeds an actor's core affinity
+    // from the ARRAY, and the observation's affinity list is built from the same
+    // shape — so every CLI-authored actor reached the simulation holding no
+    // affinity at all. `--delver affinity=water` was recorded and never applied:
+    // no field contribution, nothing to express, nothing to interact with.
+    //
+    // The trait map stays: it is what the renderers and card surfaces read.
+    if (Array.isArray(actor.affinities) && actor.affinities.length > 0) {
+      entry.affinities = actor.affinities.map((affinity) => ({ ...affinity }));
+    }
     return entry;
   });
 

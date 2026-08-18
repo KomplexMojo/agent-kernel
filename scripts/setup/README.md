@@ -8,7 +8,7 @@ fixes drift rather than duplicating state.
 
 The repo keeps load-bearing source, tests, fixtures, and architecture docs in git. Long-lived working notes, active plans, snapshots, and non-load-bearing research live in the paired Obsidian vault. This script wires those two worlds together so local agent workflows can read and update `local-codex/*` paths while the content actually lives in `~/vault`.
 
-Run this when setting up a new machine, repairing vault symlinks, refreshing Claude/Obsidian skills, or validating the knowledge-management hooks.
+Run this when setting up a new machine, repairing vault symlinks, refreshing Claude/Obsidian skills, or validating the knowledge-management setup.
 
 ## What it sets up
 
@@ -16,18 +16,21 @@ Run this when setting up a new machine, repairing vault symlinks, refreshing Cla
    `apt` on Ubuntu).
 2. **Vault scaffold** at `~/Documents/Obsidian/agent-kernel-vault/` (Mac) or
    `~/agent-kernel-vault/` (Linux), with a `~/vault` symlink for path normalization.
-   Layout follows the Karpathy LLM-Wiki pattern: `index.md`, `log.md`, `hot.md`,
-   per-machine `hot.<platform>.md`, `concepts/`, `decisions/`, `plans/{active,completed,backlog}/`,
-   `sources/`, `_templates/`.
+   Layout follows the Karpathy LLM-Wiki pattern: `index.md`, `concepts/`, `decisions/`,
+   `plans/{active,completed,backlog}/`, `sources/`, `_templates/`.
+   *(The pattern's `hot.md` hot cache and `log.md` operation log were removed 2026-08-18 —
+   see the note in the repo `CLAUDE.md`. Cross-machine handoff rides on
+   `plans/active/Plan.md`.)*
 3. **Skills** — clones the Karpathy `claude-obsidian` skills suite (wiki, wiki-ingest,
    wiki-query, wiki-lint, save, autoresearch, …) into `~/.claude/skills-upstream/`
    and symlinks each skill into `~/.claude/skills/`.
 4. **MCP** — registers `@modelcontextprotocol/server-filesystem` against `~/vault`
    in `~/.claude/settings.json` so Claude can query / edit the vault.
-5. **Session hooks** — installs and registers three hooks in `~/.claude/hooks/`:
-   - `SessionStart`: merges per-machine hot caches into `hot.md`
-   - `PostToolUse`: auto-commits vault edits to the vault's local git backup
-   - `Stop`: appends a session entry to `log.md`, refreshes per-machine hot cache
+5. **Syncthing guard** — writes `~/vault/.stignore` excluding `.git` and `.retired` from sync.
+   *(This phase used to install three `km-*` session hooks. All three were retired
+   2026-08-18 — the SessionStart hot-cache merge, the `log.md` append, and the vault
+   git auto-commit. The reasons are in the phase-5 comment block in `setup-km.sh`;
+   the short version is that each one failed silently for months.)*
 6. **Repo migration** *(primary only, one-shot)* — moves all non-load-bearing docs out of
    the repo and into the vault:
    - `docs/implementation-plans/` → `vault/plans/completed/`
@@ -65,7 +68,7 @@ bash scripts/setup/setup-km.sh
 The script will:
 - Install prereqs
 - Create the vault and symlinks
-- Install skills + MCP + hooks
+- Install skills + MCP + the Syncthing guard
 - **Migrate** the repo (only if working tree is clean)
 - Start Syncthing and print this Mac's device ID
 
@@ -90,7 +93,7 @@ bash scripts/setup/setup-km.sh --secondary
 ```
 
 This installs prereqs, scaffolds an empty vault locally (Syncthing will fill it), installs
-skills + MCP + hooks, and starts Syncthing. **It does *not* re-run the migration** — that
+skills + MCP + the Syncthing guard, and starts Syncthing. **It does *not* re-run the migration** — that
 already happened on the Mac and is now in git.
 
 Once Syncthing pairs and syncs, the Ubuntu vault will mirror the Mac's, and
@@ -136,8 +139,14 @@ git revert <migration-commit>
 rm -rf ~/vault                       # only if you want to discard vault content
 ```
 
-The vault has its own internal git history (see `~/vault/.git/`) so even after rollback,
-content can be recovered from there.
+⚠️ **The vault has no git history to recover from.** `~/vault/.git` was a repo *inside* the
+Syncthing-synced folder; Syncthing replicated `.git` file-by-file with no transactional
+ordering, which zeroed `refs/heads/master` and left 48 conflict copies inside `.git`,
+orphaning all 23,167 objects. It was retired 2026-08-18 to
+`~/vault/.retired/km-log-and-git-20260818/` and `.stignore` now keeps `.git` out of sync.
+⇒ *The only vault backup is Syncthing replication plus its sync-conflict copies, and those
+have zeroed a file before. Copy anything important out before a long edit.* A real backup
+would be a bare repo **outside** the synced tree — not yet built.
 
 ## Troubleshooting
 

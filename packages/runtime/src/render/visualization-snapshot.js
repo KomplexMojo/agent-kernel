@@ -97,13 +97,27 @@ export async function createVisualizationSnapshot({
   simConfig,
   initialState,
   tickFrame,
+  clock = null,
 }) {
+  // PX.3 extended to the render layer. This used to read the wall clock twice —
+  // `Date.now()` in the artifact ID and `new Date().toISOString()` in
+  // `createdAt` — which put non-reproducible values into a persisted artifact:
+  // the same run, replayed, produced a different snapshot ID. PX.3 established
+  // that a persona's clock is injected and never defaulted, but only personas
+  // were converted; the runner and this render path kept defaulting, so the rule
+  // held everywhere a guard looked and nowhere else.
+  //
+  // The ID is now derived from what identifies the snapshot — its run and tick —
+  // rather than from when it happened to be built. `createdAt` comes from the
+  // injected clock, and is omitted rather than invented when none is supplied.
   const meta = {
-    id: `vs_${runId}_t${tick}_${Date.now()}`,
+    id: `vs_${runId}_t${tick}`,
     runId,
-    createdAt: new Date().toISOString(),
     producedBy: "ak-tick",
   };
+  if (typeof clock === "function") {
+    meta.createdAt = clock();
+  }
 
   const actorPositions = computeActorPositions(initialState, tickFrame);
   const actorDetails = buildActorDetails(initialState, actorPositions);

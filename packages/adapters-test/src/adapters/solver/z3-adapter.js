@@ -146,5 +146,19 @@ export function createZ3SolverAdapter(options = {}) {
     };
   }
 
-  return { solve, kind: "z3" };
+  return {
+    solve,
+    kind: "z3",
+    /**
+     * Z.3 — declared, not inferred. This stand-in answers action selection only,
+     * and it is deterministic: its ranking is a pure function of the envelope
+     * with no clock, no randomness and no timeout. That is what makes it usable
+     * in a replayed run — and it is the same bar a REAL Z3 adapter must clear,
+     * which it will not get for free.
+     */
+    capabilities: {
+      domains: ["actor_action_selection"],
+      deterministic: true,
+    },
+  };
 }

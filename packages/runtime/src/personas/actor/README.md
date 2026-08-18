@@ -39,6 +39,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 | `actor/serializable-decision` — the decision is a pure function of serialized state | A4 | ✅ owned (CR.6) | `tests/architecture/persona-authority.test.js` |
 | `actor/no-budget-policy` — the Actor proposes; budget admissibility is not its call | A1 | ✅ owned (CR.6) | `tests/architecture/persona-authority.test.js` |
 | `actor/motivation-to-proposal` — turning motivations and an observation into proposed actions | A2 | ✅ owned (P5.4) | `tests/personas/actor/actor-proposes-or-nothing-does.test.js` |
+| `actor/runtime-decisioning` — solver/LLM-routed proposals: posing and resolving a runtime-decision problem | A2 | ✅ owned (THE NINE, 2026-08-18) | `tests/architecture/actor-runtime-decisioning-authority.test.js` |
 
 <!-- /A1-A5-STATUS -->
 

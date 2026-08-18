@@ -58,6 +58,8 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     // D8.3 — the Director asks for room SHAPE instead of deriving it from card sizes itself.
     buildRoomDesign: services.buildRoomDesign,
     authorCandidates: services.authorCandidates,
+    // configurator/actors (2026-08-18) — a build/run request's delver roster entry.
+    authorDelverCandidate: services.authorDelverCandidate,
     normalizeMotivations: services.normalizeMotivations,
     // CR.7 / WP-5 — the BUILD-PLANE helpers. `orchestrate-build.js`, `kernel.js` and
     // `mixed-room-summary.js` imported these seven modules directly and were 11 allowlist rows.
@@ -69,6 +71,8 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     resolveAffinityEffects: services.resolveAffinityEffects,
     normalizeAffinityRulesArtifact: services.normalizeAffinityRulesArtifact,
     resolveAffinityRules: services.resolveAffinityRules,
+    // AM.5 — the authored per-cast mana price, needed on the tick plane.
+    resolveAffinityManaCost: services.resolveAffinityManaCost,
     buildAmbientAffinityPressure: services.buildAmbientAffinityPressure,
     computeInternalManaUpkeep: services.computeInternalManaUpkeep,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,

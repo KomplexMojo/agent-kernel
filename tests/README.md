@@ -109,16 +109,25 @@ For the rarest family, keep the scaffold narrow and pattern-matched:
 
 - `ui_cli_equivalence`
 
-## Why Tests Are Skipped (three unrelated reasons)
+## Why Tests Are Skipped
 
-`pnpm run test` reports a few hundred skips. They are **not one backlog**, and the
-distinction matters before you "fix" any of them. Audited 2026-08-01.
+`pnpm run test` reports skips from several sources. They are **not one backlog**, and the
+distinction matters before you "fix" any of them. Re-audited 2026-08-14: the bounded
+`augmented-tests` pass replaced 39 empty skip call sites with 18 concrete matrix/edge tests
+or existing equivalent coverage. The 14 plausible body-carrying candidates were executed;
+all still failed for identifiable product gaps, so none was a stale disabled regression.
+
+The post-audit source inventory is 178 explicit `.skip` call sites: 139 empty permutation
+placeholders and 39 body-carrying/control call sites. Vitest reports 184 skipped tests because
+the disabled Cmd+Arrow suite contains eight cases while the zero-backlog generated authority
+loop contributes no runtime cases.
 
 | Kind | Looks like | What to do |
 |---|---|---|
 | **Unwritten permutation stubs** (the large majority) | `test.skip("name", () => {});` — **empty body** | Nothing manual. These are named permutations awaiting `/local-test-gen`; the file also carries a `## TODO: Test Permutations` marker. Un-skipping one creates a **vacuously passing empty test**. |
 | **Aspirational tests** | `test.skip(...)` with a **real body**, tagged `// STAYS SKIPPED — …` | Leave until the behavior exists. These describe features the code does not implement (patrolling routes, `user_controlled` motivation, `resource_captured`/`hazard_triggered` frame events, a defeated-actor gate). They were added **already skipped** in `d1a2b6e2`, so none of them is a disabled regression. |
 | **G1 authority backlog** | generated `test.skip` in `tests/architecture/persona-authority.test.js` | Leave. One skip per *unowned* persona behavior, each naming the finding that blocks it (DECISION D-k). The count IS the backlog metric — it drops when a finding closes, not when someone enables a test. |
+| **Opt-in external integration** | a running test calls `t.skip(...)` unless its explicit environment flag is set | Leave out of the deterministic default suite. `e2e-llm-live-runtime.test.js` requires `AK_LLM_LIVE=1` and a configured live provider. |
 
 **If you skip a test, say why on the line above it.** Every skip added from 2026-08-01
 carries a `// STAYS SKIPPED — <reason> (checked <date>)` comment. Before that they were

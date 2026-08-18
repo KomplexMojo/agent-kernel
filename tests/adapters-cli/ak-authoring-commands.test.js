@@ -378,12 +378,20 @@ test("cli create maximizes delver spend deterministically when explicitly asked 
   const delver = listDelverCards(spec)[0];
   assert.ok(delver);
   assert.ok(spec.authoring.optimizationGoals.some((entry) => entry.kind === "maximize_budget_spend"));
-  // Canonical pricing gives fixed spend 65 + mana.max + mana.regen².
-  // The search cap permits mana.max <= 101, so the highest-mana exact fit is
-  // mana.max 99 with mana.regen 6: 65 + 99 + 6² = 200.
-  assert.equal(delver.vitals.mana.max, 99);
+  // Canonical pricing gives fixed spend + mana.max + mana.regen², and the
+  // maximizer still spends the whole 200-token budget on the highest mana that
+  // fits — the behavior this test exists to pin.
+  //
+  // AM.2b re-baseline: fixed spend rose 65 -> 70 because a delver now funds the
+  // stamina it needs to move (pool 0 -> 2 costs 2; regen 1 -> 2 costs 2² - 1²
+  // = 3). Those 5 tokens come out of mana, so the exact fit is now
+  // mana.max 94 with mana.regen 6: 70 + 94 + 6² = 200.
+  assert.equal(delver.vitals.mana.max, 94);
   assert.equal(delver.vitals.mana.regen, 6);
   assert.ok(delver.vitals.mana.regen >= 1);
+  // The pool, not just the regen — regen against a zero pool is what let the
+  // maximizer buy a delver that could never take a step (F12).
+  assert.ok(delver.vitals.stamina.max >= 1);
   assert.ok(delver.vitals.stamina.regen >= 1);
 });
 

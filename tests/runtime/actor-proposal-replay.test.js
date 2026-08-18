@@ -52,6 +52,9 @@ test("runtime maps actor proposals to core actions and replays deterministically
       tick: action.tick,
     });
     applyMoveAction(core, packed);
+    // AM.3 — a move no longer advances the core tick; the driver of the
+    // simulation closes the tick. This loop is one tick per iteration.
+    core.advanceTick();
     core.clearEffects?.();
     frames.push(renderFrameBuffer(core, { actorIdLabel }));
     persona.advance({ phase: TickPhases.DECIDE, event: "cooldown", payload, tick });

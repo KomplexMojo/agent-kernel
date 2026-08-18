@@ -465,7 +465,13 @@ test("G1 moderator/tick-ordering: production executes the order the Moderator pl
   }
 });
 
-test("G1 moderator/tick-ordering: production applies the fulfilment the Moderator decided", async () => {
+// ---------------------------------------------------------------------------
+// Live differential: moderator/effect-fulfillment (split out of moderator/tick-ordering,
+// THE NINE paperwork six, 2026-08-18 — the roster could not see this behavior while it
+// stayed folded into an entry chartered as ORDERING).
+// ---------------------------------------------------------------------------
+
+test("G1 moderator/effect-fulfillment: production applies the fulfilment the Moderator decided", async () => {
   const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
   const { createModeratorPersona } = await import(
     "../../packages/runtime/src/personas/moderator/persona.js"

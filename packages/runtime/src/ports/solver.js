@@ -1,3 +1,9 @@
+// PX.3 extended beyond personas: this module defaulted its clock to
+// `() => new Date().toISOString()`, the exact pattern require-clock.js removed from
+// every persona. The rule was enforced on personas/ only, so five modules kept the
+// default and nothing objected. UNUSED_CLOCK is the repo's deterministic marker: a
+// caller that forgets to inject now gets a reproducible value, not wall-clock time.
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 function buildResultMeta(requestMeta, clock) {
   return {
     id: requestMeta?.id || requestMeta?.runId || "solver_result",
@@ -8,7 +14,7 @@ function buildResultMeta(requestMeta, clock) {
   };
 }
 
-export function createSolverPort({ clock = () => new Date().toISOString() } = {}) {
+export function createSolverPort({ clock = UNUSED_CLOCK } = {}) {
   async function solve(adapter, request) {
     if (!adapter?.solve) {
       throw new Error("Solver adapter is missing a solve(request) method.");

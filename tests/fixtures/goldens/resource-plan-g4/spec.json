@@ -126,35 +126,30 @@
                     "tier": 1,
                     "manaCost": 3,
                     "potency": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 6,
                     "potency": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 9,
                     "potency": 4,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 12,
                     "potency": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 15,
                     "potency": 16,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -168,35 +163,30 @@
                     "tier": 1,
                     "manaCost": 1,
                     "potency": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
                     "potency": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
                     "potency": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
                     "potency": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
                     "potency": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -210,35 +200,30 @@
                     "tier": 1,
                     "manaCost": 2,
                     "potency": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
                     "potency": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
                     "potency": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
                     "potency": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
                     "potency": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ],
@@ -256,35 +241,30 @@
                     "tier": 1,
                     "manaCost": 1,
                     "potency": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
                     "potency": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
                     "potency": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
                     "potency": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
                     "potency": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -305,35 +285,30 @@
                     "tier": 1,
                     "manaCost": 2,
                     "potency": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
                     "potency": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
                     "potency": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
                     "potency": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
                     "potency": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -347,35 +322,30 @@
                     "tier": 1,
                     "manaCost": 1,
                     "potency": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
                     "potency": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
                     "potency": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
                     "potency": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
                     "potency": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -389,35 +359,30 @@
                     "tier": 1,
                     "manaCost": 2,
                     "potency": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 3,
                     "potency": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 5,
                     "potency": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 7,
                     "potency": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 9,
                     "potency": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ],
@@ -434,35 +399,30 @@
                     "tier": 1,
                     "manaCost": 1,
                     "potency": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
                     "potency": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
                     "potency": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
                     "potency": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
                     "potency": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -482,31 +442,26 @@
                   {
                     "tier": 1,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 7,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 9,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 11,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -519,31 +474,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -556,31 +506,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -593,31 +538,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -637,31 +577,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -674,31 +609,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -711,31 +641,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -748,31 +673,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -792,31 +712,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -830,35 +745,30 @@
                     "tier": 1,
                     "manaCost": 0,
                     "potency": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 1,
                     "potency": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 2,
                     "potency": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 3,
                     "potency": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 4,
                     "potency": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -871,31 +781,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -909,35 +814,30 @@
                     "tier": 1,
                     "manaCost": 0,
                     "potency": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 1,
                     "potency": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 2,
                     "potency": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 3,
                     "potency": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 4,
                     "potency": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -957,31 +857,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -994,31 +889,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1031,31 +921,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1068,31 +953,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1112,31 +992,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1149,31 +1024,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1186,31 +1056,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1223,31 +1088,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1267,31 +1127,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1304,31 +1159,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1341,31 +1191,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1378,31 +1223,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1422,31 +1262,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1459,31 +1294,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1496,31 +1326,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1533,31 +1358,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1577,31 +1397,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1614,31 +1429,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1651,31 +1461,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1688,31 +1493,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "defaultDesignCostTokens": 4,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "defaultDesignCostTokens": 16,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "defaultDesignCostTokens": 36,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "defaultDesignCostTokens": 64,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "defaultDesignCostTokens": 100,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -1769,24 +1569,6 @@
             "reflexive": "instinctual",
             "goal_oriented": "tactical",
             "strategy_focused": "strategic"
-          },
-          "profileCosts": {
-            "mobility": {
-              "stationary": 0,
-              "exploring": 1,
-              "patrolling": 2
-            },
-            "combat": {
-              "none": 0,
-              "attacking": 5,
-              "defending": 4
-            },
-            "cognition": {
-              "none": 0,
-              "reflexive": 1,
-              "goal_oriented": 5,
-              "strategy_focused": 20
-            }
           }
         },
         "motivations": [
@@ -1805,8 +1587,7 @@
               "prefersStealth": false,
               "prefersCover": false,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 0
+            }
           },
           {
             "kind": "stationary",
@@ -1823,8 +1604,7 @@
               "prefersStealth": false,
               "prefersCover": false,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 0
+            }
           },
           {
             "kind": "exploring",
@@ -1841,8 +1621,7 @@
               "prefersStealth": false,
               "prefersCover": false,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 0
+            }
           },
           {
             "kind": "attacking",
@@ -1864,8 +1643,7 @@
               "prefersStealth": false,
               "prefersCover": false,
               "aggroRangeBoost": true
-            },
-            "defaultDesignCostTokens": 0
+            }
           },
           {
             "kind": "defending",
@@ -1886,8 +1664,7 @@
               "prefersStealth": false,
               "prefersCover": true,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 0
+            }
           },
           {
             "kind": "stealthy",
@@ -1904,8 +1681,7 @@
               "prefersStealth": true,
               "prefersCover": false,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 0
+            }
           },
           {
             "kind": "friendly",
@@ -1922,8 +1698,7 @@
               "prefersStealth": false,
               "prefersCover": false,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 0
+            }
           },
           {
             "kind": "patrolling",
@@ -1945,8 +1720,7 @@
               "prefersStealth": false,
               "prefersCover": false,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 0
+            }
           },
           {
             "kind": "reflexive",
@@ -1963,8 +1737,7 @@
               "prefersStealth": false,
               "prefersCover": false,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 1
+            }
           },
           {
             "kind": "goal_oriented",
@@ -1981,8 +1754,7 @@
               "prefersStealth": false,
               "prefersCover": false,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 5
+            }
           },
           {
             "kind": "strategy_focused",
@@ -1999,8 +1771,7 @@
               "prefersStealth": false,
               "prefersCover": false,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 20
+            }
           },
           {
             "kind": "user_controlled",
@@ -2017,8 +1788,7 @@
               "prefersStealth": false,
               "prefersCover": false,
               "aggroRangeBoost": false
-            },
-            "defaultDesignCostTokens": 0
+            }
           }
         ]
       },

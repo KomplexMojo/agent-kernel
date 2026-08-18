@@ -174,8 +174,70 @@ describe("hazard-free rooms are first-class (rooms carry no affinity)", () => {
   });
 });
 
-// ## TODO: Test Permutations
-test.skip("hazard-free multi-room dungeon with resources in each room creates approved", () => {});
-test.skip("hazard-free room with resources + hazards + actors approves all pools", () => {});
-test.skip("resource-only request without a room uses the default layout and approves", () => {});
-test.skip("benchmark scenario 26 shape minus its hazard still approves all resource lines", () => {});
+test("hazard-free multi-room dungeon with resources creates approved resource lines", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-no-hazard-multi-room-"));
+  try {
+    const result = await createShape(outDir, "multi-room", {
+      room: ["size=medium;count=2"],
+      resource: RESOURCE_SPECS,
+      budgetTokens: 5000,
+    });
+    assert.equal(result.ok, true, result.error);
+
+    const receipt = JSON.parse(readFileSync(join(outDir, "multi-room", "budget-receipt.json"), "utf8"));
+    const resourceLines = receipt.lineItems.filter((line) => line.kind === "resource");
+    assert.ok(resourceLines.length >= RESOURCE_SPECS.length);
+    assert.ok(resourceLines.every((line) => line.status === "approved"));
+
+    const simConfig = JSON.parse(readFileSync(join(outDir, "multi-room", "sim-config.json"), "utf8"));
+    assert.equal(simConfig.layout.data.rooms.length, 2);
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test("room with resources, a hazard, and actors approves every requested pool", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-no-hazard-mixed-pools-"));
+  try {
+    const result = await createShape(outDir, "mixed-pools", {
+      room: ["size=medium;count=1"],
+      hazard: ["id=h1;affinity=life;expression=emit;proximityRadius=1;mana=regen:3:3:1"],
+      resource: RESOURCE_SPECS,
+      delver: ["count=1;affinity=fire;motivation=exploring"],
+      warden: ["count=1;affinity=water;motivation=defending"],
+      budgetTokens: 5000,
+    });
+    assert.equal(result.ok, true, result.error);
+
+    const receipt = JSON.parse(readFileSync(join(outDir, "mixed-pools", "budget-receipt.json"), "utf8"));
+    assert.equal(receipt.status, "approved");
+    const requestedKinds = new Set(receipt.lineItems.map((line) => line.kind));
+    for (const kind of ["tile", "hazard", "resource", "actor"]) {
+      assert.ok(requestedKinds.has(kind), `receipt must itemize ${kind}`);
+    }
+    assert.ok(receipt.lineItems.every((line) => line.status === "approved"));
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test("resource-only request without a room uses the default layout and approves", async () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-resource-default-layout-"));
+  try {
+    const result = await createShape(outDir, "resource-only", {
+      resource: [RESOURCE_SPECS[0]],
+      budgetTokens: 2500,
+    });
+    assert.equal(result.ok, true, result.error);
+
+    const receipt = JSON.parse(readFileSync(join(outDir, "resource-only", "budget-receipt.json"), "utf8"));
+    const resourceLines = receipt.lineItems.filter((line) => line.kind === "resource");
+    assert.ok(resourceLines.length >= 1);
+    assert.ok(resourceLines.every((line) => line.status === "approved"));
+
+    const simConfig = JSON.parse(readFileSync(join(outDir, "resource-only", "sim-config.json"), "utf8"));
+    assert.ok(simConfig.layout.data.rooms.length >= 1, "default layout must contain a room");
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
