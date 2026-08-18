@@ -439,9 +439,10 @@ const REGISTRY = Object.freeze([
         + "from a state gating something in every output test. It gates the reconciliation now, "
         + "and its FSM guard requires the ledger rather than the old signal COUNTS. "
         + "⚠️ Separately: `core.applyAction` returns for ActionKind.Move BEFORE charging, so a "
-        + "`movement` cap is inert against moves and reconciles as spend 0. That is a core "
-        + "defect this entry does not cover and did not introduce; the G1 test caps `effects` "
-        + "and says so in place.",
+        + "`movement` cap is inert against moves and reconciles as spend 0. RULED 2026-08-18 "
+        + "(Plan.md §POST-AM/Z): intentional, not a defect — stamina is a move's real cost. "
+        + "See tests/core-ts/action-budget-charging.test.mts; the G1 test here still caps "
+        + "`effects` and says so in place.",
     },
   },
 

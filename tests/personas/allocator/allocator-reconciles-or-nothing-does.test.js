@@ -44,10 +44,11 @@ function fixture(name) {
  * ⚠️ **The cap is on `effects`, NOT `movement`, and that is not a stylistic choice.**
  * `core.applyAction` returns for `ActionKind.Move` BEFORE `chargeBudgetForAction`
  * (core-ts/src/index.ts), so moves are never charged to any category — a `movement` cap
- * is inert against them, and a run that moves 300 times reconciles as spend 0. That is a
- * pre-existing core defect, out of scope here and reported separately; this test caps the
- * category production actually charges so that it measures reconciliation rather than
- * that bug.
+ * is inert against them, and a run that moves 300 times reconciles as spend 0.
+ * RULED 2026-08-18 (Plan.md §POST-AM/Z): intentional, not a defect — stamina is a move's
+ * real cost, see tests/core-ts/action-budget-charging.test.mts. This test still caps the
+ * category production actually charges, because that ruling doesn't change what a
+ * `movement` cap would measure here: nothing.
  */
 const simConfig = {
   ...fixture("sim-config-artifact-v1-mvp-grid.json"),

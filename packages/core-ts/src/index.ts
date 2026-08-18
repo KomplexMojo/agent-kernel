@@ -406,6 +406,11 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
    * the same records for consumers that want them.
    *
    * Additive for existing callers — they ignore the return value.
+   *
+   * RULED 2026-08-18 (Plan.md §POST-AM/Z): Move never reaches chargeBudgetForAction
+   * below, and that is intentional — stamina (AM.2b, rules/move.ts) is a move's real
+   * cost, and the token budget was never meant to gate it a second time. See
+   * tests/core-ts/action-budget-charging.test.mts for the proof and its control.
    */
   function applyAction(kind: number, value: number): number {
     if (kind === ActionKind.Move) {
