@@ -36,6 +36,7 @@ behavior with no G1 test is not owned**. The rows below mirror
 | `configurator/feasibility-verdict` — layout feasibility is its verdict; the Director derives the geometry judged | A1, A2 | ✅ owned (CR.4 M5b.2f) | `tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js` |
 | `configurator/input-preparation` — grid sizing, hazard placement and resource mapping run behind the CONFIG-plane surface | A3 | ✅ owned (P2.2 / P2.3.1) | `tests/personas/configurator/configurator-input-prep.test.js` |
 | `configurator/cards` — card configuration: assembling and validating candidate delver/room cards | A2 | ✅ owned (THE NINE, 2026-08-18) | `tests/architecture/configurator-cards-authority.test.js` |
+| `configurator/actors` — actor configuration: defaulting, enum validation and assembly of a build/run request's delver roster entry | A2 | ✅ owned (2026-08-18) | `tests/architecture/configurator-actors-authority.test.js` |
 
 <!-- /A1-A5-STATUS -->
 
@@ -139,6 +140,21 @@ At a high level, the Configurator:
 > survivor. `normalizeMotivations` is also published on the persona surface for the legacy raw-data pricing
 > paths, which **still coerce** — that residue is recorded in `allocator/spend-proposal.js` and is not
 > closed by M3.
+
+> **It AUTHORS a build/run request's delver roster entry** (`configurator/actors`, 2026-08-18).
+> `actor-authoring.js`'s `authorDelverCandidate`, published on the persona surface, owns the
+> defaulting (missing motivation → `attacking`), enum validation (affinity/motivation/setup-mode
+> against the chartered vocabularies) and final assembly of one delver candidate. This was
+> previously `ak-impl.mjs`'s `parseDelverSpec` doing all three inline — domain logic in adapter
+> glue. The CLI keeps the `;`-delimited field splitting and the generic value-format tokenizers
+> (`affinities`/`vitals`/`goals` tuples, shared with the still-unmigrated `parseWardenSpec`): those
+> are DSL syntax, not configuration authoring, and moving them was out of this milestone's scope.
+>
+> Not the same responsibility as the candidate-authoring block above: that one assembles **priced
+> cards** for the Allocator to judge; this one assembles a request's **actor roster entry**
+> directly, with no pricing involved. `actor-generator.js`'s `generateActorSet` was investigated
+> as a possible fulfiller and ruled out — it is a real, separate grid-placement generator for
+> scale/perf test fixtures (`tests/helpers/tier-generators.js`), untouched by this milestone.
 
 The simulation core (`core-ts`) remains the sole authority on rule enforcement and state mutation.
 

@@ -404,6 +404,40 @@ const REGISTRY = Object.freeze([
         + "reverted after.",
     },
   },
+  {
+    id: "configurator/actors",
+    chartered: "configurator/actors",
+    persona: "configurator",
+    behavior: "Actor configuration: defaulting, enum validation and assembly of a build/run request's delver roster entry",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/personas/configurator/actor-authoring.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "configurator/actors milestone (2026-08-18)",
+      provenBy: "tests/architecture/configurator-actors-authority.test.js",
+      why:
+        "A2. KNOWN_UNREGISTERED's own note said actor-config-generation.js was deleted by "
+        + "P1.4 as dead code and either something else authors actor configs or nothing "
+        + "does. Traced: something did, in adapter glue — ak-impl.mjs's parseDelverSpec "
+        + "defaulted a missing motivation to \"attacking\", validated affinity/motivation/"
+        + "setup-mode against the chartered enums, and assembled the delver candidate "
+        + "object inline, all in the CLI. Moved into authorDelverCandidate, published on "
+        + "the Configurator's own surface (configurator-services.js -> controller.js), and "
+        + "wired at the single production call site through the existing module-level "
+        + "createConfiguratorPersona() instance ak-impl.mjs already constructs for "
+        + "authorCandidates/deriveRoomLayout. actor-generator.js's generateActorSet was "
+        + "investigated and is NOT this responsibility's fulfiller: it has a real, "
+        + "separate test-fixture consumer (tests/helpers/tier-generators.js -> "
+        + "tests/runtime/e2e-fixture-generators.test.js, grid-based scale/perf actor "
+        + "placement), untouched by this milestone. adapters-cli-no-actor-authoring.test.js "
+        + "proves the CLI side (no inline defaulting/validation/assembly survives); this "
+        + "file proves the production wiring is real. Perturbation run for real: reverted "
+        + "parseDelverSpec to its pre-milestone inline body — failed exactly the 5 new "
+        + "assertions across both new test files and no other architecture test (24 files, "
+        + "97 other tests stayed green), reverted after.",
+    },
+  },
 
   // ── Allocator ──────────────────────────────────────────────────────────────
   {

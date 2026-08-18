@@ -1356,22 +1356,12 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
     fields.set(key, fieldValue);
   });
 
-  const affinity = String(fields.get("affinity") || defaultAffinity).trim().toLowerCase();
-  if (!ALLOWED_AFFINITIES.includes(affinity)) {
-    throw new Error(`delver[${delverIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
-  }
-
-  const motivation = String(fields.get("motivation") || "attacking").trim().toLowerCase();
-  if (!ALLOWED_MOTIVATIONS.includes(motivation)) {
-    throw new Error(`delver[${delverIndex}] motivation must be one of: ${ALLOWED_MOTIVATIONS.join(", ")}.`);
-  }
-
+  // configurator/actors (2026-08-18) — the CLI still tokenizes the `;`-delimited spec
+  // (above) and the generic value-format tuples (below); defaulting, enum validation
+  // and candidate assembly are the Configurator's, via authorDelverCandidate.
   const count = fields.has("count")
     ? parsePositiveIntStrict(fields.get("count"), `delver[${delverIndex}] count`)
     : 1;
-  const id = isNonEmptyString(fields.get("id"))
-    ? String(fields.get("id")).trim()
-    : `card_delver_${delverIndex}`;
   const affinities = parseActorAffinities(fields.get("affinities"), "delver", delverIndex);
   const vitals = parseActorVitals(fields.get("vitals"), "delver", delverIndex);
   const optimizationGoals = parseOptimizationGoalList(fields.get("goals"), {
@@ -1379,32 +1369,19 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
     defaultScope: "delver",
     source: "object_flag",
   });
-  const setupModeRaw = fields.get("setup-mode") || fields.get("setupmode");
-  let setupMode;
-  if (isNonEmptyString(setupModeRaw)) {
-    setupMode = String(setupModeRaw).trim().toLowerCase();
-    if (!ALLOWED_DELVER_SETUP_MODES.includes(setupMode)) {
-      throw new Error(`delver[${delverIndex}] setup-mode must be one of: ${ALLOWED_DELVER_SETUP_MODES.join(", ")}.`);
-    }
-  }
 
-  const delver = {
-    id,
-    type: "delver",
-    source: "actor",
+  const delver = configurator.authorDelverCandidate({
+    index: delverIndex,
+    rawAffinity: fields.get("affinity"),
+    rawMotivation: fields.get("motivation"),
+    rawId: fields.get("id"),
+    rawSetupMode: fields.get("setup-mode") || fields.get("setupmode"),
+    defaultAffinity,
     count,
-    affinity,
-    motivations: Array.from(new Set([motivation, "user_controlled"])),
-  };
-  if (affinities && affinities.length > 0) {
-    delver.affinities = affinities;
-  }
-  if (vitals && Object.keys(vitals).length > 0) {
-    delver.vitals = vitals;
-  }
-  if (setupMode) {
-    delver.setupMode = setupMode;
-  }
+    affinities,
+    vitals,
+  });
+
   return {
     value: delver,
     optimizationGoals,

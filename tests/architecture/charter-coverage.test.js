@@ -50,10 +50,6 @@ const CHARTER = resolve(__dirname, "../../docs/architecture-charter.md");
  * Every one of these was found by writing the roster. None was known before.
  */
 const KNOWN_UNREGISTERED = Object.freeze({
-  "configurator/actors":
-    "actor-config-generation.js was DELETED by P1.4 as dead code with no production importers. "
-    + "The responsibility is still chartered, so this is a genuine gap rather than a stale row: "
-    + "either something else authors actor configs, or nothing does.",
   "configurator/pools":
     "director/pool-mapping covers the Director asking; nothing covers the Configurator answering.",
 });

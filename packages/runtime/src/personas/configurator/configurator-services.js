@@ -52,6 +52,9 @@ import {
   reviseDelverCandidate,
 } from "./candidate-authoring.js";
 import { maximizeActorBudget } from "./budget-maximizer.js";
+// configurator/actors (2026-08-18) — defaulting, enum validation and assembly of a
+// build/run request's delver roster entry, moved out of ak-impl.mjs's CLI glue.
+import { authorDelverCandidate } from "./actor-authoring.js";
 // Z.2 — the Configurator poses `configurator_satisfiability`, and only it may.
 import {
   buildSatisfiabilityProblem,
@@ -401,6 +404,9 @@ export function attachConfiguratorServices({ fsm } = {}) {
     // importing `feasibility.js`, threshold and all.
     assessFeasibility,
     authorCandidates,
+    // configurator/actors — a build/run request's delver roster entry, published so
+    // ak-impl.mjs stops defaulting/validating/assembling it inline.
+    authorDelverCandidate,
     /**
      * Motivation vocabulary, published so the Allocator stops importing it (CR.9 M3).
      *
