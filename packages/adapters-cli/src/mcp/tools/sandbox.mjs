@@ -612,9 +612,20 @@ export async function executeSandboxPlace({ session: sessionPath, entityType, sp
   // absent — later ak_sandbox_place calls in the same session must not clobber whatever
   // ak_run already upgraded this file to (see ak-impl.mjs's own "upgrade that sibling
   // bundle.json in place" comment).
+  //
+  // The resourceBundle DOES need to be in `artifacts` here, not left for a later step:
+  // ak_run's stitching only carries forward the create-bundle's artifacts whose schema
+  // isn't superseded by the run's own simConfig/initialState — ResourceBundleArtifact
+  // always qualifies, but only if it was here to carry in the first place. Without it,
+  // gameplay-view.js's buildBoardState() finds no ResourceBundleArtifact in the final
+  // bundle, resourceBundle is undefined for the whole render, and every actor's sprite
+  // asset resolves to null — the room grid draws (that only needs simConfig), but no
+  // actor sprite does, with no error anywhere (confirmed by direct instrumentation of
+  // gameplay-phaser-renderer.js's actor draw loop: actors.length was correct, every
+  // resolveActorAssetId(...) call returned null).
   const bundlePath = join(sessionDir, "bundle.json");
   if (!existsSync(bundlePath)) {
-    await writeJson(bundlePath, { schemas: [], artifacts: [] });
+    await writeJson(bundlePath, { schemas: [], artifacts: [resourceBundle] });
   }
 
   // Validation passed — write all four files atomically (best-effort; no temp-file

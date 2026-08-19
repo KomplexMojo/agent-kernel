@@ -383,7 +383,12 @@ test("mcp ak_sandbox_place writes a bundle.json sibling so a later ak_run can re
     assert.equal(placeResult.bundlePath, join(outDir, "bundle.json"));
 
     const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
-    assert.deepEqual(bundle, { schemas: [], artifacts: [] });
+    assert.deepEqual(bundle.schemas, []);
+    // Must include the ResourceBundleArtifact, not just simConfig/initialState — see the
+    // "actor cards placed but no sprite renders" test below for why this specifically
+    // matters (Finding #9).
+    assert.equal(bundle.artifacts.length, 1);
+    assert.equal(bundle.artifacts[0].schema, "agent-kernel/ResourceBundleArtifact");
 
     // A second placement must not clobber a bundle.json ak_run may have already upgraded
     // in place (ak-impl.mjs's own "upgrade that sibling bundle.json in place" comment) —
@@ -625,6 +630,29 @@ test("mcp sandbox_create -> sandbox_place -> ak_run -> ak_push_to_ui: a sandbox-
     assert.equal(bundle.schema, "agent-kernel/GameplayBundle");
     assert.equal(Array.isArray(bundle.tickFrames), true);
     assert.ok(bundle.tickFrames.length > 0, "stitched bundle must carry real tick frames");
+
+    // Finding #9: the room grid alone rendering (it only needs simConfig) was not proof the
+    // scene was actually visible — actor sprites separately need a ResourceBundleArtifact,
+    // which ak_run only carries forward from a create-bundle sibling that already has one.
+    // Confirmed by direct instrumentation of the browser's actor draw loop that a bundle
+    // missing this artifact resolves every actor's sprite asset to null with no error, so
+    // this is the one thing standing between "delivered" and "actually visible."
+    const resourceBundleArtifact = bundle.artifacts.find(
+      (a) => a?.schema === "agent-kernel/ResourceBundleArtifact",
+    );
+    assert.ok(
+      resourceBundleArtifact,
+      `stitched bundle must carry a ResourceBundleArtifact so actor sprites can resolve: ${JSON.stringify(bundle.artifacts.map((a) => a?.schema))}`,
+    );
+    assert.equal(
+      resourceBundleArtifact.mappings?.actors?.delver,
+      "actor.delver",
+      "delver sprite mapping must resolve",
+    );
+    assert.ok(
+      resourceBundleArtifact.assets?.some((a) => a?.id === "actor.delver"),
+      "actor.delver must be a real, loadable asset entry, not just a mapping key",
+    );
 
     // callToolRaw, not callTool: ak_push_to_ui can legitimately return ok:false for reasons
     // unrelated to this test (e.g. SANDBOX_BRIDGE_START_FAILED if another concurrently-
