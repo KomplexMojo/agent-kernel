@@ -508,6 +508,31 @@ test("mcp server starts the sandbox bridge on boot so ak_push_to_ui can deliver 
   }
 });
 
+test("ak_sandbox_create omitting outDir defaults into a temp folder instead of crashing (createHandlerTool has no tool.command)", async () => {
+  // ak_sandbox_create is built via createHandlerTool, which returns {name, description,
+  // inputSchema, handler} — no `command` field. server.mjs's resolveDefaultOutDir does
+  // join(SESSION_TEMP_ROOT, runId, tool.command) whenever outDir is omitted and runId is
+  // given (the documented, normal usage pattern — see the outDir schema description: "When
+  // omitted, the MCP server uses a writable temp folder and remembers it"). tool.command is
+  // undefined for any createHandlerTool-based tool, and path.join throws on an undefined
+  // argument — so every other MCP tool that omits outDir works, and this one throws.
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+
+    const result = await harness.callTool("ak_sandbox_create", {
+      budget: resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json"),
+      runId: "run_mcp_sandbox_create_no_outdir",
+    });
+    assert.equal(result.command, "sandbox-create");
+    assert.equal(typeof result.outDir, "string");
+    assert.ok(result.outDir.length > 0);
+    assert.equal(existsSync(join(result.outDir, "sandbox-session.json")), true);
+  } finally {
+    await harness.close();
+  }
+});
+
 // ## Gap Registry — Uncovered MCP Tools (M7 scope boundary)
 //
 // This file is the authoritative MCP verification surface for the session.

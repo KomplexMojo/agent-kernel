@@ -127,14 +127,18 @@ function resolveDefaultOutDir(tool, args) {
     return null;
   }
   const runId = normalizeNonEmptyString(args?.runId);
+  // createHandlerTool-based tools (sandbox, tick, testing) have no `command` — only
+  // createTool-based tools dispatch through the CLI's command registry. Fall back to
+  // the tool's own name so the temp-dir path stays a valid string either way.
+  const commandLabel = normalizeNonEmptyString(tool.command) || tool.name;
   if (tool.command === "workflow" && tool.workflowAction !== "run") return null;
   if (tool.command === "scenario" && runId) {
     return join(SESSION_TEMP_ROOT, runId);
   }
   if (runId) {
-    return join(SESSION_TEMP_ROOT, runId, tool.command);
+    return join(SESSION_TEMP_ROOT, runId, commandLabel);
   }
-  return mkdtempSync(join(SESSION_TEMP_ROOT, `${tool.command}-`));
+  return mkdtempSync(join(SESSION_TEMP_ROOT, `${commandLabel}-`));
 }
 
 async function maybeResolveRememberedInputs(tool, rawArgs) {
