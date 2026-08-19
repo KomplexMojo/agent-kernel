@@ -384,6 +384,61 @@ test("mcp create defaults full scenario outputs into a writable temp folder and 
   }
 });
 
+test("mcp ak_run stitches tickFrames into bundle.json even when run in place (outDir === sim-config's directory)", async () => {
+  // M7 gap 3's stitching only carries the create-time bundle.json forward when
+  // it detects "the run's inputs came from an authored create outDir" via a
+  // sibling bundle.json next to --sim-config. The detection in ak-impl.mjs
+  // additionally requires that sibling path to differ from the run's own
+  // --out-dir/bundle.json — which is false, and so the whole stitch silently
+  // no-ops, whenever a caller runs a scenario "in place" by pointing --out-dir
+  // at the same directory as --sim-config (the natural choice: no reason to
+  // invent a nested subdirectory just to run what you just created). The run
+  // still executes and writes tick-frames.json correctly; only the bundle.json
+  // that ak_push_to_ui reads is left stale, silently missing every tick.
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+
+    const runId = "run_mcp_in_place_stitch";
+    const createResult = await harness.callTool("ak_create", {
+      runId,
+      createdAt: "2026-04-19T00:00:00.000Z",
+      text: "Create a small playable dungeon scenario for an in-place run.",
+      room: ["size=medium;count=1"],
+      floorTile: ["count=12"],
+      hazard: ["x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
+      resource: ["permanenceMode=consumable;vital=health;delta=2"],
+      delver: ["count=1;affinity=fire;motivation=attacking"],
+      warden: ["count=1;affinity=dark;motivation=defending"],
+      budgetTokens: 2000,
+    });
+    assert.equal(createResult.command, "create");
+    const createOutDir = createResult.outDir;
+
+    const preRunBundle = readJson(join(createOutDir, "bundle.json"));
+    assert.equal(Array.isArray(preRunBundle.tickFrames), false);
+
+    const runResult = await harness.callTool("ak_run", {
+      simConfig: join(createOutDir, "sim-config.json"),
+      initialState: join(createOutDir, "initial-state.json"),
+      outDir: createOutDir,
+      ticks: 3,
+    });
+    assert.equal(runResult.command, "run");
+    assert.equal(runResult.outDir, createOutDir);
+    assert.equal(existsSync(join(createOutDir, "tick-frames.json")), true);
+
+    const postRunBundle = readJson(join(createOutDir, "bundle.json"));
+    assert.equal(Array.isArray(postRunBundle.tickFrames), true);
+    assert.ok(
+      postRunBundle.tickFrames.length > 0,
+      `expected bundle.json's tickFrames to carry the run's ${runResult.ticks ?? "?"} ticks, got ${JSON.stringify(postRunBundle.tickFrames)}`,
+    );
+  } finally {
+    await harness.close();
+  }
+});
+
 
 test("mcp server run and inspect tool calls round-trip over stdio", async () => {
   const harness = new McpServerHarness();

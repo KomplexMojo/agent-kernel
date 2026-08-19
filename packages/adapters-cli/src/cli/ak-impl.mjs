@@ -2163,13 +2163,17 @@ async function summarizeRunOutput({ outDir, args } = {}) {
   // create outDir also ends up holding a loadable playback bundle.
   const sourceSimConfigPath = resolvePath(args["sim-config"]);
   const createBundlePath = sourceSimConfigPath ? join(dirname(sourceSimConfigPath), "bundle.json") : null;
-  const createBundle = createBundlePath && createBundlePath !== join(outDir, "bundle.json")
-    ? await readJsonIfExists(createBundlePath)
-    : null;
   // Only stitch when the run's inputs came from an authored create outDir
   // (identified by its pre-run bundle.json sibling). Fixture-driven runs stay
   // bundle-free so CLI run output remains artifact-for-artifact equivalent to
   // the browser host's run output (tests/integration/ui-cli-equivalence.test.js).
+  // Read unconditionally: when --out-dir is run in place (the same directory
+  // as --sim-config, a natural choice with nothing in the CLI docs against
+  // it), createBundlePath equals the run's own bundle.json path, but the read
+  // still happens before that same path is overwritten below — there is no
+  // race to guard against, so skipping the read here just as silently dropped
+  // every run's tick frames from the bundle the UI loads.
+  const createBundle = createBundlePath ? await readJsonIfExists(createBundlePath) : null;
   const bundle = createBundle && typeof createBundle === "object"
     ? buildGameplayBundleFromRunArtifacts({
       runId,
