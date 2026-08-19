@@ -354,6 +354,53 @@ test("mcp ak_sandbox_place writes sim-config.json and initial-state.json", async
   }
 });
 
+test("mcp ak_sandbox_place writes a bundle.json sibling so a later ak_run can reach the UI", async () => {
+  // ak_run's M7-gap-3 stitching only carries a post-run GameplayBundle forward when the
+  // run's --sim-config path has a sibling bundle.json (ak-impl.mjs ~line 2165) — otherwise
+  // it's treated as a bare fixture run and stays bundle-free. ak_create writes that sibling;
+  // the sandbox tools never did, so nothing placed/moved in a sandbox session could ever
+  // reach ak_push_to_ui. This is the fix: ak_sandbox_place now writes a minimal (spec-less —
+  // sandbox sessions have no BuildSpec/cardSet to offer) bundle.json placeholder alongside
+  // sim-config.json, which is enough for ak_run's existing detection to pick up unmodified.
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-bundle-");
+
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+
+    const sessionPath = join(createResult.outDir, "sandbox-session.json");
+    const placeResult = await harness.callTool("ak_sandbox_place", {
+      session: sessionPath,
+      entityType: "delver",
+      spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
+    });
+
+    assert.equal(existsSync(join(outDir, "bundle.json")), true, "bundle.json must exist");
+    assert.equal(placeResult.bundlePath, join(outDir, "bundle.json"));
+
+    const bundle = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
+    assert.deepEqual(bundle, { schemas: [], artifacts: [] });
+
+    // A second placement must not clobber a bundle.json ak_run may have already upgraded
+    // in place (ak-impl.mjs's own "upgrade that sibling bundle.json in place" comment) —
+    // simulate that by writing a marker and confirming a further place call leaves it alone.
+    writeFileSync(join(outDir, "bundle.json"), JSON.stringify({ marker: "upgraded-by-run" }));
+    await harness.callTool("ak_sandbox_place", {
+      session: sessionPath,
+      entityType: "warden",
+      spec: "id=warden_1;x=5;y=5;affinity=dark;motivation=defending",
+    });
+    const bundleAfterSecondPlace = JSON.parse(readFileSync(join(outDir, "bundle.json"), "utf8"));
+    assert.deepEqual(bundleAfterSecondPlace, { marker: "upgraded-by-run" });
+  } finally {
+    await harness.close();
+  }
+});
+
 test("mcp ak_sandbox_place updates session artifacts index with all refs", async () => {
   const harness = new McpServerHarness();
   try {
@@ -537,6 +584,63 @@ test("mcp ak_sandbox_place does not write artifact files when session validation
       existsSync(resourceBundlePath),
       false,
       "resource-bundle.json must not be written when session validation fails",
+    );
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp sandbox_create -> sandbox_place -> ak_run -> ak_push_to_ui: a sandbox-authored scene can actually reach the UI", async () => {
+  // The end-to-end point of the bundle.json fix above: ak_sandbox_create's own tool
+  // description says "the foundation for Phaser rendering" — this asserts that promise is
+  // actually true via the documented MCP tool chain, not just that a file gets written.
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const sandboxDir = makeTempDir("agent-kernel-sandbox-e2e-");
+
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir: sandboxDir,
+    });
+    const sessionPath = join(createResult.outDir, "sandbox-session.json");
+
+    await harness.callTool("ak_sandbox_place", {
+      session: sessionPath,
+      entityType: "delver",
+      spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
+    });
+
+    const runOutDir = makeTempDir("agent-kernel-sandbox-e2e-run-");
+    const runResult = await harness.callTool("ak_run", {
+      simConfig: join(sandboxDir, "sim-config.json"),
+      initialState: join(sandboxDir, "initial-state.json"),
+      ticks: 1,
+      outDir: runOutDir,
+    });
+
+    const runBundlePath = join(runOutDir, "bundle.json");
+    assert.equal(existsSync(runBundlePath), true, "ak_run must stitch a bundle.json now that its sim-config input has a bundle.json sibling");
+    const bundle = JSON.parse(readFileSync(runBundlePath, "utf8"));
+    assert.equal(bundle.schema, "agent-kernel/GameplayBundle");
+    assert.equal(Array.isArray(bundle.tickFrames), true);
+    assert.ok(bundle.tickFrames.length > 0, "stitched bundle must carry real tick frames");
+
+    // callToolRaw, not callTool: ak_push_to_ui can legitimately return ok:false for reasons
+    // unrelated to this test (e.g. SANDBOX_BRIDGE_START_FAILED if another concurrently-
+    // spawned server.mjs already holds port 38487 — an accepted, honestly-reported class of
+    // flakiness under vitest's parallelism, not a bug). What this test actually asserts is
+    // narrower: whatever the outcome, it must not be "no bundle found here."
+    const pushResult = await harness.callToolRaw("ak_push_to_ui", {
+      outDir: runOutDir,
+      targetTab: "gameplay",
+      requireClient: false,
+    });
+    assert.equal(pushResult.command, "push-to-ui");
+    assert.notEqual(
+      pushResult.bundleNotFound,
+      true,
+      `ak_push_to_ui must find the stitched bundle, not report bundleNotFound: ${JSON.stringify(pushResult)}`,
     );
   } finally {
     await harness.close();
