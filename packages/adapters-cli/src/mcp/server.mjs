@@ -18,7 +18,7 @@ import { testingTools } from "./tools/testing.mjs";
 import { tickTools } from "./tools/tick.mjs";
 import { sandboxTools } from "./tools/sandbox.mjs";
 import { adaptiveWorkflowResources, adaptiveWorkflowTools, assertAdaptiveWorkflowArgs, readAdaptiveWorkflowResource } from "./adaptive-workflow-tools.mjs";
-import { startSandboxBridgeServer } from "./bridge-server.mjs";
+import { startSandboxBridgeServer, stopSandboxBridgeServer } from "./bridge-server.mjs";
 
 const SERVER_NAME = "agent-kernel-cli";
 const SERVER_VERSION = "1.0.0";
@@ -388,3 +388,26 @@ try {
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
+
+// Finding #2b: StdioServerTransport never listens for stdin "end", and nothing here handled
+// SIGTERM/SIGINT either — so a parent that disappears without delivering an explicit kill
+// signal (worker-pool churn, a crashed harness) left this process with no way to exit. That
+// was invisible before the sandbox bridge existed, because with no other open handles Node's
+// event loop just drained naturally once stdin ended. The bridge's listening socket holds a
+// permanent ref, so that implicit fallback stopped working the moment Finding #1 wired it in.
+let shuttingDown = false;
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  const forceExit = setTimeout(() => process.exit(0), 2000).unref();
+  try {
+    await stopSandboxBridgeServer();
+  } catch {
+    /* best-effort */
+  }
+  clearTimeout(forceExit);
+  process.exit(0);
+}
+process.stdin.on("end", shutdown);
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

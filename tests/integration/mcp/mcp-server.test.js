@@ -563,6 +563,53 @@ test("mcp server starts the sandbox bridge on boot so ak_push_to_ui can deliver 
   }
 });
 
+test("mcp server exits when its stdin ends, even with no kill signal ever sent (Finding #2b)", async () => {
+  // Before the sandbox bridge existed, an orphaned server.mjs (parent gone, no explicit
+  // SIGTERM/SIGKILL ever delivered — e.g. a crashed harness or worker-pool churn) would just
+  // fall out of Node's event loop once stdin drained, since nothing else held an open handle.
+  // StdioServerTransport never listens for stdin "end" itself, so that was always an *implicit*
+  // fallback, not a real shutdown path. The sandbox bridge's listening socket holds a permanent
+  // ref, which silently broke that fallback: with no explicit stdin-end/SIGTERM handling, an
+  // orphaned server now runs forever as a zombie squatting the bridge port. This spawns a real
+  // server, closes ONLY its stdin (deliberately never sends any signal, mirroring "parent died
+  // silently"), and asserts the process still exits on its own.
+  const bridgePort = await getFreePort();
+  const proc = spawn(process.execPath, [SERVER], {
+    cwd: ROOT,
+    env: { ...process.env, AK_SANDBOX_BRIDGE_PORT: String(bridgePort) },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  try {
+    await new Promise((resolveReady, rejectReady) => {
+      proc.stdout.setEncoding("utf8");
+      // The server is up once it responds to an initialize request over stdio.
+      proc.stdout.on("data", (chunk) => {
+        if (chunk.includes('"id":1')) resolveReady();
+      });
+      proc.once("error", rejectReady);
+      proc.stdin.write(`${JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "1" } },
+      })}\n`);
+      setTimeout(() => rejectReady(new Error("server did not become ready")), 5000).unref();
+    });
+
+    const exited = new Promise((resolveExit) => proc.once("exit", (code, signal) => resolveExit({ code, signal })));
+    proc.stdin.end();
+
+    const result = await Promise.race([
+      exited,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("server did not exit within 3s of stdin ending, with no signal ever sent — it would zombie forever")), 3000)),
+    ]);
+    assert.equal(result.signal, null);
+    assert.equal(result.code, 0);
+  } finally {
+    if (proc.exitCode === null && proc.signalCode === null) proc.kill("SIGKILL");
+  }
+});
+
 test("ak_sandbox_create omitting outDir defaults into a temp folder instead of crashing (createHandlerTool has no tool.command)", async () => {
   // ak_sandbox_create is built via createHandlerTool, which returns {name, description,
   // inputSchema, handler} — no `command` field. server.mjs's resolveDefaultOutDir does
