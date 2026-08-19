@@ -6,6 +6,7 @@ import {
   createDesignCard,
   dropPropertyOnCard,
 } from "../../packages/runtime/src/commands/card-authoring.js";
+import { buildDefaultPriceList } from "../../packages/runtime/src/personas/allocator/default-price-list.js";
 
 test("runtime card authoring owns property-drop semantics", () => {
   const delver = createDesignCard({
@@ -117,4 +118,57 @@ test("empty and duplicate card ids keep summary generation deterministic", () =>
   assert.deepEqual(first.cards.map((card) => card.id), second.cards.map((card) => card.id));
   assert.equal(first.cards.filter((card) => card.id === "duplicate_card").length, 1);
   assert.equal(new Set(first.cards.map((card) => card.id)).size, first.cards.length);
+});
+
+test("actor card cost reflects the motivation/affinity vital floor, not the pre-floor authored vitals", () => {
+  // An actor authored via `ak_create` without --vitals gets an all-zero mana/stamina
+  // pool at authoring time (this is the shape ak_create's own agentAuthoringCommand
+  // actually produces — createDesignCard's own interactive-UI defaults are already
+  // nonzero and don't reproduce the bug). AM.2b/AM.5 raise that to a real floor (and
+  // charge for it) at build time. calculateCardValue must price the floored pool, or
+  // an "attacking" delver with no authored mana/stamina reads as free — the Inventory
+  // panel showed exactly that (0t).
+  // All four vitals zero, not just mana/stamina: health/durability contribute their own
+  // (unrelated) nonzero cost once nonzero, which would make a loose ">0" assertion pass
+  // even without the floor fix. Zeroing everything makes ">0" only satisfiable by the
+  // motivation/affinity floor actually firing.
+  const zeroVitals = {
+    health: { current: 0, max: 0, regen: 0 },
+    mana: { current: 0, max: 0, regen: 0 },
+    stamina: { current: 0, max: 0, regen: 0 },
+    durability: { current: 0, max: 0, regen: 0 },
+  };
+  const delver = createDesignCard({
+    id: "delver_floor_pricing",
+    type: "delver",
+    affinity: "fire",
+    motivations: ["attacking"],
+    vitals: zeroVitals,
+  });
+  assert.deepEqual(delver.vitals.mana, { current: 0, max: 0, regen: 0 });
+  assert.deepEqual(delver.vitals.stamina, { current: 0, max: 0, regen: 0 });
+
+  const priceList = buildDefaultPriceList({ createdAt: "2026-08-19T00:00:00.000Z" });
+
+  assert.ok(
+    calculateCardValue(delver, { priceList }).unitTokens > 0,
+    "an attacking, fire-affinity delver has a real mana+stamina floor and must not price as free",
+  );
+
+  const warden = createDesignCard({
+    id: "warden_floor_pricing",
+    type: "warden",
+    affinity: "dark",
+    motivations: ["defending"],
+    vitals: zeroVitals,
+  });
+  assert.ok(
+    calculateCardValue(warden, { priceList }).unitTokens > 0,
+    "a defending, dark-affinity warden has a real mana floor and must not price as free",
+  );
+
+  // Original card object must be untouched — the floor functions mutate their own
+  // draft copy, never the caller's card (which may be locked/shared elsewhere).
+  assert.deepEqual(delver.vitals.mana, { current: 0, max: 0, regen: 0 });
+  assert.deepEqual(delver.vitals.stamina, { current: 0, max: 0, regen: 0 });
 });

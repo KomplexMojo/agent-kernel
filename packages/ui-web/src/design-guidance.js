@@ -5,6 +5,7 @@ import { runLlmBudgetLoop } from "../../runtime/src/personas/orchestrator/person
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../../runtime/src/commands/llm-host.js";
 import { beginDirectorBuildCapabilities } from "../../runtime/src/commands/director-round.js";
+import { buildDefaultPriceList } from "../../runtime/src/personas/allocator/persona.js";
 // M8: the empty-catalog fallback below was the only place in the tree that named
 // PoolCatalog, and it named it as a literal — one use site is exactly the case a
 // declaration-keyed census cannot distinguish from "this schema does not exist".
@@ -394,7 +395,13 @@ export function wireDesignGuidance({
     }),
     dungeonAffinity: DEFAULT_DUNGEON_AFFINITY,
     runningAi: false,
-    priceList: llmConfig.priceList || null,
+    // A session/bundle without its own PriceListArtifact (the common case — most
+    // authoring flows, including every MCP create/-plan call, never attach one) used
+    // to leave this null, so calculateCardValue's priceMap lookup came up empty and
+    // every actor/hazard/resource card silently priced at 0 tokens regardless of its
+    // actual vitals/affinities. Falls back to the canonical default price list rather
+    // than leaving pricing unable to compute at all.
+    priceList: llmConfig.priceList || buildDefaultPriceList(),
     tileCosts: llmConfig.tileCosts || null,
   };
 

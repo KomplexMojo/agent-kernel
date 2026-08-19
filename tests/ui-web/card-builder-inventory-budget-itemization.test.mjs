@@ -192,6 +192,35 @@ function simulateLoadGameplayBundlePostIngest(ctrl) {
   return firstActor;
 }
 
+test("actor cards price to a nonzero cost even when no PriceListArtifact was ever attached", async () => {
+  // Most authoring flows — every MCP ak_create/-plan call this session, and any bridge
+  // push whose bundle carries no PriceListArtifact (the common case: none of
+  // InitialStateArtifact/ResourceBundleArtifact/SimConfigArtifact is one) — never set
+  // llmConfig.priceList. design-guidance.js used to default state.priceList straight to
+  // null in that case, so calculateActorCardUnitValue's priceMap lookup came up empty and
+  // every actor card silently priced at 0 regardless of its vitals/affinities — the exact
+  // "DELVER ... 0t" / "WARDEN ... 0t" shown in a live Inventory-panel screenshot. Confirms
+  // the fix: no llmConfig.priceList passed at all (unlike createPricedController above).
+  const ctrl = createCardBuilderController({});
+  const spec = buildSpecFromCards([delverCardEntry(), wardenCardEntry()], {
+    runId: "no_price_list_attached",
+    poolWeights: [{ id: "delver", weight: 0.5 }, { id: "wardens", weight: 0.5 }],
+  });
+
+  const loaded = await ctrl.loadBuildSpec(spec);
+  assert.equal(loaded.ok, true, `loadBuildSpec must succeed: ${JSON.stringify(loaded)}`);
+
+  const ledger = ctrl.getAllocationLedger();
+  assert.ok(
+    ledger.byType.delver.usedTokens > 0,
+    `delver must price to a nonzero cost without an attached price list, got ${JSON.stringify(ledger.byType.delver)}`,
+  );
+  assert.ok(
+    ledger.byType.warden.usedTokens > 0,
+    `warden must price to a nonzero cost without an attached price list, got ${JSON.stringify(ledger.byType.warden)}`,
+  );
+});
+
 test("PINNED DEFECT: delver-only bundle itemizes zero used tokens after the auto-pull-to-editor step", async () => {
   const ctrl = createPricedController();
   const spec = buildSpecFromCards([delverCardEntry()], {
