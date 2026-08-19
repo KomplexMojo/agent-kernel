@@ -18,9 +18,11 @@ import { testingTools } from "./tools/testing.mjs";
 import { tickTools } from "./tools/tick.mjs";
 import { sandboxTools } from "./tools/sandbox.mjs";
 import { adaptiveWorkflowResources, adaptiveWorkflowTools, assertAdaptiveWorkflowArgs, readAdaptiveWorkflowResource } from "./adaptive-workflow-tools.mjs";
+import { startSandboxBridgeServer } from "./bridge-server.mjs";
 
 const SERVER_NAME = "agent-kernel-cli";
 const SERVER_VERSION = "1.0.0";
+const SANDBOX_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
 const TOOL_DEFINITIONS = [
   ...authoringTools,
   ...simulationTools,
@@ -370,6 +372,15 @@ async function handleToolRequest(request, extra) {
 }
 
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => enqueueCommand(() => handleToolRequest(request, extra)));
+
+// Bind the sandbox WS bridge so ak_push_to_ui / ak_sandbox_push_ui have a live server to
+// deliver to. A bind failure (e.g. port already in use) must not crash the MCP server —
+// getSandboxBridgeState().startFailed already surfaces it to those tools as SANDBOX_BRIDGE_START_FAILED.
+try {
+  await startSandboxBridgeServer({ port: SANDBOX_BRIDGE_PORT });
+} catch {
+  /* best-effort */
+}
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

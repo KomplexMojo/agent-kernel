@@ -3,6 +3,9 @@ const { spawn } = require("node:child_process");
 const { existsSync, mkdtempSync, readFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
+const { createServer: createNetServer } = require("node:net");
+// Node 22's built-in WebSocket (available since Node 21) — no ws import needed.
+const { WebSocket } = globalThis;
 
 const ROOT = resolve(__dirname, "../../..");
 const SERVER = resolve(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
@@ -159,6 +162,17 @@ class McpServerHarness {
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
+}
+
+function getFreePort() {
+  return new Promise((resolvePort, reject) => {
+    const srv = createNetServer();
+    srv.listen(0, "127.0.0.1", () => {
+      const { port } = srv.address();
+      srv.close((err) => (err ? reject(err) : resolvePort(port)));
+    });
+    srv.on("error", reject);
+  });
 }
 
 test("mcp server lists required tools and schemas round-trips over stdio", async () => {
@@ -402,6 +416,53 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
     assert.equal(inspectSummary.schema, "agent-kernel/TelemetryRecord");
     assert.equal(inspectSummary.schemaVersion, 1);
   } finally {
+    await harness.close();
+  }
+});
+
+test("mcp server starts the sandbox bridge on boot so ak_push_to_ui can deliver to a connected UI client", async () => {
+  const bridgePort = await getFreePort();
+  const harness = new McpServerHarness({ AK_SANDBOX_BRIDGE_PORT: String(bridgePort) });
+  let ws;
+  try {
+    await harness.initialize();
+
+    ws = await new Promise((resolveWs, rejectWs) => {
+      const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/ak-sandbox`);
+      client.addEventListener("open", () => resolveWs(client));
+      client.addEventListener("error", (e) => rejectWs(e.error ?? new Error("ws connect failed")));
+    });
+
+    ws.addEventListener("message", (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "ak.gameplayBundle.v1") {
+        ws.send(JSON.stringify({
+          type: "ak.bundleLoaded.v1",
+          clientId: "mcp_boot_test_client",
+          messageId: msg.id,
+        }));
+      }
+    });
+
+    ws.send(JSON.stringify({
+      type: "ak.uiReady.v1",
+      clientId: "mcp_boot_test_client",
+      capabilities: { loadGameplayBundle: true },
+    }));
+    // Let the server register the client before pushing.
+    await new Promise((r) => setTimeout(r, 50));
+
+    const pushResult = await harness.callTool("ak_push_to_ui", {
+      bundle: { schema: "agent-kernel/GameplayBundle", schemaVersion: 1, artifacts: [] },
+      targetTab: "design",
+    });
+
+    assert.equal(pushResult.bridge.port, bridgePort);
+    assert.equal(pushResult.bridge.connectedClients, 1);
+    assert.deepEqual(pushResult.bridge.deliveredClientIds, ["mcp_boot_test_client"]);
+    assert.equal(pushResult.bridge.timedOutClientIds.length, 0);
+  } finally {
+    ws?.close();
     await harness.close();
   }
 });
