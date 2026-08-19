@@ -216,9 +216,13 @@ globalThis.__ak_loadGameplayBundle = async (bundle, { targetTab = "design" } = {
     const surface = phaserFrame.getCardBuilderSurface?.();
     const ctrl = surface?.getController?.();
     const cards = ctrl?.getCards?.() || [];
-    const firstActor = cards.find((c) => c.type === "delver" || c.type === "warden");
-    if (firstActor) {
-      ctrl.pullCardToEditor(firstActor.id);
+    // Prefer an actor card (delver/warden) since that's what the gameplay tab acts
+    // on, but fall back to whatever's there — a room/hazard/resource-only bundle
+    // (e.g. from ak_hazard_plan/ak_resource_plan) was ingested above regardless and
+    // deserves to be shown, not silently loaded with nothing visible.
+    const cardToShow = cards.find((c) => c.type === "delver" || c.type === "warden") || cards[0];
+    if (cardToShow) {
+      ctrl.pullCardToEditor(cardToShow.id);
       await surface.render?.();
     }
   }
