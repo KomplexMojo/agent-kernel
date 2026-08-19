@@ -54,6 +54,23 @@
           },
           "permanent": false
         }
+      ],
+      "cardSet": [
+        {
+          "id": "resource_1",
+          "type": "resource",
+          "source": "resource",
+          "count": 1,
+          "affinity": "water",
+          "affinities": [],
+          "expressions": [],
+          "motivations": [],
+          "setupMode": "auto",
+          "vitals": [],
+          "permanenceMode": "consumable",
+          "permanent": false,
+          "flipped": false
+        }
       ]
     }
   },
@@ -83,6 +100,23 @@
             "manaRegen": 5
           },
           "permanent": false
+        }
+      ],
+      "cardSet": [
+        {
+          "id": "resource_1",
+          "type": "resource",
+          "source": "resource",
+          "count": 1,
+          "affinity": "water",
+          "affinities": [],
+          "expressions": [],
+          "motivations": [],
+          "setupMode": "auto",
+          "vitals": [],
+          "permanenceMode": "consumable",
+          "permanent": false,
+          "flipped": false
         }
       ]
     },

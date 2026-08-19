@@ -420,6 +420,47 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
   }
 });
 
+test("mcp hazard-plan and resource-plan tools produce cardSet entries the Design UI can render", async () => {
+  // ak_create's --hazard/--resource always land as "placed" objects baked straight into
+  // the room grid layout, never a plan.hints.cardSet entry — so a hazard/resource authored
+  // via ak_create is real (priced, positioned) but invisible in the UI's Design tab, which
+  // renders from cardSet. hazard-plan/resource-plan already produce cardSet entries via the
+  // same commandKernel.planBuild pipeline room-plan/delver-plan/warden-plan use; they just
+  // never had MCP tool wrappers. This asserts the new wrappers actually produce a card.
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+
+    const hazardOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-hazard-plan-"));
+    const hazardPlanResult = await harness.callTool("ak_hazard_plan", {
+      hazard: ["affinity=fire;expression=push;proximityRadius=2"],
+      runId: "run_mcp_hazard_plan_preview",
+      createdAt: "2026-04-10T00:00:00.000Z",
+      outDir: hazardOutDir,
+    });
+    assert.equal(hazardPlanResult.command, "hazard-plan");
+    assert.equal(existsSync(join(hazardOutDir, "spec.json")), true);
+    const hazardSpec = readJson(join(hazardOutDir, "spec.json"));
+    const hazardCardSet = hazardSpec.plan?.hints?.cardSet || [];
+    assert.equal(hazardCardSet.some((card) => card.type === "hazard"), true);
+
+    const resourceOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-resource-plan-"));
+    const resourcePlanResult = await harness.callTool("ak_resource_plan", {
+      resource: ["permanenceMode=consumable;vital=health;delta=2"],
+      runId: "run_mcp_resource_plan_preview",
+      createdAt: "2026-04-10T00:00:00.000Z",
+      outDir: resourceOutDir,
+    });
+    assert.equal(resourcePlanResult.command, "resource-plan");
+    assert.equal(existsSync(join(resourceOutDir, "spec.json")), true);
+    const resourceSpec = readJson(join(resourceOutDir, "spec.json"));
+    const resourceCardSet = resourceSpec.plan?.hints?.cardSet || [];
+    assert.equal(resourceCardSet.some((card) => card.type === "resource"), true);
+  } finally {
+    await harness.close();
+  }
+});
+
 test("mcp server starts the sandbox bridge on boot so ak_push_to_ui can deliver to a connected UI client", async () => {
   const bridgePort = await getFreePort();
   const harness = new McpServerHarness({ AK_SANDBOX_BRIDGE_PORT: String(bridgePort) });
