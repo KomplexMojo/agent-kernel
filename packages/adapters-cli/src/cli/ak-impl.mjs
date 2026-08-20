@@ -3555,10 +3555,6 @@ function makeAgentCommandRoutes(kind) {
       ];
     case "hazard":
       return [
-        { target: "build_spec_configurator", path: "configurator.inputs.levelGen.placedHazards", legacyFlow: "configurator" },
-      ];
-    case "hazard":
-      return [
         { target: "build_spec_configurator", path: "configurator.inputs.levelGen.hazards", legacyFlow: "hazard-plan" },
       ];
     case "resource":
