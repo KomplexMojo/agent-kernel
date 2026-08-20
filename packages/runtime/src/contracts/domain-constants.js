@@ -231,6 +231,36 @@ export function normalizeCardType(value) {
   return CARD_TYPE_IDS.includes(normalized) ? normalized : "";
 }
 
+/**
+ * DS.1 — which side is this actor on, read from its CONFIGURED record.
+ *
+ * Shared vocabulary, deliberately not persona-owned: the Actor consumes it to
+ * decide hostility, the runtime uses it to enrich the observation, and neither
+ * of them should own what "delver" means — that is what this module is for
+ * (same reasoning as decision D8-V, which moved the pool catalog here).
+ *
+ * ⚠️ **Reads `role` OR `archetype`, because production data only has the
+ * latter.** `role` appears in `contracts/artifacts.ts` solely on BUILD-SPEC
+ * HINT types; a generated `initialState` actor carries `archetype: "delver"`.
+ * Hand-authored test fixtures often set both. Checking only one field would
+ * work in the fixtures and silently fail in every real run — which is exactly
+ * how DS.2's rule came to be correct and unreachable at the same time.
+ *
+ * Returns `""` when no faction can be determined. Callers must treat that as
+ * UNKNOWN, never as a faction — see `rolesAreAllied` in the Actor controller,
+ * where unknown deliberately means "still hostile" rather than "allied".
+ */
+export function resolveActorFaction(configuredActor) {
+  if (!configuredActor || typeof configuredActor !== "object") return "";
+  for (const candidate of [configuredActor.role, configuredActor.archetype]) {
+    // normalizeCardType also folds the "attacker"/"defender" synonyms, so those
+    // resolve here without this function restating the mapping.
+    const normalized = normalizeCardType(candidate);
+    if (normalized === "delver" || normalized === "warden") return normalized;
+  }
+  return "";
+}
+
 export function normalizeRoomCardSize(value) {
   if (typeof value !== "string") return DEFAULT_ROOM_CARD_SIZE;
   const normalized = value.trim().toLowerCase();
