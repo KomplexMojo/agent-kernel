@@ -3023,6 +3023,10 @@ function isLlmBudgetLoopEnabled() {
   return value === "1" || value === "true";
 }
 
+function isRealZ3SolverEnabled() {
+  return process.env.AK_SOLVER_ENGINE === "z3-real";
+}
+
 function isLocalBaseUrl(raw) {
   if (!isNonEmptyString(raw)) {
     return false;
@@ -4436,6 +4440,10 @@ const commandKernel = createCommandKernel({
   createBlockchainAdapter,
   createLlmAdapter,
   createSolverAdapter: async (options) => {
+    if (isRealZ3SolverEnabled()) {
+      const { createRealZ3SolverAdapter } = await import("../adapters/z3/index.js");
+      return createRealZ3SolverAdapter(options);
+    }
     const { createSolverAdapter } = await import("../adapters/solver-z3/index.js");
     return createSolverAdapter(options);
   },
