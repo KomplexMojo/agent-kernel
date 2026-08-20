@@ -105,6 +105,28 @@ function lastActorPosition(frame, actorId) {
   return actor?.position ?? null;
 }
 
+// buildMultiTickBundle()'s tickFrames start at tick 1 — that never matches what
+// ak_run actually produces. Every real run's tick-frames.json opens with a
+// tick:0, phaseDetail:"init" record (empty acceptedActions) before the first
+// real tick's five observe/decide/apply/emit/summarize records — confirmed by
+// inspecting a live ak_create -> ak_run tick-frames.json. buildTickBoardStates
+// groups tickFrames by tick number and pushes ONE playback frame per unique
+// tick found, with no exclusion for tick 0 — so the always-present init
+// record becomes an extra, spurious playback frame identical to frame 0,
+// shifting every subsequent tick's frame one index later than its real tick
+// number. buildMultiTickBundle's fixture happens to omit that init record
+// entirely, which is exactly why this went uncaught.
+function buildMultiTickBundleWithInitRecord() {
+  const bundle = buildMultiTickBundle();
+  return {
+    ...bundle,
+    tickFrames: [
+      { tick: 0, phase: "execute", phaseDetail: "init", acceptedActions: [] },
+      ...bundle.tickFrames,
+    ],
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Baseline: stepForward / stepBack / runToEnd already exist (M1-era controls)
 // ---------------------------------------------------------------------------
@@ -136,6 +158,58 @@ describe("Existing tick playback controls (baseline)", () => {
     const frame = lastCall[1];
     assert.deepEqual(lastActorPosition(frame, "delver_1"), { x: 4, y: 0 },
       "runToEnd should land on the final tick frame (tick 4)");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Real-shape regression: tick-frames.json always opens with a tick:0 init
+// record. buildMultiTickBundle's fixture above omits it, which is why the
+// off-by-one below was invisible to the baseline tests.
+// ---------------------------------------------------------------------------
+
+describe("Tick playback against a real-shaped bundle (tick 0 init record present)", () => {
+  it("stepForward once lands on tick 1's real position, not a duplicate of tick 0", async () => {
+    const root = createFakeRoot();
+    const renderer = createFakeRenderer();
+    const view = wireGameplayView({ root, createRenderer: () => renderer });
+
+    await view.loadRun(buildMultiTickBundleWithInitRecord());
+    view.stepForward();
+
+    const lastCall = renderer.calls.filter((c) => Array.isArray(c) && c[0] === "renderFrame").pop();
+    const frame = lastCall[1];
+    assert.deepEqual(lastActorPosition(frame, "delver_1"), { x: 1, y: 0 },
+      "after one stepForward, delver_1 should already be at tick-1's position — " +
+      "the tick:0 init record must not consume a playback frame of its own");
+  });
+
+  it("runToEnd still lands on the true final tick", async () => {
+    const root = createFakeRoot();
+    const renderer = createFakeRenderer();
+    const view = wireGameplayView({ root, createRenderer: () => renderer });
+
+    await view.loadRun(buildMultiTickBundleWithInitRecord());
+    view.runToEnd();
+
+    const lastCall = renderer.calls.filter((c) => Array.isArray(c) && c[0] === "renderFrame").pop();
+    const frame = lastCall[1];
+    assert.deepEqual(lastActorPosition(frame, "delver_1"), { x: 4, y: 0 },
+      "runToEnd should land on the final tick frame (tick 4) regardless of the init record");
+  });
+
+  it("selecting the actor by its post-first-step position finds it (entityIndex is not one tick stale)", async () => {
+    const root = createFakeRoot();
+    const renderer = createFakeRenderer();
+    const view = wireGameplayView({ root, createRenderer: () => renderer });
+
+    await view.loadRun(buildMultiTickBundleWithInitRecord());
+    view.stepForward();
+
+    const found = view.selectEntity({ x: 1, y: 0 });
+    assert.ok(found, "the actor's tick-1 position should be indexed immediately after one stepForward");
+    assert.equal(found?.id, "delver_1");
+    assert.equal(view.selectEntity({ x: 0, y: 0 }), null,
+      "the stale tick-0 position must no longer resolve to the actor after stepping forward");
   });
 });
 
