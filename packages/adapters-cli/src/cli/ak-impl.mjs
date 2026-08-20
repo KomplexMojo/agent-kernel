@@ -1991,6 +1991,35 @@ function collectPreviewCardSet(spec) {
   );
 }
 
+// Finding #4: `create`/`configure`'s positioned --hazard/--resource land straight in the
+// grid (spec.configurator.inputs.levelGen.hazards / .resources) and never produce a
+// plan.hints.cardSet entry — cards are structurally unpositioned everywhere in this codebase
+// (createDesignCard has no x/y field), so this is intentional, not a gap to close. What was
+// missing was any signal in the response itself: a caller authoring a hazard/resource had no
+// way to know it landed placed-only instead of as a reviewable Design-tab card. Surfaced only
+// when at least one was actually placed, so most create/configure calls stay unaffected.
+function buildPlacedObjectsNote(spec) {
+  const placedHazards = Array.isArray(spec?.configurator?.inputs?.levelGen?.hazards)
+    ? spec.configurator.inputs.levelGen.hazards.length
+    : 0;
+  const placedResources = Array.isArray(spec?.configurator?.inputs?.resources)
+    ? spec.configurator.inputs.resources.length
+    : 0;
+  if (placedHazards === 0 && placedResources === 0) {
+    return undefined;
+  }
+  const cardSet = collectPreviewCardSet(spec);
+  const cardCount = (type) => cardSet.filter((card) => normalizePreviewCardType(card?.type) === type).length;
+  const note = {};
+  if (placedHazards > 0) {
+    note.hazards = { placed: placedHazards, cards: cardCount("hazard") };
+  }
+  if (placedResources > 0) {
+    note.resources = { placed: placedResources, cards: cardCount("resource") };
+  }
+  return note;
+}
+
 function normalizePreviewCardType(type) {
   const normalized = typeof type === "string" ? type.trim().toLowerCase() : "";
   if (normalized === "attacker") return "delver";
@@ -3739,6 +3768,7 @@ async function writeBuildOutputs({
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
   const costSummary = buildCostSummary(buildResult.budgetReceipt, buildResult.spendProposal, outDir);
+  const placedObjects = buildPlacedObjectsNote(spec);
 
   return buildStructuredSuccessSummary({
     command: commandName,
@@ -3748,7 +3778,10 @@ async function writeBuildOutputs({
     initialState: buildResult.initialState,
     simConfig: buildResult.simConfig,
     spec,
-    extra: costSummary !== undefined ? { cost: costSummary } : {},
+    extra: {
+      ...(costSummary !== undefined ? { cost: costSummary } : {}),
+      ...(placedObjects !== undefined ? { placedObjects } : {}),
+    },
   });
 }
 
