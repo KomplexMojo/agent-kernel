@@ -220,6 +220,7 @@ export const CORE_API_KEYS = [
   "getTileActorKindByIndex",
   "getTileActorXByIndex",
   "getTileActorYByIndex",
+  "getVisibilityRadiusAt",
   "grantMotivatedActorAffinity",
   "hasResourceAt",
   "init",
@@ -613,6 +614,7 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.clearAffinityField = world.clearAffinityField as CoreFunction;
   core.getAffinityFieldIntensityAt = world.getAffinityFieldIntensityAt as CoreFunction;
   core.getAffinityFieldStacksAt = world.getAffinityFieldStacksAt as CoreFunction;
+  core.getVisibilityRadiusAt = world.getVisibilityRadiusAt as CoreFunction;
   core.getAffinityFieldExpressionAt = world.getAffinityFieldExpressionAt as CoreFunction;
   core.getAffinityFieldContributionCountAt = world.getAffinityFieldContributionCountAt as CoreFunction;
   core.computeStaticHazardAffinityField = world.computeStaticHazardAffinityField as CoreFunction;
