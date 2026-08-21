@@ -5,7 +5,7 @@ Non-load-bearing knowledge for this project lives in an Obsidian vault outside t
 - **Vault path (Mac):**     `~/Documents/Obsidian/agent-kernel-vault/`
 - **Vault path (Linux):**   `~/agent-kernel-vault/`
 - **Stable symlink:**       `~/vault/` (both machines)
-- **Sync:**                 Syncthing peer-to-peer
+- **Replication:**          none — machine-local since 2026-08-21 (Syncthing removed)
 - **MCP server:**           `@modelcontextprotocol/server-filesystem` pointed at `~/vault`
 
 ## What's in the vault

@@ -19,9 +19,6 @@ SSH_PORT=2222
 LAN_CIDR="192.168.1.0/24"     # trusted home LAN (covers the Mac's WiFi + Ethernet IPs)
 VPN_SOURCE="86.38.64.24"      # your PRIVATE VPN exit IP (the source UFW sees after the port-forward)
 
-# Optional: allow fast direct Syncthing sync on the LAN (Mac <-> box). Leave empty to skip
-# (Syncthing still works via relay/outbound). Set to "$LAN_CIDR" to enable.
-SYNCTHING_LAN=""
 # -----------------------------------------------------------------------------------
 
 # --- safety guards -----------------------------------------------------------------
@@ -53,12 +50,6 @@ ufw allow from "$VPN_SOURCE" to any port "$SSH_PORT" proto tcp comment 'llm ssh 
 #   ufw allow from 192.168.1.152 to any port 2222 proto tcp comment 'llm ssh (mac wifi)'
 #   ufw allow from 192.168.1.164 to any port 2222 proto tcp comment 'llm ssh (mac eth)'
 # (Reserve both on the router and disable the Mac's private WiFi MAC first, or the IPs drift.)
-
-# Optional LAN Syncthing (off unless SYNCTHING_LAN is set above).
-if [ -n "$SYNCTHING_LAN" ]; then
-  ufw allow from "$SYNCTHING_LAN" to any port 22000 proto tcp comment 'syncthing (LAN)'
-  ufw allow from "$SYNCTHING_LAN" to any port 21027 proto udp comment 'syncthing discovery (LAN)'
-fi
 
 ufw --force enable
 echo
