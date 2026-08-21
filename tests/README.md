@@ -1,6 +1,6 @@
 # Tests README
 
-> **Scope:** this file covers the unit and integration test suite only (`pnpm run test`, Vitest). Tests verify code correctness against deterministic fixtures. For LLM tool-call permutation and stress testing, see the benchmark harness at `tools/remote-ollama-control/` and the `run-content-gen` command documented in `CLAUDE.md → Benchmark commands`.
+> **Scope:** this file covers the unit and integration test suite only (`pnpm run test`, Vitest). Tests verify code correctness against deterministic fixtures. LLM tool-call permutation and stress testing is **not** part of this suite and is **not run from a session**: benchmarking left the development process on 2026-08-13 and runs as a standalone nightly offline tool (`AGENTS.md → Benchmark strategy`).
 
 This file is the entry point for **low-complexity test work** delegated to a local model, typically Ollama launched through the Claude Code harness.
 
