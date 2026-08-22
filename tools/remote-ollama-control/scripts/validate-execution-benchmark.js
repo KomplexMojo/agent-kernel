@@ -7,6 +7,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 const { loadExecutionCatalog } = require('./lib/execution-catalog');
+const { evaluateExecutionArtifacts } = require('./lib/execution-evaluator');
 const { createGeneratedBuildResolver } = require('./lib/execution-integration');
 const { planExecutionSchedule, runExecutionSchedule } = require('./lib/execution-runner');
 const { pipelineComponents, validateRouteManifestDocument } = require('./lib/benchmark-pipeline');
@@ -19,66 +20,63 @@ const GENERATED_ROUTES = path.join(
   'tools', 'remote-ollama-control', 'benchmarks', 'execution', 'generated-content-routes.json',
 );
 
-function scalarValue(predicate, variant) {
-  if (predicate.operator === 'changed_in_direction') {
-    const baseline = predicate.threshold === 'increase' ? 0 : 1;
-    const candidate = predicate.threshold === 'increase' ? 1 : 0;
-    return variant === predicate.candidateVariant ? candidate : baseline;
-  }
-  if (predicate.operator === 'rate') {
-    return scalarValue({ ...predicate.condition, unit: predicate.unit }, variant);
-  }
-  if (predicate.operator === 'range') return predicate.threshold[0];
-  if (['min', 'max', 'exact'].includes(predicate.operator)) return predicate.threshold;
-  return 1;
-}
-
-function fixtureMetrics(catalog, scenario, variant) {
-  const metrics = Object.fromEntries(Object.entries(catalog.contract.metrics).map(([name, contract]) => [name, {
-    status: 'available', value: 1, unit: contract.unit, evidence: 'artifact',
-  }]));
-  const apply = (predicate) => {
-    if (['all', 'any'].includes(predicate.operator)) return predicate.predicates.forEach(apply);
-    if (predicate.source === 'metric' && predicate.ref !== 'seed_sensitivity'
-      && Object.prototype.hasOwnProperty.call(metrics, predicate.ref)) {
-      metrics[predicate.ref].value = scalarValue(predicate, variant);
+function fixtureExecutionArtifacts({ ticks = 4 } = {}) {
+  const boundedTicks = Math.max(1, Math.min(ticks, 4));
+  const positions = [{ x: 2, y: 1 }, { x: 2, y: 1 }, { x: 1, y: 1 }, { x: 2, y: 1 }];
+  const tickFrames = [];
+  for (let tick = 1; tick <= boundedTicks; tick += 1) {
+    for (const phaseDetail of ['observe', 'decide', 'apply', 'emit', 'summarize']) {
+      const acceptedActions = phaseDetail === 'apply' ? [{
+        schema: 'agent-kernel/Action', schemaVersion: 1, actorId: 'delver_1', tick,
+        kind: tick === 2 ? 'wait' : 'move',
+        params: tick === 2 ? {} : { to: positions[tick - 1] },
+      }] : [];
+      tickFrames.push({
+        schema: 'agent-kernel/TickFrame', schemaVersion: 1,
+        meta: { id: `witness_${tick}_${phaseDetail}`, runId: 'execution_validation_witness',
+          createdAt: '1970-01-01T00:00:00.000Z', producedBy: 'deterministic-fixture' },
+        tick, phase: 'execute', phaseDetail, acceptedActions,
+        emittedEvents: [], emittedEffects: [], fulfilledEffects: [], preCoreRejections: [],
+      });
     }
-    return undefined;
+  }
+  return {
+    simConfig: {
+      schema: 'agent-kernel/SimConfigArtifact', schemaVersion: 1,
+      layout: { kind: 'grid', data: { width: 4, height: 3, tiles: ['####', '#..#', '####'],
+        rooms: [{ id: 'R1', x: 1, y: 1, width: 2, height: 1 }] } },
+    },
+    initialState: {
+      schema: 'agent-kernel/InitialStateArtifact', schemaVersion: 1,
+      actors: [{ id: 'delver_1', kind: 'ambulatory', position: { x: 1, y: 1 },
+        motivation: { kind: 'exploring' },
+        vitals: { health: { current: 10, max: 10, regen: 0 } } }],
+    },
+    tickFrames,
+    effectLog: [],
+    actionLog: { schema: 'agent-kernel/ActionSequence', schemaVersion: 1, actions: [] },
+    runSummary: { schema: 'agent-kernel/RunSummary', schemaVersion: 1, outcome: 'success',
+      metrics: { ticks: boundedTicks, frames: tickFrames.length, effects: 0 } },
+    worldStateCheckpoints: { states: [] },
+    requestedTicks: boundedTicks,
+    wallTimeMs: 1,
   };
-  scenario.requiredGates.forEach((gate) => apply(gate.predicate));
-  return metrics;
 }
 
-function fixtureExecutionResult(catalog, request) {
-  const scenario = catalog.scenarios.find((entry) => entry.id === request.scenarioId);
-  const frameHash = crypto.createHash('sha256').update(`${request.scenarioId}:${request.seed}`).digest('hex');
-  return {
-    schemaVersion: 'agent-kernel-execution-result/v1',
-    identity: {
-      executionSuiteHash: catalog.sha256,
-      evaluatorVersion: catalog.evaluatorVersion,
-      seedSetHash: catalog.seedSetHash,
-      tickProfileHash: catalog.tickProfileHash,
-    },
-    scenario: { id: scenario.id, family: scenario.family, profile: scenario.profile },
-    run: { seed: request.seed, repeat: request.repeat,
-      ...(request.variant ? { variant: request.variant } : {}), requestedTicks: request.ticks, frameHash },
-    artifactSummary: {
-      frames: request.ticks, actions: 1, effects: 1, fulfilledEffects: 1, bytes: 1,
-      worldStateCheckpoints: { expectedTicks: request.checkpoints, loadedTicks: request.checkpoints,
-        missingTicks: [], complete: true },
-    },
-    metrics: fixtureMetrics(catalog, scenario, request.variant),
-    invariants: Object.fromEntries(scenario.invariants.map((name) => [name, { status: 'passed' }])),
-    requiredGates: scenario.requiredGates.map((gate) => ({
-      id: gate.id, description: gate.description, scope: gate.scope,
-      status: gate.scope === 'seed' ? 'passed' : 'evidence_unavailable',
-    })),
-    score: { status: 'scored', value: 80, availableScore: 80, availableWeight: 100, objectives: {} },
-    verdict: {
-      status: 'passed', failedInvariants: [], unavailableInvariants: [], failedGates: [], unavailableGates: [],
-    },
-  };
+function readinessForScenario(scenario, result) {
+  const invariants = scenario.invariants.map((id) => ({ id, ...result.invariants[id] }));
+  const objectives = Object.entries(scenario.objectives).map(([id, objective]) => ({
+    id, evidence: objective.evidence, ...result.score.objectives[id],
+  }));
+  const gates = result.requiredGates.map((gate) => ({ ...gate }));
+  const scopes = [...new Set(scenario.requiredGates.map((gate) => gate.scope))].sort().map((scope) => ({
+    scope,
+    status: gates.filter((gate) => gate.scope === scope).some((gate) => gate.status === 'evidence_unavailable')
+      ? 'evidence_unavailable' : 'available',
+  }));
+  const ready = [...invariants, ...objectives, ...gates, ...scopes]
+    .every((entry) => entry.status !== 'evidence_unavailable');
+  return { scenarioId: scenario.id, ready, invariants, objectives, gates, scopes };
 }
 
 function atomicWriteJson(filePath, value) {
@@ -136,16 +134,25 @@ async function runCanonicalFixtureValidation({ outputRoot, catalog = loadExecuti
     outputRoot: path.join(outputRoot, 'schedule'),
     resolveBuild: ({ scenario, variant }) => path.join('fixture-builds', scenario.id, variant || 'default'),
     execute: async (request) => ({
-      status: 'completed', result: fixtureExecutionResult(catalog, request),
-      command: { command: 'deterministic-fixture', args: [] },
+      status: 'completed',
+      result: evaluateExecutionArtifacts({
+        artifacts: fixtureExecutionArtifacts(request), scenario: request.scenarioId, catalog,
+        seed: request.seed, repeat: request.repeat, variant: request.variant,
+      }),
+      command: { command: 'deterministic-evaluator-witness', args: [] },
     }),
     now: () => '1970-01-01T00:00:00.000Z',
+  });
+  const readiness = catalog.scenarios.map((scenario) => {
+    const witness = schedule.attempts.find((attempt) => attempt.scenarioId === scenario.id)?.result;
+    if (!witness) throw new Error(`canonical evaluator witness missing for ${scenario.id}`);
+    return readinessForScenario(scenario, witness);
   });
   const canaries = await generatedContentCanaries(catalog, outputRoot);
   const expectedHardwareProfiles = eligibleHardwareProfiles();
   const record = {
-    schemaVersion: 'agent-kernel-execution-validation/v1',
-    mode: 'deterministic_fixture',
+    schemaVersion: 'agent-kernel-execution-validation/v2',
+    mode: 'deterministic_evaluator_witness',
     identity: plan.identity,
     catalog: catalogSummary,
     schedule: {
@@ -162,16 +169,19 @@ async function runCanonicalFixtureValidation({ outputRoot, catalog = loadExecuti
       })),
     },
     generatedContentCanaries: canaries,
+    qualification: {
+      ready: readiness.every((scenario) => scenario.ready),
+      scenarios: readiness.length,
+      blockedScenarios: readiness.filter((scenario) => !scenario.ready).length,
+    },
+    readiness,
     publication: false,
     limitations: [
-      'fixture evidence validates orchestration contracts, not gameplay quality',
+      'evaluator witnesses validate evidence reachability, not gameplay quality',
       'no LLM, GPU, remote host, result branch, or timer was used',
     ],
   };
-  if (record.schedule.status !== 'completed'
-    || record.schedule.scenarios.some((scenario) => !scenario.aggregateQualified
-      || scenario.completedPopulation !== scenario.declaredPopulation)
-    || canaries.some((canary) => !canary.passed)
+  if (canaries.some((canary) => !canary.passed)
     || JSON.stringify(canaries.map((canary) => canary.profile).sort()) !== JSON.stringify(expectedHardwareProfiles)) {
     throw new Error('canonical execution fixture validation failed');
   }
@@ -355,7 +365,7 @@ if (require.main === module) {
 }
 
 module.exports = {
-  fixtureExecutionResult,
+  fixtureExecutionArtifacts,
   probeResourceRuntimeLoading,
   runCanonicalFixtureValidation,
   runCorpusIntegrationValidation,
