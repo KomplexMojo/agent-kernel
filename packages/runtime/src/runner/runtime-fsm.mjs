@@ -20,6 +20,7 @@ import {
   renderBaseTiles,
   ValidationError,
 } from "../../../core-ts/src/index.ts";
+import { scopeObservation } from "../../../core-ts/src/state/visibility.ts";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
@@ -863,6 +864,40 @@ export function createFsmRuntime({
     }
   }
 
+  /**
+   * DS.4 — narrow one observation to what a single actor can perceive.
+   *
+   * Glue holds no opinion about perception: it looks up a position it already
+   * has, asks CORE how far that tile can see (`getVisibilityRadiusAt`, which
+   * reads the affinity field the Moderator already recomputes each tick), and
+   * asks CORE to do the narrowing (`scopeObservation`). Both the radius rule and
+   * the transform live in `core-ts/src/state/visibility.ts`; this function only
+   * sequences them, which is the line the enforcement checklist draws.
+   *
+   * Returns the observation UNCHANGED when the actor cannot be located or the
+   * core predates the capability — the same shape of capability check
+   * `canReadObservation` already makes. Unchanged rather than emptied on
+   * purpose: an emptied observation silently blinds an actor, and a blinded
+   * actor still acts, it just acts on nothing.
+   */
+  function scopeObservationForActor(observation, observingActorId) {
+    if (!observation || !observingActorId) return observation;
+    if (typeof core?.getVisibilityRadiusAt !== "function") return observation;
+    if (!Array.isArray(observation.actors)) return observation;
+
+    const self = observation.actors.find((entry) => entry?.id === observingActorId);
+    const position = self?.position;
+    if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) {
+      return observation;
+    }
+
+    return scopeObservation(
+      observation,
+      observingActorId,
+      core.getVisibilityRadiusAt(position.x, position.y),
+    );
+  }
+
   function buildPersonaPayloads({ phase, observation, phaseInputs = {}, actions = [], emittedEffects = [], fulfilledEffects = [], actorId, reservedTargets } = {}) {
     const overrides = normalizePersonaPayloadsMap(phaseInputs.personaPayloads || phaseInputs.inputs);
     const actorOverrides = overrides.actor || {};
@@ -898,10 +933,24 @@ export function createFsmRuntime({
       intentRef,
     };
 
+    // DS.4 — the Actor decides from what it can SEE.
+    //
+    // Scoped HERE, at the one place `actorPayload` is constructed, rather than at
+    // the two phases that call this function. That is deliberate and it is what
+    // closes the OBSERVE/DECIDE asymmetry: the DECIDE phase loops per actor and
+    // passes an `actorId`, while the OBSERVE phase passes none and falls back to
+    // `primaryActorId`. Scoping at the call sites would have covered the DECIDE
+    // loop and missed actor 0 — leaving perception dependent on an actor's index
+    // in the roster. Both paths flow through this line instead.
+    //
+    // Only the ACTOR's payload is narrowed. The annotator and every other persona
+    // keep the full observation below: this is one actor's perception, not a
+    // truncation of telemetry or of tick control's view of the board.
+    const observingActorId = actorId || primaryActorId;
     const actorPayload = {
       ...base,
-      actorId: actorId || primaryActorId,
-      observation,
+      actorId: observingActorId,
+      observation: scopeObservationForActor(observation, observingActorId),
       baseTiles,
       ...(Array.isArray(reservedTargets) && reservedTargets.length > 0 ? { reservedTargets } : {}),
       ...actorOverrides,
