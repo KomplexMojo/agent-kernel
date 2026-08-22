@@ -171,7 +171,66 @@ pinned run. Never commit raw prompts, model responses, generated builds, executi
 host paths, addresses, or secrets. A failed attempt may replace `latest.json`; only a qualifying completed
 run may replace `latest-success.json`. Push without force and retain a rejected push as local evidence.
 
-## 6. Operator gates and recovery
+## 6. First standalone deployment (operator)
+
+Run these on the Ubuntu benchmark machine. Nothing here starts GPU work: `AK_BENCHMARK_DRY_RUN=1`
+ships enabled and a real pipeline needs a second, separate gate.
+
+**1. Install (idempotent; safe to re-run after a source update).**
+
+```bash
+./scripts/install-local-ubuntu.sh
+```
+
+It deploys into `$HOME`, links commands into `$HOME/bin`, copies
+`benchmark-agent.env.example` to `~/.config/agent-kernel-benchmark/benchmark-agent.env` if that file does
+not already exist, and installs the user units **without enabling them**. An existing config is never
+overwritten, so operator edits survive a reinstall.
+
+**2. Read the identities out of the source checkout.**
+
+```bash
+pnpm --dir tools/remote-ollama-control run identity -- --env
+```
+
+This prints the three `AK_BENCHMARK_*_HASH` lines ready to paste into the config. They are pinned by
+hand rather than derived at run time on purpose: a hash that silently follows the source it describes
+cannot detect drift. Re-read them whenever the content catalog, matrix, or execution suite changes —
+the agent refuses to start on a mismatch rather than evaluating the wrong thing.
+
+Drop `--env` for the full identity, including `evaluatorVersion`, `seedSetHash`, and `tickProfileHash`.
+
+**3. Fill in the config.** Set `AK_BENCHMARK_SOURCE_REMOTE`, the three hashes, and — only when
+publication is wanted — `AK_BENCHMARK_RESULTS_REMOTE`. Every required key ships commented out, so an
+unedited config fails with the agent naming what is missing rather than with a shell error.
+
+**4. Confirm the dry run before anything else.**
+
+```bash
+agent-kernel-benchmark --dry-run
+```
+
+A correct result names the exact source commit, the immutable run key, the trigger modes, all three
+identities, and `"stateMutation": false`:
+
+```json
+{"status":"dry_run","sourceCommit":"<sha>","runKey":"<sha256>",
+ "trigger":{"required":true,"reasons":["initial_evaluation"],
+            "modes":{"authoring":true,"runtimeExecution":true,"generatedExecution":true}},
+ "identity":{"scenarioSetHash":"<sha256>","matrixHash":"<sha256>","executionSuiteHash":"<sha256>"},
+ "stateMutation":false}
+```
+
+Check the identities against step 2 and the commit against the source ref. A dry run writes no state,
+contacts no model, and cannot publish.
+
+**5. Authorize real work, one gate at a time.** Only after step 4 reads correctly:
+set `AK_BENCHMARK_LIVE=1` for a real pipeline; enable the timer with
+`systemctl --user enable --now agent-kernel-benchmark.timer` for unattended operation; and set
+`AK_BENCHMARK_RESULTS_REMOTE` for publication. These are three independent decisions — none implies the
+others, and a development session performs none of them.
+
+## 7. Operator gates and recovery
 
 - Keep `AK_BENCHMARK_DRY_RUN=1` until the operator has reviewed source pinning, trigger modes, profile
   isolation, model availability, disk capacity, and the destination branch.
