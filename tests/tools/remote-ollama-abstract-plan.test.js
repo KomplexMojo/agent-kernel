@@ -19,9 +19,9 @@ const {
 const ROOT = resolve(__dirname, "../..");
 const REMOTE_CONTROL_ROOT = join(ROOT, "tools/remote-ollama-control");
 const MAC_SCRIPT = join(REMOTE_CONTROL_ROOT, "scripts/remote-ollama-mac.js");
-const A4_EVIDENCE_ROOT = join(
-  REMOTE_CONTROL_ROOT,
-  "results/2026-08-15T18-00-00-000Z-a4-paired-qualification",
+const A4_FIXTURE_ROOT = join(
+  ROOT,
+  "tests/fixtures/benchmarks/remote-ollama-a4-paired-qualification",
 );
 
 test("abstract planning catalog exposes a domain-neutral pilot with hidden mappings", () => {
@@ -248,8 +248,8 @@ test("paired comparison metadata requires the same source catalog and model sett
 });
 
 test("A4 compact evidence preserves its source pin, complete pairs, and null canonical minimum", () => {
-  const result = JSON.parse(readFileSync(join(A4_EVIDENCE_ROOT, "result.json"), "utf8"));
-  const summary = readFileSync(join(A4_EVIDENCE_ROOT, "summary.md"), "utf8");
+  const result = JSON.parse(readFileSync(join(A4_FIXTURE_ROOT, "result.json"), "utf8"));
+  const summary = readFileSync(join(A4_FIXTURE_ROOT, "summary.md"), "utf8");
 
   assert.equal(result.schemaVersion, "agent-kernel-a4-paired-qualification/v1");
   assert.deepEqual(result.source, {
