@@ -391,10 +391,10 @@ const CATALOG = [
   },
   {
     schema: WORLD_STATE_SCHEMA,
-    schemaVersion: 1,
+    schemaVersion: 2,
     category: SCHEMA_CATEGORIES.OBSERVABILITY,
-    description: "End-of-run world state: actor positions, vitals and affinity grants, and hazard state.",
-    fields: ["meta", "simConfigRef", "tick", "dimensions", "actors", "hazards"],
+    description: "World state at a tick: actor positions, vitals and affinity grants, hazard state, and resources still on the map.",
+    fields: ["meta", "simConfigRef", "tick", "dimensions", "actors", "hazards", "resources"],
   },
   {
     schema: NARRATIVE_ARTIFACT_SCHEMA,

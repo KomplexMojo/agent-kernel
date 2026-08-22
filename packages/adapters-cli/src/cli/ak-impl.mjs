@@ -186,7 +186,7 @@ Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
   --out           Output file path (command-specific default when omitted)
   --ticks         Number of ticks for run/replay (default: ${DEFAULT_TICKS})
-  --world-state-checkpoints  Comma-separated ticks to persist as WorldStateArtifact v1 files (run only)
+  --world-state-checkpoints  Comma-separated ticks to persist as WorldStateArtifact v2 files (run only)
   --seed          Seed for init (default: 0)
   --solver-fixture Fixture path for solve command (no network)
   --actor         Actor spec: id,x,y,kind (kind: motivated/ambulatory/stationary)

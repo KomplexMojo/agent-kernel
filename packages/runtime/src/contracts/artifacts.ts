@@ -2182,6 +2182,8 @@ export interface WorldStateHazardV1 {
   durability: { current: number; max: number; regen: number };
 }
 
+/** Superseded by V2, which adds `resources`. Retained: artifacts written before
+ * that change are still valid v1 documents and must stay readable. */
 export interface WorldStateArtifactV1 {
   schema: typeof WORLD_STATE_SCHEMA;
   schemaVersion: 1;
@@ -2194,7 +2196,59 @@ export interface WorldStateArtifactV1 {
   hazards: WorldStateHazardV1[];
 }
 
-export type WorldStateArtifact = WorldStateArtifactV1;
+/**
+ * A resource still lying on the map at the moment of the snapshot.
+ *
+ * Collection is destructive: an entered cell's resource is removed. So a resource
+ * present in one snapshot and absent from the next was taken in between, and that
+ * difference is the only public evidence that a pickup happened exactly once.
+ * Both payloads are optional and independent — a cell may carry a vital grant, an
+ * affinity grant, or both — and `null` means the resource does not carry that
+ * half, not that it was unreadable.
+ */
+export interface WorldStateResourceV2 {
+  position: { x: number; y: number };
+  vital: {
+    /** VitalKind code: 0 health, 1 mana, 2 stamina. */
+    kind: number;
+    delta: number;
+    /** ResourceMode code: 0 raises the current vital, 1/2 raise its max. */
+    mode: number;
+    /** Vital regen handed over on top of the delta, whatever the mode. */
+    regen: number;
+  } | null;
+  affinity: {
+    kind: number;
+    expression: number;
+    stacks: number;
+    mana: number;
+    /** > 0 makes the granted affinity permanent. */
+    manaRegen: number;
+  } | null;
+}
+
+/**
+ * V1 carried actors and hazards only. A snapshot could therefore not distinguish
+ * a resource still on the map from one already collected, which left every
+ * resource metric in the execution contract unevidenceable. `resources` is
+ * required rather than optional precisely so that distinction survives: an
+ * absent field means "this artifact predates resources", not "this world has
+ * none", and a consumer must be able to tell those apart.
+ */
+export interface WorldStateArtifactV2 {
+  schema: typeof WORLD_STATE_SCHEMA;
+  schemaVersion: 2;
+  meta: ArtifactMeta;
+  simConfigRef?: ArtifactRef;
+  /** The core tick this snapshot was taken at. */
+  tick: number;
+  dimensions: { width: number; height: number };
+  actors: WorldStateActorV1[];
+  hazards: WorldStateHazardV1[];
+  resources: WorldStateResourceV2[];
+}
+
+export type WorldStateArtifact = WorldStateArtifactV1 | WorldStateArtifactV2;
 
 /**
  * Z.1 — a constraint problem posed to a solver, and the normalized answer.

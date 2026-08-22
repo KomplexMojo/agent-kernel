@@ -139,6 +139,278 @@ function statsActorActivity(actors, actions, requestedTicks) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Resource metrics, derived from the world-state checkpoint series
+//
+// Collection is destructive: entering a cell removes its resource. So a resource
+// present in one checkpoint and absent from the next was taken in between, and
+// the collecting actor's vitals and grants in those two snapshots say what the
+// pickup did. Everything below is that one observation, asked nine ways.
+//
+// Each metric reports evidence_unavailable rather than a default when the run
+// contains nothing to observe — a scenario where no grant ever expired cannot
+// demonstrate grant isolation, and scoring it 1 would invent a pass out of an
+// absence.
+// ---------------------------------------------------------------------------
+
+const RESOURCE_METRIC_NAMES = Object.freeze([
+  'single_consumption', 'pickup_apply_correctness', 'persistent_vital_grant', 'recovery_curve',
+  'affinity_lifecycle', 'affinity_activity', 'grant_isolation', 'actor_kind_parity', 'persistent_stacking',
+]);
+const VITAL_NAMES = Object.freeze(['health', 'mana', 'stamina', 'durability']);
+
+function cellKey(resource) {
+  return `${resource?.position?.x},${resource?.position?.y}`;
+}
+
+function grantKey(grant) {
+  return `${grant?.kind}:${grant?.expression}`;
+}
+
+function grantsByKey(actor) {
+  const totals = new Map();
+  for (const grant of Array.isArray(actor?.affinities) ? actor.affinities : []) {
+    const key = grantKey(grant);
+    const existing = totals.get(key) || { stacks: 0, mana: 0, count: 0 };
+    totals.set(key, {
+      stacks: existing.stacks + (Number.isFinite(grant.stacks) ? grant.stacks : 0),
+      mana: existing.mana + (Number.isFinite(grant.mana) ? grant.mana : 0),
+      count: existing.count + 1,
+    });
+  }
+  return totals;
+}
+
+function vitalOf(actor, kind) {
+  return actor?.vitals?.[VITAL_NAMES[kind]] || null;
+}
+
+function actorIndex(state) {
+  return new Map((Array.isArray(state?.actors) ? state.actors : []).map((actor) => [actor.id, actor]));
+}
+
+function vitalsWithinBounds(states) {
+  return states.every((state) => (Array.isArray(state.actors) ? state.actors : []).every((actor) => VITAL_NAMES
+    .every((name) => {
+      const vital = actor?.vitals?.[name];
+      if (!isObject(vital)) return true;
+      return [vital.current, vital.max, vital.regen].every(Number.isFinite)
+        && vital.current >= 0 && vital.current <= vital.max;
+    })));
+}
+
+/** Index at which a resource first went missing, or -1 if it never did. */
+function consumptionIndex(ordered, key) {
+  for (let index = 1; index < ordered.length; index += 1) {
+    if (!ordered[index].resources.some((resource) => cellKey(resource) === key)) return index;
+  }
+  return -1;
+}
+
+function extractResourceMetrics(artifacts, units) {
+  const nothing = (reason) => Object.fromEntries(
+    RESOURCE_METRIC_NAMES.map((name) => [name, unavailable(units[name], reason)]),
+  );
+  const states = Array.isArray(artifacts.worldStateCheckpoints?.states)
+    ? artifacts.worldStateCheckpoints.states : [];
+  if (states.length < 2) {
+    return nothing('two or more world-state checkpoints are required to observe a collection');
+  }
+  if (states.some((state) => !Array.isArray(state.resources))) {
+    return nothing('a checkpoint carries no resource list; it predates WorldStateArtifact v2');
+  }
+
+  const ordered = [...states].sort((left, right) => left.tick - right.tick);
+  const first = ordered[0];
+  const last = ordered[ordered.length - 1];
+  const results = {};
+  const initial = first.resources;
+  const bounded = vitalsWithinBounds(ordered);
+
+  // --- single_consumption -------------------------------------------------
+  if (initial.length === 0) {
+    results.single_consumption = unavailable(units.single_consumption,
+      'no resource was on the map at the first checkpoint');
+  } else {
+    const clean = initial.filter((resource) => {
+      const key = cellKey(resource);
+      const gone = consumptionIndex(ordered, key);
+      if (gone < 0) return false;
+      // Taken once means taken once: a cell that fills back in after being
+      // emptied is a second consumption waiting to happen.
+      return ordered.slice(gone).every((state) => !state.resources.some((entry) => cellKey(entry) === key));
+    });
+    results.single_consumption = metric(clean.length / initial.length, units.single_consumption);
+  }
+
+  // --- consumption events, shared by the payload metrics -------------------
+  const events = initial.map((resource) => {
+    const index = consumptionIndex(ordered, cellKey(resource));
+    return index < 0 ? null : { resource, before: ordered[index - 1], after: ordered[index] };
+  }).filter(Boolean);
+
+  const vitalEvents = events.filter((event) => isObject(event.resource.vital));
+  const affinityEvents = events.filter((event) => isObject(event.resource.affinity));
+
+  // --- pickup_apply_correctness -------------------------------------------
+  if (vitalEvents.length === 0) {
+    results.pickup_apply_correctness = unavailable(units.pickup_apply_correctness,
+      'no vital-carrying resource was collected');
+  } else {
+    const applied = vitalEvents.filter(({ resource, before, after }) => {
+      const { kind, delta, mode, regen } = resource.vital;
+      const beforeActors = actorIndex(before);
+      return (Array.isArray(after.actors) ? after.actors : []).some((actor) => {
+        const now = vitalOf(actor, kind);
+        const then = vitalOf(beforeActors.get(actor.id), kind);
+        if (!isObject(now) || !isObject(then)) return false;
+        // mode 0 raises the current vital; 1 and 2 raise its max. A grant that
+        // moved the wrong one applied something other than what was authored.
+        if (delta !== 0) {
+          const observed = mode === 0 ? now.current - then.current : now.max - then.max;
+          return Math.sign(observed) === Math.sign(delta);
+        }
+        return regen > 0 && now.regen > then.regen;
+      });
+    });
+    results.pickup_apply_correctness = metric(
+      bounded ? applied.length / vitalEvents.length : 0,
+      units.pickup_apply_correctness,
+    );
+  }
+
+  // --- persistent_vital_grant ---------------------------------------------
+  const persistentEvents = vitalEvents.filter(({ resource }) => resource.vital.mode !== 0 || resource.vital.regen > 0);
+  if (persistentEvents.length === 0) {
+    results.persistent_vital_grant = unavailable(units.persistent_vital_grant,
+      'no persistent vital grant was collected');
+  } else {
+    const firstActors = actorIndex(first);
+    const held = persistentEvents.filter(({ resource }) => {
+      const { kind, mode, regen } = resource.vital;
+      // Measured against the LAST checkpoint, not the one after pickup: the gate
+      // is that the increase still stands at the end of the run.
+      return (Array.isArray(last.actors) ? last.actors : []).some((actor) => {
+        const end = vitalOf(actor, kind);
+        const start = vitalOf(firstActors.get(actor.id), kind);
+        if (!isObject(end) || !isObject(start)) return false;
+        return (mode !== 0 && end.max > start.max) || (regen > 0 && end.regen > start.regen);
+      });
+    });
+    results.persistent_vital_grant = metric(held.length / persistentEvents.length, units.persistent_vital_grant);
+  }
+
+  // --- recovery_curve ------------------------------------------------------
+  let recoveries = 0;
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = actorIndex(ordered[index - 1]);
+    const climbed = (Array.isArray(ordered[index].actors) ? ordered[index].actors : []).some((actor) => {
+      const now = vitalOf(actor, 0);
+      const then = vitalOf(previous.get(actor.id), 0);
+      return isObject(now) && isObject(then) && now.current > then.current && now.current <= now.max;
+    });
+    if (climbed) recoveries += 1;
+  }
+  results.recovery_curve = metric(recoveries, units.recovery_curve);
+
+  // --- affinity_lifecycle --------------------------------------------------
+  if (affinityEvents.length === 0) {
+    results.affinity_lifecycle = unavailable(units.affinity_lifecycle, 'no affinity resource was collected');
+  } else {
+    const arrived = affinityEvents.filter(({ resource, after }) => (Array.isArray(after.actors) ? after.actors : [])
+      .some((actor) => (Array.isArray(actor.affinities) ? actor.affinities : []).some((grant) => grant.kind === resource.affinity.kind
+        && grant.expression === resource.affinity.expression
+        && grant.stacks === resource.affinity.stacks)));
+    results.affinity_lifecycle = metric(arrived.length / affinityEvents.length, units.affinity_lifecycle);
+  }
+
+  // --- persistent_stacking -------------------------------------------------
+  if (affinityEvents.length === 0) {
+    results.persistent_stacking = unavailable(units.persistent_stacking, 'no affinity resource was collected');
+  } else {
+    const additive = affinityEvents.filter(({ resource, before, after }) => {
+      const key = grantKey(resource.affinity);
+      const beforeActors = actorIndex(before);
+      return (Array.isArray(after.actors) ? after.actors : []).some((actor) => {
+        const now = grantsByKey(actor).get(key)?.stacks || 0;
+        const then = grantsByKey(beforeActors.get(actor.id)).get(key)?.stacks || 0;
+        return now - then === resource.affinity.stacks;
+      });
+    });
+    results.persistent_stacking = metric(additive.length / affinityEvents.length, units.persistent_stacking);
+  }
+
+  // --- affinity_activity ---------------------------------------------------
+  let spends = 0;
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = actorIndex(ordered[index - 1]);
+    const spent = (Array.isArray(ordered[index].actors) ? ordered[index].actors : []).some((actor) => {
+      const now = grantsByKey(actor);
+      const then = grantsByKey(previous.get(actor.id));
+      return [...then.entries()].some(([key, value]) => (now.get(key)?.mana ?? 0) < value.mana);
+    });
+    if (spent) spends += 1;
+  }
+  results.affinity_activity = metric(spends, units.affinity_activity);
+
+  // --- grant_isolation -----------------------------------------------------
+  const expiries = [];
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = actorIndex(ordered[index - 1]);
+    for (const actor of Array.isArray(ordered[index].actors) ? ordered[index].actors : []) {
+      const before = previous.get(actor.id);
+      if (!before) continue;
+      const now = grantsByKey(actor);
+      const then = grantsByKey(before);
+      for (const [key] of then) {
+        if (now.has(key)) continue;
+        const grant = before.affinities.find((entry) => grantKey(entry) === key);
+        const exhausted = (grant?.mana ?? 0) <= 0 && (grant?.manaRegen ?? 0) <= 0;
+        const othersSurvived = [...then.keys()].filter((other) => other !== key).every((other) => now.has(other));
+        expiries.push(exhausted && othersSurvived);
+      }
+    }
+  }
+  results.grant_isolation = expiries.length === 0
+    ? unavailable(units.grant_isolation, 'no affinity grant expired, so isolation cannot be observed')
+    : metric(expiries.filter(Boolean).length / expiries.length, units.grant_isolation);
+
+  // --- actor_kind_parity ---------------------------------------------------
+  const declared = Array.isArray(artifacts.initialState?.actors) ? artifacts.initialState.actors : [];
+  const kindById = new Map(declared.map((actor) => [actor.id, actor.archetype || actor.role || 'unknown']));
+  const kinds = new Set(kindById.values());
+  if (kinds.size === 0) {
+    results.actor_kind_parity = unavailable(units.actor_kind_parity, 'no actor kinds are declared in the initial state');
+  } else {
+    // Acquisition is measured inside a consumption window — between the
+    // checkpoint before a resource vanished and the one after — rather than
+    // across the whole run. Over a whole run regeneration alone raises a current
+    // vital, so a run-wide comparison credits actors that collected nothing.
+    const acquired = new Set();
+    for (const { before, after } of events) {
+      const beforeActors = actorIndex(before);
+      for (const actor of Array.isArray(after.actors) ? after.actors : []) {
+        const start = beforeActors.get(actor.id);
+        if (!start) continue;
+        const endStacks = [...grantsByKey(actor).values()].reduce((sum, entry) => sum + entry.stacks, 0);
+        const startStacks = [...grantsByKey(start).values()].reduce((sum, entry) => sum + entry.stacks, 0);
+        const vitalRose = VITAL_NAMES.some((name, kind) => {
+          const end = vitalOf(actor, kind);
+          const begin = vitalOf(start, kind);
+          return isObject(end) && isObject(begin)
+            && (end.current > begin.current || end.max > begin.max || end.regen > begin.regen);
+        });
+        if (endStacks > startStacks || vitalRose) acquired.add(kindById.get(actor.id) || 'unknown');
+      }
+    }
+    results.actor_kind_parity = events.length === 0
+      ? unavailable(units.actor_kind_parity, 'no resource was collected, so no actor kind can be shown to consume')
+      : metric(acquired.size / kinds.size, units.actor_kind_parity);
+  }
+
+  return results;
+}
+
 function extractExecutionMetrics(artifacts, contract) {
   const stats = artifactStats(artifacts);
   const units = Object.fromEntries(Object.entries(contract.metrics).map(([name, value]) => [name, value.unit]));
@@ -200,6 +472,7 @@ function extractExecutionMetrics(artifacts, contract) {
     liveness: metric(stats.requestedTicks ? stats.activeTicks.size / stats.requestedTicks : NaN, units.liveness),
     spatial_progress: metric(stats.walkable ? stats.moveKeys.size / stats.walkable : NaN, units.spatial_progress),
   });
+  Object.assign(results, extractResourceMetrics(artifacts, units));
   return { metrics: results, stats };
 }
 
@@ -649,9 +922,14 @@ function loadWorldStateCheckpoints(runDir, expectedTicks = []) {
     } catch (error) {
       throw new Error(`invalid world-state checkpoint JSON ${filePath}: ${error.message}`);
     }
-    if (!isObject(state) || state.schema !== 'agent-kernel/WorldStateArtifact' || state.schemaVersion !== 1
+    // v2 required, not merely preferred: the resource metrics below read
+    // `state.resources`, and a v1 checkpoint would make every one of them look
+    // like a world containing no resources rather than a snapshot that cannot
+    // answer the question.
+    if (!isObject(state) || state.schema !== 'agent-kernel/WorldStateArtifact' || state.schemaVersion !== 2
       || !isObject(state.meta) || !isObject(state.dimensions)
-      || !Array.isArray(state.actors) || !Array.isArray(state.hazards)) {
+      || !Array.isArray(state.actors) || !Array.isArray(state.hazards)
+      || !Array.isArray(state.resources)) {
       throw new Error(`invalid WorldStateArtifact checkpoint: ${filePath}`);
     }
     if (state.tick !== expectedTick) {
