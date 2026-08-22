@@ -16,19 +16,35 @@ async function executeContentGenMatrix({
   runAttempt,
   onRecord = () => {},
   beforeConfiguration = async () => {},
-  thresholds
+  thresholds,
+  // Attempts already on disk from an interrupted run of the SAME catalog and matrix. They are not
+  // re-run, they are not re-announced through onRecord (they are already in runs.jsonl), and they
+  // are returned with the new ones so aggregation still sees a whole run. Early stop reads them
+  // too: a configuration that was already doomed before the interruption must not buy a fresh pass.
+  priorRecords = []
 }) {
   const records = [];
+  const completed = new Set(priorRecords.map((record) => record.runId).filter(Boolean));
+  const priorByConfiguration = new Map();
+  for (const record of priorRecords) {
+    const bucket = priorByConfiguration.get(record.configurationId) || [];
+    bucket.push(record);
+    priorByConfiguration.set(record.configurationId, bucket);
+    records.push(record);
+  }
   const maximumPasses = matrix.repeatPolicy.maximumPasses;
   for (const configuration of matrix.configurations) {
+    const resumed = priorByConfiguration.get(configuration.configurationId) || [];
+    if (resumed.length >= scenarios.length * maximumPasses) continue;
     await beforeConfiguration(configuration);
-    const configurationRecords = [];
+    const configurationRecords = [...resumed];
     for (let repeat = 1; repeat <= maximumPasses; repeat += 1) {
       for (const scenario of scenarios) {
         const runId = [
           'cg', configuration.configurationId,
           `s${String(scenario.index).padStart(3, '0')}`, `r${repeat}`
         ].join('--');
+        if (completed.has(runId)) continue;
         const attempt = await runAttempt({ configuration, scenario, repeat, runId });
         const actual = attempt.executionOutcome || (attempt.execSucceeded ? 'success' : 'execution_failed');
         const record = {
