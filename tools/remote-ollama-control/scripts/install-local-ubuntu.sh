@@ -2,7 +2,11 @@
 set -Eeuo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ENV_FILE="$ROOT_DIR/config/llm-host.env"
+# Overridable so a test can run the installer without inheriting the operator's
+# own config. The LLM_REMOTE_* paths in that file describe the Ubuntu box, and
+# they are used below as local install targets — correct on the box, wrong
+# anywhere else.
+ENV_FILE="${REMOTE_OLLAMA_ENV_FILE:-$ROOT_DIR/config/llm-host.env}"
 
 INSTALL_SYSTEM="${REMOTE_OLLAMA_INSTALL_SYSTEM:-$(uname -s)}"
 if [ "$INSTALL_SYSTEM" != "Linux" ]; then

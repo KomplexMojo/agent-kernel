@@ -20,6 +20,10 @@ function installFixture(home) {
       XDG_CONFIG_HOME: join(home, ".config"),
       REMOTE_OLLAMA_INSTALL_SYSTEM: "Linux",
       REMOTE_OLLAMA_SKIP_SYSTEMCTL: "1",
+      // The operator's real llm-host.env points LLM_REMOTE_*_DIR at paths on the
+      // Ubuntu box, and the installer uses them as local install targets. Without
+      // this the fixture installs to /home/darren instead of its temp HOME.
+      REMOTE_OLLAMA_ENV_FILE: join(home, "absent-llm-host.env"),
     },
   });
 }
@@ -54,6 +58,35 @@ test("local Ubuntu install is idempotent and deploys unprivileged user artifacts
   installFixture(home);
   assert.match(readFileSync(config, "utf8"), /AK_OPERATOR_MARKER=preserve/);
   assert.doesNotMatch(readFileSync(config, "utf8"), /(?:TOKEN|PASSWORD|PRIVATE_KEY)=\S+/);
+});
+
+// The installer sources llm-host.env, whose LLM_REMOTE_*_DIR values name paths on
+// the Ubuntu box and are used here as LOCAL install targets. On the box that is
+// correct; anywhere else it installs outside the caller's HOME. Two suite failures
+// came from exactly that, so the override seam is pinned rather than assumed.
+test("the install target follows the named env file, not whatever config is on the machine", () => {
+  const home = mkdtempSync(join(tmpdir(), "ak-benchmark-envfile-"));
+  const target = join(home, "explicit-package-dir");
+  const envFile = join(home, "llm-host.env");
+  writeFileSync(envFile, `LLM_REMOTE_PACKAGE_DIR=${target}\n`);
+
+  execFileSync("bash", [INSTALLER], {
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      HOME: home,
+      XDG_CONFIG_HOME: join(home, ".config"),
+      REMOTE_OLLAMA_INSTALL_SYSTEM: "Linux",
+      REMOTE_OLLAMA_SKIP_SYSTEMCTL: "1",
+      REMOTE_OLLAMA_ENV_FILE: envFile,
+    },
+  });
+
+  assert.equal(existsSync(join(target, "bin/agent-kernel-benchmark")), true);
+  // And with no env file in scope it falls back to HOME rather than the repo's.
+  const bare = mkdtempSync(join(tmpdir(), "ak-benchmark-noenv-"));
+  installFixture(bare);
+  assert.equal(existsSync(join(bare, "remote-ollama-control/bin/agent-kernel-benchmark")), true);
 });
 
 test("systemd timer delegates to one internal lock and runbook documents lifecycle", () => {
