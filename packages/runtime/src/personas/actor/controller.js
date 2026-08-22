@@ -309,8 +309,30 @@ function buildRuntimeDecisionCandidateActions({ actor, actorId, tick, proposals 
   return baseCandidates;
 }
 
+/**
+ * The other actors this one can see, each carrying the Actor's own hostility
+ * ruling for it.
+ *
+ * ⚠️ **`hostile` is stamped here so the SOLVER path cannot reach a different
+ * answer than the deterministic one.** `resolveNearestHostile` below applies
+ * `rolesAreAllied` and skips allies; the Z3 adapter ranks `visibleActors` and
+ * had no faction concept at all, so a run routed through the solver kept
+ * closing on its own allies after DS.2 fixed the other path. Sending the ruling
+ * rather than the raw roles keeps ONE allegiance authority: an adapter that
+ * compared roles itself would be free to disagree with this function — and
+ * would have to re-derive the fail-safe in `rolesAreAllied`, which is exactly
+ * the kind of quietly divergent second rule (F10) this codebase has removed
+ * once already.
+ *
+ * The self role is read from the observation, the same source
+ * `resolveNearestHostile` reads, so the two paths agree by construction rather
+ * than by coincidence. `hostile` is always present and always a boolean:
+ * unknown roles resolve to `true`, never to a missing field, because a consumer
+ * defaulting an absent flag has to guess and half of them would guess "allied".
+ */
 function resolveVisibleActors(view, actorId) {
   const actors = Array.isArray(view?.actors) ? view.actors : [];
+  const selfRole = actors.find((entry) => entry && entry.id === actorId)?.role;
   return actors
     .filter((entry) => entry && entry.id && entry.id !== actorId)
     .map((entry) => {
@@ -321,6 +343,7 @@ function resolveVisibleActors(view, actorId) {
       if (entry.role !== undefined) next.role = entry.role;
       if (entry.position) next.position = { ...entry.position };
       if (entry.vitals) next.vitals = JSON.parse(JSON.stringify(entry.vitals));
+      next.hostile = !rolesAreAllied(selfRole, entry.role);
       return next;
     });
 }
