@@ -10,6 +10,7 @@ import {
   MAX_AFFINITY_GRANTS_PER_ACTOR,
 } from "./affinity.ts";
 import { computeAffinityRadius, computeAffinityIntensity } from "./affinity-spatial.ts";
+import { SIGHT_AFFINITY_KINDS, resolveVisibilityRadius } from "./visibility.ts";
 import { VitalKind } from "./vitals.ts";
 
 // ── Tile codes ──
@@ -1637,6 +1638,28 @@ export function createWorldState() {
     getAffinityFieldStacksAt(x: number, y: number, kind: number): number {
       if (!isValidFieldArgs(x, y, kind)) return 0;
       return affinityFieldStacks[fieldIndexFor(x, y, kind)];
+    },
+
+    /**
+     * DS.3 — how far an actor standing on this tile can see.
+     *
+     * READS the affinity field; never recomputes it. The field is rebuilt once
+     * per tick under the Moderator's `planTickClose`, and its opposite-kind
+     * cancellation has already run, so at most one of {Light, Dark} survives
+     * here. The policy itself lives in `state/visibility.ts` — this method only
+     * supplies the two numbers it needs.
+     */
+    getVisibilityRadiusAt(x: number, y: number): number {
+      // Reads the closure arrays directly rather than via `this`, so the method
+      // survives being detached onto the `core.*` surface without a bind — the
+      // same reason every other accessor here is written this way.
+      const readStacks = (kind: number): number => (
+        isValidFieldArgs(x, y, kind) ? affinityFieldStacks[fieldIndexFor(x, y, kind)] : 0
+      );
+      return resolveVisibilityRadius({
+        lightStacks: readStacks(SIGHT_AFFINITY_KINDS.LIGHT),
+        darkStacks: readStacks(SIGHT_AFFINITY_KINDS.DARK),
+      });
     },
 
     getAffinityFieldExpressionAt(x: number, y: number, kind: number): number {

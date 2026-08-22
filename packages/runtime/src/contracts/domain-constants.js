@@ -15,9 +15,20 @@ export const DEFAULT_AFFINITY_EXPRESSION = AFFINITY_EXPRESSIONS[0];
 export const DEFAULT_ROOM_CARD_AFFINITY = "dark";
 export const DEFAULT_ROOM_AFFINITY_EXPRESSION = "emit";
 export const DEFAULT_ROOM_AFFINITY_STACKS = 2;
-export const DARKNESS_OBSCURE_STACK_THRESHOLD = 2;
-export const DARKNESS_OBSCURE_RADIUS = 1;
-export const LIGHT_SIGHT_MIN_STACK = 1;
+// DS.3 — `DARKNESS_OBSCURE_STACK_THRESHOLD`, `DARKNESS_OBSCURE_RADIUS` and
+// `LIGHT_SIGHT_MIN_STACK` MOVED to `core-ts/src/state/visibility.ts`.
+//
+// They sat here from the commit that introduced them until 2026-08-20 and were
+// read by nothing in any package, test, doc or script — a visibility design with
+// no visibility behaviour behind it. DS.3 built the mechanism that consumes them,
+// and that mechanism is core's, so the numbers had to move: core-ts must never
+// import from runtime. Moved rather than aliased, so there is exactly one origin
+// — a re-export here would leave two places to edit and one of them wrong.
+//
+// `DEFAULT_ROOM_AFFINITY_STACKS` above stays, and now interacts with them: a
+// default room emits dark at exactly the obscure threshold, so it obscures sight
+// to one tile. That is a deliberate, accepted consequence, pinned by a test in
+// `tests/core-ts/visibility.test.mts`.
 export const DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION = Object.freeze({
   push: "enemy",
   pull: "self",
