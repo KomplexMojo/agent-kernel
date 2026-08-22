@@ -3,7 +3,10 @@
     "Model availability is checked on the remote Ollama endpoint at runtime.",
     "Add new installed models here with the profiles they can realistically run on.",
     "Qwen 3.8 currently ships only as 27B; primary runs it with CPU/GPU hybrid offload while dual is the preferred higher-GPU-residency profile.",
-    "Single-GPU benchmarks run only on the primary profile; the secondary card is reserved for dual."
+    "Single-GPU benchmarks run only on the primary profile; the secondary card is reserved for dual.",
+    "qwen3-coder:30b was removed 2026-08-22: `ollama list` gives it and qwen3-coder:30b-a3b-q4_K_M the same digest (06c1097efce0, 18 GB). They were one model under two tags, so the matrix measured it twice. The 2.5-point spread between those two runs is the noise floor at one pass \u2014 treat any narrower difference as nothing.",
+    "qwen2.5-coder:14b was removed the same day: it scored 33.4 against a 75 bar, BELOW the 7b's 37.7, so it was measuring tool-call formatting noise rather than capability. qwen2.5-coder:7b stays as the cheap control \u2014 a uniform drop across the whole matrix says harness, not model.",
+    "qwen3.5:27b mirrors qwen3.8:27b's profiles and settings on purpose. Same parameter count, same context and output, one variable: generation. Cross-profile rows are NOT comparable \u2014 primary is 32k/4k and dual is 64k/32k, so GPU count, context and output all change together."
   ],
   "benchmark": {
     "defaultScenarios": [
@@ -48,6 +51,16 @@
       "family": "qwen3.8",
       "use": "preferred Qwen 3.8 tool-calling model; hybrid CPU/GPU on primary and high GPU residency on dual"
     },
+    "qwen3.5:27b": {
+      "profiles": [
+        "primary",
+        "dual"
+      ],
+      "parameterBillions": 27,
+      "sizeGb": 17.0,
+      "family": "qwen3.5",
+      "use": "previous-generation reference at the same size and settings as qwen3.8:27b \u2014 the controlled generation comparison"
+    },
     "qwen3-coder:30b-a3b-q4_K_M": {
       "profiles": [
         "dual"
@@ -57,15 +70,6 @@
       "family": "qwen3-coder",
       "use": "30B coding model candidate across both GPUs"
     },
-    "qwen3-coder:30b": {
-      "profiles": [
-        "dual"
-      ],
-      "parameterBillions": 30,
-      "sizeGb": 18,
-      "family": "qwen3-coder",
-      "use": "larger coding model across both GPUs"
-    },
     "qwen3:14b": {
       "profiles": [
         "primary"
@@ -74,15 +78,6 @@
       "sizeGb": 9.3,
       "family": "qwen3",
       "use": "single 12GB GPU general reasoning and structured output"
-    },
-    "qwen2.5-coder:14b": {
-      "profiles": [
-        "primary"
-      ],
-      "parameterBillions": 14,
-      "sizeGb": 9,
-      "family": "qwen2.5-coder",
-      "use": "single 12GB GPU coding and test generation"
     },
     "qwen2.5-coder:7b": {
       "profiles": [
