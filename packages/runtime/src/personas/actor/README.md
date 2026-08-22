@@ -106,6 +106,12 @@ When runtime decisioning is enabled for an actor or boss, the Actor persona now 
 envelope from live observation plus candidate-action context and emits it through the existing `solver_request`
 pipeline. Solver-selected decisions are normalized back into executable `Action` records on the same runtime rail.
 
+Each entry in the envelope's `visibleActors` carries a boolean `hostile`, which is **this persona's ruling and not a
+raw fact about the other actor**: delvers ally with delvers, wardens with wardens, and an unknown role is always
+hostile. Solvers and other consumers must read that field rather than compare `role` themselves — allegiance has one
+authority here, and a consumer that re-derives it is free to disagree with the deterministic path. Absent means
+hostile, so an envelope built before this field existed keeps its previous behavior instead of quietly pacifying.
+
 Live LLM-backed runtime decisions are not implicit. Default execution remains deterministic and replay-safe:
 - solver-first during execution
 - LLM only from pre-captured/deferred structured responses

@@ -43,14 +43,37 @@ function movesCloserTo(candidate, origin, targets) {
   });
 }
 
+/**
+ * Whether the Actor persona ruled this visible actor an enemy.
+ *
+ * ⚠️ **Absent means HOSTILE, and the direction of that default is load-bearing.**
+ * Only `hostile === false` is an ally. Every envelope built before hostility was
+ * threaded carries no such field, and a fixture or an older run must keep
+ * behaving as it did rather than quietly pacifying: an adapter that read a
+ * missing flag as "allied" would stop pursuing anyone at all, in every one of
+ * them, while every ally-targeting test still passed.
+ *
+ * This adapter does NOT compare roles. Which roles are allied is the Actor
+ * persona's ruling (`rolesAreAllied`, `personas/actor/controller.js`), including
+ * a fail-safe that two MISSING roles must not compare equal. Re-deriving it here
+ * would make this file a second allegiance authority, free to drift from the
+ * first.
+ */
+function isHostile(visibleActor) {
+  return visibleActor?.hostile !== false;
+}
+
 function scoreCandidate(candidate, envelope) {
   if (candidate?.action?.kind === "attack") {
     return { score: PRIORITY_WEIGHTS.attack, ruleId: "attack" };
   }
 
   const actorPosition = envelope.actor?.position;
+  // Allies are excluded before the distance test, not after: `visibleActors` is
+  // everyone this actor perceives, and treating the whole list as enemies is
+  // what sent delvers chasing their own delvers on this path.
   const visiblePositions = Array.isArray(envelope.visibleActors)
-    ? envelope.visibleActors.map((actor) => actor?.position).filter(Boolean)
+    ? envelope.visibleActors.filter(isHostile).map((actor) => actor?.position).filter(Boolean)
     : [];
   if (movesCloserTo(candidate, actorPosition, visiblePositions)) {
     return {
