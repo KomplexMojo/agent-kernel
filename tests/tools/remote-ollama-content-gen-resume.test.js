@@ -144,3 +144,57 @@ test("a run killed mid-write resumes from its last intact record", () => {
   );
   assert.equal(readPriorRecords(path).length, 2);
 });
+
+test("a configuration with nothing left to run does not pay for a profile reset", async () => {
+  // Resume reset the remote profile and loaded a 7B model for a configuration whose 31 attempts
+  // were all already recorded, then ran nothing — minutes of model load per finished configuration.
+  // Setup must be demanded by an attempt, not by reaching the configuration in the loop.
+  // The real shape: every scenario has a repeat-1 record and they failed, so early stop ends the
+  // configuration immediately. maximumPasses is the default 2, so a naive "have I recorded
+  // scenarios x maximumPasses attempts?" guard does not fire — which is exactly what happened.
+  const prior = SCENARIOS.map((scenario) => ({
+    recordKind: "content_gen_attempt",
+    runId: `cg--cfg-a--s00${scenario.index}--r1`,
+    configurationId: "cfg-a",
+    scenarioIndex: scenario.index,
+    scenarioTier: "simple",
+    repeat: 1,
+    toolCallProduced: true,
+    execSucceeded: false,
+    score: 0,
+    executionOutcome: "execution_failed",
+    failureClass: null,
+    scenarioVerdict: { passed: false, expected: "success", actual: "execution_failed" },
+  }));
+  const prepared = [];
+  await executeContentGenMatrix({
+    matrix: MATRIX,
+    scenarios: SCENARIOS,
+    priorRecords: prior,
+    beforeConfiguration: async (configuration) => { prepared.push(configuration.configurationId); },
+    runAttempt: async () => passingAttempt(),
+  });
+  assert.deepEqual(prepared, [], "no attempt remained, so nothing should have been prepared");
+});
+
+test("setup still runs exactly once for a configuration that has work left", async () => {
+  const prior = [{
+    recordKind: "content_gen_attempt",
+    runId: "cg--cfg-a--s001--r1",
+    configurationId: "cfg-a",
+    scenarioIndex: 1,
+    scenarioTier: "simple",
+    repeat: 1,
+    ...passingAttempt(),
+    scenarioVerdict: { passed: true, expected: "success", actual: "success" },
+  }];
+  const prepared = [];
+  await executeContentGenMatrix({
+    matrix: MATRIX,
+    scenarios: SCENARIOS,
+    priorRecords: prior,
+    beforeConfiguration: async (configuration) => { prepared.push(configuration.configurationId); },
+    runAttempt: async () => passingAttempt(),
+  });
+  assert.deepEqual(prepared, ["cfg-a"], "setup must happen once, before the first attempt that needs it");
+});

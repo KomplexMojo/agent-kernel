@@ -1332,11 +1332,16 @@ async function runContentGen(options) {
   if (options.resume) {
     assertResumable(readRunManifest(resultDir), runIdentity);
     priorRecords = readPriorRecords(jsonlPath);
-    const planned = scenarios.length * executionMatrix.repeatPolicy.maximumPasses
-      * executionMatrix.configurations.length;
+    // Report the honest bounds. One complete pass per configuration is the floor; early stop
+    // decides the rest, so a single "outstanding" number would be wrong either way.
+    const configurations = executionMatrix.configurations.length;
+    const floor = Math.max(0, scenarios.length * configurations - priorRecords.length);
+    const ceiling = Math.max(0, scenarios.length * executionMatrix.repeatPolicy.maximumPasses
+      * configurations - priorRecords.length);
     process.stdout.write(
-      `Resuming ${resultDir}\n  ${priorRecords.length} attempt(s) already recorded, `
-      + `up to ${planned - priorRecords.length} outstanding\n`
+      `Resuming ${resultDir}\n  ${priorRecords.length} attempt(s) already recorded; `
+      + `${floor} outstanding at one pass each, up to ${ceiling} if every configuration runs all `
+      + `${executionMatrix.repeatPolicy.maximumPasses} passes\n`
     );
   } else {
     writeRunManifest(resultDir, { route: options.route, ...runIdentity });

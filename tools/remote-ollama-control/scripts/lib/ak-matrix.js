@@ -35,8 +35,17 @@ async function executeContentGenMatrix({
   const maximumPasses = matrix.repeatPolicy.maximumPasses;
   for (const configuration of matrix.configurations) {
     const resumed = priorByConfiguration.get(configuration.configurationId) || [];
-    if (resumed.length >= scenarios.length * maximumPasses) continue;
-    await beforeConfiguration(configuration);
+    // Setup is demanded by the first attempt that actually runs, never by reaching the
+    // configuration. On resume a finished configuration would otherwise reset the remote profile
+    // and load its model before discovering it has nothing to do — minutes of GPU time per
+    // configuration, and "how many attempts have I recorded?" cannot predict it, because early
+    // stop means a complete configuration can hold far fewer records than scenarios x passes.
+    let prepared = false;
+    const prepare = async () => {
+      if (prepared) return;
+      prepared = true;
+      await beforeConfiguration(configuration);
+    };
     const configurationRecords = [...resumed];
     for (let repeat = 1; repeat <= maximumPasses; repeat += 1) {
       for (const scenario of scenarios) {
@@ -45,6 +54,7 @@ async function executeContentGenMatrix({
           `s${String(scenario.index).padStart(3, '0')}`, `r${repeat}`
         ].join('--');
         if (completed.has(runId)) continue;
+        await prepare();
         const attempt = await runAttempt({ configuration, scenario, repeat, runId });
         const actual = attempt.executionOutcome || (attempt.execSucceeded ? 'success' : 'execution_failed');
         const record = {
