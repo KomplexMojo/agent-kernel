@@ -741,8 +741,38 @@ function resolveActorMotivationKind(view, actorId, payload) {
 }
 
 /**
- * Find the nearest hostile actor (any actor other than self) by Chebyshev
- * distance. Returns { actor, distance } or null if no others exist.
+ * DS.2 — are these two actors on the same side?
+ *
+ * Maintainer ruling 2026-08-20: delvers are friendly to delvers, wardens are
+ * friendly to wardens, delvers and wardens are hostile to each other. There are
+ * only ever two actor roles in this game (`contracts/artifacts.ts` types the
+ * category as `"delver" | "warden"`), so `role` already IS a complete faction
+ * system and no new field was introduced to represent one.
+ *
+ * ⚠️ **Unknown roles are treated as HOSTILE, deliberately.** The tempting
+ * formulation is `selfRole === otherRole -> allied`, but two *missing* roles
+ * compare equal, which would make every actor in a run without role data
+ * everyone else's ally and quietly pacify the entire game — combat would stop,
+ * and every test asserting "does not attack an ally" would still pass. So this
+ * answers "allied" only when BOTH roles are actually known and equal, and the
+ * caller's default is to remain hostile. Fail-safe toward the previous
+ * behaviour, never toward a silent ceasefire.
+ */
+function rolesAreAllied(selfRole, otherRole) {
+  if (typeof selfRole !== "string" || typeof otherRole !== "string") return false;
+  const self = selfRole.trim().toLowerCase();
+  const other = otherRole.trim().toLowerCase();
+  if (!self || !other) return false;
+  return self === other;
+}
+
+/**
+ * Find the nearest HOSTILE actor by Chebyshev distance, skipping allies.
+ * Returns { actor, distance } or null if no hostile actor exists.
+ *
+ * Before DS.2 this took "any actor other than self", which was not merely
+ * imprecise — it was wrong: with two delvers on the board, delver A closed on
+ * and attacked delver B whenever B was nearer than a warden.
  */
 function resolveNearestHostile(view, actorId) {
   if (!view?.actors || !Array.isArray(view.actors)) return null;
@@ -753,6 +783,7 @@ function resolveNearestHostile(view, actorId) {
   let nearestDist = Infinity;
   for (const other of view.actors) {
     if (!other || other.id === actorId || !other.position) continue;
+    if (rolesAreAllied(selfActor.role, other.role)) continue;
     const dist = Math.max(
       Math.abs(other.position.x - selfActor.position.x),
       Math.abs(other.position.y - selfActor.position.y),
