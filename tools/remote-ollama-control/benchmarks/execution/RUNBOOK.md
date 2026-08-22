@@ -142,6 +142,14 @@ pnpm --dir tools/remote-ollama-control validate:execution -- \
   --out "$AK_BENCHMARK_STATE_DIR/corpus-validation"
 ```
 
+Resource scenarios need world-state checkpoints to be scoreable at all. Collection is destructive, so a
+resource present in one checkpoint and absent from the next was taken in between — that difference is
+the only public evidence a pickup happened, and the nine resource metrics
+(`single_consumption`, `pickup_apply_correctness`, `persistent_vital_grant`, `recovery_curve`,
+`affinity_lifecycle`, `affinity_activity`, `grant_isolation`, `actor_kind_parity`,
+`persistent_stacking`) are all derived from it. Checkpoints require `WorldStateArtifact` **v2**; a v1
+checkpoint is rejected rather than read as a world containing no resources.
+
 This corpus preflight verifies exact 26-key parity, both manifest identities, source-owned artifact
 paths, `SimConfigArtifact`/`InitialStateArtifact` schemas, explicit generated prompt markers, and a
 canonical hash over every committed artifact pair. It then behaviorally probes the pinned source's

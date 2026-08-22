@@ -108,6 +108,52 @@ function readHazards(core, width, height) {
 }
 
 /**
+ * Resources still on the map.
+ *
+ * Read per cell like hazards, because that is how core holds them. A cell's two
+ * payloads are independent: `hasResourceAt` is true when either is present, and a
+ * missing half reports as null rather than as a zeroed one — a resource claiming
+ * to grant 0 health is a different statement from one that grants no vital at all.
+ */
+function readResources(core, width, height) {
+  const resources = [];
+  if (typeof core.hasResourceAt !== "function") return resources;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (readNumber(core.hasResourceAt.bind(core), x, y) === 0) continue;
+      // Core reports -1 for "no vital payload". readNumber would turn a missing
+      // reader into 0, which is health — a resource that grants nothing would
+      // read as one that grants health.
+      const vitalKind = typeof core.getResourceVitalKindAt === "function"
+        ? core.getResourceVitalKindAt(x, y)
+        : -1;
+      const affinityKind = readNumber(core.getResourceAffinityKindAt?.bind(core), x, y);
+      resources.push({
+        position: { x, y },
+        vital: vitalKind >= 0
+          ? {
+            kind: vitalKind,
+            delta: readNumber(core.getResourceDeltaAt?.bind(core), x, y),
+            mode: readNumber(core.getResourceModeAt?.bind(core), x, y),
+            regen: readNumber(core.getResourceVitalRegenAt?.bind(core), x, y),
+          }
+          : null,
+        affinity: affinityKind > 0
+          ? {
+            kind: affinityKind,
+            expression: readNumber(core.getResourceAffinityExpressionAt?.bind(core), x, y),
+            stacks: readNumber(core.getResourceAffinityStacksAt?.bind(core), x, y),
+            mana: readNumber(core.getResourceManaAt?.bind(core), x, y),
+            manaRegen: readNumber(core.getResourceManaRegenAt?.bind(core), x, y),
+          }
+          : null,
+      });
+    }
+  }
+  return resources;
+}
+
+/**
  * Build the WorldStateArtifact from live core state.
  *
  * @param {object} args
@@ -117,7 +163,7 @@ function readHazards(core, width, height) {
  * @param {Map<string, number>|null} [args.actorIdMap] id -> 1-based core index,
  *        so the snapshot can report the author's original actor ids rather than
  *        core's numeric ones. Without it the numeric id is reported as a string.
- * @returns {object} WorldStateArtifactV1
+ * @returns {object} WorldStateArtifactV2
  */
 export function buildWorldState({ core, meta, simConfigRef = null, actorIdMap = null } = {}) {
   if (!core) throw new Error("buildWorldState requires a core.");
@@ -150,12 +196,13 @@ export function buildWorldState({ core, meta, simConfigRef = null, actorIdMap = 
 
   const artifact = {
     schema: WORLD_STATE_SCHEMA,
-    schemaVersion: 1,
+    schemaVersion: 2,
     meta,
     tick: readNumber(core.getCurrentTick?.bind(core)),
     dimensions: { width, height },
     actors,
     hazards: readHazards(core, width, height),
+    resources: readResources(core, width, height),
   };
   if (simConfigRef) artifact.simConfigRef = simConfigRef;
   return artifact;

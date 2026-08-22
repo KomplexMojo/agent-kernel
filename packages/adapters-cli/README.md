@@ -695,12 +695,17 @@ node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifa
 ```
 
 `run` always writes the final `world-state.json`. Supplying
-`--world-state-checkpoints` additionally writes the requested post-step states as existing
-`agent-kernel/WorldStateArtifact` v1 files under
+`--world-state-checkpoints` additionally writes the requested post-step states as
+`agent-kernel/WorldStateArtifact` v2 files under
 `<out-dir>/world-state-checkpoints/tick-NNNNNN.json`. Tick `0` is captured after runtime
 initialization; every other requested tick is captured immediately after that tick's
 `runtime.step()`. The list must be unique, strictly ascending, and within `--ticks`.
 Ordinary runs do not create the checkpoint directory.
+
+v2 adds `resources`: every resource still on the map, with its vital and affinity payloads.
+Collection is destructive, so a resource present in one snapshot and gone from the next was taken in
+between — which is what makes a checkpoint series, rather than a single end-of-run snapshot, the
+evidence that a pickup happened and what it did.
 
 ## Agent workflow recipes
 

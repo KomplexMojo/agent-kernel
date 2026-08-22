@@ -294,12 +294,13 @@ test('checkpoint reader consumes only declared WorldStateArtifact ticks and repo
   mkdirSync(checkpointDir, { recursive: true });
   const checkpoint = (tick) => ({
     schema: 'agent-kernel/WorldStateArtifact',
-    schemaVersion: 1,
+    schemaVersion: 2,
     meta: { id: `state_${tick}`, runId: 'fixture', createdAt: '2026-01-01T00:00:00.000Z', producedBy: 'annotator' },
     tick,
     dimensions: { width: 4, height: 3 },
     actors: [],
     hazards: [],
+    resources: [],
   });
   for (const tick of [0, 2, 99]) {
     writeFileSync(join(checkpointDir, `tick-${String(tick).padStart(6, '0')}.json`), `${JSON.stringify(checkpoint(tick))}\n`);

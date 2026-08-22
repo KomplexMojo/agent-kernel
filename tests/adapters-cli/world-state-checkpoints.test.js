@@ -61,7 +61,7 @@ test("ak run emits only requested WorldStateArtifact v1 checkpoints", () => {
     const final = readJson(join(checkpointDir, "tick-000003.json"));
     for (const [expectedTick, checkpoint] of [[0, initial], [1, intermediate], [3, final]]) {
       assert.equal(checkpoint.schema, "agent-kernel/WorldStateArtifact");
-      assert.equal(checkpoint.schemaVersion, 1);
+      assert.equal(checkpoint.schemaVersion, 2);
       assert.equal(checkpoint.tick, expectedTick);
       assert.equal(checkpoint.meta.producedBy, "annotator");
       assert.equal(checkpoint.meta.runId, "checkpoint_fixture");
