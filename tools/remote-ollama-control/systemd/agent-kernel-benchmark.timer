@@ -1,0 +1,12 @@
+[Unit]
+Description=Poll Agent Kernel benchmark inputs
+
+[Timer]
+Unit=agent-kernel-benchmark.service
+OnBootSec=5m
+OnUnitInactiveSec=15m
+RandomizedDelaySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -9,6 +9,61 @@
   },
   "items": [
     {
+      "id": "resource_affinity_base",
+      "kind": "resource",
+      "quantity": 2,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_affinity_expression_localized",
+      "kind": "resource",
+      "quantity": 2,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_affinity_stack",
+      "kind": "resource",
+      "quantity": 4,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_vital_mana_point",
+      "kind": "resource",
+      "quantity": 100,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_vital_mana_regen_tick",
+      "kind": "resource",
+      "quantity": 10,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
       "id": "resource_permanent",
       "kind": "resource",
       "quantity": 10,

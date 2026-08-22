@@ -1,0 +1,446 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_ex_st_02_initial_state",
+    "runId": "benchmark_ex_st_02",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "simConfigRef": {
+    "id": "benchmark_ex_st_02_sim_config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "delver_acceptance-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 4,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "delver",
+      "traits": {
+        "affinities": {
+          "water": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_acceptance-10",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 2
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_acceptance-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 2,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_acceptance-2",
+      "kind": "ambulatory",
+      "position": {
+        "x": 4,
+        "y": 2
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_acceptance-3",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_acceptance-4",
+      "kind": "ambulatory",
+      "position": {
+        "x": 2,
+        "y": 4
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_acceptance-5",
+      "kind": "ambulatory",
+      "position": {
+        "x": 5,
+        "y": 2
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_acceptance-6",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 4
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_acceptance-7",
+      "kind": "ambulatory",
+      "position": {
+        "x": 2,
+        "y": 5
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_acceptance-8",
+      "kind": "ambulatory",
+      "position": {
+        "x": 6,
+        "y": 2
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_acceptance-9",
+      "kind": "ambulatory",
+      "position": {
+        "x": 5,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    }
+  ]
+}

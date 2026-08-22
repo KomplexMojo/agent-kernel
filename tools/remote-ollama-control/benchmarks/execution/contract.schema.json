@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-kernel.local/schemas/execution-metric-contract-v1.json",
+  "title": "Agent Kernel execution metric contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "evaluatorVersion", "qualification", "profiles", "invariants", "metrics"],
+  "properties": {
+    "schemaVersion": { "const": "agent-kernel-execution-metric-contract/v1" },
+    "evaluatorVersion": { "type": "string", "minLength": 1 },
+    "qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["meanScore", "medianScore", "minimumSeedScore", "probabilisticGateRate", "deterministicGateRate"],
+      "properties": {
+        "meanScore": { "type": "number", "minimum": 0, "maximum": 100 },
+        "medianScore": { "type": "number", "minimum": 0, "maximum": 100 },
+        "minimumSeedScore": { "type": "number", "minimum": 0, "maximum": 100 },
+        "probabilisticGateRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "deterministicGateRate": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ticks", "seeds", "checkpoints", "repeats"],
+        "properties": {
+          "ticks": { "type": "integer", "minimum": 1 },
+          "seeds": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "integer" } },
+          "checkpoints": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "integer", "minimum": 0 } },
+          "repeats": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "invariants": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["description"],
+        "properties": { "description": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["unit"],
+        "properties": { "unit": { "type": "string", "minLength": 1 } }
+      }
+    }
+  }
+}

@@ -11,7 +11,7 @@ const {
   loadConfig,
   shellQuote
 } = require('./lib/config');
-const { buildHardwareBenchmarkSpecs, runBenchmarkMatrix } = require('./lib/benchmark');
+const { buildContentGenMatrix, buildHardwareBenchmarkSpecs, runBenchmarkMatrix } = require('./lib/benchmark');
 const { health, requestJson } = require('./lib/ollama');
 const { displayCommand, runRemote, runRemoteScript, sshBaseArgs } = require('./lib/ssh');
 
@@ -40,6 +40,8 @@ function usage() {
   remote-ollama-mac project-safety-check [remote-project-safety-check args...]
   remote-ollama-mac project-sync [--branch main]
   remote-ollama-mac project-push-main [--branch main]
+  remote-ollama-mac run-abstract-plan [--abstract-set pilot|parallel] [--profile NAME] [--model MODEL] [--runs N] [--scenario-ids 1] [--route auto|internal|external] [--no-start] [--no-reset] [--dry-run]
+  remote-ollama-mac run-abstract-plan --local --model MODEL [--runs N] [--scenario-ids 1] [--dry-run]
   remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route auto|internal|external] [--no-start] [--no-reset] [--dry-run]
   remote-ollama-mac run-content-gen --local --model MODEL [--runs N] [--scenario-ids 1,3,5] [--dry-run]
   remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b-a3b-q4_K_M
@@ -113,6 +115,7 @@ function parseArgs(argv) {
     tail: 120,
     runs: 1,
     scenarioIds: [],
+    abstractSet: 'pilot',
     extra: []
   };
 
@@ -170,15 +173,19 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--profiles') {
       options.profiles = parseList(readOptionValue(args, index, arg));
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--model') {
       options.model = readOptionValue(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--models') {
       options.models = parseList(readOptionValue(args, index, arg));
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--context') {
       options.context = readPositiveNumber(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--contexts') {
       options.contexts = parseList(readOptionValue(args, index, arg)).map(Number);
@@ -188,6 +195,7 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--num-predict') {
       options.numPredict = readPositiveNumber(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--timeout-ms') {
       options.timeoutMs = readPositiveNumber(args, index, arg);
@@ -215,9 +223,14 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--runs') {
       options.runs = readPositiveNumber(args, index, arg);
+      options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--scenario-ids') {
       options.scenarioIds = parseList(readOptionValue(args, index, arg)).map(Number).filter((v) => Number.isFinite(v) && v > 0);
+      index += 1;
+    } else if (arg === '--abstract-set') {
+      options.abstractSet = readOptionValue(args, index, arg);
+      if (!['pilot', 'parallel'].includes(options.abstractSet)) fail(`${arg} must be pilot or parallel`);
       index += 1;
     } else if (arg === '-h' || arg === '--help') {
       options.command = 'help';
@@ -231,8 +244,8 @@ function parseArgs(argv) {
 
 function validateLocalMode(options) {
   if (!options.local) return;
-  if (!['claude', 'run-local', 'print-env', 'run-content-gen'].includes(options.command)) {
-    fail('--local is only supported for claude, run-local, print-env, and run-content-gen');
+  if (!['claude', 'run-local', 'print-env', 'run-content-gen', 'run-abstract-plan'].includes(options.command)) {
+    fail('--local is only supported for claude, run-local, print-env, run-content-gen, and run-abstract-plan');
   }
   const conflicts = ['--profile', '--route', '--tunnel', '--direct', '--external-host', '--local-port'];
   for (const flag of conflicts) {
@@ -240,7 +253,7 @@ function validateLocalMode(options) {
       fail(`--local cannot be combined with ${flag} (remote-only). In local mode the endpoint comes from LLM_LOCAL_OLLAMA_HOST.`);
     }
   }
-  if (options.command === 'run-content-gen' && options.profiles.length > 0) {
+  if (['run-content-gen', 'run-abstract-plan'].includes(options.command) && options.profiles.length > 0) {
     fail('--local cannot be combined with --profiles (remote-only). In local mode there is a single local endpoint.');
   }
 }
@@ -1203,12 +1216,13 @@ function runRemoteExec(options) {
 }
 
 async function runContentGen(options) {
-  const { loadScenarios, resolveVaultDir } = require('./lib/ak-scenarios');
-  const { runScenario } = require('./lib/ak-runner');
-  const { scoreRun, writeContentSummary } = require('./lib/ak-compare');
+  const { loadScenarioCatalog } = require('./lib/ak-scenarios');
+  const { classifyExecutionOutcome, runScenario } = require('./lib/ak-runner');
+  const { aggregateContentGenResults, scoreRun, writeContentResult, writeContentSummary } = require('./lib/ak-compare');
+  const { executeContentGenMatrix } = require('./lib/ak-matrix');
 
-  const vaultDir = resolveVaultDir(config.env);
-  let scenarios = loadScenarios(vaultDir);
+  const catalog = loadScenarioCatalog();
+  let scenarios = catalog.scenarios;
 
   if (options.scenarioIds.length > 0) {
     const ids = new Set(options.scenarioIds);
@@ -1216,7 +1230,7 @@ async function runContentGen(options) {
   }
 
   if (scenarios.length === 0) {
-    fail('No scenarios found. Check LLM_AK_VAULT_DIR or --scenario-ids.');
+    fail('No scenarios found. Check --scenario-ids.');
   }
 
   const profileNames = options.local
@@ -1225,15 +1239,31 @@ async function runContentGen(options) {
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const resultDir = path.join(config.host.resultsDir, `${timestamp}-content-gen`);
+  const matrix = options.local ? null : buildContentGenMatrix(config, {
+    models: options.models.length > 0 ? options.models : (options.model ? [options.model] : []),
+    profileNames: options.profiles,
+    contextTokens: options.explicitFlags.has('--context') ? options.context : undefined,
+    outputTokens: options.explicitFlags.has('--num-predict') ? options.numPredict : undefined,
+    maximumPasses: options.explicitFlags.has('--runs') ? options.runs : 3,
+    scenarioCount: scenarios.length
+  });
 
   if (options.dryRun) {
     process.stdout.write(JSON.stringify({
       command: 'run-content-gen',
+      execution: 'plan-only',
       route: options.route,
-      profiles: profileNames,
+      profiles: matrix
+        ? [...new Set(matrix.configurations.map((entry) => entry.profile.id))]
+        : profileNames,
       scenarios: scenarios.map((s) => `${s.index}. ${s.title}`),
-      runsPerScenario: options.runs,
-      vaultDir,
+      scenarioSet: {
+        count: catalog.count,
+        sha256: catalog.sha256,
+        tierCounts: catalog.tierCounts
+      },
+      runsPerScenario: matrix ? matrix.repeatPolicy.maximumPasses : options.runs,
+      matrix,
       resultDir,
       startProfiles: options.startProfiles,
       resetProfiles: options.resetProfiles
@@ -1245,112 +1275,119 @@ async function runContentGen(options) {
   fs.mkdirSync(resultDir, { recursive: true });
   const jsonlPath = path.join(resultDir, 'runs.jsonl');
   const summaryPath = path.join(resultDir, 'summary.md');
-  const allResults = [];
+  const resultPath = path.join(resultDir, 'result.json');
   const tunnels = new Map();
   const endpoints = new Map();
+  const localModel = options.model || config.local.model;
+  if (options.local && !localModel) {
+    fail('--local requires --model (or LLM_LOCAL_OLLAMA_MODEL) since there is no default local model.');
+  }
+  const executionMatrix = matrix || {
+    sha256: 'local-unversioned',
+    repeatPolicy: { minimumCompletePasses: 1, maximumPasses: options.runs, earlyStop: 'mathematically_lossless' },
+    configurations: [{
+      configurationId: `cg-local--${localModel}`,
+      profile: { id: 'local', hardwareClass: 'local', gpuCount: 1, capacityRank: 1 },
+      model: { id: localModel, family: 'local', parameterBillions: 1 },
+      settings: { contextTokens: options.context, outputTokens: options.numPredict },
+      resourceOrder: {
+        gpuCount: 1, capacityRank: 1, modelSizeBillions: 1,
+        contextTokens: options.context, outputTokens: options.numPredict
+      }
+    }]
+  };
+  const executionProfiles = [...new Set(executionMatrix.configurations.map((entry) => entry.profile.id))];
 
   try {
-    for (const profileName of profileNames) {
-      const profile = options.local ? null : getProfile(config, profileName);
-      const model = options.model || (options.local ? config.local.model : profile.defaultModel);
-      if (options.local && !model) {
-        fail('--local requires --model (or LLM_LOCAL_OLLAMA_MODEL) since there is no default local model.');
-      }
-      const endpoint = options.local ? config.local.host : clientEndpoint(profile, options);
-      endpoints.set(profileName, endpoint);
+    const allResults = await executeContentGenMatrix({
+      matrix: executionMatrix,
+      scenarios,
+      beforeConfiguration: async (configuration) => {
+        const profileName = configuration.profile.id;
+        const model = configuration.model.id;
+        const profile = options.local ? null : getProfile(config, profileName);
+        const endpoint = options.local ? config.local.host : clientEndpoint(profile, options);
+        endpoints.set(configuration.configurationId, endpoint);
 
-      if (!options.local && !options.direct) {
-        tunnels.set(profileName, await openBenchmarkTunnel(options, profile, endpoint));
-      }
-
-      if (!options.local && options.startProfiles) {
-        const command = options.resetProfiles ? 'restart' : 'start';
-        process.stdout.write(`${options.resetProfiles ? 'Resetting' : 'Starting'} remote profile ${profileName} with ${model}\n`);
-        runRemote(config, options.route, [command, '--profile', profileName, '--model', model], {
-          timeoutMs: options.timeoutMs
-        });
-      }
-
-      await waitForLocalEndpoint(endpoint, Math.min(30000, options.timeoutMs), tunnels.get(profileName));
-      process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
-      await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
-
-      let runIndex = 0;
-      for (const scenario of scenarios) {
-        for (let repeat = 0; repeat < options.runs; repeat += 1) {
-          runIndex += 1;
-          const runId = [
-            'cg',
-            String(runIndex).padStart(4, '0'),
-            profileName,
-            `s${String(scenario.index).padStart(2, '0')}`,
-            `r${repeat + 1}`
-          ].join('-');
-          const runOutDir = path.join(resultDir, 'raw', runId);
-          fs.mkdirSync(runOutDir, { recursive: true });
-
-          process.stdout.write(
-            `[${runIndex}] ${profileName} | scenario ${String(scenario.index).padStart(2, '0')} ${scenario.title} | run ${repeat + 1}/${options.runs}\n`
-          );
-
-          let runResult;
-          try {
-            runResult = await runScenario(endpoint, model, scenario, runOutDir, runId, options.timeoutMs);
-          } catch (error) {
-            runResult = {
-              toolCallProduced: false,
-              toolArgs: null,
-              llmMs: 0,
-              llmError: error.message,
-              execResult: null,
-              outDir: null
-            };
-          }
-
-          const refSpecPath = path.join(scenario.artifactDir, 'spec.json');
-          const refReceiptPath = path.join(scenario.artifactDir, 'budget-receipt.json');
-          const scoreResult = scoreRun(runResult, scenario, refSpecPath, refReceiptPath);
-
-          const record = {
-            runId,
-            timestamp: new Date().toISOString(),
-            profile: profileName,
-            model,
-            scenarioIndex: scenario.index,
-            scenarioTitle: scenario.title,
-            scenarioTier: scenario.tier,
-            scenarioBudget: scenario.budget,
-            repeat: repeat + 1,
-            toolCallProduced: runResult.toolCallProduced,
-            toolArgs: runResult.toolArgs || null,
-            llmMs: runResult.llmMs,
-            llmError: runResult.llmError || null,
-            execSucceeded: runResult.execResult?.succeeded || false,
-            execExitCode: runResult.execResult?.exitCode ?? null,
-            execMs: runResult.execResult?.execMs || null,
-            execStderr: runResult.execResult?.stderr || null,
-            outDir: runResult.outDir || null,
-            score: scoreResult.points,
-            scoreMax: scoreResult.max,
-            scoreBreakdown: scoreResult.breakdown
-          };
-
-          allResults.push(record);
-          fs.appendFileSync(jsonlPath, `${JSON.stringify(record)}\n`);
-          writeContentSummary(summaryPath, allResults, {
-            profiles: profileNames,
-            scenarios: scenarios.length,
-            route: options.route,
-            resultDir
-          });
-
-          process.stdout.write(
-            `  Score: ${scoreResult.points}/100 | Tool: ${runResult.toolCallProduced ? 'yes' : 'no'} | ` +
-            `Exec: ${runResult.execResult?.succeeded ? 'ok' : 'fail'} | LLM: ${runResult.llmMs}ms\n`
-          );
+        if (!options.local && !options.direct && !tunnels.has(profileName)) {
+          tunnels.set(profileName, await openBenchmarkTunnel(options, profile, endpoint));
         }
+
+        if (!options.local && options.startProfiles) {
+          const command = options.resetProfiles ? 'restart' : 'start';
+          process.stdout.write(`${options.resetProfiles ? 'Resetting' : 'Starting'} remote profile ${profileName} with ${model}\n`);
+          runRemote(config, options.route, [command, '--profile', profileName, '--model', model], {
+            timeoutMs: options.timeoutMs
+          });
+        }
+
+        await waitForLocalEndpoint(endpoint, Math.min(30000, options.timeoutMs), tunnels.get(profileName));
+        process.stdout.write(`Endpoint healthy: ${endpoint}\n`);
+        await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
+      },
+      runAttempt: async ({ configuration, scenario, repeat, runId }) => {
+        const runOutDir = path.join(resultDir, 'raw', runId);
+        fs.mkdirSync(runOutDir, { recursive: true });
+        process.stdout.write(
+          `${configuration.configurationId} | scenario ${String(scenario.index).padStart(3, '0')} ${scenario.title} | run ${repeat}/${executionMatrix.repeatPolicy.maximumPasses}\n`
+        );
+        let runResult;
+        try {
+          runResult = await runScenario(
+            endpoints.get(configuration.configurationId), configuration.model.id, scenario,
+            runOutDir, runId, options.timeoutMs, configuration.settings
+          );
+        } catch (error) {
+          runResult = {
+            toolCallProduced: false,
+            toolArgs: null,
+            llmMs: 0,
+            llmError: error.message,
+            execResult: null,
+            outDir: null
+          };
+        }
+        const scoreResult = scoreRun(runResult, scenario);
+        const executionOutcome = classifyExecutionOutcome(runResult);
+        return {
+          timestamp: new Date().toISOString(),
+          scenarioBudget: scenario.budget,
+          toolCallProduced: runResult.toolCallProduced,
+          toolArgs: runResult.toolArgs || null,
+          llmMs: runResult.llmMs,
+          llmError: runResult.llmError || null,
+          execSucceeded: runResult.execResult?.succeeded || false,
+          execExitCode: runResult.execResult?.exitCode ?? null,
+          execMs: runResult.execResult?.execMs || null,
+          execStderr: runResult.execResult?.stderr || null,
+          outDir: runResult.outDir || null,
+          score: scoreResult.points,
+          scoreMax: scoreResult.max,
+          scoreBreakdown: scoreResult.breakdown,
+          executionOutcome,
+          failureClass: executionOutcome === 'infrastructure_error' ? 'infrastructure' : null
+        };
+      },
+      onRecord: async (record, records) => {
+        fs.appendFileSync(jsonlPath, `${JSON.stringify(record)}\n`);
+        writeContentSummary(summaryPath, records, {
+          profiles: executionProfiles,
+          scenarios: scenarios.length,
+          route: options.route,
+          resultDir
+        });
+        process.stdout.write(
+          `  Score: ${record.score}/100 | Tool: ${record.toolCallProduced ? 'yes' : 'no'} | ` +
+          `Verdict: ${record.scenarioVerdict.passed ? 'pass' : 'fail'} | Exec: ${record.execSucceeded ? 'ok' : 'fail'}\n`
+        );
       }
-    }
+    });
+    const selectedTierCounts = Object.fromEntries(['simple', 'affinity', 'complex', 'constrained']
+      .map((tier) => [tier, scenarios.filter((scenario) => scenario.tier === tier).length]));
+    writeContentResult(resultPath, aggregateContentGenResults(allResults, {
+      matrix: executionMatrix,
+      scenarioSet: { count: scenarios.length, catalogCount: catalog.count, sha256: catalog.sha256, tierCounts: selectedTierCounts }
+    }));
   } finally {
     for (const tunnel of tunnels.values()) {
       stopTunnel(tunnel);
@@ -1360,6 +1397,180 @@ async function runContentGen(options) {
   process.stdout.write(`Result directory: ${resultDir}\n`);
   process.stdout.write(`JSONL: ${jsonlPath}\n`);
   process.stdout.write(`Summary: ${summaryPath}\n`);
+  process.stdout.write(`Structured result: ${resultPath}\n`);
+}
+
+async function runAbstractPlan(options) {
+  const { loadAbstractPlanCatalog } = require('./lib/abstract-plan');
+  const { runAbstractScenario } = require('./lib/abstract-runner');
+  const catalog = loadAbstractPlanCatalog(options.abstractSet);
+  let scenarios = catalog.scenarios;
+  if (options.scenarioIds.length > 0) {
+    const ids = new Set(options.scenarioIds);
+    scenarios = scenarios.filter((scenario) => ids.has(scenario.index));
+  }
+  if (scenarios.length === 0) fail('No abstract scenarios found. Check --scenario-ids.');
+
+  const profileName = options.local ? 'local' : (options.profile || 'primary');
+  const profile = options.local ? null : getProfile(config, profileName);
+  const model = options.model || (options.local ? config.local.model : profile.defaultModel);
+  if (!model) fail('run-abstract-plan requires a model');
+  const settings = {
+    contextTokens: options.context ?? (options.local ? 32768 : profile.defaultContext),
+    outputTokens: options.numPredict ?? (options.local ? 4096 : profile.defaultNumPredict),
+  };
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const resultDir = path.join(config.host.resultsDir, `${timestamp}-abstract-plan`);
+  const publicScenarios = scenarios.map((scenario) => ({
+    index: scenario.index,
+    id: scenario.id,
+    title: scenario.title,
+    problem: scenario.problem,
+  }));
+
+  if (options.dryRun) {
+    process.stdout.write(`${JSON.stringify({
+      command: 'run-abstract-plan',
+      execution: 'plan-only',
+      route: options.route,
+      profile: profileName,
+      model,
+      settings,
+      runsPerScenario: options.runs,
+      scenarioSet: { count: catalog.scenarios.length, sha256: catalog.sha256 },
+      sourceScenarioSet: catalog.sourceScenarioSet,
+      scenarios: publicScenarios,
+      resultDir,
+      startProfiles: options.startProfiles,
+      resetProfiles: options.resetProfiles,
+    }, null, 2)}\n`);
+    return;
+  }
+
+  fs.mkdirSync(resultDir, { recursive: true });
+  const jsonlPath = path.join(resultDir, 'runs.jsonl');
+  const resultPath = path.join(resultDir, 'result.json');
+  const summaryPath = path.join(resultDir, 'summary.md');
+  const endpoint = options.local ? config.local.host : clientEndpoint(profile, options);
+  let tunnel = null;
+  const attempts = [];
+  try {
+    if (!options.local && !options.direct) tunnel = await openBenchmarkTunnel(options, profile, endpoint);
+    if (!options.local && options.startProfiles) {
+      const command = options.resetProfiles ? 'restart' : 'start';
+      process.stdout.write(`${options.resetProfiles ? 'Resetting' : 'Starting'} remote profile ${profileName} with ${model}\n`);
+      runRemote(config, options.route, [command, '--profile', profileName, '--model', model], {
+        timeoutMs: options.timeoutMs,
+      });
+    }
+    await waitForLocalEndpoint(endpoint, Math.min(30000, options.timeoutMs), tunnel);
+    await assertEndpointModelAvailable(endpoint, model, options.skipModelCheck);
+
+    for (const scenario of scenarios) {
+      for (let repeat = 1; repeat <= options.runs; repeat += 1) {
+        const runId = `ap--${scenario.id}--${profileName}--r${repeat}`;
+        const runOutDir = path.join(resultDir, 'raw', runId);
+        fs.mkdirSync(runOutDir, { recursive: true });
+        process.stdout.write(`${profileName} | ${model} | abstract scenario ${scenario.index} ${scenario.title} | run ${repeat}/${options.runs}\n`);
+        let run;
+        try {
+          run = await runAbstractScenario(
+            endpoint, model, scenario, runOutDir, runId, options.timeoutMs,
+            settings,
+          );
+        } catch (error) {
+          run = {
+            toolCallProduced: false,
+            toolArgs: null,
+            planning: { score: 0, scoreMax: 100, feasible: false, optimal: false, breakdown: {} },
+            llmMs: 0,
+            llmError: error.message,
+            mappingSucceeded: false,
+            mappingError: null,
+            mappedArgs: null,
+            execResult: null,
+            executionOutcome: 'infrastructure_error',
+            executionVerdictPassed: false,
+            outDir: null,
+          };
+        }
+        const record = {
+          schemaVersion: 'agent-kernel-abstract-plan-attempt/v1',
+          timestamp: new Date().toISOString(),
+          scenarioIndex: scenario.index,
+          scenarioId: scenario.id,
+          scenarioTier: scenario.sourceScenario?.tier || 'pilot',
+          profile: profileName,
+          model,
+          settings,
+          repeat,
+          toolCallProduced: run.toolCallProduced,
+          toolArgs: run.toolArgs,
+          planning: run.planning,
+          llmMs: run.llmMs,
+          llmError: run.llmError,
+          mappingSucceeded: run.mappingSucceeded,
+          mappingError: run.mappingError,
+          mappedArgs: run.mappedArgs,
+          execSucceeded: run.execResult?.succeeded || false,
+          expectedOutcome: scenario.expectedOutcome,
+          executionOutcome: run.executionOutcome,
+          executionVerdictPassed: run.executionVerdictPassed,
+          execExitCode: run.execResult?.exitCode ?? null,
+          execMs: run.execResult?.execMs ?? null,
+          execStderr: run.execResult?.stderr || null,
+          outDir: run.outDir,
+          passed: run.planning.score === 100 && run.mappingSucceeded && run.executionVerdictPassed === true,
+        };
+        attempts.push(record);
+        fs.appendFileSync(jsonlPath, `${JSON.stringify(record)}\n`);
+        process.stdout.write(
+          `  Plan: ${record.planning.score}/100 | Map: ${record.mappingSucceeded ? 'ok' : 'fail'} | Verdict: ${record.executionVerdictPassed ? 'pass' : 'fail'} | Raw exec: ${record.execSucceeded ? 'ok' : 'fail'}\n`,
+        );
+      }
+    }
+  } finally {
+    stopTunnel(tunnel);
+  }
+
+  const result = {
+    schemaVersion: 'agent-kernel-abstract-plan-result/v1',
+    generatedAt: new Date().toISOString(),
+    route: options.route,
+    profile: profileName,
+    model,
+    settings,
+    scenarioSet: { count: catalog.scenarios.length, sha256: catalog.sha256 },
+    sourceScenarioSet: catalog.sourceScenarioSet,
+    aggregate: {
+      attempts: attempts.length,
+      planningPasses: attempts.filter((attempt) => attempt.planning.score === 100).length,
+      mappingPasses: attempts.filter((attempt) => attempt.mappingSucceeded).length,
+      executionPasses: attempts.filter((attempt) => attempt.execSucceeded).length,
+      executionVerdictPasses: attempts.filter((attempt) => attempt.executionVerdictPassed).length,
+      endToEndPasses: attempts.filter((attempt) => attempt.passed).length,
+      averagePlanningScore: attempts.length === 0 ? 0 : Math.round(
+        attempts.reduce((sum, attempt) => sum + attempt.planning.score, 0) / attempts.length,
+      ),
+    },
+    attempts,
+  };
+  fs.writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`);
+  fs.writeFileSync(summaryPath, [
+    '# Abstract Planning Benchmark',
+    '',
+    `- Profile/model: ${profileName} / ${model}`,
+    `- Context/output: ${settings.contextTokens} / ${settings.outputTokens}`,
+    `- Scenario set: ${catalog.sha256}`,
+    `- Attempts: ${result.aggregate.attempts}`,
+    `- Planning: ${result.aggregate.planningPasses}/${result.aggregate.attempts} exact; average ${result.aggregate.averagePlanningScore}/100`,
+    `- Deterministic mapping: ${result.aggregate.mappingPasses}/${result.aggregate.attempts}`,
+    `- Raw program execution: ${result.aggregate.executionPasses}/${result.aggregate.attempts}`,
+    `- Expected-outcome verdict: ${result.aggregate.executionVerdictPasses}/${result.aggregate.attempts}`,
+    `- End to end: ${result.aggregate.endToEndPasses}/${result.aggregate.attempts}`,
+    '',
+  ].join('\n'));
+  process.stdout.write(`Result directory: ${resultDir}\nStructured result: ${resultPath}\nSummary: ${summaryPath}\n`);
 }
 
 async function main() {
@@ -1408,6 +1619,8 @@ async function main() {
     await runBenchmark(options, true);
   } else if (options.command === 'benchmark-hardware') {
     await runHardwareBenchmark(options);
+  } else if (options.command === 'run-abstract-plan') {
+    await runAbstractPlan(options);
   } else if (options.command === 'run-content-gen') {
     await runContentGen(options);
   } else if (options.command === 'project-safety-check') {

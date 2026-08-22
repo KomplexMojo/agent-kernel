@@ -177,7 +177,14 @@ export function prepareLevelGen({ existingLevelGen = {}, rooms = [], floorTiles 
 export function mapResources(resources = []) {
   return resources.map((entry) => {
     if (entry._schemaVersion === 3) {
-      return { id: entry.id, permanenceMode: entry.permanenceMode, vitals: entry.vitals };
+      return {
+        id: entry.id,
+        permanenceMode: entry.permanenceMode,
+        vitals: entry.vitals,
+        ...(entry.affinity && typeof entry.affinity === "object"
+          ? { affinity: { ...entry.affinity } }
+          : {}),
+      };
     }
     return { id: entry.id, tier: entry.tier, stat: entry.stat, delta: entry.delta, dropRate: entry.dropRate };
   });

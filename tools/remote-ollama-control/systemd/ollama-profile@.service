@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 EnvironmentFile=%h/.local/state/remote-ollama/systemd/%i.env
-ExecStart=/usr/bin/env ollama serve
+ExecStart=/usr/bin/env ${OLLAMA_BIN} serve
 Restart=on-failure
 RestartSec=3
 WorkingDirectory=%h

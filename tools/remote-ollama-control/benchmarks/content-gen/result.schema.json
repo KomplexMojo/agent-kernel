@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-kernel.local/schemas/content-gen-result-v1.json",
+  "title": "Agent Kernel Content-Generation Result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "scenarioSet", "matrix", "thresholds", "configurations", "minimumSuccessfulConfiguration", "paretoFrontier", "failures"],
+  "properties": {
+    "schemaVersion": { "const": "agent-kernel-content-gen-result/v1" },
+    "scenarioSet": {
+      "type": "object",
+      "required": ["count", "sha256", "tierCounts"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 1 },
+        "catalogCount": { "type": "integer", "minimum": 1 },
+        "sha256": { "type": "string", "minLength": 1 },
+        "tierCounts": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 } }
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "required": ["sha256", "configurationIds", "repeatPolicy"],
+      "properties": {
+        "sha256": { "type": "string", "minLength": 1 },
+        "configurationIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "repeatPolicy": { "type": "object" }
+      }
+    },
+    "thresholds": { "type": "object" },
+    "configurations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["configurationId", "profile", "model", "settings", "resourceOrder", "plannedAttempts", "completedAttempts", "historicalContentGen", "scenarioVerdict", "perTier", "verdict"],
+        "properties": {
+          "configurationId": { "type": "string", "minLength": 1 },
+          "profile": { "type": "object" },
+          "model": { "type": "object" },
+          "settings": { "type": "object" },
+          "resourceOrder": { "type": "object" },
+          "plannedAttempts": { "type": "object" },
+          "completedAttempts": { "type": "integer", "minimum": 0 },
+          "completedPasses": { "type": "integer", "minimum": 0 },
+          "historicalContentGen": { "type": "object" },
+          "scenarioVerdict": { "type": "object" },
+          "perTier": { "type": "object" },
+          "verdict": { "type": "object" }
+        }
+      }
+    },
+    "minimumSuccessfulConfiguration": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "object", "required": ["configurationId"], "properties": { "configurationId": { "type": "string" } } }
+      ]
+    },
+    "paretoFrontier": { "type": "array", "items": { "type": "string" } },
+    "failures": { "type": "object" }
+  }
+}
