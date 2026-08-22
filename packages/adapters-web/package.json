@@ -1,5 +1,8 @@
 {
   "name": "@agent-kernel/adapters-web",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "z3-solver": "^5.1.0"
+  }
 }
