@@ -2,7 +2,7 @@
   "schemaVersion": "agent-kernel-abstract-plan-catalog/v1",
   "sourceScenarioSet": {
     "count": 100,
-    "sha256": "b0709b81a7d5bc889449dd2c0e48ea108af39afc9918d555e03b120f90b28add"
+    "sha256": "fa63f68c2adb2f9be01f2e5634230fee217f3753d199f20c3169980686308272"
   },
   "scenarios": [
     {
@@ -278,31 +278,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g03": 1,
+            "g05": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g03": 1,
+            "g05": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g03": [
               "s002"
             ],
-            "g03": [
+            "g05": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -312,7 +312,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -322,8 +322,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -332,8 +332,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -342,8 +342,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -352,8 +352,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -377,7 +377,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-01] create one mobile exploring Delver whose route crosses the field of one non-blocking fire emit hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -574,43 +574,35 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1,
-            "g05": 1
+            "g05": 2,
+            "g06": 2
           },
           "minimumCapacityByCategory": {
-            "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1,
-            "g05": 1
+            "g01": 3,
+            "g05": 2,
+            "g06": 2
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
-              "s002"
-            ],
-            "g03": [
+            "g05": [
+              "s002",
               "s003"
             ],
-            "g04": [
-              "s004"
-            ],
-            "g05": [
+            "g06": [
+              "s004",
               "s005"
             ]
           },
-          "maximumTotalCost": 5
+          "maximumTotalCost": 115
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 3,
             "signals": [
               "s001"
             ],
@@ -618,9 +610,9 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 3,
             "signals": [
               "s001"
             ],
@@ -628,8 +620,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -638,8 +630,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -648,8 +640,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -658,8 +650,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -668,8 +660,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 1,
-            "category": "g04",
+            "unitCost": 14,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -678,8 +670,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 11,
-            "category": "g04",
+            "unitCost": 64,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -688,8 +680,8 @@
           },
           {
             "id": "C-005",
-            "unitCost": 1,
-            "category": "g05",
+            "unitCost": 15,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s005"
@@ -698,8 +690,8 @@
           },
           {
             "id": "X-005",
-            "unitCost": 11,
-            "category": "g05",
+            "unitCost": 65,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s005"
@@ -731,7 +723,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 5
+        "minimumCost": 65
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-05] create three connected medium rooms containing exactly four actors spanning exploring, patrolling, random, and stationary motivations. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -901,28 +893,28 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1
+            "g06": 1
           },
           "minimumCapacityByCategory": {
-            "g01": 1,
-            "g02": 1
+            "g01": 2,
+            "g06": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g06": [
               "s002"
             ]
           },
-          "maximumTotalCost": 2
+          "maximumTotalCost": 73
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 2,
             "signals": [
               "s001"
             ],
@@ -930,9 +922,9 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 2,
             "signals": [
               "s001"
             ],
@@ -940,8 +932,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s002"
@@ -950,8 +942,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s002"
@@ -971,7 +963,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 2
+        "minimumCost": 23
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-03] create a connected two-room corridor loop with exactly one patrolling Warden and no other actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -1011,31 +1003,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g05": [
               "s002"
             ],
-            "g03": [
+            "g06": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -1045,7 +1037,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -1055,8 +1047,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -1065,8 +1057,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -1075,8 +1067,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -1085,8 +1077,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -1110,7 +1102,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-01] create one medium arena where one attacking Delver and one defending Warden begin adjacent or otherwise within immediate encounter distance. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -2418,36 +2410,36 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1
+            "g04": 1,
+            "g05": 1,
+            "g06": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1
+            "g04": 1,
+            "g05": 1,
+            "g06": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g04": [
               "s002"
             ],
-            "g03": [
+            "g05": [
               "s003"
             ],
-            "g04": [
+            "g06": [
               "s004"
             ]
           },
-          "maximumTotalCost": 4
+          "maximumTotalCost": 100
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -2457,7 +2449,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -2467,8 +2459,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s002"
@@ -2477,8 +2469,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s002"
@@ -2487,8 +2479,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -2497,8 +2489,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -2507,8 +2499,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 1,
-            "category": "g04",
+            "unitCost": 14,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -2517,8 +2509,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 11,
-            "category": "g04",
+            "unitCost": 64,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -2546,7 +2538,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 4
+        "minimumCost": 50
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-04] create one attacking Delver crossing a temporary fire-push affinity resource with two stacks, finite mana 12, and zero mana regeneration, with a defending Warden available as a target. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -2602,31 +2594,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g03": 1,
+            "g05": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g03": 1,
+            "g05": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g03": [
               "s002"
             ],
-            "g03": [
+            "g05": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -2636,7 +2628,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -2646,8 +2638,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -2656,8 +2648,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -2666,8 +2658,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -2676,8 +2668,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -2701,7 +2693,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-05] create one blocking fortify emit hazard controlling the short route while an alternate legal route remains for one exploring Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -3121,31 +3113,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 2,
+            "g06": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g05": [
               "s002"
             ],
-            "g03": [
+            "g06": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3155,7 +3147,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3165,9 +3157,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
-            "capacity": 1,
+            "unitCost": 12,
+            "category": "g05",
+            "capacity": 2,
             "signals": [
               "s002"
             ],
@@ -3175,9 +3167,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
-            "capacity": 1,
+            "unitCost": 62,
+            "category": "g05",
+            "capacity": 2,
             "signals": [
               "s002"
             ],
@@ -3185,8 +3177,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -3195,8 +3187,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -3220,7 +3212,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-03] create one arena with exactly two attacking Delvers facing one high-durability defending Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -3268,36 +3260,32 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1
+            "g05": 1,
+            "g06": 2
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1
+            "g05": 1,
+            "g06": 2
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g05": [
               "s002"
             ],
-            "g03": [
-              "s003"
-            ],
-            "g04": [
+            "g06": [
+              "s003",
               "s004"
             ]
           },
-          "maximumTotalCost": 4
+          "maximumTotalCost": 100
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3307,7 +3295,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3317,8 +3305,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -3327,8 +3315,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -3337,8 +3325,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -3347,8 +3335,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -3357,8 +3345,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 1,
-            "category": "g04",
+            "unitCost": 14,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -3367,8 +3355,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 11,
-            "category": "g04",
+            "unitCost": 64,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -3396,7 +3384,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 4
+        "minimumCost": 50
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-05] create exactly three combat actors combining attacking mobility, defending posture, and reflexive cognition motivations. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -3452,31 +3440,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 10
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g05": [
               "s002"
             ],
-            "g03": [
+            "g06": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3486,7 +3474,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3496,8 +3484,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -3506,8 +3494,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -3516,9 +3504,9 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
-            "capacity": 1,
+            "unitCost": 13,
+            "category": "g06",
+            "capacity": 10,
             "signals": [
               "s003"
             ],
@@ -3526,9 +3514,9 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
-            "capacity": 1,
+            "unitCost": 63,
+            "category": "g06",
+            "capacity": 10,
             "signals": [
               "s003"
             ],
@@ -3551,7 +3539,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-02] create one large room containing exactly one random mobile Delver and ten random mobile Wardens, all with positive stamina and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -3599,31 +3587,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g05": [
               "s002"
             ],
-            "g03": [
+            "g06": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3633,7 +3621,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3643,8 +3631,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -3653,8 +3641,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -3663,8 +3651,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -3673,8 +3661,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -3698,7 +3686,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-04] create one attacking Delver facing one defending Warden with high health and positive health regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -3746,103 +3734,55 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1,
+            "g03": 6,
+            "g04": 6,
             "g05": 1,
-            "g06": 1,
-            "g07": 1,
-            "g08": 1,
-            "g09": 1,
-            "g10": 1,
-            "g11": 1,
-            "g12": 1,
-            "g13": 1,
-            "g14": 1,
-            "g15": 1,
-            "g16": 1,
-            "g17": 1
+            "g06": 3
           },
           "minimumCapacityByCategory": {
-            "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1,
-            "g05": 1,
-            "g06": 1,
-            "g07": 1,
-            "g08": 1,
-            "g09": 1,
-            "g10": 1,
-            "g11": 1,
-            "g12": 1,
-            "g13": 1,
-            "g14": 1,
-            "g15": 1,
-            "g16": 1,
-            "g17": 1
+            "g01": 4,
+            "g03": 6,
+            "g04": 6,
+            "g05": 2,
+            "g06": 4
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
-              "s002"
-            ],
             "g03": [
-              "s003"
-            ],
-            "g04": [
-              "s004"
-            ],
-            "g05": [
-              "s005"
-            ],
-            "g06": [
-              "s006"
-            ],
-            "g07": [
+              "s002",
+              "s003",
+              "s004",
+              "s005",
+              "s006",
               "s007"
             ],
-            "g08": [
-              "s008"
-            ],
-            "g09": [
-              "s009"
-            ],
-            "g10": [
-              "s010"
-            ],
-            "g11": [
-              "s011"
-            ],
-            "g12": [
-              "s012"
-            ],
-            "g13": [
+            "g04": [
+              "s008",
+              "s009",
+              "s010",
+              "s011",
+              "s012",
               "s013"
             ],
-            "g14": [
+            "g05": [
               "s014"
             ],
-            "g15": [
-              "s015"
-            ],
-            "g16": [
-              "s016"
-            ],
-            "g17": [
+            "g06": [
+              "s015",
+              "s016",
               "s017"
             ]
           },
-          "maximumTotalCost": 17
+          "maximumTotalCost": 373
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 4,
             "signals": [
               "s001"
             ],
@@ -3850,9 +3790,9 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 4,
             "signals": [
               "s001"
             ],
@@ -3860,8 +3800,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -3870,8 +3810,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -3880,7 +3820,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
+            "unitCost": 13,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -3890,7 +3830,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
+            "unitCost": 63,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -3900,8 +3840,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 1,
-            "category": "g04",
+            "unitCost": 14,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s004"
@@ -3910,8 +3850,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 11,
-            "category": "g04",
+            "unitCost": 64,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s004"
@@ -3920,8 +3860,8 @@
           },
           {
             "id": "C-005",
-            "unitCost": 1,
-            "category": "g05",
+            "unitCost": 15,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s005"
@@ -3930,8 +3870,8 @@
           },
           {
             "id": "X-005",
-            "unitCost": 11,
-            "category": "g05",
+            "unitCost": 65,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s005"
@@ -3940,8 +3880,8 @@
           },
           {
             "id": "C-006",
-            "unitCost": 1,
-            "category": "g06",
+            "unitCost": 16,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s006"
@@ -3950,8 +3890,8 @@
           },
           {
             "id": "X-006",
-            "unitCost": 11,
-            "category": "g06",
+            "unitCost": 66,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s006"
@@ -3960,8 +3900,8 @@
           },
           {
             "id": "C-007",
-            "unitCost": 1,
-            "category": "g07",
+            "unitCost": 17,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s007"
@@ -3970,8 +3910,8 @@
           },
           {
             "id": "X-007",
-            "unitCost": 11,
-            "category": "g07",
+            "unitCost": 67,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s007"
@@ -3980,8 +3920,8 @@
           },
           {
             "id": "C-008",
-            "unitCost": 1,
-            "category": "g08",
+            "unitCost": 18,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s008"
@@ -3990,8 +3930,8 @@
           },
           {
             "id": "X-008",
-            "unitCost": 11,
-            "category": "g08",
+            "unitCost": 68,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s008"
@@ -4000,8 +3940,8 @@
           },
           {
             "id": "C-009",
-            "unitCost": 1,
-            "category": "g09",
+            "unitCost": 19,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s009"
@@ -4010,8 +3950,8 @@
           },
           {
             "id": "X-009",
-            "unitCost": 11,
-            "category": "g09",
+            "unitCost": 69,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s009"
@@ -4020,8 +3960,8 @@
           },
           {
             "id": "C-010",
-            "unitCost": 1,
-            "category": "g10",
+            "unitCost": 20,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s010"
@@ -4030,8 +3970,8 @@
           },
           {
             "id": "X-010",
-            "unitCost": 11,
-            "category": "g10",
+            "unitCost": 70,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s010"
@@ -4040,8 +3980,8 @@
           },
           {
             "id": "C-011",
-            "unitCost": 1,
-            "category": "g11",
+            "unitCost": 21,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s011"
@@ -4050,8 +3990,8 @@
           },
           {
             "id": "X-011",
-            "unitCost": 11,
-            "category": "g11",
+            "unitCost": 71,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s011"
@@ -4060,8 +4000,8 @@
           },
           {
             "id": "C-012",
-            "unitCost": 1,
-            "category": "g12",
+            "unitCost": 22,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s012"
@@ -4070,8 +4010,8 @@
           },
           {
             "id": "X-012",
-            "unitCost": 11,
-            "category": "g12",
+            "unitCost": 72,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s012"
@@ -4080,8 +4020,8 @@
           },
           {
             "id": "C-013",
-            "unitCost": 1,
-            "category": "g13",
+            "unitCost": 23,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s013"
@@ -4090,8 +4030,8 @@
           },
           {
             "id": "X-013",
-            "unitCost": 11,
-            "category": "g13",
+            "unitCost": 73,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s013"
@@ -4100,9 +4040,9 @@
           },
           {
             "id": "C-014",
-            "unitCost": 1,
-            "category": "g14",
-            "capacity": 1,
+            "unitCost": 24,
+            "category": "g05",
+            "capacity": 2,
             "signals": [
               "s014"
             ],
@@ -4110,9 +4050,9 @@
           },
           {
             "id": "X-014",
-            "unitCost": 11,
-            "category": "g14",
-            "capacity": 1,
+            "unitCost": 74,
+            "category": "g05",
+            "capacity": 2,
             "signals": [
               "s014"
             ],
@@ -4120,8 +4060,8 @@
           },
           {
             "id": "C-015",
-            "unitCost": 1,
-            "category": "g15",
+            "unitCost": 25,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s015"
@@ -4130,8 +4070,8 @@
           },
           {
             "id": "X-015",
-            "unitCost": 11,
-            "category": "g15",
+            "unitCost": 75,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s015"
@@ -4140,8 +4080,8 @@
           },
           {
             "id": "C-016",
-            "unitCost": 1,
-            "category": "g16",
+            "unitCost": 26,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s016"
@@ -4150,8 +4090,8 @@
           },
           {
             "id": "X-016",
-            "unitCost": 11,
-            "category": "g16",
+            "unitCost": 76,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s016"
@@ -4160,9 +4100,9 @@
           },
           {
             "id": "C-017",
-            "unitCost": 1,
-            "category": "g17",
-            "capacity": 1,
+            "unitCost": 27,
+            "category": "g06",
+            "capacity": 2,
             "signals": [
               "s017"
             ],
@@ -4170,9 +4110,9 @@
           },
           {
             "id": "X-017",
-            "unitCost": 11,
-            "category": "g17",
-            "capacity": 1,
+            "unitCost": 77,
+            "category": "g06",
+            "capacity": 2,
             "signals": [
               "s017"
             ],
@@ -4251,7 +4191,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 17
+        "minimumCost": 323
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-03] create four connected rooms with exactly six mobile actors, six hazards spanning all four expressions, and six resources spanning vital and affinity lifecycles. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -4411,63 +4351,47 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1,
-            "g05": 1,
-            "g06": 1,
-            "g07": 1,
-            "g08": 1,
-            "g09": 1
+            "g03": 2,
+            "g04": 2,
+            "g05": 2,
+            "g06": 2
           },
           "minimumCapacityByCategory": {
-            "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1,
-            "g05": 1,
-            "g06": 1,
-            "g07": 1,
-            "g08": 1,
-            "g09": 1
+            "g01": 3,
+            "g03": 2,
+            "g04": 2,
+            "g05": 2,
+            "g06": 2
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
-              "s002"
-            ],
             "g03": [
+              "s002",
               "s003"
             ],
             "g04": [
-              "s004"
-            ],
-            "g05": [
+              "s004",
               "s005"
             ],
-            "g06": [
-              "s006"
-            ],
-            "g07": [
+            "g05": [
+              "s006",
               "s007"
             ],
-            "g08": [
-              "s008"
-            ],
-            "g09": [
+            "g06": [
+              "s008",
               "s009"
             ]
           },
-          "maximumTotalCost": 9
+          "maximumTotalCost": 185
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 3,
             "signals": [
               "s001"
             ],
@@ -4475,9 +4399,9 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 3,
             "signals": [
               "s001"
             ],
@@ -4485,8 +4409,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -4495,8 +4419,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -4505,7 +4429,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
+            "unitCost": 13,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -4515,7 +4439,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
+            "unitCost": 63,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -4525,7 +4449,7 @@
           },
           {
             "id": "C-004",
-            "unitCost": 1,
+            "unitCost": 14,
             "category": "g04",
             "capacity": 1,
             "signals": [
@@ -4535,7 +4459,7 @@
           },
           {
             "id": "X-004",
-            "unitCost": 11,
+            "unitCost": 64,
             "category": "g04",
             "capacity": 1,
             "signals": [
@@ -4545,8 +4469,8 @@
           },
           {
             "id": "C-005",
-            "unitCost": 1,
-            "category": "g05",
+            "unitCost": 15,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s005"
@@ -4555,8 +4479,8 @@
           },
           {
             "id": "X-005",
-            "unitCost": 11,
-            "category": "g05",
+            "unitCost": 65,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s005"
@@ -4565,8 +4489,8 @@
           },
           {
             "id": "C-006",
-            "unitCost": 1,
-            "category": "g06",
+            "unitCost": 16,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s006"
@@ -4575,8 +4499,8 @@
           },
           {
             "id": "X-006",
-            "unitCost": 11,
-            "category": "g06",
+            "unitCost": 66,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s006"
@@ -4585,8 +4509,8 @@
           },
           {
             "id": "C-007",
-            "unitCost": 1,
-            "category": "g07",
+            "unitCost": 17,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s007"
@@ -4595,8 +4519,8 @@
           },
           {
             "id": "X-007",
-            "unitCost": 11,
-            "category": "g07",
+            "unitCost": 67,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s007"
@@ -4605,8 +4529,8 @@
           },
           {
             "id": "C-008",
-            "unitCost": 1,
-            "category": "g08",
+            "unitCost": 18,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s008"
@@ -4615,8 +4539,8 @@
           },
           {
             "id": "X-008",
-            "unitCost": 11,
-            "category": "g08",
+            "unitCost": 68,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s008"
@@ -4625,8 +4549,8 @@
           },
           {
             "id": "C-009",
-            "unitCost": 1,
-            "category": "g09",
+            "unitCost": 19,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s009"
@@ -4635,8 +4559,8 @@
           },
           {
             "id": "X-009",
-            "unitCost": 11,
-            "category": "g09",
+            "unitCost": 69,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s009"
@@ -4684,7 +4608,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 9
+        "minimumCost": 135
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-01] create three connected rooms containing exactly four mobile actors with attacking, defending, patrolling, and random motivations, two hazards, and two resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -4780,41 +4704,37 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1,
-            "g05": 1
+            "g04": 2,
+            "g05": 1,
+            "g06": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1,
-            "g05": 1
+            "g04": 2,
+            "g05": 1,
+            "g06": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
-              "s002"
-            ],
-            "g03": [
+            "g04": [
+              "s002",
               "s003"
             ],
-            "g04": [
+            "g05": [
               "s004"
             ],
-            "g05": [
+            "g06": [
               "s005"
             ]
           },
-          "maximumTotalCost": 5
+          "maximumTotalCost": 115
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -4824,7 +4744,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -4834,8 +4754,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s002"
@@ -4844,8 +4764,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s002"
@@ -4854,8 +4774,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s003"
@@ -4864,8 +4784,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s003"
@@ -4874,8 +4794,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 1,
-            "category": "g04",
+            "unitCost": 14,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s004"
@@ -4884,8 +4804,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 11,
-            "category": "g04",
+            "unitCost": 64,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s004"
@@ -4894,8 +4814,8 @@
           },
           {
             "id": "C-005",
-            "unitCost": 1,
-            "category": "g05",
+            "unitCost": 15,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s005"
@@ -4904,8 +4824,8 @@
           },
           {
             "id": "X-005",
-            "unitCost": 11,
-            "category": "g05",
+            "unitCost": 65,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s005"
@@ -4937,7 +4857,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 5
+        "minimumCost": 65
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-05] create one Delver and one Warden each crossing a distinct permanent fire-emit affinity resource with two stacks, mana 12, and mana regeneration 2. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -5001,31 +4921,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g05": [
               "s002"
             ],
-            "g03": [
+            "g06": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -5035,7 +4955,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -5045,8 +4965,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -5055,8 +4975,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -5065,8 +4985,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -5075,8 +4995,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -5100,7 +5020,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-02#neutral] create the neutral member of a paired otherwise-identical duel: one attacking Delver and one defending Warden with no declared attacker advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -5148,31 +5068,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g05": 1,
+            "g06": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g05": [
               "s002"
             ],
-            "g03": [
+            "g06": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -5182,7 +5102,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -5192,8 +5112,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -5202,8 +5122,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -5212,8 +5132,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -5222,8 +5142,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -5247,7 +5167,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-02#advantaged] create the advantaged member of a paired otherwise-identical duel: one attacking fire-push Delver and the same defending Warden, changing only the declared attacker affinity advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -5516,43 +5436,35 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1,
-            "g05": 1
+            "g05": 2,
+            "g06": 2
           },
           "minimumCapacityByCategory": {
-            "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1,
-            "g05": 1
+            "g01": 2,
+            "g05": 2,
+            "g06": 2
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
-              "s002"
-            ],
-            "g03": [
+            "g05": [
+              "s002",
               "s003"
             ],
-            "g04": [
-              "s004"
-            ],
-            "g05": [
+            "g06": [
+              "s004",
               "s005"
             ]
           },
-          "maximumTotalCost": 5
+          "maximumTotalCost": 115
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 2,
             "signals": [
               "s001"
             ],
@@ -5560,9 +5472,9 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 2,
             "signals": [
               "s001"
             ],
@@ -5570,8 +5482,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -5580,8 +5492,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -5590,8 +5502,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -5600,8 +5512,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -5610,8 +5522,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 1,
-            "category": "g04",
+            "unitCost": 14,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -5620,8 +5532,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 11,
-            "category": "g04",
+            "unitCost": 64,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -5630,8 +5542,8 @@
           },
           {
             "id": "C-005",
-            "unitCost": 1,
-            "category": "g05",
+            "unitCost": 15,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s005"
@@ -5640,8 +5552,8 @@
           },
           {
             "id": "X-005",
-            "unitCost": 11,
-            "category": "g05",
+            "unitCost": 65,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s005"
@@ -5673,7 +5585,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 5
+        "minimumCost": 65
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-04] create two connected rooms with exactly two Delvers and two Wardens combining attacking, defending, patrolling, and random behavior, all with positive vitals and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -12141,7 +12053,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with one attacking delver and one defending warden. Use a 350 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with one attacking delver and one defending warden. Use a 450 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 450
         },
@@ -12261,7 +12173,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with two exploring delvers. Use a 400 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with two exploring delvers. Use a 450 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 450
         },
@@ -12373,9 +12285,9 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with two patrolling wardens. Use a 440 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with two patrolling wardens. Use a 469 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 450
+          "budgetTokens": 469
         },
         "components": {
           "C-001": {
@@ -12514,7 +12426,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with two attacking delvers and two defending wardens. Use a 550 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with two attacking delvers and two defending wardens. Use a 750 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 750
         },
@@ -12634,7 +12546,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two base rooms with a single exploring delver. Use a 300 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two base rooms with a single exploring delver. Use a 650 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 650
         },
@@ -12953,7 +12865,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with one exploring delver, one defending warden, and a single basic hazard. Use a 400 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with one exploring delver, one defending warden, and a single basic hazard. Use a 550 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 550
         },
@@ -13081,7 +12993,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with three defending wardens. Use a 650 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with three defending wardens. Use a 1500 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 1500
         },
@@ -13120,31 +13032,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g04": 1,
+            "g05": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g04": 1,
+            "g05": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g04": [
               "s002"
             ],
-            "g03": [
+            "g05": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13154,7 +13066,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13164,8 +13076,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13174,8 +13086,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13184,8 +13096,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13194,8 +13106,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13219,7 +13131,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-01] create one injured mobile exploring Delver crossing one consumable health resource that grants current health only. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -13267,31 +13179,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g04": 1,
+            "g05": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g04": 1,
+            "g05": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g04": [
               "s002"
             ],
-            "g03": [
+            "g05": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13301,7 +13213,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13311,8 +13223,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13321,8 +13233,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13331,8 +13243,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13341,8 +13253,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13366,7 +13278,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-02] create one mobile exploring Delver crossing one level-scoped resource that raises maximum health. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -13414,31 +13326,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g04": 1,
+            "g05": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g04": 1,
+            "g05": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g04": [
               "s002"
             ],
-            "g03": [
+            "g05": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13448,7 +13360,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13458,8 +13370,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13468,8 +13380,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13478,8 +13390,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13488,8 +13400,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13513,7 +13425,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-03] create one injured mobile exploring Delver crossing one regeneration-only health resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -13561,36 +13473,36 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
             "g03": 1,
-            "g04": 1
+            "g05": 1,
+            "g06": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
             "g03": 1,
-            "g04": 1
+            "g05": 1,
+            "g06": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g03": [
               "s002"
             ],
-            "g03": [
+            "g05": [
               "s003"
             ],
-            "g04": [
+            "g06": [
               "s004"
             ]
           },
-          "maximumTotalCost": 4
+          "maximumTotalCost": 100
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13600,7 +13512,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13610,8 +13522,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13620,8 +13532,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13630,8 +13542,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13640,8 +13552,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13650,8 +13562,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 1,
-            "category": "g04",
+            "unitCost": 14,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -13660,8 +13572,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 11,
-            "category": "g04",
+            "unitCost": 64,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -13689,7 +13601,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 4
+        "minimumCost": 50
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-04] create one mobile Delver crossing a water draw hazard while a second stationary interaction target is nearby. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -13745,31 +13657,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g03": 1,
+            "g05": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g03": 1,
+            "g05": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g03": [
               "s002"
             ],
-            "g03": [
+            "g05": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13779,7 +13691,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13789,8 +13701,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13799,8 +13711,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13809,8 +13721,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13819,8 +13731,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13844,7 +13756,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-02] create one mobile exploring actor approaching a non-blocking wind push hazard with legal walkable displacement space behind the actor. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -13892,31 +13804,31 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g03": 1,
+            "g05": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1
+            "g03": 1,
+            "g05": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g03": [
               "s002"
             ],
-            "g03": [
+            "g05": [
               "s003"
             ]
           },
-          "maximumTotalCost": 3
+          "maximumTotalCost": 86
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13926,7 +13838,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13936,8 +13848,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13946,8 +13858,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s002"
@@ -13956,8 +13868,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13966,8 +13878,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s003"
@@ -13991,7 +13903,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 3
+        "minimumCost": 36
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-03] create one mobile exploring actor approaching an earth pull hazard from outside its focused radius with legal space toward the hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -14407,28 +14319,28 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1
+            "g05": 1
           },
           "minimumCapacityByCategory": {
-            "g01": 1,
-            "g02": 1
+            "g01": 3,
+            "g05": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g05": [
               "s002"
             ]
           },
-          "maximumTotalCost": 2
+          "maximumTotalCost": 73
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 3,
             "signals": [
               "s001"
             ],
@@ -14436,9 +14348,9 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
-            "capacity": 1,
+            "capacity": 3,
             "signals": [
               "s001"
             ],
@@ -14446,8 +14358,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -14456,8 +14368,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -14477,7 +14389,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 2
+        "minimumCost": 23
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-02] create three connected medium rooms with exactly one exploring Delver beginning on the route from the entry room. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -14663,26 +14575,26 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1
+            "g06": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1
+            "g06": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g06": [
               "s002"
             ]
           },
-          "maximumTotalCost": 2
+          "maximumTotalCost": 73
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -14692,7 +14604,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -14702,8 +14614,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s002"
@@ -14712,8 +14624,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s002"
@@ -14733,7 +14645,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 2
+        "minimumCost": 23
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-04] create one open medium room with exactly one stationary Warden who must not move. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -14773,26 +14685,26 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1
+            "g05": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1
+            "g05": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g05": [
               "s002"
             ]
           },
-          "maximumTotalCost": 2
+          "maximumTotalCost": 73
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -14802,7 +14714,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -14812,8 +14724,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -14822,8 +14734,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -14843,7 +14755,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 2
+        "minimumCost": 23
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-01] create one open medium room with exactly one exploring Delver who has positive stamina and room to move. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -14956,36 +14868,32 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1
+            "g05": 1,
+            "g06": 2
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 1,
-            "g03": 1,
-            "g04": 1
+            "g05": 1,
+            "g06": 2
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g02": [
+            "g05": [
               "s002"
             ],
-            "g03": [
-              "s003"
-            ],
-            "g04": [
+            "g06": [
+              "s003",
               "s004"
             ]
           },
-          "maximumTotalCost": 4
+          "maximumTotalCost": 100
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 1,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -14995,7 +14903,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 11,
+            "unitCost": 61,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -15005,8 +14913,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 1,
-            "category": "g02",
+            "unitCost": 12,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -15015,8 +14923,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 11,
-            "category": "g02",
+            "unitCost": 62,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s002"
@@ -15025,8 +14933,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 1,
-            "category": "g03",
+            "unitCost": 13,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -15035,8 +14943,8 @@
           },
           {
             "id": "X-003",
-            "unitCost": 11,
-            "category": "g03",
+            "unitCost": 63,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s003"
@@ -15045,8 +14953,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 1,
-            "category": "g04",
+            "unitCost": 14,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -15055,8 +14963,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 11,
-            "category": "g04",
+            "unitCost": 64,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s004"
@@ -15084,7 +14992,7 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 4
+        "minimumCost": 50
       },
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-05] create one open large room with exactly three uniquely identified random mobile actors, one Delver and two Wardens, each with positive stamina and several legal movement branches, and no hazards or resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
@@ -16883,9 +16791,9 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver at its minimum passing budget. Use a 55 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver at its minimum passing budget. Use a 65 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 55
+          "budgetTokens": 65
         },
         "components": {
           "C-001": {
@@ -16958,9 +16866,9 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver one token below its minimum passing budget. Use a 54 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver one token below its minimum passing budget. Use a 64 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 54
+          "budgetTokens": 64
         },
         "components": {
           "C-001": {
@@ -17033,9 +16941,9 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one defending dark Warden at its minimum passing budget. Use a 55 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one defending dark Warden at its minimum passing budget. Use a 58 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 55
+          "budgetTokens": 58
         },
         "components": {
           "C-001": {
@@ -17108,9 +17016,9 @@
         "minimumCost": 11
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one defending dark Warden one token below its minimum passing budget. Use a 54 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one defending dark Warden one token below its minimum passing budget. Use a 57 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 54
+          "budgetTokens": 57
         },
         "components": {
           "C-001": {
@@ -17241,9 +17149,9 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden at the minimum passing budget. Use a 263 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden at the minimum passing budget. Use a 277 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 263
+          "budgetTokens": 277
         },
         "components": {
           "C-001": {
@@ -17390,9 +17298,9 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden one token below the minimum passing budget. Use a 262 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden one token below the minimum passing budget. Use a 276 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 262
+          "budgetTokens": 276
         },
         "components": {
           "C-001": {
@@ -17510,9 +17418,9 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two small rooms with one exploring water Delver at the minimum passing budget. Use a 167 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two small rooms with one exploring water Delver at the minimum passing budget. Use a 194 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 167
+          "budgetTokens": 194
         },
         "components": {
           "C-001": {
@@ -17651,9 +17559,9 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one fire hazard and one water Delver one token below the minimum passing budget. Use a 209 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one fire hazard and one water Delver one token below the minimum passing budget. Use a 241 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 209
+          "budgetTokens": 241
         },
         "components": {
           "C-001": {
@@ -17800,9 +17708,9 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly life Delver five tokens above the minimum passing budget. Use a 189 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly life Delver five tokens above the minimum passing budget. Use a 221 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 189
+          "budgetTokens": 221
         },
         "components": {
           "C-001": {
@@ -17920,9 +17828,9 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with two exploring water Delvers one token below the minimum passing budget. Use a 333 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with two exploring water Delvers one token below the minimum passing budget. Use a 388 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 333
+          "budgetTokens": 388
         },
         "components": {
           "C-001": {
@@ -18061,9 +17969,9 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with a dark pull hazard and two defending dark Wardens at the minimum passing budget. Use a 494 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with a dark pull hazard and two defending dark Wardens at the minimum passing budget. Use a 520 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "budgetTokens": 494
+          "budgetTokens": 520
         },
         "components": {
           "C-001": {

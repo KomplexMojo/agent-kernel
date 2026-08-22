@@ -20,7 +20,7 @@ const {
 const { loadExecutionCatalog } = require("../../tools/remote-ollama-control/scripts/lib/execution-catalog");
 
 const PRIOR_CATALOG_HASH = "0558024373ad3720a866f24c911f7293fbc7e0a01ec6abfb4c31571654767264";
-const EXPECTED_HASH = "b0709b81a7d5bc889449dd2c0e48ea108af39afc9918d555e03b120f90b28add";
+const EXPECTED_HASH = "fa63f68c2adb2f9be01f2e5634230fee217f3753d199f20c3169980686308272";
 const TIERS = ["simple", "affinity", "complex", "constrained"];
 const ROOT = resolve(__dirname, "../..");
 const REMOTE_CONTROL_ROOT = resolve(__dirname, "../../tools/remote-ollama-control");
@@ -69,6 +69,29 @@ function authoredCount(payload, key) {
   return (payload[key] || []).reduce((sum, spec) => (
     sum + Number.parseInt(parseEntitySpec(spec).count || "1", 10)
   ), 0);
+}
+
+async function runCanonicalScenario(scenario, budgetTokens = scenario.payload.budgetTokens) {
+  const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
+  const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
+  const cli = resolve(__dirname, "../../packages/adapters-cli/src/cli/ak.mjs");
+  const outDir = mkdtempSync(join(tmpdir(), `ak-constrained-${scenario.index}-`));
+  try {
+    const result = spawnSync(process.execPath, [cli, "create", ...buildArgv({
+      ...scenario.payload,
+      budgetTokens,
+      outDir,
+    }, authoringSpec)], { cwd: ROOT, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+    const detail = `${result.stderr || ""}\n${result.stdout || ""}`;
+    return {
+      actual: result.status === 0
+        ? "success"
+        : /Budget receipt denied/i.test(detail) ? "budget_denied" : "unexpected_failure",
+      detail,
+    };
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
 }
 
 function scoringFixture() {
@@ -147,6 +170,50 @@ test("repository catalog owns 100 balanced content-generation scenarios", () => 
     [65, 81, 85, 90].map((index) => catalog.scenarios.find((scenario) => scenario.index === index)?.tier),
     ["simple", "affinity", "complex", "constrained"],
   );
+});
+
+test("constrained prompts name the exact budget the harness executes", () => {
+  const catalog = loadScenarioCatalog();
+  for (const scenario of catalog.scenarios.filter((entry) => entry.budgetMode === "constrained")) {
+    const match = scenario.prompt.match(/\bUse a (\d+) token hard budget\b/);
+    assert.ok(match, `scenario ${scenario.index} prompt does not declare its hard budget`);
+    assert.equal(Number.parseInt(match[1], 10), scenario.budget,
+      `scenario ${scenario.index} prompt budget disagrees with its executed budget`);
+    assert.equal(scenario.payload.budgetTokens, scenario.budget);
+  }
+});
+
+test("constrained canonical payloads produce their declared outcomes", async () => {
+  const constrained = loadScenarioCatalog().scenarios.filter((entry) => entry.budgetMode === "constrained");
+
+  for (const scenario of constrained) {
+    const result = await runCanonicalScenario(scenario);
+    assert.equal(result.actual, scenario.expectedOutcome,
+      `scenario ${scenario.index} expected ${scenario.expectedOutcome}, received ${result.actual}: ${result.detail}`);
+  }
+});
+
+test("named constrained boundaries match the allocator's actual minimum", async () => {
+  const catalog = loadScenarioCatalog();
+  const offsetsFromMinimum = new Map([
+    [90, 0], [91, -1], [92, 0], [93, -1], [94, 0], [95, -1],
+    [96, 0], [97, -1], [98, 5], [99, -1], [100, 0],
+  ]);
+
+  for (const [index, offset] of offsetsFromMinimum) {
+    const scenario = catalog.scenarios.find((entry) => entry.index === index);
+    const minimum = scenario.budget - offset;
+    if (offset !== 0) {
+      const exact = await runCanonicalScenario(scenario, minimum);
+      assert.equal(exact.actual, "success",
+        `scenario ${index} claims a minimum of ${minimum}, but it received ${exact.actual}: ${exact.detail}`);
+    }
+    if (offset !== -1) {
+      const under = await runCanonicalScenario(scenario, minimum - 1);
+      assert.equal(under.actual, "budget_denied",
+        `scenario ${index} claims a minimum of ${minimum}, but ${minimum - 1} received ${under.actual}: ${under.detail}`);
+    }
+  }
 });
 
 test("content authoring preserves blocking hazards and V3 affinity resources through the public route", () => {
@@ -440,6 +507,19 @@ test("catalog rejects an implicit scenario tier", (context) => {
   context.onTestFinished(() => rmSync(dir, { recursive: true, force: true }));
 
   assert.throws(() => loadScenarioCatalog(dir), /scenario 1\.tier must be a non-empty string/);
+});
+
+test("catalog rejects a prompt budget that differs from the executable payload", (context) => {
+  const dir = mutateCatalog("constrained", (document) => {
+    document.scenarios[0].prompt = document.scenarios[0].prompt.replace(
+      /Use a \d+ token hard budget/,
+      "Use a 999 token hard budget",
+    );
+    document.scenarios[0].payload.text = document.scenarios[0].prompt;
+  });
+  context.onTestFinished(() => rmSync(dir, { recursive: true, force: true }));
+
+  assert.throws(() => loadScenarioCatalog(dir), /prompt hard budget must match payload\.budgetTokens/);
 });
 
 test("catalog rejects unknown fields and non-canonical output paths", (context) => {
