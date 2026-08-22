@@ -1,0 +1,135 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_initial_state_ex_cb_02_advantaged",
+    "runId": "benchmark_ex_cb_02_advantaged",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-configurator"
+  },
+  "simConfigRef": {
+    "id": "benchmark_sim_config_ex_cb_02_advantaged",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "delver_affinity_attacker",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 10,
+          "max": 12,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "durability": {
+          "current": 2,
+          "max": 2,
+          "regen": 0
+        }
+      },
+      "archetype": "delver",
+      "role": "delver",
+      "motivation": {
+        "kind": "attacking"
+      },
+      "traits": {
+        "motivations": [
+          {
+            "kind": "attacking",
+            "intensity": 1
+          }
+        ],
+        "affinities": {
+          "fire:push": 2
+        },
+        "affinityTargets": {
+          "fire:push:enemy": 2
+        },
+        "abilities": [
+          {
+            "id": "fire_bolt",
+            "kind": "attack",
+            "affinityKind": "fire",
+            "expression": "push",
+            "targetType": "enemy",
+            "potency": 4,
+            "manaCost": 6
+          }
+        ],
+        "resolvedEffects": [
+          {
+            "id": "fire:push:enemy:vital",
+            "category": "vital",
+            "operation": "apply_vital_affinity",
+            "sourceType": "actor",
+            "sourceId": "delver_affinity_attacker",
+            "kind": "fire",
+            "expression": "push",
+            "stacks": 2,
+            "targetType": "enemy",
+            "targetVital": "health",
+            "potency": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "warden_affinity_defender",
+      "kind": "ambulatory",
+      "position": {
+        "x": 4,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 16,
+          "max": 16,
+          "regen": 0
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "durability": {
+          "current": 4,
+          "max": 4,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "role": "warden",
+      "motivation": {
+        "kind": "defending"
+      },
+      "traits": {
+        "motivations": [
+          {
+            "kind": "defending",
+            "intensity": 1
+          }
+        ]
+      }
+    }
+  ]
+}

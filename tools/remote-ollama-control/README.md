@@ -24,7 +24,7 @@ Use this tool when local agent workflows should spend inference work on the Ubun
 | Run Claude/Codex-side work through remote Ollama | `claude`, `run-local`, `use-remote-ollama` |
 | Run Claude/Codex-side work offline on the Mac's own Ollama | `claude --local`, `run-local --local`, `print-env --local` |
 | Run commands on Ubuntu | `exec` |
-| Benchmark models or tool-call generation | `benchmark`, `benchmark-matrix`, `benchmark-hardware`, `run-content-gen` |
+| Benchmark models or tool-call generation | `benchmark`, `benchmark-matrix`, `benchmark-hardware`, `run-content-gen`, `run-abstract-plan` |
 | Keep the remote checkout safe | `project-safety-check`, `project-sync`, `project-push-main` |
 
 ## Profiles
@@ -33,11 +33,21 @@ Profiles live at `tools/remote-ollama-control/config/llm-profiles.json` in the `
 
 | Profile | GPU visibility | Intended GPU | Port | Default model | Default context | Default num_predict |
 |---|---:|---|---:|---|---:|---:|
-| `primary` | `0` | GPU 0 / x16 primary card | `11434` | `qwen3:14b` | `32768` | `4096` |
-| `secondary` | `1` | GPU 1 / x4 secondary card | `11435` | `qwen3:14b` | `8192` | `4096` |
-| `dual` | `0,1` | both GPUs for split/offloaded 30B models | `11436` | `qwen3-coder:30b-a3b-q4_K_M` | `65536` | `32768` |
+| `primary` | `0` | GPU 0 / x16 primary card | `11434` | `qwen3.8:27b` | `32768` | `4096` |
+| `secondary` | `1` | GPU 1 / x4 service profile; excluded from single-GPU benchmarks | `11435` | `qwen3:14b` | `8192` | `4096` |
+| `dual` | `0,1` | both GPUs for split/offloaded 27B/30B models | `11436` | `qwen3.8:27b` | `65536` | `32768` |
 
 The remote manager sets `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, `HSA_OVERRIDE_GFX_VERSION`, and `OLLAMA_HOST` per profile. The default `HSA_OVERRIDE_GFX_VERSION=10.3.0` is included because RX 6700/6750 class `gfx1031` cards commonly need that compatibility override for Ollama ROCm offload.
+
+Profile starts resolve the Ollama executable in this order: explicit `OLLAMA_BIN`, executable
+`~/.local/bin/ollama`, then `ollama` from PATH. The resolved value is also written into systemd profile
+state, so unattended services use the same version as interactive control commands.
+
+Qwen 3.8 currently has one Ollama parameter size: 27B Q4_K_M (about 17.7 GB including its projector).
+On this host it runs at the declared 32K primary context with a measured 52% CPU / 48% GPU split. At
+the declared 65K dual context it uses 16% CPU / 84% GPU; at 32K dual it reaches 95% GPU. The primary
+profile is therefore a valid minimum-hardware hybrid, while dual remains the preferred throughput
+configuration.
 
 ## Setup
 
@@ -146,6 +156,115 @@ systemctl --user daemon-reload
 ```
 
 Without the systemd unit, `remote-ollama-profile` uses managed pid files under `~/.local/state/remote-ollama`.
+
+## Unattended Benchmark Agent (M4b)
+
+Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`)
+
+The Ubuntu installer also deploys `agent-kernel-benchmark`, its unprivileged user service/timer, and
+an operator-owned environment template. Installation is idempotent and never overwrites an existing
+`~/.config/agent-kernel-benchmark/benchmark-agent.env`. Source fetches use a mirror under
+`~/.local/share/agent-kernel-benchmark/source.git`; local state and the isolated result checkout live
+under `~/.local/state/agent-kernel-benchmark/`. The operator's project checkout is never used.
+
+M4b ships with `AK_BENCHMARK_DRY_RUN=1`. In that mode the agent fetches the configured source ref,
+computes the immutable run key, classifies path/hash triggers, prints JSON, and exits without writing
+poll state, running a model/GPU, or publishing Git results. The internal Node lock is the only
+single-instance mechanism; the timer does not add a second lock.
+
+On Ubuntu, install and inspect without enabling scheduling:
+
+```bash
+./scripts/install-local-ubuntu.sh
+$EDITOR ~/.config/agent-kernel-benchmark/benchmark-agent.env
+agent-kernel-benchmark
+systemctl --user status agent-kernel-benchmark.timer
+```
+
+Derive the three immutable identities from the exact installed source instead of transcribing hashes:
+
+```bash
+cd ~/remote-ollama-control
+node - <<'NODE'
+const path = require('node:path');
+const { currentBenchmarkIdentity } = require('./scripts/lib/benchmark-result-reader');
+const identity = currentBenchmarkIdentity(path.resolve('.'));
+process.stdout.write([
+  `AK_BENCHMARK_SCENARIO_HASH=${identity.scenarioSet.sha256}`,
+  `AK_BENCHMARK_MATRIX_HASH=${identity.matrix.sha256}`,
+  `AK_BENCHMARK_EXECUTION_SUITE_HASH=${identity.execution.executionSuiteHash}`,
+  '',
+].join('\n'));
+NODE
+```
+
+Copy those lines into `~/.config/agent-kernel-benchmark/benchmark-agent.env`, keep
+`AK_BENCHMARK_DRY_RUN=1` and `AK_BENCHMARK_LIVE=0`, then retain the read-only handoff:
+
+```bash
+mkdir -p ~/.local/state/agent-kernel-benchmark
+agent-kernel-benchmark --dry-run | tee ~/.local/state/agent-kernel-benchmark/operator-dry-run.json
+node -e 'const r=require(process.argv[1]); if(r.status!=="dry_run"||!r.trigger?.modes) process.exit(1)' \
+  ~/.local/state/agent-kernel-benchmark/operator-dry-run.json
+```
+
+Do not enable live mode until both Git-owned route manifests named in the environment template exist in
+the pinned source commit and cover every execution scenario/variant. Missing manifests deliberately fail
+closed; an operator-created placeholder or generic fixture mapping is not valid benchmark evidence.
+
+After reviewing a successful dry-run, enable scheduling explicitly:
+
+```bash
+systemctl --user enable --now agent-kernel-benchmark.timer
+systemctl --user list-timers agent-kernel-benchmark.timer
+journalctl --user -u agent-kernel-benchmark.service
+```
+
+Disable and uninstall without deleting retained state/results:
+
+```bash
+systemctl --user disable --now agent-kernel-benchmark.timer
+rm ~/.config/systemd/user/agent-kernel-benchmark.service
+rm ~/.config/systemd/user/agent-kernel-benchmark.timer
+systemctl --user daemon-reload
+rm ~/bin/agent-kernel-benchmark
+```
+
+Remove `~/remote-ollama-control`, `~/.local/share/agent-kernel-benchmark`,
+`~/.local/state/agent-kernel-benchmark`, or the operator environment only after separately deciding
+their retained data is no longer needed. M5—not this installer—authorizes live GPU execution and the
+first `benchmark-results` branch publication.
+
+### Reading published benchmark evidence
+
+Fetch the results ref, then use the result reader from the repository root. `latest_attempt` answers
+whether the newest scheduled run completed; `latest_success` is the last completed qualifying result.
+They are deliberately different: an infrastructure failure updates the former without replacing the
+latter.
+
+```bash
+git fetch origin benchmark-results:refs/remotes/origin/benchmark-results
+node - <<'NODE'
+const path = require('node:path');
+const {
+  currentBenchmarkIdentity,
+  readPublishedBenchmarkResult,
+} = require('./tools/remote-ollama-control/scripts/lib/benchmark-result-reader');
+const toolRoot = path.resolve('tools/remote-ollama-control');
+const evidence = readPublishedBenchmarkResult({
+  repoRoot: process.cwd(),
+  ref: 'origin/benchmark-results',
+  selection: 'latest_attempt',
+  expectedIdentity: currentBenchmarkIdentity(toolRoot),
+});
+process.stdout.write(`${JSON.stringify(evidence.record, null, 2)}\n`);
+NODE
+```
+
+Use `selection: 'latest_success'` only when the question explicitly asks for the last qualifying
+baseline. The reader rejects unsupported schemas, malformed identities, and scenario-count,
+scenario-hash, matrix-hash, or execution-suite drift. Compact JSON is committed on `benchmark-results`; raw prompts,
+responses, generated artifacts, and telemetry remain ignored and local.
 
 ## Network Modes
 
@@ -412,15 +531,21 @@ Each run records endpoint, profile, model, context, `num_predict`, wall time, Ol
 
 ## Content-Gen Benchmark
 
-Compare how well each Ubuntu GPU node (primary, secondary, dual) handles the current 64 agent-kernel MCP scenarios. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference vault artifacts.
+Compare how well the primary single-card profile and the two-card dual profile handle the current 100 agent-kernel MCP scenarios. The secondary card is not benchmarked alone; it participates only through the dual profile. Each run sends the scenario prompt to the remote Ollama node via `/v1/chat/completions` with the `ak_create` tool, extracts the generated tool call, runs `ak.mjs create` locally with those arguments, and scores the result against the reference expectations.
 
-Scenarios are loaded from the vault at `LLM_AK_VAULT_DIR` (default: `~/Documents/Obsidian/agent-kernel-vault`). Set this in `config/llm-host.env` if the vault is in a non-default location.
+The benchmark questions are versioned under `benchmarks/content-gen/` as four reviewed tier catalogs with 25 simple, 25 affinity, 25 complex, and 25 constrained scenarios. `loadScenarioCatalog()` validates the complete 1–100 id range and returns a canonical SHA-256, so a scenario-set change is visible in Git and has a stable identity. Canonical payloads use `$RUN_OUTPUT/create` rather than a machine-specific output path.
+
+Scoring reads compact entity-count, affinity, and spend expectations from each catalog entry. Room
+affinity is deliberately excluded: rooms are containers, while hazards carry the affinity that can
+give a room a descriptive theme. `scoreRun` retains its legacy `spec.json` and
+`budget-receipt.json` inputs as a tested compatibility fallback, but `run-content-gen` has no runtime
+dependency on the vault.
 
 ```bash
-# Dry-run: show what would run without opening tunnels
+# Dry-run: plan the complete model × GPU-profile qualification matrix without network access
 ./bin/remote-ollama-mac dry-run run-content-gen
 
-# Run all 64 scenarios × 3 profiles (primary, secondary, dual)
+# Run all 100 scenarios across eligible primary and dual configurations
 ./bin/remote-ollama-mac run-content-gen --route internal
 
 # Run a subset of scenarios (e.g., simple tier only, IDs 1–9)
@@ -433,10 +558,26 @@ Scenarios are loaded from the vault at `LLM_AK_VAULT_DIR` (default: `~/Documents
 ./bin/remote-ollama-mac run-content-gen --profiles dual --model qwen3-coder:30b-a3b-q4_K_M --runs 2
 ```
 
+The default dry-run is the M3a planning contract. It reads the seven Git-owned model definitions and
+three service profiles, emits seven eligible configurations (four single-card candidates on primary
+and three 27B/30B candidates on dual), and reports a stable matrix hash plus the declared resource
+order. The secondary card is reserved for dual and has no standalone benchmark configuration. One
+complete pass is 700 calls; three qualifying passes are at most 2,100 calls. `--profiles`, `--model`,
+`--context`, `--num-predict`, `--runs`, and `--scenario-ids` narrow or override the offline plan.
+
+Live `run-content-gen` now executes the eligible configurations in declared resource order. It runs
+one complete pass, continues up to three while qualification remains mathematically possible, and
+keeps expected budget denial separate from raw process success.
+
 Results are written to `results/<timestamp>-content-gen/`:
 - `runs.jsonl` — one JSON line per run
+- `result.json` — schema-versioned configuration, tier, qualification, Pareto, and minimum result
 - `summary.md` — aggregate table by profile + per-run detail table
 - `raw/<runId>/create/` — generated artifacts for each run
+
+The Markdown aggregate retains the historical `Profile | Model | Scenarios | Runs | Avg score |
+Tool call ok | Exec ok` projection. `result.json` adds scenario verdicts without rewriting raw
+execution failures, so an expected budget rejection can qualify while remaining visible as exec-fail.
 
 Scoring (100 pts per run):
 | Component | Points | How |
@@ -447,6 +588,49 @@ Scoring (100 pts per run):
 | Entity counts match | 20 | Same count-per-type as reference |
 | Affinity match | 20 | Same primary affinity per type |
 | Budget delta | 10 | Total spend within 80% of reference |
+
+## Abstract Planning Benchmark
+
+`run-abstract-plan` separates reasoning quality from game vocabulary. The model receives only a
+domain-neutral component catalog, exact quantity/capacity/signal/budget constraints, and a
+minimum-cost objective. It returns opaque component ids through `submit_abstract_build_plan`.
+A hidden deterministic mapping then translates those ids into production `ak_create` arguments and
+runs `ak.mjs create`.
+
+The catalog is versioned under `benchmarks/abstract-plan/`. `pilot.json` is one hand-authored stress
+case. `parallel.json` contains 100 generated cases aligned one-to-one with the content-generation
+catalog; `tools/benchmark/generate-abstract-parallel.mjs --check` fails when it is stale. Every visible
+problem contains no
+room, hazard, actor, dungeon, or affinity terms. The hidden map puts environmental affinity on
+hazards rather than rooms; room specs contain size and count only. Actors retain their own
+affinities. Results keep three verdicts separate: abstract planning score, mapping success, and
+program execution success.
+
+```bash
+# Inspect the visible problem and scenario-set identity without network access
+./bin/remote-ollama-mac run-abstract-plan --dry-run
+
+# Inspect the complete one-to-one abstract set
+./bin/remote-ollama-mac run-abstract-plan --abstract-set parallel --dry-run
+
+# Run the pilot on the primary single-GPU profile
+./bin/remote-ollama-mac run-abstract-plan --profile primary --model qwen3.8:27b --route internal
+
+# Run against an already-running dual profile without restarting it
+./bin/remote-ollama-mac run-abstract-plan --profile dual --model qwen3.8:27b --route internal --no-start
+
+# Compare two paired result directories by profile/model/scenario/repeat
+node scripts/compare-abstract-content.js \
+  --content-dir results/<timestamp>-content-gen \
+  --abstract-dir results/<timestamp>-abstract-plan
+```
+
+Results are written to `results/<timestamp>-abstract-plan/` as `runs.jsonl`, `result.json`,
+`summary.md`, and the mapped production artifacts under `raw/<runId>/create/`.
+The comparator writes `comparison/comparison.json` and `comparison/summary.md` beneath the abstract
+result directory. It refuses incomplete attempt pairs, stale source-catalog identities, and
+profile/model/context/output mismatches. Domain semantic scores and abstract planning scores remain
+separate native metrics; only end-to-end verdict, raw execution, and latency receive paired deltas.
 
 ## Smoke Test
 

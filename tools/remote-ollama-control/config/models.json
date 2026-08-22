@@ -2,7 +2,8 @@
   "notes": [
     "Model availability is checked on the remote Ollama endpoint at runtime.",
     "Add new installed models here with the profiles they can realistically run on.",
-    "30B-class models are restricted to the dual profile unless hardware capacity changes."
+    "Qwen 3.8 currently ships only as 27B; primary runs it with CPU/GPU hybrid offload while dual is the preferred higher-GPU-residency profile.",
+    "Single-GPU benchmarks run only on the primary profile; the secondary card is reserved for dual."
   ],
   "benchmark": {
     "defaultScenarios": [
@@ -37,10 +38,21 @@
     ]
   },
   "models": {
+    "qwen3.8:27b": {
+      "profiles": [
+        "primary",
+        "dual"
+      ],
+      "parameterBillions": 27,
+      "sizeGb": 17.7,
+      "family": "qwen3.8",
+      "use": "preferred Qwen 3.8 tool-calling model; hybrid CPU/GPU on primary and high GPU residency on dual"
+    },
     "qwen3-coder:30b-a3b-q4_K_M": {
       "profiles": [
         "dual"
       ],
+      "parameterBillions": 30,
       "sizeGb": 18,
       "family": "qwen3-coder",
       "use": "30B coding model candidate across both GPUs"
@@ -49,33 +61,34 @@
       "profiles": [
         "dual"
       ],
+      "parameterBillions": 30,
       "sizeGb": 18,
       "family": "qwen3-coder",
       "use": "larger coding model across both GPUs"
     },
     "qwen3:14b": {
       "profiles": [
-        "primary",
-        "secondary"
+        "primary"
       ],
+      "parameterBillions": 14,
       "sizeGb": 9.3,
       "family": "qwen3",
       "use": "single 12GB GPU general reasoning and structured output"
     },
     "qwen2.5-coder:14b": {
       "profiles": [
-        "primary",
-        "secondary"
+        "primary"
       ],
+      "parameterBillions": 14,
       "sizeGb": 9,
       "family": "qwen2.5-coder",
       "use": "single 12GB GPU coding and test generation"
     },
     "qwen2.5-coder:7b": {
       "profiles": [
-        "primary",
-        "secondary"
+        "primary"
       ],
+      "parameterBillions": 7,
       "sizeGb": 4.7,
       "family": "qwen2.5-coder",
       "use": "single 12GB GPU background tool-use or smaller coding tests"

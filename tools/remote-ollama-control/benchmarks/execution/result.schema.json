@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-kernel.local/schemas/execution-result-v1.json",
+  "title": "Agent Kernel execution benchmark result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "identity", "scenario", "run", "artifactSummary", "metrics", "invariants", "requiredGates", "score", "verdict"],
+  "properties": {
+    "schemaVersion": { "const": "agent-kernel-execution-result/v1" },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executionSuiteHash", "evaluatorVersion", "seedSetHash", "tickProfileHash"],
+      "properties": {
+        "executionSuiteHash": { "$ref": "#/$defs/sha256" },
+        "evaluatorVersion": { "type": "string", "minLength": 1 },
+        "seedSetHash": { "$ref": "#/$defs/sha256" },
+        "tickProfileHash": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "scenario": { "type": "object", "required": ["id", "family", "profile"] },
+    "run": { "type": "object", "required": ["seed", "repeat", "requestedTicks", "frameHash"] },
+    "artifactSummary": {
+      "type": "object",
+      "required": ["frames", "actions", "effects", "fulfilledEffects", "bytes", "worldStateCheckpoints"],
+      "properties": {
+        "worldStateCheckpoints": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["expectedTicks", "loadedTicks", "missingTicks", "complete"],
+          "properties": {
+            "expectedTicks": { "$ref": "#/$defs/tickList" },
+            "loadedTicks": { "$ref": "#/$defs/tickList" },
+            "missingTicks": { "$ref": "#/$defs/tickList" },
+            "complete": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "metrics": { "type": "object", "additionalProperties": { "$ref": "#/$defs/evidenceResult" } },
+    "invariants": { "type": "object", "additionalProperties": { "$ref": "#/$defs/statusResult" } },
+    "requiredGates": { "type": "array", "items": { "$ref": "#/$defs/statusResult" } },
+    "score": { "type": "object", "required": ["status", "value", "availableScore", "availableWeight", "objectives"] },
+    "verdict": { "type": "object", "required": ["status", "failedInvariants", "unavailableInvariants"] }
+  },
+  "$defs": {
+    "tickList": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 0 }
+    },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "statusResult": {
+      "type": "object",
+      "required": ["status"],
+      "properties": { "status": { "enum": ["passed", "failed", "scored", "hard_fail", "evidence_unavailable"] } }
+    },
+    "evidenceResult": {
+      "type": "object",
+      "required": ["status", "unit", "evidence"],
+      "properties": {
+        "status": { "enum": ["available", "evidence_unavailable"] },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "evidence": { "enum": ["artifact", "observation"] },
+        "reason": { "type": "string" }
+      }
+    }
+  }
+}

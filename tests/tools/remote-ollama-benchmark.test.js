@@ -5,19 +5,22 @@ const { resolve } = require("node:path");
 
 const { loadConfig } = require("../../tools/remote-ollama-control/scripts/lib/config");
 const {
+  buildContentGenMatrix,
   buildHardwareBenchmarkSpecs,
   summarizeRecommendations,
 } = require("../../tools/remote-ollama-control/scripts/lib/benchmark");
 
 const ROOT = resolve(__dirname, "../..", "tools/remote-ollama-control");
 const MAC_SCRIPT = resolve(ROOT, "scripts/remote-ollama-mac.js");
+const PROFILE_SCRIPT = resolve(ROOT, "scripts/remote-ollama-profile.js");
 
-test("hardware benchmark routes 30B models only to dual and smaller models to both single-card profiles", () => {
+test("hardware benchmark reserves secondary and maps every model to its declared profiles", () => {
   const config = loadConfig(ROOT);
   const plan = buildHardwareBenchmarkSpecs(config, {
     models: [
       "qwen3-coder:30b-a3b-q4_K_M",
       "qwen3-coder:30b",
+      "qwen3.8:27b",
       "qwen3:14b",
       "qwen2.5-coder:14b",
       "qwen2.5-coder:7b",
@@ -36,9 +39,102 @@ test("hardware benchmark routes 30B models only to dual and smaller models to bo
 
   assert.deepEqual([...byModel.get("qwen3-coder:30b-a3b-q4_K_M")].sort(), ["dual"]);
   assert.deepEqual([...byModel.get("qwen3-coder:30b")].sort(), ["dual"]);
-  assert.deepEqual([...byModel.get("qwen3:14b")].sort(), ["primary", "secondary"]);
-  assert.deepEqual([...byModel.get("qwen2.5-coder:14b")].sort(), ["primary", "secondary"]);
-  assert.deepEqual([...byModel.get("qwen2.5-coder:7b")].sort(), ["primary", "secondary"]);
+  assert.deepEqual([...byModel.get("qwen3.8:27b")].sort(), ["dual", "primary"]);
+  assert.deepEqual([...byModel.get("qwen3:14b")].sort(), ["primary"]);
+  assert.deepEqual([...byModel.get("qwen2.5-coder:14b")].sort(), ["primary"]);
+  assert.deepEqual([...byModel.get("qwen2.5-coder:7b")].sort(), ["primary"]);
+});
+
+test("content-gen matrix plans seven primary-or-dual configurations in resource order", () => {
+  const config = loadConfig(ROOT);
+  const plan = buildContentGenMatrix(config, { scenarioCount: 100 });
+
+  assert.equal(plan.contractVersion, "content-gen-matrix-v1");
+  assert.equal(plan.sha256, "50a40410016f5abd216ce33ce98d78717f62847fc7422a94a7dfac541a522d8f");
+  assert.equal(plan.configurationCount, 7);
+  assert.deepEqual(plan.repeatPolicy, {
+    minimumCompletePasses: 1,
+    maximumPasses: 3,
+    earlyStop: "mathematically_lossless",
+  });
+  assert.deepEqual(plan.callBounds, { minimum: 700, maximum: 2100 });
+  assert.deepEqual(plan.configurations.map((entry) => entry.configurationId), [
+    "cg-v1--qwen2.5-coder_7b--primary--ctx32768--out4096",
+    "cg-v1--qwen2.5-coder_14b--primary--ctx32768--out4096",
+    "cg-v1--qwen3_14b--primary--ctx32768--out4096",
+    "cg-v1--qwen3.8_27b--primary--ctx32768--out4096",
+    "cg-v1--qwen3.8_27b--dual--ctx65536--out32768",
+    "cg-v1--qwen3-coder_30b--dual--ctx65536--out32768",
+    "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768",
+  ]);
+
+  const profilesByModel = new Map();
+  for (const entry of plan.configurations) {
+    const profiles = profilesByModel.get(entry.model.id) || [];
+    profiles.push(entry.profile.id);
+    profilesByModel.set(entry.model.id, profiles);
+  }
+  assert.deepEqual(profilesByModel.get("qwen3-coder:30b-a3b-q4_K_M"), ["dual"]);
+  assert.deepEqual(profilesByModel.get("qwen3-coder:30b"), ["dual"]);
+  assert.deepEqual(profilesByModel.get("qwen3.8:27b"), ["primary", "dual"]);
+  assert.deepEqual(profilesByModel.get("qwen3:14b"), ["primary"]);
+  assert.deepEqual(profilesByModel.get("qwen2.5-coder:14b"), ["primary"]);
+  assert.deepEqual(profilesByModel.get("qwen2.5-coder:7b"), ["primary"]);
+
+  const resourceTuples = plan.configurations.map((entry) => [
+    entry.resourceOrder.gpuCount,
+    entry.resourceOrder.capacityRank,
+    entry.resourceOrder.modelSizeBillions,
+    entry.resourceOrder.contextTokens,
+    entry.resourceOrder.outputTokens,
+  ]);
+  assert.deepEqual(resourceTuples, [...resourceTuples].sort((left, right) => {
+    for (let index = 0; index < left.length; index += 1) {
+      if (left[index] !== right[index]) return left[index] - right[index];
+    }
+    return 0;
+  }));
+  assert.deepEqual(buildContentGenMatrix(config, { scenarioCount: 100 }), plan);
+});
+
+test("content-gen dry run exposes the complete offline matrix and exact repeat bounds", () => {
+  const result = spawnSync(process.execPath, [MAC_SCRIPT, "run-content-gen", "--dry-run"], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.command, "run-content-gen");
+  assert.equal(output.execution, "plan-only");
+  assert.equal(output.scenarioSet.count, 100);
+  assert.deepEqual(output.scenarioSet.tierCounts, {
+    simple: 25,
+    affinity: 25,
+    complex: 25,
+    constrained: 25,
+  });
+  assert.equal(output.matrix.configurationCount, 7);
+  assert.equal(output.runsPerScenario, 3);
+  assert.deepEqual(output.matrix.callBounds, { minimum: 700, maximum: 2100 });
+  assert.equal(output.matrix.configurations.length, 7);
+});
+
+test("profile dry run honors an explicit Ollama binary for unattended starts", () => {
+  const result = spawnSync(process.execPath, [
+    PROFILE_SCRIPT,
+    "start",
+    "--profile",
+    "primary",
+    "--dry-run",
+  ], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, OLLAMA_BIN: "/opt/ollama-current/bin/ollama", LLM_PROFILE_MANAGER: "pid" },
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /'\/opt\/ollama-current\/bin\/ollama' serve/);
 });
 
 test("hardware benchmark recommendations prefer score before speed", () => {
@@ -435,3 +531,8 @@ test("local run-local verifies endpoint and model against a live local Ollama-co
     server.close();
   }
 });
+
+// ## TODO: Test Permutations
+// - content-gen matrix rejects duplicate sanitized configuration ids
+// - explicit model/profile filters with no eligible intersection fail closed
+// - explicit context, output, repeat, and scenario overrides produce exact call bounds

@@ -1,0 +1,60 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_initial_state_ex_hz_01",
+    "runId": "benchmark_ex_hz_01",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-configurator"
+  },
+  "simConfigRef": {
+    "id": "benchmark_sim_config_ex_hz_01",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "delver_emit_crosser",
+      "kind": "ambulatory",
+      "position": {
+        "x": 7,
+        "y": 1
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 20,
+          "max": 20,
+          "regen": 2
+        },
+        "durability": {
+          "current": 2,
+          "max": 2,
+          "regen": 0
+        }
+      },
+      "archetype": "delver",
+      "role": "delver",
+      "motivation": {
+        "kind": "exploring"
+      },
+      "traits": {
+        "motivations": [
+          {
+            "kind": "exploring",
+            "intensity": 1
+          }
+        ]
+      }
+    }
+  ]
+}

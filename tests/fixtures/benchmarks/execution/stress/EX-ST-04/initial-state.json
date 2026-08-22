@@ -1,0 +1,173 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_ex_st_04_initial_state",
+    "runId": "benchmark_ex_st_04",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "simConfigRef": {
+    "id": "benchmark_ex_st_04_sim_config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "delver_soak_attacker-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 6,
+        "y": 7
+      },
+      "vitals": {
+        "health": {
+          "current": 40,
+          "max": 40,
+          "regen": 2
+        },
+        "mana": {
+          "current": 20,
+          "max": 20,
+          "regen": 3
+        },
+        "stamina": {
+          "current": 40,
+          "max": 40,
+          "regen": 4
+        },
+        "durability": {
+          "current": 8,
+          "max": 8,
+          "regen": 1
+        }
+      },
+      "archetype": "delver",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "attacking"
+      }
+    },
+    {
+      "id": "delver_soak_mover-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 5,
+        "y": 8
+      },
+      "vitals": {
+        "health": {
+          "current": 36,
+          "max": 36,
+          "regen": 2
+        },
+        "mana": {
+          "current": 16,
+          "max": 16,
+          "regen": 2
+        },
+        "stamina": {
+          "current": 40,
+          "max": 40,
+          "regen": 4
+        },
+        "durability": {
+          "current": 7,
+          "max": 7,
+          "regen": 1
+        }
+      },
+      "archetype": "delver",
+      "traits": {
+        "affinities": {
+          "water": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_soak_defender-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 19,
+        "y": 14
+      },
+      "vitals": {
+        "health": {
+          "current": 50,
+          "max": 50,
+          "regen": 3
+        },
+        "mana": {
+          "current": 20,
+          "max": 20,
+          "regen": 3
+        },
+        "stamina": {
+          "current": 40,
+          "max": 40,
+          "regen": 4
+        },
+        "durability": {
+          "current": 12,
+          "max": 12,
+          "regen": 1
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "earth": 1
+        }
+      },
+      "motivation": {
+        "kind": "defending"
+      }
+    },
+    {
+      "id": "warden_soak_patrol-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 18,
+        "y": 15
+      },
+      "vitals": {
+        "health": {
+          "current": 42,
+          "max": 42,
+          "regen": 2
+        },
+        "mana": {
+          "current": 16,
+          "max": 16,
+          "regen": 2
+        },
+        "stamina": {
+          "current": 40,
+          "max": 40,
+          "regen": 4
+        },
+        "durability": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "wind": 1
+        }
+      },
+      "motivation": {
+        "kind": "patrolling"
+      }
+    }
+  ]
+}

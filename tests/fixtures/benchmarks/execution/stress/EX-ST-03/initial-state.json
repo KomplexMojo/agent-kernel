@@ -1,0 +1,251 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_ex_st_03_initial_state",
+    "runId": "benchmark_ex_st_03",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "simConfigRef": {
+    "id": "benchmark_ex_st_03_sim_config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "delver_dense_attacker-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 9,
+        "y": 6
+      },
+      "vitals": {
+        "health": {
+          "current": 16,
+          "max": 16,
+          "regen": 1
+        },
+        "mana": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 4,
+          "max": 4,
+          "regen": 0
+        }
+      },
+      "archetype": "delver",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        }
+      },
+      "motivation": {
+        "kind": "attacking"
+      }
+    },
+    {
+      "id": "delver_dense_random-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 8,
+        "y": 7
+      },
+      "vitals": {
+        "health": {
+          "current": 16,
+          "max": 16,
+          "regen": 1
+        },
+        "mana": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 4,
+          "max": 4,
+          "regen": 0
+        }
+      },
+      "archetype": "delver",
+      "traits": {
+        "affinities": {
+          "water": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    },
+    {
+      "id": "warden_dense_attacker-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 10,
+        "y": 7
+      },
+      "vitals": {
+        "health": {
+          "current": 18,
+          "max": 18,
+          "regen": 1
+        },
+        "mana": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 5,
+          "max": 5,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "life": 1
+        }
+      },
+      "motivation": {
+        "kind": "attacking"
+      }
+    },
+    {
+      "id": "warden_dense_defender-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 27,
+        "y": 26
+      },
+      "vitals": {
+        "health": {
+          "current": 20,
+          "max": 20,
+          "regen": 1
+        },
+        "mana": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 6,
+          "max": 6,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "dark": 1
+        }
+      },
+      "motivation": {
+        "kind": "defending"
+      }
+    },
+    {
+      "id": "warden_dense_patrol-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 26,
+        "y": 27
+      },
+      "vitals": {
+        "health": {
+          "current": 20,
+          "max": 20,
+          "regen": 1
+        },
+        "mana": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 6,
+          "max": 6,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "earth": 1
+        }
+      },
+      "motivation": {
+        "kind": "patrolling"
+      }
+    },
+    {
+      "id": "warden_dense_random-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 27,
+        "y": 25
+      },
+      "vitals": {
+        "health": {
+          "current": 18,
+          "max": 18,
+          "regen": 1
+        },
+        "mana": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 5,
+          "max": 5,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "traits": {
+        "affinities": {
+          "wind": 1
+        }
+      },
+      "motivation": {
+        "kind": "random"
+      }
+    }
+  ]
+}

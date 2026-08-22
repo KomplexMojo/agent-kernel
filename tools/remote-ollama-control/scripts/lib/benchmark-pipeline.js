@@ -1,0 +1,386 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+const { validateContentResult } = require('./ak-compare');
+const { loadScenarioCatalog } = require('./ak-scenarios');
+const { createGeneratedBuildResolver, combineBenchmarkQualification } = require('./execution-integration');
+const { executeLocalRun, planExecutionSchedule, runExecutionSchedule } = require('./execution-runner');
+
+function pipelineComponents(sourceWorktree, injectedCatalog) {
+  if (injectedCatalog) {
+    return {
+      catalog: injectedCatalog,
+      contentCatalog: loadScenarioCatalog(),
+      combineBenchmarkQualification,
+      createGeneratedBuildResolver,
+      executeLocalRun,
+      planExecutionSchedule,
+      runExecutionSchedule,
+      validateContentResult,
+    };
+  }
+  const libRoot = path.join(sourceWorktree, 'tools', 'remote-ollama-control', 'scripts', 'lib');
+  const sourceCatalog = require(path.join(libRoot, 'execution-catalog.js'));
+  const sourceIntegration = require(path.join(libRoot, 'execution-integration.js'));
+  const sourceRunner = require(path.join(libRoot, 'execution-runner.js'));
+  const sourceCompare = require(path.join(libRoot, 'ak-compare.js'));
+  const sourceScenarios = require(path.join(libRoot, 'ak-scenarios.js'));
+  return {
+    catalog: sourceCatalog.loadExecutionCatalog(path.join(
+      sourceWorktree, 'tools', 'remote-ollama-control', 'benchmarks', 'execution',
+    )),
+    contentCatalog: sourceScenarios.loadScenarioCatalog(path.join(
+      sourceWorktree, 'tools', 'remote-ollama-control', 'benchmarks', 'content-gen',
+    )),
+    combineBenchmarkQualification: sourceIntegration.combineBenchmarkQualification,
+    createGeneratedBuildResolver: sourceIntegration.createGeneratedBuildResolver,
+    executeLocalRun: sourceRunner.executeLocalRun,
+    planExecutionSchedule: sourceRunner.planExecutionSchedule,
+    runExecutionSchedule: sourceRunner.runExecutionSchedule,
+    validateContentResult: sourceCompare.validateContentResult,
+  };
+}
+
+function atomicWriteJson(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const temporary = `${filePath}.tmp-${process.pid}`;
+  fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`);
+  fs.renameSync(temporary, filePath);
+}
+
+function readJson(filePath, label) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    throw new Error(`Invalid ${label} JSON ${filePath}: ${error.message}`);
+  }
+}
+
+function assertRunInputs({ sourceWorktree, stateDir, runKey, trigger }) {
+  if (typeof sourceWorktree !== 'string' || !sourceWorktree) throw new Error('sourceWorktree is required');
+  if (typeof stateDir !== 'string' || !stateDir || path.resolve(stateDir) === path.parse(path.resolve(stateDir)).root) {
+    throw new Error('stateDir must be a specific directory');
+  }
+  if (!/^[a-f0-9]{64}$/.test(runKey || '')) throw new Error('runKey must be a SHA-256 identity');
+  const modes = trigger?.modes;
+  if (!modes || !['authoring', 'runtimeExecution', 'generatedExecution']
+    .every((name) => typeof modes[name] === 'boolean') || !Object.values(modes).some(Boolean)) {
+    throw new Error('trigger modes are required');
+  }
+}
+
+function validateAuthoringEvidence(evidence, scenarioSetHash, matrixHash, validateResult) {
+  if (!evidence || !Array.isArray(evidence.records)) throw new Error('authoring evidence records are required');
+  validateResult(evidence.result);
+  if (evidence.result.scenarioSet.sha256 !== scenarioSetHash || evidence.result.matrix.sha256 !== matrixHash) {
+    throw new Error('authoring evidence identity mismatch');
+  }
+  return evidence;
+}
+
+function validateExecutionSchedule(schedule, executionSuiteHash, label) {
+  if (schedule?.schemaVersion !== 'agent-kernel-execution-schedule/v1'
+    || schedule.identity?.executionSuiteHash !== executionSuiteHash
+    || !Array.isArray(schedule.scenarios) || !Array.isArray(schedule.attempts)) {
+    throw new Error(`${label} execution evidence identity is invalid`);
+  }
+  return schedule;
+}
+
+function componentPaths(stateDir, { scenarioSetHash, matrixHash, executionSuiteHash }) {
+  return {
+    authoring: path.join(stateDir, 'evidence', 'authoring', `${scenarioSetHash}-${matrixHash}.json`),
+    runtime: path.join(stateDir, 'evidence', 'runtime', `${executionSuiteHash}.json`),
+  };
+}
+
+function loadRetained(pathname, label) {
+  if (!fs.existsSync(pathname)) throw new Error(`No retained ${label} evidence is available`);
+  return readJson(pathname, `retained ${label}`);
+}
+
+function routeKey(scenario, variant) {
+  return variant ? `${scenario.id}#${variant}` : scenario.id;
+}
+
+function createCommittedBuildResolver({ sourceWorktree, routes }) {
+  if (!routes || typeof routes !== 'object' || Array.isArray(routes)) {
+    throw new Error('runtime build routes are required');
+  }
+  const sourceRoot = fs.realpathSync(sourceWorktree);
+  return async ({ scenario, variant = null }) => {
+    const key = routeKey(scenario, variant);
+    const relative = routes[key];
+    if (typeof relative !== 'string' || !relative || path.isAbsolute(relative)) {
+      throw new Error(`No explicit committed-build route for ${key}`);
+    }
+    const unresolvedBuildDir = path.resolve(sourceRoot, relative);
+    if (!unresolvedBuildDir.startsWith(`${sourceRoot}${path.sep}`)) throw new Error(`Committed-build route escapes source for ${key}`);
+    const buildDir = fs.realpathSync(unresolvedBuildDir);
+    if (!buildDir.startsWith(`${sourceRoot}${path.sep}`)) throw new Error(`Committed-build route escapes source for ${key}`);
+    if (!['sim-config.json', 'initial-state.json'].every((name) => fs.existsSync(path.join(buildDir, name)))) {
+      throw new Error(`Committed build for ${key} is incomplete`);
+    }
+    return buildDir;
+  };
+}
+
+function compactSchedule(schedule) {
+  return {
+    status: schedule.status,
+    identity: schedule.identity,
+    attempts: schedule.attempts.length,
+    scenarios: schedule.scenarios.map((scenario) => ({
+      scenarioId: scenario.scenarioId,
+      status: scenario.status,
+      aggregateQualifies: scenario.aggregate?.verdict?.qualifies === true,
+    })),
+  };
+}
+
+function routeManifestDocument(sourceWorktree, envName) {
+  const configured = process.env[envName];
+  if (!configured) throw new Error(`${envName} is required for live pipeline execution`);
+  const sourceRoot = fs.realpathSync(sourceWorktree);
+  const manifestPath = path.resolve(sourceRoot, configured);
+  if (!manifestPath.startsWith(`${sourceRoot}${path.sep}`)) throw new Error(`${envName} must resolve inside sourceWorktree`);
+  const realManifestPath = fs.realpathSync(manifestPath);
+  if (!realManifestPath.startsWith(`${sourceRoot}${path.sep}`)) throw new Error(`${envName} must resolve inside sourceWorktree`);
+  return readJson(realManifestPath, envName);
+}
+
+function expectedRouteKeys(components, catalog) {
+  return [...new Set(components.planExecutionSchedule({ catalog }).scenarios
+    .flatMap((scenario) => scenario.screen.map((request) => (
+      request.variant ? `${scenario.scenarioId}#${request.variant}` : scenario.scenarioId
+    ))))].sort();
+}
+
+function validateRouteManifestDocument(document, {
+  kind, components, catalog, sourceWorktree, scenarioSetHash, requireEnvelope = true,
+}) {
+  const schemaVersion = kind === 'runtime'
+    ? 'agent-kernel-runtime-build-routes/v1'
+    : 'agent-kernel-generated-content-routes/v1';
+  if (!document || typeof document !== 'object' || Array.isArray(document)) {
+    throw new Error(`${kind} route manifest must be an object`);
+  }
+  if (requireEnvelope) {
+    if (document.schemaVersion !== schemaVersion || !document.identity || !document.routes) {
+      throw new Error(`${kind} route manifest envelope is invalid`);
+    }
+    if (document.identity.executionSuiteHash !== catalog.sha256) {
+      throw new Error(`${kind} route manifest execution-suite identity mismatch`);
+    }
+    if (kind === 'generated' && document.identity.scenarioSetHash !== scenarioSetHash) {
+      throw new Error('generated route manifest scenario-set identity mismatch');
+    }
+  }
+  const routes = requireEnvelope ? document.routes : document;
+  if (!routes || typeof routes !== 'object' || Array.isArray(routes)) {
+    throw new Error(`${kind} routes must be an object`);
+  }
+  const expected = expectedRouteKeys(components, catalog);
+  const actual = Object.keys(routes).sort();
+  const missing = expected.filter((key) => !Object.hasOwn(routes, key));
+  const unexpected = actual.filter((key) => !expected.includes(key));
+  if (missing.length || unexpected.length) {
+    throw new Error(`${kind} route coverage mismatch: missing=${missing.join(',') || 'none'}; unexpected=${unexpected.join(',') || 'none'}`);
+  }
+  if (kind === 'runtime') {
+    const root = fs.realpathSync(sourceWorktree);
+    for (const [key, relative] of Object.entries(routes)) {
+      if (typeof relative !== 'string' || !relative || path.isAbsolute(relative)) {
+        throw new Error(`runtime route ${key} must be a relative path`);
+      }
+      const unresolvedBuildDir = path.resolve(root, relative);
+      let buildDir = null;
+      try {
+        buildDir = fs.realpathSync(unresolvedBuildDir);
+      } catch {}
+      if (!unresolvedBuildDir.startsWith(`${root}${path.sep}`) || !buildDir
+        || !buildDir.startsWith(`${root}${path.sep}`)
+        || !['sim-config.json', 'initial-state.json'].every((name) => fs.existsSync(path.join(buildDir, name)))) {
+        throw new Error(`runtime route ${key} does not resolve to a complete source-owned build`);
+      }
+    }
+  } else {
+    const scenarios = new Map(components.contentCatalog.scenarios.map((scenario) => [scenario.index, scenario]));
+    for (const [key, route] of Object.entries(routes)) {
+      const scenario = scenarios.get(route?.scenarioIndex);
+      if (!scenario || scenario.expectedOutcome !== 'success'
+        || !Number.isSafeInteger(route.repeat) || route.repeat < 1) {
+        throw new Error(`generated route ${key} must select a successful authoring scenario and positive repeat`);
+      }
+    }
+  }
+  return routes;
+}
+
+function boundedLog(filePath, stdout, stderr, maxBytes = 1024 * 1024) {
+  const value = Buffer.from(`[stdout]\n${stdout || ''}\n[stderr]\n${stderr || ''}`, 'utf8');
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, value.subarray(0, maxBytes));
+}
+
+async function runContentGenerationProcess({ sourceWorktree, retentionDir, timeoutMs = 24 * 60 * 60 * 1000 }) {
+  const resultsDir = path.join(retentionDir, 'authoring');
+  const script = path.join(sourceWorktree, 'tools', 'remote-ollama-control', 'scripts', 'remote-ollama-mac.js');
+  const child = spawnSync(process.execPath, [script, 'run-content-gen', '--route', process.env.LLM_DEFAULT_ROUTE || 'auto'], {
+    cwd: sourceWorktree,
+    env: { ...process.env, LLM_RESULTS_DIR: resultsDir },
+    encoding: 'utf8', timeout: timeoutMs, maxBuffer: 32 * 1024 * 1024,
+  });
+  boundedLog(path.join(retentionDir, 'authoring-command.log'), child.stdout, child.stderr);
+  if (child.error || child.status !== 0) {
+    const detail = child.error?.message || String(child.stderr || `exit ${child.status}`).slice(-2000);
+    throw new Error(`content generation failed: ${detail}`);
+  }
+  const match = /Structured result:\s*(.+)\s*$/m.exec(child.stdout || '');
+  if (!match) throw new Error('content generation did not report its structured result path');
+  const resultPath = path.resolve(match[1].trim());
+  const expectedRoot = path.resolve(resultsDir);
+  if (!resultPath.startsWith(`${expectedRoot}${path.sep}`)) throw new Error('content result escaped its retention directory');
+  const recordsPath = path.join(path.dirname(resultPath), 'runs.jsonl');
+  const records = fs.readFileSync(recordsPath, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  return { result: readJson(resultPath, 'content result'), records };
+}
+
+async function scheduleExecution({ components, catalog, outputRoot, resolveBuild, executeExecution, sourceWorktree }) {
+  const execute = executeExecution || ((request) => components.executeLocalRun(request, {
+    catalog,
+    cliPath: path.join(sourceWorktree, 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs'),
+  }));
+  return components.runExecutionSchedule({ catalog, outputRoot, resolveBuild, execute });
+}
+
+async function runBenchmarkPipeline({
+  catalog,
+  sourceWorktree,
+  stateDir,
+  runKey,
+  trigger,
+  scenarioSetHash,
+  matrixHash,
+  executionSuiteHash,
+  runAuthoring = runContentGenerationProcess,
+  runtimeRoutes,
+  generatedRoutes,
+  executeExecution,
+} = {}) {
+  assertRunInputs({ sourceWorktree, stateDir, runKey, trigger });
+  const components = pipelineComponents(sourceWorktree, catalog);
+  const selectedCatalog = components.catalog;
+  if (selectedCatalog.sha256 !== executionSuiteHash) throw new Error('execution catalog identity mismatch');
+  const identities = { scenarioSetHash, matrixHash, executionSuiteHash };
+  if (components.contentCatalog.sha256 !== scenarioSetHash && !catalog) {
+    throw new Error('content catalog identity mismatch');
+  }
+  const selectedRuntimeRoutes = trigger.modes.runtimeExecution
+    ? validateRouteManifestDocument(runtimeRoutes || routeManifestDocument(
+      sourceWorktree, 'AK_BENCHMARK_RUNTIME_ROUTES',
+    ), { kind: 'runtime', components, catalog: selectedCatalog, sourceWorktree, scenarioSetHash,
+      requireEnvelope: !runtimeRoutes })
+    : null;
+  const selectedGeneratedRoutes = trigger.modes.generatedExecution
+    ? validateRouteManifestDocument(generatedRoutes || routeManifestDocument(
+      sourceWorktree, 'AK_BENCHMARK_GENERATED_ROUTES',
+    ), { kind: 'generated', components, catalog: selectedCatalog, sourceWorktree, scenarioSetHash,
+      requireEnvelope: !generatedRoutes })
+    : null;
+  const paths = componentPaths(stateDir, identities);
+  const retentionId = `runs/${runKey}`;
+  const retentionDir = path.join(stateDir, retentionId);
+  fs.mkdirSync(retentionDir, { recursive: true });
+
+  let authoringEvidence;
+  if (trigger.modes.authoring) {
+    authoringEvidence = validateAuthoringEvidence(await runAuthoring({
+      sourceWorktree, retentionDir, runKey, trigger,
+    }), scenarioSetHash, matrixHash, components.validateContentResult);
+    atomicWriteJson(paths.authoring, authoringEvidence);
+  } else {
+    authoringEvidence = validateAuthoringEvidence(
+      loadRetained(paths.authoring, 'authoring'), scenarioSetHash, matrixHash,
+      components.validateContentResult,
+    );
+  }
+
+  let runtimeExecution;
+  if (trigger.modes.runtimeExecution) {
+    runtimeExecution = await scheduleExecution({
+      components,
+      catalog: selectedCatalog,
+      outputRoot: path.join(retentionDir, 'runtime'),
+      resolveBuild: createCommittedBuildResolver({ sourceWorktree, routes: selectedRuntimeRoutes }),
+      executeExecution,
+      sourceWorktree,
+    });
+    validateExecutionSchedule(runtimeExecution, executionSuiteHash, 'runtime');
+    atomicWriteJson(paths.runtime, runtimeExecution);
+  } else {
+    runtimeExecution = validateExecutionSchedule(
+      loadRetained(paths.runtime, 'runtime execution'), executionSuiteHash, 'retained runtime',
+    );
+  }
+
+  const generatedExecutionByConfiguration = {};
+  if (trigger.modes.generatedExecution) {
+    for (const configuration of authoringEvidence.result.configurations
+      .filter((entry) => entry.verdict?.qualifies === true)) {
+      const resolveBuild = components.createGeneratedBuildResolver({
+        records: authoringEvidence.records,
+        configurationId: configuration.configurationId,
+        routes: selectedGeneratedRoutes,
+      });
+      generatedExecutionByConfiguration[configuration.configurationId] = await scheduleExecution({
+        components,
+        catalog: selectedCatalog,
+        outputRoot: path.join(retentionDir, 'generated', Buffer.from(configuration.configurationId).toString('base64url')),
+        resolveBuild,
+        executeExecution,
+        sourceWorktree,
+      });
+    }
+  }
+
+  const combined = components.combineBenchmarkQualification({
+    authoringResult: authoringEvidence.result,
+    runtimeExecution,
+    generatedExecutionByConfiguration,
+  });
+  const generatedCompact = Object.fromEntries(Object.entries(generatedExecutionByConfiguration)
+    .map(([configurationId, schedule]) => [configurationId, compactSchedule(schedule)]));
+  const outcome = {
+    status: 'completed',
+    qualifies: combined.minimumSuccessfulConfiguration !== null,
+    scenarioSet: combined.scenarioSet,
+    matrix: combined.matrix,
+    thresholds: combined.thresholds,
+    configurations: combined.configurations,
+    execution: {
+      identity: { executionSuiteHash, evaluatorVersion: selectedCatalog.evaluatorVersion,
+        seedSetHash: selectedCatalog.seedSetHash, tickProfileHash: selectedCatalog.tickProfileHash },
+      runtime: compactSchedule(runtimeExecution),
+      generatedByConfiguration: generatedCompact,
+    },
+    minimumSuccessfulConfiguration: combined.minimumSuccessfulConfiguration,
+    paretoFrontier: combined.paretoFrontier,
+    comparison: { comparable: false, incomparabilityReasons: ['pipeline comparison not loaded'] },
+    failures: combined.failures,
+    artifacts: { retentionId },
+  };
+  atomicWriteJson(path.join(retentionDir, 'pipeline-result.json'), outcome);
+  return outcome;
+}
+
+module.exports = {
+  createCommittedBuildResolver,
+  pipelineComponents,
+  runBenchmarkPipeline,
+  runContentGenerationProcess,
+  validateRouteManifestDocument,
+};
