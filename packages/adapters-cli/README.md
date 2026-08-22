@@ -22,7 +22,7 @@ Start with the workflow map below, then jump to the command family you need. The
 | --- | --- | --- |
 | Author a room, delver, warden, hazard, or resource | `create`, `configure`, `room-plan`, `delver-plan`, `warden-plan` | `spec.json`, `bundle.json`, `sim-config.json`, `initial-state.json` |
 | Build from an existing BuildSpec | `build` | Canonical persisted handoff artifacts |
-| Run or replay deterministic simulation artifacts | `run`, `replay` | TickFrames, effects log, run summary |
+| Run or replay deterministic simulation artifacts | `run`, `replay` | TickFrames, effects log, run summary, final world state |
 | Inspect prior outputs | `show`, `diff`, `runs list`, `inspect`, `narrate` | Structured summaries and narrative artifacts |
 | Use LLM planning with captured inputs | `llm-plan`, `scenario`, `llm` | Captured LLM artifacts plus build/run outputs |
 | Exercise external adapters directly | `ipfs`, `blockchain`, `llm`, publish/load variants | Adapter response artifacts |
@@ -633,6 +633,7 @@ node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity
 node packages/adapters-cli/src/cli/ak.mjs schemas --out-dir artifacts/shared/schemas
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict"
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 3
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --ticks 100 --world-state-checkpoints 0,10,25,50,100
 node packages/adapters-cli/src/cli/ak.mjs run --from-run run_fixture --ticks 5 --progress 2>&1 >/dev/null
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
 node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --out-dir path/to/out
@@ -692,6 +693,14 @@ node packages/adapters-cli/src/cli/ak.mjs warden-plan --warden "count=1;affinity
 node packages/adapters-cli/src/cli/ak.mjs solve --scenario "two actors conflict" --solver-fixture tests/fixtures/artifacts/solver-result-v1-basic.json
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json --ticks 0
 ```
+
+`run` always writes the final `world-state.json`. Supplying
+`--world-state-checkpoints` additionally writes the requested post-step states as existing
+`agent-kernel/WorldStateArtifact` v1 files under
+`<out-dir>/world-state-checkpoints/tick-NNNNNN.json`. Tick `0` is captured after runtime
+initialization; every other requested tick is captured immediately after that tick's
+`runtime.step()`. The list must be unique, strictly ascending, and within `--ticks`.
+Ordinary runs do not create the checkpoint directory.
 
 ## Agent workflow recipes
 

@@ -119,6 +119,53 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
+/**
+ * Normalize the opt-in world-state checkpoint list used by adapter callers.
+ *
+ * The runtime owns validation because direct command-kernel callers and the CLI
+ * must observe the same contract. The returned array is safe to use as the
+ * exact set of post-step capture boundaries.
+ */
+export function normalizeWorldStateCheckpoints(value, { ticks } = {}) {
+  if (value === undefined || value === null || value === false) return [];
+  const entries = Array.isArray(value)
+    ? value
+    : typeof value === "string" && value.trim().length > 0
+      ? value.split(",").map((entry) => entry.trim())
+      : null;
+  if (!entries || entries.length === 0) {
+    throw new Error("--world-state-checkpoints requires a non-empty comma-separated list.");
+  }
+  if (!Number.isSafeInteger(ticks) || ticks < 0) {
+    throw new Error("--world-state-checkpoints requires --ticks to be a non-negative integer.");
+  }
+
+  const checkpoints = entries.map((entry) => {
+    if (typeof entry === "number" && Number.isSafeInteger(entry) && entry >= 0) return entry;
+    if (typeof entry === "string" && /^(?:0|[1-9][0-9]*)$/.test(entry)) return Number(entry);
+    throw new Error("--world-state-checkpoints must contain only non-negative integers.");
+  });
+  const seen = new Set();
+  for (let index = 0; index < checkpoints.length; index += 1) {
+    const checkpoint = checkpoints[index];
+    if (seen.has(checkpoint)) {
+      throw new Error(`--world-state-checkpoints must not contain duplicate tick ${checkpoint}.`);
+    }
+    if (index > 0 && checkpoint < checkpoints[index - 1]) {
+      throw new Error("--world-state-checkpoints must be strictly ascending.");
+    }
+    if (checkpoint > ticks) {
+      throw new Error(`--world-state-checkpoints tick ${checkpoint} cannot exceed --ticks ${ticks}.`);
+    }
+    seen.add(checkpoint);
+  }
+  return checkpoints;
+}
+
+function worldStateCheckpointFilename(tick) {
+  return `tick-${String(tick).padStart(6, "0")}.json`;
+}
+
 // CR.1 — pool weights are the Allocator's. This was a hand-maintained copy of its
 // DEFAULT_BUDGET_POOLS, byte-identical but free to diverge: a real duplicate, not an
 // alias, and one CR.1's own inventory missed (found by running the G2 guard as a
@@ -1048,6 +1095,8 @@ export function createCommandKernel(host = {}) {
     if (!Number.isFinite(seed)) {
       throw new Error("run requires a valid --seed value.");
     }
+    const worldStateCheckpoints = normalizeWorldStateCheckpoints(args["world-state-checkpoints"], { ticks });
+    const pendingWorldStateCheckpoints = new Set(worldStateCheckpoints);
     const simConfig = await readJson(simConfigPath);
     assertSchema(simConfig, SCHEMAS.simConfig);
     const initialState = await readJson(initialStatePath);
@@ -1155,9 +1204,35 @@ export function createCommandKernel(host = {}) {
     // affinity-less to the persona that decides what to do with one.
     const affinityEffects = buildAffinityEffectsFromInitialState(initialState);
     await runtime.init({ seed, simConfig, initialState, clock, affinityEffects });
+
+    const simConfigRef = toRef(simConfig);
+    async function captureWorldStateCheckpoint(expectedTick) {
+      if (!pendingWorldStateCheckpoints.has(expectedTick)) return;
+      const checkpoint = runtime.captureWorldState({
+        meta: createMeta({
+          producedBy: "annotator",
+          runId,
+          note: `world-state checkpoint at tick ${expectedTick}`,
+        }),
+        simConfigRef,
+      });
+      if (checkpoint.tick !== expectedTick) {
+        throw new Error(
+          `World-state checkpoint boundary mismatch: requested tick ${expectedTick}, captured ${checkpoint.tick}.`,
+        );
+      }
+      await writeJson(
+        join(outDir, "world-state-checkpoints", worldStateCheckpointFilename(expectedTick)),
+        checkpoint,
+      );
+      pendingWorldStateCheckpoints.delete(expectedTick);
+    }
+
+    await captureWorldStateCheckpoint(0);
     for (let i = 0; i < ticks; i += 1) {
       const effectCountBeforeStep = runtime.getEffectLog().length;
       await runtime.step();
+      await captureWorldStateCheckpoint(i + 1);
       if (onTickProgress) {
         const effectCountAfterStep = runtime.getEffectLog().length;
         await onTickProgress({
@@ -1209,7 +1284,7 @@ export function createCommandKernel(host = {}) {
     // still performs no IO of its own.
     const worldState = runtime.captureWorldState({
       meta: createMeta({ producedBy: "annotator", runId }),
-      simConfigRef: toRef(simConfig),
+      simConfigRef,
     });
     await writeJson(join(outDir, "world-state.json"), worldState);
 
