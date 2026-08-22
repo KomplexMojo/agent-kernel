@@ -28,9 +28,79 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 132,
-  "remaining": 4868,
+  "totalCost": 670,
+  "remaining": 4330,
   "lineItems": [
+    {
+      "id": "resource_affinity_base",
+      "kind": "resource",
+      "quantity": 2,
+      "unitCost": 15,
+      "totalCost": 30,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_affinity_expression_localized",
+      "kind": "resource",
+      "quantity": 2,
+      "unitCost": 38,
+      "totalCost": 76,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_affinity_stack",
+      "kind": "resource",
+      "quantity": 4,
+      "unitCost": 2,
+      "totalCost": 32,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_vital_mana_point",
+      "kind": "resource",
+      "quantity": 100,
+      "unitCost": 2,
+      "totalCost": 200,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_vital_mana_regen_tick",
+      "kind": "resource",
+      "quantity": 10,
+      "unitCost": 2,
+      "totalCost": 200,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ResourceArtifact",
+        "schemaVersion": 1
+      }
+    },
     {
       "id": "resource_permanent",
       "kind": "resource",
@@ -85,8 +155,8 @@
     {
       "id": "resources",
       "capTokens": 5000,
-      "spentTokens": 132,
-      "remainingTokens": 4868,
+      "spentTokens": 670,
+      "remainingTokens": 4330,
       "status": "approved"
     },
     {
@@ -99,8 +169,8 @@
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 132,
-    "remainingBudget": 4868,
+    "totalSpend": 670,
+    "remainingBudget": 4330,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -119,9 +189,9 @@
         "usagePercent": 0
       },
       "resources": {
-        "actual": 132,
+        "actual": 670,
         "target": 5000,
-        "usagePercent": 3
+        "usagePercent": 13
       },
       "delvers": {
         "actual": 0,
@@ -139,7 +209,7 @@
         "usagePercent": 0
       }
     },
-    "totalBudgetUsagePercent": 3,
+    "totalBudgetUsagePercent": 13,
     "incentive": {
       "actualRatio": 0,
       "targetRatio": 0.8,

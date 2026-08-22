@@ -1034,7 +1034,7 @@ function parseHazardSpec(value, hazardIndex) {
   if (!raw) {
     throw new Error(`hazard[${hazardIndex}] requires a non-empty spec.`);
   }
-  const allowedFields = new Set(["id", "affinity", "expression", "stacks", "proximityRadius", "mana", "durability"]);
+  const allowedFields = new Set(["id", "affinity", "expression", "stacks", "proximityRadius", "blocking", "mana", "durability"]);
   const fields = new Map();
   const segments = raw.split(";").map((s) => s.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1079,6 +1079,9 @@ function parseHazardSpec(value, hazardIndex) {
     durability: fields.has("durability")
       ? parseHazardVitalSpec(fields.get("durability"), "durability", hazardIndex)
       : undefined,
+    blocking: fields.has("blocking")
+      ? parseBooleanStrict(fields.get("blocking"), `hazard[${hazardIndex}] blocking`)
+      : undefined,
   });
 }
 
@@ -1097,7 +1100,7 @@ function parseHazardSpecs(rawHazards) {
 
 function parseAuthoringHazardSpec(value, hazardIndex) {
   const raw = String(value || "").trim();
-  const hasPlacementFields = /(?:^|;)\s*(?:x|y|blocking|vitals)\s*=/i.test(raw);
+  const hasPlacementFields = /(?:^|;)\s*(?:x|y|vitals)\s*=/i.test(raw);
   return hasPlacementFields
     ? canonicalizePlacedHazard(parsePlacedHazardSpec(raw, hazardIndex), hazardIndex)
     : parseHazardSpec(raw, hazardIndex);

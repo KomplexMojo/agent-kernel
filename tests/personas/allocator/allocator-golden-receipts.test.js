@@ -14,19 +14,12 @@
  *
  * g1: dungeon mix (room + hazard + delver) — the typical build.
  * g2: resources (affinity resource + permanent vital+regen resource) — the
- *     feat/resources charging path. PINS A BUG: see below.
+ *     create charging path, including the canonical affinity payload.
  * g3: maximizer-goal delver (goals=max_mana:high,mana_regen:high, capped
  *     budget) — the output P1.4 is EXPECTED to change (motivation overcharge
  *     fix); its golden documents the before.
- * g4: resource-plan with the SAME affinity resource as g2 — the path that
- *     charges it correctly (538 tokens).
- *
- * KNOWN BUG pinned by g2 vs g4 (found 2026-07-18 while building these
- * goldens): `ak create` charges an affinity-only resource NOTHING (empty
- * receipt, remaining untouched) while `resource-plan` charges the identical
- * payload 538. Two glue paths assemble spend proposals independently and only
- * one wires the affinity payload in — the exact failure mode the Persona
- * Enforcement Program (P1.3/P1.4: one Allocator entry point) exists to end.
+ * g4: resource-plan with the SAME affinity resource as g2 — the isolated
+ *     planning path, which must agree with create at 538 tokens.
  */
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -114,15 +107,16 @@ test("golden receipts charge: g1/g3/g4 spend nonzero and remaining reconciles", 
   }
 });
 
-test("BUG pinned: create charges the affinity resource 0; resource-plan charges the identical payload 538", () => {
-  // g2's affinity resource (resource_1) contributes NO line items — only the
-  // vital resource (resource_2) is charged. g4 proves the same payload prices
-  // at 538 on the resource-plan path. Fix lands in P1 (single Allocator entry
-  // point); this pin is deleted in that diff.
+test("create and resource-plan charge the identical affinity resource 538", () => {
   const g2 = readJson(join(GOLDENS, "create-g2", "budget-receipt.json"));
   const g2AffinityLines = g2.lineItems.filter((l) => l.subjectRef?.id === "resource_1");
-  assert.equal(g2AffinityLines.length, 0, "pinning the bug: affinity resource uncharged in create");
-  assert.equal(g2.totalCost, 132, "only the vital resource is charged");
+  assert.equal(g2AffinityLines.length, 5, "create charges every affinity component");
+  assert.equal(
+    g2AffinityLines.reduce((sum, line) => sum + line.totalCost, 0),
+    538,
+    "create affinity resource total",
+  );
+  assert.equal(g2.totalCost, 670, "affinity and permanent vital resources are charged");
 
   const g4 = readJson(join(GOLDENS, "resource-plan-g4", "budget-receipt.json"));
   assert.equal(g4.totalCost, 538, "resource-plan charges the same payload fully");
