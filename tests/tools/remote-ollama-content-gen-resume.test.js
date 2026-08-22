@@ -198,3 +198,44 @@ test("setup still runs exactly once for a configuration that has work left", asy
   });
   assert.deepEqual(prepared, ["cfg-a"], "setup must happen once, before the first attempt that needs it");
 });
+
+test("a diagnostic run keeps every pass, because early stop would delete the repeats it needs", async () => {
+  // An adversarial subset cannot qualify by construction — the first miss makes the 99% gates
+  // arithmetically unreachable — so early stop ends every configuration after one pass. That is
+  // correct for qualification and useless for diagnosis, where the repeats ARE the measurement.
+  const failing = SCENARIOS.map((scenario) => ({
+    recordKind: "content_gen_attempt",
+    runId: `cg--cfg-a--s00${scenario.index}--r1`,
+    configurationId: "cfg-a",
+    scenarioIndex: scenario.index,
+    scenarioTier: "simple",
+    repeat: 1,
+    toolCallProduced: true,
+    execSucceeded: false,
+    score: 0,
+    executionOutcome: "execution_failed",
+    failureClass: null,
+    scenarioVerdict: { passed: false, expected: "success", actual: "execution_failed" },
+  }));
+  const attempted = [];
+  await executeContentGenMatrix({
+    matrix: MATRIX,
+    scenarios: SCENARIOS,
+    priorRecords: failing,
+    stopWhenHopeless: false,
+    runAttempt: async ({ runId }) => {
+      attempted.push(runId);
+      return { toolCallProduced: true, execSucceeded: false, score: 0, executionOutcome: "execution_failed", failureClass: null };
+    },
+  });
+  assert.deepEqual(attempted, ["cg--cfg-a--s001--r2", "cg--cfg-a--s002--r2"],
+    "pass 2 must still run when early stop is disabled");
+});
+
+test("a diagnostic run says so in its manifest, so it cannot be quoted as qualification later", () => {
+  const dir = mkdtempSync(join(tmpdir(), "cg-diag-"));
+  writeRunManifest(dir, { route: "internal", diagnostic: true, ...IDENTITY });
+  assert.equal(readRunManifest(dir).diagnostic, true);
+  writeRunManifest(dir, { route: "internal", ...IDENTITY });
+  assert.equal(readRunManifest(dir).diagnostic, false, "a normal run must record diagnostic:false, not undefined");
+});

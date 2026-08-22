@@ -42,7 +42,7 @@ function usage() {
   remote-ollama-mac project-push-main [--branch main]
   remote-ollama-mac run-abstract-plan [--abstract-set pilot|parallel] [--profile NAME] [--model MODEL] [--runs N] [--scenario-ids 1] [--route auto|internal|external] [--no-start] [--no-reset] [--dry-run]
   remote-ollama-mac run-abstract-plan --local --model MODEL [--runs N] [--scenario-ids 1] [--dry-run]
-  remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route auto|internal|external] [--resume [DIR]] [--no-start] [--no-reset] [--dry-run]
+  remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route auto|internal|external] [--resume [DIR]] [--no-early-stop] [--no-start] [--no-reset] [--dry-run]
   remote-ollama-mac run-content-gen --local --model MODEL [--runs N] [--scenario-ids 1,3,5] [--dry-run]
   remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b-a3b-q4_K_M
 
@@ -116,6 +116,7 @@ function parseArgs(argv) {
     runs: 1,
     scenarioIds: [],
     resume: null,
+    earlyStop: true,
     abstractSet: 'pilot',
     extra: []
   };
@@ -229,6 +230,8 @@ function parseArgs(argv) {
     } else if (arg === '--scenario-ids') {
       options.scenarioIds = parseList(readOptionValue(args, index, arg)).map(Number).filter((v) => Number.isFinite(v) && v > 0);
       index += 1;
+    } else if (arg === '--no-early-stop') {
+      options.earlyStop = false;
     } else if (arg === '--resume') {
       // Optional value: `--resume` alone continues the newest content-gen directory.
       const next = args[index + 1];
@@ -1344,7 +1347,7 @@ async function runContentGen(options) {
       + `${executionMatrix.repeatPolicy.maximumPasses} passes\n`
     );
   } else {
-    writeRunManifest(resultDir, { route: options.route, ...runIdentity });
+    writeRunManifest(resultDir, { route: options.route, diagnostic: !options.earlyStop, ...runIdentity });
   }
 
   try {
@@ -1352,6 +1355,7 @@ async function runContentGen(options) {
       matrix: executionMatrix,
       scenarios,
       priorRecords,
+      stopWhenHopeless: options.earlyStop,
       beforeConfiguration: async (configuration) => {
         const profileName = configuration.profile.id;
         const model = configuration.model.id;

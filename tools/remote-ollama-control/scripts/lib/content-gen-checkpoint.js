@@ -22,12 +22,15 @@ function manifestPath(resultDir) {
   return path.join(resultDir, MANIFEST_NAME);
 }
 
-function writeRunManifest(resultDir, { route, scenarioSet, matrix, scenarioIds, startedAt }) {
+function writeRunManifest(resultDir, { route, scenarioSet, matrix, scenarioIds, startedAt, diagnostic }) {
   fs.mkdirSync(resultDir, { recursive: true });
   const manifest = {
     schemaVersion: MANIFEST_SCHEMA,
     startedAt: startedAt || new Date().toISOString(),
     route: route || null,
+    // Explicitly false rather than absent: a reader six weeks from now must be able to tell
+    // 'this was a qualification run' from 'this field did not exist yet'.
+    diagnostic: diagnostic === true,
     scenarioSet,
     matrix,
     scenarioIds: [...scenarioIds].sort((left, right) => left - right)

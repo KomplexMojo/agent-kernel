@@ -17,6 +17,10 @@ async function executeContentGenMatrix({
   onRecord = () => {},
   beforeConfiguration = async () => {},
   thresholds,
+  // Diagnostic runs turn this off. Early stop exists to save GPU time on a configuration that
+  // can no longer qualify — but an adversarial subset can NEVER qualify, so on those runs it
+  // deletes precisely the repeats the run exists to collect.
+  stopWhenHopeless = true,
   // Attempts already on disk from an interrupted run of the SAME catalog and matrix. They are not
   // re-run, they are not re-announced through onRecord (they are already in runs.jsonl), and they
   // are returned with the new ones so aggregation still sees a whole run. Early stop reads them
@@ -83,7 +87,8 @@ async function executeContentGenMatrix({
         }
       }
       const remainingAttempts = (maximumPasses - repeat) * scenarios.length;
-      if (remainingAttempts > 0 && !canStillQualify(configurationRecords, { remainingAttempts, thresholds })) {
+      if (stopWhenHopeless && remainingAttempts > 0
+        && !canStillQualify(configurationRecords, { remainingAttempts, thresholds })) {
         break;
       }
     }
