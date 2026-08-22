@@ -89,6 +89,25 @@ test("the install target follows the named env file, not whatever config is on t
   assert.equal(existsSync(join(bare, "remote-ollama-control/bin/agent-kernel-benchmark")), true);
 });
 
+// The shim sources this file with `.`, so an unedited config has to be valid
+// shell. Bare <placeholder> values are redirects: the operator's first dry-run
+// after install died on "syntax error near unexpected token `newline'", which
+// says nothing about what actually needs filling in.
+test("the installed config is sourceable before the operator edits it", () => {
+  const home = mkdtempSync(join(tmpdir(), "ak-benchmark-sourceable-"));
+  installFixture(home);
+  const config = join(home, ".config/agent-kernel-benchmark/benchmark-agent.env");
+
+  // Fails loudly on a syntax error; the shipped file must parse as-is.
+  execFileSync("bash", ["-n", config], { encoding: "utf8" });
+
+  // And sourcing it must not leave a placeholder standing in for a real value.
+  const exported = execFileSync("bash", ["-c", `set -a; . "${config}"; set +a; env`], { encoding: "utf8" });
+  const placeholders = exported.split("\n")
+    .filter((line) => /^AK_BENCHMARK_/.test(line) && /[<>]/.test(line));
+  assert.deepEqual(placeholders, [], "a placeholder survived into the environment as a real value");
+});
+
 test("systemd timer delegates to one internal lock and runbook documents lifecycle", () => {
   const service = readFileSync(join(TOOL_ROOT, "systemd/agent-kernel-benchmark.service"), "utf8");
   const timer = readFileSync(join(TOOL_ROOT, "systemd/agent-kernel-benchmark.timer"), "utf8");
