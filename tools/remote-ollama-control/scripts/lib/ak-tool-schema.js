@@ -17,7 +17,6 @@ const MOTIVATION_ENUM = [
 const SIZE_ENUM = ['small', 'medium', 'large'];
 const PRIORITY_ENUM = ['high', 'medium', 'low'];
 const GOAL_KIND_ENUM = ['max_mana', 'mana_regen', 'maximize_spend'];
-const RESOURCE_STAT_ENUM = ['vitalMax', 'vitalRegen', 'affinity', 'affinityStack', 'pushExpression'];
 
 const VITAL_CONFIG = {
   type: 'object',
@@ -178,7 +177,7 @@ const AK_CREATE_TOOL = {
         },
         resource: {
           type: 'array',
-          description: 'Resource pickups carrying a vital payload, an affinity payload, or both. Legacy tier/stat specs remain supported.',
+          description: 'Resource pickups carrying a vital payload, an affinity payload, or both.',
           items: {
             type: 'object',
             properties: {
@@ -191,19 +190,11 @@ const AK_CREATE_TOOL = {
               stacks: { type: 'integer', minimum: 1 },
               mana: { type: 'integer', minimum: 0 },
               manaRegen: { type: 'integer', minimum: 0 },
-              tier: { type: 'string', enum: ['level', 'permanent'] },
-              stat: {
-                type: 'string',
-                enum: RESOURCE_STAT_ENUM,
-                description: 'vitalMax=raise a stat cap, vitalRegen=raise regen, affinity=grant affinity expression, affinityStack=add affinity stacks, pushExpression=grant push'
-              },
-              delta: { type: 'number', description: 'Amount to apply' },
-              dropRate: { type: 'number', minimum: 0, maximum: 100, description: 'Drop chance 0–100' }
+              delta: { type: 'number', description: 'Amount to apply' }
             },
             anyOf: [
               { required: ['vital'] },
-              { required: ['affinity', 'expression', 'stacks', 'mana'] },
-              { required: ['tier', 'stat', 'delta'] }
+              { required: ['affinity', 'expression', 'stacks', 'mana'] }
             ]
           }
         },
@@ -222,4 +213,4 @@ const AK_CREATE_TOOL = {
   }
 };
 
-module.exports = { AK_CREATE_TOOL, AFFINITY_ENUM, EXPRESSION_ENUM, MOTIVATION_ENUM, GOAL_KIND_ENUM, RESOURCE_STAT_ENUM };
+module.exports = { AK_CREATE_TOOL, AFFINITY_ENUM, EXPRESSION_ENUM, MOTIVATION_ENUM, GOAL_KIND_ENUM };
