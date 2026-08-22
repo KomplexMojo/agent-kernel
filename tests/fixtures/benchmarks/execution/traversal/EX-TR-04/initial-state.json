@@ -1,0 +1,59 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_initial_state_ex_tr_04",
+    "runId": "benchmark_ex_tr_04",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-configurator"
+  },
+  "simConfigRef": {
+    "id": "benchmark_sim_config_ex_tr_04",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "warden_stationary",
+      "kind": "stationary",
+      "position": {
+        "x": 3,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 5,
+          "max": 5,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "motivation": {
+        "kind": "stationary"
+      },
+      "traits": {
+        "motivations": [
+          {
+            "kind": "stationary",
+            "intensity": 1
+          }
+        ]
+      }
+    }
+  ]
+}

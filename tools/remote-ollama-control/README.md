@@ -33,11 +33,21 @@ Profiles live at `tools/remote-ollama-control/config/llm-profiles.json` in the `
 
 | Profile | GPU visibility | Intended GPU | Port | Default model | Default context | Default num_predict |
 |---|---:|---|---:|---|---:|---:|
-| `primary` | `0` | GPU 0 / x16 primary card | `11434` | `qwen3.5:9b` | `32768` | `4096` |
+| `primary` | `0` | GPU 0 / x16 primary card | `11434` | `qwen3.8:27b` | `32768` | `4096` |
 | `secondary` | `1` | GPU 1 / x4 service profile; excluded from single-GPU benchmarks | `11435` | `qwen3:14b` | `8192` | `4096` |
-| `dual` | `0,1` | both GPUs for split/offloaded 27B/30B models | `11436` | `qwen3.5:27b` | `65536` | `32768` |
+| `dual` | `0,1` | both GPUs for split/offloaded 27B/30B models | `11436` | `qwen3.8:27b` | `65536` | `32768` |
 
 The remote manager sets `ROCR_VISIBLE_DEVICES`, `HIP_VISIBLE_DEVICES`, `HSA_OVERRIDE_GFX_VERSION`, and `OLLAMA_HOST` per profile. The default `HSA_OVERRIDE_GFX_VERSION=10.3.0` is included because RX 6700/6750 class `gfx1031` cards commonly need that compatibility override for Ollama ROCm offload.
+
+Profile starts resolve the Ollama executable in this order: explicit `OLLAMA_BIN`, executable
+`~/.local/bin/ollama`, then `ollama` from PATH. The resolved value is also written into systemd profile
+state, so unattended services use the same version as interactive control commands.
+
+Qwen 3.8 currently has one Ollama parameter size: 27B Q4_K_M (about 17.7 GB including its projector).
+On this host it runs at the declared 32K primary context with a measured 52% CPU / 48% GPU split. At
+the declared 65K dual context it uses 16% CPU / 84% GPU; at 32K dual it reaches 95% GPU. The primary
+profile is therefore a valid minimum-hardware hybrid, while dual remains the preferred throughput
+configuration.
 
 ## Setup
 
@@ -149,6 +159,8 @@ Without the systemd unit, `remote-ollama-profile` uses managed pid files under `
 
 ## Unattended Benchmark Agent (M4b)
 
+Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`)
+
 The Ubuntu installer also deploys `agent-kernel-benchmark`, its unprivileged user service/timer, and
 an operator-owned environment template. Installation is idempotent and never overwrites an existing
 `~/.config/agent-kernel-benchmark/benchmark-agent.env`. Source fetches use a mirror under
@@ -168,6 +180,37 @@ $EDITOR ~/.config/agent-kernel-benchmark/benchmark-agent.env
 agent-kernel-benchmark
 systemctl --user status agent-kernel-benchmark.timer
 ```
+
+Derive the three immutable identities from the exact installed source instead of transcribing hashes:
+
+```bash
+cd ~/remote-ollama-control
+node - <<'NODE'
+const path = require('node:path');
+const { currentBenchmarkIdentity } = require('./scripts/lib/benchmark-result-reader');
+const identity = currentBenchmarkIdentity(path.resolve('.'));
+process.stdout.write([
+  `AK_BENCHMARK_SCENARIO_HASH=${identity.scenarioSet.sha256}`,
+  `AK_BENCHMARK_MATRIX_HASH=${identity.matrix.sha256}`,
+  `AK_BENCHMARK_EXECUTION_SUITE_HASH=${identity.execution.executionSuiteHash}`,
+  '',
+].join('\n'));
+NODE
+```
+
+Copy those lines into `~/.config/agent-kernel-benchmark/benchmark-agent.env`, keep
+`AK_BENCHMARK_DRY_RUN=1` and `AK_BENCHMARK_LIVE=0`, then retain the read-only handoff:
+
+```bash
+mkdir -p ~/.local/state/agent-kernel-benchmark
+agent-kernel-benchmark --dry-run | tee ~/.local/state/agent-kernel-benchmark/operator-dry-run.json
+node -e 'const r=require(process.argv[1]); if(r.status!=="dry_run"||!r.trigger?.modes) process.exit(1)' \
+  ~/.local/state/agent-kernel-benchmark/operator-dry-run.json
+```
+
+Do not enable live mode until both Git-owned route manifests named in the environment template exist in
+the pinned source commit and cover every execution scenario/variant. Missing manifests deliberately fail
+closed; an operator-created placeholder or generic fixture mapping is not valid benchmark evidence.
 
 After reviewing a successful dry-run, enable scheduling explicitly:
 
@@ -191,6 +234,37 @@ Remove `~/remote-ollama-control`, `~/.local/share/agent-kernel-benchmark`,
 `~/.local/state/agent-kernel-benchmark`, or the operator environment only after separately deciding
 their retained data is no longer needed. M5—not this installer—authorizes live GPU execution and the
 first `benchmark-results` branch publication.
+
+### Reading published benchmark evidence
+
+Fetch the results ref, then use the result reader from the repository root. `latest_attempt` answers
+whether the newest scheduled run completed; `latest_success` is the last completed qualifying result.
+They are deliberately different: an infrastructure failure updates the former without replacing the
+latter.
+
+```bash
+git fetch origin benchmark-results:refs/remotes/origin/benchmark-results
+node - <<'NODE'
+const path = require('node:path');
+const {
+  currentBenchmarkIdentity,
+  readPublishedBenchmarkResult,
+} = require('./tools/remote-ollama-control/scripts/lib/benchmark-result-reader');
+const toolRoot = path.resolve('tools/remote-ollama-control');
+const evidence = readPublishedBenchmarkResult({
+  repoRoot: process.cwd(),
+  ref: 'origin/benchmark-results',
+  selection: 'latest_attempt',
+  expectedIdentity: currentBenchmarkIdentity(toolRoot),
+});
+process.stdout.write(`${JSON.stringify(evidence.record, null, 2)}\n`);
+NODE
+```
+
+Use `selection: 'latest_success'` only when the question explicitly asks for the last qualifying
+baseline. The reader rejects unsupported schemas, malformed identities, and scenario-count,
+scenario-hash, matrix-hash, or execution-suite drift. Compact JSON is committed on `benchmark-results`; raw prompts,
+responses, generated artifacts, and telemetry remain ignored and local.
 
 ## Network Modes
 
@@ -540,10 +614,10 @@ program execution success.
 ./bin/remote-ollama-mac run-abstract-plan --abstract-set parallel --dry-run
 
 # Run the pilot on the primary single-GPU profile
-./bin/remote-ollama-mac run-abstract-plan --profile primary --model qwen3.5:9b --route internal
+./bin/remote-ollama-mac run-abstract-plan --profile primary --model qwen3.8:27b --route internal
 
 # Run against an already-running dual profile without restarting it
-./bin/remote-ollama-mac run-abstract-plan --profile dual --model qwen3.5:27b --route internal --no-start
+./bin/remote-ollama-mac run-abstract-plan --profile dual --model qwen3.8:27b --route internal --no-start
 
 # Compare two paired result directories by profile/model/scenario/repeat
 node scripts/compare-abstract-content.js \

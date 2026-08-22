@@ -163,6 +163,7 @@ const AK_CREATE_TOOL = {
               expression: { type: 'string', enum: EXPRESSION_ENUM },
               proximityRadius: { type: 'integer', minimum: 1, description: 'Tiles around the hazard its affinity pressure reaches' },
               stacks: { type: 'integer', minimum: 1, default: 1 },
+              blocking: { type: 'boolean', description: 'Whether the hazard blocks movement through its tile' },
               mana: {
                 type: 'string',
                 description: 'Optional mana vital as "one-time:<amount>" or "regen:<current>:<max>:<regen>", e.g. "regen:4:4:1"'
@@ -177,10 +178,19 @@ const AK_CREATE_TOOL = {
         },
         resource: {
           type: 'array',
-          description: 'Resource drops.',
+          description: 'Resource pickups carrying a vital payload, an affinity payload, or both. Legacy tier/stat specs remain supported.',
           items: {
             type: 'object',
             properties: {
+              id: { type: 'string' },
+              permanenceMode: { type: 'string', enum: ['consumable', 'level', 'permanent'] },
+              vital: { type: 'string', enum: ['health', 'mana', 'stamina'] },
+              regen: { type: 'integer', minimum: 0 },
+              affinity: { type: 'string', enum: AFFINITY_ENUM },
+              expression: { type: 'string', enum: EXPRESSION_ENUM },
+              stacks: { type: 'integer', minimum: 1 },
+              mana: { type: 'integer', minimum: 0 },
+              manaRegen: { type: 'integer', minimum: 0 },
               tier: { type: 'string', enum: ['level', 'permanent'] },
               stat: {
                 type: 'string',
@@ -190,7 +200,11 @@ const AK_CREATE_TOOL = {
               delta: { type: 'number', description: 'Amount to apply' },
               dropRate: { type: 'number', minimum: 0, maximum: 100, description: 'Drop chance 0–100' }
             },
-            required: ['tier', 'stat', 'delta']
+            anyOf: [
+              { required: ['vital'] },
+              { required: ['affinity', 'expression', 'stacks', 'mana'] },
+              { required: ['tier', 'stat', 'delta'] }
+            ]
           }
         },
         delver: {

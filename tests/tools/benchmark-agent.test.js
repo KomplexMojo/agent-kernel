@@ -58,23 +58,50 @@ function fixtureBenchmark(status = "completed") {
 
 test("trigger policy is branch-separated, hash-aware, path-aware, and stable", () => {
   assert.equal(classifyTrigger({ policy: POLICY, changedPaths: ["docs/notes.md"] }).required, false);
-  assert.equal(classifyTrigger({ policy: POLICY, scenarioHashChanged: true }).required, true);
+  const scenarioChange = classifyTrigger({ policy: POLICY, scenarioHashChanged: true });
+  assert.equal(scenarioChange.required, true);
+  assert.deepEqual(scenarioChange.modes, {
+    authoring: true, runtimeExecution: false, generatedExecution: true,
+  });
   assert.equal(classifyTrigger({ policy: POLICY, matrixHashChanged: true }).required, true);
-  assert.equal(classifyTrigger({
+  const authoringChange = classifyTrigger({
     policy: POLICY,
     changedPaths: ["packages/adapters-cli/src/mcp/server.js"],
-  }).required, true);
-  assert.equal(classifyTrigger({
+  });
+  assert.equal(authoringChange.required, true);
+  assert.deepEqual(authoringChange.modes, {
+    authoring: true, runtimeExecution: false, generatedExecution: true,
+  });
+  const runtimeChange = classifyTrigger({
+    policy: POLICY,
+    changedPaths: ["packages/runtime/src/kernel.js"],
+  });
+  assert.equal(runtimeChange.required, true);
+  assert.deepEqual(runtimeChange.modes, {
+    authoring: false, runtimeExecution: true, generatedExecution: true,
+  }, "runtime-only changes must reuse retained authoring rather than invoke an LLM");
+  const resultBranch = classifyTrigger({
     policy: POLICY,
     polledRef: "benchmark-results",
     changedPaths: ["tools/remote-ollama-control/benchmarks/content-gen/simple.json"],
-  }).required, false);
+  });
+  assert.equal(resultBranch.required, false);
+  assert.deepEqual(resultBranch.modes, {
+    authoring: false, runtimeExecution: false, generatedExecution: false,
+  });
   assert.equal(computeRunKey({
-    sourceCommit: "abc", scenarioSetHash: "scenarios", matrixHash: "matrix",
+    sourceCommit: "abc", scenarioSetHash: "scenarios", matrixHash: "matrix", executionSuiteHash: "execution-a",
     runnerContractVersion: POLICY.runnerContractVersion,
   }), computeRunKey({
     matrixHash: "matrix", runnerContractVersion: POLICY.runnerContractVersion,
-    scenarioSetHash: "scenarios", sourceCommit: "abc",
+    executionSuiteHash: "execution-a", scenarioSetHash: "scenarios", sourceCommit: "abc",
+  }));
+  assert.notEqual(computeRunKey({
+    sourceCommit: "abc", scenarioSetHash: "scenarios", matrixHash: "matrix",
+    executionSuiteHash: "execution-a", runnerContractVersion: POLICY.runnerContractVersion,
+  }), computeRunKey({
+    sourceCommit: "abc", scenarioSetHash: "scenarios", matrixHash: "matrix",
+    executionSuiteHash: "execution-b", runnerContractVersion: POLICY.runnerContractVersion,
   }));
 });
 
@@ -90,6 +117,7 @@ test("agent deduplicates, ignores irrelevant/results commits, coalesces, and pub
     policy: POLICY,
     scenarioSetHash: "scenario-a",
     matrixHash: "matrix-a",
+    executionSuiteHash: "execution-a",
   };
   let runs = 0;
   const first = await runBenchmarkAgent({
@@ -166,6 +194,7 @@ test("lock refusal and non-force push races leave operator and remote state inta
       policy: POLICY,
       scenarioSetHash: "scenario-a",
       matrixHash: "matrix-a",
+      executionSuiteHash: "execution-a",
       runBenchmark: fixtureBenchmark(),
     });
     assert.equal(locked.status, "locked");
@@ -194,6 +223,52 @@ test("lock refusal and non-force push races leave operator and remote state inta
   }), /push rejected/i);
   assert.equal(readJsonFromBranch(repo.remote, "benchmark-results", "latest.json").run.id, "winner");
   assert.equal(git(repo.operator, ["status", "--short"]), "?? operator-dirty.txt");
+});
+
+test("execution-suite identity triggers execution modes, persists, publishes, and deduplicates", async () => {
+  const repo = setupRepository();
+  const stateDir = join(repo.root, "state");
+  const baseOptions = {
+    sourceRepo: repo.remote,
+    sourceRef: "main",
+    resultsRemote: repo.remote,
+    resultBranch: "benchmark-results",
+    stateDir,
+    policy: POLICY,
+    scenarioSetHash: "scenario-a",
+    matrixHash: "matrix-a",
+  };
+  await runBenchmarkAgent({
+    ...baseOptions,
+    executionSuiteHash: "execution-a",
+    runBenchmark: fixtureBenchmark(),
+  });
+  let receivedTrigger;
+  const changed = await runBenchmarkAgent({
+    ...baseOptions,
+    executionSuiteHash: "execution-b",
+    runBenchmark: async ({ trigger }) => {
+      receivedTrigger = trigger;
+      return fixtureBenchmark()();
+    },
+  });
+  assert.equal(changed.status, "published");
+  assert.deepEqual(receivedTrigger.modes, {
+    authoring: false, runtimeExecution: true, generatedExecution: true,
+  });
+  assert.ok(receivedTrigger.reasons.includes("execution_suite_hash"));
+  assert.equal(changed.record.trigger.executionSuiteHashChanged, true);
+  assert.equal(changed.record.execution.identity.executionSuiteHash, "execution-b");
+  const state = JSON.parse(readFileSync(join(stateDir, "state.json"), "utf8"));
+  assert.equal(state.executionSuiteHash, "execution-b");
+
+  const restart = await runBenchmarkAgent({
+    ...baseOptions,
+    stateDir: join(repo.root, "fresh-state"),
+    executionSuiteHash: "execution-b",
+    runBenchmark: async () => { throw new Error("deduplication must precede execution"); },
+  });
+  assert.equal(restart.status, "deduplicated");
 });
 
 // ## TODO: Test Permutations

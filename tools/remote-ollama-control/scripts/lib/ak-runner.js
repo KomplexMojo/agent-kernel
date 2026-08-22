@@ -99,17 +99,18 @@ function normalizeEntitySpec(key, spec) {
     if (out.stat && typeof out.stat === 'string') {
       out.stat = STAT_ALIASES[out.stat.toLowerCase()] ?? out.stat;
     }
-    // Strip unsupported resource fields (vitals, affinities, goals, kind)
-    for (const f of ['vitals', 'affinities', 'goals', 'kind', 'affinity']) {
+    // Strip unsupported aggregate/model-invented fields. The canonical V3
+    // affinity field is deliberately retained for temporary/permanent grants.
+    for (const f of ['vitals', 'affinities', 'goals', 'kind']) {
       delete out[f];
     }
   }
 
-  // Strip model-invented fields that hazards don't support. Coordinates and
-  // blocking are stripped too: benchmark hazards are proximity-based, which
-  // makes the old trap_outside_room failure class structurally impossible.
+  // Strip model-invented fields that hazards don't support. Coordinates are
+  // stripped because benchmark hazards are proximity-based. Blocking is a
+  // supported execution-semantic input and must survive generated authoring.
   if (key === 'hazard') {
-    for (const f of ['manaDrain', 'healthDrain', 'staminaDrain', 'damage', 'effect', 'duration', 'x', 'y', 'blocking', 'vitals']) {
+    for (const f of ['manaDrain', 'healthDrain', 'staminaDrain', 'damage', 'effect', 'duration', 'x', 'y', 'vitals']) {
       delete out[f];
     }
     if (out.proximityRadius == null) {

@@ -3,39 +3,454 @@
   "family": "combat",
   "scenarios": [
     {
-      "id": "EX-CB-01", "title": "Basic encounter", "family": "combat", "setup": "Attacking delver and defending warden begin within encounter distance.", "profile": "short_v1",
-      "invariants": ["run_completed", "tick_monotonicity", "finite_bounds", "effect_integrity", "participation"],
-      "requiredGates": ["first contact by tick 20", "accepted attack or effect evidence", "target receives positive damage"],
-      "objectives": { "contact_latency": { "weight": 30, "evidence": "artifact" }, "interaction_damage": { "weight": 35, "evidence": "artifact" }, "participation": { "weight": 20, "evidence": "artifact" }, "performance": { "weight": 15, "evidence": "artifact" } },
-      "thresholds": { "contact_latency": { "direction": "max", "value": 20, "unit": "ticks", "evidence": "artifact" }, "interaction_damage": { "direction": "min", "value": 1, "unit": "count", "evidence": "artifact" } }
+      "id": "EX-CB-01",
+      "title": "Basic encounter",
+      "family": "combat",
+      "setup": "Attacking delver and defending warden begin within encounter distance.",
+      "profile": "short_v1",
+      "invariants": [
+        "run_completed",
+        "tick_monotonicity",
+        "finite_bounds",
+        "effect_integrity",
+        "participation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-CB-01-G01",
+          "description": "first contact by tick 20",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "contact_latency",
+            "operator": "max",
+            "threshold": 20,
+            "unit": "ticks"
+          }
+        },
+        {
+          "id": "EX-CB-01-G02",
+          "description": "accepted attack or effect evidence",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "combat_activity",
+            "operator": "min",
+            "threshold": 1,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-CB-01-G03",
+          "description": "target receives positive damage",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "interaction_damage",
+            "operator": "min",
+            "threshold": 1,
+            "unit": "count"
+          }
+        }
+      ],
+      "objectives": {
+        "contact_latency": {
+          "weight": 30,
+          "evidence": "artifact"
+        },
+        "interaction_damage": {
+          "weight": 35,
+          "evidence": "artifact"
+        },
+        "participation": {
+          "weight": 20,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 15,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "contact_latency": {
+          "direction": "max",
+          "value": 20,
+          "unit": "ticks",
+          "evidence": "artifact"
+        },
+        "interaction_damage": {
+          "direction": "min",
+          "value": 1,
+          "unit": "count",
+          "evidence": "artifact"
+        }
+      }
     },
     {
-      "id": "EX-CB-02", "title": "Affinity advantage sensitivity", "family": "combat", "setup": "Paired affinity-advantaged and neutral otherwise-identical duels.", "profile": "standard_v1",
-      "invariants": ["run_completed", "finite_bounds", "effect_integrity", "deterministic_replay"],
-      "requiredGates": ["both variants are valid", "affinity effects fulfill", "advantaged metric changes in the declared direction"],
-      "objectives": { "affinity_sensitivity": { "weight": 45, "evidence": "observation" }, "combat_activity": { "weight": 25, "evidence": "artifact" }, "survival_plausibility": { "weight": 20, "evidence": "observation" }, "performance": { "weight": 10, "evidence": "artifact" } },
-      "thresholds": { "affinity_sensitivity": { "direction": "relational", "value": "advantaged > neutral", "unit": "ratio", "evidence": "observation" } }
+      "id": "EX-CB-02",
+      "title": "Affinity advantage sensitivity",
+      "family": "combat",
+      "setup": "Paired affinity-advantaged and neutral otherwise-identical duels.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "finite_bounds",
+        "effect_integrity",
+        "deterministic_replay"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-CB-02-G01",
+          "description": "both variants are valid",
+          "scope": "aggregate",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "structural_validity",
+            "operator": "rate",
+            "threshold": 1,
+            "unit": "ratio",
+            "denominator": "variants",
+            "condition": {
+              "operator": "exact",
+              "threshold": 1
+            }
+          }
+        },
+        {
+          "id": "EX-CB-02-G02",
+          "description": "affinity effects fulfill",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "invariant",
+            "ref": "effect_integrity",
+            "operator": "exact",
+            "threshold": true
+          }
+        },
+        {
+          "id": "EX-CB-02-G03",
+          "description": "advantaged metric changes in the declared direction",
+          "scope": "paired_variant",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "affinity_sensitivity",
+            "operator": "changed_in_direction",
+            "threshold": "increase",
+            "unit": "ratio",
+            "baselineVariant": "neutral",
+            "candidateVariant": "advantaged"
+          }
+        }
+      ],
+      "objectives": {
+        "affinity_sensitivity": {
+          "weight": 45,
+          "evidence": "observation"
+        },
+        "combat_activity": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "survival_plausibility": {
+          "weight": 20,
+          "evidence": "observation"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "affinity_sensitivity": {
+          "direction": "relational",
+          "value": "advantaged > neutral",
+          "unit": "ratio",
+          "evidence": "observation"
+        }
+      }
     },
     {
-      "id": "EX-CB-03", "title": "Two attackers versus defender", "family": "combat", "setup": "Two attacking delvers face one durable defending warden.", "profile": "standard_v1",
-      "invariants": ["run_completed", "finite_bounds", "effect_integrity", "participation", "unique_actor_ids"],
-      "requiredGates": ["both attackers act and target", "defender receives damage", "no attacker starves"],
-      "objectives": { "roster_fairness": { "weight": 30, "evidence": "artifact" }, "target_interaction": { "weight": 30, "evidence": "artifact" }, "damage_progress": { "weight": 25, "evidence": "artifact" }, "behavioral_diversity": { "weight": 15, "evidence": "artifact" } },
-      "thresholds": { "roster_fairness": { "direction": "min", "value": 0.8, "unit": "ratio", "evidence": "artifact" } }
+      "id": "EX-CB-03",
+      "title": "Two attackers versus defender",
+      "family": "combat",
+      "setup": "Two attacking delvers face one durable defending warden.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "finite_bounds",
+        "effect_integrity",
+        "participation",
+        "unique_actor_ids"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-CB-03-G01",
+          "description": "both attackers act and target",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "operator": "all",
+            "predicates": [
+              {
+                "source": "metric",
+                "ref": "roster_fairness",
+                "operator": "exact",
+                "threshold": 1,
+                "unit": "ratio"
+              },
+              {
+                "source": "metric",
+                "ref": "target_interaction",
+                "operator": "min",
+                "threshold": 2,
+                "unit": "count"
+              }
+            ]
+          }
+        },
+        {
+          "id": "EX-CB-03-G02",
+          "description": "defender receives damage",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "interaction_damage",
+            "operator": "min",
+            "threshold": 1,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-CB-03-G03",
+          "description": "no attacker starves",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "max_actor_starvation",
+            "operator": "max",
+            "threshold": 25,
+            "unit": "ticks"
+          }
+        }
+      ],
+      "objectives": {
+        "roster_fairness": {
+          "weight": 30,
+          "evidence": "artifact"
+        },
+        "target_interaction": {
+          "weight": 30,
+          "evidence": "artifact"
+        },
+        "damage_progress": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "behavioral_diversity": {
+          "weight": 15,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "roster_fairness": {
+          "direction": "min",
+          "value": 0.8,
+          "unit": "ratio",
+          "evidence": "artifact"
+        }
+      }
     },
     {
-      "id": "EX-CB-04", "title": "Damage and regeneration endurance", "family": "combat", "setup": "Attacker faces a high-health regenerating defender.", "profile": "standard_v1",
-      "invariants": ["run_completed", "finite_bounds", "effect_integrity", "participation"],
-      "requiredGates": ["encounter occurs", "damage and regeneration evidence both occur", "defender is not instantly erased in every seed"],
-      "objectives": { "endurance_curve": { "weight": 35, "evidence": "observation" }, "damage_regen_interplay": { "weight": 25, "evidence": "observation" }, "survival_plausibility": { "weight": 25, "evidence": "observation" }, "performance": { "weight": 15, "evidence": "artifact" } },
-      "thresholds": { "damage_regen_interplay": { "direction": "min", "value": 2, "unit": "count", "evidence": "observation" } }
+      "id": "EX-CB-04",
+      "title": "Damage and regeneration endurance",
+      "family": "combat",
+      "setup": "Attacker faces a high-health regenerating defender.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "finite_bounds",
+        "effect_integrity",
+        "participation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-CB-04-G01",
+          "description": "encounter occurs",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "combat_activity",
+            "operator": "min",
+            "threshold": 1,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-CB-04-G02",
+          "description": "damage and regeneration evidence both occur",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "damage_regen_interplay",
+            "operator": "min",
+            "threshold": 2,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-CB-04-G03",
+          "description": "defender is not instantly erased in every seed",
+          "scope": "aggregate",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "survival_plausibility",
+            "operator": "rate",
+            "threshold": 0.2,
+            "unit": "ratio",
+            "denominator": "seeds",
+            "condition": {
+              "operator": "min",
+              "threshold": 0.01
+            }
+          }
+        }
+      ],
+      "objectives": {
+        "endurance_curve": {
+          "weight": 35,
+          "evidence": "observation"
+        },
+        "damage_regen_interplay": {
+          "weight": 25,
+          "evidence": "observation"
+        },
+        "survival_plausibility": {
+          "weight": 25,
+          "evidence": "observation"
+        },
+        "performance": {
+          "weight": 15,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "damage_regen_interplay": {
+          "direction": "min",
+          "value": 2,
+          "unit": "count",
+          "evidence": "observation"
+        }
+      }
     },
     {
-      "id": "EX-CB-05", "title": "Mixed cognition combat", "family": "combat", "setup": "Three actors combine mobility, posture, and cognition motivations.", "profile": "standard_v1",
-      "invariants": ["run_completed", "effect_integrity", "participation", "unique_actor_ids", "deterministic_replay"],
-      "requiredGates": ["every actor receives decisions", "at least two action kinds and targets occur", "same-seed replay matches"],
-      "objectives": { "behavioral_diversity": { "weight": 30, "evidence": "artifact" }, "interaction_graph": { "weight": 25, "evidence": "artifact" }, "liveness": { "weight": 25, "evidence": "artifact" }, "determinism": { "weight": 20, "evidence": "artifact" } },
-      "thresholds": { "behavioral_diversity": { "direction": "min", "value": 2, "unit": "count", "evidence": "artifact" }, "determinism": { "direction": "exact", "value": 1, "unit": "ratio", "evidence": "artifact" } }
+      "id": "EX-CB-05",
+      "title": "Mixed cognition combat",
+      "family": "combat",
+      "setup": "Three actors combine mobility, posture, and cognition motivations.",
+      "profile": "replay_v1",
+      "invariants": [
+        "run_completed",
+        "effect_integrity",
+        "participation",
+        "unique_actor_ids",
+        "deterministic_replay"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-CB-05-G01",
+          "description": "every actor receives decisions",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "participation",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-CB-05-G02",
+          "description": "at least two action kinds and targets occur",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "operator": "all",
+            "predicates": [
+              {
+                "source": "metric",
+                "ref": "behavioral_diversity",
+                "operator": "min",
+                "threshold": 2,
+                "unit": "count"
+              },
+              {
+                "source": "metric",
+                "ref": "interaction_graph",
+                "operator": "min",
+                "threshold": 2,
+                "unit": "count"
+              }
+            ]
+          }
+        },
+        {
+          "id": "EX-CB-05-G03",
+          "description": "same-seed replay matches",
+          "scope": "replay",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "determinism",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        }
+      ],
+      "objectives": {
+        "behavioral_diversity": {
+          "weight": 30,
+          "evidence": "artifact"
+        },
+        "interaction_graph": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "liveness": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "determinism": {
+          "weight": 20,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "behavioral_diversity": {
+          "direction": "min",
+          "value": 2,
+          "unit": "count",
+          "evidence": "artifact"
+        },
+        "determinism": {
+          "direction": "exact",
+          "value": 1,
+          "unit": "ratio",
+          "evidence": "artifact"
+        }
+      }
     }
   ]
 }

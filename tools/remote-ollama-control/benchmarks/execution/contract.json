@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agent-kernel-execution-metric-contract/v1",
-  "evaluatorVersion": "execution-evaluator-v1",
+  "evaluatorVersion": "execution-evaluator-v2",
   "qualification": {
     "meanScore": 75,
     "medianScore": 75,
@@ -28,6 +28,13 @@
     "deterministic_replay": { "description": "Normalized same-seed replay artifacts are equivalent." }
   },
   "metrics": {
+    "first_action_tick": { "unit": "ticks" },
+    "accepted_move_count": { "unit": "count" },
+    "max_progress_stall": { "unit": "ticks" },
+    "visited_room_count": { "unit": "count" },
+    "movement_count": { "unit": "count" },
+    "decision_count": { "unit": "count" },
+    "max_actor_starvation": { "unit": "ticks" },
     "unique_tile_coverage": { "unit": "ratio" },
     "active_tick_ratio": { "unit": "ratio" },
     "no_stall_margin": { "unit": "ticks" },

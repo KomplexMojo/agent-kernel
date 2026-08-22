@@ -1,0 +1,170 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_initial_state_ex_cb_05",
+    "runId": "benchmark_ex_cb_05",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-configurator"
+  },
+  "simConfigRef": {
+    "id": "benchmark_sim_config_ex_cb_05",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "delver_reflexive_attacker",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 12,
+          "max": 12,
+          "regen": 1
+        },
+        "durability": {
+          "current": 2,
+          "max": 2,
+          "regen": 0
+        }
+      },
+      "archetype": "delver",
+      "role": "delver",
+      "motivation": {
+        "kind": "attacking"
+      },
+      "traits": {
+        "motivations": [
+          {
+            "kind": "random",
+            "intensity": 1
+          },
+          {
+            "kind": "attacking",
+            "intensity": 1
+          },
+          {
+            "kind": "reflexive",
+            "intensity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "warden_goal_attacker",
+      "kind": "ambulatory",
+      "position": {
+        "x": 4,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 14,
+          "max": 14,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 12,
+          "max": 12,
+          "regen": 1
+        },
+        "durability": {
+          "current": 4,
+          "max": 4,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "role": "warden",
+      "motivation": {
+        "kind": "attacking"
+      },
+      "traits": {
+        "motivations": [
+          {
+            "kind": "patrolling",
+            "intensity": 1
+          },
+          {
+            "kind": "attacking",
+            "intensity": 1
+          },
+          {
+            "kind": "goal_oriented",
+            "intensity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "warden_strategy_defender",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 4
+      },
+      "vitals": {
+        "health": {
+          "current": 18,
+          "max": 18,
+          "regen": 1
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 12,
+          "max": 12,
+          "regen": 1
+        },
+        "durability": {
+          "current": 6,
+          "max": 6,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "role": "warden",
+      "motivation": {
+        "kind": "defending"
+      },
+      "traits": {
+        "motivations": [
+          {
+            "kind": "exploring",
+            "intensity": 1
+          },
+          {
+            "kind": "defending",
+            "intensity": 1
+          },
+          {
+            "kind": "strategy_focused",
+            "intensity": 1
+          }
+        ]
+      }
+    }
+  ]
+}

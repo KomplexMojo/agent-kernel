@@ -1,5 +1,7 @@
 # Agent Kernel MCP Benchmark Suite
 
+Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`)
+
 100 `ak_create` scenarios used to compare how different LLMs / reasoning levels drive the
 agent-kernel skill + MCP tools, and to detect drift between the documented baselines and the
 current CLI / MCP implementation.
@@ -31,6 +33,15 @@ scenarios isolated CLI/MCP output directories, requires all expected artifacts t
 JSON parity,
 and treats a non-zero result as passing only when both surfaces return the catalog's declared
 `budget_denied` class.
+
+## Consuming unattended results
+
+The Git-owned catalogs and deterministic validation live on the source branch. The unattended GPU
+runner publishes only compact, source-pinned JSON on `benchmark-results`: `latest.json` is the latest
+attempt, including infrastructure failures, while `latest-success.json` is the last qualifying run.
+Use `scripts/lib/benchmark-result-reader.js` as documented in the remote-control README; it validates
+the publication schema and current catalog/matrix hashes before returning evidence. Never substitute
+raw local result directories for published evidence when another agent needs a reproducible baseline.
 
 ## Configuration (env vars)
 

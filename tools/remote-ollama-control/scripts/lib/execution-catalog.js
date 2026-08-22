@@ -8,6 +8,10 @@ const EXECUTION_CATALOG_DIR = path.resolve(__dirname, '..', '..', 'benchmarks', 
 const FAMILIES = ['traversal', 'combat', 'hazards', 'resources', 'stress'];
 const DIRECTIONS = new Set(['min', 'max', 'range', 'exact', 'relational']);
 const EVIDENCE = new Set(['artifact', 'observation']);
+const GATE_SCOPES = new Set(['seed', 'aggregate', 'paired_variant', 'replay']);
+const GATE_LEAF_OPERATORS = new Set(['min', 'max', 'exact', 'range', 'changed_in_direction', 'rate']);
+const GATE_COMPOSITE_OPERATORS = new Set(['all', 'any']);
+const RATE_DENOMINATORS = new Set(['seeds', 'repeats', 'variants']);
 
 function isObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -87,7 +91,109 @@ function validateContract(contract) {
   return contract;
 }
 
-function validateScenario(scenario, family, contract, seen) {
+function validateNumericThreshold(operator, threshold, label) {
+  if (operator === 'range') {
+    if (!Array.isArray(threshold) || threshold.length !== 2
+      || threshold.some((value) => !Number.isFinite(value)) || threshold[0] > threshold[1]) {
+      throw new Error(`${label} range threshold requires two ordered numbers`);
+    }
+    return;
+  }
+  if (!Number.isFinite(threshold)) throw new Error(`${label} threshold required`);
+}
+
+function validateGatePredicate(predicate, gate, scenario, contract) {
+  const label = `scenario ${scenario.id} gate ${gate.id}`;
+  if (!isObject(predicate)) throw new Error(`${label} predicate must be an object`);
+  if (GATE_COMPOSITE_OPERATORS.has(predicate.operator)) {
+    assertKeys(predicate, new Set(['operator', 'predicates']), `${label} composite predicate`);
+    if (!Array.isArray(predicate.predicates) || predicate.predicates.length === 0) {
+      throw new Error(`${label} composite predicate children required`);
+    }
+    return predicate.predicates.flatMap((child) => validateGatePredicate(child, gate, scenario, contract));
+  }
+  assertKeys(predicate, new Set([
+    'source', 'ref', 'operator', 'threshold', 'unit', 'denominator', 'condition',
+    'baselineVariant', 'candidateVariant',
+  ]), `${label} predicate`);
+  if (!['metric', 'invariant'].includes(predicate.source) || typeof predicate.ref !== 'string') {
+    throw new Error(`${label} predicate source and ref required`);
+  }
+  if (!GATE_LEAF_OPERATORS.has(predicate.operator)) throw new Error(`${label} unknown predicate operator`);
+
+  if (predicate.source === 'invariant') {
+    if (!contract.invariants[predicate.ref]) throw new Error(`${label} unknown gate invariant: ${predicate.ref}`);
+    if (predicate.operator !== 'exact' || typeof predicate.threshold !== 'boolean') {
+      throw new Error(`${label} invariant predicate requires exact boolean threshold`);
+    }
+    if ('unit' in predicate || 'denominator' in predicate || 'condition' in predicate) {
+      throw new Error(`${label} invariant predicate has impossible fields`);
+    }
+    return [predicate.operator];
+  }
+
+  const metric = contract.metrics[predicate.ref];
+  if (!metric) throw new Error(`${label} unknown gate metric: ${predicate.ref}`);
+  if (predicate.unit !== metric.unit) throw new Error(`${label} gate metric ${predicate.ref} unit must match metric contract`);
+  if (predicate.operator === 'changed_in_direction') {
+    if (!['increase', 'decrease'].includes(predicate.threshold)) {
+      throw new Error(`${label} changed_in_direction threshold must be increase or decrease`);
+    }
+    if (typeof predicate.baselineVariant !== 'string' || predicate.baselineVariant === ''
+      || typeof predicate.candidateVariant !== 'string' || predicate.candidateVariant === ''
+      || predicate.baselineVariant === predicate.candidateVariant) {
+      throw new Error(`${label} paired variant names required and must differ`);
+    }
+  } else if (predicate.operator === 'rate') {
+    if (!Number.isFinite(predicate.threshold) || predicate.threshold < 0 || predicate.threshold > 1) {
+      throw new Error(`${label} rate threshold required between 0 and 1`);
+    }
+    if (!RATE_DENOMINATORS.has(predicate.denominator)) throw new Error(`${label} rate denominator required`);
+    if (!isObject(predicate.condition)) throw new Error(`${label} rate condition required`);
+    assertKeys(predicate.condition, new Set(['operator', 'threshold']), `${label} rate condition`);
+    if (!['min', 'max', 'exact', 'range'].includes(predicate.condition.operator)) {
+      throw new Error(`${label} invalid rate condition operator`);
+    }
+    validateNumericThreshold(predicate.condition.operator, predicate.condition.threshold, `${label} rate condition`);
+  } else {
+    validateNumericThreshold(predicate.operator, predicate.threshold, label);
+  }
+  if (predicate.operator !== 'rate' && ('denominator' in predicate || 'condition' in predicate)) {
+    throw new Error(`${label} denominator and condition require rate operator`);
+  }
+  if (predicate.operator !== 'changed_in_direction'
+    && ('baselineVariant' in predicate || 'candidateVariant' in predicate)) {
+    throw new Error(`${label} variant names require changed_in_direction operator`);
+  }
+  return [predicate.operator];
+}
+
+function validateGate(gate, scenario, contract, gateSeen) {
+  const label = `scenario ${scenario.id} gate`;
+  assertKeys(gate, new Set(['id', 'description', 'scope', 'evidence', 'predicate']), label);
+  if (typeof gate.id !== 'string' || !new RegExp(`^${scenario.id}-G\\d{2}$`).test(gate.id) || gateSeen.has(gate.id)) {
+    throw new Error(`${label} duplicate or invalid id: ${gate.id}`);
+  }
+  gateSeen.add(gate.id);
+  if (typeof gate.description !== 'string' || gate.description === '') throw new Error(`${label} description required`);
+  if (!GATE_SCOPES.has(gate.scope)) throw new Error(`${label} invalid scope`);
+  if (!EVIDENCE.has(gate.evidence)) throw new Error(`${label} invalid evidence`);
+  const operators = validateGatePredicate(gate.predicate, gate, scenario, contract);
+  if (operators.includes('rate') && gate.scope !== 'aggregate') {
+    throw new Error(`${label} rate operator requires aggregate scope`);
+  }
+  if (operators.includes('changed_in_direction') && gate.scope !== 'paired_variant') {
+    throw new Error(`${label} changed_in_direction operator requires paired_variant scope`);
+  }
+  if (gate.scope === 'paired_variant' && !operators.includes('changed_in_direction')) {
+    throw new Error(`${label} paired_variant scope requires changed_in_direction operator`);
+  }
+  if (gate.scope === 'replay' && contract.profiles[scenario.profile].repeats < 2) {
+    throw new Error(`${label} replay scope requires a profile with at least two repeats`);
+  }
+}
+
+function validateScenario(scenario, family, contract, seen, gateSeen) {
   assertKeys(scenario, new Set([
     'id', 'title', 'family', 'setup', 'profile', 'invariants', 'requiredGates', 'objectives', 'thresholds',
   ]), `scenario ${scenario.id || '<unknown>'}`);
@@ -99,10 +205,10 @@ function validateScenario(scenario, family, contract, seen) {
   for (const invariant of scenario.invariants) {
     if (!contract.invariants[invariant]) throw new Error(`scenario ${scenario.id} unknown invariant: ${invariant}`);
   }
-  if (!Array.isArray(scenario.requiredGates) || scenario.requiredGates.length === 0
-    || scenario.requiredGates.some((gate) => typeof gate !== 'string' || gate === '')) {
+  if (!Array.isArray(scenario.requiredGates) || scenario.requiredGates.length === 0) {
     throw new Error(`scenario ${scenario.id} requiredGates required`);
   }
+  for (const gate of scenario.requiredGates) validateGate(gate, scenario, contract, gateSeen);
   if (!isObject(scenario.objectives) || !isObject(scenario.thresholds)) throw new Error(`scenario ${scenario.id} objectives and thresholds required`);
   let total = 0;
   for (const [metric, objective] of Object.entries(scenario.objectives)) {
@@ -136,6 +242,7 @@ function loadExecutionCatalog(catalogDir = EXECUTION_CATALOG_DIR) {
   const scenarios = [];
   const familyCounts = {};
   const seen = new Set();
+  const gateSeen = new Set();
   for (const family of FAMILIES) {
     const document = readJson(path.join(catalogDir, `${family}.json`));
     assertKeys(document, new Set(['schemaVersion', 'family', 'scenarios']), `execution catalog ${family}`);
@@ -145,7 +252,7 @@ function loadExecutionCatalog(catalogDir = EXECUTION_CATALOG_DIR) {
     if (!Array.isArray(document.scenarios) || document.scenarios.length !== 5) {
       throw new Error(`execution catalog ${family} expected 5 scenarios`);
     }
-    for (const scenario of document.scenarios) validateScenario(scenario, family, contract, seen);
+    for (const scenario of document.scenarios) validateScenario(scenario, family, contract, seen, gateSeen);
     documents.push(document);
     scenarios.push(...document.scenarios);
     familyCounts[family] = document.scenarios.length;

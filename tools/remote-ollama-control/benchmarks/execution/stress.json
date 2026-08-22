@@ -3,34 +3,453 @@
   "family": "stress",
   "scenarios": [
     {
-      "id": "EX-ST-01", "title": "Full mixed dungeon", "family": "stress", "setup": "Three rooms contain mixed actors, two hazards, and two resources.", "profile": "standard_v1",
-      "invariants": ["run_completed", "actor_legality", "finite_bounds", "effect_integrity", "participation", "artifact_reconciliation"], "requiredGates": ["movement and two interaction classes occur", "every mobile actor acts", "no hard invariant fails"],
-      "objectives": { "subsystem_coverage": { "weight": 25, "evidence": "artifact" }, "roster_fairness": { "weight": 25, "evidence": "artifact" }, "spatial_progress": { "weight": 25, "evidence": "artifact" }, "behavioral_diversity": { "weight": 15, "evidence": "artifact" }, "performance": { "weight": 10, "evidence": "artifact" } },
-      "thresholds": { "subsystem_coverage": { "direction": "min", "value": 3, "unit": "count", "evidence": "artifact" } }
+      "id": "EX-ST-01",
+      "title": "Full mixed dungeon",
+      "family": "stress",
+      "setup": "Three rooms contain mixed actors, two hazards, and two resources.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "actor_legality",
+        "finite_bounds",
+        "effect_integrity",
+        "participation",
+        "artifact_reconciliation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-ST-01-G01",
+          "description": "movement and two interaction classes occur",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "subsystem_coverage",
+            "operator": "min",
+            "threshold": 3,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-ST-01-G02",
+          "description": "every mobile actor acts",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "roster_fairness",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-ST-01-G03",
+          "description": "no hard invariant fails",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "operator": "all",
+            "predicates": [
+              {
+                "source": "invariant",
+                "ref": "run_completed",
+                "operator": "exact",
+                "threshold": true
+              },
+              {
+                "source": "invariant",
+                "ref": "actor_legality",
+                "operator": "exact",
+                "threshold": true
+              },
+              {
+                "source": "invariant",
+                "ref": "finite_bounds",
+                "operator": "exact",
+                "threshold": true
+              },
+              {
+                "source": "invariant",
+                "ref": "effect_integrity",
+                "operator": "exact",
+                "threshold": true
+              },
+              {
+                "source": "invariant",
+                "ref": "participation",
+                "operator": "exact",
+                "threshold": true
+              },
+              {
+                "source": "invariant",
+                "ref": "artifact_reconciliation",
+                "operator": "exact",
+                "threshold": true
+              }
+            ]
+          }
+        }
+      ],
+      "objectives": {
+        "subsystem_coverage": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "roster_fairness": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "spatial_progress": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "behavioral_diversity": {
+          "weight": 15,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "subsystem_coverage": {
+          "direction": "min",
+          "value": 3,
+          "unit": "count",
+          "evidence": "artifact"
+        }
+      }
     },
     {
-      "id": "EX-ST-02", "title": "Eleven-actor acceptance scale", "family": "stress", "setup": "One delver and ten wardens run for 100 ticks.", "profile": "standard_v1",
-      "invariants": ["run_completed", "participation", "unique_actor_ids", "artifact_reconciliation"], "requiredGates": ["all eleven actors act", "no duplicate ids", "no starvation longer than 25 ticks"],
-      "objectives": { "roster_fairness": { "weight": 40, "evidence": "artifact" }, "activity_throughput": { "weight": 25, "evidence": "artifact" }, "artifact_growth": { "weight": 20, "evidence": "artifact" }, "performance": { "weight": 15, "evidence": "artifact" } },
-      "thresholds": { "roster_fairness": { "direction": "exact", "value": 1, "unit": "ratio", "evidence": "artifact" } }
+      "id": "EX-ST-02",
+      "title": "Eleven-actor acceptance scale",
+      "family": "stress",
+      "setup": "One delver and ten wardens run for 100 ticks.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "participation",
+        "unique_actor_ids",
+        "artifact_reconciliation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-ST-02-G01",
+          "description": "all eleven actors act",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "roster_fairness",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-ST-02-G02",
+          "description": "no duplicate ids",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "invariant",
+            "ref": "unique_actor_ids",
+            "operator": "exact",
+            "threshold": true
+          }
+        },
+        {
+          "id": "EX-ST-02-G03",
+          "description": "no starvation longer than 25 ticks",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "max_actor_starvation",
+            "operator": "max",
+            "threshold": 25,
+            "unit": "ticks"
+          }
+        }
+      ],
+      "objectives": {
+        "roster_fairness": {
+          "weight": 40,
+          "evidence": "artifact"
+        },
+        "activity_throughput": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "artifact_growth": {
+          "weight": 20,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 15,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "roster_fairness": {
+          "direction": "exact",
+          "value": 1,
+          "unit": "ratio",
+          "evidence": "artifact"
+        }
+      }
     },
     {
-      "id": "EX-ST-03", "title": "Dense interaction stress", "family": "stress", "setup": "A dense multi-room field contains many hazards and resources.", "profile": "stress_v1",
-      "invariants": ["run_completed", "actor_legality", "finite_bounds", "effect_integrity", "artifact_reconciliation"], "requiredGates": ["250 ticks complete", "effects remain attributable", "artifact growth remains approximately linear"],
-      "objectives": { "stability": { "weight": 30, "evidence": "observation" }, "activity_throughput": { "weight": 25, "evidence": "artifact" }, "artifact_growth": { "weight": 25, "evidence": "artifact" }, "performance": { "weight": 20, "evidence": "artifact" } },
-      "thresholds": { "stability": { "direction": "exact", "value": 1, "unit": "ratio", "evidence": "observation" } }
+      "id": "EX-ST-03",
+      "title": "Dense interaction stress",
+      "family": "stress",
+      "setup": "A dense multi-room field contains many hazards and resources.",
+      "profile": "stress_v1",
+      "invariants": [
+        "run_completed",
+        "actor_legality",
+        "finite_bounds",
+        "effect_integrity",
+        "artifact_reconciliation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-ST-03-G01",
+          "description": "250 ticks complete",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "invariant",
+            "ref": "run_completed",
+            "operator": "exact",
+            "threshold": true
+          }
+        },
+        {
+          "id": "EX-ST-03-G02",
+          "description": "effects remain attributable",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "invariant",
+            "ref": "effect_integrity",
+            "operator": "exact",
+            "threshold": true
+          }
+        },
+        {
+          "id": "EX-ST-03-G03",
+          "description": "artifact growth remains approximately linear",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "stability",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        }
+      ],
+      "objectives": {
+        "stability": {
+          "weight": 30,
+          "evidence": "observation"
+        },
+        "activity_throughput": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "artifact_growth": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 20,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "stability": {
+          "direction": "exact",
+          "value": 1,
+          "unit": "ratio",
+          "evidence": "observation"
+        }
+      }
     },
     {
-      "id": "EX-ST-04", "title": "Long-running integrity soak", "family": "stress", "setup": "A moderate four-actor dungeon combines combat and movement.", "profile": "soak_v1",
-      "invariants": ["run_completed", "actor_legality", "finite_bounds", "effect_integrity", "participation", "artifact_reconciliation"], "requiredGates": ["500 ticks complete", "all values remain bounded", "no permanent global stall"],
-      "objectives": { "long_run_integrity": { "weight": 35, "evidence": "observation" }, "liveness": { "weight": 25, "evidence": "artifact" }, "resource_bounds": { "weight": 25, "evidence": "observation" }, "performance": { "weight": 15, "evidence": "artifact" } },
-      "thresholds": { "long_run_integrity": { "direction": "exact", "value": 1, "unit": "ratio", "evidence": "observation" } }
+      "id": "EX-ST-04",
+      "title": "Long-running integrity soak",
+      "family": "stress",
+      "setup": "A moderate four-actor dungeon combines combat and movement.",
+      "profile": "soak_v1",
+      "invariants": [
+        "run_completed",
+        "actor_legality",
+        "finite_bounds",
+        "effect_integrity",
+        "participation",
+        "artifact_reconciliation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-ST-04-G01",
+          "description": "500 ticks complete",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "invariant",
+            "ref": "run_completed",
+            "operator": "exact",
+            "threshold": true
+          }
+        },
+        {
+          "id": "EX-ST-04-G02",
+          "description": "all values remain bounded",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "invariant",
+            "ref": "finite_bounds",
+            "operator": "exact",
+            "threshold": true
+          }
+        },
+        {
+          "id": "EX-ST-04-G03",
+          "description": "no permanent global stall",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "liveness",
+            "operator": "min",
+            "threshold": 0.01,
+            "unit": "ratio"
+          }
+        }
+      ],
+      "objectives": {
+        "long_run_integrity": {
+          "weight": 35,
+          "evidence": "observation"
+        },
+        "liveness": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "resource_bounds": {
+          "weight": 25,
+          "evidence": "observation"
+        },
+        "performance": {
+          "weight": 15,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "long_run_integrity": {
+          "direction": "exact",
+          "value": 1,
+          "unit": "ratio",
+          "evidence": "observation"
+        }
+      }
     },
     {
-      "id": "EX-ST-05", "title": "Replay determinism and seed sensitivity", "family": "stress", "setup": "A random-mobility scenario runs twice per seed across five seeds.", "profile": "replay_v1",
-      "invariants": ["run_completed", "actor_legality", "deterministic_replay", "artifact_reconciliation"], "requiredGates": ["same-seed normalized frame hashes match", "at least two seeds diverge", "every seed remains valid"],
-      "objectives": { "determinism": { "weight": 50, "evidence": "artifact" }, "seed_sensitivity": { "weight": 25, "evidence": "artifact" }, "structural_validity": { "weight": 15, "evidence": "artifact" }, "performance": { "weight": 10, "evidence": "artifact" } },
-      "thresholds": { "determinism": { "direction": "exact", "value": 1, "unit": "ratio", "evidence": "artifact" }, "seed_sensitivity": { "direction": "min", "value": 2, "unit": "count", "evidence": "artifact" } }
+      "id": "EX-ST-05",
+      "title": "Replay determinism and seed sensitivity",
+      "family": "stress",
+      "setup": "A random-mobility scenario runs twice per seed across five seeds.",
+      "profile": "replay_v1",
+      "invariants": [
+        "run_completed",
+        "actor_legality",
+        "deterministic_replay",
+        "artifact_reconciliation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-ST-05-G01",
+          "description": "same-seed normalized frame hashes match",
+          "scope": "replay",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "determinism",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-ST-05-G02",
+          "description": "at least two seeds diverge",
+          "scope": "aggregate",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "seed_sensitivity",
+            "operator": "min",
+            "threshold": 2,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-ST-05-G03",
+          "description": "every seed remains valid",
+          "scope": "aggregate",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "structural_validity",
+            "operator": "rate",
+            "threshold": 1,
+            "unit": "ratio",
+            "denominator": "seeds",
+            "condition": {
+              "operator": "exact",
+              "threshold": 1
+            }
+          }
+        }
+      ],
+      "objectives": {
+        "determinism": {
+          "weight": 50,
+          "evidence": "artifact"
+        },
+        "seed_sensitivity": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "structural_validity": {
+          "weight": 15,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "determinism": {
+          "direction": "exact",
+          "value": 1,
+          "unit": "ratio",
+          "evidence": "artifact"
+        },
+        "seed_sensitivity": {
+          "direction": "min",
+          "value": 2,
+          "unit": "count",
+          "evidence": "artifact"
+        }
+      }
     }
   ]
 }

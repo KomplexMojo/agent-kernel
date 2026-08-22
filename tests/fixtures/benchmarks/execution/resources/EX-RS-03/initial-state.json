@@ -1,0 +1,63 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_ex_rs_03_initial_state",
+    "runId": "benchmark_ex_rs_03",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "simConfigRef": {
+    "id": "benchmark_ex_rs_03_sim_config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "delver_regeneration_subject-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 4,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 5,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 20,
+          "max": 20,
+          "regen": 2
+        },
+        "durability": {
+          "current": 2,
+          "max": 2,
+          "regen": 0
+        }
+      },
+      "archetype": "delver",
+      "role": "delver",
+      "traits": {
+        "affinities": {
+          "life": 1
+        },
+        "motivations": [
+          {
+            "kind": "exploring",
+            "intensity": 1
+          }
+        ]
+      },
+      "motivation": {
+        "kind": "exploring"
+      }
+    }
+  ]
+}

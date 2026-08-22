@@ -135,9 +135,14 @@ pnpm run demo:cli                                     # CLI demo
 
 **Content-gen benchmark — NOT part of development (maintainer, 2026-08-13).** It runs as a **standalone tool, nightly, against code changes, offline**. The benchmarks have grown complex enough that they cannot be run inside the development loop.
 
+Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`)
+
 - **Do not run `run-content-gen` from a session**, and do not schedule work around one.
 - **Nothing is "benchmark-gated".** No milestone, decision, PR or merge waits on a benchmark result.
 - Pass bars and baselines belong to the nightly tool, not to a diff.
+- Fetch `benchmark-results` and use `benchmark-result-reader.js`: `latest_attempt` reports current
+  health, while `latest_success` reports the last qualifying baseline. Identity mismatch is an error.
+- Compact JSON is source-controlled only on `benchmark-results`; raw benchmark evidence remains local.
 - Benchmark measurements are **offline evidence** (charter: they "cannot rewrite routing policy without an explicit, versioned promotion"). A nightly regression is a signal to read, not a deliverable to produce.
 - **The one obligation:** if a change touches the `ak_create` tool schema, CLI arg mapping, or entity normalization, say so in the commit message so a nightly result can be attributed to it.
 
@@ -215,7 +220,7 @@ Run on every diff. **Fix failures — don't just flag them.**
 
 **Tests** — failing tests written *before* production code · new behavior covered under `tests/` · deterministic behavior uses fixtures · negative cases under `tests/fixtures/artifacts/invalid/` · no test hits live external services · base test file ends with `## TODO: Test Permutations` before Ollama handoff · persona behavior tests live in `tests/personas/<persona>/` named `<persona>-<behavior>.test.*` · label-only persona tests are legacy: replace with behavior tests, then remove (never remove first).
 
-**Benchmarks** — **not a checklist item.** Benchmarking left the development process on 2026-08-13: it is a standalone nightly tool, offline. Never run it from a session and never gate a diff on it. If a change touches the `ak_create` tool schema, CLI arg mapping, or entity normalization, note that in the commit message so the nightly result can be attributed — that is the whole obligation. Results stay out of git.
+**Benchmarks** — **not a checklist item.** Benchmarking left the development process on 2026-08-13: it is a standalone nightly tool, offline. Never run it from a session and never gate a diff on it. If a change touches the `ak_create` tool schema, CLI arg mapping, or entity normalization, note that in the commit message so the nightly result can be attributed — that is the whole development obligation. Read compact source-pinned evidence from `benchmark-results`; raw results stay out of Git.
 
 **Code quality** — every changed line traces to the current milestone spec (no drive-by cleanup) · not over-engineered · assumptions stated before implementation.
 

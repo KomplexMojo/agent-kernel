@@ -12,15 +12,15 @@ const {
 
 const ROOT = resolve(__dirname, "../..", "tools/remote-ollama-control");
 const MAC_SCRIPT = resolve(ROOT, "scripts/remote-ollama-mac.js");
+const PROFILE_SCRIPT = resolve(ROOT, "scripts/remote-ollama-profile.js");
 
-test("hardware benchmark reserves secondary for dual and routes single-card models only to primary", () => {
+test("hardware benchmark reserves secondary and maps every model to its declared profiles", () => {
   const config = loadConfig(ROOT);
   const plan = buildHardwareBenchmarkSpecs(config, {
     models: [
       "qwen3-coder:30b-a3b-q4_K_M",
       "qwen3-coder:30b",
-      "qwen3.5:27b",
-      "qwen3.5:9b",
+      "qwen3.8:27b",
       "qwen3:14b",
       "qwen2.5-coder:14b",
       "qwen2.5-coder:7b",
@@ -39,8 +39,7 @@ test("hardware benchmark reserves secondary for dual and routes single-card mode
 
   assert.deepEqual([...byModel.get("qwen3-coder:30b-a3b-q4_K_M")].sort(), ["dual"]);
   assert.deepEqual([...byModel.get("qwen3-coder:30b")].sort(), ["dual"]);
-  assert.deepEqual([...byModel.get("qwen3.5:27b")].sort(), ["dual"]);
-  assert.deepEqual([...byModel.get("qwen3.5:9b")].sort(), ["primary"]);
+  assert.deepEqual([...byModel.get("qwen3.8:27b")].sort(), ["dual", "primary"]);
   assert.deepEqual([...byModel.get("qwen3:14b")].sort(), ["primary"]);
   assert.deepEqual([...byModel.get("qwen2.5-coder:14b")].sort(), ["primary"]);
   assert.deepEqual([...byModel.get("qwen2.5-coder:7b")].sort(), ["primary"]);
@@ -51,7 +50,7 @@ test("content-gen matrix plans seven primary-or-dual configurations in resource 
   const plan = buildContentGenMatrix(config, { scenarioCount: 100 });
 
   assert.equal(plan.contractVersion, "content-gen-matrix-v1");
-  assert.equal(plan.sha256, "d33e0025290a7357b2d11b3a579289a05ff9eb01671731caf59fed88e9a6d0e8");
+  assert.equal(plan.sha256, "50a40410016f5abd216ce33ce98d78717f62847fc7422a94a7dfac541a522d8f");
   assert.equal(plan.configurationCount, 7);
   assert.deepEqual(plan.repeatPolicy, {
     minimumCompletePasses: 1,
@@ -61,10 +60,10 @@ test("content-gen matrix plans seven primary-or-dual configurations in resource 
   assert.deepEqual(plan.callBounds, { minimum: 700, maximum: 2100 });
   assert.deepEqual(plan.configurations.map((entry) => entry.configurationId), [
     "cg-v1--qwen2.5-coder_7b--primary--ctx32768--out4096",
-    "cg-v1--qwen3.5_9b--primary--ctx32768--out4096",
     "cg-v1--qwen2.5-coder_14b--primary--ctx32768--out4096",
     "cg-v1--qwen3_14b--primary--ctx32768--out4096",
-    "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
+    "cg-v1--qwen3.8_27b--primary--ctx32768--out4096",
+    "cg-v1--qwen3.8_27b--dual--ctx65536--out32768",
     "cg-v1--qwen3-coder_30b--dual--ctx65536--out32768",
     "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768",
   ]);
@@ -77,8 +76,7 @@ test("content-gen matrix plans seven primary-or-dual configurations in resource 
   }
   assert.deepEqual(profilesByModel.get("qwen3-coder:30b-a3b-q4_K_M"), ["dual"]);
   assert.deepEqual(profilesByModel.get("qwen3-coder:30b"), ["dual"]);
-  assert.deepEqual(profilesByModel.get("qwen3.5:27b"), ["dual"]);
-  assert.deepEqual(profilesByModel.get("qwen3.5:9b"), ["primary"]);
+  assert.deepEqual(profilesByModel.get("qwen3.8:27b"), ["primary", "dual"]);
   assert.deepEqual(profilesByModel.get("qwen3:14b"), ["primary"]);
   assert.deepEqual(profilesByModel.get("qwen2.5-coder:14b"), ["primary"]);
   assert.deepEqual(profilesByModel.get("qwen2.5-coder:7b"), ["primary"]);
@@ -120,6 +118,23 @@ test("content-gen dry run exposes the complete offline matrix and exact repeat b
   assert.equal(output.runsPerScenario, 3);
   assert.deepEqual(output.matrix.callBounds, { minimum: 700, maximum: 2100 });
   assert.equal(output.matrix.configurations.length, 7);
+});
+
+test("profile dry run honors an explicit Ollama binary for unattended starts", () => {
+  const result = spawnSync(process.execPath, [
+    PROFILE_SCRIPT,
+    "start",
+    "--profile",
+    "primary",
+    "--dry-run",
+  ], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: { ...process.env, OLLAMA_BIN: "/opt/ollama-current/bin/ollama", LLM_PROFILE_MANAGER: "pid" },
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /'\/opt\/ollama-current\/bin\/ollama' serve/);
 });
 
 test("hardware benchmark recommendations prefer score before speed", () => {

@@ -64,6 +64,8 @@ test("systemd timer delegates to one internal lock and runbook documents lifecyc
   const readme = readFileSync(join(TOOL_ROOT, "README.md"), "utf8");
   assert.match(service, /Type=oneshot/);
   assert.match(service, /NoNewPrivileges=true/);
+  const profileService = readFileSync(join(TOOL_ROOT, "systemd/ollama-profile@.service"), "utf8");
+  assert.match(profileService, /ExecStart=\/usr\/bin\/env \$\{OLLAMA_BIN\} serve/);
   assert.doesNotMatch(service, /^(?:User=root|Group=root)/m);
   assert.match(service, /EnvironmentFile=-%h\/\.config\/agent-kernel-benchmark\/benchmark-agent\.env/);
   assert.match(timer, /Unit=agent-kernel-benchmark\.service/);
@@ -90,6 +92,7 @@ test("installed dry-run fetches and classifies without state, publication, or GP
     "AK_BENCHMARK_RESULT_BRANCH=benchmark-results",
     "AK_BENCHMARK_SCENARIO_HASH=scenario-a",
     "AK_BENCHMARK_MATRIX_HASH=matrix-a",
+    "AK_BENCHMARK_EXECUTION_SUITE_HASH=execution-a",
     "AK_BENCHMARK_DRY_RUN=1",
     "",
   ].join("\n"));
@@ -101,6 +104,9 @@ test("installed dry-run fetches and classifies without state, publication, or GP
   const output = JSON.parse(result.stdout);
   assert.equal(output.status, "dry_run");
   assert.equal(output.trigger.required, true);
+  assert.deepEqual(output.identity, {
+    scenarioSetHash: "scenario-a", matrixHash: "matrix-a", executionSuiteHash: "execution-a",
+  });
   assert.equal(existsSync(join(home, ".local/state/agent-kernel-benchmark/state.json")), false);
   assert.throws(() => git(home, [`--git-dir=${remote}`, "rev-parse", "refs/heads/benchmark-results"]));
   assert.equal(existsSync(join(home, ".local/share/agent-kernel-benchmark/source.git")), true);

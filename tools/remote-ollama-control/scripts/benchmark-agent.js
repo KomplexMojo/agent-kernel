@@ -4,6 +4,8 @@ const { execFileSync } = require('child_process');
 const path = require('path');
 
 const { hasCompletedRunKey, publishResult } = require('./lib/benchmark-publisher');
+const { runBenchmarkPipeline } = require('./lib/benchmark-pipeline');
+const { prepareBenchmarkSource } = require('./lib/benchmark-source');
 const { acquireAgentLock, loadAgentState, saveAgentState } = require('./lib/benchmark-state');
 const { classifyTrigger, computeRunKey, loadTriggerPolicy } = require('./lib/benchmark-trigger');
 
@@ -37,22 +39,24 @@ function completed(state, remote, resultBranch, key) {
   return Boolean(state.completedRunKeys[key]) || hasCompletedRunKey(remote, resultBranch, key);
 }
 
-function markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash) {
+function markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash, executionSuiteHash) {
   state.lastEvaluatedCommit = sourceCommit;
   state.scenarioSetHash = scenarioSetHash;
   state.matrixHash = matrixHash;
+  state.executionSuiteHash = executionSuiteHash;
   state.queuedCommit = null;
 }
 
 function publicationRecord({
   outcome, sourceCommit, sourceTree, sourceRef, sourceRepository, key,
   startedAt, completedAt, policy, trigger, previousEvaluatedCommit,
-  scenarioSetHash, matrixHash,
+  scenarioSetHash, matrixHash, executionSuiteHash,
 }) {
   const status = outcome.status || 'infrastructure_error';
   const defaultFailures = status === 'infrastructure_error'
     ? { infrastructure: { count: 1, reasons: [outcome.error || 'benchmark infrastructure error'] } }
     : {};
+  const execution = outcome.execution || { status: 'not_run' };
   return {
     schemaVersion: 'agent-kernel-benchmark-result/v1',
     run: {
@@ -69,8 +73,11 @@ function publicationRecord({
       previousEvaluatedCommit,
       reasons: trigger.reasons,
       relevantPaths: trigger.relevantPaths || [],
+      pathClasses: trigger.pathClasses || [],
+      modes: trigger.modes,
       scenarioHashChanged: trigger.reasons.includes('scenario_hash'),
       matrixHashChanged: trigger.reasons.includes('matrix_hash'),
+      executionSuiteHashChanged: trigger.reasons.includes('execution_suite_hash'),
     },
     scenarioSet: outcome.scenarioSet || {
       catalogPath: 'tools/remote-ollama-control/benchmarks/content-gen',
@@ -85,7 +92,7 @@ function publicationRecord({
     },
     thresholds: outcome.thresholds || {},
     configurations: outcome.configurations || [],
-    execution: outcome.execution || { status: 'not_run' },
+    execution: { ...execution, identity: { executionSuiteHash, ...(execution.identity || {}) } },
     minimumSuccessfulConfiguration: outcome.minimumSuccessfulConfiguration ?? null,
     paretoFrontier: outcome.paretoFrontier || [],
     comparison: outcome.comparison || { comparable: false, incomparabilityReasons: ['no prior comparable result'] },
@@ -102,7 +109,9 @@ async function runBenchmarkAgent(options) {
     stateDir,
     scenarioSetHash,
     matrixHash,
+    executionSuiteHash,
     runBenchmark,
+    prepareSource = null,
     now = () => new Date(),
     dryRun = false,
   } = options;
@@ -113,6 +122,9 @@ async function runBenchmarkAgent(options) {
   if (!sourceRepo || !stateDir || (!dryRun && (!resultsRemote || typeof runBenchmark !== 'function'))) {
     throw new Error('sourceRepo and stateDir are required; live runs also require resultsRemote and runBenchmark');
   }
+  for (const [name, value] of Object.entries({ scenarioSetHash, matrixHash, executionSuiteHash })) {
+    if (typeof value !== 'string' || value === '') throw new Error(`${name} is required`);
+  }
 
   const lock = acquireAgentLock(stateDir);
   if (!lock.acquired) return { status: 'locked' };
@@ -120,6 +132,7 @@ async function runBenchmarkAgent(options) {
   try {
     const state = loadAgentState(stateDir);
     const sourceCommit = resolveSourceCommit(sourceRepo, sourceRef);
+    const sourceTree = resolveTree(sourceRepo, sourceCommit);
     const previousEvaluatedCommit = state.lastEvaluatedCommit;
     const trigger = classifyTrigger({
       policy,
@@ -128,26 +141,30 @@ async function runBenchmarkAgent(options) {
       changedPaths: changedPaths(sourceRepo, state.lastEvaluatedCommit, sourceCommit),
       scenarioHashChanged: state.scenarioSetHash !== null && state.scenarioSetHash !== scenarioSetHash,
       matrixHashChanged: state.matrixHash !== null && state.matrixHash !== matrixHash,
+      executionSuiteHashChanged: state.lastEvaluatedCommit !== null
+        && state.executionSuiteHash !== executionSuiteHash,
     });
     const key = computeRunKey({
       sourceCommit,
       scenarioSetHash,
       matrixHash,
+      executionSuiteHash,
       runnerContractVersion: policy.runnerContractVersion,
     });
 
     if (dryRun) {
-      return { status: 'dry_run', sourceCommit, runKey: key, trigger, stateMutation: false };
+      return { status: 'dry_run', sourceCommit, runKey: key, trigger,
+        identity: { scenarioSetHash, matrixHash, executionSuiteHash }, stateMutation: false };
     }
 
     if (!trigger.required) {
-      markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash);
+      markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash, executionSuiteHash);
       saveAgentState(stateDir, state);
       return { status: 'no_trigger', sourceCommit, trigger };
     }
 
     if (completed(state, resultsRemote, resultBranch, key)) {
-      markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash);
+      markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash, executionSuiteHash);
       state.completedRunKeys[key] = sourceCommit;
       saveAgentState(stateDir, state);
       return { status: 'deduplicated', sourceCommit, runKey: key };
@@ -158,16 +175,37 @@ async function runBenchmarkAgent(options) {
     saveAgentState(stateDir, state);
 
     let outcome;
+    let prepared = null;
     try {
-      outcome = await runBenchmark({ sourceCommit, sourceRef, runKey: key, trigger });
+      if (prepareSource) {
+        prepared = await prepareSource({ sourceCommit, sourceTree, sourceRef, runKey: key, trigger });
+        if (!prepared || typeof prepared.worktreePath !== 'string' || typeof prepared.cleanup !== 'function'
+          || prepared.preflight?.status !== 'passed') {
+          throw new Error('prepareSource returned an invalid prepared source');
+        }
+      }
+      outcome = await runBenchmark({ sourceCommit, sourceTree, sourceRef, runKey: key, trigger,
+        sourceWorktree: prepared?.worktreePath || null, preflight: prepared?.preflight || null });
     } catch (error) {
-      outcome = { status: 'infrastructure_error', qualifies: false, error: error.message };
+      outcome = { status: 'infrastructure_error', qualifies: false, error: error.message,
+        ...(error.preflight?.retentionId ? { artifacts: { retentionId: error.preflight.retentionId } } : {}) };
+    } finally {
+      if (prepared) {
+        try {
+          prepared.cleanup();
+        } catch (error) {
+          outcome = { status: 'infrastructure_error', qualifies: false,
+            error: `source worktree cleanup failed: ${error.message}`,
+            ...(prepared.preflight?.retentionId
+              ? { artifacts: { retentionId: prepared.preflight.retentionId } } : {}) };
+        }
+      }
     }
     const completedAt = now().toISOString();
     const record = publicationRecord({
       outcome,
       sourceCommit,
-      sourceTree: resolveTree(sourceRepo, sourceCommit),
+      sourceTree,
       sourceRef,
       sourceRepository,
       key,
@@ -178,6 +216,7 @@ async function runBenchmarkAgent(options) {
       previousEvaluatedCommit,
       scenarioSetHash,
       matrixHash,
+      executionSuiteHash,
     });
     await publishResult({
       remote: resultsRemote,
@@ -189,7 +228,7 @@ async function runBenchmarkAgent(options) {
 
     state.inFlight = null;
     if (record.run.status === 'completed') {
-      markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash);
+      markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash, executionSuiteHash);
       state.completedRunKeys[key] = record.run.id;
     }
     const newestCommit = resolveSourceCommit(sourceRepo, sourceRef);
@@ -210,7 +249,7 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     if (!argv[index].startsWith('--')) throw new Error(`Expected option, received ${argv[index]}`);
     const name = argv[index].slice(2);
-    if (name === 'dry-run' || name === 'service') {
+    if (name === 'dry-run' || name === 'service' || name === 'live') {
       values[name] = true;
       continue;
     }
@@ -245,10 +284,11 @@ async function main() {
   const sourceRemote = envValue(args, 'source-remote', 'AK_BENCHMARK_SOURCE_REMOTE');
   const sourceRef = envValue(args, 'source-ref', 'AK_BENCHMARK_SOURCE_REF', 'main');
   const dryRun = Boolean(args['dry-run']) || envValue(args, 'dry-run', 'AK_BENCHMARK_DRY_RUN', '0') === '1';
+  const liveEnabled = Boolean(args.live) || envValue(args, 'live', 'AK_BENCHMARK_LIVE', '0') === '1';
   const fixturePath = envValue(args, 'fixture-result', 'AK_BENCHMARK_FIXTURE_RESULT');
   if (!sourceRemote) throw new Error('AK_BENCHMARK_SOURCE_REMOTE or --source-remote is required');
-  if (!dryRun && !fixturePath) {
-    throw new Error('Live GPU execution is operator-gated; use AK_BENCHMARK_DRY_RUN=1 or an explicit fixture result');
+  if (!dryRun && !fixturePath && !liveEnabled) {
+    throw new Error('Live pipeline execution is operator-gated; set AK_BENCHMARK_LIVE=1 or use dry-run/fixture evidence');
   }
   const mirrorDir = envValue(
     args,
@@ -264,6 +304,9 @@ async function main() {
   );
   const sourceRepo = ensureSourceMirror(sourceRemote, sourceRef, mirrorDir);
   const fixture = fixturePath ? JSON.parse(fs.readFileSync(fixturePath, 'utf8')) : null;
+  const scenarioSetHash = envValue(args, 'scenario-hash', 'AK_BENCHMARK_SCENARIO_HASH');
+  const matrixHash = envValue(args, 'matrix-hash', 'AK_BENCHMARK_MATRIX_HASH');
+  const executionSuiteHash = envValue(args, 'execution-suite-hash', 'AK_BENCHMARK_EXECUTION_SUITE_HASH');
   const result = await runBenchmarkAgent({
     sourceRepo,
     sourceRef,
@@ -271,10 +314,23 @@ async function main() {
     resultsRemote: envValue(args, 'results-remote', 'AK_BENCHMARK_RESULTS_REMOTE'),
     resultBranch: envValue(args, 'result-branch', 'AK_BENCHMARK_RESULT_BRANCH', 'benchmark-results'),
     stateDir,
-    scenarioSetHash: envValue(args, 'scenario-hash', 'AK_BENCHMARK_SCENARIO_HASH'),
-    matrixHash: envValue(args, 'matrix-hash', 'AK_BENCHMARK_MATRIX_HASH'),
+    scenarioSetHash,
+    matrixHash,
+    executionSuiteHash,
     dryRun,
-    runBenchmark: async () => fixture,
+    prepareSource: (context) => prepareBenchmarkSource({
+      sourceRepo, stateDir, sourceCommit: context.sourceCommit, sourceTree: context.sourceTree,
+      runKey: context.runKey,
+    }),
+    runBenchmark: async (context) => fixture || runBenchmarkPipeline({
+      sourceWorktree: context.sourceWorktree,
+      stateDir,
+      runKey: context.runKey,
+      trigger: context.trigger,
+      scenarioSetHash,
+      matrixHash,
+      executionSuiteHash,
+    }),
   });
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }

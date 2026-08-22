@@ -20,6 +20,17 @@ const stateRoot = process.env.LLM_PROFILE_STATE_DIR || path.join(os.homedir(), '
 const logRoot = process.env.LLM_PROFILE_LOG_DIR || path.join(stateRoot, 'logs');
 const systemdEnvRoot = path.join(stateRoot, 'systemd');
 
+function resolveOllamaExecutable() {
+  if (process.env.OLLAMA_BIN) return process.env.OLLAMA_BIN;
+  const userLocal = path.join(os.homedir(), '.local', 'bin', 'ollama');
+  try {
+    fs.accessSync(userLocal, fs.constants.X_OK);
+    return userLocal;
+  } catch {
+    return 'ollama';
+  }
+}
+
 function usage() {
   process.stdout.write(`Usage:
   remote-ollama-profile status [--profile NAME] [--json]
@@ -219,7 +230,7 @@ function printDryRun(message) {
 }
 
 function writeSystemdEnv(profile) {
-  const env = serviceEnvironment(profile);
+  const env = { ...serviceEnvironment(profile), OLLAMA_BIN: resolveOllamaExecutable() };
   const lines = Object.entries(env).map(([key, value]) => `${key}=${value}`);
   fs.writeFileSync(systemdEnvFile(profile), `${lines.join('\n')}\n`);
 }
@@ -251,7 +262,8 @@ async function assertModelInstalled(profile, model, skipModelCheck) {
 
 async function startPid(profile, model, options) {
   const env = { ...process.env, ...serviceEnvironment(profile) };
-  const command = `env ${Object.entries(serviceEnvironment(profile)).map(([key, value]) => `${key}=${shellQuote(value)}`).join(' ')} ollama serve`;
+  const ollamaExecutable = resolveOllamaExecutable();
+  const command = `env ${Object.entries(serviceEnvironment(profile)).map(([key, value]) => `${key}=${shellQuote(value)}`).join(' ')} ${shellQuote(ollamaExecutable)} serve`;
   if (options.dryRun) {
     printDryRun(command);
     return;
@@ -260,7 +272,7 @@ async function startPid(profile, model, options) {
   const logPath = logFile(profile);
   fs.appendFileSync(logPath, `\n[${new Date().toISOString()}] Starting ${profile.name} model=${model || ''} ${JSON.stringify(serviceEnvironment(profile))}\n`);
   const fd = fs.openSync(logPath, 'a');
-  const child = spawn('ollama', ['serve'], {
+  const child = spawn(ollamaExecutable, ['serve'], {
     detached: true,
     env,
     stdio: ['ignore', fd, fd]

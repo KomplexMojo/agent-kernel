@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require("node:fs");
+const { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
 
@@ -11,11 +11,21 @@ const {
   loadScenarios,
 } = require("../../tools/remote-ollama-control/scripts/lib/ak-scenarios");
 const { scoreRun } = require("../../tools/remote-ollama-control/scripts/lib/ak-compare");
+const { AK_CREATE_TOOL } = require("../../tools/remote-ollama-control/scripts/lib/ak-tool-schema");
+const { normalizeToolArgs } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
+const {
+  pipelineComponents,
+  validateRouteManifestDocument,
+} = require("../../tools/remote-ollama-control/scripts/lib/benchmark-pipeline");
+const { loadExecutionCatalog } = require("../../tools/remote-ollama-control/scripts/lib/execution-catalog");
 
-const EXPECTED_HASH = "0558024373ad3720a866f24c911f7293fbc7e0a01ec6abfb4c31571654767264";
+const PRIOR_CATALOG_HASH = "0558024373ad3720a866f24c911f7293fbc7e0a01ec6abfb4c31571654767264";
+const EXPECTED_HASH = "b0709b81a7d5bc889449dd2c0e48ea108af39afc9918d555e03b120f90b28add";
 const TIERS = ["simple", "affinity", "complex", "constrained"];
+const ROOT = resolve(__dirname, "../..");
 const REMOTE_CONTROL_ROOT = resolve(__dirname, "../../tools/remote-ollama-control");
 const MAC_SCRIPT = join(REMOTE_CONTROL_ROOT, "scripts/remote-ollama-mac.js");
+const GENERATED_ROUTES = join(REMOTE_CONTROL_ROOT, "benchmarks/execution/generated-content-routes.json");
 const BASELINE_GENERATOR = resolve(__dirname, "../../tools/benchmark/generate-baselines.mjs");
 const BENCHMARK_VALIDATOR = resolve(__dirname, "../../tools/benchmark/validate-benchmark.mjs");
 
@@ -46,6 +56,19 @@ function reverseObjectKeys(value) {
 
 function writeJson(file, value) {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function parseEntitySpec(spec) {
+  return Object.fromEntries(String(spec).split(";").map((segment) => {
+    const separator = segment.indexOf("=");
+    return [segment.slice(0, separator), segment.slice(separator + 1)];
+  }));
+}
+
+function authoredCount(payload, key) {
+  return (payload[key] || []).reduce((sum, spec) => (
+    sum + Number.parseInt(parseEntitySpec(spec).count || "1", 10)
+  ), 0);
 }
 
 function scoringFixture() {
@@ -124,6 +147,160 @@ test("repository catalog owns 100 balanced content-generation scenarios", () => 
     [65, 81, 85, 90].map((index) => catalog.scenarios.find((scenario) => scenario.index === index)?.tier),
     ["simple", "affinity", "complex", "constrained"],
   );
+});
+
+test("content authoring preserves blocking hazards and V3 affinity resources through the public route", () => {
+  const properties = AK_CREATE_TOOL.function.parameters.properties;
+  assert.ok(properties.hazard.items.properties.blocking, "ak_create must expose blocking hazards");
+  for (const field of ["permanenceMode", "vital", "regen", "affinity", "expression", "stacks", "mana", "manaRegen"]) {
+    assert.ok(properties.resource.items.properties[field], `ak_create resource schema is missing ${field}`);
+  }
+
+  const normalized = normalizeToolArgs({
+    hazard: [{ affinity: "earth", expression: "emit", proximityRadius: 1, blocking: true }],
+    resource: [{ affinity: "fire", expression: "push", stacks: 2, mana: 12, manaRegen: 0 }],
+  });
+  assert.equal(normalized.hazard[0].blocking, true);
+  assert.equal(normalized.resource[0].affinity, "fire");
+
+  const outDir = mkdtempSync(join(tmpdir(), "ak-content-route-affinity-resource-"));
+  const result = spawnSync(process.execPath, [
+    resolve(__dirname, "../../packages/adapters-cli/src/cli/ak.mjs"), "create",
+    "--room", "size=medium;count=1",
+    "--hazard", "affinity=earth;expression=emit;proximityRadius=1;blocking=true",
+    "--resource", "affinity=fire;expression=push;stacks=2;mana=12;manaRegen=0",
+    "--out-dir", outDir,
+    "--run-id", "content_route_affinity_resource",
+    "--created-at", "2026-08-21T00:00:00.000Z",
+  ], { cwd: resolve(__dirname, "../.."), encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
+  assert.equal(spec.configurator.inputs.levelGen.hazards[0].blocking, true);
+  assert.deepEqual(spec.configurator.inputs.resources[0].affinity, {
+    kind: "fire", expression: "push", stacks: 2, mana: 12, manaRegen: 0,
+  });
+});
+
+test("generated execution routes bind 26 exact semantic counterparts to the balanced catalog", async () => {
+  const catalog = loadScenarioCatalog();
+  const executionCatalog = loadExecutionCatalog();
+  const manifest = JSON.parse(readFileSync(GENERATED_ROUTES, "utf8"));
+  const routes = validateRouteManifestDocument(manifest, {
+    kind: "generated",
+    components: pipelineComponents(ROOT, executionCatalog),
+    catalog: executionCatalog,
+    sourceWorktree: ROOT,
+    scenarioSetHash: catalog.sha256,
+  });
+  assert.equal(manifest.identity.scenarioSetHash, EXPECTED_HASH);
+  assert.notEqual(manifest.identity.scenarioSetHash, PRIOR_CATALOG_HASH);
+  assert.equal(Object.keys(routes).length, 26);
+  assert.equal(new Set(Object.values(routes).map((route) => route.scenarioIndex)).size, 26);
+
+  const expected = {
+    "EX-TR-01": [1, 1, 0, 0, 0, ["exploring"]],
+    "EX-TR-02": [3, 1, 0, 0, 0, ["exploring"]],
+    "EX-TR-03": [2, 0, 1, 0, 0, ["patrolling"]],
+    "EX-TR-04": [1, 0, 1, 0, 0, ["stationary"]],
+    "EX-TR-05": [3, 2, 2, 0, 0, ["exploring", "patrolling", "random", "stationary"]],
+    "EX-CB-01": [1, 1, 1, 0, 0, ["attacking", "defending"]],
+    "EX-CB-02#neutral": [1, 1, 1, 0, 0, ["attacking", "defending"]],
+    "EX-CB-02#advantaged": [1, 1, 1, 0, 0, ["attacking", "defending"]],
+    "EX-CB-03": [1, 2, 1, 0, 0, ["attacking", "defending"]],
+    "EX-CB-04": [1, 1, 1, 0, 0, ["attacking", "defending"]],
+    "EX-CB-05": [1, 1, 2, 0, 0, ["attacking", "defending", "reflexive"]],
+    "EX-HZ-01": [1, 1, 0, 1, 0, ["exploring"]],
+    "EX-HZ-02": [1, 1, 0, 1, 0, ["exploring"]],
+    "EX-HZ-03": [1, 1, 0, 1, 0, ["exploring"]],
+    "EX-HZ-04": [1, 1, 1, 1, 0, ["exploring", "stationary"]],
+    "EX-HZ-05": [1, 1, 0, 1, 0, ["exploring"]],
+    "EX-RS-01": [1, 1, 0, 0, 1, ["exploring"]],
+    "EX-RS-02": [1, 1, 0, 0, 1, ["exploring"]],
+    "EX-RS-03": [1, 1, 0, 0, 1, ["exploring"]],
+    "EX-RS-04": [1, 1, 1, 0, 1, ["attacking", "defending"]],
+    "EX-RS-05": [1, 1, 1, 0, 2, ["attacking", "defending"]],
+    "EX-ST-01": [3, 2, 2, 2, 2, ["attacking", "defending", "patrolling", "random"]],
+    "EX-ST-02": [1, 1, 10, 0, 0, ["random"]],
+    "EX-ST-03": [4, 2, 4, 6, 6, ["attacking", "defending", "patrolling", "random"]],
+    "EX-ST-04": [2, 2, 2, 0, 0, ["attacking", "defending", "patrolling", "random"]],
+    "EX-ST-05": [1, 1, 2, 0, 0, ["random"]],
+  };
+
+  for (const [key, shape] of Object.entries(expected)) {
+    const scenario = catalog.scenarios.find((entry) => entry.index === routes[key].scenarioIndex);
+    assert.ok(scenario, `missing authoring scenario for ${key}`);
+    assert.equal(scenario.expectedOutcome, "success");
+    assert.match(scenario.title, new RegExp(`^Execution ${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} —`));
+    assert.ok(scenario.prompt.includes(`[${key}]`), `${key} prompt lacks its explicit execution contract`);
+    const payload = scenario.payload;
+    assert.deepEqual([
+      authoredCount(payload, "room"),
+      authoredCount(payload, "delver"),
+      authoredCount(payload, "warden"),
+      authoredCount(payload, "hazard"),
+      authoredCount(payload, "resource"),
+      [...new Set([...(payload.delver || []), ...(payload.warden || [])]
+        .map((spec) => parseEntitySpec(spec).motivation))].sort(),
+    ], shape, `${key} authoring payload drifted from its execution setup`);
+  }
+
+  assert.deepEqual(["emit", "push", "pull", "draw"], [
+    "EX-HZ-01", "EX-HZ-02", "EX-HZ-03", "EX-HZ-04",
+  ].map((key) => parseEntitySpec(catalog.scenarios.find(
+    (entry) => entry.index === routes[key].scenarioIndex,
+  ).payload.hazard[0]).expression));
+  assert.equal(parseEntitySpec(catalog.scenarios.find(
+    (entry) => entry.index === routes["EX-HZ-05"].scenarioIndex,
+  ).payload.hazard[0]).blocking, "true");
+
+  const temporary = parseEntitySpec(catalog.scenarios.find(
+    (entry) => entry.index === routes["EX-RS-04"].scenarioIndex,
+  ).payload.resource[0]);
+  assert.deepEqual(temporary, {
+    id: "resource_fire_temporary", affinity: "fire", expression: "push",
+    stacks: "2", mana: "12", manaRegen: "0",
+  });
+  const permanent = catalog.scenarios.find(
+    (entry) => entry.index === routes["EX-RS-05"].scenarioIndex,
+  ).payload.resource.map(parseEntitySpec);
+  assert.equal(permanent.length, 2);
+  assert.ok(permanent.every((resource) => resource.affinity === "fire"
+    && resource.expression === "emit" && resource.stacks === "2"
+    && resource.mana === "12" && resource.manaRegen === "2"));
+
+  const neutral = parseEntitySpec(catalog.scenarios.find(
+    (entry) => entry.index === routes["EX-CB-02#neutral"].scenarioIndex,
+  ).payload.delver[0]);
+  const advantaged = parseEntitySpec(catalog.scenarios.find(
+    (entry) => entry.index === routes["EX-CB-02#advantaged"].scenarioIndex,
+  ).payload.delver[0]);
+  assert.equal(neutral.affinity, "earth");
+  assert.equal(advantaged.affinity, "fire");
+  delete neutral.affinity;
+  delete neutral.affinities;
+  delete advantaged.affinity;
+  delete advantaged.affinities;
+  assert.deepEqual(advantaged, neutral, "CB-02 variants must differ only in declared attacker affinity");
+
+  const { buildArgv } = await import("../../packages/adapters-cli/src/mcp/tools/shared.mjs");
+  const { authoringSpec } = await import("../../packages/adapters-cli/src/mcp/tools/authoring.mjs");
+  const cli = resolve(__dirname, "../../packages/adapters-cli/src/cli/ak.mjs");
+  for (const [key, route] of Object.entries(routes)) {
+    const scenario = catalog.scenarios.find((entry) => entry.index === route.scenarioIndex);
+    const outDir = mkdtempSync(join(tmpdir(), `ak-generated-route-${key.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-`));
+    const result = spawnSync(process.execPath, [cli, "create", ...buildArgv({
+      ...scenario.payload,
+      outDir,
+    }, authoringSpec)], { cwd: ROOT, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 });
+    assert.equal(result.status, 0, `${key} canonical authoring route failed: ${result.stderr || result.stdout}`);
+    assert.equal(existsSync(join(outDir, "sim-config.json")), true);
+    assert.equal(existsSync(join(outDir, "initial-state.json")), true);
+    if (key === "EX-RS-04" || key === "EX-RS-05") {
+      const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
+      assert.ok(spec.configurator.inputs.resources.every((resource) => resource.affinity),
+        `${key} lost affinity during canonical authoring`);
+    }
+  }
 });
 
 test("scenario questions load without runtime vault paths", () => {

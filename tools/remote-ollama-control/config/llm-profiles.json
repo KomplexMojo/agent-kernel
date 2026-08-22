@@ -11,11 +11,11 @@
       "hipVisibleDevices": "0",
       "hsaOverrideGfxVersion": "10.3.0",
       "port": 11434,
-      "defaultModel": "qwen3.5:9b",
+      "defaultModel": "qwen3.8:27b",
       "defaultContext": 32768,
       "defaultNumPredict": 4096,
       "benchmarkModels": [
-        "qwen3.5:9b"
+        "qwen3.8:27b"
       ]
     },
     "secondary": {
@@ -45,11 +45,11 @@
       "hipVisibleDevices": "0,1",
       "hsaOverrideGfxVersion": "10.3.0",
       "port": 11436,
-      "defaultModel": "qwen3.5:27b",
+      "defaultModel": "qwen3.8:27b",
       "defaultContext": 65536,
       "defaultNumPredict": 32768,
       "benchmarkModels": [
-        "qwen3.5:27b"
+        "qwen3.8:27b"
       ]
     }
   }

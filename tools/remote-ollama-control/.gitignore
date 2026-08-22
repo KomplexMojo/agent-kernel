@@ -6,4 +6,7 @@ config/*.env
 
 results/*
 !results/.gitkeep
+!results/2026-08-15T18-00-00-000Z-a4-paired-qualification/
+!results/2026-08-15T18-00-00-000Z-a4-paired-qualification/result.json
+!results/2026-08-15T18-00-00-000Z-a4-paired-qualification/summary.md
 *.log

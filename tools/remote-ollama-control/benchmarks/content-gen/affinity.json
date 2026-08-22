@@ -304,34 +304,77 @@
     },
     {
       "index": 16,
-      "title": "Create Corrode Resource Cache",
-      "runId": "ak_prompt_16_create_corrode_resource_cache",
+      "title": "Execution EX-RS-04 — Temporary affinity lifecycle",
+      "runId": "ak_execution_ex_rs_04",
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a corrode-themed cache with a level affinity stack resource and stealth Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-04] create one attacking Delver crossing a temporary fire-push affinity resource with two stacks, finite mana 12, and zero mana regeneration, with a defending Warden available as a target. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a corrode-themed cache with a level affinity stack resource and stealth Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-04] create one attacking Delver crossing a temporary fire-push affinity resource with two stacks, finite mana 12, and zero mana regeneration, with a defending Warden available as a target. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
-        "runId": "ak_prompt_16_create_corrode_resource_cache",
-        "createdAt": "2026-05-03T17:00:00.000Z",
+        "runId": "ak_execution_ex_rs_04",
+        "createdAt": "2026-08-21T00:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
-        "dungeonAffinity": "corrode",
         "room": [
           "size=medium;count=1"
         ],
-        "floorTile": [
-          "count=14"
-        ],
-        "hazard": [
-          "id=room_1_field_1;affinity=corrode;expression=emit;proximityRadius=2;mana=regen:3:3:1"
-        ],
         "resource": [
-          "tier=level;stat=affinityStack;delta=1;dropRate=15"
+          "id=resource_fire_temporary;affinity=fire;expression=push;stacks=2;mana=12;manaRegen=0"
         ],
         "delver": [
-          "count=1;affinity=corrode;motivation=stealthy;affinities=corrode:emit:2;vitals=health:7:1,stamina:8:1,mana:4:1"
+          "count=1;id=delver_temporary_affinity;affinity=life;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ],
+        "warden": [
+          "count=1;id=warden_temporary_target;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ]
+      },
+      "expectedOutcome": "success",
+      "reference": {
+        "entityCounts": {
+          "room": 1,
+          "delver": 1,
+          "warden": 1
+        },
+        "affinitiesByType": {
+          "delver": [
+            "life"
+          ],
+          "warden": [
+            "earth"
+          ]
+        },
+        "totalSpend": 564
+      },
+      "referenceSpend": 564,
+      "remaining": 999436,
+      "status": "approved",
+      "legacyReferencePath": "Reference Artifacts/16-execution-ex-rs-04-temporary-affinity-lifecycle/create"
+    },
+    {
+      "index": 17,
+      "title": "Execution EX-HZ-05 — Blocking hazard reroute",
+      "runId": "ak_execution_ex_hz_05",
+      "tier": "affinity",
+      "budgetMode": "unconstrained",
+      "budget": null,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-05] create one blocking fortify emit hazard controlling the short route while an alternate legal route remains for one exploring Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "payload": {
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-05] create one blocking fortify emit hazard controlling the short route while an alternate legal route remains for one exploring Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 1000000,
+        "runId": "ak_execution_ex_hz_05",
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "outDir": "$RUN_OUTPUT/create",
+        "emitIntermediates": true,
+        "room": [
+          "size=large;count=1"
+        ],
+        "hazard": [
+          "id=hazard_blocking_choke;affinity=fortify;expression=emit;proximityRadius=1;stacks=2;blocking=true;mana=regen:12:12:2"
+        ],
+        "delver": [
+          "count=1;id=delver_reroute;affinity=wind;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ]
       },
       "expectedOutcome": "success",
@@ -342,62 +385,15 @@
         },
         "affinitiesByType": {
           "delver": [
-            "corrode"
+            "wind"
           ]
         },
-        "totalSpend": 141
+        "totalSpend": 286
       },
-      "referenceSpend": 141,
-      "remaining": 999859,
+      "referenceSpend": 286,
+      "remaining": 999714,
       "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/16-create-corrode-resource-cache/create"
-    },
-    {
-      "index": 17,
-      "title": "Create Fortify Guard Post",
-      "runId": "ak_prompt_17_create_fortify_guard_post",
-      "tier": "affinity",
-      "budgetMode": "unconstrained",
-      "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a fortify guard post with a blocking fortify emit hazard and one defensive Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-      "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a fortify guard post with a blocking fortify emit hazard and one defensive Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 1000000,
-        "runId": "ak_prompt_17_create_fortify_guard_post",
-        "createdAt": "2026-05-03T17:00:00.000Z",
-        "outDir": "$RUN_OUTPUT/create",
-        "emitIntermediates": true,
-        "dungeonAffinity": "fortify",
-        "room": [
-          "size=medium;count=1"
-        ],
-        "floorTile": [
-          "count=18"
-        ],
-        "hazard": [
-          "x=2;y=4;affinity=fortify;expression=emit;stacks=2;blocking=true;vitals=mana:4:1,durability:6:0"
-        ],
-        "warden": [
-          "count=1;affinity=fortify;motivation=defending;affinities=fortify:emit:2;vitals=health:12:1,stamina:4:1,mana:4:1,durability:8:0"
-        ]
-      },
-      "expectedOutcome": "success",
-      "reference": {
-        "entityCounts": {
-          "room": 1,
-          "warden": 1
-        },
-        "affinitiesByType": {
-          "warden": [
-            "fortify"
-          ]
-        },
-        "totalSpend": 151
-      },
-      "referenceSpend": 151,
-      "remaining": 999849,
-      "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/17-create-fortify-guard-post/create"
+      "legacyReferencePath": "Reference Artifacts/17-execution-ex-hz-05-blocking-hazard-reroute/create"
     },
     {
       "index": 18,
@@ -495,34 +491,27 @@
     },
     {
       "index": 20,
-      "title": "Create Balanced Three Actors",
-      "runId": "ak_prompt_20_create_balanced_three_actors",
+      "title": "Execution EX-CB-03 — Two attackers versus defender",
+      "runId": "ak_execution_ex_cb_03",
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a balanced medium encounter with fire, water, and earth actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-03] create one arena with exactly two attacking Delvers facing one high-durability defending Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a balanced medium encounter with fire, water, and earth actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-03] create one arena with exactly two attacking Delvers facing one high-durability defending Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
-        "runId": "ak_prompt_20_create_balanced_three_actors",
-        "createdAt": "2026-05-03T17:00:00.000Z",
+        "runId": "ak_execution_ex_cb_03",
+        "createdAt": "2026-08-21T00:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
         "room": [
           "size=medium;count=1"
         ],
-        "floorTile": [
-          "count=20"
-        ],
-        "hazard": [
-          "id=room_1_field_1;affinity=earth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
-        ],
         "delver": [
-          "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:8:1,stamina:6:1,mana:4:1",
-          "count=1;affinity=water;motivation=exploring;affinities=water:draw:1;vitals=health:8:1,stamina:6:1,mana:5:1"
+          "count=2;id=delver_pair;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ],
         "warden": [
-          "count=1;affinity=earth;motivation=defending;affinities=earth:pull:1;vitals=health:11:1,stamina:4:1,mana:3:1,durability:5:0"
+          "count=1;id=warden_durable;affinity=earth;motivation=defending;vitals=health:50:2,mana:20:2,stamina:40:4,durability:16:1"
         ]
       },
       "expectedOutcome": "success",
@@ -534,145 +523,138 @@
         },
         "affinitiesByType": {
           "delver": [
-            "fire",
+            "fire"
+          ],
+          "warden": [
+            "earth"
+          ]
+        },
+        "totalSpend": 553
+      },
+      "referenceSpend": 553,
+      "remaining": 999447,
+      "status": "approved",
+      "legacyReferencePath": "Reference Artifacts/20-execution-ex-cb-03-two-attackers-versus-defender/create"
+    },
+    {
+      "index": 21,
+      "title": "Execution EX-CB-05 — Mixed cognition combat",
+      "runId": "ak_execution_ex_cb_05",
+      "tier": "affinity",
+      "budgetMode": "unconstrained",
+      "budget": null,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-05] create exactly three combat actors combining attacking mobility, defending posture, and reflexive cognition motivations. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "payload": {
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-05] create exactly three combat actors combining attacking mobility, defending posture, and reflexive cognition motivations. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 1000000,
+        "runId": "ak_execution_ex_cb_05",
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "outDir": "$RUN_OUTPUT/create",
+        "emitIntermediates": true,
+        "room": [
+          "size=large;count=1"
+        ],
+        "delver": [
+          "count=1;id=delver_mixed_attacker;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ],
+        "warden": [
+          "count=1;id=warden_mixed_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1",
+          "count=1;id=warden_mixed_reflexive;affinity=dark;motivation=reflexive;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ]
+      },
+      "expectedOutcome": "success",
+      "reference": {
+        "entityCounts": {
+          "room": 1,
+          "delver": 1,
+          "warden": 2
+        },
+        "affinitiesByType": {
+          "delver": [
+            "fire"
+          ],
+          "warden": [
+            "dark",
+            "earth"
+          ]
+        },
+        "totalSpend": 547
+      },
+      "referenceSpend": 547,
+      "remaining": 999453,
+      "status": "approved",
+      "legacyReferencePath": "Reference Artifacts/21-execution-ex-cb-05-mixed-cognition-combat/create"
+    },
+    {
+      "index": 22,
+      "title": "Execution EX-ST-02 — Eleven-actor acceptance scale",
+      "runId": "ak_execution_ex_st_02",
+      "tier": "affinity",
+      "budgetMode": "unconstrained",
+      "budget": null,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-02] create one large room containing exactly one random mobile Delver and ten random mobile Wardens, all with positive stamina and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "payload": {
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-02] create one large room containing exactly one random mobile Delver and ten random mobile Wardens, all with positive stamina and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 1000000,
+        "runId": "ak_execution_ex_st_02",
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "outDir": "$RUN_OUTPUT/create",
+        "emitIntermediates": true,
+        "room": [
+          "size=large;count=1"
+        ],
+        "delver": [
+          "count=1;id=delver_acceptance;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ],
+        "warden": [
+          "count=10;id=warden_acceptance;affinity=earth;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ]
+      },
+      "expectedOutcome": "success",
+      "reference": {
+        "entityCounts": {
+          "room": 1,
+          "delver": 1,
+          "warden": 10
+        },
+        "affinitiesByType": {
+          "delver": [
             "water"
           ],
           "warden": [
             "earth"
           ]
         },
-        "totalSpend": 287
+        "totalSpend": 1824
       },
-      "referenceSpend": 287,
-      "remaining": 999713,
+      "referenceSpend": 1824,
+      "remaining": 998176,
       "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/20-create-balanced-three-actors/create"
-    },
-    {
-      "index": 21,
-      "title": "Create Four Delver Squad",
-      "runId": "ak_prompt_21_create_four_delver_squad",
-      "tier": "affinity",
-      "budgetMode": "unconstrained",
-      "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a four-Delver wind squad for party-scaling tests. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-      "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a four-Delver wind squad for party-scaling tests. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 1000000,
-        "runId": "ak_prompt_21_create_four_delver_squad",
-        "createdAt": "2026-05-03T17:00:00.000Z",
-        "outDir": "$RUN_OUTPUT/create",
-        "emitIntermediates": true,
-        "dungeonAffinity": "wind",
-        "room": [
-          "size=large;count=1"
-        ],
-        "floorTile": [
-          "count=25"
-        ],
-        "hazard": [
-          "id=room_1_field_1;affinity=wind;expression=emit;proximityRadius=2;mana=regen:3:3:1"
-        ],
-        "delver": [
-          "count=4;affinity=wind;motivation=exploring;affinities=wind:push:1;vitals=health:7:1,stamina:7:1,mana:4:1"
-        ]
-      },
-      "expectedOutcome": "success",
-      "reference": {
-        "entityCounts": {
-          "room": 1,
-          "delver": 4
-        },
-        "affinitiesByType": {
-          "delver": [
-            "wind"
-          ]
-        },
-        "totalSpend": 371
-      },
-      "referenceSpend": 371,
-      "remaining": 999629,
-      "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/21-create-four-delver-squad/create"
-    },
-    {
-      "index": 22,
-      "title": "Create Three Wardens Defense",
-      "runId": "ak_prompt_22_create_three_wardens_defense",
-      "tier": "affinity",
-      "budgetMode": "unconstrained",
-      "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a three-Warden dark defense for actor-count scaling. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-      "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a three-Warden dark defense for actor-count scaling. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 1000000,
-        "runId": "ak_prompt_22_create_three_wardens_defense",
-        "createdAt": "2026-05-03T17:00:00.000Z",
-        "outDir": "$RUN_OUTPUT/create",
-        "emitIntermediates": true,
-        "dungeonAffinity": "dark",
-        "room": [
-          "size=large;count=1"
-        ],
-        "floorTile": [
-          "count=25"
-        ],
-        "hazard": [
-          "id=room_1_field_1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1"
-        ],
-        "warden": [
-          "count=3;affinity=dark;motivation=defending;affinities=dark:emit:2;vitals=health:10:1,stamina:4:1,mana:4:1,durability:5:0"
-        ]
-      },
-      "expectedOutcome": "success",
-      "reference": {
-        "entityCounts": {
-          "room": 1,
-          "warden": 3
-        },
-        "affinitiesByType": {
-          "warden": [
-            "dark"
-          ]
-        },
-        "totalSpend": 288
-      },
-      "referenceSpend": 288,
-      "remaining": 999712,
-      "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/22-create-three-wardens-defense/create"
+      "legacyReferencePath": "Reference Artifacts/22-execution-ex-st-02-eleven-actor-acceptance-scale/create"
     },
     {
       "index": 23,
-      "title": "Create Mixed Affinity Boss Room",
-      "runId": "ak_prompt_23_create_mixed_affinity_boss_room",
+      "title": "Execution EX-CB-04 — Damage and regeneration endurance",
+      "runId": "ak_execution_ex_cb_04",
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a large boss room with light Delver pressure against a strategy-focused dark Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-04] create one attacking Delver facing one defending Warden with high health and positive health regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a large boss room with light Delver pressure against a strategy-focused dark Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-04] create one attacking Delver facing one defending Warden with high health and positive health regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
-        "runId": "ak_prompt_23_create_mixed_affinity_boss_room",
-        "createdAt": "2026-05-03T17:00:00.000Z",
+        "runId": "ak_execution_ex_cb_04",
+        "createdAt": "2026-08-21T00:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
-        "dungeonAffinity": "dark",
         "room": [
-          "size=large;count=1"
-        ],
-        "floorTile": [
-          "count=28"
-        ],
-        "hazard": [
-          "x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false",
-          "affinity=decay;expression=emit;proximityRadius=2;mana=regen:4:4:1"
+          "size=medium;count=1"
         ],
         "delver": [
-          "count=1;affinity=light;motivation=attacking;affinities=light:emit:2;vitals=health:10:1,stamina:7:1,mana:6:1"
+          "count=1;id=delver_endurance_attacker;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ],
         "warden": [
-          "count=1;affinity=dark;motivation=strategy_focused;affinities=dark:emit:3,decay:emit:1;vitals=health:16:1,stamina:5:1,mana:7:1,durability:9:0"
+          "count=1;id=warden_regenerator;affinity=earth;motivation=defending;vitals=health:80:5,mana:20:2,stamina:40:4,durability:18:2"
         ]
       },
       "expectedOutcome": "success",
@@ -684,197 +666,172 @@
         },
         "affinitiesByType": {
           "delver": [
-            "light"
+            "fire"
           ],
           "warden": [
-            "dark"
+            "earth"
           ]
         },
-        "totalSpend": 335
+        "totalSpend": 447
       },
-      "referenceSpend": 335,
-      "remaining": 999665,
+      "referenceSpend": 447,
+      "remaining": 999553,
       "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/23-create-mixed-affinity-boss-room/create"
+      "legacyReferencePath": "Reference Artifacts/23-execution-ex-cb-04-damage-and-regeneration-endurance/create"
     },
     {
       "index": 24,
-      "title": "Create Emit Hazard Gauntlet",
-      "runId": "ak_prompt_24_create_emit_hazard_gauntlet",
+      "title": "Execution EX-ST-03 — Dense interaction stress",
+      "runId": "ak_execution_ex_st_03",
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a gauntlet with four non-blocking emit hazards and one stealth Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-03] create four connected rooms with exactly six mobile actors, six hazards spanning all four expressions, and six resources spanning vital and affinity lifecycles. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a gauntlet with four non-blocking emit hazards and one stealth Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-03] create four connected rooms with exactly six mobile actors, six hazards spanning all four expressions, and six resources spanning vital and affinity lifecycles. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
-        "runId": "ak_prompt_24_create_emit_hazard_gauntlet",
-        "createdAt": "2026-05-03T17:00:00.000Z",
+        "runId": "ak_execution_ex_st_03",
+        "createdAt": "2026-08-21T00:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
         "room": [
-          "size=large;count=2"
-        ],
-        "floorTile": [
-          "count=32"
+          "size=large;count=4"
         ],
         "hazard": [
-          "x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false",
-          "x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false",
-          "x=3;y=3;affinity=decay;expression=emit;stacks=1;blocking=false",
-          "x=4;y=4;affinity=corrode;expression=emit;stacks=1;blocking=false"
+          "id=hazard_dense_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2",
+          "id=hazard_dense_water;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2",
+          "id=hazard_dense_earth;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2",
+          "id=hazard_dense_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2",
+          "id=hazard_dense_light;affinity=light;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2",
+          "id=hazard_dense_dark;affinity=dark;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+        ],
+        "resource": [
+          "id=resource_dense_health;permanenceMode=consumable;vital=health;delta=5",
+          "id=resource_dense_health_max;permanenceMode=level;vital=health;delta=5",
+          "id=resource_dense_regen;permanenceMode=level;vital=health;regen=2",
+          "id=resource_dense_temp;affinity=fire;expression=push;stacks=2;mana=12;manaRegen=0",
+          "id=resource_dense_perm;affinity=water;expression=emit;stacks=2;mana=12;manaRegen=2",
+          "id=resource_dense_stamina;permanenceMode=level;vital=stamina;delta=5"
         ],
         "delver": [
-          "count=1;affinity=light;motivation=stealthy;affinities=light:emit:1;vitals=health:8:1,stamina:8:1,mana:5:1"
+          "count=2;id=delver_dense;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ],
+        "warden": [
+          "count=1;id=warden_dense_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1",
+          "count=1;id=warden_dense_patrol;affinity=wind;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1",
+          "count=2;id=warden_dense_random;affinity=dark;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ]
       },
       "expectedOutcome": "success",
       "reference": {
         "entityCounts": {
-          "room": 2,
-          "delver": 1
+          "room": 4,
+          "delver": 2,
+          "warden": 4
         },
         "affinitiesByType": {
           "delver": [
-            "light"
+            "fire"
+          ],
+          "warden": [
+            "dark",
+            "earth",
+            "wind"
           ]
         },
-        "totalSpend": 273
+        "totalSpend": 2207
       },
-      "referenceSpend": 273,
-      "remaining": 999727,
+      "referenceSpend": 2207,
+      "remaining": 997793,
       "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/24-create-emit-hazard-gauntlet/create"
+      "legacyReferencePath": "Reference Artifacts/24-execution-ex-st-03-dense-interaction-stress/create"
     },
     {
       "index": 25,
-      "title": "Create Hazard Gauntlet",
-      "runId": "ak_prompt_25_create_hazard_gauntlet",
+      "title": "Execution EX-ST-01 — Full mixed dungeon",
+      "runId": "ak_execution_ex_st_01",
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a hazard gauntlet with fire, water, and decay mana zones. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-01] create three connected rooms containing exactly four mobile actors with attacking, defending, patrolling, and random motivations, two hazards, and two resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a hazard gauntlet with fire, water, and decay mana zones. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-01] create three connected rooms containing exactly four mobile actors with attacking, defending, patrolling, and random motivations, two hazards, and two resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
-        "runId": "ak_prompt_25_create_hazard_gauntlet",
-        "createdAt": "2026-05-03T17:00:00.000Z",
+        "runId": "ak_execution_ex_st_01",
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "outDir": "$RUN_OUTPUT/create",
+        "emitIntermediates": true,
+        "room": [
+          "size=medium;count=3"
+        ],
+        "hazard": [
+          "id=hazard_stress_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2",
+          "id=hazard_stress_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+        ],
+        "resource": [
+          "id=resource_stress_health;permanenceMode=consumable;vital=health;delta=5",
+          "id=resource_stress_stamina;permanenceMode=level;vital=stamina;delta=5"
+        ],
+        "delver": [
+          "count=1;id=delver_stress_attacker;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1",
+          "count=1;id=delver_stress_random;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ],
+        "warden": [
+          "count=1;id=warden_stress_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1",
+          "count=1;id=warden_stress_patrol;affinity=wind;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ]
+      },
+      "expectedOutcome": "success",
+      "reference": {
+        "entityCounts": {
+          "room": 3,
+          "delver": 2,
+          "warden": 2
+        },
+        "affinitiesByType": {
+          "delver": [
+            "fire",
+            "water"
+          ],
+          "warden": [
+            "earth",
+            "wind"
+          ]
+        },
+        "totalSpend": 934
+      },
+      "referenceSpend": 934,
+      "remaining": 999066,
+      "status": "approved",
+      "legacyReferencePath": "Reference Artifacts/25-execution-ex-st-01-full-mixed-dungeon/create"
+    },
+    {
+      "index": 26,
+      "title": "Execution EX-RS-05 — Permanent affinity actor-kind parity",
+      "runId": "ak_execution_ex_rs_05",
+      "tier": "affinity",
+      "budgetMode": "unconstrained",
+      "budget": null,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-05] create one Delver and one Warden each crossing a distinct permanent fire-emit affinity resource with two stacks, mana 12, and mana regeneration 2. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "payload": {
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-05] create one Delver and one Warden each crossing a distinct permanent fire-emit affinity resource with two stacks, mana 12, and mana regeneration 2. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 1000000,
+        "runId": "ak_execution_ex_rs_05",
+        "createdAt": "2026-08-21T00:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
         "room": [
           "size=large;count=1"
         ],
-        "floorTile": [
-          "count=28"
-        ],
-        "hazard": [
-          "affinity=fire;expression=emit;proximityRadius=1;mana=regen:3:3:1",
-          "affinity=water;expression=emit;proximityRadius=1;mana=regen:3:3:1",
-          "affinity=decay;expression=emit;proximityRadius=2;mana=regen:4:4:1"
-        ],
-        "delver": [
-          "count=1;affinity=fortify;motivation=defending;affinities=fortify:emit:1;vitals=health:10:1,stamina:5:1,mana:4:1"
-        ]
-      },
-      "expectedOutcome": "success",
-      "reference": {
-        "entityCounts": {
-          "room": 1,
-          "delver": 1
-        },
-        "affinitiesByType": {
-          "delver": [
-            "fortify"
-          ]
-        },
-        "totalSpend": 233
-      },
-      "referenceSpend": 233,
-      "remaining": 999767,
-      "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/25-create-hazard-gauntlet/create"
-    },
-    {
-      "index": 26,
-      "title": "Create Resource Heavy Shrine",
-      "runId": "ak_prompt_26_create_resource_heavy_shrine",
-      "tier": "affinity",
-      "budgetMode": "unconstrained",
-      "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a shrine room with multiple resources and one friendly life Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-      "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a shrine room with multiple resources and one friendly life Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 1000000,
-        "runId": "ak_prompt_26_create_resource_heavy_shrine",
-        "createdAt": "2026-05-03T17:00:00.000Z",
-        "outDir": "$RUN_OUTPUT/create",
-        "emitIntermediates": true,
-        "dungeonAffinity": "life",
-        "room": [
-          "size=medium;count=1"
-        ],
-        "floorTile": [
-          "count=18"
-        ],
-        "hazard": [
-          "id=room_1_field_1;affinity=life;expression=emit;proximityRadius=3;mana=regen:4:4:1"
-        ],
         "resource": [
-          "tier=permanent;stat=vitalMax;delta=6;dropRate=5",
-          "tier=level;stat=vitalRegen;delta=1;dropRate=20",
-          "tier=level;stat=affinityStack;delta=1;dropRate=15"
+          "id=resource_fire_delver;affinity=fire;expression=emit;stacks=2;mana=12;manaRegen=2",
+          "id=resource_fire_warden;affinity=fire;expression=emit;stacks=2;mana=12;manaRegen=2"
         ],
         "delver": [
-          "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
-        ]
-      },
-      "expectedOutcome": "success",
-      "reference": {
-        "entityCounts": {
-          "room": 1,
-          "delver": 1
-        },
-        "affinitiesByType": {
-          "delver": [
-            "life"
-          ]
-        },
-        "totalSpend": 286
-      },
-      "referenceSpend": 286,
-      "remaining": 999714,
-      "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/26-create-resource-heavy-shrine/create"
-    },
-    {
-      "index": 27,
-      "title": "Create Opposed Fire Water Room",
-      "runId": "ak_prompt_27_create_opposed_fire_water_room",
-      "tier": "affinity",
-      "budgetMode": "unconstrained",
-      "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a room that pits fire attack pressure against water sustain. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-      "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that pits fire attack pressure against water sustain. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 1000000,
-        "runId": "ak_prompt_27_create_opposed_fire_water_room",
-        "createdAt": "2026-05-03T17:00:00.000Z",
-        "outDir": "$RUN_OUTPUT/create",
-        "emitIntermediates": true,
-        "room": [
-          "size=medium;count=1"
-        ],
-        "floorTile": [
-          "count=20"
-        ],
-        "hazard": [
-          "x=2;y=2;affinity=fire;expression=emit;stacks=2;blocking=false"
-        ],
-        "delver": [
-          "count=1;affinity=water;motivation=exploring;affinities=water:draw:2;vitals=health:8:1,stamina:6:1,mana:6:1"
+          "count=1;id=delver_permanent_affinity;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ],
         "warden": [
-          "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:10:1,stamina:5:1,mana:5:1,durability:5:0"
+          "count=1;id=warden_permanent_affinity;affinity=fire;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ]
       },
       "expectedOutcome": "success",
@@ -886,49 +843,42 @@
         },
         "affinitiesByType": {
           "delver": [
-            "water"
+            "fire"
           ],
           "warden": [
             "fire"
           ]
         },
-        "totalSpend": 217
+        "totalSpend": 823
       },
-      "referenceSpend": 217,
-      "remaining": 999783,
+      "referenceSpend": 823,
+      "remaining": 999177,
       "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/27-create-opposed-fire-water-room/create"
+      "legacyReferencePath": "Reference Artifacts/26-execution-ex-rs-05-permanent-affinity-actor-kind-parity/create"
     },
     {
-      "index": 28,
-      "title": "Create Opposed Earth Wind Room",
-      "runId": "ak_prompt_28_create_opposed_earth_wind_room",
+      "index": 27,
+      "title": "Execution EX-CB-02#neutral — Affinity sensitivity neutral duel",
+      "runId": "ak_execution_ex_cb_02_neutral",
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests earth and wind opposition through actors and contained hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-02#neutral] create the neutral member of a paired otherwise-identical duel: one attacking Delver and one defending Warden with no declared attacker advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests earth and wind opposition through actors and contained hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-02#neutral] create the neutral member of a paired otherwise-identical duel: one attacking Delver and one defending Warden with no declared attacker advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
-        "runId": "ak_prompt_28_create_opposed_earth_wind_room",
-        "createdAt": "2026-05-03T17:00:00.000Z",
+        "runId": "ak_execution_ex_cb_02_neutral",
+        "createdAt": "2026-08-21T00:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
         "room": [
           "size=medium;count=1"
         ],
-        "floorTile": [
-          "count=20"
-        ],
-        "hazard": [
-          "id=room_1_field_1;affinity=earth;expression=emit;proximityRadius=2;mana=regen:3:3:1",
-          "id=room_1_field_2;affinity=wind;expression=emit;proximityRadius=2;mana=regen:3:3:1"
-        ],
         "delver": [
-          "count=1;affinity=wind;motivation=exploring;affinities=wind:push:2;vitals=health:8:1,stamina:8:1,mana:5:1"
+          "count=1;id=delver_affinity_attacker;affinity=earth;motivation=attacking;affinities=earth:push:2;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ],
         "warden": [
-          "count=1;affinity=earth;motivation=patrolling;affinities=earth:pull:2;vitals=health:11:1,stamina:5:1,mana:4:1,durability:5:0"
+          "count=1;id=warden_affinity_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ]
       },
       "expectedOutcome": "success",
@@ -940,18 +890,65 @@
         },
         "affinitiesByType": {
           "delver": [
-            "wind"
+            "earth"
           ],
           "warden": [
             "earth"
           ]
         },
-        "totalSpend": 278
+        "totalSpend": 351
       },
-      "referenceSpend": 278,
-      "remaining": 999722,
+      "referenceSpend": 351,
+      "remaining": 999649,
       "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/28-create-opposed-earth-wind-room/create"
+      "legacyReferencePath": "Reference Artifacts/27-execution-ex-cb-02-neutral-affinity-sensitivity-neutral-duel/create"
+    },
+    {
+      "index": 28,
+      "title": "Execution EX-CB-02#advantaged — Affinity sensitivity advantaged duel",
+      "runId": "ak_execution_ex_cb_02_advantaged",
+      "tier": "affinity",
+      "budgetMode": "unconstrained",
+      "budget": null,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-02#advantaged] create the advantaged member of a paired otherwise-identical duel: one attacking fire-push Delver and the same defending Warden, changing only the declared attacker affinity advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "payload": {
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-02#advantaged] create the advantaged member of a paired otherwise-identical duel: one attacking fire-push Delver and the same defending Warden, changing only the declared attacker affinity advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 1000000,
+        "runId": "ak_execution_ex_cb_02_advantaged",
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "outDir": "$RUN_OUTPUT/create",
+        "emitIntermediates": true,
+        "room": [
+          "size=medium;count=1"
+        ],
+        "delver": [
+          "count=1;id=delver_affinity_attacker;affinity=fire;motivation=attacking;affinities=fire:push:2;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ],
+        "warden": [
+          "count=1;id=warden_affinity_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ]
+      },
+      "expectedOutcome": "success",
+      "reference": {
+        "entityCounts": {
+          "room": 1,
+          "delver": 1,
+          "warden": 1
+        },
+        "affinitiesByType": {
+          "delver": [
+            "fire"
+          ],
+          "warden": [
+            "earth"
+          ]
+        },
+        "totalSpend": 351
+      },
+      "referenceSpend": 351,
+      "remaining": 999649,
+      "status": "approved",
+      "legacyReferencePath": "Reference Artifacts/28-execution-ex-cb-02-advantaged-affinity-sensitivity-advantaged-duel/create"
     },
     {
       "index": 29,
@@ -1008,33 +1005,79 @@
     },
     {
       "index": 30,
-      "title": "Create Opposed Light Dark Room",
-      "runId": "ak_prompt_30_create_opposed_light_dark_room",
+      "title": "Execution EX-ST-04 — Long-running integrity soak",
+      "runId": "ak_execution_ex_st_04",
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests light visibility against dark obscuring pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-04] create two connected rooms with exactly two Delvers and two Wardens combining attacking, defending, patrolling, and random behavior, all with positive vitals and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests light visibility against dark obscuring pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-04] create two connected rooms with exactly two Delvers and two Wardens combining attacking, defending, patrolling, and random behavior, all with positive vitals and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
-        "runId": "ak_prompt_30_create_opposed_light_dark_room",
-        "createdAt": "2026-05-03T17:00:00.000Z",
+        "runId": "ak_execution_ex_st_04",
+        "createdAt": "2026-08-21T00:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
         "room": [
-          "size=medium;count=1"
-        ],
-        "floorTile": [
-          "count=20"
-        ],
-        "hazard": [
-          "x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"
+          "size=large;count=2"
         ],
         "delver": [
-          "count=1;affinity=light;motivation=exploring;affinities=light:emit:2;vitals=health:8:1,stamina:7:1,mana:6:1"
+          "count=1;id=delver_soak_attacker;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1",
+          "count=1;id=delver_soak_random;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ],
         "warden": [
-          "count=1;affinity=dark;motivation=defending;affinities=dark:emit:2;vitals=health:11:1,stamina:4:1,mana:5:1,durability:6:0"
+          "count=1;id=warden_soak_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1",
+          "count=1;id=warden_soak_patrol;affinity=wind;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ]
+      },
+      "expectedOutcome": "success",
+      "reference": {
+        "entityCounts": {
+          "room": 2,
+          "delver": 2,
+          "warden": 2
+        },
+        "affinitiesByType": {
+          "delver": [
+            "fire",
+            "water"
+          ],
+          "warden": [
+            "earth",
+            "wind"
+          ]
+        },
+        "totalSpend": 787
+      },
+      "referenceSpend": 787,
+      "remaining": 999213,
+      "status": "approved",
+      "legacyReferencePath": "Reference Artifacts/30-execution-ex-st-04-long-running-integrity-soak/create"
+    },
+    {
+      "index": 81,
+      "title": "Execution EX-ST-05 — Replay determinism and seed sensitivity",
+      "runId": "ak_execution_ex_st_05",
+      "tier": "affinity",
+      "budgetMode": "unconstrained",
+      "budget": null,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-05] create one open large room with exactly three uniquely identified random mobile actors, one Delver and two Wardens, each with positive stamina and several legal movement branches, and no hazards or resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "payload": {
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-05] create one open large room with exactly three uniquely identified random mobile actors, one Delver and two Wardens, each with positive stamina and several legal movement branches, and no hazards or resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 1000000,
+        "runId": "ak_execution_ex_st_05",
+        "createdAt": "2026-08-21T00:00:00.000Z",
+        "outDir": "$RUN_OUTPUT/create",
+        "emitIntermediates": true,
+        "room": [
+          "size=large;count=1"
+        ],
+        "delver": [
+          "count=1;id=delver_replay_alpha;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+        ],
+        "warden": [
+          "count=1;id=warden_replay_beta;affinity=earth;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1",
+          "count=1;id=warden_replay_gamma;affinity=wind;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ]
       },
       "expectedOutcome": "success",
@@ -1042,66 +1085,23 @@
         "entityCounts": {
           "room": 1,
           "delver": 1,
-          "warden": 1
+          "warden": 2
         },
         "affinitiesByType": {
           "delver": [
-            "light"
+            "water"
           ],
           "warden": [
-            "dark"
+            "earth",
+            "wind"
           ]
         },
-        "totalSpend": 211
+        "totalSpend": 544
       },
-      "referenceSpend": 211,
-      "remaining": 999789,
+      "referenceSpend": 544,
+      "remaining": 999456,
       "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/30-create-opposed-light-dark-room/create"
-    },
-    {
-      "index": 81,
-      "title": "Create Fire Stack Synchrony",
-      "runId": "ak_prompt_81_create_fire_stack_synchrony",
-      "tier": "affinity",
-      "budgetMode": "unconstrained",
-      "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a fire encounter where one Delver and one hazard each carry three fire emit stacks. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-      "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a fire encounter where one Delver and one hazard each carry three fire emit stacks. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 1000000,
-        "runId": "ak_prompt_81_create_fire_stack_synchrony",
-        "createdAt": "2026-05-03T17:00:00.000Z",
-        "outDir": "$RUN_OUTPUT/create",
-        "emitIntermediates": true,
-        "dungeonAffinity": "fire",
-        "room": [
-          "size=medium;count=1"
-        ],
-        "hazard": [
-          "x=2;y=2;affinity=fire;expression=emit;stacks=3;blocking=false"
-        ],
-        "delver": [
-          "count=1;affinity=fire;motivation=attacking;affinities=fire:emit:3"
-        ]
-      },
-      "expectedOutcome": "success",
-      "reference": {
-        "entityCounts": {
-          "room": 1,
-          "delver": 1
-        },
-        "affinitiesByType": {
-          "delver": [
-            "fire"
-          ]
-        },
-        "totalSpend": 129
-      },
-      "referenceSpend": 129,
-      "remaining": 999871,
-      "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/81-create-fire-stack-synchrony/create"
+      "legacyReferencePath": "Reference Artifacts/81-execution-ex-st-05-replay-determinism-and-seed-sensitivity/create"
     },
     {
       "index": 82,

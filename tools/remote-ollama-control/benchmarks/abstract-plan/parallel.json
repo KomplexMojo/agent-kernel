@@ -2,7 +2,7 @@
   "schemaVersion": "agent-kernel-abstract-plan-catalog/v1",
   "sourceScenarioSet": {
     "count": 100,
-    "sha256": "0558024373ad3720a866f24c911f7293fbc7e0a01ec6abfb4c31571654767264"
+    "sha256": "b0709b81a7d5bc889449dd2c0e48ea108af39afc9918d555e03b120f90b28add"
   },
   "scenarios": [
     {
@@ -283,7 +283,7 @@
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 16,
+            "g02": 1,
             "g03": 1
           },
           "requiredSignalsByCategory": {
@@ -297,12 +297,12 @@
               "s003"
             ]
           },
-          "maximumTotalCost": 86
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -312,7 +312,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -322,9 +322,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 16,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -332,9 +332,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 16,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -342,7 +342,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -352,7 +352,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -377,13 +377,11 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 36
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium fire hazard room with floor tiles and one non-blocking emit hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "fire"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-01] create one mobile exploring Delver whose route crosses the field of one non-blocking fire emit hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
@@ -394,20 +392,20 @@
             "spec": "size=medium;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=16"
+            "target": "hazard",
+            "spec": "id=hazard_fire_emit;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=16"
+            "target": "hazard",
+            "spec": "id=hazard_fire_emit;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=fire;expression=emit;stacks=1;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_emit_crossing;affinity=water;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=fire;expression=emit;stacks=1;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_emit_crossing;affinity=water;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -575,24 +573,44 @@
         "objective": "minimize_total_cost",
         "constraints": {
           "categoryQuantities": {
+            "g01": 1,
+            "g02": 1,
+            "g03": 1,
+            "g04": 1,
             "g05": 1
           },
           "minimumCapacityByCategory": {
-            "g05": 2
+            "g01": 1,
+            "g02": 1,
+            "g03": 1,
+            "g04": 1,
+            "g05": 1
           },
           "requiredSignalsByCategory": {
-            "g05": [
+            "g01": [
               "s001"
+            ],
+            "g02": [
+              "s002"
+            ],
+            "g03": [
+              "s003"
+            ],
+            "g04": [
+              "s004"
+            ],
+            "g05": [
+              "s005"
             ]
           },
-          "maximumTotalCost": 61
+          "maximumTotalCost": 5
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
-            "category": "g05",
-            "capacity": 2,
+            "unitCost": 1,
+            "category": "g01",
+            "capacity": 1,
             "signals": [
               "s001"
             ],
@@ -600,11 +618,91 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
-            "category": "g05",
-            "capacity": 2,
+            "unitCost": 11,
+            "category": "g01",
+            "capacity": 1,
             "signals": [
               "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-002",
+            "unitCost": 1,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-002",
+            "unitCost": 11,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-003",
+            "unitCost": 1,
+            "category": "g03",
+            "capacity": 1,
+            "signals": [
+              "s003"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-003",
+            "unitCost": 11,
+            "category": "g03",
+            "capacity": 1,
+            "signals": [
+              "s003"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-004",
+            "unitCost": 1,
+            "category": "g04",
+            "capacity": 1,
+            "signals": [
+              "s004"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-004",
+            "unitCost": 11,
+            "category": "g04",
+            "capacity": 1,
+            "signals": [
+              "s004"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-005",
+            "unitCost": 1,
+            "category": "g05",
+            "capacity": 1,
+            "signals": [
+              "s005"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-005",
+            "unitCost": 11,
+            "category": "g05",
+            "capacity": 1,
+            "signals": [
+              "s005"
             ],
             "maxQuantity": 1
           }
@@ -615,23 +713,69 @@
           {
             "componentId": "C-001",
             "quantity": 1
+          },
+          {
+            "componentId": "C-002",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-003",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-004",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-005",
+            "quantity": 1
           }
         ],
-        "minimumCost": 11
+        "minimumCost": 5
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two water Delvers configured for exploration and sustain. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "water"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-05] create three connected medium rooms containing exactly four actors spanning exploring, patrolling, random, and stationary motivations. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
-            "target": "delver",
-            "spec": "count=2;affinity=water;motivation=exploring;affinities=water:draw:1;vitals=health:7:1,stamina:7:1,mana:5:1;goals=max_mana:medium,mana_regen:medium"
+            "target": "room",
+            "spec": "size=medium;count=3"
           },
           "X-001": {
+            "target": "room",
+            "spec": "size=medium;count=3"
+          },
+          "C-002": {
             "target": "delver",
-            "spec": "count=2;affinity=water;motivation=exploring;affinities=water:draw:1;vitals=health:7:1,stamina:7:1,mana:5:1;goals=max_mana:medium,mana_regen:medium"
+            "spec": "count=1;id=delver_exploring;affinity=wind;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-002": {
+            "target": "delver",
+            "spec": "count=1;id=delver_exploring;affinity=wind;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-003": {
+            "target": "delver",
+            "spec": "count=1;id=delver_random;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-003": {
+            "target": "delver",
+            "spec": "count=1;id=delver_random;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-004": {
+            "target": "warden",
+            "spec": "count=1;id=warden_patrolling;affinity=earth;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-004": {
+            "target": "warden",
+            "spec": "count=1;id=warden_patrolling;affinity=earth;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-005": {
+            "target": "warden",
+            "spec": "count=1;id=warden_stationary;affinity=dark;motivation=stationary;vitals=health:24:1,mana:16:2,durability:6:1"
+          },
+          "X-005": {
+            "target": "warden",
+            "spec": "count=1;id=warden_stationary;affinity=dark;motivation=stationary;vitals=health:24:1,mana:16:2,durability:6:1"
           }
         }
       }
@@ -756,24 +900,29 @@
         "objective": "minimize_total_cost",
         "constraints": {
           "categoryQuantities": {
-            "g06": 1
+            "g01": 1,
+            "g02": 1
           },
           "minimumCapacityByCategory": {
-            "g06": 2
+            "g01": 1,
+            "g02": 1
           },
           "requiredSignalsByCategory": {
-            "g06": [
+            "g01": [
               "s001"
+            ],
+            "g02": [
+              "s002"
             ]
           },
-          "maximumTotalCost": 61
+          "maximumTotalCost": 2
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
-            "category": "g06",
-            "capacity": 2,
+            "unitCost": 1,
+            "category": "g01",
+            "capacity": 1,
             "signals": [
               "s001"
             ],
@@ -781,11 +930,31 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
-            "category": "g06",
-            "capacity": 2,
+            "unitCost": 11,
+            "category": "g01",
+            "capacity": 1,
             "signals": [
               "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-002",
+            "unitCost": 1,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-002",
+            "unitCost": 11,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
             ],
             "maxQuantity": 1
           }
@@ -796,23 +965,33 @@
           {
             "componentId": "C-001",
             "quantity": 1
+          },
+          {
+            "componentId": "C-002",
+            "quantity": 1
           }
         ],
-        "minimumCost": 11
+        "minimumCost": 2
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two earth Wardens configured for patrol and spatial control. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "earth"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-03] create a connected two-room corridor loop with exactly one patrolling Warden and no other actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
-            "target": "warden",
-            "spec": "count=2;affinity=earth;motivation=patrolling;affinities=earth:pull:1;vitals=health:10:1,stamina:6:1,mana:3:1,durability:5:0"
+            "target": "room",
+            "spec": "size=medium;count=2"
           },
           "X-001": {
+            "target": "room",
+            "spec": "size=medium;count=2"
+          },
+          "C-002": {
             "target": "warden",
-            "spec": "count=2;affinity=earth;motivation=patrolling;affinities=earth:pull:1;vitals=health:10:1,stamina:6:1,mana:3:1,durability:5:0"
+            "spec": "count=1;id=warden_patrol;affinity=earth;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-002": {
+            "target": "warden",
+            "spec": "count=1;id=warden_patrol;affinity=earth;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -833,16 +1012,12 @@
           "categoryQuantities": {
             "g01": 1,
             "g02": 1,
-            "g03": 1,
-            "g05": 1,
-            "g06": 1
+            "g03": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 20,
-            "g03": 1,
-            "g05": 1,
-            "g06": 1
+            "g02": 1,
+            "g03": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -853,20 +1028,14 @@
             ],
             "g03": [
               "s003"
-            ],
-            "g05": [
-              "s004"
-            ],
-            "g06": [
-              "s005"
             ]
           },
-          "maximumTotalCost": 115
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -876,7 +1045,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -886,9 +1055,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 20,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -896,9 +1065,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 20,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -906,7 +1075,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -916,51 +1085,11 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
               "s003"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-004",
-            "unitCost": 14,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-004",
-            "unitCost": 64,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-005",
-            "unitCost": 15,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s005"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-005",
-            "unitCost": 65,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s005"
             ],
             "maxQuantity": 1
           }
@@ -979,20 +1108,12 @@
           {
             "componentId": "C-003",
             "quantity": 1
-          },
-          {
-            "componentId": "C-004",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-005",
-            "quantity": 1
           }
         ],
-        "minimumCost": 65
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium arena with one fire Delver, one dark Warden, and a dark emit hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-01] create one medium arena where one attacking Delver and one defending Warden begin adjacent or otherwise within immediate encounter distance. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "C-001": {
@@ -1004,36 +1125,20 @@
             "spec": "size=medium;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=20"
+            "target": "delver",
+            "spec": "count=1;id=delver_attacker;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=20"
+            "target": "delver",
+            "spec": "count=1;id=delver_attacker;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "x=3;y=3;affinity=dark;expression=emit;stacks=1;blocking=false"
+            "target": "warden",
+            "spec": "count=1;id=warden_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "x=3;y=3;affinity=dark;expression=emit;stacks=1;blocking=false"
-          },
-          "C-004": {
-            "target": "delver",
-            "spec": "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:9:1,stamina:6:1,mana:4:1"
-          },
-          "X-004": {
-            "target": "delver",
-            "spec": "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:9:1,stamina:6:1,mana:4:1"
-          },
-          "C-005": {
             "target": "warden",
-            "spec": "count=1;affinity=dark;motivation=defending;affinities=dark:emit:2;vitals=health:11:1,stamina:4:1,mana:4:1,durability:6:0"
-          },
-          "X-005": {
-            "target": "warden",
-            "spec": "count=1;affinity=dark;motivation=defending;affinities=dark:emit:2;vitals=health:11:1,stamina:4:1,mana:4:1,durability:6:0"
+            "spec": "count=1;id=warden_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -2315,15 +2420,13 @@
             "g01": 1,
             "g02": 1,
             "g03": 1,
-            "g04": 1,
-            "g05": 1
+            "g04": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 14,
+            "g02": 1,
             "g03": 1,
-            "g04": 1,
-            "g05": 1
+            "g04": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -2337,17 +2440,14 @@
             ],
             "g04": [
               "s004"
-            ],
-            "g05": [
-              "s005"
             ]
           },
-          "maximumTotalCost": 115
+          "maximumTotalCost": 4
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -2357,7 +2457,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -2367,9 +2467,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 14,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -2377,9 +2477,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 14,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -2387,7 +2487,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -2397,7 +2497,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -2407,7 +2507,7 @@
           },
           {
             "id": "C-004",
-            "unitCost": 14,
+            "unitCost": 1,
             "category": "g04",
             "capacity": 1,
             "signals": [
@@ -2417,31 +2517,11 @@
           },
           {
             "id": "X-004",
-            "unitCost": 64,
+            "unitCost": 11,
             "category": "g04",
             "capacity": 1,
             "signals": [
               "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-005",
-            "unitCost": 15,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s005"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-005",
-            "unitCost": 65,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s005"
             ],
             "maxQuantity": 1
           }
@@ -2464,19 +2544,13 @@
           {
             "componentId": "C-004",
             "quantity": 1
-          },
-          {
-            "componentId": "C-005",
-            "quantity": 1
           }
         ],
-        "minimumCost": 65
+        "minimumCost": 4
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a corrode-themed cache with a level affinity stack resource and stealth Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "corrode"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-04] create one attacking Delver crossing a temporary fire-push affinity resource with two stacks, finite mana 12, and zero mana regeneration, with a defending Warden available as a target. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
@@ -2487,36 +2561,28 @@
             "spec": "size=medium;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=14"
+            "target": "resource",
+            "spec": "id=resource_fire_temporary;affinity=fire;expression=push;stacks=2;mana=12;manaRegen=0"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=14"
+            "target": "resource",
+            "spec": "id=resource_fire_temporary;affinity=fire;expression=push;stacks=2;mana=12;manaRegen=0"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=corrode;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "target": "delver",
+            "spec": "count=1;id=delver_temporary_affinity;affinity=life;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=corrode;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "target": "delver",
+            "spec": "count=1;id=delver_temporary_affinity;affinity=life;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-004": {
-            "target": "resource",
-            "spec": "tier=level;stat=affinityStack;delta=1;dropRate=15"
+            "target": "warden",
+            "spec": "count=1;id=warden_temporary_target;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-004": {
-            "target": "resource",
-            "spec": "tier=level;stat=affinityStack;delta=1;dropRate=15"
-          },
-          "C-005": {
-            "target": "delver",
-            "spec": "count=1;affinity=corrode;motivation=stealthy;affinities=corrode:emit:2;vitals=health:7:1,stamina:8:1,mana:4:1"
-          },
-          "X-005": {
-            "target": "delver",
-            "spec": "count=1;affinity=corrode;motivation=stealthy;affinities=corrode:emit:2;vitals=health:7:1,stamina:8:1,mana:4:1"
+            "target": "warden",
+            "spec": "count=1;id=warden_temporary_target;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -2537,14 +2603,12 @@
           "categoryQuantities": {
             "g01": 1,
             "g02": 1,
-            "g03": 1,
-            "g06": 1
+            "g03": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 18,
-            "g03": 1,
-            "g06": 1
+            "g02": 1,
+            "g03": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -2555,17 +2619,14 @@
             ],
             "g03": [
               "s003"
-            ],
-            "g06": [
-              "s004"
             ]
           },
-          "maximumTotalCost": 100
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -2575,7 +2636,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -2585,9 +2646,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 18,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -2595,9 +2656,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 18,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -2605,7 +2666,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -2615,31 +2676,11 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
               "s003"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-004",
-            "unitCost": 14,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-004",
-            "unitCost": 64,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s004"
             ],
             "maxQuantity": 1
           }
@@ -2658,51 +2699,37 @@
           {
             "componentId": "C-003",
             "quantity": 1
-          },
-          {
-            "componentId": "C-004",
-            "quantity": 1
           }
         ],
-        "minimumCost": 50
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a fortify guard post with a blocking fortify emit hazard and one defensive Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "fortify"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-05] create one blocking fortify emit hazard controlling the short route while an alternate legal route remains for one exploring Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
-            "spec": "size=medium;count=1"
+            "spec": "size=large;count=1"
           },
           "X-001": {
             "target": "room",
-            "spec": "size=medium;count=1"
+            "spec": "size=large;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=18"
+            "target": "hazard",
+            "spec": "id=hazard_blocking_choke;affinity=fortify;expression=emit;proximityRadius=1;stacks=2;blocking=true;mana=regen:12:12:2"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=18"
+            "target": "hazard",
+            "spec": "id=hazard_blocking_choke;affinity=fortify;expression=emit;proximityRadius=1;stacks=2;blocking=true;mana=regen:12:12:2"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "x=2;y=4;affinity=fortify;expression=emit;stacks=2;blocking=true;vitals=mana:4:1,durability:6:0"
+            "target": "delver",
+            "spec": "count=1;id=delver_reroute;affinity=wind;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "x=2;y=4;affinity=fortify;expression=emit;stacks=2;blocking=true;vitals=mana:4:1,durability:6:0"
-          },
-          "C-004": {
-            "target": "warden",
-            "spec": "count=1;affinity=fortify;motivation=defending;affinities=fortify:emit:2;vitals=health:12:1,stamina:4:1,mana:4:1,durability:8:0"
-          },
-          "X-004": {
-            "target": "warden",
-            "spec": "count=1;affinity=fortify;motivation=defending;affinities=fortify:emit:2;vitals=health:12:1,stamina:4:1,mana:4:1,durability:8:0"
+            "target": "delver",
+            "spec": "count=1;id=delver_reroute;affinity=wind;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -3095,16 +3122,12 @@
           "categoryQuantities": {
             "g01": 1,
             "g02": 1,
-            "g03": 1,
-            "g05": 2,
-            "g06": 1
+            "g03": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 20,
-            "g03": 1,
-            "g05": 2,
-            "g06": 1
+            "g02": 1,
+            "g03": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -3115,21 +3138,14 @@
             ],
             "g03": [
               "s003"
-            ],
-            "g05": [
-              "s004",
-              "s005"
-            ],
-            "g06": [
-              "s006"
             ]
           },
-          "maximumTotalCost": 131
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3139,7 +3155,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3149,9 +3165,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 20,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -3159,9 +3175,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 20,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -3169,7 +3185,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -3179,71 +3195,11 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
               "s003"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-004",
-            "unitCost": 14,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-004",
-            "unitCost": 64,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-005",
-            "unitCost": 15,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s005"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-005",
-            "unitCost": 65,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s005"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-006",
-            "unitCost": 16,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s006"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-006",
-            "unitCost": 66,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s006"
             ],
             "maxQuantity": 1
           }
@@ -3262,24 +3218,12 @@
           {
             "componentId": "C-003",
             "quantity": 1
-          },
-          {
-            "componentId": "C-004",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-005",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-006",
-            "quantity": 1
           }
         ],
-        "minimumCost": 81
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a balanced medium encounter with fire, water, and earth actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-03] create one arena with exactly two attacking Delvers facing one high-durability defending Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "C-001": {
@@ -3291,44 +3235,20 @@
             "spec": "size=medium;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=20"
+            "target": "delver",
+            "spec": "count=2;id=delver_pair;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=20"
+            "target": "delver",
+            "spec": "count=2;id=delver_pair;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=earth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "target": "warden",
+            "spec": "count=1;id=warden_durable;affinity=earth;motivation=defending;vitals=health:50:2,mana:20:2,stamina:40:4,durability:16:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=earth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
-          },
-          "C-004": {
-            "target": "delver",
-            "spec": "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:8:1,stamina:6:1,mana:4:1"
-          },
-          "X-004": {
-            "target": "delver",
-            "spec": "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:8:1,stamina:6:1,mana:4:1"
-          },
-          "C-005": {
-            "target": "delver",
-            "spec": "count=1;affinity=water;motivation=exploring;affinities=water:draw:1;vitals=health:8:1,stamina:6:1,mana:5:1"
-          },
-          "X-005": {
-            "target": "delver",
-            "spec": "count=1;affinity=water;motivation=exploring;affinities=water:draw:1;vitals=health:8:1,stamina:6:1,mana:5:1"
-          },
-          "C-006": {
             "target": "warden",
-            "spec": "count=1;affinity=earth;motivation=defending;affinities=earth:pull:1;vitals=health:11:1,stamina:4:1,mana:3:1,durability:5:0"
-          },
-          "X-006": {
-            "target": "warden",
-            "spec": "count=1;affinity=earth;motivation=defending;affinities=earth:pull:1;vitals=health:11:1,stamina:4:1,mana:3:1,durability:5:0"
+            "spec": "count=1;id=warden_durable;affinity=earth;motivation=defending;vitals=health:50:2,mana:20:2,stamina:40:4,durability:16:1"
           }
         }
       }
@@ -3350,13 +3270,13 @@
             "g01": 1,
             "g02": 1,
             "g03": 1,
-            "g05": 1
+            "g04": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 25,
+            "g02": 1,
             "g03": 1,
-            "g05": 4
+            "g04": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -3368,16 +3288,16 @@
             "g03": [
               "s003"
             ],
-            "g05": [
+            "g04": [
               "s004"
             ]
           },
-          "maximumTotalCost": 100
+          "maximumTotalCost": 4
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3387,7 +3307,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3397,9 +3317,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 25,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -3407,9 +3327,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 25,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -3417,7 +3337,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -3427,7 +3347,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -3437,9 +3357,9 @@
           },
           {
             "id": "C-004",
-            "unitCost": 14,
-            "category": "g05",
-            "capacity": 4,
+            "unitCost": 1,
+            "category": "g04",
+            "capacity": 1,
             "signals": [
               "s004"
             ],
@@ -3447,9 +3367,9 @@
           },
           {
             "id": "X-004",
-            "unitCost": 64,
-            "category": "g05",
-            "capacity": 4,
+            "unitCost": 11,
+            "category": "g04",
+            "capacity": 1,
             "signals": [
               "s004"
             ],
@@ -3476,13 +3396,11 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 50
+        "minimumCost": 4
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a four-Delver wind squad for party-scaling tests. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "wind"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-05] create exactly three combat actors combining attacking mobility, defending posture, and reflexive cognition motivations. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
@@ -3493,28 +3411,28 @@
             "spec": "size=large;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=25"
+            "target": "delver",
+            "spec": "count=1;id=delver_mixed_attacker;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=25"
+            "target": "delver",
+            "spec": "count=1;id=delver_mixed_attacker;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=wind;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "target": "warden",
+            "spec": "count=1;id=warden_mixed_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=wind;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "target": "warden",
+            "spec": "count=1;id=warden_mixed_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-004": {
-            "target": "delver",
-            "spec": "count=4;affinity=wind;motivation=exploring;affinities=wind:push:1;vitals=health:7:1,stamina:7:1,mana:4:1"
+            "target": "warden",
+            "spec": "count=1;id=warden_mixed_reflexive;affinity=dark;motivation=reflexive;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-004": {
-            "target": "delver",
-            "spec": "count=4;affinity=wind;motivation=exploring;affinities=wind:push:1;vitals=health:7:1,stamina:7:1,mana:4:1"
+            "target": "warden",
+            "spec": "count=1;id=warden_mixed_reflexive;affinity=dark;motivation=reflexive;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -3535,14 +3453,12 @@
           "categoryQuantities": {
             "g01": 1,
             "g02": 1,
-            "g03": 1,
-            "g06": 1
+            "g03": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 25,
-            "g03": 1,
-            "g06": 3
+            "g02": 1,
+            "g03": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -3553,17 +3469,14 @@
             ],
             "g03": [
               "s003"
-            ],
-            "g06": [
-              "s004"
             ]
           },
-          "maximumTotalCost": 100
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3573,7 +3486,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3583,9 +3496,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 25,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -3593,9 +3506,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 25,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -3603,7 +3516,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -3613,31 +3526,11 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
               "s003"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-004",
-            "unitCost": 14,
-            "category": "g06",
-            "capacity": 3,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-004",
-            "unitCost": 64,
-            "category": "g06",
-            "capacity": 3,
-            "signals": [
-              "s004"
             ],
             "maxQuantity": 1
           }
@@ -3656,19 +3549,13 @@
           {
             "componentId": "C-003",
             "quantity": 1
-          },
-          {
-            "componentId": "C-004",
-            "quantity": 1
           }
         ],
-        "minimumCost": 50
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a three-Warden dark defense for actor-count scaling. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "dark"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-02] create one large room containing exactly one random mobile Delver and ten random mobile Wardens, all with positive stamina and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
@@ -3679,28 +3566,20 @@
             "spec": "size=large;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=25"
+            "target": "delver",
+            "spec": "count=1;id=delver_acceptance;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=25"
+            "target": "delver",
+            "spec": "count=1;id=delver_acceptance;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1"
+            "target": "warden",
+            "spec": "count=10;id=warden_acceptance;affinity=earth;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1"
-          },
-          "C-004": {
             "target": "warden",
-            "spec": "count=3;affinity=dark;motivation=defending;affinities=dark:emit:2;vitals=health:10:1,stamina:4:1,mana:4:1,durability:5:0"
-          },
-          "X-004": {
-            "target": "warden",
-            "spec": "count=3;affinity=dark;motivation=defending;affinities=dark:emit:2;vitals=health:10:1,stamina:4:1,mana:4:1,durability:5:0"
+            "spec": "count=10;id=warden_acceptance;affinity=earth;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -3721,16 +3600,12 @@
           "categoryQuantities": {
             "g01": 1,
             "g02": 1,
-            "g03": 2,
-            "g05": 1,
-            "g06": 1
+            "g03": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 28,
-            "g03": 2,
-            "g05": 1,
-            "g06": 1
+            "g02": 1,
+            "g03": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -3740,22 +3615,15 @@
               "s002"
             ],
             "g03": [
-              "s003",
-              "s004"
-            ],
-            "g05": [
-              "s005"
-            ],
-            "g06": [
-              "s006"
+              "s003"
             ]
           },
-          "maximumTotalCost": 131
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3765,7 +3633,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -3775,9 +3643,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 28,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -3785,9 +3653,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 28,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -3795,7 +3663,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -3805,71 +3673,11 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
               "s003"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-004",
-            "unitCost": 14,
-            "category": "g03",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-004",
-            "unitCost": 64,
-            "category": "g03",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-005",
-            "unitCost": 15,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s005"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-005",
-            "unitCost": 65,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s005"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-006",
-            "unitCost": 16,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s006"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-006",
-            "unitCost": 66,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s006"
             ],
             "maxQuantity": 1
           }
@@ -3888,75 +3696,37 @@
           {
             "componentId": "C-003",
             "quantity": 1
-          },
-          {
-            "componentId": "C-004",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-005",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-006",
-            "quantity": 1
           }
         ],
-        "minimumCost": 81
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a large boss room with light Delver pressure against a strategy-focused dark Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "dark"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-04] create one attacking Delver facing one defending Warden with high health and positive health regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
-            "spec": "size=large;count=1"
+            "spec": "size=medium;count=1"
           },
           "X-001": {
             "target": "room",
-            "spec": "size=large;count=1"
+            "spec": "size=medium;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=28"
+            "target": "delver",
+            "spec": "count=1;id=delver_endurance_attacker;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=28"
+            "target": "delver",
+            "spec": "count=1;id=delver_endurance_attacker;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"
+            "target": "warden",
+            "spec": "count=1;id=warden_regenerator;affinity=earth;motivation=defending;vitals=health:80:5,mana:20:2,stamina:40:4,durability:18:2"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"
-          },
-          "C-004": {
-            "target": "hazard",
-            "spec": "affinity=decay;expression=emit;proximityRadius=2;mana=regen:4:4:1"
-          },
-          "X-004": {
-            "target": "hazard",
-            "spec": "affinity=decay;expression=emit;proximityRadius=2;mana=regen:4:4:1"
-          },
-          "C-005": {
-            "target": "delver",
-            "spec": "count=1;affinity=light;motivation=attacking;affinities=light:emit:2;vitals=health:10:1,stamina:7:1,mana:6:1"
-          },
-          "X-005": {
-            "target": "delver",
-            "spec": "count=1;affinity=light;motivation=attacking;affinities=light:emit:2;vitals=health:10:1,stamina:7:1,mana:6:1"
-          },
-          "C-006": {
             "target": "warden",
-            "spec": "count=1;affinity=dark;motivation=strategy_focused;affinities=dark:emit:3,decay:emit:1;vitals=health:16:1,stamina:5:1,mana:7:1,durability:9:0"
-          },
-          "X-006": {
-            "target": "warden",
-            "spec": "count=1;affinity=dark;motivation=strategy_focused;affinities=dark:emit:3,decay:emit:1;vitals=health:16:1,stamina:5:1,mana:7:1,durability:9:0"
+            "spec": "count=1;id=warden_regenerator;affinity=earth;motivation=defending;vitals=health:80:5,mana:20:2,stamina:40:4,durability:18:2"
           }
         }
       }
@@ -3977,14 +3747,40 @@
           "categoryQuantities": {
             "g01": 1,
             "g02": 1,
-            "g03": 4,
-            "g05": 1
+            "g03": 1,
+            "g04": 1,
+            "g05": 1,
+            "g06": 1,
+            "g07": 1,
+            "g08": 1,
+            "g09": 1,
+            "g10": 1,
+            "g11": 1,
+            "g12": 1,
+            "g13": 1,
+            "g14": 1,
+            "g15": 1,
+            "g16": 1,
+            "g17": 1
           },
           "minimumCapacityByCategory": {
-            "g01": 2,
-            "g02": 32,
-            "g03": 4,
-            "g05": 1
+            "g01": 1,
+            "g02": 1,
+            "g03": 1,
+            "g04": 1,
+            "g05": 1,
+            "g06": 1,
+            "g07": 1,
+            "g08": 1,
+            "g09": 1,
+            "g10": 1,
+            "g11": 1,
+            "g12": 1,
+            "g13": 1,
+            "g14": 1,
+            "g15": 1,
+            "g16": 1,
+            "g17": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -3994,23 +3790,59 @@
               "s002"
             ],
             "g03": [
-              "s003",
-              "s004",
-              "s005",
-              "s006"
+              "s003"
+            ],
+            "g04": [
+              "s004"
             ],
             "g05": [
+              "s005"
+            ],
+            "g06": [
+              "s006"
+            ],
+            "g07": [
               "s007"
+            ],
+            "g08": [
+              "s008"
+            ],
+            "g09": [
+              "s009"
+            ],
+            "g10": [
+              "s010"
+            ],
+            "g11": [
+              "s011"
+            ],
+            "g12": [
+              "s012"
+            ],
+            "g13": [
+              "s013"
+            ],
+            "g14": [
+              "s014"
+            ],
+            "g15": [
+              "s015"
+            ],
+            "g16": [
+              "s016"
+            ],
+            "g17": [
+              "s017"
             ]
           },
-          "maximumTotalCost": 148
+          "maximumTotalCost": 17
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
-            "capacity": 2,
+            "capacity": 1,
             "signals": [
               "s001"
             ],
@@ -4018,9 +3850,9 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
-            "capacity": 2,
+            "capacity": 1,
             "signals": [
               "s001"
             ],
@@ -4028,9 +3860,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 32,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -4038,9 +3870,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 32,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -4048,7 +3880,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -4058,7 +3890,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -4068,8 +3900,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 14,
-            "category": "g03",
+            "unitCost": 1,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s004"
@@ -4078,8 +3910,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 64,
-            "category": "g03",
+            "unitCost": 11,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s004"
@@ -4088,8 +3920,8 @@
           },
           {
             "id": "C-005",
-            "unitCost": 15,
-            "category": "g03",
+            "unitCost": 1,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s005"
@@ -4098,8 +3930,8 @@
           },
           {
             "id": "X-005",
-            "unitCost": 65,
-            "category": "g03",
+            "unitCost": 11,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s005"
@@ -4108,8 +3940,8 @@
           },
           {
             "id": "C-006",
-            "unitCost": 16,
-            "category": "g03",
+            "unitCost": 1,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s006"
@@ -4118,8 +3950,8 @@
           },
           {
             "id": "X-006",
-            "unitCost": 66,
-            "category": "g03",
+            "unitCost": 11,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s006"
@@ -4128,8 +3960,8 @@
           },
           {
             "id": "C-007",
-            "unitCost": 17,
-            "category": "g05",
+            "unitCost": 1,
+            "category": "g07",
             "capacity": 1,
             "signals": [
               "s007"
@@ -4138,11 +3970,211 @@
           },
           {
             "id": "X-007",
-            "unitCost": 67,
-            "category": "g05",
+            "unitCost": 11,
+            "category": "g07",
             "capacity": 1,
             "signals": [
               "s007"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-008",
+            "unitCost": 1,
+            "category": "g08",
+            "capacity": 1,
+            "signals": [
+              "s008"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-008",
+            "unitCost": 11,
+            "category": "g08",
+            "capacity": 1,
+            "signals": [
+              "s008"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-009",
+            "unitCost": 1,
+            "category": "g09",
+            "capacity": 1,
+            "signals": [
+              "s009"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-009",
+            "unitCost": 11,
+            "category": "g09",
+            "capacity": 1,
+            "signals": [
+              "s009"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-010",
+            "unitCost": 1,
+            "category": "g10",
+            "capacity": 1,
+            "signals": [
+              "s010"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-010",
+            "unitCost": 11,
+            "category": "g10",
+            "capacity": 1,
+            "signals": [
+              "s010"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-011",
+            "unitCost": 1,
+            "category": "g11",
+            "capacity": 1,
+            "signals": [
+              "s011"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-011",
+            "unitCost": 11,
+            "category": "g11",
+            "capacity": 1,
+            "signals": [
+              "s011"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-012",
+            "unitCost": 1,
+            "category": "g12",
+            "capacity": 1,
+            "signals": [
+              "s012"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-012",
+            "unitCost": 11,
+            "category": "g12",
+            "capacity": 1,
+            "signals": [
+              "s012"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-013",
+            "unitCost": 1,
+            "category": "g13",
+            "capacity": 1,
+            "signals": [
+              "s013"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-013",
+            "unitCost": 11,
+            "category": "g13",
+            "capacity": 1,
+            "signals": [
+              "s013"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-014",
+            "unitCost": 1,
+            "category": "g14",
+            "capacity": 1,
+            "signals": [
+              "s014"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-014",
+            "unitCost": 11,
+            "category": "g14",
+            "capacity": 1,
+            "signals": [
+              "s014"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-015",
+            "unitCost": 1,
+            "category": "g15",
+            "capacity": 1,
+            "signals": [
+              "s015"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-015",
+            "unitCost": 11,
+            "category": "g15",
+            "capacity": 1,
+            "signals": [
+              "s015"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-016",
+            "unitCost": 1,
+            "category": "g16",
+            "capacity": 1,
+            "signals": [
+              "s016"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-016",
+            "unitCost": 11,
+            "category": "g16",
+            "capacity": 1,
+            "signals": [
+              "s016"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-017",
+            "unitCost": 1,
+            "category": "g17",
+            "capacity": 1,
+            "signals": [
+              "s017"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-017",
+            "unitCost": 11,
+            "category": "g17",
+            "capacity": 1,
+            "signals": [
+              "s017"
             ],
             "maxQuantity": 1
           }
@@ -4177,69 +4209,189 @@
           {
             "componentId": "C-007",
             "quantity": 1
+          },
+          {
+            "componentId": "C-008",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-009",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-010",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-011",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-012",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-013",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-014",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-015",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-016",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-017",
+            "quantity": 1
           }
         ],
-        "minimumCost": 98
+        "minimumCost": 17
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a gauntlet with four non-blocking emit hazards and one stealth Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-03] create four connected rooms with exactly six mobile actors, six hazards spanning all four expressions, and six resources spanning vital and affinity lifecycles. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
-            "spec": "size=large;count=2"
+            "spec": "size=large;count=4"
           },
           "X-001": {
             "target": "room",
-            "spec": "size=large;count=2"
+            "spec": "size=large;count=4"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=32"
+            "target": "hazard",
+            "spec": "id=hazard_dense_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=32"
+            "target": "hazard",
+            "spec": "id=hazard_dense_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "C-003": {
             "target": "hazard",
-            "spec": "x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false"
+            "spec": "id=hazard_dense_water;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-003": {
             "target": "hazard",
-            "spec": "x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false"
+            "spec": "id=hazard_dense_water;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "C-004": {
             "target": "hazard",
-            "spec": "x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"
+            "spec": "id=hazard_dense_earth;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-004": {
             "target": "hazard",
-            "spec": "x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"
+            "spec": "id=hazard_dense_earth;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "C-005": {
             "target": "hazard",
-            "spec": "x=3;y=3;affinity=decay;expression=emit;stacks=1;blocking=false"
+            "spec": "id=hazard_dense_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-005": {
             "target": "hazard",
-            "spec": "x=3;y=3;affinity=decay;expression=emit;stacks=1;blocking=false"
+            "spec": "id=hazard_dense_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "C-006": {
             "target": "hazard",
-            "spec": "x=4;y=4;affinity=corrode;expression=emit;stacks=1;blocking=false"
+            "spec": "id=hazard_dense_light;affinity=light;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-006": {
             "target": "hazard",
-            "spec": "x=4;y=4;affinity=corrode;expression=emit;stacks=1;blocking=false"
+            "spec": "id=hazard_dense_light;affinity=light;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "C-007": {
-            "target": "delver",
-            "spec": "count=1;affinity=light;motivation=stealthy;affinities=light:emit:1;vitals=health:8:1,stamina:8:1,mana:5:1"
+            "target": "hazard",
+            "spec": "id=hazard_dense_dark;affinity=dark;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-007": {
+            "target": "hazard",
+            "spec": "id=hazard_dense_dark;affinity=dark;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+          },
+          "C-008": {
+            "target": "resource",
+            "spec": "id=resource_dense_health;permanenceMode=consumable;vital=health;delta=5"
+          },
+          "X-008": {
+            "target": "resource",
+            "spec": "id=resource_dense_health;permanenceMode=consumable;vital=health;delta=5"
+          },
+          "C-009": {
+            "target": "resource",
+            "spec": "id=resource_dense_health_max;permanenceMode=level;vital=health;delta=5"
+          },
+          "X-009": {
+            "target": "resource",
+            "spec": "id=resource_dense_health_max;permanenceMode=level;vital=health;delta=5"
+          },
+          "C-010": {
+            "target": "resource",
+            "spec": "id=resource_dense_regen;permanenceMode=level;vital=health;regen=2"
+          },
+          "X-010": {
+            "target": "resource",
+            "spec": "id=resource_dense_regen;permanenceMode=level;vital=health;regen=2"
+          },
+          "C-011": {
+            "target": "resource",
+            "spec": "id=resource_dense_temp;affinity=fire;expression=push;stacks=2;mana=12;manaRegen=0"
+          },
+          "X-011": {
+            "target": "resource",
+            "spec": "id=resource_dense_temp;affinity=fire;expression=push;stacks=2;mana=12;manaRegen=0"
+          },
+          "C-012": {
+            "target": "resource",
+            "spec": "id=resource_dense_perm;affinity=water;expression=emit;stacks=2;mana=12;manaRegen=2"
+          },
+          "X-012": {
+            "target": "resource",
+            "spec": "id=resource_dense_perm;affinity=water;expression=emit;stacks=2;mana=12;manaRegen=2"
+          },
+          "C-013": {
+            "target": "resource",
+            "spec": "id=resource_dense_stamina;permanenceMode=level;vital=stamina;delta=5"
+          },
+          "X-013": {
+            "target": "resource",
+            "spec": "id=resource_dense_stamina;permanenceMode=level;vital=stamina;delta=5"
+          },
+          "C-014": {
             "target": "delver",
-            "spec": "count=1;affinity=light;motivation=stealthy;affinities=light:emit:1;vitals=health:8:1,stamina:8:1,mana:5:1"
+            "spec": "count=2;id=delver_dense;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-014": {
+            "target": "delver",
+            "spec": "count=2;id=delver_dense;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-015": {
+            "target": "warden",
+            "spec": "count=1;id=warden_dense_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-015": {
+            "target": "warden",
+            "spec": "count=1;id=warden_dense_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-016": {
+            "target": "warden",
+            "spec": "count=1;id=warden_dense_patrol;affinity=wind;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-016": {
+            "target": "warden",
+            "spec": "count=1;id=warden_dense_patrol;affinity=wind;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-017": {
+            "target": "warden",
+            "spec": "count=2;id=warden_dense_random;affinity=dark;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-017": {
+            "target": "warden",
+            "spec": "count=2;id=warden_dense_random;affinity=dark;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -4260,14 +4412,24 @@
           "categoryQuantities": {
             "g01": 1,
             "g02": 1,
-            "g03": 3,
-            "g05": 1
+            "g03": 1,
+            "g04": 1,
+            "g05": 1,
+            "g06": 1,
+            "g07": 1,
+            "g08": 1,
+            "g09": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 28,
-            "g03": 3,
-            "g05": 1
+            "g02": 1,
+            "g03": 1,
+            "g04": 1,
+            "g05": 1,
+            "g06": 1,
+            "g07": 1,
+            "g08": 1,
+            "g09": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -4277,20 +4439,33 @@
               "s002"
             ],
             "g03": [
-              "s003",
-              "s004",
-              "s005"
+              "s003"
+            ],
+            "g04": [
+              "s004"
             ],
             "g05": [
+              "s005"
+            ],
+            "g06": [
               "s006"
+            ],
+            "g07": [
+              "s007"
+            ],
+            "g08": [
+              "s008"
+            ],
+            "g09": [
+              "s009"
             ]
           },
-          "maximumTotalCost": 131
+          "maximumTotalCost": 9
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -4300,7 +4475,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -4310,9 +4485,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 28,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -4320,9 +4495,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 28,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -4330,7 +4505,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -4340,7 +4515,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -4350,8 +4525,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 14,
-            "category": "g03",
+            "unitCost": 1,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s004"
@@ -4360,8 +4535,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 64,
-            "category": "g03",
+            "unitCost": 11,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s004"
@@ -4370,8 +4545,8 @@
           },
           {
             "id": "C-005",
-            "unitCost": 15,
-            "category": "g03",
+            "unitCost": 1,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s005"
@@ -4380,8 +4555,8 @@
           },
           {
             "id": "X-005",
-            "unitCost": 65,
-            "category": "g03",
+            "unitCost": 11,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s005"
@@ -4390,8 +4565,8 @@
           },
           {
             "id": "C-006",
-            "unitCost": 16,
-            "category": "g05",
+            "unitCost": 1,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s006"
@@ -4400,11 +4575,71 @@
           },
           {
             "id": "X-006",
-            "unitCost": 66,
-            "category": "g05",
+            "unitCost": 11,
+            "category": "g06",
             "capacity": 1,
             "signals": [
               "s006"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-007",
+            "unitCost": 1,
+            "category": "g07",
+            "capacity": 1,
+            "signals": [
+              "s007"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-007",
+            "unitCost": 11,
+            "category": "g07",
+            "capacity": 1,
+            "signals": [
+              "s007"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-008",
+            "unitCost": 1,
+            "category": "g08",
+            "capacity": 1,
+            "signals": [
+              "s008"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-008",
+            "unitCost": 11,
+            "category": "g08",
+            "capacity": 1,
+            "signals": [
+              "s008"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-009",
+            "unitCost": 1,
+            "category": "g09",
+            "capacity": 1,
+            "signals": [
+              "s009"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-009",
+            "unitCost": 11,
+            "category": "g09",
+            "capacity": 1,
+            "signals": [
+              "s009"
             ],
             "maxQuantity": 1
           }
@@ -4435,61 +4670,97 @@
           {
             "componentId": "C-006",
             "quantity": 1
+          },
+          {
+            "componentId": "C-007",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-008",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-009",
+            "quantity": 1
           }
         ],
-        "minimumCost": 81
+        "minimumCost": 9
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a hazard gauntlet with fire, water, and decay mana zones. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-01] create three connected rooms containing exactly four mobile actors with attacking, defending, patrolling, and random motivations, two hazards, and two resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
-            "spec": "size=large;count=1"
+            "spec": "size=medium;count=3"
           },
           "X-001": {
             "target": "room",
-            "spec": "size=large;count=1"
+            "spec": "size=medium;count=3"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=28"
+            "target": "hazard",
+            "spec": "id=hazard_stress_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=28"
+            "target": "hazard",
+            "spec": "id=hazard_stress_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "C-003": {
             "target": "hazard",
-            "spec": "affinity=fire;expression=emit;proximityRadius=1;mana=regen:3:3:1"
+            "spec": "id=hazard_stress_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-003": {
             "target": "hazard",
-            "spec": "affinity=fire;expression=emit;proximityRadius=1;mana=regen:3:3:1"
+            "spec": "id=hazard_stress_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "C-004": {
-            "target": "hazard",
-            "spec": "affinity=water;expression=emit;proximityRadius=1;mana=regen:3:3:1"
+            "target": "resource",
+            "spec": "id=resource_stress_health;permanenceMode=consumable;vital=health;delta=5"
           },
           "X-004": {
-            "target": "hazard",
-            "spec": "affinity=water;expression=emit;proximityRadius=1;mana=regen:3:3:1"
+            "target": "resource",
+            "spec": "id=resource_stress_health;permanenceMode=consumable;vital=health;delta=5"
           },
           "C-005": {
-            "target": "hazard",
-            "spec": "affinity=decay;expression=emit;proximityRadius=2;mana=regen:4:4:1"
+            "target": "resource",
+            "spec": "id=resource_stress_stamina;permanenceMode=level;vital=stamina;delta=5"
           },
           "X-005": {
-            "target": "hazard",
-            "spec": "affinity=decay;expression=emit;proximityRadius=2;mana=regen:4:4:1"
+            "target": "resource",
+            "spec": "id=resource_stress_stamina;permanenceMode=level;vital=stamina;delta=5"
           },
           "C-006": {
             "target": "delver",
-            "spec": "count=1;affinity=fortify;motivation=defending;affinities=fortify:emit:1;vitals=health:10:1,stamina:5:1,mana:4:1"
+            "spec": "count=1;id=delver_stress_attacker;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-006": {
             "target": "delver",
-            "spec": "count=1;affinity=fortify;motivation=defending;affinities=fortify:emit:1;vitals=health:10:1,stamina:5:1,mana:4:1"
+            "spec": "count=1;id=delver_stress_attacker;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-007": {
+            "target": "delver",
+            "spec": "count=1;id=delver_stress_random;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-007": {
+            "target": "delver",
+            "spec": "count=1;id=delver_stress_random;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-008": {
+            "target": "warden",
+            "spec": "count=1;id=warden_stress_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-008": {
+            "target": "warden",
+            "spec": "count=1;id=warden_stress_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-009": {
+            "target": "warden",
+            "spec": "count=1;id=warden_stress_patrol;affinity=wind;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-009": {
+            "target": "warden",
+            "spec": "count=1;id=warden_stress_patrol;affinity=wind;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -4511,14 +4782,14 @@
             "g01": 1,
             "g02": 1,
             "g03": 1,
-            "g04": 3,
+            "g04": 1,
             "g05": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 18,
+            "g02": 1,
             "g03": 1,
-            "g04": 3,
+            "g04": 1,
             "g05": 1
           },
           "requiredSignalsByCategory": {
@@ -4532,20 +4803,18 @@
               "s003"
             ],
             "g04": [
-              "s004",
-              "s005",
-              "s006"
+              "s004"
             ],
             "g05": [
-              "s007"
+              "s005"
             ]
           },
-          "maximumTotalCost": 148
+          "maximumTotalCost": 5
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -4555,7 +4824,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -4565,9 +4834,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 18,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -4575,9 +4844,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 18,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -4585,7 +4854,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -4595,7 +4864,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -4605,7 +4874,7 @@
           },
           {
             "id": "C-004",
-            "unitCost": 14,
+            "unitCost": 1,
             "category": "g04",
             "capacity": 1,
             "signals": [
@@ -4615,7 +4884,7 @@
           },
           {
             "id": "X-004",
-            "unitCost": 64,
+            "unitCost": 11,
             "category": "g04",
             "capacity": 1,
             "signals": [
@@ -4625,8 +4894,8 @@
           },
           {
             "id": "C-005",
-            "unitCost": 15,
-            "category": "g04",
+            "unitCost": 1,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s005"
@@ -4635,51 +4904,11 @@
           },
           {
             "id": "X-005",
-            "unitCost": 65,
-            "category": "g04",
+            "unitCost": 11,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s005"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-006",
-            "unitCost": 16,
-            "category": "g04",
-            "capacity": 1,
-            "signals": [
-              "s006"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-006",
-            "unitCost": 66,
-            "category": "g04",
-            "capacity": 1,
-            "signals": [
-              "s006"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-007",
-            "unitCost": 17,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s007"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-007",
-            "unitCost": 67,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s007"
             ],
             "maxQuantity": 1
           }
@@ -4706,79 +4935,53 @@
           {
             "componentId": "C-005",
             "quantity": 1
-          },
-          {
-            "componentId": "C-006",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-007",
-            "quantity": 1
           }
         ],
-        "minimumCost": 98
+        "minimumCost": 5
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a shrine room with multiple resources and one friendly life Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "life"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-05] create one Delver and one Warden each crossing a distinct permanent fire-emit affinity resource with two stacks, mana 12, and mana regeneration 2. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
-            "spec": "size=medium;count=1"
+            "spec": "size=large;count=1"
           },
           "X-001": {
             "target": "room",
-            "spec": "size=medium;count=1"
+            "spec": "size=large;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=18"
+            "target": "resource",
+            "spec": "id=resource_fire_delver;affinity=fire;expression=emit;stacks=2;mana=12;manaRegen=2"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=18"
+            "target": "resource",
+            "spec": "id=resource_fire_delver;affinity=fire;expression=emit;stacks=2;mana=12;manaRegen=2"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=life;expression=emit;proximityRadius=3;mana=regen:4:4:1"
+            "target": "resource",
+            "spec": "id=resource_fire_warden;affinity=fire;expression=emit;stacks=2;mana=12;manaRegen=2"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=life;expression=emit;proximityRadius=3;mana=regen:4:4:1"
+            "target": "resource",
+            "spec": "id=resource_fire_warden;affinity=fire;expression=emit;stacks=2;mana=12;manaRegen=2"
           },
           "C-004": {
-            "target": "resource",
-            "spec": "tier=permanent;stat=vitalMax;delta=6;dropRate=5"
+            "target": "delver",
+            "spec": "count=1;id=delver_permanent_affinity;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-004": {
-            "target": "resource",
-            "spec": "tier=permanent;stat=vitalMax;delta=6;dropRate=5"
+            "target": "delver",
+            "spec": "count=1;id=delver_permanent_affinity;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-005": {
-            "target": "resource",
-            "spec": "tier=level;stat=vitalRegen;delta=1;dropRate=20"
+            "target": "warden",
+            "spec": "count=1;id=warden_permanent_affinity;affinity=fire;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-005": {
-            "target": "resource",
-            "spec": "tier=level;stat=vitalRegen;delta=1;dropRate=20"
-          },
-          "C-006": {
-            "target": "resource",
-            "spec": "tier=level;stat=affinityStack;delta=1;dropRate=15"
-          },
-          "X-006": {
-            "target": "resource",
-            "spec": "tier=level;stat=affinityStack;delta=1;dropRate=15"
-          },
-          "C-007": {
-            "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
-          },
-          "X-007": {
-            "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
+            "target": "warden",
+            "spec": "count=1;id=warden_permanent_affinity;affinity=fire;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -4799,16 +5002,12 @@
           "categoryQuantities": {
             "g01": 1,
             "g02": 1,
-            "g03": 1,
-            "g05": 1,
-            "g06": 1
+            "g03": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 20,
-            "g03": 1,
-            "g05": 1,
-            "g06": 1
+            "g02": 1,
+            "g03": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -4819,20 +5018,14 @@
             ],
             "g03": [
               "s003"
-            ],
-            "g05": [
-              "s004"
-            ],
-            "g06": [
-              "s005"
             ]
           },
-          "maximumTotalCost": 115
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -4842,7 +5035,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -4852,9 +5045,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 20,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -4862,9 +5055,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 20,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -4872,7 +5065,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -4882,51 +5075,11 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
               "s003"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-004",
-            "unitCost": 14,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-004",
-            "unitCost": 64,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-005",
-            "unitCost": 15,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s005"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-005",
-            "unitCost": 65,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s005"
             ],
             "maxQuantity": 1
           }
@@ -4945,20 +5098,12 @@
           {
             "componentId": "C-003",
             "quantity": 1
-          },
-          {
-            "componentId": "C-004",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-005",
-            "quantity": 1
           }
         ],
-        "minimumCost": 65
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that pits fire attack pressure against water sustain. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-02#neutral] create the neutral member of a paired otherwise-identical duel: one attacking Delver and one defending Warden with no declared attacker advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "C-001": {
@@ -4970,36 +5115,20 @@
             "spec": "size=medium;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=20"
+            "target": "delver",
+            "spec": "count=1;id=delver_affinity_attacker;affinity=earth;motivation=attacking;affinities=earth:push:2;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=20"
+            "target": "delver",
+            "spec": "count=1;id=delver_affinity_attacker;affinity=earth;motivation=attacking;affinities=earth:push:2;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=fire;expression=emit;stacks=2;blocking=false"
+            "target": "warden",
+            "spec": "count=1;id=warden_affinity_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=fire;expression=emit;stacks=2;blocking=false"
-          },
-          "C-004": {
-            "target": "delver",
-            "spec": "count=1;affinity=water;motivation=exploring;affinities=water:draw:2;vitals=health:8:1,stamina:6:1,mana:6:1"
-          },
-          "X-004": {
-            "target": "delver",
-            "spec": "count=1;affinity=water;motivation=exploring;affinities=water:draw:2;vitals=health:8:1,stamina:6:1,mana:6:1"
-          },
-          "C-005": {
             "target": "warden",
-            "spec": "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:10:1,stamina:5:1,mana:5:1,durability:5:0"
-          },
-          "X-005": {
-            "target": "warden",
-            "spec": "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:10:1,stamina:5:1,mana:5:1,durability:5:0"
+            "spec": "count=1;id=warden_affinity_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -5020,16 +5149,12 @@
           "categoryQuantities": {
             "g01": 1,
             "g02": 1,
-            "g03": 2,
-            "g05": 1,
-            "g06": 1
+            "g03": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 20,
-            "g03": 2,
-            "g05": 1,
-            "g06": 1
+            "g02": 1,
+            "g03": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -5039,22 +5164,15 @@
               "s002"
             ],
             "g03": [
-              "s003",
-              "s004"
-            ],
-            "g05": [
-              "s005"
-            ],
-            "g06": [
-              "s006"
+              "s003"
             ]
           },
-          "maximumTotalCost": 131
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -5064,7 +5182,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -5074,9 +5192,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 20,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -5084,9 +5202,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 20,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -5094,7 +5212,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -5104,71 +5222,11 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
               "s003"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-004",
-            "unitCost": 14,
-            "category": "g03",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-004",
-            "unitCost": 64,
-            "category": "g03",
-            "capacity": 1,
-            "signals": [
-              "s004"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-005",
-            "unitCost": 15,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s005"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-005",
-            "unitCost": 65,
-            "category": "g05",
-            "capacity": 1,
-            "signals": [
-              "s005"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-006",
-            "unitCost": 16,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s006"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-006",
-            "unitCost": 66,
-            "category": "g06",
-            "capacity": 1,
-            "signals": [
-              "s006"
             ],
             "maxQuantity": 1
           }
@@ -5187,24 +5245,12 @@
           {
             "componentId": "C-003",
             "quantity": 1
-          },
-          {
-            "componentId": "C-004",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-005",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-006",
-            "quantity": 1
           }
         ],
-        "minimumCost": 81
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests earth and wind opposition through actors and contained hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-CB-02#advantaged] create the advantaged member of a paired otherwise-identical duel: one attacking fire-push Delver and the same defending Warden, changing only the declared attacker affinity advantage. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "C-001": {
@@ -5216,44 +5262,20 @@
             "spec": "size=medium;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=20"
+            "target": "delver",
+            "spec": "count=1;id=delver_affinity_attacker;affinity=fire;motivation=attacking;affinities=fire:push:2;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=20"
+            "target": "delver",
+            "spec": "count=1;id=delver_affinity_attacker;affinity=fire;motivation=attacking;affinities=fire:push:2;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=earth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "target": "warden",
+            "spec": "count=1;id=warden_affinity_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=earth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
-          },
-          "C-004": {
-            "target": "hazard",
-            "spec": "id=room_1_field_2;affinity=wind;expression=emit;proximityRadius=2;mana=regen:3:3:1"
-          },
-          "X-004": {
-            "target": "hazard",
-            "spec": "id=room_1_field_2;affinity=wind;expression=emit;proximityRadius=2;mana=regen:3:3:1"
-          },
-          "C-005": {
-            "target": "delver",
-            "spec": "count=1;affinity=wind;motivation=exploring;affinities=wind:push:2;vitals=health:8:1,stamina:8:1,mana:5:1"
-          },
-          "X-005": {
-            "target": "delver",
-            "spec": "count=1;affinity=wind;motivation=exploring;affinities=wind:push:2;vitals=health:8:1,stamina:8:1,mana:5:1"
-          },
-          "C-006": {
             "target": "warden",
-            "spec": "count=1;affinity=earth;motivation=patrolling;affinities=earth:pull:2;vitals=health:11:1,stamina:5:1,mana:4:1,durability:5:0"
-          },
-          "X-006": {
-            "target": "warden",
-            "spec": "count=1;affinity=earth;motivation=patrolling;affinities=earth:pull:2;vitals=health:11:1,stamina:5:1,mana:4:1,durability:5:0"
+            "spec": "count=1;id=warden_affinity_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -5496,15 +5518,15 @@
             "g01": 1,
             "g02": 1,
             "g03": 1,
-            "g05": 1,
-            "g06": 1
+            "g04": 1,
+            "g05": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 20,
+            "g02": 1,
             "g03": 1,
-            "g05": 1,
-            "g06": 1
+            "g04": 1,
+            "g05": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
@@ -5516,19 +5538,19 @@
             "g03": [
               "s003"
             ],
-            "g05": [
+            "g04": [
               "s004"
             ],
-            "g06": [
+            "g05": [
               "s005"
             ]
           },
-          "maximumTotalCost": 115
+          "maximumTotalCost": 5
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -5538,7 +5560,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -5548,9 +5570,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 20,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -5558,9 +5580,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 20,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -5568,7 +5590,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -5578,7 +5600,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -5588,8 +5610,8 @@
           },
           {
             "id": "C-004",
-            "unitCost": 14,
-            "category": "g05",
+            "unitCost": 1,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s004"
@@ -5598,8 +5620,8 @@
           },
           {
             "id": "X-004",
-            "unitCost": 64,
-            "category": "g05",
+            "unitCost": 11,
+            "category": "g04",
             "capacity": 1,
             "signals": [
               "s004"
@@ -5608,8 +5630,8 @@
           },
           {
             "id": "C-005",
-            "unitCost": 15,
-            "category": "g06",
+            "unitCost": 1,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s005"
@@ -5618,8 +5640,8 @@
           },
           {
             "id": "X-005",
-            "unitCost": 65,
-            "category": "g06",
+            "unitCost": 11,
+            "category": "g05",
             "capacity": 1,
             "signals": [
               "s005"
@@ -5651,51 +5673,51 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 65
+        "minimumCost": 5
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests light visibility against dark obscuring pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-04] create two connected rooms with exactly two Delvers and two Wardens combining attacking, defending, patrolling, and random behavior, all with positive vitals and regeneration. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
-            "spec": "size=medium;count=1"
+            "spec": "size=large;count=2"
           },
           "X-001": {
             "target": "room",
-            "spec": "size=medium;count=1"
+            "spec": "size=large;count=2"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=20"
+            "target": "delver",
+            "spec": "count=1;id=delver_soak_attacker;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=20"
+            "target": "delver",
+            "spec": "count=1;id=delver_soak_attacker;affinity=fire;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_soak_random;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "x=3;y=3;affinity=dark;expression=emit;stacks=2;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_soak_random;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-004": {
-            "target": "delver",
-            "spec": "count=1;affinity=light;motivation=exploring;affinities=light:emit:2;vitals=health:8:1,stamina:7:1,mana:6:1"
+            "target": "warden",
+            "spec": "count=1;id=warden_soak_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-004": {
-            "target": "delver",
-            "spec": "count=1;affinity=light;motivation=exploring;affinities=light:emit:2;vitals=health:8:1,stamina:7:1,mana:6:1"
+            "target": "warden",
+            "spec": "count=1;id=warden_soak_defender;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-005": {
             "target": "warden",
-            "spec": "count=1;affinity=dark;motivation=defending;affinities=dark:emit:2;vitals=health:11:1,stamina:4:1,mana:5:1,durability:6:0"
+            "spec": "count=1;id=warden_soak_patrol;affinity=wind;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-005": {
             "target": "warden",
-            "spec": "count=1;affinity=dark;motivation=defending;affinities=dark:emit:2;vitals=health:11:1,stamina:4:1,mana:5:1,durability:6:0"
+            "spec": "count=1;id=warden_soak_patrol;affinity=wind;motivation=patrolling;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -13098,342 +13120,12 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
-            "g02": 1
-          },
-          "minimumCapacityByCategory": {
-            "g01": 1,
-            "g02": 12
-          },
-          "requiredSignalsByCategory": {
-            "g01": [
-              "s001"
-            ],
-            "g02": [
-              "s002"
-            ]
-          },
-          "maximumTotalCost": 73
-        },
-        "components": [
-          {
-            "id": "C-001",
-            "unitCost": 11,
-            "category": "g01",
-            "capacity": 1,
-            "signals": [
-              "s001"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-001",
-            "unitCost": 61,
-            "category": "g01",
-            "capacity": 1,
-            "signals": [
-              "s001"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-002",
-            "unitCost": 12,
-            "category": "g02",
-            "capacity": 12,
-            "signals": [
-              "s002"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-002",
-            "unitCost": 62,
-            "category": "g02",
-            "capacity": 12,
-            "signals": [
-              "s002"
-            ],
-            "maxQuantity": 1
-          }
-        ]
-      },
-      "reference": {
-        "selections": [
-          {
-            "componentId": "C-001",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-002",
-            "quantity": 1
-          }
-        ],
-        "minimumCost": 23
-      },
-      "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one small starter room with twelve floor tiles and no actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {},
-        "components": {
-          "C-001": {
-            "target": "room",
-            "spec": "size=small;count=1"
-          },
-          "X-001": {
-            "target": "room",
-            "spec": "size=small;count=1"
-          },
-          "C-002": {
-            "target": "floorTile",
-            "spec": "count=12"
-          },
-          "X-002": {
-            "target": "floorTile",
-            "spec": "count=12"
-          }
-        }
-      }
-    },
-    {
-      "index": 66,
-      "id": "ap-parallel-066",
-      "title": "Parallel abstract scenario 066",
-      "expectedOutcome": "success",
-      "sourceScenario": {
-        "index": 66,
-        "tier": "simple"
-      },
-      "problem": {
-        "schemaVersion": "abstract-component-selection/v1",
-        "objective": "minimize_total_cost",
-        "constraints": {
-          "categoryQuantities": {
-            "g01": 1,
-            "g04": 1
-          },
-          "minimumCapacityByCategory": {
-            "g01": 1,
-            "g04": 1
-          },
-          "requiredSignalsByCategory": {
-            "g01": [
-              "s001"
-            ],
-            "g04": [
-              "s002"
-            ]
-          },
-          "maximumTotalCost": 73
-        },
-        "components": [
-          {
-            "id": "C-001",
-            "unitCost": 11,
-            "category": "g01",
-            "capacity": 1,
-            "signals": [
-              "s001"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-001",
-            "unitCost": 61,
-            "category": "g01",
-            "capacity": 1,
-            "signals": [
-              "s001"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-002",
-            "unitCost": 12,
-            "category": "g04",
-            "capacity": 1,
-            "signals": [
-              "s002"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-002",
-            "unitCost": 62,
-            "category": "g04",
-            "capacity": 1,
-            "signals": [
-              "s002"
-            ],
-            "maxQuantity": 1
-          }
-        ]
-      },
-      "reference": {
-        "selections": [
-          {
-            "componentId": "C-001",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-002",
-            "quantity": 1
-          }
-        ],
-        "minimumCost": 23
-      },
-      "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a small room containing one level-scoped vital maximum resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {},
-        "components": {
-          "C-001": {
-            "target": "room",
-            "spec": "size=small;count=1"
-          },
-          "X-001": {
-            "target": "room",
-            "spec": "size=small;count=1"
-          },
-          "C-002": {
-            "target": "resource",
-            "spec": "tier=level;stat=vitalMax;delta=2;dropRate=25"
-          },
-          "X-002": {
-            "target": "resource",
-            "spec": "tier=level;stat=vitalMax;delta=2;dropRate=25"
-          }
-        }
-      }
-    },
-    {
-      "index": 67,
-      "id": "ap-parallel-067",
-      "title": "Parallel abstract scenario 067",
-      "expectedOutcome": "success",
-      "sourceScenario": {
-        "index": 67,
-        "tier": "simple"
-      },
-      "problem": {
-        "schemaVersion": "abstract-component-selection/v1",
-        "objective": "minimize_total_cost",
-        "constraints": {
-          "categoryQuantities": {
-            "g01": 1,
-            "g04": 1
-          },
-          "minimumCapacityByCategory": {
-            "g01": 1,
-            "g04": 1
-          },
-          "requiredSignalsByCategory": {
-            "g01": [
-              "s001"
-            ],
-            "g04": [
-              "s002"
-            ]
-          },
-          "maximumTotalCost": 73
-        },
-        "components": [
-          {
-            "id": "C-001",
-            "unitCost": 11,
-            "category": "g01",
-            "capacity": 1,
-            "signals": [
-              "s001"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-001",
-            "unitCost": 61,
-            "category": "g01",
-            "capacity": 1,
-            "signals": [
-              "s001"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "C-002",
-            "unitCost": 12,
-            "category": "g04",
-            "capacity": 1,
-            "signals": [
-              "s002"
-            ],
-            "maxQuantity": 1
-          },
-          {
-            "id": "X-002",
-            "unitCost": 62,
-            "category": "g04",
-            "capacity": 1,
-            "signals": [
-              "s002"
-            ],
-            "maxQuantity": 1
-          }
-        ]
-      },
-      "reference": {
-        "selections": [
-          {
-            "componentId": "C-001",
-            "quantity": 1
-          },
-          {
-            "componentId": "C-002",
-            "quantity": 1
-          }
-        ],
-        "minimumCost": 23
-      },
-      "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a small room containing one permanent vital regeneration resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {},
-        "components": {
-          "C-001": {
-            "target": "room",
-            "spec": "size=small;count=1"
-          },
-          "X-001": {
-            "target": "room",
-            "spec": "size=small;count=1"
-          },
-          "C-002": {
-            "target": "resource",
-            "spec": "tier=permanent;stat=vitalRegen;delta=1;dropRate=10"
-          },
-          "X-002": {
-            "target": "resource",
-            "spec": "tier=permanent;stat=vitalRegen;delta=1;dropRate=10"
-          }
-        }
-      }
-    },
-    {
-      "index": 68,
-      "id": "ap-parallel-068",
-      "title": "Parallel abstract scenario 068",
-      "expectedOutcome": "success",
-      "sourceScenario": {
-        "index": 68,
-        "tier": "simple"
-      },
-      "problem": {
-        "schemaVersion": "abstract-component-selection/v1",
-        "objective": "minimize_total_cost",
-        "constraints": {
-          "categoryQuantities": {
-            "g01": 1,
             "g02": 1,
             "g03": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 16,
+            "g02": 1,
             "g03": 1
           },
           "requiredSignalsByCategory": {
@@ -13447,12 +13139,12 @@
               "s003"
             ]
           },
-          "maximumTotalCost": 86
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13462,7 +13154,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13472,9 +13164,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 16,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -13482,9 +13174,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 16,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -13492,7 +13184,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -13502,7 +13194,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -13527,13 +13219,11 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 36
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with sixteen floor tiles and one water draw hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "water"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-01] create one injured mobile exploring Delver crossing one consumable health resource that grants current health only. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
@@ -13544,20 +13234,498 @@
             "spec": "size=medium;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=16"
+            "target": "resource",
+            "spec": "id=resource_health_consumable;permanenceMode=consumable;vital=health;delta=5"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=16"
+            "target": "resource",
+            "spec": "id=resource_health_consumable;permanenceMode=consumable;vital=health;delta=5"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=water;expression=draw;stacks=1;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_injured;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
+            "target": "delver",
+            "spec": "count=1;id=delver_injured;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          }
+        }
+      }
+    },
+    {
+      "index": 66,
+      "id": "ap-parallel-066",
+      "title": "Parallel abstract scenario 066",
+      "expectedOutcome": "success",
+      "sourceScenario": {
+        "index": 66,
+        "tier": "simple"
+      },
+      "problem": {
+        "schemaVersion": "abstract-component-selection/v1",
+        "objective": "minimize_total_cost",
+        "constraints": {
+          "categoryQuantities": {
+            "g01": 1,
+            "g02": 1,
+            "g03": 1
+          },
+          "minimumCapacityByCategory": {
+            "g01": 1,
+            "g02": 1,
+            "g03": 1
+          },
+          "requiredSignalsByCategory": {
+            "g01": [
+              "s001"
+            ],
+            "g02": [
+              "s002"
+            ],
+            "g03": [
+              "s003"
+            ]
+          },
+          "maximumTotalCost": 3
+        },
+        "components": [
+          {
+            "id": "C-001",
+            "unitCost": 1,
+            "category": "g01",
+            "capacity": 1,
+            "signals": [
+              "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-001",
+            "unitCost": 11,
+            "category": "g01",
+            "capacity": 1,
+            "signals": [
+              "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-002",
+            "unitCost": 1,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-002",
+            "unitCost": 11,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-003",
+            "unitCost": 1,
+            "category": "g03",
+            "capacity": 1,
+            "signals": [
+              "s003"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-003",
+            "unitCost": 11,
+            "category": "g03",
+            "capacity": 1,
+            "signals": [
+              "s003"
+            ],
+            "maxQuantity": 1
+          }
+        ]
+      },
+      "reference": {
+        "selections": [
+          {
+            "componentId": "C-001",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-002",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-003",
+            "quantity": 1
+          }
+        ],
+        "minimumCost": 3
+      },
+      "mapping": {
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-02] create one mobile exploring Delver crossing one level-scoped resource that raises maximum health. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
+        "components": {
+          "C-001": {
+            "target": "room",
+            "spec": "size=medium;count=1"
+          },
+          "X-001": {
+            "target": "room",
+            "spec": "size=medium;count=1"
+          },
+          "C-002": {
+            "target": "resource",
+            "spec": "id=resource_health_max;permanenceMode=level;vital=health;delta=5"
+          },
+          "X-002": {
+            "target": "resource",
+            "spec": "id=resource_health_max;permanenceMode=level;vital=health;delta=5"
+          },
+          "C-003": {
+            "target": "delver",
+            "spec": "count=1;id=delver_max_health;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-003": {
+            "target": "delver",
+            "spec": "count=1;id=delver_max_health;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          }
+        }
+      }
+    },
+    {
+      "index": 67,
+      "id": "ap-parallel-067",
+      "title": "Parallel abstract scenario 067",
+      "expectedOutcome": "success",
+      "sourceScenario": {
+        "index": 67,
+        "tier": "simple"
+      },
+      "problem": {
+        "schemaVersion": "abstract-component-selection/v1",
+        "objective": "minimize_total_cost",
+        "constraints": {
+          "categoryQuantities": {
+            "g01": 1,
+            "g02": 1,
+            "g03": 1
+          },
+          "minimumCapacityByCategory": {
+            "g01": 1,
+            "g02": 1,
+            "g03": 1
+          },
+          "requiredSignalsByCategory": {
+            "g01": [
+              "s001"
+            ],
+            "g02": [
+              "s002"
+            ],
+            "g03": [
+              "s003"
+            ]
+          },
+          "maximumTotalCost": 3
+        },
+        "components": [
+          {
+            "id": "C-001",
+            "unitCost": 1,
+            "category": "g01",
+            "capacity": 1,
+            "signals": [
+              "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-001",
+            "unitCost": 11,
+            "category": "g01",
+            "capacity": 1,
+            "signals": [
+              "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-002",
+            "unitCost": 1,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-002",
+            "unitCost": 11,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-003",
+            "unitCost": 1,
+            "category": "g03",
+            "capacity": 1,
+            "signals": [
+              "s003"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-003",
+            "unitCost": 11,
+            "category": "g03",
+            "capacity": 1,
+            "signals": [
+              "s003"
+            ],
+            "maxQuantity": 1
+          }
+        ]
+      },
+      "reference": {
+        "selections": [
+          {
+            "componentId": "C-001",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-002",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-003",
+            "quantity": 1
+          }
+        ],
+        "minimumCost": 3
+      },
+      "mapping": {
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-RS-03] create one injured mobile exploring Delver crossing one regeneration-only health resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
+        "components": {
+          "C-001": {
+            "target": "room",
+            "spec": "size=medium;count=1"
+          },
+          "X-001": {
+            "target": "room",
+            "spec": "size=medium;count=1"
+          },
+          "C-002": {
+            "target": "resource",
+            "spec": "id=resource_health_regen;permanenceMode=level;vital=health;regen=2"
+          },
+          "X-002": {
+            "target": "resource",
+            "spec": "id=resource_health_regen;permanenceMode=level;vital=health;regen=2"
+          },
+          "C-003": {
+            "target": "delver",
+            "spec": "count=1;id=delver_regen;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-003": {
+            "target": "delver",
+            "spec": "count=1;id=delver_regen;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          }
+        }
+      }
+    },
+    {
+      "index": 68,
+      "id": "ap-parallel-068",
+      "title": "Parallel abstract scenario 068",
+      "expectedOutcome": "success",
+      "sourceScenario": {
+        "index": 68,
+        "tier": "simple"
+      },
+      "problem": {
+        "schemaVersion": "abstract-component-selection/v1",
+        "objective": "minimize_total_cost",
+        "constraints": {
+          "categoryQuantities": {
+            "g01": 1,
+            "g02": 1,
+            "g03": 1,
+            "g04": 1
+          },
+          "minimumCapacityByCategory": {
+            "g01": 1,
+            "g02": 1,
+            "g03": 1,
+            "g04": 1
+          },
+          "requiredSignalsByCategory": {
+            "g01": [
+              "s001"
+            ],
+            "g02": [
+              "s002"
+            ],
+            "g03": [
+              "s003"
+            ],
+            "g04": [
+              "s004"
+            ]
+          },
+          "maximumTotalCost": 4
+        },
+        "components": [
+          {
+            "id": "C-001",
+            "unitCost": 1,
+            "category": "g01",
+            "capacity": 1,
+            "signals": [
+              "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-001",
+            "unitCost": 11,
+            "category": "g01",
+            "capacity": 1,
+            "signals": [
+              "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-002",
+            "unitCost": 1,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-002",
+            "unitCost": 11,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-003",
+            "unitCost": 1,
+            "category": "g03",
+            "capacity": 1,
+            "signals": [
+              "s003"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-003",
+            "unitCost": 11,
+            "category": "g03",
+            "capacity": 1,
+            "signals": [
+              "s003"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-004",
+            "unitCost": 1,
+            "category": "g04",
+            "capacity": 1,
+            "signals": [
+              "s004"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-004",
+            "unitCost": 11,
+            "category": "g04",
+            "capacity": 1,
+            "signals": [
+              "s004"
+            ],
+            "maxQuantity": 1
+          }
+        ]
+      },
+      "reference": {
+        "selections": [
+          {
+            "componentId": "C-001",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-002",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-003",
+            "quantity": 1
+          },
+          {
+            "componentId": "C-004",
+            "quantity": 1
+          }
+        ],
+        "minimumCost": 4
+      },
+      "mapping": {
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-04] create one mobile Delver crossing a water draw hazard while a second stationary interaction target is nearby. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
+        "components": {
+          "C-001": {
+            "target": "room",
+            "spec": "size=medium;count=1"
+          },
+          "X-001": {
+            "target": "room",
+            "spec": "size=medium;count=1"
+          },
+          "C-002": {
             "target": "hazard",
-            "spec": "x=2;y=2;affinity=water;expression=draw;stacks=1;blocking=false"
+            "spec": "id=hazard_water_draw;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+          },
+          "X-002": {
+            "target": "hazard",
+            "spec": "id=hazard_water_draw;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+          },
+          "C-003": {
+            "target": "delver",
+            "spec": "count=1;id=delver_draw_subject;affinity=fire;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-003": {
+            "target": "delver",
+            "spec": "count=1;id=delver_draw_subject;affinity=fire;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-004": {
+            "target": "warden",
+            "spec": "count=1;id=warden_draw_target;affinity=earth;motivation=stationary;vitals=health:24:1,mana:16:2,durability:6:1"
+          },
+          "X-004": {
+            "target": "warden",
+            "spec": "count=1;id=warden_draw_target;affinity=earth;motivation=stationary;vitals=health:24:1,mana:16:2,durability:6:1"
           }
         }
       }
@@ -13582,7 +13750,7 @@
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 16,
+            "g02": 1,
             "g03": 1
           },
           "requiredSignalsByCategory": {
@@ -13596,12 +13764,12 @@
               "s003"
             ]
           },
-          "maximumTotalCost": 86
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13611,7 +13779,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13621,9 +13789,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 16,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -13631,9 +13799,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 16,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -13641,7 +13809,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -13651,7 +13819,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -13676,13 +13844,11 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 36
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with sixteen floor tiles and one wind push hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "wind"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-02] create one mobile exploring actor approaching a non-blocking wind push hazard with legal walkable displacement space behind the actor. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
@@ -13693,20 +13859,20 @@
             "spec": "size=medium;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=16"
+            "target": "hazard",
+            "spec": "id=hazard_wind_push;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=16"
+            "target": "hazard",
+            "spec": "id=hazard_wind_push;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=wind;expression=push;stacks=1;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_push_subject;affinity=earth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=wind;expression=push;stacks=1;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_push_subject;affinity=earth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -13731,7 +13897,7 @@
           },
           "minimumCapacityByCategory": {
             "g01": 1,
-            "g02": 16,
+            "g02": 1,
             "g03": 1
           },
           "requiredSignalsByCategory": {
@@ -13745,12 +13911,12 @@
               "s003"
             ]
           },
-          "maximumTotalCost": 86
+          "maximumTotalCost": 3
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13760,7 +13926,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -13770,9 +13936,9 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
+            "unitCost": 1,
             "category": "g02",
-            "capacity": 16,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -13780,9 +13946,9 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
+            "unitCost": 11,
             "category": "g02",
-            "capacity": 16,
+            "capacity": 1,
             "signals": [
               "s002"
             ],
@@ -13790,7 +13956,7 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
+            "unitCost": 1,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -13800,7 +13966,7 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
+            "unitCost": 11,
             "category": "g03",
             "capacity": 1,
             "signals": [
@@ -13825,13 +13991,11 @@
             "quantity": 1
           }
         ],
-        "minimumCost": 36
+        "minimumCost": 3
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with sixteen floor tiles and one earth pull hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "earth"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-HZ-03] create one mobile exploring actor approaching an earth pull hazard from outside its focused radius with legal space toward the hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
@@ -13842,20 +14006,20 @@
             "spec": "size=medium;count=1"
           },
           "C-002": {
-            "target": "floorTile",
-            "spec": "count=16"
+            "target": "hazard",
+            "spec": "id=hazard_earth_pull;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "X-002": {
-            "target": "floorTile",
-            "spec": "count=16"
+            "target": "hazard",
+            "spec": "id=hazard_earth_pull;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
           },
           "C-003": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=earth;expression=pull;stacks=1;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_pull_subject;affinity=wind;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=earth;expression=pull;stacks=1;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_pull_subject;affinity=wind;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -14242,24 +14406,29 @@
         "objective": "minimize_total_cost",
         "constraints": {
           "categoryQuantities": {
-            "g01": 1
+            "g01": 1,
+            "g02": 1
           },
           "minimumCapacityByCategory": {
-            "g01": 2
+            "g01": 1,
+            "g02": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
+            ],
+            "g02": [
+              "s002"
             ]
           },
-          "maximumTotalCost": 61
+          "maximumTotalCost": 2
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
-            "capacity": 2,
+            "capacity": 1,
             "signals": [
               "s001"
             ],
@@ -14267,11 +14436,31 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
-            "capacity": 2,
+            "capacity": 1,
             "signals": [
               "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-002",
+            "unitCost": 1,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-002",
+            "unitCost": 11,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
             ],
             "maxQuantity": 1
           }
@@ -14282,21 +14471,33 @@
           {
             "componentId": "C-001",
             "quantity": 1
+          },
+          {
+            "componentId": "C-002",
+            "quantity": 1
           }
         ],
-        "minimumCost": 11
+        "minimumCost": 2
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two small rooms with no actors or hazards. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-02] create three connected medium rooms with exactly one exploring Delver beginning on the route from the entry room. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
-            "spec": "size=small;count=2"
+            "spec": "size=medium;count=3"
           },
           "X-001": {
             "target": "room",
-            "spec": "size=small;count=2"
+            "spec": "size=medium;count=3"
+          },
+          "C-002": {
+            "target": "delver",
+            "spec": "count=1;id=delver_three_room;affinity=water;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-002": {
+            "target": "delver",
+            "spec": "count=1;id=delver_three_room;affinity=water;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -14461,23 +14662,28 @@
         "objective": "minimize_total_cost",
         "constraints": {
           "categoryQuantities": {
-            "g06": 1
+            "g01": 1,
+            "g02": 1
           },
           "minimumCapacityByCategory": {
-            "g06": 1
+            "g01": 1,
+            "g02": 1
           },
           "requiredSignalsByCategory": {
-            "g06": [
+            "g01": [
               "s001"
+            ],
+            "g02": [
+              "s002"
             ]
           },
-          "maximumTotalCost": 61
+          "maximumTotalCost": 2
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
-            "category": "g06",
+            "unitCost": 1,
+            "category": "g01",
             "capacity": 1,
             "signals": [
               "s001"
@@ -14486,11 +14692,31 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
-            "category": "g06",
+            "unitCost": 11,
+            "category": "g01",
             "capacity": 1,
             "signals": [
               "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-002",
+            "unitCost": 1,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-002",
+            "unitCost": 11,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
             ],
             "maxQuantity": 1
           }
@@ -14501,21 +14727,33 @@
           {
             "componentId": "C-001",
             "quantity": 1
+          },
+          {
+            "componentId": "C-002",
+            "quantity": 1
           }
         ],
-        "minimumCost": 11
+        "minimumCost": 2
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one stationary earth Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-04] create one open medium room with exactly one stationary Warden who must not move. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "C-001": {
-            "target": "warden",
-            "spec": "count=1;affinity=earth;motivation=stationary"
+            "target": "room",
+            "spec": "size=medium;count=1"
           },
           "X-001": {
+            "target": "room",
+            "spec": "size=medium;count=1"
+          },
+          "C-002": {
             "target": "warden",
-            "spec": "count=1;affinity=earth;motivation=stationary"
+            "spec": "count=1;id=warden_stationary;affinity=earth;motivation=stationary;vitals=health:24:1,mana:16:2,durability:6:1"
+          },
+          "X-002": {
+            "target": "warden",
+            "spec": "count=1;id=warden_stationary;affinity=earth;motivation=stationary;vitals=health:24:1,mana:16:2,durability:6:1"
           }
         }
       }
@@ -14534,23 +14772,28 @@
         "objective": "minimize_total_cost",
         "constraints": {
           "categoryQuantities": {
-            "g05": 1
+            "g01": 1,
+            "g02": 1
           },
           "minimumCapacityByCategory": {
-            "g05": 1
+            "g01": 1,
+            "g02": 1
           },
           "requiredSignalsByCategory": {
-            "g05": [
+            "g01": [
               "s001"
+            ],
+            "g02": [
+              "s002"
             ]
           },
-          "maximumTotalCost": 61
+          "maximumTotalCost": 2
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
-            "category": "g05",
+            "unitCost": 1,
+            "category": "g01",
             "capacity": 1,
             "signals": [
               "s001"
@@ -14559,11 +14802,31 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
-            "category": "g05",
+            "unitCost": 11,
+            "category": "g01",
             "capacity": 1,
             "signals": [
               "s001"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-002",
+            "unitCost": 1,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-002",
+            "unitCost": 11,
+            "category": "g02",
+            "capacity": 1,
+            "signals": [
+              "s002"
             ],
             "maxQuantity": 1
           }
@@ -14574,21 +14837,33 @@
           {
             "componentId": "C-001",
             "quantity": 1
+          },
+          {
+            "componentId": "C-002",
+            "quantity": 1
           }
         ],
-        "minimumCost": 11
+        "minimumCost": 2
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring wind Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-TR-01] create one open medium room with exactly one exploring Delver who has positive stamina and room to move. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "C-001": {
-            "target": "delver",
-            "spec": "count=1;affinity=wind;motivation=exploring"
+            "target": "room",
+            "spec": "size=medium;count=1"
           },
           "X-001": {
+            "target": "room",
+            "spec": "size=medium;count=1"
+          },
+          "C-002": {
             "target": "delver",
-            "spec": "count=1;affinity=wind;motivation=exploring"
+            "spec": "count=1;id=delver_explorer;affinity=wind;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-002": {
+            "target": "delver",
+            "spec": "count=1;id=delver_explorer;affinity=wind;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -14681,31 +14956,36 @@
         "constraints": {
           "categoryQuantities": {
             "g01": 1,
+            "g02": 1,
             "g03": 1,
-            "g05": 1
+            "g04": 1
           },
           "minimumCapacityByCategory": {
             "g01": 1,
+            "g02": 1,
             "g03": 1,
-            "g05": 1
+            "g04": 1
           },
           "requiredSignalsByCategory": {
             "g01": [
               "s001"
             ],
-            "g03": [
+            "g02": [
               "s002"
             ],
-            "g05": [
+            "g03": [
               "s003"
+            ],
+            "g04": [
+              "s004"
             ]
           },
-          "maximumTotalCost": 86
+          "maximumTotalCost": 4
         },
         "components": [
           {
             "id": "C-001",
-            "unitCost": 11,
+            "unitCost": 1,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -14715,7 +14995,7 @@
           },
           {
             "id": "X-001",
-            "unitCost": 61,
+            "unitCost": 11,
             "category": "g01",
             "capacity": 1,
             "signals": [
@@ -14725,8 +15005,8 @@
           },
           {
             "id": "C-002",
-            "unitCost": 12,
-            "category": "g03",
+            "unitCost": 1,
+            "category": "g02",
             "capacity": 1,
             "signals": [
               "s002"
@@ -14735,8 +15015,8 @@
           },
           {
             "id": "X-002",
-            "unitCost": 62,
-            "category": "g03",
+            "unitCost": 11,
+            "category": "g02",
             "capacity": 1,
             "signals": [
               "s002"
@@ -14745,8 +15025,8 @@
           },
           {
             "id": "C-003",
-            "unitCost": 13,
-            "category": "g05",
+            "unitCost": 1,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s003"
@@ -14755,11 +15035,31 @@
           },
           {
             "id": "X-003",
-            "unitCost": 63,
-            "category": "g05",
+            "unitCost": 11,
+            "category": "g03",
             "capacity": 1,
             "signals": [
               "s003"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "C-004",
+            "unitCost": 1,
+            "category": "g04",
+            "capacity": 1,
+            "signals": [
+              "s004"
+            ],
+            "maxQuantity": 1
+          },
+          {
+            "id": "X-004",
+            "unitCost": 11,
+            "category": "g04",
+            "capacity": 1,
+            "signals": [
+              "s004"
             ],
             "maxQuantity": 1
           }
@@ -14778,39 +15078,49 @@
           {
             "componentId": "C-003",
             "quantity": 1
+          },
+          {
+            "componentId": "C-004",
+            "quantity": 1
           }
         ],
-        "minimumCost": 36
+        "minimumCost": 4
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a fire encounter where one Delver and one hazard each carry three fire emit stacks. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "fixedArgs": {
-          "dungeonAffinity": "fire"
-        },
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, for execution contract [EX-ST-05] create one open large room with exactly three uniquely identified random mobile actors, one Delver and two Wardens, each with positive stamina and several legal movement branches, and no hazards or resources. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "fixedArgs": {},
         "components": {
           "C-001": {
             "target": "room",
-            "spec": "size=medium;count=1"
+            "spec": "size=large;count=1"
           },
           "X-001": {
             "target": "room",
-            "spec": "size=medium;count=1"
+            "spec": "size=large;count=1"
           },
           "C-002": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=fire;expression=emit;stacks=3;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_replay_alpha;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-002": {
-            "target": "hazard",
-            "spec": "x=2;y=2;affinity=fire;expression=emit;stacks=3;blocking=false"
+            "target": "delver",
+            "spec": "count=1;id=delver_replay_alpha;affinity=water;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "C-003": {
-            "target": "delver",
-            "spec": "count=1;affinity=fire;motivation=attacking;affinities=fire:emit:3"
+            "target": "warden",
+            "spec": "count=1;id=warden_replay_beta;affinity=earth;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "X-003": {
-            "target": "delver",
-            "spec": "count=1;affinity=fire;motivation=attacking;affinities=fire:emit:3"
+            "target": "warden",
+            "spec": "count=1;id=warden_replay_beta;affinity=earth;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "C-004": {
+            "target": "warden",
+            "spec": "count=1;id=warden_replay_gamma;affinity=wind;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          },
+          "X-004": {
+            "target": "warden",
+            "spec": "count=1;id=warden_replay_gamma;affinity=wind;motivation=random;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }

@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "agent-kernel-generated-content-routes/v1",
+  "identity": {
+    "executionSuiteHash": "756dc1dbf706d76c05e19e5e7c9a2466f79ca4f083da87a5bbf390a8b32489d0",
+    "scenarioSetHash": "b0709b81a7d5bc889449dd2c0e48ea108af39afc9918d555e03b120f90b28add"
+  },
+  "routes": {
+    "EX-TR-01": {
+      "scenarioIndex": 79,
+      "repeat": 1
+    },
+    "EX-TR-02": {
+      "scenarioIndex": 75,
+      "repeat": 1
+    },
+    "EX-TR-03": {
+      "scenarioIndex": 8,
+      "repeat": 1
+    },
+    "EX-TR-04": {
+      "scenarioIndex": 78,
+      "repeat": 1
+    },
+    "EX-TR-05": {
+      "scenarioIndex": 6,
+      "repeat": 1
+    },
+    "EX-CB-01": {
+      "scenarioIndex": 9,
+      "repeat": 1
+    },
+    "EX-CB-02#neutral": {
+      "scenarioIndex": 27,
+      "repeat": 1
+    },
+    "EX-CB-02#advantaged": {
+      "scenarioIndex": 28,
+      "repeat": 1
+    },
+    "EX-CB-03": {
+      "scenarioIndex": 20,
+      "repeat": 1
+    },
+    "EX-CB-04": {
+      "scenarioIndex": 23,
+      "repeat": 1
+    },
+    "EX-CB-05": {
+      "scenarioIndex": 21,
+      "repeat": 1
+    },
+    "EX-HZ-01": {
+      "scenarioIndex": 4,
+      "repeat": 1
+    },
+    "EX-HZ-02": {
+      "scenarioIndex": 69,
+      "repeat": 1
+    },
+    "EX-HZ-03": {
+      "scenarioIndex": 70,
+      "repeat": 1
+    },
+    "EX-HZ-04": {
+      "scenarioIndex": 68,
+      "repeat": 1
+    },
+    "EX-HZ-05": {
+      "scenarioIndex": 17,
+      "repeat": 1
+    },
+    "EX-RS-01": {
+      "scenarioIndex": 65,
+      "repeat": 1
+    },
+    "EX-RS-02": {
+      "scenarioIndex": 66,
+      "repeat": 1
+    },
+    "EX-RS-03": {
+      "scenarioIndex": 67,
+      "repeat": 1
+    },
+    "EX-RS-04": {
+      "scenarioIndex": 16,
+      "repeat": 1
+    },
+    "EX-RS-05": {
+      "scenarioIndex": 26,
+      "repeat": 1
+    },
+    "EX-ST-01": {
+      "scenarioIndex": 25,
+      "repeat": 1
+    },
+    "EX-ST-02": {
+      "scenarioIndex": 22,
+      "repeat": 1
+    },
+    "EX-ST-03": {
+      "scenarioIndex": 24,
+      "repeat": 1
+    },
+    "EX-ST-04": {
+      "scenarioIndex": 30,
+      "repeat": 1
+    },
+    "EX-ST-05": {
+      "scenarioIndex": 81,
+      "repeat": 1
+    }
+  }
+}

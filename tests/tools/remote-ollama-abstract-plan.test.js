@@ -19,6 +19,10 @@ const {
 const ROOT = resolve(__dirname, "../..");
 const REMOTE_CONTROL_ROOT = join(ROOT, "tools/remote-ollama-control");
 const MAC_SCRIPT = join(REMOTE_CONTROL_ROOT, "scripts/remote-ollama-mac.js");
+const A4_EVIDENCE_ROOT = join(
+  REMOTE_CONTROL_ROOT,
+  "results/2026-08-15T18-00-00-000Z-a4-paired-qualification",
+);
 
 test("abstract planning catalog exposes a domain-neutral pilot with hidden mappings", () => {
   const catalog = loadAbstractPlanCatalog();
@@ -241,6 +245,41 @@ test("paired comparison metadata requires the same source catalog and model sett
     ...abstract,
     settings: { contextTokens: 65536, outputTokens: 4096 },
   }), /context\/output settings mismatch/);
+});
+
+test("A4 compact evidence preserves its source pin, complete pairs, and null canonical minimum", () => {
+  const result = JSON.parse(readFileSync(join(A4_EVIDENCE_ROOT, "result.json"), "utf8"));
+  const summary = readFileSync(join(A4_EVIDENCE_ROOT, "summary.md"), "utf8");
+
+  assert.equal(result.schemaVersion, "agent-kernel-a4-paired-qualification/v1");
+  assert.deepEqual(result.source, {
+    commit: "cd9019ff6b84f4a623242490a76c4ad57b240d3b",
+    tree: "7c2a2e6c53dc00927590926c9cca75950453d23b",
+  });
+  assert.equal(result.scenarioSets.content.count, 100);
+  assert.equal(result.scenarioSets.abstract.count, 100);
+  assert.deepEqual(Object.keys(result.configurations).sort(), ["dual", "primary"]);
+  assert.deepEqual(result.configurations.primary.settings, {
+    contextTokens: 32768, outputTokens: 4096,
+  });
+  assert.deepEqual(result.configurations.dual.settings, {
+    contextTokens: 65536, outputTokens: 32768,
+  });
+  assert.equal(result.configurations.primary.discovery.pairs, 100);
+  assert.equal(result.configurations.dual.discovery.pairs, 100);
+  assert.equal(result.qualification.minimumSuccessfulConfiguration, null);
+  assert.deepEqual(result.integrity, {
+    pairCoverage: 100,
+    sourceHashValidated: true,
+    settingsMatchedWithinPairs: true,
+    canonicalMappingValidated: true,
+    roomAffinityForbidden: true,
+    publicationPerformed: false,
+    standardService: "dual qwen3.5:27b on GPUs 0,1",
+  });
+  assert.match(summary, /Minimum qualifying canonical configuration: \*\*none\*\*/);
+  assert.match(summary, /Primary disagreements: 27/);
+  assert.match(summary, /Dual disagreements: 12/);
 });
 
 // ## TODO: Test Permutations

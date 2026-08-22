@@ -1,0 +1,59 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_initial_state_ex_tr_03",
+    "runId": "benchmark_ex_tr_03",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-configurator"
+  },
+  "simConfigRef": {
+    "id": "benchmark_sim_config_ex_tr_03",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "warden_patrol",
+      "kind": "ambulatory",
+      "position": {
+        "x": 4,
+        "y": 4
+      },
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "durability": {
+          "current": 5,
+          "max": 5,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "motivation": {
+        "kind": "patrolling"
+      },
+      "traits": {
+        "motivations": [
+          {
+            "kind": "patrolling",
+            "intensity": 1
+          }
+        ]
+      }
+    }
+  ]
+}

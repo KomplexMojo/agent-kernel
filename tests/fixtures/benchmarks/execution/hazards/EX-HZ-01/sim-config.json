@@ -1,0 +1,206 @@
+{
+  "schema": "agent-kernel/SimConfigArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_sim_config_ex_hz_01",
+    "runId": "benchmark_ex_hz_01",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-configurator"
+  },
+  "seed": 301,
+  "layout": {
+    "kind": "grid",
+    "data": {
+      "width": 9,
+      "height": 9,
+      "tiles": [
+        "#########",
+        "#.......#",
+        "#.......#",
+        "#...S...#",
+        "#.......#",
+        "#.......#",
+        "#.......#",
+        "#E......#",
+        "#########"
+      ],
+      "kinds": [
+        [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
+      ],
+      "legend": {
+        "#": {
+          "tile": "wall"
+        },
+        ".": {
+          "tile": "floor"
+        },
+        "S": {
+          "tile": "spawn"
+        },
+        "E": {
+          "tile": "exit"
+        },
+        "B": {
+          "tile": "barrier"
+        }
+      },
+      "render": {
+        "wall": "#",
+        "floor": ".",
+        "spawn": "S",
+        "exit": "E",
+        "actor": "@",
+        "barrier": "B"
+      },
+      "spawn": {
+        "x": 4,
+        "y": 3
+      },
+      "exit": {
+        "x": 1,
+        "y": 7
+      },
+      "bounds": "walls_block_movement",
+      "entryRoomId": "R1",
+      "exitRoomId": "R1",
+      "rooms": [
+        {
+          "id": "R1",
+          "x": 1,
+          "y": 1,
+          "width": 7,
+          "height": 7
+        }
+      ],
+      "connectivity": {
+        "rooms": 1,
+        "connectedRooms": 1,
+        "spawnReachable": true,
+        "exitReachable": true
+      },
+      "hazards": [
+        {
+          "id": "hazard_fire_emit",
+          "x": 4,
+          "y": 4,
+          "blocking": false,
+          "affinity": {
+            "kind": "fire",
+            "expression": "emit",
+            "stacks": 1
+          },
+          "vitals": {
+            "mana": {
+              "current": 12,
+              "max": 12,
+              "regen": 2
+            },
+            "durability": {
+              "current": 12,
+              "max": 12,
+              "regen": 0
+            }
+          }
+        }
+      ]
+    }
+  }
+}

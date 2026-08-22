@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { mkdtempSync, readFileSync } = require("node:fs");
+const { mkdirSync, mkdtempSync, readFileSync, writeFileSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 
@@ -15,6 +15,10 @@ const {
   executeContentGenMatrix,
 } = require("../../tools/remote-ollama-control/scripts/lib/ak-matrix");
 const { classifyExecutionOutcome } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
+const {
+  combineBenchmarkQualification,
+  createGeneratedBuildResolver,
+} = require("../../tools/remote-ollama-control/scripts/lib/execution-integration");
 
 const SCENARIOS = [
   { index: 1, title: "success", tier: "simple", expectedOutcome: "success" },
@@ -190,7 +194,96 @@ test("transport errors are infrastructure failures and abort without synthetic m
   assert.equal(records.length, 1, "the triggering infrastructure record is retained before abort");
 });
 
+function passingExecutionSchedule() {
+  return {
+    schemaVersion: "agent-kernel-execution-schedule/v1",
+    status: "completed",
+    identity: { executionSuiteHash: "execution-hash", evaluatorVersion: "evaluator-v2" },
+    scenarios: [{ scenarioId: "EX-TR-01", aggregate: { verdict: { qualifies: true } } }],
+  };
+}
+
+test("generated build handoff requires an explicit successful authoring artifact mapping", async () => {
+  const root = mkdtempSync(join(tmpdir(), "ak-generated-handoff-"));
+  const buildDir = join(root, "create");
+  mkdirSync(buildDir);
+  writeFileSync(join(buildDir, "sim-config.json"), "{}\n");
+  writeFileSync(join(buildDir, "initial-state.json"), "{}\n");
+  const records = [{
+    recordKind: "content_gen_attempt",
+    configurationId: "cheap-pass",
+    scenarioIndex: 1,
+    repeat: 1,
+    execSucceeded: true,
+    scenarioVerdict: { passed: true },
+    outDir: buildDir,
+  }];
+  const resolveBuild = createGeneratedBuildResolver({
+    records,
+    configurationId: "cheap-pass",
+    routes: { "EX-TR-01": { scenarioIndex: 1, repeat: 1 } },
+  });
+  assert.equal(await resolveBuild({ scenario: { id: "EX-TR-01" }, variant: null }), buildDir);
+  await assert.rejects(
+    () => resolveBuild({ scenario: { id: "EX-CB-02" }, variant: null }),
+    /explicit generated-content route/i,
+  );
+  const failedResolver = createGeneratedBuildResolver({
+    records: [{ ...records[0], execSucceeded: false }],
+    configurationId: "cheap-pass",
+    routes: { "EX-TR-01": { scenarioIndex: 1, repeat: 1 } },
+  });
+  await assert.rejects(
+    () => failedResolver({ scenario: { id: "EX-TR-01" }, variant: null }),
+    /successful authoring artifact/i,
+  );
+});
+
+test("combined minimum selection requires authoring, runtime, and generated execution verdicts", () => {
+  const authoring = aggregateContentGenResults(CONFIGURATIONS.flatMap((configuration) => (
+    Array.from({ length: 2 }, (_, repeatOffset) => SCENARIOS.map((scenario) => ({
+      configurationId: configuration.configurationId,
+      scenarioIndex: scenario.index,
+      scenarioTier: scenario.tier,
+      repeat: repeatOffset + 1,
+      toolCallProduced: true,
+      execSucceeded: scenario.expectedOutcome === "success",
+      scenarioVerdict: { passed: configuration.configurationId.endsWith("pass") },
+      score: configuration.configurationId.endsWith("pass") ? 80 : 20,
+    })))
+  )).flat(), { matrix: MATRIX, scenarioSet: SCENARIO_SET });
+  assert.equal(authoring.minimumSuccessfulConfiguration.configurationId, "cheap-pass");
+
+  const failedExecution = { ...passingExecutionSchedule(), status: "failed" };
+  const combined = combineBenchmarkQualification({
+    authoringResult: authoring,
+    runtimeExecution: passingExecutionSchedule(),
+    generatedExecutionByConfiguration: {
+      "cheap-pass": failedExecution,
+      "large-pass": passingExecutionSchedule(),
+      "large-fail": passingExecutionSchedule(),
+    },
+  });
+  assert.equal(combined.minimumSuccessfulConfiguration.configurationId, "large-pass");
+  assert.equal(combined.configurations.find((entry) => entry.configurationId === "cheap-pass")
+    .verdict.failedGates.includes("generated_execution"), true);
+  assert.equal(combined.configurations.find((entry) => entry.configurationId === "large-fail")
+    .verdict.failedGates.includes("authoring"), true);
+
+  const runtimeFailure = combineBenchmarkQualification({
+    authoringResult: authoring,
+    runtimeExecution: failedExecution,
+    generatedExecutionByConfiguration: { "cheap-pass": passingExecutionSchedule() },
+  });
+  assert.equal(runtimeFailure.minimumSuccessfulConfiguration, null);
+  assert.ok(runtimeFailure.configurations.every((entry) => (
+    entry.verdict.failedGates.includes("runtime_execution")
+  )));
+});
+
 // ## TODO: Test Permutations
 // - missing attempts inside a completed pass fail the completeness gate
 // - a score-only mathematical early stop preserves all completed-pass records
 // - equal resource tuples use configuration id as the deterministic final tie-breaker
+// - a variant-specific route cannot fall back to a different generated authoring artifact
+// - missing generated execution evidence fails closed for an otherwise qualifying configuration

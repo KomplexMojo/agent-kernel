@@ -1,0 +1,109 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "benchmark_ex_rs_05_initial_state",
+    "runId": "benchmark_ex_rs_05",
+    "createdAt": "2026-08-21T00:00:00.000Z",
+    "producedBy": "cli-build"
+  },
+  "simConfigRef": {
+    "id": "benchmark_ex_rs_05_sim_config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "delver_permanent_affinity_subject-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 4,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 16,
+          "max": 16,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 20,
+          "max": 20,
+          "regen": 2
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
+        }
+      },
+      "archetype": "delver",
+      "role": "delver",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        },
+        "motivations": [
+          {
+            "kind": "attacking",
+            "intensity": 1
+          }
+        ]
+      },
+      "motivation": {
+        "kind": "attacking"
+      }
+    },
+    {
+      "id": "warden_permanent_affinity_subject-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 3,
+        "y": 4
+      },
+      "vitals": {
+        "health": {
+          "current": 20,
+          "max": 20,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 20,
+          "max": 20,
+          "regen": 2
+        },
+        "durability": {
+          "current": 5,
+          "max": 5,
+          "regen": 0
+        }
+      },
+      "archetype": "warden",
+      "role": "warden",
+      "traits": {
+        "affinities": {
+          "fire": 1
+        },
+        "motivations": [
+          {
+            "kind": "attacking",
+            "intensity": 1
+          }
+        ]
+      },
+      "motivation": {
+        "kind": "attacking"
+      }
+    }
+  ]
+}
