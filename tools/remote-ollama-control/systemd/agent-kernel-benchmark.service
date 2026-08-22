@@ -1,0 +1,15 @@
+[Unit]
+Description=Agent Kernel benchmark poll and qualification
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-%h/.config/agent-kernel-benchmark/benchmark-agent.env
+ExecStart=%h/bin/agent-kernel-benchmark --service
+WorkingDirectory=%h/remote-ollama-control
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target

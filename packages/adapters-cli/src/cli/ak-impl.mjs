@@ -19,6 +19,7 @@ import {
   buildBuildManifestEntries,
   collectBuildOutputArtifactRecords,
   createCommandKernel,
+  normalizeWorldStateCheckpoints,
 } from "../../../runtime/src/commands/kernel.js";
 import { orchestrateBuild } from "../../../runtime/src/build/orchestrate-build.js";
 import { attachMixedRoomAssembliesToBuildResult } from "../../../runtime/src/build/authoring-build.js";
@@ -155,7 +156,7 @@ function usage() {
   node ${rel} schemas [--out-dir dir]
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
   node ${rel} workflow <run|status|replay|cancel|validate> [--objective text | --input path] [--out-dir dir] [--policy path] [--runtime-profile path] [--dry-run]
-  node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--progress] [--dry-run]
+  node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--world-state-checkpoints ticks] [--seed N] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--progress] [--dry-run]
   node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
   node ${rel} budget --budget path [--price-list path] [--receipt path] [--out-dir dir] [--out path] [--receipt-out path]
   node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--out-dir dir]
@@ -185,6 +186,7 @@ Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
   --out           Output file path (command-specific default when omitted)
   --ticks         Number of ticks for run/replay (default: ${DEFAULT_TICKS})
+  --world-state-checkpoints  Comma-separated ticks to persist as WorldStateArtifact v2 files (run only)
   --seed          Seed for init (default: 0)
   --solver-fixture Fixture path for solve command (no network)
   --actor         Actor spec: id,x,y,kind (kind: motivated/ambulatory/stationary)
@@ -1034,7 +1036,7 @@ function parseHazardSpec(value, hazardIndex) {
   if (!raw) {
     throw new Error(`hazard[${hazardIndex}] requires a non-empty spec.`);
   }
-  const allowedFields = new Set(["id", "affinity", "expression", "stacks", "proximityRadius", "mana", "durability"]);
+  const allowedFields = new Set(["id", "affinity", "expression", "stacks", "proximityRadius", "blocking", "mana", "durability"]);
   const fields = new Map();
   const segments = raw.split(";").map((s) => s.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1079,6 +1081,9 @@ function parseHazardSpec(value, hazardIndex) {
     durability: fields.has("durability")
       ? parseHazardVitalSpec(fields.get("durability"), "durability", hazardIndex)
       : undefined,
+    blocking: fields.has("blocking")
+      ? parseBooleanStrict(fields.get("blocking"), `hazard[${hazardIndex}] blocking`)
+      : undefined,
   });
 }
 
@@ -1097,7 +1102,7 @@ function parseHazardSpecs(rawHazards) {
 
 function parseAuthoringHazardSpec(value, hazardIndex) {
   const raw = String(value || "").trim();
-  const hasPlacementFields = /(?:^|;)\s*(?:x|y|blocking|vitals)\s*=/i.test(raw);
+  const hasPlacementFields = /(?:^|;)\s*(?:x|y|vitals)\s*=/i.test(raw);
   return hasPlacementFields
     ? canonicalizePlacedHazard(parsePlacedHazardSpec(raw, hazardIndex), hazardIndex)
     : parseHazardSpec(raw, hazardIndex);
@@ -3023,6 +3028,10 @@ function isLlmBudgetLoopEnabled() {
   return value === "1" || value === "true";
 }
 
+function isRealZ3SolverEnabled() {
+  return process.env.AK_SOLVER_ENGINE === "z3-real";
+}
+
 function isLocalBaseUrl(raw) {
   if (!isNonEmptyString(raw)) {
     return false;
@@ -3923,6 +3932,7 @@ async function validateRunDryRun(args) {
   if (!Number.isFinite(ticks) || ticks < 0) {
     throw new Error("run requires a valid --ticks value.");
   }
+  const worldStateCheckpoints = normalizeWorldStateCheckpoints(args["world-state-checkpoints"], { ticks });
   if (!Number.isFinite(seed)) {
     throw new Error("run requires a valid --seed value.");
   }
@@ -3991,6 +4001,7 @@ async function validateRunDryRun(args) {
     roomIds: deriveRoomIds(resolvedSimConfig),
     extra: {
       ticks,
+      worldStateCheckpoints,
     },
   });
 }
@@ -4436,6 +4447,10 @@ const commandKernel = createCommandKernel({
   createBlockchainAdapter,
   createLlmAdapter,
   createSolverAdapter: async (options) => {
+    if (isRealZ3SolverEnabled()) {
+      const { createRealZ3SolverAdapter } = await import("../adapters/z3/index.js");
+      return createRealZ3SolverAdapter(options);
+    }
     const { createSolverAdapter } = await import("../adapters/solver-z3/index.js");
     return createSolverAdapter(options);
   },

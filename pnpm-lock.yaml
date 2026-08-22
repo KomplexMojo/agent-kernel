@@ -48,10 +48,17 @@ importers:
       ws:
         specifier: ^8.21.0
         version: 8.21.0
+      z3-solver:
+        specifier: ^5.1.0
+        version: 5.1.0
 
   packages/adapters-test: {}
 
-  packages/adapters-web: {}
+  packages/adapters-web:
+    dependencies:
+      z3-solver:
+        specifier: ^5.1.0
+        version: 5.1.0
 
   packages/core-ts: {}
 
@@ -884,6 +891,9 @@ packages:
 
   ast-v8-to-istanbul@0.3.12:
     resolution: {integrity: sha512-BRRC8VRZY2R4Z4lFIL35MwNXmwVqBityvOIwETtsCSwvjl0IdgFsy9NhdaA6j74nUdtJJlIypeRhpDam19Wq3g==}
+
+  async-mutex@0.3.2:
+    resolution: {integrity: sha512-HuTK7E7MT7jZEh1P9GtRW9+aTWiDWWi9InbZ5hjxrnRa39KS4BW04+xLBhYNS2aXhHUIKZSw3gj4Pn1pj+qGAA==}
 
   atomic-sleep@1.0.0:
     resolution: {integrity: sha512-kNOjDqAh7px0XWNI+4QbzoiR/nTkHAWNud2uvnJquD1/x5a7EQZMJT0AczqK0Qn67oY/TTQ1LbUKajZpp3I9tQ==}
@@ -2854,6 +2864,10 @@ packages:
     resolution: {integrity: sha512-Ux4ygGWsu2c7isFWe8Yu1YluJmqVhxqK2cLXNQA5AcC3QfbGNpM7fu0Y8b/z16pXLnFxZYvWhd3fhBY9DLmC6Q==}
     engines: {node: '>=6'}
 
+  z3-solver@5.1.0:
+    resolution: {integrity: sha512-U5tXTwtJKnBfqmAx152fkHXN2kh0oT5X3zCUmMAPBu/7OPUEAYADnxJXQKs3nXxU/7GcEUbUpXeM3g1i5U5sqA==}
+    engines: {node: '>=16'}
+
   zod-to-json-schema@3.25.2:
     resolution: {integrity: sha512-O/PgfnpT1xKSDeQYSCfRI5Gy3hPf91mKVDuYLUHZJMiDFptvP41MSnWofm8dnCm0256ZNfZIM7DSzuSMAFnjHA==}
     peerDependencies:
@@ -3635,6 +3649,10 @@ snapshots:
       '@jridgewell/trace-mapping': 0.3.31
       estree-walker: 3.0.3
       js-tokens: 10.0.0
+
+  async-mutex@0.3.2:
+    dependencies:
+      tslib: 2.8.1
 
   atomic-sleep@1.0.0: {}
 
@@ -5709,6 +5727,10 @@ snapshots:
       fd-slicer: 1.1.0
 
   yn@3.1.1: {}
+
+  z3-solver@5.1.0:
+    dependencies:
+      async-mutex: 0.3.2
 
   zod-to-json-schema@3.25.2(zod@4.3.6):
     dependencies:

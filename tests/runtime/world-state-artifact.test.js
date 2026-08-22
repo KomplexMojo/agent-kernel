@@ -107,7 +107,7 @@ test("captureWorldState records every actor's final position, matching core exac
   const snapshot = runtime.captureWorldState({ meta: META });
 
   assert.equal(snapshot.schema, "agent-kernel/WorldStateArtifact");
-  assert.equal(snapshot.schemaVersion, 1);
+  assert.equal(snapshot.schemaVersion, 2);
   assert.equal(snapshot.tick, TICKS, "the snapshot's tick must be the run's tick");
   assert.equal(snapshot.actors.length, initialState.actors.length);
 

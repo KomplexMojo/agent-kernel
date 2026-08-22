@@ -21,7 +21,12 @@ import {
   ValidationError,
 } from "../../../core-ts/src/index.ts";
 import { scopeObservation } from "../../../core-ts/src/state/visibility.ts";
-import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../contracts/domain-constants.js";
+import {
+  AFFINITY_EXPRESSIONS,
+  AFFINITY_KINDS,
+  AFFINITY_OPPOSITES,
+  resolveActorFaction,
+} from "../contracts/domain-constants.js";
 import { computeAuraMap, serializeAuraMap } from "../render/affinity-aura.js";
 import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../contracts/affinity-spatial-rules.js";
 import {
@@ -226,10 +231,38 @@ function resolveBaseTiles(simConfig, core) {
   return null;
 }
 
-function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layoutHazards = [], actorIds = []) {
+function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layoutHazards = [], actorIds = [], initialState = null) {
   if (!core || !canReadObservation(core)) return null;
   try {
     const observation = readObservation(core, { actorIdLabel, affinityEffects, actorIds });
+
+    // DS.1 — attach each actor's faction, which core cannot supply.
+    //
+    // `core-ts` has no concept of role (no `getMotivatedActorRole`, nothing);
+    // faction is a config-level idea, so the snapshot core builds carries none.
+    // The Actor's hostility rule reads `role`, so without this enrichment every
+    // actor's role is `undefined` in a real run, every pair falls through to
+    // DS.2's unknown-role fail-safe, and delvers keep attacking delvers while
+    // the persona suite stays green.
+    //
+    // Same shape as the hazard-vitals enrichment directly below: config data the
+    // observation needs and core does not hold. An existing role is never
+    // overwritten, so a hand-built observation stays authoritative over config.
+    if (observation && Array.isArray(observation.actors) && Array.isArray(initialState?.actors)) {
+      const factionById = new Map();
+      initialState.actors.forEach((configActor) => {
+        if (!configActor?.id) return;
+        const faction = resolveActorFaction(configActor);
+        if (faction) factionById.set(configActor.id, faction);
+      });
+      if (factionById.size > 0) {
+        observation.actors = observation.actors.map((actor) => {
+          if (!actor?.id || actor.role) return actor;
+          const faction = factionById.get(actor.id);
+          return faction ? { ...actor, role: faction } : actor;
+        });
+      }
+    }
 
     // Enrich observation hazards with full vitals from layout
     if (observation && Array.isArray(observation.hazards) && Array.isArray(layoutHazards)) {
@@ -1569,7 +1602,7 @@ export function createFsmRuntime({
       const decideActorIds = Array.isArray(initialState?.actors)
         ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id))
         : sortedActorIds;
-      const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutHazards, sortedActorIds);
+      const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutHazards, sortedActorIds, initialState);
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
         observation,

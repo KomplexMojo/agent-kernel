@@ -1,0 +1,400 @@
+{
+  "schemaVersion": "agent-kernel-execution-catalog/v1",
+  "family": "traversal",
+  "scenarios": [
+    {
+      "id": "EX-TR-01",
+      "title": "Single explorer movement",
+      "family": "traversal",
+      "setup": "One random/exploring delver in one open medium room.",
+      "profile": "short_v1",
+      "invariants": [
+        "run_completed",
+        "tick_monotonicity",
+        "actor_legality",
+        "artifact_reconciliation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-TR-01-G01",
+          "description": "actor acts by tick 10",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "first_action_tick",
+            "operator": "max",
+            "threshold": 10,
+            "unit": "ticks"
+          }
+        },
+        {
+          "id": "EX-TR-01-G02",
+          "description": "at least one legal move per seed",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "accepted_move_count",
+            "operator": "min",
+            "threshold": 1,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-TR-01-G03",
+          "description": "no progress stall longer than 20 ticks",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "max_progress_stall",
+            "operator": "max",
+            "threshold": 20,
+            "unit": "ticks"
+          }
+        }
+      ],
+      "objectives": {
+        "unique_tile_coverage": {
+          "weight": 45,
+          "evidence": "artifact"
+        },
+        "active_tick_ratio": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "no_stall_margin": {
+          "weight": 20,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "active_tick_ratio": {
+          "direction": "min",
+          "value": 0.2,
+          "unit": "ratio",
+          "evidence": "artifact"
+        },
+        "no_stall_margin": {
+          "direction": "max",
+          "value": 20,
+          "unit": "ticks",
+          "evidence": "artifact"
+        }
+      }
+    },
+    {
+      "id": "EX-TR-02",
+      "title": "Three-room exploration",
+      "family": "traversal",
+      "setup": "One exploring delver spawns in the first of three connected rooms.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "tick_monotonicity",
+        "actor_legality",
+        "artifact_reconciliation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-TR-02-G01",
+          "description": "enter at least two declared room bounds in four of five seeds",
+          "scope": "aggregate",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "visited_room_count",
+            "operator": "rate",
+            "threshold": 0.8,
+            "unit": "count",
+            "denominator": "seeds",
+            "condition": {
+              "operator": "min",
+              "threshold": 2
+            }
+          }
+        },
+        {
+          "id": "EX-TR-02-G02",
+          "description": "never leave walkable tiles",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "invariant",
+            "ref": "actor_legality",
+            "operator": "exact",
+            "threshold": true
+          }
+        }
+      ],
+      "objectives": {
+        "room_coverage": {
+          "weight": 45,
+          "evidence": "artifact"
+        },
+        "unique_tile_coverage": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "checkpoint_progress": {
+          "weight": 20,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "room_coverage": {
+          "direction": "min",
+          "value": 0.67,
+          "unit": "ratio",
+          "evidence": "artifact"
+        }
+      }
+    },
+    {
+      "id": "EX-TR-03",
+      "title": "Warden patrol recurrence",
+      "family": "traversal",
+      "setup": "One patrolling warden in a two-room corridor loop.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "tick_monotonicity",
+        "actor_legality",
+        "participation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-TR-03-G01",
+          "description": "warden moves",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "movement_count",
+            "operator": "min",
+            "threshold": 1,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-TR-03-G02",
+          "description": "warden revisits a prior patrol region",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "patrol_recurrence",
+            "operator": "min",
+            "threshold": 1,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-TR-03-G03",
+          "description": "no permanent stall",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "max_progress_stall",
+            "operator": "max",
+            "threshold": 99,
+            "unit": "ticks"
+          }
+        }
+      ],
+      "objectives": {
+        "room_coverage": {
+          "weight": 40,
+          "evidence": "artifact"
+        },
+        "patrol_recurrence": {
+          "weight": 30,
+          "evidence": "artifact"
+        },
+        "active_tick_ratio": {
+          "weight": 20,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "patrol_recurrence": {
+          "direction": "min",
+          "value": 1,
+          "unit": "count",
+          "evidence": "artifact"
+        }
+      }
+    },
+    {
+      "id": "EX-TR-04",
+      "title": "Stationary negative mobility control",
+      "family": "traversal",
+      "setup": "One stationary warden in an open room.",
+      "profile": "short_v1",
+      "invariants": [
+        "run_completed",
+        "tick_monotonicity",
+        "stationary_fidelity",
+        "participation"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-TR-04-G01",
+          "description": "exactly zero accepted moves",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "accepted_move_count",
+            "operator": "exact",
+            "threshold": 0,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-TR-04-G02",
+          "description": "decide or wait evidence exists",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "decision_count",
+            "operator": "min",
+            "threshold": 1,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-TR-04-G03",
+          "description": "position remains unchanged",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "stationary_fidelity",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        }
+      ],
+      "objectives": {
+        "stationary_fidelity": {
+          "weight": 60,
+          "evidence": "artifact"
+        },
+        "participation": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 15,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "stationary_fidelity": {
+          "direction": "exact",
+          "value": 1,
+          "unit": "ratio",
+          "evidence": "artifact"
+        }
+      }
+    },
+    {
+      "id": "EX-TR-05",
+      "title": "Mixed motivation traversal",
+      "family": "traversal",
+      "setup": "Exploring, patrolling, random, and stationary actors span three rooms.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "actor_legality",
+        "participation",
+        "stationary_fidelity",
+        "unique_actor_ids"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-TR-05-G01",
+          "description": "every mobile actor acts",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "roster_fairness",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-TR-05-G02",
+          "description": "stationary actor never moves",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "stationary_fidelity",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-TR-05-G03",
+          "description": "no actor starves longer than 25 ticks",
+          "scope": "seed",
+          "evidence": "artifact",
+          "predicate": {
+            "source": "metric",
+            "ref": "max_actor_starvation",
+            "operator": "max",
+            "threshold": 25,
+            "unit": "ticks"
+          }
+        }
+      ],
+      "objectives": {
+        "roster_fairness": {
+          "weight": 30,
+          "evidence": "artifact"
+        },
+        "spatial_progress": {
+          "weight": 30,
+          "evidence": "artifact"
+        },
+        "motivation_fidelity": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "behavioral_diversity": {
+          "weight": 15,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "roster_fairness": {
+          "direction": "min",
+          "value": 0.8,
+          "unit": "ratio",
+          "evidence": "artifact"
+        }
+      }
+    }
+  ]
+}

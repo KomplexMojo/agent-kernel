@@ -99,17 +99,18 @@ function normalizeEntitySpec(key, spec) {
     if (out.stat && typeof out.stat === 'string') {
       out.stat = STAT_ALIASES[out.stat.toLowerCase()] ?? out.stat;
     }
-    // Strip unsupported resource fields (vitals, affinities, goals, kind)
-    for (const f of ['vitals', 'affinities', 'goals', 'kind', 'affinity']) {
+    // Strip unsupported aggregate/model-invented fields. The canonical V3
+    // affinity field is deliberately retained for temporary/permanent grants.
+    for (const f of ['vitals', 'affinities', 'goals', 'kind']) {
       delete out[f];
     }
   }
 
-  // Strip model-invented fields that hazards don't support. Coordinates and
-  // blocking are stripped too: benchmark hazards are proximity-based, which
-  // makes the old trap_outside_room failure class structurally impossible.
+  // Strip model-invented fields that hazards don't support. Coordinates are
+  // stripped because benchmark hazards are proximity-based. Blocking is a
+  // supported execution-semantic input and must survive generated authoring.
   if (key === 'hazard') {
-    for (const f of ['manaDrain', 'healthDrain', 'staminaDrain', 'damage', 'effect', 'duration', 'x', 'y', 'blocking', 'vitals']) {
+    for (const f of ['manaDrain', 'healthDrain', 'staminaDrain', 'damage', 'effect', 'duration', 'x', 'y', 'vitals']) {
       delete out[f];
     }
     if (out.proximityRadius == null) {
@@ -132,7 +133,18 @@ function normalizeToolArgs(toolArgs) {
 
 // ---------------------------------------------------------------------------
 
-async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutMs = 600000) {
+function classifyExecutionOutcome(runResult) {
+  if (runResult?.llmError || runResult?.execResult?.timedOut) return 'infrastructure_error';
+  if (!runResult?.toolCallProduced) return 'model_failure';
+  if (runResult.execResult?.succeeded) return 'success';
+  const message = `${runResult.execResult?.stdout || ''}\n${runResult.execResult?.stderr || ''}`;
+  if (/budget[^\n]*(denied|exceeded|insufficient)|requested[^\n]*available/i.test(message)) {
+    return 'budget_denied';
+  }
+  return 'execution_failed';
+}
+
+async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutMs = 600000, settings = {}) {
   const { buildArgv, authoringSpec } = await getMcpBuildTools();
 
   const constrained = scenario.budgetMode === 'constrained' && Number.isInteger(scenario.budget);
@@ -160,8 +172,9 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
     temperature: 0.1,
     // Output-length cap for the LLM call — unrelated to the authoring budget.
     // Constrained scenarios are minimal specs; unconstrained ones can get large.
-    max_tokens: constrained ? 4096 : 8192
+    max_tokens: settings.outputTokens || (constrained ? 4096 : 8192)
   };
+  if (settings.contextTokens) chatBody.options = { num_ctx: settings.contextTokens };
 
   const llmStarted = Date.now();
   let chatResponse;
@@ -245,4 +258,4 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   };
 }
 
-module.exports = { normalizeToolArgs, runScenario, AK_CLI, REPO_ROOT };
+module.exports = { classifyExecutionOutcome, normalizeToolArgs, runScenario, AK_CLI, REPO_ROOT };

@@ -1,6 +1,8 @@
 # Agent Kernel MCP Benchmark Suite
 
-54 `ak_create` scenarios used to compare how different LLMs / reasoning levels drive the
+Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`)
+
+100 `ak_create` scenarios used to compare how different LLMs / reasoning levels drive the
 agent-kernel skill + MCP tools, and to detect drift between the documented baselines and the
 current CLI / MCP implementation.
 
@@ -11,21 +13,35 @@ This directory holds the **tracked harness**. The bulky generated output (scenar
 
 | File | Role |
 |---|---|
-| `generate-baselines.mjs` | Drives `ak.mjs create` for all 54 scenarios; renders notes, `Index.md`, and `Reference Artifacts/**`. |
-| `validate-benchmark.mjs` | Re-runs every scenario through **both** the CLI and a live `ak_create` MCP server, checks the full artifact set, and verifies CLI↔MCP byte-stable parity. Continues on failure; exits non-zero if any check fails. |
+| `generate-baselines.mjs` | Loads the canonical Git catalog, verifies all 100 declared outcomes through `ak.mjs create`, and renders notes, `Index.md`, and `Reference Artifacts/**`. |
+| `validate-benchmark.mjs` | Loads all 100 scenarios directly from the canonical catalog, re-runs each through **both** the CLI and a live `ak_create` MCP server, and verifies expected-outcome plus artifact parity. |
 | `out/` | Generated output (git-ignored). |
 
 ## Quick start
 
 ```bash
-# Regenerate all 54 baselines into tools/benchmark/out/
-pnpm benchmark:mcp:generate
+# Regenerate all 100 baselines into tools/benchmark/out/
+node tools/benchmark/generate-baselines.mjs
 
 # Validate CLI + MCP + parity for every scenario (writes out/Validation/validation-summary.md)
-pnpm benchmark:mcp:validate
+node tools/benchmark/validate-benchmark.mjs
 ```
 
-Both commands run from the repo root and discover the repo via `process.cwd()`.
+Both commands run from the repo root and discover the repo via `process.cwd()`. Validation does not
+require generated notes or reference directories: it reads Git data directly, gives successful
+scenarios isolated CLI/MCP output directories, requires all expected artifacts to have canonical
+JSON parity,
+and treats a non-zero result as passing only when both surfaces return the catalog's declared
+`budget_denied` class.
+
+## Consuming unattended results
+
+The Git-owned catalogs and deterministic validation live on the source branch. The unattended GPU
+runner publishes only compact, source-pinned JSON on `benchmark-results`: `latest.json` is the latest
+attempt, including infrastructure failures, while `latest-success.json` is the last qualifying run.
+Use `scripts/lib/benchmark-result-reader.js` as documented in the remote-control README; it validates
+the publication schema and current catalog/matrix hashes before returning evidence. Never substitute
+raw local result directories for published evidence when another agent needs a reproducible baseline.
 
 ## Configuration (env vars)
 
@@ -33,6 +49,7 @@ Both commands run from the repo root and discover the repo via `process.cwd()`.
 |---|---|---|
 | `AK_BENCHMARK_OUTPUT_DIR` | `tools/benchmark/out` | Where notes + artifacts are written / read. |
 | `AGENT_KERNEL_ROOT` | `process.cwd()` | Repo root (CLI + MCP server paths). |
+| `AK_BENCHMARK_UPDATE_CATALOG` | _unset_ | Set to `1` to refresh compact reference metrics after all declared outcomes pass. |
 | `AK_BENCHMARK_VAULT_PREFIX` | `…/agent-kernel-vault` | Path prefix the generator refuses to write to by default. |
 | `AK_BENCHMARK_ALLOW_VAULT_WRITE` | _unset_ | Set to `1` to allow writing under the vault prefix (only outside a write-restricted sandbox). |
 
@@ -45,21 +62,16 @@ vault, so regenerate into the vault only from an unsandboxed host:
 ```bash
 AK_BENCHMARK_OUTPUT_DIR="/Users/darren/Documents/Obsidian/agent-kernel-vault/Sample Calls to agent-kernel MCP and Results" \
 AK_BENCHMARK_ALLOW_VAULT_WRITE=1 \
-pnpm benchmark:mcp:generate
+node tools/benchmark/generate-baselines.mjs
 ```
 
-## Notes on current-code normalization
+## Catalog authoring
 
-The generator normalizes a few authored specs to stay valid under the current `create` surface and
-records each normalization in the affected scenario note:
-
-- Room `affinities=` fields are no longer accepted → converted to hazards (or dropped when explicit
-  hazard objects already carry the affinity pressure).
-- `size=small` rooms containing hazards are upgraded to `medium`.
-- `blocking=true` hazards are emitted as `blocking=false` (see `REMEDIATION_PLAN.md` deficiency #4).
-
-When the deficiencies in `REMEDIATION_PLAN.md` are fixed, remove the corresponding normalization so
-the benchmark again exercises the original authored intent.
+The canonical payloads under `tools/remote-ollama-control/benchmarks/content-gen/` already conform
+to the current `ak_create` surface. The generator does not silently normalize them: an invalid
+payload or mismatched expected outcome stops generation. After an intentional source or catalog
+change, regenerate into a temporary directory with `AK_BENCHMARK_UPDATE_CATALOG=1`, review the
+reference diff and new scenario-set hash, then run validation.
 
 ## Known deficiencies surfaced by this suite
 

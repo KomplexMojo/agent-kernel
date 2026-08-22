@@ -287,10 +287,19 @@ enough that they cannot be run as part of development.
 
 Benchmarking is distinct from testing. Tests verify correctness; benchmarks verify that the LLM tool-call surface holds up under permutation load and budget stress. **Only the first of those is an agent's job.**
 
+Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`)
+
 - **Never run a benchmark from a session**, and never schedule work around one.
 - **Nothing is "benchmark-gated"** — no milestone, decision, PR or merge waits on a result.
-- **Pass bars and baselines belong to the nightly tool.** Do not treat them as merge conditions, and do not quote a historical number as a baseline; the tool owns baselining.
-- Results are **offline evidence** (charter: they "cannot rewrite routing policy without an explicit, versioned promotion"). A nightly regression is a signal to read and investigate, not a deliverable to produce.
+- **Read before running.** Fetch `benchmark-results`, then use `benchmark-result-reader.js` with
+  `latest_attempt` for current health or `latest_success` for the last qualifying baseline. The
+  reader rejects stale scenario or matrix identities.
+- **Pass bars and baselines belong to the standalone tool.** Do not treat them as merge conditions,
+  and do not quote a historical number as a baseline without its source commit and hashes.
+- Compact structured evidence is committed only to `benchmark-results`; raw prompts, generations,
+  artifacts, and telemetry remain local. Result-branch commits cannot trigger source benchmarks.
+- Results are **offline evidence** (charter: they "cannot rewrite routing policy without an explicit,
+  versioned promotion"). A regression is a signal to read and investigate, not routing policy.
 - **The one obligation:** if a change touches the `ak_create` tool schema, `buildArgv`, entity normalization, or CLI arg mapping, say so in the commit message so a nightly result can be attributed to it.
 
 ## Large-change artifacts

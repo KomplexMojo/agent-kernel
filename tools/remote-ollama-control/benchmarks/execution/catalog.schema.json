@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-kernel.local/schemas/execution-catalog-v1.json",
+  "title": "Agent Kernel execution benchmark family catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "family", "scenarios"],
+  "properties": {
+    "schemaVersion": { "const": "agent-kernel-execution-catalog/v1" },
+    "family": { "enum": ["traversal", "combat", "hazards", "resources", "stress"] },
+    "scenarios": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": { "$ref": "#/$defs/scenario" }
+    }
+  },
+  "$defs": {
+    "evidence": { "enum": ["artifact", "observation"] },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "family", "setup", "profile", "invariants", "requiredGates", "objectives", "thresholds"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^EX-[A-Z]{2}-[0-9]{2}$" },
+        "title": { "type": "string", "minLength": 1 },
+        "family": { "enum": ["traversal", "combat", "hazards", "resources", "stress"] },
+        "setup": { "type": "string", "minLength": 1 },
+        "profile": { "type": "string", "minLength": 1 },
+        "invariants": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "requiredGates": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/gate" } },
+        "objectives": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["weight", "evidence"],
+            "properties": { "weight": { "type": "integer", "minimum": 1, "maximum": 100 }, "evidence": { "$ref": "#/$defs/evidence" } }
+          }
+        },
+        "thresholds": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["direction", "value", "unit", "evidence"],
+            "properties": {
+              "direction": { "enum": ["min", "max", "range", "exact", "relational"] },
+              "value": {},
+              "unit": { "type": "string", "minLength": 1 },
+              "evidence": { "$ref": "#/$defs/evidence" }
+            }
+          }
+        }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "description", "scope", "evidence", "predicate"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^EX-[A-Z]{2}-[0-9]{2}-G[0-9]{2}$" },
+        "description": { "type": "string", "minLength": 1 },
+        "scope": { "enum": ["seed", "aggregate", "paired_variant", "replay"] },
+        "evidence": { "$ref": "#/$defs/evidence" },
+        "predicate": { "$ref": "#/$defs/gatePredicate" }
+      }
+    },
+    "gatePredicate": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["operator", "predicates"],
+          "properties": {
+            "operator": { "enum": ["all", "any"] },
+            "predicates": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/gatePredicate" } }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "ref", "operator", "threshold"],
+          "properties": {
+            "source": { "const": "invariant" },
+            "ref": { "type": "string", "minLength": 1 },
+            "operator": { "const": "exact" },
+            "threshold": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "ref", "operator", "threshold", "unit"],
+          "oneOf": [
+            {
+              "properties": {
+                "operator": { "enum": ["min", "max", "exact"] },
+                "threshold": { "type": "number" }
+              },
+              "not": { "anyOf": [{ "required": ["denominator"] }, { "required": ["condition"] }] }
+            },
+            {
+              "properties": {
+                "operator": { "const": "range" },
+                "threshold": {
+                  "type": "array", "minItems": 2, "maxItems": 2,
+                  "items": { "type": "number" }
+                }
+              },
+              "not": { "anyOf": [{ "required": ["denominator"] }, { "required": ["condition"] }] }
+            },
+            {
+              "required": ["baselineVariant", "candidateVariant"],
+              "properties": {
+                "operator": { "const": "changed_in_direction" },
+                "threshold": { "enum": ["increase", "decrease"] }
+              },
+              "not": { "anyOf": [{ "required": ["denominator"] }, { "required": ["condition"] }] }
+            },
+            {
+              "required": ["denominator", "condition"],
+              "properties": {
+                "operator": { "const": "rate" },
+                "threshold": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            }
+          ],
+          "properties": {
+            "source": { "const": "metric" },
+            "ref": { "type": "string", "minLength": 1 },
+            "operator": { "enum": ["min", "max", "exact", "range", "changed_in_direction", "rate"] },
+            "threshold": {},
+            "unit": { "type": "string", "minLength": 1 },
+            "denominator": { "enum": ["seeds", "repeats", "variants"] },
+            "baselineVariant": { "type": "string", "minLength": 1 },
+            "candidateVariant": { "type": "string", "minLength": 1 },
+            "condition": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["operator", "threshold"],
+              "oneOf": [
+                {
+                  "properties": {
+                    "operator": { "enum": ["min", "max", "exact"] },
+                    "threshold": { "type": "number" }
+                  }
+                },
+                {
+                  "properties": {
+                    "operator": { "const": "range" },
+                    "threshold": {
+                      "type": "array", "minItems": 2, "maxItems": 2,
+                      "items": { "type": "number" }
+                    }
+                  }
+                }
+              ],
+              "properties": {
+                "operator": { "enum": ["min", "max", "exact", "range"] },
+                "threshold": {
+                  "oneOf": [
+                    { "type": "number" },
+                    { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number" } }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agent-kernel.local/schemas/content-gen-catalog-v1.json",
+  "title": "Agent Kernel content-generation benchmark catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "tier", "scenarios"],
+  "properties": {
+    "schemaVersion": {
+      "const": "agent-kernel-content-gen-catalog/v1"
+    },
+    "tier": {
+      "enum": ["simple", "affinity", "complex", "constrained"]
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/scenario"
+      }
+    }
+  },
+  "$defs": {
+    "positiveInteger": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "budgetTokens",
+        "runId",
+        "createdAt",
+        "outDir",
+        "emitIntermediates"
+      ],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "budgetTokens": { "$ref": "#/$defs/positiveInteger" },
+        "runId": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "outDir": { "const": "$RUN_OUTPUT/create" },
+        "emitIntermediates": { "const": true },
+        "dungeonAffinity": { "type": "string", "minLength": 1 },
+        "room": { "$ref": "#/$defs/stringArray" },
+        "floorTile": { "$ref": "#/$defs/stringArray" },
+        "hazard": { "$ref": "#/$defs/stringArray" },
+        "resource": { "$ref": "#/$defs/stringArray" },
+        "delver": { "$ref": "#/$defs/stringArray" },
+        "warden": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "title",
+        "runId",
+        "tier",
+        "budgetMode",
+        "budget",
+        "prompt",
+        "payload",
+        "expectedOutcome",
+        "reference",
+        "referenceSpend",
+        "remaining",
+        "status",
+        "legacyReferencePath"
+      ],
+      "properties": {
+        "index": { "$ref": "#/$defs/positiveInteger" },
+        "title": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "tier": { "enum": ["simple", "affinity", "complex", "constrained"] },
+        "budgetMode": { "enum": ["unconstrained", "constrained"] },
+        "budget": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/positiveInteger" }
+          ]
+        },
+        "prompt": { "type": "string", "minLength": 1 },
+        "payload": { "$ref": "#/$defs/payload" },
+        "expectedOutcome": { "enum": ["success", "budget_denied"] },
+        "reference": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["entityCounts", "affinitiesByType", "totalSpend"],
+          "properties": {
+            "entityCounts": {
+              "type": "object",
+              "additionalProperties": { "type": "integer", "minimum": 0 }
+            },
+            "affinitiesByType": {
+              "type": "object",
+              "propertyNames": { "not": { "const": "room" } },
+              "additionalProperties": { "$ref": "#/$defs/stringArray" }
+            },
+            "totalSpend": { "type": "number", "minimum": 0 }
+          }
+        },
+        "referenceSpend": { "type": "number", "minimum": 0 },
+        "remaining": { "type": "number" },
+        "status": { "type": "string", "minLength": 1 },
+        "legacyReferencePath": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

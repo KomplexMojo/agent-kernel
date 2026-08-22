@@ -9,6 +9,10 @@ import { createIpfsAdapter } from "../ipfs/index.js";
 import { createLlmAdapter } from "../llm/index.js";
 import { createWebSolverAdapter } from "../solver/index.js";
 
+function isRealZ3SolverEnabled(env) {
+  return env?.AK_SOLVER_ENGINE === "z3-real";
+}
+
 function cloneJson(value) {
   if (value === undefined) return undefined;
   return JSON.parse(JSON.stringify(value));
@@ -202,6 +206,10 @@ function createBrowserKernelHost({
         fetchFn: options.fetchFn || fetchFn,
       }),
       createSolverAdapter: async ({ fixturePath } = {}) => {
+        if (isRealZ3SolverEnabled(env)) {
+          const { createRealZ3SolverAdapter } = await import("../z3/index.js");
+          return createRealZ3SolverAdapter();
+        }
         const fixture = fixturePath ? await readJson(fixturePath) : undefined;
         return createWebSolverAdapter({ fixture });
       },

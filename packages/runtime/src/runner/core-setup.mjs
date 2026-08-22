@@ -1,6 +1,8 @@
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
+  RESOURCE_PERMANENCE_MODES,
+  RESOURCE_VITAL_KEYS,
   VITAL_KEYS,
   VITAL_KIND,
 } from "../contracts/domain-constants.js";
@@ -43,6 +45,17 @@ const AFFINITY_KIND_CODES = Object.freeze(
 const AFFINITY_EXPRESSION_CODES = Object.freeze(
   AFFINITY_EXPRESSIONS.reduce((acc, expression, index) => {
     acc[expression] = index + 1;
+    return acc;
+  }, {}),
+);
+
+// Positional, like the affinity tables above, but zero-based: these are the core's
+// own ResourceMode values (`rules/move.ts`), where 0 raises an actor's current
+// vital and 1/2 raise its max. The artifact contract's three permanence names are
+// listed in the same order, so the two cannot drift without this map going wrong.
+const RESOURCE_PERMANENCE_MODE_CODES = Object.freeze(
+  RESOURCE_PERMANENCE_MODES.reduce((acc, mode, index) => {
+    acc[mode] = index;
     return acc;
   }, {}),
 );
@@ -259,6 +272,77 @@ function armStaticHazardsFromLayout(core, layoutData = {}) {
   });
 }
 
+/**
+ * Places the vital half of a resource: the payload an actor collects by entering
+ * the cell.
+ *
+ * A cell holds exactly one vital payload, so only the first declared grant can be
+ * represented; a resource authored with more is placed with its first. Everything
+ * else is rejected rather than defaulted — a resource that grants the wrong vital,
+ * or raises a max where it should have topped up a current, is worse than one that
+ * never appears, because the run still looks like it executed.
+ */
+function placeResourceVital(core, resource, x, y) {
+  const grant = Array.isArray(resource.vitals) ? resource.vitals[0] : null;
+  if (!grant || typeof grant !== "object") return;
+  if (!RESOURCE_VITAL_KEYS.includes(grant.key)) return;
+  const vitalKind = VITAL_KIND[grant.key];
+  if (!Number.isFinite(vitalKind)) return;
+  const mode = RESOURCE_PERMANENCE_MODE_CODES[resource.permanenceMode];
+  if (!Number.isFinite(mode)) return;
+  if (typeof grant.delta !== "number" || !Number.isFinite(grant.delta)) return;
+  if (grant.regen !== undefined && (typeof grant.regen !== "number" || !Number.isFinite(grant.regen))) return;
+  const regen = grant.regen === undefined ? 0 : grant.regen;
+  if (regen < 0) return;
+  core.placeResourceAt(x, y, vitalKind, grant.delta, mode, regen);
+}
+
+/**
+ * Places the affinity half of a resource.
+ *
+ * `manaRegen` is carried through untouched because it is the only thing that makes
+ * a granted affinity permanent — defaulting it would silently turn every permanent
+ * grant temporary.
+ */
+function placeResourceAffinity(core, resource, x, y) {
+  const affinity = resource.affinity;
+  if (!affinity || typeof affinity !== "object") return;
+  const kind = AFFINITY_KIND_CODES[affinity.kind];
+  const expression = AFFINITY_EXPRESSION_CODES[affinity.expression];
+  if (!Number.isFinite(kind) || !Number.isFinite(expression)) return;
+  const stacks = toInt(affinity.stacks);
+  if (!Number.isFinite(stacks) || stacks <= 0) return;
+  const mana = affinity.mana === undefined ? 0 : Number(affinity.mana);
+  const manaRegen = affinity.manaRegen === undefined ? 0 : Number(affinity.manaRegen);
+  if (!Number.isFinite(mana) || mana < 0) return;
+  if (!Number.isFinite(manaRegen) || manaRegen < 0) return;
+  core.placeAffinityResourceAt(x, y, kind, expression, stacks, mana, manaRegen);
+}
+
+/**
+ * Loads `layout.data.resources` into the core.
+ *
+ * A resource may carry a vital payload, an affinity payload, or both, and the two
+ * occupy independent slots on the same cell — so each is placed on its own terms
+ * rather than one being chosen over the other.
+ */
+function placeResourcesFromLayout(core, layoutData = {}) {
+  const resources = Array.isArray(layoutData?.resources) ? layoutData.resources : [];
+  if (resources.length === 0) return;
+  const canPlaceVital = typeof core?.placeResourceAt === "function";
+  const canPlaceAffinity = typeof core?.placeAffinityResourceAt === "function";
+  if (!canPlaceVital && !canPlaceAffinity) return;
+
+  resources.forEach((resource) => {
+    if (!resource || typeof resource !== "object") return;
+    const x = toInt(resource.position?.x ?? resource.x);
+    const y = toInt(resource.position?.y ?? resource.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    if (canPlaceVital) placeResourceVital(core, resource, x, y);
+    if (canPlaceAffinity) placeResourceAffinity(core, resource, x, y);
+  });
+}
+
 export function applySimConfigToCore(core, simConfig) {
   if (!core || !simConfig) {
     return { ok: false, reason: "missing_inputs" };
@@ -286,6 +370,7 @@ export function applySimConfigToCore(core, simConfig) {
     return { ok: false, reason: "invalid_layout_tiles", error: tileError };
   }
   armStaticHazardsFromLayout(core, layout.data);
+  placeResourcesFromLayout(core, layout.data);
 
   return { ok: true, dimensions, spawn, exit };
 }

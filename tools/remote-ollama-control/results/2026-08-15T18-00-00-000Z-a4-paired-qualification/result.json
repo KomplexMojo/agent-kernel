@@ -1,0 +1,1541 @@
+{
+  "schemaVersion": "agent-kernel-a4-paired-qualification/v1",
+  "createdAt": "2026-08-15T17:55:49.138Z",
+  "source": {
+    "commit": "cd9019ff6b84f4a623242490a76c4ad57b240d3b",
+    "tree": "7c2a2e6c53dc00927590926c9cca75950453d23b"
+  },
+  "scenarioSets": {
+    "content": {
+      "count": 100,
+      "catalogCount": 100,
+      "sha256": "0558024373ad3720a866f24c911f7293fbc7e0a01ec6abfb4c31571654767264",
+      "tierCounts": {
+        "simple": 25,
+        "affinity": 25,
+        "complex": 25,
+        "constrained": 25
+      }
+    },
+    "abstract": {
+      "count": 100,
+      "sha256": "ebf5d0ecfe2991daa3c0052285c0f342f9a20e8ca5617467483a9df5436f8738"
+    }
+  },
+  "samplePolicy": {
+    "discoveryPasses": 1,
+    "disagreementReruns": 3,
+    "latencySampleScenarioIds": [
+      1,
+      10,
+      31,
+      55
+    ],
+    "latencySampleRuns": 3
+  },
+  "configurations": {
+    "primary": {
+      "model": "qwen3.5:9b",
+      "settings": {
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "discovery": {
+        "pairs": 100,
+        "domain": {
+          "toolCall": {
+            "pass": 100,
+            "total": 100,
+            "rate": 1
+          },
+          "rawExecution": {
+            "pass": 67,
+            "total": 100,
+            "rate": 0.67
+          },
+          "expectedOutcome": {
+            "pass": 72,
+            "total": 100,
+            "rate": 0.72
+          },
+          "averageScore": 56.11,
+          "averageLlmMs": 23397.13
+        },
+        "abstract": {
+          "toolCall": {
+            "pass": 99,
+            "total": 100,
+            "rate": 0.99
+          },
+          "planningExact": {
+            "pass": 99,
+            "total": 100,
+            "rate": 0.99
+          },
+          "mapping": {
+            "pass": 99,
+            "total": 100,
+            "rate": 0.99
+          },
+          "rawExecution": {
+            "pass": 93,
+            "total": 100,
+            "rate": 0.93
+          },
+          "expectedOutcome": {
+            "pass": 99,
+            "total": 100,
+            "rate": 0.99
+          },
+          "endToEnd": {
+            "pass": 99,
+            "total": 100,
+            "rate": 0.99
+          },
+          "averagePlanningScore": 99.25,
+          "averageLlmMs": 31166.37
+        },
+        "delta": {
+          "endToEndRate": 0.27,
+          "rawExecutionRate": 0.26,
+          "averageLlmMs": 7769.24
+        },
+        "byTier": {
+          "simple": {
+            "content": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 24,
+                "total": 25,
+                "rate": 0.96
+              },
+              "expectedOutcome": {
+                "pass": 24,
+                "total": 25,
+                "rate": 0.96
+              },
+              "averageScore": 74.4,
+              "averageLlmMs": 15056.08
+            },
+            "abstract": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "planningExact": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "mapping": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "expectedOutcome": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "endToEnd": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "averagePlanningScore": 100,
+              "averageLlmMs": 16770.92
+            },
+            "delta": {
+              "endToEndRate": 0.04,
+              "rawExecutionRate": 0.04,
+              "averageLlmMs": 1714.84
+            }
+          },
+          "affinity": {
+            "content": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 20,
+                "total": 25,
+                "rate": 0.8
+              },
+              "expectedOutcome": {
+                "pass": 20,
+                "total": 25,
+                "rate": 0.8
+              },
+              "averageScore": 65.08,
+              "averageLlmMs": 23062.28
+            },
+            "abstract": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "planningExact": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "mapping": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "expectedOutcome": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "endToEnd": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "averagePlanningScore": 100,
+              "averageLlmMs": 35912.6
+            },
+            "delta": {
+              "endToEndRate": 0.2,
+              "rawExecutionRate": 0.2,
+              "averageLlmMs": 12850.32
+            }
+          },
+          "complex": {
+            "content": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 17,
+                "total": 25,
+                "rate": 0.68
+              },
+              "expectedOutcome": {
+                "pass": 17,
+                "total": 25,
+                "rate": 0.68
+              },
+              "averageScore": 49.16,
+              "averageLlmMs": 30540.12
+            },
+            "abstract": {
+              "toolCall": {
+                "pass": 24,
+                "total": 25,
+                "rate": 0.96
+              },
+              "planningExact": {
+                "pass": 24,
+                "total": 25,
+                "rate": 0.96
+              },
+              "mapping": {
+                "pass": 24,
+                "total": 25,
+                "rate": 0.96
+              },
+              "rawExecution": {
+                "pass": 24,
+                "total": 25,
+                "rate": 0.96
+              },
+              "expectedOutcome": {
+                "pass": 24,
+                "total": 25,
+                "rate": 0.96
+              },
+              "endToEnd": {
+                "pass": 24,
+                "total": 25,
+                "rate": 0.96
+              },
+              "averagePlanningScore": 97,
+              "averageLlmMs": 49017.32
+            },
+            "delta": {
+              "endToEndRate": 0.28,
+              "rawExecutionRate": 0.28,
+              "averageLlmMs": 18477.2
+            }
+          },
+          "constrained": {
+            "content": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 6,
+                "total": 25,
+                "rate": 0.24
+              },
+              "expectedOutcome": {
+                "pass": 11,
+                "total": 25,
+                "rate": 0.44
+              },
+              "averageScore": 35.8,
+              "averageLlmMs": 24930.04
+            },
+            "abstract": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "planningExact": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "mapping": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 19,
+                "total": 25,
+                "rate": 0.76
+              },
+              "expectedOutcome": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "endToEnd": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "averagePlanningScore": 100,
+              "averageLlmMs": 22964.64
+            },
+            "delta": {
+              "endToEndRate": 0.56,
+              "rawExecutionRate": 0.52,
+              "averageLlmMs": -1965.4
+            }
+          }
+        },
+        "failureClass": {
+          "domain": {
+            "success": 67,
+            "execution_failed": 21,
+            "budget_denied": 12
+          },
+          "abstract": {
+            "success": 93,
+            "model_failure": 1,
+            "budget_denied": 6
+          }
+        }
+      },
+      "disagreementStability": {
+        "scenarioIds": [
+          5,
+          11,
+          16,
+          20,
+          24,
+          25,
+          32,
+          38,
+          45,
+          48,
+          49,
+          51,
+          52,
+          53,
+          58,
+          59,
+          62,
+          63,
+          64,
+          86,
+          88,
+          90,
+          92,
+          94,
+          95,
+          96,
+          98
+        ],
+        "scenarios": [
+          {
+            "scenarioIndex": 5,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 11,
+            "domain": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 16,
+            "domain": {
+              "pass": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 20,
+            "domain": {
+              "pass": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 24,
+            "domain": {
+              "pass": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 25,
+            "domain": {
+              "pass": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 32,
+            "domain": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 38,
+            "domain": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 45,
+            "domain": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 48,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 49,
+            "domain": {
+              "pass": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 51,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 52,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 53,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 58,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 59,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 62,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 63,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 64,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 86,
+            "domain": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 88,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 90,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 92,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 94,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 95,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 96,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 98,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          }
+        ],
+        "domain": {
+          "pass": 34,
+          "total": 81,
+          "rate": 0.42
+        },
+        "abstract": {
+          "pass": 81,
+          "total": 81,
+          "rate": 1
+        },
+        "stableDisagreements": [
+          52,
+          53,
+          58,
+          64,
+          90,
+          92,
+          94,
+          98
+        ],
+        "unstableDomain": [
+          5,
+          16,
+          20,
+          24,
+          25,
+          48,
+          49,
+          51,
+          59,
+          62,
+          63,
+          88,
+          95,
+          96
+        ]
+      },
+      "latencySample": {
+        "scenarioIds": [
+          1,
+          10,
+          31,
+          55
+        ],
+        "domain": {
+          "n": 12,
+          "averageMs": 18735.8,
+          "medianMs": 18515.5,
+          "minMs": 14326,
+          "maxMs": 23942,
+          "standardDeviationMs": 2505.9
+        },
+        "abstract": {
+          "n": 12,
+          "averageMs": 28101,
+          "medianMs": 26506,
+          "minMs": 11032,
+          "maxMs": 61121,
+          "standardDeviationMs": 15004.8
+        },
+        "deltaAverageMs": 9365.2,
+        "byTier": {
+          "simple": {
+            "domain": {
+              "n": 3,
+              "averageMs": 20200,
+              "medianMs": 19046,
+              "minMs": 18620,
+              "maxMs": 22934,
+              "standardDeviationMs": 1941
+            },
+            "abstract": {
+              "n": 3,
+              "averageMs": 11445.7,
+              "medianMs": 11265,
+              "minMs": 11032,
+              "maxMs": 12040,
+              "standardDeviationMs": 430.9
+            }
+          },
+          "affinity": {
+            "domain": {
+              "n": 3,
+              "averageMs": 19473,
+              "medianMs": 18519,
+              "minMs": 15958,
+              "maxMs": 23942,
+              "standardDeviationMs": 3328.5
+            },
+            "abstract": {
+              "n": 3,
+              "averageMs": 40074,
+              "medianMs": 37920,
+              "minMs": 37250,
+              "maxMs": 45052,
+              "standardDeviationMs": 3530.6
+            }
+          },
+          "complex": {
+            "domain": {
+              "n": 3,
+              "averageMs": 17427.7,
+              "medianMs": 18512,
+              "minMs": 14326,
+              "maxMs": 19445,
+              "standardDeviationMs": 2226
+            },
+            "abstract": {
+              "n": 3,
+              "averageMs": 42032.7,
+              "medianMs": 32835,
+              "minMs": 32142,
+              "maxMs": 61121,
+              "standardDeviationMs": 13500.5
+            }
+          },
+          "constrained": {
+            "domain": {
+              "n": 3,
+              "averageMs": 17842.3,
+              "medianMs": 17725,
+              "minMs": 17492,
+              "maxMs": 18310,
+              "standardDeviationMs": 344.1
+            },
+            "abstract": {
+              "n": 3,
+              "averageMs": 18851.7,
+              "medianMs": 20044,
+              "minMs": 15641,
+              "maxMs": 20870,
+              "standardDeviationMs": 2295.2
+            }
+          }
+        }
+      },
+      "evidenceDirectories": {
+        "domainDiscovery": "2026-08-15T12-15-00-000Z-content-gen-combined-primary",
+        "abstractDiscovery": "2026-08-15T12-12-12-145Z-abstract-plan",
+        "domainRepeats": [
+          "2026-08-15T13-05-21-472Z-content-gen",
+          "2026-08-15T13-18-22-621Z-content-gen",
+          "2026-08-15T13-31-01-195Z-content-gen"
+        ],
+        "abstractRepeats": "2026-08-15T13-43-47-570Z-abstract-plan",
+        "domainSample": "2026-08-15T14-33-36-532Z-content-gen",
+        "abstractSample": "2026-08-15T14-37-42-035Z-abstract-plan"
+      }
+    },
+    "dual": {
+      "model": "qwen3.5:27b",
+      "settings": {
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "discovery": {
+        "pairs": 100,
+        "domain": {
+          "toolCall": {
+            "pass": 100,
+            "total": 100,
+            "rate": 1
+          },
+          "rawExecution": {
+            "pass": 83,
+            "total": 100,
+            "rate": 0.83
+          },
+          "expectedOutcome": {
+            "pass": 88,
+            "total": 100,
+            "rate": 0.88
+          },
+          "averageScore": 67.1,
+          "averageLlmMs": 119347.63
+        },
+        "abstract": {
+          "toolCall": {
+            "pass": 100,
+            "total": 100,
+            "rate": 1
+          },
+          "planningExact": {
+            "pass": 100,
+            "total": 100,
+            "rate": 1
+          },
+          "mapping": {
+            "pass": 100,
+            "total": 100,
+            "rate": 1
+          },
+          "rawExecution": {
+            "pass": 94,
+            "total": 100,
+            "rate": 0.94
+          },
+          "expectedOutcome": {
+            "pass": 100,
+            "total": 100,
+            "rate": 1
+          },
+          "endToEnd": {
+            "pass": 100,
+            "total": 100,
+            "rate": 1
+          },
+          "averagePlanningScore": 100,
+          "averageLlmMs": 119684.04
+        },
+        "delta": {
+          "endToEndRate": 0.12,
+          "rawExecutionRate": 0.11,
+          "averageLlmMs": 336.41
+        },
+        "byTier": {
+          "simple": {
+            "content": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 24,
+                "total": 25,
+                "rate": 0.96
+              },
+              "expectedOutcome": {
+                "pass": 24,
+                "total": 25,
+                "rate": 0.96
+              },
+              "averageScore": 76,
+              "averageLlmMs": 58401.24
+            },
+            "abstract": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "planningExact": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "mapping": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "expectedOutcome": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "endToEnd": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "averagePlanningScore": 100,
+              "averageLlmMs": 68351
+            },
+            "delta": {
+              "endToEndRate": 0.04,
+              "rawExecutionRate": 0.04,
+              "averageLlmMs": 9949.76
+            }
+          },
+          "affinity": {
+            "content": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "expectedOutcome": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "averageScore": 73.6,
+              "averageLlmMs": 147728.52
+            },
+            "abstract": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "planningExact": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "mapping": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "expectedOutcome": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "endToEnd": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "averagePlanningScore": 100,
+              "averageLlmMs": 138395.52
+            },
+            "delta": {
+              "endToEndRate": 0,
+              "rawExecutionRate": 0,
+              "averageLlmMs": -9333
+            }
+          },
+          "complex": {
+            "content": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 23,
+                "total": 25,
+                "rate": 0.92
+              },
+              "expectedOutcome": {
+                "pass": 23,
+                "total": 25,
+                "rate": 0.92
+              },
+              "averageScore": 68,
+              "averageLlmMs": 189301.4
+            },
+            "abstract": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "planningExact": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "mapping": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "expectedOutcome": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "endToEnd": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "averagePlanningScore": 100,
+              "averageLlmMs": 175565.8
+            },
+            "delta": {
+              "endToEndRate": 0.08,
+              "rawExecutionRate": 0.08,
+              "averageLlmMs": -13735.6
+            }
+          },
+          "constrained": {
+            "content": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 11,
+                "total": 25,
+                "rate": 0.44
+              },
+              "expectedOutcome": {
+                "pass": 16,
+                "total": 25,
+                "rate": 0.64
+              },
+              "averageScore": 50.8,
+              "averageLlmMs": 81959.36
+            },
+            "abstract": {
+              "toolCall": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "planningExact": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "mapping": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "rawExecution": {
+                "pass": 19,
+                "total": 25,
+                "rate": 0.76
+              },
+              "expectedOutcome": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "endToEnd": {
+                "pass": 25,
+                "total": 25,
+                "rate": 1
+              },
+              "averagePlanningScore": 100,
+              "averageLlmMs": 96423.84
+            },
+            "delta": {
+              "endToEndRate": 0.36,
+              "rawExecutionRate": 0.32,
+              "averageLlmMs": 14464.48
+            }
+          }
+        },
+        "failureClass": {
+          "domain": {
+            "success": 83,
+            "execution_failed": 6,
+            "budget_denied": 11
+          },
+          "abstract": {
+            "success": 94,
+            "budget_denied": 6
+          }
+        }
+      },
+      "disagreementStability": {
+        "scenarioIds": [
+          4,
+          48,
+          49,
+          51,
+          52,
+          53,
+          57,
+          64,
+          90,
+          94,
+          95,
+          98
+        ],
+        "scenarios": [
+          {
+            "scenarioIndex": 4,
+            "domain": {
+              "pass": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 48,
+            "domain": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 49,
+            "domain": {
+              "pass": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 51,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 52,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 53,
+            "domain": {
+              "pass": 0,
+              "total": 3,
+              "rate": 0
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 57,
+            "domain": {
+              "pass": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 64,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 90,
+            "domain": {
+              "pass": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 94,
+            "domain": {
+              "pass": 2,
+              "total": 3,
+              "rate": 0.667
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 95,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          },
+          {
+            "scenarioIndex": 98,
+            "domain": {
+              "pass": 1,
+              "total": 3,
+              "rate": 0.333
+            },
+            "abstract": {
+              "pass": 3,
+              "total": 3,
+              "rate": 1
+            }
+          }
+        ],
+        "domain": {
+          "pass": 16,
+          "total": 36,
+          "rate": 0.444
+        },
+        "abstract": {
+          "pass": 36,
+          "total": 36,
+          "rate": 1
+        },
+        "stableDisagreements": [
+          51,
+          52,
+          53
+        ],
+        "unstableDomain": [
+          4,
+          49,
+          57,
+          64,
+          90,
+          94,
+          95,
+          98
+        ]
+      },
+      "latencySample": {
+        "scenarioIds": [
+          1,
+          10,
+          31,
+          55
+        ],
+        "domain": {
+          "n": 12,
+          "averageMs": 76393.8,
+          "medianMs": 76751.5,
+          "minMs": 61892,
+          "maxMs": 90063,
+          "standardDeviationMs": 7511.2
+        },
+        "abstract": {
+          "n": 12,
+          "averageMs": 97498.4,
+          "medianMs": 90677,
+          "minMs": 45570,
+          "maxMs": 172222,
+          "standardDeviationMs": 43187.1
+        },
+        "deltaAverageMs": 21104.6,
+        "byTier": {
+          "simple": {
+            "domain": {
+              "n": 3,
+              "averageMs": 75821,
+              "medianMs": 77086,
+              "minMs": 73282,
+              "maxMs": 77095,
+              "standardDeviationMs": 1795.3
+            },
+            "abstract": {
+              "n": 3,
+              "averageMs": 47228.3,
+              "medianMs": 47909,
+              "minMs": 45570,
+              "maxMs": 48206,
+              "standardDeviationMs": 1178.9
+            }
+          },
+          "affinity": {
+            "domain": {
+              "n": 3,
+              "averageMs": 82641.3,
+              "medianMs": 84381,
+              "minMs": 76913,
+              "maxMs": 86630,
+              "standardDeviationMs": 4153.3
+            },
+            "abstract": {
+              "n": 3,
+              "averageMs": 161138,
+              "medianMs": 168534,
+              "minMs": 142658,
+              "maxMs": 172222,
+              "standardDeviationMs": 13153.8
+            }
+          },
+          "complex": {
+            "domain": {
+              "n": 3,
+              "averageMs": 76577,
+              "medianMs": 71174,
+              "minMs": 68494,
+              "maxMs": 90063,
+              "standardDeviationMs": 9598.6
+            },
+            "abstract": {
+              "n": 3,
+              "averageMs": 108379,
+              "medianMs": 109042,
+              "minMs": 106998,
+              "maxMs": 109097,
+              "standardDeviationMs": 976.8
+            }
+          },
+          "constrained": {
+            "domain": {
+              "n": 3,
+              "averageMs": 70536,
+              "medianMs": 73126,
+              "minMs": 61892,
+              "maxMs": 76590,
+              "standardDeviationMs": 6273.7
+            },
+            "abstract": {
+              "n": 3,
+              "averageMs": 73248.3,
+              "medianMs": 73909,
+              "minMs": 71480,
+              "maxMs": 74356,
+              "standardDeviationMs": 1263.6
+            }
+          }
+        }
+      },
+      "evidenceDirectories": {
+        "domainDiscovery": "2026-08-15T07-45-00-000Z-content-gen-combined-dual",
+        "abstractDiscovery": "2026-08-15T08-09-44-040Z-abstract-plan",
+        "domainRepeats": [
+          "2026-08-15T14-44-00-519Z-content-gen",
+          "2026-08-15T15-07-55-064Z-content-gen",
+          "2026-08-15T15-33-27-066Z-content-gen"
+        ],
+        "abstractRepeats": "2026-08-15T15-55-37-386Z-abstract-plan",
+        "domainSample": "2026-08-15T17-18-35-353Z-content-gen",
+        "abstractSample": "2026-08-15T17-34-27-189Z-abstract-plan"
+      }
+    }
+  },
+  "qualification": {
+    "canonicalTrack": "domain",
+    "minimumSuccessfulConfiguration": null,
+    "reason": "Neither domain-prompt configuration meets the 99% expected-outcome and 75 average-score qualification gates.",
+    "diagnosticAbstract": {
+      "primary": "99/100 end-to-end; scenario 50 failed",
+      "dual": "100/100 end-to-end"
+    },
+    "coreApplicationMigrationRecommendation": "defer; use abstraction as a planning adapter while preserving domain validation and execution gates"
+  },
+  "integrity": {
+    "pairCoverage": 100,
+    "sourceHashValidated": true,
+    "settingsMatchedWithinPairs": true,
+    "canonicalMappingValidated": true,
+    "roomAffinityForbidden": true,
+    "publicationPerformed": false,
+    "standardService": "dual qwen3.5:27b on GPUs 0,1"
+  }
+}

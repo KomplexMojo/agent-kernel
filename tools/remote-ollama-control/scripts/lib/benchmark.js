@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs');
+const crypto = require('crypto');
 const path = require('path');
 const { endpointFor, getProfile } = require('./config');
 const { requestJson } = require('./ollama');
@@ -71,6 +72,152 @@ function scenarioList(values, fallback) {
 function modelProfiles(config, modelName) {
   const model = config.models[modelName] || {};
   return Array.isArray(model.profiles) ? model.profiles : [];
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function positiveInteger(value, label) {
+  const number = Number(value);
+  if (!Number.isInteger(number) || number <= 0) {
+    throw new Error(`${label} must be a positive integer`);
+  }
+  return number;
+}
+
+function positiveNumber(value, label) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) {
+    throw new Error(`${label} must be a positive number`);
+  }
+  return number;
+}
+
+function compareResourceOrder(left, right) {
+  const keys = ['gpuCount', 'capacityRank', 'modelSizeBillions', 'contextTokens', 'outputTokens'];
+  for (const key of keys) {
+    if (left.resourceOrder[key] !== right.resourceOrder[key]) {
+      return left.resourceOrder[key] - right.resourceOrder[key];
+    }
+  }
+  return left.configurationId.localeCompare(right.configurationId);
+}
+
+function buildContentGenMatrix(config, options = {}) {
+  const contractVersion = 'content-gen-matrix-v1';
+  const selectedModels = Array.isArray(options.models) && options.models.length > 0
+    ? [...new Set(options.models.map(String))]
+    : Object.keys(config.models || {});
+  const selectedProfiles = Array.isArray(options.profileNames) && options.profileNames.length > 0
+    ? new Set(options.profileNames.map(String))
+    : null;
+  if (selectedProfiles) {
+    for (const profileId of selectedProfiles) {
+      getProfile(config, profileId);
+    }
+  }
+  const scenarioCount = positiveInteger(options.scenarioCount, 'scenarioCount');
+  const maximumPasses = positiveInteger(options.maximumPasses ?? 3, 'maximumPasses');
+  const repeatPolicy = {
+    minimumCompletePasses: 1,
+    maximumPasses,
+    earlyStop: 'mathematically_lossless'
+  };
+  const configurations = [];
+  const configurationIds = new Set();
+
+  for (const modelId of selectedModels) {
+    const model = config.models?.[modelId];
+    if (!model) {
+      throw new Error(`Unknown content-gen model: ${modelId}`);
+    }
+    if (typeof model.family !== 'string' || model.family.length === 0) {
+      throw new Error(`${modelId}.family must be a non-empty string`);
+    }
+    const parameterBillions = positiveNumber(model.parameterBillions, `${modelId}.parameterBillions`);
+    for (const profileId of modelProfiles(config, modelId)) {
+      if (selectedProfiles && !selectedProfiles.has(profileId)) {
+        continue;
+      }
+      const profile = getProfile(config, profileId);
+      const gpuCount = positiveInteger(profile.gpuCount, `${profileId}.gpuCount`);
+      const capacityRank = positiveInteger(profile.capacityRank, `${profileId}.capacityRank`);
+      const contextTokens = positiveInteger(
+        options.contextTokens ?? profile.defaultContext,
+        `${profileId}.defaultContext`
+      );
+      const outputTokens = positiveInteger(
+        options.outputTokens ?? profile.defaultNumPredict,
+        `${profileId}.defaultNumPredict`
+      );
+      if (typeof profile.hardwareClass !== 'string' || profile.hardwareClass.length === 0) {
+        throw new Error(`${profileId}.hardwareClass must be a non-empty string`);
+      }
+      const configurationId = [
+        'cg-v1',
+        sanitizeName(modelId),
+        sanitizeName(profileId),
+        `ctx${contextTokens}`,
+        `out${outputTokens}`
+      ].join('--');
+      if (configurationIds.has(configurationId)) {
+        throw new Error(`Duplicate content-gen configuration id: ${configurationId}`);
+      }
+      configurationIds.add(configurationId);
+      configurations.push({
+        configurationId,
+        eligible: true,
+        profile: {
+          id: profileId,
+          hardwareClass: profile.hardwareClass,
+          gpuCount,
+          gpuVisibility: profile.gpuDevices,
+          capacityRank
+        },
+        model: {
+          id: modelId,
+          family: model.family,
+          parameterBillions
+        },
+        settings: {
+          contextTokens,
+          outputTokens
+        },
+        resourceOrder: {
+          gpuCount,
+          capacityRank,
+          modelSizeBillions: parameterBillions,
+          contextTokens,
+          outputTokens
+        }
+      });
+    }
+  }
+
+  configurations.sort(compareResourceOrder);
+  if (configurations.length === 0) {
+    throw new Error('Content-gen matrix has no eligible model/profile configurations');
+  }
+  const hashInput = { contractVersion, repeatPolicy, configurations };
+  const sha256 = crypto.createHash('sha256').update(canonicalJson(hashInput)).digest('hex');
+  return {
+    contractVersion,
+    sha256,
+    configurationCount: configurations.length,
+    repeatPolicy,
+    callBounds: {
+      minimum: scenarioCount * configurations.length,
+      maximum: scenarioCount * configurations.length * maximumPasses
+    },
+    configurations
+  };
 }
 
 function buildHardwareBenchmarkSpecs(config, options = {}) {
@@ -649,6 +796,7 @@ async function runBenchmarkMatrix(options) {
 }
 
 module.exports = {
+  buildContentGenMatrix,
   buildHardwareBenchmarkSpecs,
   estimateTokens,
   loadScenario,

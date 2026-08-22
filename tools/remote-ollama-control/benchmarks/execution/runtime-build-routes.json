@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "agent-kernel-runtime-build-routes/v1",
+  "identity": {
+    "executionSuiteHash": "756dc1dbf706d76c05e19e5e7c9a2466f79ca4f083da87a5bbf390a8b32489d0"
+  },
+  "routes": {
+    "EX-TR-01": "tests/fixtures/benchmarks/execution/traversal/EX-TR-01",
+    "EX-TR-02": "tests/fixtures/benchmarks/execution/traversal/EX-TR-02",
+    "EX-TR-03": "tests/fixtures/benchmarks/execution/traversal/EX-TR-03",
+    "EX-TR-04": "tests/fixtures/benchmarks/execution/traversal/EX-TR-04",
+    "EX-TR-05": "tests/fixtures/benchmarks/execution/traversal/EX-TR-05",
+    "EX-CB-01": "tests/fixtures/benchmarks/execution/combat/EX-CB-01",
+    "EX-CB-02#neutral": "tests/fixtures/benchmarks/execution/combat/EX-CB-02/neutral",
+    "EX-CB-02#advantaged": "tests/fixtures/benchmarks/execution/combat/EX-CB-02/advantaged",
+    "EX-CB-03": "tests/fixtures/benchmarks/execution/combat/EX-CB-03",
+    "EX-CB-04": "tests/fixtures/benchmarks/execution/combat/EX-CB-04",
+    "EX-CB-05": "tests/fixtures/benchmarks/execution/combat/EX-CB-05",
+    "EX-HZ-01": "tests/fixtures/benchmarks/execution/hazards/EX-HZ-01",
+    "EX-HZ-02": "tests/fixtures/benchmarks/execution/hazards/EX-HZ-02",
+    "EX-HZ-03": "tests/fixtures/benchmarks/execution/hazards/EX-HZ-03",
+    "EX-HZ-04": "tests/fixtures/benchmarks/execution/hazards/EX-HZ-04",
+    "EX-HZ-05": "tests/fixtures/benchmarks/execution/hazards/EX-HZ-05",
+    "EX-RS-01": "tests/fixtures/benchmarks/execution/resources/EX-RS-01",
+    "EX-RS-02": "tests/fixtures/benchmarks/execution/resources/EX-RS-02",
+    "EX-RS-03": "tests/fixtures/benchmarks/execution/resources/EX-RS-03",
+    "EX-RS-04": "tests/fixtures/benchmarks/execution/resources/EX-RS-04",
+    "EX-RS-05": "tests/fixtures/benchmarks/execution/resources/EX-RS-05",
+    "EX-ST-01": "tests/fixtures/benchmarks/execution/stress/EX-ST-01",
+    "EX-ST-02": "tests/fixtures/benchmarks/execution/stress/EX-ST-02",
+    "EX-ST-03": "tests/fixtures/benchmarks/execution/stress/EX-ST-03",
+    "EX-ST-04": "tests/fixtures/benchmarks/execution/stress/EX-ST-04",
+    "EX-ST-05": "tests/fixtures/benchmarks/execution/stress/EX-ST-05"
+  }
+}

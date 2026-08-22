@@ -1,0 +1,460 @@
+{
+  "schemaVersion": "agent-kernel-execution-catalog/v1",
+  "family": "resources",
+  "scenarios": [
+    {
+      "id": "EX-RS-01",
+      "title": "Consumable health delta",
+      "family": "resources",
+      "setup": "An injured mobile actor crosses a consumable health-delta resource.",
+      "profile": "short_v1",
+      "invariants": [
+        "run_completed",
+        "actor_legality",
+        "finite_bounds",
+        "effect_integrity"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-RS-01-G01",
+          "description": "resource consumes once",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "single_consumption",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-RS-01-G02",
+          "description": "health increases within max bound",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "operator": "all",
+            "predicates": [
+              {
+                "source": "metric",
+                "ref": "pickup_apply_correctness",
+                "operator": "exact",
+                "threshold": 1,
+                "unit": "ratio"
+              },
+              {
+                "source": "invariant",
+                "ref": "finite_bounds",
+                "operator": "exact",
+                "threshold": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "EX-RS-01-G03",
+          "description": "second consumption is impossible",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "single_consumption",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        }
+      ],
+      "objectives": {
+        "pickup_apply_correctness": {
+          "weight": 45,
+          "evidence": "observation"
+        },
+        "pickup_latency": {
+          "weight": 25,
+          "evidence": "artifact"
+        },
+        "spatial_progress": {
+          "weight": 20,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "pickup_apply_correctness": {
+          "direction": "exact",
+          "value": 1,
+          "unit": "ratio",
+          "evidence": "observation"
+        }
+      }
+    },
+    {
+      "id": "EX-RS-02",
+      "title": "Persistent max-health grant",
+      "family": "resources",
+      "setup": "An actor crosses a level/permanent max-health resource.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "finite_bounds",
+        "effect_integrity"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-RS-02-G01",
+          "description": "max health increases once",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "operator": "all",
+            "predicates": [
+              {
+                "source": "metric",
+                "ref": "persistent_vital_grant",
+                "operator": "exact",
+                "threshold": 1,
+                "unit": "ratio"
+              },
+              {
+                "source": "metric",
+                "ref": "single_consumption",
+                "operator": "exact",
+                "threshold": 1,
+                "unit": "ratio"
+              }
+            ]
+          }
+        },
+        {
+          "id": "EX-RS-02-G02",
+          "description": "increase persists through tick 100",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "persistent_vital_grant",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-RS-02-G03",
+          "description": "current-health semantics match contract",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "operator": "all",
+            "predicates": [
+              {
+                "source": "metric",
+                "ref": "persistent_vital_grant",
+                "operator": "exact",
+                "threshold": 1,
+                "unit": "ratio"
+              },
+              {
+                "source": "invariant",
+                "ref": "finite_bounds",
+                "operator": "exact",
+                "threshold": true
+              }
+            ]
+          }
+        }
+      ],
+      "objectives": {
+        "persistent_vital_grant": {
+          "weight": 50,
+          "evidence": "observation"
+        },
+        "single_consumption": {
+          "weight": 20,
+          "evidence": "observation"
+        },
+        "survival_plausibility": {
+          "weight": 20,
+          "evidence": "observation"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "persistent_vital_grant": {
+          "direction": "exact",
+          "value": 1,
+          "unit": "ratio",
+          "evidence": "observation"
+        }
+      }
+    },
+    {
+      "id": "EX-RS-03",
+      "title": "Regeneration resource",
+      "family": "resources",
+      "setup": "An injured actor crosses a regeneration-only or delta-plus-regeneration resource.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "finite_bounds",
+        "effect_integrity"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-RS-03-G01",
+          "description": "regeneration increases once",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "operator": "all",
+            "predicates": [
+              {
+                "source": "metric",
+                "ref": "persistent_vital_grant",
+                "operator": "exact",
+                "threshold": 1,
+                "unit": "ratio"
+              },
+              {
+                "source": "metric",
+                "ref": "single_consumption",
+                "operator": "exact",
+                "threshold": 1,
+                "unit": "ratio"
+              }
+            ]
+          }
+        },
+        {
+          "id": "EX-RS-03-G02",
+          "description": "bounded recovery appears at later checkpoints",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "operator": "all",
+            "predicates": [
+              {
+                "source": "metric",
+                "ref": "recovery_curve",
+                "operator": "min",
+                "threshold": 1,
+                "unit": "count"
+              },
+              {
+                "source": "invariant",
+                "ref": "finite_bounds",
+                "operator": "exact",
+                "threshold": true
+              }
+            ]
+          }
+        },
+        {
+          "id": "EX-RS-03-G03",
+          "description": "pickup does not repeat",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "single_consumption",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        }
+      ],
+      "objectives": {
+        "persistent_vital_grant": {
+          "weight": 45,
+          "evidence": "observation"
+        },
+        "recovery_curve": {
+          "weight": 25,
+          "evidence": "observation"
+        },
+        "pickup_latency": {
+          "weight": 20,
+          "evidence": "artifact"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "recovery_curve": {
+          "direction": "min",
+          "value": 1,
+          "unit": "count",
+          "evidence": "observation"
+        }
+      }
+    },
+    {
+      "id": "EX-RS-04",
+      "title": "Temporary affinity lifecycle",
+      "family": "resources",
+      "setup": "An actor gains finite-mana temporary affinity stacks and then uses them.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "finite_bounds",
+        "effect_integrity"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-RS-04-G01",
+          "description": "grant appears with declared stacks",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "affinity_lifecycle",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-RS-04-G02",
+          "description": "mana declines on use",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "affinity_activity",
+            "operator": "min",
+            "threshold": 1,
+            "unit": "count"
+          }
+        },
+        {
+          "id": "EX-RS-04-G03",
+          "description": "only the exhausted grant expires",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "grant_isolation",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        }
+      ],
+      "objectives": {
+        "affinity_lifecycle": {
+          "weight": 45,
+          "evidence": "observation"
+        },
+        "affinity_activity": {
+          "weight": 25,
+          "evidence": "observation"
+        },
+        "grant_isolation": {
+          "weight": 20,
+          "evidence": "observation"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "affinity_lifecycle": {
+          "direction": "exact",
+          "value": 1,
+          "unit": "ratio",
+          "evidence": "observation"
+        }
+      }
+    },
+    {
+      "id": "EX-RS-05",
+      "title": "Permanent affinity actor-kind parity",
+      "family": "resources",
+      "setup": "Delver and warden variants consume mana-plus-regeneration permanent-affinity resources.",
+      "profile": "standard_v1",
+      "invariants": [
+        "run_completed",
+        "finite_bounds",
+        "effect_integrity",
+        "unique_actor_ids"
+      ],
+      "requiredGates": [
+        {
+          "id": "EX-RS-05-G01",
+          "description": "both actor kinds consume automatically",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "actor_kind_parity",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-RS-05-G02",
+          "description": "grants persist through tick 100",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "persistent_vital_grant",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        },
+        {
+          "id": "EX-RS-05-G03",
+          "description": "stacks combine additively",
+          "scope": "seed",
+          "evidence": "observation",
+          "predicate": {
+            "source": "metric",
+            "ref": "persistent_stacking",
+            "operator": "exact",
+            "threshold": 1,
+            "unit": "ratio"
+          }
+        }
+      ],
+      "objectives": {
+        "actor_kind_parity": {
+          "weight": 40,
+          "evidence": "observation"
+        },
+        "persistent_stacking": {
+          "weight": 30,
+          "evidence": "observation"
+        },
+        "affinity_activity": {
+          "weight": 20,
+          "evidence": "observation"
+        },
+        "performance": {
+          "weight": 10,
+          "evidence": "artifact"
+        }
+      },
+      "thresholds": {
+        "actor_kind_parity": {
+          "direction": "exact",
+          "value": 1,
+          "unit": "ratio",
+          "evidence": "observation"
+        }
+      }
+    }
+  ]
+}
