@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 56,
-  "remaining": 1944,
+  "totalCost": 65,
+  "remaining": 1935,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -128,6 +128,62 @@
         "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
+    },
+    {
+      "id": "vital_mana_point",
+      "kind": "vital",
+      "quantity": 2,
+      "unitCost": 1,
+      "totalCost": 2,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_mana_regen_tick",
+      "kind": "vital",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_stamina_point",
+      "kind": "vital",
+      "quantity": 2,
+      "unitCost": 1,
+      "totalCost": 2,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_stamina_regen_tick",
+      "kind": "vital",
+      "quantity": 2,
+      "unitCost": 1,
+      "totalCost": 4,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
     }
   ],
   "poolStatuses": [
@@ -162,15 +218,15 @@
     {
       "id": "delver",
       "capTokens": 2000,
-      "spentTokens": 56,
-      "remainingTokens": 1944,
+      "spentTokens": 65,
+      "remainingTokens": 1935,
       "status": "approved"
     }
   ],
   "scenarioSpendReport": {
     "budget": 2000,
-    "totalSpend": 56,
-    "remainingBudget": 1944,
+    "totalSpend": 65,
+    "remainingBudget": 1935,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -194,7 +250,7 @@
         "usagePercent": 0
       },
       "delvers": {
-        "actual": 56,
+        "actual": 65,
         "target": 2000,
         "usagePercent": 3
       },

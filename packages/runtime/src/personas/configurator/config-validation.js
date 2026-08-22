@@ -30,6 +30,23 @@
  * Pure: no IO, no clock, no imports — safe under the runtime persona layer.
  */
 
+import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
+import { motivationKindsConflict } from "../../../../core-ts/src/index.ts";
+
+/**
+ * AM.10 — motivation name -> core's 1-based kind code, DERIVED from the shared
+ * vocabulary rather than hand-listed. core-ts's `MotivationKind` is documented as
+ * "1-based, matching runtime MOTIVATION_KINDS order", so the index IS the
+ * correspondence; writing the pairs out again would be a second table free to
+ * drift the moment a kind is inserted.
+ */
+const MOTIVATION_KIND_CODES = Object.freeze(
+  MOTIVATION_KINDS.reduce((acc, name, index) => {
+    acc[name] = index + 1;
+    return acc;
+  }, {}),
+);
+
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -144,6 +161,50 @@ function validateResources(resources, path, errors) {
  * @param {unknown} config
  * @returns {{ ok: boolean, errors: string[] }}
  */
+/**
+ * AM.10 — refuse a motivation set that contradicts itself (closes F9, config half).
+ *
+ * core-ts has always been able to answer this: `motivationKindsConflict` reports
+ * whether two kinds occupy the same EXCLUSIVE GROUP (mobility, posture,
+ * cognition — Control has none). It had **zero production callers**, so an actor
+ * could be authored `stationary` AND `patrolling`, or `attacking` AND
+ * `defending`, and nothing objected — the contradiction simply resolved to
+ * whichever kind a given code path happened to read first.
+ *
+ * Configuration validity is chartered Configurator authority (§288). The rule
+ * itself stays in core, where the exclusive groups are defined; this asks it.
+ */
+function validateMotivationSets(actors, field, errors) {
+  if (!Array.isArray(actors)) return;
+  actors.forEach((actor, index) => {
+    const kinds = [];
+    if (isObject(actor?.motivation) && typeof actor.motivation.kind === "string") {
+      kinds.push(actor.motivation.kind);
+    }
+    if (Array.isArray(actor?.motivations)) {
+      actor.motivations.forEach((entry) => {
+        const kind = typeof entry === "string" ? entry : entry?.kind;
+        if (typeof kind === "string" && kind.trim()) kinds.push(kind.trim());
+      });
+    }
+    if (kinds.length < 2) return;
+
+    for (let i = 0; i < kinds.length; i += 1) {
+      for (let j = i + 1; j < kinds.length; j += 1) {
+        const left = MOTIVATION_KIND_CODES[kinds[i].toLowerCase()];
+        const right = MOTIVATION_KIND_CODES[kinds[j].toLowerCase()];
+        if (!Number.isFinite(left) || !Number.isFinite(right)) continue;
+        if (motivationKindsConflict(left, right)) {
+          errors.push(
+            `${field}[${index}].motivations: "${kinds[i]}" and "${kinds[j]}" are mutually `
+            + "exclusive — they belong to the same motivation family, so an actor cannot hold both",
+          );
+        }
+      }
+    }
+  });
+}
+
 export function validateConfiguratorConfig(config) {
   if (!isObject(config)) {
     return { ok: false, errors: ["config: expected object"] };
@@ -155,5 +216,6 @@ export function validateConfiguratorConfig(config) {
   validateOptionalObjectArray(config.actorGroups, "actorGroups", errors);
   validateOptionalObjectArray(config.cardSet, "cardSet", errors);
   validateOptionalBoolean(config.maximizeBudget, "maximizeBudget", errors);
+  validateMotivationSets(config.actors, "actors", errors);
   return { ok: errors.length === 0, errors };
 }

@@ -22,6 +22,11 @@ async function createCore() {
 function applyMove(core, { actorId, from, to, direction, tick }) {
   core.setMoveAction(actorId, from.x, from.y, to.x, to.y, DIRECTION[direction], tick);
   core.applyAction(ACTION_KIND_MOVE, 0);
+  // AM.3 — a move no longer advances the core tick (rules/move.ts commitMove);
+  // whoever drives the simulation closes the tick. This replay applies one
+  // action per tick, so it advances once per action. The golden fixture is
+  // unchanged: the cadence it encodes is the same, only the caller moved.
+  core.advanceTick();
 }
 
 function renderFrame(core) {

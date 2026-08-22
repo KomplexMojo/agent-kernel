@@ -53,5 +53,6 @@ export function createAnnotatorPersona({ initialState = AnnotatorStates.IDLE, cl
     view,
     summarizeRun: services.summarizeRun,
     classifyRunOutcome: services.classifyRunOutcome,
+    captureWorldState: services.captureWorldState,
   };
 }

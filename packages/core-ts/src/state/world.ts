@@ -909,6 +909,23 @@ export function createWorldState() {
       actorActive = true;
       actorX = x;
       actorY = y;
+      // AM.2 — seed the motivated actor's vitals FROM the singleton mirror.
+      //
+      // This promotes the singleton into motivated actor 0, but it used to copy
+      // only id and position, leaving the motivated vital arrays at zero while
+      // the mirror held the real values. The two disagreed from that moment on.
+      // Nothing noticed because nothing ever re-synced the mirror — the sync
+      // direction is motivated -> mirror, and it was only ever run at placement.
+      // Now that a move repoints the mirror to its own actor, an unseeded array
+      // would overwrite live vitals with zeros (callers set vitals BEFORE
+      // spawning: see loadMvpScenario). Seeding here keeps the two
+      // representations equal at the one point where one becomes the other.
+      for (let kind = 0; kind < VITAL_COUNT; kind++) {
+        const offset = vitalIndexFor(0, kind);
+        motivatedActorVitalCurrent[offset] = actorVitalCurrent[kind];
+        motivatedActorVitalMax[offset] = actorVitalMax[kind];
+        motivatedActorVitalRegen[offset] = actorVitalRegen[kind];
+      }
       applyDefaultCapabilitiesToMotivatedActors(1);
       seedMotivatedOccupancyFromActor();
     },

@@ -157,6 +157,16 @@ export function runMvpMovement({
       },
     };
     actions.push(action);
+    // AM.3 — this loop IS the tick loop for the MVP driver, so it closes its own
+    // tick. The core tick used to advance as a side effect of a successful move
+    // inside rules/move.ts commitMove; now that tick control belongs to whoever
+    // drives the simulation (charter §29), the driver advances it. Without this
+    // the tick would never move and every move after the first would be
+    // rejected TickMismatch. One advance per iteration keeps the golden
+    // frames' one-tick-per-move cadence exactly as it was.
+    if (typeof core.advanceTick === "function") {
+      core.advanceTick();
+    }
     if (typeof core.clearEffects === "function") {
       core.clearEffects();
     }

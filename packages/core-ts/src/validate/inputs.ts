@@ -33,6 +33,23 @@ export const ValidationError = {
   InvalidCapability: 20,
 } as const;
 
+/**
+ * AM.1 — code -> name, DERIVED from ValidationError rather than hand-listed.
+ *
+ * Callers outside core-ts (the runtime records a rejection reason per action)
+ * need a stable name for a rejection code. A second hand-written table would be
+ * a parallel authority that silently drifts the moment a code is added here —
+ * the exact failure mode F10 records for the affinity surface. Deriving the map
+ * makes drift impossible.
+ */
+const VALIDATION_ERROR_NAME_BY_CODE: ReadonlyMap<number, string> = new Map(
+  Object.entries(ValidationError).map(([name, code]) => [code as number, name]),
+);
+
+export function getValidationErrorName(code: number): string {
+  return VALIDATION_ERROR_NAME_BY_CODE.get(code) ?? `Unknown(${code})`;
+}
+
 export function validateSeed(seed: number): number {
   return seed < 0 ? ValidationError.InvalidSeed : ValidationError.None;
 }

@@ -1,3 +1,9 @@
+// PX.3 extended beyond personas: this module defaulted its clock to
+// `() => new Date().toISOString()`, the exact pattern require-clock.js removed from
+// every persona. The rule was enforced on personas/ only, so five modules kept the
+// default and nothing objected. UNUSED_CLOCK is the repo's deterministic marker: a
+// caller that forgets to inject now gets a reproducible value, not wall-clock time.
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 // M7: declared in contracts/artifacts.ts; re-exported here so existing importers are unchanged.
 import { ADAPTIVE_WORKFLOW_METRICS_SCHEMA } from "../contracts/artifacts.ts";
 
@@ -16,7 +22,7 @@ export function summarizeAdaptiveWorkflowMetrics({
   benchmarkClassifications,
   model,
   provider,
-  clock = () => new Date().toISOString(),
+  clock = UNUSED_CLOCK,
 } = {}) {
   const events = Array.isArray(state?.events) ? state.events : [];
   const captureList = Array.isArray(captures) ? captures : [];

@@ -216,6 +216,39 @@ test("core still tracks every configured actor after a multi-tick run with 4 act
 });
 
 // ---------------------------------------------------------------------------
+// AM.0 — the assertions above are all on the ACTION LEDGER (acceptedActions) or
+// on an actor COUNT. None of them observes the world. `applyActionsToCore` in
+// runtime-fsm.mjs pushes a move into `acceptedActions` unconditionally —
+// `applyMoveAction` returns void and core signals rejection through the effect
+// ring, which the runtime never reads — so every assertion above still passes
+// in a run where core rejected every single move.
+//
+// This test closes that hole for this file: it asserts core POSITIONS.
+// See tests/runtime/multi-tick-world-state.test.js for the full AM.0 set.
+// ---------------------------------------------------------------------------
+
+test("every configured actor changes position in core state, not just in the accepted-action ledger", async () => {
+  const initialState = buildInitialState();
+  const { core } = await runRuntimeScenario({ initialState, ticks: TICK_COUNT, seed: 0 });
+
+  const stuck = [];
+  initialState.actors.forEach((configured, index) => {
+    const x = core.getMotivatedActorXByIndex(index);
+    const y = core.getMotivatedActorYByIndex(index);
+    if (x === configured.position.x && y === configured.position.y) {
+      stuck.push(`${configured.id} (index ${index}) never left ${x},${y}`);
+    }
+  });
+
+  assert.deepEqual(
+    stuck,
+    [],
+    "an actor that receives accepted move actions must actually move in core state; "
+      + `still at spawn after ${TICK_COUNT} ticks: ${stuck.join(" | ")}`,
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Permutations expanded from TODO stubs
 // ---------------------------------------------------------------------------
 

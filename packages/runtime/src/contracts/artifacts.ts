@@ -1820,6 +1820,22 @@ export interface ActionV1 {
     | "raise_barrier"
     | "arm_static_hazard"
     | "disarm_static_hazard"
+    /**
+     * AM.5 — an actor deliberately expressing one of its affinities.
+     *
+     * Additive union member, so no schemaVersion bump: nothing is removed or
+     * renamed, and a consumer that does not know this kind sees an action it
+     * ignores rather than a shape it misreads.
+     *
+     * params: { kind, expression, stacks, targetId? , target?: {x,y} }
+     * Routed by target class in runtime-fsm.mjs adaptActionToCore:
+     *   actor target            -> core.applyAffinityDamage
+     *   hazard, durability      -> core.applyAffinityDamageToHazard
+     *   hazard, neutralize      -> core.applyAffinityPullFromHazard
+     * All three already existed, fully unit-tested, with zero production callers
+     * (F5) — an actor's affinity could not reach the world at all before this.
+     */
+    | "cast_affinity"
     | "custom";
 
   /**
@@ -2052,6 +2068,13 @@ export type TickFrame = TickFrameV1;
 
 export const TELEMETRY_RECORD_SCHEMA = "agent-kernel/TelemetryRecord";
 export const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
+export const WORLD_STATE_SCHEMA = "agent-kernel/WorldStateArtifact";
+// Z.1 — the constraint-problem family. Declared here like every other schema:
+// `contracts/constraint-problem.js` imports these rather than writing the
+// literals, because a retyped literal is a second origin no declaration-keyed
+// census can see (M7/M8/M9).
+export const CONSTRAINT_PROBLEM_SCHEMA = "agent-kernel/ConstraintProblem";
+export const CONSTRAINT_RESULT_SCHEMA = "agent-kernel/ConstraintResult";
 export const NARRATIVE_ARTIFACT_SCHEMA = "agent-kernel/NarrativeArtifact";
 
 /**
@@ -2117,6 +2140,102 @@ export interface RunSummaryV1 {
 
 export type TelemetryRecord = TelemetryRecordV1;
 export type RunSummary = RunSummaryV1;
+
+/**
+ * AM.0b — what the world actually LOOKED LIKE when the run ended.
+ *
+ * A run used to emit tick-frames, effects, action and summary logs: a complete
+ * record of what was *decided* and nothing at all about what *happened*. No
+ * position, no vital, no hazard state was written anywhere (finding F11). That
+ * made the simulation unobservable from outside the process — no CLI or MCP
+ * caller, and no test at that seam, could tell a run in which every actor moved
+ * from one in which core rejected every move. It is also why the multi-actor CLI
+ * suite could only ever assert the action ledger.
+ *
+ * Emitted by the Annotator, whose chartered role is capturing and normalizing
+ * run observability. Persistence stays with the caller, exactly as RunSummary
+ * does — the runtime never touches the filesystem.
+ */
+export interface WorldStateActorV1 {
+  /** Original string id where known, else the core-assigned numeric id. */
+  id: string;
+  index: number;
+  position: { x: number; y: number };
+  vitals: Record<string, { current: number; max: number; regen: number }>;
+  /** Affinity grants the actor still holds, in slot order. */
+  affinities: Array<{
+    kind: number;
+    expression: number;
+    stacks: number;
+    mana: number;
+    manaMax: number;
+    manaRegen: number;
+  }>;
+}
+
+export interface WorldStateHazardV1 {
+  position: { x: number; y: number };
+  affinity: number;
+  expression: number;
+  stacks: number;
+  mana: { current: number; max: number; regen: number };
+  durability: { current: number; max: number; regen: number };
+}
+
+export interface WorldStateArtifactV1 {
+  schema: typeof WORLD_STATE_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  simConfigRef?: ArtifactRef;
+  /** The core tick this snapshot was taken at. */
+  tick: number;
+  dimensions: { width: number; height: number };
+  actors: WorldStateActorV1[];
+  hazards: WorldStateHazardV1[];
+}
+
+export type WorldStateArtifact = WorldStateArtifactV1;
+
+/**
+ * Z.1 — a constraint problem posed to a solver, and the normalized answer.
+ *
+ * Both carry `meta`, so both are persisted artifacts rather than bare protocol
+ * messages: `ak solve` already writes a solver request and result to disk, and a
+ * problem whose provenance cannot be traced is not auditable. The classification
+ * in `schema-catalog.js` is derived from exactly that — the presence of `meta`
+ * here IS the statement of what these are.
+ *
+ * `domain` is the discriminator. What `variables`, `constraints` and `objective`
+ * MEAN is the owning persona's business, so they stay opaque here; giving this
+ * file an opinion about them would move domain logic into a contract.
+ */
+export interface ConstraintProblemV1 {
+  schema: typeof CONSTRAINT_PROBLEM_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  /** One of the adopted constraint domains. */
+  domain: string;
+  /** The persona that owns this domain, and therefore may pose it. */
+  posedBy: string;
+  variables: unknown[];
+  constraints: unknown[];
+  objective?: unknown;
+  context?: Record<string, unknown>;
+}
+
+export interface ConstraintResultV1 {
+  schema: typeof CONSTRAINT_RESULT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  domain: string;
+  status: "fulfilled" | "unsat" | "deferred" | "error";
+  model: Record<string, unknown> | null;
+  /** Required on `unsat`: an unexplained infeasibility cannot be acted on. */
+  reason?: string;
+}
+
+export type ConstraintProblem = ConstraintProblemV1;
+export type ConstraintResult = ConstraintResultV1;
 
 export interface NarrativeCastEntryV1 {
   id: string;

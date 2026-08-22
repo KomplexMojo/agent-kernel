@@ -126,6 +126,73 @@ const REGISTRY = Object.freeze([
     },
   },
 
+  {
+    id: "orchestrator/budget-loops",
+    chartered: "orchestrator/budget-loops",
+    persona: "orchestrator",
+    behavior: "Budget loops over model interaction: runLlmBudgetLoop sequences rounds under a token cap",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/personas/orchestrator/llm-budget-loop.js",
+    invocation: "none",
+    status: {
+      owned: true,
+      since: "THE NINE, paperwork six (2026-08-18)",
+      provenBy: "tests/architecture/orchestrator-budget-loop-authority.test.js",
+      why:
+        "A2 only — A5 is already settled by orchestrator/llm-session (the loop performs no "
+        + "LLM IO itself, it takes an injected runSession). What was unasked is whether "
+        + "PRODUCTION always fills that slot with an Orchestrator-backed runner, since the "
+        + "loop's own code cannot prove that about itself — runSession is just a required "
+        + "callback with no default. Answered by inventory: every production call site "
+        + "(kernel.js, ak-impl.mjs, design-guidance.js, adaptive-workflow/llm-seams.js, "
+        + "scripts/level-generation-benchmark.mjs — 5/5, none excepted) imports "
+        + "runLlmSessionHosted from the canonical commands/llm-host.js and wires it as "
+        + "runSession; that function itself constructs a real createOrchestratorPersona and "
+        + "drives the round through its own llm.beginRound seam, not a second "
+        + "implementation. Perturbation run for real: pointed one call site's runSession at "
+        + "a no-op closure, the guard failed on exactly that file and no other, reverted. "
+        + "The loop's OWN refusal-without-a-runner behavior "
+        + "(tests/personas/orchestrator/orchestrator-llm-budget-loop.test.js, "
+        + "the loop REFUSES to run without a session runner) already existed and is the "
+        + "other half: together they say the loop cannot run at all without a session "
+        + "runner, and production never supplies one that bypasses the Orchestrator.",
+    },
+  },
+
+  {
+    id: "orchestrator/prompt-contracts",
+    chartered: "orchestrator/prompt-contracts",
+    persona: "orchestrator",
+    behavior: "Prompt contracts: what a prompt may offer and what a response must satisfy",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/personas/orchestrator/prompt-contract.js",
+    invocation: "none",
+    status: {
+      owned: true,
+      since: "THE NINE, paperwork six (2026-08-18)",
+      provenBy: "tests/architecture/orchestrator-prompt-contract-authority.test.js",
+      why:
+        "A2 only. normalizeSummary and deriveAllowedOptionsFromCatalog are the two "
+        + "glue-facing functions controller.js's own comment names (CR.7 / WP-5), published "
+        + "there so kernel.js/ak-impl.mjs/ui-flow.js reach them through the persona rather "
+        + "than importing prompt-contract.js directly. Two things close the ownership "
+        + "question: uniqueness (exactly one production definition of each function exists "
+        + "anywhere in the tree — no shadow validator glue could call instead) and an "
+        + "inventory (every production caller outside personas/orchestrator/ imports both "
+        + "from the persona.js barrel, never the raw module). Perturbation run for real: "
+        + "pointed ui-flow.js's import at prompt-contract.js directly, both the direct-import "
+        + "guard and the barrel-import guard failed on exactly that file and no other, "
+        + "reverted. persona-boundary.test.js already forbids the direct import structurally "
+        + "(prompt-contract.js is not in PUBLIC_BASENAMES, allowlist is 0) — cited here, and "
+        + "checked again independently rather than only cited, because two guards agreeing "
+        + "is stronger than one trusting the other. The BEHAVIORAL half — that this "
+        + "normalization is load-bearing — is not reproven here: "
+        + "tests/runtime/prompt-contract.test.js (~15 validation-rule cases) and "
+        + "tests/adapters-cli/ak-llm-plan.test.js (\"cli llm-plan rejects summaries that do "
+        + "not match catalog entries\", through the real CLI) already cover it.",
+    },
+  },
+
   // ── Director ───────────────────────────────────────────────────────────────
   {
     id: "director/plan-artifact",
@@ -305,6 +372,73 @@ const REGISTRY = Object.freeze([
     },
   },
 
+  {
+    id: "configurator/cards",
+    chartered: "configurator/cards",
+    persona: "configurator",
+    behavior: "Card configuration: assembling and validating candidate delver/room cards",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/personas/configurator/candidate-authoring.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "THE NINE, paperwork six (2026-08-18)",
+      provenBy: "tests/architecture/configurator-cards-authority.test.js",
+      why:
+        "A2, the Configurator's own half of a mechanism allocator/judges-not-authors "
+        + "already proves the ALLOCATOR's half of (CR.9 M3: the Allocator refuses to "
+        + "price a card without authorCandidates injected, "
+        + "allocator_candidate_authoring_required). That entry's own test "
+        + "(allocator-judges-not-authors.test.js) goes further than the refusal — "
+        + "\"the winning card is one the Configurator actually proposed\" and "
+        + "\"motivations reach the price through the candidate's published field, not a "
+        + "re-derivation\" — using tests/helpers/configurator-capabilities.js, which "
+        + "wires a REAL createConfiguratorPersona(), not a stub. Not reproven here. What "
+        + "was missing was the CONFIGURATOR-side claim and its production inventory: "
+        + "exactly two sites in the whole tree assign authorCandidates a value "
+        + "(commands/card-authoring.js, ak-impl.mjs), both constructing a real "
+        + "createConfiguratorPersona() and threading its own .authorCandidates — no third "
+        + "site, no hand-rolled stand-in. Perturbation run for real: pointed "
+        + "card-authoring.js's authorCandidates at an empty fake object instead of the "
+        + "real persona's surface — failed exactly the fidelity assertion and no other, "
+        + "reverted after.",
+    },
+  },
+  {
+    id: "configurator/actors",
+    chartered: "configurator/actors",
+    persona: "configurator",
+    behavior: "Actor configuration: defaulting, enum validation and assembly of a build/run request's delver roster entry",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/personas/configurator/actor-authoring.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "configurator/actors milestone (2026-08-18)",
+      provenBy: "tests/architecture/configurator-actors-authority.test.js",
+      why:
+        "A2. KNOWN_UNREGISTERED's own note said actor-config-generation.js was deleted by "
+        + "P1.4 as dead code and either something else authors actor configs or nothing "
+        + "does. Traced: something did, in adapter glue — ak-impl.mjs's parseDelverSpec "
+        + "defaulted a missing motivation to \"attacking\", validated affinity/motivation/"
+        + "setup-mode against the chartered enums, and assembled the delver candidate "
+        + "object inline, all in the CLI. Moved into authorDelverCandidate, published on "
+        + "the Configurator's own surface (configurator-services.js -> controller.js), and "
+        + "wired at the single production call site through the existing module-level "
+        + "createConfiguratorPersona() instance ak-impl.mjs already constructs for "
+        + "authorCandidates/deriveRoomLayout. actor-generator.js's generateActorSet was "
+        + "investigated and is NOT this responsibility's fulfiller: it has a real, "
+        + "separate test-fixture consumer (tests/helpers/tier-generators.js -> "
+        + "tests/runtime/e2e-fixture-generators.test.js, grid-based scale/perf actor "
+        + "placement), untouched by this milestone. adapters-cli-no-actor-authoring.test.js "
+        + "proves the CLI side (no inline defaulting/validation/assembly survives); this "
+        + "file proves the production wiring is real. Perturbation run for real: reverted "
+        + "parseDelverSpec to its pre-milestone inline body — failed exactly the 5 new "
+        + "assertions across both new test files and no other architecture test (24 files, "
+        + "97 other tests stayed green), reverted after.",
+    },
+  },
+
   // ── Allocator ──────────────────────────────────────────────────────────────
   {
     id: "allocator/pricing-single-origin",
@@ -439,9 +573,76 @@ const REGISTRY = Object.freeze([
         + "from a state gating something in every output test. It gates the reconciliation now, "
         + "and its FSM guard requires the ledger rather than the old signal COUNTS. "
         + "⚠️ Separately: `core.applyAction` returns for ActionKind.Move BEFORE charging, so a "
-        + "`movement` cap is inert against moves and reconciles as spend 0. That is a core "
-        + "defect this entry does not cover and did not introduce; the G1 test caps `effects` "
-        + "and says so in place.",
+        + "`movement` cap is inert against moves and reconciles as spend 0. RULED 2026-08-18 "
+        + "(Plan.md §POST-AM/Z): intentional, not a defect — stamina is a move's real cost. "
+        + "See tests/core-ts/action-budget-charging.test.mts; the G1 test here still caps "
+        + "`effects` and says so in place.",
+    },
+  },
+
+  {
+    id: "allocator/base-costs",
+    chartered: "allocator/base-costs",
+    persona: "allocator",
+    behavior: "Base costs: the tunable numbers every formula prices from",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/personas/allocator/base-costs.json",
+    invocation: "none",
+    status: {
+      owned: true,
+      since: "THE NINE, paperwork six (2026-08-18)",
+      provenBy: "tests/architecture/allocator-base-costs-authority.test.js",
+      why:
+        "A2 only. `single-origin.test.js` already forbids any file but "
+        + "default-price-list.js from reading base-costs.json, and "
+        + "`pricing-authority.test.js` forbids any OTHER module from declaring a numeric "
+        + "price literal at all — together they prove nothing else CAN produce these "
+        + "numbers. What was unasked is the forward direction: does the price list "
+        + "production actually issues COME from this file. Answered by fidelity, not "
+        + "boundary: base-costs.json read independently via fs (not the ES import "
+        + "default-price-list.js uses), and every emitted item's unitCost checked against "
+        + "it — directly for the eight priced groups, and through the one documented "
+        + "transform (the free-floating resource premium, rounded) for the resource "
+        + "mirrors. Perturbation run for real, and it took two tries to get right: editing "
+        + "base-costs.json ALONE and re-running proved nothing, because both the test's "
+        + "independent read and the production import see the same edited file — that is "
+        + "the wiring working, not a gap in the guard. The real perturbation hardcoded a "
+        + "drifted value (7 instead of 35) inside itemFrom() in default-price-list.js, "
+        + "leaving the JSON untouched — exactly the cost-model.js shape "
+        + "single-origin.test.js's own comment records as this repo's recurring failure. "
+        + "That failed exactly the fidelity assertion and no other, reverted after.",
+    },
+  },
+
+  {
+    id: "allocator/receipts",
+    chartered: "allocator/receipts",
+    persona: "allocator",
+    behavior: "Receipts: the audit trail of what a build actually spent and whether it was approved",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/personas/allocator/validate-spend.js",
+    invocation: "service",
+    status: {
+      owned: true,
+      since: "THE NINE, paperwork six (2026-08-18)",
+      provenBy: "tests/architecture/allocator-receipt-authority.test.js",
+      why:
+        "A2, the other half of allocator/spend-authority. That entry proves a DENIED "
+        + "receipt stops a build (ak-hazard-resource-plan.test.js, through the real CLI). "
+        + "This entry proves the complementary claim: the Allocator is the ONLY thing that "
+        + "can mark a receipt approved — a denial-only guarantee would let glue construct "
+        + "its own 'everything's fine' receipt with nothing downstream able to tell, since "
+        + "the build proceeds either way. Traced the real shape rather than grepping the "
+        + "bare string: 'approved' appears twice more in the tree, in "
+        + "director/pool-mapper.js and director/summary-selections.js, both "
+        + "{status, reason, count} pool-pick receipts — a different concern sharing a field "
+        + "name, correctly excluded by scoping to objects that also carry lineItems. "
+        + "orchestrate-build.js takes budgetReceipt wholesale from "
+        + "spendResult.receipt (evaluateConfiguratorSpend, imported from the Allocator's "
+        + "persona.js barrel) and only ever READS .status, never assigns it. Perturbation "
+        + "run for real: added budgetReceipt.status = \"approved\" directly inside "
+        + "orchestrate-build.js — exactly the shape a glue-side rubber stamp would take — "
+        + "and it failed precisely the read-only assertion and no other, reverted after.",
     },
   },
 
@@ -499,21 +700,100 @@ const REGISTRY = Object.freeze([
     },
   },
 
+  {
+    id: "actor/runtime-decisioning",
+    chartered: "actor/runtime-decisioning",
+    persona: "actor",
+    behavior: "Solver/LLM-routed proposals: posing and resolving a runtime-decision problem",
+    criteria: ["A2"],
+    productionEntryPoint: "packages/runtime/src/personas/actor/controller.js",
+    invocation: "cli",
+    status: {
+      owned: true,
+      since: "THE NINE, paperwork six (2026-08-18)",
+      provenBy: "tests/architecture/actor-runtime-decisioning-authority.test.js",
+      why:
+        "A2. ⚠️ Corrected mid-investigation, kept because the correction is the finding: "
+        + "went in assuming §Z.2's constraint-problems.js (buildActionSelectionProblem, "
+        + "resolveActionFromConstraintResult) was the production path with just a missing "
+        + "registry row. find_referencing_symbols shows neither function has ANY caller "
+        + "outside its own file and a barrel re-export — not even inside controller.js, "
+        + "despite a comment there naming the exact 'published with no path' defect this "
+        + "was meant to avoid. What actually runs is a separate, OLDER module, "
+        + "_shared/runtime-decision.mts: buildRuntimeDecisionEnvelope poses (called from "
+        + "actor/controller.js) and resolveActionFromSolverResult resolves (called from "
+        + "_shared/tick-orchestrator.mts's handleSolverRequests) — proven end-to-end with a "
+        + "real Z3 adapter by tests/runtime/complex-motivation-z3.test.js, not reproven "
+        + "here. Perturbation run for real: neutered resolveActionFromSolverResult to "
+        + "always return ok:false — five assertions in that e2e test failed immediately, "
+        + "confirming it is genuinely load-bearing, not merely present. Reverted after. "
+        + "The §Z.2 module was DELETED 2026-08-18 (ruled: delete, not wire-in or leave — "
+        + "see Plan.md §POST-AM/Z) across all three personas, along with its dedicated "
+        + "9-test suite; the maintainer asked directly for the ruling and this is it. "
+        + "actor-runtime-decisioning-authority.test.js's third test now guards against "
+        + "reintroduction rather than merely documenting the parked state.",
+    },
+  },
+
   // ── Moderator ──────────────────────────────────────────────────────────────
   {
     id: "moderator/tick-ordering",
     chartered: "moderator/tick-ordering",
     persona: "moderator",
-    behavior: "Controls the tick: ordering strategy and effect fulfilment are the Moderator's decision",
+    behavior: "Controls the tick: ordering strategy is the Moderator's decision",
     criteria: ["A1", "A2"],
     productionEntryPoint: "packages/runtime/src/runner/runtime-fsm.mjs",
     invocation: "cli",
-    // Both halves moved: the canonical order lives only in moderator/tick-ordering.js
-    // and dispositions only in moderator/effect-fulfillment.js. The runner asks and
-    // executes; it kept no fallback copy of either, so a Moderator that will not
-    // answer is a hard error rather than a silent reversion to glue policy.
+    // SPLIT 2026-08-18 (THE NINE paperwork six): this entry used to also claim effect
+    // fulfilment, which is its own chartered roster id (moderator/effect-fulfillment)
+    // that the coverage guard could not see while it stayed folded in here. See that
+    // entry below — same production file, same "no fallback copy" guarantee, different
+    // chartered claim.
+    // The canonical order lives only in moderator/tick-ordering.js. The runner asks and
+    // executes; it kept no fallback copy, so a Moderator that will not answer is a hard
+    // error rather than a silent reversion to glue policy.
     // Dispatch itself stays behind ports/effects.js — the persona decides, glue does IO.
-    status: { owned: true, since: "CR.5" },
+    status: {
+      owned: true,
+      since: "CR.5",
+      provenBy: "tests/architecture/persona-authority.test.js",
+      why:
+        "A1+A2, live differential: \"G1 moderator/tick-ordering: production executes the "
+        + "order the Moderator planned\" — the Moderator's own standalone plan and "
+        + "production's actual advance order are asserted equal, so a second ordering "
+        + "implementation in the runner would fail this rather than pass by coincidence.",
+    },
+  },
+
+  {
+    id: "moderator/effect-fulfillment",
+    chartered: "moderator/effect-fulfillment",
+    persona: "moderator",
+    behavior: "Effect fulfilment disposition: which status and reason each effect resolves to is the Moderator's decision",
+    criteria: ["A1", "A2"],
+    productionEntryPoint: "packages/runtime/src/personas/moderator/effect-fulfillment.js",
+    invocation: "cli",
+    status: {
+      owned: true,
+      since: "CR.5, split into its own entry THE NINE paperwork six (2026-08-18)",
+      provenBy: "tests/architecture/persona-authority.test.js",
+      why:
+        "A1+A2, live differential — no new code, only a registry and naming split. CR.5 "
+        + "made effect-fulfilment disposition Moderator policy at the same time it made "
+        + "tick-ordering Moderator policy, and both have carried a differential test since "
+        + "then; only the ORDERING half had a registry row citing its own chartered id, so "
+        + "the roster could not see this one — 'folded into an entry chartered as "
+        + "ORDERING' was the KNOWN_UNREGISTERED note's exact wording. \"G1 "
+        + "moderator/effect-fulfillment: production applies the fulfilment the Moderator "
+        + "decided\" (renamed from '...tick-ordering: production applies...' in the same "
+        + "diff, so the test's own name stops misattributing it) drives four effects "
+        + "through the Moderator's standalone plan_effect_fulfillment and separately "
+        + "through a real runtime, then asserts order, status AND reason all match — a "
+        + "production disposition or deferral reason the Moderator did not decide fails "
+        + "here. `moderator/effect-fulfillment.js` is the sole source of dispositions "
+        + "(runtime-fsm.mjs keeps no fallback copy), same guarantee as the ordering half, "
+        + "different chartered claim.",
+    },
   },
 
   {

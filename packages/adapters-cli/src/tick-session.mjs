@@ -164,7 +164,53 @@ async function buildPngDataUri(simConfig, initialState, tickFrame, runDir) {
   return `data:image/png;base64,${Buffer.from(pngBytes).toString("base64")}`;
 }
 
-export async function renderAscii(runDir) {
+const ACTOR_GLYPH = "@";
+
+/**
+ * AM.0b — actor positions as of `tick`, replayed from the run's own record.
+ *
+ * Positions start at the initial state and advance to each accepted `move`
+ * action's recorded destination, frame by frame, stopping at the requested tick.
+ * These are facts the run already wrote down, not a re-simulation: no rule is
+ * evaluated and no action is re-validated here, so this stays presentation.
+ *
+ * Only ACCEPTED moves are followed. Since AM.1 a move core refused is recorded
+ * in `preCoreRejections` instead, so a rejected move no longer moves the glyph —
+ * which is the whole reason this can be trusted to show what actually happened.
+ */
+function resolveActorPositionsAtTick(initialState, frames, tick) {
+  const positions = new Map();
+  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
+  actors.forEach((actor) => {
+    if (!actor?.id || !Number.isFinite(actor.position?.x) || !Number.isFinite(actor.position?.y)) return;
+    positions.set(String(actor.id), { x: actor.position.x, y: actor.position.y });
+  });
+  if (!Array.isArray(frames)) return positions;
+
+  const limit = Number.isFinite(tick) ? tick : Infinity;
+  for (const frame of frames) {
+    if (Number.isFinite(frame?.tick) && frame.tick > limit) break;
+    for (const action of Array.isArray(frame?.acceptedActions) ? frame.acceptedActions : []) {
+      if (action?.kind !== "move") continue;
+      const to = action.params?.to;
+      const id = String(action.actorId || "");
+      if (!id || !Number.isFinite(to?.x) || !Number.isFinite(to?.y)) continue;
+      positions.set(id, { x: to.x, y: to.y });
+    }
+  }
+  return positions;
+}
+
+/**
+ * Render the run's grid at `tick`.
+ *
+ * Two defects fixed here (F11): this took no tick at all and rebuilt core from
+ * `initial-state.json`, so `ak_show_state` reported **tick 0 whatever the
+ * session cursor said**; and it called `renderBaseTiles`, which draws terrain
+ * only, so **actors were never on the map**. A caller asking "show me the state"
+ * got the starting terrain, every time, and nothing in the output said so.
+ */
+export async function renderAscii(runDir, tick = null) {
   const simConfigPath = resolveBuildArtifact(runDir, "sim-config.json");
   const initialStatePath = resolveBuildArtifact(runDir, "initial-state.json");
   if (!simConfigPath || !initialStatePath) return "";
@@ -189,7 +235,27 @@ export async function renderAscii(runDir) {
     });
     if (!actorResult.ok) return "";
 
-    return renderBaseTiles(core).join("\n");
+    const rows = renderBaseTiles(core).map((row) => row.split(""));
+
+    const framesPath = join(runDir, "run", "tick-frames.json");
+    let frames = null;
+    if (existsSync(framesPath)) {
+      try {
+        const parsed = JSON.parse(await readFile(framesPath, "utf8"));
+        frames = Array.isArray(parsed?.frames) ? parsed.frames : parsed;
+      } catch {
+        frames = null;
+      }
+    }
+
+    const positions = resolveActorPositionsAtTick(initialState, frames, tick);
+    for (const { x, y } of positions.values()) {
+      if (y >= 0 && y < rows.length && x >= 0 && x < rows[y].length) {
+        rows[y][x] = ACTOR_GLYPH;
+      }
+    }
+
+    return rows.map((row) => row.join("")).join("\n");
   } catch {
     return "";
   }

@@ -139,6 +139,13 @@ export function unpackMoveAction(value) {
   };
 }
 
+/**
+ * AM.1 — returns core's ValidationError code (0 == None/accepted).
+ *
+ * Previously void, which made core-level move rejection unobservable to every
+ * caller: the runtime treated "did not throw" as "moved". A caller that ignores
+ * the return value behaves exactly as before.
+ */
 export function applyMoveAction(core, value) {
   if (!core?.setMoveAction || !core?.applyAction) {
     throw new Error("Core is missing setMoveAction/applyAction; rebuild bindings.");
@@ -151,7 +158,8 @@ export function applyMoveAction(core, value) {
   const dirCode = value[5];
   const tick = value[6];
   core.setMoveAction(actorId, fromX, fromY, toX, toY, dirCode, tick);
-  core.applyAction(8, 0);
+  const result = core.applyAction(8, 0);
+  return Number.isFinite(result) ? result : 0;
 }
 
 export function renderBaseTiles(core) {

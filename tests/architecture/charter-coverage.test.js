@@ -49,40 +49,16 @@ const CHARTER = resolve(__dirname, "../../docs/architecture-charter.md");
  *
  * Every one of these was found by writing the roster. None was known before.
  */
-const KNOWN_UNREGISTERED = Object.freeze({
-  "orchestrator/budget-loops":
-    "runLlmBudgetLoop is a free function, recorded as residue on orchestrator/llm-session: "
-    + "it performs no IO and produces no artifact of its own, so it violates no criterion — "
-    + "but nothing asserts production cannot run the loop without the persona.",
-  "orchestrator/prompt-contracts":
-    "prompt-contract.js is published on the controller (CR.7 / WP-5) and its two glue-facing "
-    + "functions are reached through it, but no G1 test asks whether production could "
-    + "normalize a summary without the Orchestrator.",
-  "configurator/actors":
-    "actor-config-generation.js was DELETED by P1.4 as dead code with no production importers. "
-    + "The responsibility is still chartered, so this is a genuine gap rather than a stale row: "
-    + "either something else authors actor configs, or nothing does.",
-  "configurator/cards":
-    "candidate-authoring.js assembles cards for the CR.9 M3 protocol, and the Allocator refuses "
-    + "without it (allocator_candidate_authoring_required) — a refusal is strong evidence but it "
-    + "is the ALLOCATOR's entry, not this responsibility's.",
-  "configurator/pools":
-    "director/pool-mapping covers the Director asking; nothing covers the Configurator answering.",
-  "allocator/base-costs":
-    "base-costs.json has a single-origin guard (G2) and a boundary guard forbidding reads from "
-    + "outside personas/allocator/, but no G1 entry: the A2 question — could production price "
-    + "anything without the Allocator's base costs — is unasked.",
-  "allocator/receipts":
-    "allocator/spend-authority proves a DENIED receipt stops a build. Nothing proves the "
-    + "Allocator is the only issuer of an APPROVED one, which is the audit-trail claim.",
-  "actor/runtime-decisioning":
-    "solver/LLM-routed proposals. actor/motivation-to-proposal ablates the simple-motivation "
-    + "path only; the runtime-decisioning path has tests but no ownership entry.",
-  "moderator/effect-fulfillment":
-    "CR.5 made the disposition the Moderator's, and moderator/tick-ordering carries a test named "
-    + "'production applies the fulfilment the Moderator decided'. It is folded into an entry "
-    + "chartered as ORDERING, so the roster cannot see it. Splitting the entry is the fix.",
-});
+/**
+ * ⚠️ Empty as of 2026-08-18. `configurator/pools`, the only remaining entry, was removed
+ * from the roster itself rather than closed here — decision D8-V (2026-08-08) had already
+ * ruled the adjacent mechanism (pool-catalog validation) shared vocabulary, not persona
+ * authority, months before this list called its absence a gap. See the charter's own note
+ * at the `configurator/pools` removal site for the full reasoning. An empty object here
+ * means the roster and the registry currently partition cleanly with nothing outstanding —
+ * not that nothing will ever need this list again.
+ */
+const KNOWN_UNREGISTERED = Object.freeze({});
 
 /**
  * Normalized fingerprints of each persona table row, recorded 2026-08-14.
@@ -94,7 +70,7 @@ const KNOWN_UNREGISTERED = Object.freeze({
 const PERSONA_ROW_FINGERPRINTS = Object.freeze({
   orchestrator: "f6592f7057d2671a",
   director: "bd007e8f08544c3b",
-  configurator: "adf0d6dbc934c822",
+  configurator: "815ec79abb301c91",
   allocator: "4e0c673af359ccbf",
   actor: "b96b3a6e3bbde10d",
   moderator: "bfc2b7133a019501",

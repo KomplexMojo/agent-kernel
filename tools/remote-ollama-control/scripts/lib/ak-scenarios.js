@@ -6,6 +6,11 @@ const path = require('path');
 
 const SCHEMA_VERSION = 'agent-kernel-content-gen-catalog/v1';
 const CATALOG_DIR = path.resolve(__dirname, '..', '..', 'benchmarks', 'content-gen');
+// Baselines generated with a budgetTokens at or above this sentinel are
+// budget-UNCONSTRAINED (generate-baselines.mjs uses a non-binding 1M ceiling);
+// anything below it is an explicit budget-test with a tight, feasible cap.
+const UNCONSTRAINED_SENTINEL = 1_000_000;
+
 const CATALOG_TIERS = ['simple', 'affinity', 'complex', 'constrained'];
 const EXPECTED_TIER_COUNTS = Object.freeze({
   simple: 25,
@@ -162,10 +167,18 @@ function validateScenario(scenario, fileTier, seenIds) {
   if (scenario.reference.totalSpend !== scenario.referenceSpend) {
     throw new Error(`${label}.reference.totalSpend must match referenceSpend`);
   }
-  const expectedBudget = scenario.budgetMode === 'constrained' ? scenario.budget : 1_000_000;
-  if (scenario.payload.budgetTokens !== expectedBudget) {
+  const derived = scenarioBudgetMode(scenario.payload);
+  if (derived.budgetMode !== scenario.budgetMode || derived.budget !== scenario.budget) {
     throw new Error(`${label}.payload.budgetTokens does not match its budget classification`);
   }
+}
+
+function scenarioBudgetMode(payload) {
+  const budgetTokens = payload?.budgetTokens;
+  if (Number.isInteger(budgetTokens) && budgetTokens < UNCONSTRAINED_SENTINEL) {
+    return { budgetMode: 'constrained', budget: budgetTokens };
+  }
+  return { budgetMode: 'unconstrained', budget: null };
 }
 
 function canonicalize(value) {
@@ -234,7 +247,9 @@ function loadScenarios() {
 
 module.exports = {
   CATALOG_DIR,
+  UNCONSTRAINED_SENTINEL,
   canonicalJson,
   loadScenarioCatalog,
   loadScenarios,
+  scenarioBudgetMode,
 };

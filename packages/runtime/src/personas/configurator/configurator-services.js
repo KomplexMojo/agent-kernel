@@ -41,6 +41,8 @@ import {
 import { normalizeMotivations } from "./motivation-loadouts.js";
 import { assessLayoutFeasibility } from "./feasibility.js";
 import {
+  applyAffinityDerivedVitalRequirements,
+  applyMotivationDerivedVitalRequirements,
   assessDelverStructure,
   buildBudgetEnvelope,
   buildMinimumDelverCard,
@@ -50,6 +52,9 @@ import {
   reviseDelverCandidate,
 } from "./candidate-authoring.js";
 import { maximizeActorBudget } from "./budget-maximizer.js";
+// configurator/actors (2026-08-18) — defaulting, enum validation and assembly of a
+// build/run request's delver roster entry, moved out of ak-impl.mjs's CLI glue.
+import { authorDelverCandidate } from "./actor-authoring.js";
 /**
  * CR.7 / WP-5 — the BUILD-PLANE helpers, published so glue stops reaching past the persona.
  *
@@ -71,7 +76,7 @@ import { maximizeActorBudget } from "./budget-maximizer.js";
 import { generateGridLayoutFromInput } from "./level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "./artifact-builders.js";
 import { resolveAffinityEffects } from "./affinity-effects.js";
-import { normalizeAffinityRulesArtifact, resolveAffinityRules } from "./affinity-rules.js";
+import { normalizeAffinityRulesArtifact, resolveAffinityRules, resolveAffinityManaCost } from "./affinity-rules.js";
 import { buildAmbientAffinityPressure } from "./affinity-pressure.js";
 import { computeInternalManaUpkeep } from "./cost-model.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "./motivation-rules.js";
@@ -354,6 +359,15 @@ export function attachConfiguratorServices({ fsm } = {}) {
     assessDelverStructure,
     buildMinimumDelverCard,
     /**
+     * AM.2b — apply what an actor's motivation REQUIRES of its vitals, once the
+     * motivation kind is known. Published because the authoring pipeline patches
+     * motivation onto actor records after the build, and glue holds no domain
+     * logic: it asks the Configurator, which owns configuration validity.
+     */
+    applyMotivationDerivedVitalRequirements,
+    /** AM.5/F14 — an actor holding an affinity must be able to pay to express it. */
+    applyAffinityDerivedVitalRequirements,
+    /**
      * "What are this card's vitals, with defaults applied?" — a question about card
      * shape, which is why the Allocator asks it rather than answering it. It priced
      * cards through its own copy of this before M3.
@@ -385,6 +399,9 @@ export function attachConfiguratorServices({ fsm } = {}) {
     // importing `feasibility.js`, threshold and all.
     assessFeasibility,
     authorCandidates,
+    // configurator/actors — a build/run request's delver roster entry, published so
+    // ak-impl.mjs stops defaulting/validating/assembling it inline.
+    authorDelverCandidate,
     /**
      * Motivation vocabulary, published so the Allocator stops importing it (CR.9 M3).
      *
@@ -403,6 +420,9 @@ export function attachConfiguratorServices({ fsm } = {}) {
     resolveAffinityEffects,
     normalizeAffinityRulesArtifact,
     resolveAffinityRules,
+    // AM.5 — the authored per-cast mana cost. Published because the tick plane needs it:
+    // core-ts charges 0 mana for push and pull, so the kernel cannot answer this.
+    resolveAffinityManaCost,
     buildAmbientAffinityPressure,
     computeInternalManaUpkeep,
     normalizeMotivationRulesArtifact,

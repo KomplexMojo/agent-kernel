@@ -382,13 +382,53 @@ test("multiple hazards with distinct coordinates appear in sim-config in declare
   );
 });
 
-test.skip("hazard x beyond grid width is rejected instead of expanding the grid", () => {});
-test.skip("hazard y beyond grid height is rejected instead of expanding the grid", () => {});
+for (const [axis, x, y] of [["x", 8, 2], ["y", 2, 8]]) {
+  test(`hazard ${axis} beyond the room interior is rejected instead of expanding the grid`, () => {
+    const result = runCli([
+      "create",
+      "--room", "size=medium;count=1",
+      "--hazard", `x=${x};y=${y};affinity=fire;expression=emit;stacks=1`,
+      "--delver", "count=1;affinity=fire;motivation=attacking",
+      "--budget-tokens", "1000",
+      "--budget", BUDGET,
+      "--price-list", PRICE_LIST,
+      "--out-dir", mkdtempSync(join(os.tmpdir(), `ak-hazard-placement-${axis}-oob-`)),
+    ]);
+
+    assert.notEqual(result.status, 0);
+    assert.match(`${result.stdout}\n${result.stderr}`, /hazard_outside_room/i);
+  });
+}
+
 test.skip("hazard on exit tile is rejected", () => {});
 test.skip("hazard on spawn tile is rejected", () => {});
 test.skip("hazard count exceeding available floor tiles is rejected", () => {});
-test.skip("hazard vitals=mana:0:0 has an intentional accept/reject contract", () => {});
-test.skip("hazard with only durability vital and no mana is independently optional", () => {});
+
+test("hazard vitals=mana:0:0 is accepted as an explicit empty mana pool", () => {
+  const result = runCli([
+    "create",
+    "--hazard", "x=2;y=2;affinity=fire;vitals=mana:0:0",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens", "1000",
+    "--dry-run",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).ok, true);
+});
+
+test("hazard may declare durability without a mana vital", () => {
+  const result = runCli([
+    "create",
+    "--hazard", "x=2;y=2;affinity=fire;vitals=durability:25:1",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens", "1000",
+    "--dry-run",
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).ok, true);
+});
+
 test.skip("hazard coordinates adjacent to exit tile are accepted", () => {});
 test.skip("hazard coordinates adjacent to spawn tile are accepted", () => {});
-test.skip("hazard with blocking=true prevents actor traversal", () => {});

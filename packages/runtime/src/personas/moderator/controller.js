@@ -3,6 +3,8 @@ import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { planModeratorAffinityActions } from "./affinity-target-effects.js";
 import { planPersonaOrder } from "./tick-ordering.js";
 import { planEffectFulfillment, FulfillmentDispositions } from "./effect-fulfillment.js";
+import { planTickClose } from "./tick-close.js";
+import { planAffinityInteractions } from "./affinity-interactions.js";
 
 // Published on the controller surface so the runner can execute a fulfilment plan
 // without importing persona internals (charter: external code imports persona
@@ -60,6 +62,22 @@ export function createModeratorPersona({ initialState = ModeratorStates.INITIALI
         personaOrder: planPersonaOrder({ personaNames: payload?.personaNames }),
       };
     }
+    // AM.3b + AM.7 — closing the tick is a Moderator DECISION, not a fixed point
+    // in the runner. Advancing the core tick and recomputing the affinity field
+    // both describe the same instant, and both are the Moderator's authority
+    // (charter §29/§81); until this event existed, glue did the first
+    // unconditionally and nobody did the second at all after setup.
+    if (phase === TickPhases.SUMMARIZE && event === "plan_tick_close") {
+      const snapshot = view();
+      return {
+        ...snapshot,
+        tick,
+        actions: [],
+        effects: [],
+        telemetry: null,
+        tickClose: planTickClose({ state: snapshot.state }),
+      };
+    }
     if (phase === TickPhases.EMIT && event === "plan_effect_fulfillment") {
       const snapshot = view();
       return {
@@ -69,6 +87,23 @@ export function createModeratorPersona({ initialState = ModeratorStates.INITIALI
         effects: [],
         telemetry: null,
         fulfillmentPlan: planEffectFulfillment({ effects: payload?.effects }),
+      };
+    }
+    // AM.8 — which affinity fields are in contact this tick. A planning event
+    // like the others: it answers as data, and the runner resolves each pair
+    // through core's interaction matrix.
+    if (phase === TickPhases.APPLY && event === "plan_affinity_interactions") {
+      const snapshot = view();
+      return {
+        ...snapshot,
+        tick,
+        actions: [],
+        effects: [],
+        telemetry: null,
+        affinityInteractions: planAffinityInteractions({
+          actors: payload?.actors,
+          computeRadius: payload?.computeRadius,
+        }),
       };
     }
     if (phase === TickPhases.APPLY && event === "resolve_affinity") {
