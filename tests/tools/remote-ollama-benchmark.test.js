@@ -19,11 +19,10 @@ test("hardware benchmark reserves secondary and maps every model to its declared
   const plan = buildHardwareBenchmarkSpecs(config, {
     models: [
       "qwen3-coder:30b-a3b-q4_K_M",
-      "qwen3-coder:30b",
       "qwen3.8:27b",
+      "qwen3.5:27b",
       "qwen3:14b",
-      "qwen2.5-coder:14b",
-      "qwen2.5-coder:7b",
+      "qwen3.5:9b",
     ],
     contexts: [8192],
     efforts: ["high"],
@@ -38,11 +37,15 @@ test("hardware benchmark reserves secondary and maps every model to its declared
   }
 
   assert.deepEqual([...byModel.get("qwen3-coder:30b-a3b-q4_K_M")].sort(), ["dual"]);
-  assert.deepEqual([...byModel.get("qwen3-coder:30b")].sort(), ["dual"]);
   assert.deepEqual([...byModel.get("qwen3.8:27b")].sort(), ["dual", "primary"]);
+  // qwen3.5:27b mirrors qwen3.8:27b exactly — same size, same profiles, same settings — so the
+  // only thing that differs between them is the generation. That is the whole point of its row.
+  assert.deepEqual([...byModel.get("qwen3.5:27b")].sort(), ["dual", "primary"]);
   assert.deepEqual([...byModel.get("qwen3:14b")].sort(), ["primary"]);
-  assert.deepEqual([...byModel.get("qwen2.5-coder:14b")].sort(), ["primary"]);
-  assert.deepEqual([...byModel.get("qwen2.5-coder:7b")].sort(), ["primary"]);
+  assert.deepEqual([...byModel.get("qwen3.5:9b")].sort(), ["primary"]);
+  assert.equal(byModel.has("qwen2.5-coder:14b"), false, "dropped: it scored below the 7b");
+  assert.equal(byModel.has("qwen2.5-coder:7b"), false, "replaced as canary by qwen3.5:9b");
+  assert.equal(byModel.has("qwen3-coder:30b"), false, "dropped: same digest as :30b-a3b-q4_K_M");
 });
 
 test("content-gen matrix plans seven primary-or-dual configurations in resource order", () => {
@@ -50,7 +53,7 @@ test("content-gen matrix plans seven primary-or-dual configurations in resource 
   const plan = buildContentGenMatrix(config, { scenarioCount: 100 });
 
   assert.equal(plan.contractVersion, "content-gen-matrix-v1");
-  assert.equal(plan.sha256, "50a40410016f5abd216ce33ce98d78717f62847fc7422a94a7dfac541a522d8f");
+  assert.equal(plan.sha256, "21d135595cf539764f9df8f94fb6334f027f6a51f93eb467e9512631aaa728c2");
   assert.equal(plan.configurationCount, 7);
   assert.deepEqual(plan.repeatPolicy, {
     minimumCompletePasses: 1,
@@ -59,12 +62,12 @@ test("content-gen matrix plans seven primary-or-dual configurations in resource 
   });
   assert.deepEqual(plan.callBounds, { minimum: 700, maximum: 2100 });
   assert.deepEqual(plan.configurations.map((entry) => entry.configurationId), [
-    "cg-v1--qwen2.5-coder_7b--primary--ctx32768--out4096",
-    "cg-v1--qwen2.5-coder_14b--primary--ctx32768--out4096",
+    "cg-v1--qwen3.5_9b--primary--ctx32768--out4096",
     "cg-v1--qwen3_14b--primary--ctx32768--out4096",
+    "cg-v1--qwen3.5_27b--primary--ctx32768--out4096",
     "cg-v1--qwen3.8_27b--primary--ctx32768--out4096",
+    "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
     "cg-v1--qwen3.8_27b--dual--ctx65536--out32768",
-    "cg-v1--qwen3-coder_30b--dual--ctx65536--out32768",
     "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768",
   ]);
 
@@ -75,11 +78,10 @@ test("content-gen matrix plans seven primary-or-dual configurations in resource 
     profilesByModel.set(entry.model.id, profiles);
   }
   assert.deepEqual(profilesByModel.get("qwen3-coder:30b-a3b-q4_K_M"), ["dual"]);
-  assert.deepEqual(profilesByModel.get("qwen3-coder:30b"), ["dual"]);
   assert.deepEqual(profilesByModel.get("qwen3.8:27b"), ["primary", "dual"]);
+  assert.deepEqual(profilesByModel.get("qwen3.5:27b"), ["primary", "dual"]);
   assert.deepEqual(profilesByModel.get("qwen3:14b"), ["primary"]);
-  assert.deepEqual(profilesByModel.get("qwen2.5-coder:14b"), ["primary"]);
-  assert.deepEqual(profilesByModel.get("qwen2.5-coder:7b"), ["primary"]);
+  assert.deepEqual(profilesByModel.get("qwen3.5:9b"), ["primary"]);
 
   const resourceTuples = plan.configurations.map((entry) => [
     entry.resourceOrder.gpuCount,
@@ -177,7 +179,7 @@ test("hardware benchmark dry run advertises profile reset by default", () => {
     "--route",
     "internal",
     "--models",
-    "qwen3-coder:30b",
+    "qwen3-coder:30b-a3b-q4_K_M",
     "--contexts",
     "8192",
     "--efforts",
@@ -241,7 +243,7 @@ test("hardware benchmark skips models with no configured profiles", () => {
 test("hardware benchmark resolves named effort from configured defaults", () => {
   const config = loadConfig(ROOT);
   const plan = buildHardwareBenchmarkSpecs(config, {
-    models: ["qwen2.5-coder:7b"],
+    models: ["qwen3.5:9b"],
     contexts: [8192],
     efforts: ["high"],
     scenarioNames: ["vitest-generation"],
@@ -290,7 +292,7 @@ test("hardware benchmark dry run honors no-reset flag", () => {
     "--route",
     "internal",
     "--models",
-    "qwen3-coder:30b",
+    "qwen3-coder:30b-a3b-q4_K_M",
     "--contexts",
     "8192",
     "--efforts",

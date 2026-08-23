@@ -42,7 +42,7 @@ function usage() {
   remote-ollama-mac project-push-main [--branch main]
   remote-ollama-mac run-abstract-plan [--abstract-set pilot|parallel] [--profile NAME] [--model MODEL] [--runs N] [--scenario-ids 1] [--route auto|internal|external] [--no-start] [--no-reset] [--dry-run]
   remote-ollama-mac run-abstract-plan --local --model MODEL [--runs N] [--scenario-ids 1] [--dry-run]
-  remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route auto|internal|external] [--no-start] [--no-reset] [--dry-run]
+  remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route auto|internal|external] [--resume [DIR]] [--no-early-stop] [--no-start] [--no-reset] [--dry-run]
   remote-ollama-mac run-content-gen --local --model MODEL [--runs N] [--scenario-ids 1,3,5] [--dry-run]
   remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b-a3b-q4_K_M
 
@@ -115,6 +115,8 @@ function parseArgs(argv) {
     tail: 120,
     runs: 1,
     scenarioIds: [],
+    resume: null,
+    earlyStop: true,
     abstractSet: 'pilot',
     extra: []
   };
@@ -228,6 +230,17 @@ function parseArgs(argv) {
     } else if (arg === '--scenario-ids') {
       options.scenarioIds = parseList(readOptionValue(args, index, arg)).map(Number).filter((v) => Number.isFinite(v) && v > 0);
       index += 1;
+    } else if (arg === '--no-early-stop') {
+      options.earlyStop = false;
+    } else if (arg === '--resume') {
+      // Optional value: `--resume` alone continues the newest content-gen directory.
+      const next = args[index + 1];
+      if (next && !next.startsWith('--')) {
+        options.resume = next;
+        index += 1;
+      } else {
+        options.resume = 'latest';
+      }
     } else if (arg === '--abstract-set') {
       options.abstractSet = readOptionValue(args, index, arg);
       if (!['pilot', 'parallel'].includes(options.abstractSet)) fail(`${arg} must be pilot or parallel`);
@@ -1220,6 +1233,9 @@ async function runContentGen(options) {
   const { classifyExecutionOutcome, runScenario } = require('./lib/ak-runner');
   const { aggregateContentGenResults, scoreRun, writeContentResult, writeContentSummary } = require('./lib/ak-compare');
   const { executeContentGenMatrix } = require('./lib/ak-matrix');
+  const {
+    assertResumable, latestResultDir, readPriorRecords, readRunManifest, writeRunManifest
+  } = require('./lib/content-gen-checkpoint');
 
   const catalog = loadScenarioCatalog();
   let scenarios = catalog.scenarios;
@@ -1238,7 +1254,13 @@ async function runContentGen(options) {
     : (options.profiles.length > 0 ? options.profiles : ['dual']);
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const resultDir = path.join(config.host.resultsDir, `${timestamp}-content-gen`);
+  let resultDir = path.join(config.host.resultsDir, `${timestamp}-content-gen`);
+  if (options.resume) {
+    resultDir = options.resume === 'latest'
+      ? latestResultDir(config.host.resultsDir)
+      : path.resolve(options.resume);
+    if (!resultDir) fail('--resume found no previous content-gen result directory.');
+  }
   const matrix = options.local ? null : buildContentGenMatrix(config, {
     models: options.models.length > 0 ? options.models : (options.model ? [options.model] : []),
     profileNames: options.profiles,
@@ -1298,10 +1320,42 @@ async function runContentGen(options) {
   };
   const executionProfiles = [...new Set(executionMatrix.configurations.map((entry) => entry.profile.id))];
 
+  // Record what this run IS before the first attempt, so an interrupted run stays self-describing
+  // and a resume can prove it is finishing the same work rather than blending two runs.
+  const runIdentity = {
+    scenarioSet: { count: catalog.count, sha256: catalog.sha256, tierCounts: catalog.tierCounts },
+    matrix: {
+      sha256: executionMatrix.sha256,
+      maximumPasses: executionMatrix.repeatPolicy.maximumPasses,
+      configurationIds: executionMatrix.configurations.map((entry) => entry.configurationId)
+    },
+    scenarioIds: scenarios.map((scenario) => scenario.index)
+  };
+  let priorRecords = [];
+  if (options.resume) {
+    assertResumable(readRunManifest(resultDir), runIdentity);
+    priorRecords = readPriorRecords(jsonlPath);
+    // Report the honest bounds. One complete pass per configuration is the floor; early stop
+    // decides the rest, so a single "outstanding" number would be wrong either way.
+    const configurations = executionMatrix.configurations.length;
+    const floor = Math.max(0, scenarios.length * configurations - priorRecords.length);
+    const ceiling = Math.max(0, scenarios.length * executionMatrix.repeatPolicy.maximumPasses
+      * configurations - priorRecords.length);
+    process.stdout.write(
+      `Resuming ${resultDir}\n  ${priorRecords.length} attempt(s) already recorded; `
+      + `${floor} outstanding at one pass each, up to ${ceiling} if every configuration runs all `
+      + `${executionMatrix.repeatPolicy.maximumPasses} passes\n`
+    );
+  } else {
+    writeRunManifest(resultDir, { route: options.route, diagnostic: !options.earlyStop, ...runIdentity });
+  }
+
   try {
     const allResults = await executeContentGenMatrix({
       matrix: executionMatrix,
       scenarios,
+      priorRecords,
+      stopWhenHopeless: options.earlyStop,
       beforeConfiguration: async (configuration) => {
         const profileName = configuration.profile.id;
         const model = configuration.model.id;

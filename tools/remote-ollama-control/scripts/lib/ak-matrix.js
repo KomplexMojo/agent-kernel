@@ -16,19 +16,49 @@ async function executeContentGenMatrix({
   runAttempt,
   onRecord = () => {},
   beforeConfiguration = async () => {},
-  thresholds
+  thresholds,
+  // Diagnostic runs turn this off. Early stop exists to save GPU time on a configuration that
+  // can no longer qualify — but an adversarial subset can NEVER qualify, so on those runs it
+  // deletes precisely the repeats the run exists to collect.
+  stopWhenHopeless = true,
+  // Attempts already on disk from an interrupted run of the SAME catalog and matrix. They are not
+  // re-run, they are not re-announced through onRecord (they are already in runs.jsonl), and they
+  // are returned with the new ones so aggregation still sees a whole run. Early stop reads them
+  // too: a configuration that was already doomed before the interruption must not buy a fresh pass.
+  priorRecords = []
 }) {
   const records = [];
+  const completed = new Set(priorRecords.map((record) => record.runId).filter(Boolean));
+  const priorByConfiguration = new Map();
+  for (const record of priorRecords) {
+    const bucket = priorByConfiguration.get(record.configurationId) || [];
+    bucket.push(record);
+    priorByConfiguration.set(record.configurationId, bucket);
+    records.push(record);
+  }
   const maximumPasses = matrix.repeatPolicy.maximumPasses;
   for (const configuration of matrix.configurations) {
-    await beforeConfiguration(configuration);
-    const configurationRecords = [];
+    const resumed = priorByConfiguration.get(configuration.configurationId) || [];
+    // Setup is demanded by the first attempt that actually runs, never by reaching the
+    // configuration. On resume a finished configuration would otherwise reset the remote profile
+    // and load its model before discovering it has nothing to do — minutes of GPU time per
+    // configuration, and "how many attempts have I recorded?" cannot predict it, because early
+    // stop means a complete configuration can hold far fewer records than scenarios x passes.
+    let prepared = false;
+    const prepare = async () => {
+      if (prepared) return;
+      prepared = true;
+      await beforeConfiguration(configuration);
+    };
+    const configurationRecords = [...resumed];
     for (let repeat = 1; repeat <= maximumPasses; repeat += 1) {
       for (const scenario of scenarios) {
         const runId = [
           'cg', configuration.configurationId,
           `s${String(scenario.index).padStart(3, '0')}`, `r${repeat}`
         ].join('--');
+        if (completed.has(runId)) continue;
+        await prepare();
         const attempt = await runAttempt({ configuration, scenario, repeat, runId });
         const actual = attempt.executionOutcome || (attempt.execSucceeded ? 'success' : 'execution_failed');
         const record = {
@@ -57,7 +87,8 @@ async function executeContentGenMatrix({
         }
       }
       const remainingAttempts = (maximumPasses - repeat) * scenarios.length;
-      if (remainingAttempts > 0 && !canStillQualify(configurationRecords, { remainingAttempts, thresholds })) {
+      if (stopWhenHopeless && remainingAttempts > 0
+        && !canStillQualify(configurationRecords, { remainingAttempts, thresholds })) {
         break;
       }
     }
