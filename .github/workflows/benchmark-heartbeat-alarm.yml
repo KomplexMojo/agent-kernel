@@ -145,28 +145,43 @@ jobs:
             // merge, so it asks the only question that matters: has anything under the tool's own
             // directory changed since the copy was taken? Silent when main races ahead elsewhere.
             const installedCommit = heartbeat.agent?.installedCommit ?? null;
+            const toolPath = 'tools/remote-ollama-control';
             let agentDrift = null;
             if (installedCommit) {
               try {
-                const { data: diff } = await github.rest.repos.compareCommitsWithBasehead({
+                // Ask ancestry, not file lists. The obvious check -- diff the installed commit
+                // against the branch head and look for changed files under the tool path -- has a
+                // silent hole: the compare endpoint returns at most 300 files, so a badly stale box
+                // whose diff is mostly elsewhere can report zero tool changes and no alarm. That is
+                // precisely the box that most needs one.
+                //
+                // Instead: find the newest commit that touched this tool, then ask whether the
+                // installed copy already contains it. `behind`/`identical` means yes. `ahead` or
+                // `diverged` means the runner is missing tool work, whatever the size of the diff.
+                const { data: toolCommits } = await github.rest.repos.listCommits({
                   owner: context.repo.owner, repo: context.repo.repo,
-                  basehead: `${installedCommit}...${context.payload.repository.default_branch}`,
+                  sha: context.payload.repository.default_branch, path: toolPath, per_page: 1,
                 });
-                const changed = (diff.files ?? [])
-                  .filter((file) => file.filename.startsWith('tools/remote-ollama-control/'))
-                  .map((file) => file.filename);
-                if (changed.length > 0) {
-                  agentDrift = changed;
-                  problems.push(
-                    `The runner is executing agent code from \`${installedCommit.slice(0, 12)}\`, and ` +
-                    `${changed.length} file(s) under \`tools/remote-ollama-control/\` have changed on ` +
-                    'the default branch since. A merge does NOT update the installed copy — reinstall ' +
-                    'it, or the agent keeps running the old logic while its preflight tests the new.',
-                  );
+                const toolCommit = toolCommits[0]?.sha ?? null;
+                if (toolCommit) {
+                  const { data: rel } = await github.rest.repos.compareCommitsWithBasehead({
+                    owner: context.repo.owner, repo: context.repo.repo,
+                    basehead: `${installedCommit}...${toolCommit}`,
+                  });
+                  if (rel.status === 'ahead' || rel.status === 'diverged') {
+                    agentDrift = { toolCommit, behindBy: rel.ahead_by };
+                    problems.push(
+                      `The runner is executing agent code from \`${installedCommit.slice(0, 12)}\`, which ` +
+                      `does not contain \`${toolCommit.slice(0, 12)}\` — the newest change to ` +
+                      `\`${toolPath}\` (${rel.ahead_by} commit(s) ahead). A merge does NOT update the ` +
+                      'installed copy: reinstall it, or the agent keeps running the old logic while ' +
+                      'its preflight tests the new.',
+                    );
+                  }
                 }
               } catch (error) {
                 // An unknown commit (force-pushed away, or a box installed from a fork) must not
-                // fail the alarm: losing liveness detection to report a staleness question is a bad
+                // fail the alarm: losing liveness detection to answer a staleness question is a bad
                 // trade. Say it and move on.
                 problems.push(`Could not compare the installed agent commit \`${installedCommit}\`: ${error.message}`);
               }
@@ -183,7 +198,7 @@ jobs:
               `- **Last qualifying result**: ${latestSuccess?.run?.id ?? 'none ever'}${resultAgeDays === null ? '' : ` (${resultAgeDays} day(s) ago)`}`,
               `- **Installed agent**: ${installedCommit ? `\`${installedCommit.slice(0, 12)}\`` : 'unreported'}` +
                 `${heartbeat.agent?.installedAt ? ` (installed ${heartbeat.agent.installedAt})` : ''}` +
-                `${agentDrift ? ` — **stale: ${agentDrift.length} tool file(s) changed since**` : ''}`,
+                `${agentDrift ? ` — **stale by ${agentDrift.behindBy} commit(s); reinstall**` : ''}`,
             ];
             if (progress) {
               const attempts = progress.attempts ?? {};
