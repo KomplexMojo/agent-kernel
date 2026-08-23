@@ -575,10 +575,40 @@ Live `run-content-gen` now executes the eligible configurations in declared reso
 one complete pass, continues up to three while qualification remains mathematically possible, and
 keeps expected budget denial separate from raw process success.
 
+### Collapse breaker
+
+A full matrix is 700–2,100 calls and can take a day of GPU time, so the run aborts early when the
+evidence says the **rig** is broken. It deliberately does not abort when a model is merely weak:
+"this model scores badly" is the finding the run exists to record, and aborting on it would destroy
+the evidence rather than protect it. Two floors separate the cases, evaluated per configuration and
+only after `minimumAttempts` (20) — single-pass variance is wide enough that a handful of attempts
+cannot tell collapse from noise.
+
+| Floor | Default | Why |
+|---|---:|---|
+| `toolCallRate` | 0.10 | A weak model still *emits* tool calls. Near-zero means a broken tool schema, prompt, or endpoint. |
+| `averageScore` | 25 | Far below the 75 qualification bar, because these models score in the 30s–40s against it normally. Traps collapse, not regression. |
+
+`qwen3.5:9b` is the designated control in `config/models.json` and runs first, so a trip there is
+reported as *suspect the harness, not the model* and spares the expensive 27–30B dual rows.
+
+On a trip the run writes **no `result.json`** — its absence is already what marks an aborted run
+unpublishable — plus a `collapse-abort.json` carrying `publication: false`, the trip detail, and the
+run identity, and exits non-zero. The unattended agent spawns this CLI and already fails on a
+non-zero child, so the nightly inherits the breaker without extra wiring.
+
+Override with `--no-collapse-breaker`, `--collapse-score-floor N`, `--collapse-tool-call-floor RATIO`,
+or `--collapse-min-attempts N`. The nightly service, which cannot pass flags, reads
+`AK_BENCHMARK_COLLAPSE_BREAKER=0`, `AK_BENCHMARK_COLLAPSE_SCORE_FLOOR`,
+`AK_BENCHMARK_COLLAPSE_TOOL_CALL_FLOOR`, and `AK_BENCHMARK_COLLAPSE_MIN_ATTEMPTS`; explicit flags win.
+Turn it off for adversarial or diagnostic subsets, for the same reason `--no-early-stop` exists — a
+subset chosen to fail must be allowed to fail.
+
 Results are written to `results/<timestamp>-content-gen/`:
 - `runs.jsonl` — one JSON line per run
 - `result.json` — schema-versioned configuration, tier, qualification, Pareto, and minimum result
 - `summary.md` — aggregate table by profile + per-run detail table
+- `collapse-abort.json` — written **only** on a breaker trip; its presence means the run is not evidence
 - `raw/<runId>/create/` — generated artifacts for each run
 
 The Markdown aggregate retains the historical `Profile | Model | Scenarios | Runs | Avg score |

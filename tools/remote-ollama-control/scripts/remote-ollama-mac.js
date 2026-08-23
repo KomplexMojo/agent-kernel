@@ -43,6 +43,8 @@ function usage() {
   remote-ollama-mac run-abstract-plan [--abstract-set pilot|parallel] [--profile NAME] [--model MODEL] [--runs N] [--scenario-ids 1] [--route auto|internal|external] [--no-start] [--no-reset] [--dry-run]
   remote-ollama-mac run-abstract-plan --local --model MODEL [--runs N] [--scenario-ids 1] [--dry-run]
   remote-ollama-mac run-content-gen [--profiles a,b,c] [--model MODEL] [--runs N] [--scenario-ids 1,3,5] [--route auto|internal|external] [--resume [DIR]] [--no-early-stop] [--no-start] [--no-reset] [--dry-run]
+    Collapse breaker (aborts the run when the rig looks broken, not when a model is merely weak):
+      [--no-collapse-breaker] [--collapse-score-floor N] [--collapse-tool-call-floor RATIO] [--collapse-min-attempts N]
   remote-ollama-mac run-content-gen --local --model MODEL [--runs N] [--scenario-ids 1,3,5] [--dry-run]
   remote-ollama-mac dry-run start --profile dual --model qwen3-coder:30b-a3b-q4_K_M
 
@@ -90,6 +92,8 @@ function parseArgs(argv) {
     direct: false,
     local: false,
     explicitFlags: new Set(),
+    // Partial overrides only: naming one collapse floor must not reset the others.
+    breakerOverrides: {},
     requireGpu: false,
     localPort: null,
     route: config.host.defaultRoute,
@@ -232,6 +236,17 @@ function parseArgs(argv) {
       index += 1;
     } else if (arg === '--no-early-stop') {
       options.earlyStop = false;
+    } else if (arg === '--no-collapse-breaker') {
+      options.breakerOverrides.enabled = false;
+    } else if (arg === '--collapse-score-floor') {
+      options.breakerOverrides.averageScoreFloor = Number(readOptionValue(args, index, arg));
+      index += 1;
+    } else if (arg === '--collapse-tool-call-floor') {
+      options.breakerOverrides.toolCallFloor = Number(readOptionValue(args, index, arg));
+      index += 1;
+    } else if (arg === '--collapse-min-attempts') {
+      options.breakerOverrides.minimumAttempts = Number(readOptionValue(args, index, arg));
+      index += 1;
     } else if (arg === '--resume') {
       // Optional value: `--resume` alone continues the newest content-gen directory.
       const next = args[index + 1];
@@ -1233,6 +1248,7 @@ async function runContentGen(options) {
   const { classifyExecutionOutcome, runScenario } = require('./lib/ak-runner');
   const { aggregateContentGenResults, scoreRun, writeContentResult, writeContentSummary } = require('./lib/ak-compare');
   const { executeContentGenMatrix } = require('./lib/ak-matrix');
+  const { CollapseError, resolveBreaker } = require('./lib/collapse-breaker');
   const {
     assertResumable, latestResultDir, readPriorRecords, readRunManifest, writeRunManifest
   } = require('./lib/content-gen-checkpoint');
@@ -1292,6 +1308,20 @@ async function runContentGen(options) {
     }, null, 2));
     process.stdout.write('\n');
     return;
+  }
+
+  // Environment overrides exist for the nightly service, which spawns this CLI and cannot pass
+  // flags. Explicit flags win over them.
+  const envBreaker = {};
+  if (process.env.AK_BENCHMARK_COLLAPSE_BREAKER === '0') envBreaker.enabled = false;
+  if (process.env.AK_BENCHMARK_COLLAPSE_SCORE_FLOOR) envBreaker.averageScoreFloor = Number(process.env.AK_BENCHMARK_COLLAPSE_SCORE_FLOOR);
+  if (process.env.AK_BENCHMARK_COLLAPSE_TOOL_CALL_FLOOR) envBreaker.toolCallFloor = Number(process.env.AK_BENCHMARK_COLLAPSE_TOOL_CALL_FLOOR);
+  if (process.env.AK_BENCHMARK_COLLAPSE_MIN_ATTEMPTS) envBreaker.minimumAttempts = Number(process.env.AK_BENCHMARK_COLLAPSE_MIN_ATTEMPTS);
+  let breaker;
+  try {
+    breaker = resolveBreaker({ ...envBreaker, ...options.breakerOverrides });
+  } catch (error) {
+    fail(`Invalid collapse breaker setting: ${error.message}`);
   }
 
   fs.mkdirSync(resultDir, { recursive: true });
@@ -1356,6 +1386,7 @@ async function runContentGen(options) {
       scenarios,
       priorRecords,
       stopWhenHopeless: options.earlyStop,
+      breaker,
       beforeConfiguration: async (configuration) => {
         const profileName = configuration.profile.id;
         const model = configuration.model.id;
@@ -1442,6 +1473,29 @@ async function runContentGen(options) {
       matrix: executionMatrix,
       scenarioSet: { count: scenarios.length, catalogCount: catalog.count, sha256: catalog.sha256, tierCounts: selectedTierCounts }
     }));
+  } catch (error) {
+    if (!(error instanceof CollapseError)) throw error;
+    // An aborted run must never be mistakable for a baseline. No result.json is written at all —
+    // its absence is what already marks an infrastructure abort unpublishable — and this record
+    // says explicitly why the run stopped and that its evidence does not qualify.
+    fs.writeFileSync(path.join(resultDir, 'collapse-abort.json'), `${JSON.stringify({
+      schema: 'agent-kernel/ContentGenCollapseAbort',
+      schemaVersion: 1,
+      abortedAt: new Date().toISOString(),
+      publication: false,
+      qualifies: false,
+      reason: error.trip.reason,
+      trip: error.trip,
+      identity: runIdentity,
+      partialAttempts: fs.existsSync(jsonlPath)
+        ? fs.readFileSync(jsonlPath, 'utf8').split('\n').filter(Boolean).length
+        : 0,
+    }, null, 2)}\n`);
+    process.stderr.write(`\nALERT: ${error.trip.message}\n`);
+    process.stderr.write(`Run aborted. Partial attempts are in ${jsonlPath} and are NOT qualifying evidence.\n`);
+    process.stderr.write(`Abort record: ${path.join(resultDir, 'collapse-abort.json')}\n`);
+    process.exitCode = 1;
+    return;
   } finally {
     for (const tunnel of tunnels.values()) {
       stopTunnel(tunnel);
