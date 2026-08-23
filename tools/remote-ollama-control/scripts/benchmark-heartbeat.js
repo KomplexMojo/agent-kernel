@@ -20,7 +20,7 @@ const path = require('path');
 const { loadAgentState } = require('./lib/benchmark-state');
 const { latestResultDir } = require('./lib/content-gen-checkpoint');
 const { readProgress } = require('./lib/benchmark-progress');
-const { composeHeartbeat, publishHeartbeat, DEFAULT_BRANCH } = require('./lib/benchmark-heartbeat');
+const { composeHeartbeat, publishHeartbeat, readInstallManifest, DEFAULT_BRANCH } = require('./lib/benchmark-heartbeat');
 
 function requiredEnv(name) {
   const value = process.env[name];
@@ -78,6 +78,9 @@ function main() {
       matrixHash: process.env.AK_BENCHMARK_MATRIX_HASH || null,
       executionSuiteHash: process.env.AK_BENCHMARK_EXECUTION_SUITE_HASH || null,
     },
+    // Resolved from this file's own location, so it describes the copy that is actually executing
+    // rather than whatever a configured path might point at.
+    agent: readInstallManifest(path.resolve(__dirname, '..')),
     progress,
     lastPublishedRunId: lastPublishedRunId(state),
     error,

@@ -49,6 +49,7 @@ function composeHeartbeat({
   runKey = null,
   triggerReasons = [],
   identity = {},
+  agent = null,
   progress = null,
   lastPublishedRunId = null,
   error = null,
@@ -69,6 +70,16 @@ function composeHeartbeat({
       executionSuiteHash: identity.executionSuiteHash ?? null,
     },
     lastPublishedRunId,
+    // Which agent code is actually RUNNING, as opposed to which commit it polls. Those are
+    // different questions with different answers: the box runs an installed file copy, so merging
+    // to main updates what the agent checks out per run but never the agent itself. On 2026-08-23 a
+    // fix merged, the preflight went green with it, and the identical failure kept publishing for
+    // an hour because the code that spawns the preflight was still the previous copy. Nothing on
+    // the box could report that, so the beacon carries it off-box for the checker to compare.
+    // A commit hash, never a path: this document is public.
+    agent: agent
+      ? { installedCommit: agent.installedCommit ?? null, installedAt: agent.installedAt ?? null }
+      : null,
     // Present only while a run is in flight. Null is a real answer -- "the agent is alive and no
     // benchmark is running" -- and is not the same as the field being absent.
     progress,
@@ -98,8 +109,26 @@ function publishHeartbeat({ remote, branch = DEFAULT_BRANCH, workDir, heartbeat 
   return { branch, commit: git(workDir, ['rev-parse', 'HEAD']) };
 }
 
+const INSTALL_MANIFEST_NAME = '.install-manifest.json';
+
+/**
+ * Provenance of the installed copy, written by the installer. Absent is a legitimate answer that
+ * must not throw: a box installed before this existed has no manifest, and a beacon that died on
+ * that would remove the liveness signal to report a staleness one.
+ */
+function readInstallManifest(packageDir) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(packageDir, INSTALL_MANIFEST_NAME), 'utf8'));
+    return { installedCommit: raw.sourceCommit ?? null, installedAt: raw.installedAt ?? null };
+  } catch {
+    return null;
+  }
+}
+
 module.exports = {
   DEFAULT_BRANCH,
+  INSTALL_MANIFEST_NAME,
+  readInstallManifest,
   HEARTBEAT_NAME,
   SCHEMA_VERSION,
   composeHeartbeat,

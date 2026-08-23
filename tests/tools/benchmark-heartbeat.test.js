@@ -1,14 +1,16 @@
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
-const { mkdtempSync } = require('node:fs');
+const { mkdtempSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 
 const {
   DEFAULT_BRANCH,
   HEARTBEAT_NAME,
+  INSTALL_MANIFEST_NAME,
   composeHeartbeat,
   publishHeartbeat,
+  readInstallManifest,
 } = require('../../tools/remote-ollama-control/scripts/lib/benchmark-heartbeat');
 
 const AT = '2026-08-23T12:00:00.000Z';
@@ -58,8 +60,10 @@ test('host and route detail cannot ride along into the published document', () =
   for (const leak of ['192.0.2.10', 'example.invalid', '2222', 'external']) {
     assert.ok(!serialized.includes(leak), `heartbeat leaked ${leak}: ${serialized}`);
   }
+  // Exhaustive on purpose: a new field must be added here deliberately, which is the moment to ask
+  // whether it can carry topology. `agent` was added 2026-08-23 and carries a commit hash only.
   assert.deepEqual(Object.keys(beat).sort(), [
-    'dryRun', 'error', 'identity', 'lastPublishedRunId', 'progress',
+    'agent', 'dryRun', 'error', 'identity', 'lastPublishedRunId', 'progress',
     'publishedAt', 'runKey', 'schemaVersion', 'source', 'status', 'triggerReasons',
   ]);
 });
@@ -108,3 +112,71 @@ test('the heartbeat branch is separate from the results branch', () => {
 // - a heartbeat carrying an error string from a failed poll
 // - identity hashes partially absent
 // - workDir that exists but is not a git repository
+
+// The box runs an installed file copy, so a merge updates the source it checks out per run and
+// never the agent itself. Nothing on the box can notice that, so the beacon carries the installed
+// commit off-box for the alarm to compare against the default branch.
+test('the beacon reports which agent code is running, not just which commit it polls', () => {
+  const beat = composeHeartbeat({
+    publishedAt: AT,
+    status: 'running',
+    dryRun: false,
+    sourceCommit: 'ffffffffffffffffffffffffffffffffffffffff',
+    agent: { installedCommit: '1111111111111111111111111111111111111111', installedAt: AT },
+  });
+
+  // The two are deliberately different values in this fixture: conflating them is the whole defect.
+  assert.equal(beat.agent.installedCommit, '1111111111111111111111111111111111111111');
+  assert.equal(beat.source.commit, 'ffffffffffffffffffffffffffffffffffffffff');
+  assert.equal(beat.agent.installedAt, AT);
+});
+
+test('a runner with no install manifest reports null provenance rather than failing to beat', () => {
+  const beat = composeHeartbeat({ publishedAt: AT, status: 'idle', dryRun: false });
+  // Null, not absent: the checker distinguishes "predates this reporting" from "field missing".
+  assert.equal(beat.agent, null);
+  assert.equal('agent' in beat, true);
+
+  const empty = mkdtempSync(join(tmpdir(), 'ak-no-manifest-'));
+  assert.equal(readInstallManifest(empty), null);
+
+  const corrupt = mkdtempSync(join(tmpdir(), 'ak-bad-manifest-'));
+  writeFileSync(join(corrupt, INSTALL_MANIFEST_NAME), 'not json at all');
+  // An unreadable manifest must not silence the beacon: losing liveness to report staleness is a
+  // strictly worse trade than reporting unknown provenance.
+  assert.equal(readInstallManifest(corrupt), null);
+});
+
+test('install provenance is read from the manifest the installer writes', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ak-manifest-'));
+  writeFileSync(join(dir, INSTALL_MANIFEST_NAME), JSON.stringify({
+    schemaVersion: 'agent-kernel-install-manifest/v1',
+    installedAt: AT,
+    sourceCommit: 'abc123abc123abc123abc123abc123abc123abcd',
+    sourceRef: 'main',
+  }));
+
+  assert.deepEqual(readInstallManifest(dir), {
+    installedCommit: 'abc123abc123abc123abc123abc123abc123abcd',
+    installedAt: AT,
+  });
+});
+
+test('provenance carries no address, port or route into the public document', () => {
+  const beat = composeHeartbeat({
+    publishedAt: AT,
+    status: 'idle',
+    dryRun: false,
+    agent: {
+      installedCommit: 'abc123abc123abc123abc123abc123abc123abcd',
+      installedAt: AT,
+      internalHost: '192.168.1.170',
+      sshPort: 2222,
+    },
+  });
+
+  const serialized = JSON.stringify(beat);
+  assert.equal(serialized.includes('192.168.1.170'), false);
+  assert.equal(serialized.includes('2222'), false);
+  assert.deepEqual(Object.keys(beat.agent).sort(), ['installedAt', 'installedCommit']);
+});

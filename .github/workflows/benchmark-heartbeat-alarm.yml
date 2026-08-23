@@ -134,6 +134,46 @@ jobs:
               );
             }
 
+            // DEPLOYMENT DRIFT. The box runs an installed FILE COPY of the agent, not a checkout, so
+            // merging to main updates the source it checks out per run and never the agent itself.
+            // Both states are then true at once and look contradictory: the preflight passes with
+            // your new test while the code that spawned it is weeks old. Observed 2026-08-23 —
+            // PR #97 merged, preflight green at 433/433, and the identical infrastructure_error
+            // kept publishing until the package was reinstalled by hand.
+            //
+            // Comparing the installed commit to main's HEAD directly would fire on every unrelated
+            // merge, so it asks the only question that matters: has anything under the tool's own
+            // directory changed since the copy was taken? Silent when main races ahead elsewhere.
+            const installedCommit = heartbeat.agent?.installedCommit ?? null;
+            let agentDrift = null;
+            if (installedCommit) {
+              try {
+                const { data: diff } = await github.rest.repos.compareCommitsWithBasehead({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  basehead: `${installedCommit}...${context.payload.repository.default_branch}`,
+                });
+                const changed = (diff.files ?? [])
+                  .filter((file) => file.filename.startsWith('tools/remote-ollama-control/'))
+                  .map((file) => file.filename);
+                if (changed.length > 0) {
+                  agentDrift = changed;
+                  problems.push(
+                    `The runner is executing agent code from \`${installedCommit.slice(0, 12)}\`, and ` +
+                    `${changed.length} file(s) under \`tools/remote-ollama-control/\` have changed on ` +
+                    'the default branch since. A merge does NOT update the installed copy — reinstall ' +
+                    'it, or the agent keeps running the old logic while its preflight tests the new.',
+                  );
+                }
+              } catch (error) {
+                // An unknown commit (force-pushed away, or a box installed from a fork) must not
+                // fail the alarm: losing liveness detection to report a staleness question is a bad
+                // trade. Say it and move on.
+                problems.push(`Could not compare the installed agent commit \`${installedCommit}\`: ${error.message}`);
+              }
+            } else if (heartbeat.agent === null) {
+              core.notice('Heartbeat carries no agent provenance; the runner predates install-manifest reporting.');
+            }
+
             const progress = heartbeat.progress;
             const lines = [
               `- **Status**: \`${heartbeat.status}\`${heartbeat.dryRun ? ' (dry-run: no benchmark will execute)' : ''}`,
@@ -141,6 +181,9 @@ jobs:
               `- **Source commit**: \`${heartbeat.source?.commit?.slice(0, 12) ?? 'unknown'}\``,
               `- **Last attempt**: ${latest?.run?.id ?? 'none'} — \`${latest?.run?.status ?? 'n/a'}\`${attemptAgeDays === null ? '' : ` (${attemptAgeDays} day(s) ago)`}`,
               `- **Last qualifying result**: ${latestSuccess?.run?.id ?? 'none ever'}${resultAgeDays === null ? '' : ` (${resultAgeDays} day(s) ago)`}`,
+              `- **Installed agent**: ${installedCommit ? `\`${installedCommit.slice(0, 12)}\`` : 'unreported'}` +
+                `${heartbeat.agent?.installedAt ? ` (installed ${heartbeat.agent.installedAt})` : ''}` +
+                `${agentDrift ? ` — **stale: ${agentDrift.length} tool file(s) changed since**` : ''}`,
             ];
             if (progress) {
               const attempts = progress.attempts ?? {};

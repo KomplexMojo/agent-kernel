@@ -52,6 +52,34 @@ else
     | tar -C "$REMOTE_PACKAGE_DIR" -xzf -
 fi
 
+# Written AFTER the copy, never before: rsync --delete would remove it. This is the only record of
+# which commit the installed copy came from -- the package dir is a file copy, not a checkout, so
+# `git log` there fails and a merge to main leaves it untouched and silent. The heartbeat publishes
+# this so the off-box alarm can say "a merge has not been deployed" instead of nobody noticing for
+# an hour, which is exactly what happened on 2026-08-23.
+INSTALL_SOURCE_COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || true)"
+INSTALL_SOURCE_REF="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+# A source tree that is not a checkout yields null, not the string "null" and not a broken document:
+# the reader treats absent provenance as unknown, and an unparseable one would silence the beacon.
+if [ -n "$INSTALL_SOURCE_COMMIT" ]; then
+  INSTALL_COMMIT_JSON="\"$INSTALL_SOURCE_COMMIT\""
+else
+  INSTALL_COMMIT_JSON=null
+fi
+if [ -n "$INSTALL_SOURCE_REF" ]; then
+  INSTALL_REF_JSON="\"$INSTALL_SOURCE_REF\""
+else
+  INSTALL_REF_JSON=null
+fi
+cat > "$REMOTE_PACKAGE_DIR/.install-manifest.json" <<MANIFEST
+{
+  "schemaVersion": "agent-kernel-install-manifest/v1",
+  "installedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "sourceCommit": $INSTALL_COMMIT_JSON,
+  "sourceRef": $INSTALL_REF_JSON
+}
+MANIFEST
+
 chmod +x "$REMOTE_PACKAGE_DIR/bin/remote-ollama-profile" \
          "$REMOTE_PACKAGE_DIR/bin/remote-ollama-diagnostics" \
          "$REMOTE_PACKAGE_DIR/bin/remote-project-safety-check" \
