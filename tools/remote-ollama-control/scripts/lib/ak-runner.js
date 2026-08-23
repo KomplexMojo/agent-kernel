@@ -83,25 +83,16 @@ function normalizeEntitySpec(key, spec) {
   }
 
   if (key === 'resource') {
-    // Inject dropRate default when model omits it
-    if (out.tier && out.stat && out.delta != null && out.dropRate == null) {
-      out.dropRate = 10;
-    }
-    // Map natural stat names to canonical internal names
-    const STAT_ALIASES = {
-      health: 'vitalMax', mana: 'vitalMax', stamina: 'vitalMax', durability: 'vitalMax',
-      max_health: 'vitalMax', max_mana: 'vitalMax', max_stamina: 'vitalMax', max_durability: 'vitalMax',
-      health_regen: 'vitalRegen', mana_regen: 'vitalRegen', stamina_regen: 'vitalRegen',
-      regen_health: 'vitalRegen', regen_mana: 'vitalRegen', regen_stamina: 'vitalRegen',
-      affinity_stack: 'affinityStack', affinitystack: 'affinityStack',
-      push_expression: 'pushExpression', pushexpression: 'pushExpression',
-    };
-    if (out.stat && typeof out.stat === 'string') {
-      out.stat = STAT_ALIASES[out.stat.toLowerCase()] ?? out.stat;
-    }
     // Strip unsupported aggregate/model-invented fields. The canonical V3
     // affinity field is deliberately retained for temporary/permanent grants.
-    for (const f of ['vitals', 'affinities', 'goals', 'kind']) {
+    //
+    // tier/stat/dropRate are the pre-V3 resource vocabulary. The CLI rejects them
+    // outright once any V3 key (permanenceMode, vital, affinity) appears in the same
+    // spec, and models blend the two vocabularies freely — that blend cost 73 of 700
+    // attempts on 2026-08-22. Dropping them here is the last point before argv is
+    // built; the tool schema no longer offers them, so a model that still emits one
+    // is improvising rather than following the contract.
+    for (const f of ['vitals', 'affinities', 'goals', 'kind', 'tier', 'stat', 'dropRate']) {
       delete out[f];
     }
   }
