@@ -2,7 +2,7 @@
 # setup-km.sh — Knowledge Management setup for agent-kernel
 #
 # Sets up an Obsidian vault, Claude wiki skills, MCP filesystem server,
-# the Syncthing guard, Syncthing itself, and migrates non-essential repo docs into the vault.
+# and migrates non-essential repo docs into the vault.
 #
 # Designed to run on:
 #   - macOS (primary)  — runs the migration phase, commits to repo
@@ -34,7 +34,6 @@ skip() { printf '%s[km] skip:%s %s\n' "$c_dim" "$c_reset" "$*"; }
 
 ROLE=""
 SKIP_MIGRATION=0
-SKIP_SYNCTHING=0
 DRY_RUN=0
 PHASES_TO_RUN=()
 
@@ -46,8 +45,7 @@ Options:
   --primary           Force this machine as primary (runs repo migration)
   --secondary         Force this machine as secondary (skips migration)
   --skip-migration    Skip the repo→vault migration phase
-  --skip-syncthing    Skip Syncthing install / start
-  --phase=N           Run only phase N (1..8); repeatable
+  --phase=N           Run only phase N (1,2,3,4,6,8); repeatable
   --dry-run           Print actions without executing destructive ops
   -h, --help          Show this help
 EOF
@@ -59,7 +57,6 @@ parse_args() {
       --primary)        ROLE=primary ;;
       --secondary)      ROLE=secondary ;;
       --skip-migration) SKIP_MIGRATION=1 ;;
-      --skip-syncthing) SKIP_SYNCTHING=1 ;;
       --dry-run)        DRY_RUN=1 ;;
       --phase=*)        PHASES_TO_RUN+=("${1#--phase=}") ;;
       -h|--help)        usage; exit 0 ;;
@@ -150,7 +147,7 @@ phase_1_prereqs() {
   case "$PLATFORM" in
     mac)
       require brew "https://brew.sh"
-      for pkg in git gh jq node syncthing; do
+      for pkg in git gh jq node; do
         if brew list --formula "$pkg" >/dev/null 2>&1; then
           skip "$pkg installed"
         else
@@ -161,7 +158,7 @@ phase_1_prereqs() {
     linux)
       require apt-get "Use a Debian/Ubuntu derivative"
       run sudo apt-get update -qq
-      run sudo apt-get install -y git curl jq syncthing ca-certificates
+      run sudo apt-get install -y git curl jq ca-certificates
       if ! command -v node >/dev/null; then
         run curl -fsSL https://deb.nodesource.com/setup_20.x | run sudo -E bash -
         run sudo apt-get install -y nodejs
@@ -333,27 +330,6 @@ phase_4_mcp() {
   fi
 }
 
-# ============================================================================
-# Phase 5 — Syncthing guard (was: session hooks, all three retired 2026-08-18)
-# ============================================================================
-# The three km-* hooks this phase used to install are GONE, and none should come back
-# as written:
-#   - SessionStart merged `hot.*.md` into `hot.md`. Nothing ever wrote a hot cache, and the
-#     glob matched Syncthing's conflict copies of its own output — 327 KB of self-reference.
-#   - Stop appended `| <ts> | <plat> | session-stop | (auto) |` to `log.md`. 1,217 rows, all
-#     identical: a log with no variable field records nothing.
-#   - PostToolUse auto-committed the vault to a git repo INSIDE the synced folder. Syncthing
-#     replicates `.git` file-by-file with no transactional ordering, so `refs/heads/master`
-#     was zeroed and 48 conflict copies landed inside `.git`, orphaning 23,167 objects. The
-#     "backup" had been a no-op for an unknown stretch, and could not report that.
-# ⇒ A write side that nobody implements, and a backup that its own storage layer corrupts,
-#   both fail silently. What this folder actually needs is the exclusion below.
-phase_5_sync_guard() {
-  log "Phase 5: Syncthing guard (.stignore)"
-  write_if_missing "$VAULT_HOME/.stignore" "$(template_stignore)"
-  ok "Phase 5 done"
-}
-
 # Phase 6 — Repo → Vault migration (PRIMARY ONLY, ONE-SHOT)
 # ============================================================================
 phase_6_migrate() {
@@ -498,37 +474,6 @@ append_to_agents_md() {
 }
 
 # ============================================================================
-# Phase 7 — Syncthing
-# ============================================================================
-phase_7_syncthing() {
-  log "Phase 7: Bootstrap Syncthing"
-  if [[ "$SKIP_SYNCTHING" == "1" ]]; then skip "--skip-syncthing"; return; fi
-  if ! command -v syncthing >/dev/null; then warn "syncthing not installed (skipping)"; return; fi
-
-  case "$PLATFORM" in
-    mac)
-      run brew services start syncthing 2>/dev/null || warn "could not start syncthing via brew"
-      ;;
-    linux)
-      run systemctl --user enable --now syncthing.service 2>/dev/null || \
-        run sudo systemctl enable --now "syncthing@$(whoami).service" 2>/dev/null || \
-        warn "could not start syncthing (start it manually)"
-      ;;
-  esac
-
-  sleep 2
-  local id; id="$(syncthing --device-id 2>/dev/null || true)"
-  if [[ -n "$id" ]]; then
-    ok "Syncthing running. Device ID:"
-    printf '\n     %s\n\n' "$id"
-    log "Next: open http://localhost:8384"
-    log "      Add the OTHER machine's device ID, then add a folder for $VAULT_HOME"
-  else
-    warn "could not read device ID (start syncthing and run 'syncthing --device-id')"
-  fi
-}
-
-# ============================================================================
 # Phase 8 — Verify
 # ============================================================================
 phase_8_verify() {
@@ -546,8 +491,6 @@ phase_8_verify() {
   else
     warn "FAIL: ~/.claude/settings.json missing"; fails=$((fails+1))
   fi
-  command -v syncthing >/dev/null;             check "$?" "syncthing installed"
-  grep -qx '\.git' "$VAULT_LINK/.stignore" 2>/dev/null; check "$?" "vault/.stignore excludes .git from sync"
 
   if [[ "$ROLE" == "primary" ]]; then
     [[ -f "$REPO_ROOT/docs/VAULT.md" ]];       check "$?" "docs/VAULT.md present"
@@ -722,17 +665,6 @@ real skill from the Karpathy LLM-Wiki implementation.
 EOF
 }
 
-template_stignore() { cat <<'EOF'
-// Git metadata must never be synced: Syncthing replicates .git file-by-file with no
-// transactional ordering, which zeroed refs/heads/master and left 48 conflict copies
-// inside .git (retired 2026-08-18). Any future git backup lives OUTSIDE this folder.
-.git
-
-// Retired machinery kept locally for recovery; not worth replicating.
-.retired
-EOF
-}
-
 template_repo_vault_md() { cat <<'EOF'
 # Vault
 
@@ -741,7 +673,7 @@ Non-load-bearing knowledge for this project lives in an Obsidian vault outside t
 - **Vault path (Mac):**     `~/Documents/Obsidian/agent-kernel-vault/`
 - **Vault path (Linux):**   `~/agent-kernel-vault/`
 - **Stable symlink:**       `~/vault/` (both machines)
-- **Sync:**                 Syncthing peer-to-peer
+- **Replication:**          none — machine-local since 2026-08-21
 - **MCP server:**           `@modelcontextprotocol/server-filesystem` pointed at `~/vault`
 
 ## What's in the vault
@@ -806,7 +738,7 @@ moved. The test "would breaking this doc break a build, test, or agent workflow?
 ### Setup / sync
 
 - Initial setup: `bash scripts/setup/setup-km.sh`
-- Sync: Syncthing peer-to-peer between Mac and Ubuntu (manual pairing once)
+- No replication: the vault is machine-local (Syncthing removed 2026-08-21). Anything a second machine needs belongs in git.
 - No hot cache: `hot.md` was removed 2026-08-18 (never written to). Handoff rides on `plans/active/Plan.md`.
 EOF
 }
@@ -841,7 +773,10 @@ EOF
 # Main
 # ============================================================================
 
-PHASES=(phase_1_prereqs phase_2_vault phase_3_skills phase_4_mcp phase_5_sync_guard phase_6_migrate phase_7_syncthing phase_8_verify)
+# Phases 5 (Syncthing .stignore guard) and 7 (Syncthing bootstrap) were removed 2026-08-21 with
+# Syncthing itself. The remaining phases keep their original numbers so every log label, comment,
+# and `--phase=N` note elsewhere stays accurate; the gap is deliberate, not an omission.
+PHASES=(phase_1_prereqs phase_2_vault phase_3_skills phase_4_mcp phase_6_migrate phase_8_verify)
 
 main() {
   parse_args "$@"
@@ -853,9 +788,12 @@ main() {
     local mapped=()
     for p in "${PHASES_TO_RUN[@]}"; do
       if [[ "$p" =~ ^[0-9]+$ ]]; then
-        local idx=$((p-1))
-        [[ "$idx" -ge 0 && "$idx" -lt "${#PHASES[@]}" ]] || err "phase $p out of range (1..${#PHASES[@]})"
-        mapped+=("${PHASES[$idx]}")
+        local match=""
+        for candidate in "${PHASES[@]}"; do
+          [[ "$candidate" == "phase_${p}_"* ]] && match="$candidate"
+        done
+        [[ -n "$match" ]] || err "no phase $p (available: 1 2 3 4 6 8)"
+        mapped+=("$match")
       else
         mapped+=("$p")
       fi
@@ -871,16 +809,15 @@ main() {
   echo
   log "All phases complete."
   log "Next manual steps:"
-  log "  1. Open Syncthing UI on both machines (http://localhost:8384) and pair them"
-  log "  2. Add ~/vault as a shared folder in Syncthing"
   if [[ "$ROLE" == "primary" ]]; then
-    log "  3. Review repo changes:  git -C $REPO_ROOT status"
-    log "  4. Commit & push: git commit -m 'chore(km): migrate non-essential docs to vault' && git push"
-    log "  5. On Ubuntu: git pull, then bash scripts/setup/setup-km.sh --secondary"
+    log "  1. Review repo changes:  git -C $REPO_ROOT status"
+    log "  2. Commit & push: git commit -m 'chore(km): migrate non-essential docs to vault' && git push"
+    log "  3. On Ubuntu: git pull, then bash scripts/setup/setup-km.sh --secondary"
   else
-    log "  3. Verify vault content arrives via Syncthing"
-    log "  4. Verify local-codex/Plan.md resolves: ls -l $REPO_ROOT/local-codex/Plan.md"
+    log "  1. Verify local-codex/Plan.md resolves: ls -l $REPO_ROOT/local-codex/Plan.md"
   fi
+  log "  NOTE: the vault is machine-local since Syncthing was removed 2026-08-21 — there is no"
+  log "        replication between machines. Move anything another machine needs into git."
 }
 
 main "$@"
