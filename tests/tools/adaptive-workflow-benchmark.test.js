@@ -61,9 +61,11 @@ test("rendered summary round-trips through the M10 benchmark-evidence loader", a
   writeFileSync(file, md);
   const loaded = loadBenchmarkEvidenceFromSummary(file, { strategyIdByProfile: { agent: "flagship_full_context_v1" }, asOf: "2026-07-14T00:00:00.000Z" });
   assert.equal(loaded.generatedAt, GENERATED_AT);
-  assert.equal(loaded.evidence[0].sampleSize, AGENT_BENCHMARK_SCENARIOS.length * 3);
-  assert.equal(loaded.evidence[0].averageScore, 100);
-  assert.equal(loaded.classifications[0].status, "accepted");
+  assert.equal(loaded.scenarioSet.purpose, "smoke");
+  assert.equal(loaded.evidence.length, 0);
+  assert.equal(loaded.diagnosticEvidence[0].sampleSize, AGENT_BENCHMARK_SCENARIOS.length * 3);
+  assert.equal(loaded.classifications[0].status, "ignored");
+  assert.equal(loaded.classifications[0].reason, "diagnostic_smoke_scenario_set");
 });
 
 // Canonical output that satisfies each hard scenario's structured constraint.
@@ -78,14 +80,27 @@ function goodHardFor(scenario) {
 }
 
 test("hard scenarios all complete when the model satisfies each constraint", async () => {
-  const { runAgentBenchmark, AGENT_BENCHMARK_HARD_SCENARIOS } = await load();
+  const { runAgentBenchmark, renderSummary, AGENT_BENCHMARK_HARD_SCENARIOS,
+    loadBenchmarkEvidenceFromSummary } = await load();
   const modelFactory = (scenario) => ({ generate: async () => goodHardFor(scenario) });
-  const report = await runAgentBenchmark({ scenarios: AGENT_BENCHMARK_HARD_SCENARIOS, modelName: "fixture-model", modelFactory, runs: 1, generatedAt: GENERATED_AT });
+  const report = await runAgentBenchmark({ scenarios: AGENT_BENCHMARK_HARD_SCENARIOS,
+    scenarioSet: { id: "hard", purpose: "qualification" }, modelName: "fixture-model",
+    modelFactory, runs: 1, generatedAt: GENERATED_AT });
   const nonComplete = report.results.filter((r) => r.outcome !== "complete");
   assert.equal(nonComplete.length, 0, JSON.stringify(nonComplete));
   // The local-sectional scenario must route to the budget-loop strategy.
   const sectional = report.results.find((r) => r.scenarioId === "local-sectional-layout");
   assert.equal(sectional.strategyId, "local_sectional_repair_v1");
+  const dir = mkdtempSync(join(os.tmpdir(), "agent-hard-bench-"));
+  const file = join(dir, "summary.md");
+  writeFileSync(file, renderSummary(report, { generatedAt: GENERATED_AT }));
+  const loaded = loadBenchmarkEvidenceFromSummary(file, {
+    strategyIdByProfile: { agent: "flagship_full_context_v1" }, asOf: "2026-07-14T00:00:00.000Z",
+  });
+  assert.equal(loaded.scenarioSet.purpose, "qualification");
+  assert.equal(loaded.evidence.length, 1);
+  assert.equal(loaded.classifications[0].status, "ignored", "four runs remain below policy sample size");
+  assert.equal(loaded.classifications[0].reason, "insufficient_sample_size");
 });
 
 test("hard scenarios discriminate: generic output fails the structured constraints", async () => {

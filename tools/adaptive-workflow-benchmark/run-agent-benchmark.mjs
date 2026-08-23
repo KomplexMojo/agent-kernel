@@ -16,9 +16,9 @@ import { runAgentBenchmark, renderSummary } from "./agent-benchmark.mjs";
 import { AGENT_BENCHMARK_SCENARIOS, AGENT_BENCHMARK_HARD_SCENARIOS } from "./scenarios.mjs";
 
 const SETS = {
-  smoke: AGENT_BENCHMARK_SCENARIOS,
-  hard: AGENT_BENCHMARK_HARD_SCENARIOS,
-  all: [...AGENT_BENCHMARK_SCENARIOS, ...AGENT_BENCHMARK_HARD_SCENARIOS],
+  smoke: { purpose: "smoke", scenarios: AGENT_BENCHMARK_SCENARIOS },
+  hard: { purpose: "qualification", scenarios: AGENT_BENCHMARK_HARD_SCENARIOS },
+  all: { purpose: "smoke", scenarios: [...AGENT_BENCHMARK_SCENARIOS, ...AGENT_BENCHMARK_HARD_SCENARIOS] },
 };
 
 function parseArgs(argv) {
@@ -53,7 +53,7 @@ async function main() {
     process.stderr.write(`Unknown --set '${setName}'. Use one of: ${Object.keys(SETS).join(", ")}\n`);
     process.exit(2);
   }
-  const scenarios = ids ? set.filter((s) => ids.includes(s.id)) : set;
+  const scenarios = ids ? set.scenarios.filter((s) => ids.includes(s.id)) : set.scenarios;
   if (scenarios.length === 0) {
     process.stderr.write(`No scenarios matched --scenario-ids=${args["scenario-ids"]}\n`);
     process.exit(2);
@@ -69,7 +69,10 @@ async function main() {
   const generatedAt = new Date().toISOString();
   const target = provider === "ollama" ? baseUrl : `${provider} (${endpoint || "default endpoint"})`;
   process.stderr.write(`Running ${scenarios.length} scenario(s) x ${runs} run(s) against ${model} via ${provider} @ ${target} ...\n`);
-  const report = await runAgentBenchmark({ scenarios, modelFactory, modelName: model, runs, generatedAt });
+  const report = await runAgentBenchmark({
+    scenarios, modelFactory, modelName: model, runs, generatedAt,
+    scenarioSet: { id: setName, purpose: set.purpose },
+  });
   const summaryMd = renderSummary(report, { route, generatedAt });
 
   const agg = report.aggregate;

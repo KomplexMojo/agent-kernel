@@ -65,9 +65,13 @@ export async function runAgentBenchmark({
   capabilityOverrides = {},
   clock = wallClock,
   generatedAt = new Date().toISOString(),
+  scenarioSet = { id: "unclassified", purpose: "smoke" },
 } = {}) {
   if (!Array.isArray(scenarios) || scenarios.length === 0) throw new Error("runAgentBenchmark requires a non-empty scenarios array");
   if (typeof modelFactory !== "function") throw new Error("runAgentBenchmark requires a modelFactory(scenario, run) => modelPort");
+  if (!scenarioSet || typeof scenarioSet.id !== "string" || !["smoke", "qualification"].includes(scenarioSet.purpose)) {
+    throw new Error("runAgentBenchmark requires a versioned smoke or qualification scenario set");
+  }
   const totalRuns = Math.max(1, runs);
   const results = [];
 
@@ -125,7 +129,16 @@ export async function runAgentBenchmark({
     }
   }
 
-  return { generatedAt, model: modelName, results, aggregate: aggregate(results, modelName) };
+  return {
+    schemaVersion: "agent-kernel-adaptive-workflow-benchmark-report/v1",
+    scenarioSet: {
+      schemaVersion: "agent-kernel-adaptive-workflow-scenario-set/v1",
+      id: scenarioSet.id,
+      purpose: scenarioSet.purpose,
+      scenarioIds: scenarios.map((scenario) => scenario.id),
+    },
+    generatedAt, model: modelName, results, aggregate: aggregate(results, modelName),
+  };
 }
 
 function aggregate(results, modelName) {
@@ -154,6 +167,9 @@ export function renderSummary(report, { route = "external", profile = "agent", g
     "",
     `Generated: ${at}`,
     `Route: ${route}`,
+    `Scenario set schema: ${report.scenarioSet.schemaVersion}`,
+    `Scenario set: ${report.scenarioSet.id}`,
+    `Purpose: ${report.scenarioSet.purpose}`,
     `Profiles: ${profile}`,
     `Scenarios: ${agg.scenarios}`,
     "",

@@ -12,6 +12,7 @@ export function loadBenchmarkEvidenceFromSummary(filePath, { strategyIdByProfile
   const source = deriveSource(filePath, parsed);
 
   const evidence = [];
+  const diagnosticEvidence = [];
   const classifications = [];
   for (const row of parsed.aggregate) {
     const strategyId = strategyIdByProfile[row.profile];
@@ -37,19 +38,42 @@ export function loadBenchmarkEvidenceFromSummary(filePath, { strategyIdByProfile
         route: parsed.route,
       },
     });
-    evidence.push(item);
-    classifications.push(classifyBenchmarkEvidence(item, policy, asOf));
+    if (parsed.scenarioSet.purpose !== "qualification") {
+      diagnosticEvidence.push(item);
+      classifications.push({
+        evidenceId, strategyId, status: "ignored", reason: "diagnostic_smoke_scenario_set",
+        scenarioSet: parsed.scenarioSet,
+      });
+    } else {
+      evidence.push(item);
+      classifications.push(classifyBenchmarkEvidence(item, policy, asOf));
+    }
   }
 
-  return { source, generatedAt: parsed.generatedAt, route: parsed.route, evidence, classifications };
+  return { source, generatedAt: parsed.generatedAt, route: parsed.route,
+    scenarioSet: parsed.scenarioSet, evidence, diagnosticEvidence, classifications };
 }
 
 function parseSummary(raw) {
   const lines = raw.split(/\r?\n/);
   const generatedAt = matchHeader(lines, /^Generated:\s*(.+)$/);
   const route = matchHeader(lines, /^Route:\s*(.+)$/);
+  const adaptive = lines.some((line) => /^#\s+AdaptiveWorkflowAgent Benchmark Summary\s*$/.test(line));
+  const scenarioSet = adaptive ? {
+    schemaVersion: matchHeader(lines, /^Scenario set schema:\s*(.+)$/),
+    id: matchHeader(lines, /^Scenario set:\s*(.+)$/),
+    purpose: matchHeader(lines, /^Purpose:\s*(.+)$/),
+  } : {
+    schemaVersion: "agent-kernel-content-gen-scenario-set/v1",
+    id: "content-gen",
+    purpose: "qualification",
+  };
+  if (adaptive && (scenarioSet.schemaVersion !== "agent-kernel-adaptive-workflow-scenario-set/v1"
+    || typeof scenarioSet.id !== "string" || !["smoke", "qualification"].includes(scenarioSet.purpose))) {
+    scenarioSet.purpose = "unclassified";
+  }
   const aggregate = parseAggregateTable(lines);
-  return { generatedAt, route, aggregate };
+  return { generatedAt, route, scenarioSet, aggregate };
 }
 
 function matchHeader(lines, pattern) {

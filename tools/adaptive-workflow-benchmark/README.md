@@ -60,7 +60,8 @@ OPENAI_API_KEY=sk-... node tools/adaptive-workflow-benchmark/run-agent-benchmark
 
 - **`smoke`** (`AGENT_BENCHMARK_SCENARIOS`) — easy JSON-authoring scenarios that
   validate only non-empty required arrays. Any capable model passes; used to
-  prove the pipeline and measure latency.
+  prove the pipeline and measure latency. Its report purpose is `smoke`, so the
+  evidence loader retains it as diagnostic and never returns it as policy-eligible evidence.
 - **`hard`** (`AGENT_BENCHMARK_HARD_SCENARIOS`) — discriminating scenarios whose
   validators check structure the flagship sanitizer will **not** fabricate:
   exact room/actor counts (`exactly-three-rooms`, `two-delvers`, `mixed-roster`)
@@ -76,6 +77,11 @@ OPENAI_API_KEY=sk-... node tools/adaptive-workflow-benchmark/run-agent-benchmark
 evidence and (explicitly) promoted into a strategy policy via
 `promoteBenchmarkPolicy(...)`. Map the `agent` profile to a strategy id, e.g.
 `{ strategyIdByProfile: { agent: "flagship_full_context_v1" } }`.
+
+Reports carry `agent-kernel-adaptive-workflow-scenario-set/v1` plus a `smoke` or
+`qualification` purpose. Only the `hard` set is qualification evidence. The `all`
+set remains smoke-purpose because mixing easy smoke cases into a score would dilute
+the discriminating set; smoke and unclassified adaptive reports cannot enter policy selection.
 
 ## Files
 
