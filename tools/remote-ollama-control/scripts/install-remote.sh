@@ -72,7 +72,9 @@ ssh "${SSH_OPTS[@]}" "$REMOTE" "\
            '$REMOTE_PACKAGE_DIR/scripts/remote-ollama-diagnostics.sh' \
            '$REMOTE_PACKAGE_DIR/scripts/ufw-remote-ollama.sh' \
            '$REMOTE_PACKAGE_DIR/bin/agent-kernel-benchmark' \
-           '$REMOTE_PACKAGE_DIR/scripts/benchmark-agent.js' && \
+           '$REMOTE_PACKAGE_DIR/scripts/benchmark-agent.js' \
+           '$REMOTE_PACKAGE_DIR/bin/agent-kernel-heartbeat' \
+           '$REMOTE_PACKAGE_DIR/scripts/benchmark-heartbeat.js' && \
   ln -sf '$REMOTE_PACKAGE_DIR/bin/remote-ollama-profile' '$REMOTE_SCRIPTS_DIR/remote-ollama-profile' && \
   ln -sf '$REMOTE_PACKAGE_DIR/bin/remote-ollama-diagnostics' '$REMOTE_SCRIPTS_DIR/remote-ollama-diagnostics' && \
   ln -sf '$REMOTE_PACKAGE_DIR/bin/remote-project-safety-check' '$REMOTE_SCRIPTS_DIR/remote-project-safety-check' && \

@@ -6,6 +6,7 @@ const { spawnSync } = require('child_process');
 
 const { validateContentResult } = require('./ak-compare');
 const { loadScenarioCatalog } = require('./ak-scenarios');
+const { MANIFEST_NAME, latestResultDir } = require('./content-gen-checkpoint');
 const { createGeneratedBuildResolver, combineBenchmarkQualification } = require('./execution-integration');
 const { executeLocalRun, planExecutionSchedule, runExecutionSchedule } = require('./execution-runner');
 
@@ -226,17 +227,60 @@ function boundedLog(filePath, stdout, stderr, maxBytes = 1024 * 1024) {
   fs.writeFileSync(filePath, value.subarray(0, maxBytes));
 }
 
-async function runContentGenerationProcess({ sourceWorktree, retentionDir, timeoutMs = 24 * 60 * 60 * 1000 }) {
+// The full matrix is 7 configurations x 100 scenarios x up to 3 passes: 700 attempts at the floor
+// and 2100 at the ceiling. The last recorded run averaged 58s per attempt while including the cheap
+// 9B canary, and the real matrix is weighted toward 27-30B, so the ceiling sits well past a day.
+// This was 24h until 2026-08-23, which meant the guard rail would SIGTERM the run it protects --
+// and because spawnSync kills the child, the failure arrives as an opaque "content generation
+// failed" after a day of GPU time. Resume (below) makes a kill recoverable; this makes it rare.
+const AUTHORING_TIMEOUT_MS = 72 * 60 * 60 * 1000;
+
+// Only a directory that carries a manifest can be resumed -- without one the child refuses and
+// exits, so detecting it here turns an unactionable error into an ordinary fresh run.
+function resumableAuthoringDir(resultsDir) {
+  const candidate = latestResultDir(resultsDir);
+  if (!candidate || !fs.existsSync(path.join(candidate, MANIFEST_NAME))) return null;
+  return candidate;
+}
+
+// Split out from the spawn so the composed command is assertable without running a benchmark.
+function authoringInvocation({ sourceWorktree, retentionDir, timeoutMs }) {
   const resultsDir = path.join(retentionDir, 'authoring');
   const script = path.join(sourceWorktree, 'tools', 'remote-ollama-control', 'scripts', 'remote-ollama-mac.js');
-  const child = spawnSync(process.execPath, [script, 'run-content-gen', '--route', process.env.LLM_DEFAULT_ROUTE || 'auto'], {
+  const args = [script, 'run-content-gen', '--route', process.env.LLM_DEFAULT_ROUTE || 'auto'];
+  // retentionDir is keyed by runKey, which already covers the source commit and all three identity
+  // hashes -- so anything found here belongs to this exact run and cannot blend two catalogs.
+  // Name the directory explicitly rather than passing bare `--resume`: "latest" is resolved against
+  // LLM_RESULTS_DIR by the child, and being wrong about which run is being finished is the one
+  // mistake that silently produces an uninterpretable number.
+  const resumeDir = resumableAuthoringDir(resultsDir);
+  if (resumeDir) args.push('--resume', resumeDir);
+  return {
+    script, args, resultsDir, resumeDir,
+    timeoutMs: timeoutMs === undefined ? AUTHORING_TIMEOUT_MS : timeoutMs,
+  };
+}
+
+async function runContentGenerationProcess({ sourceWorktree, retentionDir, timeoutMs }) {
+  const invocation = authoringInvocation({ sourceWorktree, retentionDir, timeoutMs });
+  const { resultsDir } = invocation;
+  const child = spawnSync(process.execPath, invocation.args, {
     cwd: sourceWorktree,
     env: { ...process.env, LLM_RESULTS_DIR: resultsDir },
-    encoding: 'utf8', timeout: timeoutMs, maxBuffer: 32 * 1024 * 1024,
+    encoding: 'utf8', timeout: invocation.timeoutMs, maxBuffer: 32 * 1024 * 1024,
   });
   boundedLog(path.join(retentionDir, 'authoring-command.log'), child.stdout, child.stderr);
   if (child.error || child.status !== 0) {
-    const detail = child.error?.message || String(child.stderr || `exit ${child.status}`).slice(-2000);
+    // A timeout kill arrives as SIGTERM with an errno that says nothing about duration. Naming it
+    // matters more here than anywhere else in the pipeline: the reader is looking at a failure that
+    // consumed days, and "killed at the 72h ceiling" and "the rig broke" call for opposite
+    // responses. The attempts already recorded survive, and the next poll resumes them.
+    const timedOut = child.error?.code === 'ETIMEDOUT' || child.signal === 'SIGTERM';
+    const detail = timedOut
+      ? `killed after ${Math.round(invocation.timeoutMs / 3600000)}h at the authoring ceiling; `
+        + `${invocation.resumeDir ? 'resuming' : 'starting'} evidence is retained under ${resultsDir} `
+        + 'and the next poll will resume it'
+      : child.error?.message || String(child.stderr || `exit ${child.status}`).slice(-2000);
     throw new Error(`content generation failed: ${detail}`);
   }
   const match = /Structured result:\s*(.+)\s*$/m.exec(child.stdout || '');
@@ -378,6 +422,8 @@ async function runBenchmarkPipeline({
 }
 
 module.exports = {
+  AUTHORING_TIMEOUT_MS,
+  authoringInvocation,
   createCommittedBuildResolver,
   pipelineComponents,
   runBenchmarkPipeline,

@@ -235,6 +235,61 @@ Remove `~/remote-ollama-control`, `~/.local/share/agent-kernel-benchmark`,
 their retained data is no longer needed. M5—not this installer—authorizes live GPU execution and the
 first `benchmark-results` branch publication.
 
+### Heartbeat and interim progress
+
+A full matrix is 7 configurations × 100 scenarios × up to 3 passes — 700 attempts at the floor,
+2,100 at the ceiling — and runs for **days**. Two things follow, and both are wired in:
+
+**The agent's failure mode is silence, not error.** Two incidents exited zero the whole time: 147
+consecutive nightlies dying on a deleted branch ref, and a nine-day stretch returning `dry_run` on
+every poll. Nothing that watches for a non-zero exit catches either. So `agent-kernel-heartbeat`
+publishes a beacon every five minutes to the **`benchmark-heartbeat`** branch, and
+`.github/workflows/benchmark-heartbeat-alarm.yml` opens an issue when that beacon goes quiet for an
+hour.
+
+The heartbeat is a **separate timer from the benchmark**, deliberately: a run occupies
+`agent-kernel-benchmark` for days, so a beat emitted by the agent would fall silent for exactly the
+stretch that most needs watching. It reads state and progress from disk and never waits on the run.
+
+```bash
+systemctl --user enable --now agent-kernel-heartbeat.timer
+systemctl --user list-timers agent-kernel-heartbeat.timer
+agent-kernel-heartbeat          # publish one beat by hand
+```
+
+The heartbeat branch holds exactly **one commit**, force-replaced on every beat. That is why it does
+not share a code path with `publishResult`, which treats a force as an error because results are
+append-only evidence. The published document carries no host, port, route, or hostname — this is a
+public repository, and `composeHeartbeat` emits a fixed shape so topology cannot ride along.
+
+**Progress is a range, not a percentage.** Early stop means a configuration can finish holding far
+fewer records than scenarios × passes, so recorded attempts cannot predict the remainder. Every
+count `progress.json` reports is a floor/ceiling pair, and every quality figure is **per
+configuration** — the collapse breaker and early stop both evaluate one configuration at a time, so
+a matrix-wide average hides the case it most needs to show: one configuration collapsing while the
+others carry the mean.
+
+`run-content-gen` rewrites `progress.json` in its result directory after every attempt (local disk,
+atomic rename). The heartbeat publishes whatever it last said, which keeps a days-long run decoupled
+from the publish cadence — pushing per attempt would be ~2,000 commits per run. Reported per
+configuration: attempts and passes complete, tool-call / verdict / score rates against the
+qualification bars, whether the configuration **can still qualify**, and headroom to each collapse
+floor. Alerts name the configuration.
+
+### Long runs, timeouts, and resume
+
+The authoring child is killed at **72h** (`AUTHORING_TIMEOUT_MS`). This was 24h until 2026-08-23,
+which sat *inside* the matrix's plausible duration — the guard rail would SIGTERM the run it exists
+to protect, and `spawnSync` surfaced it as an opaque `content generation failed` after a day of GPU
+time. A timeout kill now says so explicitly and names the retained evidence.
+
+A killed run is **resumable and resumes itself**. The pipeline passes `--resume <dir>` whenever the
+retention directory already holds a content-gen run with a manifest. That is safe without an
+identity check here because the retention directory is keyed by `runKey`, which already covers the
+source commit and all three identity hashes — anything found there belongs to this exact run and
+cannot blend two catalogs. The directory is named explicitly rather than relying on bare `--resume`,
+whose `latest` is resolved against `LLM_RESULTS_DIR` by the child.
+
 ### Reading published benchmark evidence
 
 Fetch the results ref, then use the result reader from the repository root. `latest_attempt` answers
@@ -575,10 +630,40 @@ Live `run-content-gen` now executes the eligible configurations in declared reso
 one complete pass, continues up to three while qualification remains mathematically possible, and
 keeps expected budget denial separate from raw process success.
 
+### Collapse breaker
+
+A full matrix is 700–2,100 calls and can take a day of GPU time, so the run aborts early when the
+evidence says the **rig** is broken. It deliberately does not abort when a model is merely weak:
+"this model scores badly" is the finding the run exists to record, and aborting on it would destroy
+the evidence rather than protect it. Two floors separate the cases, evaluated per configuration and
+only after `minimumAttempts` (20) — single-pass variance is wide enough that a handful of attempts
+cannot tell collapse from noise.
+
+| Floor | Default | Why |
+|---|---:|---|
+| `toolCallRate` | 0.10 | A weak model still *emits* tool calls. Near-zero means a broken tool schema, prompt, or endpoint. |
+| `averageScore` | 25 | Far below the 75 qualification bar, because these models score in the 30s–40s against it normally. Traps collapse, not regression. |
+
+`qwen3.5:9b` is the designated control in `config/models.json` and runs first, so a trip there is
+reported as *suspect the harness, not the model* and spares the expensive 27–30B dual rows.
+
+On a trip the run writes **no `result.json`** — its absence is already what marks an aborted run
+unpublishable — plus a `collapse-abort.json` carrying `publication: false`, the trip detail, and the
+run identity, and exits non-zero. The unattended agent spawns this CLI and already fails on a
+non-zero child, so the nightly inherits the breaker without extra wiring.
+
+Override with `--no-collapse-breaker`, `--collapse-score-floor N`, `--collapse-tool-call-floor RATIO`,
+or `--collapse-min-attempts N`. The nightly service, which cannot pass flags, reads
+`AK_BENCHMARK_COLLAPSE_BREAKER=0`, `AK_BENCHMARK_COLLAPSE_SCORE_FLOOR`,
+`AK_BENCHMARK_COLLAPSE_TOOL_CALL_FLOOR`, and `AK_BENCHMARK_COLLAPSE_MIN_ATTEMPTS`; explicit flags win.
+Turn it off for adversarial or diagnostic subsets, for the same reason `--no-early-stop` exists — a
+subset chosen to fail must be allowed to fail.
+
 Results are written to `results/<timestamp>-content-gen/`:
 - `runs.jsonl` — one JSON line per run
 - `result.json` — schema-versioned configuration, tier, qualification, Pareto, and minimum result
 - `summary.md` — aggregate table by profile + per-run detail table
+- `collapse-abort.json` — written **only** on a breaker trip; its presence means the run is not evidence
 - `raw/<runId>/create/` — generated artifacts for each run
 
 The Markdown aggregate retains the historical `Profile | Model | Scenarios | Runs | Avg score |

@@ -1,0 +1,162 @@
+name: Benchmark heartbeat alarm
+
+# Watches the nightly benchmark agent for SILENCE.
+#
+# The agent's two real failures both exited zero: 147 consecutive nightlies died on a deleted branch
+# ref, and a nine-day stretch returned `dry_run` on every poll. Anything triggered by a failing job
+# would have missed both. So the alarm condition here is the absence of a fresh heartbeat, not the
+# presence of an error.
+#
+# It runs on GitHub rather than on the box on purpose: "the box is unreachable" is one of the states
+# being watched for, and nothing on the box can report its own death. This job touches no host, no
+# port and no route -- it reads two files from two branches of this repository.
+on:
+  schedule:
+    # Every 30 minutes against a 60-minute threshold. GitHub's scheduled workflows are best-effort
+    # and routinely run late, so the margin absorbs ordinary scheduling jitter.
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: benchmark-heartbeat-alarm
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate heartbeat freshness
+        uses: actions/github-script@v7
+        env:
+          STALE_AFTER_MINUTES: '60'
+          HEARTBEAT_BRANCH: benchmark-heartbeat
+          RESULTS_BRANCH: benchmark-results
+        with:
+          script: |
+            const staleAfterMs = Number(process.env.STALE_AFTER_MINUTES) * 60 * 1000;
+            const label = 'benchmark-alarm';
+            const title = 'Benchmark agent is not reporting';
+
+            async function readJson(ref, path) {
+              try {
+                const response = await github.rest.repos.getContent({
+                  owner: context.repo.owner, repo: context.repo.repo, path, ref,
+                });
+                return JSON.parse(Buffer.from(response.data.content, 'base64').toString('utf8'));
+              } catch (error) {
+                if (error.status === 404) return null;
+                throw error;
+              }
+            }
+
+            const heartbeat = await readJson(process.env.HEARTBEAT_BRANCH, 'heartbeat.json');
+
+            // Absent branch means the beacon has not been deployed to the box yet. Deliberately not
+            // an alarm: it would fire on every schedule between merging this workflow and running
+            // the install, which is noise with a known cause. Once deployed the branch is only ever
+            // force-updated, never deleted, so this state does not recur silently. The job summary
+            // still says so on every run.
+            if (!heartbeat) {
+              core.summary.addHeading('Heartbeat not deployed', 3);
+              core.summary.addRaw(
+                `No \`heartbeat.json\` on \`${process.env.HEARTBEAT_BRANCH}\`. The alarm is inert until ` +
+                'the box publishes its first beat.',
+              );
+              await core.summary.write();
+              core.notice('Heartbeat branch absent; alarm inert until the agent is deployed.');
+              return;
+            }
+
+            const publishedAt = Date.parse(heartbeat.publishedAt);
+            const ageMs = Date.now() - publishedAt;
+            const stale = !Number.isFinite(publishedAt) || ageMs > staleAfterMs;
+            const progressAlerts = heartbeat.progress?.alerts ?? [];
+
+            const problems = [];
+            if (stale) {
+              const minutes = Number.isFinite(publishedAt) ? Math.round(ageMs / 60000) : 'unknown';
+              problems.push(`No heartbeat for ${minutes} minute(s); the threshold is ${process.env.STALE_AFTER_MINUTES}.`);
+            }
+            if (heartbeat.error) problems.push(`Agent reported an error: ${heartbeat.error}`);
+            for (const alert of progressAlerts) problems.push(alert);
+
+            // Result age is reported as context, never as an alarm: runs are change-triggered, so a
+            // quiet week with no relevant commits is legitimate and alarming on it would cry wolf.
+            const latest = await readJson(process.env.RESULTS_BRANCH, 'latest.json');
+            const completedAt = latest?.run?.completedAt ? Date.parse(latest.run.completedAt) : null;
+            const resultAgeDays = completedAt ? Math.floor((Date.now() - completedAt) / 86400000) : null;
+
+            const progress = heartbeat.progress;
+            const lines = [
+              `- **Status**: \`${heartbeat.status}\`${heartbeat.dryRun ? ' (dry-run: no benchmark will execute)' : ''}`,
+              `- **Heartbeat age**: ${Math.round(ageMs / 60000)} minute(s)`,
+              `- **Source commit**: \`${heartbeat.source?.commit?.slice(0, 12) ?? 'unknown'}\``,
+              `- **Last published result**: ${latest?.run?.id ?? 'none'}${resultAgeDays === null ? '' : ` (${resultAgeDays} day(s) ago)`}`,
+            ];
+            if (progress) {
+              const attempts = progress.attempts ?? {};
+              const hours = (ms) => (ms == null ? 'unknown' : `${(ms / 3600000).toFixed(1)}h`);
+              lines.push(
+                `- **Attempts**: ${attempts.recorded} recorded (floor ${attempts.floor}, ceiling ${attempts.ceiling})`,
+                `- **Elapsed**: ${hours(progress.elapsedMs)}, throughput ${progress.performance?.attemptsPerHour ?? '?'} /h`,
+                `- **ETA**: ${hours(progress.performance?.etaFloorMs)} to ${hours(progress.performance?.etaCeilingMs)} remaining`,
+                `- **Quality**: score ${progress.overall?.averageScore}, tool-call ${progress.overall?.toolCallRate}, verdict ${progress.overall?.scenarioVerdictRate}`,
+              );
+              for (const configuration of progress.configurations ?? []) {
+                lines.push(
+                  `  - \`${configuration.configurationId}\`: ${configuration.attempts} attempt(s), ` +
+                  `score ${configuration.averageScore}, tool-call ${configuration.toolCallRate}` +
+                  `${configuration.canStillQualify ? '' : ' — **cannot still qualify**'}`,
+                );
+              }
+            }
+
+            const body = [
+              problems.length ? '## Problems' : '## Healthy',
+              ...(problems.length ? problems.map((problem) => `- ${problem}`) : ['- The agent is reporting on schedule.']),
+              '',
+              '## Detail',
+              ...lines,
+              '',
+              `_Checked ${new Date().toISOString()} by ${context.workflow}._`,
+            ].join('\n');
+
+            core.summary.addRaw(body);
+            await core.summary.write();
+
+            const { data: open } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: label,
+            });
+            const existing = open.find((issue) => issue.title === title) ?? null;
+
+            if (problems.length === 0) {
+              if (existing) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                  body: `Recovered — the agent is reporting again.\n\n${body}`,
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                  state: 'closed', state_reason: 'completed',
+                });
+              }
+              return;
+            }
+
+            if (!existing) {
+              await github.rest.issues.create({
+                owner: context.repo.owner, repo: context.repo.repo, title, body, labels: [label],
+              });
+              return;
+            }
+
+            // Editing the body rather than commenting: at a 30-minute cadence a comment per check
+            // would bury the signal it exists to raise. The issue always shows current state, and
+            // its creation was the notification.
+            await github.rest.issues.update({
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body,
+            });

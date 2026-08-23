@@ -37,7 +37,17 @@ function requestJson(baseUrl, apiPath, body, timeoutMs = 1800000) {
             }
           }
           if (response.statusCode < 200 || response.statusCode >= 300) {
-            const error = new Error(parsed.error || `HTTP ${response.statusCode} from ${url}`);
+            // This message is the whole account of an infrastructure failure, which aborts a
+            // content-gen run outright. Two ways it used to lose that account: Ollama can answer
+            // with a structured `error` object, and `new Error(object)` renders "[object Object]";
+            // and when any body message existed the status and url were dropped entirely. Keep
+            // both, always.
+            const detail = typeof parsed.error === 'string'
+              ? parsed.error
+              : (parsed.error ? JSON.stringify(parsed.error) : '');
+            const error = new Error(
+              `HTTP ${response.statusCode} from ${url}${detail ? `: ${detail}` : ''}`
+            );
             error.statusCode = response.statusCode;
             error.body = parsed;
             reject(error);

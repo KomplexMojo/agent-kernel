@@ -1,6 +1,7 @@
 'use strict';
 
 const { canStillQualify } = require('./ak-compare');
+const { CollapseError, DEFAULT_BREAKER, evaluateCollapse } = require('./collapse-breaker');
 
 function createFixtureAttemptWriter(factory, sink = []) {
   return async (context) => {
@@ -21,6 +22,10 @@ async function executeContentGenMatrix({
   // can no longer qualify — but an adversarial subset can NEVER qualify, so on those runs it
   // deletes precisely the repeats the run exists to collect.
   stopWhenHopeless = true,
+  // Aborts the whole run when a configuration's evidence says the rig is broken rather than the
+  // model weak. Diagnostic and adversarial runs turn it off for the same reason they turn off
+  // early stop: a subset chosen to fail must be allowed to fail.
+  breaker = DEFAULT_BREAKER,
   // Attempts already on disk from an interrupted run of the SAME catalog and matrix. They are not
   // re-run, they are not re-announced through onRecord (they are already in runs.jsonl), and they
   // are returned with the new ones so aggregation still sees a whole run. Early stop reads them
@@ -85,6 +90,12 @@ async function executeContentGenMatrix({
         if (record.failureClass === 'infrastructure') {
           throw new Error(`Content-gen infrastructure failure: ${record.llmError || record.execStderr || 'unknown infrastructure error'}`);
         }
+        const trip = evaluateCollapse(configurationRecords, {
+          breaker,
+          model: configuration.model.id,
+          configurationId: configuration.configurationId,
+        });
+        if (trip) throw new CollapseError(trip);
       }
       const remainingAttempts = (maximumPasses - repeat) * scenarios.length;
       if (stopWhenHopeless && remainingAttempts > 0

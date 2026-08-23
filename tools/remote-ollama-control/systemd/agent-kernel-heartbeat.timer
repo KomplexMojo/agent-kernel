@@ -1,0 +1,18 @@
+[Unit]
+Description=Publish the Agent Kernel benchmark heartbeat
+
+[Timer]
+Unit=agent-kernel-heartbeat.service
+OnBootSec=2m
+# Five minutes against a one-hour alarm threshold. The gap is deliberate: GitHub's scheduled
+# workflows are best-effort and routinely run late, so the beacon has to be far more frequent than
+# the alarm it feeds or ordinary scheduling jitter would read as a dead box.
+#
+# OnUnitActiveSec, not OnUnitInactiveSec -- the benchmark timer uses the latter and that is correct
+# for a job whose duration is the work. Here a beat that ran long must not push the next one out.
+OnUnitActiveSec=5m
+RandomizedDelaySec=15s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
