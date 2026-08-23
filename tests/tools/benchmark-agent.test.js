@@ -127,6 +127,7 @@ test("agent deduplicates, ignores irrelevant/results commits, coalesces, and pub
   assert.equal(first.status, "published");
   assert.equal(runs, 1);
   const firstPublished = readJsonFromBranch(repo.remote, "benchmark-results", "latest.json");
+  assert.equal(firstPublished.schemaVersion, "agent-kernel-benchmark-result/v2");
   assert.equal(firstPublished.run.status, "completed");
   assert.equal(firstPublished.run.runnerContractVersion, POLICY.runnerContractVersion);
   assert.equal(firstPublished.source.repository, "agent-kernel");

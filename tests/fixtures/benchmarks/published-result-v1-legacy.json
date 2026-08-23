@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-result/v1",
+  "run": {
+    "id": "2026-08-14T17-36-51-712Z-faccd4d0ad0b-0f224419db95",
+    "key": "0f224419db95c7b48efc9d08a24f6bf6b6a0f5a016869adbac5a02c83f29a5ed",
+    "status": "completed",
+    "runnerContractVersion": "benchmark-agent-v1"
+  },
+  "source": {
+    "repository": "KomplexMojo/agent-kernel",
+    "ref": "codex/benchmark-catalog",
+    "commit": "faccd4d0ad0b7c75614630e58c31d0c3d442af53"
+  },
+  "scenarioSet": {
+    "count": 100,
+    "sha256": "6e5abc67edaaea2f1d2d1e06ce0e8d074b4e46e808f3a01bbcaf0a3c7efd4960"
+  },
+  "matrix": {
+    "sha256": "689b08adf6cc06f2feac0fb6fd285fe920faf062bab2fd889b14e25c5737a890"
+  },
+  "execution": {
+    "status": "completed",
+    "attempts": 200,
+    "route": "external"
+  },
+  "minimumSuccessfulConfiguration": null,
+  "qualifies": false
+}

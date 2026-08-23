@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-kernel-benchmark-result/v2",
+  "title": "Published benchmark result v2",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "run",
+    "source",
+    "trigger",
+    "scenarioSet",
+    "matrix",
+    "execution",
+    "qualifies"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "agent-kernel-benchmark-result/v2" },
+    "run": {
+      "type": "object",
+      "required": ["id", "key", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "key": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["completed", "infrastructure_error"] }
+      }
+    },
+    "source": { "type": "object" },
+    "trigger": { "type": "object" },
+    "scenarioSet": {
+      "type": "object",
+      "required": ["count", "sha256"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "required": ["sha256"],
+      "properties": { "sha256": { "$ref": "#/$defs/sha256" } }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["identity"],
+      "properties": {
+        "identity": {
+          "type": "object",
+          "required": ["executionSuiteHash"],
+          "properties": {
+            "executionSuiteHash": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      }
+    },
+    "qualifies": { "type": "boolean" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}
