@@ -65,7 +65,8 @@ function planExecutionSchedule({ catalog = loadExecutionCatalog(), scenarioIds, 
       .flatMap((repeat) => variants.map((variant) => requestFor(
         scenario, profile, fullStage, seed, repeat, variant, profile.ticks,
       ))));
-    return { scenarioId: scenario.id, family: scenario.family, profile: scenario.profile, fullStage, screen, full };
+    return { scenarioId: scenario.id, family: scenario.family, profile: scenario.profile,
+      purpose: scenario.purpose, fullStage, screen, full };
   });
   return {
     schemaVersion: 'agent-kernel-execution-schedule-plan/v1',
@@ -225,8 +226,9 @@ async function runExecutionSchedule({
       promotion: { status: 'promoted', to: scenarioPlan.fullStage }, earlyStop, aggregate, status });
   }
 
-  const status = scenarioSummaries.some((entry) => entry.status === 'failed') ? 'failed'
-    : scenarioSummaries.some((entry) => entry.status === 'evidence_unavailable') ? 'evidence_unavailable' : 'completed';
+  const qualifyingSummaries = scenarioSummaries.filter((entry) => entry.purpose !== 'diagnostic');
+  const status = qualifyingSummaries.some((entry) => entry.status === 'failed') ? 'failed'
+    : qualifyingSummaries.some((entry) => entry.status === 'evidence_unavailable') ? 'evidence_unavailable' : 'completed';
   const summary = {
     schemaVersion: 'agent-kernel-execution-schedule/v1',
     identity: plan.identity,

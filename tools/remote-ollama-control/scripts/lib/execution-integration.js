@@ -39,11 +39,12 @@ function createGeneratedBuildResolver({ records, configurationId, routes }) {
 function executionQualifies(result) {
   if (!result || typeof result !== 'object') return false;
   if (typeof result.verdict?.qualifies === 'boolean') return result.verdict.qualifies;
-  return result.schemaVersion === 'agent-kernel-execution-schedule/v1'
-    && result.status === 'completed'
-    && Array.isArray(result.scenarios)
-    && result.scenarios.length > 0
-    && result.scenarios.every((scenario) => scenario.aggregate?.verdict?.qualifies === true);
+  if (result.schemaVersion !== 'agent-kernel-execution-schedule/v1'
+    || result.status === 'failed' || !Array.isArray(result.scenarios)) return false;
+  const qualifying = result.scenarios.filter((scenario) => (
+    scenario.purpose || scenario.aggregate?.scenario?.purpose
+  ) !== 'diagnostic');
+  return qualifying.length > 0 && qualifying.every((scenario) => scenario.aggregate?.verdict?.qualifies === true);
 }
 
 function compareResources(left, right) {

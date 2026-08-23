@@ -76,6 +76,15 @@ function scoredResult(scenario, seed, repeat = 1, score = 80, variant) {
   return result;
 }
 
+function checkpoint(tick, health = { current: 10, max: 10, regen: 0 }) {
+  return {
+    schema: 'agent-kernel/WorldStateArtifact', schemaVersion: 2,
+    meta: { id: `checkpoint_${tick}`, runId: 'fixture', createdAt: '2026-01-01T00:00:00.000Z', producedBy: 'fixture' },
+    tick, dimensions: { width: 4, height: 3 }, hazards: [], resources: [],
+    actors: [{ id: 'delver_1', position: { x: 1, y: 1 }, vitals: { health } }],
+  };
+}
+
 test('black-box extractors measure movement, liveness, participation, recurrence, and performance', () => {
   const { metrics, stats } = extractExecutionMetrics(artifacts(), catalog.contract);
   assert.equal(Object.keys(metrics).length, Object.keys(catalog.contract.metrics).length);
@@ -168,14 +177,37 @@ test('damage and effect metrics use emitted public facts without reconstructing 
   assert.equal(metrics.impact_evidence.value, 2);
 });
 
-test('weighted scorer preserves observation gaps and hard thresholds', () => {
-  const scenario = catalog.scenarios.find((entry) => entry.id === 'EX-CB-02');
+test('weighted scorer accepts observation objectives only from observation provenance', () => {
+  const scenario = catalog.scenarios.find((entry) => entry.id === 'EX-RS-01');
   const metrics = Object.fromEntries(Object.entries(catalog.contract.metrics).map(([name, value]) => [name,
     { status: 'available', value: 1, unit: value.unit, evidence: 'artifact' }]));
   const score = scoreObjectives(scenario, metrics);
   assert.equal(score.status, 'evidence_unavailable');
-  assert.equal(score.objectives.affinity_sensitivity.status, 'evidence_unavailable');
-  assert.equal(score.objectives.combat_activity.status, 'scored');
+  assert.equal(score.objectives.pickup_apply_correctness.status, 'evidence_unavailable');
+  assert.equal(score.objectives.performance.status, 'diagnostic');
+  for (const [name, objective] of Object.entries(scenario.objectives)) metrics[name].evidence = objective.evidence;
+  assert.equal(scoreObjectives(scenario, metrics).objectives.pickup_apply_correctness.status, 'scored');
+});
+
+test('finite bounds require every declared checkpoint and reject an out-of-bounds vital', () => {
+  const boundedCatalog = structuredClone(catalog);
+  boundedCatalog.contract.profiles.short_v1.checkpoints = [0, 4];
+  const complete = [checkpoint(0), checkpoint(4)];
+  const valid = evaluateExecutionArtifacts({
+    artifacts: artifacts({ worldStateCheckpoints: { states: complete } }), scenario: 'EX-CB-01', catalog: boundedCatalog,
+  });
+  assert.equal(valid.invariants.finite_bounds.status, 'passed');
+
+  const missing = evaluateExecutionArtifacts({
+    artifacts: artifacts({ worldStateCheckpoints: { states: complete.slice(0, 1) } }), scenario: 'EX-CB-01', catalog: boundedCatalog,
+  });
+  assert.equal(missing.invariants.finite_bounds.status, 'evidence_unavailable');
+
+  complete[1].actors[0].vitals.health.current = 11;
+  const invalid = evaluateExecutionArtifacts({
+    artifacts: artifacts({ worldStateCheckpoints: { states: complete } }), scenario: 'EX-CB-01', catalog: boundedCatalog,
+  });
+  assert.equal(invalid.invariants.finite_bounds.status, 'failed');
 });
 
 test('aggregate reports the worst seed and unavailable evidence outranks partial averages', () => {
@@ -184,9 +216,29 @@ test('aggregate reports the worst seed and unavailable evidence outranks partial
   assert.deepEqual(aggregate.distribution, { mean: 80, median: 80, minimum: 70, maximum: 90 });
   assert.deepEqual(aggregate.worstSeed, { seed: 0, repeat: 1, score: 70, verdict: 'passed' });
   assert.equal(aggregate.verdict.qualifies, true);
+  assert.equal(aggregate.verdict.eligible, true);
   results[2].score.value = null;
   results[2].verdict.status = 'evidence_unavailable';
   assert.equal(aggregateExecutionResults(results, catalog.contract).verdict.status, 'evidence_unavailable');
+});
+
+test('diagnostic metrics remain visible but cannot block or satisfy qualification', () => {
+  assert.equal(catalog.contract.schemaVersion, 'agent-kernel-execution-metric-contract/v2');
+  assert.equal(catalog.contract.metrics.affinity_sensitivity.purpose, 'diagnostic');
+  const results = [];
+  for (const seed of [0, 1, 2, 3, 4]) {
+    for (const variant of ['neutral', 'advantaged']) {
+      const result = scoredResult('EX-CB-02', seed, 1, 90, variant);
+      result.metrics.affinity_sensitivity = {
+        status: 'available', value: variant === 'advantaged' ? 0.5 : 0.2, unit: 'ratio', evidence: 'observation',
+      };
+      results.push(result);
+    }
+  }
+  const aggregate = aggregateExecutionResults(results, catalog.contract);
+  assert.equal(aggregate.scenario.purpose, 'qualification');
+  assert.equal(aggregate.requiredGates.find((gate) => gate.id === 'EX-CB-02-G03').purpose, 'diagnostic');
+  assert.equal(aggregate.verdict.eligible, true);
 });
 
 test('aggregate rate gates require four of five seeds, never three of five', () => {

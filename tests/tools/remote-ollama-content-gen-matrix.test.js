@@ -281,6 +281,32 @@ test("combined minimum selection requires authoring, runtime, and generated exec
   )));
 });
 
+test("diagnostic execution scenarios cannot block or satisfy schedule qualification", () => {
+  const schedule = passingExecutionSchedule();
+  schedule.status = "evidence_unavailable";
+  schedule.scenarios.push({
+    scenarioId: "EX-CB-02",
+    purpose: "diagnostic",
+    aggregate: { scenario: { purpose: "diagnostic" }, verdict: { qualifies: false, eligible: false } },
+  });
+  const authoring = aggregateContentGenResults(CONFIGURATIONS.flatMap((configuration) => (
+    SCENARIOS.map((scenario) => ({
+      configurationId: configuration.configurationId, scenarioIndex: scenario.index, scenarioTier: scenario.tier,
+      repeat: 1, toolCallProduced: true, execSucceeded: true, scenarioVerdict: { passed: true }, score: 80,
+    }))
+  )), { matrix: MATRIX, scenarioSet: SCENARIO_SET });
+  const combined = combineBenchmarkQualification({
+    authoringResult: authoring, runtimeExecution: schedule,
+    generatedExecutionByConfiguration: Object.fromEntries(CONFIGURATIONS.map(({ configurationId }) => [configurationId, schedule])),
+  });
+  assert.equal(combined.runtimeExecution.qualifies, true);
+
+  schedule.scenarios = schedule.scenarios.filter((entry) => entry.purpose === "diagnostic");
+  assert.equal(combineBenchmarkQualification({
+    authoringResult: authoring, runtimeExecution: schedule, generatedExecutionByConfiguration: {},
+  }).runtimeExecution.qualifies, false);
+});
+
 // ## TODO: Test Permutations
 // - missing attempts inside a completed pass fail the completeness gate
 // - a score-only mathematical early stop preserves all completed-pass records

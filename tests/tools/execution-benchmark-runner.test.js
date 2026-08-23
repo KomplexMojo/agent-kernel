@@ -61,6 +61,7 @@ test('schedule plan uses one bounded screen then exact declared seed/repeat/vari
   assert.equal(traversal.fullStage, 'qualify');
   assert.equal(traversal.full.length, 5);
   const paired = plan.scenarios.find((entry) => entry.scenarioId === 'EX-CB-02');
+  assert.equal(paired.purpose, 'qualification');
   assert.equal(paired.screen.length, 2);
   assert.equal(paired.full.length, 10);
   assert.deepEqual([...new Set(paired.full.map((request) => request.variant))], ['neutral', 'advantaged']);
@@ -89,7 +90,10 @@ test('five-family fixture matrix promotes screens, reuses identical runs, and pe
   });
   assert.equal(summary.status, 'completed');
   assert.equal(summary.scenarios.length, 5);
-  assert.ok(summary.scenarios.every((entry) => entry.aggregate?.verdict.qualifies));
+  assert.ok(summary.scenarios.filter((entry) => entry.aggregate?.scenario?.purpose === 'qualification')
+    .every((entry) => entry.aggregate.verdict.qualifies));
+  assert.ok(summary.scenarios.filter((entry) => entry.aggregate?.scenario?.purpose === 'diagnostic')
+    .every((entry) => entry.status === 'diagnostic' && entry.aggregate.verdict.qualifies === false));
   assert.equal(summary.scenarios.find((entry) => entry.scenarioId === 'EX-ST-03').fullStage, 'stress');
   assert.equal(calls.length, 25, 'short-profile seed zero screens are reused as full results');
   const persisted = JSON.parse(readFileSync(join(outputRoot, 'execution-schedule.json'), 'utf8'));
@@ -108,6 +112,21 @@ test('failed screen retains evidence and cannot promote', async () => {
   assert.equal(summary.scenarios[0].promotion.status, 'rejected');
   assert.equal(summary.scenarios[0].attempts.length, 1);
   assert.equal(summary.scenarios[0].attempts[0].stderr, 'fixture crash');
+});
+
+test('a diagnostic screen failure remains visible without failing qualification scenarios', async () => {
+  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-diagnostic-fail-'));
+  const mixedCatalog = structuredClone(catalog);
+  mixedCatalog.scenarios.find((scenario) => scenario.id === 'EX-HZ-01').purpose = 'diagnostic';
+  const summary = await runExecutionSchedule({
+    catalog: mixedCatalog, scenarioIds: ['EX-TR-01', 'EX-HZ-01'], outputRoot,
+    resolveBuild: () => '/fixture-build',
+    execute: async (request) => request.scenarioId === 'EX-HZ-01'
+      ? { status: 'failed', exitCode: 2, stderr: 'diagnostic fixture failure', request }
+      : { status: 'completed', result: passingResult(request), command: { command: 'fixture', args: [] } },
+  });
+  assert.equal(summary.status, 'completed');
+  assert.equal(summary.scenarios.find((entry) => entry.scenarioId === 'EX-HZ-01').status, 'failed');
 });
 
 test('unavailable observation evidence does not block a structurally valid screen', async () => {
