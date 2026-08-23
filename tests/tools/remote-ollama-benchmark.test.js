@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { spawn, spawnSync } = require("node:child_process");
-const { mkdtempSync, writeFileSync } = require("node:fs");
+const { mkdirSync, mkdtempSync, writeFileSync } = require("node:fs");
 const http = require("node:http");
 const { tmpdir } = require("node:os");
 const { join, resolve } = require("node:path");
@@ -10,6 +10,7 @@ const {
   assertPortAvailable,
   dryRunProcessProbe,
 } = require("../../tools/remote-ollama-control/scripts/remote-ollama-profile");
+const { hostEnvironmentForChild } = require("../../tools/remote-ollama-control/scripts/lib/benchmark-pipeline");
 const {
   buildContentGenMatrix,
   buildHardwareBenchmarkSpecs,
@@ -634,3 +635,48 @@ test("local run-local verifies endpoint and model against a live local Ollama-co
 // - content-gen matrix rejects duplicate sanitized configuration ids
 // - explicit model/profile filters with no eligible intersection fail closed
 // - explicit context, output, repeat, and scenario overrides produce exact call bounds
+
+// The content-gen child runs in the isolated source worktree, where config/llm-host.env is absent
+// by design. Before this, it inherited nothing, defaulted sshPort to 22, and reported a route-probe
+// failure — a network story for a missing-file fault, published as infrastructure_error.
+test("content generation inherits host addressing from the installed package, not the worktree", () => {
+  const installed = mkdtempSync(join(tmpdir(), "remote-ollama-installed-"));
+  mkdirSync(join(installed, "config"), { recursive: true });
+  writeFileSync(
+    join(installed, "config", "llm-host.env"),
+    "LLM_INTERNAL_HOST=10.0.0.5\nLLM_SSH_PORT=2222\nLLM_DEFAULT_ROUTE=internal\nUNRELATED=nope\n",
+  );
+
+  const hostEnv = hostEnvironmentForChild(installed);
+  assert.equal(hostEnv.LLM_INTERNAL_HOST, "10.0.0.5");
+  // The port is the whole point: without it the child probes 22 and blames the network.
+  assert.equal(hostEnv.LLM_SSH_PORT, "2222");
+  assert.equal(hostEnv.LLM_DEFAULT_ROUTE, "internal");
+  // Only LLM_* crosses over — the file is not a general-purpose environment injection point.
+  assert.equal("UNRELATED" in hostEnv, false);
+});
+
+// The refusal half: an installation with no host file must say so, naming the file, rather than
+// letting the child emit a plausible-looking route-probe failure.
+test("content generation refuses to start when the runner has no host addressing", () => {
+  const empty = mkdtempSync(join(tmpdir(), "remote-ollama-nohost-"));
+  mkdirSync(join(empty, "config"), { recursive: true });
+
+  const saved = {
+    internal: process.env.LLM_INTERNAL_HOST,
+    external: process.env.LLM_EXTERNAL_HOST,
+  };
+  delete process.env.LLM_INTERNAL_HOST;
+  delete process.env.LLM_EXTERNAL_HOST;
+  try {
+    assert.throws(
+      () => hostEnvironmentForChild(empty),
+      /content generation has no host configuration: .*llm-host\.env/,
+    );
+  } finally {
+    if (saved.internal === undefined) delete process.env.LLM_INTERNAL_HOST;
+    else process.env.LLM_INTERNAL_HOST = saved.internal;
+    if (saved.external === undefined) delete process.env.LLM_EXTERNAL_HOST;
+    else process.env.LLM_EXTERNAL_HOST = saved.external;
+  }
+});

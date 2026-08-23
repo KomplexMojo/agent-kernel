@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+const { ROOT_DIR, parseEnvFile } = require('./config');
 const { validateContentResult } = require('./ak-compare');
 const { loadScenarioCatalog } = require('./ak-scenarios');
 const { MANIFEST_NAME, latestResultDir } = require('./content-gen-checkpoint');
@@ -243,6 +244,36 @@ function resumableAuthoringDir(resultsDir) {
   return candidate;
 }
 
+// The content-gen child runs inside the isolated SOURCE WORKTREE, where config/llm-host.env does
+// not exist: site addresses are operator data and are deliberately never committed. So the child
+// loaded no host config at all and every value fell back to its default — no internal host, no
+// external host, and sshPort 22 while this box's sshd is on 2222. That surfaced as
+// "Route auto-detection failed ... answered on port 22", a message about the network for a fault
+// that is a missing file, and the run published infrastructure_error before any GPU work.
+//
+// Site addressing is INSTALLATION data, not revision data, so it comes from the installed package
+// this agent is itself running from — not from the worktree, whose source isolation stays intact.
+// process.env still wins over the file, matching loadConfig's own precedence.
+function hostEnvironmentForChild(rootDir = ROOT_DIR) {
+  const file = path.join(rootDir, 'config', 'llm-host.env');
+  const hostEnv = {};
+  for (const [key, value] of Object.entries(parseEnvFile(file))) {
+    if (key.startsWith('LLM_')) hostEnv[key] = value;
+  }
+  const haveHost = hostEnv.LLM_INTERNAL_HOST || hostEnv.LLM_EXTERNAL_HOST
+    || process.env.LLM_INTERNAL_HOST || process.env.LLM_EXTERNAL_HOST;
+  if (!haveHost) {
+    // Fail here, naming the file. The alternative is the child's route probe reporting a plausible
+    // network failure, which sends the reader to check the LAN instead of the configuration.
+    throw new Error(
+      `content generation has no host configuration: ${file} defines neither LLM_INTERNAL_HOST nor `
+      + 'LLM_EXTERNAL_HOST, and neither is set in the environment. Populate that file on the runner '
+      + '(it is gitignored by design) rather than expecting it from the source checkout.'
+    );
+  }
+  return hostEnv;
+}
+
 // Split out from the spawn so the composed command is assertable without running a benchmark.
 function authoringInvocation({ sourceWorktree, retentionDir, timeoutMs }) {
   const resultsDir = path.join(retentionDir, 'authoring');
@@ -266,7 +297,7 @@ async function runContentGenerationProcess({ sourceWorktree, retentionDir, timeo
   const { resultsDir } = invocation;
   const child = spawnSync(process.execPath, invocation.args, {
     cwd: sourceWorktree,
-    env: { ...process.env, LLM_RESULTS_DIR: resultsDir },
+    env: { ...hostEnvironmentForChild(), ...process.env, LLM_RESULTS_DIR: resultsDir },
     encoding: 'utf8', timeout: invocation.timeoutMs, maxBuffer: 32 * 1024 * 1024,
   });
   boundedLog(path.join(retentionDir, 'authoring-command.log'), child.stdout, child.stderr);
@@ -422,6 +453,7 @@ async function runBenchmarkPipeline({
 }
 
 module.exports = {
+  hostEnvironmentForChild,
   AUTHORING_TIMEOUT_MS,
   authoringInvocation,
   createCommittedBuildResolver,
