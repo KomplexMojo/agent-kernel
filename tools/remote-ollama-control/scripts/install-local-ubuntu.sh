@@ -59,12 +59,15 @@ chmod +x "$REMOTE_PACKAGE_DIR/bin/remote-ollama-profile" \
          "$REMOTE_PACKAGE_DIR/scripts/remote-ollama-diagnostics.sh" \
          "$REMOTE_PACKAGE_DIR/scripts/ufw-remote-ollama.sh" \
          "$REMOTE_PACKAGE_DIR/bin/agent-kernel-benchmark" \
-         "$REMOTE_PACKAGE_DIR/scripts/benchmark-agent.js"
+         "$REMOTE_PACKAGE_DIR/scripts/benchmark-agent.js" \
+         "$REMOTE_PACKAGE_DIR/bin/agent-kernel-heartbeat" \
+         "$REMOTE_PACKAGE_DIR/scripts/benchmark-heartbeat.js"
 
 ln -sf "$REMOTE_PACKAGE_DIR/bin/remote-ollama-profile" "$REMOTE_SCRIPTS_DIR/remote-ollama-profile"
 ln -sf "$REMOTE_PACKAGE_DIR/bin/remote-ollama-diagnostics" "$REMOTE_SCRIPTS_DIR/remote-ollama-diagnostics"
 ln -sf "$REMOTE_PACKAGE_DIR/bin/remote-project-safety-check" "$REMOTE_SCRIPTS_DIR/remote-project-safety-check"
 ln -sf "$REMOTE_PACKAGE_DIR/bin/agent-kernel-benchmark" "$REMOTE_SCRIPTS_DIR/agent-kernel-benchmark"
+ln -sf "$REMOTE_PACKAGE_DIR/bin/agent-kernel-heartbeat" "$REMOTE_SCRIPTS_DIR/agent-kernel-heartbeat"
 
 if [ ! -f "$REMOTE_PACKAGE_DIR/config/llm-host.env" ]; then
   cp "$REMOTE_PACKAGE_DIR/config/llm-host.env.example" "$REMOTE_PACKAGE_DIR/config/llm-host.env"
@@ -76,6 +79,8 @@ if [ ! -f "$BENCHMARK_CONFIG_DIR/benchmark-agent.env" ]; then
 fi
 cp "$REMOTE_PACKAGE_DIR/systemd/agent-kernel-benchmark.service" "$SYSTEMD_USER_DIR/agent-kernel-benchmark.service"
 cp "$REMOTE_PACKAGE_DIR/systemd/agent-kernel-benchmark.timer" "$SYSTEMD_USER_DIR/agent-kernel-benchmark.timer"
+cp "$REMOTE_PACKAGE_DIR/systemd/agent-kernel-heartbeat.service" "$SYSTEMD_USER_DIR/agent-kernel-heartbeat.service"
+cp "$REMOTE_PACKAGE_DIR/systemd/agent-kernel-heartbeat.timer" "$SYSTEMD_USER_DIR/agent-kernel-heartbeat.timer"
 if [ "${REMOTE_OLLAMA_SKIP_SYSTEMCTL:-0}" != "1" ] && command -v systemctl >/dev/null 2>&1; then
   systemctl --user daemon-reload
 fi

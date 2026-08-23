@@ -1,0 +1,18 @@
+[Unit]
+Description=Agent Kernel benchmark liveness heartbeat
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-%h/.config/agent-kernel-benchmark/benchmark-agent.env
+ExecStart=%h/bin/agent-kernel-heartbeat
+WorkingDirectory=%h/remote-ollama-control
+NoNewPrivileges=true
+PrivateTmp=true
+# A beat that cannot finish promptly is a beat worth skipping: the next one is minutes away, and a
+# pile of stuck publishers would be a second fault on top of whatever caused the first.
+TimeoutStartSec=120
+
+[Install]
+WantedBy=default.target

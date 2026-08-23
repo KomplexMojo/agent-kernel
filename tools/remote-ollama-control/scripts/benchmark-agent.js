@@ -35,8 +35,11 @@ function runId(sourceCommit, runKey, startedAt) {
   return `${startedAt.replace(/[:.]/g, '-')}-${sourceCommit.slice(0, 12)}-${runKey.slice(0, 12)}`;
 }
 
-function completed(state, remote, resultBranch, key) {
-  return Boolean(state.completedRunKeys[key]) || hasCompletedRunKey(remote, resultBranch, key);
+// workDir is the same results checkout publishResult uses, so the remote half of this check costs
+// one fetch rather than a fresh clone. Without it the URL remote could not be read at all and this
+// degraded silently to the local-state check alone.
+function completed(state, remote, resultBranch, key, workDir) {
+  return Boolean(state.completedRunKeys[key]) || hasCompletedRunKey(remote, resultBranch, key, workDir);
 }
 
 function markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash, executionSuiteHash) {
@@ -163,7 +166,7 @@ async function runBenchmarkAgent(options) {
       return { status: 'no_trigger', sourceCommit, trigger };
     }
 
-    if (completed(state, resultsRemote, resultBranch, key)) {
+    if (completed(state, resultsRemote, resultBranch, key, path.join(stateDir, 'results-worktree'))) {
       markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash, executionSuiteHash);
       state.completedRunKeys[key] = sourceCommit;
       saveAgentState(stateDir, state);

@@ -2,6 +2,7 @@
 
 const { execFileSync } = require('child_process');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 function git(cwd, args) {
@@ -12,39 +13,31 @@ function bareGit(remote, args) {
   return git(path.dirname(remote), [`--git-dir=${remote}`, ...args]);
 }
 
+// `git --git-dir=<x>` only means anything when x is a directory on this machine. In production the
+// remote is always a URL, so every read below used to fail closed and report "no such branch" with
+// total confidence. Every test in this suite passed a local bare path, where it happens to work,
+// which is why the whole class stayed invisible.
+function isLocalGitDir(remote) {
+  return typeof remote === 'string'
+    && !/^[a-z][a-z0-9+.-]*:\/\//i.test(remote)
+    && !remote.includes('@')
+    && fs.existsSync(path.join(remote, 'HEAD'));
+}
+
+// ls-remote speaks to paths and URLs alike, and asks the remote rather than guessing from a layout.
 function branchExists(remote, branch) {
   try {
-    bareGit(remote, ['rev-parse', '--verify', `refs/heads/${branch}`]);
-    return true;
+    return git(os.tmpdir(), ['ls-remote', '--heads', remote, `refs/heads/${branch}`]).length > 0;
   } catch {
     return false;
   }
 }
 
-function readJsonFromBranch(remote, branch, filePath) {
-  try {
-    return JSON.parse(bareGit(remote, ['show', `refs/heads/${branch}:${filePath}`]));
-  } catch {
-    return null;
-  }
-}
-
-function hasCompletedRunKey(remote, branch, runKey) {
-  if (!branchExists(remote, branch)) return false;
-  const latest = readJsonFromBranch(remote, branch, 'latest.json');
-  if (latest?.run?.key === runKey && latest.run.status === 'completed') return true;
-  let paths = [];
-  try {
-    paths = bareGit(remote, ['ls-tree', '-r', '--name-only', `refs/heads/${branch}`, 'history'])
-      .split('\n').filter((entry) => entry.endsWith('.json'));
-  } catch {}
-  return paths.some((entry) => {
-    const record = readJsonFromBranch(remote, branch, entry);
-    return record?.run?.key === runKey && record.run.status === 'completed';
-  });
-}
-
-function prepareCheckout(remote, branch, workDir) {
+/**
+ * Ensure a local clone that can be read and committed against. Shared by the readers and by
+ * publishResult so a poll pays for at most one clone, refreshed by fetch thereafter.
+ */
+function ensureMirror(remote, workDir) {
   if (!fs.existsSync(path.join(workDir, '.git'))) {
     fs.mkdirSync(path.dirname(workDir), { recursive: true });
     git(path.dirname(workDir), ['clone', '--no-checkout', remote, workDir]);
@@ -52,6 +45,58 @@ function prepareCheckout(remote, branch, workDir) {
     git(workDir, ['config', 'user.name', 'Benchmark Agent']);
   }
   git(workDir, ['fetch', 'origin']);
+  return workDir;
+}
+
+// workDir is optional so the local-path callers (and the tests that use them) keep working
+// unchanged; a URL remote needs somewhere to fetch into before anything can be read.
+function readJsonFromBranch(remote, branch, filePath, workDir) {
+  if (isLocalGitDir(remote)) {
+    try {
+      return JSON.parse(bareGit(remote, ['show', `refs/heads/${branch}:${filePath}`]));
+    } catch {
+      return null;
+    }
+  }
+  if (!workDir) return null;
+  try {
+    ensureMirror(remote, workDir);
+    return JSON.parse(git(workDir, ['show', `origin/${branch}:${filePath}`]));
+  } catch {
+    return null;
+  }
+}
+
+function listHistoryPaths(remote, branch, workDir) {
+  try {
+    if (isLocalGitDir(remote)) {
+      return bareGit(remote, ['ls-tree', '-r', '--name-only', `refs/heads/${branch}`, 'history'])
+        .split('\n').filter((entry) => entry.endsWith('.json'));
+    }
+    if (!workDir) return [];
+    ensureMirror(remote, workDir);
+    return git(workDir, ['ls-tree', '-r', '--name-only', `origin/${branch}`, 'history'])
+      .split('\n').filter((entry) => entry.endsWith('.json'));
+  } catch {
+    return [];
+  }
+}
+
+function hasCompletedRunKey(remote, branch, runKey, workDir) {
+  if (!branchExists(remote, branch)) return false;
+  const latest = readJsonFromBranch(remote, branch, 'latest.json', workDir);
+  if (latest?.run?.key === runKey && latest.run.status === 'completed') return true;
+  return listHistoryPaths(remote, branch, workDir).some((entry) => {
+    const record = readJsonFromBranch(remote, branch, entry, workDir);
+    return record?.run?.key === runKey && record.run.status === 'completed';
+  });
+}
+
+function prepareCheckout(remote, branch, workDir) {
+  ensureMirror(remote, workDir);
+  // Getting this wrong is not a failed publish, it is a destroyed archive: an orphan checkout of an
+  // existing branch drops every prior result, and the only thing standing between that and the
+  // remote is the non-force push being rejected.
   if (branchExists(remote, branch)) {
     git(workDir, ['checkout', '-B', branch, `origin/${branch}`]);
   } else {

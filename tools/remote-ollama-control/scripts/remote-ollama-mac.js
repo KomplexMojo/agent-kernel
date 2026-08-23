@@ -1252,6 +1252,7 @@ async function runContentGen(options) {
   const {
     assertResumable, latestResultDir, readPriorRecords, readRunManifest, writeRunManifest
   } = require('./lib/content-gen-checkpoint');
+  const { summarizeProgress, writeProgress } = require('./lib/benchmark-progress');
 
   const catalog = loadScenarioCatalog();
   let scenarios = catalog.scenarios;
@@ -1362,8 +1363,10 @@ async function runContentGen(options) {
     scenarioIds: scenarios.map((scenario) => scenario.index)
   };
   let priorRecords = [];
+  let runManifest;
   if (options.resume) {
-    assertResumable(readRunManifest(resultDir), runIdentity);
+    runManifest = readRunManifest(resultDir);
+    assertResumable(runManifest, runIdentity);
     priorRecords = readPriorRecords(jsonlPath);
     // Report the honest bounds. One complete pass per configuration is the floor; early stop
     // decides the rest, so a single "outstanding" number would be wrong either way.
@@ -1377,7 +1380,9 @@ async function runContentGen(options) {
       + `${executionMatrix.repeatPolicy.maximumPasses} passes\n`
     );
   } else {
-    writeRunManifest(resultDir, { route: options.route, diagnostic: !options.earlyStop, ...runIdentity });
+    runManifest = writeRunManifest(resultDir, {
+      route: options.route, diagnostic: !options.earlyStop, ...runIdentity
+    });
   }
 
   try {
@@ -1461,6 +1466,15 @@ async function runContentGen(options) {
           route: options.route,
           resultDir
         });
+        // Local disk only, rewritten in full on every attempt. The heartbeat timer reads whatever
+        // this last said and publishes it, which decouples a days-long run from the publish cadence
+        // -- the alternative, pushing from here, would be ~2000 commits per run.
+        writeProgress(resultDir, summarizeProgress(records, {
+          matrix: executionMatrix,
+          scenarioCount: scenarios.length,
+          breaker,
+          startedAt: runManifest.startedAt
+        }));
         process.stdout.write(
           `  Score: ${record.score}/100 | Tool: ${record.toolCallProduced ? 'yes' : 'no'} | ` +
           `Verdict: ${record.scenarioVerdict.passed ? 'pass' : 'fail'} | Exec: ${record.execSucceeded ? 'ok' : 'fail'}\n`
