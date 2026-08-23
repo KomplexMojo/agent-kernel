@@ -39,8 +39,35 @@ jobs:
         with:
           script: |
             const staleAfterMs = Number(process.env.STALE_AFTER_MINUTES) * 60 * 1000;
-            const label = 'benchmark-alarm';
-            const title = 'Benchmark agent is not reporting';
+
+            // TWO channels, because these fail for unrelated reasons and demand different responses.
+            //
+            // OPERATIONAL is "the machinery is broken": no beat, an agent error, a run that died on
+            // infrastructure, a runner executing undeployed code. Someone must go fix something.
+            //
+            // OUTCOME is "the machinery works and the models did not clear the bar". Nothing is
+            // broken. The verdict gate is 0.99 over a 100-scenario set, so a configuration is
+            // eliminated by its second miss, and nothing has ever qualified.
+            //
+            // They shared one issue titled "Benchmark agent is not reporting", which was false
+            // whenever the only finding was an unmet bar -- the agent reports every five minutes
+            // with live progress. A permanently red issue for an expected outcome is how a channel
+            // dies: you learn to ignore it, and then it goes unread for a real fault. Splitting
+            // suppresses nothing; both still raise, assign and close on their own.
+            const CHANNELS = {
+              operational: {
+                label: 'benchmark-alarm',
+                title: 'Benchmark agent is not reporting',
+                recovered: 'Recovered — the agent is reporting again.',
+                healthy: '- The agent is reporting on schedule.',
+              },
+              outcome: {
+                label: 'benchmark-outcome',
+                title: 'Benchmark is not producing a qualifying result',
+                recovered: 'Recovered — a qualifying result has been published.',
+                healthy: '- Qualification is current.',
+              },
+            };
 
             async function readJson(ref, path) {
               try {
@@ -78,12 +105,14 @@ jobs:
             const progressAlerts = heartbeat.progress?.alerts ?? [];
 
             const problems = [];
+            const outcomeProblems = [];
             if (stale) {
               const minutes = Number.isFinite(publishedAt) ? Math.round(ageMs / 60000) : 'unknown';
               problems.push(`No heartbeat for ${minutes} minute(s); the threshold is ${process.env.STALE_AFTER_MINUTES}.`);
             }
             if (heartbeat.error) problems.push(`Agent reported an error: ${heartbeat.error}`);
-            for (const alert of progressAlerts) problems.push(alert);
+            // "configuration X can no longer qualify" is the benchmark working, not breaking.
+            for (const alert of progressAlerts) outcomeProblems.push(alert);
 
             // TWO different files, and conflating them defeats the check. latest.json is the newest
             // ATTEMPT -- it is rewritten by failures too. latest-success.json is the newest QUALIFYING
@@ -121,14 +150,14 @@ jobs:
             const dryRunNote = heartbeat.dryRun
               ? ' The agent is pinned to dry-run, so it will never produce one.' : '';
             if (resultAgeDays !== null && resultAgeDays >= staleResultDays) {
-              problems.push(
+              outcomeProblems.push(
                 `No qualifying benchmark result for ${resultAgeDays} day(s); the threshold is ` +
                 `${staleResultDays}.${dryRunNote}`,
               );
             } else if (resultAgeDays === null && latest) {
               // Attempts exist but nothing has ever qualified. Distinguished from a genuinely fresh
               // repository, where latest.json is absent too and firing would be noise.
-              problems.push(
+              outcomeProblems.push(
                 'No qualifying benchmark result has ever been published, though runs are being '
                 + `attempted (newest attempt \`${latest.run?.status}\`).${dryRunNote}`,
               );
@@ -218,62 +247,76 @@ jobs:
               }
             }
 
-            const body = [
-              problems.length ? '## Problems' : '## Healthy',
-              ...(problems.length ? problems.map((problem) => `- ${problem}`) : ['- The agent is reporting on schedule.']),
-              '',
-              '## Detail',
-              ...lines,
-              '',
-              `_Checked ${new Date().toISOString()} by ${context.workflow}._`,
-            ].join('\n');
+            function compose(channel, findings) {
+              return [
+                findings.length ? '## Problems' : '## Healthy',
+                ...(findings.length ? findings.map((problem) => `- ${problem}`) : [channel.healthy]),
+                '',
+                '## Detail',
+                ...lines,
+                '',
+                `_Checked ${new Date().toISOString()} by ${context.workflow}._`,
+              ].join('\n');
+            }
 
-            core.summary.addRaw(body);
+            async function syncIssue(channel, findings) {
+              const body = compose(channel, findings);
+              const { data: open } = await github.rest.issues.listForRepo({
+                owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: channel.label,
+              });
+              const existing = open.find((issue) => issue.title === channel.title) ?? null;
+
+              if (findings.length === 0) {
+                if (existing) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                    body: `${channel.recovered}\n\n${body}`,
+                  });
+                  await github.rest.issues.update({
+                    owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                    state: 'closed', state_reason: 'completed',
+                  });
+                }
+                return;
+              }
+
+              if (!existing) {
+                const { data: created } = await github.rest.issues.create({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  title: channel.title, body, labels: [channel.label],
+                });
+                // Creation is the notification, but only for someone already watching the
+                // repository. An unassigned bot-authored issue is easy to never see, and the whole
+                // mechanism is built for the case where nobody is looking. Assignment notifies
+                // regardless of watch settings. Separate call and non-fatal on purpose: an owner who
+                // cannot be assigned (an org without the repo-owner as a member, a renamed account)
+                // must degrade to the issue existing unassigned, never to the alarm failing to raise.
+                try {
+                  await github.rest.issues.addAssignees({
+                    owner: context.repo.owner, repo: context.repo.repo,
+                    issue_number: created.number, assignees: [context.repo.owner],
+                  });
+                } catch (error) {
+                  core.warning(`Raised #${created.number} but could not assign ${context.repo.owner}: ${error.message}`);
+                }
+                return;
+              }
+
+              // Editing the body rather than commenting: at a 30-minute cadence a comment per check
+              // would bury the signal it exists to raise. The issue always shows current state, and
+              // its creation was the notification.
+              await github.rest.issues.update({
+                owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body,
+              });
+            }
+
+            core.summary.addRaw(compose(CHANNELS.operational, problems));
+            if (outcomeProblems.length) {
+              core.summary.addRaw(`\n\n---\n\n${compose(CHANNELS.outcome, outcomeProblems)}`);
+            }
             await core.summary.write();
 
-            const { data: open } = await github.rest.issues.listForRepo({
-              owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: label,
-            });
-            const existing = open.find((issue) => issue.title === title) ?? null;
-
-            if (problems.length === 0) {
-              if (existing) {
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
-                  body: `Recovered — the agent is reporting again.\n\n${body}`,
-                });
-                await github.rest.issues.update({
-                  owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
-                  state: 'closed', state_reason: 'completed',
-                });
-              }
-              return;
-            }
-
-            if (!existing) {
-              const { data: created } = await github.rest.issues.create({
-                owner: context.repo.owner, repo: context.repo.repo, title, body, labels: [label],
-              });
-              // Creation is the notification, but only for someone already watching the repository.
-              // An unassigned bot-authored issue is easy to never see, and the whole mechanism is
-              // built for the case where nobody is looking. Assignment notifies regardless of watch
-              // settings. Separate call and non-fatal on purpose: an owner who cannot be assigned
-              // (an org without the repo-owner as a member, a renamed account) must degrade to the
-              // issue existing unassigned, never to the alarm failing to raise at all.
-              try {
-                await github.rest.issues.addAssignees({
-                  owner: context.repo.owner, repo: context.repo.repo,
-                  issue_number: created.number, assignees: [context.repo.owner],
-                });
-              } catch (error) {
-                core.warning(`Raised #${created.number} but could not assign ${context.repo.owner}: ${error.message}`);
-              }
-              return;
-            }
-
-            // Editing the body rather than commenting: at a 30-minute cadence a comment per check
-            // would bury the signal it exists to raise. The issue always shows current state, and
-            // its creation was the notification.
-            await github.rest.issues.update({
-              owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body,
-            });
+            // Sequential, not concurrent: both may create an issue, and interleaving their
+            // list/create calls risks each missing the other's work on a shared label page.
+            await syncIssue(CHANNELS.operational, problems);
+            await syncIssue(CHANNELS.outcome, outcomeProblems);
