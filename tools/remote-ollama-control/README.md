@@ -282,6 +282,60 @@ configuration: attempts and passes complete, tool-call / verdict / score rates a
 qualification bars, whether the configuration **can still qualify**, and headroom to each collapse
 floor. Alerts name the configuration.
 
+### Updating the agent on the runner — a merge does NOT deploy
+
+`~/remote-ollama-control/` on the box is an installed **file copy**, not a checkout (`git log` there
+fails). The agent checks out `AK_BENCHMARK_SOURCE_REF` fresh for every run, so a merge to `main`
+updates *the code under test* — the preflight suite and the content-gen child script — while the
+agent that **spawns** them keeps running whatever was last installed. Both halves are then true at
+once, which is what makes this so easy to misread:
+
+| Code | Where it lives | Updated by |
+|---|---|---|
+| The agent itself (`benchmark-agent.js`, `lib/benchmark-pipeline.js`, `lib/config.js`, `remote-ollama-profile.js`) | `~/remote-ollama-control/` | **a reinstall, never a merge** |
+| The source tree it checks out per run | fresh clone of the pinned ref | every merge, automatically |
+
+On 2026-08-23 a fix merged, the preflight went green at 433/433 with the new test in it, and the
+identical `infrastructure_error` kept publishing for another hour because the installed
+`lib/benchmark-pipeline.js` was still the previous copy.
+
+Reinstall from the box (no Mac tree required):
+
+```bash
+rm -rf ~/tmp/ak-install-src
+git clone -q --depth 1 -b main https://github.com/KomplexMojo/agent-kernel.git ~/tmp/ak-install-src
+cd ~/tmp/ak-install-src/tools/remote-ollama-control && bash scripts/install-local-ubuntu.sh
+```
+
+Then confirm the code you expected actually landed — grep the installed file, not the checkout:
+
+```bash
+grep -c hostEnvironmentForChild ~/remote-ollama-control/scripts/lib/benchmark-pipeline.js
+```
+
+**Do not reinstall while a run is in flight.** `rsync --delete` replaces modules under a live
+process. Wait for `systemctl --user is-active agent-kernel-benchmark.service` to report `inactive`.
+
+`rsync --delete` **excludes `config/llm-host.env`**, so operator addressing survives a reinstall —
+but it removes anything else left in the package directory, including `config/*.bak-*`. Move backups
+to `~` first.
+
+**This is now alarmed rather than remembered.** The installer records the source commit in
+`~/remote-ollama-control/.install-manifest.json`, the heartbeat publishes it as `agent`, and the
+alarm raises when files under `tools/remote-ollama-control/` have changed on the default branch since
+that commit. Comparing HEADs directly would fire on every unrelated merge, so it asks only whether
+*this tool* changed. A box installed before this reports `agent: null` and the check stays inert
+until its next reinstall.
+
+### The runner self-addresses over loopback
+
+The agent runs **on** the LLM host, so the "remote" it drives is itself. Its `LLM_INTERNAL_HOST` is
+therefore `127.0.0.1`, with a dedicated self-authorized key (`~/.ssh/id_ed25519_self`). This is not
+cosmetic: the value was previously a LAN address that DHCP had moved out from under it, and a stale
+address fails as an opaque `infrastructure_error` days later rather than as anything that names an
+address. Loopback cannot go stale. The Mac keeps using the real internal/external addresses; only the
+runner's own copy points at itself.
+
 ### Long runs, timeouts, and resume
 
 The authoring child is killed at **72h** (`AUTHORING_TIMEOUT_MS`). This was 24h until 2026-08-23,
