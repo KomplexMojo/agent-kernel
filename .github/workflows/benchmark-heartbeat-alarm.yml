@@ -33,6 +33,7 @@ jobs:
         uses: actions/github-script@v7
         env:
           STALE_AFTER_MINUTES: '60'
+          STALE_RESULT_DAYS: '7'
           HEARTBEAT_BRANCH: benchmark-heartbeat
           RESULTS_BRANCH: benchmark-results
         with:
@@ -84,11 +85,23 @@ jobs:
             if (heartbeat.error) problems.push(`Agent reported an error: ${heartbeat.error}`);
             for (const alert of progressAlerts) problems.push(alert);
 
-            // Result age is reported as context, never as an alarm: runs are change-triggered, so a
-            // quiet week with no relevant commits is legitimate and alarming on it would cry wolf.
             const latest = await readJson(process.env.RESULTS_BRANCH, 'latest.json');
             const completedAt = latest?.run?.completedAt ? Date.parse(latest.run.completedAt) : null;
             const resultAgeDays = completedAt ? Math.floor((Date.now() - completedAt) / 86400000) : null;
+
+            // Runs are change-triggered, so a few quiet days are legitimate and alarming on them would
+            // cry wolf. A week is not: it is the shape of the nine-day dry_run stall, where the agent
+            // polled healthily and produced nothing, and no heartbeat check could have caught it
+            // because the heartbeat itself was perfectly fresh the entire time.
+            const staleResultDays = Number(process.env.STALE_RESULT_DAYS);
+            // No baseline means nothing has ever been published; that is bootstrap, not decay, and it
+            // must not fire on a fresh repository that has simply not run yet.
+            if (resultAgeDays !== null && resultAgeDays >= staleResultDays) {
+              problems.push(
+                `No qualifying benchmark result for ${resultAgeDays} day(s); the threshold is ${staleResultDays}. ` +
+                `The agent is reporting${heartbeat.dryRun ? ' but is pinned to dry-run, so it will never produce one' : ''}.`,
+              );
+            }
 
             const progress = heartbeat.progress;
             const lines = [
