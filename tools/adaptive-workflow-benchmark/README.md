@@ -63,10 +63,13 @@ OPENAI_API_KEY=sk-... node tools/adaptive-workflow-benchmark/run-agent-benchmark
   prove the pipeline and measure latency. Its report purpose is `smoke`, so the
   evidence loader retains it as diagnostic and never returns it as policy-eligible evidence.
 - **`hard`** (`AGENT_BENCHMARK_HARD_SCENARIOS`) — discriminating scenarios whose
-  validators check structure the flagship sanitizer will **not** fabricate:
-  exact room/actor counts (`exactly-three-rooms`, `two-delvers`, `mixed-roster`)
+  validators inspect the parsed model response before the workflow sanitizer can
+  remove source-only semantics or fill defaults:
+  exact unique room/actor identities and requested actor kinds (`exactly-three-rooms`,
+  `two-delvers`, `mixed-roster` requires one delver plus two wardens)
   plus one scenario that routes to the **local-sectional/budget** strategy
-  (`local-sectional-layout`, validated on `layout.floorTiles`). Generic output
+  (`local-sectional-layout`, validated on its phase, exact floor/hallway tile counts,
+  one unique room, and empty missing list). Generic or merely count-correct output
   fails these, so the score separates weak models from strong ones. Note: the
   local-sectional path is ~10× slower than flagship (multiple budget-loop calls).
 

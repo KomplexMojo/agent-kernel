@@ -32,6 +32,17 @@ export function workflowValidator(requiredKeys = []) {
   };
 }
 
+function parseModelResponse(output) {
+  const response = output?.response;
+  if (response && typeof response === "object") return response;
+  if (typeof response !== "string") return undefined;
+  try {
+    return JSON.parse(response);
+  } catch {
+    return undefined;
+  }
+}
+
 export function buildCapability(modelName, overrides = {}) {
   return {
     schemaVersion: 1,
@@ -93,10 +104,26 @@ export async function runAgentBenchmark({
         error: null,
       };
       try {
+        let latestModelResponse;
+        const modelPort = modelFactory(scenario, run);
+        const recordingModelPort = {
+          ...modelPort,
+          async generate(...args) {
+            const output = await modelPort.generate(...args);
+            latestModelResponse = parseModelResponse(output);
+            return output;
+          },
+        };
         // A scenario may supply a custom content validator (structured
-        // constraints); otherwise fall back to the non-empty-array check.
+        // constraints). It receives both the workflow candidate and the parsed
+        // model response because the workflow sanitizer intentionally removes
+        // source-only fields such as ids and actor kinds.
         const validator = typeof scenario.validate === "function"
-          ? { id: `scenario-${scenario.id}`, version: 1, validate: scenario.validate }
+          ? {
+              id: `scenario-${scenario.id}`,
+              version: 1,
+              validate: (value, context) => scenario.validate(value, { ...context, modelResponse: latestModelResponse }),
+            }
           : workflowValidator(scenario.requiredKeys || []);
         const result = await runAdaptiveWorkflow({
           objective: scenario.objective,
@@ -107,7 +134,7 @@ export async function runAgentBenchmark({
           ...(Number.isFinite(scenario.budgetTokens) ? { budgetTokens: scenario.budgetTokens } : {}),
           ...(scenario.catalog ? { catalog: scenario.catalog } : {}),
           ports: {
-            model: modelFactory(scenario, run),
+            model: recordingModelPort,
             validator: [validator],
             clock,
           },
