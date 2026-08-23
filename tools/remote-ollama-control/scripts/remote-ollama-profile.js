@@ -214,14 +214,40 @@ function portLines(port) {
   return result.stdout.split(/\r?\n/).filter((line) => new RegExp(`:${port}\\b`).test(line));
 }
 
-function assertPortAvailable(profile) {
-  const info = runningInfo(profile);
-  if (info.running) {
-    fail(`Profile '${profile.name}' is already running (${info.mode}). Stop or restart it first.`);
+// Whether a profile is already running, and who owns its port, are facts about the live machine.
+// A start must read them — that is the whole guard. A dry run must not: it prints a plan, and a
+// plan is the same plan on every host. The host that matters most is the benchmark box, where
+// `ollama serve` is always up because that is the box's entire job; reading live state there made
+// `start --dry-run` a guaranteed exit 1, which failed the source preflight that runs this suite
+// before any GPU work and so blocked every benchmark run. Hence the probe: live for a real start,
+// inert for a plan-only one, stubbable from a test.
+const liveProcessProbe = {
+  runningInfo,
+  portLines
+};
+
+const dryRunProcessProbe = {
+  runningInfo: () => ({ running: false, mode: '', model: '', state: null }),
+  portLines: () => []
+};
+
+function probeFor(options) {
+  if (options.probe) {
+    return options.probe;
   }
-  const occupied = portLines(profile.port);
+  return options.dryRun ? dryRunProcessProbe : liveProcessProbe;
+}
+
+function assertPortAvailable(profile, probe = liveProcessProbe) {
+  const info = probe.runningInfo(profile);
+  if (info.running) {
+    // Thrown rather than failed in place: main() routes every start/stop error through fail(), so
+    // the CLI still exits 1 with this exact message, and the guard stays callable from a test.
+    throw new Error(`Profile '${profile.name}' is already running (${info.mode}). Stop or restart it first.`);
+  }
+  const occupied = probe.portLines(profile.port);
   if (occupied.length > 0) {
-    fail(`Port ${profile.port} is already in use; refusing to kill unrelated processes.\n${occupied.join('\n')}`);
+    throw new Error(`Port ${profile.port} is already in use; refusing to kill unrelated processes.\n${occupied.join('\n')}`);
   }
 }
 
@@ -305,12 +331,14 @@ async function startPid(profile, model, options) {
 }
 
 async function startSystemd(profile, model, manager, options) {
-  writeSystemdEnv(profile);
   const unit = serviceName(profile);
   if (options.dryRun) {
+    // Written after this point, never before: a dry run plans, it does not put files on the host.
+    printDryRun(`write ${systemdEnvFile(profile)}`);
     printDryRun(`systemctl ${manager.scope === 'user' ? '--user ' : ''}start ${unit}`);
     return;
   }
+  writeSystemdEnv(profile);
   const daemonReload = systemctl(manager.scope, ['daemon-reload']);
   if (daemonReload.status !== 0) {
     fail(daemonReload.stderr || daemonReload.stdout || `systemctl daemon-reload failed for ${manager.scope}`);
@@ -342,9 +370,15 @@ async function startSystemd(profile, model, manager, options) {
 }
 
 async function startProfile(profile, options) {
-  ensureDirs();
   const model = options.model || profile.defaultModel || '';
-  assertPortAvailable(profile);
+  if (options.dryRun) {
+    // Announced, not evaluated: the plan still states the guard a real start would apply, so a
+    // dry run does not read as though the guard had gone away.
+    printDryRun(`preflight (not evaluated): refuse to start if '${profile.name}' is already running or port ${profile.port} is occupied`);
+  } else {
+    ensureDirs();
+  }
+  assertPortAvailable(profile, probeFor(options));
   const manager = chooseManager();
   if (manager.type === 'systemd') {
     await startSystemd(profile, model, manager, options);
@@ -544,4 +578,14 @@ async function main() {
   }
 }
 
-main();
+// stopProfile's dry run deliberately keeps reading live state: it reports what it would stop and
+// never exits non-zero, so it cannot fail a preflight the way the start guard did.
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  assertPortAvailable,
+  dryRunProcessProbe,
+  liveProcessProbe
+};

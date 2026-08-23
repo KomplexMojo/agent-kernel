@@ -157,6 +157,12 @@ systemctl --user daemon-reload
 
 Without the systemd unit, `remote-ollama-profile` uses managed pid files under `~/.local/state/remote-ollama`.
 
+`start --dry-run` is plan-only and reads no live process state: it prints the command it would run
+and names the preflight it did **not** evaluate. That is deliberate — a plan must be the same plan on
+every host, and the benchmark box always has Ollama running, so a dry run that consulted live state
+exited 1 there and failed the source preflight that gates every benchmark run. A real `start` still
+reads live state and still refuses when the profile is already running or the port is occupied.
+
 ## Unattended Benchmark Agent (M4b)
 
 Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`)

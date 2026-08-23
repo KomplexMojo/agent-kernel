@@ -1,9 +1,15 @@
 const assert = require("node:assert/strict");
 const { spawn, spawnSync } = require("node:child_process");
+const { mkdtempSync, writeFileSync } = require("node:fs");
 const http = require("node:http");
-const { resolve } = require("node:path");
+const { tmpdir } = require("node:os");
+const { join, resolve } = require("node:path");
 
-const { loadConfig } = require("../../tools/remote-ollama-control/scripts/lib/config");
+const { getProfile, loadConfig } = require("../../tools/remote-ollama-control/scripts/lib/config");
+const {
+  assertPortAvailable,
+  dryRunProcessProbe,
+} = require("../../tools/remote-ollama-control/scripts/remote-ollama-profile");
 const {
   buildContentGenMatrix,
   buildHardwareBenchmarkSpecs,
@@ -122,6 +128,17 @@ test("content-gen dry run exposes the complete offline matrix and exact repeat b
   assert.equal(output.matrix.configurations.length, 7);
 });
 
+// A state directory whose profile is unmistakably running: the pid is this very test process, so
+// `process.kill(pid, 0)` succeeds on any host. That is the machine state the dry run must ignore.
+function runningProfileStateDir(profileName = "primary") {
+  const dir = mkdtempSync(join(tmpdir(), "remote-ollama-state-"));
+  writeFileSync(
+    join(dir, `${profileName}.json`),
+    `${JSON.stringify({ mode: "pid", pid: process.pid, profile: profileName, model: "" })}\n`,
+  );
+  return dir;
+}
+
 test("profile dry run honors an explicit Ollama binary for unattended starts", () => {
   const result = spawnSync(process.execPath, [
     PROFILE_SCRIPT,
@@ -137,6 +154,85 @@ test("profile dry run honors an explicit Ollama binary for unattended starts", (
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /'\/opt\/ollama-current\/bin\/ollama' serve/);
+});
+
+// The perturbation that makes the test above hermetic. It used to pass only where no profile
+// happened to be running — that is, everywhere except the benchmark box, whose whole job is to run
+// Ollama. A dry run there exited 1, the source preflight failed, and the benchmark never started.
+test("profile dry run plans the start even while that profile is running", () => {
+  const result = spawnSync(process.execPath, [
+    PROFILE_SCRIPT,
+    "start",
+    "--profile",
+    "primary",
+    "--dry-run",
+  ], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      OLLAMA_BIN: "/opt/ollama-current/bin/ollama",
+      LLM_PROFILE_MANAGER: "pid",
+      LLM_PROFILE_STATE_DIR: runningProfileStateDir(),
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /'\/opt\/ollama-current\/bin\/ollama' serve/);
+  // The plan still states the guard it did not evaluate, so an inert check never reads as no check.
+  assert.match(result.stdout, /preflight \(not evaluated\).*already running/);
+});
+
+// The refusal half. Skipping the check for a plan must not skip it for a start — prove the guard
+// still has teeth by handing it a probe that reports exactly what the box reports.
+test("a real start refuses when the process probe reports the profile running", () => {
+  const profile = getProfile(loadConfig(ROOT), "primary");
+
+  assert.throws(
+    () => assertPortAvailable(profile, {
+      runningInfo: () => ({ running: true, mode: "systemd-user" }),
+      portLines: () => [],
+    }),
+    /Profile 'primary' is already running \(systemd-user\)/,
+  );
+
+  assert.throws(
+    () => assertPortAvailable(profile, {
+      runningInfo: () => ({ running: false, mode: "" }),
+      portLines: () => ["LISTEN 0 4096 127.0.0.1:11434 users:((\"ollama\",pid=1,fd=3))"],
+    }),
+    /is already in use; refusing to kill unrelated processes/,
+  );
+
+  // ...and the dry-run probe is inert by construction, not by luck of the host it runs on.
+  assert.equal(dryRunProcessProbe.runningInfo(profile).running, false);
+  assert.deepEqual(dryRunProcessProbe.portLines(profile.port), []);
+  assert.doesNotThrow(() => assertPortAvailable(profile, dryRunProcessProbe));
+});
+
+// End to end, on the same fixture the dry run above ignores: a start that is not a dry run still
+// reads live state and still refuses. OLLAMA_BIN points nowhere so a regression here cannot launch
+// a real Ollama on the benchmark box.
+test("the start guard is wired to the live probe when the start is real", () => {
+  const stateDir = runningProfileStateDir();
+  const result = spawnSync(process.execPath, [
+    PROFILE_SCRIPT,
+    "start",
+    "--profile",
+    "primary",
+  ], {
+    cwd: ROOT,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      OLLAMA_BIN: join(stateDir, "never-ollama"),
+      LLM_PROFILE_MANAGER: "pid",
+      LLM_PROFILE_STATE_DIR: stateDir,
+    },
+  });
+
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stderr, /Profile 'primary' is already running \(pid\)/);
 });
 
 test("hardware benchmark recommendations prefer score before speed", () => {
