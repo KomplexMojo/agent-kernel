@@ -85,21 +85,52 @@ jobs:
             if (heartbeat.error) problems.push(`Agent reported an error: ${heartbeat.error}`);
             for (const alert of progressAlerts) problems.push(alert);
 
+            // TWO different files, and conflating them defeats the check. latest.json is the newest
+            // ATTEMPT -- it is rewritten by failures too. latest-success.json is the newest QUALIFYING
+            // result, written only when status is completed and qualifies is not false.
+            //
+            // Reading latest.json for staleness is what this originally did, and it is wrong in the
+            // precise case that matters: an agent failing every poll rewrites latest.json constantly,
+            // so "last result age" reads as zero while nothing has qualified in weeks. Observed live
+            // on 2026-08-23 -- six infrastructure_error results in ninety minutes, latest.json fresh
+            // to the minute, latest-success.json absent from the branch entirely.
             const latest = await readJson(process.env.RESULTS_BRANCH, 'latest.json');
-            const completedAt = latest?.run?.completedAt ? Date.parse(latest.run.completedAt) : null;
-            const resultAgeDays = completedAt ? Math.floor((Date.now() - completedAt) / 86400000) : null;
+            const latestSuccess = await readJson(process.env.RESULTS_BRANCH, 'latest-success.json');
+            const succeededAt = latestSuccess?.run?.completedAt
+              ? Date.parse(latestSuccess.run.completedAt) : null;
+            const resultAgeDays = succeededAt
+              ? Math.floor((Date.now() - succeededAt) / 86400000) : null;
+            const attemptAgeDays = latest?.run?.completedAt
+              ? Math.floor((Date.now() - Date.parse(latest.run.completedAt)) / 86400000) : null;
+
+            // The newest attempt failing is worth saying on its own. It is not the same finding as
+            // qualification going stale, and it arrives days earlier.
+            if (latest && latest.run?.status !== 'completed') {
+              const reasons = latest.failures?.infrastructure?.reasons ?? [];
+              problems.push(
+                `The most recent run ended in \`${latest.run?.status}\`` +
+                `${reasons.length ? `: ${reasons.join('; ')}` : ''}.`,
+              );
+            }
 
             // Runs are change-triggered, so a few quiet days are legitimate and alarming on them would
             // cry wolf. A week is not: it is the shape of the nine-day dry_run stall, where the agent
             // polled healthily and produced nothing, and no heartbeat check could have caught it
             // because the heartbeat itself was perfectly fresh the entire time.
             const staleResultDays = Number(process.env.STALE_RESULT_DAYS);
-            // No baseline means nothing has ever been published; that is bootstrap, not decay, and it
-            // must not fire on a fresh repository that has simply not run yet.
+            const dryRunNote = heartbeat.dryRun
+              ? ' The agent is pinned to dry-run, so it will never produce one.' : '';
             if (resultAgeDays !== null && resultAgeDays >= staleResultDays) {
               problems.push(
-                `No qualifying benchmark result for ${resultAgeDays} day(s); the threshold is ${staleResultDays}. ` +
-                `The agent is reporting${heartbeat.dryRun ? ' but is pinned to dry-run, so it will never produce one' : ''}.`,
+                `No qualifying benchmark result for ${resultAgeDays} day(s); the threshold is ` +
+                `${staleResultDays}.${dryRunNote}`,
+              );
+            } else if (resultAgeDays === null && latest) {
+              // Attempts exist but nothing has ever qualified. Distinguished from a genuinely fresh
+              // repository, where latest.json is absent too and firing would be noise.
+              problems.push(
+                'No qualifying benchmark result has ever been published, though runs are being '
+                + `attempted (newest attempt \`${latest.run?.status}\`).${dryRunNote}`,
               );
             }
 
@@ -108,7 +139,8 @@ jobs:
               `- **Status**: \`${heartbeat.status}\`${heartbeat.dryRun ? ' (dry-run: no benchmark will execute)' : ''}`,
               `- **Heartbeat age**: ${Math.round(ageMs / 60000)} minute(s)`,
               `- **Source commit**: \`${heartbeat.source?.commit?.slice(0, 12) ?? 'unknown'}\``,
-              `- **Last published result**: ${latest?.run?.id ?? 'none'}${resultAgeDays === null ? '' : ` (${resultAgeDays} day(s) ago)`}`,
+              `- **Last attempt**: ${latest?.run?.id ?? 'none'} — \`${latest?.run?.status ?? 'n/a'}\`${attemptAgeDays === null ? '' : ` (${attemptAgeDays} day(s) ago)`}`,
+              `- **Last qualifying result**: ${latestSuccess?.run?.id ?? 'none ever'}${resultAgeDays === null ? '' : ` (${resultAgeDays} day(s) ago)`}`,
             ];
             if (progress) {
               const attempts = progress.attempts ?? {};
