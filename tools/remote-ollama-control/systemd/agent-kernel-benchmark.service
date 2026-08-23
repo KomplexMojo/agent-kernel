@@ -9,7 +9,12 @@ EnvironmentFile=-%h/.config/agent-kernel-benchmark/benchmark-agent.env
 ExecStart=%h/bin/agent-kernel-benchmark --service
 WorkingDirectory=%h/remote-ollama-control
 NoNewPrivileges=true
-PrivateTmp=true
+# PrivateTmp is deliberately NOT set. Under its mount namespace, OpenSSH's safe_path check on
+# /etc/ssh/ssh_config.d/20-systemd-ssh-proxy.conf fails with "Bad owner or permissions" and every
+# ssh invocation dies -- verified by toggling only this setting via systemd-run. The file itself is
+# a correct 644 root:root symlink; nothing is wrong outside the namespace, which is exactly why this
+# only ever appears once the unit runs under systemd. This service pushes over SSH, so a private
+# /tmp is not worth trading a working transport for.
 
 [Install]
 WantedBy=default.target
