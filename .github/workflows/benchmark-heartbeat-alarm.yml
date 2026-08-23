@@ -236,9 +236,23 @@ jobs:
             }
 
             if (!existing) {
-              await github.rest.issues.create({
+              const { data: created } = await github.rest.issues.create({
                 owner: context.repo.owner, repo: context.repo.repo, title, body, labels: [label],
               });
+              // Creation is the notification, but only for someone already watching the repository.
+              // An unassigned bot-authored issue is easy to never see, and the whole mechanism is
+              // built for the case where nobody is looking. Assignment notifies regardless of watch
+              // settings. Separate call and non-fatal on purpose: an owner who cannot be assigned
+              // (an org without the repo-owner as a member, a renamed account) must degrade to the
+              // issue existing unassigned, never to the alarm failing to raise at all.
+              try {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: created.number, assignees: [context.repo.owner],
+                });
+              } catch (error) {
+                core.warning(`Raised #${created.number} but could not assign ${context.repo.owner}: ${error.message}`);
+              }
               return;
             }
 
