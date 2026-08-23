@@ -8,7 +8,8 @@ const { buildContentGenMatrix } = require('./benchmark');
 const { loadConfig } = require('./config');
 const { loadExecutionCatalog } = require('./execution-catalog');
 
-const RESULT_SCHEMA_VERSION = 'agent-kernel-benchmark-result/v1';
+const RESULT_SCHEMA_VERSION = 'agent-kernel-benchmark-result/v2';
+const LEGACY_RESULT_SCHEMA_VERSION = 'agent-kernel-benchmark-result/v1';
 const RESULT_PATHS = Object.freeze({
   latest_attempt: 'latest.json',
   latest_success: 'latest-success.json',
@@ -41,7 +42,7 @@ function validatePublishedBenchmarkResult(record, expectedIdentity) {
   if (!record || typeof record !== 'object' || Array.isArray(record)) {
     throw new Error('published benchmark result must be an object');
   }
-  if (record.schemaVersion !== RESULT_SCHEMA_VERSION) {
+  if (![RESULT_SCHEMA_VERSION, LEGACY_RESULT_SCHEMA_VERSION].includes(record.schemaVersion)) {
     throw new Error(`unsupported published benchmark schema: ${record.schemaVersion || 'missing'}`);
   }
   if (!record.run || typeof record.run.id !== 'string' || record.run.id === ''
@@ -56,6 +57,7 @@ function validatePublishedBenchmarkResult(record, expectedIdentity) {
   }
   assertSha256(record.scenarioSet.sha256, 'published scenario-set hash');
   assertSha256(record.matrix?.sha256, 'published matrix hash');
+  if (record.schemaVersion === LEGACY_RESULT_SCHEMA_VERSION) return record;
   assertSha256(record.execution?.identity?.executionSuiteHash, 'published execution-suite hash');
 
   if (expectedIdentity) {
@@ -75,6 +77,16 @@ function validatePublishedBenchmarkResult(record, expectedIdentity) {
   return record;
 }
 
+function compatibilityFor(record) {
+  if (record.schemaVersion === LEGACY_RESULT_SCHEMA_VERSION) {
+    return {
+      status: 'historical_incomparable',
+      reasons: ['legacy v1 predates required execution identity and cannot be compared with current qualification evidence'],
+    };
+  }
+  return { status: 'comparable', reasons: [] };
+}
+
 function resultPath(selection) {
   const selected = selection || 'latest_attempt';
   const filePath = RESULT_PATHS[selected];
@@ -90,6 +102,13 @@ function readPublishedBenchmarkResult({
 }) {
   if (!repoRoot) throw new Error('repoRoot is required');
   const filePath = resultPath(selection);
+  try {
+    execFileSync('git', ['-C', repoRoot, 'rev-parse', '--verify', ref], {
+      stdio: ['ignore', 'ignore', 'ignore'],
+    });
+  } catch {
+    throw new Error(`published benchmark ref is unavailable: ${ref}`);
+  }
   let text;
   try {
     text = execFileSync('git', ['-C', repoRoot, 'show', `${ref}:${filePath}`], {
@@ -97,6 +116,15 @@ function readPublishedBenchmarkResult({
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } catch (error) {
+    if (selection === 'latest_success') {
+      const pathExists = execFileSync('git', ['-C', repoRoot, 'ls-tree', '--name-only', ref, '--', filePath], {
+        encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+      }).trim() === filePath;
+      if (!pathExists) {
+        return { selection, ref, filePath, record: null,
+          compatibility: { status: 'no_qualifying_evidence', reasons: ['latest-success.json does not exist'] } };
+      }
+    }
     throw new Error(`published benchmark ${selection} is unavailable at ${ref}:${filePath}`);
   }
   let record;
@@ -109,7 +137,7 @@ function readPublishedBenchmarkResult({
   if (selection === 'latest_success' && (record.run.status !== 'completed' || record.qualifies !== true)) {
     throw new Error('latest-success.json must contain a completed qualifying result');
   }
-  return { selection, ref, filePath, record };
+  return { selection, ref, filePath, record, compatibility: compatibilityFor(record) };
 }
 
 function validateCanonicalScenarioCountDocumentation(text, expectedCount, label = 'document') {
@@ -126,6 +154,7 @@ function validateCanonicalScenarioCountDocumentation(text, expectedCount, label 
 
 module.exports = {
   RESULT_SCHEMA_VERSION,
+  LEGACY_RESULT_SCHEMA_VERSION,
   currentBenchmarkIdentity,
   readPublishedBenchmarkResult,
   resultPath,

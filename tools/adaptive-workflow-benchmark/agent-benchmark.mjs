@@ -32,6 +32,17 @@ export function workflowValidator(requiredKeys = []) {
   };
 }
 
+function parseModelResponse(output) {
+  const response = output?.response;
+  if (response && typeof response === "object") return response;
+  if (typeof response !== "string") return undefined;
+  try {
+    return JSON.parse(response);
+  } catch {
+    return undefined;
+  }
+}
+
 export function buildCapability(modelName, overrides = {}) {
   return {
     schemaVersion: 1,
@@ -65,9 +76,13 @@ export async function runAgentBenchmark({
   capabilityOverrides = {},
   clock = wallClock,
   generatedAt = new Date().toISOString(),
+  scenarioSet = { id: "unclassified", purpose: "smoke" },
 } = {}) {
   if (!Array.isArray(scenarios) || scenarios.length === 0) throw new Error("runAgentBenchmark requires a non-empty scenarios array");
   if (typeof modelFactory !== "function") throw new Error("runAgentBenchmark requires a modelFactory(scenario, run) => modelPort");
+  if (!scenarioSet || typeof scenarioSet.id !== "string" || !["smoke", "qualification"].includes(scenarioSet.purpose)) {
+    throw new Error("runAgentBenchmark requires a versioned smoke or qualification scenario set");
+  }
   const totalRuns = Math.max(1, runs);
   const results = [];
 
@@ -89,10 +104,26 @@ export async function runAgentBenchmark({
         error: null,
       };
       try {
+        let latestModelResponse;
+        const modelPort = modelFactory(scenario, run);
+        const recordingModelPort = {
+          ...modelPort,
+          async generate(...args) {
+            const output = await modelPort.generate(...args);
+            latestModelResponse = parseModelResponse(output);
+            return output;
+          },
+        };
         // A scenario may supply a custom content validator (structured
-        // constraints); otherwise fall back to the non-empty-array check.
+        // constraints). It receives both the workflow candidate and the parsed
+        // model response because the workflow sanitizer intentionally removes
+        // source-only fields such as ids and actor kinds.
         const validator = typeof scenario.validate === "function"
-          ? { id: `scenario-${scenario.id}`, version: 1, validate: scenario.validate }
+          ? {
+              id: `scenario-${scenario.id}`,
+              version: 1,
+              validate: (value, context) => scenario.validate(value, { ...context, modelResponse: latestModelResponse }),
+            }
           : workflowValidator(scenario.requiredKeys || []);
         const result = await runAdaptiveWorkflow({
           objective: scenario.objective,
@@ -103,7 +134,7 @@ export async function runAgentBenchmark({
           ...(Number.isFinite(scenario.budgetTokens) ? { budgetTokens: scenario.budgetTokens } : {}),
           ...(scenario.catalog ? { catalog: scenario.catalog } : {}),
           ports: {
-            model: modelFactory(scenario, run),
+            model: recordingModelPort,
             validator: [validator],
             clock,
           },
@@ -125,7 +156,16 @@ export async function runAgentBenchmark({
     }
   }
 
-  return { generatedAt, model: modelName, results, aggregate: aggregate(results, modelName) };
+  return {
+    schemaVersion: "agent-kernel-adaptive-workflow-benchmark-report/v1",
+    scenarioSet: {
+      schemaVersion: "agent-kernel-adaptive-workflow-scenario-set/v1",
+      id: scenarioSet.id,
+      purpose: scenarioSet.purpose,
+      scenarioIds: scenarios.map((scenario) => scenario.id),
+    },
+    generatedAt, model: modelName, results, aggregate: aggregate(results, modelName),
+  };
 }
 
 function aggregate(results, modelName) {
@@ -154,6 +194,9 @@ export function renderSummary(report, { route = "external", profile = "agent", g
     "",
     `Generated: ${at}`,
     `Route: ${route}`,
+    `Scenario set schema: ${report.scenarioSet.schemaVersion}`,
+    `Scenario set: ${report.scenarioSet.id}`,
+    `Purpose: ${report.scenarioSet.purpose}`,
     `Profiles: ${profile}`,
     `Scenarios: ${agg.scenarios}`,
     "",

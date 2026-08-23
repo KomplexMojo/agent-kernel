@@ -266,6 +266,12 @@ baseline. The reader rejects unsupported schemas, malformed identities, and scen
 scenario-hash, matrix-hash, or execution-suite drift. Compact JSON is committed on `benchmark-results`; raw prompts,
 responses, generated artifacts, and telemetry remain ignored and local.
 
+New publications use `agent-kernel-benchmark-result/v2`, which requires the execution-suite identity
+used for qualification. Legacy v1 records remain readable as `historical_incomparable`; the reader
+does not invent the missing execution identity or compare them with current evidence. If
+`latest-success.json` does not exist, `latest_success` returns `record: null` with compatibility status
+`no_qualifying_evidence`. Malformed files and inaccessible refs still fail closed.
+
 ## Network Modes
 
 Two routes, both resolved from your untracked `config/llm-host.env`.

@@ -34,30 +34,47 @@ function fail(path, code) {
   return { ok: false, issues: [{ path, code, message: code }] };
 }
 
-// Discriminating scenarios: the validators check real structure the flagship
-// sanitizer will NOT fabricate (exact counts, nested fields), plus one scenario
-// that routes to the local-sectional/budget strategy. A weak model that returns
-// generic output will fail these even though it "passes" the smoke set.
+function hasUniqueIds(values, count) {
+  return Array.isArray(values) && values.length === count
+    && values.every((value) => typeof value?.id === "string" && value.id.length > 0)
+    && new Set(values.map((value) => value.id)).size === count;
+}
+
+function actorKinds(values) {
+  return Array.isArray(values) ? values.map((actor) => actor?.kind).sort() : [];
+}
+
+// Discriminating scenarios: the validators check the parsed model response,
+// before the workflow sanitizer removes source-only semantics such as ids and
+// actor kinds. One scenario also routes through the local-sectional/budget
+// strategy. A weak model that returns generic output fails these even when the
+// sanitizer could turn it into a structurally valid workflow candidate.
 export const AGENT_BENCHMARK_HARD_SCENARIOS = Object.freeze([
   Object.freeze({
     id: "exactly-three-rooms",
     title: "Exactly three rooms",
     objective: 'Return ONLY compact JSON with EXACTLY three rooms and no actors: {"rooms":[{"id":"room-1"},{"id":"room-2"},{"id":"room-3"}],"actors":[]}. No prose, no code fences.',
-    validate: (value) => (Array.isArray(value?.rooms) && value.rooms.length === 3 ? { ok: true } : fail("/rooms", "expected_exactly_three_rooms")),
+    validate: (_value, { modelResponse } = {}) => (hasUniqueIds(modelResponse?.rooms, 3)
+      && Array.isArray(modelResponse?.actors) && modelResponse.actors.length === 0
+      ? { ok: true } : fail("/", "expected_three_unique_rooms_no_actors")),
   }),
   Object.freeze({
     id: "two-delvers",
     title: "Exactly two delvers",
-    objective: 'Return ONLY compact JSON with one room and EXACTLY two delvers: {"rooms":[{"id":"room-1"}],"actors":[{"id":"delver-1"},{"id":"delver-2"}]}. No prose, no code fences.',
-    validate: (value) => (Array.isArray(value?.actors) && value.actors.length === 2 ? { ok: true } : fail("/actors", "expected_exactly_two_actors")),
+    objective: 'Return ONLY compact JSON with one room and EXACTLY two actors whose kind is delver: {"rooms":[{"id":"room-1"}],"actors":[{"id":"delver-1","kind":"delver"},{"id":"delver-2","kind":"delver"}]}. No prose, no code fences.',
+    validate: (_value, { modelResponse } = {}) => (hasUniqueIds(modelResponse?.rooms, 1)
+      && hasUniqueIds(modelResponse?.actors, 2)
+      && actorKinds(modelResponse.actors).every((kind) => kind === "delver")
+      ? { ok: true } : fail("/actors", "expected_two_unique_delvers")),
   }),
   Object.freeze({
     id: "mixed-roster",
-    title: "Two rooms and three actors",
-    objective: 'Return ONLY compact JSON with EXACTLY two rooms and EXACTLY three actors: {"rooms":[{"id":"room-1"},{"id":"room-2"}],"actors":[{"id":"a-1"},{"id":"a-2"},{"id":"a-3"}]}. No prose, no code fences.',
-    validate: (value) => {
-      const ok = Array.isArray(value?.rooms) && value.rooms.length === 2 && Array.isArray(value?.actors) && value.actors.length === 3;
-      return ok ? { ok: true } : fail("/", "expected_two_rooms_three_actors");
+    title: "Two rooms, one delver, and two wardens",
+    objective: 'Return ONLY compact JSON with EXACTLY two rooms, one delver, and two wardens: {"rooms":[{"id":"room-1"},{"id":"room-2"}],"actors":[{"id":"delver-1","kind":"delver"},{"id":"warden-1","kind":"warden"},{"id":"warden-2","kind":"warden"}]}. No prose, no code fences.',
+    validate: (_value, { modelResponse } = {}) => {
+      const ok = hasUniqueIds(modelResponse?.rooms, 2) && hasUniqueIds(modelResponse?.actors, 3)
+        && actorKinds(modelResponse.actors).join(",") === "delver,warden,warden";
+      return ok ? { ok: true } : fail("/", "expected_two_rooms_delver_two_wardens");
     },
   }),
   Object.freeze({
@@ -69,6 +86,10 @@ export const AGENT_BENCHMARK_HARD_SCENARIOS = Object.freeze([
     budgetTokens: 400,
     catalog: POOL_CATALOG,
     objective: 'Return ONLY compact JSON describing a room layout section: {"phase":"layout_only","layout":{"floorTiles":4,"hallwayTiles":2},"rooms":[{"id":"room-1"}],"missing":[]}. No prose, no code fences.',
-    validate: (value) => (value?.layout && Number.isInteger(value.layout.floorTiles) && value.layout.floorTiles > 0 ? { ok: true } : fail("/layout/floorTiles", "missing_sectional_layout")),
+    validate: (_value, { modelResponse } = {}) => (modelResponse?.phase === "layout_only"
+      && modelResponse?.layout?.floorTiles === 4 && modelResponse.layout.hallwayTiles === 2
+      && hasUniqueIds(modelResponse?.rooms, 1)
+      && Array.isArray(modelResponse?.missing) && modelResponse.missing.length === 0
+      ? { ok: true } : fail("/", "expected_exact_sectional_layout")),
   }),
 ]);

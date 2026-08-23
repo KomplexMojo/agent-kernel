@@ -128,6 +128,18 @@ function validatePayload(payload, scenario, label) {
   }
 }
 
+function validatePromptBudget(scenario, label) {
+  if (scenario.budgetMode !== 'constrained') return;
+  const matches = [...scenario.prompt.matchAll(/\bUse a (\d+) token hard budget\b/g)];
+  if (matches.length !== 1) {
+    throw new Error(`${label}.prompt must declare exactly one hard budget`);
+  }
+  const promptBudget = Number.parseInt(matches[0][1], 10);
+  if (promptBudget !== scenario.payload.budgetTokens) {
+    throw new Error(`${label}.prompt hard budget must match payload.budgetTokens`);
+  }
+}
+
 function validateScenario(scenario, fileTier, seenIds) {
   const label = `scenario ${scenario?.index ?? '?'}`;
   if (!isPlainObject(scenario)) throw new Error(`${label} must be an object`);
@@ -163,6 +175,7 @@ function validateScenario(scenario, fileTier, seenIds) {
     throw new Error(`${label}.legacyReferencePath must be a safe relative path`);
   }
   validatePayload(scenario.payload, scenario, label);
+  validatePromptBudget(scenario, label);
   validateReference(scenario.reference, label);
   if (scenario.reference.totalSpend !== scenario.referenceSpend) {
     throw new Error(`${label}.reference.totalSpend must match referenceSpend`);

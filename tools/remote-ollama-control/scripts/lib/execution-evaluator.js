@@ -199,6 +199,18 @@ function vitalsWithinBounds(states) {
     })));
 }
 
+function completeCheckpointStates(artifacts) {
+  const checkpoints = artifacts.worldStateCheckpoints;
+  const states = Array.isArray(checkpoints?.states) ? checkpoints.states : [];
+  const expectedTicks = Array.isArray(checkpoints?.expectedTicks) ? checkpoints.expectedTicks : [];
+  const loadedTicks = states.map((state) => state?.tick);
+  const complete = expectedTicks.length >= 2
+    && loadedTicks.length === expectedTicks.length
+    && new Set(loadedTicks).size === loadedTicks.length
+    && expectedTicks.every((tick, index) => loadedTicks[index] === tick);
+  return { complete, states };
+}
+
 /** Index at which a resource first went missing, or -1 if it never did. */
 function consumptionIndex(ordered, key) {
   for (let index = 1; index < ordered.length; index += 1) {
@@ -209,12 +221,12 @@ function consumptionIndex(ordered, key) {
 
 function extractResourceMetrics(artifacts, units) {
   const nothing = (reason) => Object.fromEntries(
-    RESOURCE_METRIC_NAMES.map((name) => [name, unavailable(units[name], reason)]),
+    RESOURCE_METRIC_NAMES.map((name) => [name, unavailable(units[name], reason, 'observation')]),
   );
-  const states = Array.isArray(artifacts.worldStateCheckpoints?.states)
-    ? artifacts.worldStateCheckpoints.states : [];
-  if (states.length < 2) {
-    return nothing('two or more world-state checkpoints are required to observe a collection');
+  const checkpointEvidence = completeCheckpointStates(artifacts);
+  const states = checkpointEvidence.states;
+  if (!checkpointEvidence.complete) {
+    return nothing('the complete declared world-state checkpoint series is required');
   }
   if (states.some((state) => !Array.isArray(state.resources))) {
     return nothing('a checkpoint carries no resource list; it predates WorldStateArtifact v2');
@@ -408,7 +420,7 @@ function extractResourceMetrics(artifacts, units) {
       : metric(acquired.size / kinds.size, units.actor_kind_parity);
   }
 
-  return results;
+  return Object.fromEntries(Object.entries(results).map(([name, entry]) => [name, { ...entry, evidence: 'observation' }]));
 }
 
 function extractExecutionMetrics(artifacts, contract) {
@@ -507,13 +519,17 @@ function evaluateInvariants(artifacts, scenario, stats) {
   const knownActors = new Set(stats.actors.map((actor) => actor.id));
   const effectValid = stats.fulfilled.every((entry) => isObject(entry.effect)
     && ['fulfilled', 'deferred', 'rejected'].includes(entry.status));
+  const checkpointEvidence = completeCheckpointStates(artifacts);
   const checks = {
     run_completed: artifacts.runSummary?.outcome === 'success'
       && Math.max(0, ...frameTicks) === stats.requestedTicks,
     tick_monotonicity: monotonic,
     actor_legality: Number.isInteger(width) && Number.isInteger(height)
       ? [...stats.actors.map((actor) => position(actor.position)), ...stats.moves.map((move) => move.to)].every(legal) : null,
-    finite_bounds: finitePublicValues([artifacts.initialState, stats.frames]) ? null : false,
+    finite_bounds: checkpointEvidence.complete
+      ? finitePublicValues([artifacts.initialState, stats.frames, checkpointEvidence.states])
+        && vitalsWithinBounds(checkpointEvidence.states)
+      : null,
     effect_integrity: effectValid && stats.actions.every((action) => knownActors.has(action.actorId)),
     participation: stats.actors.length ? [...stats.actorActions.values()].every((count) => count > 0) : null,
     stationary_fidelity: stats.stationary.length ? stats.stationaryMoved === 0 : null,
@@ -543,15 +559,23 @@ function thresholdFraction(value, threshold) {
   return null;
 }
 
-function scoreObjectives(scenario, metrics) {
+function scoreObjectives(scenario, metrics, contract = loadExecutionCatalog().contract) {
   const objectives = {};
   let weighted = 0;
   let availableWeight = 0;
+  let qualificationWeight = 0;
   for (const [name, objective] of Object.entries(scenario.objectives)) {
     const entry = metrics[name];
-    if (objective.evidence === 'observation' || entry?.status !== 'available') {
+    if (contract.metrics[name]?.purpose === 'diagnostic') {
+      objectives[name] = { status: 'diagnostic', purpose: 'diagnostic', weight: objective.weight,
+        ...(entry?.status === 'available' ? { value: entry.value } : { reason: entry?.reason }) };
+      continue;
+    }
+    qualificationWeight += objective.weight;
+    if (entry?.status !== 'available' || entry.evidence !== objective.evidence) {
       objectives[name] = { status: 'evidence_unavailable', weight: objective.weight,
-        reason: objective.evidence === 'observation' ? 'observation checkpoint evidence is required' : entry?.reason };
+        reason: entry?.status !== 'available' ? entry?.reason
+          : `metric evidence ${entry.evidence} does not satisfy ${objective.evidence} objective` };
       continue;
     }
     const threshold = scenario.thresholds[name];
@@ -571,10 +595,12 @@ function scoreObjectives(scenario, metrics) {
     objectives[name] = { status: 'scored', weight: objective.weight, points, fraction, value: entry.value };
   }
   return {
-    status: availableWeight === 100 ? 'scored' : 'evidence_unavailable',
-    value: availableWeight === 100 ? weighted : null,
+    status: qualificationWeight > 0 && availableWeight === qualificationWeight ? 'scored' : 'evidence_unavailable',
+    value: qualificationWeight > 0 && availableWeight === qualificationWeight
+      ? (weighted / qualificationWeight) * 100 : null,
     availableScore: weighted,
     availableWeight,
+    qualificationWeight,
     objectives,
   };
 }
@@ -630,7 +656,8 @@ function evaluateGatePredicateForResult(predicate, result) {
 }
 
 function gateResult(gate, evaluation) {
-  return { id: gate.id, description: gate.description, scope: gate.scope, ...evaluation };
+  return { id: gate.id, description: gate.description, scope: gate.scope,
+    purpose: gate.purpose || 'qualification', ...evaluation };
 }
 
 function declaredVariants(scenario) {
@@ -792,16 +819,21 @@ function evaluateExecutionArtifacts({ artifacts, scenario, catalog = loadExecuti
   const loadedCheckpointTicks = checkpointStates.map((state) => state.tick)
     .filter((tick) => expectedCheckpointTicks.includes(tick)).sort((a, b) => a - b);
   const missingCheckpointTicks = expectedCheckpointTicks.filter((tick) => !loadedCheckpointTicks.includes(tick));
-  const { metrics, stats } = extractExecutionMetrics(artifacts, catalog.contract);
-  const invariants = evaluateInvariants(artifacts, selected, stats);
+  const evaluatedArtifacts = { ...artifacts, worldStateCheckpoints: {
+    ...(artifacts.worldStateCheckpoints || {}), expectedTicks: [...expectedCheckpointTicks],
+    loadedTicks: loadedCheckpointTicks, missingTicks: missingCheckpointTicks, states: checkpointStates,
+  } };
+  const { metrics, stats } = extractExecutionMetrics(evaluatedArtifacts, catalog.contract);
+  const invariants = evaluateInvariants(evaluatedArtifacts, selected, stats);
   const failedInvariants = Object.entries(invariants).filter(([, value]) => value.status === 'failed').map(([name]) => name);
   const unavailableInvariants = Object.entries(invariants).filter(([, value]) => value.status === 'evidence_unavailable').map(([name]) => name);
-  const score = scoreObjectives(selected, metrics);
+  const score = scoreObjectives(selected, metrics, catalog.contract);
   const requiredGates = selected.requiredGates.map((gate) => gate.scope === 'seed'
     ? gateResult(gate, evaluateGatePredicateForResult(gate.predicate, { metrics, invariants }))
     : gateResult(gate, gateEvidenceUnavailable(`${gate.scope} gate requires population aggregation`)));
-  const failedGates = requiredGates.filter((gate) => gate.status === 'failed').map((gate) => gate.id);
-  const unavailableGates = requiredGates.filter((gate) => gate.status === 'evidence_unavailable').map((gate) => gate.id);
+  const failedGates = requiredGates.filter((gate) => gate.purpose === 'qualification' && gate.status === 'failed').map((gate) => gate.id);
+  const unavailableGates = requiredGates.filter((gate) => gate.purpose === 'qualification'
+    && gate.status === 'evidence_unavailable').map((gate) => gate.id);
   if (failedInvariants.length) Object.assign(score, { status: 'hard_fail', value: 0, availableScore: 0 });
   const verdictStatus = failedInvariants.length || failedGates.length ? 'failed'
     : unavailableInvariants.length || unavailableGates.length || score.status !== 'scored' ? 'evidence_unavailable'
@@ -814,7 +846,7 @@ function evaluateExecutionArtifacts({ artifacts, scenario, catalog = loadExecuti
       seedSetHash: catalog.seedSetHash,
       tickProfileHash: catalog.tickProfileHash,
     },
-    scenario: { id: selected.id, family: selected.family, profile: selected.profile },
+    scenario: { id: selected.id, family: selected.family, profile: selected.profile, purpose: selected.purpose },
     run: { seed, repeat, ...(variant ? { variant } : {}), requestedTicks: stats.requestedTicks,
       frameHash: normalizedFrameHash(stats.frames) },
     artifactSummary: { frames: stats.frames.length, actions: stats.actions.length, effects: stats.effects.length,
@@ -847,8 +879,9 @@ function aggregateExecutionResults(results, contract = loadExecutionCatalog().co
   const unavailableResults = results.filter((result) => result.score?.status !== 'scored'
     || result.verdict?.unavailableInvariants?.length);
   const requiredGates = evaluatePopulationGates(selected, results, contract);
-  const failedGates = requiredGates.filter((gate) => gate.status === 'failed');
-  const unavailableGates = requiredGates.filter((gate) => gate.status === 'evidence_unavailable');
+  const failedGates = requiredGates.filter((gate) => gate.purpose === 'qualification' && gate.status === 'failed');
+  const unavailableGates = requiredGates.filter((gate) => gate.purpose === 'qualification'
+    && gate.status === 'evidence_unavailable');
   const mean = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : null;
   const median = scores.length ? (scores[Math.floor((scores.length - 1) / 2)] + scores[Math.ceil((scores.length - 1) / 2)]) / 2 : null;
   const minimum = scores.length ? scores[0] : null;
@@ -859,20 +892,21 @@ function aggregateExecutionResults(results, contract = loadExecutionCatalog().co
   })[0];
   const complete = scores.length === results.length && failed.length === 0 && unavailableResults.length === 0
     && failedGates.length === 0 && unavailableGates.length === 0;
-  const qualifies = complete && mean >= contract.qualification.meanScore
+  const eligible = selected.purpose === 'qualification';
+  const qualifies = eligible && complete && mean >= contract.qualification.meanScore
     && median >= contract.qualification.medianScore && minimum >= contract.qualification.minimumSeedScore;
   return {
     schemaVersion: 'agent-kernel-execution-aggregate/v1',
     identity: { ...results[0].identity },
-    scenario: { ...results[0].scenario },
+    scenario: { ...results[0].scenario, purpose: selected.purpose },
     runs: results.length,
     requiredGates,
     distribution: { mean, median, minimum, maximum: scores.length ? scores[scores.length - 1] : null },
     worstSeed: { seed: worstSeed.run.seed, repeat: worstSeed.run.repeat, score: worstSeed.score?.value ?? null,
       verdict: worstSeed.verdict.status },
-    verdict: { status: failed.length || failedGates.length ? 'failed'
+    verdict: { status: !eligible ? 'diagnostic' : failed.length || failedGates.length ? 'failed'
       : unavailableResults.length || unavailableGates.length || !complete ? 'evidence_unavailable'
-        : qualifies ? 'passed' : 'failed', qualifies, failedRuns: failed.length,
+        : qualifies ? 'passed' : 'failed', qualifies, eligible, failedRuns: failed.length,
     unavailableRuns: unavailableResults.length, failedGates: failedGates.map((gate) => gate.id),
     unavailableGates: unavailableGates.map((gate) => gate.id) },
   };

@@ -4,6 +4,7 @@ const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
 
 const {
+  fixtureExecutionArtifacts,
   probeResourceRuntimeLoading,
   runCanonicalFixtureValidation,
   runCorpusIntegrationValidation,
@@ -11,32 +12,63 @@ const {
 
 const ROOT = resolve(__dirname, '../..');
 
-test('canonical fixture validation covers all scenarios, populations, and generated handoff profiles', async () => {
+test('canonical evaluator witnesses expose qualification readiness without fabricated results', async () => {
   const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-validation-test-'));
   const record = await runCanonicalFixtureValidation({ outputRoot });
 
-  assert.equal(record.schemaVersion, 'agent-kernel-execution-validation/v1');
-  assert.equal(record.mode, 'deterministic_fixture');
+  assert.equal(record.schemaVersion, 'agent-kernel-execution-validation/v2');
+  assert.equal(record.mode, 'deterministic_evaluator_witness');
   assert.equal(record.publication, false);
   assert.deepEqual(record.catalog, { scenarios: 25, families: 5, requiredGates: 70 });
-  assert.equal(record.schedule.status, 'completed');
   assert.equal(record.schedule.scenarios.length, 25);
-  assert.ok(record.schedule.scenarios.every((scenario) => (
-    scenario.aggregateQualified === true
-    && scenario.completedPopulation === scenario.declaredPopulation
+  assert.equal(record.qualification.ready, false);
+  assert.equal(record.qualification.scenarios, 25);
+  assert.ok(record.qualification.blockedScenarios > 0);
+  assert.equal(record.readiness.length, 25);
+  assert.ok(record.readiness.every((scenario) => (
+    scenario.invariants.length > 0 && scenario.gates.length > 0 && scenario.objectives.length > 0
   )));
+  assert.ok(record.readiness.some((scenario) => scenario.invariants.some((entry) => (
+    entry.id === 'finite_bounds' && entry.status === 'evidence_unavailable'
+  ))));
+  assert.ok(record.readiness.some((scenario) => scenario.objectives.some((entry) => (
+    entry.evidence === 'observation' && entry.status === 'evidence_unavailable'
+  ))));
+  assert.ok(record.readiness.some((scenario) => scenario.scopes.some((entry) => (
+    entry.scope !== 'seed' && entry.status === 'evidence_unavailable'
+  ))));
   assert.deepEqual(record.generatedContentCanaries.map((entry) => entry.profile).sort(), ['dual', 'primary']);
   assert.ok(record.generatedContentCanaries.every((entry) => (
     entry.passed === true && entry.requiredArtifacts.join(',') === 'sim-config.json,initial-state.json'
   )));
   assert.deepEqual(record.limitations, [
-    'fixture evidence validates orchestration contracts, not gameplay quality',
+    'evaluator witnesses validate evidence reachability, not gameplay quality',
     'no LLM, GPU, remote host, result branch, or timer was used',
   ]);
   assert.doesNotMatch(JSON.stringify(record), /\/private\/|\/var\/folders\/|\/tmp\//);
 
   const persisted = JSON.parse(readFileSync(join(outputRoot, 'execution-validation.json'), 'utf8'));
   assert.deepEqual(persisted, record);
+});
+
+test('validation witness artifacts flow through the real execution evaluator', () => {
+  const { evaluateExecutionArtifacts } = require(
+    '../../tools/remote-ollama-control/scripts/lib/execution-evaluator',
+  );
+  const { loadExecutionCatalog } = require(
+    '../../tools/remote-ollama-control/scripts/lib/execution-catalog',
+  );
+  const catalog = loadExecutionCatalog();
+  const result = evaluateExecutionArtifacts({
+    artifacts: fixtureExecutionArtifacts({ ticks: 4, checkpoints: [] }),
+    scenario: 'EX-CB-01',
+    catalog,
+  });
+
+  assert.equal(result.schemaVersion, 'agent-kernel-execution-result/v1');
+  assert.equal(result.identity.executionSuiteHash, catalog.sha256);
+  assert.equal(result.invariants.finite_bounds.status, 'evidence_unavailable');
+  assert.notEqual(result.metrics.unique_tile_coverage.status, undefined);
 });
 
 test('corpus integration binds all committed/generated routes before deterministic scheduling', async () => {
@@ -56,8 +88,9 @@ test('corpus integration binds all committed/generated routes before determinist
   assert.equal(record.corpus.generatedMappings, 26);
   assert.match(record.corpus.runtimeArtifactSetHash, /^[a-f0-9]{64}$/);
   assert.equal(record.corpus.resourceRuntimeCapability.status, 'passed');
-  assert.equal(record.fixtureValidation.schedule.status, 'completed');
+  assert.notEqual(record.fixtureValidation.schedule.status, 'completed');
   assert.equal(record.fixtureValidation.schedule.scenarios.length, 25);
+  assert.equal(record.fixtureValidation.qualification.ready, false);
   assert.equal(record.publication, false);
   assert.deepEqual(
     JSON.parse(readFileSync(join(outputRoot, 'corpus-integration-validation.json'), 'utf8')),

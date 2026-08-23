@@ -58,7 +58,7 @@ function publicationRecord({
     : {};
   const execution = outcome.execution || { status: 'not_run' };
   return {
-    schemaVersion: 'agent-kernel-benchmark-result/v1',
+    schemaVersion: 'agent-kernel-benchmark-result/v2',
     run: {
       id: runId(sourceCommit, key, startedAt),
       key,

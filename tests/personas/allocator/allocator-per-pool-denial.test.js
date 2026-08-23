@@ -2,8 +2,9 @@
  * Characterization for Prompt-Allocator-Per-Line-Denial.md.
  *
  * A positive receipt.remaining is the total-budget remainder. It does not
- * override a category pool cap: scenario 59 spends 132 tokens from the
- * 126-token warden pool while leaving 293 tokens unspent overall.
+ * override a category pool cap: one token below scenario 59's passing
+ * boundary spends 132 tokens from a 131-token warden pool while leaving
+ * 311 tokens unspent overall.
  */
 const assert = require("node:assert/strict");
 const { readFileSync, rmSync, mkdtempSync } = require("node:fs");
@@ -20,19 +21,24 @@ function constrainedScenario(index) {
   return fixture.scenarios.find((scenario) => scenario.index === index);
 }
 
-test("allocator denies a warden pool overspend while total budget remains", () => {
+test("allocator denies one token below a warden pool boundary while total budget remains", () => {
   const scenario = constrainedScenario(59);
   assert.equal(scenario.title, "Constrained Two Warden Patrol");
+  const boundaryBudget = scenario.payload.budgetTokens - 1;
+  const boundaryText = scenario.payload.text.replace(
+    /Use a \d+ token hard budget/,
+    `Use a ${boundaryBudget} token hard budget`,
+  );
 
   const outDir = mkdtempSync(join(tmpdir(), "ak-allocator-pool-denial-"));
   try {
     const result = spawnSync(process.execPath, [
       CLI,
       "create",
-      "--text", scenario.payload.text,
+      "--text", boundaryText,
       "--room", scenario.payload.room[0],
       "--warden", scenario.payload.warden[0],
-      "--budget-tokens", String(scenario.payload.budgetTokens),
+      "--budget-tokens", String(boundaryBudget),
       "--run-id", "allocator_pool_denial_characterization",
       "--created-at", scenario.payload.createdAt,
       "--emit-intermediates",
@@ -40,9 +46,9 @@ test("allocator denies a warden pool overspend while total budget remains", () =
     ], { cwd: ROOT, encoding: "utf8" });
 
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=293/);
+    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=311/);
     assert.match(result.stderr, /deniedLines=actor:actor_spawn:wardens/);
-    assert.match(result.stderr, /deniedPools=wardens:132\/126/);
+    assert.match(result.stderr, /deniedPools=wardens:132\/131/);
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }

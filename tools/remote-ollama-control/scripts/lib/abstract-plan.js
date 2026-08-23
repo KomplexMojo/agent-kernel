@@ -318,10 +318,12 @@ function mapAbstractPlanToCreateArgs(scenario, selections, { outDir, runId }) {
     delver: [],
     warden: [],
   };
-  for (const component of scenario.problem.components) {
-    const quantity = selected.get(component.id);
+  const componentsById = new Map(scenario.problem.components.map((component) => [component.id, component]));
+  for (const componentId of Object.keys(scenario.mapping.components)) {
+    const component = componentsById.get(componentId);
+    const quantity = selected.get(componentId);
     if (!quantity) continue;
-    const mapping = scenario.mapping.components[component.id];
+    const mapping = scenario.mapping.components[componentId];
     if (COUNT_TARGETS.has(mapping.target) && isPlainObject(mapping.spec)) {
       const spec = { ...mapping.spec };
       spec.count = (spec.count || 1) * quantity;

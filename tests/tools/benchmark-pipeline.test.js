@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const { execFileSync } = require('node:child_process');
 const { existsSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
@@ -12,7 +13,6 @@ const {
 } = require('../../tools/remote-ollama-control/scripts/lib/benchmark-pipeline');
 const { loadExecutionCatalog } = require('../../tools/remote-ollama-control/scripts/lib/execution-catalog');
 const { planExecutionSchedule } = require('../../tools/remote-ollama-control/scripts/lib/execution-runner');
-const { fixtureExecutionResult } = require('../../tools/remote-ollama-control/scripts/validate-execution-benchmark');
 const { loadTriggerPolicy } = require('../../tools/remote-ollama-control/scripts/lib/benchmark-trigger');
 
 const TOOL_ROOT = resolve(__dirname, '../../tools/remote-ollama-control');
@@ -89,8 +89,53 @@ function buildFixture(root) {
   };
 }
 
+function scalarValue(predicate, variant) {
+  if (predicate.operator === 'changed_in_direction') {
+    const baseline = predicate.threshold === 'increase' ? 0 : 1;
+    const candidate = predicate.threshold === 'increase' ? 1 : 0;
+    return variant === predicate.candidateVariant ? candidate : baseline;
+  }
+  if (predicate.operator === 'rate') return scalarValue(predicate.condition, variant);
+  if (predicate.operator === 'range') return predicate.threshold[0];
+  return ['min', 'max', 'exact'].includes(predicate.operator) ? predicate.threshold : 1;
+}
+
+function fixtureExecutionResult(request) {
+  const scenario = CATALOG.scenarios.find((entry) => entry.id === request.scenarioId);
+  const metrics = Object.fromEntries(Object.entries(CATALOG.contract.metrics).map(([name, contract]) => [name, {
+    status: 'available', value: 1, unit: contract.unit, evidence: 'artifact',
+  }]));
+  const apply = (predicate) => {
+    if (['all', 'any'].includes(predicate.operator)) return predicate.predicates.forEach(apply);
+    if (predicate.source === 'metric' && predicate.ref !== 'seed_sensitivity' && metrics[predicate.ref]) {
+      metrics[predicate.ref].value = scalarValue(predicate, request.variant);
+    }
+    return undefined;
+  };
+  scenario.requiredGates.forEach((gate) => apply(gate.predicate));
+  return {
+    schemaVersion: 'agent-kernel-execution-result/v1',
+    identity: { executionSuiteHash: CATALOG.sha256, evaluatorVersion: CATALOG.evaluatorVersion,
+      seedSetHash: CATALOG.seedSetHash, tickProfileHash: CATALOG.tickProfileHash },
+    scenario: { id: scenario.id, family: scenario.family, profile: scenario.profile },
+    run: { seed: request.seed, repeat: request.repeat, ...(request.variant ? { variant: request.variant } : {}),
+      requestedTicks: request.ticks,
+      frameHash: crypto.createHash('sha256').update(`${request.scenarioId}:${request.seed}`).digest('hex') },
+    artifactSummary: { frames: request.ticks, actions: 1, effects: 1, fulfilledEffects: 1, bytes: 1,
+      worldStateCheckpoints: { expectedTicks: request.checkpoints, loadedTicks: request.checkpoints,
+        missingTicks: [], complete: true } },
+    metrics,
+    invariants: Object.fromEntries(scenario.invariants.map((name) => [name, { status: 'passed' }])),
+    requiredGates: scenario.requiredGates.map((gate) => ({ id: gate.id, description: gate.description,
+      scope: gate.scope, status: gate.scope === 'seed' ? 'passed' : 'evidence_unavailable' })),
+    score: { status: 'scored', value: 80, availableScore: 80, availableWeight: 100, objectives: {} },
+    verdict: { status: 'passed', failedInvariants: [], unavailableInvariants: [], failedGates: [],
+      unavailableGates: [] },
+  };
+}
+
 function executionAdapter(request) {
-  const result = fixtureExecutionResult(CATALOG, request);
+  const result = fixtureExecutionResult(request);
   if (request.buildDir.includes(`${join('', 'cheap')}`)) {
     result.requiredGates[0].status = 'failed';
     result.verdict = { ...result.verdict, status: 'failed', failedGates: [result.requiredGates[0].id] };

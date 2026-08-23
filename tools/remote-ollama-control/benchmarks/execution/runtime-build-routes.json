@@ -1,7 +1,7 @@
 {
   "schemaVersion": "agent-kernel-runtime-build-routes/v1",
   "identity": {
-    "executionSuiteHash": "756dc1dbf706d76c05e19e5e7c9a2466f79ca4f083da87a5bbf390a8b32489d0"
+    "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d"
   },
   "routes": {
     "EX-TR-01": "tests/fixtures/benchmarks/execution/traversal/EX-TR-01",

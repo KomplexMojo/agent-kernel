@@ -12,6 +12,7 @@ const GATE_SCOPES = new Set(['seed', 'aggregate', 'paired_variant', 'replay']);
 const GATE_LEAF_OPERATORS = new Set(['min', 'max', 'exact', 'range', 'changed_in_direction', 'rate']);
 const GATE_COMPOSITE_OPERATORS = new Set(['all', 'any']);
 const RATE_DENOMINATORS = new Set(['seeds', 'repeats', 'variants']);
+const METRIC_PURPOSES = new Set(['qualification', 'diagnostic']);
 
 function isObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -48,7 +49,7 @@ function validateContract(contract) {
   assertKeys(contract, new Set([
     'schemaVersion', 'evaluatorVersion', 'qualification', 'profiles', 'invariants', 'metrics',
   ]), 'execution contract');
-  if (contract.schemaVersion !== 'agent-kernel-execution-metric-contract/v1') throw new Error('invalid execution metric contract');
+  if (contract.schemaVersion !== 'agent-kernel-execution-metric-contract/v2') throw new Error('invalid execution metric contract');
   if (typeof contract.evaluatorVersion !== 'string' || contract.evaluatorVersion === '') throw new Error('evaluatorVersion is required');
   if (!isObject(contract.profiles) || !isObject(contract.metrics) || !isObject(contract.invariants)) {
     throw new Error('profiles, metrics, and invariants are required');
@@ -85,10 +86,25 @@ function validateContract(contract) {
     if (typeof invariant.description !== 'string' || invariant.description === '') throw new Error(`invariant ${name} description required`);
   }
   for (const [name, metric] of Object.entries(contract.metrics)) {
-    assertKeys(metric, new Set(['unit']), `metric ${name}`);
+    assertKeys(metric, new Set(['unit', 'purpose']), `metric ${name}`);
     if (typeof metric.unit !== 'string' || metric.unit === '') throw new Error(`metric ${name} unit required`);
+    if ('purpose' in metric && !METRIC_PURPOSES.has(metric.purpose)) throw new Error(`metric ${name} purpose invalid`);
   }
   return contract;
+}
+
+function predicateMetrics(predicate) {
+  if (GATE_COMPOSITE_OPERATORS.has(predicate.operator)) return predicate.predicates.flatMap(predicateMetrics);
+  return predicate.source === 'metric' ? [predicate.ref] : [];
+}
+
+function scenarioPurpose(scenario, contract) {
+  const metrics = [
+    ...Object.keys(scenario.objectives),
+    ...scenario.requiredGates.flatMap((gate) => predicateMetrics(gate.predicate)),
+  ];
+  return metrics.some((name) => contract.metrics[name]?.purpose !== 'diagnostic')
+    ? 'qualification' : 'diagnostic';
 }
 
 function validateNumericThreshold(operator, threshold, label) {
@@ -252,7 +268,14 @@ function loadExecutionCatalog(catalogDir = EXECUTION_CATALOG_DIR) {
     if (!Array.isArray(document.scenarios) || document.scenarios.length !== 5) {
       throw new Error(`execution catalog ${family} expected 5 scenarios`);
     }
-    for (const scenario of document.scenarios) validateScenario(scenario, family, contract, seen, gateSeen);
+    for (const scenario of document.scenarios) {
+      validateScenario(scenario, family, contract, seen, gateSeen);
+      for (const gate of scenario.requiredGates) {
+        gate.purpose = predicateMetrics(gate.predicate)
+          .some((name) => contract.metrics[name]?.purpose === 'diagnostic') ? 'diagnostic' : 'qualification';
+      }
+      scenario.purpose = scenarioPurpose(scenario, contract);
+    }
     documents.push(document);
     scenarios.push(...document.scenarios);
     familyCounts[family] = document.scenarios.length;

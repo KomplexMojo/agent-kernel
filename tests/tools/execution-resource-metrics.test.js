@@ -66,7 +66,7 @@ function extract(states, { initialActors } = {}) {
     },
     simConfig: { layout: { data: { width: 5, height: 5, tiles: ['.....', '.....', '.....', '.....', '.....'] } } },
     requestedTicks: 2,
-    worldStateCheckpoints: { states },
+    worldStateCheckpoints: { expectedTicks: states.map((state) => state.tick), states },
   }, CONTRACT);
   return metrics;
 }
@@ -85,6 +85,25 @@ test('every resource metric is unavailable when no checkpoints were captured', (
   for (const name of RESOURCE_METRICS) {
     assert.equal(metrics[name].status, 'evidence_unavailable', `${name} must not be scored without checkpoints`);
   }
+});
+
+test('checkpoint observations are labeled and require the complete declared series', () => {
+  const states = [
+    checkpoint(0, { actors: [actorAt('delver_1', { x: 1, y: 1 })], resources: [vitalResource({ x: 3, y: 3 })] }),
+    checkpoint(2, { actors: [actorAt('delver_1', { x: 3, y: 3 })], resources: [] }),
+  ];
+  const complete = extract(states);
+  assert.equal(complete.single_consumption.evidence, 'observation');
+
+  const { metrics } = extractExecutionMetrics({
+    tickFrames: [], requestedTicks: 2,
+    runSummary: { outcome: 'success', metrics: { ticks: 2 } },
+    initialState: { actors: [] },
+    simConfig: { layout: { data: { width: 5, height: 5, tiles: [] } } },
+    worldStateCheckpoints: { expectedTicks: [0, 1, 2], states },
+  }, CONTRACT);
+  assert.equal(metrics.single_consumption.status, 'evidence_unavailable');
+  assert.match(metrics.single_consumption.reason, /complete declared/);
 });
 
 test('a single checkpoint proves nothing, because collection is a difference between two', () => {

@@ -144,6 +144,65 @@ test("parallel abstract catalog aligns one-to-one with all 100 content scenarios
   )), true);
 });
 
+test("parallel component identities and ordering do not encode the optimal role", () => {
+  const parallel = loadAbstractPlanCatalog("parallel");
+  const allIds = new Set();
+  let optimalFirst = 0;
+  let optimalSecond = 0;
+
+  for (const scenario of parallel.scenarios) {
+    const selected = new Set(scenario.reference.selections.map((entry) => entry.componentId));
+    const bySignal = new Map();
+    scenario.problem.components.forEach((component, position) => {
+      assert.match(component.id, /^p-[a-f0-9]{12}$/);
+      assert.equal(allIds.has(component.id), false, `reused opaque component id ${component.id}`);
+      allIds.add(component.id);
+      const signal = component.signals.join(",");
+      if (!bySignal.has(signal)) bySignal.set(signal, []);
+      bySignal.get(signal).push({ component, position });
+    });
+    for (const pair of bySignal.values()) {
+      assert.equal(pair.length, 2);
+      pair.sort((left, right) => left.position - right.position);
+      assert.equal(selected.has(pair[0].component.id) || selected.has(pair[1].component.id), true);
+      if (selected.has(pair[0].component.id)) optimalFirst += 1;
+      else optimalSecond += 1;
+    }
+  }
+
+  assert.ok(optimalFirst > 0, "every optimal component sorts after its distractor");
+  assert.ok(optimalSecond > 0, "every optimal component sorts before its distractor");
+});
+
+test("parallel generator rejects verdict and optimum perturbations", async () => {
+  const {
+    buildParallelScenario,
+    validateParallelScenarioProjection,
+  } = await import("../../tools/benchmark/generate-abstract-parallel.mjs");
+  const catalog = loadScenarioCatalog();
+  const source = catalog.scenarios[0];
+  const generated = buildParallelScenario(source, catalog.sha256);
+
+  const wrongVerdict = structuredClone(generated);
+  wrongVerdict.expectedOutcome = source.expectedOutcome === "success" ? "budget_denied" : "success";
+  assert.throws(
+    () => validateParallelScenarioProjection(wrongVerdict, source),
+    /expected outcome must match validated source scenario/,
+  );
+
+  const wrongOptimum = structuredClone(generated);
+  const selectedId = wrongOptimum.reference.selections[0].componentId;
+  const selected = wrongOptimum.problem.components.find((entry) => entry.id === selectedId);
+  const distractor = wrongOptimum.problem.components.find((entry) => (
+    entry.id !== selectedId && entry.signals[0] === selected.signals[0]
+  ));
+  [selected.unitCost, distractor.unitCost] = [distractor.unitCost, selected.unitCost];
+  assert.throws(
+    () => validateParallelScenarioProjection(wrongOptimum, source),
+    /reference is not the unique mapped optimum/,
+  );
+});
+
 test("parallel hidden mappings reconstruct every canonical content payload", () => {
   const content = loadScenarioCatalog();
   const parallel = loadAbstractPlanCatalog("parallel");
