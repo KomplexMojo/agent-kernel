@@ -953,6 +953,17 @@ function parseHazardVitalSpec(value, field, hazardIndex) {
     return { kind: "one-time", amount: 0 };
   }
   const parts = value.split(":").map((s) => s.trim());
+  // A bare amount means one-time:<amount>. Models write `mana=10` overwhelmingly and always have:
+  // the field is called `mana` on hazard and on resource, and on resource it IS an integer. The
+  // prefixed grammar exists for the regen case, not the common one, so requiring it everywhere
+  // taxes the ordinary spelling. Accepting the shorthand removes the mismatch instead of
+  // documenting it -- 14 of 21 failures in a 43-attempt sample were exactly this.
+  if (parts.length === 1 && /^[0-9]+$/.test(parts[0])) {
+    return {
+      kind: "one-time",
+      amount: parseNonNegativeIntStrict(parts[0], `hazard[${hazardIndex}] ${field} amount`),
+    };
+  }
   if (parts[0] === "one-time" && parts.length === 2) {
     const amount = parseNonNegativeIntStrict(parts[1], `hazard[${hazardIndex}] ${field} amount`);
     return { kind: "one-time", amount };
@@ -966,7 +977,7 @@ function parseHazardVitalSpec(value, field, hazardIndex) {
     }
     return { kind: "regen", current, max, regen };
   }
-  throw new Error(`hazard[${hazardIndex}] ${field} must be one-time:<amount> or regen:<current>:<max>:<regen>.`);
+  throw new Error(`hazard[${hazardIndex}] ${field} must be a plain amount, one-time:<amount>, or regen:<current>:<max>:<regen>; got "${value}".`);
 }
 
 function placementVitalToHazardVital(vital) {

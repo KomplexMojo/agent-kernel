@@ -511,3 +511,66 @@ test("an out-of-enum value still reports the enum, and quotes what was actually 
   assert.match(message, /got "forever"/);
   assert.doesNotMatch(message, /is required/);
 });
+
+// A plain amount is the ordinary spelling of a hazard vital, and requiring the prefixed grammar
+// everywhere taxed it. Models write `mana=10`: the field is named `mana` on hazard and on resource,
+// and on resource it IS an integer. In a 43-attempt sample after the field was made more prominent,
+// 14 of 21 failures were this one mismatch.
+for (const [label, value] of [
+  ["a plain amount", "10"],
+  ["a plain zero", "0"],
+  ["the explicit one-time form", "one-time:5"],
+  ["the regen form", "regen:4:4:1"],
+]) {
+  test(`a hazard vital accepts ${label}`, () => {
+    const outDir = mkdtempSync(join(os.tmpdir(), "ak-hazard-vital-"));
+    const result = runCli([
+      "create",
+      "--hazard", `affinity=fire;expression=emit;proximityRadius=2;mana=${value};durability=${value}`,
+      "--run-id", "run_hazard_vital",
+      "--created-at", "2026-08-24T00:00:00.000Z",
+      "--out-dir", outDir,
+    ]);
+    assert.equal(result.status, 0, `mana=${value} should be accepted: ${(result.stderr || result.stdout || "").trim()}`);
+  });
+}
+
+test("a plain amount is the one-time form, not a separate kind", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-hazard-vital-eq-"));
+  runCliOk([
+    "create",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=10",
+    "--run-id", "run_hazard_plain",
+    "--created-at", "2026-08-24T00:00:00.000Z",
+    "--out-dir", outDir,
+  ]);
+  const plain = readJson(join(outDir, "spec.json")).configurator?.inputs?.levelGen?.hazards?.[0];
+
+  const outDirExplicit = mkdtempSync(join(os.tmpdir(), "ak-hazard-vital-eq2-"));
+  runCliOk([
+    "create",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=one-time:10",
+    "--run-id", "run_hazard_plain",
+    "--created-at", "2026-08-24T00:00:00.000Z",
+    "--out-dir", outDirExplicit,
+  ]);
+  const explicit = readJson(join(outDirExplicit, "spec.json")).configurator?.inputs?.levelGen?.hazards?.[0];
+
+  // Shorthand, not a new behaviour: the two spellings must produce identical artifacts.
+  assert.deepEqual(plain, explicit);
+});
+
+test("a hazard vital still rejects a value in no recognised form", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-hazard-vital-bad-"));
+  const result = runCli([
+    "create",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=nonsense",
+    "--run-id", "run_hazard_bad",
+    "--created-at", "2026-08-24T00:00:00.000Z",
+    "--out-dir", outDir,
+  ]);
+  assert.notEqual(result.status, 0);
+  const message = `${result.stdout}${result.stderr}`;
+  assert.match(message, /plain amount, one-time:<amount>, or regen:/);
+  assert.match(message, /got "nonsense"/);
+});
