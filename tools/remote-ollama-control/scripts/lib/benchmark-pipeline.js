@@ -228,8 +228,8 @@ function boundedLog(filePath, stdout, stderr, maxBytes = 1024 * 1024) {
   fs.writeFileSync(filePath, value.subarray(0, maxBytes));
 }
 
-// The full matrix is 7 configurations x 100 scenarios x up to 3 passes: 700 attempts at the floor
-// and 2100 at the ceiling. The last recorded run averaged 58s per attempt while including the cheap
+// The full matrix is 6 configurations x 100 scenarios x up to 3 passes: 600 attempts at the floor
+// and 1800 at the ceiling. The last recorded run averaged 58s per attempt while including the cheap
 // 9B canary, and the real matrix is weighted toward 27-30B, so the ceiling sits well past a day.
 // This was 24h until 2026-08-23, which meant the guard rail would SIGTERM the run it protects --
 // and because spawnSync kills the child, the failure arrives as an opaque "content generation

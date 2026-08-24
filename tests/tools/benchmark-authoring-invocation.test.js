@@ -30,7 +30,7 @@ function seedAuthoringRun(retentionDir, name, { manifest = true } = {}) {
   return dir;
 }
 
-// The full nightly matrix is 7 configurations x 100 scenarios x up to 3 passes (700-2100 attempts).
+// The full nightly matrix is 6 configurations x 100 scenarios x up to 3 passes (600-1800 attempts).
 // At the 58s/attempt rate the last recorded run observed, the ceiling is well past a day, so a 24h
 // cap would SIGTERM the run it exists to protect.
 test('the authoring timeout leaves room for a full matrix rather than capping it below one day', () => {

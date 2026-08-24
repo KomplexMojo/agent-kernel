@@ -3,7 +3,7 @@
 /**
  * Interim progress for a content-gen run.
  *
- * A full matrix is 7 configurations x 100 scenarios x up to 3 passes and takes days. Until this
+ * A full matrix is 6 configurations x 100 scenarios x up to 3 passes and takes days. Until this
  * module existed the only observable states were "started" and "finished" -- so a run that had
  * already become worthless (a configuration mathematically unable to qualify, a rig sliding toward
  * the collapse floors) stayed indistinguishable from a healthy one until it ended.
