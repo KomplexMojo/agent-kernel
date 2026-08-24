@@ -4,9 +4,22 @@ const fs = require('fs');
 const path = require('path');
 const { table } = require('./markdown');
 
+// scenarioVerdictRate was 0.99 until 2026-08-23. Over a 100-scenario set that permits exactly one
+// miss, and canStillQualify is optimistic -- it credits every remaining attempt as perfect -- so a
+// configuration was eliminated by its SECOND miss, often within the first quarter of its run.
+// Lowered to 0.96 (four misses) on the maintainer's call, to leave a gate that a strong model can
+// actually clear while still demanding near-perfection.
+//
+// toolCallRate stays 0.99 deliberately: producing a tool call at all is a harness-level
+// expectation, not a quality judgment, and it currently runs at 1.0. Only the verdict gate moved.
+//
+// Thresholds are NOT part of the content-gen matrix hash (that covers contractVersion, repeatPolicy
+// and configurations), so this does not invalidate AK_BENCHMARK_MATRIX_HASH and needs no identity
+// regeneration on the runner. Each published result records the thresholds it was judged against,
+// so results either side of this change remain readable rather than silently incomparable.
 const DEFAULT_THRESHOLDS = Object.freeze({
   toolCallRate: 0.99,
-  scenarioVerdictRate: 0.99,
+  scenarioVerdictRate: 0.96,
   averageScore: 75
 });
 

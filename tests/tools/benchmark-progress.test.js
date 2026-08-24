@@ -169,3 +169,35 @@ test('the summary is serializable, since it crosses a process and a git branch',
 // - scenarioCount of 0
 // - mixed tiers, asserting the tier breakdown
 // - a configuration where every attempt is an infrastructure failure
+
+// The gate that actually binds. Over a 100-scenario set 0.99 permits exactly one miss, and
+// canStillQualify is optimistic — it credits every remaining attempt as perfect — so a
+// configuration used to be eliminated by its second miss. 0.96 permits four. Pinned because the
+// value is a maintainer calibration decision, not an implementation detail to drift.
+test('the verdict gate permits four misses in a hundred, and the tool-call gate still permits one', () => {
+  const { DEFAULT_THRESHOLDS, canStillQualify } = require('../../tools/remote-ollama-control/scripts/lib/ak-compare');
+
+  assert.equal(DEFAULT_THRESHOLDS.scenarioVerdictRate, 0.96);
+  assert.equal(DEFAULT_THRESHOLDS.toolCallRate, 0.99);
+  assert.equal(DEFAULT_THRESHOLDS.averageScore, 75);
+
+  const attempt = (passed) => ({
+    recordKind: 'content_gen_attempt',
+    toolCallProduced: true,
+    scenarioVerdict: { passed },
+    score: 100,
+  });
+
+  // Four misses with the rest of the set still to run: survivable at 0.96, and was not at 0.99.
+  const fourMisses = [...Array(4)].map(() => attempt(false)).concat([...Array(6)].map(() => attempt(true)));
+  assert.equal(canStillQualify(fourMisses, { remainingAttempts: 90 }), true);
+
+  // Five is not, whatever happens next — the ceiling is already 0.95.
+  const fiveMisses = [...Array(5)].map(() => attempt(false)).concat([...Array(5)].map(() => attempt(true)));
+  assert.equal(canStillQualify(fiveMisses, { remainingAttempts: 90 }), false);
+
+  // The live shape that prompted the change: qwen3:14b sat at 12 misses in 46 attempts, so its
+  // ceiling was 0.88 and it fails the new gate too. Lowering the bar did not lower it to nothing.
+  const observed = [...Array(12)].map(() => attempt(false)).concat([...Array(34)].map(() => attempt(true)));
+  assert.equal(canStillQualify(observed, { remainingAttempts: 54 }), false);
+});
