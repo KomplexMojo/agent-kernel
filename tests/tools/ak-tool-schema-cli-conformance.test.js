@@ -193,3 +193,20 @@ test("the text field does not present itself as a place to author entities", () 
     assert.match(text.description, new RegExp(entity, "i"));
   }
 });
+
+// The schema description for a hazard vital must not name the other type. An earlier revision read
+// "this is a STRING here; resource.mana is an integer", and naming the contrast beside the field
+// tripled its use and flipped its spelling: 25% of hazards carried mana and 100% of those were
+// well-formed before, against 77% carrying it and most malformed after. The lesson is narrow and
+// worth pinning -- a description is a prompt, and mentioning a wrong form teaches it.
+test("hazard vital descriptions do not name the type they are not", () => {
+  const hazard = AK_CREATE_TOOL.function.parameters.properties.hazard.items.properties;
+  for (const field of ["mana", "durability"]) {
+    assert.doesNotMatch(
+      hazard[field].description, /resource\.mana|is an integer|STRING here/i,
+      `${field} contrasts itself with another field's type — that priming tripled malformed values`,
+    );
+  }
+  // Both spellings the CLI accepts must be offered, with the common one first.
+  assert.equal(hazard.mana.examples[0], 10, "lead with the plain amount, which is what models write");
+});

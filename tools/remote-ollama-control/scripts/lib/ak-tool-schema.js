@@ -185,21 +185,29 @@ const AK_CREATE_TOOL = {
               proximityRadius: { type: 'integer', minimum: 1, description: 'Tiles around the hazard its affinity pressure reaches' },
               stacks: { type: 'integer', minimum: 1, default: 1 },
               blocking: { type: 'boolean', description: 'Whether the hazard blocks movement through its tile' },
-              // The format was carried in prose only, so nothing could check a value before the CLI
-              // rejected it and no derived test could generate a valid one. `pattern` states the
-              // grammar parseHazardVitalSpec accepts; `examples` gives any generator a known-good
-              // value. (current <= max is semantic and stays with the parser.)
+              // A plain amount is the ordinary spelling and is what models write; the prefixed
+              // forms exist for the regen case. `pattern` states the grammar parseHazardVitalSpec
+              // accepts, `examples` leads with the common form so a generator and a model both
+              // reach for it first. (current <= max is semantic and stays with the parser.)
+              //
+              // The description deliberately does NOT contrast this field with resource.mana. An
+              // earlier revision said "this is a STRING here; resource.mana is an integer", and
+              // naming the other type beside the field tripled its use and flipped its spelling to
+              // integers: 25% of hazards carried mana and 100% of those were well-formed before,
+              // against 77% carrying it and most malformed after. Do not reintroduce the contrast.
               mana: {
-                type: 'string',
-                pattern: '^(one-time:[0-9]+|regen:[0-9]+:[0-9]+:[0-9]+)$',
-                examples: ['one-time:5', 'regen:4:4:1'],
-                description: 'Optional mana vital as "one-time:<amount>" or "regen:<current>:<max>:<regen>", e.g. "regen:4:4:1". Note this is a STRING here; resource.mana is an integer.'
+                type: ['integer', 'string'],
+                minimum: 0,
+                pattern: '^([0-9]+|one-time:[0-9]+|regen:[0-9]+:[0-9]+:[0-9]+)$',
+                examples: [10, 'regen:4:4:1'],
+                description: 'Optional mana vital. A plain amount grants it once, e.g. 10. Use "regen:<current>:<max>:<regen>" for a refilling pool, e.g. "regen:4:4:1".'
               },
               durability: {
-                type: 'string',
-                pattern: '^(one-time:[0-9]+|regen:[0-9]+:[0-9]+:[0-9]+)$',
-                examples: ['one-time:6', 'regen:6:6:0'],
-                description: 'Optional durability vital, same format as mana'
+                type: ['integer', 'string'],
+                minimum: 0,
+                pattern: '^([0-9]+|one-time:[0-9]+|regen:[0-9]+:[0-9]+:[0-9]+)$',
+                examples: [6, 'regen:6:6:0'],
+                description: 'Optional durability vital, same forms as mana'
               }
             },
             required: ['affinity', 'expression', 'proximityRadius']
