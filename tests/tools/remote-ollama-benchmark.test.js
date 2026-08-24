@@ -47,7 +47,7 @@ test("hardware benchmark reserves secondary and maps every model to its declared
   assert.deepEqual([...byModel.get("qwen3.8:27b")].sort(), ["dual", "primary"]);
   // qwen3.5:27b mirrors qwen3.8:27b exactly — same size, same profiles, same settings — so the
   // only thing that differs between them is the generation. That is the whole point of its row.
-  assert.deepEqual([...byModel.get("qwen3.5:27b")].sort(), ["dual", "primary"]);
+  assert.deepEqual([...byModel.get("qwen3.5:27b")].sort(), ["dual"]);
   assert.deepEqual([...byModel.get("qwen3:14b")].sort(), ["primary"]);
   assert.deepEqual([...byModel.get("qwen3.5:9b")].sort(), ["primary"]);
   assert.equal(byModel.has("qwen2.5-coder:14b"), false, "dropped: it scored below the 7b");
@@ -55,23 +55,25 @@ test("hardware benchmark reserves secondary and maps every model to its declared
   assert.equal(byModel.has("qwen3-coder:30b"), false, "dropped: same digest as :30b-a3b-q4_K_M");
 });
 
-test("content-gen matrix plans seven primary-or-dual configurations in resource order", () => {
+test("content-gen matrix plans six primary-or-dual configurations in resource order", () => {
   const config = loadConfig(ROOT);
   const plan = buildContentGenMatrix(config, { scenarioCount: 100 });
 
   assert.equal(plan.contractVersion, "content-gen-matrix-v1");
-  assert.equal(plan.sha256, "21d135595cf539764f9df8f94fb6334f027f6a51f93eb467e9512631aaa728c2");
-  assert.equal(plan.configurationCount, 7);
+  // Pinned: the matrix hash is run identity, and a silent change makes two runs look
+  // comparable when they measured different things. It moved on 2026-08-24 when
+  // qwen3.5:27b left the primary profile.
+  assert.equal(plan.sha256, "58f201d394c7231b8e14f477aad6cce8d9419d3c3cce2561f7d6b07bf11796f1");
+  assert.equal(plan.configurationCount, 6);
   assert.deepEqual(plan.repeatPolicy, {
     minimumCompletePasses: 1,
     maximumPasses: 3,
     earlyStop: "mathematically_lossless",
   });
-  assert.deepEqual(plan.callBounds, { minimum: 700, maximum: 2100 });
+  assert.deepEqual(plan.callBounds, { minimum: 600, maximum: 1800 });
   assert.deepEqual(plan.configurations.map((entry) => entry.configurationId), [
     "cg-v1--qwen3.5_9b--primary--ctx32768--out4096",
     "cg-v1--qwen3_14b--primary--ctx32768--out4096",
-    "cg-v1--qwen3.5_27b--primary--ctx32768--out4096",
     "cg-v1--qwen3.8_27b--primary--ctx32768--out4096",
     "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
     "cg-v1--qwen3.8_27b--dual--ctx65536--out32768",
@@ -86,7 +88,7 @@ test("content-gen matrix plans seven primary-or-dual configurations in resource 
   }
   assert.deepEqual(profilesByModel.get("qwen3-coder:30b-a3b-q4_K_M"), ["dual"]);
   assert.deepEqual(profilesByModel.get("qwen3.8:27b"), ["primary", "dual"]);
-  assert.deepEqual(profilesByModel.get("qwen3.5:27b"), ["primary", "dual"]);
+  assert.deepEqual(profilesByModel.get("qwen3.5:27b"), ["dual"]);
   assert.deepEqual(profilesByModel.get("qwen3:14b"), ["primary"]);
   assert.deepEqual(profilesByModel.get("qwen3.5:9b"), ["primary"]);
 
@@ -123,10 +125,10 @@ test("content-gen dry run exposes the complete offline matrix and exact repeat b
     complex: 25,
     constrained: 25,
   });
-  assert.equal(output.matrix.configurationCount, 7);
+  assert.equal(output.matrix.configurationCount, 6);
   assert.equal(output.runsPerScenario, 3);
-  assert.deepEqual(output.matrix.callBounds, { minimum: 700, maximum: 2100 });
-  assert.equal(output.matrix.configurations.length, 7);
+  assert.deepEqual(output.matrix.callBounds, { minimum: 600, maximum: 1800 });
+  assert.equal(output.matrix.configurations.length, 6);
 });
 
 // A state directory whose profile is unmistakably running: the pid is this very test process, so

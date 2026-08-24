@@ -6,8 +6,8 @@
     "Single-GPU benchmarks run only on the primary profile; the secondary card is reserved for dual.",
     "qwen3-coder:30b was removed 2026-08-22: `ollama list` gives it and qwen3-coder:30b-a3b-q4_K_M the same digest (06c1097efce0, 18 GB). They were one model under two tags, so the matrix measured it twice. The 2.5-point spread between those two runs is the noise floor at one pass \u2014 treat any narrower difference as nothing.",
     "qwen3.5:27b mirrors qwen3.8:27b's profiles and settings on purpose. Same parameter count, same context and output, one variable: generation. Cross-profile rows are NOT comparable \u2014 primary is 32k/4k and dual is 64k/32k, so GPU count, context and output all change together.",
-    "The canary moved from qwen2.5-coder:7b to qwen3.5:9b on 2026-08-22. qwen2.5-coder:14b was dropped first (33.4 against a 75 bar, BELOW the 7b's 37.7 \u2014 formatting noise, not capability), and the 7b followed once a current small model was available: at 3 months old it was drifting away from the generation everything else in the matrix belongs to, which makes a uniform drop harder to read as 'harness' rather than 'the old model finally fell over'."
-  ],
+    "The canary moved from qwen2.5-coder:7b to qwen3.5:9b on 2026-08-22. qwen2.5-coder:14b was dropped first (33.4 against a 75 bar, BELOW the 7b's 37.7 \u2014 formatting noise, not capability), and the 7b followed once a current small model was available: at 3 months old it was drifting away from the generation everything else in the matrix belongs to, which makes a uniform drop harder to read as 'harness' rather than 'the old model finally fell over'.",
+    "qwen3.5:27b dropped from primary on 2026-08-24. Across 100 attempts each, primary and dual were indistinguishable on quality (26 vs 24 misses, z=0.33) but primary's median LLM call was 175.8s against dual's 62.2s -- 2.8x slower, ~4.9h of a 14.3h run. At 0.74 verdict it was also the config furthest from the 0.96 gate, so the time bought no answer. qwen3.8:27b KEEPS primary deliberately: it projects to exactly 0.96 and is the cheapest configuration that could qualify, and minimumSuccessfulConfiguration sorts on GPU count -- drop every primary and the benchmark can never report that one GPU suffices."],
   "benchmark": {
     "defaultScenarios": [
       "vitest-generation",
@@ -52,10 +52,7 @@
       "use": "preferred Qwen 3.8 tool-calling model; hybrid CPU/GPU on primary and high GPU residency on dual"
     },
     "qwen3.5:27b": {
-      "profiles": [
-        "primary",
-        "dual"
-      ],
+      "profiles": ["dual"],
       "parameterBillions": 27,
       "sizeGb": 17.0,
       "family": "qwen3.5",

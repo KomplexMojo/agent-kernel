@@ -243,8 +243,8 @@ first `benchmark-results` branch publication.
 
 ### Heartbeat and interim progress
 
-A full matrix is 7 configurations × 100 scenarios × up to 3 passes — 700 attempts at the floor,
-2,100 at the ceiling — and runs for **days**. Two things follow, and both are wired in:
+A full matrix is 6 configurations × 100 scenarios × up to 3 passes — 600 attempts at the floor,
+1,800 at the ceiling — and runs for **days**. Two things follow, and both are wired in:
 
 **The agent's failure mode is silence, not error.** Two incidents exited zero the whole time: 147
 consecutive nightlies dying on a deleted branch ref, and a nine-day stretch returning `dry_run` on
