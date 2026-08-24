@@ -464,3 +464,50 @@ test.skip("ak create --dry-run for V3 resource with invalid permanenceMode exits
 // - `--hazard` using the minimum valid hazard spec should emit one V3 hazard artifact.
 // - duplicate `--hazard` ids should either fail deterministically or produce documented artifact ordering.
 // - hazard V3 with omitted durability should retain the default one-time durability vital.
+
+// A missing field and an invalid value are different faults with different fixes, and the V3
+// resource parser reported them identically: an absent `vital` was announced as
+// "vital must be one of: health, mana, stamina", which sends the reader hunting for a bad value
+// that was never sent. That message misattributed 57 of 700 benchmark attempts to the models on
+// 2026-08-23, and misled the analysis of them until someone read the parser.
+function createResource(spec) {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-resource-msg-"));
+  return runCli([
+    "create", "--resource", spec,
+    "--run-id", "run_resource_message",
+    "--created-at", "2026-08-24T00:00:00.000Z",
+    "--out-dir", outDir,
+  ]);
+}
+
+test("a missing vital-payload field is reported as missing, and names the key that demanded it", () => {
+  // permanenceMode alone puts the parser in the vital branch. The author asked for an affinity
+  // resource, so the actionable advice is to drop the key, not to invent a vital.
+  const result = createResource("affinity=fire;expression=emit;stacks=1;mana=25;permanenceMode=consumable");
+  assert.notEqual(result.status, 0);
+  const message = `${result.stdout}${result.stderr}`;
+  assert.match(message, /vital is required for a vital payload/);
+  assert.match(message, /because permanenceMode is set/);
+  assert.match(message, /omit permanenceMode/);
+  // The old wording claimed the value was out of range. It never was — there was no value.
+  assert.doesNotMatch(message, /vital must be one of/);
+});
+
+test("a vital payload missing permanenceMode says so, rather than blaming its enum", () => {
+  const result = createResource("vital=health;delta=15");
+  assert.notEqual(result.status, 0);
+  const message = `${result.stdout}${result.stderr}`;
+  assert.match(message, /permanenceMode is required for a vital payload/);
+  assert.match(message, /because vital, delta are set/);
+  assert.doesNotMatch(message, /permanenceMode must be one of/);
+});
+
+test("an out-of-enum value still reports the enum, and quotes what was actually sent", () => {
+  const result = createResource("permanenceMode=forever;vital=health;delta=1");
+  assert.notEqual(result.status, 0);
+  const message = `${result.stdout}${result.stderr}`;
+  assert.match(message, /permanenceMode must be one of: consumable, level, permanent/);
+  // Quoting the value is what separates this case from the two above at a glance.
+  assert.match(message, /got "forever"/);
+  assert.doesNotMatch(message, /is required/);
+});
