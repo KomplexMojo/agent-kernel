@@ -5,6 +5,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const { requestJson } = require('./ollama');
 const { AK_CREATE_TOOL } = require('./ak-tool-schema');
+const { buildPriceBrief } = require('./price-brief');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const AK_CLI = path.join(REPO_ROOT, 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs');
@@ -142,13 +143,18 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   const budgetInstruction = constrained
     ? `Set budgetTokens to ${scenario.budget}. `
     : 'Omit budgetTokens — the budget is unconstrained. ';
+  // The model used to be handed a budget number and no prices, so authoring within it was a guess.
+  // Budget and spatial failures were 55% of what failed once the schema defects were fixed, and the
+  // constrained tier failed at 56% against simple's 18%. The brief is generated from the
+  // Allocator's own base-costs.json, never restated, so a price change reaches the model.
   const systemPrompt =
     'You are an agent-kernel dungeon designer. When given a dungeon creation request, ' +
     'call the ak_create tool with appropriate parameters. Use the exact prompt text as ' +
     `the text parameter. ${budgetInstruction}Always set emitIntermediates ` +
     'to true. Rooms are generic containers — affinity pressure belongs in hazards. ' +
     'Hazards are placed by proximityRadius, never by coordinates. ' +
-    'For delver goals use only: max_mana, mana_regen, or maximize_spend. Wardens have no goals.';
+    'For delver goals use only: max_mana, mana_regen, or maximize_spend. Wardens have no goals.\n\n' +
+    buildPriceBrief();
 
   const chatBody = {
     model,
