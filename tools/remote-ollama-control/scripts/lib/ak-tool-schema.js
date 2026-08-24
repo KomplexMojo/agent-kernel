@@ -100,10 +100,32 @@ const AK_CREATE_TOOL = {
     parameters: {
       type: 'object',
       required: ['text', 'runId', 'outDir'],
+      // `create` refuses a call that authors nothing, and until now the schema permitted exactly
+      // that: text/runId/outDir were the only required fields, so "describe it in prose and author
+      // no entities" was a fully valid call that always failed. It is not a hypothetical shape --
+      // it is what models produce under load. On 2026-08-23 it cost 16 of 700 attempts, every one
+      // of them omitting the entity keys entirely rather than sending empty arrays, and it appeared
+      // in six of the eight scenarios no configuration ever passed.
+      //
+      // The tell was in the text field: median length 447 characters in these failures against 325
+      // in passing calls. The model wrote MORE prose precisely when it authored LESS structure,
+      // because the schema marked the prose mandatory and the structure optional.
+      anyOf: [
+        { required: ['room'] },
+        { required: ['floorTile'] },
+        { required: ['hazard'] },
+        { required: ['resource'] },
+        { required: ['delver'] },
+        { required: ['warden'] }
+      ],
       properties: {
         text: {
           type: 'string',
-          description: 'Freeform authoring text describing what to create.'
+          description:
+            'Freeform authoring context for the request. This is NOT where the dungeon is authored '
+            + 'and describing entities here creates none of them — every element must be supplied '
+            + 'in the room, floorTile, hazard, resource, delver and warden arrays. At least one of '
+            + 'those is required.'
         },
         budgetTokens: {
           type: 'integer',

@@ -148,3 +148,48 @@ for (const [entity, flag] of Object.entries(ENTITY_FLAGS)) {
     });
   }
 }
+
+// The other direction: a shape the CLI refuses must be one the schema refuses too. Conformance is
+// two-sided, and this side is what the whole `create requires at least one authored object` class
+// was — a call the schema called valid and the CLI always rejected.
+test("a call that authors nothing is rejected by the CLI and unrepresentable in the schema", () => {
+  const outDir = mkdtempSync(join(tmpdir(), "ak-conformance-empty-"));
+  const result = spawnSync(process.execPath, [
+    AK_CLI, "create",
+    "--text", "Create eight rooms, three hazards and a delver party",
+    "--run-id", "run_authors_nothing",
+    "--created-at", "2026-08-24T00:00:00.000Z",
+    "--out-dir", outDir,
+  ], { cwd: ROOT, encoding: "utf8" });
+
+  assert.notEqual(result.status, 0, "the CLI should refuse a create that authors nothing");
+  assert.match(`${result.stdout}${result.stderr}`, /at least one authored object/);
+
+  // ...and the schema must no longer offer it. Prose in `text` authors nothing, and the parameters
+  // now say so structurally rather than trusting the model to infer it.
+  const parameters = AK_CREATE_TOOL.function.parameters;
+  const entityBranches = (parameters.anyOf || []).flatMap((branch) => branch.required || []);
+  assert.deepEqual(
+    [...entityBranches].sort(),
+    ["delver", "floorTile", "hazard", "resource", "room", "warden"],
+    "the top-level anyOf must require at least one authored entity",
+  );
+
+  // Every branch names a property that actually exists, or the constraint is unsatisfiable.
+  for (const entity of entityBranches) {
+    assert.ok(
+      parameters.properties[entity],
+      `the anyOf requires "${entity}" but the schema has no such property`,
+    );
+  }
+});
+
+test("the text field does not present itself as a place to author entities", () => {
+  const text = AK_CREATE_TOOL.function.parameters.properties.text;
+  // It is the one required string, so a model under load reaches for it. It has to say outright
+  // that describing an entity here creates nothing.
+  assert.match(text.description, /not where the dungeon is authored/i);
+  for (const entity of ["room", "hazard", "resource", "delver", "warden"]) {
+    assert.match(text.description, new RegExp(entity, "i"));
+  }
+});
