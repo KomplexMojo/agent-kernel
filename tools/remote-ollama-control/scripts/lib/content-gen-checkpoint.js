@@ -22,7 +22,7 @@ function manifestPath(resultDir) {
   return path.join(resultDir, MANIFEST_NAME);
 }
 
-function writeRunManifest(resultDir, { route, scenarioSet, matrix, scenarioIds, startedAt, diagnostic }) {
+function writeRunManifest(resultDir, { route, scenarioSet, matrix, scenarioIds, startedAt, diagnostic, authoringPolicy }) {
   fs.mkdirSync(resultDir, { recursive: true });
   const manifest = {
     schemaVersion: MANIFEST_SCHEMA,
@@ -33,6 +33,11 @@ function writeRunManifest(resultDir, { route, scenarioSet, matrix, scenarioIds, 
     diagnostic: diagnostic === true,
     scenarioSet,
     matrix,
+    // What the model was TOLD, which no pinned identity hash covered. scenarioSetHash covers the
+    // questions, matrixHash the configurations, executionSuiteHash the evaluation -- and the
+    // instructions sat outside all three, so adding the price brief on 2026-08-24 changed what was
+    // measured while every pinned hash held still.
+    authoringPolicy: authoringPolicy || null,
     scenarioIds: [...scenarioIds].sort((left, right) => left - right)
   };
   fs.writeFileSync(manifestPath(resultDir), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -70,6 +75,29 @@ function assertResumable(manifest, current) {
       + `(${manifest.matrix.sha256.slice(0, 12)}… → ${current.matrix.sha256.slice(0, 12)}…).`
     );
   }
+  // A run whose attempts were told different things is not one run. This refuses for the same
+  // reason as the two above, and names the field for the same reason.
+  const priorPolicy = manifest.authoringPolicy;
+  const currentPolicy = current.authoringPolicy;
+  if (currentPolicy) {
+    if (!priorPolicy) {
+      throw new Error(
+        'cannot resume: this run predates the authoring-policy record, so there is no way to tell '
+        + 'whether its attempts were given the same instructions and prices as new ones would be. '
+        + 'Start a fresh run.'
+      );
+    }
+    if (priorPolicy.sha256 !== currentPolicy.sha256) {
+      const what = priorPolicy.priceBriefSha256 !== currentPolicy.priceBriefSha256
+        ? 'the price brief changed' : 'the authoring instructions changed';
+      throw new Error(
+        `cannot resume: ${what} since this run started `
+        + `(${priorPolicy.sha256.slice(0, 12)}… → ${currentPolicy.sha256.slice(0, 12)}…). `
+        + 'Attempts told different things cannot share one result.'
+      );
+    }
+  }
+
   const known = new Set(manifest.scenarioIds);
   const added = current.scenarioIds.filter((index) => !known.has(index));
   if (added.length > 0) {

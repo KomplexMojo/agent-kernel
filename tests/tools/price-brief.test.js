@@ -69,3 +69,56 @@ test("the brief stays small enough to sit in every prompt", () => {
   // It rides on all 100 scenarios per configuration; a brief that bloats is a context tax.
   assert.ok(buildPriceBrief().length < 4000, "the price brief has grown past its budget");
 });
+
+// ---------------------------------------------------------------------------
+// What the model was TOLD, as identity.
+//
+// scenarioSetHash covers the questions, matrixHash the configurations, executionSuiteHash the
+// evaluation. Nothing covered the instructions — so adding the price brief on 2026-08-24 changed
+// what was being measured while all three pinned hashes sat still, and two runs would have looked
+// comparable. That is the silent-drift failure this repository cares most about.
+
+const { authoringPolicy } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
+const { assertResumable } = require("../../tools/remote-ollama-control/scripts/lib/content-gen-checkpoint");
+
+// assertResumable checks catalog, matrix, policy, scenario ids and configuration ids in that
+// order, so a fixture must satisfy all of them for the policy case to be the one under test.
+const IDENT = {
+  scenarioSet: { sha256: "s".repeat(64) },
+  matrix: { sha256: "m".repeat(64), configurationIds: ["cfg-a"] },
+  scenarioIds: [1, 2],
+};
+
+test("the authoring policy hashes the instructions and the prices together", () => {
+  const policy = authoringPolicy();
+  assert.match(policy.sha256, /^[0-9a-f]{64}$/);
+  assert.match(policy.priceBriefSha256, /^[0-9a-f]{64}$/);
+  // Two hashes, because "the prices moved" and "the wording moved" call for different responses.
+  assert.notEqual(policy.sha256, policy.priceBriefSha256);
+});
+
+test("a run refuses to resume once the prices it was told have changed", () => {
+  const prior = { ...IDENT, authoringPolicy: { sha256: "a".repeat(64), priceBriefSha256: "b".repeat(64) } };
+  const current = { ...IDENT, authoringPolicy: { sha256: "c".repeat(64), priceBriefSha256: "d".repeat(64) } };
+  assert.throws(() => assertResumable(prior, current), /price brief changed/);
+});
+
+test("a wording change is named as such, not as a price change", () => {
+  const brief = "e".repeat(64);
+  const prior = { ...IDENT, authoringPolicy: { sha256: "a".repeat(64), priceBriefSha256: brief } };
+  const current = { ...IDENT, authoringPolicy: { sha256: "c".repeat(64), priceBriefSha256: brief } };
+  // Same prices, different policy hash — the instructions moved.
+  assert.throws(() => assertResumable(prior, current), /authoring instructions changed/);
+});
+
+test("an unchanged policy resumes", () => {
+  const policy = { sha256: "a".repeat(64), priceBriefSha256: "b".repeat(64) };
+  assert.doesNotThrow(() => assertResumable({ ...IDENT, authoringPolicy: policy }, { ...IDENT, authoringPolicy: policy }));
+});
+
+test("a run predating the record refuses rather than silently merging", () => {
+  // No way to tell what those attempts were told, so they cannot be pooled with new ones.
+  const prior = { ...IDENT };
+  const current = { ...IDENT, authoringPolicy: { sha256: "c".repeat(64), priceBriefSha256: "d".repeat(64) } };
+  assert.throws(() => assertResumable(prior, current), /predates the authoring-policy record/);
+});
