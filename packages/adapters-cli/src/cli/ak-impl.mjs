@@ -1214,13 +1214,28 @@ function parseResourceSpec(value, resourceIndex) {
     let vitals = [];
     let permanenceMode = "consumable";
     if (hasVitalPayload) {
+      // Which key put us in this branch. Without it the messages below are unanswerable: an author
+      // who set only permanenceMode on an affinity resource is told a vital is required and has no
+      // way to see why. Naming the trigger turns "what?" into "drop this key, or complete the set".
+      const trigger = ["permanenceMode", "vital", "delta", "regen"].filter((key) => fields.has(key));
+      const because = `read as a vital payload because ${trigger.join(", ")} ${trigger.length === 1 ? "is" : "are"} set`;
+
+      // MISSING and INVALID are different faults and were reported identically. A missing field was
+      // announced as "must be one of <enum>", which sends the reader hunting for a bad value that
+      // was never sent -- it misled a whole failure analysis before anyone read this function.
+      if (!fields.has("permanenceMode")) {
+        throw new Error(`resource[${resourceIndex}] permanenceMode is required for a vital payload (${because}); it governs how long the vital delta persists.`);
+      }
       permanenceMode = fields.get("permanenceMode");
       if (!RESOURCE_ALLOWED_PERMANENCE_MODES.has(permanenceMode)) {
-        throw new Error(`resource[${resourceIndex}] permanenceMode must be one of: ${[...RESOURCE_ALLOWED_PERMANENCE_MODES].join(", ")}.`);
+        throw new Error(`resource[${resourceIndex}] permanenceMode must be one of: ${[...RESOURCE_ALLOWED_PERMANENCE_MODES].join(", ")}; got "${permanenceMode}".`);
+      }
+      if (!fields.has("vital")) {
+        throw new Error(`resource[${resourceIndex}] vital is required for a vital payload (${because}). For an affinity-only resource, omit ${trigger.join(", ")}.`);
       }
       const vitalKey = fields.get("vital");
-      if (!vitalKey || !RESOURCE_ALLOWED_VITAL_KEYS.has(vitalKey)) {
-        throw new Error(`resource[${resourceIndex}] vital must be one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(", ")}.`);
+      if (!RESOURCE_ALLOWED_VITAL_KEYS.has(vitalKey)) {
+        throw new Error(`resource[${resourceIndex}] vital must be one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(", ")}; got "${vitalKey}".`);
       }
       // delta is optional once regen is present: a regen-only resource is legal.
       if (!fields.has("delta") && !fields.has("regen")) {
