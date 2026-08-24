@@ -202,10 +202,7 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
     // Constrained scenarios are minimal specs; unconstrained ones can get large.
     max_tokens: settings.outputTokens || (constrained ? 4096 : 8192)
   };
-  // No `options: { num_ctx }` here. This posts to /v1/chat/completions, and Ollama's
-  // OpenAI-compatible shim discards `options` without a word -- it looked like it was working for
-  // months. The context is set on the serving process instead, via OLLAMA_CONTEXT_LENGTH in
-  // serviceEnvironment(). Re-adding it here would not restore the behaviour, only the illusion.
+  if (settings.contextTokens) chatBody.options = { num_ctx: settings.contextTokens };
 
   const llmStarted = Date.now();
   let chatResponse;
