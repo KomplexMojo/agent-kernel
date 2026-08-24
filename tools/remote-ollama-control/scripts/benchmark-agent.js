@@ -130,7 +130,18 @@ async function runBenchmarkAgent(options) {
   }
 
   const lock = acquireAgentLock(stateDir);
-  if (!lock.acquired) return { status: 'locked' };
+  if (!lock.acquired) {
+    // Why it is locked is the whole diagnostic. "locked" alone read identically whether another
+    // agent was working or a dead one had stranded the file, and the second state is permanent.
+    return { status: 'locked', heldBy: lock.heldBy ?? null, reason: lock.reason ?? 'unknown' };
+  }
+  if (lock.reclaimedFrom !== null && lock.reclaimedFrom !== undefined) {
+    // A stranded lock means the previous run died without releasing it. Say so: it is evidence of
+    // a crash or a kill that nothing else records.
+    process.stderr.write(
+      `reclaimed a stale agent lock from pid ${lock.reclaimedFrom}; the previous run did not exit cleanly\n`,
+    );
+  }
 
   try {
     const state = loadAgentState(stateDir);
