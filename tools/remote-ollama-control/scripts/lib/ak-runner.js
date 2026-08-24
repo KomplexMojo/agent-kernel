@@ -4,8 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
 const { requestJson } = require('./ollama');
+const crypto = require('crypto');
 const { AK_CREATE_TOOL } = require('./ak-tool-schema');
-const { buildPriceBrief } = require('./price-brief');
+const { buildPriceBrief, priceBriefHash } = require('./price-brief');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const AK_CLI = path.join(REPO_ROOT, 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs');
@@ -136,6 +137,43 @@ function classifyExecutionOutcome(runResult) {
   return 'execution_failed';
 }
 
+// The constant half of the system prompt, split only so it can be hashed. The assembled text is
+// byte-identical to what it was before the split: changing wording here would confound the very
+// comparison the hash exists to enable.
+const AUTHORING_INSTRUCTIONS_HEAD =
+  'You are an agent-kernel dungeon designer. When given a dungeon creation request, '
+  + 'call the ak_create tool with appropriate parameters. Use the exact prompt text as '
+  + 'the text parameter. ';
+const AUTHORING_INSTRUCTIONS_TAIL =
+  'Always set emitIntermediates '
+  + 'to true. Rooms are generic containers — affinity pressure belongs in hazards. '
+  + 'Hazards are placed by proximityRadius, never by coordinates. '
+  + 'For delver goals use only: max_mana, mana_regen, or maximize_spend. Wardens have no goals.';
+
+/**
+ * What the model was told, as identity.
+ *
+ * scenarioSetHash covers the questions, matrixHash the configurations, executionSuiteHash the
+ * evaluation. Nothing covered the INSTRUCTIONS -- so changing the prompt, or the prices inside it,
+ * moved what was being measured while all three pinned hashes sat still and two runs looked
+ * comparable. Adding the price brief on 2026-08-24 is exactly such a change.
+ *
+ * The scenario-specific half is deliberately excluded: the budget number and the prompt text are
+ * scenario data, already covered by scenarioSetHash. Only the harness's own contribution is here.
+ */
+function authoringPolicy() {
+  const brief = buildPriceBrief();
+  const canonical = JSON.stringify({
+    head: AUTHORING_INSTRUCTIONS_HEAD,
+    tail: AUTHORING_INSTRUCTIONS_TAIL,
+    priceBrief: brief
+  });
+  return {
+    sha256: crypto.createHash('sha256').update(canonical).digest('hex'),
+    priceBriefSha256: priceBriefHash(brief)
+  };
+}
+
 async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutMs = 600000, settings = {}) {
   const { buildArgv, authoringSpec } = await getMcpBuildTools();
 
@@ -147,14 +185,7 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   // Budget and spatial failures were 55% of what failed once the schema defects were fixed, and the
   // constrained tier failed at 56% against simple's 18%. The brief is generated from the
   // Allocator's own base-costs.json, never restated, so a price change reaches the model.
-  const systemPrompt =
-    'You are an agent-kernel dungeon designer. When given a dungeon creation request, ' +
-    'call the ak_create tool with appropriate parameters. Use the exact prompt text as ' +
-    `the text parameter. ${budgetInstruction}Always set emitIntermediates ` +
-    'to true. Rooms are generic containers — affinity pressure belongs in hazards. ' +
-    'Hazards are placed by proximityRadius, never by coordinates. ' +
-    'For delver goals use only: max_mana, mana_regen, or maximize_spend. Wardens have no goals.\n\n' +
-    buildPriceBrief();
+  const systemPrompt = `${AUTHORING_INSTRUCTIONS_HEAD}${budgetInstruction}${AUTHORING_INSTRUCTIONS_TAIL}\n\n${buildPriceBrief()}`;
 
   const chatBody = {
     model,
@@ -255,4 +286,5 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   };
 }
 
-module.exports = { classifyExecutionOutcome, normalizeToolArgs, runScenario, AK_CLI, REPO_ROOT };
+module.exports = {
+  authoringPolicy, classifyExecutionOutcome, normalizeToolArgs, runScenario, AK_CLI, REPO_ROOT };

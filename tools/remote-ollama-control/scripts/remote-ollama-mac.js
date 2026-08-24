@@ -1245,7 +1245,7 @@ function runRemoteExec(options) {
 
 async function runContentGen(options) {
   const { loadScenarioCatalog } = require('./lib/ak-scenarios');
-  const { classifyExecutionOutcome, runScenario } = require('./lib/ak-runner');
+  const { classifyExecutionOutcome, runScenario , authoringPolicy } = require('./lib/ak-runner');
   const { aggregateContentGenResults, scoreRun, writeContentResult, writeContentSummary } = require('./lib/ak-compare');
   const { executeContentGenMatrix } = require('./lib/ak-matrix');
   const { CollapseError, resolveBreaker } = require('./lib/collapse-breaker');
@@ -1381,6 +1381,7 @@ async function runContentGen(options) {
     );
   } else {
     runManifest = writeRunManifest(resultDir, {
+      authoringPolicy: authoringPolicy(),
       route: options.route, diagnostic: !options.earlyStop, ...runIdentity
     });
   }
