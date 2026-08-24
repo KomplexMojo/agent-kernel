@@ -247,7 +247,38 @@ jobs:
               }
             }
 
+            // GitHub notifies on issue CREATION and on comments, never on a body edit. Since an
+            // ongoing condition is reported by editing one issue, a genuinely NEW problem that
+            // arrives while that issue is already open used to land in silence -- the box could die
+            // tonight and fold into an issue open for something else, notifying nobody.
+            //
+            // So the body carries the problem set it was last written with, and a comment goes out
+            // only when that SET changes. Not every run: at a 30-minute cadence a comment per check
+            // would bury the signal it exists to raise, which is why body-editing was chosen in the
+            // first place. Changes only.
+            const SET_OPEN = '<!-- ak-problem-set:';
+            const SET_CLOSE = '-->';
+
+            // Stored and compared in the same capped, whitespace-collapsed form, so one enormous
+            // error string cannot push the marker past the body limit and so the comparison cannot
+            // drift between what was written and what is read back.
+            const capProblem = (text) => String(text).replace(/\s+/g, ' ').trim().slice(0, 300);
+
+            function readProblemSet(body) {
+              const start = (body || '').indexOf(SET_OPEN);
+              if (start === -1) return null;
+              const end = body.indexOf(SET_CLOSE, start);
+              if (end === -1) return null;
+              try {
+                const parsed = JSON.parse(body.slice(start + SET_OPEN.length, end).trim());
+                return Array.isArray(parsed) ? parsed : null;
+              } catch {
+                return null;
+              }
+            }
+
             function compose(channel, findings) {
+              const marker = JSON.stringify(findings.map(capProblem).sort());
               return [
                 findings.length ? '## Problems' : '## Healthy',
                 ...(findings.length ? findings.map((problem) => `- ${problem}`) : [channel.healthy]),
@@ -256,6 +287,7 @@ jobs:
                 ...lines,
                 '',
                 `_Checked ${new Date().toISOString()} by ${context.workflow}._`,
+                `${SET_OPEN} ${marker} ${SET_CLOSE}`,
               ].join('\n');
             }
 
@@ -304,7 +336,33 @@ jobs:
 
               // Editing the body rather than commenting: at a 30-minute cadence a comment per check
               // would bury the signal it exists to raise. The issue always shows current state, and
-              // its creation was the notification.
+              // its creation was the notification -- except when the set of problems has changed,
+              // which is a new thing to know and gets a comment of its own.
+              const previous = readProblemSet(existing.body);
+              const current = findings.map(capProblem).sort();
+              const changed = previous !== null
+                && JSON.stringify(previous) !== JSON.stringify(current);
+
+              if (changed) {
+                const before = new Set(previous);
+                const after = new Set(current);
+                const added = current.filter((problem) => !before.has(problem));
+                const gone = previous.filter((problem) => !after.has(problem));
+                const parts = ['**The problem set changed.**', ''];
+                if (added.length) {
+                  parts.push('Newly reported:', ...added.map((problem) => `- ${problem}`), '');
+                }
+                if (gone.length) {
+                  parts.push('No longer reported:', ...gone.map((problem) => `- ${problem}`), '');
+                }
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner, repo: context.repo.repo,
+                  issue_number: existing.number, body: parts.join('\n'),
+                });
+              }
+              // previous === null means this issue predates the marker. Write the baseline silently
+              // rather than announcing every existing problem as though it just appeared.
+
               await github.rest.issues.update({
                 owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body,
               });
