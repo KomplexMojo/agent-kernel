@@ -177,25 +177,65 @@ const AK_CREATE_TOOL = {
         },
         resource: {
           type: 'array',
-          description: 'Resource pickups carrying a vital payload, an affinity payload, or both.',
+          description:
+            'Resource pickups carrying a vital payload, an affinity payload, or both. A vital '
+            + 'payload is permanenceMode + vital + (delta or regen). An affinity payload is '
+            + 'affinity + expression + stacks + mana. permanenceMode belongs to the vital payload '
+            + 'and must not appear on an affinity-only resource.',
           items: {
             type: 'object',
             properties: {
               id: { type: 'string' },
-              permanenceMode: { type: 'string', enum: ['consumable', 'level', 'permanent'] },
+              permanenceMode: {
+                type: 'string',
+                enum: ['consumable', 'level', 'permanent'],
+                description:
+                  'Part of the VITAL payload — it governs how long the vital delta persists. '
+                  + 'Required whenever vital is set, and must be omitted on an affinity-only resource.'
+              },
               vital: { type: 'string', enum: ['health', 'mana', 'stamina'] },
               regen: { type: 'integer', minimum: 0 },
               affinity: { type: 'string', enum: AFFINITY_ENUM },
               expression: { type: 'string', enum: EXPRESSION_ENUM },
               stacks: { type: 'integer', minimum: 1 },
-              mana: { type: 'integer', minimum: 0 },
+              mana: { type: 'integer', minimum: 0, description: 'Affinity-payload mana pool. An integer here, unlike hazard.mana.' },
               manaRegen: { type: 'integer', minimum: 0 },
-              delta: { type: 'number', description: 'Amount to apply' }
+              delta: { type: 'number', description: 'Amount of the vital to apply' }
             },
+            // These branches restate the contract parseResourceSpec actually enforces. The previous
+            // pair -- {required:['vital']} and {required:[affinity,expression,stacks,mana]} --
+            // advertised two shapes the CLI rejects, and the run of 2026-08-23 lost 57 of 700
+            // attempts to them: a vital payload without permanenceMode, and an affinity payload
+            // carrying one. Both were reported as bad enum VALUES for fields that were simply
+            // absent, which is why it read as model error for months.
             anyOf: [
-              { required: ['vital'] },
-              { required: ['affinity', 'expression', 'stacks', 'mana'] }
-            ]
+              {
+                // A vital payload, optionally alongside an affinity payload. permanenceMode is
+                // required here because the parser reads it as the declaration of a vital payload
+                // and then validates it as an enum -- absent, it fails as "must be one of".
+                required: ['permanenceMode', 'vital'],
+                anyOf: [{ required: ['delta'] }, { required: ['regen'] }]
+              },
+              {
+                // An affinity payload alone. The parser treats ANY of permanenceMode/vital/delta/
+                // regen as "a vital payload follows" and then demands the whole set, so none of
+                // them may appear on an affinity-only resource.
+                required: ['affinity', 'expression', 'stacks', 'mana'],
+                not: {
+                  anyOf: [
+                    { required: ['permanenceMode'] },
+                    { required: ['vital'] },
+                    { required: ['delta'] },
+                    { required: ['regen'] }
+                  ]
+                }
+              }
+            ],
+            // Descriptive for clients that honour it; the anyOf above is the enforcing half.
+            dependentRequired: {
+              affinity: ['expression', 'stacks', 'mana'],
+              manaRegen: ['mana']
+            }
           }
         },
         delver: {
