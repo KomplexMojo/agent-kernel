@@ -289,6 +289,21 @@ function serviceEnvironment(profile) {
     OLLAMA_HOST: `${profile.bindHost}:${profile.port}`,
     OLLAMA_PROFILE: profile.name
   };
+  // The context the profile is meant to serve, set where the server can actually see it.
+  //
+  // The benchmark used to ask per request -- `options: { num_ctx }` -- while posting to
+  // /v1/chat/completions. `options` is an Ollama-native field and the OpenAI-compatible shim drops
+  // it silently, so every load fell back to Ollama's VRAM-based default of 32768. On `primary` that
+  // default happens to equal the configured value, so the bug was invisible on half the matrix;
+  // on `dual` it meant 32768 served against a configurationId reading ctx65536 and a matrixHash
+  // encoding it. Identity asserting something that did not happen.
+  //
+  // Serving it is coarser than asking per request -- every model on a profile gets the same window
+  // -- which is exactly right while the matrix holds context constant per profile, and a test
+  // fails if that ever stops being true.
+  if (Number.isInteger(profile.defaultContext) && profile.defaultContext > 0) {
+    env.OLLAMA_CONTEXT_LENGTH = String(profile.defaultContext);
+  }
   if (profile.hsaOverrideGfxVersion) {
     env.HSA_OVERRIDE_GFX_VERSION = profile.hsaOverrideGfxVersion;
   }
