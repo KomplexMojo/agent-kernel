@@ -163,12 +163,20 @@ const AK_CREATE_TOOL = {
               proximityRadius: { type: 'integer', minimum: 1, description: 'Tiles around the hazard its affinity pressure reaches' },
               stacks: { type: 'integer', minimum: 1, default: 1 },
               blocking: { type: 'boolean', description: 'Whether the hazard blocks movement through its tile' },
+              // The format was carried in prose only, so nothing could check a value before the CLI
+              // rejected it and no derived test could generate a valid one. `pattern` states the
+              // grammar parseHazardVitalSpec accepts; `examples` gives any generator a known-good
+              // value. (current <= max is semantic and stays with the parser.)
               mana: {
                 type: 'string',
-                description: 'Optional mana vital as "one-time:<amount>" or "regen:<current>:<max>:<regen>", e.g. "regen:4:4:1"'
+                pattern: '^(one-time:[0-9]+|regen:[0-9]+:[0-9]+:[0-9]+)$',
+                examples: ['one-time:5', 'regen:4:4:1'],
+                description: 'Optional mana vital as "one-time:<amount>" or "regen:<current>:<max>:<regen>", e.g. "regen:4:4:1". Note this is a STRING here; resource.mana is an integer.'
               },
               durability: {
                 type: 'string',
+                pattern: '^(one-time:[0-9]+|regen:[0-9]+:[0-9]+:[0-9]+)$',
+                examples: ['one-time:6', 'regen:6:6:0'],
                 description: 'Optional durability vital, same format as mana'
               }
             },
