@@ -276,3 +276,71 @@ test("execution-suite identity triggers execution modes, persists, publishes, an
 // - corrupt local poll state fails closed without rewriting it
 // - a deleted result branch is recreated only from an explicit empty publication state
 // - two queued source commits coalesce to the newest reachable source ref
+
+// The lock was a bare `wx` create with no liveness check, so it outlived its owner. Any SIGTERM,
+// crash, OOM, reboot mid-run, or kill at the 72h authoring ceiling left it held forever, and the
+// agent then reported `locked` and exited ZERO on every poll while the heartbeat kept beating
+// "idle" -- exits clean, looks healthy, does nothing. Observed live on 2026-08-24 after a run was
+// stopped by hand; the agent refused to start again until the file was removed by hand.
+const { acquireAgentLock: acquireLock } = require("../../tools/remote-ollama-control/scripts/lib/benchmark-state");
+const { mkdtempSync: mkTemp, writeFileSync: writeFile, existsSync: exists, rmSync: rmFile } = require("node:fs");
+const { tmpdir: tmp } = require("node:os");
+
+function lockDir() {
+  return mkTemp(join(tmp(), "ak-agent-lock-"));
+}
+function lockFile(dir) {
+  return join(dir, "agent.lock");
+}
+
+test("a lock stranded by a dead owner is reclaimed, and the reclaim is reported", () => {
+  const dir = lockDir();
+  // A pid that cannot be running: the previous holder, killed without releasing.
+  writeFile(lockFile(dir), "876367\n");
+
+  const lock = acquireLock(dir);
+  assert.equal(lock.acquired, true, "a lock whose owner is gone must not block the agent forever");
+  // Reported, not swallowed — silently taking it would hide the crash that stranded it.
+  assert.equal(lock.reclaimedFrom, 876367);
+  lock.release();
+  assert.equal(exists(lockFile(dir)), false, "release must remove the lock file");
+});
+
+test("a lock held by a live owner is refused, and says so", () => {
+  const dir = lockDir();
+  // This test process is unambiguously alive.
+  writeFile(lockFile(dir), `${process.pid}\n`);
+
+  const lock = acquireLock(dir);
+  assert.equal(lock.acquired, false, "mutual exclusion is the point — a live holder still wins");
+  assert.equal(lock.heldBy, process.pid);
+  assert.match(lock.reason, /live agent/);
+  // Refusing must not delete someone else's lock.
+  assert.equal(exists(lockFile(dir)), true);
+});
+
+test("a lock with an unreadable owner is refused rather than reclaimed", () => {
+  const dir = lockDir();
+  writeFile(lockFile(dir), "not-a-pid\n");
+
+  const lock = acquireLock(dir);
+  // Conservative on purpose: a corrupt lock cannot be shown to be free, and quietly seizing it
+  // would trade a rare stuck state for a real double-run.
+  assert.equal(lock.acquired, false);
+  assert.equal(lock.heldBy, null);
+  assert.match(lock.reason, /unreadable owner/);
+  assert.match(lock.reason, /agent\.lock/);
+});
+
+test("an uncontended lock reports no reclaim", () => {
+  const dir = lockDir();
+  const lock = acquireLock(dir);
+  assert.equal(lock.acquired, true);
+  assert.equal(lock.reclaimedFrom, null, "a clean acquisition must not look like a recovered crash");
+
+  // A second acquisition while the first is held is refused by the live-owner path.
+  const second = acquireLock(dir);
+  assert.equal(second.acquired, false);
+  lock.release();
+  rmFile(lockFile(dir), { force: true });
+});
