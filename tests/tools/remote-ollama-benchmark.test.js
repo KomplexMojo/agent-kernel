@@ -61,9 +61,9 @@ test("content-gen matrix plans six primary-or-dual configurations in resource or
 
   assert.equal(plan.contractVersion, "content-gen-matrix-v1");
   // Pinned: the matrix hash is run identity, and a silent change makes two runs look
-  // comparable when they measured different things. It moved on 2026-08-24 when
-  // qwen3.5:27b left the primary profile.
-  assert.equal(plan.sha256, "58f201d394c7231b8e14f477aad6cce8d9419d3c3cce2561f7d6b07bf11796f1");
+  // comparable when they measured different things. It moved on 2026-08-24 twice -- when
+  // qwen3.5:27b left the primary profile, and when primary's context dropped to 8192.
+  assert.equal(plan.sha256, "3def36d7d6cd0fca73a357bf1080887c3e191505814167fc60fbe211b05efc4e");
   assert.equal(plan.configurationCount, 6);
   assert.deepEqual(plan.repeatPolicy, {
     minimumCompletePasses: 1,
@@ -72,9 +72,9 @@ test("content-gen matrix plans six primary-or-dual configurations in resource or
   });
   assert.deepEqual(plan.callBounds, { minimum: 600, maximum: 1800 });
   assert.deepEqual(plan.configurations.map((entry) => entry.configurationId), [
-    "cg-v1--qwen3.5_9b--primary--ctx32768--out4096",
-    "cg-v1--qwen3_14b--primary--ctx32768--out4096",
-    "cg-v1--qwen3.8_27b--primary--ctx32768--out4096",
+    "cg-v1--qwen3.5_9b--primary--ctx8192--out4096",
+    "cg-v1--qwen3_14b--primary--ctx8192--out4096",
+    "cg-v1--qwen3.8_27b--primary--ctx8192--out4096",
     "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
     "cg-v1--qwen3.8_27b--dual--ctx65536--out32768",
     "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768",
