@@ -157,13 +157,35 @@ Documentation moved from GitHub Copilot to Claude on 2026-07-27. Two tiers by st
 
 ## Benchmark strategy
 
-🔴 **Benchmarking is outside the development process** (maintainer, 2026-08-13). It runs as a standalone tool, against code changes, offline — the benchmarks have grown too complex to run inside the development loop.
-
-Tests verify correctness; benchmarks verify that the LLM tool-call surface holds up under permutation load and budget stress. **Only the first is an agent's job.**
+Tests verify correctness; benchmarks verify that the LLM tool-call surface holds up under permutation load and budget stress.
 
 Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`).
 
-- **Never run a benchmark from a session**, and never schedule work around one.
+**There are two kinds of benchmark run, and only one of them is outside the development process.**
+
+### Local debug runs — IN the loop (maintainer, 2026-08-25)
+
+`run-content-gen --local` drives the developer machine's own Ollama through the real pipeline. It is
+a **debugging instrument for code deltas**: change something, see what it does to authoring
+behaviour, before handing off. Agents may run these.
+
+- Run them on a **subset** — a tier, a handful of scenario ids — not the full 100. This is a probe,
+  not a measurement.
+- Their manifest records `matrix: "local-unversioned"`, so a local result can never be mistaken for
+  a qualifying baseline or published as one. That property is the licence for this exemption; do not
+  remove it.
+- **Run `scripts/benchmark-preflight.sh` first.** Every way this setup breaks is silent — an unset
+  `OLLAMA_MODELS` makes `ollama list` return empty rather than erroring, and a stale identity pin
+  compares incomparable runs without complaint. The preflight is the difference between a failed run
+  and a run that quietly measures nothing.
+- Still **not a gate**: a local number never blocks or approves a merge.
+
+### Full-scale runs — OUTSIDE the development process (maintainer, 2026-08-13)
+
+🔴 The remote matrix on the benchmark box remains a standalone offline tool, run against code
+changes, never inside the loop. It is where comparison and qualification happen.
+
+- **Never start a full remote matrix run from a session**, and never schedule work around one.
 - **Nothing is benchmark-gated** — no milestone, decision, PR, or merge waits on a result.
 - **Read before running.** Fetch `benchmark-results`, then use `benchmark-result-reader.js` with
   `latest_attempt` for current health or `latest_success` for the last qualifying baseline. The
