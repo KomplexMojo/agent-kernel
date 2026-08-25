@@ -33,11 +33,7 @@
  * BEHAVIOR-PRESERVING. The enumeration order, the bounds, the fill rule and the
  * tie-break are reproduced exactly as the fused loop had them. Goldens are the gate.
  */
-import {
-  DEFAULT_VITALS,
-  ROOM_CARD_SIZE_IDS,
-  VITAL_KEYS,
-} from "../../contracts/domain-constants.js";
+import { ACTOR_VIABILITY_FLOOR, DEFAULT_VITALS, ROOM_CARD_SIZE_IDS, VITAL_KEYS } from "../../contracts/domain-constants.js";
 // CR.9 M4. These three were restated as local consts here and in the Allocator, on the
 // reasoning that `contracts/artifacts.ts` cannot be imported by a runtime `.js` module.
 // True, and beside the point: a runtime `.js` CONTRACTS module can be, so the protocol
@@ -150,6 +146,36 @@ export function applyMovementStaminaFloor(vitals, card = null) {
 }
 
 /**
+ * Raise a card's vitals to the floor an actor needs to be worth simulating, in place.
+ *
+ * Single origin, for the reason the movement floor states one function above: the last time a
+ * floor in this file was applied field-by-field it "came to be enforced on `regen` and missed on
+ * `max`". Every vital in ACTOR_VIABILITY_FLOOR gets max, current and regen raised together here,
+ * so a future vital added to the constant cannot be half-applied.
+ *
+ * Raises, never lowers -- an author who asked for health 50 keeps 50. Stamina is untouched: its
+ * floor is derived from movement, not from this constant.
+ *
+ * The Allocator prices the result through the existing vitals path; this module reads no prices.
+ */
+export function applyActorViabilityFloor(vitals) {
+  if (!vitals || typeof vitals !== "object") return vitals;
+  for (const [key, floor] of Object.entries(ACTOR_VIABILITY_FLOOR)) {
+    const vital = vitals[key];
+    if (!vital || typeof vital !== "object") continue;
+    const max = Math.max(Number.isInteger(vital.max) ? vital.max : 0, floor.max);
+    const current = Number.isInteger(vital.current) ? vital.current : 0;
+    vital.max = max;
+    // Fill to the FLOOR, not to max. `current < max` is a damaged actor, and filling to max would
+    // silently heal one: an author who wrote health 40/50 means 40, and this floor has no business
+    // topping it up. Only a vital sitting below the floor gets brought up to it.
+    vital.current = Math.max(current, Math.min(max, floor.max));
+    vital.regen = Math.max(Number.isInteger(vital.regen) ? vital.regen : 0, floor.regen);
+  }
+  return vitals;
+}
+
+/**
  * Apply the requirements an actor's MOTIVATION implies to its vitals, in place.
  *
  * The card-level helpers above only run inside budget-driven candidate
@@ -227,6 +253,17 @@ export function applyAffinityDerivedVitalRequirements(actor) {
   );
 }
 
+/**
+ * Glue-facing form of the viability floor, shaped like its two siblings so orchestrate-build
+ * applies all three at one point rather than knowing which are card-level and which are actor-level.
+ */
+export function applyViabilityDerivedVitalRequirements(actor) {
+  if (!actor?.vitals || typeof actor.vitals !== "object") return false;
+  const before = JSON.stringify(actor.vitals);
+  applyActorViabilityFloor(actor.vitals);
+  return before !== JSON.stringify(actor.vitals);
+}
+
 export function applyMotivationDerivedVitalRequirements(actor) {
   const kinds = collectMotivationKinds(actor);
   if (kinds.length === 0 || !actor?.vitals?.stamina) return false;
@@ -287,6 +324,7 @@ export function buildMinimumDelverCard(card) {
     next.vitals.mana.regen = Math.max(next.vitals.mana.regen, 1);
   }
   applyMovementStaminaFloor(next.vitals, card);
+  applyActorViabilityFloor(next.vitals);
 
   return next;
 }
@@ -465,6 +503,7 @@ export function proposeDelverCandidates({ card, envelope, optimizationGoals = []
     baseVitals.mana.regen = Math.max(baseVitals.mana.regen, 1);
   }
   applyMovementStaminaFloor(baseVitals, card);
+  applyActorViabilityFloor(baseVitals);
 
   const maximumManaRegen = Math.max(
     baseVitals.mana.regen,

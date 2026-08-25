@@ -1,5 +1,5 @@
 {
-  "_comment": "Base costs ONLY \u2014 tunable data. The formulas that consume these (linear vs quadratic, and the resource free-floating premium) live in code in default-price-list.js. Edit the numbers here; do not add logic.",
+  "_comment": "Base costs ONLY — tunable data. The formulas that consume these (linear vs quadratic, and the resource free-floating premium) live in code in default-price-list.js. Edit the numbers here; do not add logic.",
   "_baseUnit": "1 point of max health = 1 token",
   "vitals": {
     "vital_health_point": 1,
@@ -56,18 +56,18 @@
     "action_request_solver": 2
   },
   "freeFloatingPremium": 1.5,
-  "_levelAuthoringNote": "Level-authoring economy knobs, moved out of commands/card-authoring.js by CR.1 \u2014 they were pricing policy sitting in glue, feeding calculateCardValue, card receipts, UI guidance and auto-generation. budget_split_percent must sum to 100. The reference budget is NOT here: it is REFERENCE_BUDGET_TOKENS in budget-allocation.js, which card-authoring duplicated as DEFAULT_LEVEL_BUDGET_TOKENS (both 2500) until CR.1 collapsed them.",
+  "_levelAuthoringNote": "Level-authoring economy knobs, moved out of commands/card-authoring.js by CR.1 — they were pricing policy sitting in glue, feeding calculateCardValue, card receipts, UI guidance and auto-generation. budget_split_percent must sum to 100. The reference budget is NOT here: it is REFERENCE_BUDGET_TOKENS in budget-allocation.js, which card-authoring duplicated as DEFAULT_LEVEL_BUDGET_TOKENS (both 2500) until CR.1 collapsed them.",
   "levelAuthoring": {
     "resource_vital_cost_per_delta": 1,
     "resource_vital_cost_per_regen": 2,
     "resource_permanent_multiplier": 10,
     "room_affinity_stack_cost_factor": 0.1
   },
-  "_levelBudgetSplitNote": "Per-card-type share of a level budget, as percentages summing to 100. Its own group because the base-cost standard requires every item to be a NUMBER \u2014 a nested object here would be formula selection in JSON, which the standard puts in code. RETUNED at CR.9 M5 (room 44->41, hazard 12->15): the old split was calibrated when a hazard cost 5 tokens with its affinity payload and vitals charged NOTHING. Those are charged now, so a hazard costs ~52 and three of them no longer fit a 12% share \u2014 content-gen scenario 51 failed on hazards 157/156. The share follows the prices, not the other way around.",
+  "_levelBudgetSplitNote": "Per-card-type share of a level budget, as percentages summing to 100. Its own group because the base-cost standard requires every item to be a NUMBER — a nested object here would be formula selection in JSON, which the standard puts in code. RETUNED at CR.9 M5 (room 44->41, hazard 12->15): the old split was calibrated when a hazard cost 5 tokens with its affinity payload and vitals charged NOTHING. Those are charged now, so a hazard costs ~52 and three of them no longer fit a 12% share — content-gen scenario 51 failed on hazards 157/156. The share follows the prices, not the other way around. RETUNED AGAIN at the actor viability floor (room 41->29, delver 20->25, warden 16->23): the floor gives every actor health/mana/durability 10 with regen 1, so a delver's minimum went 21->52 and a warden's 4->38 while rooms and tiles did not move at all. Six constrained scenarios denied on the ACTOR pools with budget still remaining -- wardens short by up to 41% of their share. Wardens rose most because they started cheapest, which is why their share gains more than the delvers'.",
   "levelBudgetSplitPercent": {
-    "room": 41,
-    "delver": 20,
-    "warden": 16,
+    "room": 29,
+    "delver": 25,
+    "warden": 23,
     "hazard": 15,
     "resource": 8
   }

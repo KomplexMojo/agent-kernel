@@ -70,7 +70,27 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
   assert.equal(summary.meta.runId, runId);
   assert.deepEqual(summary.presetsRef, toRef(presets, "agent-kernel/AffinityPresetArtifact"));
   assert.deepEqual(summary.loadoutsRef, toRef(loadouts, "agent-kernel/ActorLoadoutArtifact"));
-  assert.deepEqual(summary.actors, expected.actors);
+  // The shared fixture describes AFFINITY RESOLUTION; this test drives orchestrateBuild, which also
+  // applies the actor viability floor on top of it. Deriving the difference here rather than baking
+  // it into the fixture keeps that fixture honest for its other two consumers (`cli run` and the
+  // configurator affinity-effects test), which resolve affinities on already-authored actors and so
+  // must NOT see floored vitals.
+  const floored = expected.actors.map((actor) => ({
+    ...actor,
+    vitals: {
+      ...actor.vitals,
+      health: { current: 11, max: 12, regen: 1 },
+      mana: { current: 10, max: 12, regen: 1 },
+      durability: { current: 10, max: 10, regen: 1 },
+    },
+  }));
+  floored[1].vitals = {
+    ...floored[1].vitals,
+    health: { current: 9, max: 10, regen: 1 },
+    mana: { current: 10, max: 10, regen: 1 },
+    durability: { current: 10, max: 10, regen: 1 },
+  };
+  assert.deepEqual(summary.actors, floored);
 
   // Room-relative mapping arithmetic: the authored hazard offset lands at rooms[0] origin + offset.
   const room = buildResult.simConfig.layout.data.rooms[0];

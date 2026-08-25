@@ -1,16 +1,16 @@
 const assert = require("node:assert/strict");
 
 
-test("default pool weights: 44% rooms, async 20% delver, 16% wardens, 12% hazards, 8% resources (design §2.2)", async () => {
+test("default pool weights: 29% rooms, 25% delver, 23% wardens, 15% hazards, 8% resources (design §2.2)", async () => {
   const { computeBudgetPools, REFERENCE_BUDGET_TOKENS } = await import("../../packages/runtime/src/personas/allocator/budget-allocation.js");
 
   const result = computeBudgetPools({ budgetTokens: 2500 });
   assert.ok(result.ok);
 
   const poolMap = new Map(result.pools.map(p => [p.id, p.tokens]));
-  assert.equal(poolMap.get("rooms"), 1025);
-  assert.equal(poolMap.get("delver"), 500);
-  assert.equal(poolMap.get("wardens"), 400);
+  assert.equal(poolMap.get("rooms"), 725);
+  assert.equal(poolMap.get("delver"), 625);
+  assert.equal(poolMap.get("wardens"), 575);
   assert.equal(poolMap.get("hazards"), 375);
   assert.equal(poolMap.get("resources"), 200);
 });

@@ -24,7 +24,12 @@ function constrainedScenario(index) {
 test("allocator denies one token below a warden pool boundary while total budget remains", () => {
   const scenario = constrainedScenario(59);
   assert.equal(scenario.title, "Constrained Two Warden Patrol");
-  const boundaryBudget = scenario.payload.budgetTokens - 1;
+  // The scenario's own budget was its minimum until the actor viability floor retuned the pool
+  // split (warden 16% -> 23%). It is no longer: the minimum for this payload measured 400 against a
+  // catalog budget of 469, so `budgetTokens - 1` now SUCCEEDS and characterises nothing. Pinned to
+  // the measured boundary instead. The property under test is unchanged and still holds -- the
+  // allocator denies on the WARDEN POOL while 188 tokens of total budget remain.
+  const boundaryBudget = 399;
   const boundaryText = scenario.payload.text.replace(
     /Use a \d+ token hard budget/,
     `Use a ${boundaryBudget} token hard budget`,
@@ -46,9 +51,9 @@ test("allocator denies one token below a warden pool boundary while total budget
     ], { cwd: ROOT, encoding: "utf8" });
 
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=311/);
+    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=188/);
     assert.match(result.stderr, /deniedLines=actor:actor_spawn:wardens/);
-    assert.match(result.stderr, /deniedPools=wardens:132\/131/);
+    assert.match(result.stderr, /deniedPools=wardens:186\/176/);
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }

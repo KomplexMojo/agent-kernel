@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 65,
-  "remaining": 1935,
+  "totalCost": 93,
+  "remaining": 1907,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -104,6 +104,20 @@
     {
       "id": "vital_durability_point",
       "kind": "vital",
+      "quantity": 10,
+      "unitCost": 1,
+      "totalCost": 10,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_regen_tick",
+      "kind": "vital",
       "quantity": 1,
       "unitCost": 1,
       "totalCost": 1,
@@ -117,6 +131,20 @@
     },
     {
       "id": "vital_health_point",
+      "kind": "vital",
+      "quantity": 10,
+      "unitCost": 1,
+      "totalCost": 10,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_health_regen_tick",
       "kind": "vital",
       "quantity": 1,
       "unitCost": 1,
@@ -132,9 +160,9 @@
     {
       "id": "vital_mana_point",
       "kind": "vital",
-      "quantity": 2,
+      "quantity": 10,
       "unitCost": 1,
-      "totalCost": 2,
+      "totalCost": 10,
       "status": "approved",
       "category": "delvers",
       "subjectRef": {
@@ -218,15 +246,15 @@
     {
       "id": "delver",
       "capTokens": 2000,
-      "spentTokens": 65,
-      "remainingTokens": 1935,
+      "spentTokens": 93,
+      "remainingTokens": 1907,
       "status": "approved"
     }
   ],
   "scenarioSpendReport": {
     "budget": 2000,
-    "totalSpend": 65,
-    "remainingBudget": 1935,
+    "totalSpend": 93,
+    "remainingBudget": 1907,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -250,9 +278,9 @@
         "usagePercent": 0
       },
       "delvers": {
-        "actual": 65,
+        "actual": 93,
         "target": 2000,
-        "usagePercent": 3
+        "usagePercent": 5
       },
       "wardens": {
         "actual": 0,
@@ -265,7 +293,7 @@
         "usagePercent": 0
       }
     },
-    "totalBudgetUsagePercent": 3,
+    "totalBudgetUsagePercent": 5,
     "incentive": {
       "actualRatio": 0,
       "targetRatio": 0.8,

@@ -28,11 +28,13 @@ const meta = {
 };
 
 // budget.budget.tokens = 1000, reserve = 100, available = 900
-// Default flat weights: rooms=0.44, hazards=0.12, wardens=0.16, resources=0.08, delver=0.20
-// rooms=369, hazards=135, wardens=144, resources=72, delver=180 (total=900).
+// Default flat weights: rooms=0.29, hazards=0.15, wardens=0.23, resources=0.08, delver=0.25
+// rooms=261, hazards=135, wardens=207, resources=72, delver=225 (total=900).
 // CR.9 M5 split retune: room 44 -> 41, hazard 12 -> 15 — hazards now pay for their
 // affinity payload and vitals, so the share follows the prices.
-// Resource cap: 72 <= 108+144=252 — no redistribution
+// Actor viability floor retune: room 41 -> 29, delver 20 -> 25, warden 16 -> 23 — every actor now
+// carries health/mana/durability 10 with regen 1, so the actor pools follow the prices in turn.
+// Resource cap: 72 <= 108+207=315 — no redistribution
 const result = buildBudgetAllocation({
   budget,
   priceList,
@@ -50,13 +52,13 @@ assert.equal(allocation.priceListRef.schema, "agent-kernel/PriceList");
 assert.deepEqual(allocation.policy, { reserveTokens: 100, maxActorSpend: 300 });
 
 const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
-assert.equal(poolsById.rooms, 369);
+assert.equal(poolsById.rooms, 261);
 assert.equal(poolsById.hazards, 135);
-assert.equal(poolsById.wardens, 144);
+assert.equal(poolsById.wardens, 207);
 assert.equal(poolsById.resources, 72);
-assert.equal(poolsById.delver, 180);
-assert.equal(result.dungeonTokens, 369 + 135 + 144 + 72);
-assert.equal(result.delverTokens, 180);
+assert.equal(poolsById.delver, 225);
+assert.equal(result.dungeonTokens, 261 + 135 + 207 + 72);
+assert.equal(result.delverTokens, 225);
 
 // Custom pool weights — explicit 5-pool override; available = 1000-50=950
 // pools: rooms=0.2, hazards=0.12, wardens=0.7, resources=0.08, delver=0.1 (total=1.2)

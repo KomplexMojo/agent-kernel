@@ -386,8 +386,13 @@ test("cli create maximizes delver spend deterministically when explicitly asked 
   // stamina it needs to move (pool 0 -> 2 costs 2; regen 1 -> 2 costs 2² - 1²
   // = 3). Those 5 tokens come out of mana, so the exact fit is now
   // mana.max 94 with mana.regen 6: 70 + 94 + 6² = 200.
-  assert.equal(delver.vitals.mana.max, 94);
-  assert.equal(delver.vitals.mana.regen, 6);
+  //
+  // Actor viability floor re-baseline. The floor adds health 10/regen 1 and durability 10/regen 1,
+  // and the maximizer pays for them by abandoning mana REGEN rather than mana max: regen 6 -> 1
+  // frees 6² - 1² = 35 quadratic tokens against 22 of floor. Accepted deliberately -- a 200-token
+  // delver was never going to sustain regen 6, and `mana_regen` is simply outbid at this budget.
+  assert.equal(delver.vitals.mana.max, 109);
+  assert.equal(delver.vitals.mana.regen, 1);
   assert.ok(delver.vitals.mana.regen >= 1);
   // The pool, not just the regen — regen against a zero pool is what let the
   // maximizer buy a delver that could never take a step (F12).
