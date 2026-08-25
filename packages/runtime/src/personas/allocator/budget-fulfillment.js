@@ -261,8 +261,24 @@ function assessBudgetedDelverRequirement(entry, delverIndex, priceListArtifact, 
   };
 }
 
+/**
+ * A warden is a delver with a different aim, and it is priced as one.
+ *
+ * This used to price the RAW authored card while the delver path priced one raised to its minimum
+ * viable form, so the same configuration reported two different minimums: a constant 47 tokens
+ * apart under the actor viability floor, for every motivation. Nothing about a warden makes it
+ * cheaper to keep alive -- it needs the same health, mana and durability to be worth simulating,
+ * and it gets them when actually built. Only the REPORTED minimum disagreed, which understated
+ * what a warden costs and let the Allocator promise a budget it could not honour.
+ *
+ * `buildMinimumDelverCard` is named for the archetype it was written against, not for a
+ * restriction: it raises whatever card it is handed to the least configuration that still satisfies
+ * the author's hard requirements. That is the same question for both aims.
+ */
 function assessBudgetedWardenRequirement(entry, wardenIndex, priceListArtifact, authoring, normalizeMotivations) {
-  const card = entry?.value && typeof entry.value === "object" ? entry.value : {};
+  const card = authoring.buildMinimumDelverCard(
+    entry?.value && typeof entry.value === "object" ? entry.value : {},
+  );
   const priceMap = allocatorPriceItems(priceListArtifact);
   const totalCost = calculateDelverCardUnitCost(card, priceMap, { authoring, normalizeMotivations })
     * cardCount(card);

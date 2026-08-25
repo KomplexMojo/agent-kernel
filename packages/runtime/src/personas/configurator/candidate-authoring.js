@@ -33,7 +33,8 @@
  * BEHAVIOR-PRESERVING. The enumeration order, the bounds, the fill rule and the
  * tie-break are reproduced exactly as the fused loop had them. Goldens are the gate.
  */
-import { ACTOR_VIABILITY_FLOOR, DEFAULT_VITALS, ROOM_CARD_SIZE_IDS, VITAL_KEYS } from "../../contracts/domain-constants.js";
+import { ACTOR_VIABILITY_FLOOR, DEFAULT_VITALS, MOTIVATION_KINDS, ROOM_CARD_SIZE_IDS, VITAL_KEYS } from "../../contracts/domain-constants.js";
+import { getMotivationMobilityTier } from "../../../../core-ts/src/index.ts";
 // CR.9 M4. These three were restated as local consts here and in the Allocator, on the
 // reasoning that `contracts/artifacts.ts` cannot be imported by a runtime `.js` module.
 // True, and beside the point: a runtime `.js` CONTRACTS module can be, so the protocol
@@ -84,12 +85,42 @@ export function cloneVitals(vitals = DEFAULT_VITALS) {
 }
 
 export function hasNonStationaryMobilityMotivation(motivations = []) {
-  return motivations.some((motivation) => motivation === "random" || motivation === "exploring" || motivation === "patrolling");
+  return motivations.some((motivation) => motivationMoves(motivation));
 }
 
+/**
+ * Does this motivation move the actor? core already knows.
+ *
+ * This used to be a hand-kept list of three kinds -- random, exploring, patrolling -- which is a
+ * second home for something core states authoritatively in PROFILE_MOBILITY, and it disagreed with
+ * core: `attacking` has mobility tier 1 there and was absent here. Delvers never noticed, because
+ * requiresMovementStamina short-circuited on archetype and gave every delver stamina regardless.
+ * Wardens did notice: an attacking warden got stamina {0,0,0} and could not take a step -- the F12
+ * defect, fixed for delvers and still live on the warden side.
+ *
+ * The kind ordering is the contract that makes this work: GAME_MOTIVATION_KINDS is mobility +
+ * posture + cognition + control, which is exactly core's 1-based PROFILE_MOBILITY ordering. A test
+ * pins that correspondence, because nothing else would notice it drifting.
+ */
+function motivationMoves(motivation) {
+  const index = MOTIVATION_KINDS.indexOf(motivation);
+  if (index < 0) return false;
+  return getMotivationMobilityTier(index + 1) > 0;
+}
+
+/**
+ * A warden is a delver with a different aim. Whether an actor needs stamina is a question about its
+ * MOTIVATION, never its archetype -- the docblock below states the rule as a capability ("an actor
+ * whose motivation implies movement must be able to move every tick"), and `type === "delver"` was
+ * a proxy for it that made the same configuration cost two different amounts depending on which
+ * label it wore.
+ *
+ * Dropping the proxy moves two cases, both toward what core says: an attacking WARDEN now gets the
+ * stamina it always needed, and a stationary DELVER stops paying for stamina it never used.
+ */
 export function requiresMovementStamina(card = null) {
   const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  return card?.type === "delver" || hasNonStationaryMobilityMotivation(motivations);
+  return motivations.some((motivation) => motivationMoves(motivation));
 }
 
 // ── AM.2b — movement stamina: the POOL, not just the regen ──────────────────

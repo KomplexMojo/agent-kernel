@@ -76,3 +76,45 @@ test("it tolerates an actor with no vitals rather than throwing", () => {
   assert.equal(applyViabilityDerivedVitalRequirements({}), false);
   assert.equal(applyActorViabilityFloor(null), null);
 });
+
+// Movement is a question about MOTIVATION, never about archetype.
+//
+// requiresMovementStamina used to short-circuit on `type === "delver"`, so every delver got stamina
+// regardless of motivation and a warden only earned it through a hand-kept list of three kinds. The
+// list disagreed with core -- `attacking` has mobility tier 1 in PROFILE_MOBILITY and was absent --
+// so an attacking warden got stamina {0,0,0} and could not take a step.
+
+test("the motivation vocabulary lines up with core's mobility profile", async () => {
+  // The whole derivation rests on this: GAME_MOTIVATION_KINDS is mobility + posture + cognition +
+  // control, which is exactly core's 1-based PROFILE_MOBILITY ordering. Nothing else would notice
+  // it drifting, and a drift would silently mis-classify which motivations move.
+  const { MOTIVATION_KINDS } = await import("../../../packages/runtime/src/contracts/domain-constants.js");
+  const { getMotivationMobilityTier } = await import("../../../packages/core-ts/src/index.ts");
+  const expected = {
+    random: true, stationary: false, exploring: true, patrolling: true,
+    attacking: true, defending: false, stealthy: true, friendly: true,
+  };
+  for (const [kind, moves] of Object.entries(expected)) {
+    const index = MOTIVATION_KINDS.indexOf(kind);
+    assert.ok(index >= 0, `${kind} is not in MOTIVATION_KINDS — the orderings have diverged`);
+    assert.equal(
+      getMotivationMobilityTier(index + 1) > 0, moves,
+      `core disagrees that ${kind} ${moves ? "moves" : "is stationary"}; the vocabularies have drifted`,
+    );
+  }
+});
+
+test("archetype does not decide whether an actor needs stamina", async () => {
+  const { requiresMovementStamina } = await import(
+    "../../../packages/runtime/src/personas/configurator/candidate-authoring.js");
+  for (const motivations of [["attacking"], ["stationary"], ["patrolling"], ["defending"]]) {
+    assert.equal(
+      requiresMovementStamina({ type: "delver", motivations }),
+      requiresMovementStamina({ type: "warden", motivations }),
+      `a delver and a warden with motivation ${motivations[0]} must have the same stamina requirement`,
+    );
+  }
+  // ...and it still tracks the motivation rather than answering the same way for everything.
+  assert.equal(requiresMovementStamina({ type: "warden", motivations: ["attacking"] }), true);
+  assert.equal(requiresMovementStamina({ type: "delver", motivations: ["stationary"] }), false);
+});
