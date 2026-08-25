@@ -1,5 +1,7 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
+const { createHash } = require("node:crypto");
+const { resolve } = require("node:path");
 
 const {
   BASE_COSTS_PATH, buildPriceBrief, loadBaseCosts, priceBriefHash,
@@ -125,4 +127,45 @@ test("a run predating the record refuses rather than silently merging", () => {
   const prior = { ...IDENT };
   const current = { ...IDENT, authoringPolicy: { sha256: "c".repeat(64), priceBriefSha256: "d".repeat(64) } };
   assert.throws(() => assertResumable(prior, current), /predates the authoring-policy record/);
+});
+
+// The brief is generated, tested and DISCONNECTED. Five arms over the whole constrained tier had it
+// losing to sending nothing on every measure, so `AUTHORING_PRICE_BRIEF` is empty and these guard
+// that it stays that way until an experiment says otherwise.
+
+test("no price list reaches the model", () => {
+  const policy = authoringPolicy();
+  const emptyHash = createHash("sha256").update("").digest("hex");
+  assert.equal(
+    policy.priceBriefSha256, emptyHash,
+    "the run record must state that no prices were sent — a non-empty hash here means the brief is back",
+  );
+});
+
+// The prompt and the identity used to call buildPriceBrief() SEPARATELY, so the record could claim
+// a brief the model never saw, or miss one it did. One value feeds both now, and this holds it:
+// a second call in the prompt path would let them disagree again.
+test("the prompt and the run record cannot disagree about what was sent", () => {
+  const source = readFileSync(
+    resolve(__dirname, "../../tools/remote-ollama-control/scripts/lib/ak-runner.js"), "utf8",
+  );
+  // Comments are stripped first: the constant's own docblock names buildPriceBrief() as the way to
+  // re-enable the brief, and that instruction is worth keeping readable.
+  const code = source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/[^\n]*/g, "$1");
+  const calls = code.match(/buildPriceBrief\(\)/g) || [];
+  assert.deepEqual(
+    calls, [],
+    "ak-runner must read AUTHORING_PRICE_BRIEF rather than calling buildPriceBrief() — two calls is "
+    + "how the prompt and the identity came to be separate values",
+  );
+  assert.match(source, /const AUTHORING_PRICE_BRIEF = /);
+});
+
+// ...and the generator itself still works, so the derivation experiment can use it.
+test("the generator survives, still built from base-costs.json", () => {
+  const brief = buildPriceBrief();
+  assert.ok(brief.length > 0, "buildPriceBrief must remain usable for the derived-prices experiment");
+  assert.match(brief, /hazard_basic=5/, "still generated from the Allocator's own costs, not restated");
 });

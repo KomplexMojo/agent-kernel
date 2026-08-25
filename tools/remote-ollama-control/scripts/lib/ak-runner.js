@@ -161,8 +161,40 @@ const AUTHORING_INSTRUCTIONS_TAIL =
  * The scenario-specific half is deliberately excluded: the budget number and the prompt text are
  * scenario data, already covered by scenarioSetHash. Only the harness's own contribution is here.
  */
+/**
+ * The price brief is NOT sent, and this is the single value that says so.
+ *
+ * It was built twice -- once into the system prompt and once into the hash below -- so the identity
+ * could disagree with what the model was actually told. One value now feeds both: whatever is here
+ * is what is sent AND what is recorded, and the two cannot drift.
+ *
+ * Measured on 2026-08-25, qwen3.5:9b over all 25 constrained scenarios, paired by scenario, five
+ * arms differing only in this text:
+ *
+ *   none (this)          mean 47.7   13/25 pass   <-- best on every measure
+ *   exact prices         mean 40.9   10/25
+ *   assembled costs      mean 37.8   12/25
+ *   rules, no numbers    mean 40.2    9/25
+ *   exact + examples     mean 38.0   12/25
+ *
+ * No single arm reaches significance against the control (sign test p = 0.125 to 0.688; 17-19 of 25
+ * scenarios are untouched in each pairing). The signal is the consistency: four unrelated contents,
+ * all below the control, none above. When four different contents give the same answer, content is
+ * not the lever.
+ *
+ * The mechanism, from constrained scenario 92: given prices the model authored a room, a floor
+ * tile, four empty arrays and all four vitals, and overran a 58-token budget by 2. Given nothing it
+ * authored the warden alone and scored 100. A price list reads as a MENU, and the model orders from
+ * it -- which is why the numberless rules arm failed too.
+ *
+ * buildPriceBrief() is kept, tested and generated from base-costs.json rather than deleted: the open
+ * question is whether prices help when the model DERIVES a total rather than being handed one, and
+ * that experiment needs this generator. Set this constant back to buildPriceBrief() to re-run it.
+ */
+const AUTHORING_PRICE_BRIEF = '';
+
 function authoringPolicy() {
-  const brief = buildPriceBrief();
+  const brief = AUTHORING_PRICE_BRIEF;
   const canonical = JSON.stringify({
     head: AUTHORING_INSTRUCTIONS_HEAD,
     tail: AUTHORING_INSTRUCTIONS_TAIL,
@@ -181,11 +213,11 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   const budgetInstruction = constrained
     ? `Set budgetTokens to ${scenario.budget}. `
     : 'Omit budgetTokens — the budget is unconstrained. ';
-  // The model used to be handed a budget number and no prices, so authoring within it was a guess.
-  // Budget and spatial failures were 55% of what failed once the schema defects were fixed, and the
-  // constrained tier failed at 56% against simple's 18%. The brief is generated from the
-  // Allocator's own base-costs.json, never restated, so a price change reaches the model.
-  const systemPrompt = `${AUTHORING_INSTRUCTIONS_HEAD}${budgetInstruction}${AUTHORING_INSTRUCTIONS_TAIL}\n\n${buildPriceBrief()}`;
+  // Prices are deliberately NOT appended -- see AUTHORING_PRICE_BRIEF above for the measurement.
+  // The trailing separator is conditional so an empty brief leaves no dangling blank lines, and so
+  // restoring the brief needs no change here.
+  const systemPrompt = `${AUTHORING_INSTRUCTIONS_HEAD}${budgetInstruction}${AUTHORING_INSTRUCTIONS_TAIL}`
+    + (AUTHORING_PRICE_BRIEF ? `\n\n${AUTHORING_PRICE_BRIEF}` : '');
 
   const chatBody = {
     model,
