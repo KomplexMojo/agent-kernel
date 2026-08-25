@@ -51,6 +51,18 @@
       "benchmarkModels": [
         "qwen3.8:27b"
       ]
+    },
+    "mac": {
+      "description": "This MacBook's own Ollama. Apple unified memory: one GPU, no per-device visibility to set.",
+      "hardwareClass": "apple-unified",
+      "gpuCount": 1,
+      "capacityRank": 4,
+      "intendedGpu": "Apple M3 Pro, 18-core GPU / ~27GB of 36GB unified memory addressable",
+      "port": 11434,
+      "defaultModel": "qwen3.8:27b",
+      "defaultContext": 8192,
+      "defaultNumPredict": 4096,
+      "benchmarkModels": []
     }
   }
 }
