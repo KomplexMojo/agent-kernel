@@ -14,6 +14,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { runnerIdentity } = require('./runner-identity');
 
 const MANIFEST_SCHEMA = 'agent-kernel-content-gen-run-manifest/v1';
 const MANIFEST_NAME = 'run-manifest.json';
@@ -22,7 +23,7 @@ function manifestPath(resultDir) {
   return path.join(resultDir, MANIFEST_NAME);
 }
 
-function writeRunManifest(resultDir, { route, scenarioSet, matrix, scenarioIds, startedAt, diagnostic, authoringPolicy }) {
+function writeRunManifest(resultDir, { route, scenarioSet, matrix, scenarioIds, startedAt, diagnostic, authoringPolicy, runner }) {
   fs.mkdirSync(resultDir, { recursive: true });
   const manifest = {
     schemaVersion: MANIFEST_SCHEMA,
@@ -38,6 +39,11 @@ function writeRunManifest(resultDir, { route, scenarioSet, matrix, scenarioIds, 
     // instructions sat outside all three, so adding the price brief on 2026-08-24 changed what was
     // measured while every pinned hash held still.
     authoringPolicy: authoringPolicy || null,
+    // WHICH MACHINE answered. The three fields above pin what the model was asked; this pins what
+    // did the asking, and it is identity-bearing for the same reason: an Apple unified-memory GPU
+    // and a dual-AMD box are not one measurement. It was unrecorded while only one machine existed,
+    // which is exactly when the omission is invisible.
+    runner: runner || runnerIdentity(),
     scenarioIds: [...scenarioIds].sort((left, right) => left - right)
   };
   fs.writeFileSync(manifestPath(resultDir), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -96,6 +102,28 @@ function assertResumable(manifest, current) {
         + 'Attempts told different things cannot share one result.'
       );
     }
+  }
+
+  // Resume on a different machine than started the run. Reachable from the day a second runner
+  // exists, and silent until then: attempts from two machines would land in one runs.jsonl and be
+  // aggregated into a single score for a configuration neither machine actually ran.
+  const priorRunner = manifest.runner;
+  // Derived here rather than required from the caller. Every other field on `current` describes
+  // what was ASKED and only the caller knows it; the machine is ambient, and a guard that fires
+  // only when someone remembers to pass an argument is the failure of omission it exists to catch.
+  const currentRunner = current.runner || runnerIdentity();
+  if (!priorRunner) {
+    throw new Error(
+      'cannot resume: this run predates the runner record, so there is no way to tell which '
+      + 'machine produced its attempts. Start a fresh run.'
+    );
+  }
+  if (priorRunner.id !== currentRunner.id) {
+    const describe = (runner) => `${runner.label || runner.id.slice(0, 12)} (${runner.platform}/${runner.arch})`;
+    throw new Error(
+      `cannot resume: this run was started on ${describe(priorRunner)} and this is `
+      + `${describe(currentRunner)}. Attempts from two machines cannot share one result.`
+    );
   }
 
   const known = new Set(manifest.scenarioIds);
