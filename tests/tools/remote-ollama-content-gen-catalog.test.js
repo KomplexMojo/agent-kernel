@@ -19,8 +19,8 @@ const {
 } = require("../../tools/remote-ollama-control/scripts/lib/benchmark-pipeline");
 const { loadExecutionCatalog } = require("../../tools/remote-ollama-control/scripts/lib/execution-catalog");
 
-const PRIOR_CATALOG_HASH = "0558024373ad3720a866f24c911f7293fbc7e0a01ec6abfb4c31571654767264";
-const EXPECTED_HASH = "fa63f68c2adb2f9be01f2e5634230fee217f3753d199f20c3169980686308272";
+const PRIOR_CATALOG_HASH = "fa63f68c2adb2f9be01f2e5634230fee217f3753d199f20c3169980686308272";
+const EXPECTED_HASH = "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001";
 const TIERS = ["simple", "affinity", "complex", "constrained"];
 const ROOT = resolve(__dirname, "../..");
 const REMOTE_CONTROL_ROOT = resolve(__dirname, "../../tools/remote-ollama-control");

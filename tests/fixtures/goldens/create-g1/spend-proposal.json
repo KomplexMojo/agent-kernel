@@ -66,6 +66,17 @@
     {
       "id": "vital_durability_point",
       "kind": "vital",
+      "quantity": 10,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_regen_tick",
+      "kind": "vital",
       "quantity": 1,
       "category": "delvers",
       "subjectRef": {
@@ -76,6 +87,17 @@
     },
     {
       "id": "vital_health_point",
+      "kind": "vital",
+      "quantity": 10,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_health_regen_tick",
       "kind": "vital",
       "quantity": 1,
       "category": "delvers",
@@ -88,7 +110,7 @@
     {
       "id": "vital_mana_point",
       "kind": "vital",
-      "quantity": 2,
+      "quantity": 10,
       "category": "delvers",
       "subjectRef": {
         "id": "card_delver_1-1",

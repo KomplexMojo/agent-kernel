@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 65,
+      "runTotalTokens": 93,
       "budgetTokens": 2000,
       "receiptRef": {
         "id": "golden_g3_budget_receipt",
@@ -33,7 +33,7 @@
       "poolWeights": [
         {
           "id": "delver",
-          "weight": 0.2
+          "weight": 0.25
         }
       ]
     }
@@ -1930,13 +1930,13 @@
           "tokenCost": 1,
           "vitals": {
             "health": {
-              "current": 1,
-              "max": 1,
-              "regen": 0
+              "current": 10,
+              "max": 10,
+              "regen": 1
             },
             "mana": {
-              "current": 2,
-              "max": 2,
+              "current": 10,
+              "max": 10,
               "regen": 1
             },
             "stamina": {
@@ -1945,9 +1945,9 @@
               "regen": 2
             },
             "durability": {
-              "current": 1,
-              "max": 1,
-              "regen": 0
+              "current": 10,
+              "max": 10,
+              "regen": 1
             }
           },
           "archetype": "delver",

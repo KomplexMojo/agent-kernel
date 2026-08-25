@@ -175,12 +175,23 @@ export function maximizeActorBudget({ actors, remaining, unitCosts, priceItems }
 
     scalableIndices.forEach((actorIdx) => {
       const actorAllotment = perActorAllotment + (actorAllocRemainder-- > 0 ? 1 : 0);
+      // A quadratic price is quadratic in the vital's TOTAL regen, not in the increment bought
+      // here. Raising an actor already at `base` by n costs unit·((base+n)² − base²), which exceeds
+      // the unit·n² this used to budget by exactly unit·2·base·n — so the maximizer under-budgeted
+      // every regen purchase on any vital that did not start at zero, and the receipt then charged
+      // the difference. It went unseen because the three vitals it touched all started at 0, where
+      // (0+n)² − 0² = n² and the wrong formula is accidentally right. Stamina did not: it carries a
+      // movement floor, which is why `create --text "…maximize…"` already overspent its pool by 28
+      // tokens at 600 and 72 at 1000 before any of this. The actor viability floor put health, mana
+      // and durability above zero too, turning an occasional overshoot into a constant one.
+      const base = cloned[actorIdx].vitals[key].regen;
       const n = quadratic
-        ? Math.floor(Math.sqrt(actorAllotment / unit))
+        // unit·((base+n)² − base²) ≤ A  ⇔  n ≤ √(A/unit + base²) − base
+        ? Math.floor(Math.sqrt(actorAllotment / unit + base * base) - base)
         : Math.floor(actorAllotment / unit);
       if (n <= 0) return;
-      const spent = quadratic ? unit * n * n : unit * n;
-      cloned[actorIdx].vitals[key].regen += n;
+      const spent = quadratic ? unit * ((base + n) * (base + n) - base * base) : unit * n;
+      cloned[actorIdx].vitals[key].regen = base + n;
       regenLeftover -= spent;
     });
   }

@@ -43,6 +43,7 @@ import { assessLayoutFeasibility } from "./feasibility.js";
 import {
   applyAffinityDerivedVitalRequirements,
   applyMotivationDerivedVitalRequirements,
+  applyViabilityDerivedVitalRequirements,
   assessDelverStructure,
   buildBudgetEnvelope,
   buildMinimumDelverCard,
@@ -365,6 +366,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
      * logic: it asks the Configurator, which owns configuration validity.
      */
     applyMotivationDerivedVitalRequirements,
+    applyViabilityDerivedVitalRequirements,
     /** AM.5/F14 — an actor holding an affinity must be able to pay to express it. */
     applyAffinityDerivedVitalRequirements,
     /**

@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 132,
-  "remaining": 4868,
+  "totalCost": 160,
+  "remaining": 4840,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -104,6 +104,20 @@
     {
       "id": "vital_durability_point",
       "kind": "vital",
+      "quantity": 10,
+      "unitCost": 1,
+      "totalCost": 10,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_regen_tick",
+      "kind": "vital",
       "quantity": 1,
       "unitCost": 1,
       "totalCost": 1,
@@ -117,6 +131,20 @@
     },
     {
       "id": "vital_health_point",
+      "kind": "vital",
+      "quantity": 10,
+      "unitCost": 1,
+      "totalCost": 10,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_health_regen_tick",
       "kind": "vital",
       "quantity": 1,
       "unitCost": 1,
@@ -132,9 +160,9 @@
     {
       "id": "vital_mana_point",
       "kind": "vital",
-      "quantity": 2,
+      "quantity": 10,
       "unitCost": 1,
-      "totalCost": 2,
+      "totalCost": 10,
       "status": "approved",
       "category": "delvers",
       "subjectRef": {
@@ -273,16 +301,16 @@
   "poolStatuses": [
     {
       "id": "rooms",
-      "capTokens": 2697,
+      "capTokens": 2101,
       "spentTokens": 25,
-      "remainingTokens": 2672,
+      "remainingTokens": 2076,
       "status": "approved"
     },
     {
       "id": "hazards",
-      "capTokens": 987,
+      "capTokens": 1087,
       "spentTokens": 42,
-      "remainingTokens": 945,
+      "remainingTokens": 1045,
       "status": "approved"
     },
     {
@@ -301,31 +329,31 @@
     },
     {
       "id": "delver",
-      "capTokens": 1316,
-      "spentTokens": 65,
-      "remainingTokens": 1251,
+      "capTokens": 1812,
+      "spentTokens": 93,
+      "remainingTokens": 1719,
       "status": "approved"
     }
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 132,
-    "remainingBudget": 4868,
+    "totalSpend": 160,
+    "remainingBudget": 4840,
     "overBudget": false,
     "categories": {
       "rooms": {
         "actual": 25,
-        "target": 2697,
+        "target": 2101,
         "usagePercent": 1
       },
       "floor_tiles": {
         "actual": 25,
-        "target": 2697,
+        "target": 2101,
         "usagePercent": 1
       },
       "hazards": {
         "actual": 42,
-        "target": 987,
+        "target": 1087,
         "usagePercent": 4
       },
       "resources": {
@@ -334,8 +362,8 @@
         "usagePercent": 0
       },
       "delvers": {
-        "actual": 65,
-        "target": 1316,
+        "actual": 93,
+        "target": 1812,
         "usagePercent": 5
       },
       "wardens": {
@@ -345,7 +373,7 @@
       },
       "shared_system": {
         "actual": 0,
-        "target": 2697,
+        "target": 2101,
         "usagePercent": 0
       }
     },

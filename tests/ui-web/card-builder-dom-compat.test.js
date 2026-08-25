@@ -108,9 +108,12 @@ function createDomGuidance() {
   // collapse the DOM builder's splits to 0% and reject every setCards call.
   elements.levelBudgetInput.value = "2500";
   // CR.9 M5 split retune: room 44 -> 41, hazard 12 -> 15.
-  elements.budgetSplitRoomInput.value = "41";
-  elements.budgetSplitAttackerInput.value = "20";
-  elements.budgetSplitDefenderInput.value = "16";
+  // Actor viability floor retune: room 41 -> 29, delver 20 -> 25, warden 16 -> 23.
+  // NOTE: these are hand-mirrored from levelBudgetSplitPercent rather than read from it, which
+  // makes them a further home for the same numbers -- they have now gone stale at both retunes.
+  elements.budgetSplitRoomInput.value = "29";
+  elements.budgetSplitAttackerInput.value = "25";
+  elements.budgetSplitDefenderInput.value = "23";
   elements.budgetSplitHazardInput.value = "15";
   elements.budgetSplitResourceInput.value = "8";
   return { guidance: wireDesignGuidance({ elements }), statusEl: elements.statusEl };

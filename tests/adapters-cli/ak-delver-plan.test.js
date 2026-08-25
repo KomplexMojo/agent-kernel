@@ -284,8 +284,18 @@ assert.equal(unitCost, 200);
 // Before this, the delver was priced for stamina REGEN with a zero-sized pool,
 // which core clamps regen against — it bought an actor that could never take a
 // step. The extra 5 tokens are what movement actually costs.
-assert.equal(card.vitals.mana.max, 94);
-assert.equal(card.vitals.mana.regen, 6);
+//
+// Actor viability floor re-baseline, and the shape of the change is the point. The floor adds
+// health 10/regen 1 and durability 10/regen 1 = 22 tokens of fixed spend. The maximizer paid for
+// them by ABANDONING mana regen rather than mana max: regen 6 -> 1 frees 6²-1² = 35 quadratic
+// tokens, of which 22 fund the floor and the rest goes to max, 94 -> 109.
+//
+// ⚠️ That means the `mana_regen` goal is now effectively unserved at this budget — regen 1 is the
+// floor's own minimum, not a choice the optimizer made. Quadratic regen is simply a bad buy once
+// 22 tokens of the 200 are spoken for. The test's stated intent (the whole budget, spent on mana)
+// still holds; WHICH mana it buys has inverted.
+assert.equal(card.vitals.mana.max, 109);
+assert.equal(card.vitals.mana.regen, 1);
 assert.equal(card.vitals.stamina.max, 2);
 assert.equal(card.vitals.stamina.regen, 2);
 });

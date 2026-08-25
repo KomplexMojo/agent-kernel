@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "producedBy": "cli-create",
     "cost": {
-      "runTotalTokens": 132,
+      "runTotalTokens": 160,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g1_budget_receipt",
@@ -36,13 +36,13 @@
       },
       "vitals": {
         "health": {
-          "current": 1,
-          "max": 1,
-          "regen": 0
+          "current": 10,
+          "max": 10,
+          "regen": 1
         },
         "mana": {
-          "current": 2,
-          "max": 2,
+          "current": 10,
+          "max": 10,
           "regen": 1
         },
         "stamina": {
@@ -51,9 +51,9 @@
           "regen": 2
         },
         "durability": {
-          "current": 1,
-          "max": 1,
-          "regen": 0
+          "current": 10,
+          "max": 10,
+          "regen": 1
         }
       },
       "archetype": "delver",

@@ -468,6 +468,28 @@ export const DEFAULT_VITALS = Object.freeze({
   durability: Object.freeze({ current: 1, max: 1, regen: 0 }),
 });
 
+/**
+ * The least an actor can be and still be worth simulating.
+ *
+ * DEFAULT_VITALS above is a ZERO, not a floor: health 1 with regen 0 dies to a single point of
+ * damage and never comes back, and the budget-minimum path deliberately authored exactly that
+ * because it was the cheapest thing that passed. Benchmark scenario 92 has the model writing
+ * `{durability:{max:1},health:{max:1},mana:{max:1},stamina:{max:1}}` on purpose.
+ *
+ * Stamina is absent on purpose. Its floor is not a constant -- it is derived from the worst-case
+ * move cost of the actor's own motivation (applyMovementStaminaFloor), and a fixed number here
+ * would either undercut a fast actor or overcharge a stationary one.
+ *
+ * regen 1 rather than 0 is the cheapest non-zero point on a QUADRATIC curve: n regen costs n*n per
+ * vital, so 1 costs 3 tokens across the three vitals here and 3 would cost 27. It buys "recovers
+ * eventually" and leaves real recovery to resources, which are placed in the level and walked to.
+ */
+export const ACTOR_VIABILITY_FLOOR = Object.freeze({
+  health: Object.freeze({ max: 10, regen: 1 }),
+  mana: Object.freeze({ max: 10, regen: 1 }),
+  durability: Object.freeze({ max: 10, regen: 1 }),
+});
+
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }

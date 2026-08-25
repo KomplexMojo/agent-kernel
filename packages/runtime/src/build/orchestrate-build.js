@@ -61,6 +61,11 @@ const configuratorApplyMotivationVitalRequirements = createConfiguratorPersona({
 const configuratorApplyAffinityVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
   .authorCandidates.applyAffinityDerivedVitalRequirements;
 
+// The viability floor, off the same surface for the same reason. Unlike the two above it is
+// unconditional: a stationary actor with no affinities still has to survive being hit.
+const configuratorApplyViabilityVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
+  .authorCandidates.applyViabilityDerivedVitalRequirements;
+
 const SCHEMAS = Object.freeze({
   solverRequest: SOLVER_REQUEST_SCHEMA,
   solverResult: SOLVER_RESULT_SCHEMA,
@@ -1500,6 +1505,7 @@ export async function orchestrateBuild({
       };
       configuratorApplyMotivationVitalRequirements(draft);
       configuratorApplyAffinityVitalRequirements(draft);
+      configuratorApplyViabilityVitalRequirements(draft);
       return draft;
     });
 
