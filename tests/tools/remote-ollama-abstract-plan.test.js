@@ -119,7 +119,11 @@ test("abstract-plan dry run reports the pilot without exposing its domain mappin
   const output = JSON.parse(result.stdout);
   assert.equal(output.command, "run-abstract-plan");
   assert.equal(output.scenarios.length, 1);
-  assert.deepEqual(output.settings, { contextTokens: 32768, outputTokens: 4096 });
+  assert.deepEqual(output.settings, { // primary's context dropped to 8192 on 2026-08-24. Verified safe for THIS suite too, not just
+    // content-gen: the abstract runner sends only scenario.problem (abstract-runner.js:84) — the
+    // reference and mapping fields are the grading key and never reach the model — and the largest
+    // problem is ~1,105 tokens, so worst case with the 4,096 output cap is ~5,201.
+    contextTokens: 8192, outputTokens: 4096 });
   assert.equal(Object.hasOwn(output.scenarios[0], "mapping"), false);
   assert.equal(Object.hasOwn(output.scenarios[0], "reference"), false);
 });

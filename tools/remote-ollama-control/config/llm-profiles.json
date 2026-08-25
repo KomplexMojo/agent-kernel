@@ -12,7 +12,7 @@
       "hsaOverrideGfxVersion": "10.3.0",
       "port": 11434,
       "defaultModel": "qwen3.8:27b",
-      "defaultContext": 32768,
+      "defaultContext": 8192,
       "defaultNumPredict": 4096,
       "benchmarkModels": [
         "qwen3.8:27b"
