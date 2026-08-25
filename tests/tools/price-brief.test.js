@@ -83,10 +83,14 @@ const { assertResumable } = require("../../tools/remote-ollama-control/scripts/l
 
 // assertResumable checks catalog, matrix, policy, scenario ids and configuration ids in that
 // order, so a fixture must satisfy all of them for the policy case to be the one under test.
+// The runner is part of that list as of the day a second machine could run the matrix: a manifest
+// that cannot say which machine produced it is refused outright, so the fixture has to name one for
+// the policy case to be reachable at all.
 const IDENT = {
   scenarioSet: { sha256: "s".repeat(64) },
   matrix: { sha256: "m".repeat(64), configurationIds: ["cfg-a"] },
   scenarioIds: [1, 2],
+  runner: { id: "a1b2c3d4e5f60718", platform: process.platform, arch: process.arch, label: null },
 };
 
 test("the authoring policy hashes the instructions and the prices together", () => {

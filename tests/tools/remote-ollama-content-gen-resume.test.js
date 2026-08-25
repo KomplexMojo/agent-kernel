@@ -239,3 +239,70 @@ test("a diagnostic run says so in its manifest, so it cannot be quoted as qualif
   writeRunManifest(dir, { route: "internal", ...IDENTITY });
   assert.equal(readRunManifest(dir).diagnostic, false, "a normal run must record diagnostic:false, not undefined");
 });
+
+// A run is identified by what was asked AND by what answered. The three identity fields above pin
+// the questions, the configurations and the instructions; until a second machine existed, nothing
+// pinned the machine, and the omission was invisible precisely because there was only one. A resume
+// that crosses machines would append one machine's attempts to another's runs.jsonl and aggregate
+// them into a single score for a configuration neither machine ran on its own.
+
+test("a manifest records which machine produced it without being asked to", () => {
+  const dir = mkdtempSync(join(tmpdir(), "cg-runner-"));
+  const manifest = writeRunManifest(dir, { route: "internal", ...IDENTITY });
+  assert.ok(manifest.runner, "the manifest must carry a runner");
+  assert.match(manifest.runner.id, /^[0-9a-f]{16}$/, "runner.id must be the derived digest");
+  assert.equal(manifest.runner.platform, process.platform);
+  assert.equal(manifest.runner.arch, process.arch);
+  // Round-trips through disk: an in-memory return value proves nothing about resume, which reads.
+  assert.deepEqual(readRunManifest(dir).runner, manifest.runner);
+});
+
+test("resume refuses a run started on a different machine", () => {
+  const dir = mkdtempSync(join(tmpdir(), "cg-runner-other-"));
+  writeRunManifest(dir, { route: "internal", ...IDENTITY });
+  const manifest = readRunManifest(dir);
+
+  assert.doesNotThrow(
+    () => assertResumable(manifest, IDENTITY),
+    "the machine that started the run must still be able to finish it",
+  );
+
+  const elsewhere = {
+    ...manifest,
+    runner: { id: "0123456789abcdef", platform: "linux", arch: "x64", label: "benchmark-box" },
+  };
+  assert.throws(
+    () => assertResumable(elsewhere, IDENTITY),
+    /two machines cannot share one result/i,
+    "attempts from two machines must not merge into one run",
+  );
+  // The message has to name both ends, or the operator cannot tell which machine to go back to.
+  assert.throws(() => assertResumable(elsewhere, IDENTITY), /benchmark-box/);
+  assert.throws(() => assertResumable(elsewhere, IDENTITY), new RegExp(process.platform));
+});
+
+// The guard derives the current machine rather than taking it as an argument. A caller that forgot
+// to pass one would otherwise disarm the check silently -- which is the same shape of omission the
+// check exists to catch.
+test("the runner check fires even when the caller supplies no runner", () => {
+  const foreign = {
+    ...IDENTITY,
+    runner: { id: "fedcba9876543210", platform: "linux", arch: "x64", label: null },
+  };
+  const current = { ...IDENTITY };
+  assert.equal(current.runner, undefined, "this case only means anything if the caller is silent");
+  assert.throws(
+    () => assertResumable(foreign, current),
+    /two machines cannot share one result/i,
+    "an absent runner on the caller side must not disarm the guard",
+  );
+});
+
+test("a run predating the runner record cannot be resumed", () => {
+  const { runner, ...predates } = { ...IDENTITY, runner: undefined };
+  assert.throws(
+    () => assertResumable(predates, IDENTITY),
+    /predates the runner record/i,
+    "an unattributable run must be restarted, not silently adopted",
+  );
+});

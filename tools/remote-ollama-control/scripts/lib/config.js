@@ -284,11 +284,20 @@ function localEndpointForProfile(profile) {
 
 function serviceEnvironment(profile) {
   const env = {
-    ROCR_VISIBLE_DEVICES: profile.rocrVisibleDevices,
-    HIP_VISIBLE_DEVICES: profile.hipVisibleDevices,
     OLLAMA_HOST: `${profile.bindHost}:${profile.port}`,
     OLLAMA_PROFILE: profile.name
   };
+  // Omitted, never emptied. loadConfig normalises an absent gpuDevices to '', and exporting
+  // HIP_VISIBLE_DEVICES='' to a ROCm runtime does not mean "no preference" -- it means "no GPUs",
+  // which silently drops the server to CPU. A profile on hardware with no per-device visibility
+  // (Apple unified memory) has nothing to say here, and saying nothing is the only safe way to
+  // say it.
+  if (profile.rocrVisibleDevices) {
+    env.ROCR_VISIBLE_DEVICES = profile.rocrVisibleDevices;
+  }
+  if (profile.hipVisibleDevices) {
+    env.HIP_VISIBLE_DEVICES = profile.hipVisibleDevices;
+  }
   if (profile.hsaOverrideGfxVersion) {
     env.HSA_OVERRIDE_GFX_VERSION = profile.hsaOverrideGfxVersion;
   }
