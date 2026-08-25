@@ -8,6 +8,7 @@ const { runBenchmarkPipeline } = require('./lib/benchmark-pipeline');
 const { prepareBenchmarkSource } = require('./lib/benchmark-source');
 const { acquireAgentLock, loadAgentState, saveAgentState } = require('./lib/benchmark-state');
 const { classifyTrigger, computeRunKey, loadTriggerPolicy } = require('./lib/benchmark-trigger');
+const { runnerIdentity } = require('./lib/runner-identity');
 
 function git(repo, args) {
   return execFileSync('git', ['-C', repo, ...args], {
@@ -53,7 +54,7 @@ function markEvaluated(state, sourceCommit, scenarioSetHash, matrixHash, executi
 function publicationRecord({
   outcome, sourceCommit, sourceTree, sourceRef, sourceRepository, key,
   startedAt, completedAt, policy, trigger, previousEvaluatedCommit,
-  scenarioSetHash, matrixHash, executionSuiteHash,
+  scenarioSetHash, matrixHash, executionSuiteHash, runner,
 }) {
   const status = outcome.status || 'infrastructure_error';
   const defaultFailures = status === 'infrastructure_error'
@@ -72,6 +73,9 @@ function publicationRecord({
       runnerContractVersion: policy.runnerContractVersion,
     },
     source: { repository: sourceRepository, ref: sourceRef, commit: sourceCommit, tree: sourceTree },
+    // Which machine produced this. Two runners on the same commit and matrix used to publish under
+    // the same key; a reader could not tell them apart, and the second silently replaced the first.
+    runner: runner || null,
     trigger: {
       previousEvaluatedCommit,
       reasons: trigger.reasons,
@@ -158,12 +162,15 @@ async function runBenchmarkAgent(options) {
       executionSuiteHashChanged: state.lastEvaluatedCommit !== null
         && state.executionSuiteHash !== executionSuiteHash,
     });
+    const runner = runnerIdentity();
     const key = computeRunKey({
       sourceCommit,
       scenarioSetHash,
       matrixHash,
       executionSuiteHash,
       runnerContractVersion: policy.runnerContractVersion,
+      // The host is part of what a run IS. Without it a second machine collides with the first.
+      runnerId: runner.id,
     });
 
     if (dryRun) {
@@ -231,6 +238,7 @@ async function runBenchmarkAgent(options) {
       scenarioSetHash,
       matrixHash,
       executionSuiteHash,
+      runner,
     });
     await publishResult({
       remote: resultsRemote,
