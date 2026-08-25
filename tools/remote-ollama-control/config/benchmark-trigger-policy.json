@@ -1,6 +1,6 @@
 {
   "schemaVersion": "agent-kernel-benchmark-trigger-policy/v1",
-  "runnerContractVersion": "benchmark-agent-v1",
+  "runnerContractVersion": "benchmark-agent-v2",
   "sourceRef": "main",
   "resultBranch": "benchmark-results",
   "pathClasses": {
