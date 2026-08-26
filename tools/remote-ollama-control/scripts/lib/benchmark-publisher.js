@@ -101,6 +101,20 @@ function prepareCheckout(remote, branch, workDir) {
     git(workDir, ['checkout', '-B', branch, `origin/${branch}`]);
   } else {
     git(workDir, ['checkout', '--orphan', branch]);
+    // An orphan checkout starts a new history but KEEPS the index, and workDir is a mirror of the
+    // source repo -- so the first commit swept the entire source tree onto the evidence branch and
+    // every commit after it inherited the result: 1496 files and 15.9 MB of `packages/`, `tests/`
+    // and `.github/` against ~0 MB of actual evidence. Nothing detected it, because the branch was
+    // never wrong in a way that broke a publish.
+    //
+    // It is not only bloat. AGENTS.md states that result-branch commits "cannot trigger source
+    // benchmarks", and that held only because nothing watched the branch -- it carried real
+    // workflow files, one trigger away from being untrue.
+    //
+    // The heartbeat publisher has always done this; the two were written apart and only one knew.
+    // Scoped to the orphan branch deliberately: doing it on the `checkout -B` path above would
+    // destroy every prior result, which is the failure the docblock warns about.
+    git(workDir, ['rm', '-rf', '--cached', '--ignore-unmatch', '.']);
   }
 }
 

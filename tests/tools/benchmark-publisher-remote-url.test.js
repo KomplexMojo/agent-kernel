@@ -91,3 +91,57 @@ test('publishing twice to a URL remote appends rather than conflicting', async (
 // - a cache directory that exists but was cloned from a different remote
 // - concurrent publishers racing on the same workDir
 // - a remote path that exists locally but is not a git repository
+
+// A bootstrap publish must carry EVIDENCE ONLY.
+//
+// `git checkout --orphan` starts a new history but keeps the index, and the publisher runs inside a
+// mirror of the source repo. So the first ever commit swept the whole source tree onto the evidence
+// branch -- 1496 files, 15.9 MB of packages/ tests/ and .github/ against ~0 MB of results -- and
+// every commit after it inherited them. Nothing caught it because the branch was never wrong in a
+// way that broke a publish.
+test("a bootstrap publish commits evidence only, never the source tree", () => {
+  const { execFileSync } = require("node:child_process");
+  const { mkdtempSync, writeFileSync, mkdirSync } = require("node:fs");
+  const { tmpdir } = require("node:os");
+  const { join } = require("node:path");
+  const git = (cwd, args) => execFileSync("git", args, { cwd, encoding: "utf8" });
+
+  // A "source repo" the publisher would be mirroring, with a file that must not travel.
+  const repo = mkdtempSync(join(tmpdir(), "pub-src-"));
+  git(repo, ["init", "--quiet", "-b", "main", "."]);
+  git(repo, ["config", "user.email", "t@t"]); git(repo, ["config", "user.name", "t"]);
+  mkdirSync(join(repo, "packages"), { recursive: true });
+  writeFileSync(join(repo, "packages", "runtime.js"), "// source, must not reach the evidence branch\n");
+  git(repo, ["add", "-A"]); git(repo, ["commit", "--quiet", "-m", "source"]);
+
+  // What prepareCheckout does on the bootstrap path.
+  git(repo, ["checkout", "--orphan", "benchmark-results"]);
+  git(repo, ["rm", "-rf", "--cached", "--ignore-unmatch", "."]);
+  mkdirSync(join(repo, "history", "2026", "08"), { recursive: true });
+  writeFileSync(join(repo, "history", "2026", "08", "run.json"), "{}\n");
+  writeFileSync(join(repo, "latest.json"), "{}\n");
+  git(repo, ["add", "--", "history", "latest.json"]);
+  git(repo, ["commit", "--quiet", "-m", "benchmark: run"]);
+
+  const tracked = git(repo, ["ls-tree", "-r", "--name-only", "HEAD"]).trim().split("\n").sort();
+  assert.deepEqual(
+    tracked, ["history/2026/08/run.json", "latest.json"],
+    "the bootstrap commit carried files beyond the evidence — the index was not cleared after the "
+    + "orphan checkout, which is how 15.9 MB of source ended up on benchmark-results",
+  );
+});
+
+// The clearing must NOT happen on the existing-branch path: the publisher's own docblock warns that
+// dropping prior results there is "not a failed publish, it is a destroyed archive".
+test("the index is cleared only on the orphan path, never for an existing branch", () => {
+  const { readFileSync } = require("node:fs");
+  const { resolve } = require("node:path");
+  const src = readFileSync(
+    resolve(__dirname, "../../tools/remote-ollama-control/scripts/lib/benchmark-publisher.js"), "utf8");
+  const orphanBlock = src.slice(src.indexOf("checkout', '--orphan'"));
+  const existingBlock = src.slice(src.indexOf("'checkout', '-B'"), src.indexOf("checkout', '--orphan'"));
+  assert.match(orphanBlock.slice(0, 1400), /rm', '-rf', '--cached'/,
+    "the orphan path must clear the index");
+  assert.doesNotMatch(existingBlock, /rm', '-rf', '--cached'/,
+    "clearing the index on the existing-branch path would destroy every prior result");
+});
