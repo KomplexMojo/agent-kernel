@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-result/v2",
+  "run": {
+    "id": "2026-08-23T22-35-29-862Z-1e5cc0313516-8a6c645e323c",
+    "key": "8a6c645e323c68c07df1d4c8e780d391af1a54714f364833126cb4b365383efc",
+    "status": "infrastructure_error",
+    "startedAt": "2026-08-23T22:35:29.862Z",
+    "completedAt": "2026-08-23T22:36:15.558Z",
+    "durationMs": 45696,
+    "runnerContractVersion": "benchmark-agent-v1"
+  },
+  "source": {
+    "repository": "KomplexMojo/agent-kernel",
+    "ref": "main",
+    "commit": "1e5cc0313516fe932fc051792f549923d6eca9a0",
+    "tree": "c8fb5bb689f1e7597c3d05f8fbc2994e0b4fae44"
+  },
+  "trigger": {
+    "previousEvaluatedCommit": null,
+    "reasons": [
+      "initial_evaluation"
+    ],
+    "relevantPaths": [],
+    "pathClasses": [],
+    "modes": {
+      "authoring": true,
+      "runtimeExecution": true,
+      "generatedExecution": true
+    },
+    "scenarioHashChanged": false,
+    "matrixHashChanged": false,
+    "executionSuiteHashChanged": false
+  },
+  "scenarioSet": {
+    "catalogPath": "tools/remote-ollama-control/benchmarks/content-gen",
+    "count": 0,
+    "sha256": "fa63f68c2adb2f9be01f2e5634230fee217f3753d199f20c3169980686308272",
+    "tierCounts": {}
+  },
+  "matrix": {
+    "sha256": "21d135595cf539764f9df8f94fb6334f027f6a51f93eb467e9512631aaa728c2",
+    "configurationIds": [],
+    "repeatPolicy": {}
+  },
+  "thresholds": {},
+  "configurations": [],
+  "execution": {
+    "status": "not_run",
+    "identity": {
+      "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d"
+    }
+  },
+  "minimumSuccessfulConfiguration": null,
+  "paretoFrontier": [],
+  "comparison": {
+    "comparable": false,
+    "incomparabilityReasons": [
+      "no prior comparable result"
+    ]
+  },
+  "failures": {
+    "infrastructure": {
+      "count": 1,
+      "reasons": [
+        "content generation failed: ERROR: Route auto-detection failed: neither the internal host (600ms) nor the external host (1500ms) answered on port 22.\n  - On the host's own network, check LLM_INTERNAL_HOST and that the host is up.\n  - Off it, check that any required VPN is connected and that LLM_EXTERNAL_HOST still resolves to the current address (a dynamic-DNS record can go stale).\n  - Force a specific path with --route internal|external to see the underlying error.\n"
+      ]
+    }
+  },
+  "artifacts": {
+    "retentionId": null
+  },
+  "qualifies": false
+}

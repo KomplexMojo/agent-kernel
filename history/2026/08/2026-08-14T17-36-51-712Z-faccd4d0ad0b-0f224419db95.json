@@ -1,0 +1,290 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-result/v1",
+  "run": {
+    "id": "2026-08-14T17-36-51-712Z-faccd4d0ad0b-0f224419db95",
+    "key": "0f224419db95c7b48efc9d08a24f6bf6b6a0f5a016869adbac5a02c83f29a5ed",
+    "status": "completed",
+    "startedAt": "2026-08-14T17:36:51.712Z",
+    "completedAt": "2026-08-14T20:51:35.261Z",
+    "durationMs": 11683549,
+    "runnerContractVersion": "benchmark-agent-v1"
+  },
+  "source": {
+    "repository": "KomplexMojo/agent-kernel",
+    "ref": "codex/benchmark-catalog",
+    "commit": "faccd4d0ad0b7c75614630e58c31d0c3d442af53",
+    "tree": "2d3ea78996ef1fcc12a2d9f1c7e8dc905ad266e2",
+    "implementationCommit": "b5f40276dcd3c01281be402973061c2085374c9c"
+  },
+  "trigger": {
+    "previousEvaluatedCommit": "8583d9e5345befc0bcc83b3e71976f9fe829beab",
+    "reasons": [
+      "manual_source_refresh",
+      "matrix_hash",
+      "model_qualification"
+    ],
+    "relevantPaths": [
+      "tools/remote-ollama-control/config/models.json",
+      "tools/remote-ollama-control/config/llm-profiles.json"
+    ],
+    "scenarioHashChanged": false,
+    "matrixHashChanged": true
+  },
+  "scenarioSet": {
+    "catalogPath": "tools/remote-ollama-control/benchmarks/content-gen",
+    "count": 100,
+    "catalogCount": 100,
+    "sha256": "6e5abc67edaaea2f1d2d1e06ce0e8d074b4e46e808f3a01bbcaf0a3c7efd4960",
+    "tierCounts": {
+      "simple": 25,
+      "affinity": 25,
+      "complex": 25,
+      "constrained": 25
+    }
+  },
+  "matrix": {
+    "sha256": "689b08adf6cc06f2feac0fb6fd285fe920faf062bab2fd889b14e25c5737a890",
+    "configurationIds": [
+      "cg-v1--qwen3.5_9b--primary--ctx32768--out4096",
+      "cg-v1--qwen3.5_27b--dual--ctx65536--out32768"
+    ],
+    "repeatPolicy": {
+      "minimumCompletePasses": 1,
+      "maximumPasses": 1,
+      "earlyStop": "disabled_for_manual_qualification"
+    }
+  },
+  "thresholds": {
+    "toolCallRate": 0.99,
+    "scenarioVerdictRate": 0.99,
+    "averageSemanticScore": 75
+  },
+  "configurations": [
+    {
+      "configurationId": "cg-v1--qwen3.5_9b--primary--ctx32768--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "primary",
+        "hardwareClass": "single-primary",
+        "gpuCount": 1,
+        "gpuVisibility": "0",
+        "capacityRank": 2
+      },
+      "model": {
+        "id": "qwen3.5:9b",
+        "family": "qwen3.5",
+        "parameterBillions": 9
+      },
+      "settings": {
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 2,
+        "modelSizeBillions": 9,
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 100,
+        "maximum": 100
+      },
+      "completedAttempts": 100,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 70,
+          "total": 100,
+          "rate": 0.7
+        },
+        "toolCallOk": {
+          "pass": 99,
+          "total": 100,
+          "rate": 0.99
+        },
+        "avgScore": 60.61,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 75,
+        "total": 100,
+        "rate": 0.75
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.92,
+          "averageScore": 79.6
+        },
+        "affinity": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.8,
+          "averageScore": 64.36
+        },
+        "complex": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.76,
+          "averageScore": 55.48
+        },
+        "constrained": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.52,
+          "averageScore": 43
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
+      "eligible": true,
+      "profile": {
+        "id": "dual",
+        "hardwareClass": "dual",
+        "gpuCount": 2,
+        "gpuVisibility": "0,1",
+        "capacityRank": 3
+      },
+      "model": {
+        "id": "qwen3.5:27b",
+        "family": "qwen3.5",
+        "parameterBillions": 27
+      },
+      "settings": {
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "resourceOrder": {
+        "gpuCount": 2,
+        "capacityRank": 3,
+        "modelSizeBillions": 27,
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "plannedAttempts": {
+        "minimum": 100,
+        "maximum": 100
+      },
+      "completedAttempts": 100,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 80,
+          "total": 100,
+          "rate": 0.8
+        },
+        "toolCallOk": {
+          "pass": 100,
+          "total": 100,
+          "rate": 1
+        },
+        "avgScore": 68.5,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 84,
+        "total": 100,
+        "rate": 0.84
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 25,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "affinity": {
+          "attempts": 25,
+          "scenarioVerdictRate": 1,
+          "averageScore": 75.1
+        },
+        "complex": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.92,
+          "averageScore": 67.4
+        },
+        "constrained": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.44,
+          "averageScore": 41.6
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      }
+    }
+  ],
+  "execution": {
+    "status": "completed",
+    "attempts": 200,
+    "route": "external",
+    "isolation": {
+      "primaryGpuVisibility": "0",
+      "dualGpuVisibility": "0,1",
+      "secondaryStandaloneUsed": false
+    },
+    "primaryResume": {
+      "segments": 2,
+      "reason": "one stochastic malformed Qwen tool-call serialization; counted as a failed first attempt"
+    },
+    "averageLlmMs": {
+      "primary": 21796.06,
+      "dual": 84370.33
+    }
+  },
+  "minimumSuccessfulConfiguration": null,
+  "paretoFrontier": [],
+  "comparison": {
+    "comparable": false,
+    "incomparabilityReasons": [
+      "new source commit and model matrix; no prior full Qwen3.5 baseline"
+    ]
+  },
+  "failures": {
+    "configurations": 2,
+    "byGate": {
+      "scenario_verdict_rate": 2,
+      "average_score": 2
+    },
+    "parser": {
+      "count": 1,
+      "model": "qwen3.5:9b",
+      "detail": "malformed Qwen tool-call XML returned HTTP 500; retry passed"
+    }
+  },
+  "artifacts": {
+    "retentionId": "2026-08-14-qwen35-source-refresh",
+    "rawResultsCommitted": false,
+    "localResultDirectories": [
+      "2026-08-14T17-36-51-712Z-content-gen",
+      "2026-08-14T17-50-44-539Z-content-gen",
+      "2026-08-14T18-30-33-875Z-content-gen"
+    ]
+  },
+  "qualifies": false
+}

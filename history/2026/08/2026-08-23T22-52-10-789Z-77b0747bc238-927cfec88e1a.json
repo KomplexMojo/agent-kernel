@@ -1,0 +1,1027 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-result/v2",
+  "run": {
+    "id": "2026-08-23T22-52-10-789Z-77b0747bc238-927cfec88e1a",
+    "key": "927cfec88e1ab963810801bc17a4fa0aafcd9fc5ac5574aef5eb187fc71651ac",
+    "status": "completed",
+    "startedAt": "2026-08-23T22:52:10.789Z",
+    "completedAt": "2026-08-24T13:09:44.370Z",
+    "durationMs": 51453581,
+    "runnerContractVersion": "benchmark-agent-v1"
+  },
+  "source": {
+    "repository": "KomplexMojo/agent-kernel",
+    "ref": "main",
+    "commit": "77b0747bc238501f0dbdfe83ec55dcd60ba97b04",
+    "tree": "c8181397f9703290723e18031e051887249303b5"
+  },
+  "trigger": {
+    "previousEvaluatedCommit": null,
+    "reasons": [
+      "initial_evaluation"
+    ],
+    "relevantPaths": [],
+    "pathClasses": [],
+    "modes": {
+      "authoring": true,
+      "runtimeExecution": true,
+      "generatedExecution": true
+    },
+    "scenarioHashChanged": false,
+    "matrixHashChanged": false,
+    "executionSuiteHashChanged": false
+  },
+  "scenarioSet": {
+    "count": 100,
+    "catalogCount": 100,
+    "sha256": "fa63f68c2adb2f9be01f2e5634230fee217f3753d199f20c3169980686308272",
+    "tierCounts": {
+      "simple": 25,
+      "affinity": 25,
+      "complex": 25,
+      "constrained": 25
+    }
+  },
+  "matrix": {
+    "sha256": "21d135595cf539764f9df8f94fb6334f027f6a51f93eb467e9512631aaa728c2",
+    "configurationIds": [
+      "cg-v1--qwen3.5_9b--primary--ctx32768--out4096",
+      "cg-v1--qwen3_14b--primary--ctx32768--out4096",
+      "cg-v1--qwen3.5_27b--primary--ctx32768--out4096",
+      "cg-v1--qwen3.8_27b--primary--ctx32768--out4096",
+      "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
+      "cg-v1--qwen3.8_27b--dual--ctx65536--out32768",
+      "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768"
+    ],
+    "repeatPolicy": {
+      "minimumCompletePasses": 1,
+      "maximumPasses": 3,
+      "earlyStop": "mathematically_lossless"
+    }
+  },
+  "thresholds": {
+    "toolCallRate": 0.99,
+    "scenarioVerdictRate": 0.99,
+    "averageScore": 75
+  },
+  "configurations": [
+    {
+      "configurationId": "cg-v1--qwen3.5_9b--primary--ctx32768--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "primary",
+        "hardwareClass": "single-primary",
+        "gpuCount": 1,
+        "gpuVisibility": "0",
+        "capacityRank": 2
+      },
+      "model": {
+        "id": "qwen3.5:9b",
+        "family": "qwen3.5",
+        "parameterBillions": 9.7
+      },
+      "settings": {
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 2,
+        "modelSizeBillions": 9.7,
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 100,
+        "maximum": 300
+      },
+      "completedAttempts": 100,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 60,
+          "total": 100,
+          "rate": 0.6
+        },
+        "toolCallOk": {
+          "pass": 100,
+          "total": 100,
+          "rate": 1
+        },
+        "avgScore": 53.4,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 62,
+        "total": 100,
+        "rate": 0.62
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.8,
+          "averageScore": 64.3
+        },
+        "affinity": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.72,
+          "averageScore": 60.7
+        },
+        "complex": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.6,
+          "averageScore": 48.7
+        },
+        "constrained": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.36,
+          "averageScore": 39.7
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "authoring",
+          "runtime_execution",
+          "generated_execution"
+        ]
+      },
+      "authoring": {
+        "qualifies": false,
+        "failedGates": [
+          "matrix_incomplete",
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      },
+      "runtimeExecution": {
+        "qualifies": false,
+        "status": "failed",
+        "identity": {
+          "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
+          "evaluatorVersion": "execution-evaluator-v2",
+          "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
+          "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
+        }
+      },
+      "generatedExecution": {
+        "qualifies": false,
+        "status": "missing",
+        "identity": null
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3_14b--primary--ctx32768--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "primary",
+        "hardwareClass": "single-primary",
+        "gpuCount": 1,
+        "gpuVisibility": "0",
+        "capacityRank": 2
+      },
+      "model": {
+        "id": "qwen3:14b",
+        "family": "qwen3",
+        "parameterBillions": 14
+      },
+      "settings": {
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 2,
+        "modelSizeBillions": 14,
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 100,
+        "maximum": 300
+      },
+      "completedAttempts": 100,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 64,
+          "total": 100,
+          "rate": 0.64
+        },
+        "toolCallOk": {
+          "pass": 96,
+          "total": 100,
+          "rate": 0.96
+        },
+        "avgScore": 53.3,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 69,
+        "total": 100,
+        "rate": 0.69
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.92,
+          "averageScore": 65.6
+        },
+        "affinity": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.72,
+          "averageScore": 57.7
+        },
+        "complex": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.6,
+          "averageScore": 49
+        },
+        "constrained": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.52,
+          "averageScore": 40.9
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "authoring",
+          "runtime_execution",
+          "generated_execution"
+        ]
+      },
+      "authoring": {
+        "qualifies": false,
+        "failedGates": [
+          "matrix_incomplete",
+          "tool_call_rate",
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      },
+      "runtimeExecution": {
+        "qualifies": false,
+        "status": "failed",
+        "identity": {
+          "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
+          "evaluatorVersion": "execution-evaluator-v2",
+          "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
+          "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
+        }
+      },
+      "generatedExecution": {
+        "qualifies": false,
+        "status": "missing",
+        "identity": null
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3.5_27b--primary--ctx32768--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "primary",
+        "hardwareClass": "single-primary",
+        "gpuCount": 1,
+        "gpuVisibility": "0",
+        "capacityRank": 2
+      },
+      "model": {
+        "id": "qwen3.5:27b",
+        "family": "qwen3.5",
+        "parameterBillions": 27
+      },
+      "settings": {
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 2,
+        "modelSizeBillions": 27,
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 100,
+        "maximum": 300
+      },
+      "completedAttempts": 100,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 69,
+          "total": 100,
+          "rate": 0.69
+        },
+        "toolCallOk": {
+          "pass": 100,
+          "total": 100,
+          "rate": 1
+        },
+        "avgScore": 58.2,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 74,
+        "total": 100,
+        "rate": 0.74
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.92,
+          "averageScore": 69.8
+        },
+        "affinity": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.76,
+          "averageScore": 62.7
+        },
+        "complex": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.64,
+          "averageScore": 49.8
+        },
+        "constrained": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.64,
+          "averageScore": 50.5
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "authoring",
+          "runtime_execution",
+          "generated_execution"
+        ]
+      },
+      "authoring": {
+        "qualifies": false,
+        "failedGates": [
+          "matrix_incomplete",
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      },
+      "runtimeExecution": {
+        "qualifies": false,
+        "status": "failed",
+        "identity": {
+          "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
+          "evaluatorVersion": "execution-evaluator-v2",
+          "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
+          "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
+        }
+      },
+      "generatedExecution": {
+        "qualifies": false,
+        "status": "missing",
+        "identity": null
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3.8_27b--primary--ctx32768--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "primary",
+        "hardwareClass": "single-primary",
+        "gpuCount": 1,
+        "gpuVisibility": "0",
+        "capacityRank": 2
+      },
+      "model": {
+        "id": "qwen3.8:27b",
+        "family": "qwen3.8",
+        "parameterBillions": 27
+      },
+      "settings": {
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 2,
+        "modelSizeBillions": 27,
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 100,
+        "maximum": 300
+      },
+      "completedAttempts": 100,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 80,
+          "total": 100,
+          "rate": 0.8
+        },
+        "toolCallOk": {
+          "pass": 100,
+          "total": 100,
+          "rate": 1
+        },
+        "avgScore": 67.6,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 86,
+        "total": 100,
+        "rate": 0.86
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 25,
+          "scenarioVerdictRate": 1,
+          "averageScore": 79
+        },
+        "affinity": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.84,
+          "averageScore": 71
+        },
+        "complex": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.8,
+          "averageScore": 61.9
+        },
+        "constrained": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.8,
+          "averageScore": 58.4
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "authoring",
+          "runtime_execution",
+          "generated_execution"
+        ]
+      },
+      "authoring": {
+        "qualifies": false,
+        "failedGates": [
+          "matrix_incomplete",
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      },
+      "runtimeExecution": {
+        "qualifies": false,
+        "status": "failed",
+        "identity": {
+          "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
+          "evaluatorVersion": "execution-evaluator-v2",
+          "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
+          "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
+        }
+      },
+      "generatedExecution": {
+        "qualifies": false,
+        "status": "missing",
+        "identity": null
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
+      "eligible": true,
+      "profile": {
+        "id": "dual",
+        "hardwareClass": "dual",
+        "gpuCount": 2,
+        "gpuVisibility": "0,1",
+        "capacityRank": 3
+      },
+      "model": {
+        "id": "qwen3.5:27b",
+        "family": "qwen3.5",
+        "parameterBillions": 27
+      },
+      "settings": {
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "resourceOrder": {
+        "gpuCount": 2,
+        "capacityRank": 3,
+        "modelSizeBillions": 27,
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "plannedAttempts": {
+        "minimum": 100,
+        "maximum": 300
+      },
+      "completedAttempts": 100,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 70,
+          "total": 100,
+          "rate": 0.7
+        },
+        "toolCallOk": {
+          "pass": 100,
+          "total": 100,
+          "rate": 1
+        },
+        "avgScore": 59.3,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 76,
+        "total": 100,
+        "rate": 0.76
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.92,
+          "averageScore": 71.9
+        },
+        "affinity": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.68,
+          "averageScore": 60.6
+        },
+        "complex": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.8,
+          "averageScore": 57.4
+        },
+        "constrained": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.64,
+          "averageScore": 47.2
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "authoring",
+          "runtime_execution",
+          "generated_execution"
+        ]
+      },
+      "authoring": {
+        "qualifies": false,
+        "failedGates": [
+          "matrix_incomplete",
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      },
+      "runtimeExecution": {
+        "qualifies": false,
+        "status": "failed",
+        "identity": {
+          "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
+          "evaluatorVersion": "execution-evaluator-v2",
+          "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
+          "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
+        }
+      },
+      "generatedExecution": {
+        "qualifies": false,
+        "status": "missing",
+        "identity": null
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3.8_27b--dual--ctx65536--out32768",
+      "eligible": true,
+      "profile": {
+        "id": "dual",
+        "hardwareClass": "dual",
+        "gpuCount": 2,
+        "gpuVisibility": "0,1",
+        "capacityRank": 3
+      },
+      "model": {
+        "id": "qwen3.8:27b",
+        "family": "qwen3.8",
+        "parameterBillions": 27
+      },
+      "settings": {
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "resourceOrder": {
+        "gpuCount": 2,
+        "capacityRank": 3,
+        "modelSizeBillions": 27,
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "plannedAttempts": {
+        "minimum": 100,
+        "maximum": 300
+      },
+      "completedAttempts": 100,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 84,
+          "total": 100,
+          "rate": 0.84
+        },
+        "toolCallOk": {
+          "pass": 100,
+          "total": 100,
+          "rate": 1
+        },
+        "avgScore": 70,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 90,
+        "total": 100,
+        "rate": 0.9
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 25,
+          "scenarioVerdictRate": 1,
+          "averageScore": 79.8
+        },
+        "affinity": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.88,
+          "averageScore": 71.8
+        },
+        "complex": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.8,
+          "averageScore": 61.6
+        },
+        "constrained": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.92,
+          "averageScore": 66.6
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "authoring",
+          "runtime_execution",
+          "generated_execution"
+        ]
+      },
+      "authoring": {
+        "qualifies": false,
+        "failedGates": [
+          "matrix_incomplete",
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      },
+      "runtimeExecution": {
+        "qualifies": false,
+        "status": "failed",
+        "identity": {
+          "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
+          "evaluatorVersion": "execution-evaluator-v2",
+          "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
+          "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
+        }
+      },
+      "generatedExecution": {
+        "qualifies": false,
+        "status": "missing",
+        "identity": null
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768",
+      "eligible": true,
+      "profile": {
+        "id": "dual",
+        "hardwareClass": "dual",
+        "gpuCount": 2,
+        "gpuVisibility": "0,1",
+        "capacityRank": 3
+      },
+      "model": {
+        "id": "qwen3-coder:30b-a3b-q4_K_M",
+        "family": "qwen3-coder",
+        "parameterBillions": 30
+      },
+      "settings": {
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "resourceOrder": {
+        "gpuCount": 2,
+        "capacityRank": 3,
+        "modelSizeBillions": 30,
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "plannedAttempts": {
+        "minimum": 100,
+        "maximum": 300
+      },
+      "completedAttempts": 100,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 79,
+          "total": 100,
+          "rate": 0.79
+        },
+        "toolCallOk": {
+          "pass": 100,
+          "total": 100,
+          "rate": 1
+        },
+        "avgScore": 63.5,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 84,
+        "total": 100,
+        "rate": 0.84
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.92,
+          "averageScore": 69
+        },
+        "affinity": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.88,
+          "averageScore": 68.8
+        },
+        "complex": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.84,
+          "averageScore": 61.4
+        },
+        "constrained": {
+          "attempts": 25,
+          "scenarioVerdictRate": 0.72,
+          "averageScore": 55
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "authoring",
+          "runtime_execution",
+          "generated_execution"
+        ]
+      },
+      "authoring": {
+        "qualifies": false,
+        "failedGates": [
+          "matrix_incomplete",
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      },
+      "runtimeExecution": {
+        "qualifies": false,
+        "status": "failed",
+        "identity": {
+          "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
+          "evaluatorVersion": "execution-evaluator-v2",
+          "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
+          "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
+        }
+      },
+      "generatedExecution": {
+        "qualifies": false,
+        "status": "missing",
+        "identity": null
+      }
+    }
+  ],
+  "execution": {
+    "identity": {
+      "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
+      "evaluatorVersion": "execution-evaluator-v2",
+      "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
+      "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
+    },
+    "runtime": {
+      "status": "failed",
+      "identity": {
+        "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
+        "evaluatorVersion": "execution-evaluator-v2",
+        "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
+        "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
+      },
+      "attempts": 77,
+      "scenarios": [
+        {
+          "scenarioId": "EX-TR-01",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-TR-02",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-TR-03",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-TR-04",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-TR-05",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-CB-01",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-CB-02",
+          "status": "evidence_unavailable",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-CB-03",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-CB-04",
+          "status": "evidence_unavailable",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-CB-05",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-HZ-01",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-HZ-02",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-HZ-03",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-HZ-04",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-HZ-05",
+          "status": "evidence_unavailable",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-RS-01",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-RS-02",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-RS-03",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-RS-04",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-RS-05",
+          "status": "evidence_unavailable",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-ST-01",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-ST-02",
+          "status": "evidence_unavailable",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-ST-03",
+          "status": "evidence_unavailable",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-ST-04",
+          "status": "failed",
+          "aggregateQualifies": false
+        },
+        {
+          "scenarioId": "EX-ST-05",
+          "status": "failed",
+          "aggregateQualifies": false
+        }
+      ]
+    },
+    "generatedByConfiguration": {}
+  },
+  "minimumSuccessfulConfiguration": null,
+  "paretoFrontier": [],
+  "comparison": {
+    "comparable": false,
+    "incomparabilityReasons": [
+      "pipeline comparison not loaded"
+    ]
+  },
+  "failures": {
+    "configurations": 7,
+    "byGate": {
+      "authoring": 7,
+      "runtime_execution": 7,
+      "generated_execution": 7
+    }
+  },
+  "artifacts": {
+    "retentionId": "runs/927cfec88e1ab963810801bc17a4fa0aafcd9fc5ac5574aef5eb187fc71651ac"
+  },
+  "qualifies": false
+}

@@ -1,0 +1,798 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-result/v1",
+  "run": {
+    "id": "2026-08-12T18-03-37-865Z-8583d9e5345b-d4c0b48241f7",
+    "key": "d4c0b48241f7a0524ec9540ae88dd179e8274dddf35a0257522bb27d50b778fe",
+    "status": "completed",
+    "startedAt": "2026-08-12T18:03:37.865Z",
+    "completedAt": "2026-08-12T18:03:37.868Z",
+    "durationMs": 3,
+    "runnerContractVersion": "benchmark-agent-v1"
+  },
+  "source": {
+    "repository": "KomplexMojo/agent-kernel",
+    "ref": "codex/benchmark-catalog",
+    "commit": "8583d9e5345befc0bcc83b3e71976f9fe829beab",
+    "tree": "41b78405f1925d0b8ae0acdeebc6bbb16901859c"
+  },
+  "trigger": {
+    "previousEvaluatedCommit": null,
+    "reasons": [
+      "initial_evaluation"
+    ],
+    "relevantPaths": [],
+    "scenarioHashChanged": false,
+    "matrixHashChanged": false
+  },
+  "scenarioSet": {
+    "catalogPath": "tools/remote-ollama-control/benchmarks/content-gen",
+    "count": 10,
+    "catalogCount": 100,
+    "sha256": "6e5abc67edaaea2f1d2e06ce0e8d074b4e46e808f3a01bbcaf0a3c7efd4960",
+    "tierCounts": {
+      "simple": 2,
+      "affinity": 2,
+      "complex": 2,
+      "constrained": 4
+    }
+  },
+  "matrix": {
+    "sha256": "c1bb409f71206a75a4f0a718642ae82cb28ccd71b295ad5ea4e12c7f3156d0f5",
+    "configurationIds": [
+      "cg-v1--qwen2.5-coder_7b--secondary--ctx8192--out4096",
+      "cg-v1--qwen2.5-coder_14b--secondary--ctx8192--out4096",
+      "cg-v1--qwen3_14b--secondary--ctx8192--out4096",
+      "cg-v1--qwen2.5-coder_7b--primary--ctx32768--out4096",
+      "cg-v1--qwen2.5-coder_14b--primary--ctx32768--out4096",
+      "cg-v1--qwen3_14b--primary--ctx32768--out4096",
+      "cg-v1--qwen3-coder_30b--dual--ctx65536--out32768",
+      "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768"
+    ],
+    "repeatPolicy": {
+      "minimumCompletePasses": 1,
+      "maximumPasses": 1,
+      "earlyStop": "mathematically_lossless"
+    }
+  },
+  "thresholds": {
+    "toolCallRate": 0.99,
+    "scenarioVerdictRate": 0.99,
+    "averageSemanticScore": 75
+  },
+  "configurations": [
+    {
+      "configurationId": "cg-v1--qwen2.5-coder_7b--secondary--ctx8192--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "secondary",
+        "hardwareClass": "single-secondary",
+        "gpuCount": 1,
+        "gpuVisibility": "1",
+        "capacityRank": 1
+      },
+      "model": {
+        "id": "qwen2.5-coder:7b",
+        "family": "qwen2.5-coder",
+        "parameterBillions": 7
+      },
+      "settings": {
+        "contextTokens": 8192,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 1,
+        "modelSizeBillions": 7,
+        "contextTokens": 8192,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 10,
+        "maximum": 10
+      },
+      "completedAttempts": 10,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 7,
+          "total": 10,
+          "rate": 0.7
+        },
+        "toolCallOk": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "avgScore": 64.4,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 8,
+        "total": 10,
+        "rate": 0.8
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "affinity": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 85
+        },
+        "complex": {
+          "attempts": 2,
+          "scenarioVerdictRate": 0.5,
+          "averageScore": 50
+        },
+        "constrained": {
+          "attempts": 4,
+          "scenarioVerdictRate": 0.75,
+          "averageScore": 48.5
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen2.5-coder_14b--secondary--ctx8192--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "secondary",
+        "hardwareClass": "single-secondary",
+        "gpuCount": 1,
+        "gpuVisibility": "1",
+        "capacityRank": 1
+      },
+      "model": {
+        "id": "qwen2.5-coder:14b",
+        "family": "qwen2.5-coder",
+        "parameterBillions": 14
+      },
+      "settings": {
+        "contextTokens": 8192,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 1,
+        "modelSizeBillions": 14,
+        "contextTokens": 8192,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 10,
+        "maximum": 10
+      },
+      "completedAttempts": 10,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 8,
+          "total": 10,
+          "rate": 0.8
+        },
+        "toolCallOk": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "avgScore": 72,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 9,
+        "total": 10,
+        "rate": 0.9
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "affinity": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "complex": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 81.5
+        },
+        "constrained": {
+          "attempts": 4,
+          "scenarioVerdictRate": 0.75,
+          "averageScore": 49.3
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3_14b--secondary--ctx8192--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "secondary",
+        "hardwareClass": "single-secondary",
+        "gpuCount": 1,
+        "gpuVisibility": "1",
+        "capacityRank": 1
+      },
+      "model": {
+        "id": "qwen3:14b",
+        "family": "qwen3",
+        "parameterBillions": 14
+      },
+      "settings": {
+        "contextTokens": 8192,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 1,
+        "modelSizeBillions": 14,
+        "contextTokens": 8192,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 10,
+        "maximum": 10
+      },
+      "completedAttempts": 10,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 6,
+          "total": 10,
+          "rate": 0.6
+        },
+        "toolCallOk": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "avgScore": 56.3,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 7,
+        "total": 10,
+        "rate": 0.7
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 75
+        },
+        "affinity": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 85
+        },
+        "complex": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 81.5
+        },
+        "constrained": {
+          "attempts": 4,
+          "scenarioVerdictRate": 0.25,
+          "averageScore": 20
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen2.5-coder_7b--primary--ctx32768--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "primary",
+        "hardwareClass": "single-primary",
+        "gpuCount": 1,
+        "gpuVisibility": "0",
+        "capacityRank": 2
+      },
+      "model": {
+        "id": "qwen2.5-coder:7b",
+        "family": "qwen2.5-coder",
+        "parameterBillions": 7
+      },
+      "settings": {
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 2,
+        "modelSizeBillions": 7,
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 10,
+        "maximum": 10
+      },
+      "completedAttempts": 10,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 5,
+          "total": 10,
+          "rate": 0.5
+        },
+        "toolCallOk": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "avgScore": 52.6,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 6,
+        "total": 10,
+        "rate": 0.6
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "affinity": {
+          "attempts": 2,
+          "scenarioVerdictRate": 0.5,
+          "averageScore": 55
+        },
+        "complex": {
+          "attempts": 2,
+          "scenarioVerdictRate": 0.5,
+          "averageScore": 50
+        },
+        "constrained": {
+          "attempts": 4,
+          "scenarioVerdictRate": 0.5,
+          "averageScore": 34
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen2.5-coder_14b--primary--ctx32768--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "primary",
+        "hardwareClass": "single-primary",
+        "gpuCount": 1,
+        "gpuVisibility": "0",
+        "capacityRank": 2
+      },
+      "model": {
+        "id": "qwen2.5-coder:14b",
+        "family": "qwen2.5-coder",
+        "parameterBillions": 14
+      },
+      "settings": {
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 2,
+        "modelSizeBillions": 14,
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 10,
+        "maximum": 10
+      },
+      "completedAttempts": 10,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 7,
+          "total": 10,
+          "rate": 0.7
+        },
+        "toolCallOk": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "avgScore": 66,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 8,
+        "total": 10,
+        "rate": 0.8
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "affinity": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "complex": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 81.5
+        },
+        "constrained": {
+          "attempts": 4,
+          "scenarioVerdictRate": 0.5,
+          "averageScore": 34.3
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3_14b--primary--ctx32768--out4096",
+      "eligible": true,
+      "profile": {
+        "id": "primary",
+        "hardwareClass": "single-primary",
+        "gpuCount": 1,
+        "gpuVisibility": "0",
+        "capacityRank": 2
+      },
+      "model": {
+        "id": "qwen3:14b",
+        "family": "qwen3",
+        "parameterBillions": 14
+      },
+      "settings": {
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "resourceOrder": {
+        "gpuCount": 1,
+        "capacityRank": 2,
+        "modelSizeBillions": 14,
+        "contextTokens": 32768,
+        "outputTokens": 4096
+      },
+      "plannedAttempts": {
+        "minimum": 10,
+        "maximum": 10
+      },
+      "completedAttempts": 10,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 6,
+          "total": 10,
+          "rate": 0.6
+        },
+        "toolCallOk": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "avgScore": 59.3,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 7,
+        "total": 10,
+        "rate": 0.7
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "affinity": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 85
+        },
+        "complex": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 81.5
+        },
+        "constrained": {
+          "attempts": 4,
+          "scenarioVerdictRate": 0.25,
+          "averageScore": 20
+        }
+      },
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "scenario_verdict_rate",
+          "average_score"
+        ]
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3-coder_30b--dual--ctx65536--out32768",
+      "eligible": true,
+      "profile": {
+        "id": "dual",
+        "hardwareClass": "dual",
+        "gpuCount": 2,
+        "gpuVisibility": "0,1",
+        "capacityRank": 3
+      },
+      "model": {
+        "id": "qwen3-coder:30b",
+        "family": "qwen3-coder",
+        "parameterBillions": 30
+      },
+      "settings": {
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "resourceOrder": {
+        "gpuCount": 2,
+        "capacityRank": 3,
+        "modelSizeBillions": 30,
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "plannedAttempts": {
+        "minimum": 10,
+        "maximum": 10
+      },
+      "completedAttempts": 10,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 9,
+          "total": 10,
+          "rate": 0.9
+        },
+        "toolCallOk": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "avgScore": 76.8,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 10,
+        "total": 10,
+        "rate": 1
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 80
+        },
+        "affinity": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "complex": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 81.5
+        },
+        "constrained": {
+          "attempts": 4,
+          "scenarioVerdictRate": 1,
+          "averageScore": 66.3
+        }
+      },
+      "verdict": {
+        "qualifies": true,
+        "failedGates": []
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768",
+      "eligible": true,
+      "profile": {
+        "id": "dual",
+        "hardwareClass": "dual",
+        "gpuCount": 2,
+        "gpuVisibility": "0,1",
+        "capacityRank": 3
+      },
+      "model": {
+        "id": "qwen3-coder:30b-a3b-q4_K_M",
+        "family": "qwen3-coder",
+        "parameterBillions": 30
+      },
+      "settings": {
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "resourceOrder": {
+        "gpuCount": 2,
+        "capacityRank": 3,
+        "modelSizeBillions": 30,
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "plannedAttempts": {
+        "minimum": 10,
+        "maximum": 10
+      },
+      "completedAttempts": 10,
+      "completedPasses": 1,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 9,
+          "total": 10,
+          "rate": 0.9
+        },
+        "toolCallOk": {
+          "pass": 10,
+          "total": 10,
+          "rate": 1
+        },
+        "avgScore": 78.9,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 10,
+        "total": 10,
+        "rate": 1
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "affinity": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 90
+        },
+        "complex": {
+          "attempts": 2,
+          "scenarioVerdictRate": 1,
+          "averageScore": 81.5
+        },
+        "constrained": {
+          "attempts": 4,
+          "scenarioVerdictRate": 1,
+          "averageScore": 66.5
+        }
+      },
+      "verdict": {
+        "qualifies": true,
+        "failedGates": []
+      }
+    }
+  ],
+  "execution": {
+    "status": "not_run",
+    "reason": "authoring canary only"
+  },
+  "minimumSuccessfulConfiguration": {
+    "configurationId": "cg-v1--qwen3-coder_30b--dual--ctx65536--out32768"
+  },
+  "paretoFrontier": [
+    "cg-v1--qwen3-coder_30b--dual--ctx65536--out32768",
+    "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768"
+  ],
+  "comparison": {
+    "comparable": false,
+    "incomparabilityReasons": [
+      "canary subset is not a full baseline"
+    ]
+  },
+  "failures": {
+    "configurations": 6,
+    "byGate": {
+      "scenario_verdict_rate": 6,
+      "average_score": 6
+    }
+  },
+  "artifacts": {
+    "retentionId": "2026-08-12T18-10-00-000Z-content-gen-canary-combined"
+  },
+  "qualifies": false
+}

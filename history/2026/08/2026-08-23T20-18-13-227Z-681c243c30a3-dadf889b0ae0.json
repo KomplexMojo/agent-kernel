@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-result/v2",
+  "run": {
+    "id": "2026-08-23T20-18-13-227Z-681c243c30a3-dadf889b0ae0",
+    "key": "dadf889b0ae0b2a5ac90bab9665ff258ded935e040e929c0e5a968d2a4e1037e",
+    "status": "infrastructure_error",
+    "startedAt": "2026-08-23T20:18:13.227Z",
+    "completedAt": "2026-08-23T20:20:24.874Z",
+    "durationMs": 131647,
+    "runnerContractVersion": "benchmark-agent-v1"
+  },
+  "source": {
+    "repository": "KomplexMojo/agent-kernel",
+    "ref": "main",
+    "commit": "681c243c30a3dc457631b5b71c5059796e646285",
+    "tree": "4be3ee5abb251192621d8ad5bebe60797cc3dea9"
+  },
+  "trigger": {
+    "previousEvaluatedCommit": null,
+    "reasons": [
+      "initial_evaluation"
+    ],
+    "relevantPaths": [],
+    "pathClasses": [],
+    "modes": {
+      "authoring": true,
+      "runtimeExecution": true,
+      "generatedExecution": true
+    },
+    "scenarioHashChanged": false,
+    "matrixHashChanged": false,
+    "executionSuiteHashChanged": false
+  },
+  "scenarioSet": {
+    "catalogPath": "tools/remote-ollama-control/benchmarks/content-gen",
+    "count": 0,
+    "sha256": "fa63f68c2adb2f9be01f2e5634230fee217f3753d199f20c3169980686308272",
+    "tierCounts": {}
+  },
+  "matrix": {
+    "sha256": "21d135595cf539764f9df8f94fb6334f027f6a51f93eb467e9512631aaa728c2",
+    "configurationIds": [],
+    "repeatPolicy": {}
+  },
+  "thresholds": {},
+  "configurations": [],
+  "execution": {
+    "status": "not_run",
+    "identity": {
+      "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d"
+    }
+  },
+  "minimumSuccessfulConfiguration": null,
+  "paretoFrontier": [],
+  "comparison": {
+    "comparable": false,
+    "incomparabilityReasons": [
+      "no prior comparable result"
+    ]
+  },
+  "failures": {
+    "infrastructure": {
+      "count": 1,
+      "reasons": [
+        "preflight tests failed"
+      ]
+    }
+  },
+  "artifacts": {
+    "retentionId": "preflights/dadf889b0ae0b2a5ac90bab9665ff258ded935e040e929c0e5a968d2a4e1037e"
+  },
+  "qualifies": false
+}

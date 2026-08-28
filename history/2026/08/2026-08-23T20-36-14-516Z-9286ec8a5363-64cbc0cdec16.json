@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-result/v2",
+  "run": {
+    "id": "2026-08-23T20-36-14-516Z-9286ec8a5363-64cbc0cdec16",
+    "key": "64cbc0cdec16401e1c1ec3e99166f092e63bdacacf8d1c62900f060cb8ed1ee9",
+    "status": "infrastructure_error",
+    "startedAt": "2026-08-23T20:36:14.516Z",
+    "completedAt": "2026-08-23T20:38:24.833Z",
+    "durationMs": 130317,
+    "runnerContractVersion": "benchmark-agent-v1"
+  },
+  "source": {
+    "repository": "KomplexMojo/agent-kernel",
+    "ref": "main",
+    "commit": "9286ec8a536386bbdc306cf6c46e0ef6f41fa8b3",
+    "tree": "9a84eb07cfac562d59ee329c99e0fe0df816e0da"
+  },
+  "trigger": {
+    "previousEvaluatedCommit": null,
+    "reasons": [
+      "initial_evaluation"
+    ],
+    "relevantPaths": [],
+    "pathClasses": [],
+    "modes": {
+      "authoring": true,
+      "runtimeExecution": true,
+      "generatedExecution": true
+    },
+    "scenarioHashChanged": false,
+    "matrixHashChanged": false,
+    "executionSuiteHashChanged": false
+  },
+  "scenarioSet": {
+    "catalogPath": "tools/remote-ollama-control/benchmarks/content-gen",
+    "count": 0,
+    "sha256": "fa63f68c2adb2f9be01f2e5634230fee217f3753d199f20c3169980686308272",
+    "tierCounts": {}
+  },
+  "matrix": {
+    "sha256": "21d135595cf539764f9df8f94fb6334f027f6a51f93eb467e9512631aaa728c2",
+    "configurationIds": [],
+    "repeatPolicy": {}
+  },
+  "thresholds": {},
+  "configurations": [],
+  "execution": {
+    "status": "not_run",
+    "identity": {
+      "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d"
+    }
+  },
+  "minimumSuccessfulConfiguration": null,
+  "paretoFrontier": [],
+  "comparison": {
+    "comparable": false,
+    "incomparabilityReasons": [
+      "no prior comparable result"
+    ]
+  },
+  "failures": {
+    "infrastructure": {
+      "count": 1,
+      "reasons": [
+        "preflight tests failed"
+      ]
+    }
+  },
+  "artifacts": {
+    "retentionId": "preflights/64cbc0cdec16401e1c1ec3e99166f092e63bdacacf8d1c62900f060cb8ed1ee9"
+  },
+  "qualifies": false
+}

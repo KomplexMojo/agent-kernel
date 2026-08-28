@@ -1,0 +1,73 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-result/v2",
+  "run": {
+    "id": "2026-08-23T22-17-28-017Z-bfd9be0cd2dc-667118c8a851",
+    "key": "667118c8a8515caf066485866f3465d3f6ea15c41e3bae3701be0987a0413328",
+    "status": "infrastructure_error",
+    "startedAt": "2026-08-23T22:17:28.017Z",
+    "completedAt": "2026-08-23T22:18:10.954Z",
+    "durationMs": 42937,
+    "runnerContractVersion": "benchmark-agent-v1"
+  },
+  "source": {
+    "repository": "KomplexMojo/agent-kernel",
+    "ref": "main",
+    "commit": "bfd9be0cd2dc40d6ebf742795bedb52e694761f3",
+    "tree": "177a3e8e774c26846361aa2de424de76fb0f2f14"
+  },
+  "trigger": {
+    "previousEvaluatedCommit": null,
+    "reasons": [
+      "initial_evaluation"
+    ],
+    "relevantPaths": [],
+    "pathClasses": [],
+    "modes": {
+      "authoring": true,
+      "runtimeExecution": true,
+      "generatedExecution": true
+    },
+    "scenarioHashChanged": false,
+    "matrixHashChanged": false,
+    "executionSuiteHashChanged": false
+  },
+  "scenarioSet": {
+    "catalogPath": "tools/remote-ollama-control/benchmarks/content-gen",
+    "count": 0,
+    "sha256": "fa63f68c2adb2f9be01f2e5634230fee217f3753d199f20c3169980686308272",
+    "tierCounts": {}
+  },
+  "matrix": {
+    "sha256": "21d135595cf539764f9df8f94fb6334f027f6a51f93eb467e9512631aaa728c2",
+    "configurationIds": [],
+    "repeatPolicy": {}
+  },
+  "thresholds": {},
+  "configurations": [],
+  "execution": {
+    "status": "not_run",
+    "identity": {
+      "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d"
+    }
+  },
+  "minimumSuccessfulConfiguration": null,
+  "paretoFrontier": [],
+  "comparison": {
+    "comparable": false,
+    "incomparabilityReasons": [
+      "no prior comparable result"
+    ]
+  },
+  "failures": {
+    "infrastructure": {
+      "count": 1,
+      "reasons": [
+        "preflight tests failed"
+      ]
+    }
+  },
+  "artifacts": {
+    "retentionId": "preflights/667118c8a8515caf066485866f3465d3f6ea15c41e3bae3701be0987a0413328"
+  },
+  "qualifies": false
+}
