@@ -279,7 +279,41 @@ function partialOverlap(genSet, refSet) {
   return hits / denom;
 }
 
-function scoreRun(runResult, scenario, refSpecPath, refReceiptPath) {
+/**
+ * A scenario that is SUPPOSED to be denied must be scored like any other.
+ *
+ * This used to return early when the build did not succeed, so the six catalog scenarios whose
+ * expected outcome is `budget_denied` could never earn more than the 20-point tool-call gate -- and,
+ * worse, were scored BLIND: a model that authored exactly the right spec and one that authored
+ * nonsense both scored 20, as long as both were denied. The verdict rate could not separate them
+ * either, since it only compares outcome labels. Correct authoring was unrewardable on 6% of the
+ * catalog.
+ *
+ * Everything needed was already to hand. What the model ASKED FOR is in `runResult.toolArgs`
+ * whether or not it was affordable, and the refusal reports how far over it went, so all 100 points
+ * have an honest meaning for a denial.
+ *
+ * `outcome` is passed in rather than derived here: classifyExecutionOutcome lives in ak-runner,
+ * which would make this module import its own caller.
+ */
+/**
+ * The card set a tool call describes, in the shape the built spec would have produced. Used only
+ * when there is no built spec -- a denial -- so that WHAT the model asked for is still judged.
+ */
+function cardSetFromToolArgs(toolArgs) {
+  if (!toolArgs || typeof toolArgs !== 'object') return [];
+  const cards = [];
+  for (const type of ['room', 'floorTile', 'hazard', 'resource', 'delver', 'warden']) {
+    for (const entry of Array.isArray(toolArgs[type]) ? toolArgs[type] : []) {
+      if (!entry || typeof entry !== 'object') continue;
+      const count = Number.isInteger(entry.count) && entry.count > 0 ? entry.count : 1;
+      cards.push({ type, count, affinity: entry.affinity });
+    }
+  }
+  return cards;
+}
+
+function scoreRun(runResult, scenario, refSpecPath, refReceiptPath, { outcome = null } = {}) {
   const breakdown = {};
   let points = 0;
 
@@ -292,18 +326,25 @@ function scoreRun(runResult, scenario, refSpecPath, refReceiptPath) {
     return { points, max: 100, breakdown };
   }
 
-  // Exec succeeded: 10 pts
-  if (runResult.execResult?.succeeded) {
-    points += 10;
-    breakdown.execSucceeded = 10;
-  } else {
-    breakdown.execSucceeded = 0;
-    return { points, max: 100, breakdown };
-  }
+  // Outcome matched expectation: 10 pts.
+  //
+  // Was `execSucceeded`, which rewarded a build for succeeding even when the scenario expected it to
+  // be denied -- backwards for the six that do -- and early-returned, ending scoring. Now it asks
+  // the question the scenario actually poses, and scoring continues either way.
+  const expected = scenario?.expectedOutcome || 'success';
+  const actual = outcome || (runResult.execResult?.succeeded ? 'success' : null);
+  const outcomeMatched = actual !== null && actual === expected;
+  points += outcomeMatched ? 10 : 0;
+  breakdown.outcomeMatched = outcomeMatched ? 10 : 0;
+  // Only a missing tool call stops scoring: there is no authored spec to judge.
+  const deniedAsExpected = outcomeMatched && expected !== 'success';
 
   const genSpecPath = runResult.outDir ? path.join(runResult.outDir, 'spec.json') : null;
   const genSpec = genSpecPath ? readJson(genSpecPath) : null;
-  const genCardSet = genSpec?.plan?.hints?.cardSet || [];
+  // A denied build writes no spec.json, but the authored intent is in the tool call itself. Prefer
+  // the built spec where it exists -- it is post-normalisation, so successful scenarios keep the
+  // scores they had -- and fall back to what was asked for when it does not.
+  const genCardSet = genSpec?.plan?.hints?.cardSet || cardSetFromToolArgs(runResult.toolArgs);
   let refTypes;
   let refCounts;
   let refAffinities;
@@ -377,7 +418,26 @@ function scoreRun(runResult, scenario, refSpecPath, refReceiptPath) {
   const genReceiptPath = runResult.outDir ? path.join(runResult.outDir, 'budget-receipt.json') : null;
   const genReceipt = genReceiptPath ? readJson(genReceiptPath) : null;
   const genSpend = genReceipt?.totalCost ?? null;
-  if (scenario?.budgetMode !== 'constrained') {
+  // A denial has a budget signal of its own: the refusal reports how far over it went. Being denied
+  // by 4 tokens shows a far better grasp of the economy than being denied by 400, and that
+  // distinction used to be discarded along with the rest of the score.
+  if (deniedAsExpected) {
+    const detail = `${runResult.execResult?.stdout || ''}${runResult.execResult?.stderr || ''}`;
+    const over = detail.match(/remaining=-(\d+)/) || detail.match(/minimum required spend is (\d+)/);
+    const budget = Number.isInteger(scenario?.budget) && scenario.budget > 0 ? scenario.budget : null;
+    if (over && budget) {
+      const overshoot = over[0].startsWith('remaining')
+        ? Number(over[1])
+        : Math.max(0, Number(over[1]) - budget);
+      // Full marks within 5% of the boundary, tapering to zero at 80% over -- the same shape the
+      // constrained branch below uses for spend accuracy.
+      const score = Math.round(10 * Math.max(0, 1 - Math.max(0, overshoot / budget - 0.05) / 0.8));
+      points += score;
+      breakdown.budgetDelta = score;
+    } else {
+      breakdown.budgetDelta = 0;
+    }
+  } else if (scenario?.budgetMode !== 'constrained') {
     breakdown.budgetDelta = genSpend !== null && genSpend > 0 ? 10 : 0;
     points += breakdown.budgetDelta;
   } else if (genSpend !== null && refSpend !== null && refSpend > 0) {

@@ -1438,8 +1438,8 @@ async function runContentGen(options) {
             outDir: null
           };
         }
-        const scoreResult = scoreRun(runResult, scenario);
         const executionOutcome = classifyExecutionOutcome(runResult);
+        const scoreResult = scoreRun(runResult, scenario, undefined, undefined, { outcome: executionOutcome });
         return {
           timestamp: new Date().toISOString(),
           scenarioBudget: scenario.budget,
