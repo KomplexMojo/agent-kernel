@@ -58,6 +58,47 @@ function canStillQualify(records, { remainingAttempts = 0, thresholds = DEFAULT_
     && ((score + (remainingAttempts * 100)) / Math.max(1, finalTotal)) >= thresholds.averageScore;
 }
 
+/**
+ * Per-scenario outcomes, compact enough to publish.
+ *
+ * The published record carried tier AGGREGATES and nothing finer, so "which scenarios does this
+ * configuration actually fail?" could not be answered from evidence -- only from runs.jsonl on the
+ * box, which is deliberately never published. That makes every selective-run strategy impossible:
+ * you cannot re-run the problematic scenarios, or skip the ones a model always passes, without
+ * knowing which those are.
+ *
+ * Tier labels are not a substitute. Measured on 2026-08-24, four of six configurations were
+ * NON-MONOTONIC across tiers -- qwen3-coder:30b scored 1.00 on `complex` and 0.48 on `constrained`,
+ * and qwen3.8:27b found `affinity` easier than `simple`. Difficulty is a property of the
+ * model-scenario pair, not of the label.
+ *
+ * One row per scenario, aggregated over repeats: attempts, passes, mean score. That is what a
+ * selector needs and roughly 100 short rows per configuration -- kilobytes against a branch that
+ * was carrying 15.9 MB of source until it was cleaned.
+ */
+function perScenarioAggregate(records) {
+  const byIndex = new Map();
+  for (const record of records) {
+    const index = record.scenarioIndex;
+    if (!Number.isInteger(index)) continue;
+    const row = byIndex.get(index) || { i: index, tier: record.scenarioTier, n: 0, pass: 0, score: 0 };
+    row.n += 1;
+    if (record.scenarioVerdict?.passed) row.pass += 1;
+    row.score += record.score || 0;
+    byIndex.set(index, row);
+  }
+  return [...byIndex.values()]
+    .sort((left, right) => left.i - right.i)
+    .map((row) => ({
+      i: row.i,
+      tier: row.tier,
+      n: row.n,
+      pass: row.pass,
+      rate: ratio(row.pass, row.n),
+      avgScore: round1(row.score / Math.max(1, row.n)),
+    }));
+}
+
 function tierAggregate(records) {
   const output = {};
   for (const record of records) {
@@ -121,6 +162,8 @@ function aggregateContentGenResults(records, {
       historicalContentGen,
       scenarioVerdict: { pass: verdictPass, total: attempts.length, rate: ratio(verdictPass, attempts.length) },
       perTier: tierAggregate(attempts),
+      // The finer grain the tier aggregate cannot provide. Selective runs are driven from this.
+      perScenario: perScenarioAggregate(attempts),
       verdict: { qualifies: failedGates.length === 0, failedGates }
     };
   });
