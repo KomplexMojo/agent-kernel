@@ -1,0 +1,125 @@
+{
+  "id": "bf-017",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 43,
+  "scenarioTitle": "Create Multi Room Delver Route",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "text": "Create a three-room dungeon corridor scenario with one exploring Delver baseline route. The dungeon features a linear progression through connected chambers with environmental hazards and resources scattered throughout. Room 1: Entry chamber with earth affinity terrain and decay hazard. Room 2: Central junction room with water affinity hazards and mana resources. Room 3: Exit chamber with fire affinity hazards and health regeneration. Delver starts at entry, explores through all three rooms seeking mana optimization goals. Hazards use proximity-based placement with affinity pressure effects. Floor tiles vary by room theme.",
+    "runId": "dungeon-corridor-001",
+    "outDir": "./artifacts/dungeon-corridor-001",
+    "emitIntermediates": true,
+    "dungeonAffinity": "earth",
+    "room": [
+      {
+        "count": 3,
+        "size": "medium"
+      }
+    ],
+    "floorTile": [
+      {
+        "count": 1,
+        "id": "stone_floor"
+      },
+      {
+        "count": 1,
+        "id": "mossy_tiles"
+      },
+      {
+        "count": 1,
+        "id": "cracked_earth"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "decay",
+        "blocking": true,
+        "expression": "emit",
+        "mana": 0,
+        "proximityRadius": 2,
+        "stacks": 1
+      },
+      {
+        "affinity": "water",
+        "blocking": false,
+        "expression": "pull",
+        "mana": 0,
+        "proximityRadius": 3,
+        "stacks": 1
+      },
+      {
+        "affinity": "fire",
+        "blocking": true,
+        "expression": "emit",
+        "mana": 0,
+        "proximityRadius": 2,
+        "stacks": 1
+      }
+    ],
+    "delver": [
+      {
+        "affinities": [
+          {
+            "expression": "pull",
+            "kind": "earth",
+            "stacks": 1
+          }
+        ],
+        "affinity": "earth",
+        "count": 1,
+        "goals": [
+          {
+            "kind": "max_mana",
+            "priority": "high"
+          }
+        ],
+        "motivation": "exploring",
+        "vitals": {
+          "health": {
+            "max": 50,
+            "regen": 0
+          },
+          "mana": {
+            "max": 30,
+            "regen": 1
+          },
+          "stamina": {
+            "max": 40,
+            "regen": 2
+          }
+        }
+      }
+    ],
+    "resource": [
+      {
+        "affinity": "life",
+        "expression": "emit",
+        "mana": 5,
+        "stacks": 1,
+        "vital": {
+          "delta": 5,
+          "permanenceMode": "consumable",
+          "vital": "mana"
+        }
+      },
+      {
+        "affinity": "earth",
+        "expression": "emit",
+        "mana": 3,
+        "stacks": 1,
+        "vital": {
+          "delta": 10,
+          "permanenceMode": "permanent",
+          "vital": "health"
+        }
+      }
+    ]
+  },
+  "observedError": "resource[1] permanenceMode is required for a vital payload (read as a vital payload because vital is set); it governs how long the vital delta persists.\n",
+  "occurrences": 2,
+  "disposition": "model-error",
+  "dispositionNote": "incomplete V3 resource spec (permanenceMode required because vital is set, variant wording); not in M3's symptom table."
+}

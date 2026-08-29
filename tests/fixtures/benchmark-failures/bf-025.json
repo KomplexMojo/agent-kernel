@@ -1,0 +1,80 @@
+{
+  "id": "bf-025",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 45,
+  "scenarioTitle": "Create Multi Room Balanced Encounter",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "text": "Create a dungeon scenario with three rooms containing two Delvers, two Wardens, and a balanced light-dark hazard mix. The delvers should be light-affinity explorers seeking mana resources. The wardens should be dark-affinity defenders protecting the dungeon. Hazards include both light (mana-generating) and dark (mana-draining) pressure zones with appropriate proximity effects.",
+    "runId": "dungeon-run-001",
+    "outDir": "./generated-dungeons/run-001",
+    "emitIntermediates": true,
+    "dungeonAffinity": "light",
+    "room": [
+      {
+        "count": 3,
+        "size": "medium"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "light",
+        "expression": "emit",
+        "mana": 10,
+        "proximityRadius": 2,
+        "stacks": 1
+      },
+      {
+        "affinity": "dark",
+        "expression": "draw",
+        "mana": -5,
+        "proximityRadius": 2,
+        "stacks": 1
+      }
+    ],
+    "delver": [
+      {
+        "affinity": "light",
+        "count": 2,
+        "motivation": "exploring",
+        "vitals": {
+          "health": {
+            "max": 30
+          },
+          "mana": {
+            "max": 25,
+            "regen": 1
+          },
+          "stamina": {
+            "max": 40
+          }
+        }
+      }
+    ],
+    "warden": [
+      {
+        "affinity": "dark",
+        "count": 2,
+        "motivation": "defending",
+        "vitals": {
+          "health": {
+            "max": 35
+          },
+          "mana": {
+            "max": 20
+          },
+          "stamina": {
+            "max": 35
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "hazard[2] mana must be a plain amount, one-time:<amount>, or regen:<current>:<max>:<regen>; got \"-5\".\n",
+  "occurrences": 1,
+  "disposition": "harness-defect",
+  "dispositionNote": "M3: hazard mana format rejects a negative plain amount."
+}

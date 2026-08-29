@@ -1,0 +1,21 @@
+{
+  "id": "bf-015",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 46,
+  "scenarioTitle": "Create Large Dark Maze",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "runId": "dark_maze_001",
+    "dungeonAffinity": "dark",
+    "text": "Create a large dark maze-style level with multiple dark hazards (affinity: dark, expression: push/pull, proximityRadius: 3) and one light scout delver (affinity: light, motivation: exploring). Rooms: generic containers. Hazards: dark affinity pressure via proximity. Delver goals: maximize_spend (priority: high).",
+    "emitIntermediates": true,
+    "outDir": "generated_artifacts"
+  },
+  "observedError": "create requires at least one authored object via --room, --floor-tile, --hazard, --resource, --delver, or --warden.\n",
+  "occurrences": 3,
+  "disposition": "model-error",
+  "dispositionNote": "model authored nothing -- no --room/--floor-tile/--hazard/--resource/--delver/--warden."
+}

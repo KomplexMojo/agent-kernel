@@ -1,0 +1,22 @@
+{
+  "id": "bf-022",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 91,
+  "scenarioTitle": "Constrained Under Single Delver",
+  "expectedOutcome": "budget_denied",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": 91,
+  "toolArgs": {
+    "text": "Creating one exploring fire Delver with a 91 token budget, one token below the minimum passing budget.",
+    "budgetTokens": 91,
+    "runId": "delver_exploring_fire_91",
+    "outDir": "/generated_dungeon",
+    "emitIntermediates": true,
+    "delver": "[{'count': 1, 'affinity': 'fire', 'motivation': 'exploring', 'vitals': {'health': {'max': 100, 'regen': 2}, 'stamina': {'max': 100, 'regen': 3}, 'mana': {'max': 100, 'regen': 5}, 'durability': {'max': 100, 'regen': 1}}, 'goals': [{'kind': 'maximize_spend', 'priority': 'high'}]}]"
+  },
+  "observedError": "create infeasible (insufficient_budget): hard budget is 91 tokens but minimum required spend is 451 tokens. Blocking constraints: delver[1] requires at least 451 tokens to preserve requested stamina.regen >= 1.\n",
+  "occurrences": 2,
+  "disposition": "model-error",
+  "dispositionNote": "scenario expected a denial; the CLI's pre-allocator minimum-spend check fired instead."
+}

@@ -1,0 +1,61 @@
+{
+  "id": "bf-028",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 65,
+  "scenarioTitle": "Execution EX-RS-01 — Consumable health delta",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "text": "Create one injured mobile exploring Delver crossing one consumable health resource that grants current health only.",
+    "runId": "EX-RS-01",
+    "outDir": "./artifacts/EX-RS-01",
+    "emitIntermediates": true,
+    "dungeonAffinity": "life",
+    "room": [
+      {
+        "size": "medium"
+      }
+    ],
+    "floorTile": [
+      {
+        "count": 1,
+        "id": "stone_floor"
+      }
+    ],
+    "hazard": [],
+    "resource": [
+      {
+        "affinity": "life",
+        "delta": 10,
+        "expression": "emit",
+        "permanenceMode": "consumable",
+        "stacks": 1,
+        "vital": "health"
+      }
+    ],
+    "delver": [
+      {
+        "affinity": "life",
+        "count": 1,
+        "motivation": "exploring",
+        "vitals": {
+          "health": {
+            "max": 25
+          },
+          "mana": {
+            "max": 15
+          },
+          "stamina": {
+            "max": 20
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "resource[1] mana is required for an affinity payload.\n",
+  "occurrences": 1,
+  "disposition": "model-error",
+  "dispositionNote": "resource affinity payload missing required mana field."
+}

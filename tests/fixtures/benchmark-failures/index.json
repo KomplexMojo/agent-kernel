@@ -1,0 +1,352 @@
+{
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "matrixHash": "3def36d7d6cd0fca73a357bf1080887c3e191505814167fc60fbe211b05efc4e",
+  "totalNonSuccessAttempts": 173,
+  "fixtures": [
+    {
+      "id": "bf-001",
+      "scenarioIndex": 97,
+      "expectedOutcome": "budget_denied",
+      "observedOutcome": "budget_denied",
+      "occurrences": 26,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-002",
+      "scenarioIndex": 17,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 15,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-003",
+      "scenarioIndex": 21,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 13,
+      "disposition": "harness-defect"
+    },
+    {
+      "id": "bf-004",
+      "scenarioIndex": 57,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 12,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-005",
+      "scenarioIndex": 90,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 12,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-006",
+      "scenarioIndex": 16,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 11,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-007",
+      "scenarioIndex": 9,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 9,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-008",
+      "scenarioIndex": 93,
+      "expectedOutcome": "budget_denied",
+      "observedOutcome": "budget_denied",
+      "occurrences": 9,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-009",
+      "scenarioIndex": 91,
+      "expectedOutcome": "budget_denied",
+      "observedOutcome": "execution_failed",
+      "occurrences": 7,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-010",
+      "scenarioIndex": 64,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 5,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-011",
+      "scenarioIndex": 98,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 5,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-012",
+      "scenarioIndex": 57,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 4,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-013",
+      "scenarioIndex": 98,
+      "expectedOutcome": "success",
+      "observedOutcome": "model_failure",
+      "occurrences": 3,
+      "disposition": "not-replayable"
+    },
+    {
+      "id": "bf-014",
+      "scenarioIndex": 16,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 3,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-015",
+      "scenarioIndex": 46,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 3,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-016",
+      "scenarioIndex": 51,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 3,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-017",
+      "scenarioIndex": 43,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 2,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-018",
+      "scenarioIndex": 51,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 2,
+      "disposition": "harness-defect"
+    },
+    {
+      "id": "bf-019",
+      "scenarioIndex": 18,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 2,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-020",
+      "scenarioIndex": 27,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 2,
+      "disposition": "harness-defect"
+    },
+    {
+      "id": "bf-021",
+      "scenarioIndex": 52,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 2,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-022",
+      "scenarioIndex": 91,
+      "expectedOutcome": "budget_denied",
+      "observedOutcome": "execution_failed",
+      "occurrences": 2,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-023",
+      "scenarioIndex": 24,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "harness-defect"
+    },
+    {
+      "id": "bf-024",
+      "scenarioIndex": 26,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-025",
+      "scenarioIndex": 45,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "harness-defect"
+    },
+    {
+      "id": "bf-026",
+      "scenarioIndex": 50,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "harness-defect"
+    },
+    {
+      "id": "bf-027",
+      "scenarioIndex": 54,
+      "expectedOutcome": "budget_denied",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "harness-defect"
+    },
+    {
+      "id": "bf-028",
+      "scenarioIndex": 65,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-029",
+      "scenarioIndex": 67,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-030",
+      "scenarioIndex": 84,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-031",
+      "scenarioIndex": 89,
+      "expectedOutcome": "success",
+      "observedOutcome": "infrastructure_error",
+      "occurrences": 1,
+      "disposition": "not-replayable"
+    },
+    {
+      "id": "bf-032",
+      "scenarioIndex": 92,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-033",
+      "scenarioIndex": 93,
+      "expectedOutcome": "budget_denied",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-034",
+      "scenarioIndex": 14,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-035",
+      "scenarioIndex": 36,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-036",
+      "scenarioIndex": 52,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-037",
+      "scenarioIndex": 53,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-038",
+      "scenarioIndex": 65,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-039",
+      "scenarioIndex": 83,
+      "expectedOutcome": "success",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-040",
+      "scenarioIndex": 93,
+      "expectedOutcome": "budget_denied",
+      "observedOutcome": "execution_failed",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-041",
+      "scenarioIndex": 53,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-042",
+      "scenarioIndex": 53,
+      "expectedOutcome": "success",
+      "observedOutcome": "budget_denied",
+      "occurrences": 1,
+      "disposition": "model-error"
+    },
+    {
+      "id": "bf-043",
+      "scenarioIndex": 54,
+      "expectedOutcome": "budget_denied",
+      "observedOutcome": "budget_denied",
+      "occurrences": 1,
+      "disposition": "model-error"
+    }
+  ]
+}

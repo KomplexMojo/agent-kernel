@@ -1,0 +1,15 @@
+{
+  "id": "bf-031",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 89,
+  "scenarioTitle": "Create Full Mixed Affinity Evaluation",
+  "expectedOutcome": "success",
+  "observedOutcome": "infrastructure_error",
+  "scenarioBudget": null,
+  "toolArgs": null,
+  "observedError": "HTTP 500 from http://127.0.0.1:21434/v1/chat/completions: {\"message\":\"XML syntax error on line 42: element <parameter> closed by </function>\",\"type\":\"api_error\",\"param\":null,\"code\":null}",
+  "occurrences": 1,
+  "disposition": "not-replayable",
+  "dispositionNote": "M5's target: toolArgs is null -- Ollama's tool-call parser failed before any args existed. Out of scope for the normalizeToolArgs->buildArgv->create path."
+}

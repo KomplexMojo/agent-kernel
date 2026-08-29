@@ -1,0 +1,41 @@
+{
+  "id": "bf-011",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 98,
+  "scenarioTitle": "Constrained Near Fit Resource Route",
+  "expectedOutcome": "success",
+  "observedOutcome": "budget_denied",
+  "scenarioBudget": 230,
+  "toolArgs": {
+    "text": "Create a medium room with one level vital resource and one friendly life Delver. Room specs are generic containers; affinity pressure belongs in hazards, not room specs.",
+    "runId": "ak-medium-room-life-delver-001",
+    "outDir": "out/ak-medium-room-life-delver-001",
+    "budgetTokens": 230,
+    "emitIntermediates": true,
+    "room": [
+      {
+        "count": 1,
+        "size": "medium"
+      }
+    ],
+    "resource": [
+      {
+        "delta": 10,
+        "permanenceMode": "level",
+        "vital": "health"
+      }
+    ],
+    "delver": [
+      {
+        "affinity": "life",
+        "count": 1,
+        "motivation": "friendly"
+      }
+    ]
+  },
+  "observedError": "Budget receipt denied: status=denied; remaining=14; deniedLines=resource:resource_level:resources; deniedPools=resources:100/30\n",
+  "occurrences": 5,
+  "disposition": "model-error",
+  "dispositionNote": "unexpected but correct: allocator enforcing the resource pool cap."
+}

@@ -1,0 +1,423 @@
+{
+  "id": "bf-026",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 50,
+  "scenarioTitle": "Create Full Evaluation Dungeon",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "text": "Create a comprehensive evaluation dungeon with multiple rooms, hazards, resources, delvers, and wardens. The dungeon should feature diverse affinity mechanics including fire, water, earth, wind, life, decay, corrode, fortify, light, and dark affinities. Include various hazard expressions (push, pull, emit, draw) with different proximity radii and durability/mana pools. Create resources with vital payloads (health, mana, stamina) using permanence modes (consumable, level, permanent). Design delvers with optimization goals (max_mana, mana_regen, maximize_spend) and various motivations. Include wardens with attacking, defending, patrolling, and stealthy motivations. Ensure the dungeon has a balanced mix of room sizes (small, medium, large) and appropriate hazard/resource placement through proximity-based mechanics.",
+    "runId": "eval-dungeon-001",
+    "outDir": "./dungeons/evaluation",
+    "emitIntermediates": true,
+    "dungeonAffinity": "fire",
+    "room": [
+      {
+        "count": 3,
+        "size": "small"
+      },
+      {
+        "count": 2,
+        "size": "medium"
+      },
+      {
+        "count": 1,
+        "size": "large"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "fire",
+        "durability": 6,
+        "expression": "push",
+        "mana": 10,
+        "proximityRadius": 3,
+        "stacks": 2
+      },
+      {
+        "affinity": "water",
+        "durability": 5,
+        "expression": "pull",
+        "mana": 8,
+        "proximityRadius": 4,
+        "stacks": 1
+      },
+      {
+        "affinity": "earth",
+        "durability": 8,
+        "expression": "emit",
+        "mana": 12,
+        "proximityRadius": 2,
+        "stacks": 3
+      },
+      {
+        "affinity": "wind",
+        "durability": 4,
+        "expression": "draw",
+        "mana": 6,
+        "proximityRadius": 5,
+        "stacks": 2
+      },
+      {
+        "affinity": "life",
+        "durability": 0,
+        "expression": "emit",
+        "mana": "regen:4:8:1",
+        "proximityRadius": 3,
+        "stacks": 1
+      },
+      {
+        "affinity": "decay",
+        "durability": 7,
+        "expression": "pull",
+        "mana": 9,
+        "proximityRadius": 2,
+        "stacks": 2
+      },
+      {
+        "affinity": "corrode",
+        "durability": 5,
+        "expression": "push",
+        "mana": 7,
+        "proximityRadius": 4,
+        "stacks": 1
+      },
+      {
+        "affinity": "fortify",
+        "durability": 0,
+        "expression": "emit",
+        "mana": "one-time:15:0:0",
+        "proximityRadius": 3,
+        "stacks": 1
+      },
+      {
+        "affinity": "light",
+        "durability": 0,
+        "expression": "draw",
+        "mana": 5,
+        "proximityRadius": 2,
+        "stacks": 1
+      },
+      {
+        "affinity": "dark",
+        "durability": 6,
+        "expression": "pull",
+        "mana": 11,
+        "proximityRadius": 3,
+        "stacks": 2
+      }
+    ],
+    "resource": [
+      {
+        "affinity": "fire",
+        "delta": 10,
+        "expression": "emit",
+        "mana": 5,
+        "permanenceMode": "consumable",
+        "stacks": 1,
+        "vital": "health"
+      },
+      {
+        "affinity": "water",
+        "delta": 15,
+        "expression": "pull",
+        "mana": 8,
+        "permanenceMode": "level",
+        "stacks": 2,
+        "vital": "mana"
+      },
+      {
+        "affinity": "earth",
+        "delta": 20,
+        "expression": "emit",
+        "mana": 6,
+        "permanenceMode": "permanent",
+        "stacks": 3,
+        "vital": "stamina"
+      },
+      {
+        "affinity": "wind",
+        "delta": 8,
+        "expression": "draw",
+        "mana": 4,
+        "permanenceMode": "consumable",
+        "stacks": 1,
+        "vital": "health"
+      },
+      {
+        "affinity": "life",
+        "expression": "emit",
+        "mana": 0,
+        "permanenceMode": "permanent",
+        "regen": 5,
+        "stacks": 2,
+        "vital": "mana"
+      },
+      {
+        "affinity": "decay",
+        "delta": -5,
+        "expression": "pull",
+        "mana": 3,
+        "permanenceMode": "consumable",
+        "stacks": 1,
+        "vital": "stamina"
+      },
+      {
+        "affinity": "fortify",
+        "delta": 25,
+        "expression": "emit",
+        "mana": 0,
+        "permanenceMode": "level",
+        "stacks": 2,
+        "vital": "health"
+      },
+      {
+        "affinity": "light",
+        "delta": 12,
+        "expression": "draw",
+        "mana": 7,
+        "permanenceMode": "consumable",
+        "stacks": 1,
+        "vital": "mana"
+      }
+    ],
+    "delver": [
+      {
+        "affinity": "fire",
+        "count": 3,
+        "goals": [
+          {
+            "kind": "max_mana",
+            "priority": "high"
+          },
+          {
+            "kind": "maximize_spend",
+            "priority": "medium"
+          }
+        ],
+        "motivation": "exploring",
+        "vitals": {
+          "health": {
+            "max": 100,
+            "regen": 2
+          },
+          "mana": {
+            "max": 80,
+            "regen": 3
+          },
+          "stamina": {
+            "max": 60,
+            "regen": 4
+          }
+        }
+      },
+      {
+        "affinity": "water",
+        "count": 2,
+        "goals": [
+          {
+            "kind": "mana_regen",
+            "priority": "high"
+          }
+        ],
+        "motivation": "attacking",
+        "vitals": {
+          "health": {
+            "max": 90,
+            "regen": 1
+          },
+          "mana": {
+            "max": 70,
+            "regen": 2
+          },
+          "stamina": {
+            "max": 55,
+            "regen": 3
+          }
+        }
+      },
+      {
+        "affinity": "earth",
+        "count": 4,
+        "goals": [
+          {
+            "kind": "maximize_spend",
+            "priority": "low"
+          }
+        ],
+        "motivation": "defending",
+        "vitals": {
+          "health": {
+            "max": 120,
+            "regen": 3
+          },
+          "mana": {
+            "max": 60,
+            "regen": 1
+          },
+          "stamina": {
+            "max": 70,
+            "regen": 5
+          }
+        }
+      },
+      {
+        "affinity": "wind",
+        "count": 2,
+        "goals": [
+          {
+            "kind": "max_mana",
+            "priority": "high"
+          }
+        ],
+        "motivation": "stealthy",
+        "vitals": {
+          "health": {
+            "max": 80,
+            "regen": 2
+          },
+          "mana": {
+            "max": 90,
+            "regen": 4
+          },
+          "stamina": {
+            "max": 50,
+            "regen": 3
+          }
+        }
+      },
+      {
+        "affinity": "life",
+        "count": 1,
+        "goals": [
+          {
+            "kind": "max_mana",
+            "priority": "high"
+          },
+          {
+            "kind": "mana_regen",
+            "priority": "medium"
+          }
+        ],
+        "motivation": "goal_oriented",
+        "vitals": {
+          "health": {
+            "max": 110,
+            "regen": 2
+          },
+          "mana": {
+            "max": 85,
+            "regen": 3
+          },
+          "stamina": {
+            "max": 65,
+            "regen": 4
+          }
+        }
+      }
+    ],
+    "warden": [
+      {
+        "affinity": "fire",
+        "count": 2,
+        "motivation": "attacking",
+        "vitals": {
+          "health": {
+            "max": 150,
+            "regen": 2
+          },
+          "mana": {
+            "max": 60,
+            "regen": 1
+          },
+          "stamina": {
+            "max": 80,
+            "regen": 3
+          }
+        }
+      },
+      {
+        "affinity": "water",
+        "count": 3,
+        "motivation": "defending",
+        "vitals": {
+          "health": {
+            "max": 140,
+            "regen": 2
+          },
+          "mana": {
+            "max": 75,
+            "regen": 2
+          },
+          "stamina": {
+            "max": 70,
+            "regen": 3
+          }
+        }
+      },
+      {
+        "affinity": "earth",
+        "count": 2,
+        "motivation": "patrolling",
+        "vitals": {
+          "health": {
+            "max": 160,
+            "regen": 3
+          },
+          "mana": {
+            "max": 55,
+            "regen": 1
+          },
+          "stamina": {
+            "max": 85,
+            "regen": 4
+          }
+        }
+      },
+      {
+        "affinity": "decay",
+        "count": 1,
+        "motivation": "stealthy",
+        "vitals": {
+          "health": {
+            "max": 100,
+            "regen": 1
+          },
+          "mana": {
+            "max": 95,
+            "regen": 3
+          },
+          "stamina": {
+            "max": 60,
+            "regen": 2
+          }
+        }
+      },
+      {
+        "affinity": "dark",
+        "count": 2,
+        "motivation": "attacking",
+        "vitals": {
+          "health": {
+            "max": 130,
+            "regen": 2
+          },
+          "mana": {
+            "max": 70,
+            "regen": 2
+          },
+          "stamina": {
+            "max": 75,
+            "regen": 3
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "hazard[8] mana must be a plain amount, one-time:<amount>, or regen:<current>:<max>:<regen>; got \"one-time:15:0:0\".\n",
+  "occurrences": 1,
+  "disposition": "harness-defect",
+  "dispositionNote": "M3: hazard mana format rejects a malformed regen triple."
+}

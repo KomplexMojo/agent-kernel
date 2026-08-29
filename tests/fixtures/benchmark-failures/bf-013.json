@@ -1,0 +1,15 @@
+{
+  "id": "bf-013",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 98,
+  "scenarioTitle": "Constrained Near Fit Resource Route",
+  "expectedOutcome": "success",
+  "observedOutcome": "model_failure",
+  "scenarioBudget": 230,
+  "toolArgs": null,
+  "observedError": null,
+  "occurrences": 3,
+  "disposition": "not-replayable",
+  "dispositionNote": "model produced no tool call at all -- toolArgs is null, nothing to replay through normalizeToolArgs->buildArgv->create. Pure model behaviour, no harness code path."
+}

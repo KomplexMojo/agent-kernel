@@ -1,0 +1,62 @@
+{
+  "id": "bf-038",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 65,
+  "scenarioTitle": "Execution EX-RS-01 — Consumable health delta",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "delver": [
+      {
+        "affinity": "life",
+        "count": 1,
+        "goals": [
+          {
+            "kind": "maximize_spend",
+            "priority": "high"
+          }
+        ],
+        "motivation": "exploring",
+        "vitals": {
+          "health": {
+            "max": 20,
+            "regen": 0
+          },
+          "mana": {
+            "max": 5,
+            "regen": 0
+          },
+          "stamina": {
+            "max": 10,
+            "regen": 0
+          }
+        }
+      }
+    ],
+    "resource": [
+      {
+        "count": 1,
+        "delta": 10,
+        "permanenceMode": "consumable",
+        "regen": 0,
+        "vital": "health"
+      }
+    ],
+    "room": [
+      {
+        "count": 1,
+        "size": "medium"
+      }
+    ],
+    "emitIntermediates": true,
+    "outDir": "./artifacts",
+    "runId": "EX-RS-01-run1",
+    "text": "Create one injured mobile exploring Delver crossing a consumable health resource granting current health only. Delver is injured with reduced health, exploring motivation. Resource is consumable health with delta 10, no regen. No hazards specified; rooms are generic."
+  },
+  "observedError": "resource[1] field \"count\" is not supported in V3 spec.\n",
+  "occurrences": 1,
+  "disposition": "model-error",
+  "dispositionNote": "expected budget_denied, correctly denied (floor tiles)."
+}

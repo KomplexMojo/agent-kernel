@@ -1,0 +1,56 @@
+{
+  "id": "bf-019",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 18,
+  "scenarioTitle": "Create Light Scout Entry",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "hazard": [
+      {
+        "affinity": "dark",
+        "expression": "pull",
+        "proximityRadius": 3,
+        "stacks": 1
+      }
+    ],
+    "delver": [
+      {
+        "affinity": "light",
+        "count": 2,
+        "goals": [
+          {
+            "kind": "mana_regen",
+            "priority": "high"
+          }
+        ],
+        "motivation": "exploring"
+      }
+    ],
+    "resource": [
+      {
+        "affinity": "light",
+        "expression": "emit",
+        "mana": 5,
+        "regen": 2,
+        "stacks": 1
+      }
+    ],
+    "text": "Create a light-themed scout entry room with a dark hazard that exerts counter-affinity pressure. The room should have 1 small room, 1 dark hazard emitting pull pressure with proximityRadius 3, and 2 light-affinity delvers with exploring motivation and mana_regen goals. Include light-themed resources with mana regen.",
+    "dungeonAffinity": "light",
+    "emitIntermediates": true,
+    "outDir": "output/artifacts",
+    "room": [
+      {
+        "count": 1,
+        "size": "small"
+      }
+    ]
+  },
+  "observedError": "resource[1] permanenceMode is required for a vital payload (read as a vital payload because regen is set); it governs how long the vital delta persists.\n",
+  "occurrences": 2,
+  "disposition": "model-error",
+  "dispositionNote": "incomplete V3 resource spec (permanenceMode required because regen is set); not in M3's symptom table."
+}
