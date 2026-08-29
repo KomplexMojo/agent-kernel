@@ -6,6 +6,42 @@ six configurations, published to the `benchmark-results` branch as `latest.json`
 
 ---
 
+## The governing principle: the benchmark discovers, unit tests enforce
+
+**Do not use the benchmark to catch anything a deterministic test can catch.**
+
+A benchmark run costs ~14 hours across six GPU configurations and gives a non-deterministic answer.
+Most of what it surfaced is not model behaviour at all — it is a property of the code that holds or
+fails regardless of which model is driving:
+
+| failure class | needs a model? | belongs in |
+|---|---|---|
+| schema advertises a shape the CLI rejects | no | `pnpm run test` |
+| `dungeonAffinity` has no enum | no | `pnpm run test` |
+| JSON array reaching a segment field | no | `pnpm run test` |
+| `[object Object]` where a string is required | no | `pnpm run test` |
+| hazard mana grammar rejections | no | `pnpm run test` |
+| minimum-spend / budget arithmetic | no | `pnpm run test` |
+| floor-tile sufficiency for a room size | no | `pnpm run test` |
+| hazard placement capacity | no | `pnpm run test` |
+| parser-level 500 retry policy | no | `pnpm run test` |
+| **whether a model chooses a valid shape** | **yes** | benchmark |
+| **whether a model budgets under pressure** | **yes** | benchmark |
+
+Only the last two are benchmark questions. Everything else must fail in seconds, locally, with no
+GPU and no LLM.
+
+**The 173 recorded failures are free fixtures.** Each is a real `toolArgs` that broke something.
+Replayed through `normalizeToolArgs -> buildArgv -> ak create` with no model involved, they become a
+deterministic regression corpus. The repo already has the convention for negative cases
+(`tests/fixtures/artifacts/invalid/`). Harvesting them is M0 and it comes before every other
+milestone.
+
+**Consequence for M3–M5:** a fix is proven by a unit test, not by a benchmark run. Re-run the
+benchmark only to answer "did model BEHAVIOUR change", never "is the code correct now".
+
+---
+
 ## 0. What you need to know before touching anything
 
 ### The system
@@ -88,6 +124,38 @@ binding constraint, and the other two gates have never been investigated.
 
 Each milestone is independently landable. Do them in order; M1 and M2 are analysis that may change
 the shape of M3–M5.
+
+### M0 — Harvest the failures into a deterministic corpus  *(do this first)*
+
+**Why:** every subsequent milestone is verified against this corpus rather than against a benchmark
+run. It turns a 14-hour non-deterministic signal into a sub-second deterministic one, and it is the
+difference between fixing these defects once and rediscovering them every run.
+
+**Do:**
+1. From the reference run's `runs.jsonl`, extract every non-success attempt as a fixture:
+   `{ scenarioIndex, expectedOutcome, toolArgs, observedOutcome, observedError }`.
+   Deduplicate on the *shape* of the failure, not the exact text — normalise embedded numbers.
+2. Store under `tests/fixtures/benchmark-failures/` with a README stating the run id they came from
+   and that they are recorded model output, not hand-written.
+3. Add a replay test that runs each fixture through the REAL path —
+   `normalizeToolArgs` -> `buildArgv` (`packages/adapters-cli/src/mcp/tools/shared.mjs`) ->
+   `ak.mjs create` — and asserts the observed outcome. No LLM, no network, no GPU.
+4. The test starts RED for every harness defect and GREEN for every genuine model error. That split
+   is the deliverable: it mechanically separates "our bug" from "model got it wrong", which is what
+   M1 does by hand.
+
+**Acceptance:** the corpus exists, the replay test runs in the normal suite, and every fixture is
+labelled `harness-defect` or `model-error` by whether the replay reproduces a failure the code
+should have accepted. Fixture count and split reported in the commit message.
+
+**Traps:**
+- Do not hand-write these. A hand-written sample passes against a defective schema too, which makes
+  it a mirror of the defect rather than a guard on it. Use the recorded output.
+- Do not assert on exact error strings; assert on outcome class. Error text is not a contract and
+  pinning it makes the corpus brittle.
+- Record the `scenarioSetHash` the fixtures came from. Budgets moved once already this month.
+
+---
 
 ### M1 — Classify what is model weakness and what is a code defect
 
@@ -234,15 +302,22 @@ Both paths tested. Retry counts appear in the published record.
 ## 4. Definition of done
 
 - Every one of the 173 failures in the reference run has a documented disposition.
+- Every harness defect fixed is guarded by a DETERMINISTIC test in `pnpm run test`, and would now be
+  caught in seconds rather than by a benchmark run.
 - Each landed fix has a perturbation-verified test.
 - `pnpm run test` and `pnpm run typecheck` green (baseline: 441 files / 3411 passed / 0 errors).
 - If any identity hash moved, §6 was followed.
 - A `## Findings` section in this file records what was measured, including anything that turned out
   NOT to be a defect. Negative results are the point of M1 and M2.
 
-## 5. Verifying a change actually helps
+## 5. Verifying a change
 
-Do not trust reasoning about model behaviour; measure it. On the developer Mac:
+**Correctness is proven by the corpus from M0, not by a benchmark run.** A fix that does not flip a
+fixture from red to green has not been demonstrated. Run `pnpm run test`; it takes seconds.
+
+Use a benchmark run ONLY to answer a question about model behaviour — did the model start choosing
+better shapes, did the budget failures fall. That is a different question from "is the code correct",
+and conflating them is how a 14-hour job ends up doing a unit test's work. On the developer Mac:
 ```
 scripts/benchmark-preflight.sh
 node tools/remote-ollama-control/scripts/remote-ollama-mac.js run-content-gen \
