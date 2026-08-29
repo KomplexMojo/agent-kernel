@@ -122,7 +122,7 @@ pnpm run demo:cli                                     # CLI demo
 
 **There is no CI test job.** `.github/workflows/` holds only the `@claude` responder and an advisory PR review. The gates above are local and are the only ones that run — see `AGENTS.md → Review`.
 
-**Benchmarks are outside development** (maintainer, 2026-08-13): a standalone offline tool. Never run one from a session, never gate a diff on one. Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`). Read results rather than producing them — fetch `benchmark-results` and use `benchmark-result-reader.js` (`latest_attempt` for current health, `latest_success` for the last qualifying baseline; identity mismatch is an error). Full rule in `AGENTS.md → Benchmark strategy`.
+**Benchmarks never substitute for tests.** If a benchmark run surfaced it and a deterministic test could have, the fix is the test — a recorded failing `toolArgs` replays with no LLM. **Full-scale remote runs stay outside development** (maintainer, 2026-08-13): never start one from a session, never gate a diff on one. **Local `--local` subset runs are in the loop** (maintainer, 2026-08-25) for debugging code deltas, never as a gate, and `scripts/benchmark-preflight.sh` first. Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`). Read results rather than producing them — fetch `benchmark-results` and use `benchmark-result-reader.js` (`latest_attempt` for current health, `latest_success` for the last qualifying baseline; identity mismatch is an error). Full rule in `AGENTS.md → Benchmark strategy`.
 
 ---
 
@@ -188,7 +188,7 @@ Run on every diff. **Fix failures — don't just flag them.** The guards in `tes
 
 **Types** — `pnpm run typecheck` stays at zero (gate: `tsconfig.typecheck.json`, enforced by `tests/architecture/typecheck-gate.test.js`). The gate covers **core-ts and its tests only** — the code genuinely clean under `strict`. Do not widen it casually: the five `_shared/*.mts` modules carry **180 errors** that leak into every scope importing them, so widening is a fix-first project, not a config change. ⚠️ `checkJs` is **off**, so an all-`.js` package reports 0 because there is nothing to check — read the file count the report prints alongside.
 
-**Tests** — failing tests written *before* production code · new behavior covered under `tests/` · deterministic behavior uses fixtures · negative cases under `tests/fixtures/artifacts/invalid/` · no test hits live external services · base test file ends with `## TODO: Test Permutations` before Ollama handoff · persona behavior tests live in `tests/personas/<persona>/` named `<persona>-<behavior>.test.*` · label-only persona tests are legacy: replace with a behavior test, then remove — never before.
+**Tests** — failing tests written *before* production code · new behavior covered under `tests/` · anything a benchmark surfaced that a deterministic test could catch is landed as that test, not left to the next run · deterministic behavior uses fixtures · negative cases under `tests/fixtures/artifacts/invalid/` · no test hits live external services · base test file ends with `## TODO: Test Permutations` before Ollama handoff · persona behavior tests live in `tests/personas/<persona>/` named `<persona>-<behavior>.test.*` · label-only persona tests are legacy: replace with a behavior test, then remove — never before.
 
 **Code quality** — every changed line traces to the current milestone spec (no drive-by cleanup) · not over-engineered · assumptions stated before implementation.
 
