@@ -365,3 +365,47 @@ model weakness** (correct denials/rejections; nothing to fix) + **44 open, pendi
 replayable** (3 no-tool-call + 1 infrastructure). No failure was dropped or marked "absorbed by
 another finding" — the 44 open ones stay open rather than being forced into a disposition M2/M4
 haven't earned yet.
+
+### M2 — no floor regression found; the comparison is more confounded than expected (2026-08-29)
+
+**Runs compared:** pre-floor `2026-08-24T17-51-04-022Z-content-gen` (scenarioSetHash `fa63f68c…`,
+700 attempts, 7 configurations, single pass) vs. the M0/M1 reference run (scenarioSetHash
+`d839c42a…`, 800 attempts, 6 configurations). Scenarios 90–100 are excluded: diffing
+`constrained.json` across the floor commit (`6059009`) confirms exactly those 11 scenarios' budgets
+changed in the same commit. The other 89 scenarios' budgets did not.
+
+| bucket | pre-floor | post-floor | delta |
+|---|---|---|---|
+| conflicting_requirements | 5 / 623 attempts (0.80%) | 7 / 712 attempts (0.98%) | +0.18pp — within noise (5 vs. 7 hits; scenarios 57/58/61 common to both, one scenario index shifted) |
+| floor-tile budget | 25 / 623 attempts (4.01%) | 15 / 712 attempts (2.11%) | **−1.90pp — improved, the opposite of the hypothesis** |
+
+**Verdict: not a floor regression, for either bucket.**
+
+**The comparison is confounded beyond the scenarioSetHash trap this milestone names.** Three
+economy/prompt changes landed within about 24 hours of each other and of the floor, all between the
+two runs compared — there is no run on the box that isolates the floor alone:
+
+- `6059009` (2026-08-25 13:43) — the viability floor itself.
+- `b65bea5` (2026-08-25 14:05, 22 minutes later) — wardens re-costed to match delvers. §0's own
+  "delver 21->52, warden 4->38" already reflects both changes combined.
+- `56d9333` (2026-08-25 13:42, essentially simultaneous with the floor) — the authoring price brief
+  was removed from the prompt. M4 already cites this: removing the price brief measurably *improves*
+  model behavior. The pre-floor run (started 08-24 17:51, after the price brief was added at 08-24
+  14:02) had the price brief in its prompts; the post-floor reference run did not.
+
+The floor-tile-budget improvement is more plausibly explained by the price-brief removal — documented
+elsewhere in this plan to help — than by the floor improving capacity reasoning, since the floor
+changes actor cost, not tile capacity, and has no mechanism to reduce this specific failure. The
+floor and the price-brief revert landed one minute apart, so no run on the box separates them.
+
+**Consequence for M4:** M4 is **not** made mandatory by this result — the plan's own conditional
+("if regression, M4 becomes mandatory") does not fire. M4's spatial-placement/floor-tile-budget
+investigation should proceed on its own merits (can the harness place what the model asked for),
+not as "undo the floor's damage," since no damage is shown.
+
+**If a cleaner isolation is wanted later:** no box run separates the floor from the warden re-cost or
+the price-brief revert. Bisecting `6059009^` vs `6059009` with a local `--local` run, holding the
+other two changes constant, would be needed to attribute the small conflicting_requirements delta
+specifically to the floor. Not run here — M2's acceptance is a documented before/after and a verdict,
+both above; a bisecting run is a new, unscoped investigation for the maintainer to authorize, not
+something to launch unilaterally.
