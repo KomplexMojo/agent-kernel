@@ -11,25 +11,14 @@ six configurations, published to the `benchmark-results` branch as `latest.json`
 **Do not use the benchmark to catch anything a deterministic test can catch.**
 
 A benchmark run costs ~14 hours across six GPU configurations and gives a non-deterministic answer.
-Most of what it surfaced is not model behaviour at all — it is a property of the code that holds or
-fails regardless of which model is driving:
+Of the 173 failures in the reference run, only two classes required a model at all: whether the
+model CHOOSES a valid shape, and whether it can budget under pressure. Everything else was schema
+and parser conformance, arithmetic, geometry or retry policy — properties that hold or fail
+whichever model is driving, and that must fail in seconds, locally, with no GPU and no LLM.
 
-| failure class | needs a model? | belongs in |
-|---|---|---|
-| schema advertises a shape the CLI rejects | no | `pnpm run test` |
-| `dungeonAffinity` has no enum | no | `pnpm run test` |
-| JSON array reaching a segment field | no | `pnpm run test` |
-| `[object Object]` where a string is required | no | `pnpm run test` |
-| hazard mana grammar rejections | no | `pnpm run test` |
-| minimum-spend / budget arithmetic | no | `pnpm run test` |
-| floor-tile sufficiency for a room size | no | `pnpm run test` |
-| hazard placement capacity | no | `pnpm run test` |
-| parser-level 500 retry policy | no | `pnpm run test` |
-| **whether a model chooses a valid shape** | **yes** | benchmark |
-| **whether a model budgets under pressure** | **yes** | benchmark |
-
-Only the last two are benchmark questions. Everything else must fail in seconds, locally, with no
-GPU and no LLM.
+The rule and its evidence table live in `AGENTS.md → Benchmark strategy`. **Read it there; it is
+deliberately not restated here** — a second copy of a rule is how this repo has repeatedly ended up
+with two versions that disagree.
 
 **The 173 recorded failures are free fixtures.** Each is a real `toolArgs` that broke something.
 Replayed through `normalizeToolArgs -> buildArgv -> ak create` with no model involved, they become a
