@@ -16,7 +16,7 @@
 // deduplicated shape, made once here instead of by hand over all 173 raw rows. A new shape (from a
 // different reference run) is refused rather than silently defaulted, so it always gets triaged.
 
-import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -61,11 +61,14 @@ function groupKey(record) {
 // toolArgs itself is the problem (malformed, infeasible, or a request the harness is correct to
 // deny) -- the replay test asserts the denial reproduces and starts GREEN as a regression guard.
 //
-// Only the four symptom families M3 names as "unambiguously a harness bug" (schema<->CLI
-// conformance drift) are marked harness-defect here. Buckets M2 and M4 are still investigating
-// (conflicting_requirements, floor-tile budget, spatial placement) default to model-error with a
-// "pending" note -- promoting one to harness-defect is that milestone's job, and it is a one-line
-// diff against this table when it happens.
+// M3 investigated all four symptom families the plan named as "unambiguously a harness bug".
+// Only one survived: the JSON-array-as-segment shape (normalizeToolArgs' bracket repair was the
+// actual gap). The other three turned out, on inspection of the real schema/CLI/parser code, to
+// already be correctly rejected -- reclassified to model-error with the investigation recorded in
+// each note. Buckets M2 and M4 are still investigating (conflicting_requirements, floor-tile
+// budget, spatial placement) default to model-error with a "pending" note -- promoting one to
+// harness-defect is that milestone's job, and it is a one-line diff against this table when it
+// happens.
 const DISPOSITIONS = [
   { disposition: "model-error", note: "expected budget_denied, correctly denied (delver pool)." },
   { disposition: "model-error", note: "pending M4: floor-tile capacity vs model over-asking, not yet determined." },
@@ -84,15 +87,15 @@ const DISPOSITIONS = [
   { disposition: "model-error", note: "model authored nothing -- no --room/--floor-tile/--hazard/--resource/--delver/--warden." },
   { disposition: "model-error", note: "unexpected but correct: allocator enforcing the hazard pool cap." },
   { disposition: "model-error", note: "incomplete V3 resource spec (permanenceMode required because vital is set, variant wording); not in M3's symptom table." },
-  { disposition: "harness-defect", note: "M3: model emits a JSON array where the CLI expects key=value segments (warden variant)." },
+  { disposition: "model-error", note: "M3's normalizeToolArgs fix resolved the JSON-array-as-segment defect here too (the warden now parses). What surfaces next is spatial placement -- \"insufficient unoccupied walkable tiles\", the same cause as bf-007/bf-029 -- pending M4, not M3." },
   { disposition: "model-error", note: "incomplete V3 resource spec (permanenceMode required because regen is set); not in M3's symptom table." },
-  { disposition: "harness-defect", note: "M3: dungeonAffinity should carry the same enum as the other affinity fields." },
+  { disposition: "model-error", note: "M3 investigated: dungeonAffinity already carries the AFFINITY_ENUM (since the schema's first commit, 2026-05-05) -- the model sent \"neutral\", which is not a real affinity and never was. Schema and CLI already agree; no drift to fix." },
   { disposition: "model-error", note: "unexpected but correct: allocator enforcing the resource-affinity pool cap." },
   { disposition: "model-error", note: "scenario expected a denial; the CLI's pre-allocator minimum-spend check fired instead." },
-  { disposition: "harness-defect", note: "M3: resource vital field rejects a non-string payload the model emitted." },
+  { disposition: "model-error", note: "M3 investigated: the model sent vital:{health:{max:20}} -- the actor entities' vitals shape, not resource's own bare-string vital. Auto-repairing would mean guessing whether max was meant as delta; too semantically ambiguous to accept silently. Schema's vital field gained a description clarifying the bare-string contract as a preventive (not retroactive) measure." },
   { disposition: "model-error", note: "hazard field \"manaRegen\" is not part of the hazard schema -- model invented it." },
-  { disposition: "harness-defect", note: "M3: hazard mana format rejects a negative plain amount." },
-  { disposition: "harness-defect", note: "M3: hazard mana format rejects a malformed regen triple." },
+  { disposition: "model-error", note: "M3 investigated: mana:-5 is genuinely invalid -- a hazard's mana pool size cannot be negative; this parser has no drain concept for it to express. No fix: correctly rejected." },
+  { disposition: "model-error", note: "M3 investigated: mana:\"one-time:15:0:0\" blends the one-time and regen grammars (one-time takes exactly one number). A candidate fix (add a one-time:<amount> example -- currently absent, though the model half-guessed the keyword) was considered but not landed: hazard.mana already carries a scar from an unmeasured description edit that tripled malformed values, and this is one occurrence. Left as model-error pending an A/B-measured change." },
   { disposition: "harness-defect", note: "M3: same JSON-array-as-segment defect as shape 3/18, surfaced on a denial-expecting scenario." },
   { disposition: "model-error", note: "resource affinity payload missing required mana field." },
   { disposition: "model-error", note: "pending M4: spatial placement (resource) vs model over-asking, not yet determined." },
@@ -134,8 +137,17 @@ function main() {
     );
   }
 
-  if (existsSync(OUT_DIR)) rmSync(OUT_DIR, { recursive: true, force: true });
+  // Only remove what this script itself owns (bf-*.json, index.json) -- a blanket directory wipe
+  // silently deleted the hand-written README.md on every regeneration, which is exactly the kind
+  // of dropped content rule 4 in the plan's "not negotiable" list exists to catch.
   mkdirSync(OUT_DIR, { recursive: true });
+  if (existsSync(OUT_DIR)) {
+    for (const name of readdirSync(OUT_DIR)) {
+      if (/^bf-\d+\.json$/.test(name) || name === "index.json") {
+        rmSync(join(OUT_DIR, name), { force: true });
+      }
+    }
+  }
 
   const index = [];
   let harnessDefectCount = 0;

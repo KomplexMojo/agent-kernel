@@ -146,7 +146,7 @@
       "expectedOutcome": "success",
       "observedOutcome": "execution_failed",
       "occurrences": 2,
-      "disposition": "harness-defect"
+      "disposition": "model-error"
     },
     {
       "id": "bf-019",
@@ -162,7 +162,7 @@
       "expectedOutcome": "success",
       "observedOutcome": "execution_failed",
       "occurrences": 2,
-      "disposition": "harness-defect"
+      "disposition": "model-error"
     },
     {
       "id": "bf-021",
@@ -186,7 +186,7 @@
       "expectedOutcome": "success",
       "observedOutcome": "execution_failed",
       "occurrences": 1,
-      "disposition": "harness-defect"
+      "disposition": "model-error"
     },
     {
       "id": "bf-024",
@@ -202,7 +202,7 @@
       "expectedOutcome": "success",
       "observedOutcome": "execution_failed",
       "occurrences": 1,
-      "disposition": "harness-defect"
+      "disposition": "model-error"
     },
     {
       "id": "bf-026",
@@ -210,7 +210,7 @@
       "expectedOutcome": "success",
       "observedOutcome": "execution_failed",
       "occurrences": 1,
-      "disposition": "harness-defect"
+      "disposition": "model-error"
     },
     {
       "id": "bf-027",

@@ -83,9 +83,13 @@ for (const fixture of fixtures) {
     // it. A passing harness-defect fixture here is the perturbation proof that milestone is done.
     test(`${fixture.id} (harness-defect): ${fixture.dispositionNote}`, async () => {
       const { observed, detail } = await replay(fixture);
+      // The scenario's OWN expectation, not a hardcoded "success" -- a denial-expecting scenario
+      // (expectedOutcome: "budget_denied") is fixed when it reaches ITS expected outcome, not when
+      // it succeeds outright. bf-027 is exactly this: fixing the JSON-array-as-segment defect makes
+      // the warden parse, and the scenario then correctly reaches its own expected budget_denied.
       assert.equal(
-        observed, "success",
-        `${fixture.id}: expected this to be accepted -- ${fixture.dispositionNote}\n${detail}`,
+        observed, fixture.expectedOutcome,
+        `${fixture.id}: expected this to reach its scenario's own outcome (${fixture.expectedOutcome}) -- ${fixture.dispositionNote}\n${detail}`,
       );
     });
   } else {

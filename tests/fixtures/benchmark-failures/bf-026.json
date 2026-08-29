@@ -418,6 +418,6 @@
   },
   "observedError": "hazard[8] mana must be a plain amount, one-time:<amount>, or regen:<current>:<max>:<regen>; got \"one-time:15:0:0\".\n",
   "occurrences": 1,
-  "disposition": "harness-defect",
-  "dispositionNote": "M3: hazard mana format rejects a malformed regen triple."
+  "disposition": "model-error",
+  "dispositionNote": "M3 investigated: mana:\"one-time:15:0:0\" blends the one-time and regen grammars (one-time takes exactly one number). A candidate fix (add a one-time:<amount> example -- currently absent, though the model half-guessed the keyword) was considered but not landed: hazard.mana already carries a scar from an unmeasured description edit that tripled malformed values, and this is one occurrence. Left as model-error pending an A/B-measured change."
 }

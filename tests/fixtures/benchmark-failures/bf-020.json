@@ -81,6 +81,6 @@
   },
   "observedError": "create --dungeon-affinity must be one of: fire, water, earth, wind, life, decay, corrode, fortify, light, dark.\n",
   "occurrences": 2,
-  "disposition": "harness-defect",
-  "dispositionNote": "M3: dungeonAffinity should carry the same enum as the other affinity fields."
+  "disposition": "model-error",
+  "dispositionNote": "M3 investigated: dungeonAffinity already carries the AFFINITY_ENUM (since the schema's first commit, 2026-05-05) -- the model sent \"neutral\", which is not a real affinity and never was. Schema and CLI already agree; no drift to fix."
 }

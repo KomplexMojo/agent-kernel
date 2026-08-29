@@ -75,6 +75,6 @@
   },
   "observedError": "hazard[2] mana must be a plain amount, one-time:<amount>, or regen:<current>:<max>:<regen>; got \"-5\".\n",
   "occurrences": 1,
-  "disposition": "harness-defect",
-  "dispositionNote": "M3: hazard mana format rejects a negative plain amount."
+  "disposition": "model-error",
+  "dispositionNote": "M3 investigated: mana:-5 is genuinely invalid -- a hazard's mana pool size cannot be negative; this parser has no drain concept for it to express. No fix: correctly rejected."
 }

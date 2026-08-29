@@ -66,6 +66,6 @@
   },
   "observedError": "warden[1] segment \"[{\"affinity\": \"fire\", \"motivation\": \"stationary\", \"count\": 2, \"vitals\": {\"health\": {\"max\": 150}, \"mana\": {\"max\": 60}}}\" is invalid; expected key=value.\n",
   "occurrences": 2,
-  "disposition": "harness-defect",
-  "dispositionNote": "M3: model emits a JSON array where the CLI expects key=value segments (warden variant)."
+  "disposition": "model-error",
+  "dispositionNote": "M3's normalizeToolArgs fix resolved the JSON-array-as-segment defect here too (the warden now parses). What surfaces next is spatial placement -- \"insufficient unoccupied walkable tiles\", the same cause as bf-007/bf-029 -- pending M4, not M3."
 }

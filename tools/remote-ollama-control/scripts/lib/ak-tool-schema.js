@@ -231,7 +231,11 @@ const AK_CREATE_TOOL = {
                   'Part of the VITAL payload — it governs how long the vital delta persists. '
                   + 'Required whenever vital is set, and must be omitted on an affinity-only resource.'
               },
-              vital: { type: 'string', enum: ['health', 'mana', 'stamina'] },
+              vital: {
+                type: 'string',
+                enum: ['health', 'mana', 'stamina'],
+                description: 'Which vital this resource affects — a bare name. The amount goes in delta or regen, not nested here.'
+              },
               regen: { type: 'integer', minimum: 0 },
               affinity: { type: 'string', enum: AFFINITY_ENUM },
               expression: { type: 'string', enum: EXPRESSION_ENUM },

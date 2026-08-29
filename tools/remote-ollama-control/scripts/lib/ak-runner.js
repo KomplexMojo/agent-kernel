@@ -39,6 +39,33 @@ function pythonReprToJson(s) {
     .replace(/\bNone\b/g, 'null');
 }
 
+// Repairs bracket-balance faults in an array-of-objects string: either trailing garbage after
+// a complete value (a stray closing brace after the array's own ]), or a missing final closer
+// (the objects inside are all complete but the outer [ never closes). Tracks depth outside
+// quoted strings; the first time depth returns to zero the value is complete and anything after
+// is dropped. If the string runs out with brackets still open, closing them in reverse order is
+// safe -- every bracket left on the stack was opened after everything it contains already
+// balanced, so there is nothing to guess at.
+function repairJsonBrackets(s) {
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (escaped) { escaped = false; continue; }
+    if (c === '\\') { escaped = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === '[' || c === '{') { stack.push(c); continue; }
+    if (c === ']' || c === '}') {
+      if (stack.length === 0) return s.slice(0, i);
+      stack.pop();
+      if (stack.length === 0) return s.slice(0, i + 1);
+    }
+  }
+  return stack.length > 0 ? s + stack.reverse().map((open) => (open === '[' ? ']' : '}')).join('') : s;
+}
+
 // Normalize an entity array field: handles actual arrays, JSON-encoded strings,
 // and Python repr strings that qwen3 emits from its thinking mode.
 function toArray(val) {
@@ -52,6 +79,9 @@ function toArray(val) {
       try { return JSON.parse(converted); } catch {}
       // Some models close the outer list with ) instead of ] — repair and retry.
       try { return JSON.parse(converted.replace(/\)\s*$/, ']')); } catch {}
+      // Some models emit a bracket-unbalanced array: an extra trailing } after a complete
+      // array, or a missing closing ] on an otherwise-complete one. Repair and retry.
+      try { return JSON.parse(repairJsonBrackets(converted)); } catch {}
     }
     return s ? [s] : [];
   }

@@ -346,25 +346,29 @@ one, and "other" (28) resolves into six named causes.
 | budget: allocator pool cap | 68 | model weakness | The Allocator denies pool spend beyond the request's remaining budget — the model asked for more entities/affinities than the budget covers. Correct denial, spread across every model (heaviest: qwen3.8:27b 35/68, the best-scoring configuration — it authors the most, so it also hits the cap most). | `bf-001` |
 | resource V3: incomplete spec | 20 | model weakness | `resource[N]` payload missing a companion field its own chosen fields require (`delta`/`regen`, or `permanenceMode` when `vital`/`regen` is set). Not in M3's symptom table — the V3 cross-field requirement is correct. Concentrated in the two smallest models (qwen3.5:9b 13/20, qwen3:14b 6/20): a capability gap, not a schema gap. | `bf-006` — `resource[1] delta is required unless regen is given.` |
 | conflicting requirements (viability floor) | 19 | **open — see M2 below** | `create infeasible (conflicting_requirements)`: explicit vitals fall below the actor viability floor. Left undispositioned here; M2's verdict below does not resolve it either. | `bf-004` |
-| schema/CLI: JSON array as segment | 16 | **harness defect (M3)** | The model emits a JSON array for `delver`/`warden` where the CLI's `key=value` segment parser expects flat pairs. Corrects M3's original "~9" estimate to 16 across all three shape variants. Concentrated in the *best*-scoring model (qwen3.8:27b 13/16) — a stronger model reaching for well-formed nested JSON, not a weaker one guessing syntax, is itself evidence this is a schema gap rather than a capability gap. | `bf-003` |
+| schema/CLI: JSON array as segment | 16 | **harness defect — fixed, M3** | The model emits a JSON array for `delver`/`warden` where the CLI's `key=value` segment parser expects flat pairs. Corrects M3's original "~9" estimate to 16 across all three shape variants. Concentrated in the *best*-scoring model (qwen3.8:27b 13/16) — a stronger model reaching for well-formed nested JSON, not a weaker one guessing syntax, is itself evidence this is a schema gap rather than a capability gap. Fixed in M3 (see below); the corpus bracket-repairs and reaches its scenario's own expected outcome. | `bf-003` |
 | floor-tile budget | 15 | **open — see M2 below** | `floorTile.count:floor_tile_budget_insufficient`. Left undispositioned here; M2's verdict below finds no floor regression. | `bf-002` |
 | spatial placement | 10 | **open — pending M4** | `configurator inputs could not place hazard/resource: insufficient unoccupied walkable tiles`. M4 has not yet determined model-over-asked vs. placement-too-weak. Left undispositioned here. | `bf-007` |
 | budget: CLI pre-allocator minimum-spend check | 8 | model weakness | `create infeasible (insufficient_budget)`: the CLI's own minimum-spend floor rejects the request before budget scoring runs — a distinct code path from the allocator row above. Collapsing the two would have hidden this path entirely. | `bf-012` |
 | model: authored nothing | 3 | model weakness | Tool call with no `--room`/`--floor-tile`/`--hazard`/`--resource`/`--delver`/`--warden` at all. All three from qwen3:14b. | `bf-015` |
 | model: no tool call produced | 3 | model weakness, no code path | `toolArgs` is `null` — `ak_create` was never called. Not replayable through `normalizeToolArgs -> buildArgv -> create`; nothing in the harness to fix. | `bf-013` |
 | schema: unsupported field | 2 | model weakness | Model invents a field the schema never offered (`hazard.manaRegen`, `room.description`). Correctly rejected. | `bf-024` |
-| schema/CLI: dungeonAffinity enum | 2 | **harness defect (M3)** | `--dungeon-affinity` rejects a value outside its enum; M3 already names this, expecting the fix is the same enum the other affinity fields carry. Both from qwen3:14b. | `bf-020` |
-| schema/CLI: hazard mana format | 2 | **harness defect (M3)** | Hazard `mana` parser rejects a negative amount and a malformed `one-time:c:m:r` triple. | `bf-025`, `bf-026` |
+| schema/CLI: dungeonAffinity enum | 2 | model weakness — was **open** | `--dungeon-affinity` rejects "neutral". M3 investigated: the enum has been on this field since 2026-05-05; schema and CLI already agree. Reclassified from the original "harness defect" guess once M3 checked the actual code. Both from qwen3:14b. | `bf-020` |
+| schema/CLI: hazard mana format | 2 | model weakness — was **open** | Hazard `mana` parser rejects a negative amount and a malformed `one-time:c:m:r` triple. M3 investigated both: neither is a schema gap (see below). Reclassified from the original "harness defect" guess. | `bf-025`, `bf-026` |
 | model: invalid enum value | 2 | model weakness | Affinity/kind value outside the supported enum (`warden.affinity[].kind: "pull"` — a hazard-expression verb, not an affinity kind; an out-of-enum Delver `affinity`). | `bf-030` |
 | resource V3: legacy field | 1 | model weakness | Pre-V3 `count` field blended into a V3 resource payload; correctly rejected. | `bf-038` |
-| schema/CLI: resource vital enum | 1 | **harness defect (M3)** | `resource[N].vital` rejects a non-string (`[object Object]`) payload. | `bf-023` |
+| schema/CLI: resource vital enum | 1 | model weakness — was **open** | `resource[N].vital` rejects a non-string (`[object Object]`) payload — the model reused the actor entities' `vitals` object shape. M3 investigated: too semantically ambiguous to auto-repair (see below); the field's description was clarified as a preventive measure instead. | `bf-023` |
 | infrastructure: parser-level 500 | 1 | infrastructure, no code path | Ollama's tool-call XML parser failed before `toolArgs` existed. M5's target, via a different code path (`executeContentGenMatrix`) — not this replay corpus. | `bf-031` |
 
-**Totals:** 173 = **21 harness defect** (M3; all seven fixtures already landed red in M0) + **104
-model weakness** (correct denials/rejections; nothing to fix) + **44 open, pending M2/M4** + **4 not
-replayable** (3 no-tool-call + 1 infrastructure). No failure was dropped or marked "absorbed by
-another finding" — the 44 open ones stay open rather than being forced into a disposition M2/M4
-haven't earned yet.
+**Totals at M1 time:** 173 = 21 harness-defect-labelled (all seven fixtures landed red in M0) + 104
+model weakness + 44 open, pending M2/M4 + 4 not replayable. No failure was dropped or marked
+"absorbed by another finding" — the open ones stayed open rather than being forced into a
+disposition M2/M4 hadn't earned yet.
+
+**Updated by M3 (see below):** four of the seven "harness defect" fixtures turned out, on
+inspection of the real schema/CLI/parser code, to already be correctly rejected. **Corrected
+totals: 173 = 16 harness defect (fixed) + 109 model weakness + 44 open, pending M2/M4 + 4 not
+replayable.**
 
 ### M2 — no floor regression found; the comparison is more confounded than expected (2026-08-29)
 
@@ -409,3 +413,85 @@ other two changes constant, would be needed to attribute the small conflicting_r
 specifically to the floor. Not run here — M2's acceptance is a documented before/after and a verdict,
 both above; a bisecting run is a new, unscoped investigation for the maintainer to authorize, not
 something to launch unilaterally.
+
+### M3 — one real fix, three false positives found by reading the actual code (2026-08-29)
+
+M0/M1 labelled seven fixtures "harness defect" from the plan's own §"Do" hypotheses, written before
+anyone read the schema, CLI parser, or normalization source against the recorded `toolArgs`. M3's
+job was to verify each against the real code. Only one symptom family survived: **two of the four
+"unambiguous" defects were never real, and a third was real but semantically unsafe to auto-fix.**
+
+**Fixed — `normalizeToolArgs`'s array repair (bf-003, bf-018, bf-027, 16 occurrences).** The schema
+was never wrong: `delver`/`warden` are correctly declared as arrays of objects, and the CLI correctly
+parses that shape. The gap was in `toArray()` (`tools/remote-ollama-control/scripts/lib/ak-runner.js`)
+— it already repaired Python-repr quoting and a trailing `)`, but not two bracket-balance faults
+models actually produce: an extra trailing `}` after a complete array (the array closes, then one
+more stray brace), or a missing final `]` on an otherwise-complete array (every object inside is
+balanced; the outer bracket just never closes). Added `repairJsonBrackets()`: a single
+string-aware bracket-depth scan that truncates at the first point depth returns to zero (drops
+trailing garbage) or closes any brackets still open at the end (completes a truncated array) — one
+mechanism for both faults, string-aware so a literal `]`/`}` inside a quoted value can't miscount.
+
+Direct unit coverage in `tests/tools/remote-ollama-json-array-repair.test.js` (hand-built cases,
+not the two recorded strings — proving the mechanism, not memorizing the corpus) plus the two
+corpus fixtures replaying end-to-end. **Perturbation:** reverted the fix (`git stash`) — 5 tests
+failed (the 2 corpus fixtures + 3 of the 5 unit cases); restored — all 5 pass again.
+
+A test-design bug surfaced while proving this: the replay test asserted a hardcoded `"success"` for
+every harness-defect fixture, but bf-027's *scenario* expects `budget_denied` — fixing the parse bug
+correctly makes it reach that denial, not "succeed". Fixed the assertion to check
+`fixture.expectedOutcome` instead. bf-018 uncovered a second, unrelated defect after the parse fix:
+the warden now parses, but the scenario then fails on spatial placement — M4's territory, not M3's.
+Reclassified bf-018 to model-error with a note pointing at M4, since forcing it to assert bare
+success would couple M3's completion signal to a milestone that hasn't run yet.
+
+**Not a defect — `dungeonAffinity` enum (bf-020, 2 occurrences).** The plan's own M3 §"Do" step 3
+guessed "`dungeonAffinity` almost certainly just needs the same enum the other affinity fields
+carry." `git log -S dungeonAffinity` shows the enum has been on this field since the schema's very
+first commit (`18aadb6`, 2026-05-05) — before this benchmark's every run. The model sent `"neutral"`,
+which is not a real affinity and never was; schema and CLI already agree. No drift exists to fix.
+
+**Not a defect — hazard `mana` format (bf-025, bf-026, 2 occurrences).** `mana: "-5"`: a hazard's
+mana pool size cannot be negative, and the parser (`ak-impl.mjs`'s `parseHazardVitalSpec`) has no
+drain concept for a negative value to express — correctly rejected. `mana: "one-time:15:0:0"`: the
+model blended the `one-time:<amount>` and `regen:<c>:<max>:<regen>` grammars (one-time takes exactly
+one number). A candidate fix — add a `one-time:15`-style example, since the schema's current
+`examples` only show the plain-integer and regen forms even though the pattern already permits
+`one-time:` — was considered and NOT landed: `hazard.mana`'s description already carries a scar from
+one earlier, unmeasured edit that tripled malformed values (the pinned test at
+`tests/tools/ak-tool-schema-cli-conformance.test.js`). One occurrence isn't enough justification to
+risk repeating that, unmeasured. Left as model-error, with the candidate fix recorded here for
+whoever picks this up with more evidence.
+
+**Fixed differently than hypothesized — resource `vital` enum (bf-023, 1 occurrence).** The model
+sent `vital: {health: {max: 20}}` — the *actor* entities' `vitals` object shape (`delver`/`warden`
+use exactly this nested structure), not resource's own bare-string `vital` + sibling `delta`/`regen`.
+Auto-repairing by extracting `.max` as `delta` was considered and rejected: `vitals.health.max` is a
+*ceiling*, while resource's `delta` is an *amount to apply* — reinterpreting one as the other risks
+silently authoring the wrong game behavior from an ambiguous guess, unlike the array-bracket repair
+above, which was pure structure with no semantics to infer. Instead, `vital`'s description (previously
+empty) now states its own contract — a bare string, with the amount in `delta`/`regen` — without
+naming the actor entities' field by name, honoring the same "a description is a prompt" trap that
+governs `hazard.mana`. This is a **preventive** fix for future model calls, not a retroactive one:
+the recorded fixture's `toolArgs` still has the object shape and is still correctly rejected, so it
+stays model-error rather than harness-defect in the corpus.
+
+**A bug in M0's own tooling, found in passing:** `extract-benchmark-failure-fixtures.mjs` deleted the
+entire `tests/fixtures/benchmark-failures/` directory before regenerating, silently taking the
+hand-written `README.md` with it on every re-run. Fixed to remove only the files it owns
+(`bf-*.json`, `index.json`).
+
+**Result:** `tests/tools/benchmark-failure-corpus-replay.test.js` is now **fully green** — 2
+harness-defect fixtures (fixed, reaching their scenario's own expected outcome) + 39 model-error +
+2 not-replayable. Full suite: 443 files / 3459 passed / 207 skipped. Typecheck: 0.
+
+**Deviation from §"Do" step 4, deliberately:** the plan named
+`tests/tools/ak-tool-schema-cli-conformance.test.js` as the file to extend. It wasn't touched. That
+file derives minimal schema-VALID samples and checks the CLI executes them -- it tests
+schema-declared shapes against CLI acceptance. The one real defect here was never a schema-declared
+shape; it was the normalization layer's robustness to a malformed shape the schema never advertised
+as valid in the first place. Extending that file would have meant hand-writing a bracket-broken
+sample to match the defect -- precisely the "mirror of the defect rather than a guard on it"
+anti-pattern that file's own header warns against. `tests/tools/remote-ollama-json-array-repair.test.js`
+tests the repair mechanism directly instead, which is what M0's own corpus already existed to cover
+for the recorded cases.

@@ -223,6 +223,6 @@
   },
   "observedError": "resource[1] vital must be one of: health, mana, stamina; got \"[object Object]\".\n",
   "occurrences": 1,
-  "disposition": "harness-defect",
-  "dispositionNote": "M3: resource vital field rejects a non-string payload the model emitted."
+  "disposition": "model-error",
+  "dispositionNote": "M3 investigated: the model sent vital:{health:{max:20}} -- the actor entities' vitals shape, not resource's own bare-string vital. Auto-repairing would mean guessing whether max was meant as delta; too semantically ambiguous to accept silently. Schema's vital field gained a description clarifying the bare-string contract as a preventive (not retroactive) measure."
 }
