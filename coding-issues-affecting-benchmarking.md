@@ -167,45 +167,6 @@ disposition table that used it. Each failure gets a real category or stays open.
 
 ---
 
-## Findings
-
-### M1 — every failure classified (2026-08-29)
-
-Built from the same `runs.jsonl` M0 already pulled from the box (no second fetch needed) — the 43
-deduplicated fixtures in `tests/fixtures/benchmark-failures/` collapse to the 16 causes below when
-grouped by root cause instead of by exact error shape. All 173 raw attempts are accounted for; no
-bucket is "other".
-
-Two of §1's rows turned out to be more than one cause: "budget" (76) is two distinct code paths, not
-one, and "other" (28) resolves into six named causes.
-
-| cause | n | disposition | justification | example |
-|---|---|---|---|---|
-| budget: allocator pool cap | 68 | model weakness | The Allocator denies pool spend beyond the request's remaining budget — the model asked for more entities/affinities than the budget covers. Correct denial, spread across every model (heaviest: qwen3.8:27b 35/68, the best-scoring configuration — it authors the most, so it also hits the cap most). | `bf-001` |
-| resource V3: incomplete spec | 20 | model weakness | `resource[N]` payload missing a companion field its own chosen fields require (`delta`/`regen`, or `permanenceMode` when `vital`/`regen` is set). Not in M3's symptom table — the V3 cross-field requirement is correct. Concentrated in the two smallest models (qwen3.5:9b 13/20, qwen3:14b 6/20): a capability gap, not a schema gap. | `bf-006` — `resource[1] delta is required unless regen is given.` |
-| conflicting requirements (viability floor) | 19 | **open — pending M2** | `create infeasible (conflicting_requirements)`: explicit vitals fall below the actor viability floor. M2 has not yet determined regression vs. model limitation; left undispositioned here. | `bf-004` |
-| schema/CLI: JSON array as segment | 16 | **harness defect (M3)** | The model emits a JSON array for `delver`/`warden` where the CLI's `key=value` segment parser expects flat pairs. Corrects M3's original "~9" estimate to 16 across all three shape variants. Concentrated in the *best*-scoring model (qwen3.8:27b 13/16) — a stronger model reaching for well-formed nested JSON, not a weaker one guessing syntax, is itself evidence this is a schema gap rather than a capability gap. | `bf-003` |
-| floor-tile budget | 15 | **open — pending M2/M4** | `floorTile.count:floor_tile_budget_insufficient`. M2 checks whether the viability floor's `levelBudgetSplitPercent` retune shrank the room share too far; M4 owns any resulting fix. Left undispositioned here. | `bf-002` |
-| spatial placement | 10 | **open — pending M4** | `configurator inputs could not place hazard/resource: insufficient unoccupied walkable tiles`. M4 has not yet determined model-over-asked vs. placement-too-weak. Left undispositioned here. | `bf-007` |
-| budget: CLI pre-allocator minimum-spend check | 8 | model weakness | `create infeasible (insufficient_budget)`: the CLI's own minimum-spend floor rejects the request before budget scoring runs — a distinct code path from the allocator row above. Collapsing the two would have hidden this path entirely. | `bf-012` |
-| model: authored nothing | 3 | model weakness | Tool call with no `--room`/`--floor-tile`/`--hazard`/`--resource`/`--delver`/`--warden` at all. All three from qwen3:14b. | `bf-015` |
-| model: no tool call produced | 3 | model weakness, no code path | `toolArgs` is `null` — `ak_create` was never called. Not replayable through `normalizeToolArgs -> buildArgv -> create`; nothing in the harness to fix. | `bf-013` |
-| schema: unsupported field | 2 | model weakness | Model invents a field the schema never offered (`hazard.manaRegen`, `room.description`). Correctly rejected. | `bf-024` |
-| schema/CLI: dungeonAffinity enum | 2 | **harness defect (M3)** | `--dungeon-affinity` rejects a value outside its enum; M3 already names this, expecting the fix is the same enum the other affinity fields carry. Both from qwen3:14b. | `bf-020` |
-| schema/CLI: hazard mana format | 2 | **harness defect (M3)** | Hazard `mana` parser rejects a negative amount and a malformed `one-time:c:m:r` triple. | `bf-025`, `bf-026` |
-| model: invalid enum value | 2 | model weakness | Affinity/kind value outside the supported enum (`warden.affinity[].kind: "pull"` — a hazard-expression verb, not an affinity kind; an out-of-enum Delver `affinity`). | `bf-030` |
-| resource V3: legacy field | 1 | model weakness | Pre-V3 `count` field blended into a V3 resource payload; correctly rejected. | `bf-038` |
-| schema/CLI: resource vital enum | 1 | **harness defect (M3)** | `resource[N].vital` rejects a non-string (`[object Object]`) payload. | `bf-023` |
-| infrastructure: parser-level 500 | 1 | infrastructure, no code path | Ollama's tool-call XML parser failed before `toolArgs` existed. M5's target, via a different code path (`executeContentGenMatrix`) — not this replay corpus. | `bf-031` |
-
-**Totals:** 173 = **21 harness defect** (M3; all seven fixtures already landed red in M0) + **104
-model weakness** (correct denials/rejections; nothing to fix) + **44 open, pending M2/M4** + **4 not
-replayable** (3 no-tool-call + 1 infrastructure). No failure was dropped or marked "absorbed by
-another finding" — the 44 open ones stay open rather than being forced into a disposition M2/M4
-haven't earned yet.
-
----
-
 ### M2 — Determine which failures the viability floor CREATED
 
 **Why:** the actor viability floor (merged as "an actor floor that leaves it able to survive being
@@ -365,3 +326,42 @@ the run simply compares incomparable evidence.
 2. `scripts/benchmark-preflight.sh --remote` reports the drift.
 3. Repinning requires a reinstall on the box (it runs an installed FILE COPY; merging never reaches
    it). Coordinate with the maintainer — do not deploy or start a remote run yourself.
+
+---
+
+## Findings
+
+### M1 — every failure classified (2026-08-29)
+
+Built from the same `runs.jsonl` M0 already pulled from the box (no second fetch needed) — the 43
+deduplicated fixtures in `tests/fixtures/benchmark-failures/` collapse to the 16 causes below when
+grouped by root cause instead of by exact error shape. All 173 raw attempts are accounted for; no
+bucket is "other".
+
+Two of §1's rows turned out to be more than one cause: "budget" (76) is two distinct code paths, not
+one, and "other" (28) resolves into six named causes.
+
+| cause | n | disposition | justification | example |
+|---|---|---|---|---|
+| budget: allocator pool cap | 68 | model weakness | The Allocator denies pool spend beyond the request's remaining budget — the model asked for more entities/affinities than the budget covers. Correct denial, spread across every model (heaviest: qwen3.8:27b 35/68, the best-scoring configuration — it authors the most, so it also hits the cap most). | `bf-001` |
+| resource V3: incomplete spec | 20 | model weakness | `resource[N]` payload missing a companion field its own chosen fields require (`delta`/`regen`, or `permanenceMode` when `vital`/`regen` is set). Not in M3's symptom table — the V3 cross-field requirement is correct. Concentrated in the two smallest models (qwen3.5:9b 13/20, qwen3:14b 6/20): a capability gap, not a schema gap. | `bf-006` — `resource[1] delta is required unless regen is given.` |
+| conflicting requirements (viability floor) | 19 | **open — see M2 below** | `create infeasible (conflicting_requirements)`: explicit vitals fall below the actor viability floor. Left undispositioned here; M2's verdict below does not resolve it either. | `bf-004` |
+| schema/CLI: JSON array as segment | 16 | **harness defect (M3)** | The model emits a JSON array for `delver`/`warden` where the CLI's `key=value` segment parser expects flat pairs. Corrects M3's original "~9" estimate to 16 across all three shape variants. Concentrated in the *best*-scoring model (qwen3.8:27b 13/16) — a stronger model reaching for well-formed nested JSON, not a weaker one guessing syntax, is itself evidence this is a schema gap rather than a capability gap. | `bf-003` |
+| floor-tile budget | 15 | **open — see M2 below** | `floorTile.count:floor_tile_budget_insufficient`. Left undispositioned here; M2's verdict below finds no floor regression. | `bf-002` |
+| spatial placement | 10 | **open — pending M4** | `configurator inputs could not place hazard/resource: insufficient unoccupied walkable tiles`. M4 has not yet determined model-over-asked vs. placement-too-weak. Left undispositioned here. | `bf-007` |
+| budget: CLI pre-allocator minimum-spend check | 8 | model weakness | `create infeasible (insufficient_budget)`: the CLI's own minimum-spend floor rejects the request before budget scoring runs — a distinct code path from the allocator row above. Collapsing the two would have hidden this path entirely. | `bf-012` |
+| model: authored nothing | 3 | model weakness | Tool call with no `--room`/`--floor-tile`/`--hazard`/`--resource`/`--delver`/`--warden` at all. All three from qwen3:14b. | `bf-015` |
+| model: no tool call produced | 3 | model weakness, no code path | `toolArgs` is `null` — `ak_create` was never called. Not replayable through `normalizeToolArgs -> buildArgv -> create`; nothing in the harness to fix. | `bf-013` |
+| schema: unsupported field | 2 | model weakness | Model invents a field the schema never offered (`hazard.manaRegen`, `room.description`). Correctly rejected. | `bf-024` |
+| schema/CLI: dungeonAffinity enum | 2 | **harness defect (M3)** | `--dungeon-affinity` rejects a value outside its enum; M3 already names this, expecting the fix is the same enum the other affinity fields carry. Both from qwen3:14b. | `bf-020` |
+| schema/CLI: hazard mana format | 2 | **harness defect (M3)** | Hazard `mana` parser rejects a negative amount and a malformed `one-time:c:m:r` triple. | `bf-025`, `bf-026` |
+| model: invalid enum value | 2 | model weakness | Affinity/kind value outside the supported enum (`warden.affinity[].kind: "pull"` — a hazard-expression verb, not an affinity kind; an out-of-enum Delver `affinity`). | `bf-030` |
+| resource V3: legacy field | 1 | model weakness | Pre-V3 `count` field blended into a V3 resource payload; correctly rejected. | `bf-038` |
+| schema/CLI: resource vital enum | 1 | **harness defect (M3)** | `resource[N].vital` rejects a non-string (`[object Object]`) payload. | `bf-023` |
+| infrastructure: parser-level 500 | 1 | infrastructure, no code path | Ollama's tool-call XML parser failed before `toolArgs` existed. M5's target, via a different code path (`executeContentGenMatrix`) — not this replay corpus. | `bf-031` |
+
+**Totals:** 173 = **21 harness defect** (M3; all seven fixtures already landed red in M0) + **104
+model weakness** (correct denials/rejections; nothing to fix) + **44 open, pending M2/M4** + **4 not
+replayable** (3 no-tool-call + 1 infrastructure). No failure was dropped or marked "absorbed by
+another finding" — the 44 open ones stay open rather than being forced into a disposition M2/M4
+haven't earned yet.
