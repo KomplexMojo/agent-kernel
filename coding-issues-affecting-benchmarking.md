@@ -1,8 +1,34 @@
 # Coding issues affecting benchmarking
 
-**Status:** plan, not yet started. **Audience:** an agent with no memory of the session that produced it.
+**Status (2026-08-29):** M0, M1, M2, M3 complete and committed. M4 and M5 remain. **Audience:** an
+agent with no memory of the session that produced it — read `## Findings` at the end of this file
+before doing anything else; it supersedes parts of this plan (notably §"Do" step 3 in the original
+M3, which guessed wrong about `dungeonAffinity`).
 **Source of evidence:** benchmark run `2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52`, 800 attempts,
 six configurations, published to the `benchmark-results` branch as `latest.json`.
+
+## ⏭️ START HERE for the next session
+
+- **Branch:** `claude/fix-coding-issues-affecting-benchmarking`, worktree
+  `.claude/worktrees/fix-coding-issues-affecting-benchmarking/`. All work so far is committed there
+  (`da40911`..`b30c17f` at last count) and pushed to `origin`. No PR open yet.
+- **Sibling branch** `claude/coding-issues-affecting-benchmarking` holds only this file's original
+  three commits (the plan itself) — it is NOT where the milestone work landed; do not confuse the
+  two or try to merge one into the other without checking which has the M0–M3 commits.
+- **Done:** M0 (43-fixture replay corpus under `tests/fixtures/benchmark-failures/`, replayed in
+  `tests/tools/benchmark-failure-corpus-replay.test.js`), M1 (all 173 failures classified), M2 (no
+  viability-floor regression found — M4 is NOT mandatory), M3 (one real fix landed — JSON-array
+  bracket repair in `normalizeToolArgs`; three of the original four "harness defect" guesses were
+  reclassified as correctly-rejected model errors after reading the actual code).
+- **Next:** M4 (spatial placement / floor-tile capacity) or M5 (infrastructure retry), in either
+  order — both are independently landable per `## 2. Milestones`. bf-018 in the replay corpus is a
+  live M4 repro that appeared as a side effect of M3's fix (see `## Findings` → `### M3`).
+- **Before touching M4/M5:** re-run `pnpm run test` and `pnpm run typecheck` to confirm the baseline
+  is still 443 files / 3459 passed / 207 skipped / 0 type errors — if it's not, something moved
+  underneath this branch and needs reconciling before new work lands on top of it.
+- **Gate baseline in `## 4. Definition of done` (441/3411) is stale** — it predates M0. Trust the
+  numbers in `## Findings` instead; `## 4` is the ORIGINAL milestone spec and is intentionally left
+  unedited so it stays a clean record of what was asked for.
 
 ---
 
