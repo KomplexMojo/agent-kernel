@@ -161,6 +161,34 @@ Tests verify correctness; benchmarks verify that the LLM tool-call surface holds
 
 Canonical content-gen scenario count: 100 (source: `loadScenarioCatalog()`).
 
+🔴 **A benchmark is a discovery instrument, not a test suite. Never use one to catch what a
+deterministic test can catch.**
+
+A full run costs ~14 hours across six GPU configurations and answers non-deterministically. Most of
+what it surfaces is not model behaviour at all — it is a property of the code that holds or fails
+whichever model is driving. Measured on run `2026-08-28T17-48-28`, of 173 failures only two classes
+genuinely required a model:
+
+| question | needs a model? |
+|---|---|
+| does the schema advertise a shape the CLI rejects? | no — a pure function of schema and parser |
+| is a required enum missing? is a grammar unparseable? | no |
+| what is the minimum spend for this spec? does the tile budget suffice? | no — arithmetic |
+| can a hazard be placed in a room of this size? | no — geometry |
+| should a parser-level 500 abort the run? | no — policy |
+| **does the model CHOOSE a valid shape?** | **yes** |
+| **can the model budget under pressure?** | **yes** |
+
+So: when a run surfaces a failure, the question is *which property should have caught this*, and the
+answer belongs in `pnpm run test` where it fails in seconds. A recorded `toolArgs` that broke
+something is a free, non-synthetic fixture — replay it through
+`normalizeToolArgs → buildArgv → ak create` with no LLM. Do not hand-write such a case: a
+hand-written sample passes against a defective schema too, which makes it a mirror of the defect
+rather than a guard on it.
+
+A fix is proven by a deterministic test flipping red to green. Re-run a benchmark only to ask
+whether model BEHAVIOUR changed — never to ask whether the code is correct now.
+
 **There are two kinds of benchmark run, and only one of them is outside the development process.**
 
 ### Local debug runs — IN the loop (maintainer, 2026-08-25)
