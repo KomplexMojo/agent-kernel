@@ -413,7 +413,17 @@ function assignPositionedLayoutObjects({ layout, objects = [], kind, occupied = 
       }
     }
     if (!assigned) {
-      throw new Error(`configurator inputs could not place ${kind}: insufficient unoccupied walkable tiles`);
+      // M4: the refusal used to say only "insufficient" with no numbers -- every one of the
+      // benchmark's spatial-placement failures turned out to be the model requesting too small a
+      // floorTile.count for its own room/object count, not this placer missing a valid
+      // arrangement (verified by replaying the recorded requests with only floorTile.count
+      // raised: the exact same objects then place cleanly). Reporting the actual deficit makes
+      // that diagnosable from the error alone instead of requiring a replay to discover it.
+      throw new Error(
+        `configurator inputs could not place ${kind}: insufficient unoccupied walkable tiles `
+        + `(${candidates.length} available, ${objects.length} requested, ${index} placed before `
+        + `running out — raise floorTile.count).`,
+      );
     }
     occupied.add(positionKey(assigned));
     const id = typeof object?.id === "string" && object.id.trim()
@@ -1468,7 +1478,19 @@ export async function orchestrateBuild({
       hazards: positionedHazards,
     });
     if (!layoutResult.ok) {
-      const details = layoutResult.errors.map((err) => `${err.field}:${err.code}`).join(", ");
+      // M4: every recorded floor_tile_budget_insufficient failure turned out to be the model
+      // requesting a floorTile.count far below what its own declared room count needs -- the
+      // carving algorithm itself scales cleanly (verified up to 500 tiles across 9 rooms).
+      // level-layout.js already computes the exact deficit in err.detail; it was being discarded
+      // here rather than surfaced, which is what made the failure look uninvestigable instead of
+      // reporting a concrete number to raise floorTile.count to.
+      const details = layoutResult.errors.map((err) => {
+        const detail = err.detail && typeof err.detail === "object"
+          ? ` (requested ${err.detail.target}, need at least ${err.detail.required} for `
+            + `${err.detail.roomCount} room${err.detail.roomCount === 1 ? "" : "s"})`
+          : "";
+        return `${err.field}:${err.code}${detail}`;
+      }).join(", ");
       throw new Error(`level-gen input invalid: ${details}`);
     }
 

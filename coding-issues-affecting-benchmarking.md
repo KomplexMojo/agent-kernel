@@ -1,6 +1,6 @@
 # Coding issues affecting benchmarking
 
-**Status (2026-08-29):** M0, M1, M2, M3 complete and committed. M4 and M5 remain. **Audience:** an
+**Status (2026-08-30):** M0, M1, M2, M3, M4 complete and committed. M5 remains. **Audience:** an
 agent with no memory of the session that produced it — read `## Findings` at the end of this file
 before doing anything else; it supersedes parts of this plan (notably §"Do" step 3 in the original
 M3, which guessed wrong about `dungeonAffinity`).
@@ -11,21 +11,28 @@ six configurations, published to the `benchmark-results` branch as `latest.json`
 
 - **Branch:** `claude/fix-coding-issues-affecting-benchmarking`, worktree
   `.claude/worktrees/fix-coding-issues-affecting-benchmarking/`. All work so far is committed there
-  (`da40911`..`b30c17f` at last count) and pushed to `origin`. No PR open yet.
+  and pushed to `origin` (confirm with `git log --oneline -10` and `git status -sb`). No PR open yet.
 - **Sibling branch** `claude/coding-issues-affecting-benchmarking` holds only this file's original
   three commits (the plan itself) — it is NOT where the milestone work landed; do not confuse the
-  two or try to merge one into the other without checking which has the M0–M3 commits.
+  two or try to merge one into the other without checking which has the milestone commits.
 - **Done:** M0 (43-fixture replay corpus under `tests/fixtures/benchmark-failures/`, replayed in
   `tests/tools/benchmark-failure-corpus-replay.test.js`), M1 (all 173 failures classified), M2 (no
-  viability-floor regression found — M4 is NOT mandatory), M3 (one real fix landed — JSON-array
-  bracket repair in `normalizeToolArgs`; three of the original four "harness defect" guesses were
-  reclassified as correctly-rejected model errors after reading the actual code).
-- **Next:** M4 (spatial placement / floor-tile capacity) or M5 (infrastructure retry), in either
-  order — both are independently landable per `## 2. Milestones`. bf-018 in the replay corpus is a
-  live M4 repro that appeared as a side effect of M3's fix (see `## Findings` → `### M3`).
-- **Before touching M4/M5:** re-run `pnpm run test` and `pnpm run typecheck` to confirm the baseline
-  is still 443 files / 3459 passed / 207 skipped / 0 type errors — if it's not, something moved
+  viability-floor regression found), M3 (one real fix — JSON-array bracket repair in
+  `normalizeToolArgs`; three of the original four "harness defect" guesses were reclassified as
+  correctly-rejected model errors after reading the actual code), M4 (verdict: floor-tile budget and
+  spatial placement are BOTH model under-specification of `floorTile.count`, not harness limits —
+  confirmed by replaying every failing request with only that field raised; landed refusal-message
+  fixes surfacing the actual deficit; explicitly did NOT land an unmeasured schema-description fix,
+  per §"Do" step 3's A/B-measurement requirement and the price-brief precedent it cites).
+- **Next:** M5 (infrastructure retry — a parser-level 500 shouldn't abort a 14-hour run). The only
+  milestone left; see `## 2. Milestones` → `### M5` for its spec.
+- **Before touching M5:** re-run `pnpm run test` and `pnpm run typecheck` to confirm the baseline is
+  still 444 files / 3461 passed / 207 skipped / 0 type errors — if it's not, something moved
   underneath this branch and needs reconciling before new work lands on top of it.
+- **Local Ollama is available on this Mac** (`scripts/benchmark-preflight.sh` passes, `qwen3.5:9b`
+  present) if anyone wants to run the A/B measurement M4 declined to run unilaterally (a
+  `floorTile.count` schema description) — not required for M5, noted here only so it isn't
+  rediscovered from scratch.
 - **Gate baseline in `## 4. Definition of done` (441/3411) is stale** — it predates M0. Trust the
   numbers in `## Findings` instead; `## 4` is the ORIGINAL milestone spec and is intentionally left
   unedited so it stays a clean record of what was asked for.
@@ -373,8 +380,8 @@ one, and "other" (28) resolves into six named causes.
 | resource V3: incomplete spec | 20 | model weakness | `resource[N]` payload missing a companion field its own chosen fields require (`delta`/`regen`, or `permanenceMode` when `vital`/`regen` is set). Not in M3's symptom table — the V3 cross-field requirement is correct. Concentrated in the two smallest models (qwen3.5:9b 13/20, qwen3:14b 6/20): a capability gap, not a schema gap. | `bf-006` — `resource[1] delta is required unless regen is given.` |
 | conflicting requirements (viability floor) | 19 | **open — see M2 below** | `create infeasible (conflicting_requirements)`: explicit vitals fall below the actor viability floor. Left undispositioned here; M2's verdict below does not resolve it either. | `bf-004` |
 | schema/CLI: JSON array as segment | 16 | **harness defect — fixed, M3** | The model emits a JSON array for `delver`/`warden` where the CLI's `key=value` segment parser expects flat pairs. Corrects M3's original "~9" estimate to 16 across all three shape variants. Concentrated in the *best*-scoring model (qwen3.8:27b 13/16) — a stronger model reaching for well-formed nested JSON, not a weaker one guessing syntax, is itself evidence this is a schema gap rather than a capability gap. Fixed in M3 (see below); the corpus bracket-repairs and reaches its scenario's own expected outcome. | `bf-003` |
-| floor-tile budget | 15 | **open — see M2 below** | `floorTile.count:floor_tile_budget_insufficient`. Left undispositioned here; M2's verdict below finds no floor regression. | `bf-002` |
-| spatial placement | 10 | **open — pending M4** | `configurator inputs could not place hazard/resource: insufficient unoccupied walkable tiles`. M4 has not yet determined model-over-asked vs. placement-too-weak. Left undispositioned here. | `bf-007` |
+| floor-tile budget | 15 | model weakness — resolved, M4 | `floorTile.count:floor_tile_budget_insufficient`. M4 replayed every recorded request with only `floorTile.count` raised: all succeed. The carving algorithm scales correctly (verified to 500 tiles/9 rooms); the model consistently under-specifies this field, which has no schema description at all. | `bf-002` |
+| spatial placement | 10 | model weakness — resolved, M4 | `configurator inputs could not place hazard/resource: insufficient unoccupied walkable tiles`. Same root cause and same M4 evidence as the row above — one code path (single-room), one code path (multi-room), one model misunderstanding. | `bf-007` |
 | budget: CLI pre-allocator minimum-spend check | 8 | model weakness | `create infeasible (insufficient_budget)`: the CLI's own minimum-spend floor rejects the request before budget scoring runs — a distinct code path from the allocator row above. Collapsing the two would have hidden this path entirely. | `bf-012` |
 | model: authored nothing | 3 | model weakness | Tool call with no `--room`/`--floor-tile`/`--hazard`/`--resource`/`--delver`/`--warden` at all. All three from qwen3:14b. | `bf-015` |
 | model: no tool call produced | 3 | model weakness, no code path | `toolArgs` is `null` — `ak_create` was never called. Not replayable through `normalizeToolArgs -> buildArgv -> create`; nothing in the harness to fix. | `bf-013` |
@@ -395,6 +402,12 @@ disposition M2/M4 hadn't earned yet.
 inspection of the real schema/CLI/parser code, to already be correctly rejected. **Corrected
 totals: 173 = 16 harness defect (fixed) + 109 model weakness + 44 open, pending M2/M4 + 4 not
 replayable.**
+
+**Updated by M4 (see below):** floor-tile budget (15) and spatial placement (10) both resolved to
+model weakness — the carving and placement algorithms scale correctly; the model under-specifies
+`floorTile.count`. **Final totals: 173 = 16 harness defect (fixed) + 134 model weakness + 19 open,
+pending M2's conflicting_requirements finding only (M2 answered "not a regression", not "is this
+correct" — a narrower question) + 4 not replayable.**
 
 ### M2 — no floor regression found; the comparison is more confounded than expected (2026-08-29)
 
@@ -521,3 +534,59 @@ sample to match the defect -- precisely the "mirror of the defect rather than a 
 anti-pattern that file's own header warns against. `tests/tools/remote-ollama-json-array-repair.test.js`
 tests the repair mechanism directly instead, which is what M0's own corpus already existed to cover
 for the recorded cases.
+
+### M4 — verdict: model, not harness. Neither placement nor carving is the limit (2026-08-30)
+
+**Method:** for every fixture in both buckets (bf-002, bf-007, bf-018, bf-029), replayed the exact
+recorded `toolArgs` through the real path with ONE field changed — `floorTile.count` raised — and
+nothing else touched. This directly answers §"Do" step 1: "is there a placement that would have
+worked?"
+
+| fixture | as-recorded | raised only `floorTile.count` |
+|---|---|---|
+| bf-007 (1 room, 6 hazards + 2 actors, count=1) | fails: 0 available, 6 requested | count=20 → succeeds cleanly |
+| bf-029 (1 room, 1 resource, count=1) | fails: insufficient unoccupied walkable tiles | count=10 → succeeds cleanly |
+| bf-018 (1 room, 2 hazards + delver + wardens, count=1) | fails, same cause, once M3's parse fix let the warden through at all | count=20 → succeeds cleanly |
+| bf-002 (2 rooms, count=1, need 6) | fails: floor_tile_budget_insufficient | count=20 → succeeds cleanly |
+| scenario 48 (9 rooms, count totaled 60, need ≥27 by the naive minimum) | **fails anyway** — the naive per-room minimum passes but the real distribution (backbone connectivity between 9 rooms eats into the same budget) still doesn't | count scaled to 150 → succeeds; 100 still fails |
+
+**Verdict: model, not harness, for both buckets.** The placement algorithm
+(`assignPositionedLayoutObjects`) and the carving algorithm (`distributeWalkableTilesAcrossRooms`)
+both scale correctly and generously — proven up to 500 tiles across 9 rooms with 8 actors. Every
+single failure in the corpus reproduces cleanly once `floorTile.count` is raised and nothing else
+changes. The scenario-48 case matters: it shows this isn't just "the model asked for literally 1
+tile" (the common case) — even a seemingly generous count (60 for 9 rooms) can still be short once
+connectivity between rooms is accounted for, and the model has no way to know that either.
+
+**Root cause:** `floorTile.count` has no description in the tool schema at all (`ak-tool-schema.js`)
+— just `{type: 'integer', minimum: 1}`. Nothing tells the model this is a **whole-level** walkable-tile
+budget that must scale with room count and size, not a per-room or symbolic value. The model
+consistently sends something small (often literally `1`) regardless of how many rooms/objects it
+also requested in the same call.
+
+**Code changes (harness-side, no A/B measurement needed — these are refusal-message fixes, not
+prompt/schema content the model sees in advance):**
+- `assignPositionedLayoutObjects` (`orchestrate-build.js`) now reports `(N available, M requested,
+  K placed before running out — raise floorTile.count)` instead of a bare "insufficient" with no
+  numbers.
+- The `floor_tile_budget_insufficient` rejection (same file) now reports `(requested T, need at
+  least R for C rooms)`. The data was **already computed** in `level-layout.js`'s `err.detail` on
+  both check sites — it was being thrown away in formatting, not missing. A one-line fix, not a new
+  computation.
+- New/extended tests: `tests/integration/create-placement-refusal-detail.test.js` (new) and
+  `tests/integration/create-multi-room-carving.test.js` (extended) pin both messages carry the
+  actual numbers. **Perturbation:** reverted via `git stash`, both new assertions failed (2 tests);
+  restored, both pass.
+
+**Not landed, deliberately — a schema description for `floorTile.count`.** The obvious next move is
+adding a description explaining the whole-level-budget semantics. Not done here: §"Do" step 3 is
+explicit that a prompt/schema change must be A/B measured before landing, and this field has the
+*exact* shape of the price-brief lesson elsewhere in this repo — telling the model concrete numbers
+("~3 per room minimum") risks reading as a menu it orders from rather than a constraint it reasons
+about, which is precisely what made five price-brief variants perform worse than nothing. Local
+Ollama is available on this Mac (`scripts/benchmark-preflight.sh` passes, `qwen3.5:9b` present) if a
+future session wants to run that A/B on the constrained tier — not run here, same as M2's declined
+bisection: a new, unscoped measurement task for the maintainer to authorize, not something to launch
+unilaterally as part of this milestone's acceptance.
+
+**Gates:** 444 files / 3461 passed / 207 skipped. Typecheck: 0.
