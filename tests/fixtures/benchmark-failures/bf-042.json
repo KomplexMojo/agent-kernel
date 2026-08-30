@@ -1,0 +1,58 @@
+{
+  "id": "bf-042",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 53,
+  "scenarioTitle": "Create Tick Session Ready Dungeon",
+  "expectedOutcome": "success",
+  "observedOutcome": "budget_denied",
+  "scenarioBudget": 1300,
+  "toolArgs": {
+    "text": "A dungeon with an exploring Delver, a stationary Warden, a fire hazard emitting affinity stacks, and a level resource pickup.",
+    "budgetTokens": 1300,
+    "runId": "dungeon_run_12345",
+    "outDir": "/output/dungeon_artifacts",
+    "emitIntermediates": true,
+    "delver": [
+      {
+        "affinity": "fire",
+        "count": 1,
+        "goals": [
+          {
+            "kind": "max_mana",
+            "priority": "high"
+          }
+        ],
+        "motivation": "exploring"
+      }
+    ],
+    "warden": [
+      {
+        "affinity": "water",
+        "count": 1,
+        "motivation": "stationary"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "fire",
+        "blocking": false,
+        "expression": "emit",
+        "proximityRadius": 2,
+        "stacks": 3
+      }
+    ],
+    "resource": [
+      {
+        "delta": 5,
+        "id": "level_resource_1",
+        "permanenceMode": "level",
+        "vital": "mana"
+      }
+    ]
+  },
+  "observedError": "Budget receipt denied: status=denied; remaining=998; deniedLines=tile:tile_floor:floor_tiles; deniedPools=rooms:25/0\n",
+  "occurrences": 1,
+  "disposition": "model-error",
+  "dispositionNote": "unexpected but correct: allocator enforcing combined resource/actor pool caps."
+}

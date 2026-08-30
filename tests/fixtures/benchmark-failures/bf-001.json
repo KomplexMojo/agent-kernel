@@ -1,0 +1,55 @@
+{
+  "id": "bf-001",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 97,
+  "scenarioTitle": "Constrained Under Hazard Route",
+  "expectedOutcome": "budget_denied",
+  "observedOutcome": "budget_denied",
+  "scenarioBudget": 252,
+  "toolArgs": {
+    "text": "Create a dungeon scenario featuring a medium-sized room containing a fire hazard zone and one water-affinity delver actor. The fire hazard will emit affinity pressure to nearby tiles, while the water delver explores with appropriate vital stats. This setup tests basic entity creation with affinity-based mechanics.",
+    "runId": "run_fire_water_001",
+    "outDir": "./dungeon_output",
+    "budgetTokens": 252,
+    "emitIntermediates": true,
+    "dungeonAffinity": "fire",
+    "room": [
+      {
+        "count": 1,
+        "size": "medium"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "fire",
+        "blocking": false,
+        "expression": "emit",
+        "proximityRadius": 3,
+        "stacks": 1
+      }
+    ],
+    "delver": [
+      {
+        "affinity": "water",
+        "count": 1,
+        "motivation": "exploring",
+        "vitals": {
+          "health": {
+            "max": 50
+          },
+          "mana": {
+            "max": 25
+          },
+          "stamina": {
+            "max": 40
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "Budget receipt denied: status=denied; remaining=0; deniedLines=actor:actor_spawn:delvers,affinity:affinity_base:delvers,affinity:affinity_expression_externalize:delvers,affinity:affinity_stack:delvers,motivation:motivation_exploring:delvers; deniedPools=delver:185/91\n",
+  "occurrences": 26,
+  "disposition": "model-error",
+  "dispositionNote": "expected budget_denied, correctly denied (delver pool)."
+}

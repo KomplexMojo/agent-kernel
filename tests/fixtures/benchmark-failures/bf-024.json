@@ -1,0 +1,73 @@
+{
+  "id": "bf-024",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 26,
+  "scenarioTitle": "Execution EX-RS-05 — Permanent affinity actor-kind parity",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "text": "Create dungeon scenario with one delver and one warden crossing distinct permanent fire-emit affinity resources. Each resource has two stacks, mana 12, and mana regeneration 2 per tick. Resources are permanent (level persistence). Delver and warden should be able to traverse these hazards/resources safely. Use medium-sized room as generic container. Affinity pressure belongs in hazard definitions, not room specs.",
+    "runId": "EX-RS-05",
+    "outDir": "./artifacts/ex-rs-05",
+    "emitIntermediates": true,
+    "dungeonAffinity": "fire",
+    "room": [
+      {
+        "count": 1,
+        "size": "medium"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "fire",
+        "expression": "emit",
+        "mana": 12,
+        "manaRegen": 2,
+        "permanenceMode": "permanent",
+        "proximityRadius": 3,
+        "stacks": 2
+      }
+    ],
+    "delver": [
+      {
+        "affinity": "fire",
+        "count": 1,
+        "motivation": "exploring",
+        "vitals": {
+          "health": {
+            "max": 30
+          },
+          "mana": {
+            "max": 25,
+            "regen": 1
+          },
+          "stamina": {
+            "max": 40
+          }
+        }
+      }
+    ],
+    "warden": [
+      {
+        "affinity": "fire",
+        "count": 1,
+        "motivation": "stationary",
+        "vitals": {
+          "health": {
+            "max": 50
+          },
+          "mana": {
+            "max": 35,
+            "regen": 2
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "hazard[1] field \"manaRegen\" is not supported.\n",
+  "occurrences": 1,
+  "disposition": "model-error",
+  "dispositionNote": "hazard field \"manaRegen\" is not part of the hazard schema -- model invented it."
+}

@@ -1,0 +1,64 @@
+{
+  "id": "bf-027",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 54,
+  "scenarioTitle": "Create Mixed Motivation Encounter",
+  "expectedOutcome": "budget_denied",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": 600,
+  "toolArgs": {
+    "text": "Mixed-motivation encounter scenario with exploring and attacking delvers, defending and stationary wardens, plus dark-affinity hazard pressure zone.",
+    "runId": "mixed-motivation-encounter-001",
+    "outDir": "./dungeons/mixed-motivation",
+    "budgetTokens": 600,
+    "emitIntermediates": true,
+    "dungeonAffinity": "dark",
+    "room": [
+      {
+        "size": "medium"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "dark",
+        "expression": "push",
+        "mana": 10,
+        "proximityRadius": 3
+      }
+    ],
+    "delver": [
+      {
+        "affinity": "earth",
+        "count": 1,
+        "motivation": "exploring",
+        "vitals": {
+          "health": {
+            "max": 50
+          },
+          "mana": {
+            "max": 25
+          }
+        }
+      },
+      {
+        "affinity": "fire",
+        "count": 1,
+        "motivation": "attacking",
+        "vitals": {
+          "health": {
+            "max": 45
+          },
+          "mana": {
+            "max": 30
+          }
+        }
+      }
+    ],
+    "warden": "[{\"count\": 1, \"affinity\": \"water\", \"motivation\": \"defending\", \"vitals\": {\"health\": {\"max\": 60}, \"stamina\": {\"max\": 40}}}, {\"count\": 1, \"affinity\": \"earth\", \"motivation\": \"stationary\", \"vitals\": {\"health\": {\"max\": 55}, \"stamina\": {\"max\": 35}}}"
+  },
+  "observedError": "warden[1] segment \"[{\"count\": 1, \"affinity\": \"water\", \"motivation\": \"defending\", \"vitals\": {\"health\": {\"max\": 60}, \"stamina\": {\"max\": 40}}}, {\"count\": 1, \"affinity\": \"earth\", \"motivation\": \"stationary\", \"vitals\": {\"health\": {\"max\": 55}, \"stamina\": {\"max\": 35}}}\" is invalid; expected key=value.\n",
+  "occurrences": 1,
+  "disposition": "harness-defect",
+  "dispositionNote": "M3: same JSON-array-as-segment defect as shape 3/18, surfaced on a denial-expecting scenario."
+}

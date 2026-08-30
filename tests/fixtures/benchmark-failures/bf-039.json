@@ -1,0 +1,79 @@
+{
+  "id": "bf-039",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 83,
+  "scenarioTitle": "Create Life Decay Resource Opposition",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "emitIntermediates": true,
+    "delver": [
+      {
+        "affinity": "life",
+        "count": 1,
+        "goals": [
+          {
+            "kind": "mana_regen",
+            "priority": "high"
+          }
+        ],
+        "motivation": "goal_oriented",
+        "vitals": {
+          "mana": {
+            "max": 20,
+            "regen": 2
+          }
+        }
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "decay",
+        "blocking": false,
+        "durability": "regen:3:5:1",
+        "expression": "pull",
+        "proximityRadius": 2
+      }
+    ],
+    "room": [
+      {
+        "count": 1,
+        "size": "medium"
+      }
+    ],
+    "warden": [
+      {
+        "affinity": "decay",
+        "count": 1,
+        "motivation": "defending",
+        "vitals": {
+          "health": {
+            "max": 30
+          },
+          "stamina": {
+            "max": 25
+          }
+        }
+      }
+    ],
+    "resource": [
+      {
+        "affinity": "life",
+        "expression": "emit",
+        "mana": 15,
+        "permanenceMode": "permanent",
+        "regen": 5,
+        "stacks": 3
+      }
+    ],
+    "text": "A life Delver and decay Warden contesting a permanent mana regeneration resource. The Delver seeks to maximize mana regen, while the Warden aims to disrupt the resource.",
+    "runId": "contest_life_decay",
+    "outDir": "./artifacts"
+  },
+  "observedError": "resource[1] vital is required for a vital payload (read as a vital payload because permanenceMode, regen are set). For an affinity-only resource, omit permanenceMode, regen.\n",
+  "occurrences": 1,
+  "disposition": "model-error",
+  "dispositionNote": "resource field \"count\" is legacy pre-V3 vocabulary; V3 spec rejects it."
+}

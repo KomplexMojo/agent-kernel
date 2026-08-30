@@ -1,0 +1,42 @@
+{
+  "id": "bf-033",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 93,
+  "scenarioTitle": "Constrained Under Single Warden",
+  "expectedOutcome": "budget_denied",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": 85,
+  "toolArgs": {
+    "text": "Create a dungeon scenario with one defending dark Warden. The warden should have minimal vitals but remain functional. Use generic room containers for structure. Affinity pressure belongs in hazards, not rooms. Keep token usage efficient while maintaining core functionality.",
+    "runId": "dark-defending-warden-run-001",
+    "outDir": "./artifacts/dark-defending-warden",
+    "budgetTokens": 85,
+    "emitIntermediates": true,
+    "room": [
+      {
+        "count": 1,
+        "size": "medium"
+      }
+    ],
+    "warden": [
+      {
+        "affinity": "dark",
+        "count": 1,
+        "motivation": "defending",
+        "vitals": {
+          "health": {
+            "max": 20
+          },
+          "mana": {
+            "max": 15
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "create infeasible (insufficient_budget): hard budget is 85 tokens but minimum required spend is 114 tokens. Blocking constraints: room[1] requires at least 64 tokens to preserve requested room size medium with affinities .; warden[1] requires at least 50 tokens to preserve requested explicit vitals.\n",
+  "occurrences": 1,
+  "disposition": "model-error",
+  "dispositionNote": "scenario expected a denial; the CLI's pre-allocator minimum-spend check fired instead (variant)."
+}

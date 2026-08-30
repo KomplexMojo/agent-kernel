@@ -11,6 +11,12 @@ const { buildPriceBrief, priceBriefHash } = require('./price-brief');
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const AK_CLI = path.join(REPO_ROOT, 'packages', 'adapters-cli', 'src', 'cli', 'ak.mjs');
 
+// M5: how many times a transport-level LLM failure (Ollama answered with an HTTP error status —
+// its own tool-call parser choking on the model's output, not the rig being down) gets retried
+// before the attempt is given up on. Starts at 1 per the plan: a bad sample deserves one more roll,
+// not an unbounded retry loop that could mask a genuinely degrading model.
+const MAX_TRANSPORT_RETRIES = 1;
+
 // Lazy-loaded from the MCP package (ESM) so the benchmark uses the same
 // argv builder as the MCP server — no parallel translation layer.
 let _buildArgv, _authoringSpec;
@@ -39,6 +45,34 @@ function pythonReprToJson(s) {
     .replace(/\bNone\b/g, 'null');
 }
 
+// Repairs bracket-balance faults in an array-of-objects string: either trailing garbage after
+// a complete value (a stray closing brace after the array's own ]), or a missing final closer
+// (the objects inside are all complete but the outer [ never closes). Tracks depth outside
+// quoted strings; the first time depth returns to zero the value is complete and anything after
+// is dropped. If the string runs out with brackets still open, closing them in reverse order is
+// safe -- every bracket left on the stack was opened after everything it contains already
+// balanced, so there is nothing to guess at.
+function repairJsonBrackets(s) {
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (escaped) { escaped = false; continue; }
+    if (c === '\\') { escaped = true; continue; }
+    if (c === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (c === '[' || c === '{') { stack.push(c); continue; }
+    if (c === ']' || c === '}') {
+      const expectedOpener = c === ']' ? '[' : '{';
+      if (stack.length === 0 || stack[stack.length - 1] !== expectedOpener) return s.slice(0, i);
+      stack.pop();
+      if (stack.length === 0) return s.slice(0, i + 1);
+    }
+  }
+  return stack.length > 0 ? s + stack.reverse().map((open) => (open === '[' ? ']' : '}')).join('') : s;
+}
+
 // Normalize an entity array field: handles actual arrays, JSON-encoded strings,
 // and Python repr strings that qwen3 emits from its thinking mode.
 function toArray(val) {
@@ -52,6 +86,9 @@ function toArray(val) {
       try { return JSON.parse(converted); } catch {}
       // Some models close the outer list with ) instead of ] — repair and retry.
       try { return JSON.parse(converted.replace(/\)\s*$/, ']')); } catch {}
+      // Some models emit a bracket-unbalanced array: an extra trailing } after a complete
+      // array, or a missing closing ] on an otherwise-complete one. Repair and retry.
+      try { return JSON.parse(repairJsonBrackets(converted)); } catch {}
     }
     return s ? [s] : [];
   }
@@ -135,6 +172,19 @@ function classifyExecutionOutcome(runResult) {
     return 'budget_denied';
   }
   return 'execution_failed';
+}
+
+// M5: an 'infrastructure_error' executionOutcome describes WHAT happened to one attempt (the LLM
+// leg never produced a usable result); failureClass decides whether that's the collapse breaker's
+// business -- whether executeContentGenMatrix should abort the whole run over it. A transport-level
+// failure (runResult.llmErrorIsTransport: Ollama itself answered with an HTTP error status) is a
+// bad sample -- runScenario already retried it once (MAX_TRANSPORT_RETRIES) before giving up, and
+// one generation choking on its own tool-call parser is not evidence the rig is broken. A network-
+// level failure (no response at all: connection refused, DNS, timeout) is the collapse breaker's
+// actual reason to exist, and stays 'infrastructure' unconditionally.
+function classifyFailureClass(executionOutcome, runResult) {
+  if (executionOutcome !== 'infrastructure_error') return null;
+  return runResult?.llmErrorIsTransport ? null : 'infrastructure';
 }
 
 // The constant half of the system prompt, split only so it can be hashed. The assembled text is
@@ -241,38 +291,59 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   let toolCallProduced = false;
   let toolArgs = null;
   let llmError = null;
+  // A transport-level failure means Ollama answered with an HTTP error status (statusCode set by
+  // requestJson) -- the rig is up, one generation's tool-call XML translation choked. A network-
+  // level failure (connection refused, DNS, timeout) never gets a statusCode: no response arrived
+  // at all, which is what "the rig is down" actually looks like. Only the former is worth a retry;
+  // retrying an unreachable endpoint just burns the same timeout twice for nothing.
+  let llmErrorIsTransport = false;
+  let llmRetries = 0;
 
-  try {
-    chatResponse = await requestJson(endpoint, '/v1/chat/completions', chatBody, timeoutMs);
-    const msg = chatResponse?.choices?.[0]?.message;
-    const toolCall = msg?.tool_calls?.[0];
-    if (toolCall?.function?.name === 'ak_create') {
-      toolCallProduced = true;
-      const rawArgs = toolCall.function.arguments;
-      toolArgs = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;
-    } else if (!toolCallProduced && msg?.content) {
-      // Fallback: some Ollama models (e.g. qwen2.5-coder) ignore tool_choice and
-      // serialize the tool call as JSON text in the content field.
-      const trimmed = msg.content.trim();
-      if (trimmed.startsWith('{')) {
-        try {
-          const parsed = JSON.parse(trimmed);
-          if (parsed?.name === 'ak_create' && parsed?.arguments) {
-            toolCallProduced = true;
-            toolArgs = typeof parsed.arguments === 'string'
-              ? JSON.parse(parsed.arguments)
-              : parsed.arguments;
-          }
-        } catch {}
+  for (let attempt = 0; attempt <= MAX_TRANSPORT_RETRIES; attempt += 1) {
+    llmError = null;
+    llmErrorIsTransport = false;
+    try {
+      chatResponse = await requestJson(endpoint, '/v1/chat/completions', chatBody, timeoutMs);
+      const msg = chatResponse?.choices?.[0]?.message;
+      const toolCall = msg?.tool_calls?.[0];
+      if (toolCall?.function?.name === 'ak_create') {
+        toolCallProduced = true;
+        const rawArgs = toolCall.function.arguments;
+        toolArgs = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;
+      } else if (!toolCallProduced && msg?.content) {
+        // Fallback: some Ollama models (e.g. qwen2.5-coder) ignore tool_choice and
+        // serialize the tool call as JSON text in the content field.
+        const trimmed = msg.content.trim();
+        if (trimmed.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed?.name === 'ak_create' && parsed?.arguments) {
+              toolCallProduced = true;
+              toolArgs = typeof parsed.arguments === 'string'
+                ? JSON.parse(parsed.arguments)
+                : parsed.arguments;
+            }
+          } catch {}
+        }
       }
+      break;
+    } catch (error) {
+      llmError = error.message;
+      llmErrorIsTransport = error.statusCode != null;
+      if (llmErrorIsTransport && attempt < MAX_TRANSPORT_RETRIES) {
+        llmRetries += 1;
+        continue;
+      }
+      break;
     }
-  } catch (error) {
-    llmError = error.message;
   }
   const llmMs = Date.now() - llmStarted;
 
   if (!toolCallProduced || !toolArgs) {
-    return { toolCallProduced, toolArgs: null, llmMs, llmError, execResult: null, outDir: null };
+    return {
+      toolCallProduced, toolArgs: null, llmMs, llmError, llmErrorIsTransport, llmRetries,
+      execResult: null, outDir: null,
+    };
   }
 
   const effectiveOutDir = path.join(runOutDir, 'create');
@@ -306,6 +377,8 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
     toolArgs,
     llmMs,
     llmError: null,
+    llmErrorIsTransport: false,
+    llmRetries,
     execResult: {
       succeeded: result.status === 0,
       exitCode: result.status,
@@ -319,4 +392,5 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
 }
 
 module.exports = {
-  authoringPolicy, classifyExecutionOutcome, normalizeToolArgs, runScenario, AK_CLI, REPO_ROOT };
+  authoringPolicy, classifyExecutionOutcome, classifyFailureClass, normalizeToolArgs, runScenario,
+  AK_CLI, REPO_ROOT };

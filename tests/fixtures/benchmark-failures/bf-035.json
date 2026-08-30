@@ -1,0 +1,60 @@
+{
+  "id": "bf-035",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 36,
+  "scenarioTitle": "Create User Setup Delver",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "outDir": "./artifacts",
+    "text": "Create a Delver with user setup mode enforced, using MCP tools. Configure Delver with motivation: user_controlled, and ensure setup-mode persistence. Include hazards with affinity pressure via proximityRadius. Emit intermediates. Rooms are generic containers.",
+    "emitIntermediates": true,
+    "delver": [
+      {
+        "affinity": "user",
+        "count": 1,
+        "goals": [
+          {
+            "kind": "maximize_spend",
+            "priority": "high"
+          }
+        ],
+        "motivation": "user_controlled",
+        "vitals": {
+          "health": {
+            "max": 100
+          },
+          "mana": {
+            "max": 50,
+            "regen": 2
+          },
+          "stamina": {
+            "max": 80
+          }
+        }
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "corrode",
+        "durability": "regen:5:10:1",
+        "expression": "push",
+        "proximityRadius": 3,
+        "stacks": 2
+      }
+    ],
+    "room": [
+      {
+        "count": 1,
+        "size": "medium"
+      }
+    ],
+    "runId": "setup_mode_delver_001"
+  },
+  "observedError": "delver[1] affinity must be one of: fire, water, earth, wind, life, decay, corrode, fortify, light, dark.\n",
+  "occurrences": 1,
+  "disposition": "model-error",
+  "dispositionNote": "delver affinity value outside the supported enum."
+}

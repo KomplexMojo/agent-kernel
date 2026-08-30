@@ -1,0 +1,21 @@
+{
+  "id": "bf-003",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 21,
+  "scenarioTitle": "Execution EX-CB-05 — Mixed cognition combat",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "text": "Execution Contract [EX-CB-05]: Create three combat actors combining attacking mobility, defending posture, and reflexive cognition motivations for dungeon scenario deployment. Actors must have appropriate vital stats (health, stamina, mana) and affinity configurations suitable for combat engagement. Each actor represents a distinct tactical role within the combat system.",
+    "runId": "EX-CB-05-combat-actors",
+    "outDir": "./artifacts/ex-cb-05/actors",
+    "emitIntermediates": true,
+    "delver": "[{\"count\": 1, \"affinity\": \"fire\", \"motivation\": \"attacking\", \"vitals\": {\"health\": {\"max\": 120}, \"stamina\": {\"max\": 80}, \"mana\": {\"max\": 60}}}, {\"count\": 1, \"affinity\": \"earth\", \"motivation\": \"defending\", \"vitals\": {\"health\": {\"max\": 150}, \"stamina\": {\"max\": 90}, \"mana\": {\"max\": 40}}}, {\"count\": 1, \"affinity\": \"wind\", \"motivation\": \"reflexive\", \"vitals\": {\"health\": {\"max\": 100}, \"stamina\": {\"max\": 70}, \"mana\": {\"max\": 80}}}]}"
+  },
+  "observedError": "delver[1] segment \"[{\"count\": 1, \"affinity\": \"fire\", \"motivation\": \"attacking\", \"vitals\": {\"health\": {\"max\": 120}, \"stamina\": {\"max\": 80}, \"mana\": {\"max\": 60}}}, {\"count\": 1, \"affinity\": \"earth\", \"motivation\": \"defending\", \"vitals\": {\"health\": {\"max\": 150}, \"stamina\": {\"max\": 90}, \"mana\": {\"max\": 40}}}, {\"count\": 1, \"affinity\": \"wind\", \"motivation\": \"reflexive\", \"vitals\": {\"health\": {\"max\": 100}, \"stamina\": {\"max\": 70}, \"mana\": {\"max\": 80}}}]}\" is invalid; expected key=value.\n",
+  "occurrences": 13,
+  "disposition": "harness-defect",
+  "dispositionNote": "M3: model emits a JSON array where the CLI expects key=value segments."
+}

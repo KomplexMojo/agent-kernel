@@ -1,0 +1,47 @@
+{
+  "id": "bf-032",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 92,
+  "scenarioTitle": "Constrained Exact Single Warden",
+  "expectedOutcome": "success",
+  "observedOutcome": "budget_denied",
+  "scenarioBudget": 86,
+  "toolArgs": {
+    "text": "Create a minimal dungeon scenario featuring one defending dark Warden positioned at minimum passing budget specifications. The warden should have basic health vitals suitable for defensive operations in a dark affinity environment. Include dark-themed hazard zones that apply proximity-based affinity pressure consistent with the dungeon's overall theme. This is a compact, focused scenario optimized for testing warden mechanics and dark affinity interactions.",
+    "runId": "warden-defend-dark-001",
+    "outDir": "dungeon-output/warden-defend-dark-001",
+    "budgetTokens": 86,
+    "emitIntermediates": true,
+    "dungeonAffinity": "dark",
+    "room": [
+      {
+        "size": "small"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "dark",
+        "blocking": true,
+        "expression": "push",
+        "proximityRadius": 2
+      }
+    ],
+    "warden": [
+      {
+        "affinity": "dark",
+        "count": 1,
+        "motivation": "defending",
+        "vitals": {
+          "health": {
+            "max": 10
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "Budget receipt denied: status=denied; remaining=-77; deniedLines=affinity:affinity_base:hazards,affinity:affinity_expression_externalize:hazards,affinity:affinity_stack:hazards,hazard:hazard_basic:hazards,vital:vital_durability_point:hazards; deniedPools=hazards:52/19,wardens:86/30\n",
+  "occurrences": 1,
+  "disposition": "model-error",
+  "dispositionNote": "unexpected but correct: allocator enforcing the hazard pool cap (variant deniedLines)."
+}

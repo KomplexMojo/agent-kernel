@@ -1,0 +1,59 @@
+{
+  "id": "bf-030",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 84,
+  "scenarioTitle": "Create Dark Warden Stack Field",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "text": "Create two dark Wardens sharing two pull stacks against a dark pull hazard. The wardens should have pull affinity expressions as additional affinities beyond their primary dark affinity. Create a generic room container and a dark pull hazard zone with proximity-based placement.",
+    "runId": "dark-warden-pull-scenario-001",
+    "outDir": "./dungeons/dark-warden-pull",
+    "emitIntermediates": true,
+    "dungeonAffinity": "dark",
+    "room": [
+      {
+        "count": 1,
+        "size": "medium"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "dark",
+        "durability": 0,
+        "expression": "pull",
+        "mana": 0,
+        "proximityRadius": 3,
+        "stacks": 2
+      }
+    ],
+    "warden": [
+      {
+        "affinities": [
+          {
+            "expression": "pull",
+            "kind": "pull",
+            "stacks": 2
+          }
+        ],
+        "affinity": "dark",
+        "count": 2,
+        "motivation": "attacking",
+        "vitals": {
+          "health": {
+            "max": 100
+          },
+          "mana": {
+            "max": 50
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "warden[1] affinity[1] has invalid affinity kind \"pull\".\n",
+  "occurrences": 1,
+  "disposition": "model-error",
+  "dispositionNote": "warden affinity kind \"pull\" is a hazard-expression verb, not a valid affinity kind -- model confused the two vocabularies."
+}

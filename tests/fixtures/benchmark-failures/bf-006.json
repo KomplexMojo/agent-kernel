@@ -1,0 +1,85 @@
+{
+  "id": "bf-006",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 16,
+  "scenarioTitle": "Execution EX-RS-04 — Temporary affinity lifecycle",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "text": "Create a dungeon scenario for execution contract [EX-RS-04] featuring one attacking Delver crossing a temporary fire-push affinity resource with two stacks, finite mana 12, and zero mana regeneration, with a defending Warden available as a target. The delver should have appropriate vitals for combat engagement. The warden should be positioned to defend against the delver's advance. Include fire-themed hazards that create environmental pressure in the encounter zone.",
+    "runId": "EX-RS-04",
+    "outDir": "./artifacts/ex-rs-04",
+    "emitIntermediates": true,
+    "dungeonAffinity": "fire",
+    "room": [
+      {
+        "count": 1,
+        "size": "medium"
+      }
+    ],
+    "floorTile": [
+      {
+        "count": 1,
+        "id": "stone_floor"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "fire",
+        "expression": "push",
+        "mana": 0,
+        "proximityRadius": 3,
+        "stacks": 2
+      }
+    ],
+    "resource": [
+      {
+        "affinity": "fire",
+        "expression": "push",
+        "mana": 12,
+        "permanenceMode": "consumable",
+        "stacks": 2,
+        "vital": "mana"
+      }
+    ],
+    "delver": [
+      {
+        "affinity": "fire",
+        "count": 1,
+        "motivation": "attacking",
+        "vitals": {
+          "health": {
+            "max": 45
+          },
+          "mana": {
+            "max": 25
+          },
+          "stamina": {
+            "max": 30
+          }
+        }
+      }
+    ],
+    "warden": [
+      {
+        "affinity": "fire",
+        "count": 1,
+        "motivation": "defending",
+        "vitals": {
+          "health": {
+            "max": 60
+          },
+          "stamina": {
+            "max": 40
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "resource[1] delta is required unless regen is given.\n",
+  "occurrences": 11,
+  "disposition": "model-error",
+  "dispositionNote": "incomplete V3 resource spec (delta without regen); not in M3's symptom table."
+}

@@ -1,0 +1,64 @@
+{
+  "id": "bf-034",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 14,
+  "scenarioTitle": "Create Life Shrine Encounter",
+  "expectedOutcome": "success",
+  "observedOutcome": "execution_failed",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "emitIntermediates": true,
+    "runId": "life_shrine_001",
+    "outDir": "./artifacts",
+    "text": "Using the agent-kernel skill and the agent-kernel MCP, create a life shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+    "room": [
+      {
+        "count": 1,
+        "description": "life shrine",
+        "size": "medium"
+      }
+    ],
+    "resource": [
+      {
+        "affinity": "life",
+        "expression": "push",
+        "mana": 0,
+        "permanenceMode": "permanent",
+        "regen": 5,
+        "stacks": 1,
+        "vital": "health"
+      }
+    ],
+    "warden": [
+      {
+        "affinity": "decay",
+        "count": 1,
+        "motivation": "attacking",
+        "vitals": {
+          "durability": {
+            "max": 100,
+            "regen": 0
+          },
+          "health": {
+            "max": 50,
+            "regen": 0
+          },
+          "mana": {
+            "max": 20,
+            "regen": 0
+          },
+          "stamina": {
+            "max": 30,
+            "regen": 0
+          }
+        }
+      }
+    ],
+    "dungeonAffinity": "life"
+  },
+  "observedError": "room[1] field \"description\" is not supported.\n",
+  "occurrences": 1,
+  "disposition": "model-error",
+  "dispositionNote": "room field \"description\" is not part of the room schema -- model invented it."
+}

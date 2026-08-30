@@ -1,0 +1,28 @@
+{
+  "id": "bf-008",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 93,
+  "scenarioTitle": "Constrained Under Single Warden",
+  "expectedOutcome": "budget_denied",
+  "observedOutcome": "budget_denied",
+  "scenarioBudget": 85,
+  "toolArgs": {
+    "text": "Create one defending dark Warden. One token below its minimum passing budget. Use a 85 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+    "runId": "run-dark-warden-001",
+    "outDir": "./out/dark-warden",
+    "budgetTokens": 85,
+    "emitIntermediates": true,
+    "warden": [
+      {
+        "affinity": "dark",
+        "count": 1,
+        "motivation": "defending"
+      }
+    ]
+  },
+  "observedError": "Budget receipt denied: status=denied; remaining=-1; deniedLines=actor:actor_spawn:wardens,affinity:affinity_base:wardens,affinity:affinity_expression_externalize:wardens,affinity:affinity_stack:wardens,motivation:motivation_defending:wardens; deniedPools=wardens:86/85\n",
+  "occurrences": 9,
+  "disposition": "model-error",
+  "dispositionNote": "expected budget_denied, correctly denied (warden pool)."
+}

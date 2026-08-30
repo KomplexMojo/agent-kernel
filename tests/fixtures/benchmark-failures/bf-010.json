@@ -1,0 +1,46 @@
+{
+  "id": "bf-010",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 64,
+  "scenarioTitle": "Constrained Three Warden Hold",
+  "expectedOutcome": "success",
+  "observedOutcome": "budget_denied",
+  "scenarioBudget": 1500,
+  "toolArgs": {
+    "text": "Using the agent-kernel skill and the agent-kernel MCP, create a base room with three defending wardens. Use a 1500 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+    "budgetTokens": 1500,
+    "emitIntermediates": true,
+    "warden": [
+      {
+        "affinity": "earth",
+        "count": 3,
+        "motivation": "defending",
+        "vitals": {
+          "durability": {
+            "max": 80
+          },
+          "health": {
+            "max": 100
+          },
+          "mana": {
+            "max": 30
+          },
+          "stamina": {
+            "max": 50
+          }
+        }
+      }
+    ],
+    "room": [
+      {
+        "count": 1,
+        "size": "medium"
+      }
+    ]
+  },
+  "observedError": "Budget receipt denied: status=denied; remaining=527; deniedLines=actor:actor_spawn:wardens,affinity:affinity_base:wardens,affinity:affinity_expression_externalize:wardens,affinity:affinity_stack:wardens,motivation:motivation_defending:wardens; deniedPools=wardens:948/663\n",
+  "occurrences": 5,
+  "disposition": "model-error",
+  "dispositionNote": "unexpected but correct: allocator enforcing the warden pool cap."
+}

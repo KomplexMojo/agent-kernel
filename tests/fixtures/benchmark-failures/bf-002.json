@@ -1,0 +1,58 @@
+{
+  "id": "bf-002",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 17,
+  "scenarioTitle": "Execution EX-HZ-05 — Blocking hazard reroute",
+  "expectedOutcome": "success",
+  "observedOutcome": "budget_denied",
+  "scenarioBudget": null,
+  "toolArgs": {
+    "text": "EX-HZ-05 execution contract: Create a dungeon with two routes - one short route blocked by a fortify emit hazard, and an alternate legal route for one exploring Delver. The blocking hazard should control movement through the short path while maintaining passage on the alternate route. Include appropriate floor tiles, rooms, one delver with exploring motivation, and the specified fortify hazard.",
+    "runId": "EX-HZ-05",
+    "outDir": "./ex-hz-05-artifacts",
+    "emitIntermediates": true,
+    "room": [
+      {
+        "count": 2,
+        "size": "medium"
+      }
+    ],
+    "floorTile": [
+      {
+        "count": 1,
+        "id": "stone_floor"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "fortify",
+        "blocking": true,
+        "expression": "emit",
+        "proximityRadius": 2
+      }
+    ],
+    "delver": [
+      {
+        "affinity": "earth",
+        "count": 1,
+        "motivation": "exploring",
+        "vitals": {
+          "health": {
+            "max": 50
+          },
+          "mana": {
+            "max": 20
+          },
+          "stamina": {
+            "max": 30
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "level-gen input invalid: floorTile.count:floor_tile_budget_insufficient\n",
+  "occurrences": 15,
+  "disposition": "model-error",
+  "dispositionNote": "pending M4: floor-tile capacity vs model over-asking, not yet determined."
+}

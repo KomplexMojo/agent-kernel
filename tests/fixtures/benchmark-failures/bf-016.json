@@ -1,0 +1,196 @@
+{
+  "id": "bf-016",
+  "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
+  "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+  "scenarioIndex": 51,
+  "scenarioTitle": "Create Stationary Warden Hazard Room",
+  "expectedOutcome": "success",
+  "observedOutcome": "budget_denied",
+  "scenarioBudget": 1200,
+  "toolArgs": {
+    "text": "Puzzle-style hazard dungeon: a fire-themed gauntlet where stationary wardens hold fixed posts guarding hazard zones. Blocking hazards seal key choke points between rooms, forcing the Delver to route around pressure fields. Rooms are generic containers; all affinity pressure is expressed through hazards (proximity-based, no coordinates). An exploring Delver must navigate the choke points, harvest resources, and survive warden-guarded hazard zones.",
+    "runId": "puzzle-hazard-room-001",
+    "outDir": "out/puzzle-hazard-room-001",
+    "emitIntermediates": true,
+    "budgetTokens": 1200,
+    "dungeonAffinity": "fire",
+    "room": [
+      {
+        "count": 1,
+        "size": "small"
+      },
+      {
+        "count": 1,
+        "size": "medium"
+      },
+      {
+        "count": 1,
+        "size": "large"
+      }
+    ],
+    "floorTile": [
+      {
+        "count": 24,
+        "id": "obsidian-slab"
+      },
+      {
+        "count": 12,
+        "id": "ash-gravel"
+      }
+    ],
+    "hazard": [
+      {
+        "affinity": "fire",
+        "blocking": true,
+        "durability": "regen:6:6:0",
+        "expression": "emit",
+        "mana": "regen:4:4:1",
+        "proximityRadius": 2,
+        "stacks": 2
+      },
+      {
+        "affinity": "fire",
+        "blocking": false,
+        "expression": "push",
+        "mana": 10,
+        "proximityRadius": 3,
+        "stacks": 1
+      },
+      {
+        "affinity": "water",
+        "blocking": true,
+        "expression": "pull",
+        "mana": "regen:3:3:1",
+        "proximityRadius": 2,
+        "stacks": 1
+      },
+      {
+        "affinity": "corrode",
+        "blocking": false,
+        "expression": "draw",
+        "mana": 8,
+        "proximityRadius": 2,
+        "stacks": 1
+      }
+    ],
+    "resource": [
+      {
+        "delta": 12,
+        "permanenceMode": "consumable",
+        "stacks": 2,
+        "vital": "health"
+      },
+      {
+        "affinity": "water",
+        "expression": "emit",
+        "mana": 6,
+        "manaRegen": 1,
+        "stacks": 1
+      },
+      {
+        "affinity": "fortify",
+        "expression": "push",
+        "mana": 5,
+        "stacks": 1
+      }
+    ],
+    "delver": [
+      {
+        "affinities": [
+          {
+            "expression": "pull",
+            "kind": "water",
+            "stacks": 1
+          }
+        ],
+        "affinity": "fortify",
+        "count": 1,
+        "goals": [
+          {
+            "kind": "max_mana",
+            "priority": "high"
+          },
+          {
+            "kind": "maximize_spend",
+            "priority": "medium"
+          }
+        ],
+        "motivation": "exploring",
+        "vitals": {
+          "durability": {
+            "max": 15
+          },
+          "health": {
+            "max": 40,
+            "regen": 1
+          },
+          "mana": {
+            "max": 20,
+            "regen": 1
+          },
+          "stamina": {
+            "max": 30,
+            "regen": 2
+          }
+        }
+      }
+    ],
+    "warden": [
+      {
+        "affinities": [
+          {
+            "expression": "draw",
+            "kind": "corrode",
+            "stacks": 1
+          }
+        ],
+        "affinity": "fire",
+        "count": 2,
+        "motivation": "stationary",
+        "vitals": {
+          "durability": {
+            "max": 20
+          },
+          "health": {
+            "max": 60,
+            "regen": 0
+          },
+          "mana": {
+            "max": 25,
+            "regen": 1
+          },
+          "stamina": {
+            "max": 20,
+            "regen": 0
+          }
+        }
+      },
+      {
+        "affinity": "water",
+        "count": 1,
+        "motivation": "stationary",
+        "vitals": {
+          "durability": {
+            "max": 18
+          },
+          "health": {
+            "max": 50,
+            "regen": 0
+          },
+          "mana": {
+            "max": 20,
+            "regen": 1
+          },
+          "stamina": {
+            "max": 15,
+            "regen": 0
+          }
+        }
+      }
+    ]
+  },
+  "observedError": "Budget receipt denied: status=denied; remaining=-56; deniedLines=affinity:affinity_base:hazards,affinity:affinity_expression_localized:hazards,affinity:affinity_stack:hazards,hazard:hazard_basic:hazards,vital:vital_durability_point:hazards; deniedPools=hazards:223/180,wardens:498/276,resources:334/96\n",
+  "occurrences": 3,
+  "disposition": "model-error",
+  "dispositionNote": "unexpected but correct: allocator enforcing the hazard pool cap."
+}
