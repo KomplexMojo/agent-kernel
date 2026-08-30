@@ -40,11 +40,16 @@ test("a bracket character inside a quoted string does not confuse the repair", (
 });
 
 test("content too broken to repair degrades to a single opaque entity rather than throwing", () => {
-  // A mismatched closer inside an otherwise-open array (}  where ] was structurally expected) is
-  // not one of the two repairable shapes: repairJsonBrackets bails out (an unmatched closer means
-  // the string cannot be trusted past that point) and the JSON.parse retry still fails, so
+  // A mismatched closer inside an otherwise-open array (} where ] was structurally expected) is
+  // not one of the two repairable shapes: repairJsonBrackets bails out on the type mismatch (a
+  // code-review pass caught it popping the stack on ANY closer without checking it matched the
+  // opener being closed -- `]` closing a `{` would previously go unnoticed until, incidentally,
+  // JSON.parse rejected the result anyway). The bail-out plus the JSON.parse retry both fail, so
   // normalizeToolArgs must not throw -- it falls back to the pre-existing safe behavior of
-  // wrapping the raw string as one entity for the CLI to reject cleanly.
+  // wrapping the raw string as one entity for the CLI to reject cleanly. This case's outcome is
+  // unchanged by that fix (JSON.parse always rejects a genuinely mismatched string either way),
+  // but it now exercises the type check by construction rather than by incidental JSON.parse
+  // failure -- the property worth guarding for whoever next extends this function.
   const broken = '[}{"affinity":"fire"';
   assert.doesNotThrow(() => delverOf(broken));
   const out = delverOf(broken);

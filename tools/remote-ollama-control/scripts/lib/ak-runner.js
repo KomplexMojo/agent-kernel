@@ -64,7 +64,8 @@ function repairJsonBrackets(s) {
     if (inString) continue;
     if (c === '[' || c === '{') { stack.push(c); continue; }
     if (c === ']' || c === '}') {
-      if (stack.length === 0) return s.slice(0, i);
+      const expectedOpener = c === ']' ? '[' : '{';
+      if (stack.length === 0 || stack[stack.length - 1] !== expectedOpener) return s.slice(0, i);
       stack.pop();
       if (stack.length === 0) return s.slice(0, i + 1);
     }
