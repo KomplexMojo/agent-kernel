@@ -1,24 +1,24 @@
 # Coding issues affecting benchmarking
 
-**Status (2026-08-30):** All five milestones (M0–M5) complete and committed. **One item remains
-genuinely open** — not a milestone, a gap the plan itself never scoped (see `## All five milestones
-complete` at the end of `## Findings`). **Audience:** an agent with no memory of the session that
-produced it — read `## Findings` at the end of this file before doing anything else; it supersedes
-parts of this plan (notably §"Do" step 3 in the original M3, which guessed wrong about
-`dungeonAffinity`).
+**Status (2026-08-30):** All five milestones (M0–M5) complete, merged to `main` as
+[PR #131](https://github.com/KomplexMojo/agent-kernel/pull/131) (merge commit `5a66fb7`). **One item
+remains genuinely open** — not a milestone, a gap the plan itself never scoped (see `## All five
+milestones complete` at the end of `## Findings`). **Audience:** an agent with no memory of the
+session that produced it — read `## Findings` at the end of this file before doing anything else;
+it supersedes parts of this plan (notably §"Do" step 3 in the original M3, which guessed wrong
+about `dungeonAffinity`).
 **Source of evidence:** benchmark run `2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52`, 800 attempts,
 six configurations, published to the `benchmark-results` branch as `latest.json`.
 
 ## ⏭️ START HERE for the next session
 
-- **Branch:** `claude/fix-coding-issues-affecting-benchmarking`, worktree
-  `.claude/worktrees/fix-coding-issues-affecting-benchmarking/`. All work is committed there and
-  pushed to `origin` (confirm with `git log --oneline -10` and `git status -sb`). No PR open yet —
-  opening one, and deciding whether the sibling plan-only branch needs any reconciliation, is the
-  natural next action rather than more milestone work.
-- **Sibling branch** `claude/coding-issues-affecting-benchmarking` holds only this file's original
-  three commits (the plan itself) — it is NOT where the milestone work landed; do not confuse the
-  two or try to merge one into the other without checking which has the milestone commits.
+- **This work is merged and closed.** The implementation branch
+  `claude/fix-coding-issues-affecting-benchmarking` has been deleted (both local and `origin`) —
+  everything it held is on `main` as of `5a66fb7`. Work from `main` from here, not from a worktree
+  for this branch.
+- **Sibling branch** `claude/coding-issues-affecting-benchmarking` still exists and holds only this
+  file's original three commits (the plan itself, pre-milestone) — it was never merged and predates
+  the work now on `main`. Treat it as historical; the version of this file on `main` is current.
 - **Done:** M0 (43-fixture replay corpus under `tests/fixtures/benchmark-failures/`, replayed in
   `tests/tools/benchmark-failure-corpus-replay.test.js`), M1 (all 173 failures classified), M2 (no
   viability-floor regression found), M3 (one real fix — JSON-array bracket repair in
@@ -37,9 +37,9 @@ six configurations, published to the `benchmark-results` branch as `latest.json`
 - **The one open disposition gap:** 19 `conflicting_requirements` failures were never assigned
   harness-defect or model-weakness — M2 only answered "is this a regression" (no), not "is this
   correct." See the closing section of `## Findings` for the full account.
-- **Before starting any new work:** re-run `pnpm run test` and `pnpm run typecheck` to confirm the
-  baseline is still 445 files / 3466 passed / 207 skipped / 0 type errors — if it's not, something
-  moved underneath this branch and needs reconciling first.
+- **Before starting any new work on `main`:** re-run `pnpm run test` and `pnpm run typecheck` to
+  confirm the baseline is still 445 files / 3466 passed / 207 skipped / 0 type errors — if it's not,
+  something else landed on `main` since and needs reconciling first.
 - **Gate baseline in `## 4. Definition of done` (441/3411) is stale** — it predates M0. Trust the
   numbers in `## Findings` instead; `## 4` is the ORIGINAL milestone spec and is intentionally left
   unedited so it stays a clean record of what was asked for.
