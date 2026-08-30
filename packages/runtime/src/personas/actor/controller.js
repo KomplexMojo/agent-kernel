@@ -11,7 +11,25 @@ import {
 } from "../_shared/runtime-decision.mts";
 import { SOLVER_REQUEST_SCHEMA } from "../../contracts/artifacts.ts";
 import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
-import { getMotivationCombatTier, getMotivationMobilityTier } from "../../../../core-ts/src/index.ts";
+import {
+  MotivationFlag,
+  ReasoningClass,
+  getMotivationCognitionTier,
+  getMotivationCombatTier,
+  getMotivationDefaultFlagMask,
+  getMotivationMobilityTier,
+  getMotivationReasoningClass,
+} from "../../../../core-ts/src/index.ts";
+
+const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v1";
+const ACTOR_DECISION_OBJECTIVE_ORDER = Object.freeze([
+  "intentClass",
+  "targetFinish",
+  "profileAlignment",
+  "hazardSafety",
+  "castReserve",
+  "inputOrder",
+]);
 
 /**
  * AM.9 — motivation name -> core's 1-based kind code, derived from the shared
@@ -24,6 +42,28 @@ const MOTIVATION_KIND_CODES = Object.freeze(
     return acc;
   }, {}),
 );
+
+function buildMotivationProfile(view, actorId, payload) {
+  const rawKind = resolveActorMotivationKind(view, actorId, payload);
+  const kind = typeof rawKind === "string" ? rawKind.trim().toLowerCase() : "";
+  const kindCode = MOTIVATION_KIND_CODES[kind];
+  if (!Number.isFinite(kindCode)) return undefined;
+
+  const reasoningClass = getMotivationReasoningClass(kindCode);
+  const flagMask = getMotivationDefaultFlagMask(kindCode);
+  return {
+    kind,
+    mobilityTier: getMotivationMobilityTier(kindCode),
+    combatTier: getMotivationCombatTier(kindCode),
+    cognitionTier: getMotivationCognitionTier(kindCode),
+    reasoningClass,
+    reasoningClassName: Object.entries(ReasoningClass).find(([, value]) => value === reasoningClass)?.[0],
+    flagMask,
+    flags: Object.entries(MotivationFlag)
+      .filter(([, flag]) => (flagMask & flag) === flag)
+      .map(([name]) => name),
+  };
+}
 
 export const actorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
 
@@ -443,6 +483,262 @@ function buildRuntimeDecisionObjectives({ configuredActor, visibleActors, exit }
   return Object.keys(objectives).length > 0 ? objectives : undefined;
 }
 
+function candidateSignature(kind, params) {
+  const normalizedKind = typeof kind === "string" && kind.trim()
+    ? kind.trim().toLowerCase()
+    : "custom";
+  return `${normalizedKind}:${JSON.stringify(isObject(params) ? params : {})}`;
+}
+
+function chebyshevDistance(left, right) {
+  if (!left || !right) return null;
+  return Math.max(Math.abs(right.x - left.x), Math.abs(right.y - left.y));
+}
+
+function nearestHostile(position, visibleActors) {
+  if (!position) return null;
+  let nearest = null;
+  let distance = Infinity;
+  for (const actor of visibleActors) {
+    if (actor?.hostile !== true || !actor.position) continue;
+    const nextDistance = chebyshevDistance(position, actor.position);
+    if (Number.isFinite(nextDistance) && nextDistance < distance) {
+      nearest = actor;
+      distance = nextDistance;
+    }
+  }
+  return nearest ? { actor: nearest, distance } : null;
+}
+
+function candidateEndPosition(action, actorPosition) {
+  return action?.kind === "move" && isObject(action?.params?.to)
+    ? action.params.to
+    : actorPosition;
+}
+
+function targetFinishRank(target) {
+  const health = target?.vitals?.health;
+  if (!isObject(health) || !Number.isFinite(health.current)
+    || !Number.isFinite(health.max) || health.max <= 0) return 0;
+  const rank = 10000 - Math.floor((10000 * health.current) / health.max);
+  return Number.isFinite(rank) ? rank : 0;
+}
+
+function isOpaqueCell(position, tileKinds, baseTiles) {
+  if (!position) return false;
+  if (Array.isArray(tileKinds)) return tileKinds[position.y]?.[position.x] === 1;
+  const cell = Array.isArray(baseTiles) ? String(baseTiles[position.y] || "")[position.x] : null;
+  return cell === "#" || cell === "B";
+}
+
+function endsBesideCover(position, tileKinds, baseTiles) {
+  if (!position) return false;
+  return DEFAULT_DELTAS.some(({ dx, dy }) => isOpaqueCell(
+    { x: position.x + dx, y: position.y + dy },
+    tileKinds,
+    baseTiles,
+  ));
+}
+
+function reserveRatio(current, max) {
+  if (!Number.isFinite(current) || !Number.isFinite(max) || max <= 0) return 0;
+  const rank = Math.floor((1000 * current) / max);
+  return Number.isFinite(rank) ? rank : 0;
+}
+
+function castReserveRank(action, actorRecord) {
+  if (action?.kind !== "cast_affinity") return { rank: 0, source: "not_cast" };
+  const affinityKind = typeof action?.params?.kind === "string"
+    ? action.params.kind.trim().toLowerCase()
+    : "";
+  const grant = (Array.isArray(actorRecord?.affinityGrants) ? actorRecord.affinityGrants : [])
+    .find((entry) => typeof entry?.kind === "string" && entry.kind.trim().toLowerCase() === affinityKind);
+  if (grant) return { rank: reserveRatio(grant.mana, grant.manaMax), source: "affinity_grant" };
+  const mana = actorRecord?.vitals?.mana;
+  return { rank: reserveRatio(mana?.current, mana?.max), source: "actor_mana" };
+}
+
+function actionCanReachTarget(action, origin, target) {
+  const distance = chebyshevDistance(origin, target?.position);
+  if (!Number.isFinite(distance)) return false;
+  if (action?.kind === "attack") return distance <= 1;
+  if (action?.kind !== "cast_affinity") return false;
+  const expression = typeof action?.params?.expression === "string"
+    ? action.params.expression.trim().toLowerCase()
+    : "push";
+  const stacks = Number.isInteger(action?.params?.stacks) && action.params.stacks > 0
+    ? action.params.stacks
+    : 1;
+  return expression === "push" || expression === "pull" ? distance <= stacks : distance <= 1;
+}
+
+function buildCompatibilityDecisionRows({ actor, visibleActors, candidateActions, exit }) {
+  const visiblePositions = visibleActors
+    .filter((entry) => entry?.hostile !== false && entry?.position)
+    .map((entry) => entry.position);
+  return candidateActions.map((candidate, index) => {
+    const action = candidate.action;
+    const endPosition = candidateEndPosition(action, actor.position);
+    let score = 0;
+    let ruleId = "no_match";
+    if (action?.kind === "attack") {
+      score = 100;
+      ruleId = "attack";
+    } else if (action?.kind === "move" && visiblePositions.some((target) => {
+      const before = chebyshevDistance(actor.position, target);
+      const after = chebyshevDistance(endPosition, target);
+      return Number.isFinite(before) && Number.isFinite(after) && after < before;
+    })) {
+      score = 80;
+      ruleId = "move_toward_hostile";
+    } else if (action?.kind === "move" && exit) {
+      const before = chebyshevDistance(actor.position, exit);
+      const after = chebyshevDistance(endPosition, exit);
+      if (Number.isFinite(before) && Number.isFinite(after) && after < before) {
+        score = 50;
+        ruleId = "move_toward_exit";
+      } else {
+        score = 20;
+        ruleId = "move_fallback";
+      }
+    } else if (action?.kind === "move") {
+      score = 20;
+      ruleId = "move_fallback";
+    } else if (action?.kind === "wait") {
+      score = 10;
+      ruleId = "wait";
+    }
+    return {
+      candidateActionId: candidate.id,
+      rank: [score, 0, 0, 0, 0, -index],
+      features: {
+        actionKind: action?.kind,
+        compatibilityRule: ruleId,
+        endPosition: endPosition ? { ...endPosition } : null,
+      },
+      rationaleTags: [`legacy_${ruleId}`],
+    };
+  });
+}
+
+function buildActorDecisionObjective({
+  actor,
+  actorRecord,
+  motivationProfile,
+  visibleActors,
+  hazards,
+  candidateActions,
+  proposals,
+  exit,
+  tileKinds,
+  baseTiles,
+}) {
+  if (!motivationProfile) {
+    const rows = buildCompatibilityDecisionRows({ actor, visibleActors, candidateActions, exit });
+    if (new Set(rows.map((entry) => entry.candidateActionId)).size !== rows.length) return undefined;
+    return {
+      contract: ACTOR_DECISION_OBJECTIVE_CONTRACT,
+      order: [...ACTOR_DECISION_OBJECTIVE_ORDER],
+      candidates: rows,
+    };
+  }
+  const proposalSignatures = new Set((Array.isArray(proposals) ? proposals : [])
+    .filter(isObject)
+    .map((proposal) => candidateSignature(proposal.kind, isObject(proposal.params) ? proposal.params : proposal)));
+  const flags = Array.isArray(motivationProfile.flags) ? motivationProfile.flags : [];
+  const beforeHostile = nearestHostile(actor.position, visibleActors);
+  const rows = candidateActions.map((candidate, index) => {
+    const action = candidate.action;
+    const endPosition = candidateEndPosition(action, actor.position);
+    const afterHostile = nearestHostile(endPosition, visibleActors);
+    const explicitTargetId = typeof action?.params?.targetId === "string" ? action.params.targetId : null;
+    const explicitTarget = explicitTargetId
+      ? visibleActors.find((entry) => entry?.id === explicitTargetId && entry.hostile === true)
+      : null;
+    const target = explicitTarget || (action?.kind === "move" ? afterHostile?.actor : null);
+    const actorProposal = proposalSignatures.has(candidateSignature(action?.kind, action?.params));
+    let intentClass = 0;
+    let intentTag = "profile_mismatch";
+    if (actorProposal) {
+      intentClass = 600;
+      intentTag = "actor_proposal";
+    } else if ((action?.kind === "attack" || action?.kind === "cast_affinity")
+      && motivationProfile.combatTier > 0
+      && actionCanReachTarget(action, actor.position, explicitTarget)) {
+      intentClass = 500;
+      intentTag = "in_range_combat";
+    } else if (action?.kind === "move" && motivationProfile.mobilityTier > 0) {
+      const hostileProgress = motivationProfile.combatTier === 1
+        && beforeHostile && afterHostile && afterHostile.distance < beforeHostile.distance;
+      const beforeExit = chebyshevDistance(actor.position, exit);
+      const afterExit = chebyshevDistance(endPosition, exit);
+      if (hostileProgress) {
+        intentClass = 400;
+        intentTag = "hostile_progress";
+      } else if (Number.isFinite(beforeExit) && Number.isFinite(afterExit) && afterExit < beforeExit) {
+        intentClass = 300;
+        intentTag = "exit_progress";
+      } else {
+        intentClass = 200;
+        intentTag = "mobile_fallback";
+      }
+    } else if (action?.kind === "wait") {
+      intentClass = 100;
+      intentTag = "wait";
+    }
+    const coverRank = flags.includes("PrefersCover") && endsBesideCover(endPosition, tileKinds, baseTiles)
+      ? 1000
+      : 0;
+    const stealthRank = flags.includes("PrefersStealth") && beforeHostile && afterHostile
+      ? 1000 * (afterHostile.distance - beforeHostile.distance)
+      : 0;
+    const hazardStacks = hazards.reduce((total, hazard) => {
+      if (!hazard?.position || hazard.position.x !== endPosition?.x || hazard.position.y !== endPosition?.y) return total;
+      return total + (Number.isFinite(hazard.stacks) ? Math.max(1, Math.trunc(hazard.stacks)) : 1);
+    }, 0);
+    const reserve = castReserveRank(action, actorRecord);
+    const rationaleTags = [intentTag];
+    if (coverRank) rationaleTags.push("prefers_cover");
+    if (stealthRank) rationaleTags.push("prefers_stealth");
+    if (hazardStacks) rationaleTags.push("hazard_exposure");
+    if (action?.kind === "cast_affinity") rationaleTags.push(`${reserve.source}_reserve`);
+    return {
+      candidateActionId: candidate.id,
+      rank: [
+        intentClass,
+        targetFinishRank(target),
+        coverRank + stealthRank,
+        -hazardStacks,
+        reserve.rank,
+        -index,
+      ],
+      features: {
+        actionKind: action?.kind,
+        actorProposal,
+        endPosition: endPosition ? { ...endPosition } : null,
+        targetId: target?.id || null,
+        mobilityTier: motivationProfile.mobilityTier,
+        combatTier: motivationProfile.combatTier,
+        cognitionTier: motivationProfile.cognitionTier,
+        reasoningClass: motivationProfile.reasoningClass,
+        reasoningClassName: motivationProfile.reasoningClassName,
+        flags: [...flags],
+        beforeMinHostileDistance: beforeHostile?.distance ?? null,
+        afterMinHostileDistance: afterHostile?.distance ?? null,
+        hazardStacks,
+        castReserveSource: reserve.source,
+      },
+      rationaleTags,
+    };
+  });
+  if (new Set(rows.map((entry) => entry.candidateActionId)).size !== rows.length) return undefined;
+  return {
+    contract: ACTOR_DECISION_OBJECTIVE_CONTRACT,
+    order: [...ACTOR_DECISION_OBJECTIVE_ORDER],
+    candidates: rows,
+  };
+}
+
 function buildRuntimeDecisionConstraints({ actorRecord }) {
   const vitals = isObject(actorRecord?.vitals) ? actorRecord.vitals : null;
   if (!vitals) {
@@ -586,6 +882,27 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
   }
   const visibleActors = resolveVisibleActors(view, actorId);
   const hazards = resolveHazards(payload, view);
+  const motivationProfile = buildMotivationProfile(view, actorId, payload);
+  const baseObjectives = buildRuntimeDecisionObjectives({
+    configuredActor: decisionConfig.configuredActor,
+    visibleActors,
+    exit,
+  });
+  const actorDecision = buildActorDecisionObjective({
+    actor,
+    actorRecord,
+    motivationProfile,
+    visibleActors,
+    hazards,
+    candidateActions,
+    proposals,
+    exit,
+    tileKinds,
+    baseTiles,
+  });
+  const objectives = actorDecision
+    ? { ...(baseObjectives || {}), actorDecision }
+    : baseObjectives;
   const envelope = buildRuntimeDecisionEnvelope({
     decisionKind: "next_move",
     phase: "decide",
@@ -596,15 +913,18 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
       kind: actorRecord?.kind,
       position: actor.position ? { ...actor.position } : undefined,
       vitals: isObject(actorRecord?.vitals) ? JSON.parse(JSON.stringify(actorRecord.vitals)) : undefined,
+      affinities: Array.isArray(actorRecord?.affinities)
+        ? JSON.parse(JSON.stringify(actorRecord.affinities))
+        : [],
+      affinityGrants: Array.isArray(actorRecord?.affinityGrants)
+        ? JSON.parse(JSON.stringify(actorRecord.affinityGrants))
+        : [],
+      motivationProfile,
     },
     visibleActors,
     hazards,
     candidateActions,
-    objectives: buildRuntimeDecisionObjectives({
-      configuredActor: decisionConfig.configuredActor,
-      visibleActors,
-      exit,
-    }),
+    objectives,
     constraints: buildRuntimeDecisionConstraints({ actorRecord }),
     providerPolicy: decisionConfig.providerPolicy,
   });
@@ -1214,7 +1534,15 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       return { ...snapshot, tick, actions: [], effects: [], telemetry: null };
     }
 
-    const fsmPayload = shouldEmitActions && Array.isArray(candidateProposals) ? { ...payload, proposals: candidateProposals } : payload;
+    const runtimeCandidates = runtimeDecisionEffect?.envelope?.candidateActions;
+    const transitionProposals = Array.isArray(candidateProposals) && candidateProposals.length > 0
+      ? candidateProposals
+      : Array.isArray(runtimeCandidates)
+        ? runtimeCandidates.map((entry) => entry.action)
+        : candidateProposals;
+    const fsmPayload = shouldEmitActions && Array.isArray(transitionProposals)
+      ? { ...payload, proposals: transitionProposals }
+      : payload;
     const result = fsm.advance(event, fsmPayload);
     if (!shouldEmitActions) {
       return { ...result, tick, actions: [], effects: [], telemetry: null };

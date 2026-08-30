@@ -326,6 +326,8 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     resolveTileCosts: services.resolveTileCosts,
     allocateBudget: services.allocateBudget,
     evaluateSelectionSpend: services.evaluateSelectionSpend,
+    prepareLayoutBudgetFit: services.prepareLayoutBudgetFit,
+    completeLayoutBudgetFit: services.completeLayoutBudgetFit,
     fitLayoutToBudget: services.fitLayoutToBudget,
     evaluateLayoutSpend: services.evaluateLayoutSpend,
     // CR.4 M5b.2f — layout feasibility; the Director derives the levelGen, the Configurator

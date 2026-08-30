@@ -411,17 +411,21 @@ CR.9 M5 precedence lesson, and the reason a mispriced build would otherwise be i
 
 #### The auto-fit search: revising a layout to fit a budget (CR.4 M5b.2c)
 
-`layout-fit.js` — `fitLayoutToBudget({ layout, remainingBudgetTokens, priceList, layoutCosts })`,
-published as `allocator.fitLayoutToBudget` and reached through `director.fitLayoutToBudget`.
+`budget-fit-problem.js` publishes three Allocator capabilities. `prepareLayoutBudgetFit(...)` authors
+the problem and returns a `solver_request` effect as data; `completeLayoutBudgetFit(...)` validates a
+host-dispatched result; and `fitLayoutToBudget(...)` remains the no-result, deterministic fallback-
+compatible surface. `layout-fit.js` retains the characterized fallback implementation.
 
 It lived in `llm-budget-loop.js` until 2026-08-08. **Threading its six `evaluateLayoutSpend` calls
 would have missed the point:** its helpers `pickCheapestField` and `selectReductionField` chose which
 tile to drop *by that tile's price*. Calling pricing is one thing; **deciding what a token is best
 spent on is this persona's job**, and that decision was executing inside the Orchestrator.
 
-The search: price the layout → if it fits, accept unchanged → otherwise scale all tile counts
-proportionally, then reduce the most expensive field one tile at a time until it fits (guarded), then
-guarantee at least one walkable tile, buying it back by reducing elsewhere if needed.
+The primary path: price and validate the request → if it fits, accept unchanged → otherwise author a
+bounded integer constraint problem and solver effect → let command-layer host glue dispatch that effect
+through the solver port → validate the returned model before consuming it. No adapter object enters the
+persona. Only the platform adapter compiles expressions into Z3; prices, bounds, constraints, objective
+meaning, and result validation remain here.
 
 ⚠️ **It moved verbatim, and `tests/personas/allocator/allocator-layout-fit.test.js` is why that is
 checkable.** A revision loop is the easiest thing here to break silently: a flipped tie-break or a
@@ -429,6 +433,24 @@ changed rounding still returns a well-formed layout, still under budget, just a 
 schema, guard or golden would report it. The test replays **660 cases** captured from the pre-move
 implementation, and both of those perturbations were confirmed to fail it. **If a case fails, do not
 re-record the fixture** — that deletes the only evidence the search still converges where it did.
+
+**Z7.0 policy lock (approved 2026-08-28; implemented by Z7.1).** The 660 destinations now have
+two jobs, not one: they pin this loop exactly when it is used as the deterministic fallback, and they
+show why it must not remain the primary search. Of 120 valid over-budget searches, four refuse despite
+a feasible layout and fifty fulfilled results retain fewer tiles than an exact solution.
+
+The replacement problem is owned and priced here. It retains integer `floorTiles` and `hallwayTiles`
+within the requested bounds, requires at least one floor tile, and stays within the Allocator-supplied
+cap. Its lexicographic objective maximizes retained tiles, minimizes distortion from the requested
+floor/hallway ratio, then maximizes counts in canonical `LAYOUT_TILE_FIELDS` order. A missing requested
+floor is invalid input; the search never manufactures one. A valid request is unsatisfiable only when
+one floor tile costs more than the cap. Already-affordable layouts bypass the solver unchanged.
+
+`tests/personas/allocator/allocator-budget-fit-problem.test.js` is the executable policy record. The
+command host dispatches the Allocator effect through the CLI or web hybrid adapter for genuine Z3
+search. Adapter absence, capability absence, `deferred`, or `error` keeps the exact greedy loop as
+fallback; a proved `unsat` returns its typed reason without a partial layout. The Actor domain remains
+a pure lexicographic selection and never initializes Z3.
 
 #### Judging a proposed layout: `evaluateLayoutSpend` (CR.4 M5b.2d)
 

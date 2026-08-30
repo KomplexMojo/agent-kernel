@@ -31,7 +31,10 @@ import {
   REFERENCE_BUDGET_TOKENS,
 } from "./budget-allocation.js";
 import { evaluateSelectionSpend } from "./selection-spend.js";
-import { fitLayoutToBudget } from "./layout-fit.js";
+import {
+  completeAllocatorBudgetFit,
+  prepareAllocatorBudgetFit,
+} from "./budget-fit-problem.js";
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 import { reconcileBudget } from "./reconciliation.js";
 
@@ -246,8 +249,24 @@ export function attachAllocatorServices({
   // CR.4 M5b.2c — the auto-fit search: revise a layout until it fits the budget. It is here
   // rather than in the Orchestrator because it does not merely CALL pricing, it applies it —
   // its reduction policy picks which tile to drop by that tile's cost.
+  function prepareLayoutBudgetFit(args = {}) {
+    return prepareAllocatorBudgetFit(
+      withPersonaDefaults(args, { priceList: getPriceList(), clock }),
+    );
+  }
+
+  function completeLayoutBudgetFit(args = {}) {
+    return completeAllocatorBudgetFit(
+      withPersonaDefaults(args, { priceList: getPriceList(), clock }),
+    );
+  }
+
   function boundFitLayoutToBudget(args = {}) {
-    return fitLayoutToBudget(withPersonaDefaults(args, { priceList: getPriceList() }));
+    const withDefaults = withPersonaDefaults(args, { priceList: getPriceList(), clock });
+    return completeAllocatorBudgetFit({
+      ...withDefaults,
+      prepared: prepareAllocatorBudgetFit(withDefaults),
+    });
   }
 
   // Also defaults the injected Configurator motivation vocabulary (CR.9 M3): selection
@@ -339,6 +358,8 @@ export function attachAllocatorServices({
     resolveTileCosts,
     allocateBudget,
     evaluateSelectionSpend: boundEvaluateSelectionSpend,
+    prepareLayoutBudgetFit,
+    completeLayoutBudgetFit,
     fitLayoutToBudget: boundFitLayoutToBudget,
     // P5.5 — the chartered reconciliation. State-gated, unlike the pricing surface.
     reconcile,

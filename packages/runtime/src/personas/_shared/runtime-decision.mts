@@ -82,6 +82,40 @@ function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function normalizeActorDecisionObjective(
+  value: unknown,
+  candidateActions: CandidateAction[],
+): JsonRecord | null {
+  if (!isObject(value) || !asNonEmptyString(value.contract)) return null;
+  if (!Array.isArray(value.order) || value.order.length === 0
+    || value.order.some((entry) => !asNonEmptyString(entry))
+    || new Set(value.order).size !== value.order.length) {
+    return null;
+  }
+  if (!Array.isArray(value.candidates) || value.candidates.length !== candidateActions.length) return null;
+  const candidateIds = candidateActions.map((entry) => entry.id);
+  if (new Set(candidateIds).size !== candidateIds.length) return null;
+  for (let index = 0; index < value.candidates.length; index += 1) {
+    const row = value.candidates[index];
+    if (!isObject(row) || row.candidateActionId !== candidateIds[index]) return null;
+    if (!Array.isArray(row.rank)
+      || row.rank.length !== value.order.length
+      || row.rank.some((member) => !Number.isInteger(member))) {
+      return null;
+    }
+    if (!isObject(row.features)
+      || !Array.isArray(row.rationaleTags)
+      || row.rationaleTags.some((tag) => !asNonEmptyString(tag))) {
+      return null;
+    }
+  }
+  try {
+    return cloneJson(value);
+  } catch {
+    return null;
+  }
+}
+
 function cloneAction(
   action: unknown,
   { actorId, tick }: { actorId?: string | null; tick?: number } = {},
@@ -229,7 +263,16 @@ export function buildRuntimeDecisionEnvelope({
     envelope.hazards = hazards.filter(isObject).map((entry) => ({ ...entry }));
   }
   if (isObject(objectives)) {
-    envelope.objectives = { ...objectives };
+    const normalizedObjectives = { ...objectives };
+    if (Object.prototype.hasOwnProperty.call(normalizedObjectives, "actorDecision")) {
+      const actorDecision = normalizeActorDecisionObjective(
+        normalizedObjectives.actorDecision,
+        normalizedCandidates,
+      );
+      if (actorDecision) normalizedObjectives.actorDecision = actorDecision;
+      else delete normalizedObjectives.actorDecision;
+    }
+    envelope.objectives = normalizedObjectives;
   }
   if (isObject(constraints)) {
     envelope.constraints = { ...constraints };

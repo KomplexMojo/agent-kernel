@@ -1,29 +1,32 @@
 /**
- * M8 — Z3-style solver adapter tests
+ * RB1.2 — deterministic fixture adapter for Actor-authored objectives.
  *
- * Verifies that the deterministic Z3-shaped adapter:
- *   - Selects attack > move-toward-hostile > move-toward-exit > wait
- *   - Returns "unsat" when no candidates are present
- *   - Returns "error" when the request lacks a runtime-decision envelope
- *   - Honors forced status options for testability of port error paths
- *   - Throws via the port boundary only when explicitly configured
+ * The adapter owns transport validation and stable lexicographic comparison.
+ * It treats actions, features, tags, and objective-axis names as opaque data.
  */
 "use strict";
 
 const assert = require("node:assert/strict");
 
 const RUNTIME_DECISION_CONTRACT = "runtime-decision-v1";
+const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v1";
 
-/**
- * Build a minimal SolverRequest with a runtime-decision envelope.
- */
 function buildRequest({
-  candidates = [],
-  actor = { id: "delver_1", position: { x: 1, y: 2 } },
-  visibleActors = [],
-  objectives = {},
-  decisionKind = "next_move",
+  candidates = [], ranks = [], order = ["primary", "secondary"], tags = [],
+  features = [], decisionKind = "next_move", includeObjective = true,
 } = {}) {
+  const objectives = includeObjective ? {
+    actorDecision: {
+      contract: ACTOR_DECISION_OBJECTIVE_CONTRACT,
+      order,
+      candidates: candidates.map((candidate, index) => ({
+        candidateActionId: candidate.id,
+        rank: ranks[index],
+        features: features[index] || { opaqueIndex: index },
+        rationaleTags: tags[index] || [`opaque_${index}`],
+      })),
+    },
+  } : undefined;
   return {
     schema: "agent-kernel/SolverRequest",
     schemaVersion: 1,
@@ -33,281 +36,145 @@ function buildRequest({
       data: {
         contract: RUNTIME_DECISION_CONTRACT,
         decisionKind,
-        phase: "decide",
-        tick: 1,
-        actor,
         candidateActions: candidates,
-        visibleActors,
-        objectives,
-        providerPolicy: { mode: "solver", preferred: "solver" },
+        ...(objectives ? { objectives } : {}),
       },
     },
     options: { engine: "z3" },
   };
 }
 
-// ---------------------------------------------------------------------------
-// Priority selection
-// ---------------------------------------------------------------------------
-
-test("z3 adapter prefers attack when an attack candidate is present", async () => {
+test("fixture adapter selects the lexicographically highest opaque tuple", async () => {
   const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({
-    candidates: [
-      { id: "candidate_1", action: { kind: "wait", params: {} } },
-      { id: "candidate_2", action: { kind: "move", params: { direction: "east", from: { x: 1, y: 2 }, to: { x: 2, y: 2 } } } },
-      { id: "candidate_3", action: { kind: "attack", params: { targetId: "warden_1" } } },
-    ],
+  const candidates = [
+    { id: "looks_preferred", action: { kind: "attack", params: { targetId: "x" } } },
+    { id: "tuple_winner", action: { kind: "wait", params: {} } },
+  ];
+  const result = await createZ3SolverAdapter().solve(buildRequest({
+    candidates,
+    ranks: [[1, 99], [2, -99]],
+    tags: [["not_selected"], ["actor_selected"]],
   }));
 
   assert.equal(result.status, "fulfilled");
-  assert.equal(result.model.selectedActionId, "candidate_3");
-  assert.deepEqual(result.model.rationaleTags, ["attack_adjacent"]);
+  assert.equal(result.model.selectedActionId, "tuple_winner");
+  assert.deepEqual(result.model.rationaleTags, ["actor_selected"]);
+  assert.deepEqual(result.model.rankedCandidates.map((row) => row.candidateActionId), ["tuple_winner", "looks_preferred"]);
 });
 
-test("z3 adapter prefers move-toward-hostile over move-toward-exit when both are present", async () => {
+test("fixture adapter compares later axes only after earlier axes tie", async () => {
   const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  // Self at (1,2), hostile at (4,2), exit at (4,1) — east move reduces distance to both
-  // We want to confirm that move_toward_hostile rule (higher weight) fires before exit
-  const result = await adapter.solve(buildRequest({
-    actor: { id: "delver_1", position: { x: 1, y: 2 } },
-    visibleActors: [{ id: "warden_1", position: { x: 4, y: 2 } }],
-    objectives: { exit: { x: 4, y: 1 } },
-    candidates: [
-      { id: "cand_east", action: { kind: "move", params: { direction: "east", from: { x: 1, y: 2 }, to: { x: 2, y: 2 } } } },
-    ],
-  }));
-
-  assert.equal(result.status, "fulfilled");
-  assert.equal(result.model.selectedActionId, "cand_east");
-  assert.deepEqual(result.model.rationaleTags, ["move_toward_hostile"]);
+  const candidates = [
+    { id: "later_axis", action: { kind: "move", params: {} } },
+    { id: "first_axis", action: { kind: "wait", params: {} } },
+  ];
+  const result = await createZ3SolverAdapter().solve(buildRequest({ candidates, ranks: [[4, 100], [5, -100]] }));
+  assert.equal(result.model.selectedActionId, "first_axis");
 });
 
-test("z3 adapter prefers move-toward-exit when no hostile is visible", async () => {
+test("fixture adapter preserves input order for equal tuples", async () => {
   const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({
-    actor: { id: "delver_1", position: { x: 1, y: 2 } },
-    visibleActors: [],
-    objectives: { exit: { x: 4, y: 2 } },
-    candidates: [
-      { id: "cand_wait", action: { kind: "wait", params: {} } },
-      { id: "cand_east", action: { kind: "move", params: { direction: "east", from: { x: 1, y: 2 }, to: { x: 2, y: 2 } } } },
-    ],
-  }));
-
-  assert.equal(result.status, "fulfilled");
-  assert.equal(result.model.selectedActionId, "cand_east");
-  assert.deepEqual(result.model.rationaleTags, ["move_toward_exit"]);
+  const candidates = [
+    { id: "first", action: { kind: "wait", params: {} } },
+    { id: "second", action: { kind: "attack", params: {} } },
+  ];
+  const result = await createZ3SolverAdapter().solve(buildRequest({ candidates, ranks: [[7, 7], [7, 7]] }));
+  assert.equal(result.model.selectedActionId, "first");
+  assert.deepEqual(result.model.rankedCandidates.map((row) => row.candidateActionId), ["first", "second"]);
 });
 
-test("z3 adapter falls back to wait when only wait candidates are available", async () => {
+test("fixture adapter returns copied Actor diagnostics without interpreting them", async () => {
   const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({
-    candidates: [{ id: "only_wait", action: { kind: "wait", params: {} } }],
-  }));
-
-  assert.equal(result.status, "fulfilled");
-  assert.equal(result.model.selectedActionId, "only_wait");
-  assert.deepEqual(result.model.rationaleTags, ["wait"]);
-});
-
-test("z3 adapter ranks all candidates in descending score order for diagnostics", async () => {
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({
-    candidates: [
-      { id: "a", action: { kind: "wait", params: {} } },
-      { id: "b", action: { kind: "attack", params: { targetId: "x" } } },
-      { id: "c", action: { kind: "move", params: { direction: "east", from: { x: 1, y: 2 }, to: { x: 2, y: 2 } } } },
-    ],
-    objectives: { exit: { x: 4, y: 2 } },
-  }));
-
-  const scores = result.model.rankedCandidates.map((r) => r.score);
-  for (let i = 1; i < scores.length; i++) {
-    assert.ok(scores[i - 1] >= scores[i], `ranked candidates should be in descending score order; got ${scores}`);
-  }
-  // Attack should be first (highest weight)
-  assert.equal(result.model.rankedCandidates[0].candidateActionId, "b");
-});
-
-// ---------------------------------------------------------------------------
-// Failure paths
-// ---------------------------------------------------------------------------
-
-test("z3 adapter returns unsat when no candidate actions are provided", async () => {
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({ candidates: [] }));
-  assert.equal(result.status, "unsat");
-  assert.equal(result.reason, "z3_no_candidates");
-});
-
-test("z3 adapter returns error when request lacks a runtime-decision envelope", async () => {
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve({
-    schema: "agent-kernel/SolverRequest",
-    schemaVersion: 1,
-    meta: { id: "bad_req", runId: "test", createdAt: "2026-06-04T00:00:00.000Z", producedBy: "actor" },
-    problem: { language: "custom", data: { wrongShape: true } },
+  const candidates = [{ id: "only", action: { kind: "custom_action", params: {} } }];
+  const request = buildRequest({
+    candidates,
+    ranks: [[3, 2]],
+    features: [{ nested: { meaning: "Actor-owned" } }],
+    tags: [["Actor-authored tag"]],
   });
+  const result = await createZ3SolverAdapter().solve(request);
 
-  assert.equal(result.status, "error");
-  assert.equal(result.reason, "z3_missing_runtime_decision_envelope");
+  assert.deepEqual(result.model.rankedCandidates[0], {
+    candidateActionId: "only",
+    rank: [3, 2],
+    features: { nested: { meaning: "Actor-owned" } },
+    rationaleTags: ["Actor-authored tag"],
+  });
+  request.problem.data.objectives.actorDecision.candidates[0].features.nested.meaning = "mutated";
+  assert.equal(result.model.rankedCandidates[0].features.nested.meaning, "Actor-owned");
 });
 
-test("z3 adapter honors forceStatus option for testability", async () => {
+test("fixture adapter defers a missing Actor objective instead of deriving policy", async () => {
   const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
+  const result = await createZ3SolverAdapter().solve(buildRequest({
+    candidates: [{ id: "only", action: { kind: "attack", params: {} } }],
+    includeObjective: false,
+  }));
+  assert.deepEqual(result, { status: "deferred", reason: "actor_decision_objective_missing" });
+});
 
-  for (const status of ["deferred", "unsat", "error"]) {
-    const adapter = createZ3SolverAdapter({ forceStatus: status });
-    const result = await adapter.solve(buildRequest({ candidates: [{ id: "x", action: { kind: "wait", params: {} } }] }));
-    assert.equal(result.status, status, `forceStatus=${status} must yield status=${status}`);
+test("fixture adapter defers malformed Actor objectives", async () => {
+  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
+  const candidate = { id: "only", action: { kind: "wait", params: {} } };
+  const malformedRequests = [
+    buildRequest({ candidates: [candidate], ranks: [[1]], order: ["duplicate", "duplicate"] }),
+    buildRequest({ candidates: [candidate], ranks: [[1]], order: ["first", "second"] }),
+    buildRequest({ candidates: [candidate], ranks: [[1.5, 2]] }),
+  ];
+  for (const request of malformedRequests) {
+    const result = await createZ3SolverAdapter().solve(request);
+    assert.deepEqual(result, { status: "deferred", reason: "actor_decision_objective_invalid" });
   }
 });
 
-test("z3 adapter throws (port boundary error path) when throwOnSolve is true", async () => {
+test("fixture adapter returns unsat when no candidate actions are provided", async () => {
+  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
+  const result = await createZ3SolverAdapter().solve(buildRequest());
+  assert.deepEqual(result, { status: "unsat", reason: "z3_no_candidates" });
+});
+
+test("fixture adapter returns error when the runtime-decision envelope is absent", async () => {
+  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
+  const result = await createZ3SolverAdapter().solve({ problem: { data: { wrongShape: true } } });
+  assert.deepEqual(result, { status: "error", reason: "z3_missing_runtime_decision_envelope" });
+});
+
+test("fixture adapter honors forced statuses", async () => {
+  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
+  for (const status of ["deferred", "unsat", "error"]) {
+    const result = await createZ3SolverAdapter({ forceStatus: status }).solve({});
+    assert.equal(result.status, status);
+    assert.ok(result.reason);
+  }
+});
+
+test("fixture adapter throws only when explicitly configured", async () => {
   const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
   const { createSolverPort } = await import("../../packages/runtime/src/ports/solver.js");
-
-  const adapter = createZ3SolverAdapter({ throwOnSolve: true });
   const port = createSolverPort({ clock: () => "2026-06-04T00:00:00.000Z" });
-
-  const result = await port.solve(adapter, buildRequest({
-    candidates: [{ id: "x", action: { kind: "wait", params: {} } }],
-  }));
-
-  // Port should catch and convert thrown errors into structured error responses
+  const result = await port.solve(createZ3SolverAdapter({ throwOnSolve: true }), {});
   assert.equal(result.status, "error");
   assert.equal(result.reason, "z3_adapter_simulated_failure");
+  assert.equal(result.meta.createdAt, "2026-06-04T00:00:00.000Z");
 });
 
-test("z3 adapter falls back when hostile is visible but move candidate does not reduce distance", async () => {
+test("fixture adapter has no mutable state and preserves decisionKind", async () => {
   const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({
-    actor: { id: "delver_1", position: { x: 1, y: 2 } },
-    visibleActors: [{ id: "warden_1", position: { x: 4, y: 2 } }],
-    objectives: { exit: { x: 1, y: 1 } },
-    candidates: [
-      { id: "cand_north", action: { kind: "move", params: { direction: "north", from: { x: 1, y: 2 }, to: { x: 1, y: 1 } } } },
-      { id: "cand_wait", action: { kind: "wait", params: {} } },
-    ],
-  }));
-
-  assert.equal(result.status, "fulfilled");
-  assert.equal(result.model.selectedActionId, "cand_north");
-  assert.deepEqual(result.model.rationaleTags, ["move_toward_exit"]);
-});
-
-test("z3 adapter selection is deterministic for multiple equal-priority candidates", async () => {
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({
-    candidates: [
-      { id: "first_attack", action: { kind: "attack", params: { targetId: "warden_1" } } },
-      { id: "second_attack", action: { kind: "attack", params: { targetId: "warden_2" } } },
-    ],
-  }));
-
-  assert.equal(result.status, "fulfilled");
-  assert.equal(result.model.selectedActionId, "first_attack");
-  assert.deepEqual(result.model.rationaleTags, ["attack_adjacent"]);
-});
-
-test("z3 adapter still prefers attack candidate when no hostile is visible", async () => {
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({
-    visibleActors: [],
-    objectives: { exit: { x: 4, y: 2 } },
-    candidates: [
-      { id: "cand_move", action: { kind: "move", params: { direction: "east", from: { x: 1, y: 2 }, to: { x: 2, y: 2 } } } },
-      { id: "cand_attack", action: { kind: "attack", params: { targetId: "warden_hidden" } } },
-    ],
-  }));
-
-  assert.equal(result.status, "fulfilled");
-  assert.equal(result.model.selectedActionId, "cand_attack");
-  assert.deepEqual(result.model.rationaleTags, ["attack_adjacent"]);
-});
-
-test("z3 adapter handles diagonal move candidates with Chebyshev distance", async () => {
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({
-    actor: { id: "delver_1", position: { x: 1, y: 1 } },
-    visibleActors: [{ id: "warden_1", position: { x: 3, y: 3 } }],
-    candidates: [
-      { id: "cand_wait", action: { kind: "wait", params: {} } },
-      { id: "cand_southeast", action: { kind: "move", params: { direction: "southeast", from: { x: 1, y: 1 }, to: { x: 2, y: 2 } } } },
-    ],
-  }));
-
-  assert.equal(result.status, "fulfilled");
-  assert.equal(result.model.selectedActionId, "cand_southeast");
-  assert.deepEqual(result.model.rationaleTags, ["move_toward_hostile"]);
-});
-
-test("z3 adapter selects attack even when target is outside visibleActors", async () => {
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({
-    visibleActors: [{ id: "warden_visible", position: { x: 4, y: 2 } }],
-    candidates: [
-      { id: "cand_move", action: { kind: "move", params: { direction: "east", from: { x: 1, y: 2 }, to: { x: 2, y: 2 } } } },
-      { id: "cand_attack_hidden", action: { kind: "attack", params: { targetId: "warden_hidden" } } },
-    ],
-  }));
-
-  assert.equal(result.status, "fulfilled");
-  assert.equal(result.model.selectedActionId, "cand_attack_hidden");
-  assert.deepEqual(result.model.rationaleTags, ["attack_adjacent"]);
-});
-
-test("z3 adapter consecutive solve calls do not share mutable state", async () => {
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
   const request = buildRequest({
-    candidates: [
-      { id: "cand_wait", action: { kind: "wait", params: {} } },
-      { id: "cand_attack", action: { kind: "attack", params: { targetId: "warden_1" } } },
-    ],
+    candidates: [{ id: "only", action: { kind: "wait", params: {} } }],
+    ranks: [[1, 0]],
+    decisionKind: "next_custom_action",
   });
-
+  const adapter = createZ3SolverAdapter();
   const first = await adapter.solve(request);
   const second = await adapter.solve(request);
-
   assert.deepEqual(second, first);
+  assert.equal(first.model.decisionKind, "next_custom_action");
 });
 
-test("z3 adapter propagates custom decisionKind to model output", async () => {
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
-  const adapter = createZ3SolverAdapter();
-
-  const result = await adapter.solve(buildRequest({
-    decisionKind: "next_attack",
-    candidates: [{ id: "cand_attack", action: { kind: "attack", params: { targetId: "warden_1" } } }],
-  }));
-
-  assert.equal(result.status, "fulfilled");
-  assert.equal(result.model.decisionKind, "next_attack");
-  assert.equal(result.model.selectedActionId, "cand_attack");
-});
+// ## TODO: Test Permutations
+// - empty or whitespace-only axis names defer as an invalid objective
+// - duplicate candidate ids defer before tuple comparison
+// - a non-serializable features value defers rather than leaking an exception
+// - negative integers and zero compare correctly across every opaque axis
+// - byte-identical results across fresh process invocations for an exact tie

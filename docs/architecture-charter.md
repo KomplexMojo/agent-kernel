@@ -298,6 +298,16 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
   drives real payloads and compares what was charged against what is published.
 - Receipts (`BudgetReceiptArtifact`) are issued only by the Allocator and are the audit trail for
   every spend. Budget maximization ("spend the rest") is Allocator policy, not adapter code.
+- **Budget-fit search is Allocator policy, even when an adapter performs the search.** The Allocator
+  supplies requested floor/hallway counts, its own prices, the cap, hard constraints, and the complete
+  lexicographic objective. An adapter may solve that opaque problem; it may not invent prices, add a
+  cheaper objective, manufacture tiles, or reinterpret why one layout is preferred. Valid inputs require
+  integer retained counts within requested bounds, at least one floor tile, and spend within cap. Invalid
+  input is an error; `unsat` is reserved for an unaffordable minimum floor. Already-affordable layouts
+  bypass solving. The Allocator authors a `solver_request` effect as data and consumes the host-returned
+  result; command-layer glue owns solver-port dispatch, so no adapter object enters the persona.
+  `fitLayoutToBudget` remains the exact deterministic fallback for adapter absence, `deferred`, or
+  `error`.
 - **The Allocator JUDGES; it does not AUTHOR (decided 2026-07-29; ENFORCED 2026-08-04, Plan CR.9 M3).**
   Pricing authority does not extend to building the thing being priced. `budget-fulfillment.js` used to
   construct and grow cards (`buildMinimumRequiredDelverCard`, `fillFlexibleDelverVitals`, `maximize*Card`)
@@ -350,6 +360,9 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - Pure validation and deterministic rule enforcement.
 - Data-only effects with deterministic ids/requestIds and adapter hints.
 - Affinity system: 10-kind codebook, spatial formulas, interaction matrix, static hazard and actor field computation.
+- Visibility system: affinity-derived sight radius, deterministic wall/barrier supercover occlusion,
+  target-dark concealment, and pure per-observer scoping of actors and hazards. Runtime sequences the
+  live tile/field inputs; it does not reimplement perception policy.
 - Motivation system: 12-kind codebook, behavior flags, and profile derivation. (Motivation
   *pricing* is Allocator policy, not core; core enforces only invariant budget rules — caps and
   spend accounting — when provided by the Allocator.)
@@ -404,7 +417,24 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 - Complex motivation must route through the runtime solver port (`packages/runtime/src/ports/solver.js`) and adapter implementations. Runtime code constructs the request envelope and consumes the normalized result; it does not embed solver-specific logic.
 - `packages/runtime/src/personas/_shared/runtime-decision.mts` resolves fulfilled solver results through `resolveActionFromSolverResult()` and maps the selected candidate back to a concrete runtime action.
-- The Z3-shaped adapter currently lives in `packages/adapters-test/src/adapters/solver/z3-adapter.js`. It is a deterministic priority-rule adapter for tests, not a real Z3 binding.
+- The Actor owns candidate feature meaning and objective order. It emits
+  `actor-decision-objective-v1`; adapters validate and stably sort the six-integer lexicographic tuples
+  without interpreting domain features. Every live Actor request includes an objective; unknown
+  motivation profiles receive an Actor-authored compatibility tuple. Invalid or absent objectives
+  defer with typed reasons, after which runtime applies its deterministic Actor fallback. An adapter
+  must not recreate the compatibility policy or invent ranked diagnostics for an old envelope.
+- The active CLI and web platform copies expose the canonical `hybrid-constraint` adapter for
+  `actor_action_selection` and `allocator_budget_fit`. The Actor branch remains a pure tuple validator/
+  stable sort and never initializes Z3. Only the Allocator branch initializes Z3 and compiles the
+  persona-authored opaque integer expressions. `adapters-test` retains fixture/test doubles separately.
+- Allocator budget fit uses the same effect boundary without giving the persona an adapter. The
+  Allocator prepares a `solver_request`; `packages/runtime/src/commands/solver-host.js` checks domain
+  capability, dispatches it through `createSolverPort`, awaits the result, and invokes the Allocator's
+  result consumer. Persona code owns the problem and validation; host glue owns transport only.
+- `createRealZ3SolverAdapter`, `createActorLexicographicSolverAdapter`, and
+  `AK_SOLVER_ENGINE=z3-real` remain compatibility names; the canonical factory is
+  `createHybridConstraintSolverAdapter`. Adapter or domain-capability absence, `deferred`, and `error`
+  return control to the Allocator's exact characterized fallback.
 - Z3 adapter code must not move into `runtime` or `core-ts`. The dependency direction remains `adapters-* / ui-web -> runtime -> core-ts`.
 
 ## UI Sandbox Playback

@@ -26,6 +26,7 @@ import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
 // same arguments, same result shape (proven by the differential in
 // tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "./llm-host.js";
+import { createHostedLayoutBudgetFitter } from "./solver-host.js";
 import { runLlmBudgetLoop } from "../personas/orchestrator/persona.js";
 import { createRuntime } from "../runner/runtime.js";
 // CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
@@ -2132,6 +2133,16 @@ export function createCommandKernel(host = {}) {
       });
       if (budgetLoopEnabled) {
         const poolPolicy = Number.isFinite(budgetReserveTokens) ? { reserveTokens: budgetReserveTokens } : undefined;
+        // Z7.1: the host owns adapter construction. A fixture/non-capable adapter is still
+        // useful here: the Allocator detects the missing domain and takes its characterized
+        // fallback, while AK_SOLVER_ENGINE=z3-real exposes the hybrid search path.
+        const solverAdapter = await createSolverAdapter({});
+        const fitLayout = createHostedLayoutBudgetFitter({
+          prepare: director.prepareLayoutBudgetFit,
+          complete: director.completeLayoutBudgetFit,
+          adapter: solverAdapter,
+          clock: () => createdAt,
+        });
         const loopResult = await runLlmBudgetLoop({
         // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
         runSession: runLlmSessionHosted,
@@ -2146,7 +2157,7 @@ export function createCommandKernel(host = {}) {
         resolveTileCosts: director.resolveTileCosts,
         allocateBudget: director.allocateBudget,
         evaluateSelectionSpend: director.evaluateSelectionSpend,
-        fitLayout: director.fitLayoutToBudget,
+        fitLayout,
         evaluateLayoutSpend: director.evaluateLayoutSpend,
         assessFeasibility: director.assessFeasibility,
           adapter,

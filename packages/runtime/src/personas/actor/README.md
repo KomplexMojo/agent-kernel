@@ -102,6 +102,12 @@ The Actor persona follows a simple loop:
 
 How motivations are resolved (priority, scoring, veto, etc.) is an implementation detail of the Actor persona and may evolve over time.
 
+Each actor receives its own perception-scoped observation. Core starts with the actor's light/dark-adjusted
+sight radius, then applies deterministic line of sight: walls and barriers block actors and hazards behind
+them, including diagonal corner peeking. Surviving dark at a target conceals that target beyond one tile;
+light affects concealment only through core's existing light/dark cancellation. The shared world snapshot is
+never mutated, and resources remain absent because actor observations do not currently expose them.
+
 When runtime decisioning is enabled for an actor or boss, the Actor persona now constructs a `runtime-decision-v1`
 envelope from live observation plus candidate-action context and emits it through the existing `solver_request`
 pipeline. Solver-selected decisions are normalized back into executable `Action` records on the same runtime rail.
@@ -111,6 +117,29 @@ raw fact about the other actor**: delvers ally with delvers, wardens with warden
 hostile. Solvers and other consumers must read that field rather than compare `role` themselves — allegiance has one
 authority here, and a consumer that re-derives it is free to disagree with the deterministic path. Absent means
 hostile, so an envelope built before this field existed keeps its previous behavior instead of quietly pacifying.
+
+The envelope's self-actor also carries two separate affinity views. `affinities` is the configured
+ability list used to express candidate casts. `affinityGrants` is the live resource-grant list read from core,
+including each grant's independent `stacks`, `mana`, `manaMax`, and `manaRegen` pool. Both are copied at the
+boundary so a solver request cannot alias mutable observation state. Z6.1 uses the matching live grant, or the
+actor mana pool when no grant matches, to author a cast-reserve tie-break. This describes scarcity only: the
+Configurator still owns cast cost and the runner still owns affordability enforcement.
+
+The self-actor's `motivationProfile` exposes AM.9's core-derived mobility, combat, and cognition tiers together
+with its reasoning class and default flag mask. Human-readable reasoning and flag names are derived directly from
+core's enums, so the runtime does not maintain a competing vocabulary. An unknown motivation kind omits the
+profile but still receives an Actor-authored compatibility objective. That tuple preserves the former deterministic
+attack, hostile-progress, exit-progress, fallback-move, and wait ordering without asking an adapter to infer policy.
+
+For known profiles, the `objectives.actorDecision` contract carries one Actor-authored six-integer rank
+per candidate, ordered by intent class, target finish, profile alignment, hazard safety, cast reserve, then input
+order. Mobility/combat tiers and `PrefersCover`/`PrefersStealth` affect those ranks; cognition and reasoning remain
+diagnostic because this is a one-step choice, while `AggroRangeBoost` remains perception/candidate policy. The
+shared envelope code validates row identity and deep-copies the contract but does not interpret the ranks. The
+CLI and web Actor lexicographic adapters validate and compare the tuples without re-deriving their meaning. The
+old `createRealZ3SolverAdapter` factory and `AK_SOLVER_ENGINE=z3-real` selector remain compatibility aliases; they
+do not initialize Z3. Missing or malformed objectives defer with typed reasons; runtime then follows its
+deterministic Actor fallback. Old envelopes remain readable but adapters do not manufacture ranked diagnostics.
 
 Live LLM-backed runtime decisions are not implicit. Default execution remains deterministic and replay-safe:
 - solver-first during execution

@@ -219,11 +219,10 @@ test("every cli-invocable entry has a standalone fixture", () => {
  * removed rather than left to fail on success.
  *
  * ⚠️ **AN EMPTY BACKLOG MEANS "EVERY REGISTERED BEHAVIOR IS OWNED", NOT "EVERY CHARTERED
- * BEHAVIOR IS OWNED".** The registry's own premise is that a behavior with no entry is
- * assumed NOT owned, and several have no entry — the Director's `mapPool`, `buildCardSet`,
- * `resolveTileCosts` and `assessFeasibility` are gated and tested but have no G1 asking the
- * A2 question, and each persona README says so under its status table. The next honest move
- * for this file is new ENTRIES, not a green count.
+ * BEHAVIOR IS OWNED".** The registry is intentionally a living inventory: whenever a new
+ * persona behavior or external policy seam is discovered, add an entry and runnable proof
+ * in the same change. A green count is evidence about the current registry, never permission
+ * to stop sweeping for unregistered authority.
  */
 test("the backlog is measured: report owned vs blocked", () => {
   const owned = REGISTRY.filter(isOwned);

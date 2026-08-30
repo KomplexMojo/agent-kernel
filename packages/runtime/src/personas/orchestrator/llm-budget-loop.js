@@ -548,7 +548,7 @@ async function runPhase({
     layoutSpend = layoutValidation.spend;
     validation = { ok: layoutValidation.ok, errors: layoutValidation.errors || [], missingSelections: [] };
     if (!validation.ok && !strict) {
-      const fitted = fitLayout({
+      const fitted = await fitLayout({
         layout: layoutPlan,
         remainingBudgetTokens,
         priceList,
@@ -627,7 +627,7 @@ async function runPhase({
   }
 
   if (phase === "layout_only" && !strict) {
-    const recovered = fitLayout({
+    const recovered = await fitLayout({
       layout: layoutPlan || phaseSummary?.layout,
       remainingBudgetTokens,
       priceList,
@@ -768,7 +768,7 @@ async function runPhase({
     repairLayoutSpend = layoutValidation.spend;
     repairValidation = { ok: layoutValidation.ok, errors: layoutValidation.errors || [], missingSelections: [] };
     if (!repairValidation.ok && !strict) {
-      const fitted = fitLayout({
+      const fitted = await fitLayout({
         layout: repairLayoutPlan,
         remainingBudgetTokens,
         priceList,

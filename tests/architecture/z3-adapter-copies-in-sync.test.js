@@ -1,5 +1,5 @@
 /**
- * The two real-Z3 adapter copies must not drift apart.
+ * The two hybrid constraint adapter copies must not drift apart.
  *
  * WHY THERE ARE TWO. `adapters-cli` and `adapters-web` each own their own solver
  * implementation, and this repo has NO internal package.json dependency edges —
@@ -11,8 +11,8 @@
  *
  * WHY THIS GUARD EXISTS. "By hand" was the entire mechanism. Nothing checked it:
  * `tests/runtime/z3-real-adapter-conformance.test.js` imports only the CLI copy,
- * so every behavioral assertion in the repo — conformance, determinism, ranking,
- * and the faction-aware scoring this guard shipped beside — passes while the
+ * so every behavioral assertion in the repo — conformance, determinism, and
+ * opaque tuple comparison — passes while the
  * browser's copy says something else entirely. ⇒ *A duplicate with no equality
  * check is not a duplicate, it is a fork with a comment asking politely.*
  *
@@ -21,7 +21,7 @@
  * explaining the duplication — and only the headers may. Comparing the code
  * rather than a behavior sample is the point: a guard that checked "both export
  * createRealZ3SolverAdapter" would pass against two arbitrarily different
- * rankers, which is the spelling-versus-concept trap this repo keeps re-finding.
+ * tuple consumers, which is the spelling-versus-concept trap this repo keeps re-finding.
  *
  * WHEN THIS FAILS, the fix is to copy the change across — never to relax the
  * comparison. If the duplication is ever replaced by a shared package, delete
@@ -40,7 +40,7 @@ const WEB_COPY = "packages/adapters-web/src/adapters/z3/index.js";
 
 /**
  * Drop the single leading block comment, which is the only part allowed to
- * differ. Anything else — imports, constants, every line of the ranking — must
+ * differ. Anything else — imports, constants, every validation/sort line — must
  * match exactly.
  */
 function bodyOf(relativePath) {
@@ -54,13 +54,13 @@ function bodyOf(relativePath) {
   return source.slice(end + 2).trim();
 }
 
-test("the adapters-cli and adapters-web Z3 adapters are identical below their headers", () => {
+test("the CLI and web hybrid constraint adapters are identical below their headers", () => {
   assert.equal(
     bodyOf(WEB_COPY),
     bodyOf(CLI_COPY),
     `${WEB_COPY} has drifted from ${CLI_COPY}. These are deliberate copies kept in sync by hand, `
-      + "and only the CLI one is exercised by the conformance and scoring suites — so a change "
-      + "applied to one of them means the browser and the CLI now decide actor actions "
+      + "and only the CLI one is exercised by the conformance and behavior suites — so a change "
+      + "applied to one means the browser and CLI now solve constraints "
       + "differently, with every test in the repo still green. Copy the change across.",
   );
 });

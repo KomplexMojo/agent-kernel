@@ -16,6 +16,7 @@ test("actor persona emits runtime-decision solver requests from live observation
         id: actorId,
         role: "boss",
         kind: "motivated",
+        motivation: { kind: "attacking" },
         runtimeDecisioning: true,
         decisionMode: "solver",
       },
@@ -106,6 +107,11 @@ test("actor persona emits runtime-decision solver requests from live observation
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "move_east"));
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "move_northeast"));
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "wait_here"));
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v1");
+  assert.deepEqual(
+    envelope.objectives.actorDecision.candidates.map((entry) => entry.candidateActionId),
+    envelope.candidateActions.map((entry) => entry.id),
+  );
   assert.equal(result.context.lastRuntimeDecisionEnvelope.candidateActions.length, envelope.candidateActions.length);
 });
 

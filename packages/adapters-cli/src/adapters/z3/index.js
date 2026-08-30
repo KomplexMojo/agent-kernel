@@ -1,23 +1,18 @@
 /**
- * Real Z3 adapter for the actor_action_selection constraint domain.
+ * Hybrid deterministic constraint adapter.
  *
- * Candidate actions are produced and legality-filtered by the Actor persona.
- * This adapter only ranks those candidates with a deterministic Optimize
- * objective; it does not duplicate range, resource, or collision policy.
+ * Candidate feature meaning and rank construction belong to the Actor.
+ * Actor requests validate and sort opaque tuples without initializing Z3. Other adopted
+ * search domains compile their persona-authored integer expressions generically. Deprecated
+ * factories remain compatibility aliases for existing call sites.
  */
 
 import { init } from "z3-solver";
 
 const RUNTIME_DECISION_CONTRACT = "runtime-decision-v1";
-
-const PRIORITY_WEIGHTS = Object.freeze({
-  attack: 100,
-  move_toward_hostile: 80,
-  move_toward_exit: 50,
-  move_fallback: 20,
-  wait: 10,
-  no_match: 0,
-});
+const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v1";
+const ACTOR_DOMAIN = "actor_action_selection";
+const ALLOCATOR_DOMAIN = "allocator_budget_fit";
 
 let sharedZ3Promise;
 
@@ -26,83 +21,17 @@ function getSharedZ3() {
   return sharedZ3Promise;
 }
 
-function chebyshevDistance(a, b) {
-  if (!a || !b) return null;
-  if (![a.x, a.y, b.x, b.y].every(Number.isFinite)) return null;
-  return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
-}
-
-function movesCloserTo(candidate, origin, targets) {
-  if (candidate?.action?.kind !== "move") return false;
-  const destination = candidate.action.params?.to;
-  if (!destination || !origin) return false;
-  return targets.some((target) => {
-    const before = chebyshevDistance(origin, target);
-    const after = chebyshevDistance(destination, target);
-    return before !== null && after !== null && after < before;
-  });
-}
-
-/**
- * Whether the Actor persona ruled this visible actor an enemy.
- *
- * ⚠️ **Absent means HOSTILE, and the direction of that default is load-bearing.**
- * Only `hostile === false` is an ally. Every envelope built before hostility was
- * threaded carries no such field, and a fixture or an older run must keep
- * behaving as it did rather than quietly pacifying: an adapter that read a
- * missing flag as "allied" would stop pursuing anyone at all, in every one of
- * them, while every ally-targeting test still passed.
- *
- * This adapter does NOT compare roles. Which roles are allied is the Actor
- * persona's ruling (`rolesAreAllied`, `personas/actor/controller.js`), including
- * a fail-safe that two MISSING roles must not compare equal. Re-deriving it here
- * would make this file a second allegiance authority, free to drift from the
- * first.
- */
-function isHostile(visibleActor) {
-  return visibleActor?.hostile !== false;
-}
-
-function scoreCandidate(candidate, envelope) {
-  if (candidate?.action?.kind === "attack") {
-    return { score: PRIORITY_WEIGHTS.attack, ruleId: "attack" };
-  }
-
-  const actorPosition = envelope.actor?.position;
-  // Allies are excluded before the distance test, not after: `visibleActors` is
-  // everyone this actor perceives, and treating the whole list as enemies is
-  // what sent delvers chasing their own delvers on this path.
-  const visiblePositions = Array.isArray(envelope.visibleActors)
-    ? envelope.visibleActors.filter(isHostile).map((actor) => actor?.position).filter(Boolean)
-    : [];
-  if (movesCloserTo(candidate, actorPosition, visiblePositions)) {
-    return {
-      score: PRIORITY_WEIGHTS.move_toward_hostile,
-      ruleId: "move_toward_hostile",
-    };
-  }
-
-  const exit = envelope.objectives?.exit;
-  if (exit && movesCloserTo(candidate, actorPosition, [exit])) {
-    return { score: PRIORITY_WEIGHTS.move_toward_exit, ruleId: "move_toward_exit" };
-  }
-
-  if (candidate?.action?.kind === "move") {
-    return { score: PRIORITY_WEIGHTS.move_fallback, ruleId: "move_fallback" };
-  }
-  if (candidate?.action?.kind === "wait") {
-    return { score: PRIORITY_WEIGHTS.wait, ruleId: "wait" };
-  }
-  return { score: PRIORITY_WEIGHTS.no_match, ruleId: "no_match" };
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function validateEnvelope(envelope) {
+  // Preserve the established z3_* reason ids as wire compatibility for the
+  // legacy engine alias; they do not mean this adapter initialized Z3.
   if (!envelope || envelope.contract !== RUNTIME_DECISION_CONTRACT) {
     return "z3_missing_runtime_decision_envelope";
   }
-  if (!Array.isArray(envelope.candidateActions)) {
-    return "z3_missing_candidate_actions";
-  }
+  if (!Array.isArray(envelope.candidateActions)) return "z3_missing_candidate_actions";
   if (envelope.candidateActions.some((candidate) => (
     !candidate
     || typeof candidate.id !== "string"
@@ -115,15 +44,249 @@ function validateEnvelope(envelope) {
   return null;
 }
 
-/**
- * @param {{ init?: typeof init }} [options]
- * @returns {{
- *   solve: (request: object) => Promise<object>,
- *   kind: "z3-real",
- *   capabilities: { domains: string[], deterministic: true }
- * }}
- */
-export function createRealZ3SolverAdapter(options = {}) {
+function readActorDecisionRows(envelope) {
+  const objective = envelope.objectives?.actorDecision;
+  if (objective === undefined) {
+    return { ok: false, reason: "actor_decision_objective_missing" };
+  }
+  if (!isObject(objective) || objective.contract !== ACTOR_DECISION_OBJECTIVE_CONTRACT
+    || !Array.isArray(objective.order) || objective.order.length === 0
+    || objective.order.some((entry) => typeof entry !== "string" || entry.trim().length === 0)
+    || new Set(objective.order).size !== objective.order.length) {
+    return { ok: false, reason: "actor_decision_objective_invalid" };
+  }
+  const candidates = envelope.candidateActions;
+  if (!Array.isArray(objective.candidates) || objective.candidates.length !== candidates.length) {
+    return { ok: false, reason: "actor_decision_objective_invalid" };
+  }
+  const candidateIds = candidates.map((candidate) => candidate.id);
+  if (new Set(candidateIds).size !== candidateIds.length) {
+    return { ok: false, reason: "actor_decision_objective_invalid" };
+  }
+  for (let index = 0; index < objective.candidates.length; index += 1) {
+    const row = objective.candidates[index];
+    if (!isObject(row) || row.candidateActionId !== candidateIds[index]) {
+      return { ok: false, reason: "actor_decision_objective_invalid" };
+    }
+    if (!Array.isArray(row.rank)
+      || row.rank.length !== objective.order.length
+      || row.rank.some((member) => !Number.isInteger(member))) {
+      return { ok: false, reason: "actor_decision_objective_invalid" };
+    }
+    if (!isObject(row.features)
+      || !Array.isArray(row.rationaleTags)
+      || row.rationaleTags.some((tag) => typeof tag !== "string" || tag.trim().length === 0)) {
+      return { ok: false, reason: "actor_decision_objective_invalid" };
+    }
+  }
+  try {
+    return {
+      ok: true,
+      rows: objective.candidates.map((row, index) => ({
+        candidate: candidates[index],
+        index,
+        candidateActionId: row.candidateActionId,
+        rank: [...row.rank],
+        features: JSON.parse(JSON.stringify(row.features)),
+        rationaleTags: [...row.rationaleTags],
+      })),
+    };
+  } catch {
+    return { ok: false, reason: "actor_decision_objective_invalid" };
+  }
+}
+
+function compareObjectiveRows(left, right) {
+  for (let index = 0; index < left.rank.length; index += 1) {
+    if (left.rank[index] > right.rank[index]) return -1;
+    if (left.rank[index] < right.rank[index]) return 1;
+  }
+  return left.index - right.index;
+}
+
+function solveActorObjective(envelope, rows) {
+  const ranked = rows.slice().sort(compareObjectiveRows);
+  const winner = ranked[0];
+  return {
+    status: "fulfilled",
+    model: {
+      contract: RUNTIME_DECISION_CONTRACT,
+      decisionKind: envelope.decisionKind || "next_move",
+      selectedActionId: winner.candidate.id,
+      rationaleTags: [...winner.rationaleTags],
+      rankedCandidates: ranked.map(({ candidate: _candidate, index: _index, ...row }) => row),
+    },
+  };
+}
+
+/** @deprecated Use createHybridConstraintSolverAdapter; retained for Actor-only callers. */
+export function createActorLexicographicSolverAdapter() {
+  async function solve(request) {
+    try {
+      const envelope = request?.problem?.data;
+      const validationError = validateEnvelope(envelope);
+      if (validationError) return { status: "error", reason: validationError };
+      if (envelope.candidateActions.length === 0) {
+        // Same compatibility reason as the former implementation.
+        return { status: "unsat", reason: "z3_no_candidates" };
+      }
+      const objectiveRows = readActorDecisionRows(envelope);
+      if (!objectiveRows.ok) return { status: "deferred", reason: objectiveRows.reason };
+      return solveActorObjective(envelope, objectiveRows.rows);
+    } catch (error) {
+      return {
+        status: "error",
+        reason: "actor_decision_error",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  return {
+    solve,
+    kind: "actor-lexicographic",
+    capabilities: { domains: ["actor_action_selection"], deterministic: true },
+  };
+}
+
+function requireInteger(value, label) {
+  if (!Number.isInteger(value)) throw new Error(`${label}: expected integer`);
+  return value;
+}
+
+function readGenericProblem(problem) {
+  if (!isObject(problem) || !Array.isArray(problem.variables) || !Array.isArray(problem.constraints)) {
+    throw new Error("constraint problem requires variables and constraints");
+  }
+  const variables = new Map();
+  for (const variable of problem.variables) {
+    if (!isObject(variable) || variable.kind !== "integer"
+      || typeof variable.id !== "string" || variable.id.length === 0
+      || variables.has(variable.id)) {
+      throw new Error("constraint variables must be uniquely named integers");
+    }
+    requireInteger(variable.min, `${variable.id}.min`);
+    requireInteger(variable.max, `${variable.id}.max`);
+    if (variable.min > variable.max) throw new Error(`${variable.id}: minimum exceeds maximum`);
+    variables.set(variable.id, variable);
+  }
+  if (!isObject(problem.objective) || problem.objective.kind !== "lexicographic"
+    || !Array.isArray(problem.objective.priorities) || problem.objective.priorities.length === 0) {
+    throw new Error("constraint objective must be a non-empty lexicographic list");
+  }
+  return { variables, constraints: problem.constraints, priorities: problem.objective.priorities };
+}
+
+function readTerms(expression, variables) {
+  if (!Array.isArray(expression?.terms) || expression.terms.length === 0) {
+    throw new Error("linear expression requires terms");
+  }
+  return expression.terms.map((term) => {
+    if (!isObject(term) || !variables.has(term.variableId)) {
+      throw new Error("linear term references an unknown variable");
+    }
+    return { variableId: term.variableId, coefficient: requireInteger(term.coefficient, "coefficient") };
+  });
+}
+
+function buildCompiler(context, definitions) {
+  const z3Variables = new Map(
+    [...definitions.keys()].map((id) => [id, context.Int.const(id)]),
+  );
+  function linear(terms) {
+    return terms.reduce(
+      (sum, term) => sum.add(z3Variables.get(term.variableId).mul(term.coefficient)),
+      context.Int.val(0),
+    );
+  }
+  function expression(node) {
+    if (!isObject(node)) throw new Error("objective expression must be an object");
+    if (node.kind === "variable") {
+      if (!definitions.has(node.variableId)) throw new Error("objective references an unknown variable");
+      return z3Variables.get(node.variableId);
+    }
+    const value = linear(readTerms(node, definitions));
+    if (node.kind === "linear") return value;
+    if (node.kind === "absolute_linear") return context.If(value.ge(0), value, value.mul(-1));
+    throw new Error(`unsupported expression kind: ${node.kind}`);
+  }
+  return { expression, linear, z3Variables };
+}
+
+function evaluateExpression(node, assignments) {
+  if (node.kind === "variable") return assignments[node.variableId];
+  const value = node.terms.reduce(
+    (sum, term) => sum + assignments[term.variableId] * term.coefficient,
+    0,
+  );
+  return node.kind === "absolute_linear" ? Math.abs(value) : value;
+}
+
+function createGenericZ3Solver(getZ3) {
+  return async function solveGeneric(problem) {
+    try {
+      const generic = readGenericProblem(problem);
+      const { Context } = await getZ3();
+      const context = new Context("hybrid_constraint");
+      const compiler = buildCompiler(context, generic.variables);
+      const optimizer = new context.Optimize();
+
+      for (const [id, variable] of generic.variables) {
+        const z3Variable = compiler.z3Variables.get(id);
+        optimizer.add(z3Variable.ge(variable.min), z3Variable.le(variable.max));
+      }
+      for (const constraint of generic.constraints) {
+        if (!isObject(constraint) || constraint.kind !== "linear") {
+          throw new Error("only linear constraints are supported");
+        }
+        const left = compiler.linear(readTerms(constraint, generic.variables));
+        const right = requireInteger(constraint.rightHandSide, "rightHandSide");
+        if (constraint.relation === "<=") optimizer.add(left.le(right));
+        else if (constraint.relation === ">=") optimizer.add(left.ge(right));
+        else if (constraint.relation === "=") optimizer.add(left.eq(right));
+        else throw new Error(`unsupported constraint relation: ${constraint.relation}`);
+      }
+      for (const priority of generic.priorities) {
+        if (!isObject(priority) || !["maximize", "minimize"].includes(priority.sense)) {
+          throw new Error("objective priority requires maximize or minimize");
+        }
+        const compiled = compiler.expression(priority.expression);
+        if (priority.sense === "maximize") optimizer.maximize(compiled);
+        else optimizer.minimize(compiled);
+      }
+
+      const status = await optimizer.check();
+      if (status === "unsat") return { status: "unsat", reason: "constraint_unsatisfiable" };
+      if (status !== "sat") {
+        return { status: "error", reason: optimizer.reasonUnknown() || "constraint_optimize_unknown" };
+      }
+      const model = optimizer.model();
+      const assignments = Object.fromEntries([...compiler.z3Variables].map(([id, variable]) => {
+        const value = Number(model.eval(variable, true).toString());
+        if (!Number.isSafeInteger(value)) throw new Error("model produced a non-integer assignment");
+        return [id, value];
+      }));
+      return {
+        status: "fulfilled",
+        model: {
+          assignments,
+          objectiveValues: generic.priorities.map((priority) => (
+            evaluateExpression(priority.expression, assignments)
+          )),
+        },
+      };
+    } catch (error) {
+      return {
+        status: "error",
+        reason: "constraint_compile_error",
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  };
+}
+
+export function createHybridConstraintSolverAdapter(options = {}) {
+  const actor = createActorLexicographicSolverAdapter();
   const getZ3 = typeof options.init === "function"
     ? (() => {
         let injectedZ3Promise;
@@ -133,103 +296,25 @@ export function createRealZ3SolverAdapter(options = {}) {
         };
       })()
     : getSharedZ3;
+  const solveGeneric = createGenericZ3Solver(getZ3);
 
   async function solve(request) {
-    try {
-      const envelope = request?.problem?.data;
-      const validationError = validateEnvelope(envelope);
-      if (validationError) {
-        return { status: "error", reason: validationError };
-      }
-
-      const candidates = envelope.candidateActions;
-      if (candidates.length === 0) {
-        return { status: "unsat", reason: "z3_no_candidates" };
-      }
-
-      const scored = candidates.map((candidate, index) => ({
-        candidate,
-        index,
-        ...scoreCandidate(candidate, envelope),
-      }));
-
-      const { Context } = await getZ3();
-      const context = new Context("actor_action_selection");
-      const { Bool, If, Optimize, Sum, isTrue } = context;
-      const selected = candidates.map((_, index) => (
-        Bool.const(`selected_${String(index).padStart(6, "0")}`)
-      ));
-      const optimizer = new Optimize();
-
-      optimizer.add(Sum(...selected.map((variable) => If(variable, 1, 0))).eq(1));
-
-      // Scaling makes the declared priority dominant. The decreasing bonus
-      // makes candidate input order a unique, deterministic tie-break before
-      // Z3 solves, rather than relying on its choice among equal optima.
-      const tieScale = candidates.length + 1;
-      const objective = Sum(...selected.map((variable, index) => {
-        const coefficient = (scored[index].score * tieScale) + (candidates.length - index);
-        return If(variable, coefficient, 0);
-      }));
-      optimizer.maximize(objective);
-
-      const status = await optimizer.check();
-      if (status === "unsat") {
-        return { status: "unsat", reason: "z3_no_satisfying_assignment" };
-      }
-      if (status !== "sat") {
-        // "unknown" is a real Z3 outcome (e.g. resource limits) but is not one of
-        // CONSTRAINT_RESULT_STATUS's four values — normalize to "error" so this
-        // adapter never returns a status the shared conformance suite would reject.
-        return {
-          status: "error",
-          reason: optimizer.reasonUnknown() || "z3_optimize_unknown",
-        };
-      }
-
-      const model = optimizer.model();
-      const selectedIndex = selected.findIndex((variable) => isTrue(model.eval(variable, true)));
-      if (selectedIndex < 0 || selectedIndex >= candidates.length) {
-        return { status: "error", reason: "z3_selected_action_missing" };
-      }
-
-      const winner = scored[selectedIndex];
-      const rankedCandidates = scored
-        .map(({ candidate, index, score, ruleId }) => ({
-          candidateActionId: candidate.id,
-          score,
-          ruleId,
-          index,
-        }))
-        .sort((a, b) => (b.score - a.score) || (a.index - b.index))
-        .map(({ index: _index, ...candidate }) => candidate);
-
-      return {
-        status: "fulfilled",
-        model: {
-          contract: RUNTIME_DECISION_CONTRACT,
-          decisionKind: envelope.decisionKind || "next_move",
-          selectedActionId: winner.candidate.id,
-          confidence: winner.score / PRIORITY_WEIGHTS.attack,
-          rationaleTags: [winner.ruleId],
-          rankedCandidates,
-        },
-      };
-    } catch (error) {
-      return {
-        status: "error",
-        reason: "z3_optimize_error",
-        message: error instanceof Error ? error.message : String(error),
-      };
+    const domain = request?.problem?.domain;
+    if (domain === ALLOCATOR_DOMAIN) return solveGeneric(request.problem);
+    if (domain === ACTOR_DOMAIN || request?.problem?.data?.contract === RUNTIME_DECISION_CONTRACT) {
+      return actor.solve(request);
     }
+    return { status: "deferred", reason: "constraint_domain_unsupported" };
   }
 
   return {
     solve,
-    kind: "z3-real",
-    capabilities: {
-      domains: ["actor_action_selection"],
-      deterministic: true,
-    },
+    kind: "hybrid-constraint",
+    capabilities: { domains: [ACTOR_DOMAIN, ALLOCATOR_DOMAIN], deterministic: true },
   };
+}
+
+/** @deprecated Compatibility alias for AK_SOLVER_ENGINE=z3-real call sites. */
+export function createRealZ3SolverAdapter(options = {}) {
+  return createHybridConstraintSolverAdapter(options);
 }
