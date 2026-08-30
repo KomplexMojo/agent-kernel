@@ -1245,7 +1245,7 @@ function runRemoteExec(options) {
 
 async function runContentGen(options) {
   const { loadScenarioCatalog } = require('./lib/ak-scenarios');
-  const { classifyExecutionOutcome, runScenario , authoringPolicy } = require('./lib/ak-runner');
+  const { classifyExecutionOutcome, classifyFailureClass, runScenario, authoringPolicy } = require('./lib/ak-runner');
   const { aggregateContentGenResults, scoreRun, writeContentResult, writeContentSummary } = require('./lib/ak-compare');
   const { executeContentGenMatrix } = require('./lib/ak-matrix');
   const { CollapseError, resolveBreaker } = require('./lib/collapse-breaker');
@@ -1429,11 +1429,16 @@ async function runContentGen(options) {
             runOutDir, runId, options.timeoutMs, configuration.settings
           );
         } catch (error) {
+          // A genuinely unexpected throw from runScenario itself (not the LLM-request path, which
+          // it now catches and retries internally) -- an unmodeled failure, so it stays classified
+          // as infrastructure rather than silently assumed retriable.
           runResult = {
             toolCallProduced: false,
             toolArgs: null,
             llmMs: 0,
             llmError: error.message,
+            llmErrorIsTransport: false,
+            llmRetries: 0,
             execResult: null,
             outDir: null
           };
@@ -1447,6 +1452,7 @@ async function runContentGen(options) {
           toolArgs: runResult.toolArgs || null,
           llmMs: runResult.llmMs,
           llmError: runResult.llmError || null,
+          llmRetries: runResult.llmRetries || 0,
           execSucceeded: runResult.execResult?.succeeded || false,
           execExitCode: runResult.execResult?.exitCode ?? null,
           execMs: runResult.execResult?.execMs || null,
@@ -1456,7 +1462,7 @@ async function runContentGen(options) {
           scoreMax: scoreResult.max,
           scoreBreakdown: scoreResult.breakdown,
           executionOutcome,
-          failureClass: executionOutcome === 'infrastructure_error' ? 'infrastructure' : null
+          failureClass: classifyFailureClass(executionOutcome, runResult)
         };
       },
       onRecord: async (record, records) => {

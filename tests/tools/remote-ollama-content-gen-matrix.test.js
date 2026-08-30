@@ -14,7 +14,7 @@ const {
   createFixtureAttemptWriter,
   executeContentGenMatrix,
 } = require("../../tools/remote-ollama-control/scripts/lib/ak-matrix");
-const { classifyExecutionOutcome } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
+const { classifyExecutionOutcome, classifyFailureClass } = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
 const {
   combineBenchmarkQualification,
   createGeneratedBuildResolver,
@@ -192,6 +192,60 @@ test("transport errors are infrastructure failures and abort without synthetic m
   }), /infrastructure failure.*socket hang up/i);
   assert.equal(attempts, 1);
   assert.equal(records.length, 1, "the triggering infrastructure record is retained before abort");
+});
+
+// M5 (coding-issues-affecting-benchmarking.md): a transport-level LLM failure -- Ollama itself
+// answered with an HTTP error status, its own tool-call parser choking on one generation -- is a
+// bad sample, not a broken rig. runScenario already retries it once; classifyFailureClass decides
+// whether the RESULT still trips the collapse breaker, independent of how many retries happened.
+test("classifyFailureClass: transport-level LLM failures do not trip the collapse breaker", () => {
+  assert.equal(
+    classifyFailureClass("infrastructure_error", { llmErrorIsTransport: true }),
+    null,
+    "Ollama's own parser choking on one generation is a bad sample, not a broken rig",
+  );
+  assert.equal(
+    classifyFailureClass("infrastructure_error", { llmErrorIsTransport: false }),
+    "infrastructure",
+    "no response at all (connection refused, DNS, timeout) is still the collapse breaker's business",
+  );
+  assert.equal(
+    classifyFailureClass("infrastructure_error", {}),
+    "infrastructure",
+    "an unset llmErrorIsTransport must default to genuine infrastructure, not silently downgrade",
+  );
+  assert.equal(
+    classifyFailureClass("success", { llmErrorIsTransport: false }),
+    null,
+    "a non-infrastructure outcome is never reclassified regardless of llmErrorIsTransport",
+  );
+});
+
+test("a transport-level LLM failure does not abort the run through executeContentGenMatrix", async () => {
+  let attempts = 0;
+  const records = await executeContentGenMatrix({
+    matrix: { ...MATRIX, configurations: [CONFIGURATIONS[0]] },
+    scenarios: SCENARIOS,
+    runAttempt: async () => {
+      attempts += 1;
+      const runResult = { llmErrorIsTransport: true };
+      const executionOutcome = "infrastructure_error";
+      return {
+        toolCallProduced: false,
+        execSucceeded: false,
+        executionOutcome,
+        failureClass: classifyFailureClass(executionOutcome, runResult),
+        llmError: "HTTP 500 from .../v1/chat/completions: XML syntax error on line 42",
+        llmRetries: 1,
+        score: 0,
+      };
+    },
+    onRecord: () => {},
+  });
+
+  assert.equal(attempts, SCENARIOS.length, "the run must continue past a transport-class failure, not abort at the first one");
+  assert.ok(records.every((r) => r.failureClass === null), "no record should trip the collapse breaker");
+  assert.ok(records.some((r) => r.llmRetries === 1), "the retry count must survive into the record");
 });
 
 function passingExecutionSchedule() {

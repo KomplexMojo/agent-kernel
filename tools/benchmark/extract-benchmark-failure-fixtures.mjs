@@ -100,7 +100,7 @@ const DISPOSITIONS = [
   { disposition: "model-error", note: "resource affinity payload missing required mana field." },
   { disposition: "model-error", note: "pending M4: spatial placement (resource) vs model over-asking, not yet determined." },
   { disposition: "model-error", note: "warden affinity kind \"pull\" is a hazard-expression verb, not a valid affinity kind -- model confused the two vocabularies." },
-  { disposition: "not-replayable", note: "M5's target: toolArgs is null -- Ollama's tool-call parser failed before any args existed. Out of scope for the normalizeToolArgs->buildArgv->create path." },
+  { disposition: "not-replayable", note: "M5 (landed): toolArgs is null -- Ollama's tool-call parser failed before any args existed. Out of scope for the normalizeToolArgs->buildArgv->create path, so this fixture stays not-replayable, but runScenario now retries exactly this class of failure once (see tests/tools/remote-ollama-transport-retry.test.js) and no longer aborts the run if the retry also fails." },
   { disposition: "model-error", note: "unexpected but correct: allocator enforcing the hazard pool cap (variant deniedLines)." },
   { disposition: "model-error", note: "scenario expected a denial; the CLI's pre-allocator minimum-spend check fired instead (variant)." },
   { disposition: "model-error", note: "room field \"description\" is not part of the room schema -- model invented it." },

@@ -1,17 +1,21 @@
 # Coding issues affecting benchmarking
 
-**Status (2026-08-30):** M0, M1, M2, M3, M4 complete and committed. M5 remains. **Audience:** an
-agent with no memory of the session that produced it — read `## Findings` at the end of this file
-before doing anything else; it supersedes parts of this plan (notably §"Do" step 3 in the original
-M3, which guessed wrong about `dungeonAffinity`).
+**Status (2026-08-30):** All five milestones (M0–M5) complete and committed. **One item remains
+genuinely open** — not a milestone, a gap the plan itself never scoped (see `## All five milestones
+complete` at the end of `## Findings`). **Audience:** an agent with no memory of the session that
+produced it — read `## Findings` at the end of this file before doing anything else; it supersedes
+parts of this plan (notably §"Do" step 3 in the original M3, which guessed wrong about
+`dungeonAffinity`).
 **Source of evidence:** benchmark run `2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52`, 800 attempts,
 six configurations, published to the `benchmark-results` branch as `latest.json`.
 
 ## ⏭️ START HERE for the next session
 
 - **Branch:** `claude/fix-coding-issues-affecting-benchmarking`, worktree
-  `.claude/worktrees/fix-coding-issues-affecting-benchmarking/`. All work so far is committed there
-  and pushed to `origin` (confirm with `git log --oneline -10` and `git status -sb`). No PR open yet.
+  `.claude/worktrees/fix-coding-issues-affecting-benchmarking/`. All work is committed there and
+  pushed to `origin` (confirm with `git log --oneline -10` and `git status -sb`). No PR open yet —
+  opening one, and deciding whether the sibling plan-only branch needs any reconciliation, is the
+  natural next action rather than more milestone work.
 - **Sibling branch** `claude/coding-issues-affecting-benchmarking` holds only this file's original
   three commits (the plan itself) — it is NOT where the milestone work landed; do not confuse the
   two or try to merge one into the other without checking which has the milestone commits.
@@ -22,17 +26,20 @@ six configurations, published to the `benchmark-results` branch as `latest.json`
   correctly-rejected model errors after reading the actual code), M4 (verdict: floor-tile budget and
   spatial placement are BOTH model under-specification of `floorTile.count`, not harness limits —
   confirmed by replaying every failing request with only that field raised; landed refusal-message
-  fixes surfacing the actual deficit; explicitly did NOT land an unmeasured schema-description fix,
-  per §"Do" step 3's A/B-measurement requirement and the price-brief precedent it cites).
-- **Next:** M5 (infrastructure retry — a parser-level 500 shouldn't abort a 14-hour run). The only
-  milestone left; see `## 2. Milestones` → `### M5` for its spec.
-- **Before touching M5:** re-run `pnpm run test` and `pnpm run typecheck` to confirm the baseline is
-  still 444 files / 3461 passed / 207 skipped / 0 type errors — if it's not, something moved
-  underneath this branch and needs reconciling before new work lands on top of it.
-- **Local Ollama is available on this Mac** (`scripts/benchmark-preflight.sh` passes, `qwen3.5:9b`
-  present) if anyone wants to run the A/B measurement M4 declined to run unilaterally (a
-  `floorTile.count` schema description) — not required for M5, noted here only so it isn't
-  rediscovered from scratch.
+  fixes surfacing the actual deficit), M5 (a transport-level LLM failure — Ollama's own tool-call
+  parser choking on one generation — is retried once and no longer aborts the run; a genuine
+  network-level failure still does).
+- **Not done, deliberately:** two schema-description improvements (M3's `hazard.mana`, M4's
+  `floorTile.count`) were proposed but not landed — both require A/B measurement this plan's own
+  rules demand before a prompt/schema change ships, citing the price-brief precedent. Local Ollama
+  is available on this Mac (`scripts/benchmark-preflight.sh` passes, `qwen3.5:9b` present) if either
+  is picked up later.
+- **The one open disposition gap:** 19 `conflicting_requirements` failures were never assigned
+  harness-defect or model-weakness — M2 only answered "is this a regression" (no), not "is this
+  correct." See the closing section of `## Findings` for the full account.
+- **Before starting any new work:** re-run `pnpm run test` and `pnpm run typecheck` to confirm the
+  baseline is still 445 files / 3466 passed / 207 skipped / 0 type errors — if it's not, something
+  moved underneath this branch and needs reconciling first.
 - **Gate baseline in `## 4. Definition of done` (441/3411) is stale** — it predates M0. Trust the
   numbers in `## Findings` instead; `## 4` is the ORIGINAL milestone spec and is intentionally left
   unedited so it stays a clean record of what was asked for.
@@ -590,3 +597,66 @@ bisection: a new, unscoped measurement task for the maintainer to authorize, not
 unilaterally as part of this milestone's acceptance.
 
 **Gates:** 444 files / 3461 passed / 207 skipped. Typecheck: 0.
+
+### M5 — a bad sample no longer voids a run; a broken rig still does (2026-08-30)
+
+**Root cause:** `classifyExecutionOutcome` maps ANY `llmError` — from a genuine network failure
+(connection refused, DNS, timeout — no response at all) to a transport-level HTTP error response
+(Ollama itself answered, its own tool-call XML parser choked on one generation) — uniformly to
+`'infrastructure_error'`, which `executeContentGenMatrix` unconditionally aborts the whole run on.
+`requestJson` (`ollama.js`) already sets `error.statusCode` when a response was actually received;
+that signal existed and was simply never consulted before this milestone.
+
+**Fixed:**
+- `runScenario` (`ak-runner.js`) now retries a transport-level failure once
+  (`MAX_TRANSPORT_RETRIES = 1`) before giving up — a genuine network-level failure (no
+  `statusCode`) is never retried, since retrying an unreachable endpoint just burns the same
+  timeout twice. Returns `llmErrorIsTransport` and `llmRetries` alongside the existing fields.
+- New `classifyFailureClass(executionOutcome, runResult)` (same file, next to
+  `classifyExecutionOutcome`, exported): an `'infrastructure_error'` outcome only becomes
+  `failureClass: 'infrastructure'` (the field `executeContentGenMatrix` actually aborts on) when
+  the underlying failure was network-level. A transport-level failure, even after the retry is
+  exhausted, stays `failureClass: null` — the run continues to the next scenario. Extracted from an
+  inline ternary in `remote-ollama-mac.js` specifically so this decision has its own test, rather
+  than living unverified inside a 1400-line script.
+- `remote-ollama-mac.js`'s `runAttempt` now calls `classifyFailureClass` and threads `llmRetries`
+  into the published per-attempt record.
+
+**Not a fix, a correction made while writing the test:** my first test attempt used the wrong Ollama
+error-body shape (`{message: ...}` flat) and got a confusing failure. The real recorded error
+(`bf-031`) round-trips through `requestJson`'s existing `parsed.error` extraction correctly — Ollama's
+`/v1/chat/completions` is OpenAI-compatible, so errors nest as `{error: {message, type, param,
+code}}`. `requestJson` itself needed no change; my test data did.
+
+**Tests:** `tests/tools/remote-ollama-transport-retry.test.js` (new) — a real local HTTP server
+(same pattern as the existing `remote-ollama-error-detail.test.js`), three cases: retry recovers,
+retry exhausts without becoming a network failure, a dead endpoint is never retried.
+`tests/tools/remote-ollama-content-gen-matrix.test.js` (extended) — `classifyFailureClass` unit
+cases plus an `executeContentGenMatrix` integration case proving a transport-class failure record
+does not abort the run. **Perturbation:** reverted both source files via `git stash` — all 5 new
+tests failed, the 3 pre-existing tests in the same files were unaffected; restored, all pass.
+
+**bf-031** (the recorded infrastructure_error fixture from M0) stays `not-replayable` — `toolArgs`
+is still `null`, so there's nothing to feed through the CLI-replay corpus; its note now points at
+this milestone's tests as the actual verification, since M0's replay mechanism doesn't reach this
+code path at all (it's a request-layer fix, not a CLI-layer one).
+
+**Gates:** 445 files / 3466 passed / 207 skipped. Typecheck: 0.
+
+---
+
+## All five milestones complete — one item still genuinely open
+
+M0 through M5 are all done. `## 4. Definition of done`'s first bullet is **not fully satisfied**:
+19 of 173 failures (`conflicting requirements`, the actor-viability-floor rejection) remain without
+a harness-defect/model-weakness disposition. M2 answered a narrower question — "did the floor make
+this WORSE" (no) — not "is rejecting these specific requests correct." No milestone in this plan was
+scoped to answer that deeper question, and `## 3. Explicitly out of scope` doesn't name it either;
+it fell through a genuine gap in the plan's own design rather than being deliberately deferred. Left
+open for the maintainer to decide whether it's worth a follow-up milestone, rather than guessed at
+here without evidence.
+
+Two other items were deliberately proposed but not built, both requiring A/B measurement this plan's
+own §"Do" steps require before landing: a `floorTile.count` schema description (M4), and a
+`hazard.mana` `one-time:<amount>` example (M3). Local Ollama is available on this Mac if either is
+picked up later.

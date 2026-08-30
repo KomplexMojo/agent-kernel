@@ -11,5 +11,5 @@
   "observedError": "HTTP 500 from http://127.0.0.1:21434/v1/chat/completions: {\"message\":\"XML syntax error on line 42: element <parameter> closed by </function>\",\"type\":\"api_error\",\"param\":null,\"code\":null}",
   "occurrences": 1,
   "disposition": "not-replayable",
-  "dispositionNote": "M5's target: toolArgs is null -- Ollama's tool-call parser failed before any args existed. Out of scope for the normalizeToolArgs->buildArgv->create path."
+  "dispositionNote": "M5 (landed): toolArgs is null -- Ollama's tool-call parser failed before any args existed. Out of scope for the normalizeToolArgs->buildArgv->create path, so this fixture stays not-replayable, but runScenario now retries exactly this class of failure once (see tests/tools/remote-ollama-transport-retry.test.js) and no longer aborts the run if the retry also fails."
 }
