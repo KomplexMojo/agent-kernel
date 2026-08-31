@@ -188,6 +188,41 @@ X, this wants Y" primes the next attempt toward the same confusion it's naming.
 **Acceptance:** `pnpm run test` and `pnpm run typecheck` green after each batch. No behavior change
 — these are diagnostic-only, like M4's placement/floor-tile fixes, so no A/B measurement is required.
 
+**Batch 1 done (2026-08-31), `orchestrate-build.js` — all 14 `detail-dropped` sites plus the bonus
+`formatBudgetReceiptDenial` cap fix, one commit.** Threaded existing local data into every message,
+matching the M4 pattern exactly:
+- 11 actor-placement sites (both `normalizeActorPositions` and `normalizeActorPositionsLegacy`) now
+  report the same candidates/requested/index-style detail M4 already gave hazard/resource placement.
+- 3 misc build guards now report the actual value received or which of two required fields is
+  missing.
+- Bonus: `formatBudgetReceiptDenial()`'s `deniedLines.slice(0, 5)` now says `(+N more)` when it caps.
+
+**Only 5 of the 15 fixes got a genuine, non-contrived reproduction — and that's an honest number,
+not a shortfall to paper over.** Two actor-placement cases (too many delvers for the entry room, too
+many wardens for the room) and the denied-lines cap all reproduce through a real `ak create` call,
+perturbation-verified (`git stash` the fix, watch all 5 tests fail, restore). Two of the three misc
+guards are tested directly against `orchestrateBuild` with a hand-built spec, since `ak create`'s own
+parsing can never produce the malformed state they guard against (`hasActors` is always true;
+`agentAuthoringCommand` always constructs an array). **The third misc guard and the remaining 9
+actor-placement sites are not independently tested at all**, for two different reasons worth keeping
+distinct:
+- The `actorsInput.actors` guard turned out to be doubly defensive: attempting to trigger it revealed
+  `mapBuildSpecToArtifacts`'s own schema validation already rejects a non-array
+  `configurator.inputs.actors` before this guard's check ever runs, for any spec built through normal
+  validation. Confirmed by trying — got `"BuildSpec validation failed: configurator.inputs.actors:
+  expected array"` instead of this fix's message.
+- The other 9 (`no walkable tiles` / `spawn not walkable` / `exit not walkable` /
+  `unresolved strategic placement`, in both the current and Legacy placement functions) are
+  defensive backstops behind the carving algorithm's own guarantee (a minimum walkable interior per
+  room, spawn/exit chosen from the walkable set) — the same shape as
+  `assertJudgementBudget`'s "must never fire" comment found during SM1. No `ak create` input reaches
+  them without that upstream guarantee already having broken.
+
+All 15 fixes are kept regardless — they're low-risk (pure message formatting, no control-flow
+change) and verified by the full suite staying green (446 files / 3471 passed, +5 tests from
+baseline, unaffected otherwise). But "kept and verified-safe" is a weaker claim than "tested", and
+this plan says so rather than blurring the two.
+
 ### SM3 — Verify against the benchmark corpus and a fresh local run
 
 **Do:** replay `tests/fixtures/benchmark-failures/` — dispositions shouldn't change (these are
