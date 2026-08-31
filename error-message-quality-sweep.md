@@ -7,6 +7,17 @@ produced it.
 [PR #132](https://github.com/KomplexMojo/agent-kernel/pull/132)) and a follow-up 17-scenario local
 benchmark run (`tools/remote-ollama-control/results/2026-08-31T16-03-25-552Z-content-gen/`).
 
+**Where this sits (maintainer, 2026-08-31):** two phases, in this order — **first deterministic
+accuracy, then resilience.** The benchmark stays one-shot, deliberately: a single try per scenario is
+what makes a harness bug obvious (the same request fails the same way every time until the code is
+fixed), and a retry-until-success loop would let a model paper over a real gap by trial and error
+instead of surfacing it. This plan is entirely phase one — it makes the error each one-shot failure
+produces comprehensive enough to keep feeding the existing loop (benchmark discovers → M0-style
+fixture harvest → deterministic test → fix the harness). Phase two — a **resilience** layer that,
+only once a failure is *confirmed* pure model weakness (not fixable in the harness), retries the same
+request against a different model using the failure detail this plan captures — is out of scope here
+and not designed yet; see `## Explicitly out of scope`.
+
 ---
 
 ## The governing principle: structured detail, not string collapse
@@ -128,3 +139,10 @@ not-replayable split. No regressions.
   direction raised alongside this plan (capture the structured `{code, field, detail}` shape, not
   the stringified message, so this bug class can't recur by construction). Worth its own design
   discussion once SM0/SM1 show how many sites would actually feed it.
+- **A cross-model resilience/fallback layer** (maintainer, 2026-08-31) — for a failure already
+  confirmed pure model weakness (harness-fix avenue exhausted, disposition `model-error` with no
+  further fix possible), retry the same request against a *different* model, feeding it the failure
+  detail this plan captures. Explicitly phase two: does not start until phase one (this plan) is
+  done and the harness-fixable failures in a given batch are actually fixed, not merely identified.
+  The one-shot benchmark methodology itself does not change — this is a production/deployment-facing
+  recovery path, not a benchmark retry loop, and it is not designed here beyond this pointer.
