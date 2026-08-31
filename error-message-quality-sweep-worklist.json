@@ -1,9 +1,9 @@
 {
-  "total": 136,
+  "total": 131,
   "counts": {
     "has-interpolation": 105,
-    "no-interpolation": 20,
-    "needs-manual-read": 11
+    "needs-manual-read": 11,
+    "no-interpolation": 15
   },
   "sites": [
     {
@@ -125,14 +125,6 @@
       "line": 757,
       "disposition": "has-interpolation",
       "message": "room[${roomIndex}] size must be one of: ${ROOM_CARD_SIZE_IDS.join(\", \")}."
-    },
-    {
-      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
-      "line": 774,
-      "disposition": "no-interpolation",
-      "message": "room-plan requires at least one --room entry.",
-      "sm1Disposition": "detail-dropped",
-      "sm1Note": "parseRoomSpecs is shared by roomPlanCommand AND agentAuthoringCommand (ak create), but hardcodes \"room-plan\" -- a model reaching this through create never called room-plan. Same pattern at 1106/1337/1428/1519."
     },
     {
       "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
@@ -298,14 +290,6 @@
     },
     {
       "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
-      "line": 1106,
-      "disposition": "no-interpolation",
-      "message": "hazard-plan requires at least one --hazard entry.",
-      "sm1Disposition": "detail-dropped",
-      "sm1Note": "parseHazardSpecs: same naming-leak pattern as 774 (\"hazard-plan\")."
-    },
-    {
-      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
       "line": 1160,
       "disposition": "has-interpolation",
       "message": "resource[${resourceIndex}] affinity must be one of: ${[...RESOURCE_ALLOWED_AFFINITY_KINDS].join(\", \")}."
@@ -456,14 +440,6 @@
     },
     {
       "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
-      "line": 1337,
-      "disposition": "no-interpolation",
-      "message": "resource-plan requires at least one --resource entry.",
-      "sm1Disposition": "detail-dropped",
-      "sm1Note": "parseResourceSpecs: same naming-leak pattern as 774 (\"resource-plan\")."
-    },
-    {
-      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
       "line": 1348,
       "disposition": "has-interpolation",
       "message": "delver[${delverIndex}] requires a non-empty spec."
@@ -503,14 +479,6 @@
       "line": 1385,
       "disposition": "has-interpolation",
       "message": "delver[${delverIndex}] motivation may only be specified once."
-    },
-    {
-      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
-      "line": 1428,
-      "disposition": "no-interpolation",
-      "message": "delver-plan requires at least one --delver entry.",
-      "sm1Disposition": "detail-dropped",
-      "sm1Note": "parseDelverSpecs: same naming-leak pattern as 774 (\"delver-plan\")."
     },
     {
       "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
@@ -565,14 +533,6 @@
       "line": 1485,
       "disposition": "has-interpolation",
       "message": "warden[${wardenIndex}] motivation must be one of: ${ALLOWED_MOTIVATIONS.join(\", \")}."
-    },
-    {
-      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
-      "line": 1519,
-      "disposition": "no-interpolation",
-      "message": "warden-plan requires at least one --warden entry.",
-      "sm1Disposition": "detail-dropped",
-      "sm1Note": "parseWardenSpecs: same naming-leak pattern as 774 (\"warden-plan\")."
     },
     {
       "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
@@ -887,8 +847,8 @@
   ],
   "sm1": {
     "countsAtSm1": {
-      "detail-dropped": 19,
-      "fine-as-is": 12
+      "fine-as-is": 12,
+      "detail-dropped": 14
     },
     "note": "sm1Disposition/sm1Note only present on sites SM0 flagged (no-interpolation or needs-manual-read); has-interpolation sites were not re-triaged."
   }

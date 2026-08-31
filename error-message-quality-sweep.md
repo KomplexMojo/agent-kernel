@@ -61,19 +61,16 @@ model authoring through `ak_create` can actually trigger:
 
 | area | file(s) | throw sites |
 |---|---|---|
-| entity-spec parsers + authoring command body | `ak-impl.mjs` (named-function scan: `parseRoomSpec` through `parseWardenSpecs`, `parseOptimizationGoalEntry`/`List`, `parseActorVitals`, `parseActorAffinities`, `agentAuthoringCommand`, `createCommand`) | 97 |
+| entity-spec parsers + authoring command body | `ak-impl.mjs` (named-function scan: the singular `parseXSpec` family actually called from `agentAuthoringCommand`/`createCommand`, plus `parseOptimizationGoalEntry`/`List`, `parseActorVitals`, `parseActorAffinities`) | 92 |
 | build/level-gen orchestration | `orchestrate-build.js` | 24 |
 | Configurator persona | `personas/configurator/*.js` (6 files) | 12 |
 | Allocator persona | `personas/allocator/*.js` (2 files) | 3 |
-| **total in scope** | | **136** |
+| **total in scope** | | **131** |
 
-(Corrected by SM0's committed scan, which bounds each named function by brace-depth rather than a
-hand-counted line range — the original 141 estimate came from a cruder `grep -c` over an
-approximate line span, which over-counted by including code between the named functions that isn't
-actually part of them.)
+(Corrected twice now — see SM0 and the SM2 correction below for what each fix was.)
 
 This is where M3/M4's bugs lived, and it is the only layer whose messages a model (or a future
-re-prompt loop) would ever see. **Do not expand scope to the other ~332 sites without new evidence
+re-prompt loop) would ever see. **Do not expand scope to the other ~337 sites without new evidence
 that a model can reach them through `ak_create`.**
 
 ---
@@ -96,18 +93,13 @@ mistook the parameter list's brace for the body's, truncating the scan and silen
 (111 sites instead of the real 136). Fixed by matching the parameter list's parens first, then
 looking for the body's opening brace only after that closes.
 
-**Result:** 136 sites, all classified, none dropped — `error-message-quality-sweep-worklist.json`.
+**Result at SM0 time:** 136 sites, all classified, none dropped — `error-message-quality-sweep-worklist.json`.
 105 `has-interpolation`, 20 `no-interpolation`, 11 `needs-manual-read` (multi-line or
 helper-constructed messages the static scan can't safely classify — SM1 reads these directly, they
 are not excluded).
 
-**Two findings already visible from the worklist, ahead of SM1's full triage:**
-- **A naming leak, not a dropped-detail bug:** `parseRoomSpecs`/`parseHazardSpecs`/
-  `parseResourceSpecs`/`parseDelverSpecs`/`parseWardenSpecs` are shared helpers reachable from both
-  their own standalone `X-plan` command AND `ak create` — but each one's empty-list message hardcodes
-  the standalone command's name (`"room-plan requires at least one --room entry."`). A model that
-  hit this through `create` never called `room-plan`. Five sites, one shared pattern, likely one
-  clean SM2 batch.
+**One finding already visible from the worklist, ahead of SM1's full triage** (a second candidate
+finding here turned out to be a scoping mistake — corrected below rather than silently dropped):
 - **A whole untouched parallel family:** `orchestrate-build.js` has ~11 `"configurator inputs could
   not place actors: ..."` messages (`no walkable tiles`, `spawn not walkable`, `insufficient
   entry-room tiles`, `insufficient room tiles for wardens`, `unresolved strategic placement`, …) in
@@ -131,10 +123,13 @@ are not excluded).
 **Acceptance:** every flagged site has a disposition and, for `detail-dropped`, a one-line note of
 what's being dropped. No bucket labelled `other`.
 
-**Done:** all 31 flagged sites read and classified (`error-message-quality-sweep-worklist.json`'s
+**Done:** every flagged site read and classified (`error-message-quality-sweep-worklist.json`'s
 `sm1Disposition`/`sm1Note` fields; a hard check refuses to write the file unless every flagged site
-got one). **19 `detail-dropped`, 12 `fine-as-is`, 0 `needs-new-computation`** — every dropped-detail
-case had the missing value already sitting in local scope; none needed a new calculation.
+got one). At first pass: 19 `detail-dropped`, 12 `fine-as-is`, 0 `needs-new-computation` across 31
+sites. **Corrected during SM2** (see below) to **14 `detail-dropped`, 12 `fine-as-is`** across 26
+sites, after 5 of the 19 turned out to be a scope mistake, not a real finding. Every remaining
+dropped-detail case had the missing value already sitting in local scope; none needed a new
+calculation.
 
 **The `fine-as-is` sites cluster into two honest reasons**, worth naming so SM2 doesn't second-guess
 them later: (a) several are module-load-time assertions on hardcoded constants
@@ -144,19 +139,30 @@ model's `ak_create` call, not merely "unlikely"; (b) the rest already interpolat
 worth saying (`requireUnitCost`, `assertUniqueActorIds`, `formatBudgetReceiptDenial`,
 `assignPositionedLayoutObjects` — M4's own fix).
 
-**The `detail-dropped` bucket has three shapes, giving SM2 its natural batches:**
+**Correction found at the start of SM2, before any fix landed:** the five sites originally called a
+"naming leak" (`parseRoomSpecs`/`parseHazardSpecs`/`parseResourceSpecs`/`parseDelverSpecs`/
+`parseWardenSpecs`, each hardcoding a standalone `X-plan` command's name) turned out to be **not
+reachable from `ak create` at all**. Tracing actual call sites: `agentAuthoringCommand` parses each
+entity inline via `normalizeList(args.room).map(parseRoomSpec)` etc. — the SINGULAR form, never the
+PLURAL "at least one entry" wrapper. Every plural wrapper's only caller is its own standalone
+command (`parseRoomSpecs` → only `roomPlanCommand`, confirmed by grep, one call site each). Two of
+the plural wrappers (`parseFloorTileSpecs`, `parsePlacedHazardSpecs`) have *zero* call sites anywhere
+— dead code, a different concern entirely. SM0's scope list had assumed "plural wrapper" implied
+"also used by create" from naming symmetry with the singular forms, without verifying the call
+graph — exactly the kind of assumption this plan itself warns against. Corrected: removed the 7
+plural functions from the survey tool's scope, re-ran it (131 sites, not 136), redid SM1's
+disposition count (14 `detail-dropped`, not 19). Not fixing these 5 sites — they're out of scope by
+the plan's own rule, not merely deprioritized.
 
-1. **Naming leak (5 sites, `ak-impl.mjs`)** — `parseRoomSpecs`/`parseHazardSpecs`/
-   `parseResourceSpecs`/`parseDelverSpecs`/`parseWardenSpecs` are shared by their own standalone
-   `X-plan` command and by `ak create`, but each hardcodes the standalone command's name in its
-   empty-list message. A model that hit this through `create` never called `room-plan`.
-2. **Actor placement, the M4 pattern never propagated here (11 sites, `orchestrate-build.js`)** —
+**The remaining `detail-dropped` bucket has two shapes, giving SM2 its real batches:**
+
+1. **Actor placement, the M4 pattern never propagated here (11 sites, `orchestrate-build.js`)** —
    both `normalizeActorPositions` (current) and `normalizeActorPositionsLegacy` have their own
    near-duplicate "could not place actors: ..." family, none of them reporting the
    candidates/requested/index-style detail M4 already added to the hazard/resource placement path
-   (`assignPositionedLayoutObjects`). The single largest batch, and the strongest confirmation the
-   sweep is finding real gaps, not re-describing the three already known.
-3. **Misc build-guard detail (3 sites, `orchestrate-build.js`)** — `hasActors`/`actorsInput.actors`
+   (`assignPositionedLayoutObjects`). The largest batch, and the strongest confirmation the sweep
+   finds real gaps, not just re-describing the three already known.
+2. **Misc build-guard detail (3 sites, `orchestrate-build.js`)** — `hasActors`/`actorsInput.actors`
    type guards that could report what shape was actually received, and an XOR check
    (`affinityPresets`/`affinityLoadouts`) that already knows which one is missing but says "requires
    both" either way.

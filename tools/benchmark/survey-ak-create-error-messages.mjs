@@ -32,12 +32,19 @@ const SCOPE = [
     functions: [
       "parseOptimizationPriority", "parseOptimizationGoalEntry", "parseOptimizationGoalList",
       "parsePositiveIntStrict", "parseNonNegativeIntStrict", "parseActorAffinityTuple",
-      "parseActorAffinities", "parseActorVitals", "parseRoomSpec", "parseRoomSpecs",
-      "parseFloorTileSpec", "parseFloorTileSpecs", "parsePlacedHazardVitals", "parseBooleanStrict",
-      "parsePlacedHazardSpec", "parsePlacedHazardSpecs", "parseHazardVitalSpec", "parseHazardSpec",
-      "parseHazardSpecs", "parseAuthoringHazardSpec", "parseResourceAffinityPayload",
-      "parseResourceSpec", "parseResourceSpecs", "parseDelverSpec", "parseDelverSpecs",
-      "parseWardenSpec", "parseWardenSpecs", "agentAuthoringCommand", "createCommand",
+      "parseActorAffinities", "parseActorVitals", "parseRoomSpec",
+      "parseFloorTileSpec", "parsePlacedHazardVitals", "parseBooleanStrict",
+      "parsePlacedHazardSpec", "parseHazardVitalSpec", "parseHazardSpec",
+      "parseAuthoringHazardSpec", "parseResourceAffinityPayload",
+      "parseResourceSpec", "parseDelverSpec",
+      "parseWardenSpec", "agentAuthoringCommand", "createCommand",
+      // NOT in scope, verified by call-site trace (SM2 correction, 2026-08-31): parseRoomSpecs,
+      // parseHazardSpecs, parseResourceSpecs, parseDelverSpecs, parseWardenSpecs -- the plural
+      // "at least one X entry" wrapper functions -- are called ONLY from their own standalone
+      // X-plan command (roomPlanCommand/hazardPlanCommand/etc.), never from agentAuthoringCommand.
+      // parseFloorTileSpecs and parsePlacedHazardSpecs have zero call sites anywhere (dead code,
+      // a separate concern from this plan). agentAuthoringCommand parses each entity inline via
+      // normalizeList(...).map(parseXSpec), never via the plural wrappers.
     ],
   },
   { file: "packages/runtime/src/build/orchestrate-build.js", wholeFile: true },
