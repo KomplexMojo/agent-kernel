@@ -61,32 +61,61 @@ model authoring through `ak_create` can actually trigger:
 
 | area | file(s) | throw sites |
 |---|---|---|
-| entity-spec parsers | `ak-impl.mjs` (`parseRoomSpec` @717 through `parseWardenSpecs` @1514, plus `parseOptimizationGoalEntry`/`List`, `parseActorVitals`, `parseActorAffinities`) | 99 |
-| authoring command body | `ak-impl.mjs` `agentAuthoringCommand` (@4779) / `createCommand` (@5244) | 4 |
+| entity-spec parsers + authoring command body | `ak-impl.mjs` (named-function scan: `parseRoomSpec` through `parseWardenSpecs`, `parseOptimizationGoalEntry`/`List`, `parseActorVitals`, `parseActorAffinities`, `agentAuthoringCommand`, `createCommand`) | 97 |
 | build/level-gen orchestration | `orchestrate-build.js` | 24 |
-| Configurator persona | `personas/configurator/*.js` (6 files) | 11 |
+| Configurator persona | `personas/configurator/*.js` (6 files) | 12 |
 | Allocator persona | `personas/allocator/*.js` (2 files) | 3 |
-| **total in scope** | | **141** |
+| **total in scope** | | **136** |
+
+(Corrected by SM0's committed scan, which bounds each named function by brace-depth rather than a
+hand-counted line range — the original 141 estimate came from a cruder `grep -c` over an
+approximate line span, which over-counted by including code between the named functions that isn't
+actually part of them.)
 
 This is where M3/M4's bugs lived, and it is the only layer whose messages a model (or a future
-re-prompt loop) would ever see. **Do not expand scope to the other ~326 sites without new evidence
+re-prompt loop) would ever see. **Do not expand scope to the other ~332 sites without new evidence
 that a model can reach them through `ak_create`.**
 
 ---
 
 ## Milestones
 
-### SM0 — Mechanically list the 141 sites and flag zero-interpolation ones (S)
+### SM0 — Mechanically list the sites and flag zero-interpolation ones (S — complete, 2026-08-31)
 
-**Do:** extend the survey script used to scope this plan (currently a scratch file, not committed)
-into a small, committed tool under `tools/` that walks the five file/function ranges above, extracts
-each `throw new Error(...)` site (file:line, message literal), and flags which have zero `${...}`
-interpolation. Output a structured worklist (JSON), not prose.
+**Done:** `tools/benchmark/survey-ak-create-error-messages.mjs`. Scope is defined by function NAME,
+not line range (a lesson from this repo's own history of drift-prone second homes for a value) —
+each named function's body is bounded by a brace-depth scan from its declaration, string/template/
+comment-aware, so the tool stays correct as the file grows. Whole-file scan for
+`orchestrate-build.js` and the Configurator/Allocator persona files, where every throw is already on
+the `ak_create` path.
 
-**Acceptance:** every one of the 141 sites appears exactly once in the worklist, tagged
-`has-interpolation` or `no-interpolation`. No silent exclusions — if a throw site's message can't be
-statically extracted (multi-line construction, computed via helper), it goes in the worklist as
-`needs-manual-read`, not dropped.
+**Bug found and fixed while building it:** the first version located a function's body by finding
+the first `{` after its name — which breaks for `parseDelverSpec`/`parseWardenSpec`, whose parameter
+lists have their OWN `{` from a destructured default (`{ defaultAffinity = ... } = {}`). That
+mistook the parameter list's brace for the body's, truncating the scan and silently undercounting
+(111 sites instead of the real 136). Fixed by matching the parameter list's parens first, then
+looking for the body's opening brace only after that closes.
+
+**Result:** 136 sites, all classified, none dropped — `error-message-quality-sweep-worklist.json`.
+105 `has-interpolation`, 20 `no-interpolation`, 11 `needs-manual-read` (multi-line or
+helper-constructed messages the static scan can't safely classify — SM1 reads these directly, they
+are not excluded).
+
+**Two findings already visible from the worklist, ahead of SM1's full triage:**
+- **A naming leak, not a dropped-detail bug:** `parseRoomSpecs`/`parseHazardSpecs`/
+  `parseResourceSpecs`/`parseDelverSpecs`/`parseWardenSpecs` are shared helpers reachable from both
+  their own standalone `X-plan` command AND `ak create` — but each one's empty-list message hardcodes
+  the standalone command's name (`"room-plan requires at least one --room entry."`). A model that
+  hit this through `create` never called `room-plan`. Five sites, one shared pattern, likely one
+  clean SM2 batch.
+- **A whole untouched parallel family:** `orchestrate-build.js` has ~11 `"configurator inputs could
+  not place actors: ..."` messages (`no walkable tiles`, `spawn not walkable`, `insufficient
+  entry-room tiles`, `insufficient room tiles for wardens`, `unresolved strategic placement`, …) in
+  what looks like a SEPARATE actor-placement algorithm (`normalizeActorPositions`) from the
+  hazard/resource placement M4 already fixed (`assignPositionedLayoutObjects`). None of these were
+  touched by M4 — the fix landed for hazards/resources and never propagated to actors. This is the
+  single strongest piece of evidence yet that the sweep finds real, unfixed instances of the same bug
+  class, not just re-confirming the three already known.
 
 ### SM1 — Triage: for each no-interpolation / needs-manual-read site, is there dropped detail? (M)
 
