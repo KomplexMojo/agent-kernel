@@ -1,7 +1,8 @@
 # Error message quality sweep
 
-**Status:** plan, not yet started. **Audience:** an agent with no memory of the session that
-produced it.
+**Status (2026-08-31):** all four milestones (SM0–SM3) complete. Phase one of the two-phase ordering
+below is done; phase two (resilience) has not started, per the maintainer's own ordering.
+**Audience:** an agent with no memory of the session that produced it.
 **Source of evidence:** `coding-issues-affecting-benchmarking.md` (M3/M4, merged as
 [PR #131](https://github.com/KomplexMojo/agent-kernel/pull/131) /
 [PR #132](https://github.com/KomplexMojo/agent-kernel/pull/132)) and a follow-up 17-scenario local
@@ -225,7 +226,7 @@ change) and verified by the full suite staying green (446 files / 3471 passed, +
 baseline, unaffected otherwise). But "kept and verified-safe" is a weaker claim than "tested", and
 this plan says so rather than blurring the two.
 
-### SM3 — Verify against the benchmark corpus and a fresh local run
+### SM3 — Verify against the benchmark corpus and a fresh local run (2026-08-31)
 
 **Do:** replay `tests/fixtures/benchmark-failures/` — dispositions shouldn't change (these are
 diagnostic fixes, not behavior fixes), but every replayed error should now carry more detail. Run a
@@ -234,6 +235,34 @@ that failing scenarios' error text is now richer.
 
 **Acceptance:** replay corpus stays green at the same 2 harness-defect / 39 model-error / 2
 not-replayable split. No regressions.
+
+**Corpus replay: confirmed unchanged, as expected.** All 43 fixtures still split exactly 2
+harness-defect / 39 model-error / 2 not-replayable — SM2's fixes are diagnostic-only, so no
+disposition should move, and none did. Worth noting explicitly: **none of the 43 recorded fixtures
+exercise the actor-placement code path SM2 fixed.** The original 173-failure reference run never
+recorded an actor-placement failure — that whole family (11 sites) was invisible to the benchmark
+that produced this corpus and was found only by the systematic sweep, not by replaying recorded
+history. This is exactly the finding this plan opened with, reconfirmed: M4 fixed hazard/resource
+placement because THAT failure showed up in the recorded run; the actor-placement twin sat unfixed
+because nothing had recorded a failure against it yet.
+
+**Fresh local run: 9/9 clean, 0 failures.** Same 9 actor-dense scenarios (9, 13, 20, 22, 24, 45, 50,
+60, 89 — chosen for authoring multiple delvers/wardens, up to `scenario 22`'s declared eleven
+actors), `qwen3.8:27b` (the `mac` profile's own default model, matching the earlier 17-scenario
+run). Average score 77.3/100, every scenario reached `Verdict: pass`, `Exec: ok` — including
+scenario 22's eleven-actor stress test at 70/100.
+
+**Honest reading of a negative result, not a disappointing one:** this run doesn't demonstrate
+richer error text in the wild, because nothing failed to produce error text to examine. That's
+consistent with the corpus-replay finding above (the actor-placement family never showed up in 800
+recorded attempts either) — at this model/configuration, the placement algorithm has enough headroom
+that the specific under-specification pattern M3/M4 found for floor-tile/hazard placement doesn't
+reproduce the same way for actors within a modest 9-scenario sample. The dedicated reproductions in
+`tests/integration/create-actor-placement-refusal-detail.test.js` remain the actual proof the fixes
+work — real `ak create` calls, not mocks, just deliberately constructed rather than naturally
+occurring in this sample. A larger or differently-tiered sample might surface a natural case; not
+run here, matching this plan's own restraint about not inflating a small local debug run into more
+than it is.
 
 ---
 
