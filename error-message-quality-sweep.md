@@ -117,7 +117,7 @@ are not excluded).
   single strongest piece of evidence yet that the sweep finds real, unfixed instances of the same bug
   class, not just re-confirming the three already known.
 
-### SM1 — Triage: for each no-interpolation / needs-manual-read site, is there dropped detail? (M)
+### SM1 — Triage: for each no-interpolation / needs-manual-read site, is there dropped detail? (M — complete, 2026-08-31)
 
 **Do:** read the function body around each flagged site (not just the throw line). Classify:
 - **fine-as-is** — no other computed data exists in scope; the message is already everything there
@@ -130,6 +130,43 @@ are not excluded).
 
 **Acceptance:** every flagged site has a disposition and, for `detail-dropped`, a one-line note of
 what's being dropped. No bucket labelled `other`.
+
+**Done:** all 31 flagged sites read and classified (`error-message-quality-sweep-worklist.json`'s
+`sm1Disposition`/`sm1Note` fields; a hard check refuses to write the file unless every flagged site
+got one). **19 `detail-dropped`, 12 `fine-as-is`, 0 `needs-new-computation`** — every dropped-detail
+case had the missing value already sitting in local scope; none needed a new calculation.
+
+**The `fine-as-is` sites cluster into two honest reasons**, worth naming so SM2 doesn't second-guess
+them later: (a) several are module-load-time assertions on hardcoded constants
+(`affinity-rules.js:710`, `motivation-rules.js:419`) or internal API-contract guards between
+Configurator/Allocator modules (`budget-maximizer.js:113/119`) — genuinely unreachable from a
+model's `ak_create` call, not merely "unlikely"; (b) the rest already interpolate the one thing
+worth saying (`requireUnitCost`, `assertUniqueActorIds`, `formatBudgetReceiptDenial`,
+`assignPositionedLayoutObjects` — M4's own fix).
+
+**The `detail-dropped` bucket has three shapes, giving SM2 its natural batches:**
+
+1. **Naming leak (5 sites, `ak-impl.mjs`)** — `parseRoomSpecs`/`parseHazardSpecs`/
+   `parseResourceSpecs`/`parseDelverSpecs`/`parseWardenSpecs` are shared by their own standalone
+   `X-plan` command and by `ak create`, but each hardcodes the standalone command's name in its
+   empty-list message. A model that hit this through `create` never called `room-plan`.
+2. **Actor placement, the M4 pattern never propagated here (11 sites, `orchestrate-build.js`)** —
+   both `normalizeActorPositions` (current) and `normalizeActorPositionsLegacy` have their own
+   near-duplicate "could not place actors: ..." family, none of them reporting the
+   candidates/requested/index-style detail M4 already added to the hazard/resource placement path
+   (`assignPositionedLayoutObjects`). The single largest batch, and the strongest confirmation the
+   sweep is finding real gaps, not re-describing the three already known.
+3. **Misc build-guard detail (3 sites, `orchestrate-build.js`)** — `hasActors`/`actorsInput.actors`
+   type guards that could report what shape was actually received, and an XOR check
+   (`affinityPresets`/`affinityLoadouts`) that already knows which one is missing but says "requires
+   both" either way.
+
+**Bonus finding, not a per-site fix:** `formatBudgetReceiptDenial()` (the helper both budget-denial
+throw sites call, `orchestrate-build.js:1680`/`:1684`) is already excellent — except
+`deniedLines.slice(0, 5)` silently caps the list with no "+N more" when there are more than 5. That's
+CLAUDE.md's own "no silent caps" rule, on a message this session read closely three separate times
+(M0–M2) without anyone noticing the cap. One-line fix, worth bundling into SM2's placement batch
+since it's the same file and the same spirit of fix.
 
 ### SM2 — Fix the `detail-dropped` bucket, batched by area, one perturbation-tested commit per batch (S–M per batch)
 
