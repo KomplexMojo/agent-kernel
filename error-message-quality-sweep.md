@@ -174,7 +174,7 @@ CLAUDE.md's own "no silent caps" rule, on a message this session read closely th
 (M0–M2) without anyone noticing the cap. One-line fix, worth bundling into SM2's placement batch
 since it's the same file and the same spirit of fix.
 
-### SM2 — Fix the `detail-dropped` bucket, batched by area, one perturbation-tested commit per batch (S–M per batch)
+### SM2 — Fix the `detail-dropped` bucket, batched by area, one perturbation-tested commit per batch (S–M per batch — complete, 2026-08-31)
 
 **Do:** for each `detail-dropped` site, thread the existing local data into the message (matching the
 M3/M4 pattern exactly — no new computation, just stop discarding what's already there). Batch by the
@@ -188,9 +188,11 @@ X, this wants Y" primes the next attempt toward the same confusion it's naming.
 **Acceptance:** `pnpm run test` and `pnpm run typecheck` green after each batch. No behavior change
 — these are diagnostic-only, like M4's placement/floor-tile fixes, so no A/B measurement is required.
 
-**Batch 1 done (2026-08-31), `orchestrate-build.js` — all 14 `detail-dropped` sites plus the bonus
-`formatBudgetReceiptDenial` cap fix, one commit.** Threaded existing local data into every message,
-matching the M4 pattern exactly:
+**All of it landed in one batch (2026-08-31) — `orchestrate-build.js`, all 14 `detail-dropped` sites
+plus the bonus `formatBudgetReceiptDenial` cap fix.** After the naming-leak correction removed the
+only `ak-impl.mjs` findings, and Configurator/Allocator had zero `detail-dropped` sites from SM1,
+`orchestrate-build.js` turned out to be the entire fix list — there was no second batch to do.
+Threaded existing local data into every message, matching the M4 pattern exactly:
 - 11 actor-placement sites (both `normalizeActorPositions` and `normalizeActorPositionsLegacy`) now
   report the same candidates/requested/index-style detail M4 already gave hazard/resource placement.
 - 3 misc build guards now report the actual value received or which of two required fields is
