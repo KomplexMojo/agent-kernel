@@ -2,6 +2,14 @@
 
 **Status (2026-08-31):** all four milestones (SM0–SM3) complete. Phase one of the two-phase ordering
 below is done; phase two (resilience) has not started, per the maintainer's own ordering.
+A drift guard now enforces phase one going forward: `tests/architecture/ak-create-error-message-drift.test.js`
+re-runs the SM0 survey tool (refactored to export `surveyErrorMessages()` for in-process reuse,
+no file-write side effect on import) against current source and fails on any new no-detail throw
+site on the ak_create surface, or a stale allowlist entry. The 19 currently-known exceptions (12
+genuine "nothing more to say" sites plus 7 concatenated-template-literal / helper-function sites the
+classifier can't parse as interpolated) are recorded with reasons in
+`tests/architecture/ak-create-error-detail-allowlist.json`. Perturbation-tested both directions: a
+bare-string throw injected into scope fails the guard; a stale allowlist entry also fails it.
 **Audience:** an agent with no memory of the session that produced it.
 **Source of evidence:** `coding-issues-affecting-benchmarking.md` (M3/M4, merged as
 [PR #131](https://github.com/KomplexMojo/agent-kernel/pull/131) /

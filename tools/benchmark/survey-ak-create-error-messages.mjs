@@ -174,11 +174,16 @@ function surveyRange(text, file, rangeStart, rangeEnd, results) {
   }
 }
 
-function main() {
+// Pure survey: reads each SCOPE file fresh (via `readFile`, so a caller can pass an absolute repo
+// root that differs from this file's own location -- e.g. a guard test running from a worktree)
+// and returns the sorted site list. No file I/O beyond the reads; the CLI entry point below owns
+// writing the worklist and printing a summary. This is the function the drift guard
+// (tests/architecture/ak-create-error-message-drift.test.js) imports directly.
+export function surveyErrorMessages({ repoRoot = REPO_ROOT, readFile = readFileSync } = {}) {
   const results = [];
   for (const entry of SCOPE) {
-    const path = join(REPO_ROOT, entry.file);
-    const text = readFileSync(path, "utf8");
+    const path = join(repoRoot, entry.file);
+    const text = readFile(path, "utf8");
     if (entry.wholeFile) {
       surveyRange(text, entry.file, 0, text.length, results);
       continue;
@@ -197,6 +202,13 @@ function main() {
   }
 
   results.sort((a, b) => (a.file === b.file ? (a.line || 0) - (b.line || 0) : a.file < b.file ? -1 : 1));
+  return results;
+}
+
+export { SCOPE };
+
+function main() {
+  const results = surveyErrorMessages();
 
   const counts = results.reduce((acc, r) => {
     acc[r.disposition] = (acc[r.disposition] || 0) + 1;
@@ -215,4 +227,8 @@ function main() {
   console.log(`Worklist written to ${outPath}`);
 }
 
-main();
+// Only run the CLI behavior (write a worklist file, print a summary) when this file is executed
+// directly -- importing surveyErrorMessages() for the drift guard must not have that side effect.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}

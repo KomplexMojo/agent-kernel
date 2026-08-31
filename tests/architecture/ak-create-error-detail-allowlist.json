@@ -1,0 +1,97 @@
+[
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 426,
+    "reason": "assignPositionedLayoutObjects -- multi-line concatenated template literal (M4 fix); already reports candidates.length/objects.length/index. Flagged needs-manual-read only because the classifier can't parse `...` + `...` concatenation as one interpolated literal."
+  },
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 480,
+    "reason": "normalizeActorPositions no-walkable-tiles guard (SM2 fix) -- concatenated template literal reporting actors.length. Same classifier limitation as line 426."
+  },
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 500,
+    "reason": "normalizeActorPositions no-anchor-points guard (SM2 fix) -- concatenated template literal reporting groups.length/walkable.length. Same classifier limitation as line 426."
+  },
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 515,
+    "reason": "normalizeActorPositions insufficient-tiles-for-group guard (SM2 fix) -- concatenated template literal reporting groupIndex/available.length/group.length. Same classifier limitation as line 426."
+  },
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 1332,
+    "reason": "normalizeActorPositionsLegacy no-walkable-tiles guard (SM2 fix) -- same message shape as line 480 in the Legacy sibling."
+  },
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 1379,
+    "reason": "normalizeActorPositionsLegacy insufficient-entry-room-tiles-for-delver guard (SM2 fix) -- concatenated template literal reporting index/delvers.length/entryRoomWalkable.length/used.size. Same classifier limitation as line 426."
+  },
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 1400,
+    "reason": "normalizeActorPositionsLegacy insufficient-room-tiles-for-warden guard (SM2 fix) -- concatenated template literal reporting actor.id/allRoomsWalkable.length/used.size. Same classifier limitation as line 426."
+  },
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 1437,
+    "reason": "orchestrateBuild top-level `!spec` guard -- spec is an internal BuildSpec artifact, not raw model input; nothing else to say when it's simply absent."
+  },
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 1492,
+    "reason": "actorsInput shape guard (SM2 fix) -- concatenated template literal reporting the received kind. Same classifier limitation as line 426."
+  },
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 1711,
+    "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier can't inspect it. formatBudgetReceiptDenial() is already rich (status/remaining/deniedLines/deniedPools)."
+  },
+  {
+    "file": "packages/runtime/src/build/orchestrate-build.js",
+    "line": 1715,
+    "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 1711."
+  },
+  {
+    "file": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
+    "line": 434,
+    "reason": "assertJudgementBudget -- already reports judged/cap/ceiling. Internal backstop (\"must never fire\"), not reachable from model input."
+  },
+  {
+    "file": "packages/runtime/src/personas/configurator/affinity-rules.js",
+    "line": 710,
+    "reason": "Module-load-time assertion on the hardcoded DEFAULT_AFFINITY_RULES_ARTIFACT constant -- fires once at import, never from a create request. Already reports field:code for every error."
+  },
+  {
+    "file": "packages/runtime/src/personas/configurator/artifact-builders.js",
+    "line": 72,
+    "reason": "assertUniqueActorIds -- already includes the duplicate id when one exists; the id-missing case has nothing else to add."
+  },
+  {
+    "file": "packages/runtime/src/personas/configurator/budget-maximizer.js",
+    "line": 38,
+    "reason": "requireUnitCost -- already interpolates the specific missing price-list key."
+  },
+  {
+    "file": "packages/runtime/src/personas/configurator/budget-maximizer.js",
+    "line": 113,
+    "reason": "unitCosts instanceof Map guard -- an internal API-contract check between Configurator and Allocator modules, not reachable from model input (fires only if calling code passes the wrong type)."
+  },
+  {
+    "file": "packages/runtime/src/personas/configurator/budget-maximizer.js",
+    "line": 119,
+    "reason": "priceItems instanceof Map guard -- same as line 113, internal API contract, not model-facing."
+  },
+  {
+    "file": "packages/runtime/src/personas/configurator/budget-maximizer.js",
+    "line": 163,
+    "reason": "Regen price missing -- already interpolates the specific missing regenKey."
+  },
+  {
+    "file": "packages/runtime/src/personas/configurator/motivation-rules.js",
+    "line": 419,
+    "reason": "Module-load-time assertion on the hardcoded DEFAULT_MOTIVATION_RULES_ARTIFACT constant -- same as affinity-rules.js:710, not model-facing, already reports field:code."
+  }
+]
