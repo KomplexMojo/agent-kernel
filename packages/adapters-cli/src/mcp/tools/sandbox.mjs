@@ -628,8 +628,10 @@ export async function executeSandboxPlace({ session: sessionPath, entityType, sp
     await writeJson(bundlePath, { schemas: [], artifacts: [resourceBundle] });
   }
 
-  // Validation passed — write all four files atomically (best-effort; no temp-file
+  // Validation passed — write the four session files atomically (best-effort; no temp-file
   // rename on this platform, but at least validation cannot fail after a partial write).
+  // bundle.json (above) is a fifth file, written conditionally before this block since it's
+  // only created once per session rather than rewritten on every placement.
   await writeJson(simConfigPath, simConfig);
   await writeJson(initialStatePath, initialState);
   await writeJson(resourceBundlePath, resourceBundle);
