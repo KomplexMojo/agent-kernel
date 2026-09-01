@@ -129,29 +129,51 @@ work already tracked in `error-message-quality-sweep.md` (SM0–SM3, merged) but
 sweep's own scope note (`budget receipt denial` is a distinct code path from the `ak_create` field
 validators it audited) didn't cover.
 
-## 5. (open question, not yet root-caused) An authored delver took zero actions across a 5-tick plain `ak_run`
+## 5. RESOLVED — root-caused with Serena: the actor did act; `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn
 
-**Observation:** `run_mcp_session_demo2` — one delver, `motivation=exploring`, run for 5 ticks via
-plain `ak_run` with no `--actions`/`actions` input (which the CLI help describes as being for
-"deterministic replay," i.e. optional, not a prerequisite for autonomous behavior) — produced:
+**Original observation (now known to be a misdiagnosis):** `run_mcp_session_demo2`'s `action-log.json`
+showed `"actions": []`, and `ak_tick_forward` at ticks 1, 2, 3 all showed the delver at the identical
+`{x:3,y:2}`, which read as "the actor never decided or moved." That premise was wrong on both counts:
 
-- `action-log.json`: `"actions": []`
-- `effects-log.json`: exactly 3 effects, all `status: "deferred"` (`missing_telemetry` /
-  `missing_logger`), i.e. harness-side bookkeeping, not gameplay effects
-- `ak_tick_forward` at tick 1, 2, and 3 all show the delver at the identical `{x:3,y:2}` with
-  identical vitals — no movement, no decisions, no state change of any kind
+- `action-log.json` is populated **only from the `--actions` input file** (deterministic-replay input),
+  never from what the runtime actually decided during the run —
+  [`packages/runtime/src/commands/kernel.js:1129-1148`](packages/runtime/src/commands/kernel.js#L1129-L1148).
+  An empty one says nothing about whether the Actor persona proposed anything.
+- `tick-frames.json` for the same run shows the Actor persona *did* propose and get accepted two moves:
+  tick 1 `move west (3,2)→(2,2)`, tick 2 `move northwest (2,2)→(1,1)` — landing exactly on the room's
+  exit tile (`E` at `(1,1)`). Zero further proposals from tick 3 onward is then the *correct* behavior
+  for an `exploring` motivation that has reached its goal, not a stall.
 
-**Why this is flagged rather than fixed inline:** this repo's own persona model gives the Actor
-persona an `observe, decide` tick phase specifically to propose actions, and `runtime` orchestrates
-that independently of any `--actions` replay file — so zero actions over 5 ticks for an
-`exploring`-motivated actor is either (a) a real regression in the autonomous decision path invoked
-by plain `ak_run`, or (b) expected behavior this session doesn't have context to judge (e.g. `ak_run`
-alone may intentionally not invoke actor decision-making, and only `ak_scenario` or a
-`--actions`-driven path does). The branch this session started from carries two same-day commits —
-`4112ac8 feat: complete persona-owned perception and solver policy` and
-`d47dfba refactor(runtime): restore allocator and configurator authority` — that are plausibly
-adjacent to whatever gates this, which is exactly the kind of thing that should be root-caused with
-Serena/`find_referencing_symbols` on the Actor persona's `advance()`, not guessed at from outside.
+**The real, confirmed bug:** `ak_tick_forward`/`ak_show_state`'s `visualization.ascii` /
+`visualization.visualizationDataUri` fields render every actor frozen at its `initial-state.json`
+spawn position for the entire run, regardless of tick or accepted moves. Root cause, traced with
+Serena (`find_referencing_symbols` on `createActorPersona`, then the `run` command in `kernel.js`,
+then the two tick-frame readers in `tick-session.mjs`):
+
+1. [`readTickFrame()`](packages/adapters-cli/src/tick-session.mjs#L72-L86) returns the **last**
+   phase-frame for a tick (`forTick[forTick.length - 1]`) — which is always the `summarize` phase.
+2. `summarize` phase-frames always carry `acceptedActions: []`; the actual accepted moves live only on
+   that tick's `apply` phase-frame (confirmed: tick 1 and 2's `apply` frames carry the moves above,
+   their `summarize` frames carry `[]`).
+3. [`computeActorPositions()`](packages/runtime/src/render/visualization-snapshot.js#L36-L49) (used by
+   `buildVisualizationSnapshot`, which is what `ak_tick_forward`/`ak_show_state`'s `visualization.*`
+   fields come from) starts from `initialState.actors[].position` and overlays only the **single**
+   passed-in `tickFrame.acceptedActions` — never a history. Fed an always-empty `summarize` frame, the
+   overlay never applies, so every actor renders at spawn forever.
+
+**Proof, same run, same call:** `ak_show_state({runId, visualization:"ascii"})` at cursor tick 3
+returns *both* renderings in one response — top-level `ascii` (built by the sibling function
+[`renderAscii()`](packages/adapters-cli/src/tick-session.mjs#L213-L262), via
+[`resolveActorPositionsAtTick()`](packages/adapters-cli/src/tick-session.mjs#L181-L202), which
+correctly *accumulates* every accepted move across ticks 1..N) shows `@` at `(1,1)` — the true,
+correct position. The same response's `visualization.ascii` shows `D` still at `(3,2)` — spawn,
+frozen. Two functions in the same package solve the identical problem; only one of them accumulates.
+
+**Family resemblance:** this is the same shape of defect as a bug already fixed on the UI side —
+`69330c4 fix(ui): gameplay tick playback was off by one, stuck on tick 0's stale position for the
+whole run` (merged via #140) — a tick-cursor visualization reading a stale/wrong single frame instead
+of replaying accepted actions cumulatively. That fix apparently didn't extend to this MCP-side
+visualization path.
 
 ---
 
@@ -161,4 +183,5 @@ Serena/`find_referencing_symbols` on the Actor persona's `advance()`, not guesse
 - [#143](https://github.com/KomplexMojo/agent-kernel/issues/143) — `ak_show_state`/`ak_tick_forward`/`ak_tick_backward` resolve runs from a different root than `ak_create`/`ak_run`/`ak_show` (finding 2)
 - [#144](https://github.com/KomplexMojo/agent-kernel/issues/144) — `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit (finding 3)
 - [#145](https://github.com/KomplexMojo/agent-kernel/issues/145) — `ak_create` budget denial doesn't say what budget would have worked (finding 4)
-- [#146](https://github.com/KomplexMojo/agent-kernel/issues/146) — open question: does plain `ak_run` ever invoke autonomous actor decision-making? (finding 5)
+- [#146](https://github.com/KomplexMojo/agent-kernel/issues/146) — open question: does plain `ak_run` ever invoke autonomous actor decision-making? **CLOSED, not planned** — root-caused with Serena; premise was wrong, see #147
+- [#147](https://github.com/KomplexMojo/agent-kernel/issues/147) — `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay (finding 5, corrected)
