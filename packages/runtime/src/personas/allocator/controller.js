@@ -162,6 +162,10 @@ export function createAllocatorPersona({
     advance,
     view,
     pricing: services.pricing,
+    // RB3.1/RB3.2 — read-only build economy policy; none mutates the ledger.
+    resolvePriceList: services.resolvePriceList,
+    resolveActorExpansionAvailability: services.resolveActorExpansionAvailability,
+    priceMixedRoomDesignSpend: services.priceMixedRoomDesignSpend,
     registerBudget: services.registerBudget,
     validateSpend: services.validateSpend,
     evaluateLayoutSpend: services.evaluateLayoutSpend,
@@ -175,6 +179,10 @@ export function createAllocatorPersona({
     resolveTileCosts: services.resolveTileCosts,
     allocateBudget: services.allocateBudget,
     evaluateSelectionSpend: services.evaluateSelectionSpend,
+    // Z7.1 build-plane round trip: the persona returns a solver effect as data and
+    // consumes the host-dispatched result. It never receives an adapter object.
+    prepareLayoutBudgetFit: services.prepareLayoutBudgetFit,
+    completeLayoutBudgetFit: services.completeLayoutBudgetFit,
     // CR.4 M5b.2c — the auto-fit search. Its reduction policy spends by price, which is why
     // it is the Allocator's and not the loop's.
     fitLayoutToBudget: services.fitLayoutToBudget,

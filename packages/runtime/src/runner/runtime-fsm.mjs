@@ -20,7 +20,10 @@ import {
   renderBaseTiles,
   ValidationError,
 } from "../../../core-ts/src/index.ts";
-import { scopeObservation } from "../../../core-ts/src/state/visibility.ts";
+import {
+  scopeObservation,
+  SIGHT_AFFINITY_KINDS,
+} from "../../../core-ts/src/state/visibility.ts";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
@@ -865,14 +868,16 @@ export function createFsmRuntime({
   }
 
   /**
-   * DS.4 — narrow one observation to what a single actor can perceive.
+   * DS.4/DS6.1 — narrow one observation to what a single actor can perceive.
    *
    * Glue holds no opinion about perception: it looks up a position it already
    * has, asks CORE how far that tile can see (`getVisibilityRadiusAt`, which
    * reads the affinity field the Moderator already recomputes each tick), and
-   * asks CORE to do the narrowing (`scopeObservation`). Both the radius rule and
-   * the transform live in `core-ts/src/state/visibility.ts`; this function only
-   * sequences them, which is the line the enforcement checklist draws.
+   * asks CORE to do the narrowing (`scopeObservation`). DS6.1 also reads the
+   * surviving target-dark field for positioned actors/hazards and passes it as
+   * plain data. Radius, occlusion, and concealment policy all remain in
+   * `core-ts/src/state/visibility.ts`; this function only sequences them, which
+   * is the line the enforcement checklist draws.
    *
    * Returns the observation UNCHANGED when the actor cannot be located or the
    * core predates the capability — the same shape of capability check
@@ -891,10 +896,31 @@ export function createFsmRuntime({
       return observation;
     }
 
+    const darkStacksByCell = {};
+    if (typeof core?.getAffinityFieldStacksAt === "function") {
+      const positionedEntities = [
+        ...observation.actors,
+        ...(Array.isArray(observation.hazards) ? observation.hazards : []),
+      ];
+      for (const entity of positionedEntities) {
+        const target = entity?.position;
+        if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.y)) continue;
+        const stacks = core.getAffinityFieldStacksAt(
+          target.x,
+          target.y,
+          SIGHT_AFFINITY_KINDS.DARK,
+        );
+        if (Number.isFinite(stacks) && stacks > 0) {
+          darkStacksByCell[`${target.x},${target.y}`] = stacks;
+        }
+      }
+    }
+
     return scopeObservation(
       observation,
       observingActorId,
       core.getVisibilityRadiusAt(position.x, position.y),
+      { darkStacksByCell },
     );
   }
 

@@ -723,7 +723,7 @@ const REGISTRY = Object.freeze([
         + "_shared/runtime-decision.mts: buildRuntimeDecisionEnvelope poses (called from "
         + "actor/controller.js) and resolveActionFromSolverResult resolves (called from "
         + "_shared/tick-orchestrator.mts's handleSolverRequests) — proven end-to-end with a "
-        + "real Z3 adapter by tests/runtime/complex-motivation-z3.test.js, not reproven "
+        + "solver adapter by tests/runtime/complex-motivation-z3.test.js, not reproven "
         + "here. Perturbation run for real: neutered resolveActionFromSolverResult to "
         + "always return ok:false — five assertions in that e2e test failed immediately, "
         + "confirming it is genuinely load-bearing, not merely present. Reverted after. "

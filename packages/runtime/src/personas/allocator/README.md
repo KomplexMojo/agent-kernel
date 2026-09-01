@@ -115,6 +115,54 @@ silently-diverging answer to "how big is this card set" is the CR.1 defect class
 because the output stays well-formed. Most Allocator surfaces never price a room card, so the parameter is
 optional at construction and enforced at the point of use.
 
+### It owns mixed-room design-token spend; presentation does not reconstruct it (RB3.0/RB3.2)
+
+The approved unit is `design_tokens`. `priceMixedRoomDesignSpend({ room, composition, priceList })`
+receives Configurator-authored room dimensions/components plus a resolved price list and returns one
+reconciled `designTokenSpend` summary:
+
+`{ status: "available", unit: "design_tokens", producedBy: "allocator", components:
+{ defaultTiles, localizedTiles, roomWideOverlay, localizedHazards }, total }`.
+
+All components and the total are non-negative integers, and the total must equal their sum. Missing or
+malformed structure returns `mixed_room_input_invalid`; a missing price returns
+`mixed_room_price_missing`. Build and Configurator code may carry this object;
+`build/mixed-room-summary.js` validates/displays it without filling a component or total.
+
+The price source is the same versioned Allocator price list used by the build receipt. Default and
+localized cells partition the room's priced tiles so no cell is charged twice; overlays use the
+Allocator's affinity base/expression/stack items; localized hazards use the complete hazard, affinity,
+vital, and regen line items. Template-authored `tokenCost` is not a price source.
+
+Worked default-price example: a 6×4 room with 24 ordinary floor cells and one one-stack fire/emit hazard
+has `defaultTiles: 24`. The hazard contributes 64 (`hazard_basic` 5 + mana 9 + mana-regen 9 + durability
+5 + `affinity_base` 10 + localized expression 25 + stack 1), so the summary is
+`{defaultTiles:24, localizedTiles:0, roomWideOverlay:0, localizedHazards:64, total:88}`. This is a
+breakdown of the existing design receipt, not an additional charge.
+
+The capability is read-only and available in every FSM state. `orchestrateBuild` calls it once for each
+published mixed-room composition, explicitly supplies the build's resolved list when a budget receipt
+exists, and attaches the answer to the composition. It does not add a spend-proposal item or debit a
+ledger. Default rules still expose no mixed-room template catalog, so RB3.2 wires the retained capability
+without activating that dormant product path.
+
+### It resolves build price lists and actor-expansion availability (RB3.1)
+
+Two read-only public capabilities keep build glue from making Allocator policy decisions:
+
+- `resolvePriceList(callerPriceList)` overlays caller items onto the persona's canonical price list by
+  `kind:id` (or legacy `key`). The caller's last value wins, existing keys retain canonical order, new
+  keys append in caller order, caller metadata wins when present, and a missing list returns the
+  canonical artifact unchanged.
+- `resolveActorExpansionAvailability({ receipt })` returns the tokens the Configurator may use to
+  expand actors. The receipt's global remainder is always a ceiling; when delver/warden pool evidence
+  exists, their combined non-negative remainder is the second ceiling. Missing actor-pool evidence
+  preserves the global remainder.
+
+Neither capability registers a budget, issues a receipt, changes FSM state, or mutates caller data.
+`orchestrateBuild` supplies artifacts and consumes the answers; it contains no price-item merge, actor
+pool identifiers, or global-versus-pool minimum policy.
+
 ### It judges configurations; it does not author them (CR.9 M3)
 
 Budget maximization is Allocator policy, but *building the thing being priced* is not. The maximizer used
@@ -411,17 +459,21 @@ CR.9 M5 precedence lesson, and the reason a mispriced build would otherwise be i
 
 #### The auto-fit search: revising a layout to fit a budget (CR.4 M5b.2c)
 
-`layout-fit.js` — `fitLayoutToBudget({ layout, remainingBudgetTokens, priceList, layoutCosts })`,
-published as `allocator.fitLayoutToBudget` and reached through `director.fitLayoutToBudget`.
+`budget-fit-problem.js` publishes three Allocator capabilities. `prepareLayoutBudgetFit(...)` authors
+the problem and returns a `solver_request` effect as data; `completeLayoutBudgetFit(...)` validates a
+host-dispatched result; and `fitLayoutToBudget(...)` remains the no-result, deterministic fallback-
+compatible surface. `layout-fit.js` retains the characterized fallback implementation.
 
 It lived in `llm-budget-loop.js` until 2026-08-08. **Threading its six `evaluateLayoutSpend` calls
 would have missed the point:** its helpers `pickCheapestField` and `selectReductionField` chose which
 tile to drop *by that tile's price*. Calling pricing is one thing; **deciding what a token is best
 spent on is this persona's job**, and that decision was executing inside the Orchestrator.
 
-The search: price the layout → if it fits, accept unchanged → otherwise scale all tile counts
-proportionally, then reduce the most expensive field one tile at a time until it fits (guarded), then
-guarantee at least one walkable tile, buying it back by reducing elsewhere if needed.
+The primary path: price and validate the request → if it fits, accept unchanged → otherwise author a
+bounded integer constraint problem and solver effect → let command-layer host glue dispatch that effect
+through the solver port → validate the returned model before consuming it. No adapter object enters the
+persona. Only the platform adapter compiles expressions into Z3; prices, bounds, constraints, objective
+meaning, and result validation remain here.
 
 ⚠️ **It moved verbatim, and `tests/personas/allocator/allocator-layout-fit.test.js` is why that is
 checkable.** A revision loop is the easiest thing here to break silently: a flipped tie-break or a
@@ -429,6 +481,24 @@ changed rounding still returns a well-formed layout, still under budget, just a 
 schema, guard or golden would report it. The test replays **660 cases** captured from the pre-move
 implementation, and both of those perturbations were confirmed to fail it. **If a case fails, do not
 re-record the fixture** — that deletes the only evidence the search still converges where it did.
+
+**Z7.0 policy lock (approved 2026-08-28; implemented by Z7.1).** The 660 destinations now have
+two jobs, not one: they pin this loop exactly when it is used as the deterministic fallback, and they
+show why it must not remain the primary search. Of 120 valid over-budget searches, four refuse despite
+a feasible layout and fifty fulfilled results retain fewer tiles than an exact solution.
+
+The replacement problem is owned and priced here. It retains integer `floorTiles` and `hallwayTiles`
+within the requested bounds, requires at least one floor tile, and stays within the Allocator-supplied
+cap. Its lexicographic objective maximizes retained tiles, minimizes distortion from the requested
+floor/hallway ratio, then maximizes counts in canonical `LAYOUT_TILE_FIELDS` order. A missing requested
+floor is invalid input; the search never manufactures one. A valid request is unsatisfiable only when
+one floor tile costs more than the cap. Already-affordable layouts bypass the solver unchanged.
+
+`tests/personas/allocator/allocator-budget-fit-problem.test.js` is the executable policy record. The
+command host dispatches the Allocator effect through the CLI or web hybrid adapter for genuine Z3
+search. Adapter absence, capability absence, `deferred`, or `error` keeps the exact greedy loop as
+fallback; a proved `unsat` returns its typed reason without a partial layout. The Actor domain remains
+a pure lexicographic selection and never initializes Z3.
 
 #### Judging a proposed layout: `evaluateLayoutSpend` (CR.4 M5b.2d)
 

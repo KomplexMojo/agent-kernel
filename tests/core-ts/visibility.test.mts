@@ -20,9 +20,9 @@
  * accepted; the test at the bottom of this file pins it so it stays visible
  * rather than being rediscovered as a bug.
  *
- * Scope: DS.3 is the MECHANISM ONLY and is wired to nothing. Nothing calls
- * `scopeObservation` in a real tick yet — that is DS.4, and it is where behavior
- * actually changes.
+ * DS.4 wired radius scoping into real ticks. DS6.1 extends the same core-owned
+ * transform with deterministic occlusion, target concealment, and hazard
+ * scoping; runtime still only supplies live core data.
  */
 import { describe, expect, test } from "vitest";
 
@@ -153,6 +153,94 @@ describe("scopeObservation", () => {
     const scoped = scopeObservation(observation, "nobody", 1);
     expect(scoped.actors.length).toBe(observation.actors.length);
   });
+
+  test("the wall-or-barrier observation kind blocks actors and hazards behind it", () => {
+    const observationWithBarrier = {
+      actors: [
+        { id: "self", position: { x: 1, y: 2 } },
+        { id: "hidden", position: { x: 3, y: 2 } },
+      ],
+      hazards: [{ id: "hidden_hazard", position: { x: 4, y: 2 } }],
+      tiles: {
+        kinds: [
+          [0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0],
+          [0, 0, 1, 0, 0],
+          [0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0],
+        ],
+      },
+    };
+
+    const scoped = scopeObservation(observationWithBarrier, "self", 4);
+    expect(scoped.actors.map((entry) => entry.id)).toEqual(["self"]);
+    expect(scoped.hazards).toEqual([]);
+  });
+
+  test("unobstructed cardinal and diagonal rays retain their targets", () => {
+    const observation = {
+      actors: [
+        { id: "self", position: { x: 1, y: 1 } },
+        { id: "cardinal", position: { x: 3, y: 1 } },
+        { id: "diagonal", position: { x: 3, y: 3 } },
+      ],
+      tiles: { kinds: Array.from({ length: 5 }, () => Array(5).fill(0)) },
+    };
+
+    expect(scopeObservation(observation, "self", 3).actors.map((entry) => entry.id))
+      .toEqual(["self", "cardinal", "diagonal"]);
+  });
+
+  test("a diagonal ray cannot peek through the corner between opaque cells", () => {
+    const observation = {
+      actors: [
+        { id: "self", position: { x: 1, y: 1 } },
+        { id: "diagonal", position: { x: 2, y: 2 } },
+      ],
+      tiles: {
+        kinds: [
+          [0, 0, 0, 0],
+          [0, 0, 1, 0],
+          [0, 1, 0, 0],
+          [0, 0, 0, 0],
+        ],
+      },
+    };
+
+    const ids = scopeObservation(observation, "self", 3).actors.map((entry) => entry.id);
+    expect(ids).toEqual(["self"]);
+  });
+
+  test("surviving dark at the target conceals it beyond one tile", () => {
+    const observation = {
+      actors: [
+        { id: "self", position: { x: 1, y: 1 } },
+        { id: "adjacent_dark", position: { x: 2, y: 1 } },
+        { id: "distant_dark", position: { x: 3, y: 1 } },
+      ],
+      hazards: [{ id: "distant_hazard", position: { x: 3, y: 2 } }],
+      tiles: { kinds: Array.from({ length: 5 }, () => Array(5).fill(0)) },
+    };
+
+    const scoped = scopeObservation(observation, "self", 4, {
+      darkStacksByCell: { "2,1": 2, "3,1": 2, "3,2": 2 },
+    });
+
+    expect(scoped.actors.map((entry) => entry.id)).toEqual(["self", "adjacent_dark"]);
+    expect(scoped.hazards).toEqual([]);
+  });
+
+  test("missing tile geometry preserves the existing radius-only behavior", () => {
+    const observation = {
+      actors: [
+        { id: "self", position: { x: 1, y: 1 } },
+        { id: "nearby", position: { x: 3, y: 1 } },
+      ],
+    };
+
+    expect(scopeObservation(observation, "self", 3).actors.map((entry) => entry.id))
+      .toEqual(["self", "nearby"]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -219,16 +307,40 @@ describe("getVisibilityRadiusAt", () => {
 
     expect(call(core.getVisibilityRadiusAt, 5, 5)).toBe(1);
   });
+
+  test("canceled target dark does not conceal an otherwise visible actor", () => {
+    const core = createCore();
+    call(core.configureGrid, 9, 7);
+    setAllFloors(core, 9, 7);
+    call(core.armStaticHazardAt, 2, 3, DARK, EMIT, 3, 5);
+    call(core.armStaticHazardAt, 6, 3, LIGHT, EMIT, 3, 5);
+    call(core.computeAffinityField);
+
+    const targetDark = call(core.getAffinityFieldStacksAt, 4, 3, DARK) as number;
+    expect(targetDark).toBe(0);
+
+    const observation = {
+      actors: [
+        { id: "self", position: { x: 1, y: 3 } },
+        { id: "target", position: { x: 4, y: 3 } },
+      ],
+      tiles: { kinds: Array.from({ length: 7 }, () => Array(9).fill(0)) },
+    };
+    const scoped = scopeObservation(observation, "self", 3, {
+      darkStacksByCell: { "4,3": targetDark },
+    });
+
+    expect(scoped.actors.map((entry) => entry.id)).toEqual(["self", "target"]);
+  });
 });
 
 // ## TODO: Test Permutations
 //
-// - light and dark overlapping at one cell: core's own cancellation decides which
-//   survives, and the radius follows the survivor (never both applied)
 // - a cell at the EDGE of a dark aura versus its origin (documents that the
 //   stack-threshold rule is deliberately distance-insensitive, unlike intensity)
 // - every affinity kind that is neither light nor dark: no effect on sight at all
-// - scopeObservation with hazards present, once hazards carry positions in the
-//   scoped payload
 // - an observer with no position field: scopes nothing, does not throw
 // - radius exactly equal to the distance (boundary inclusion, both axes)
+// - a ray ending on an opaque tile: the endpoint remains visible while cells
+//   behind it do not
+// - malformed/ragged tile geometry: falls back to radius-only instead of throwing

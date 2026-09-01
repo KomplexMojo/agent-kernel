@@ -231,6 +231,60 @@ test("cli llm-plan budget loop honors custom budget pools", () => {
   );
 });
 
+test("cli budget loop awaits the host-created hybrid solver for an over-budget layout", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-z3-"));
+  const fixturePath = join(outDir, "budget-loop-z3.json");
+  const fixture = JSON.parse(readFileSync(
+    resolve(ROOT, "tests/fixtures/adapters/llm-generate-summary-budget-loop.json"),
+    "utf8",
+  ));
+  const firstActorResponse = JSON.parse(fixture.responses[1].response);
+  firstActorResponse.actors[0].count = 1;
+  fixture.responses[1].response = JSON.stringify(firstActorResponse);
+  const secondActorResponse = JSON.parse(fixture.responses[2].response);
+  secondActorResponse.actors = [{
+    ...secondActorResponse.actors[0],
+    motivation: "defending",
+    affinity: "earth",
+    count: 1,
+  }];
+  secondActorResponse.stop = "done";
+  fixture.responses[2].response = JSON.stringify(secondActorResponse);
+  writeFileSync(fixturePath, JSON.stringify(fixture, null, 2));
+  runCli(
+    [
+      "llm-plan",
+      "--scenario",
+      "tests/fixtures/e2e/e2e-scenario-v1-basic.json",
+      "--model",
+      "fixture",
+      "--fixture",
+      fixturePath,
+      "--budget-loop",
+      "--budget-pool",
+      "delver=0",
+      "--budget-pool",
+      "rooms=0.1",
+      "--budget-pool",
+      "wardens=0.9",
+      "--budget-pool",
+      "resources=0",
+      "--run-id",
+      "run_llm_plan_loop_z3",
+      "--created-at",
+      "2025-01-01T00:00:00Z",
+      "--out-dir",
+      outDir,
+    ],
+    { AK_LLM_LIVE: "1", AK_SOLVER_ENGINE: "z3-real" },
+  );
+
+  const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
+  const layoutTrace = telemetry?.data?.llm?.trace?.[0];
+  assert.deepEqual(layoutTrace.layout, { floorTiles: 53, hallwayTiles: 27 });
+  assert.equal(layoutTrace.spentTokens, 80);
+});
+
 test("cli llm-plan budget loop requires budget tokens", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-llm-plan-loop-missing-budget-"));
   const scenarioPath = join(outDir, "scenario-missing-budget.json");

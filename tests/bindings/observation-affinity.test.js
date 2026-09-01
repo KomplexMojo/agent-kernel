@@ -34,3 +34,26 @@ test("bindings observation includes affinity metadata when provided", async () =
   assert.deepEqual(obs.hazards[0].abilities, fixture.expected.hazards[0].abilities);
   assert.deepEqual(obs.hazards[0].vitals, fixture.expected.hazards[0].vitals);
 });
+
+test("bindings observation includes the actor's live affinity grant pools", async () => {
+  const { createCore, readObservation } = await import(
+    "../../packages/core-ts/src/index.ts"
+  );
+
+  const core = createCore();
+  core.init(1337);
+  core.loadMvpScenario();
+  assert.equal(core.grantMotivatedActorAffinity(0, 2, 3, 2, 7, 12, 1), 1);
+
+  const observation = readObservation(core);
+  assert.deepEqual(observation.actors[0].affinityGrants, [
+    {
+      kind: "water",
+      expression: "emit",
+      stacks: 2,
+      mana: 7,
+      manaMax: 12,
+      manaRegen: 1,
+    },
+  ]);
+});

@@ -1,5 +1,5 @@
 /**
- * DS.3 — how far an actor can see, and what that hides from it.
+ * DS.3/DS6.1 — how far an actor can see and what occlusion/concealment hides.
  *
  * THE RULE (maintainer, 2026-08-20). An actor with no affinities, in a room with
  * no hazards, sees 3 tiles in each direction. Affinity interactions decide the
@@ -64,6 +64,12 @@ export const LIGHT_SIGHT_BONUS_PER_STACK = 1;
  */
 export const MIN_SIGHT_RADIUS = 1;
 
+/**
+ * `readObservation().tiles.kinds` carries core tile-ACTOR kinds, not raw Tile
+ * codes: stationary/walkable is 0 and both walls and barriers are 1.
+ */
+const OPAQUE_OBSERVATION_TILE_KIND = 1;
+
 function asStackCount(value: unknown): number {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return 0;
   return Math.trunc(value);
@@ -114,13 +120,114 @@ export interface VisibilityObservationActor {
   [key: string]: unknown;
 }
 
+export interface VisibilityObservationHazard {
+  position?: { x: number; y: number };
+  [key: string]: unknown;
+}
+
 export interface VisibilityObservation {
   actors?: VisibilityObservationActor[];
+  hazards?: VisibilityObservationHazard[];
+  tiles?: { kinds?: unknown[][]; [key: string]: unknown };
   [key: string]: unknown;
+}
+
+export interface VisibilityScopeOptions {
+  /** Surviving dark stacks keyed as `x,y`, read from core's affinity field. */
+  darkStacksByCell?: Readonly<Record<string, number>>;
 }
 
 function chebyshev(a: { x: number; y: number }, b: { x: number; y: number }): number {
   return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+}
+
+function isGridPosition(value: unknown): value is { x: number; y: number } {
+  if (!value || typeof value !== "object") return false;
+  const position = value as { x?: unknown; y?: unknown };
+  return Number.isInteger(position.x) && Number.isInteger(position.y);
+}
+
+function resolveTileKinds(observation: VisibilityObservation): number[][] | null {
+  const kinds = observation.tiles?.kinds;
+  if (!Array.isArray(kinds) || kinds.length === 0) return null;
+  const width = Array.isArray(kinds[0]) ? kinds[0].length : 0;
+  if (width === 0) return null;
+  if (!kinds.every((row) => (
+    Array.isArray(row)
+    && row.length === width
+    && row.every((kind) => typeof kind === "number" && Number.isFinite(kind))
+  ))) {
+    return null;
+  }
+  return kinds as number[][];
+}
+
+function isOpaqueTile(kind: unknown): boolean {
+  return kind === OPAQUE_OBSERVATION_TILE_KIND;
+}
+
+/**
+ * Whether two grid cells have an unobstructed deterministic supercover ray.
+ *
+ * A ray that crosses an exact corner checks both side-adjacent cells. That
+ * deliberately forbids diagonal corner peeking. The target cell is excluded:
+ * an opaque cell is itself perceptible while anything behind it is not.
+ */
+function hasLineOfSight(
+  tileKinds: number[][],
+  origin: { x: number; y: number },
+  target: { x: number; y: number },
+): boolean {
+  const dx = target.x - origin.x;
+  const dy = target.y - origin.y;
+  const nx = Math.abs(dx);
+  const ny = Math.abs(dy);
+  const stepX = Math.sign(dx);
+  const stepY = Math.sign(dy);
+  let x = origin.x;
+  let y = origin.y;
+  let ix = 0;
+  let iy = 0;
+
+  const blocked = (cellX: number, cellY: number): boolean => {
+    if (cellX === target.x && cellY === target.y) return false;
+    return isOpaqueTile(tileKinds[cellY]?.[cellX]);
+  };
+
+  while (ix < nx || iy < ny) {
+    const decision = (1 + 2 * ix) * ny - (1 + 2 * iy) * nx;
+    if (decision === 0) {
+      if (blocked(x + stepX, y) || blocked(x, y + stepY)) return false;
+      x += stepX;
+      y += stepY;
+      ix += 1;
+      iy += 1;
+    } else if (decision < 0) {
+      x += stepX;
+      ix += 1;
+    } else {
+      y += stepY;
+      iy += 1;
+    }
+    if (blocked(x, y)) return false;
+  }
+  return true;
+}
+
+function isPerceived(
+  origin: { x: number; y: number },
+  position: { x: number; y: number },
+  radius: number,
+  tileKinds: number[][] | null,
+  darkStacksByCell: Readonly<Record<string, number>>,
+): boolean {
+  const distance = chebyshev(origin, position);
+  if (distance > radius) return false;
+  const targetDark = asStackCount(darkStacksByCell[`${position.x},${position.y}`]);
+  if (targetDark >= DARKNESS_OBSCURE_STACK_THRESHOLD && distance > DARKNESS_OBSCURE_RADIUS) {
+    return false;
+  }
+  return tileKinds ? hasLineOfSight(tileKinds, origin, position) : true;
 }
 
 /**
@@ -135,13 +242,19 @@ function chebyshev(a: { x: number; y: number }, b: { x: number; y: number }): nu
  * would be the "safe-looking" choice and is far worse: it silently blinds an
  * actor, and a blinded actor still acts — it just acts on nothing.
  *
- * Pure: the input is never mutated. The observer itself is always retained,
- * at any radius.
+ * When a complete tile-actor grid is present, kind 1 (wall or barrier) blocks a
+ * deterministic supercover ray. Surviving target dark at the established
+ * threshold limits detection to the established obscured radius. Actors and
+ * hazards share the rule; missing geometry preserves radius-only behavior.
+ *
+ * Pure: the input is never mutated. The observer itself is always retained, at
+ * any radius.
  */
 export function scopeObservation<T extends VisibilityObservation>(
   observation: T,
   observerId: string,
   radius: number,
+  options: VisibilityScopeOptions = {},
 ): T {
   if (!observation || !Array.isArray(observation.actors)) return observation;
 
@@ -155,15 +268,29 @@ export function scopeObservation<T extends VisibilityObservation>(
     MIN_SIGHT_RADIUS,
     typeof radius === "number" && Number.isFinite(radius) ? Math.trunc(radius) : BASELINE_SIGHT_RADIUS,
   );
+  const tileKinds = resolveTileKinds(observation);
+  const darkStacksByCell = options.darkStacksByCell ?? {};
 
   const actors = observation.actors.filter((actor) => {
     if (actor?.id === observerId) return true;
     const position = actor?.position;
     // An actor with no position cannot be placed, so it cannot be ruled out of
     // sight either. Keep it: dropping it would hide it on a technicality.
-    if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return true;
-    return chebyshev(origin, position) <= effectiveRadius;
+    if (!isGridPosition(position)) return true;
+    return isPerceived(origin, position, effectiveRadius, tileKinds, darkStacksByCell);
   });
 
-  return { ...observation, actors } as T;
+  const hazards = Array.isArray(observation.hazards)
+    ? observation.hazards.filter((hazard) => {
+      const position = hazard?.position;
+      if (!isGridPosition(position)) return true;
+      return isPerceived(origin, position, effectiveRadius, tileKinds, darkStacksByCell);
+    })
+    : observation.hazards;
+
+  return {
+    ...observation,
+    actors,
+    ...(Array.isArray(observation.hazards) ? { hazards } : {}),
+  } as T;
 }

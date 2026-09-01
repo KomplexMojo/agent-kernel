@@ -101,7 +101,103 @@ test("the characterization actually exercises the search, not just its refusals"
   }
 });
 
+/**
+ * Z7.0 — classify the fixture before Z7.1 changes the primary search.
+ *
+ * Exact legacy destinations remain the fallback contract above. This second view asks which
+ * INPUT class each case represents and whether the greedy destination is an exact retained-tile
+ * optimum. It prevents a later implementation from calling all 660 destinations requirements:
+ * four valid searches refuse a feasible model and fifty more leave retainable tiles behind.
+ */
+function classifyBudgetFitCase({ input }) {
+  const { layout, layoutCosts, remainingBudgetTokens } = input;
+  if (!Number.isInteger(remainingBudgetTokens) || remainingBudgetTokens < 0) {
+    return "invalid_budget";
+  }
+  if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
+    return "invalid_layout";
+  }
+  if (layoutCosts && (
+    !Number.isInteger(layoutCosts.floorTiles)
+    || layoutCosts.floorTiles <= 0
+    || !Number.isInteger(layoutCosts.hallwayTiles)
+    || layoutCosts.hallwayTiles <= 0
+  )) {
+    return "invalid_prices";
+  }
+  const floorTiles = Number.isInteger(layout.floorTiles) && layout.floorTiles >= 0
+    ? layout.floorTiles
+    : 0;
+  const hallwayTiles = Number.isInteger(layout.hallwayTiles) && layout.hallwayTiles >= 0
+    ? layout.hallwayTiles
+    : 0;
+  if (floorTiles < 1) return "missing_floor";
+  const floorCost = layoutCosts?.floorTiles ?? 1;
+  const hallwayCost = layoutCosts?.hallwayTiles ?? 1;
+  if (floorCost > remainingBudgetTokens) return "minimum_floor_unaffordable";
+  if ((floorTiles * floorCost) + (hallwayTiles * hallwayCost) <= remainingBudgetTokens) {
+    return "already_fits";
+  }
+  return "search";
+}
+
+function maximumRetainedTileCount({ input }) {
+  const requestedFloor = input.layout.floorTiles;
+  const requestedHallway = input.layout.hallwayTiles ?? 0;
+  const floorCost = input.layoutCosts?.floorTiles ?? 1;
+  const hallwayCost = input.layoutCosts?.hallwayTiles ?? 1;
+  let maximum = 0;
+  for (let floorTiles = 1; floorTiles <= requestedFloor; floorTiles += 1) {
+    const affordableHallway = Math.floor(
+      (input.remainingBudgetTokens - (floorTiles * floorCost)) / hallwayCost,
+    );
+    if (affordableHallway < 0) continue;
+    maximum = Math.max(maximum, floorTiles + Math.min(requestedHallway, affordableHallway));
+  }
+  return maximum;
+}
+
+test("Z7.0 classifies all 660 legacy cases and proves the greedy defects", () => {
+  const fixture = JSON.parse(readFileSync(FIXTURE, "utf8"));
+  const classes = {};
+  for (const testCase of fixture.cases) {
+    const classification = classifyBudgetFitCase(testCase);
+    classes[classification] = (classes[classification] || 0) + 1;
+  }
+  assert.deepEqual(classes, {
+    invalid_budget: 60,
+    invalid_layout: 50,
+    missing_floor: 120,
+    invalid_prices: 110,
+    minimum_floor_unaffordable: 48,
+    already_fits: 152,
+    search: 120,
+  });
+
+  const searches = fixture.cases.filter((testCase) => classifyBudgetFitCase(testCase) === "search");
+  const feasibleButRefused = searches.filter((testCase) => testCase.output.ok !== true);
+  const strictlySuboptimal = searches.filter((testCase) => {
+    if (testCase.output.ok !== true) return false;
+    const retained = testCase.output.layout.floorTiles + testCase.output.layout.hallwayTiles;
+    return retained < maximumRetainedTileCount(testCase);
+  });
+
+  assert.equal(feasibleButRefused.length, 4);
+  assert.equal(strictlySuboptimal.length, 50);
+  assert.equal(searches.length - feasibleButRefused.length - strictlySuboptimal.length, 66);
+
+  const smallest = strictlySuboptimal.find((testCase) => (
+    testCase.input.layout.floorTiles === 5
+    && testCase.input.layout.hallwayTiles === 5
+    && testCase.input.remainingBudgetTokens === 2
+    && testCase.input.layoutCosts?.floorTiles === 1
+    && testCase.input.layoutCosts?.hallwayTiles === 9
+  ));
+  assert.deepEqual(smallest?.output.layout, { floorTiles: 1, hallwayTiles: 0 });
+  assert.equal(maximumRetainedTileCount(smallest), 2);
+});
+
 // ## TODO: Test Permutations
 // - tile-cost maps where every field costs more than the entire budget
-// - layouts whose only tiles are non-walkable, at budgets that admit exactly one walkable tile
+// - hallway-only layouts at budgets that admit exactly one floor tile
 // - budgets that sit exactly on a tile-cost boundary (spend === budget)

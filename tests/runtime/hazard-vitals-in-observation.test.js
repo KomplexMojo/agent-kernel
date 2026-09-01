@@ -61,8 +61,27 @@ test("runtime observation enriches static hazards with vitals from sim config la
       },
     },
   };
+  const initialState = {
+    schema: "agent-kernel/InitialStateArtifact",
+    schemaVersion: 1,
+    meta: { id: "state_hazard_vitals", runId: "run_hazard_vitals", createdAt: "2026-06-11T00:00:00.000Z" },
+    simConfigRef: { id: "sim_hazard_vitals", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+    actors: [{
+      id: "observer",
+      kind: "ambulatory",
+      archetype: "delver",
+      position: { x: 2, y: 2 },
+      motivation: { kind: "stationary" },
+      vitals: {
+        health: { current: 10, max: 10, regen: 0 },
+        mana: { current: 10, max: 10, regen: 0 },
+        stamina: { current: 10, max: 10, regen: 0 },
+        durability: { current: 1, max: 1, regen: 0 },
+      },
+    }],
+  };
 
-  await runtime.init({ seed: 0, simConfig });
+  await runtime.init({ seed: 0, simConfig, initialState });
   await runtime.step();
 
   assert.ok(observations.length > 0);

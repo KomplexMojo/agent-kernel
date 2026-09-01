@@ -31,9 +31,13 @@ import {
   REFERENCE_BUDGET_TOKENS,
 } from "./budget-allocation.js";
 import { evaluateSelectionSpend } from "./selection-spend.js";
-import { fitLayoutToBudget } from "./layout-fit.js";
+import {
+  completeAllocatorBudgetFit,
+  prepareAllocatorBudgetFit,
+} from "./budget-fit-problem.js";
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 import { reconcileBudget } from "./reconciliation.js";
+import { priceMixedRoomDesignSpend } from "./mixed-room-spend.js";
 
 export class AllocatorStateError extends Error {
   constructor(message) {
@@ -88,6 +92,60 @@ export function attachAllocatorServices({
         });
     }
     return resolvedPriceList;
+  }
+
+  /**
+   * Resolve a caller's partial price list against this Allocator's canonical list.
+   * Existing `kind:id` keys retain their default insertion slot; the caller's last
+   * value wins, and new keyed/legacy entries append in caller order.
+   */
+  function resolvePriceList(callerPriceList) {
+    const defaults = getPriceList();
+    if (!callerPriceList) return defaults;
+    const itemsByKey = new Map();
+    defaults.items.forEach((item) => {
+      itemsByKey.set(`${item.kind}:${item.id}`, item);
+    });
+    if (Array.isArray(callerPriceList.items)) {
+      callerPriceList.items.forEach((item) => {
+        if (typeof item?.id === "string" && typeof item?.kind === "string") {
+          itemsByKey.set(`${item.kind}:${item.id}`, item);
+        } else if (typeof item?.key === "string") {
+          itemsByKey.set(`legacy:${item.key}`, item);
+        }
+      });
+    }
+    return {
+      ...defaults,
+      ...callerPriceList,
+      meta: callerPriceList.meta || defaults.meta,
+      items: Array.from(itemsByKey.values()),
+    };
+  }
+
+  /**
+   * Tokens the Configurator may spend expanding actors after a probe receipt.
+   * Global remaining budget is always a ceiling. When actor-pool evidence exists,
+   * the combined non-negative delver/warden remainder is a second ceiling.
+   */
+  function resolveActorExpansionAvailability({ receipt } = {}) {
+    const globalRemaining = receipt?.remaining ?? 0;
+    if (!Array.isArray(receipt?.poolStatuses)) return globalRemaining;
+    const actorPools = receipt.poolStatuses.filter(
+      (pool) => pool?.id === "delver" || pool?.id === "wardens",
+    );
+    if (actorPools.length === 0) return globalRemaining;
+    const actorPoolRemaining = actorPools.reduce((sum, pool) => {
+      const remaining = Number.isFinite(pool?.remainingTokens) ? pool.remainingTokens : 0;
+      return sum + Math.max(0, remaining);
+    }, 0);
+    return Math.min(globalRemaining, actorPoolRemaining);
+  }
+
+  function boundPriceMixedRoomDesignSpend(args = {}) {
+    return priceMixedRoomDesignSpend(
+      withPersonaDefaults(args, { priceList: getPriceList() }),
+    );
   }
 
   const pricing = {
@@ -246,8 +304,24 @@ export function attachAllocatorServices({
   // CR.4 M5b.2c — the auto-fit search: revise a layout until it fits the budget. It is here
   // rather than in the Orchestrator because it does not merely CALL pricing, it applies it —
   // its reduction policy picks which tile to drop by that tile's cost.
+  function prepareLayoutBudgetFit(args = {}) {
+    return prepareAllocatorBudgetFit(
+      withPersonaDefaults(args, { priceList: getPriceList(), clock }),
+    );
+  }
+
+  function completeLayoutBudgetFit(args = {}) {
+    return completeAllocatorBudgetFit(
+      withPersonaDefaults(args, { priceList: getPriceList(), clock }),
+    );
+  }
+
   function boundFitLayoutToBudget(args = {}) {
-    return fitLayoutToBudget(withPersonaDefaults(args, { priceList: getPriceList() }));
+    const withDefaults = withPersonaDefaults(args, { priceList: getPriceList(), clock });
+    return completeAllocatorBudgetFit({
+      ...withDefaults,
+      prepared: prepareAllocatorBudgetFit(withDefaults),
+    });
   }
 
   // Also defaults the injected Configurator motivation vocabulary (CR.9 M3): selection
@@ -327,6 +401,9 @@ export function attachAllocatorServices({
 
   return {
     pricing,
+    resolvePriceList,
+    resolveActorExpansionAvailability,
+    priceMixedRoomDesignSpend: boundPriceMixedRoomDesignSpend,
     registerBudget,
     validateSpend,
     evaluateLayoutSpend: boundEvaluateLayoutSpend,
@@ -339,6 +416,8 @@ export function attachAllocatorServices({
     resolveTileCosts,
     allocateBudget,
     evaluateSelectionSpend: boundEvaluateSelectionSpend,
+    prepareLayoutBudgetFit,
+    completeLayoutBudgetFit,
     fitLayoutToBudget: boundFitLayoutToBudget,
     // P5.5 — the chartered reconciliation. State-gated, unlike the pricing surface.
     reconcile,

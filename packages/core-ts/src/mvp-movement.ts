@@ -47,7 +47,34 @@ const AFFINITY_EXPRESSION_BY_CODE = Object.freeze({
   1: "push",
   2: "pull",
   3: "emit",
+  4: "draw",
 });
+
+function readActorAffinityGrants(core, index) {
+  if (
+    typeof core?.getMotivatedActorAffinityGrantCountByIndex !== "function"
+    || typeof core?.getMotivatedActorAffinityGrantKindAt !== "function"
+  ) {
+    return [];
+  }
+  const count = core.getMotivatedActorAffinityGrantCountByIndex(index);
+  if (!Number.isInteger(count) || count <= 0) return [];
+  const grants = [];
+  for (let slot = 0; slot < count; slot += 1) {
+    const kindCode = core.getMotivatedActorAffinityGrantKindAt(index, slot);
+    const expressionCode = core.getMotivatedActorAffinityGrantExpressionAt(index, slot);
+    if (!Number.isInteger(kindCode) || kindCode <= 0) continue;
+    grants.push({
+      kind: AFFINITY_KIND_BY_CODE[kindCode] || "unknown",
+      expression: AFFINITY_EXPRESSION_BY_CODE[expressionCode] || "unknown",
+      stacks: core.getMotivatedActorAffinityGrantStacksAt(index, slot),
+      mana: core.getMotivatedActorAffinityGrantManaAt(index, slot),
+      manaMax: core.getMotivatedActorAffinityGrantManaMaxAt(index, slot),
+      manaRegen: core.getMotivatedActorAffinityGrantManaRegenAt(index, slot),
+    });
+  }
+  return grants;
+}
 
 function cloneResolvedEffects(effects) {
   if (!Array.isArray(effects)) return [];
@@ -305,6 +332,7 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
           durability: readMotivatedActorVital(index, 3),
         },
         affinities,
+        affinityGrants: readActorAffinityGrants(core, index),
         abilities,
         resolvedEffects,
       });
@@ -330,6 +358,7 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
           durability: readPrimaryActorVital(3),
         },
         affinities,
+        affinityGrants: readActorAffinityGrants(core, 0),
         abilities,
         resolvedEffects,
       },

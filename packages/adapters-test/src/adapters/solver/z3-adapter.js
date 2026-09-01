@@ -1,147 +1,114 @@
 /**
- * M8 — Z3-style solver adapter (deterministic, fixture-free).
+ * Deterministic fixture adapter for Actor-authored lexicographic objectives.
  *
- * This adapter satisfies the solver port contract (`adapter.solve(request)`)
- * for complex-motivation runtime-decision envelopes. It does NOT bind to an
- * actual Z3 binary — instead, it expresses the same kind of constraint-based
- * reasoning Z3 would do (priority weighting, feasibility checks) in pure JS so
- * tests are deterministic and do not require external services.
- *
- * Architecture: lives in `adapters-test`, never in `runtime` or `core-ts`.
- * The runtime calls it through `createSolverPort(adapter)`.
- *
- * Decision priority (matches the M1 contract for sandbox scenarios):
- *   1. attack       — close the loop on combat when adjacent to a hostile
- *   2. move toward hostile  — close distance to attack range
- *   3. move toward exit     — fall back to exploration
- *   4. wait         — last resort
- *
- * Returns `{ status: "fulfilled", model: { selectedActionId, ... } }` when a
- * candidate matches a rule, `{ status: "unsat" }` if no candidates, and forwards
- * any forced status from the request options for testability.
+ * This test double preserves forced status/error controls while sharing the
+ * production contract: validate opaque integer tuples, sort them stably, and
+ * never derive gameplay meaning from actions or observations.
  */
 
 const RUNTIME_DECISION_CONTRACT = "runtime-decision-v1";
+const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v1";
 
-const PRIORITY_RULES = Object.freeze([
-  // (rule_id, predicate(candidate, envelope) -> boolean, weight)
-  { id: "attack_adjacent", weight: 100, match: (c) => c.action?.kind === "attack" },
-  { id: "move_toward_hostile", weight: 80, match: (c, env) => {
-      if (c.action?.kind !== "move") return false;
-      const visible = Array.isArray(env?.visibleActors) ? env.visibleActors : [];
-      if (visible.length === 0) return false;
-      const to = c.action.params?.to;
-      if (!to) return false;
-      // True if this move reduces Chebyshev distance to any visible actor
-      const selfPos = env?.actor?.position;
-      if (!selfPos) return false;
-      for (const v of visible) {
-        if (!v?.position) continue;
-        const beforeDist = Math.max(
-          Math.abs(v.position.x - selfPos.x),
-          Math.abs(v.position.y - selfPos.y),
-        );
-        const afterDist = Math.max(
-          Math.abs(v.position.x - to.x),
-          Math.abs(v.position.y - to.y),
-        );
-        if (afterDist < beforeDist) return true;
-      }
-      return false;
-    } },
-  { id: "move_toward_exit", weight: 50, match: (c, env) => {
-      if (c.action?.kind !== "move") return false;
-      const exit = env?.objectives?.exit;
-      if (!exit) return false;
-      const to = c.action.params?.to;
-      const selfPos = env?.actor?.position;
-      if (!to || !selfPos) return false;
-      const beforeDist = Math.max(Math.abs(exit.x - selfPos.x), Math.abs(exit.y - selfPos.y));
-      const afterDist = Math.max(Math.abs(exit.x - to.x), Math.abs(exit.y - to.y));
-      return afterDist < beforeDist;
-    } },
-  { id: "move_fallback", weight: 20, match: (c) => c.action?.kind === "move" },
-  { id: "wait", weight: 10, match: (c) => c.action?.kind === "wait" },
-]);
-
-function scoreCandidate(candidate, envelope) {
-  for (const rule of PRIORITY_RULES) {
-    if (rule.match(candidate, envelope)) {
-      return { score: rule.weight, ruleId: rule.id };
-    }
-  }
-  return { score: 0, ruleId: "no_match" };
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function pickBest(envelope) {
-  const candidates = Array.isArray(envelope?.candidateActions) ? envelope.candidateActions : [];
-  if (candidates.length === 0) return null;
-  let best = null;
-  const ranked = [];
-  for (const c of candidates) {
-    const scored = scoreCandidate(c, envelope);
-    ranked.push({ candidateActionId: c.id, score: scored.score, ruleId: scored.ruleId });
-    if (!best || scored.score > best.score) {
-      best = { candidate: c, score: scored.score, ruleId: scored.ruleId };
-    }
+function validateEnvelope(envelope) {
+  if (!envelope || envelope.contract !== RUNTIME_DECISION_CONTRACT) {
+    return "z3_missing_runtime_decision_envelope";
   }
-  // Sort ranked descending for stable diagnostics
-  ranked.sort((a, b) => b.score - a.score);
-  return { best, ranked };
+  if (!Array.isArray(envelope.candidateActions)) return "z3_missing_candidate_actions";
+  if (envelope.candidateActions.some((candidate) => (
+    !candidate
+    || typeof candidate.id !== "string"
+    || candidate.id.length === 0
+    || !isObject(candidate.action)
+  ))) {
+    return "z3_invalid_candidate_action";
+  }
+  return null;
 }
 
-/**
- * Create a Z3-style solver adapter.
- *
- * @param {object} [options]
- * @param {string} [options.forceStatus] - For testing: forces "deferred"|"unsat"|"error"
- * @param {boolean} [options.throwOnSolve] - For testing: throws to exercise port error handling
- * @returns {{ solve: (request: object) => Promise<object> }}
- */
+function readObjectiveRows(envelope) {
+  const objective = envelope.objectives?.actorDecision;
+  if (objective === undefined) {
+    return { ok: false, reason: "actor_decision_objective_missing" };
+  }
+  if (!isObject(objective) || objective.contract !== ACTOR_DECISION_OBJECTIVE_CONTRACT
+    || !Array.isArray(objective.order) || objective.order.length === 0
+    || objective.order.some((entry) => typeof entry !== "string" || entry.trim().length === 0)
+    || new Set(objective.order).size !== objective.order.length) {
+    return { ok: false, reason: "actor_decision_objective_invalid" };
+  }
+  const candidates = envelope.candidateActions;
+  if (!Array.isArray(objective.candidates) || objective.candidates.length !== candidates.length) {
+    return { ok: false, reason: "actor_decision_objective_invalid" };
+  }
+  const candidateIds = candidates.map((candidate) => candidate.id);
+  if (new Set(candidateIds).size !== candidateIds.length) {
+    return { ok: false, reason: "actor_decision_objective_invalid" };
+  }
+  for (let index = 0; index < objective.candidates.length; index += 1) {
+    const row = objective.candidates[index];
+    if (!isObject(row) || row.candidateActionId !== candidateIds[index]
+      || !Array.isArray(row.rank) || row.rank.length !== objective.order.length
+      || row.rank.some((member) => !Number.isInteger(member))
+      || !isObject(row.features) || !Array.isArray(row.rationaleTags)
+      || row.rationaleTags.some((tag) => typeof tag !== "string" || tag.trim().length === 0)) {
+      return { ok: false, reason: "actor_decision_objective_invalid" };
+    }
+  }
+  try {
+    return {
+      ok: true,
+      rows: objective.candidates.map((row, index) => ({
+        index,
+        candidateActionId: row.candidateActionId,
+        rank: [...row.rank],
+        features: JSON.parse(JSON.stringify(row.features)),
+        rationaleTags: [...row.rationaleTags],
+      })),
+    };
+  } catch {
+    return { ok: false, reason: "actor_decision_objective_invalid" };
+  }
+}
+
+function compareRows(left, right) {
+  for (let index = 0; index < left.rank.length; index += 1) {
+    if (left.rank[index] > right.rank[index]) return -1;
+    if (left.rank[index] < right.rank[index]) return 1;
+  }
+  return left.index - right.index;
+}
+
 export function createZ3SolverAdapter(options = {}) {
   const { forceStatus = null, throwOnSolve = false } = options;
 
   async function solve(request) {
-    if (throwOnSolve) {
-      throw new Error("z3_adapter_simulated_failure");
-    }
-    if (forceStatus === "deferred") {
-      return { status: "deferred", reason: "z3_forced_deferred" };
-    }
-    if (forceStatus === "unsat") {
-      return { status: "unsat", reason: "z3_no_satisfying_assignment" };
-    }
-    if (forceStatus === "error") {
-      return { status: "error", reason: "z3_forced_error" };
-    }
+    if (throwOnSolve) throw new Error("z3_adapter_simulated_failure");
+    if (forceStatus === "deferred") return { status: "deferred", reason: "z3_forced_deferred" };
+    if (forceStatus === "unsat") return { status: "unsat", reason: "z3_no_satisfying_assignment" };
+    if (forceStatus === "error") return { status: "error", reason: "z3_forced_error" };
 
-    // Extract envelope
     const envelope = request?.problem?.data;
-    if (!envelope || envelope.contract !== RUNTIME_DECISION_CONTRACT) {
-      return {
-        status: "error",
-        reason: "z3_missing_runtime_decision_envelope",
-      };
+    const validationError = validateEnvelope(envelope);
+    if (validationError) return { status: "error", reason: validationError };
+    if (envelope.candidateActions.length === 0) {
+      return { status: "unsat", reason: "z3_no_candidates" };
     }
-
-    const result = pickBest(envelope);
-    if (!result || !result.best) {
-      return {
-        status: "unsat",
-        reason: "z3_no_candidates",
-      };
-    }
-
-    // Build response model that resolveActionFromSolverResult consumes
+    const objectiveRows = readObjectiveRows(envelope);
+    if (!objectiveRows.ok) return { status: "deferred", reason: objectiveRows.reason };
+    const ranked = objectiveRows.rows.slice().sort(compareRows);
+    const winner = ranked[0];
     return {
       status: "fulfilled",
       model: {
         contract: RUNTIME_DECISION_CONTRACT,
         decisionKind: envelope.decisionKind || "next_move",
-        selectedActionId: result.best.candidate.id,
-        confidence: result.best.score / 100,
-        rationaleTags: [result.best.ruleId],
-        rankedCandidates: result.ranked,
+        selectedActionId: winner.candidateActionId,
+        rationaleTags: [...winner.rationaleTags],
+        rankedCandidates: ranked.map(({ index: _index, ...row }) => row),
       },
     };
   }
@@ -149,13 +116,6 @@ export function createZ3SolverAdapter(options = {}) {
   return {
     solve,
     kind: "z3",
-    /**
-     * Z.3 — declared, not inferred. This stand-in answers action selection only,
-     * and it is deterministic: its ranking is a pure function of the envelope
-     * with no clock, no randomness and no timeout. That is what makes it usable
-     * in a replayed run — and it is the same bar a REAL Z3 adapter must clear,
-     * which it will not get for free.
-     */
     capabilities: {
       domains: ["actor_action_selection"],
       deterministic: true,

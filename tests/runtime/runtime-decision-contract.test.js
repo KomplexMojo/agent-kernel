@@ -65,6 +65,44 @@ test("runtime decision provider policy only allows live Ollama in explicit manua
   assert.equal(allowsLiveLlmRuntime(manualPolicy), true);
 });
 
+test("buildRuntimeDecisionEnvelope validates and clones Actor objective rows", async () => {
+  const { buildRuntimeDecisionEnvelope } = await import(
+    "../../packages/runtime/src/personas/_shared/runtime-decision.mts"
+  );
+  const actorDecision = {
+    contract: "actor-decision-objective-v1",
+    order: ["primary", "stableTieBreak"],
+    candidates: [{
+      candidateActionId: "wait_here",
+      rank: [100, 0],
+      features: { actionKind: "wait" },
+      rationaleTags: ["wait"],
+    }],
+  };
+  const envelope = buildRuntimeDecisionEnvelope({
+    actor: { id: "actor_1" },
+    candidateActions: [{ id: "wait_here", action: { kind: "wait", params: {} } }],
+    objectives: { actorDecision },
+  });
+
+  assert.deepEqual(envelope.objectives.actorDecision, actorDecision);
+  assert.notStrictEqual(envelope.objectives.actorDecision, actorDecision);
+  assert.notStrictEqual(envelope.objectives.actorDecision.candidates[0], actorDecision.candidates[0]);
+  actorDecision.candidates[0].rank[0] = 0;
+  assert.equal(envelope.objectives.actorDecision.candidates[0].rank[0], 100);
+
+  const malformed = buildRuntimeDecisionEnvelope({
+    actor: { id: "actor_1" },
+    candidateActions: [{ id: "wait_here", action: { kind: "wait", params: {} } }],
+    objectives: {
+      primary: "advance_to_exit",
+      actorDecision: { ...actorDecision, candidates: [] },
+    },
+  });
+  assert.equal(malformed.objectives.primary, "advance_to_exit");
+  assert.equal(malformed.objectives.actorDecision, undefined);
+});
+
 test("captured LLM runtime decision resolves to an action without a live provider", async () => {
   const {
     buildRuntimeDecisionEnvelope,

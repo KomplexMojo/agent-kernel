@@ -204,6 +204,18 @@ export function attachDirectorServices({
     return createAllocator({ priceList: args.priceList }).fitLayoutToBudget(args);
   }
 
+  function prepareLayoutBudgetFit(args = {}) {
+    requireState(PLANNED_STATES, "prepare a layout budget-fit request");
+    requireAllocator("prepare a layout budget-fit request");
+    return createAllocator({ priceList: args.priceList }).prepareLayoutBudgetFit(args);
+  }
+
+  function completeLayoutBudgetFit(args = {}) {
+    requireState(PLANNED_STATES, "complete a layout budget-fit request");
+    requireAllocator("complete a layout budget-fit request");
+    return createAllocator({ priceList: args.priceList }).completeLayoutBudgetFit(args);
+  }
+
   // CR.4 M5b.2d — pricing a layout the LLM proposed, against what is left of the budget.
   // Unlike `fitLayoutToBudget` this one revises nothing: it answers "what does this layout
   // cost and does it fit". The loop used to answer it by importing `allocator/layout-spend.js`
@@ -399,6 +411,8 @@ export function attachDirectorServices({
     resolveTileCosts,
     allocateBudget,
     evaluateSelectionSpend,
+    prepareLayoutBudgetFit,
+    completeLayoutBudgetFit,
     fitLayoutToBudget,
     evaluateLayoutSpend,
     assessFeasibility,

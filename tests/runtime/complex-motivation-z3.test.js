@@ -244,7 +244,7 @@ test("actor without runtimeDecisioning still uses simple motivation path (M5), n
   assert.equal(result.actions[0].kind, "attack");
 });
 
-test("complex actor with no hostile present sends move and wait candidates, and Z3 picks move toward exit", async () => {
+test("complex actor with no hostile present lets the Actor-authored tuple select its move proposal", async () => {
   const observation = {
     actors: [
       { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
@@ -267,10 +267,10 @@ test("complex actor with no hostile present sends move and wait candidates, and 
   const solverResult = await createZ3SolverAdapter().solve(solverRequest);
 
   assert.equal(solverResult.status, "fulfilled");
-  assert.deepEqual(solverResult.model.rationaleTags, ["move_toward_exit"]);
+  assert.deepEqual(solverResult.model.rationaleTags, ["actor_proposal"]);
 });
 
-test("complex actor with hostile far away lets Z3 pick the move_toward_hostile candidate", async () => {
+test("complex actor with hostile far away lets the Actor-authored tuple select move_east", async () => {
   const observation = {
     actors: [
       { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
@@ -290,7 +290,7 @@ test("complex actor with hostile far away lets Z3 pick the move_toward_hostile c
   const solverResult = await createZ3SolverAdapter().solve(solverRequest);
 
   assert.equal(solverResult.status, "fulfilled");
-  assert.deepEqual(solverResult.model.rationaleTags, ["move_toward_hostile"]);
+  assert.deepEqual(solverResult.model.rationaleTags, ["actor_proposal"]);
   assert.equal(solverResult.model.selectedActionId, "move_east");
 });
 
@@ -426,7 +426,7 @@ test("complex actor motivation flip between attacking and defending yields conte
 
   assert.equal(attackingResolved.ok, true);
   assert.equal(attackingResolved.action.kind, "move");
-  assert.equal(attackingResult.model.rationaleTags[0], "move_toward_hostile");
+  assert.equal(attackingResult.model.rationaleTags[0], "actor_proposal");
   assert.equal(defendingResolved.ok, true);
   assert.equal(defendingResolved.action.kind, "attack");
   assert.equal(defendingResolved.action.params.targetId, WARDEN_ID);

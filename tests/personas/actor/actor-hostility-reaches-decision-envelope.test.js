@@ -15,10 +15,9 @@
  * exists. A shape test here would pass against a stub that stamped `hostile`
  * on everything, which is exactly the ally-targeting bug wearing a new field.
  *
- * Companion: `tests/runtime/z3-faction-aware-scoring.test.js` covers the other
- * half — that the adapter consumes this flag once it arrives. Neither test is
- * sufficient alone: the adapter test would pass against an envelope nothing
- * ever stamps, and this one would pass against an adapter that ignores it.
+ * Companion: `actor-decision-objective.test.js` proves that the Actor consumes
+ * this ruling when it authors compatibility tuples. The adapter deliberately
+ * treats both hostility and action meaning as opaque data.
  */
 "use strict";
 

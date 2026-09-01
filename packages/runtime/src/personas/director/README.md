@@ -235,7 +235,9 @@ Director asks the Allocator. As of **M5b.2d (2026-08-08) the loop imports none o
 | `resolveTileCosts({ priceList })` | per-tile layout costs |
 | `allocateBudget({ budgetTokens, priceList, poolWeights, … })` | the budget split into pools |
 | `evaluateSelectionSpend({ selections, budgetTokens, priceList, normalizeMotivations })` | which selections the remaining budget admits |
-| `fitLayoutToBudget({ layout, remainingBudgetTokens, priceList, layoutCosts })` | a revised layout that fits the budget (CR.4 M5b.2c) |
+| `prepareLayoutBudgetFit({ layout, remainingBudgetTokens, priceList, layoutCosts })` | an Allocator-authored solver effect for host dispatch (CR.4 M5b.2c) |
+| `completeLayoutBudgetFit({ prepared, solverResult, … })` | Allocator validation or exact fallback after host dispatch |
+| `fitLayoutToBudget({ layout, remainingBudgetTokens, priceList, layoutCosts })` | the deterministic no-solver fallback-compatible revision |
 | `evaluateLayoutSpend({ layout, budgetTokens, priceList, tileCosts })` | what a proposed layout costs and whether it fits (CR.4 M5b.2d) |
 
 Three properties are load-bearing, not incidental:
