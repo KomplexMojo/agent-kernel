@@ -221,6 +221,28 @@ test("no module outside the Allocator assigns a number to one of its published p
   );
 });
 
+test("mixed-room build and presentation never author or reconstruct design-token spend", () => {
+  const orchestrator = readFileSync(
+    resolve(ROOT, "packages/runtime/src/build/orchestrate-build.js"),
+    "utf8",
+  );
+  const summary = readFileSync(
+    resolve(ROOT, "packages/runtime/src/build/mixed-room-summary.js"),
+    "utf8",
+  );
+
+  assert.equal(orchestrator.includes("priceMixedRoomDesignSpend({"), true);
+  assert.equal(orchestrator.includes("tokenSpend"), false);
+  assert.equal(orchestrator.includes("defaultTileTokenCost"), false);
+  assert.equal(summary.includes("tokenSpend"), false);
+  assert.equal(summary.includes("defaultTileTokenCost"), false);
+  assert.equal(summary.includes("calculatePriceTotal"), false);
+  assert.equal(summary.includes("normalizePriceItems"), false);
+  assert.equal(summary.includes("unitCost"), false);
+  assert.equal(summary.includes("designTokenSpend"), true);
+  assert.equal(summary.includes("allocator_summary_required"), true);
+});
+
 test("this guard states what it does NOT cover", () => {
   // A guard that looks total but is heuristic is worse than one that admits it:
   // the first stops people looking. Keep the caveat in the file, tested, so it

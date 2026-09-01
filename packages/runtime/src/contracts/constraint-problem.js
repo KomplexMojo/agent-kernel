@@ -6,23 +6,25 @@
  * The maintainer's rule for solver adoption (2026-08-14): *"I don't want it
  * artificially introduced where it will provide no value. The goal is to use a
  * solver instead of extensive rule cages."* So this contract exists for the
- * three sites where the current code SEARCHES — chooses the best legal option
- * from a combinatorial space, with a hand-rolled version that is greedy,
- * incomplete, or exploding — and for no others:
+ * the closed set of adopted constraint domains. Domain adoption does not imply
+ * that every question in that persona belongs in a solver:
  *
  *   actor_action_selection      1115 lines / 136 branches, and AM.6 + AM.9 just
  *                               added casts x targets x range x mana to it
  *   allocator_budget_fit        `pickCheapestField` / `selectReductionField` are
  *                               a hand-rolled knapsack approximation
- *   configurator_satisfiability motivation exclusive groups, vital prerequisites,
- *                               grant-slot limits, stack tiers
+ *   configurator_satisfiability object-placement assignment (Z9); actor configuration
+ *                               validity is bounded deterministic validation (Z8.0)
  *
- * Three sites were REFUSED and must not acquire a domain here: the Moderator's
+ * Four sites were REFUSED and must not acquire a separate domain here: Configurator
+ * motivation/affinity/vital validity, plus the Moderator's
  * affinity interaction resolution and tick ordering are total functions over
- * bounded inputs (a 48-cell lookup and a sort — already optimal, and a solver
- * would add latency and a model-stability risk for no expressiveness), and the
- * core affinity/vital matrices are an evaluation, not a search. Adding a domain
- * for any of them would be the artificial introduction the rule forbids.
+ * bounded inputs (pair/threshold checks, a 48-cell lookup, and a sort — already
+ * complete), and the core affinity/vital matrices are evaluations, not searches.
+ * Adding a domain for any of them would be the artificial introduction the rule
+ * forbids. Z9 uses the existing Configurator domain with
+ * `context.problemKind: "object_placement"`; live resource-grant slots remain core
+ * runtime state and are not Configurator variables.
  *
  * The solver PORT (`ports/solver.js`) and effect routing (`ports/effects.js`)
  * are already correct and are untouched by this. What was missing is a problem
@@ -52,7 +54,7 @@ export const CONSTRAINT_DOMAINS = Object.freeze({
   ACTOR_ACTION_SELECTION: "actor_action_selection",
   /** Which purchases fit the budget best? The Allocator owns it, and prices it. */
   ALLOCATOR_BUDGET_FIT: "allocator_budget_fit",
-  /** Is this configuration satisfiable, and if not, why? The Configurator owns it. */
+  /** Configurator-owned searches, currently reserved for Z9 object placement. */
   CONFIGURATOR_SATISFIABILITY: "configurator_satisfiability",
 });
 

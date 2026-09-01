@@ -115,6 +115,54 @@ silently-diverging answer to "how big is this card set" is the CR.1 defect class
 because the output stays well-formed. Most Allocator surfaces never price a room card, so the parameter is
 optional at construction and enforced at the point of use.
 
+### It owns mixed-room design-token spend; presentation does not reconstruct it (RB3.0/RB3.2)
+
+The approved unit is `design_tokens`. `priceMixedRoomDesignSpend({ room, composition, priceList })`
+receives Configurator-authored room dimensions/components plus a resolved price list and returns one
+reconciled `designTokenSpend` summary:
+
+`{ status: "available", unit: "design_tokens", producedBy: "allocator", components:
+{ defaultTiles, localizedTiles, roomWideOverlay, localizedHazards }, total }`.
+
+All components and the total are non-negative integers, and the total must equal their sum. Missing or
+malformed structure returns `mixed_room_input_invalid`; a missing price returns
+`mixed_room_price_missing`. Build and Configurator code may carry this object;
+`build/mixed-room-summary.js` validates/displays it without filling a component or total.
+
+The price source is the same versioned Allocator price list used by the build receipt. Default and
+localized cells partition the room's priced tiles so no cell is charged twice; overlays use the
+Allocator's affinity base/expression/stack items; localized hazards use the complete hazard, affinity,
+vital, and regen line items. Template-authored `tokenCost` is not a price source.
+
+Worked default-price example: a 6×4 room with 24 ordinary floor cells and one one-stack fire/emit hazard
+has `defaultTiles: 24`. The hazard contributes 64 (`hazard_basic` 5 + mana 9 + mana-regen 9 + durability
+5 + `affinity_base` 10 + localized expression 25 + stack 1), so the summary is
+`{defaultTiles:24, localizedTiles:0, roomWideOverlay:0, localizedHazards:64, total:88}`. This is a
+breakdown of the existing design receipt, not an additional charge.
+
+The capability is read-only and available in every FSM state. `orchestrateBuild` calls it once for each
+published mixed-room composition, explicitly supplies the build's resolved list when a budget receipt
+exists, and attaches the answer to the composition. It does not add a spend-proposal item or debit a
+ledger. Default rules still expose no mixed-room template catalog, so RB3.2 wires the retained capability
+without activating that dormant product path.
+
+### It resolves build price lists and actor-expansion availability (RB3.1)
+
+Two read-only public capabilities keep build glue from making Allocator policy decisions:
+
+- `resolvePriceList(callerPriceList)` overlays caller items onto the persona's canonical price list by
+  `kind:id` (or legacy `key`). The caller's last value wins, existing keys retain canonical order, new
+  keys append in caller order, caller metadata wins when present, and a missing list returns the
+  canonical artifact unchanged.
+- `resolveActorExpansionAvailability({ receipt })` returns the tokens the Configurator may use to
+  expand actors. The receipt's global remainder is always a ceiling; when delver/warden pool evidence
+  exists, their combined non-negative remainder is the second ceiling. Missing actor-pool evidence
+  preserves the global remainder.
+
+Neither capability registers a budget, issues a receipt, changes FSM state, or mutates caller data.
+`orchestrateBuild` supplies artifacts and consumes the answers; it contains no price-item merge, actor
+pool identifiers, or global-versus-pool minimum policy.
+
 ### It judges configurations; it does not author them (CR.9 M3)
 
 Budget maximization is Allocator policy, but *building the thing being priced* is not. The maximizer used

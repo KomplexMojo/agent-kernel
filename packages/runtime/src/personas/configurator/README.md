@@ -184,12 +184,22 @@ Validation ensures that the simulation starts from a **coherent state**, not tha
 ---
 
 ### Solver-backed Validation (Optional)
-Where constraints are complex, the Configurator may invoke solver-backed validation to:
-- Verify layout feasibility.
-- Confirm logical constraints are satisfiable.
-- Reject or simplify configurations that cannot be made consistent.
+The Z8.0 current-source benefit test rejects solver routing for actor logical validity. Motivation
+exclusivity, mana/stamina prerequisites, configured-affinity slot count, and stack bounds are bounded
+pair/count/threshold checks with no objective and no choice search. Authored values are hard; omitted
+values already resolve to one approved default or floor. Z3 would only re-evaluate the same rules with
+more machinery.
 
-Solver usage is bounded, deterministic, and treated as a configuration-time aid, not a runtime dependency.
+These checks remain deterministic Configurator validation. Their exact diagnostic families are
+`conflicting_kind`, `affinity_requires_mana`, `affinity_requires_mana_regen`,
+`movement_requires_stamina_pool`, `movement_requires_stamina_regen`,
+`affinity_slot_limit_exceeded`, and `stacks_exceed_max`. Z8.1 consolidates their fragmented call sites
+without adding a solver path.
+
+The existing `configurator_satisfiability` constraint domain remains reserved for Z9 object-placement
+assignment, which is a genuine combinatorial search. It uses
+`context.problemKind: "object_placement"`. Core's live resource-affinity grant slots are runtime state,
+not authored loadout slots, and are never variables in a Configurator problem.
 
 ---
 
@@ -277,6 +287,61 @@ This separation ensures that:
 - Invalid or incoherent scenarios are rejected early and explicitly.
 
 The Configurator is therefore a **bridge between planning and execution**, responsible for preparing the simulation so that deterministic rules can operate without ambiguity.
+
+### RB2.0 reachable build behavior lock (2026-08-30)
+
+`tests/personas/configurator/configurator-mixed-room-composition.test.js` and
+`configurator-actor-placement.test.js` characterize the configuration decisions that
+`orchestrateBuild` actually reaches before those decisions move behind this persona's public surface.
+
+- Room cards expand in authored card/count order, then a seed-shuffled room order receives the
+  profiles cyclically. Each emitted affinity gets one deterministic unoccupied cell in its assigned
+  room. Generated hazard ids include affinity plus room index; mana upkeep is `2 + stacks`, the pool
+  is three upkeep ticks, regen equals upkeep, and durability is `5 * stacks`.
+- Actor role inference scans id, archetype/type, motivations, and role for the current delver/warden
+  keywords. Delvers prefer the entry room; wardens prefer a matching affinity room, then the exit room,
+  then any room. Spawn, exit, hazards, and resources are occupied. The resolved build output preserves
+  authored actor order and identity; `InitialStateArtifact` separately canonicalizes actors by id.
+- Capacity failure identifies the delver or warden that exhausted placement and reports the available
+  room-tile count plus the number already occupied.
+
+The audit also found two dormant paths that RB2.1/RB2.2 must not accidentally activate. Default
+affinity rules publish no `worldActorCostModel.mixedRoomAssembly.templates`, and the build call supplies
+no alternate catalog, so template composition remains unreachable through `orchestrateBuild`.
+Likewise, generated layouts always contain at least one viable room, so the private legacy group-anchor
+fallback is not reached by this entry point. Its removal or preservation remains RB2.2's explicit
+caller/residue decision—not part of the characterized contract.
+
+### RB2.1 mixed-room capability (2026-08-31)
+
+`composeMixedRooms({ layout, cardSet, seed, affinityRules })` is the single public Configurator
+capability for room-profile expansion, seeded room assignment, room template metadata, candidate-cell
+selection, and generated affinity-hazard vitals. It is stateless and pure: it returns a new layout and
+does not mutate caller-owned data.
+
+`orchestrateBuild` now passes plain layout/card/seed inputs and consumes the returned layout. It owns no
+room-card filtering, affinity-expression default, stack default, cell choice, mana/upkeep, regen, or
+durability formula. The A2 residue guard rejects restoring those named helpers in build glue.
+
+The existing template-catalog branch moved behind the same capability without being activated: current
+default rules still publish no templates and the production caller still supplies none. RB3.0's price
+boundary is unchanged—Configurator structure contains no price hints or arithmetic. RB3.2 now has build
+pass each published composition to the Allocator's `priceMixedRoomDesignSpend` capability and attach only
+that answer as `designTokenSpend`; this persona neither imports the Allocator nor derives a component or
+total. Actor role/group/placement policy remains outside this capability until RB2.2.
+
+### RB2.2 actor-placement capability (2026-08-31)
+
+`placeActors({ actors, layout, delverCount })` is the single public Configurator capability for actor
+power fallback, legacy leader/support grouping and distant anchors, role inference, room-aware
+placement, affinity-room preference, and occupancy. It is stateless and pure: it never mutates the
+caller-owned actor list or layout and returns `{ actors, changed }` in authored actor order.
+
+The strategic path reserves spawn, exit, hazards, and resources. Delvers prefer the entry room;
+wardens prefer rooms matching their affinities, then the exit room, then any room. Layouts without a
+viable room context retain the existing deterministic power-group/anchor fallback. `orchestrateBuild`
+passes only actors, layout, and the delver-count hint through the public persona surface and consumes
+the result; it owns no actor role, ranking, grouping, or placement decision.
 
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.

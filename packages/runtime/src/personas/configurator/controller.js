@@ -75,6 +75,10 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     resolveAffinityManaCost: services.resolveAffinityManaCost,
     buildAmbientAffinityPressure: services.buildAmbientAffinityPressure,
     computeInternalManaUpkeep: services.computeInternalManaUpkeep,
+    // RB2.1 — room-profile assignment and affinity-hazard synthesis are Configurator policy.
+    composeMixedRooms: services.composeMixedRooms,
+    // RB2.2 — actor grouping, role inference, and placement are Configurator policy.
+    placeActors: services.placeActors,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,
     resolveMotivationRules: services.resolveMotivationRules,
     // CR.7 / WP-5 — the third card-model derivation; its siblings are `deriveRoomLayout` and

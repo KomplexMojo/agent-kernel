@@ -298,6 +298,15 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
   drives real payloads and compares what was charged against what is published.
 - Receipts (`BudgetReceiptArtifact`) are issued only by the Allocator and are the audit trail for
   every spend. Budget maximization ("spend the rest") is Allocator policy, not adapter code.
+- **Mixed-room spend is real design-token spend (RB3.0, approved 2026-08-30).** The Configurator
+  authors room dimensions and components without prices. The Allocator alone resolves those inputs
+  against the versioned price list and returns a reconciled `designTokenSpend` summary with unit
+  `design_tokens`, `producedBy: "allocator"`, four non-negative integer components (`defaultTiles`,
+  `localizedTiles`, `roomWideOverlay`, `localizedHazards`), and an exact total. Configurator/build glue
+  may carry that summary; presentation may validate and display it, but never derive a component or
+  repair a missing total. Missing or malformed Allocator data is `unavailable`, not zero. CLI labels
+  it `designTokenSpend`/`designTokenUnit`, keeping it distinct from provider tokens and runtime budget
+  units. Embedded template `tokenCost` hints and presentation-side arithmetic are forbidden.
 - **Budget-fit search is Allocator policy, even when an adapter performs the search.** The Allocator
   supplies requested floor/hallway counts, its own prices, the cap, hard constraints, and the complete
   lexicographic objective. An adapter may solve that opaque problem; it may not invent prices, add a

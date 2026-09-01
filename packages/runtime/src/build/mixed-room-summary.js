@@ -4,13 +4,12 @@ import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 
 const { resolveAffinityRules } = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 
-const DEFAULT_TOKEN_SPEND = Object.freeze({
-  defaultTiles: 0,
-  localizedTiles: 0,
-  roomWideOverlay: 0,
-  localizedHazards: 0,
-  total: 0,
-});
+const DESIGN_TOKEN_COMPONENTS = Object.freeze([
+  "defaultTiles",
+  "localizedTiles",
+  "roomWideOverlay",
+  "localizedHazards",
+]);
 
 const MIXED_ROOM_TEMPLATE_MAP = (() => {
   try {
@@ -61,7 +60,6 @@ function normalizeOverlay(input) {
     kind: input.kind.trim().toLowerCase(),
     expression: isNonEmptyString(input.expression) ? input.expression.trim().toLowerCase() : "emit",
     stacks: toPositiveInt(input.stacks, 1),
-    tokenCost: toNonNegativeInt(input.tokenCost, 0),
   };
   return overlay;
 }
@@ -86,7 +84,6 @@ function normalizeLocalizedHazards(input) {
         x: toNonNegativeInt(entry.x, 0),
         y: toNonNegativeInt(entry.y, 0),
         blocking: entry.blocking === true,
-        tokenCost: toNonNegativeInt(entry.tokenCost, 0),
         affinity: {
           kind: isNonEmptyString(rawKind) ? rawKind.trim().toLowerCase() : "none",
           expression: isNonEmptyString(affinity.expression) ? affinity.expression.trim().toLowerCase() : "emit",
@@ -96,7 +93,7 @@ function normalizeLocalizedHazards(input) {
   });
 }
 
-function normalizeLocalizedTiles(input, defaultTileTokenCost) {
+function normalizeLocalizedTiles(input) {
   if (!Array.isArray(input)) return [];
   return input
     .filter((entry) => isObject(entry))
@@ -104,43 +101,7 @@ function normalizeLocalizedTiles(input, defaultTileTokenCost) {
       x: toNonNegativeInt(entry.x, 0),
       y: toNonNegativeInt(entry.y, 0),
       kind: isNonEmptyString(entry.kind) ? entry.kind.trim().toLowerCase() : "floor",
-      tokenCost: toNonNegativeInt(entry.tokenCost, defaultTileTokenCost),
     }));
-}
-
-function deriveCompositionProfile({ roomWideOverlay, localizedTiles, localizedHazards }) {
-  if (roomWideOverlay && localizedHazards.length > 0) {
-    return "room_overlay_dominant_with_localized_variation";
-  }
-  if (roomWideOverlay) {
-    return "room_overlay_dominant";
-  }
-  if (localizedHazards.length > 0) {
-    return "neutral_with_localized_hazards";
-  }
-  if (localizedTiles.length > 0) {
-    return "mixed_composition";
-  }
-  return "mixed_composition";
-}
-
-function deriveDominantInvestment({ roomWideOverlay, localizedTiles, localizedHazards, tokenSpend }) {
-  if (roomWideOverlay && localizedHazards.length > 0) {
-    return "room_wide_overlay";
-  }
-  if (roomWideOverlay) {
-    return "room_wide_overlay";
-  }
-  if (localizedHazards.length > 0) {
-    return "localized_hazards";
-  }
-  if (localizedTiles.length > 0) {
-    return "localized_tiles";
-  }
-  if (tokenSpend.defaultTiles > 0) {
-    return "default_tiles";
-  }
-  return "none";
 }
 
 function resolveRoomId(room, index) {
@@ -177,43 +138,44 @@ function resolveBaseComposition(room) {
   return null;
 }
 
-function resolveTokenSpend({
-  composition,
-  width,
-  height,
-  defaultTileTokenCost,
-  localizedTiles,
-  roomWideOverlay,
-  localizedHazards,
-}) {
-  const fallback = {
-    defaultTiles: Math.max(0, width) * Math.max(0, height) * defaultTileTokenCost,
-    localizedTiles: localizedTiles.reduce((sum, entry) => sum + toNonNegativeInt(entry.tokenCost, 0), 0),
-    roomWideOverlay: roomWideOverlay ? toNonNegativeInt(roomWideOverlay.tokenCost, 0) : 0,
-    localizedHazards: localizedHazards.reduce((sum, entry) => sum + toNonNegativeInt(entry.tokenCost, 0), 0),
-    total: 0,
-  };
-  fallback.total = fallback.defaultTiles + fallback.localizedTiles + fallback.roomWideOverlay + fallback.localizedHazards;
+function unavailableDesignTokenSpend(reason) {
+  return { status: "unavailable", unit: "design_tokens", reason };
+}
 
-  const spend = isObject(composition?.tokenSpend) ? composition.tokenSpend : null;
-  if (!spend) return fallback;
-
-  const normalized = {
-    defaultTiles: toNonNegativeInt(spend.defaultTiles, fallback.defaultTiles),
-    localizedTiles: toNonNegativeInt(spend.localizedTiles, fallback.localizedTiles),
-    roomWideOverlay: toNonNegativeInt(spend.roomWideOverlay, fallback.roomWideOverlay),
-    localizedHazards: toNonNegativeInt(spend.localizedHazards, fallback.localizedHazards),
-    total: toNonNegativeInt(spend.total, 0),
-  };
-  if (normalized.total <= 0) {
-    normalized.total = (
-      normalized.defaultTiles
-      + normalized.localizedTiles
-      + normalized.roomWideOverlay
-      + normalized.localizedHazards
-    );
+function resolveDesignTokenSpend(composition) {
+  const spend = isObject(composition?.designTokenSpend) ? composition.designTokenSpend : null;
+  if (!spend) return unavailableDesignTokenSpend("allocator_summary_required");
+  if (spend.status === "unavailable"
+    && spend.unit === "design_tokens"
+    && spend.producedBy === "allocator"
+    && isNonEmptyString(spend.reason)) {
+    return unavailableDesignTokenSpend(spend.reason.trim());
   }
-  return normalized;
+  const components = isObject(spend.components) ? spend.components : null;
+  const exactComponentKeys = components
+    && Object.keys(components).sort().join("|") === [...DESIGN_TOKEN_COMPONENTS].sort().join("|");
+  const validComponents = exactComponentKeys && DESIGN_TOKEN_COMPONENTS.every((key) => (
+    Number.isInteger(components[key]) && components[key] >= 0
+  ));
+  const componentTotal = validComponents
+    ? DESIGN_TOKEN_COMPONENTS.reduce((sum, key) => sum + components[key], 0)
+    : -1;
+  if (spend.status !== "available"
+    || spend.unit !== "design_tokens"
+    || spend.producedBy !== "allocator"
+    || !validComponents
+    || !Number.isInteger(spend.total)
+    || spend.total < 0
+    || spend.total !== componentTotal) {
+    return unavailableDesignTokenSpend("allocator_summary_invalid");
+  }
+  return {
+    status: "available",
+    unit: "design_tokens",
+    producedBy: spend.producedBy,
+    components: Object.fromEntries(DESIGN_TOKEN_COMPONENTS.map((key) => [key, components[key]])),
+    total: spend.total,
+  };
 }
 
 function collectAffinityKinds({ roomWideOverlay, localizedHazards }) {
@@ -268,24 +230,13 @@ function summarizeRoom(room, index) {
   if (!composition) return null;
 
   const templateId = resolveTemplateId(room, composition, index);
-  const width = toPositiveInt(room?.width ?? composition?.width, 1);
-  const height = toPositiveInt(room?.height ?? composition?.height, 1);
-  const defaultTileTokenCost = toPositiveInt(composition?.defaultTileTokenCost, 1);
   const roomWideOverlay = normalizeOverlay(composition.roomWideOverlay);
-  const localizedTiles = normalizeLocalizedTiles(composition.localizedTiles, defaultTileTokenCost);
+  const localizedTiles = normalizeLocalizedTiles(composition.localizedTiles);
   const compositionHazards = normalizeLocalizedHazards(composition.localizedHazards);
   const localizedHazards = collectHazardsForRoom(room, composition, compositionHazards);
   const hazardAffinitySummary = deriveHazardAffinityRoomLabel(localizedHazards);
 
-  const tokenSpend = resolveTokenSpend({
-    composition,
-    width,
-    height,
-    defaultTileTokenCost,
-    localizedTiles,
-    roomWideOverlay,
-    localizedHazards,
-  });
+  const designTokenSpend = resolveDesignTokenSpend(composition);
 
   return {
     roomId: resolveRoomId(room, index),
@@ -293,17 +244,17 @@ function summarizeRoom(room, index) {
     templateInstanceId: resolveTemplateInstanceId(room, composition, templateId, index),
     compositionProfile: isNonEmptyString(composition.compositionProfile)
       ? composition.compositionProfile.trim()
-      : deriveCompositionProfile({ roomWideOverlay, localizedTiles, localizedHazards }),
+      : "unavailable",
     dominantInvestment: isNonEmptyString(composition.dominantInvestment)
       ? composition.dominantInvestment.trim()
-      : deriveDominantInvestment({ roomWideOverlay, localizedTiles, localizedHazards, tokenSpend }),
+      : "unavailable",
     localizedTileCount: localizedTiles.length,
     localizedHazardCount: localizedHazards.length,
     roomWideOverlay,
     affinityKinds: collectAffinityKinds({ roomWideOverlay, localizedHazards }),
     hazardAffinityKinds: hazardAffinitySummary.kinds,
     affinityRoomLabel: hazardAffinitySummary.label,
-    tokenSpend,
+    designTokenSpend,
   };
 }
 
@@ -326,23 +277,14 @@ export function summarizeMixedRoomAssemblies(rooms) {
       affinityKinds: Array.isArray(entry.affinityKinds) ? entry.affinityKinds : [],
       hazardAffinityKinds: Array.isArray(entry.hazardAffinityKinds) ? entry.hazardAffinityKinds : [],
       affinityRoomLabel: isNonEmptyString(entry.affinityRoomLabel) ? entry.affinityRoomLabel : "unlabeled room",
-      tokenSpend: {
-        ...DEFAULT_TOKEN_SPEND,
-        ...(isObject(entry.tokenSpend) ? entry.tokenSpend : null),
-      },
+      designTokenSpend: entry.designTokenSpend,
     }));
 }
 
-function formatTokenSpend(tokenSpend) {
-  const spend = isObject(tokenSpend) ? tokenSpend : DEFAULT_TOKEN_SPEND;
-  const normalized = {
-    defaultTiles: toNonNegativeInt(spend.defaultTiles, 0),
-    localizedTiles: toNonNegativeInt(spend.localizedTiles, 0),
-    roomWideOverlay: toNonNegativeInt(spend.roomWideOverlay, 0),
-    localizedHazards: toNonNegativeInt(spend.localizedHazards, 0),
-    total: toNonNegativeInt(spend.total, 0),
-  };
-  return `defaultTiles:${normalized.defaultTiles},localizedTiles:${normalized.localizedTiles},roomWideOverlay:${normalized.roomWideOverlay},localizedHazards:${normalized.localizedHazards},total:${normalized.total}`;
+function formatDesignTokenSpend(designTokenSpend) {
+  if (designTokenSpend?.status !== "available") return "unavailable";
+  const components = designTokenSpend.components;
+  return `${DESIGN_TOKEN_COMPONENTS.map((key) => `${key}:${components[key]}`).join(",")},total:${designTokenSpend.total}`;
 }
 
 export function formatMixedRoomAssembliesCliLines(assemblies) {
@@ -359,7 +301,7 @@ export function formatMixedRoomAssembliesCliLines(assemblies) {
       ? entry.affinityRoomLabel
       : "unlabeled room";
     lines.push(
-      `mixed-room: template=${entry.templateId} roomId=${entry.roomId} label="${roomLabel}" profile=${entry.compositionProfile} dominant=${entry.dominantInvestment} surfaceAffinities=${surfaceAffinities} tokenSpend=${formatTokenSpend(entry.tokenSpend)}`,
+      `mixed-room: template=${entry.templateId} roomId=${entry.roomId} label="${roomLabel}" profile=${entry.compositionProfile} dominant=${entry.dominantInvestment} surfaceAffinities=${surfaceAffinities} designTokenSpend=${formatDesignTokenSpend(entry.designTokenSpend)} designTokenUnit=design_tokens designTokenSource=${entry.designTokenSpend?.producedBy || "unavailable"}`,
     );
   });
   return lines;
