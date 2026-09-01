@@ -38,6 +38,7 @@ this file.
 | [#146](https://github.com/KomplexMojo/agent-kernel/issues/146) | Open question: does plain `ak_run` ever invoke autonomous actor decision-making? | **Closed, not planned** | — | Superseded by #147; premise was wrong, see finding 5 |
 | [#147](https://github.com/KomplexMojo/agent-kernel/issues/147) | `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay | Open | No — top-level `ascii` field on `ak_show_state` (built by `renderAscii`) is a working substitute | Finding 5 |
 | [#148](https://github.com/KomplexMojo/agent-kernel/issues/148) | level-gen error formatter in `orchestrate-build.js` bakes literal `"undefined"` into messages for 4 of 5 error codes | Open | No — the underlying rejection is correct, only the message text is broken | Finding 6 |
+| [#149](https://github.com/KomplexMojo/agent-kernel/issues/149) | `ak run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has | Open | No — the simulation trace (tick-frames/effects-log/decision-captures) is unaffected; only these three artifacts' `meta.id`/`meta.createdAt` | Finding 7 |
 
 None of the open issues above block continued use of the MCP surface — every one has a stated
 workaround. Full repro steps, root-cause evidence, and code pointers for each are in the numbered
@@ -267,7 +268,7 @@ being written up as a finding.
 
 **Scripts (promoted into the repo 2026-09-01):**
 [`scripts/testing/configuration-permutation-matrix.mjs`](scripts/testing/configuration-permutation-matrix.mjs)
-(the 34-scenario matrix data) and
+(the 50-scenario matrix data) and
 [`scripts/testing/run-configuration-permutation-sweep.mjs`](scripts/testing/run-configuration-permutation-sweep.mjs)
 (the unified create+run runner, `--dry-run` for authoring-only). Wired up as `pnpm run config-sweep`
 (full) and `pnpm run config-sweep:dry-run`. Output goes to `artifacts/matrix-sweep/` (gitignored).
@@ -323,6 +324,57 @@ coverage (`tests/runtime/actor-motivation-combat.test.js`: "defending actor does
 is not adjacent" — no hostile exists in a single-actor scenario). None of this was investigated
 further; flagged here only so a future sweep doesn't have to re-derive that these are expected.
 
+**Hazard interaction — what this sweep found (2026-09-01).** The maintainer asked whether hazard
+interaction could be deterministically tested the same way. Short answer: not the way "interaction"
+initially reads — but the investigation into why led somewhere more useful.
+
+Empirical test first: a `stationary` actor placed via `--actor` override directly adjacent to, then
+directly on top of, a `stacks=3 fire/emit` hazard, run 5 ticks with `--world-state-checkpoints`
+capturing vitals every tick. Result: **zero change, bit-for-bit, at every tick, in both placements.**
+That sent the investigation into `core-ts`'s own test suite
+(`tests/core-ts/affinity-environment-effects.test.mts`, `tests/runtime/hazard-vitals-in-observation.test.js`),
+which settled why: hazards authored via `ak_create`/`ak_run` are wired through
+`core.armStaticHazardAt` into a **static affinity field**
+(`core.computeStaticHazardAffinityField`/`getAffinityFieldIntensityAt`) — a radius/intensity
+projection (with a documented zero-intensity buffer ring at distance 1 specifically for `emit`) that
+feeds an actor's **observation** (what it perceives, read by the Actor persona at decide-time), not an
+automatic vital-damage tick. That field is internal to `core-ts` and is never written to any file
+`ak_create`/`ak_run` produces, so its exact effect isn't assertable from this sweep's black-box
+vantage point without a `core-ts`-level test — a different tool than this one.
+
+What *is* assertable from here, and is the real prerequisite for any interaction-specific assertion to
+mean anything at all: **is the simulation reproducible, given the same inputs, at every layer this
+sweep can see.** That's the check that got built (see "Determinism/reproducibility check" below), and
+it answered its own question cleanly — while also surfacing a real, unrelated bug (#149) that would
+have made the check useless if left unhandled.
+
+**Determinism/reproducibility check.** `checkDeterminism()` in `run-configuration-permutation-sweep.mjs`
+re-runs `ak run` a second time against the exact same `sim-config.json`/`initial-state.json` (same
+`run-id`, a separate `--out-dir`) and deep-compares every artifact the first run produced. The clock
+`ak run` injects into the simulation is seeded from `sim-config.json`'s own `meta.createdAt`
+(`createDeterministicClock`/`resolveClockSeed` in `run-helpers.js`), not the wall clock, so a
+genuinely deterministic simulation should match exactly.
+
+First pass surfaced a real bug rather than confirming determinism: **all 49 scenarios mismatched**,
+every time in exactly the same three files (`action-log.json`, `run-summary.json`,
+`world-state.json`) and never in `tick-frames.json`/`effects-log.json`/`runtime-decision-captures.json`
+— which matched byte-for-byte, every scenario, every field. Root cause, filed as
+**[#149](https://github.com/KomplexMojo/agent-kernel/issues/149)**: those three artifacts stamp
+`meta.id`/`meta.createdAt` via the host's wall-clock `createMeta()`/`makeId()`
+(`packages/adapters-cli/src/cli/ak-impl.mjs:1597-1611`), completely bypassing the seeded clock the
+simulation itself uses — the same failure mode a `visualization-snapshot.js` comment (PX.3) already
+documents fixing at the render layer, unfixed here at the command layer. Confirmed as the *only*
+difference by inspecting the raw diffs (e.g. `action-log.json`'s `createdAt` and `id` differed between
+runs; every other field, including `runId`, matched).
+
+With that bug confirmed and filed (not fixed inline — out of scope for this sweep, per the working
+agreement), `checkDeterminism()` was narrowed to strip exactly `id`+`createdAt` when they co-occur on
+an object shaped like a `createMeta()` stamp — `runId`/`producedBy`/every other field still has to
+match, so a real regression there isn't masked, only the known #149 gap. Re-run after narrowing:
+**49/49 reproducible, 0 mismatched.** The simulation itself — including whatever the hazard
+affinity-field math actually does internally — is fully deterministic given the same seed and inputs;
+the only non-reproducibility in the whole matrix was #149's wall-clock metadata stamps.
+
 ## 6. `orchestrate-build.js`'s level-gen error formatter produces literal "undefined" text for 4 of 5 error codes
 
 **What's failing:** `G2-multi-hazard-triple` (3 hazards, one placed at a room-relative position
@@ -359,6 +411,19 @@ structured detail object computed by `level-layout.js`, then mangled by its call
 fix only patched the one code it was chasing; the generic formatter producing every *other* level-gen
 error was never made shape-aware, so the same failure mode is still reachable through hazard/element
 placement errors, which this sweep's axis G hit on its very first out-of-bounds scenario.
+
+## 7. `ak run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has
+
+Full writeup is in "Hazard interaction — what this sweep found" above (this is where the
+determinism/reproducibility check that found it lives). Summary: `ak run`'s actual simulation trace
+(`tick-frames.json`, `effects-log.json`, `runtime-decision-captures.json`) is fully deterministic —
+confirmed byte-for-byte across 49 scenarios given the same seed and inputs — but three other artifacts
+the same command writes (`action-log.json`, `run-summary.json`, `world-state.json`) stamp
+`meta.id`/`meta.createdAt` from the host's wall-clock `createMeta()`/`makeId()`
+([`ak-impl.mjs:1597-1611`](packages/adapters-cli/src/cli/ak-impl.mjs#L1597-L1611)) instead of the
+run's own seeded clock, so those two fields — and only those two fields — differ every time, even
+given byte-identical input. Filed as
+**[#149](https://github.com/KomplexMojo/agent-kernel/issues/149)**.
 
 ---
 
