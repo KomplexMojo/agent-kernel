@@ -134,14 +134,18 @@ function formatBudgetReceiptDenial(receipt) {
     `status=${receipt?.status}`,
     `remaining=${receipt?.remaining}`,
   ];
-  const deniedLines = Array.isArray(receipt?.lineItems)
-    ? receipt.lineItems
-      .filter((item) => item?.status !== "approved")
-      .slice(0, 5)
-      .map((item) => `${item.kind}:${item.id}${item.category ? `:${item.category}` : ""}`)
+  const allDeniedItems = Array.isArray(receipt?.lineItems)
+    ? receipt.lineItems.filter((item) => item?.status !== "approved")
     : [];
+  const deniedLines = allDeniedItems
+    .slice(0, 5)
+    .map((item) => `${item.kind}:${item.id}${item.category ? `:${item.category}` : ""}`);
   if (deniedLines.length > 0) {
-    parts.push(`deniedLines=${deniedLines.join(",")}`);
+    // SM2: the 5-item cap kept the message from growing unbounded, but never said it was capping
+    // -- a silent truncation on a message this session read closely three times without anyone
+    // noticing the missing "+N more".
+    const omitted = allDeniedItems.length - deniedLines.length;
+    parts.push(`deniedLines=${deniedLines.join(",")}${omitted > 0 ? ` (+${omitted} more)` : ""}`);
   }
   const deniedPools = Array.isArray(receipt?.poolStatuses)
     ? receipt.poolStatuses
@@ -473,14 +477,17 @@ function normalizeActorPositionsLegacy(actors, layout) {
   const data = layout?.data || layout;
   const walkable = collectWalkablePositions(layout);
   if (!data || walkable.length === 0) {
-    throw new Error("configurator inputs could not place actors: no walkable tiles");
+    throw new Error(
+      `configurator inputs could not place actors: no walkable tiles (0 available, `
+      + `${actors.length} actor${actors.length === 1 ? "" : "s"} to place).`,
+    );
   }
 
   const walkableSet = new Set(walkable.map(positionKey));
   const spawn = data.spawn || layout?.spawn || null;
   const spawnKey = spawn ? positionKey(spawn) : null;
   if (spawnKey && !walkableSet.has(spawnKey)) {
-    throw new Error("configurator inputs could not place actors: spawn not walkable");
+    throw new Error(`configurator inputs could not place actors: spawn (${spawn.x}, ${spawn.y}) not walkable.`);
   }
 
   const groups = createActorGroups(actors, { supportPerLeader: 3 });
@@ -490,7 +497,10 @@ function normalizeActorPositionsLegacy(actors, layout) {
     spawn: spawnKey && spawn ? { x: spawn.x, y: spawn.y } : null,
   });
   if (anchors.length === 0) {
-    throw new Error("configurator inputs could not place actors: no anchor points");
+    throw new Error(
+      `configurator inputs could not place actors: no anchor points `
+      + `(${groups.length} group${groups.length === 1 ? "" : "s"}, ${walkable.length} walkable tiles).`,
+    );
   }
 
   const used = new Set();
@@ -502,7 +512,10 @@ function normalizeActorPositionsLegacy(actors, layout) {
     const anchor = anchors[Math.min(groupIndex, anchors.length - 1)];
     const available = walkable.filter((pos) => !used.has(positionKey(pos)));
     if (available.length < group.length) {
-      throw new Error("configurator inputs could not place actors: insufficient walkable tiles");
+      throw new Error(
+        `configurator inputs could not place actors: insufficient walkable tiles for group `
+        + `${groupIndex} (${available.length} available, ${group.length} requested).`,
+      );
     }
     const sorted = sortPositionsByAnchorDistance(available, anchor);
     group.forEach((entry, memberIndex) => {
@@ -541,7 +554,7 @@ function normalizeActorPositionsLegacy(actors, layout) {
     const desired = actor?.position;
     const assigned = assignedById.get(actor.id);
     if (!assigned) {
-      throw new Error("configurator inputs could not place actors: unresolved group placement");
+      throw new Error(`configurator inputs could not place actors: unresolved group placement for actor "${actor.id}".`);
     }
     if (!desired || desired.x !== assigned.x || desired.y !== assigned.y) {
       changed = true;
@@ -1316,17 +1329,20 @@ function normalizeActorPositions(actors, layout, { delverCount = 1 } = {}) {
   const data = layout?.data || layout;
   const walkable = collectWalkablePositions(layout);
   if (!data || walkable.length === 0) {
-    throw new Error("configurator inputs could not place actors: no walkable tiles");
+    throw new Error(
+      `configurator inputs could not place actors: no walkable tiles (0 available, `
+      + `${actors.length} actor${actors.length === 1 ? "" : "s"} to place).`,
+    );
   }
 
   const walkableSet = new Set(walkable.map(positionKey));
   const spawn = data.spawn || layout?.spawn || null;
   const exit = data.exit || layout?.exit || null;
   if (spawn && !walkableSet.has(positionKey(spawn))) {
-    throw new Error("configurator inputs could not place actors: spawn not walkable");
+    throw new Error(`configurator inputs could not place actors: spawn (${spawn.x}, ${spawn.y}) not walkable.`);
   }
   if (exit && !walkableSet.has(positionKey(exit))) {
-    throw new Error("configurator inputs could not place actors: exit not walkable");
+    throw new Error(`configurator inputs could not place actors: exit (${exit.x}, ${exit.y}) not walkable.`);
   }
 
   const context = deriveRoomPlacementContext({ data, walkable });
@@ -1360,7 +1376,11 @@ function normalizeActorPositions(actors, layout, { delverCount = 1 } = {}) {
       });
     }
     if (!assigned) {
-      throw new Error("configurator inputs could not place actors: insufficient entry-room tiles");
+      throw new Error(
+        `configurator inputs could not place actors: insufficient entry-room tiles for delver `
+        + `${index + 1} of ${delvers.length} (${context.entryRoomWalkable.length} entry-room tiles, `
+        + `${used.size} already occupied).`,
+      );
     }
     used.add(positionKey(assigned));
     assignedById.set(actor.id, assigned);
@@ -1377,7 +1397,10 @@ function normalizeActorPositions(actors, layout, { delverCount = 1 } = {}) {
       anchor: affinityAnchor || exitAnchor || context.exitRoomWalkable[0] || context.allRoomsWalkable[0] || walkable[0],
     });
     if (!assigned) {
-      throw new Error("configurator inputs could not place actors: insufficient room tiles for wardens");
+      throw new Error(
+        `configurator inputs could not place actors: insufficient room tiles for warden "${actor.id}" `
+        + `(${context.allRoomsWalkable.length} room tiles total, ${used.size} already occupied).`,
+      );
     }
     used.add(positionKey(assigned));
     assignedById.set(actor.id, assigned);
@@ -1387,7 +1410,7 @@ function normalizeActorPositions(actors, layout, { delverCount = 1 } = {}) {
     const desired = actor?.position;
     const assigned = assignedById.get(actor.id);
     if (!assigned) {
-      throw new Error("configurator inputs could not place actors: unresolved strategic placement");
+      throw new Error(`configurator inputs could not place actors: unresolved strategic placement for actor "${actor.id}".`);
     }
     if (!desired || desired.x !== assigned.x || desired.y !== assigned.y) {
       changed = true;
@@ -1463,7 +1486,13 @@ export async function orchestrateBuild({
 
   if (hasLevelGen) {
     if (!hasActors) {
-      throw new Error("configurator inputs require actors when levelGen is provided.");
+      const receivedKind = actorsInputRaw === undefined
+        ? "undefined"
+        : actorsInputRaw === null ? "null" : typeof actorsInputRaw;
+      throw new Error(
+        `configurator inputs require actors when levelGen is provided (received ${receivedKind}, `
+        + `expected an array or object).`,
+      );
     }
 
     const authoredHazards = Array.isArray(levelGenInput.hazards) ? levelGenInput.hazards : [];
@@ -1496,7 +1525,8 @@ export async function orchestrateBuild({
 
     const actorsInput = Array.isArray(actorsInputRaw) ? { actors: actorsInputRaw } : actorsInputRaw;
     if (!actorsInput || !Array.isArray(actorsInput.actors)) {
-      throw new Error("configurator inputs must include an actors array.");
+      const receivedKind = actorsInput?.actors === undefined ? "undefined" : typeof actorsInput.actors;
+      throw new Error(`configurator inputs must include an actors array (received ${receivedKind}).`);
     }
 
     // AM.2b — raise each actor's vitals to what its motivation requires BEFORE
@@ -1548,7 +1578,8 @@ export async function orchestrateBuild({
       label: "motivation rules",
     });
     if ((affinityPresets && !affinityLoadouts) || (!affinityPresets && affinityLoadouts)) {
-      throw new Error("configurator inputs require both affinityPresets and affinityLoadouts.");
+      const missing = affinityPresets ? "affinityLoadouts" : "affinityPresets";
+      throw new Error(`configurator inputs require both affinityPresets and affinityLoadouts (missing ${missing}).`);
     }
     if (affinityPresets) {
       assertSchema(affinityPresets, SCHEMAS.affinityPreset);

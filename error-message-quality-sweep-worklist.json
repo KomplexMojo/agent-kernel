@@ -1,0 +1,855 @@
+{
+  "total": 131,
+  "counts": {
+    "has-interpolation": 105,
+    "needs-manual-read": 11,
+    "no-interpolation": 15
+  },
+  "sites": [
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 354,
+      "disposition": "has-interpolation",
+      "message": "${label} priority must be one of: ${Array.from(AUTHORING_GOAL_PRIORITIES).join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 360,
+      "disposition": "has-interpolation",
+      "message": "${label} goal must be non-empty."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 370,
+      "disposition": "has-interpolation",
+      "message": "${label} goal \"${raw}\" is invalid."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 409,
+      "disposition": "has-interpolation",
+      "message": "${label} goal \"${raw}\" is not supported. Use max_mana[:priority], mana_regen[:priority], or maximize_spend[:priority]."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 610,
+      "disposition": "has-interpolation",
+      "message": "${label} must be a positive integer."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 618,
+      "disposition": "has-interpolation",
+      "message": "${label} must be a non-negative integer."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 626,
+      "disposition": "has-interpolation",
+      "message": "${actorType}[${actorIndex}] affinity[${affinityIndex}] is empty."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 630,
+      "disposition": "has-interpolation",
+      "message": "${actorType}[${actorIndex}] affinity[${affinityIndex}] must be kind[:expression[:stacks]]."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 635,
+      "disposition": "has-interpolation",
+      "message": "${actorType}[${actorIndex}] affinity[${affinityIndex}] has invalid affinity kind \"${parts[0]}\"."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 640,
+      "disposition": "has-interpolation",
+      "message": "${actorType}[${actorIndex}] affinity[${affinityIndex}] has invalid affinity expression \"${parts[1]}\"."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 690,
+      "disposition": "has-interpolation",
+      "message": "${actorType}[${actorIndex}] vital[${index + 1}] must be vital:max:regen or vital:current:max:regen."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 694,
+      "disposition": "has-interpolation",
+      "message": "${actorType}[${actorIndex}] vital[${index + 1}] has invalid vital kind \"${parts[0]}\"."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 710,
+      "disposition": "has-interpolation",
+      "message": "${actorType}[${actorIndex}] vital[${index + 1}] current cannot exceed max."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 720,
+      "disposition": "has-interpolation",
+      "message": "room[${roomIndex}] requires a non-empty spec."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 727,
+      "disposition": "has-interpolation",
+      "message": "room[${roomIndex}] requires at least one field."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 734,
+      "disposition": "has-interpolation",
+      "message": "room[${roomIndex}] segment \"${segment}\" is invalid; expected key=value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 744,
+      "disposition": "has-interpolation",
+      "message": "room[${roomIndex}] field \"${key}\" is not supported — rooms are generic containers; use --hazard to place affinity in a room."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 747,
+      "disposition": "has-interpolation",
+      "message": "room[${roomIndex}] field \"${key}\" is not supported."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 750,
+      "disposition": "has-interpolation",
+      "message": "room[${roomIndex}] field \"${key}\" requires a value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 757,
+      "disposition": "has-interpolation",
+      "message": "room[${roomIndex}] size must be one of: ${ROOM_CARD_SIZE_IDS.join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 782,
+      "disposition": "has-interpolation",
+      "message": "floor-tile[${floorTileIndex}] requires a non-empty spec."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 789,
+      "disposition": "has-interpolation",
+      "message": "floor-tile[${floorTileIndex}] requires at least one field."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 794,
+      "disposition": "has-interpolation",
+      "message": "floor-tile[${floorTileIndex}] segment \"${segment}\" is invalid; expected key=value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 800,
+      "disposition": "has-interpolation",
+      "message": "floor-tile[${floorTileIndex}] field \"${key}\" is not supported."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 803,
+      "disposition": "has-interpolation",
+      "message": "floor-tile[${floorTileIndex}] field \"${key}\" requires a value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 810,
+      "disposition": "has-interpolation",
+      "message": "floor-tile[${floorTileIndex}] requires count=<n>."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 847,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] vital[${index + 1}] must be vital:max:regen or vital:current:max:regen."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 851,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] vital[${index + 1}] has invalid vital kind \"${parts[0]}\"."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 867,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] vital[${index + 1}] current cannot exceed max."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 879,
+      "disposition": "has-interpolation",
+      "message": "${label} must be true or false."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 885,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] requires a non-empty spec."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 892,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] requires at least one field."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 897,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] segment \"${segment}\" is invalid; expected key=value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 903,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] field \"${key}\" is not supported."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 906,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] field \"${key}\" requires a value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 913,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 917,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] expression must be one of: ${ALLOWED_AFFINITY_EXPRESSIONS.join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 976,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] ${field} current cannot exceed max."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 980,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] ${field} must be a plain amount, one-time:<amount>, or regen:<current>:<max>:<regen>; got \"${value}\"."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1048,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] requires a non-empty spec."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1054,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] requires at least one field."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1058,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] segment \"${segment}\" is invalid; expected key=value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1064,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] field \"${key}\" is not supported."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1067,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] field \"${key}\" requires a value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1072,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1075,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] expression must be one of: ${ALLOWED_AFFINITY_EXPRESSIONS.join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1078,
+      "disposition": "has-interpolation",
+      "message": "hazard[${hazardIndex}] proximityRadius is required."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1160,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] affinity must be one of: ${[...RESOURCE_ALLOWED_AFFINITY_KINDS].join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1164,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] expression is required for an affinity payload."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1167,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] expression must be one of: ${[...RESOURCE_ALLOWED_AFFINITY_EXPRESSIONS].join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1173,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] manaRegen requires mana > 0 — regen would refill nothing."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1181,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] requires a non-empty spec."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1186,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] requires at least one field."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1204,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] segment \"${segment}\" is invalid; expected key=value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1210,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] field \"${key}\" is not supported in V3 spec."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1213,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] field \"${key}\" requires a value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1222,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] requires a vital payload, an affinity payload, or both."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1238,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] permanenceMode is required for a vital payload (${because}); it governs how long the vital delta persists."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1242,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] permanenceMode must be one of: ${[...RESOURCE_ALLOWED_PERMANENCE_MODES].join(\", \")}; got \"${permanenceMode}\"."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1245,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] vital is required for a vital payload (${because}). For an affinity-only resource, omit ${trigger.join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1249,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] vital must be one of: ${[...RESOURCE_ALLOWED_VITAL_KEYS].join(\", \")}; got \"${vitalKey}\"."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1253,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] delta is required unless regen is given."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1259,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] delta must be a number."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1289,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] segment \"${segment}\" is invalid; expected key=value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1295,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] field \"${key}\" is not supported."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1298,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] field \"${key}\" requires a value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1303,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] tier must be one of: ${[...RESOURCE_ALLOWED_TIERS].join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1306,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] stat must be one of: ${[...RESOURCE_ALLOWED_STATS].join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1309,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] delta is required."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1312,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] dropRate is required."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1316,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] delta must be a number."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1320,
+      "disposition": "has-interpolation",
+      "message": "resource[${resourceIndex}] dropRate must be a positive integer."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1348,
+      "disposition": "has-interpolation",
+      "message": "delver[${delverIndex}] requires a non-empty spec."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1355,
+      "disposition": "has-interpolation",
+      "message": "delver[${delverIndex}] requires at least one field."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1367,
+      "disposition": "has-interpolation",
+      "message": "delver[${delverIndex}] motivation may only be specified once."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1372,
+      "disposition": "has-interpolation",
+      "message": "delver[${delverIndex}] segment \"${segment}\" is invalid; expected key=value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1379,
+      "disposition": "has-interpolation",
+      "message": "delver[${delverIndex}] field \"${key}\" is not supported."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1382,
+      "disposition": "has-interpolation",
+      "message": "delver[${delverIndex}] field \"${key}\" requires a value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1385,
+      "disposition": "has-interpolation",
+      "message": "delver[${delverIndex}] motivation may only be specified once."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1436,
+      "disposition": "has-interpolation",
+      "message": "warden[${wardenIndex}] requires a non-empty spec."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1443,
+      "disposition": "has-interpolation",
+      "message": "warden[${wardenIndex}] requires at least one field."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1455,
+      "disposition": "has-interpolation",
+      "message": "warden[${wardenIndex}] motivation may only be specified once."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1460,
+      "disposition": "has-interpolation",
+      "message": "warden[${wardenIndex}] segment \"${segment}\" is invalid; expected key=value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1467,
+      "disposition": "has-interpolation",
+      "message": "warden[${wardenIndex}] field \"${key}\" is not supported."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1470,
+      "disposition": "has-interpolation",
+      "message": "warden[${wardenIndex}] field \"${key}\" requires a value."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1473,
+      "disposition": "has-interpolation",
+      "message": "warden[${wardenIndex}] motivation may only be specified once."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1480,
+      "disposition": "has-interpolation",
+      "message": "warden[${wardenIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 1485,
+      "disposition": "has-interpolation",
+      "message": "warden[${wardenIndex}] motivation must be one of: ${ALLOWED_MOTIVATIONS.join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 4799,
+      "disposition": "has-interpolation",
+      "message": "${commandName} --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(\", \")}."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 4815,
+      "disposition": "has-interpolation",
+      "message": "${commandName} requires both --budget and --price-list."
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 4860,
+      "disposition": "has-interpolation",
+      "message": "duplicate_hazard: multiple hazards occupy room-relative position (${positionKey})"
+    },
+    {
+      "file": "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "line": 4893,
+      "disposition": "has-interpolation",
+      "message": "${commandName} requires at least one authored object via --room, --floor-tile, --hazard, --resource, --delver, or --warden."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 169,
+      "disposition": "has-interpolation",
+      "message": "Expected ${expectedSchema} artifact."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 172,
+      "disposition": "has-interpolation",
+      "message": "Expected schema ${expectedSchema}, got ${artifact.schema || \"missing\"}."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 175,
+      "disposition": "has-interpolation",
+      "message": "Expected schemaVersion 1 for ${expectedSchema}."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 193,
+      "disposition": "has-interpolation",
+      "message": "${label} invalid: ${details}"
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 422,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "assignPositionedLayoutObjects -- already fixed in M4 (candidates.length/objects.length/index all reported)."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 476,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: no walkable tiles",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositionsLegacy, no walkable tiles: actors.length (how many needed a spot) is in scope, not reported."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 483,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: spawn not walkable",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositionsLegacy, spawn not walkable: spawn.x/spawn.y are in scope, not reported."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 493,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: no anchor points",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositionsLegacy, no anchor points: groups.length and walkable.length are in scope, not reported."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 505,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: insufficient walkable tiles",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositionsLegacy, insufficient walkable tiles: available.length/group.length/groupIndex are in scope -- the exact M4 pattern (candidates vs requested), not applied here."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 544,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: unresolved group placement",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositionsLegacy, unresolved group placement: actor.id is in scope, not reported -- can't tell which actor failed."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1319,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: no walkable tiles",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositions (current, non-legacy), no walkable tiles: actors.length is in scope, not reported."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1326,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: spawn not walkable",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositions, spawn not walkable: spawn.x/spawn.y are in scope, not reported."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1329,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: exit not walkable",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositions, exit not walkable: exit.x/exit.y are in scope, not reported."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1363,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: insufficient entry-room tiles",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositions, insufficient entry-room tiles: index/delvers.length/context.entryRoomWalkable.length/used.size are in scope -- the exact M4 pattern, not applied here."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1380,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: insufficient room tiles for wardens",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositions, insufficient room tiles for wardens: actor.id and the candidate-set sizes are in scope, not reported."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1390,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs could not place actors: unresolved strategic placement",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "normalizeActorPositions, unresolved strategic placement: actor.id is in scope, not reported."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1414,
+      "disposition": "no-interpolation",
+      "message": "orchestrateBuild requires spec",
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "orchestrateBuild top-level `!spec` guard -- spec is an internal BuildSpec artifact, not raw model input; nothing else to say when it's simply absent."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1466,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs require actors when levelGen is provided.",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "hasLevelGen && !hasActors: actorsInputRaw's actual shape (typeof / received value) is in scope, not reported -- can't distinguish \"omitted entirely\" from \"present but wrong shape\"."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1494,
+      "disposition": "has-interpolation",
+      "message": "level-gen input invalid: ${details}"
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1499,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs must include an actors array.",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "actorsInput.actors not an array: actorsInput's actual shape is in scope, not reported."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1551,
+      "disposition": "no-interpolation",
+      "message": "configurator inputs require both affinityPresets and affinityLoadouts.",
+      "sm1Disposition": "detail-dropped",
+      "sm1Note": "XOR check (affinityPresets, affinityLoadouts): the code already knows WHICH one is missing (the failing branch of the OR), message says \"requires both\" for either case."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1616,
+      "disposition": "has-interpolation",
+      "message": "Budget allocation invalid: ${details}"
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1680,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "formatBudgetReceiptDenial() is already rich (status/remaining/deniedLines/deniedPools). Bonus finding, not a per-site issue: the helper's own deniedLines.slice(0, 5) is a silent cap with no \"+N more\" -- CLAUDE.md's own \"no silent caps\" rule, worth a one-line fix alongside SM2 even though this throw site itself needs no change."
+    },
+    {
+      "file": "packages/runtime/src/build/orchestrate-build.js",
+      "line": 1684,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "Same helper as 1680, same bonus finding (silent 5-item cap in the helper, not at this throw site)."
+    },
+    {
+      "file": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
+      "line": 434,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "assertJudgementBudget -- already reports judged/cap/ceiling. Internal backstop (\"must never fire\"), not reachable from model input."
+    },
+    {
+      "file": "packages/runtime/src/personas/allocator/state-machine.js",
+      "line": 110,
+      "disposition": "has-interpolation",
+      "message": "No transition for state=${state} event=${event}; allowed events: ${allowedEvents(state).join(\",\") || \"none\"}"
+    },
+    {
+      "file": "packages/runtime/src/personas/allocator/state-machine.js",
+      "line": 113,
+      "disposition": "has-interpolation",
+      "message": "Guard blocked transition for state=${state} event=${event}"
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/actor-authoring.js",
+      "line": 45,
+      "disposition": "has-interpolation",
+      "message": "delver[${index}] affinity must be one of: ${AFFINITY_KINDS.join(\", \")}."
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/actor-authoring.js",
+      "line": 50,
+      "disposition": "has-interpolation",
+      "message": "delver[${index}] motivation must be one of: ${MOTIVATION_KINDS.join(\", \")}."
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/actor-authoring.js",
+      "line": 59,
+      "disposition": "has-interpolation",
+      "message": "delver[${index}] setup-mode must be one of: ${DELVER_SETUP_MODES.join(\", \")}."
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/affinity-rules.js",
+      "line": 710,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "Module-load-time assertion on the hardcoded DEFAULT_AFFINITY_RULES_ARTIFACT constant -- fires once at import, never from a create request. Already reports field:code for every error."
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/artifact-builders.js",
+      "line": 72,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "assertUniqueActorIds -- already includes the duplicate id when one exists; the id-missing case has nothing else to add."
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/budget-maximizer.js",
+      "line": 38,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "requireUnitCost -- already interpolates the specific missing price-list key."
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/budget-maximizer.js",
+      "line": 113,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "unitCosts instanceof Map guard -- an internal API-contract check between Configurator and Allocator modules, not reachable from model input (fires only if calling code passes the wrong type)."
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/budget-maximizer.js",
+      "line": 119,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "priceItems instanceof Map guard -- same as 113, internal API contract, not model-facing."
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/budget-maximizer.js",
+      "line": 163,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "Regen price missing -- already interpolates the specific missing regenKey."
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/motivation-rules.js",
+      "line": 419,
+      "disposition": "needs-manual-read",
+      "message": null,
+      "sm1Disposition": "fine-as-is",
+      "sm1Note": "Module-load-time assertion on the hardcoded DEFAULT_MOTIVATION_RULES_ARTIFACT constant -- same as affinity-rules.js:710, not model-facing, already reports field:code."
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/state-machine.js",
+      "line": 69,
+      "disposition": "has-interpolation",
+      "message": "No transition for state=${state} event=${event}; allowed events: ${allowedEvents(state).join(\",\") || \"none\"}"
+    },
+    {
+      "file": "packages/runtime/src/personas/configurator/state-machine.js",
+      "line": 72,
+      "disposition": "has-interpolation",
+      "message": "Guard blocked transition for state=${state} event=${event}"
+    }
+  ],
+  "sm1": {
+    "countsAtSm1": {
+      "fine-as-is": 12,
+      "detail-dropped": 14
+    },
+    "note": "sm1Disposition/sm1Note only present on sites SM0 flagged (no-interpolation or needs-manual-read); has-interpolation sites were not re-triaged."
+  }
+}
