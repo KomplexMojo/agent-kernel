@@ -1,5 +1,5 @@
 import { mkdtempSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import os from "node:os";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -139,6 +139,25 @@ function resolveDefaultOutDir(tool, args) {
     return join(SESSION_TEMP_ROOT, runId, commandLabel);
   }
   return mkdtempSync(join(SESSION_TEMP_ROOT, `${commandLabel}-`));
+}
+
+// #143 — ak_show_state/ak_tick_forward/ak_tick_backward resolve a run's directory from the
+// canonical <cwd>/artifacts/runs/<runId> layout only (tick-session.mjs's resolveRunDir), never
+// consulting REMEMBERED_RUNS the way ak_show/ak_runs_list/maybeResolveRememberedInputs already do.
+// A run created via the documented default (outDir left unset, landing under SESSION_TEMP_ROOT)
+// was invisible to these three tools even though ak_show found it immediately. When a remembered
+// "run" command outDir exists for this runId, pass its parent through as an explicit override —
+// tick-session.mjs's functions all expect a base runDir and append "run/<file>.json" themselves,
+// matching the canonical layout, and the remembered "run" outDir already IS ".../run".
+const TICK_TOOL_NAMES = new Set(["ak_tick_forward", "ak_tick_backward", "ak_show_state"]);
+
+function resolveRememberedRunDirOverride(tool, args) {
+  if (!TICK_TOOL_NAMES.has(tool.name)) return null;
+  const runId = normalizeNonEmptyString(args?.runId);
+  if (!runId) return null;
+  const runOutDir = REMEMBERED_RUNS.get(runId)?.commands.get("run");
+  if (!runOutDir) return null;
+  return dirname(runOutDir);
 }
 
 async function maybeResolveRememberedInputs(tool, rawArgs) {
@@ -339,6 +358,10 @@ async function executeToolRequest(tool, requestedArgs) {
   const defaultedOutDir = resolveDefaultOutDir(tool, preparedArgs);
   if (defaultedOutDir) {
     preparedArgs.outDir = defaultedOutDir;
+  }
+  const runDirOverride = resolveRememberedRunDirOverride(tool, preparedArgs);
+  if (runDirOverride) {
+    preparedArgs.__runDirOverride = runDirOverride;
   }
 
   const result = await invokeCliTool(tool, preparedArgs);

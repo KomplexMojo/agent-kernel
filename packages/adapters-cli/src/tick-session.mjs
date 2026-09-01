@@ -6,7 +6,18 @@ import { TICK_CURSOR_SCHEMA } from "../../runtime/src/contracts/artifacts.ts";
 
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 
-export function resolveRunDir(runId) {
+// #143 — this always resolved to the canonical <cwd>/artifacts/runs/<runId> layout, ignoring the
+// MCP server's own "remembered outDir per runId" mechanism that ak_create/ak_run/ak_show/
+// ak_runs_list already use when outDir is left to default. A run created via that default (the
+// MCP README's own "most common agent loop") was invisible to ak_show_state/ak_tick_forward/
+// ak_tick_backward, which reported "run directory not found" even though ak_show/ak_runs_list
+// found the same run immediately. `runDirOverride`, when supplied, is used verbatim instead of
+// the canonical-layout guess -- the MCP server (server.mjs's resolveRememberedRunDirOverride)
+// passes one through when it has a remembered outDir for this runId; the plain CLI (`ak tick`,
+// which has no session/remembered-run concept at all) never supplies one, so its behavior is
+// unchanged.
+export function resolveRunDir(runId, runDirOverride) {
+  if (runDirOverride) return runDirOverride;
   const artifactsDir = process.env.AK_ARTIFACTS_DIR
     ? process.env.AK_ARTIFACTS_DIR
     : join(process.cwd(), DEFAULT_ARTIFACTS_DIR);

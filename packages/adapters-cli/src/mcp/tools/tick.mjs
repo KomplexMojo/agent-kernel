@@ -17,8 +17,8 @@ const visualizationSchema = {
   enum: ["ascii", "image"],
 };
 
-async function resolveTickState(runId) {
-  const runDir = resolveRunDir(runId);
+async function resolveTickState(runId, runDirOverride) {
+  const runDir = resolveRunDir(runId, runDirOverride);
   if (!existsSync(runDir)) {
     return { error: `run directory not found: ${runId}` };
   }
@@ -42,12 +42,12 @@ const tickForwardTool = createHandlerTool({
     },
     required: ["runId"],
   },
-  handler: async ({ runId, visualization }) => {
+  handler: async ({ runId, visualization, __runDirOverride }) => {
     if (visualization !== undefined) {
       const check = validateVisualizationMode(visualization);
       if (!check.ok) return { ok: false, command: "tick", action: "forward", runId, error: check.error };
     }
-    const state = await resolveTickState(runId);
+    const state = await resolveTickState(runId, __runDirOverride);
     if (state.error) {
       return { ok: false, command: "tick", action: "forward", runId, error: state.error };
     }
@@ -92,12 +92,12 @@ const tickBackwardTool = createHandlerTool({
     },
     required: ["runId"],
   },
-  handler: async ({ runId, visualization }) => {
+  handler: async ({ runId, visualization, __runDirOverride }) => {
     if (visualization !== undefined) {
       const check = validateVisualizationMode(visualization);
       if (!check.ok) return { ok: false, command: "tick", action: "backward", runId, error: check.error };
     }
-    const state = await resolveTickState(runId);
+    const state = await resolveTickState(runId, __runDirOverride);
     if (state.error) {
       return { ok: false, command: "tick", action: "backward", runId, error: state.error };
     }
@@ -142,12 +142,12 @@ const showStateTool = createHandlerTool({
     },
     required: ["runId"],
   },
-  handler: async ({ runId, visualization }) => {
+  handler: async ({ runId, visualization, __runDirOverride }) => {
     if (visualization !== undefined) {
       const check = validateVisualizationMode(visualization);
       if (!check.ok) return { ok: false, command: "tick", action: "state", runId, error: check.error };
     }
-    const state = await resolveTickState(runId);
+    const state = await resolveTickState(runId, __runDirOverride);
     if (state.error) {
       return { ok: false, command: "tick", action: "state", runId, error: state.error };
     }
