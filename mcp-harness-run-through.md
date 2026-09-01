@@ -185,3 +185,14 @@ visualization path.
 - [#145](https://github.com/KomplexMojo/agent-kernel/issues/145) — `ak_create` budget denial doesn't say what budget would have worked (finding 4)
 - [#146](https://github.com/KomplexMojo/agent-kernel/issues/146) — open question: does plain `ak_run` ever invoke autonomous actor decision-making? **CLOSED, not planned** — root-caused with Serena; premise was wrong, see #147
 - [#147](https://github.com/KomplexMojo/agent-kernel/issues/147) — `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay (finding 5, corrected)
+
+---
+
+## Pending issue sweep (not yet filed)
+
+**Workflow change (maintainer, 2026-09-01):** non-blocking friction found from here on is logged in
+this section only, not filed as a `gh issue` immediately. #142-#147 above were filed one at a time;
+everything below waits for an explicit end-of-session sweep. "Blocking" (stops the current line of
+work outright) still gets surfaced immediately in chat rather than queued here.
+
+(none yet)
