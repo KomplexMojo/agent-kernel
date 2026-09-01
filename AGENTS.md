@@ -121,6 +121,16 @@ Documentation moved from GitHub Copilot to Claude on 2026-07-27. Two tiers by st
 - Architecture boundary changes update the charter + diagram in the SAME diff (Opus/high, maintainer sign-off).
 - Conform to the enforcement checklist in `CLAUDE.md` before handoff.
 - Guardrails, restated because they are absolute: dependency direction is adapters/ui → runtime → core-ts · `core-ts` performs no IO and imports nothing outside itself · external IO only through adapters at the ports boundary.
+- **Clean-up found but not required by the spec gets logged, not done.** Dead code, stale docs, a
+  drive-by fix, a design direction worth exploring, a disposition left open on purpose — anything
+  noticed while executing a milestone that CLAUDE.md's "every changed line traces to the current
+  milestone spec" would forbid fixing inline — becomes a `gh issue create`, not a code change and
+  not a paragraph buried in the plan doc's prose. The issue must stand alone for an agent with no
+  memory of this session: what's wrong/deferred and why, the source plan/PR it was found in, enough
+  of the surrounding evidence to act on without re-deriving it, and why it's deferred rather than
+  urgent. Label by kind (`enhancement`, `bug`, `question`) — see #135 and #136 for the shape this
+  should take. Do not open an issue for something you can fix in the current diff in under a few
+  lines; that's just the fix, not a clean-up backlog item.
 
 ## File placement
 
@@ -257,6 +267,7 @@ committing its loose working-tree changes, moving files into git, or tidying. Re
 - `pnpm run test` and `pnpm run typecheck` pass, or a documented reason for skipping. Perturbation check run and reported.
 - Docs updated IN THIS DIFF if behavior or boundaries changed — a doc that now contradicts the code is a blocking defect.
 - If `ak_create` schema, CLI arg mapping, or entity normalization changed: noted in the commit message. **Do not run a benchmark.**
+- Anything noticed outside the spec (dead code, stale docs, an open disposition, a design direction) is logged as a `gh issue`, not fixed inline and not left as a comment or a plan-doc aside — see `## Working agreement`.
 
 ---
 
