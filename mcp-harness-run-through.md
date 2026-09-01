@@ -37,6 +37,7 @@ this file.
 | [#145](https://github.com/KomplexMojo/agent-kernel/issues/145) | `ak_create` budget denial doesn't say what budget would have worked | Open | No — workaround: retry with a larger `budgetTokens` | Finding 4 |
 | [#146](https://github.com/KomplexMojo/agent-kernel/issues/146) | Open question: does plain `ak_run` ever invoke autonomous actor decision-making? | **Closed, not planned** | — | Superseded by #147; premise was wrong, see finding 5 |
 | [#147](https://github.com/KomplexMojo/agent-kernel/issues/147) | `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay | Open | No — top-level `ascii` field on `ak_show_state` (built by `renderAscii`) is a working substitute | Finding 5 |
+| [#148](https://github.com/KomplexMojo/agent-kernel/issues/148) | level-gen error formatter in `orchestrate-build.js` bakes literal `"undefined"` into messages for 4 of 5 error codes | Open | No — the underlying rejection is correct, only the message text is broken | Finding 6 |
 
 None of the open issues above block continued use of the MCP surface — every one has a stated
 workaround. Full repro steps, root-cause evidence, and code pointers for each are in the numbered
@@ -202,6 +203,106 @@ frozen. Two functions in the same package solve the identical problem; only one 
 whole run` (merged via #140) — a tick-cursor visualization reading a stale/wrong single frame instead
 of replaying accepted actions cumulatively. That fix apparently didn't extend to this MCP-side
 visualization path.
+
+---
+
+## Configuration-permutation sweep (2026-09-01)
+
+**Purpose:** automate the kind of manual poking that found findings 1-5 above, across a bounded
+matrix of delver/warden/hazard/resource configurations, rather than one hand-picked scenario at a
+time. "Every possible permutation" is not literally tractable — full Cartesian product of affinity
+(10) x expression (4) x motivation (11) x counts x entity-type combinations runs into the thousands —
+so this is a **one-axis-at-a-time sweep off a single known-good baseline** (room: 1 small room;
+delver: 1x fire/exploring; hazard: 1x fire/emit/stacks=1 at a room-relative position), varying one
+axis across its full domain (or a spot-check subset for the larger domains) while holding every other
+axis at baseline. `budgetTokens` is fixed at 2000 for every scenario — well above what any one
+scenario costs — specifically so budget denial doesn't confound the sweep; that fixed cap is also the
+"don't let generated configs grow unmanaged" rail the maintainer asked for.
+
+**Matrix — 34 scenarios across 7 axes:**
+
+| Axis | What it sweeps | Domain size | Count |
+|---|---|---|---|
+| A | delver affinity | full (10 kinds) | 10 |
+| B | delver motivation | full non-control domain minus `exploring` (baseline) | 10 |
+| C | hazard expression | full minus `emit` (baseline) | 3 |
+| D | hazard affinity | spot-check subset | 3 |
+| E | warden present (actor-vs-actor incl. 2-delver+warden stress) | hand-picked | 3 |
+| F | resource authoring (vital payload x2, affinity payload x1) | hand-picked | 3 |
+| G | multi-hazard stress (2 and 3 hazards) | hand-picked | 2 |
+
+**Methodology:** shells out to the real CLI (`node packages/adapters-cli/src/cli/ak.mjs`) directly
+rather than through MCP tool calls — this is scripted batch automation, which
+`packages/adapters-cli/src/mcp/README.md`'s own "Mental Model" section calls out as the right case for
+using the CLI directly ("ad hoc shell usage... scripting outside an MCP client"), not a departure from
+the MCP-first approach the rest of this doc uses. Each scenario runs `ak create` (no `--dry-run`) into
+its own `outDir`, and on success feeds the resulting `sim-config.json`/`initial-state.json` into
+`ak run --ticks 5 --seed 0`. Results are classified: `PASS`, `EXPECTED_BUDGET_DENIAL`,
+`VALIDATION_REJECTION`, or `ANOMALY_*` (crash / malformed output / unrecognized failure shape) —
+anything not cleanly explained by a known, expected rejection pattern gets triaged by hand before
+being written up as a finding.
+
+**Scripts (currently scratchpad-only, not committed):**
+`permutation-matrix.mjs` (the 34-scenario matrix data) and `run-matrix-full.mjs` (the create+run
+runner) — not yet promoted into the repo; ask if/when this should become a permanent, committed tool
+rather than a one-off validation script.
+
+**Results:**
+
+- First pass, `ak create --dry-run` only (authoring-layer validation, no artifacts written, no
+  `ak run`): **34/34 PASS.** No anomalies.
+- Second pass, `ak create` (real artifacts) + `ak run --ticks 5 --seed 0` per scenario: **33/34 PASS**
+  on create, **33/33 PASS** on run for every create that succeeded. One anomaly — `G2-multi-hazard-triple`
+  — see finding 6.
+
+**Informational note, not a finding:** the run pass recorded `acceptedActions`/`emittedEffects` counts
+per scenario as metadata only, never as a pass/fail signal — treating "an actor did nothing" as
+itself suspect is exactly the false-positive this session already hit once (issue #146, closed; see
+finding 5). Axis B's cognition-only motivations (`reflexive`, `goal_oriented`, `strategy_focused`)
+and `stationary` all showed `actions=0`; per `packages/runtime/src/personas/actor/README.md`,
+cognition motivations compose with a *mobility* motivation rather than supplying one, so a
+cognition-only actor legitimately has no movement instruction — consistent with, not contradicting,
+documented behavior. `defending` showed `actions=0, effects=5`, also consistent with existing test
+coverage (`tests/runtime/actor-motivation-combat.test.js`: "defending actor does not move when hostile
+is not adjacent" — no hostile exists in a single-actor scenario). None of this was investigated
+further; flagged here only so a future sweep doesn't have to re-derive that these are expected.
+
+## 6. `orchestrate-build.js`'s level-gen error formatter produces literal "undefined" text for 4 of 5 error codes
+
+**What's failing:** `G2-multi-hazard-triple` (3 hazards, one placed at a room-relative position
+outside the room's bounds) failed `ak create` with:
+
+```
+{"ok":false,"command":"create","error":"level-gen input invalid: hazards[2].position:hazard_outside_room (requested undefined, need at least undefined for undefined rooms)"}
+```
+
+The underlying rejection is legitimate — hazard `x`/`y` in a `create`/`configure` spec are
+room-relative offsets into the target room's carved interior
+([`level-layout.js:1469-1476`](packages/runtime/src/personas/configurator/level-layout.js#L1469-L1476)),
+and this scenario's third hazard coordinate exceeded that room's bounds. The message text is what's
+broken.
+
+**Root cause:** [`orchestrate-build.js:397-406`](packages/runtime/src/build/orchestrate-build.js#L397-L406)
+formats every `level-layout.js` error with one hardcoded template —
+`` `(requested ${err.detail.target}, need at least ${err.detail.required} for ${err.detail.roomCount} rooms)` ``
+— written for exactly one error code's detail shape. `level-layout.js` raises five distinct codes;
+only `floor_tile_budget_insufficient` (the case `error-message-quality-sweep.md` SM3/SM4 already
+fixed) matches that shape. The other four —
+[`hazard_outside_room`](packages/runtime/src/personas/configurator/level-layout.js#L1492-L1502)
+(`{x, y, roomId, roomWidth, roomHeight}`),
+[`hazard_on_wall`](packages/runtime/src/personas/configurator/level-layout.js#L2659) (`{x, y, affinity}`),
+[`element_on_wall`](packages/runtime/src/personas/configurator/level-layout.js#L2686) (`{x, y, id}`), and
+[`target_mismatch`](packages/runtime/src/personas/configurator/level-layout.js#L2706) (`{target, walkableTiles}`)
+— all have incompatible shapes. Because `err.detail` is truthy in every case, the formatter's ternary
+always takes the "format it" branch rather than falling back to the plain `field:code` form, so all
+four silently degrade to `undefined`-polluted text instead of formatting correctly or omitting the
+parenthetical.
+
+**Impact:** same defect family as the already-tracked `error-message-quality-sweep.md` work (a rich
+structured detail object computed by `level-layout.js`, then mangled by its caller) — but that sweep's
+fix only patched the one code it was chasing; the generic formatter producing every *other* level-gen
+error was never made shape-aware, so the same failure mode is still reachable through hazard/element
+placement errors, which this sweep's axis G hit on its very first out-of-bounds scenario.
 
 ---
 
