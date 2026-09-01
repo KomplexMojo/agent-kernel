@@ -141,12 +141,30 @@ export async function buildVisualizationSnapshot(runDir, runId, tick, mode) {
     }
     const snap = await createVisualizationSnapshot({ mode, tick, runId, simConfig, initialState, frames });
     if (mode === "image" && snap) {
-      snap.visualizationDataUri = await buildPngDataUri(simConfig, initialState, frames, tick, runDir);
+      const dataUri = await buildPngDataUri(simConfig, initialState, frames, tick, runDir);
+      // #144 — a data URI this size (443,790 characters on a trivial one-room, one-actor run in
+      // the session that found this) inlined into the MCP tool result blows the caller's
+      // tool-result token limit; `ascii` mode worked at a fraction of the size because it never
+      // carries image bytes. Write the PNG to a file instead, the same convention every other
+      // artifact-producing ak_* tool already follows, and hand back the path — a caller reads the
+      // file directly rather than receiving its bytes inline.
+      snap.visualizationDataUri = null;
+      snap.visualizationPath = await writePngToFile(dataUri, runDir, tick);
     }
     return snap;
   } catch {
     return null;
   }
+}
+
+async function writePngToFile(dataUri, runDir, tick) {
+  if (!dataUri) return null;
+  const base64 = dataUri.replace(/^data:image\/png;base64,/, "");
+  const sessionDir = join(runDir, "session");
+  await mkdir(sessionDir, { recursive: true });
+  const path = join(sessionDir, `visualization-tick-${tick}.png`);
+  await writeFile(path, Buffer.from(base64, "base64"));
+  return path;
 }
 
 async function buildPngDataUri(simConfig, initialState, frames, tick, runDir) {

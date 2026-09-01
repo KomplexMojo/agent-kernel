@@ -508,7 +508,14 @@ export interface VisualizationSnapshotImageV1 {
   mode: "image";
   tick: number;
   runId: string;
+  /** #144 — always null from the adapters-cli image path; the PNG is written to visualizationPath
+   * instead of inlined, since a data URI this size reliably exceeds an MCP tool-result token
+   * budget. Stays `string | null` (not dropped) so a caller that still wants inline bytes for some
+   * other producer of this artifact isn't structurally prevented from supplying them. */
   visualizationDataUri: string | null;
+  /** Absolute path to the rendered PNG on disk. Set by adapters-cli's image path; absent for
+   * ascii mode and for any producer of this artifact that doesn't write to disk. */
+  visualizationPath?: string;
   actorDetails: VisualizationActorDetail[];
 }
 

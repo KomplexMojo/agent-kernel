@@ -8,7 +8,7 @@
 
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { mkdtempSync, mkdirSync, writeFileSync } = require("node:fs");
+const { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } = require("node:fs");
 const { resolve, join, dirname } = require("node:path");
 const os = require("node:os");
 
@@ -213,7 +213,11 @@ test("tick backward --visualization ascii includes visualization at the rewound 
 // FAILING: --visualization image not yet implemented (M4)
 // ---------------------------------------------------------------------------
 
-test("tick state --visualization image returns visualizationDataUri as PNG data URI", () => {
+test("tick state --visualization image writes a PNG file and returns its path (#144)", () => {
+  // #144 -- an inlined data URI reliably blows an MCP tool-result token budget (443,790
+  // characters on a trivial one-room, one-actor real run). Image mode now writes the PNG to disk
+  // and returns visualizationPath instead, the same convention every other artifact-producing
+  // ak_* command already follows.
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-img-"));
   const runId = "run_viz_img";
   scaffoldRun(workDir, runId, { maxTick: 3 });
@@ -223,14 +227,12 @@ test("tick state --visualization image returns visualizationDataUri as PNG data 
   assert.equal(result.status, 0, result.stderr);
   const output = JSON.parse(result.stdout);
   assert.equal(output.ok, true);
-  // FAILS until M4
   assert.ok(output.visualization !== undefined, "visualization must be present with --visualization image");
   assert.equal(output.visualization.mode, "image");
-  assert.ok(typeof output.visualization.visualizationDataUri === "string" &&
-    output.visualization.visualizationDataUri.startsWith("data:image/png;base64,"),
-    "visualizationDataUri must be a PNG data URI");
-  const base64 = output.visualization.visualizationDataUri.replace("data:image/png;base64,", "");
-  const bytes = Buffer.from(base64, "base64");
+  assert.equal(output.visualization.visualizationDataUri, null, "visualizationDataUri must be null -- the bytes are on disk");
+  assert.equal(typeof output.visualization.visualizationPath, "string", "visualizationPath must be a string path");
+  assert.ok(existsSync(output.visualization.visualizationPath), "the PNG file must actually exist");
+  const bytes = readFileSync(output.visualization.visualizationPath);
   assert.equal(bytes[0], 0x89, "PNG magic byte 0 must be 0x89");
   assert.equal(bytes[1], 0x50, "PNG magic byte 1 must be 0x50 (P)");
   assert.equal(bytes[2], 0x4e, "PNG magic byte 2 must be 0x4e (N)");

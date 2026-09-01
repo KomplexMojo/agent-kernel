@@ -40,8 +40,18 @@ function validateAsciiSnapshot(snap) {
 function validateImageSnapshot(snap) {
   validateBase(snap);
   assert.equal(snap.mode, "image");
-  assert.equal(typeof snap.visualizationDataUri, "string", "visualizationDataUri must be a string");
-  assert.match(snap.visualizationDataUri, /^data:image\/png;base64,/, "must be a PNG data URI");
+  // #144 -- a producer either inlines a data URI (visualizationDataUri) or writes the PNG to disk
+  // and points at it (visualizationPath: adapters-cli's own image path does this now, since an
+  // inlined data URI reliably blows an MCP tool-result token budget). Never both, never neither.
+  const hasDataUri = typeof snap.visualizationDataUri === "string";
+  const hasPath = typeof snap.visualizationPath === "string" && snap.visualizationPath.length > 0;
+  assert.ok(hasDataUri || hasPath, "must have either visualizationDataUri (string) or visualizationPath (string)");
+  if (hasDataUri) {
+    assert.match(snap.visualizationDataUri, /^data:image\/png;base64,/, "visualizationDataUri, when a string, must be a PNG data URI");
+  }
+  if (hasPath) {
+    assert.equal(snap.visualizationDataUri, null, "visualizationDataUri must be null when visualizationPath is used instead");
+  }
   assert.ok(Array.isArray(snap.actorDetails), "actorDetails must be an array");
 }
 
@@ -113,6 +123,22 @@ test("VisualizationSnapshot image shape satisfies contract", () => {
   };
   validateImageSnapshot(snap);
 });
+
+test("VisualizationSnapshot image shape also satisfies contract via visualizationPath (#144)", () => {
+  const snap = {
+    schema: "agent-kernel/VisualizationSnapshot",
+    schemaVersion: 1,
+    meta: { id: "vs2b", runId: "run1", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "ak-tick" },
+    mode: "image",
+    tick: 2,
+    runId: "run1",
+    visualizationDataUri: null,
+    visualizationPath: "/artifacts/runs/run1/session/visualization-tick-2.png",
+    actorDetails: [],
+  };
+  validateImageSnapshot(snap);
+});
+
 
 test("VisualizationSnapshot rejects unknown mode", () => {
   const snap = {
