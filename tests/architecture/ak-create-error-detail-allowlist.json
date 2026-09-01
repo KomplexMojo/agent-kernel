@@ -1,28 +1,28 @@
 [
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 310,
-    "reason": "assignPositionedLayoutObjects -- multi-line concatenated template literal (M4 fix); already reports candidates.length/objects.length/index. Flagged needs-manual-read only because the classifier can't parse `...` + `...` concatenation as one interpolated literal. Line shifted by #148's formatLevelGenErrorDetail() addition."
+    "line": 320,
+    "reason": "assignPositionedLayoutObjects -- multi-line concatenated template literal (M4 fix); already reports candidates.length/objects.length/index. Flagged needs-manual-read only because the classifier can't parse `...` + `...` concatenation as one interpolated literal. Line shifted by #148's formatLevelGenErrorDetail() and #145's per-pool shortfall additions."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 369,
-    "reason": "orchestrateBuild top-level `!spec` guard -- spec is an internal BuildSpec artifact, not raw model input; nothing else to say when it's simply absent. Line shifted by #148's formatLevelGenErrorDetail() addition."
+    "line": 379,
+    "reason": "orchestrateBuild top-level `!spec` guard -- spec is an internal BuildSpec artifact, not raw model input; nothing else to say when it's simply absent. Line shifted by #148's formatLevelGenErrorDetail() and #145's per-pool shortfall additions."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 424,
-    "reason": "levelGen actors-presence guard (SM2 fix) -- concatenated template literal reports the received kind. Same classifier limitation as line 266 (now 310). Line shifted by #148's formatLevelGenErrorDetail() addition."
+    "line": 434,
+    "reason": "levelGen actors-presence guard (SM2 fix) -- concatenated template literal reports the received kind. Same classifier limitation as line 266 (now 320). Line shifted by #148's formatLevelGenErrorDetail() and #145's per-pool shortfall additions."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 648,
-    "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier can't inspect it. formatBudgetReceiptDenial() is already rich (status/remaining/deniedLines/deniedPools). Line shifted by #148's formatLevelGenErrorDetail() addition."
+    "line": 658,
+    "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier can't inspect it. formatBudgetReceiptDenial() is already rich (status/remaining/deniedLines/deniedPools/per-pool shortfall). Line shifted by #148's formatLevelGenErrorDetail() and #145's per-pool shortfall additions."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 652,
-    "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 648. Line shifted by #148's formatLevelGenErrorDetail() addition."
+    "line": 662,
+    "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 658. Line shifted by #148's formatLevelGenErrorDetail() and #145's per-pool shortfall additions."
   },
   {
     "file": "packages/runtime/src/personas/allocator/budget-fulfillment.js",

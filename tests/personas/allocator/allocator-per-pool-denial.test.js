@@ -54,6 +54,9 @@ test("allocator denies one token below a warden pool boundary while total budget
     assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=188/);
     assert.match(result.stderr, /deniedLines=actor:actor_spawn:wardens/);
     assert.match(result.stderr, /deniedPools=wardens:186\/176/);
+    // #145 — the shortfall (how many more tokens this one pool alone needed) used to be
+    // uncomputable from the denial message; 186 spent against a 176 cap is short by 10.
+    assert.match(result.stderr, /deniedPools=wardens:186\/176 \(short 10\)/);
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }

@@ -116,10 +116,20 @@ function formatBudgetReceiptDenial(receipt) {
     const omitted = allDeniedItems.length - deniedLines.length;
     parts.push(`deniedLines=${deniedLines.join(",")}${omitted > 0 ? ` (+${omitted} more)` : ""}`);
   }
+  // #145 — the denial reported what was denied (id, spent, cap) but not the shortfall, so a
+  // caller had no way to compute the minimum budget that would clear it without trial and error.
+  // `short N` is the extra capacity this one pool alone needed; the total budgetTokens that would
+  // resolve it isn't computable from the receipt (capTokens' relationship to the overall budget
+  // isn't a simple proportion — see #145's own investigation), so this reports the one thing that
+  // is always correct: how far over this pool's own cap the spend landed.
   const deniedPools = Array.isArray(receipt?.poolStatuses)
     ? receipt.poolStatuses
       .filter((pool) => pool?.status !== "approved")
-      .map((pool) => `${pool.id}:${pool.spentTokens}/${pool.capTokens}`)
+      .map((pool) => {
+        const shortfall = Number(pool.spentTokens) - Number(pool.capTokens);
+        const shortfallText = Number.isFinite(shortfall) && shortfall > 0 ? ` (short ${shortfall})` : "";
+        return `${pool.id}:${pool.spentTokens}/${pool.capTokens}${shortfallText}`;
+      })
     : [];
   if (deniedPools.length > 0) {
     parts.push(`deniedPools=${deniedPools.join(",")}`);
