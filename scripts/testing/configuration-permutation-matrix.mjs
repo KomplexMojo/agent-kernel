@@ -110,6 +110,26 @@ export const MATRIX = [
     warden: ["count=1;affinity=earth;motivation=defending"],
   }),
 
+  // Axis E (continued) — diagonal warden placement, the room's two diagonals (4 corners), same
+  // rationale as axis C's diagonal hazard positions but for an actor rather than a static hazard.
+  // create/configure has no x/y field for delver/warden (level-gen auto-places actors), so this
+  // reuses E1's exact authored config and repositions the auto-placed warden at RUN time via
+  // `ak run --actor <id>,<x>,<y>` (run-configuration-permutation-sweep.mjs's actorOverride hook)
+  // — id "card_warden_1-1" confirmed from E1's own initial-state.json (single warden, count=1).
+  // Corners are absolute grid coordinates: the room's walkable interior is confirmed absolute
+  // 1..5 on each axis (9x9 grid, 1-tile border wall, room origin at (1,1) — see axis C's comment
+  // for the room-relative 0..4 that these are offset by +1 from).
+  ...[
+    { id: "topleft", x: 1, y: 1 },
+    { id: "bottomright", x: 5, y: 5 },
+    { id: "topright", x: 5, y: 1 },
+    { id: "bottomleft", x: 1, y: 5 },
+  ].map(({ id, x, y }) =>
+    scenario(`E-warden-diagonal-${id}`, "E", `warden repositioned to diagonal-${id} (${x},${y})`, {
+      warden: ["count=1;affinity=dark;motivation=defending"],
+      actorOverride: [`card_warden_1-1,${x},${y}`],
+    })),
+
   // Axis F — resource authoring (V3 spec: vital payload, affinity payload, and both).
   scenario("F1-resource-vital-consumable", "F", "resource vital payload, consumable mana", {
     resource: ["permanenceMode=consumable;vital=mana;delta=5"],

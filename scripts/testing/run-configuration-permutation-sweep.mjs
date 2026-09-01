@@ -56,7 +56,7 @@ function buildCreateArgv(scenario, outDir) {
 }
 
 function buildRunArgv(scenario, createOutDir, runOutDir) {
-  return [
+  const argv = [
     "run",
     "--sim-config", `${createOutDir}/sim-config.json`,
     "--initial-state", `${createOutDir}/initial-state.json`,
@@ -65,6 +65,12 @@ function buildRunArgv(scenario, createOutDir, runOutDir) {
     "--run-id", scenario.id,
     "--out-dir", runOutDir,
   ];
+  // Run-time-only override, not an authoring input: `--actor id,x,y[,kind]` repositions an
+  // already-created actor (create/configure has no x/y field for delver/warden — placement is
+  // level-gen's job). Used by axis E's diagonal-warden-placement scenarios to move the
+  // auto-placed warden onto a specific corner before ticking, without changing what was authored.
+  for (const spec of scenario.args.actorOverride || []) argv.push("--actor", spec);
+  return argv;
 }
 
 function classify(combinedText, status, parsed) {

@@ -219,11 +219,12 @@ axis at baseline. `budgetTokens` is fixed at 2000 for every scenario — well ab
 scenario costs — specifically so budget denial doesn't confound the sweep; that fixed cap is also the
 "don't let generated configs grow unmanaged" rail the maintainer asked for.
 
-**Matrix — 46 scenarios across 7 axes**, widened three times on 2026-09-01 (34 → 41 → 42 → 46):
+**Matrix — 50 scenarios across 7 axes**, widened four times on 2026-09-01 (34 → 41 → 42 → 46 → 50):
 axis D went from a 3-affinity spot-check to the full 10-affinity domain, axis B grew from the
-non-control motivation domain only to all 4 motivation families (including `user_controlled`), then
-axis C grew a position sub-sweep — the room's two diagonals (4 corners) — alongside its original
-expression sweep:
+non-control motivation domain only to all 4 motivation families (including `user_controlled`), axis C
+grew a position sub-sweep (the room's two diagonals, 4 corners) alongside its original expression
+sweep, then axis E grew the same diagonal-corner sub-sweep for an *actor* (the warden) rather than a
+static hazard:
 
 | Axis | What it sweeps | Domain size | Count |
 |---|---|---|---|
@@ -231,9 +232,19 @@ expression sweep:
 | B | delver motivation | full domain, all 4 families, minus `exploring` (baseline) | 11 |
 | C | hazard expression (3) + hazard position, room's two diagonals (4 corners) | full expression domain minus `emit`; diagonal corners of a 5x5 interior | 7 |
 | D | hazard affinity | full (10 kinds) | 10 |
-| E | warden present (actor-vs-actor incl. 2-delver+warden stress) | hand-picked | 3 |
+| E | warden present (actor-vs-actor incl. 2-delver+warden stress, 3 hand-picked) + warden repositioned to the room's two diagonals (4 corners) | hand-picked + diagonal corners | 7 |
 | F | resource authoring (vital payload x2, affinity payload x1) | hand-picked | 3 |
 | G | multi-hazard stress (2 and 3 hazards) | hand-picked | 2 |
+
+Axis E's diagonal sub-sweep can't reuse axis C's approach directly — `create`/`configure` has no
+x/y field for `--delver`/`--warden` (level-gen auto-places actors; only hazards/resources take
+authoring-time positions). Instead it reuses `E1-warden-basic`'s exact authored config and
+repositions the auto-placed warden at **run time** via `ak run --actor <id>,<x>,<y>` — a CLI flag
+meant for deterministic-replay overrides, now doing double duty as this sweep's actor-placement
+mechanism. The warden's id (`card_warden_1-1`) is fixed and confirmed from E1's own
+`initial-state.json` (single warden, `count=1`). Corners are absolute grid coordinates — the room's
+walkable interior is confirmed absolute `1..5` on each axis (the same interior axis C's diagonal
+hazards use, offset by the room's `(1,1)` origin from their room-relative `0..4`).
 
 Axis C's diagonal-position sub-sweep exists because hazard x/y are room-relative offsets into the
 target room's carved interior, and a "small" room's interior is confirmed 5x5 (relative `0..4` on
@@ -263,17 +274,22 @@ being written up as a finding.
 G2's out-of-bounds hazard is left in the matrix deliberately as a standing regression probe for #148
 — it should keep failing with a malformed message until that's fixed.
 
-**Results (re-run 2026-09-01 after widening axis D, then axis B, then axis C — 46 scenarios):**
+**Results (re-run 2026-09-01 after widening axis D, then B, then C, then E — 50 scenarios):**
 
 - `ak create --dry-run` only (authoring-layer validation, no artifacts written, no `ak run`):
-  **46/46 PASS.** No anomalies.
-- `ak create` (real artifacts) + `ak run --ticks 5 --seed 0` per scenario: **45/46 PASS** on create,
-  **45/45 PASS** on run for every create that succeeded. One anomaly — `G2-multi-hazard-triple` —
-  see finding 6. All 10 axis-D hazard affinities and all 4 axis-C diagonal-corner positions passed
-  clean on both create and run. `B-delver-motivation-user_controlled` also passed clean on both:
-  `create=PASS`, `run=PASS`, `actions=0, effects=5` — inert at the run layer as expected
-  (player-controlled actors need streamed simulation playback per the Actor persona README; a plain
-  `ak_run` pass has no player input to stream), informational only, not a failure.
+  **50/50 PASS.** No anomalies.
+- `ak create` (real artifacts) + `ak run --ticks 5 --seed 0` per scenario: **49/50 PASS** on create,
+  **49/49 PASS** on run for every create that succeeded. One anomaly — `G2-multi-hazard-triple` —
+  see finding 6. All 10 axis-D hazard affinities, all 4 axis-C diagonal-corner hazard positions, and
+  all 4 new axis-E diagonal-corner warden placements passed clean on both create and run — verified
+  the `--actor` override actually took effect (not silently ignored) by reading
+  `world-state.json` after each: the warden really ended up at `(1,1)`/`(5,5)`/`(5,1)`/`(1,5)`
+  respectively and, with no hostile adjacent at any of those corners, stayed there for the whole run
+  (`defending` doesn't move without an adjacent hostile — same documented behavior already noted for
+  axis B). `B-delver-motivation-user_controlled` also passed clean on both: `create=PASS`,
+  `run=PASS`, `actions=0, effects=5` — inert at the run layer as expected (player-controlled actors
+  need streamed simulation playback per the Actor persona README; a plain `ak_run` pass has no
+  player input to stream), informational only, not a failure.
 
 **Informational note, not a finding:** the run pass recorded `acceptedActions`/`emittedEffects` counts
 per scenario as metadata only, never as a pass/fail signal — treating "an actor did nothing" as
