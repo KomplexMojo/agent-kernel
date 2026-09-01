@@ -3,6 +3,9 @@ const { spawn } = require("node:child_process");
 const { existsSync, mkdtempSync, readFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
+const { createServer: createNetServer } = require("node:net");
+// Node 22's built-in WebSocket (available since Node 21) — no ws import needed.
+const { WebSocket } = globalThis;
 
 const ROOT = resolve(__dirname, "../../..");
 const SERVER = resolve(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
@@ -159,6 +162,17 @@ class McpServerHarness {
 
 function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
+}
+
+function getFreePort() {
+  return new Promise((resolvePort, reject) => {
+    const srv = createNetServer();
+    srv.listen(0, "127.0.0.1", () => {
+      const { port } = srv.address();
+      srv.close((err) => (err ? reject(err) : resolvePort(port)));
+    });
+    srv.on("error", reject);
+  });
 }
 
 test("mcp server lists required tools and schemas round-trips over stdio", async () => {
@@ -370,6 +384,61 @@ test("mcp create defaults full scenario outputs into a writable temp folder and 
   }
 });
 
+test("mcp ak_run stitches tickFrames into bundle.json even when run in place (outDir === sim-config's directory)", async () => {
+  // M7 gap 3's stitching only carries the create-time bundle.json forward when
+  // it detects "the run's inputs came from an authored create outDir" via a
+  // sibling bundle.json next to --sim-config. The detection in ak-impl.mjs
+  // additionally requires that sibling path to differ from the run's own
+  // --out-dir/bundle.json — which is false, and so the whole stitch silently
+  // no-ops, whenever a caller runs a scenario "in place" by pointing --out-dir
+  // at the same directory as --sim-config (the natural choice: no reason to
+  // invent a nested subdirectory just to run what you just created). The run
+  // still executes and writes tick-frames.json correctly; only the bundle.json
+  // that ak_push_to_ui reads is left stale, silently missing every tick.
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+
+    const runId = "run_mcp_in_place_stitch";
+    const createResult = await harness.callTool("ak_create", {
+      runId,
+      createdAt: "2026-04-19T00:00:00.000Z",
+      text: "Create a small playable dungeon scenario for an in-place run.",
+      room: ["size=medium;count=1"],
+      floorTile: ["count=12"],
+      hazard: ["x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
+      resource: ["permanenceMode=consumable;vital=health;delta=2"],
+      delver: ["count=1;affinity=fire;motivation=attacking"],
+      warden: ["count=1;affinity=dark;motivation=defending"],
+      budgetTokens: 2000,
+    });
+    assert.equal(createResult.command, "create");
+    const createOutDir = createResult.outDir;
+
+    const preRunBundle = readJson(join(createOutDir, "bundle.json"));
+    assert.equal(Array.isArray(preRunBundle.tickFrames), false);
+
+    const runResult = await harness.callTool("ak_run", {
+      simConfig: join(createOutDir, "sim-config.json"),
+      initialState: join(createOutDir, "initial-state.json"),
+      outDir: createOutDir,
+      ticks: 3,
+    });
+    assert.equal(runResult.command, "run");
+    assert.equal(runResult.outDir, createOutDir);
+    assert.equal(existsSync(join(createOutDir, "tick-frames.json")), true);
+
+    const postRunBundle = readJson(join(createOutDir, "bundle.json"));
+    assert.equal(Array.isArray(postRunBundle.tickFrames), true);
+    assert.ok(
+      postRunBundle.tickFrames.length > 0,
+      `expected bundle.json's tickFrames to carry the run's ${runResult.ticks ?? "?"} ticks, got ${JSON.stringify(postRunBundle.tickFrames)}`,
+    );
+  } finally {
+    await harness.close();
+  }
+});
+
 
 test("mcp server run and inspect tool calls round-trip over stdio", async () => {
   const harness = new McpServerHarness();
@@ -401,6 +470,166 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
     const inspectSummary = readJson(join(inspectOutDir, "inspect-summary.json"));
     assert.equal(inspectSummary.schema, "agent-kernel/TelemetryRecord");
     assert.equal(inspectSummary.schemaVersion, 1);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp hazard-plan and resource-plan tools produce cardSet entries the Design UI can render", async () => {
+  // ak_create's --hazard/--resource always land as "placed" objects baked straight into
+  // the room grid layout, never a plan.hints.cardSet entry — so a hazard/resource authored
+  // via ak_create is real (priced, positioned) but invisible in the UI's Design tab, which
+  // renders from cardSet. hazard-plan/resource-plan already produce cardSet entries via the
+  // same commandKernel.planBuild pipeline room-plan/delver-plan/warden-plan use; they just
+  // never had MCP tool wrappers. This asserts the new wrappers actually produce a card.
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+
+    const hazardOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-hazard-plan-"));
+    const hazardPlanResult = await harness.callTool("ak_hazard_plan", {
+      hazard: ["affinity=fire;expression=push;proximityRadius=2"],
+      runId: "run_mcp_hazard_plan_preview",
+      createdAt: "2026-04-10T00:00:00.000Z",
+      outDir: hazardOutDir,
+    });
+    assert.equal(hazardPlanResult.command, "hazard-plan");
+    assert.equal(existsSync(join(hazardOutDir, "spec.json")), true);
+    const hazardSpec = readJson(join(hazardOutDir, "spec.json"));
+    const hazardCardSet = hazardSpec.plan?.hints?.cardSet || [];
+    assert.equal(hazardCardSet.some((card) => card.type === "hazard"), true);
+
+    const resourceOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-resource-plan-"));
+    const resourcePlanResult = await harness.callTool("ak_resource_plan", {
+      resource: ["permanenceMode=consumable;vital=health;delta=2"],
+      runId: "run_mcp_resource_plan_preview",
+      createdAt: "2026-04-10T00:00:00.000Z",
+      outDir: resourceOutDir,
+    });
+    assert.equal(resourcePlanResult.command, "resource-plan");
+    assert.equal(existsSync(join(resourceOutDir, "spec.json")), true);
+    const resourceSpec = readJson(join(resourceOutDir, "spec.json"));
+    const resourceCardSet = resourceSpec.plan?.hints?.cardSet || [];
+    assert.equal(resourceCardSet.some((card) => card.type === "resource"), true);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp server starts the sandbox bridge on boot so ak_push_to_ui can deliver to a connected UI client", async () => {
+  const bridgePort = await getFreePort();
+  const harness = new McpServerHarness({ AK_SANDBOX_BRIDGE_PORT: String(bridgePort) });
+  let ws;
+  try {
+    await harness.initialize();
+
+    ws = await new Promise((resolveWs, rejectWs) => {
+      const client = new WebSocket(`ws://127.0.0.1:${bridgePort}/ak-sandbox`);
+      client.addEventListener("open", () => resolveWs(client));
+      client.addEventListener("error", (e) => rejectWs(e.error ?? new Error("ws connect failed")));
+    });
+
+    ws.addEventListener("message", (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === "ak.gameplayBundle.v1") {
+        ws.send(JSON.stringify({
+          type: "ak.bundleLoaded.v1",
+          clientId: "mcp_boot_test_client",
+          messageId: msg.id,
+        }));
+      }
+    });
+
+    ws.send(JSON.stringify({
+      type: "ak.uiReady.v1",
+      clientId: "mcp_boot_test_client",
+      capabilities: { loadGameplayBundle: true },
+    }));
+    // Let the server register the client before pushing.
+    await new Promise((r) => setTimeout(r, 50));
+
+    const pushResult = await harness.callTool("ak_push_to_ui", {
+      bundle: { schema: "agent-kernel/GameplayBundle", schemaVersion: 1, artifacts: [] },
+      targetTab: "design",
+    });
+
+    assert.equal(pushResult.bridge.port, bridgePort);
+    assert.equal(pushResult.bridge.connectedClients, 1);
+    assert.deepEqual(pushResult.bridge.deliveredClientIds, ["mcp_boot_test_client"]);
+    assert.equal(pushResult.bridge.timedOutClientIds.length, 0);
+  } finally {
+    ws?.close();
+    await harness.close();
+  }
+});
+
+test("mcp server exits when its stdin ends, even with no kill signal ever sent (Finding #2b)", async () => {
+  // Before the sandbox bridge existed, an orphaned server.mjs (parent gone, no explicit
+  // SIGTERM/SIGKILL ever delivered — e.g. a crashed harness or worker-pool churn) would just
+  // fall out of Node's event loop once stdin drained, since nothing else held an open handle.
+  // StdioServerTransport never listens for stdin "end" itself, so that was always an *implicit*
+  // fallback, not a real shutdown path. The sandbox bridge's listening socket holds a permanent
+  // ref, which silently broke that fallback: with no explicit stdin-end/SIGTERM handling, an
+  // orphaned server now runs forever as a zombie squatting the bridge port. This spawns a real
+  // server, closes ONLY its stdin (deliberately never sends any signal, mirroring "parent died
+  // silently"), and asserts the process still exits on its own.
+  const bridgePort = await getFreePort();
+  const proc = spawn(process.execPath, [SERVER], {
+    cwd: ROOT,
+    env: { ...process.env, AK_SANDBOX_BRIDGE_PORT: String(bridgePort) },
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  try {
+    await new Promise((resolveReady, rejectReady) => {
+      proc.stdout.setEncoding("utf8");
+      // The server is up once it responds to an initialize request over stdio.
+      proc.stdout.on("data", (chunk) => {
+        if (chunk.includes('"id":1')) resolveReady();
+      });
+      proc.once("error", rejectReady);
+      proc.stdin.write(`${JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: "2025-03-26", capabilities: {}, clientInfo: { name: "t", version: "1" } },
+      })}\n`);
+      setTimeout(() => rejectReady(new Error("server did not become ready")), 5000).unref();
+    });
+
+    const exited = new Promise((resolveExit) => proc.once("exit", (code, signal) => resolveExit({ code, signal })));
+    proc.stdin.end();
+
+    const result = await Promise.race([
+      exited,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("server did not exit within 3s of stdin ending, with no signal ever sent — it would zombie forever")), 3000)),
+    ]);
+    assert.equal(result.signal, null);
+    assert.equal(result.code, 0);
+  } finally {
+    if (proc.exitCode === null && proc.signalCode === null) proc.kill("SIGKILL");
+  }
+});
+
+test("ak_sandbox_create omitting outDir defaults into a temp folder instead of crashing (createHandlerTool has no tool.command)", async () => {
+  // ak_sandbox_create is built via createHandlerTool, which returns {name, description,
+  // inputSchema, handler} — no `command` field. server.mjs's resolveDefaultOutDir does
+  // join(SESSION_TEMP_ROOT, runId, tool.command) whenever outDir is omitted and runId is
+  // given (the documented, normal usage pattern — see the outDir schema description: "When
+  // omitted, the MCP server uses a writable temp folder and remembers it"). tool.command is
+  // undefined for any createHandlerTool-based tool, and path.join throws on an undefined
+  // argument — so every other MCP tool that omits outDir works, and this one throws.
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+
+    const result = await harness.callTool("ak_sandbox_create", {
+      budget: resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json"),
+      runId: "run_mcp_sandbox_create_no_outdir",
+    });
+    assert.equal(result.command, "sandbox-create");
+    assert.equal(typeof result.outDir, "string");
+    assert.ok(result.outDir.length > 0);
+    assert.equal(existsSync(join(result.outDir, "sandbox-session.json")), true);
   } finally {
     await harness.close();
   }

@@ -616,7 +616,7 @@ node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --scenario tests/fixtures/e2e/e2e-scenario-v1-basic.json --model fixture --fixture tests/fixtures/adapters/llm-generate-summary-budget-loop.json --budget-loop --run-id run_llm_plan_loop --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_loop_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --text "a dungeon with two fire delvers" --catalog tests/fixtures/pool/catalog-basic.json --budget-tokens 200 --run-id run_llm_plan_text --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_text_demo
 node packages/adapters-cli/src/cli/ak.mjs llm-plan --prompt "Plan a small fire dungeon." --catalog tests/fixtures/pool/catalog-basic.json --model fixture --goal "Prompt-only goal" --budget-tokens 800 --fixture tests/fixtures/adapters/llm-generate-summary.json --run-id run_llm_plan_prompt --created-at 2025-01-01T00:00:00Z --out-dir artifacts/llm_plan_prompt_demo
-node packages/adapters-cli/src/cli/ak.mjs create --text "Create a fire room with a hazard, one delver, and one warden." --room "size=large;count=1;affinities=fire:emit:3" --floor-tile "count=18" --hazard "x=2;y=2;affinity=fire;expression=push;stacks=2" --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" --warden "count=1;affinity=fire;motivation=defending" --run-id run_create_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/create_demo
+node packages/adapters-cli/src/cli/ak.mjs create --text "Create a fire room with a hazard, one delver, and one warden." --room "size=large;count=1" --floor-tile "count=18" --hazard "x=2;y=2;affinity=fire;expression=push;stacks=2" --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" --warden "count=1;affinity=fire;motivation=defending" --run-id run_create_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/create_demo
 node packages/adapters-cli/src/cli/ak.mjs configure --text "Configure the hazard layout for the room." --room "size=small;count=1" --hazard "id=hazard_fire;x=1;y=1;affinity=fire;expression=emit;stacks=1" --run-id run_configure_demo --created-at 2026-04-08T00:00:00Z --out-dir artifacts/configure_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1" --run-id run_room_plan_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_demo
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=1;affinities=fire:emit:2" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_plan_budget_demo --created-at 2025-01-01T00:00:00Z --out-dir artifacts/room_plan_budget_demo
@@ -716,7 +716,7 @@ Use this when an agent only needs to author or adjust room/layout intent and han
 ```
 node packages/adapters-cli/src/cli/ak.mjs create \
   --text "Create a small fire room for preview." \
-  --room "size=small;count=1;affinities=fire:emit:2" \
+  --room "size=small;count=1" \
   --run-id run_room_preview \
   --created-at 2026-04-08T00:00:00Z \
   --out-dir artifacts/room_preview
@@ -734,7 +734,7 @@ Use this when an agent wants one additive command that emits a playable bundle w
 ```
 node packages/adapters-cli/src/cli/ak.mjs create \
   --text "Create a fire room with a hazard, one delver, and one warden." \
-  --room "size=large;count=1;affinities=fire:emit:3" \
+  --room "size=large;count=1" \
   --floor-tile "count=18" \
   --hazard "x=2;y=2;affinity=fire;expression=push;stacks=2" \
   --delver "count=1;affinity=fire;motivation=attacking;setup-mode=user" \

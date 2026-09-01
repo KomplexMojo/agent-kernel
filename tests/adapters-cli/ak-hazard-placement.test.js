@@ -432,3 +432,62 @@ test("hazard may declare durability without a mana vital", () => {
 
 test.skip("hazard coordinates adjacent to exit tile are accepted", () => {});
 test.skip("hazard coordinates adjacent to spawn tile are accepted", () => {});
+
+// ---------------------------------------------------------------------------
+// placedObjects note (Finding #4 ruling: placed hazards/resources are
+// intentionally never card-authored — createDesignCard has no x/y field
+// anywhere in the codebase, so "placed" and "card" are structurally distinct
+// concepts, not a gap to unify. The one real follow-up: a caller had no way
+// to know a hazard/resource it authored landed placed-only. This response
+// field surfaces that instead of leaving it silent.)
+// ---------------------------------------------------------------------------
+
+test("create response notes a placed hazard landed with zero cards, since placed hazards never produce cardSet entries", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-hazard-placement-note-"));
+  const result = runCli([
+    "create",
+    "--room", "size=medium;count=1",
+    "--hazard", "x=2;y=2;affinity=fire;expression=emit;stacks=1",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens", "1000",
+    "--budget", BUDGET,
+    "--price-list", PRICE_LIST,
+    "--out-dir", outDir,
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse((result.stdout || "").trim());
+  assert.deepEqual(summary.placedObjects, { hazards: { placed: 1, cards: 0 } });
+});
+
+test("create response notes a placed resource landed with zero cards, since placed resources never produce cardSet entries", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-resource-placement-note-"));
+  const result = runCli([
+    "create",
+    "--room", "size=medium;count=1",
+    "--resource", "permanenceMode=consumable;vital=health;delta=2",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens", "1000",
+    "--budget", BUDGET,
+    "--price-list", PRICE_LIST,
+    "--out-dir", outDir,
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse((result.stdout || "").trim());
+  assert.deepEqual(summary.placedObjects, { resources: { placed: 1, cards: 0 } });
+});
+
+test("create response omits placedObjects entirely when no hazard or resource was authored", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-no-placement-note-"));
+  const result = runCli([
+    "create",
+    "--room", "size=medium;count=1",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens", "1000",
+    "--budget", BUDGET,
+    "--price-list", PRICE_LIST,
+    "--out-dir", outDir,
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  const summary = JSON.parse((result.stdout || "").trim());
+  assert.equal("placedObjects" in summary, false);
+});

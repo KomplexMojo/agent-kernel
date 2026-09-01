@@ -15,6 +15,7 @@ export {
   calculateActorConfigurationUnitCost,
   buildDesignSpendLedger,
 } from "./spend-proposal.js";
+export { buildDefaultPriceList } from "./default-price-list.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildAction, buildRequestActionsFromEffects, buildSolverRequestEffect } from "../_shared/persona-helpers.mts";
 import { attachAllocatorServices } from "./allocator-services.js";

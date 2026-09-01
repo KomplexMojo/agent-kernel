@@ -100,10 +100,16 @@ function buildTickBoardStates(baseFrame, tickFrames) {
   const frames = [baseFrame];
 
   // Group tick frames by tick number; process in ascending tick order.
+  // Tick 0 is always a bookkeeping "init" record (empty acceptedActions) —
+  // real ak_run output opens tick-frames.json with it before any actor has
+  // moved. baseFrame already represents that same pre-tick-1 state, so
+  // grouping it in here would push a second, identical frame at index 1 and
+  // shift every later tick's frame one index later than its real tick
+  // number throughout the whole run.
   const byTick = new Map();
   for (const tf of tickFrames) {
     const t = tf?.tick;
-    if (typeof t !== "number" || !Array.isArray(tf?.acceptedActions)) continue;
+    if (typeof t !== "number" || t <= 0 || !Array.isArray(tf?.acceptedActions)) continue;
     if (!byTick.has(t)) byTick.set(t, []);
     byTick.get(t).push(tf);
   }

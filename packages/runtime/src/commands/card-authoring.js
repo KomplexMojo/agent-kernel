@@ -1244,6 +1244,32 @@ function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
   };
 }
 
+/**
+ * A card's authored vitals are pre-floor: an "attacking"/"defending" motivation or an
+ * affinity both impose a minimum mana/stamina pool at build time (AM.2b/AM.5,
+ * orchestrate-build.js), and that floor is what actually gets priced — not whatever
+ * (often all-zero) vitals the card was authored with. Reuses the Configurator's own
+ * floor functions (already instantiated as `configuratorAuthoring` above) so the
+ * estimate never drifts from what a real build charges. COPY vitals first: these
+ * functions mutate their argument in place, and `card` may be the caller's locked input.
+ */
+function resolveFlooredActorVitals(card) {
+  if (!card?.vitals) return card?.vitals;
+  const draft = {
+    type: card.type,
+    archetype: card.archetype,
+    affinities: card.affinities,
+    motivations: card.motivations,
+    capabilities: card.capabilities,
+    vitals: Object.fromEntries(
+      Object.entries(card.vitals).map(([key, vital]) => [key, { ...vital }]),
+    ),
+  };
+  configuratorAuthoring.applyMotivationDerivedVitalRequirements(draft);
+  configuratorAuthoring.applyAffinityDerivedVitalRequirements(draft);
+  return draft.vitals;
+}
+
 function calculateActorCardUnitValue(card, { priceList } = {}) {
   // Accept both canonical PriceListItemLegacyV1 (`unitCost`) and legacy PriceListItemTokenV1
   // (`costTokens`) shapes via the Allocator pricing surface (BUG-2 fix).
@@ -1256,7 +1282,7 @@ function calculateActorCardUnitValue(card, { priceList } = {}) {
   const cost = calculateActorConfigurationUnitCost({
     entry: {
       affinities: card?.affinities,
-      vitals: card?.vitals,
+      vitals: resolveFlooredActorVitals(card),
     },
     priceMap,
     normalizeMotivations: configuratorMotivations,

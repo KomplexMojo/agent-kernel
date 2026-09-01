@@ -2022,6 +2022,35 @@ function collectPreviewCardSet(spec) {
   );
 }
 
+// Finding #4: `create`/`configure`'s positioned --hazard/--resource land straight in the
+// grid (spec.configurator.inputs.levelGen.hazards / .resources) and never produce a
+// plan.hints.cardSet entry — cards are structurally unpositioned everywhere in this codebase
+// (createDesignCard has no x/y field), so this is intentional, not a gap to close. What was
+// missing was any signal in the response itself: a caller authoring a hazard/resource had no
+// way to know it landed placed-only instead of as a reviewable Design-tab card. Surfaced only
+// when at least one was actually placed, so most create/configure calls stay unaffected.
+function buildPlacedObjectsNote(spec) {
+  const placedHazards = Array.isArray(spec?.configurator?.inputs?.levelGen?.hazards)
+    ? spec.configurator.inputs.levelGen.hazards.length
+    : 0;
+  const placedResources = Array.isArray(spec?.configurator?.inputs?.resources)
+    ? spec.configurator.inputs.resources.length
+    : 0;
+  if (placedHazards === 0 && placedResources === 0) {
+    return undefined;
+  }
+  const cardSet = collectPreviewCardSet(spec);
+  const cardCount = (type) => cardSet.filter((card) => normalizePreviewCardType(card?.type) === type).length;
+  const note = {};
+  if (placedHazards > 0) {
+    note.hazards = { placed: placedHazards, cards: cardCount("hazard") };
+  }
+  if (placedResources > 0) {
+    note.resources = { placed: placedResources, cards: cardCount("resource") };
+  }
+  return note;
+}
+
 function normalizePreviewCardType(type) {
   const normalized = typeof type === "string" ? type.trim().toLowerCase() : "";
   if (normalized === "attacker") return "delver";
@@ -2194,13 +2223,17 @@ async function summarizeRunOutput({ outDir, args } = {}) {
   // create outDir also ends up holding a loadable playback bundle.
   const sourceSimConfigPath = resolvePath(args["sim-config"]);
   const createBundlePath = sourceSimConfigPath ? join(dirname(sourceSimConfigPath), "bundle.json") : null;
-  const createBundle = createBundlePath && createBundlePath !== join(outDir, "bundle.json")
-    ? await readJsonIfExists(createBundlePath)
-    : null;
   // Only stitch when the run's inputs came from an authored create outDir
   // (identified by its pre-run bundle.json sibling). Fixture-driven runs stay
   // bundle-free so CLI run output remains artifact-for-artifact equivalent to
   // the browser host's run output (tests/integration/ui-cli-equivalence.test.js).
+  // Read unconditionally: when --out-dir is run in place (the same directory
+  // as --sim-config, a natural choice with nothing in the CLI docs against
+  // it), createBundlePath equals the run's own bundle.json path, but the read
+  // still happens before that same path is overwritten below — there is no
+  // race to guard against, so skipping the read here just as silently dropped
+  // every run's tick frames from the bundle the UI loads.
+  const createBundle = createBundlePath ? await readJsonIfExists(createBundlePath) : null;
   const bundle = createBundle && typeof createBundle === "object"
     ? buildGameplayBundleFromRunArtifacts({
       runId,
@@ -3766,6 +3799,7 @@ async function writeBuildOutputs({
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
   const costSummary = buildCostSummary(buildResult.budgetReceipt, buildResult.spendProposal, outDir);
+  const placedObjects = buildPlacedObjectsNote(spec);
 
   return buildStructuredSuccessSummary({
     command: commandName,
@@ -3775,7 +3809,10 @@ async function writeBuildOutputs({
     initialState: buildResult.initialState,
     simConfig: buildResult.simConfig,
     spec,
-    extra: costSummary !== undefined ? { cost: costSummary } : {},
+    extra: {
+      ...(costSummary !== undefined ? { cost: costSummary } : {}),
+      ...(placedObjects !== undefined ? { placedObjects } : {}),
+    },
   });
 }
 

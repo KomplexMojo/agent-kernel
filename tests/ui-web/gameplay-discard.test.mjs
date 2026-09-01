@@ -126,7 +126,10 @@ test("requestDesignTransition clears tick position back to initial state on next
       { schema: "agent-kernel/SimConfigArtifact", layout: { kind: "grid", data: { width: 2, height: 2, tiles: ["..", ".."] } } },
       { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "actor-1", position: { x: 0, y: 0 } }] },
     ],
-    tickFrames: [{ tick: 0, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { to: { x: 1, y: 0 } } }] }],
+    // tick 1, not 0: real ak_run output always opens tick-frames.json with a
+    // tick:0 bookkeeping "init" record (empty acceptedActions) before the
+    // first tick that can carry a real move — see gameplay-view-tick-navigation.test.mjs.
+    tickFrames: [{ tick: 1, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { to: { x: 1, y: 0 } } }] }],
   };
   const renderedFrames = [];
   const view = wireGameplayView({

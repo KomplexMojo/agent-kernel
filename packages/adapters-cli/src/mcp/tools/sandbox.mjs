@@ -600,8 +600,38 @@ export async function executeSandboxPlace({ session: sessionPath, entityType, sp
     };
   }
 
-  // Validation passed — write all four files atomically (best-effort; no temp-file
+  // A sibling bundle.json is what ak_run's M7-gap-3 stitching (ak-impl.mjs ~line 2165)
+  // looks for to decide whether a run's output should carry a post-run GameplayBundle
+  // forward for ak_push_to_ui — "identified by its pre-run bundle.json sibling". Without
+  // one, a sandbox-authored run is treated the same as a bare fixture run and stays
+  // bundle-free, so nothing placed/moved in a sandbox session could ever reach the UI.
+  // `spec` is optional in buildGameplayBundleFromRunArtifacts (sandbox sessions have no
+  // BuildSpec/cardSet to offer — they're direct entity placement, not card authoring), so
+  // this placeholder omits it rather than fabricate one; the stitched bundle still carries
+  // real simConfig/initialState/tickFrames once ak_run picks this up. Only written if
+  // absent — later ak_sandbox_place calls in the same session must not clobber whatever
+  // ak_run already upgraded this file to (see ak-impl.mjs's own "upgrade that sibling
+  // bundle.json in place" comment).
+  //
+  // The resourceBundle DOES need to be in `artifacts` here, not left for a later step:
+  // ak_run's stitching only carries forward the create-bundle's artifacts whose schema
+  // isn't superseded by the run's own simConfig/initialState — ResourceBundleArtifact
+  // always qualifies, but only if it was here to carry in the first place. Without it,
+  // gameplay-view.js's buildBoardState() finds no ResourceBundleArtifact in the final
+  // bundle, resourceBundle is undefined for the whole render, and every actor's sprite
+  // asset resolves to null — the room grid draws (that only needs simConfig), but no
+  // actor sprite does, with no error anywhere (confirmed by direct instrumentation of
+  // gameplay-phaser-renderer.js's actor draw loop: actors.length was correct, every
+  // resolveActorAssetId(...) call returned null).
+  const bundlePath = join(sessionDir, "bundle.json");
+  if (!existsSync(bundlePath)) {
+    await writeJson(bundlePath, { schemas: [], artifacts: [resourceBundle] });
+  }
+
+  // Validation passed — write the four session files atomically (best-effort; no temp-file
   // rename on this platform, but at least validation cannot fail after a partial write).
+  // bundle.json (above) is a fifth file, written conditionally before this block since it's
+  // only created once per session rather than rewritten on every placement.
   await writeJson(simConfigPath, simConfig);
   await writeJson(initialStatePath, initialState);
   await writeJson(resourceBundlePath, resourceBundle);
@@ -617,6 +647,7 @@ export async function executeSandboxPlace({ session: sessionPath, entityType, sp
     simConfigPath,
     initialStatePath,
     resourceBundlePath,
+    bundlePath,
   };
 }
 

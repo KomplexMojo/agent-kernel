@@ -551,6 +551,7 @@ export function buildCardSetFromSummary(summary) {
 
   const rooms = Array.isArray(summary?.rooms) ? summary.rooms : [];
   const hazards = Array.isArray(summary?.hazards) ? summary.hazards : [];
+  const resources = Array.isArray(summary?.resources) ? summary.resources : [];
   const actors = Array.isArray(summary?.actors) ? summary.actors : [];
   const delverConfigs = Array.isArray(summary?.delverConfigs)
     ? summary.delverConfigs.filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
@@ -591,6 +592,30 @@ export function buildCardSetFromSummary(summary) {
     { dungeonAffinity, index },
   ));
 
+  const resourceCards = resources.map((entry, index) => normalizeCardEntry(
+    {
+      id: entry?.id || `card_resource_${index + 1}`,
+      type: "resource",
+      source: "resource",
+      count: entry?.count,
+      // A resource's affinity payload (from the "affinity=<kind>;expression=...;stacks=..."
+      // grammar) is a nested object, not a plain kind string — extract .kind so
+      // normalizeCardAffinity doesn't silently reject it and fall back to the default.
+      affinity: entry?.affinity && typeof entry.affinity === "object" ? entry.affinity.kind : entry?.affinity,
+      vitals: entry?.vitals,
+      resourceVitals: entry?.resourceVitals,
+      tier: entry?.tier,
+      stat: entry?.stat,
+      delta: entry?.delta,
+      dropRate: entry?.dropRate,
+      permanenceMode: entry?.permanenceMode,
+      permanent: entry?.permanent,
+      budgetCeiling: entry?.budgetCeiling,
+      tokenHint: entry?.tokenHint,
+    },
+    { dungeonAffinity, index },
+  ));
+
   const actorCards = actors.map((entry, index) => {
     const motivations = normalizeMotivationKinds(
       entry?.motivations,
@@ -622,7 +647,7 @@ export function buildCardSetFromSummary(summary) {
   const delverCardsFromConfigs = hasDelverCardsFromActors
     ? []
     : reduceDelverConfigsToCards(delverConfigs, dungeonAffinity);
-  return normalizeCardSet([...roomCards, ...hazardCards, ...delverCardsFromConfigs, ...actorCards], { dungeonAffinity });
+  return normalizeCardSet([...roomCards, ...hazardCards, ...resourceCards, ...delverCardsFromConfigs, ...actorCards], { dungeonAffinity });
 }
 
 /**

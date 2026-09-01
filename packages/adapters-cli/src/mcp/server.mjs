@@ -18,9 +18,11 @@ import { testingTools } from "./tools/testing.mjs";
 import { tickTools } from "./tools/tick.mjs";
 import { sandboxTools } from "./tools/sandbox.mjs";
 import { adaptiveWorkflowResources, adaptiveWorkflowTools, assertAdaptiveWorkflowArgs, readAdaptiveWorkflowResource } from "./adaptive-workflow-tools.mjs";
+import { startSandboxBridgeServer, stopSandboxBridgeServer } from "./bridge-server.mjs";
 
 const SERVER_NAME = "agent-kernel-cli";
 const SERVER_VERSION = "1.0.0";
+const SANDBOX_BRIDGE_PORT = Number(process.env.AK_SANDBOX_BRIDGE_PORT) || 38487;
 const TOOL_DEFINITIONS = [
   ...authoringTools,
   ...simulationTools,
@@ -125,14 +127,18 @@ function resolveDefaultOutDir(tool, args) {
     return null;
   }
   const runId = normalizeNonEmptyString(args?.runId);
+  // createHandlerTool-based tools (sandbox, tick, testing) have no `command` — only
+  // createTool-based tools dispatch through the CLI's command registry. Fall back to
+  // the tool's own name so the temp-dir path stays a valid string either way.
+  const commandLabel = normalizeNonEmptyString(tool.command) || tool.name;
   if (tool.command === "workflow" && tool.workflowAction !== "run") return null;
   if (tool.command === "scenario" && runId) {
     return join(SESSION_TEMP_ROOT, runId);
   }
   if (runId) {
-    return join(SESSION_TEMP_ROOT, runId, tool.command);
+    return join(SESSION_TEMP_ROOT, runId, commandLabel);
   }
-  return mkdtempSync(join(SESSION_TEMP_ROOT, `${tool.command}-`));
+  return mkdtempSync(join(SESSION_TEMP_ROOT, `${commandLabel}-`));
 }
 
 async function maybeResolveRememberedInputs(tool, rawArgs) {
@@ -371,5 +377,37 @@ async function handleToolRequest(request, extra) {
 
 server.setRequestHandler(CallToolRequestSchema, async (request, extra) => enqueueCommand(() => handleToolRequest(request, extra)));
 
+// Bind the sandbox WS bridge so ak_push_to_ui / ak_sandbox_push_ui have a live server to
+// deliver to. A bind failure (e.g. port already in use) must not crash the MCP server —
+// getSandboxBridgeState().startFailed already surfaces it to those tools as SANDBOX_BRIDGE_START_FAILED.
+try {
+  await startSandboxBridgeServer({ port: SANDBOX_BRIDGE_PORT });
+} catch {
+  /* best-effort */
+}
+
 const transport = new StdioServerTransport();
 await server.connect(transport);
+
+// Finding #2b: StdioServerTransport never listens for stdin "end", and nothing here handled
+// SIGTERM/SIGINT either — so a parent that disappears without delivering an explicit kill
+// signal (worker-pool churn, a crashed harness) left this process with no way to exit. That
+// was invisible before the sandbox bridge existed, because with no other open handles Node's
+// event loop just drained naturally once stdin ended. The bridge's listening socket holds a
+// permanent ref, so that implicit fallback stopped working the moment Finding #1 wired it in.
+let shuttingDown = false;
+async function shutdown() {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  const forceExit = setTimeout(() => process.exit(0), 2000).unref();
+  try {
+    await stopSandboxBridgeServer();
+  } catch {
+    /* best-effort */
+  }
+  clearTimeout(forceExit);
+  process.exit(0);
+}
+process.stdin.on("end", shutdown);
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
