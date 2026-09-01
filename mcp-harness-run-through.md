@@ -242,10 +242,14 @@ its own `outDir`, and on success feeds the resulting `sim-config.json`/`initial-
 anything not cleanly explained by a known, expected rejection pattern gets triaged by hand before
 being written up as a finding.
 
-**Scripts (currently scratchpad-only, not committed):**
-`permutation-matrix.mjs` (the 34-scenario matrix data) and `run-matrix-full.mjs` (the create+run
-runner) — not yet promoted into the repo; ask if/when this should become a permanent, committed tool
-rather than a one-off validation script.
+**Scripts (promoted into the repo 2026-09-01):**
+[`scripts/testing/configuration-permutation-matrix.mjs`](scripts/testing/configuration-permutation-matrix.mjs)
+(the 34-scenario matrix data) and
+[`scripts/testing/run-configuration-permutation-sweep.mjs`](scripts/testing/run-configuration-permutation-sweep.mjs)
+(the unified create+run runner, `--dry-run` for authoring-only). Wired up as `pnpm run config-sweep`
+(full) and `pnpm run config-sweep:dry-run`. Output goes to `artifacts/matrix-sweep/` (gitignored).
+G2's out-of-bounds hazard is left in the matrix deliberately as a standing regression probe for #148
+— it should keep failing with a malformed message until that's fixed.
 
 **Results:**
 
