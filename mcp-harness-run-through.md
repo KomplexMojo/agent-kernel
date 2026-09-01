@@ -1,18 +1,46 @@
-# MCP harness run-through — friction log
+# MCP harness run-through — open issues & handoff context
 
-**Status (2026-09-01):** first pass. The maintainer asked to drive `agent-kernel` end-to-end through
-the `agent-kernel-cli` MCP server from inside a Claude Code harness (Bash + Browser-pane tools) and
-have results display back in that harness, logging any friction as it's hit.
+**Status (2026-09-01):** first pass, actively growing. The maintainer asked to drive `agent-kernel`
+end-to-end through the `agent-kernel-cli` MCP server from inside a Claude Code harness (Bash +
+Browser-pane tools), have results display back in that harness, and file every piece of friction hit
+along the way as a standalone `gh issue`, immediately, as it's found — per
+`AGENTS.md → Working agreement`. This document is the handoff artifact: a running summary of every
+issue opened from this activity plus enough standalone context (repro steps, root cause, evidence,
+code locations) that **a different agent with no memory of this session can pick any one issue up and
+fix it without re-deriving anything above what's written here.**
+
+**This document does not itself fix anything.** Issues found here are filed to GitHub and logged below
+as they're identified; resolving them is explicitly out of scope for the session that finds them —
+that's separate work, for whoever (or whichever session) picks an issue off the list.
+
 **Audience:** an agent with no memory of the session that produced it.
 **Source of evidence:** live MCP tool calls (`ak_create`, `ak_run`, `ak_push_to_ui`, `ak_show_state`,
 `ak_tick_forward`, `ak_show`, `ak_runs_list`) against `packages/adapters-cli/src/mcp/server.mjs` on
 branch `chore/mcp-session-run-through` (parent `main` @ `9611ad7`), plus reads of
-`packages/adapters-cli/src/tick-session.mjs` and `packages/adapters-cli/src/mcp/README.md`.
+`packages/adapters-cli/src/tick-session.mjs` and `packages/adapters-cli/src/mcp/README.md`, and one
+root-cause pass with Serena's semantic tools (see finding 5).
 
 **Session goal, restated:** run the app via MCP tools only (no shelling out to `ak.mjs` directly for
 the app-driving steps), get a visual/state result rendered inside the Claude Code harness (Browser
-pane or an inline image), and log each piece of friction as a standalone `gh issue` per
-`AGENTS.md → Working agreement`, back-linked to this file.
+pane or an inline image), and file each piece of friction as a standalone `gh issue`, back-linked to
+this file.
+
+---
+
+## Open issues (start here)
+
+| # | Title | Status | Blocking? | Context |
+|---|---|---|---|---|
+| [#142](https://github.com/KomplexMojo/agent-kernel/issues/142) | `ak_push_to_ui`'s sandbox WebSocket bridge is unreachable from a sandboxed MCP-driving harness | Open | No — `ak_show_state`/`ak_tick_forward` are a working substitute | Finding 1 |
+| [#143](https://github.com/KomplexMojo/agent-kernel/issues/143) | `ak_show_state`/`ak_tick_forward`/`ak_tick_backward` resolve runs from a different root than `ak_create`/`ak_run`/`ak_show` | Open | No — workaround: pass `outDir=artifacts/runs/<runId>/<command>` explicitly | Finding 2 |
+| [#144](https://github.com/KomplexMojo/agent-kernel/issues/144) | `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit | Open | No — `ascii` mode works | Finding 3 |
+| [#145](https://github.com/KomplexMojo/agent-kernel/issues/145) | `ak_create` budget denial doesn't say what budget would have worked | Open | No — workaround: retry with a larger `budgetTokens` | Finding 4 |
+| [#146](https://github.com/KomplexMojo/agent-kernel/issues/146) | Open question: does plain `ak_run` ever invoke autonomous actor decision-making? | **Closed, not planned** | — | Superseded by #147; premise was wrong, see finding 5 |
+| [#147](https://github.com/KomplexMojo/agent-kernel/issues/147) | `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay | Open | No — top-level `ascii` field on `ak_show_state` (built by `renderAscii`) is a working substitute | Finding 5 |
+
+None of the open issues above block continued use of the MCP surface — every one has a stated
+workaround. Full repro steps, root-cause evidence, and code pointers for each are in the numbered
+findings below.
 
 ---
 
@@ -177,22 +205,11 @@ visualization path.
 
 ---
 
-## Issues filed from this doc
+## Workflow for the rest of this activity
 
-- [#142](https://github.com/KomplexMojo/agent-kernel/issues/142) — `ak_push_to_ui`'s sandbox WebSocket bridge is unreachable from a sandboxed MCP-driving harness (finding 1)
-- [#143](https://github.com/KomplexMojo/agent-kernel/issues/143) — `ak_show_state`/`ak_tick_forward`/`ak_tick_backward` resolve runs from a different root than `ak_create`/`ak_run`/`ak_show` (finding 2)
-- [#144](https://github.com/KomplexMojo/agent-kernel/issues/144) — `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit (finding 3)
-- [#145](https://github.com/KomplexMojo/agent-kernel/issues/145) — `ak_create` budget denial doesn't say what budget would have worked (finding 4)
-- [#146](https://github.com/KomplexMojo/agent-kernel/issues/146) — open question: does plain `ak_run` ever invoke autonomous actor decision-making? **CLOSED, not planned** — root-caused with Serena; premise was wrong, see #147
-- [#147](https://github.com/KomplexMojo/agent-kernel/issues/147) — `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay (finding 5, corrected)
-
----
-
-## Pending issue sweep (not yet filed)
-
-**Workflow change (maintainer, 2026-09-01):** non-blocking friction found from here on is logged in
-this section only, not filed as a `gh issue` immediately. #142-#147 above were filed one at a time;
-everything below waits for an explicit end-of-session sweep. "Blocking" (stops the current line of
-work outright) still gets surfaced immediately in chat rather than queued here.
-
-(none yet)
+**Corrected 2026-09-01** (see conversation): every issue found gets filed to GitHub immediately, as
+it's identified — not batched into an end-of-session sweep. What's deferred is *fixing* them: this
+session's job is to run the app, find friction, root-cause it enough to hand off cleanly, and file the
+issue with that context attached (repro, root cause, code pointers, evidence) — not to patch the code.
+The table at the top of this document is the running index; append a row there and a numbered finding
+section below for every new issue, in the same pattern as #142-#147 above.
