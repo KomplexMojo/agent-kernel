@@ -1,17 +1,18 @@
 # MCP harness run-through — open issues & handoff context
 
-**Status (2026-09-01):** first pass, actively growing. The maintainer asked to drive `agent-kernel`
-end-to-end through the `agent-kernel-cli` MCP server from inside a Claude Code harness (Bash +
-Browser-pane tools), have results display back in that harness, and file every piece of friction hit
-along the way as a standalone `gh issue`, immediately, as it's found — per
-`AGENTS.md → Working agreement`. This document is the handoff artifact: a running summary of every
-issue opened from this activity plus enough standalone context (repro steps, root cause, evidence,
-code locations) that **a different agent with no memory of this session can pick any one issue up and
-fix it without re-deriving anything above what's written here.**
+**Status (2026-09-01):** all 7 issues this activity found and diagnosed (#142-#145, #147-#149) are
+now **fixed, verified, and closed** — see "Fix pass" below. The maintainer's original ask was to drive
+`agent-kernel` end-to-end through the `agent-kernel-cli` MCP server from inside a Claude Code harness
+(Bash + Browser-pane tools), have results display back in that harness, and file every piece of
+friction hit along the way as a standalone `gh issue`, immediately, as it's found — per
+`AGENTS.md → Working agreement`. That scope later widened, on explicit instruction, to fixing and
+closing every issue found. This document is the record: repro steps, root cause, evidence, code
+locations, and (now) the fix commit for each.
 
-**This document does not itself fix anything.** Issues found here are filed to GitHub and logged below
-as they're identified; resolving them is explicitly out of scope for the session that finds them —
-that's separate work, for whoever (or whichever session) picks an issue off the list.
+**Two new issues surfaced *while fixing* the original seven and are deliberately left open** — out of
+scope for the fixes that found them, tracked separately: **#150** (two more call sites share #149's
+wall-clock-meta-stamp bug, unconfirmed — no scenario exercises them yet) and **#151** (the MCP
+README's Tool Index is stale — 27 documented vs. ~45 actual tools).
 
 **Audience:** an agent with no memory of the session that produced it.
 **Source of evidence:** live MCP tool calls (`ak_create`, `ak_run`, `ak_push_to_ui`, `ak_show_state`,
@@ -27,22 +28,26 @@ this file.
 
 ---
 
-## Open issues (start here)
+## Issues (start here)
 
-| # | Title | Status | Blocking? | Context |
+| # | Title | Status | Fix commit | Context |
 |---|---|---|---|---|
-| [#142](https://github.com/KomplexMojo/agent-kernel/issues/142) | `ak_push_to_ui`'s sandbox WebSocket bridge is unreachable from a sandboxed MCP-driving harness | Open | No — `ak_show_state`/`ak_tick_forward` are a working substitute | Finding 1 |
-| [#143](https://github.com/KomplexMojo/agent-kernel/issues/143) | `ak_show_state`/`ak_tick_forward`/`ak_tick_backward` resolve runs from a different root than `ak_create`/`ak_run`/`ak_show` | Open | No — workaround: pass `outDir=artifacts/runs/<runId>/<command>` explicitly | Finding 2 |
-| [#144](https://github.com/KomplexMojo/agent-kernel/issues/144) | `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit | Open | No — `ascii` mode works | Finding 3 |
-| [#145](https://github.com/KomplexMojo/agent-kernel/issues/145) | `ak_create` budget denial doesn't say what budget would have worked | Open | No — workaround: retry with a larger `budgetTokens` | Finding 4 |
+| [#142](https://github.com/KomplexMojo/agent-kernel/issues/142) | `ak_push_to_ui`'s sandbox WebSocket bridge is unreachable from a sandboxed MCP-driving harness | **Closed** — documented, not code-fixable (environment constraint) | `1a79486` | Finding 1 |
+| [#143](https://github.com/KomplexMojo/agent-kernel/issues/143) | `ak_show_state`/`ak_tick_forward`/`ak_tick_backward` resolve runs from a different root than `ak_create`/`ak_run`/`ak_show` | **Closed** — fixed | `f2f8de6` | Finding 2 |
+| [#144](https://github.com/KomplexMojo/agent-kernel/issues/144) | `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit | **Closed** — fixed | `b1dd21d` | Finding 3 |
+| [#145](https://github.com/KomplexMojo/agent-kernel/issues/145) | `ak_create` budget denial doesn't say what budget would have worked | **Closed** — fixed | `65b9173` | Finding 4 |
 | [#146](https://github.com/KomplexMojo/agent-kernel/issues/146) | Open question: does plain `ak_run` ever invoke autonomous actor decision-making? | **Closed, not planned** | — | Superseded by #147; premise was wrong, see finding 5 |
-| [#147](https://github.com/KomplexMojo/agent-kernel/issues/147) | `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay | Open | No — top-level `ascii` field on `ak_show_state` (built by `renderAscii`) is a working substitute | Finding 5 |
-| [#148](https://github.com/KomplexMojo/agent-kernel/issues/148) | level-gen error formatter in `orchestrate-build.js` bakes literal `"undefined"` into messages for 4 of 5 error codes | Open | No — the underlying rejection is correct, only the message text is broken | Finding 6 |
-| [#149](https://github.com/KomplexMojo/agent-kernel/issues/149) | `ak run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has | Open | No — the simulation trace (tick-frames/effects-log/decision-captures) is unaffected; only these three artifacts' `meta.id`/`meta.createdAt` | Finding 7 |
+| [#147](https://github.com/KomplexMojo/agent-kernel/issues/147) | `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn position, single-frame overlay instead of cumulative replay | **Closed** — fixed | `a4e1287` | Finding 5 |
+| [#148](https://github.com/KomplexMojo/agent-kernel/issues/148) | level-gen error formatter in `orchestrate-build.js` bakes literal `"undefined"` into messages for 4 of 5 error codes | **Closed** — fixed | `453d278` | Finding 6 |
+| [#149](https://github.com/KomplexMojo/agent-kernel/issues/149) | `ak run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has | **Closed** — fixed | `4efffe7` | Finding 7 |
+| [#150](https://github.com/KomplexMojo/agent-kernel/issues/150) | `affinity-summary.json`/`deferred-coordination.json` likely share #149's bug (unconfirmed) | Open | — | Found while fixing #149; different files, not exercised by any scenario yet |
+| [#151](https://github.com/KomplexMojo/agent-kernel/issues/151) | MCP README's Tool Index is stale (27 documented vs. ~45 actual tools) | Open | — | Found while fixing #142 |
 
-None of the open issues above block continued use of the MCP surface — every one has a stated
-workaround. Full repro steps, root-cause evidence, and code pointers for each are in the numbered
-findings below.
+All 7 originally-found issues are fixed, each verified against its exact original repro plus a full
+`pnpm run test` + `pnpm run typecheck` pass (green throughout — see each finding's "Fix" note and the
+commit messages for exact before/after numbers). #150 and #151 are genuinely new, out of scope for
+the fixes that found them, and still open. Full repro steps, root-cause evidence, and code pointers
+for the original seven are in the numbered findings below; each now also carries a **Fix** note.
 
 ---
 
@@ -95,6 +100,14 @@ this kind of sandboxed pair — not a fixture/data problem, an environment-reach
 state inline over the MCP response itself (ASCII or a PNG data URI) — no second network hop needed.
 That's the channel that actually works here; see finding 3 for its own limitation.
 
+**Fix (`1a79486`):** there's no code fix for the network isolation itself — an environment constraint
+the MCP server can't see into (it only knows "no client connected," never "no client *can* connect").
+`requireClient: true` (default) already surfaces the honest signal it's capable of
+(`SANDBOX_UI_NOT_CONNECTED`); this session's repro used `requireClient: false`, which intentionally
+suppresses that signal to tolerate a not-yet-connected client — that's what made the failure silent.
+Fixed by making `ak_push_to_ui`'s own tool description state the constraint plainly and point to the
+`ak_show_state`/`ak_tick_forward`/`ak_tick_backward` workaround above.
+
 ## 2. `ak_show_state` / `ak_tick_forward` / `ak_tick_backward` resolve runs from a different root than `ak_create` / `ak_run` / `ak_show` / `ak_runs_list`
 
 **What's failing:** after a clean `ak_create` → `ak_run` with `outDir` omitted (the default —
@@ -123,6 +136,14 @@ with no hint that the fix is "pass `outDir=artifacts/runs/<runId>/<command>` exp
 instead." Confirmed as the fix: re-running `ak_create`/`ak_run` with `outDir` pinned under
 `<repo>/artifacts/runs/<runId>/{create,run}` made `ak_show_state`/`ak_tick_forward` work immediately.
 
+**Fix (`f2f8de6`):** `resolveRunDir()` now accepts an optional override; `server.mjs`'s dispatch
+layer supplies one for the three tick tools when it has a remembered "run" outDir for that `runId`
+(the same internal-field-injection pattern `resolveDefaultOutDir`/`maybeResolveRememberedInputs`
+already use elsewhere in that file). The plain CLI (`ak tick`, no session/remembered-run concept) is
+unaffected. Verified end-to-end against the real MCP server with the exact repro above — both
+`ak_show_state` and `ak_tick_forward` now succeed immediately after `ak_create`+`ak_run` with `outDir`
+left to default.
+
 ## 3. `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit
 
 **What's failing:** `ak_show_state({runId, visualization: "image"})` on the same run that answered
@@ -137,6 +158,11 @@ paths to a fix, not mutually exclusive: (a) MCP image results should use the pro
 content-block type instead of embedding a data URI inside the JSON text result, or (b) `ak_show_state`
 should support writing the PNG to a file and returning its path, the way every artifact-producing `ak_*`
 tool already does, instead of always inlining bytes.
+
+**Fix (`b1dd21d`):** took path (b). `visualizationDataUri` is now always `null` in image mode; a new
+`visualizationPath` field (additive to the `VisualizationSnapshotImageV1` schema) points at the PNG on
+disk instead. Verified end-to-end against the real MCP server: overall tool-result text dropped from
+443,790 to 1,716 characters; the 332,157-byte PNG file was confirmed on disk and renders correctly.
 
 ## 4. `ak_create`'s budget denial doesn't say what budget would have worked
 
@@ -158,6 +184,12 @@ size or the total that would resolve it. This is the same family of "comprehensi
 work already tracked in `error-message-quality-sweep.md` (SM0–SM3, merged) but for a category that
 sweep's own scope note (`budget receipt denial` is a distinct code path from the `ak_create` field
 validators it audited) didn't cover.
+
+**Fix (`65b9173`):** `deniedPools` entries now append the shortfall —
+`deniedPools=delver:92/72 (short 20)`. Deliberately didn't attempt the minimum-total-budget
+computation: `capTokens`' relationship to the overall budget isn't a simple proportion (the same
+receipt's `scenarioSpendReport.categories` carries a different "target" number for the same
+category), so guessing that formula risked being subtly wrong. Verified against the exact repro above.
 
 ## 5. RESOLVED — root-caused with Serena: the actor did act; `ak_tick_forward`/`ak_show_state` render every actor frozen at spawn
 
@@ -204,6 +236,16 @@ frozen. Two functions in the same package solve the identical problem; only one 
 whole run` (merged via #140) — a tick-cursor visualization reading a stale/wrong single frame instead
 of replaying accepted actions cumulatively. That fix apparently didn't extend to this MCP-side
 visualization path.
+
+**Fix (`a4e1287`):** two independent copies of the same bug — `computeActorPositions()`
+(visualization-snapshot.js, the ascii/actorDetails path) and `buildPngDataUri()` (tick-session.mjs,
+the image path) both now replay every accepted move cumulatively from the full `tick-frames.json`
+history instead of overlaying one always-empty frame; `buildPngDataUri()` reuses the already-correct
+`resolveActorPositionsAtTick()` instead of a third duplicate. Also found and fixed the identical bug
+independently present in `ak-impl.mjs`'s `tickCommand` (the CLI `ak tick` command) — not covered by
+the original diagnosis above. Verified against the original repro: `ak tick forward --visualization
+ascii`/`image` now both show the delver actually moving (3,2)→(2,2)→(1,1) across ticks instead of
+frozen at spawn.
 
 ---
 
@@ -412,6 +454,12 @@ fix only patched the one code it was chasing; the generic formatter producing ev
 error was never made shape-aware, so the same failure mode is still reachable through hazard/element
 placement errors, which this sweep's axis G hit on its very first out-of-bounds scenario.
 
+**Fix (`453d278`):** replaced the single template with `LEVEL_GEN_ERROR_DETAIL_FORMATTERS`, a
+per-code lookup, each formatting its own known shape; a code with no formatter (or a detail object
+missing the fields it expects) falls back to no parenthetical instead of guessing wrong. Verified
+against the exact G2 repro — the message now reads `(position 5,1 is outside the target room — room
+R1's interior is 5x5)` instead of the `undefined`-polluted text.
+
 ## 7. `ak run`'s `action-log.json`/`run-summary.json`/`world-state.json` use wall-clock meta stamps, breaking reproducibility the simulation itself has
 
 Full writeup is in "Hazard interaction — what this sweep found" above (this is where the
@@ -425,13 +473,31 @@ run's own seeded clock, so those two fields — and only those two fields — di
 given byte-identical input. Filed as
 **[#149](https://github.com/KomplexMojo/agent-kernel/issues/149)**.
 
+**Fix (`4efffe7`):** moved the clock construction earlier in `run()` and added
+`deterministicRunArtifactMeta()`, used for exactly the three confirmed call sites (action-log's two
+branches, run-summary, world-state). Two same-pattern-but-unconfirmed sites (`affinity-summary.json`,
+`deferred-coordination.json`) weren't touched — filed separately as
+**[#150](https://github.com/KomplexMojo/agent-kernel/issues/150)** rather than bundled in, since no
+scenario in the matrix exercises them. Verified: re-ran `ak run` twice against identical
+`sim-config.json`/`initial-state.json` with a 1s sleep between — all three files now byte-identical.
+
 ---
 
 ## Workflow for the rest of this activity
 
-**Corrected 2026-09-01** (see conversation): every issue found gets filed to GitHub immediately, as
-it's identified — not batched into an end-of-session sweep. What's deferred is *fixing* them: this
-session's job is to run the app, find friction, root-cause it enough to hand off cleanly, and file the
-issue with that context attached (repro, root cause, code pointers, evidence) — not to patch the code.
-The table at the top of this document is the running index; append a row there and a numbered finding
-section below for every new issue, in the same pattern as #142-#147 above.
+**Corrected 2026-09-01, twice:**
+
+1. Every issue found gets filed to GitHub immediately, as it's identified — not batched into an
+   end-of-session sweep.
+2. **Later the same day, on explicit instruction ("sweep it, close out #142-#149"), the scope widened
+   to fixing and closing every issue found**, not just documenting them. All 7 (#142-#145, #147-#149)
+   were fixed, each verified against its original repro plus a full `pnpm run test` +
+   `pnpm run typecheck` pass, and closed — see the table at the top and each finding's **Fix** note.
+   #150 and #151, found *while* fixing the others, were deliberately left open (out of scope for the
+   fix that found them) rather than bundled in.
+
+For whatever comes next in this activity: the table at the top of this document is the running index;
+append a row there and a numbered finding section below for every new issue found, in the same
+pattern as #142-#151 above. Whether a newly-found issue also gets fixed immediately or just logged
+depends on what's asked at the time — check the most recent instruction rather than assuming either
+default going forward.
