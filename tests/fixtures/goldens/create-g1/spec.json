@@ -2173,8 +2173,8 @@
             "compileTo": [
               {
                 "target": "build_spec_configurator",
-                "path": "configurator.inputs.levelGen.placedHazards",
-                "legacyFlow": "configurator"
+                "path": "configurator.inputs.levelGen.hazards",
+                "legacyFlow": "hazard-plan"
               }
             ]
           },
@@ -2212,9 +2212,10 @@
         "preserveExistingCommands": true,
         "supportedLegacyFlows": [
           "room-plan",
-          "configurator",
+          "hazard-plan",
           "delver-plan",
-          "build"
+          "build",
+          "configurator"
         ]
       }
     },
