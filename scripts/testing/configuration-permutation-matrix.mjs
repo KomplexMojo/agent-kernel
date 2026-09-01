@@ -21,6 +21,13 @@ export const NON_CONTROL_MOTIVATIONS = [
   "attacking", "defending", "stealthy", "friendly",
   "reflexive", "goal_oriented", "strategy_focused",
 ];
+// The control family (packages/runtime/src/contracts/game-elements.js GAME_MOTIVATION_FAMILIES)
+// has exactly one kind. Player-controlled actors are documented (Actor persona README, "Player-
+// controlled dynamic actors") as needing streamed simulation playback to actually be driven, so a
+// plain ak_run pass over this axis is expected to authoring-validate cleanly but act as an inert
+// actor at the run layer — informational, not a failure signal, same caveat as the axis-B
+// cognition-only motivations already noted in mcp-harness-run-through.md.
+export const CONTROL_MOTIVATIONS = ["user_controlled"];
 
 const BASELINE = {
   room: ["size=small;count=1"],
@@ -45,9 +52,10 @@ export const MATRIX = [
       delver: [`count=1;affinity=${a};motivation=exploring`],
     })),
 
-  // Axis B — delver motivation, full non-control domain minus "exploring" (already covered by
-  // baseline in axis A). Affinity/hazard held at baseline.
-  ...NON_CONTROL_MOTIVATIONS.filter((m) => m !== "exploring").map((m) =>
+  // Axis B — delver motivation, full domain (all 4 families) minus "exploring" (already covered
+  // by baseline in axis A). Includes the control family's "user_controlled", widened in from a
+  // non-control-only sweep 2026-09-01. Affinity/hazard held at baseline.
+  ...[...NON_CONTROL_MOTIVATIONS, ...CONTROL_MOTIVATIONS].filter((m) => m !== "exploring").map((m) =>
     scenario(`B-delver-motivation-${m}`, "B", `delver motivation=${m}`, {
       delver: [`count=1;affinity=fire;motivation=${m}`],
     })),
