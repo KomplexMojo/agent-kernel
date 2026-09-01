@@ -219,14 +219,15 @@ axis at baseline. `budgetTokens` is fixed at 2000 for every scenario — well ab
 scenario costs — specifically so budget denial doesn't confound the sweep; that fixed cap is also the
 "don't let generated configs grow unmanaged" rail the maintainer asked for.
 
-**Matrix — 34 scenarios across 7 axes:**
+**Matrix — 41 scenarios across 7 axes** (widened from 34 on 2026-09-01: axis D went from a
+3-affinity spot-check to the full 10-affinity domain):
 
 | Axis | What it sweeps | Domain size | Count |
 |---|---|---|---|
 | A | delver affinity | full (10 kinds) | 10 |
 | B | delver motivation | full non-control domain minus `exploring` (baseline) | 10 |
 | C | hazard expression | full minus `emit` (baseline) | 3 |
-| D | hazard affinity | spot-check subset | 3 |
+| D | hazard affinity | full (10 kinds) | 10 |
 | E | warden present (actor-vs-actor incl. 2-delver+warden stress) | hand-picked | 3 |
 | F | resource authoring (vital payload x2, affinity payload x1) | hand-picked | 3 |
 | G | multi-hazard stress (2 and 3 hazards) | hand-picked | 2 |
@@ -251,13 +252,13 @@ being written up as a finding.
 G2's out-of-bounds hazard is left in the matrix deliberately as a standing regression probe for #148
 — it should keep failing with a malformed message until that's fixed.
 
-**Results:**
+**Results (re-run 2026-09-01 after widening axis D to 41 scenarios):**
 
-- First pass, `ak create --dry-run` only (authoring-layer validation, no artifacts written, no
-  `ak run`): **34/34 PASS.** No anomalies.
-- Second pass, `ak create` (real artifacts) + `ak run --ticks 5 --seed 0` per scenario: **33/34 PASS**
-  on create, **33/33 PASS** on run for every create that succeeded. One anomaly — `G2-multi-hazard-triple`
-  — see finding 6.
+- `ak create --dry-run` only (authoring-layer validation, no artifacts written, no `ak run`):
+  **41/41 PASS.** No anomalies.
+- `ak create` (real artifacts) + `ak run --ticks 5 --seed 0` per scenario: **40/41 PASS** on create,
+  **40/40 PASS** on run for every create that succeeded. One anomaly — `G2-multi-hazard-triple` —
+  see finding 6. All 10 axis-D hazard affinities passed clean on both create and run.
 
 **Informational note, not a finding:** the run pass recorded `acceptedActions`/`emittedEffects` counts
 per scenario as metadata only, never as a pass/fail signal — treating "an actor did nothing" as

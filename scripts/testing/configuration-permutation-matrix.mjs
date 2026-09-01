@@ -58,9 +58,10 @@ export const MATRIX = [
       hazard: [`x=3;y=3;affinity=fire;expression=${e};stacks=1`],
     })),
 
-  // Axis D — hazard affinity, spot-check subset (not full 10 — a candidate for widening later).
-  // Delver held at baseline.
-  ...["water", "dark", "decay"].map((a) =>
+  // Axis D — hazard affinity, full domain (10), matching axis A's pattern of sweeping the full
+  // domain inclusive of the baseline value (fire) rather than excluding it. Delver held at
+  // baseline. Widened from a 3-affinity spot-check (water, dark, decay) 2026-09-01.
+  ...AFFINITIES.map((a) =>
     scenario(`D-hazard-affinity-${a}`, "D", `hazard affinity=${a}`, {
       hazard: [`x=3;y=3;affinity=${a};expression=emit;stacks=1`],
     })),
