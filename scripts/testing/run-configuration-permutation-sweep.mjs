@@ -22,6 +22,18 @@
 // fact acted correctly — see mcp-harness-run-through.md finding 5). This sweep looks for crashes
 // and malformed output, not for "did the actor do something the axis under test doesn't actually
 // motivate it to do."
+//
+// Step-level assertions (added after the sweep's first coverage review — see
+// mcp-harness-run-through.md, "Testing depth"): the whole-run classification above only asks
+// "did the run complete." It cannot see a defect present at tick 2 and gone by tick 5 — which is
+// exactly the shape #147 was (every tick individually wrong, in a way no aggregate summary would
+// ever flag). stepLevelCheck() replays acceptedActions cumulatively tick-by-tick against
+// initial-state.json/sim-config.json — the same data ak_show_state's own (correct)
+// resolveActorPositionsAtTick() replay is built on — and asserts, at every tick: every accepted
+// move landed in-bounds and off a wall tile, no two actors ever occupy the same tile after a
+// tick's moves are applied, and every requested tick actually produced exactly one `apply`
+// phase-frame (no skipped or duplicated ticks). No extra CLI/MCP calls — it's pure post-processing
+// of files the `run` step already writes, so it costs nothing extra at 50-scenario scale.
 
 import { spawnSync } from "node:child_process";
 import { writeFileSync, mkdirSync, readFileSync, existsSync, rmSync } from "node:fs";
@@ -127,6 +139,78 @@ function summarizeTickFrames(runOutDir) {
   }
 }
 
+// Per-tick assertions, replayed from files the `run` step already wrote — no extra CLI/MCP calls.
+// See the file-header comment for what this checks and why (mirrors #147's shape: correct in
+// aggregate, wrong at individual ticks).
+function stepLevelCheck(createOutDir, runOutDir, ticksRequested) {
+  let initialState;
+  let simConfig;
+  let frames;
+  try {
+    initialState = JSON.parse(readFileSync(`${createOutDir}/initial-state.json`, "utf8"));
+    simConfig = JSON.parse(readFileSync(`${createOutDir}/sim-config.json`, "utf8"));
+    frames = JSON.parse(readFileSync(`${runOutDir}/tick-frames.json`, "utf8"));
+  } catch (err) {
+    return { checked: false, ticksChecked: 0, violations: [`could not load step-level inputs: ${err.message}`] };
+  }
+  if (!Array.isArray(frames)) {
+    return { checked: false, ticksChecked: 0, violations: ["tick-frames.json is not an array"] };
+  }
+
+  const violations = [];
+
+  const tiles = Array.isArray(simConfig?.layout?.data?.tiles) ? simConfig.layout.data.tiles.map(String) : null;
+  const height = tiles ? tiles.length : 0;
+  const width = tiles && height > 0 ? tiles[0].length : 0;
+
+  // Tick continuity: exactly one "apply" phase-frame per requested tick, 1..N, no gaps or dupes —
+  // catches a tick silently dropped or replayed twice, which no aggregate count would surface.
+  const applyFrames = frames.filter((f) => f.phaseDetail === "apply").sort((a, b) => a.tick - b.tick);
+  const applyTicks = applyFrames.map((f) => f.tick);
+  const expectedTicks = Array.from({ length: ticksRequested }, (_, i) => i + 1);
+  if (JSON.stringify(applyTicks) !== JSON.stringify(expectedTicks)) {
+    violations.push(`tick continuity: expected apply phases [${expectedTicks.join(",")}], got [${applyTicks.join(",")}]`);
+  }
+
+  // Cumulative position replay, tick by tick — the same approach ak_show_state's own (correct)
+  // resolveActorPositionsAtTick() uses, applied here as an assertion instead of a rendering.
+  const positions = new Map();
+  for (const actor of initialState?.actors || []) {
+    if (actor?.id && Number.isFinite(actor?.position?.x) && Number.isFinite(actor?.position?.y)) {
+      positions.set(actor.id, { x: actor.position.x, y: actor.position.y });
+    }
+  }
+
+  for (const frame of applyFrames) {
+    for (const action of frame.acceptedActions || []) {
+      if (action.kind !== "move") continue;
+      const to = action.params?.to;
+      if (!to || !Number.isFinite(to.x) || !Number.isFinite(to.y)) {
+        violations.push(`tick ${frame.tick}: accepted move for ${action.actorId} has a malformed destination`);
+        continue;
+      }
+      if (tiles && (to.x < 0 || to.y < 0 || to.x >= width || to.y >= height)) {
+        violations.push(`tick ${frame.tick}: accepted move put ${action.actorId} out of grid bounds at (${to.x},${to.y})`);
+      } else if (tiles && tiles[to.y][to.x] === "#") {
+        violations.push(`tick ${frame.tick}: accepted move put ${action.actorId} on a wall tile at (${to.x},${to.y})`);
+      }
+      positions.set(action.actorId, { x: to.x, y: to.y });
+    }
+    // Collision check, after this tick's moves are applied — two solid actors on one tile.
+    const occupied = new Map();
+    for (const [actorId, pos] of positions) {
+      const key = `${pos.x},${pos.y}`;
+      if (occupied.has(key)) {
+        violations.push(`tick ${frame.tick}: ${actorId} and ${occupied.get(key)} both occupy (${key}) after accepted moves`);
+      } else {
+        occupied.set(key, actorId);
+      }
+    }
+  }
+
+  return { checked: true, ticksChecked: applyFrames.length, violations };
+}
+
 rmSync(OUT_ROOT, { recursive: true, force: true });
 mkdirSync(OUT_ROOT, { recursive: true });
 
@@ -140,10 +224,12 @@ for (const scenario of MATRIX) {
 
   let run = { verdict: DRY_RUN ? "SKIPPED_DRY_RUN" : "SKIPPED_CREATE_FAILED", detail: null };
   let runInfo = null;
+  let stepLevel = { checked: false, ticksChecked: 0, violations: [] };
   if (!DRY_RUN && create.verdict === "PASS") {
     run = runStep(buildRunArgv(scenario, createOutDir, runOutDir));
     if (run.verdict === "PASS") {
       runInfo = summarizeTickFrames(runOutDir);
+      stepLevel = stepLevelCheck(createOutDir, runOutDir, TICKS);
     }
   }
 
@@ -156,11 +242,15 @@ for (const scenario of MATRIX) {
     runVerdict: run.verdict,
     runDetail: ["PASS", "SKIPPED_CREATE_FAILED", "SKIPPED_DRY_RUN"].includes(run.verdict) ? null : run.detail,
     runInfo,
+    stepLevel,
   });
 
   const runInfoText = runInfo ? `actions=${runInfo.actionsAccepted} effects=${runInfo.effectsEmitted}` : "";
+  const stepLevelText = stepLevel.checked
+    ? (stepLevel.violations.length > 0 ? `step=VIOLATIONS(${stepLevel.violations.length})` : `step=OK(${stepLevel.ticksChecked})`)
+    : "";
   process.stdout.write(
-    `${scenario.id.padEnd(45)} create=${create.verdict.padEnd(24)} run=${run.verdict.padEnd(24)} ${runInfoText}\n`,
+    `${scenario.id.padEnd(45)} create=${create.verdict.padEnd(24)} run=${run.verdict.padEnd(24)} ${runInfoText} ${stepLevelText}\n`,
   );
 }
 
@@ -172,25 +262,42 @@ const runSummary = results.reduce((acc, r) => {
   acc[r.runVerdict] = (acc[r.runVerdict] || 0) + 1;
   return acc;
 }, {});
+const stepLevelChecked = results.filter((r) => r.stepLevel.checked);
+const stepLevelSummary = {
+  checked: stepLevelChecked.length,
+  clean: stepLevelChecked.filter((r) => r.stepLevel.violations.length === 0).length,
+  withViolations: stepLevelChecked.filter((r) => r.stepLevel.violations.length > 0).length,
+};
 
 const resultsPath = resolve(OUT_ROOT, `results-${DRY_RUN ? "dry-run" : "full"}.json`);
-writeFileSync(resultsPath, JSON.stringify({ mode: DRY_RUN ? "dry-run" : "full", ticks: TICKS, seed: SEED, total: results.length, createSummary, runSummary, results }, null, 2));
+writeFileSync(resultsPath, JSON.stringify({ mode: DRY_RUN ? "dry-run" : "full", ticks: TICKS, seed: SEED, total: results.length, createSummary, runSummary, stepLevelSummary, results }, null, 2));
 
 console.log("\n--- create summary ---");
 console.log(JSON.stringify(createSummary, null, 2));
 if (!DRY_RUN) {
   console.log("\n--- run summary ---");
   console.log(JSON.stringify(runSummary, null, 2));
+  console.log("\n--- step-level summary ---");
+  console.log(JSON.stringify(stepLevelSummary, null, 2));
 }
 console.log(`\nfull results: ${resultsPath}`);
 
 const anomalies = results.filter((r) => r.createVerdict.startsWith("ANOMALY") || r.runVerdict.startsWith("ANOMALY"));
+const stepLevelFailures = results.filter((r) => r.stepLevel.violations.length > 0);
 if (anomalies.length > 0) {
   console.log(`\n--- ${anomalies.length} anomalies ---`);
   for (const a of anomalies) {
     console.log(`\n${a.id} (${a.description}):`);
     if (a.createDetail) console.log(`  create: ${a.createDetail}`);
     if (a.runDetail) console.log(`  run: ${a.runDetail}`);
+  }
+  process.exitCode = 1;
+}
+if (stepLevelFailures.length > 0) {
+  console.log(`\n--- ${stepLevelFailures.length} scenarios with step-level violations ---`);
+  for (const s of stepLevelFailures) {
+    console.log(`\n${s.id} (${s.description}):`);
+    for (const v of s.stepLevel.violations) console.log(`  ${v}`);
   }
   process.exitCode = 1;
 }

@@ -291,6 +291,26 @@ G2's out-of-bounds hazard is left in the matrix deliberately as a standing regre
   need streamed simulation playback per the Actor persona README; a plain `ak_run` pass has no
   player input to stream), informational only, not a failure.
 
+**Step-level assertions (added 2026-09-01).** Everything above only classified the *whole run* —
+exactly the gap a coverage review of this sweep surfaced: no automated check ever inspected a single
+tick in isolation, so a defect present at tick 2 and gone by tick 5 (#147's exact shape: correct in
+aggregate, wrong at every individual tick) would have been invisible to it. `stepLevelCheck()` in
+`run-configuration-permutation-sweep.mjs` closes that gap with zero extra CLI/MCP calls — it
+post-processes `tick-frames.json`/`initial-state.json`/`sim-config.json`, which the `run` step
+already writes, replaying `acceptedActions` cumulatively tick-by-tick (the same approach
+`ak_show_state`'s own correct `resolveActorPositionsAtTick()` uses) and asserting, at every tick:
+every accepted move landed in-bounds and off a wall tile, no two actors ever occupy the same tile
+after a tick's moves are applied, and every requested tick produced exactly one `apply` phase-frame
+(no skipped or duplicated ticks).
+
+Result: **49/49 checked scenarios clean, 0 violations**, across 245 total ticks (5 × 49). Verified the
+checker actually has teeth with a perturbation test — a hand-corrupted accepted move (destination
+`(99,99)`, deliberately out of a 9×9 grid) was caught immediately (`tick 1: accepted move put
+card_delver_1-1 out of grid bounds at (99,99)`) before being reverted; the real sweep run was
+unaffected. Console output and `results-full.json` now report a `step=OK(N)` / `step=VIOLATIONS(n)`
+per scenario and a `stepLevelSummary` aggregate, and a scenario with violations now fails the sweep's
+exit code the same way an `ANOMALY_*` create/run result does.
+
 **Informational note, not a finding:** the run pass recorded `acceptedActions`/`emittedEffects` counts
 per scenario as metadata only, never as a pass/fail signal — treating "an actor did nothing" as
 itself suspect is exactly the false-positive this session already hit once (issue #146, closed; see
