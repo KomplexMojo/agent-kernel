@@ -219,20 +219,29 @@ axis at baseline. `budgetTokens` is fixed at 2000 for every scenario — well ab
 scenario costs — specifically so budget denial doesn't confound the sweep; that fixed cap is also the
 "don't let generated configs grow unmanaged" rail the maintainer asked for.
 
-**Matrix — 42 scenarios across 7 axes**, widened twice on 2026-09-01 (34 → 41 → 42): axis D went
-from a 3-affinity spot-check to the full 10-affinity domain, then axis B grew from the non-control
-motivation domain only to all 4 motivation families, including the control family's
-`user_controlled`:
+**Matrix — 46 scenarios across 7 axes**, widened three times on 2026-09-01 (34 → 41 → 42 → 46):
+axis D went from a 3-affinity spot-check to the full 10-affinity domain, axis B grew from the
+non-control motivation domain only to all 4 motivation families (including `user_controlled`), then
+axis C grew a position sub-sweep — the room's two diagonals (4 corners) — alongside its original
+expression sweep:
 
 | Axis | What it sweeps | Domain size | Count |
 |---|---|---|---|
 | A | delver affinity | full (10 kinds) | 10 |
 | B | delver motivation | full domain, all 4 families, minus `exploring` (baseline) | 11 |
-| C | hazard expression | full minus `emit` (baseline) | 3 |
+| C | hazard expression (3) + hazard position, room's two diagonals (4 corners) | full expression domain minus `emit`; diagonal corners of a 5x5 interior | 7 |
 | D | hazard affinity | full (10 kinds) | 10 |
 | E | warden present (actor-vs-actor incl. 2-delver+warden stress) | hand-picked | 3 |
 | F | resource authoring (vital payload x2, affinity payload x1) | hand-picked | 3 |
 | G | multi-hazard stress (2 and 3 hazards) | hand-picked | 2 |
+
+Axis C's diagonal-position sub-sweep exists because hazard x/y are room-relative offsets into the
+target room's carved interior, and a "small" room's interior is confirmed 5x5 (relative `0..4` on
+each axis — the underlying grid is `9x9` with a 1-tile border wall). The four corners are that
+interior's diagonal extremes; diagonal-adjacent-to-wall geometry (corner peeking, diagonal blocking)
+is called out elsewhere in this codebase (`packages/runtime/src/personas/actor/README.md`,
+line-of-sight section) as a distinct code path from cardinal placement, which the baseline's
+near-center `(3,3)` hazard never exercised.
 
 **Methodology:** shells out to the real CLI (`node packages/adapters-cli/src/cli/ak.mjs`) directly
 rather than through MCP tool calls — this is scripted batch automation, which
@@ -254,17 +263,17 @@ being written up as a finding.
 G2's out-of-bounds hazard is left in the matrix deliberately as a standing regression probe for #148
 — it should keep failing with a malformed message until that's fixed.
 
-**Results (re-run 2026-09-01 after widening axis D and then axis B, 42 scenarios):**
+**Results (re-run 2026-09-01 after widening axis D, then axis B, then axis C — 46 scenarios):**
 
 - `ak create --dry-run` only (authoring-layer validation, no artifacts written, no `ak run`):
-  **42/42 PASS.** No anomalies.
-- `ak create` (real artifacts) + `ak run --ticks 5 --seed 0` per scenario: **41/42 PASS** on create,
-  **41/41 PASS** on run for every create that succeeded. One anomaly — `G2-multi-hazard-triple` —
-  see finding 6. All 10 axis-D hazard affinities passed clean on both create and run.
-  `B-delver-motivation-user_controlled` also passed clean on both: `create=PASS`, `run=PASS`,
-  `actions=0, effects=5` — inert at the run layer as expected (player-controlled actors need
-  streamed simulation playback per the Actor persona README; a plain `ak_run` pass has no player
-  input to stream), informational only, not a failure.
+  **46/46 PASS.** No anomalies.
+- `ak create` (real artifacts) + `ak run --ticks 5 --seed 0` per scenario: **45/46 PASS** on create,
+  **45/45 PASS** on run for every create that succeeded. One anomaly — `G2-multi-hazard-triple` —
+  see finding 6. All 10 axis-D hazard affinities and all 4 axis-C diagonal-corner positions passed
+  clean on both create and run. `B-delver-motivation-user_controlled` also passed clean on both:
+  `create=PASS`, `run=PASS`, `actions=0, effects=5` — inert at the run layer as expected
+  (player-controlled actors need streamed simulation playback per the Actor persona README; a plain
+  `ak_run` pass has no player input to stream), informational only, not a failure.
 
 **Informational note, not a finding:** the run pass recorded `acceptedActions`/`emittedEffects` counts
 per scenario as metadata only, never as a pass/fail signal — treating "an actor did nothing" as

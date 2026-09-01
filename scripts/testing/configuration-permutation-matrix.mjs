@@ -66,6 +66,26 @@ export const MATRIX = [
       hazard: [`x=3;y=3;affinity=fire;expression=${e};stacks=1`],
     })),
 
+  // Axis C (continued) — hazard position, the room's two diagonals. Hazard x/y are
+  // room-relative offsets into the target room's carved interior (level-layout.js), and a
+  // "small" room's interior is confirmed 5x5 (relative 0..4 each axis: sim-config.json grid is
+  // 9x9 with a 1-tile border wall on every side). The four corners are the diagonal extremes of
+  // that interior — main diagonal (0,0)/(4,4) and anti-diagonal (0,4)/(4,0) — chosen because
+  // diagonal-adjacent-to-wall geometry (corner peeking, diagonal blocking) is called out
+  // elsewhere in this codebase (Actor persona README, line-of-sight) as a distinct code path
+  // from cardinal placement, which the baseline's near-center (3,3) hazard never exercises.
+  // Expression/affinity held at baseline ("emit"/"fire"); only position varies. Widened in
+  // 2026-09-01.
+  ...[
+    { id: "topleft", x: 0, y: 0 },
+    { id: "bottomright", x: 4, y: 4 },
+    { id: "topright", x: 4, y: 0 },
+    { id: "bottomleft", x: 0, y: 4 },
+  ].map(({ id, x, y }) =>
+    scenario(`C-hazard-position-diagonal-${id}`, "C", `hazard position=diagonal-${id} (${x},${y})`, {
+      hazard: [`x=${x};y=${y};affinity=fire;expression=emit;stacks=1`],
+    })),
+
   // Axis D — hazard affinity, full domain (10), matching axis A's pattern of sweeping the full
   // domain inclusive of the baseline value (fire) rather than excluding it. Delver held at
   // baseline. Widened from a 3-affinity spot-check (water, dark, decay) 2026-09-01.
