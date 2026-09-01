@@ -157,4 +157,8 @@ Serena/`find_referencing_symbols` on the Actor persona's `advance()`, not guesse
 
 ## Issues filed from this doc
 
-(filled in as `gh issue create` runs land — each issue links back here by path)
+- [#142](https://github.com/KomplexMojo/agent-kernel/issues/142) — `ak_push_to_ui`'s sandbox WebSocket bridge is unreachable from a sandboxed MCP-driving harness (finding 1)
+- [#143](https://github.com/KomplexMojo/agent-kernel/issues/143) — `ak_show_state`/`ak_tick_forward`/`ak_tick_backward` resolve runs from a different root than `ak_create`/`ak_run`/`ak_show` (finding 2)
+- [#144](https://github.com/KomplexMojo/agent-kernel/issues/144) — `ak_show_state`'s `image` visualization mode blows the MCP tool-result size limit (finding 3)
+- [#145](https://github.com/KomplexMojo/agent-kernel/issues/145) — `ak_create` budget denial doesn't say what budget would have worked (finding 4)
+- [#146](https://github.com/KomplexMojo/agent-kernel/issues/146) — open question: does plain `ak_run` ever invoke autonomous actor decision-making? (finding 5)
