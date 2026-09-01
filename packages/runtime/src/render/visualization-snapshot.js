@@ -34,16 +34,26 @@ function markPosition(rows, x, y, char) {
   rows[y] = row.slice(0, x) + char + row.slice(x + 1);
 }
 
-function computeActorPositions(initialState, tickFrame) {
+// #147 — this used to take a single `tickFrame` and overlay only that one frame's
+// `acceptedActions`. The frame callers had on hand (readTickFrame's "last phase-frame for this
+// tick", i.e. `summarize`) always carries `acceptedActions: []` by construction — the actual moves
+// land on that tick's earlier `apply` phase-frame — so the overlay never applied and every actor
+// rendered frozen at its initial-state.json spawn position for the whole run. Fixed by replaying
+// every accepted move from every frame up to and including the requested tick, cumulatively — the
+// same approach adapters-cli's own resolveActorPositionsAtTick() (tick-session.mjs) already used
+// correctly; this was the one caller of this data that didn't.
+function computeActorPositions(initialState, frames, tick) {
   const positions = new Map();
   for (const actor of initialState.actors) {
     positions.set(actor.id, { x: actor.position.x, y: actor.position.y });
   }
-  if (tickFrame) {
-    for (const action of tickFrame.acceptedActions) {
-      if (action.kind === "move" && action.params && action.params.to) {
-        positions.set(action.actorId, { x: action.params.to.x, y: action.params.to.y });
-      }
+  if (!Array.isArray(frames)) return positions;
+  const limit = Number.isFinite(tick) ? tick : Infinity;
+  for (const frame of frames) {
+    if (Number.isFinite(frame?.tick) && frame.tick > limit) break;
+    for (const action of frame?.acceptedActions || []) {
+      if (action?.kind !== "move" || !action.params?.to) continue;
+      positions.set(action.actorId, { x: action.params.to.x, y: action.params.to.y });
     }
   }
   return positions;
@@ -96,7 +106,7 @@ export async function createVisualizationSnapshot({
   runId,
   simConfig,
   initialState,
-  tickFrame,
+  frames,
   clock = null,
 }) {
   // PX.3 extended to the render layer. This used to read the wall clock twice —
@@ -119,7 +129,7 @@ export async function createVisualizationSnapshot({
     meta.createdAt = clock();
   }
 
-  const actorPositions = computeActorPositions(initialState, tickFrame);
+  const actorPositions = computeActorPositions(initialState, frames, tick);
   const actorDetails = buildActorDetails(initialState, actorPositions);
 
   if (mode === "image") {

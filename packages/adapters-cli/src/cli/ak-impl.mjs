@@ -6105,8 +6105,7 @@ async function tickCommand(argv) {
       maxTick,
     };
     if (vizMode) {
-      const tickFrame = await readTickFrame(runDir, newTick);
-      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, tickFrame, vizMode);
+      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, vizMode);
     }
     emitJsonStdout(result);
     return;
@@ -6137,8 +6136,7 @@ async function tickCommand(argv) {
       maxTick,
     };
     if (vizMode) {
-      const tickFrame = await readTickFrame(runDir, newTick);
-      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, tickFrame, vizMode);
+      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, vizMode);
     }
     emitJsonStdout(result);
     return;
@@ -6157,7 +6155,7 @@ async function tickCommand(argv) {
     tickFrame,
   };
   if (vizMode) {
-    stateResult.visualization = await buildVisualizationSnapshot(runDir, runId, currentTick, tickFrame, vizMode);
+    stateResult.visualization = await buildVisualizationSnapshot(runDir, runId, currentTick, vizMode);
   }
   emitJsonStdout(stateResult);
 }

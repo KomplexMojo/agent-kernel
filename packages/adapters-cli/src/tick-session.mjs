@@ -102,7 +102,15 @@ function resolveBuildArtifact(runDir, filename) {
   return null;
 }
 
-export async function buildVisualizationSnapshot(runDir, runId, tick, tickFrame, mode) {
+// #147 — this used to accept a single `tickFrame` (the last phase-frame for the requested tick,
+// i.e. `summarize`, which always carries acceptedActions: [] by construction) and hand it straight
+// to createVisualizationSnapshot/buildPngDataUri, which only overlaid that one frame. The actual
+// accepted moves live on that tick's earlier `apply` phase-frame, so the overlay never applied and
+// every actor rendered frozen at spawn for the whole run. Reads the full frame history instead, so
+// both the ascii/actorDetails path (createVisualizationSnapshot) and the image path
+// (buildPngDataUri, via resolveActorPositionsAtTick — the same cumulative replay renderAscii()
+// already used correctly) can accumulate every accepted move up to the requested tick.
+export async function buildVisualizationSnapshot(runDir, runId, tick, mode) {
   const simConfigPath = resolveBuildArtifact(runDir, "sim-config.json");
   const initialStatePath = resolveBuildArtifact(runDir, "initial-state.json");
   if (!simConfigPath || !initialStatePath) return null;
@@ -111,9 +119,18 @@ export async function buildVisualizationSnapshot(runDir, runId, tick, tickFrame,
       readFile(simConfigPath, "utf8").then(JSON.parse),
       readFile(initialStatePath, "utf8").then(JSON.parse),
     ]);
-    const snap = await createVisualizationSnapshot({ mode, tick, runId, simConfig, initialState, tickFrame });
+    const framesPath = join(runDir, "run", "tick-frames.json");
+    let frames = null;
+    if (existsSync(framesPath)) {
+      try {
+        frames = JSON.parse(await readFile(framesPath, "utf8"));
+      } catch {
+        frames = null;
+      }
+    }
+    const snap = await createVisualizationSnapshot({ mode, tick, runId, simConfig, initialState, frames });
     if (mode === "image" && snap) {
-      snap.visualizationDataUri = await buildPngDataUri(simConfig, initialState, tickFrame, runDir);
+      snap.visualizationDataUri = await buildPngDataUri(simConfig, initialState, frames, tick, runDir);
     }
     return snap;
   } catch {
@@ -121,7 +138,7 @@ export async function buildVisualizationSnapshot(runDir, runId, tick, tickFrame,
   }
 }
 
-async function buildPngDataUri(simConfig, initialState, tickFrame, runDir) {
+async function buildPngDataUri(simConfig, initialState, frames, tick, runDir) {
   const { renderBoardWithResourceBundle, encodeRgbaToPng } = await import(
     "../../runtime/src/render/resource-bundle.js"
   );
@@ -140,13 +157,8 @@ async function buildPngDataUri(simConfig, initialState, tickFrame, runDir) {
     }
   }
 
-  // Apply move actions from tickFrame to get positions at this tick.
-  const posOverrides = new Map();
-  for (const action of (tickFrame?.acceptedActions || [])) {
-    if (action.kind === "move" && action.params?.to) {
-      posOverrides.set(action.actorId, { x: action.params.to.x, y: action.params.to.y });
-    }
-  }
+  // Cumulative replay of every accepted move up to `tick`, not just one frame's overlay.
+  const posOverrides = resolveActorPositionsAtTick(initialState, frames, tick);
   // Spread full actor data so renderBoardWithResourceBundle can resolve affinity/motivation sprites.
   const renderActors = (initialState.actors || []).map((actor) => {
     const pos = posOverrides.get(actor.id) || actor.position;

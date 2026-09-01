@@ -75,8 +75,7 @@ const tickForwardTool = createHandlerTool({
       maxTick,
     };
     if (visualization) {
-      const tickFrame = await readTickFrame(runDir, newTick);
-      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, tickFrame, visualization);
+      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, visualization);
     }
     return result;
   },
@@ -126,8 +125,7 @@ const tickBackwardTool = createHandlerTool({
       maxTick,
     };
     if (visualization) {
-      const tickFrame = await readTickFrame(runDir, newTick);
-      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, tickFrame, visualization);
+      result.visualization = await buildVisualizationSnapshot(runDir, runId, newTick, visualization);
     }
     return result;
   },
@@ -157,7 +155,7 @@ const showStateTool = createHandlerTool({
     const [ascii, tickFrame] = await Promise.all([renderAscii(runDir, tick), readTickFrame(runDir, tick)]);
     const result = { ok: true, command: "tick", action: "state", runId, tick, maxTick, ascii, tickFrame };
     if (visualization) {
-      result.visualization = await buildVisualizationSnapshot(runDir, runId, tick, tickFrame, visualization);
+      result.visualization = await buildVisualizationSnapshot(runDir, runId, tick, visualization);
     }
     return result;
   },
