@@ -97,6 +97,58 @@ const ITEM_SHAPES = Object.freeze({
   resource: "resource",
 });
 
+/**
+ * Expression glyph geometry, as primitives rather than SVG markup.
+ *
+ * Kept as data for one reason: `ui-web` renders it to SVG and
+ * `tests/runtime/icon-model.test.js` rasterises the SAME definition to measure
+ * how distinguishable the four glyphs are at 16px. A guard that read the emitted
+ * markup instead would be checking a syntax, not the thing that matters.
+ *
+ * `emit` and `draw` were first drawn as the same eight-ray burst differing only
+ * in ray direction, then only in a solid-versus-hollow core. Both are invisible
+ * at 16px — the same mistake as separating two board silhouettes by sixteen
+ * pixels. They now differ in GROSS SHAPE: a spiked starburst against a set of
+ * concentric rings, which is also the better reading of the words (radiating
+ * outward versus converging inward).
+ *
+ * Coordinates are in the 0..100 icon viewBox.
+ */
+const RAY_COUNT = 8;
+function starburst() {
+  const out = [];
+  for (let i = 0; i < RAY_COUNT; i += 1) {
+    const a = (i * 2 * Math.PI) / RAY_COUNT;
+    out.push({
+      type: "line", width: 8,
+      x1: 50 + 20 * Math.cos(a), y1: 50 + 20 * Math.sin(a),
+      x2: 50 + 44 * Math.cos(a), y2: 50 + 44 * Math.sin(a),
+    });
+  }
+  out.push({ type: "circle", cx: 50, cy: 50, r: 16, filled: true });
+  return out;
+}
+function chevron(dir) {
+  const d = dir === "out" ? 1 : -1;
+  return [
+    { type: "poly", width: 11, points: [[50 - 13 * d, 24], [50 + 17 * d, 50], [50 - 13 * d, 76]] },
+    { type: "line", width: 9, x1: 50 - 24 * d, y1: 50, x2: 50 + 4 * d, y2: 50 },
+  ];
+}
+
+export const EXPRESSION_GEOMETRY = Object.freeze({
+  push: chevron("out"),
+  pull: chevron("in"),
+  emit: starburst(),
+  // Concentric rings: circular where emit is spiked, so the two differ in outline
+  // and in area distribution rather than in an interior detail.
+  draw: [
+    { type: "circle", cx: 50, cy: 50, r: 40, filled: false, width: 8 },
+    { type: "circle", cx: 50, cy: 50, r: 22, filled: false, width: 8 },
+    { type: "circle", cx: 50, cy: 50, r: 6, filled: true },
+  ],
+});
+
 /** Neutral ink for categories whose palette cannot carry identity. */
 export const ICON_NEUTRAL_INK = "#cfd6dd";
 

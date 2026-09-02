@@ -3,7 +3,7 @@
  * Resolves icons from resource bundle mappings, with text label fallback.
  */
 import { GAME_ICON_FALLBACKS } from "../../runtime/src/contracts/game-elements.js";
-import { buildIconModel } from "../../runtime/src/render/icon-model.js";
+import { buildIconModel, EXPRESSION_GEOMETRY } from "../../runtime/src/render/icon-model.js";
 
 /**
  * Unicode icon fallbacks for each category and key.
@@ -60,35 +60,32 @@ function glyphPath(shape, r) {
 }
 
 /**
- * Expression glyphs are stroked, not filled, so they return whole markup rather
- * than a single path. push/pull are chevrons with a stem; emit/draw are rays that
- * differ by their CORE -- solid versus hollow. An earlier attempt distinguished
- * them by ray direction alone, which is invisible at chip size.
+ * Renders the expression glyph geometry from `icon-model.js`.
+ *
+ * The geometry lives there, not here, because the distinctness guard in
+ * `tests/runtime/icon-model.test.js` rasterises the same definition to measure
+ * how far apart the four glyphs are at 16px. A second copy here would be a copy
+ * that drifts -- which is exactly how the affinity palette produced a live bug.
  */
 function expressionMarkup(shape, ink) {
-  const c = 50;
-  if (shape === "push" || shape === "pull") {
-    const d = shape === "push" ? 1 : -1;
-    return `<path d="M ${c - 13 * d} ${c - 26} L ${c + 17 * d} ${c} L ${c - 13 * d} ${c + 26}" fill="none"`
-      + ` stroke="${ink}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>`
-      + `<line x1="${c - 24 * d}" y1="${c}" x2="${c + 4 * d}" y2="${c}" stroke="${ink}" stroke-width="9" stroke-linecap="round"/>`;
-  }
-  const out = shape === "emit";
-  let rays = "";
-  for (let i = 0; i < 8; i += 1) {
-    const a = (i * Math.PI) / 4;
-    const r1 = out ? 24 : 40;
-    const r2 = out ? 40 : 24;
-    rays += `<line x1="${(c + r1 * Math.cos(a)).toFixed(1)}" y1="${(c + r1 * Math.sin(a)).toFixed(1)}"`
-      + ` x2="${(c + r2 * Math.cos(a)).toFixed(1)}" y2="${(c + r2 * Math.sin(a)).toFixed(1)}"`
-      + ` stroke="${ink}" stroke-width="7" stroke-linecap="round"/>`;
-  }
-  return rays + (out
-    ? `<circle cx="${c}" cy="${c}" r="15" fill="${ink}"/>`
-    : `<circle cx="${c}" cy="${c}" r="14" fill="none" stroke="${ink}" stroke-width="8"/>`);
+  const prims = EXPRESSION_GEOMETRY[shape] || [];
+  return prims.map((p) => {
+    if (p.type === "line") {
+      return `<line x1="${p.x1.toFixed(2)}" y1="${p.y1.toFixed(2)}" x2="${p.x2.toFixed(2)}" y2="${p.y2.toFixed(2)}"`
+        + ` stroke="${ink}" stroke-width="${p.width}" stroke-linecap="round"/>`;
+    }
+    if (p.type === "poly") {
+      const d = p.points.map((pt, i) => `${i === 0 ? "M" : "L"} ${pt[0]} ${pt[1]}`).join(" ");
+      return `<path d="${d}" fill="none" stroke="${ink}" stroke-width="${p.width}"`
+        + ` stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+    return p.filled
+      ? `<circle cx="${p.cx}" cy="${p.cy}" r="${p.r}" fill="${ink}"/>`
+      : `<circle cx="${p.cx}" cy="${p.cy}" r="${p.r}" fill="none" stroke="${ink}" stroke-width="${p.width}"/>`;
+  }).join("");
 }
 
-const EXPRESSION_SHAPES = ["push", "pull", "emit", "draw"];
+const EXPRESSION_SHAPES = Object.keys(EXPRESSION_GEOMETRY);
 
 /**
  * Build the chip SVG markup for a generated icon model.

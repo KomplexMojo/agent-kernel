@@ -8,7 +8,12 @@
  */
 const assert = require("node:assert/strict");
 
-const { buildIconModel, ICON_SHAPES, ICON_NEUTRAL_INK } = require("../../packages/runtime/src/render/icon-model.js");
+const {
+  buildIconModel,
+  ICON_SHAPES,
+  ICON_NEUTRAL_INK,
+  EXPRESSION_GEOMETRY,
+} = require("../../packages/runtime/src/render/icon-model.js");
 const {
   GAME_COLOR_PALETTE,
   GAME_AFFINITY_COLOR_HEX,
@@ -121,6 +126,96 @@ test("unknown categories and keys return null rather than guessing", () => {
 test("the model is serializable", () => {
   const model = buildIconModel("types", "warden");
   assert.deepEqual(JSON.parse(JSON.stringify(model)), model);
+});
+
+// --- Expression glyph distinctness -----------------------------------------
+//
+// Rasterises the geometry primitives the resolver draws from, so this measures
+// the shapes themselves rather than the markup they happen to compile to.
+
+/** Coverage mask of one glyph at `size` px, in the 0..100 icon viewBox. */
+function rasterize(primitives, size) {
+  const mask = new Set();
+  const s = size / 100;
+  const mark = (x, y) => {
+    const px = Math.round(x * s);
+    const py = Math.round(y * s);
+    if (px >= 0 && py >= 0 && px < size && py < size) mask.add(py * size + px);
+  };
+  // Stamp a disc of the stroke width so round caps and joins are represented.
+  const stamp = (x, y, w) => {
+    const r = w / 2;
+    for (let dy = -r; dy <= r; dy += 0.5) {
+      for (let dx = -r; dx <= r; dx += 0.5) {
+        if (dx * dx + dy * dy <= r * r) mark(x + dx, y + dy);
+      }
+    }
+  };
+  const segment = (x1, y1, x2, y2, w) => {
+    const steps = Math.ceil(Math.hypot(x2 - x1, y2 - y1) * 2);
+    for (let i = 0; i <= steps; i += 1) {
+      const t = steps === 0 ? 0 : i / steps;
+      stamp(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, w);
+    }
+  };
+  for (const p of primitives) {
+    if (p.type === "line") segment(p.x1, p.y1, p.x2, p.y2, p.width);
+    else if (p.type === "poly") {
+      for (let i = 0; i < p.points.length - 1; i += 1) {
+        segment(p.points[i][0], p.points[i][1], p.points[i + 1][0], p.points[i + 1][1], p.width);
+      }
+    } else if (p.type === "circle") {
+      if (p.filled) {
+        for (let dy = -p.r; dy <= p.r; dy += 0.5) {
+          for (let dx = -p.r; dx <= p.r; dx += 0.5) {
+            if (dx * dx + dy * dy <= p.r * p.r) mark(p.cx + dx, p.cy + dy);
+          }
+        }
+      } else {
+        const steps = Math.ceil(2 * Math.PI * p.r * 2);
+        for (let i = 0; i <= steps; i += 1) {
+          const a = (i / steps) * 2 * Math.PI;
+          stamp(p.cx + p.r * Math.cos(a), p.cy + p.r * Math.sin(a), p.width);
+        }
+      }
+    }
+  }
+  return mask;
+}
+
+function overlap(a, b) {
+  let inter = 0;
+  for (const v of a) if (b.has(v)) inter += 1;
+  return inter / (a.size + b.size - inter);
+}
+
+test("expression glyphs stay distinguishable down to 16px", () => {
+  // The pair that forced this: emit and draw were first the same eight-ray burst
+  // differing only by ray direction, then only by a solid-versus-hollow core.
+  // Both cues vanish at 16px. Measuring overlap is what catches that; asserting
+  // "the markup differs" would not have.
+  const MAX_OVERLAP = 0.6;
+  const keys = Object.keys(EXPRESSION_GEOMETRY);
+  for (const size of [28, 20, 16]) {
+    const masks = keys.map((k) => rasterize(EXPRESSION_GEOMETRY[k], size));
+    for (let i = 0; i < keys.length; i += 1) {
+      for (let j = i + 1; j < keys.length; j += 1) {
+        const o = overlap(masks[i], masks[j]);
+        assert.ok(
+          o <= MAX_OVERLAP,
+          `${keys[i]} and ${keys[j]} overlap ${o.toFixed(3)} at ${size}px (ceiling ${MAX_OVERLAP})`,
+        );
+      }
+    }
+  }
+});
+
+test("every expression glyph actually covers part of its chip at 16px", () => {
+  for (const [key, prims] of Object.entries(EXPRESSION_GEOMETRY)) {
+    const share = rasterize(prims, 16).size / (16 * 16);
+    assert.ok(share > 0.08, `${key} covers only ${(share * 100).toFixed(1)}% at 16px`);
+    assert.ok(share < 0.9, `${key} covers ${(share * 100).toFixed(1)}% at 16px -- no silhouette left`);
+  }
 });
 
 // ## TODO: Test Permutations
