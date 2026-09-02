@@ -157,6 +157,46 @@ test("ascii detail renderer marks resource position in resources layer", async (
   assert.notEqual(resourceRow[4], " ", "resources layer must mark resource position at x=4");
 });
 
+// #153 regression: a real ak_create sim-config never populates the top-level simConfig.hazards/
+// .resources -- the actual data lives at simConfig.layout.data.hazards/.resources. The shared
+// SIM_CONFIG fixture above puts hazards/resources at the top level, which is NOT how ak_create
+// actually shapes them, so it never exercised this bug. This fixture reproduces the real shape
+// (hazards/resources nested under layout.data, absent at the top level) instead.
+const NESTED_ONLY_SIM_CONFIG = {
+  schema: "agent-kernel/SimConfigArtifact",
+  schemaVersion: 1,
+  meta: { id: "sc-nested", runId: "run_viz_nested", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
+  layout: {
+    kind: "grid",
+    width: 7,
+    height: 3,
+    data: {
+      width: 7,
+      height: 3,
+      tiles: ["#######", "#.....#", "#######"],
+      legend: { "#": { tile: "wall" }, ".": { tile: "floor" } },
+      hazards: [{ id: "hazard_1", x: 2, y: 1, affinity: { kind: "fire", expression: "emit", stacks: 3 }, blocking: false }],
+      resources: [{ id: "resource_1", x: 4, y: 1, permanenceMode: "consumable", affinity: { kind: "water", expression: "draw", stacks: 1, mana: 5 } }],
+    },
+  },
+};
+
+test("ascii hazards/resources layers populate from simConfig.layout.data, not just top-level fields (#153)", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const snap = await createVisualizationSnapshot({
+    mode: "ascii",
+    tick: 1,
+    runId: "run_viz_nested",
+    simConfig: NESTED_ONLY_SIM_CONFIG,
+    initialState: INITIAL_STATE,
+    frames: [TICK_FRAME],
+  });
+  const hazardRow = snap.layers.hazards.split("\n")[1];
+  assert.notEqual(hazardRow[2], " ", "hazards layer must mark hazard position at x=2 even when hazards live only under layout.data");
+  const resourceRow = snap.layers.resources.split("\n")[1];
+  assert.notEqual(resourceRow[4], " ", "resources layer must mark resource position at x=4 even when resources live only under layout.data");
+});
+
 test("ascii detail renderer marks delver position in delvers layer", async () => {
   const { createVisualizationSnapshot } = await loadVisualizationModule();
   const snap = await createVisualizationSnapshot({

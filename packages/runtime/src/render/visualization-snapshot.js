@@ -155,11 +155,20 @@ export async function createVisualizationSnapshot({
   const delverRows = buildBlankGrid(width, height);
   const wardenRows = buildBlankGrid(width, height);
 
-  for (const hazard of (simConfig.hazards || [])) {
+  // #153 — a real ak_create sim-config never populates the top-level simConfig.hazards/
+  // .resources; the actual data lives at simConfig.layout.data.hazards/.resources (confirmed:
+  // a real 2-hazard, 2-resource level had hazards: null, resources: null at the top level and
+  // both arrays, length 2 each, under layout.data). So the `|| []` fallback always fired and
+  // these loops never ran. buildPngDataUri() (tick-session.mjs, the image path) already has the
+  // correct fallback -- this brings the ascii path in line with it.
+  const hazards = simConfig.hazards ?? simConfig.layout?.data?.hazards ?? [];
+  const resources = simConfig.resources ?? simConfig.layout?.data?.resources ?? [];
+
+  for (const hazard of hazards) {
     markPosition(hazardRows, hazard.x, hazard.y, "H");
   }
 
-  for (const resource of (simConfig.resources || [])) {
+  for (const resource of resources) {
     markPosition(resourceRows, resource.x, resource.y, "R");
   }
 
