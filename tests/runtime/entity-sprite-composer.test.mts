@@ -145,6 +145,28 @@ test("normalized state exposes only role and affinity", () => {
   assert.deepEqual(Object.keys(state).sort(), ["affinity", "role"]);
 });
 
+test("reads affinity from every shape the observation actually uses", () => {
+  // All four are live: actors carry `affinities[]`, hazards carry a singular
+  // `affinity` OBJECT or `affinityStacks[]`, cards carry `traits.affinities`.
+  // Reading only the string form rendered every hazard and resource as the
+  // default `fire`, which is how this was found.
+  const cases: Array<[string, object]> = [
+    ["affinity string", { affinity: "water" }],
+    ["affinity object", { affinity: { kind: "water" } }],
+    ["affinities array", { affinities: [{ kind: "water", expression: "emit" }] }],
+    ["affinityStacks array", { affinityStacks: [{ kind: "water", stacks: 2 }] }],
+    ["equippedAffinity object", { equippedAffinity: { kind: "water" } }],
+    ["traits.affinities", { traits: { affinities: { "water:emit": 1 } } }],
+  ];
+  for (const [label, entity] of cases) {
+    assert.equal(
+      normalizeEntitySpriteState({ role: "hazard", ...entity } as never).affinity,
+      "water",
+      `${label} did not resolve to water`,
+    );
+  }
+});
+
 test("unknown role and affinity fall back without throwing", () => {
   const state = normalizeEntitySpriteState({ role: "sorcerer", affinity: "plasma" } as never);
   assert.ok(ENTITY_SPRITE_ROLES.includes(state.role));

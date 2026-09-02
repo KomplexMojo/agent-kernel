@@ -341,7 +341,7 @@ test("gameplay phaser renderer renders archetype wardens and delvers as distinct
   renderer.dispose();
 });
 
-test("gameplay phaser renderer composes actor medallion textures for v2 resource bundles", async () => {
+test("gameplay phaser renderer composes entity sprite textures for v2 resource bundles", async () => {
   const records = {};
   const container = makeContainer();
   const renderer = createGameplayPhaserRenderer({
@@ -379,15 +379,142 @@ test("gameplay phaser renderer composes actor medallion textures for v2 resource
     },
   });
 
-  const medallionImages = records.images.filter((img) => String(img.textureKey).startsWith("ak-medallion:64:delver-1"));
-  assert.equal(medallionImages.length, 1, "actor should render from a generated medallion texture");
+  // Key is {size}:{role}:{affinity} -- deliberately NOT the actor id. The medallion
+  // keyed on id plus a fingerprint of all four vitals, so one texture existed per
+  // actor and was rebuilt on every point of damage.
+  const spriteImages = records.images.filter((img) => String(img.textureKey) === "ak-sprite:64:delver:fire");
+  assert.equal(spriteImages.length, 1, "actor should render from a generated entity sprite texture");
   assert.equal(records.createdTextures.length, 1, "one canvas texture should be created for the composed actor");
   assert.deepEqual(
     { width: records.canvasPuts[0]?.width, height: records.canvasPuts[0]?.height },
     { width: 64, height: 64 },
   );
   assert.equal(records.canvasPuts[0].data.length, 64 * 64 * 4);
-  assert.equal(container.stage.dataset.gameplayActorMedallions, "runtime");
+  assert.equal(container.stage.dataset.gameplayEntitySprites, "runtime");
+  renderer.dispose();
+});
+
+const V2_BUNDLE = {
+  schema: "agent-kernel/ResourceBundleArtifact",
+  schemaVersion: 2,
+  bundleVersion: 2,
+  tileWidth: 32,
+  tileHeight: 32,
+  assets: [],
+  mappings: {},
+};
+
+test("entity sprite textures are shared across entities with the same role and affinity", async () => {
+  // The medallion keyed on actor id, so N actors meant N canvas textures. A sprite
+  // depends only on role+affinity, so three fire delvers share one.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 4,
+    boardHeight: 4,
+    tiles: ["....", "....", "....", "...."],
+    observation: {
+      actors: [
+        { id: "d1", type: "delver", position: { x: 0, y: 0 }, affinities: [{ kind: "fire" }] },
+        { id: "d2", type: "delver", position: { x: 1, y: 0 }, affinities: [{ kind: "fire" }] },
+        { id: "d3", type: "delver", position: { x: 2, y: 0 }, affinities: [{ kind: "fire" }] },
+        { id: "w1", type: "warden", position: { x: 3, y: 0 }, affinities: [{ kind: "fire" }] },
+      ],
+      hazards: [],
+      resources: [],
+    },
+    resourceBundle: V2_BUNDLE,
+  });
+  const keys = records.createdTextures.map((t) => t.key);
+  assert.deepEqual(
+    [...new Set(keys)].sort(),
+    ["ak-sprite:32:delver:fire", "ak-sprite:32:warden:fire"],
+    "three fire delvers and one fire warden should need exactly two textures",
+  );
+  assert.equal(keys.length, 2, "a texture that already exists must not be recomposed");
+  renderer.dispose();
+});
+
+test("changing vitals does not invalidate an entity sprite texture", async () => {
+  // The regression the old cache key caused: its key embedded a fingerprint of all
+  // four vitals, so a point of damage forced a fresh canvas compose every tick.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
+  renderer.mount(container);
+  const frame = (health) => ({
+    ...BOARD_STATE,
+    boardWidth: 2,
+    boardHeight: 2,
+    tiles: ["..", ".."],
+    observation: {
+      actors: [{
+        id: "d1", type: "delver", position: { x: 0, y: 0 },
+        affinities: [{ kind: "water" }],
+        vitals: { health: { current: health, max: 10 } },
+      }],
+      hazards: [],
+      resources: [],
+    },
+    resourceBundle: V2_BUNDLE,
+  });
+  await renderer.renderRun(frame(10));
+  await renderer.renderRun(frame(6));
+  await renderer.renderRun(frame(1));
+  assert.equal(
+    records.createdTextures.filter((t) => t.key === "ak-sprite:32:delver:water").length,
+    1,
+    "vitals belong to the HUD and must not touch the sprite cache",
+  );
+  renderer.dispose();
+});
+
+test("hazards and resources render composed sprites, not bundle art", async () => {
+  // These two bypassed the composed path entirely before M3, so the board mixed
+  // the new sprite language for actors with retired PNG art for everything else.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 3,
+    boardHeight: 3,
+    tiles: ["...", "...", "..."],
+    observation: {
+      actors: [],
+      hazards: [{ id: "h1", position: { x: 0, y: 0 }, affinity: { kind: "decay" } }],
+      resources: [{ id: "r1", position: { x: 2, y: 2 }, affinity: { kind: "life" } }],
+    },
+    resourceBundle: V2_BUNDLE,
+  });
+  const keys = records.createdTextures.map((t) => t.key);
+  assert.ok(keys.includes("ak-sprite:32:hazard:decay"), `hazard sprite missing, got ${JSON.stringify(keys)}`);
+  assert.ok(keys.includes("ak-sprite:32:resource:life"), `resource sprite missing, got ${JSON.stringify(keys)}`);
+  renderer.dispose();
+});
+
+test("camera never shrinks a tile below the legible floor", async () => {
+  // Option (a): M1's silhouettes are guaranteed distinct down to 12px and no
+  // further, so the camera must refuse to go past it however large the level.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 400,
+    boardHeight: 400,
+    tiles: Array.from({ length: 400 }, () => ".".repeat(400)),
+    observation: { actors: [], hazards: [], resources: [] },
+    resourceBundle: V2_BUNDLE,
+  });
+  const { zoom } = renderer.getCameraState();
+  assert.ok(zoom >= 0.4, `camera zoomed to ${zoom}, past the 0.4 floor`);
+  assert.ok(zoom * 32 >= 12, `a tile would render at ${(zoom * 32).toFixed(1)}px, below the 12px floor`);
   renderer.dispose();
 });
 
@@ -424,7 +551,7 @@ test("gameplay phaser renderer keeps v1 static actor asset rendering unchanged",
     records.images.some((img) => img.textureKey === "ak-bundle:actor.delver"),
     "v1 actor rendering should continue to use the static bundle texture",
   );
-  assert.equal(records.createdTextures.length, 0, "v1 actor rendering must not create medallion canvas textures");
+  assert.equal(records.createdTextures.length, 0, "v1 actor rendering must not create composed canvas textures");
   renderer.dispose();
 });
 

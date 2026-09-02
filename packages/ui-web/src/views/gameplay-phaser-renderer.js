@@ -1,4 +1,4 @@
-import { createActorMedallionTextureDescriptor } from "./actor-medallion-textures.js";
+import { createEntitySpriteTextureDescriptor } from "./entity-sprite-textures.js";
 import { GAME_COLOR_PALETTE } from "../../../runtime/src/contracts/game-elements.js";
 
 /** "#rrggbb" -> 0xrrggbb, the numeric form Phaser tints want. */
@@ -7,7 +7,12 @@ function hexToTint(hex) {
 }
 
 const DEFAULT_TILE_SIZE = 32;
-const MIN_CAMERA_ZOOM = 0.25;
+// Option (a), maintainer 2026-09-02. M1's silhouettes are guaranteed distinct down
+// to 12px and no further, so the camera must not shrink a tile past that. With
+// DEFAULT_TILE_SIZE 32 the floor is 12/32 = 0.375; 0.4 keeps a little headroom.
+// This costs maximum zoom-out on very large dungeons -- verified in M5.
+const MIN_CAMERA_ZOOM = 0.4;
+const MIN_LEGIBLE_TILE_PX = 12;
 const MAX_CAMERA_ZOOM = 3;
 const CAMERA_ZOOM_STEP = 1.2;
 const DRAG_SELECT_THRESHOLD = 6;
@@ -121,7 +126,8 @@ function resolveSurfaceAsset(resourceBundle, category, key, model = {}) {
   let assetId = null;
   if (category === "tiles") assetId = resourceBundle?.mappings?.tiles?.[key] || null;
   if (category === "actors") assetId = resolveActorAssetId(resourceBundle, model);
-  if (category === "items") assetId = resourceBundle?.mappings?.items?.[key] || null;
+  if (category === "items" || category === "resources") assetId = resourceBundle?.mappings?.items?.[key] || null;
+  if (category === "hazards") assetId = resolveHazardAssetId(resourceBundle, model);
   if (category === "overlays") {
     assetId = key === "darknessMask"
       ? resourceBundle?.mappings?.overlays?.darknessMask
@@ -505,16 +511,19 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return texture?.getSourceImage?.() || texture?.source?.[0]?.image || null;
   }
 
-  function ensureActorMedallionTexture(resourceBundle, actor, width, height) {
-    const descriptor = createActorMedallionTextureDescriptor({ resourceBundle, actor, width, height });
+  function ensureEntitySpriteTexture(resourceBundle, entity, role, width, height) {
+    const descriptor = createEntitySpriteTextureDescriptor({ resourceBundle, entity, role, width, height });
     if (!descriptor || !scene?.textures) return "";
 
-    let texture = scene.textures.get?.(descriptor.key) || null;
-    const exists = scene.textures.exists?.(descriptor.key) === true;
-    if (!exists) {
-      if (typeof scene.textures.createCanvas !== "function") return "";
-      texture = scene.textures.createCanvas(descriptor.key, descriptor.size, descriptor.size);
+    // Shared across every entity with the same role+affinity, so a texture that
+    // already exists is finished -- recomposing it would write identical pixels.
+    if (scene.textures.exists?.(descriptor.key) === true) {
+      if (stageEl?.dataset) stageEl.dataset.gameplayEntitySprites = "runtime";
+      return descriptor.key;
     }
+
+    if (typeof scene.textures.createCanvas !== "function") return "";
+    const texture = scene.textures.createCanvas(descriptor.key, descriptor.size, descriptor.size);
 
     const canvas = canvasForTexture(texture);
     const context = canvas?.getContext?.("2d");
@@ -524,18 +533,18 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     imageData.data.set(descriptor.pixels);
     context.putImageData(imageData, 0, 0);
     texture?.refresh?.();
-    if (stageEl?.dataset) stageEl.dataset.gameplayActorMedallions = "runtime";
+    if (stageEl?.dataset) stageEl.dataset.gameplayEntitySprites = "runtime";
     return descriptor.key;
   }
 
-  function addActorMedallionImage(resourceBundle, actor, x, y, width, height) {
-    const textureKey = ensureActorMedallionTexture(resourceBundle, actor, width, height);
+  function addEntitySpriteImage(resourceBundle, entity, role, x, y, width, height) {
+    const textureKey = ensureEntitySpriteTexture(resourceBundle, entity, role, width, height);
     if (!textureKey || typeof scene?.add?.image !== "function") return null;
     const node = scene.add.image(x, y, textureKey);
     node.setDisplaySize?.(width, height);
     node.setOrigin?.(0.5);
-    node.setName?.(`actor-medallion:${actor?.id || inferActorRole(actor)}`);
-    node.setData?.("actorMedallion", true);
+    node.setName?.(`entity-sprite:${entity?.id || role || inferActorRole(entity)}`);
+    node.setData?.("entitySprite", true);
     return node;
   }
 
@@ -546,10 +555,19 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return node;
   }
 
+  // Categories the composer owns, and the sprite role each maps to. Hazards and
+  // resources used to skip the composed path entirely and draw bundle PNGs, so the
+  // board mixed the new sprite language for actors with retired art for everything
+  // else. One composer, one language, four roles.
+  const COMPOSED_ROLE_BY_CATEGORY = { actors: null, hazards: "hazard", resources: "resource" };
+
   function addSurfaceImageOrFallback(resourceBundle, category, key, model, x, y, width, height) {
-    if (category === "actors") {
-      const actorImage = addActorMedallionImage(resourceBundle, model, x, y, width, height);
-      if (actorImage) return actorImage;
+    if (category in COMPOSED_ROLE_BY_CATEGORY) {
+      // `actors` passes role null so the composer infers delver vs warden itself.
+      const composed = addEntitySpriteImage(
+        resourceBundle, model, COMPOSED_ROLE_BY_CATEGORY[category], x, y, width, height,
+      );
+      if (composed) return composed;
     }
     const asset = resolveSurfaceAsset(resourceBundle, category, key, model);
     const image = addBundleImage(asset, x, y, width, height);
@@ -994,10 +1012,16 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       if (hx === null || hy === null) continue;
       const cx = hx * tileWidth + tileWidth / 2;
       const cy = hy * tileHeight + tileHeight / 2;
-      const hazardAssetId = resolveHazardAssetId(resourceBundle, hazard);
-      const hazardAsset = findBundleAsset(resourceBundle, hazardAssetId);
-      const hazardShape = addBundleImage(hazardAsset, cx, cy, tileWidth, tileHeight)
-        || addMissingBundleFallback(cx, cy, tileWidth, tileHeight);
+      const hazardShape = addSurfaceImageOrFallback(
+        resourceBundle,
+        "hazards",
+        "hazard",
+        hazard,
+        cx,
+        cy,
+        tileWidth,
+        tileHeight,
+      );
       currentContainer.add(hazardShape);
     }
 
@@ -1010,7 +1034,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       const cy = ry * tileHeight + tileHeight / 2;
       const resourceShape = addSurfaceImageOrFallback(
         resourceBundle,
-        "items",
+        "resources",
         "resource",
         resource,
         cx,

@@ -117,18 +117,29 @@ function inferRole(entity) {
   return DEFAULT_ROLE;
 }
 
-/** Pull the single active affinity. Single-equip is a domain decision (2026-09-02). */
+/**
+ * Pull the single active affinity. Single-equip is a domain decision (2026-09-02).
+ *
+ * Observation objects carry affinity in several shapes and all of them are live:
+ * actors use `affinities[]`, hazards use a singular `affinity` OBJECT or
+ * `affinityStacks[]`, and cards use `traits.affinities`. Reading only the string
+ * form silently rendered every hazard and resource as the default `fire`.
+ */
 function inferAffinity(entity) {
-  const explicit = normalizeToken(entity?.affinity);
+  const explicit = normalizeToken(
+    typeof entity?.affinity === "string" ? entity.affinity : entity?.affinity?.kind,
+  );
   if (AFFINITY_KINDS.includes(explicit)) return explicit;
 
   const equipped = normalizeToken(entity?.equippedAffinity?.kind ?? entity?.equippedAffinity);
   if (AFFINITY_KINDS.includes(equipped)) return equipped;
 
-  const list = Array.isArray(entity?.affinities) ? entity.affinities : [];
-  for (const entry of list) {
-    const kind = normalizeToken(typeof entry === "string" ? entry : entry?.kind ?? entry?.name);
-    if (AFFINITY_KINDS.includes(kind)) return kind;
+  for (const source of [entity?.affinities, entity?.affinityStacks]) {
+    if (!Array.isArray(source)) continue;
+    for (const entry of source) {
+      const kind = normalizeToken(typeof entry === "string" ? entry : entry?.kind ?? entry?.name);
+      if (AFFINITY_KINDS.includes(kind)) return kind;
+    }
   }
 
   const traits = entity?.traits?.affinities;

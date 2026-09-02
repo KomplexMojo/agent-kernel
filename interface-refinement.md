@@ -2,16 +2,18 @@
 
 **Branch:** `feat/minimal-sprite-language-hud`
 **Opened:** 2026-09-02
-**Status:** M0 · M1 · M2 DONE · M3 next
+**Status:** M0 · M1 · M2 · M3 DONE · M4 next
 
 ---
 
 ## ⏭️ START HERE
 
-**Done:** M0 (archive) · M1 (sprite composer) · M2 (palette landed + guard + single-origin colour).
+**Done:** M0 (archive) · M1 (sprite composer) · M2 (palette + guards + single-origin colour) ·
+M3 (board wired, camera floor raised).
 **Decided:** single equipped affinity · role-shape option **(a)**.
-**Next: M3** — wire the composer into the Phaser renderer, extend it to hazards/resources, and raise
-`MIN_CAMERA_ZOOM` to `0.4`.
+**Next: M4** — the camera-fixed HUD, which is where everything M1 stripped off the sprite reappears.
+Until it ships the board shows role and affinity only; vitals, expression and motivation are
+currently visible **nowhere**, because M4 replaces `showQuickView()` rather than adding beside it.
 
 `docs/design/entity-sprite-sheet.png` now shows the landed palette on the canonical floor tile.
 M5 cannot be judged until M4 ships the HUD that receives what M1 removes from the sprite.
@@ -385,26 +387,48 @@ terminal has no fill — and the shared palette drives colour wherever colour is
 
 ---
 
-### M3 — Wire the new sprite into the Phaser gameplay renderer
+### M3 — Wire the new sprite into the Phaser gameplay renderer ✅ DONE 2026-09-02
 
 **Decided (maintainer, 2026-09-02): option (a)** — raise `MIN_CAMERA_ZOOM` from `0.25` so a tile
 never renders below **12px**, the floor M1's shape guard defends. With `DEFAULT_TILE_SIZE = 32` that
 is `12/32 = 0.375`; use `0.4` for headroom. This costs maximum zoom-out range on very large dungeons
 and must be sanity-checked against the largest scenario in M5.
 
-In [gameplay-phaser-renderer.js](packages/ui-web/src/views/gameplay-phaser-renderer.js):
+**Delivered:**
+- `packages/ui-web/src/views/entity-sprite-textures.js` replaces `actor-medallion-textures.js`
+  (deleted). Texture key is `ak-sprite:{size}:{role}:{affinity}`.
+- Hazards and resources now go through the composer. They previously drew bundle PNGs via
+  `resolveHazardAssetId`, so the board would have mixed the new language for actors with retired
+  art for everything else.
+- `MIN_CAMERA_ZOOM` `0.25` → `0.4`, guarded by a test that renders a 400×400 board and asserts a
+  tile never falls below 12px.
+- Four new renderer tests: texture sharing, vitals-don't-invalidate, hazard/resource sprites,
+  camera floor.
 
-- Replace `addActorMedallionImage` / `ensureActorMedallionTexture` with the entity-sprite equivalent
-  (`packages/ui-web/src/views/entity-sprite-textures.js`, replacing `actor-medallion-textures.js`).
-- Extend the same path to **hazards and resources**, which today go through `addBundleImage` and a
-  separate `resolveHazardAssetId`. One composer, one visual language, four roles — otherwise actors
-  get the new language and everything else keeps the old one.
-- Texture cache keys must key on `{role, affinity, size}` only. The medallion's key included vitals
-  ([actor-medallion-textures.js:47](packages/ui-web/src/views/actor-medallion-textures.js:47)), which
-  forced a texture rebuild on every vital change; removing vitals from the sprite removes that churn.
-  Expect a measurable reduction in texture count on long runs — worth noting in the commit message.
-- Update `tests/ui-web/gameplay-phaser-renderer.test.mjs` (13 medallion references) and
-  `tests/runtime/resource-bundle.test.js` (12).
+**Cache-key win, worth stating.** The medallion keyed on actor id **and a fingerprint of all four
+vitals**, so there was one live texture per actor and it was recomposed on every point of damage.
+The key now depends only on `{role, affinity, size}`: every fire delver shares one texture and
+nothing rebuilds when vitals change. A 40-entity board needs at most 40 textures under the old
+scheme and 4 under this one. Both properties are now tested.
+
+**⚠️ Finding — M1's affinity inference was incomplete, and the hazard test caught it.**
+`inferAffinity` read `entity.affinity` only as a *string*, but hazards carry a singular `affinity`
+**object** (`{ kind }`) and `affinityStacks[]`. Every hazard and resource therefore composed as the
+default `fire`. Fixed to read all six live shapes, with a test enumerating them.
+
+**Verified in the running app, not just in tests.** `pnpm run serve:ui`, then the real
+`createGameplayPhaserRenderer` driven with a synthetic 22×9 board of all 4 roles × 10 affinities.
+Confirms what unit tests cannot: the new cross-package import chain
+(`ui-web` → `runtime/contracts/game-elements`) resolves in a browser with **no build step**, and a
+`hazard`/`decay` sprite's centre pixel is exactly `#c64a9a`. No console errors.
+
+**Not changed, deliberately:** the v1-bundle path still renders static PNG actor assets. Composed
+sprites remain gated on `schemaVersion >= 2`, carried over from the medallion. Changing what a v1
+bundle draws is a contract change, not a rendering change — but it does mean **a v1 bundle still
+shows retired art**. Flag for a follow-up decision.
+
+**Also still on old art (out of scope):** the card-builder palette icons and the DOM inspector
+chips resolve through `icon-resolver.js` and the bundle's `misc/` PNGs, untouched by this plan.
 
 ---
 
