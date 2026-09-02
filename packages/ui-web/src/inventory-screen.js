@@ -49,6 +49,38 @@ export function createInventoryScreen({
     return root;
   }
 
+  /** One vital as a compact side-by-side cell: label, bar, value. */
+  function vitalCell(v) {
+    const pct = Math.round(v.fraction * 100);
+    const regen = v.regen > 0 ? `<i class="ak-inv-regen">↻${v.regen}</i>` : "";
+    return `<span class="ak-inv-vital" style="--v:${v.colorHex}">
+      <b>${v.label}</b>
+      <span class="ak-inv-bar"><span style="width:${pct}%"></span></span>
+      <em>${v.current}/${v.max}</em>${regen}
+    </span>`;
+  }
+
+  /** One inventory item: identity on the left, its HUD laid out across. */
+  function itemRow(card, group, bundle) {
+    const hud = card.hud;
+    const icon = resolveIconHTML(bundle, group.iconCategory, group.type);
+    const identity = hud
+      ? [hud.affinity, hud.expression].filter(Boolean).join(" · ")
+      : "";
+    const vitals = hud?.vitals?.length
+      ? hud.vitals.map(vitalCell).join("")
+      : `<span class="ak-inv-novitals">no vitals</span>`;
+    return `<li class="ak-inv-item">
+      <span class="ak-inv-chip">${icon}</span>
+      <span class="ak-inv-id">${card.id || group.label}</span>
+      <span class="ak-inv-mult">×${card.count}</span>
+      <span class="ak-inv-identity">${identity}</span>
+      <span class="ak-inv-vitals">${vitals}</span>
+      <span class="ak-inv-motivation">${hud?.motivation || ""}</span>
+      <span class="ak-inv-tokens">${fmt(card.tokens)}</span>
+    </li>`;
+  }
+
   function render() {
     const el = ensureRoot();
     if (!el) return;
@@ -64,42 +96,43 @@ export function createInventoryScreen({
     }
     const bundle = getResourceBundle?.() || null;
 
-    const rows = summary.groups.map((g) => {
-      const icon = resolveIconHTML(bundle, g.iconCategory, g.type);
+    const sections = summary.groups.map((g) => {
       const over = g.remainingTokens < 0;
-      return `<tr class="${g.count === 0 ? "is-empty" : ""}">
-        <td class="ak-inv-icon"><span class="ak-inv-chip">${icon}</span></td>
-        <td class="ak-inv-label" style="color:${g.colorHex}">${g.label}</td>
-        <td class="ak-inv-count">${g.count}</td>
-        <td class="ak-inv-num">${fmt(g.usedTokens)}</td>
-        <td class="ak-inv-num">${fmt(g.allocatedTokens)}</td>
-        <td class="ak-inv-num ${over ? "is-over" : ""}">${fmt(g.remainingTokens)}</td>
-      </tr>`;
+      const items = g.cards.length
+        ? g.cards.map((c) => itemRow(c, g, bundle)).join("")
+        : `<li class="ak-inv-item is-empty"><span class="ak-inv-chip">${resolveIconHTML(bundle, g.iconCategory, g.type)}</span><span class="ak-inv-id">none</span></li>`;
+      return `<section class="ak-inv-group">
+        <header style="--g:${g.colorHex}">
+          <h3>${g.label}</h3>
+          <span class="ak-inv-gcount">${g.count}</span>
+          <span class="ak-inv-gtokens">
+            ${fmt(g.usedTokens)} of ${fmt(g.allocatedTokens)}
+            <b class="${over ? "is-over" : ""}">${fmt(g.remainingTokens)} left</b>
+          </span>
+        </header>
+        <ul>${items}</ul>
+      </section>`;
     }).join("");
 
-    const unknownRow = summary.unknown.length
-      ? `<tr class="is-unknown"><td></td><td class="ak-inv-label">Unplaced</td>
-           <td class="ak-inv-count">${summary.unknown.length}</td><td colspan="3">
-           ${summary.unknown.map((u) => u.type || "?").join(", ")}</td></tr>`
+    const unknown = summary.unknown.length
+      ? `<section class="ak-inv-group is-unknown"><header><h3>Unplaced</h3>
+           <span class="ak-inv-gcount">${summary.unknown.length}</span></header>
+           <ul>${summary.unknown.map((u) => `<li class="ak-inv-item"><span class="ak-inv-id">${u.id || "?"}</span><span class="ak-inv-identity">${u.type || "unknown type"}</span></li>`).join("")}</ul>
+         </section>`
       : "";
 
     el.innerHTML = `
-      <div class="ak-inv-panel">
+      <div class="ak-inv-screen-inner">
         <header class="ak-inv-header">
           <h2>Inventory</h2>
+          <span class="ak-inv-totals">
+            ${summary.totals.cardCount} cards ·
+            ${fmt(summary.totals.usedTokens)} of ${fmt(summary.totals.allocatedTokens)} ·
+            <b class="${summary.totals.overspent ? "is-over" : ""}">${fmt(summary.totals.remainingTokens)} left</b>
+          </span>
           <span class="ak-inv-hint">⌘} or Esc to close</span>
         </header>
-        <table class="ak-inv-table">
-          <thead><tr><th></th><th>Group</th><th>Cards</th><th>Spent</th><th>Budget</th><th>Left</th></tr></thead>
-          <tbody>${rows}${unknownRow}</tbody>
-          <tfoot><tr>
-            <td></td><td>Total</td>
-            <td class="ak-inv-count">${summary.totals.cardCount}</td>
-            <td class="ak-inv-num">${fmt(summary.totals.usedTokens)}</td>
-            <td class="ak-inv-num">${fmt(summary.totals.allocatedTokens)}</td>
-            <td class="ak-inv-num ${summary.totals.overspent ? "is-over" : ""}">${fmt(summary.totals.remainingTokens)}</td>
-          </tr></tfoot>
-        </table>
+        <div class="ak-inv-groups">${sections}${unknown}</div>
       </div>`;
   }
 

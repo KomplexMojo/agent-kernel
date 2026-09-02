@@ -15,6 +15,7 @@
  */
 
 import { GAME_COLOR_PALETTE } from "../contracts/game-elements.js";
+import { buildActorHudModel } from "./actor-hud-model.js";
 
 /** Canonical display order, matching the Phaser shelf rail. */
 export const INVENTORY_TYPE_ORDER = Object.freeze([
@@ -65,7 +66,7 @@ function colourFor(type) {
  * @property {number} remainingTokens  May be negative — overspend is real state.
  * @property {string} colorHex
  * @property {string} iconCategory
- * @property {Array<{id: string, tokens: number}>} cards
+ * @property {Array<{id: string, tokens: number, count: number, hud: object|null}>} cards
  */
 
 /**
@@ -86,7 +87,14 @@ export function buildInventorySummary({ cards, allocationLedger } = {}) {
   const unknown = [];
   for (const card of list) {
     const type = typeof card?.type === "string" ? card.type.trim().toLowerCase() : "";
-    const entry = { id: typeof card?.id === "string" ? card.id : "", tokens: finite(card?.tokens) };
+    const entry = {
+      id: typeof card?.id === "string" ? card.id : "",
+      tokens: finite(card?.tokens),
+      count: Math.max(1, Math.round(finite(card?.count, 1))),
+      // The same view-model the board HUD uses, so an inventory row and the HUD
+      // cannot describe the same entity differently.
+      hud: buildActorHudModel(card),
+    };
     if (buckets[type]) buckets[type].push(entry);
     // Surfaced rather than dropped: a card the summary cannot place is a real
     // discrepancy between the inventory and what the board will show.

@@ -58,7 +58,7 @@ test("starts closed and creates nothing until shown", () =>
     assert.equal(body.children.length, 0, "a closed screen should not build DOM");
   }));
 
-test("show renders a row per group with counts and token columns", () =>
+test("show renders a section per group with counts and token figures", () =>
   withFakeDom((doc, body) => {
     const screen = makeScreen();
     screen.show();
@@ -67,10 +67,33 @@ test("show renders a row per group with counts and token columns", () =>
     assert.ok(root, "screen root should be appended");
     assert.equal(root.hidden, false);
     for (const label of ["Rooms", "Delvers", "Wardens", "Hazards", "Resources"]) {
-      assert.ok(root.innerHTML.includes(label), `missing ${label} row`);
+      assert.ok(root.innerHTML.includes(label), `missing ${label} section`);
     }
     assert.ok(root.innerHTML.includes("485t"), "room remaining (725-240) should render");
-    assert.ok(root.innerHTML.includes("Total"), "totals row missing");
+    assert.ok(root.innerHTML.includes("cards"), "header totals missing");
+  }));
+
+test("each item carries its own HUD, laid out across the row", () =>
+  withFakeDom((doc, body) => {
+    // The point of the screen: one row reads as one entity, without needing to
+    // find and click it on the board.
+    const screen = makeScreen({
+      getCards: () => [{
+        id: "A-1", type: "delver", tokens: 55, count: 2,
+        affinities: [{ kind: "light", expression: "push" }],
+        motivations: ["exploring"],
+        vitals: { health: { current: 8, max: 10, regen: 1 }, mana: { current: 3, max: 10 } },
+      }],
+    });
+    screen.show();
+    const html = body.children[0].innerHTML;
+    assert.ok(html.includes("A-1"), "item id missing");
+    assert.ok(html.includes("×2"), "instance count missing");
+    assert.ok(html.includes("light") && html.includes("push"), "affinity/expression missing");
+    assert.ok(html.includes("exploring"), "motivation missing");
+    assert.ok(html.includes("8/10") && html.includes("3/10"), "vital values missing");
+    assert.ok(html.includes("ak-inv-vitals"), "vitals should sit in one horizontal group");
+    assert.ok(html.includes("↻1"), "regen missing");
   }));
 
 test("group icons come from the shared resolver, not a local glyph table", () =>
@@ -110,7 +133,7 @@ test("a throwing data source does not take the screen down", () =>
     const screen = makeScreen({ getCards: () => { throw new Error("boom"); } });
     assert.doesNotThrow(() => screen.show());
     assert.equal(screen.isOpen(), true);
-    assert.ok(body.children[0].innerHTML.includes("Total"));
+    assert.ok(body.children[0].innerHTML.includes("Inventory"));
   }));
 
 test("refresh is a no-op while closed", () =>
