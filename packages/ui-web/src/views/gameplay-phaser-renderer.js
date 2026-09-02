@@ -1,5 +1,6 @@
 import { createEntitySpriteTextureDescriptor } from "./entity-sprite-textures.js";
 import { GAME_COLOR_PALETTE } from "../../../runtime/src/contracts/game-elements.js";
+import { buildActorHudModel } from "../../../runtime/src/render/actor-hud-model.js";
 
 /** "#rrggbb" -> 0xrrggbb, the numeric form Phaser tints want. */
 function hexToTint(hex) {
@@ -17,16 +18,30 @@ const MAX_CAMERA_ZOOM = 3;
 const CAMERA_ZOOM_STEP = 1.2;
 const DRAG_SELECT_THRESHOLD = 6;
 const SELECTION_TINT = 0xffd700;
-const VITAL_COLORS = {
-  health:     { hex: "#ff4455", int: 0xff4455, label: "HP" },
-  mana:       { hex: "#4499ff", int: 0x4499ff, label: "MP" },
-  stamina:    { hex: "#44cc77", int: 0x44cc77, label: "ST" },
-  durability: { hex: "#ffaa33", int: 0xffaa33, label: "DU" },
-};
-const DEFAULT_VITAL_COLOR = { hex: "#aaaaaa", int: 0xaaaaaa, label: "?" };
-const VITAL_ORDER = ["health", "mana", "stamina", "durability"];
+// Vital colours, labels and ordering come from the HUD view-model in runtime.
+// They used to be a table here -- a duplicate of GAME_COLOR_PALETTE.vitals that
+// still happened to agree. The affinity palette had the same shape of duplicate
+// and had already drifted into a live bug (M2), so this one is folded back.
 const REGEN_BLOCK_SIZE = 5;
 const REGEN_BLOCK_GAP = 2;
+
+// HUD geometry. Fixed to the camera, so these are screen pixels, not world.
+const HUD = Object.freeze({
+  margin: 12,
+  padX: 10,
+  padY: 8,
+  rowH: 16,
+  labelW: 20,
+  barW: 96,
+  barH: 5,
+  valueW: 46,
+  headerH: 16,
+  footerH: 13,
+  bg: 0x0d1014,
+  bgAlpha: 0.88,
+  border: 0x2c333c,
+  depth: 1000,
+});
 const ACTOR_CONTROL_KEYS = new Set([
   "arrowup", "arrowdown", "arrowleft", "arrowright",
   "w", "a", "s", "d",
@@ -161,7 +176,8 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   let inputBound = false;
   let currentBoardMetrics = { tileWidth: DEFAULT_TILE_SIZE, tileHeight: DEFAULT_TILE_SIZE };
   let currentContainer = null;
-  let quickViewContainer = null;
+  let hudContainer = null;
+  let hudCamera = null;
   let lastHoverTile = null;
   let actorNodes = new Map();
   let selectedActorKey = null;
@@ -703,107 +719,156 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return true;
   }
 
-  function hideQuickView() {
-    if (quickViewContainer) {
-      quickViewContainer.destroy(true);
-      quickViewContainer = null;
+  // A dedicated, non-zooming camera for the HUD. Created lazily so a scene without
+  // camera support (or a test double) simply falls back to the main camera.
+  function ensureHudCamera() {
+    if (hudCamera) return hudCamera;
+    const add = scene?.cameras?.add;
+    if (typeof add !== "function") return null;
+    hudCamera = scene.cameras.add(
+      0, 0,
+      cameraState.viewportWidth || 1,
+      cameraState.viewportHeight || 1,
+    ) || null;
+    hudCamera?.setName?.("gameplay-hud-camera");
+    hudCamera?.setZoom?.(1);
+    hudCamera?.setScroll?.(0, 0);
+    return hudCamera;
+  }
+
+  function attachHudCamera(overlay) {
+    const cam = ensureHudCamera();
+    if (!cam) return;
+    // Each camera renders exactly one of the two worlds.
+    cam.ignore?.(currentContainer ? [currentContainer] : []);
+    scene?.cameras?.main?.ignore?.(overlay);
+  }
+
+  function hideHud() {
+    if (hudContainer) {
+      hudContainer.destroy(true);
+      hudContainer = null;
     }
   }
 
-  function showQuickView(model) {
-    hideQuickView();
-    if (!scene || !model?.position) return;
-    const { tileWidth, tileHeight } = currentBoardMetrics;
-    const px = model.position.x * tileWidth + tileWidth / 2;
-    const py = model.position.y * tileHeight;
-    const overlayX = px + tileWidth;
-    const overlayY = py - tileHeight * 0.5;
+  const hexToInt = (hex) => Number.parseInt(String(hex).replace("#", ""), 16);
 
-    const vitals = model.vitals && typeof model.vitals === "object" ? model.vitals : {};
-    const orderedKeys = [...VITAL_ORDER.filter((k) => k in vitals), ...Object.keys(vitals).filter((k) => !VITAL_ORDER.includes(k))];
+  /**
+   * Draw the selected-entity HUD, fixed to the camera at the bottom-left.
+   *
+   * This replaces the old world-space quick view, which anchored a 9px panel to
+   * the entity's tile: it moved when the board moved, shrank with camera zoom,
+   * and was the reason vitals were unreadable at the very zoom levels where you
+   * most needed them. The HUD does not scroll (`setScrollFactor(0)`), so its
+   * legibility is independent of the board.
+   *
+   * Vitals, expression and motivation are exactly what M1 removed from the
+   * sprite; this is where they reappear, at readable size, for one entity.
+   */
+  function showHud(entity) {
+    hideHud();
+    if (!scene?.add?.container) return;
+    const model = buildActorHudModel(entity);
+    if (!model) return;
 
-    const rowH = 18;
-    const labelW = 22;
-    const barW = 72;
-    const valW = 30;
-    const padX = 6;
-    const headerH = 14;
-    const footerH = model.equippedAffinity?.kind ? 14 : 0;
-    const maxRegen = orderedKeys.reduce((m, k) => Math.max(m, Number(vitals[k]?.regen) || 0), 0);
-    const regenColW = maxRegen > 0 ? 4 + maxRegen * (REGEN_BLOCK_SIZE + REGEN_BLOCK_GAP) : 0;
-    const panelW = padX + labelW + 4 + barW + 4 + valW + regenColW + padX;
-    const panelH = headerH + orderedKeys.length * rowH + footerH + 6;
+    const rows = model.vitals.length;
+    const maxRegen = model.vitals.reduce((m, v) => Math.max(m, v.regen), 0);
+    const regenColW = maxRegen > 0 ? 6 + maxRegen * (REGEN_BLOCK_SIZE + REGEN_BLOCK_GAP) : 0;
+    const panelW = HUD.padX * 2 + HUD.labelW + 6 + HUD.barW + 6 + HUD.valueW + regenColW;
+    const hasFooter = Boolean(model.motivation);
+    const panelH = HUD.padY * 2 + HUD.headerH + rows * HUD.rowH + (hasFooter ? HUD.footerH : 0);
 
-    const overlay = scene.add.container(overlayX, overlayY);
-    quickViewContainer = overlay;
+    const vh = cameraState.viewportHeight || 300;
+    const originX = HUD.margin;
+    const originY = Math.max(HUD.margin, vh - panelH - HUD.margin);
 
-    const bg = addSurfaceImageOrFallback(
-      model.resourceBundle,
-      "overlays",
-      "darknessMask",
-      null,
-      panelW / 2,
-      panelH / 2,
-      panelW,
-      panelH,
-    );
+    const overlay = scene.add.container(originX, originY);
+    hudContainer = overlay;
+    overlay.setScrollFactor?.(0);
+    overlay.setDepth?.(HUD.depth);
+    overlay.setName?.("gameplay-hud");
+
+    // scrollFactor(0) stops the HUD SCROLLING with the board, but it does not stop
+    // it ZOOMING: Phaser still scales scrollFactor-0 objects about the camera
+    // centre, so at zoom 3 the panel was scaled 3x and pushed off screen. The fix
+    // is a second camera at zoom 1 that renders only the HUD, with each camera
+    // ignoring the other's objects -- the standard Phaser HUD arrangement, and the
+    // only one that makes the panel genuinely independent of board zoom.
+    attachHudCamera(overlay);
+
+    const bg = scene.add.rectangle(panelW / 2, panelH / 2, panelW, panelH, HUD.bg, HUD.bgAlpha);
+    bg.setStrokeStyle?.(1, HUD.border, 1);
+    bg.setScrollFactor?.(0);
     overlay.add(bg);
 
-    const idLabel = scene.add.text(padX, 3, model.id ?? "", { fontSize: "9px", color: "#c8c8c8" });
-    overlay.add(idLabel);
+    // Header: who this is, and the two identity channels the sprite does show,
+    // so the HUD and the board can be checked against each other.
+    const idText = scene.add.text(HUD.padX, HUD.padY, model.id || model.role, {
+      fontSize: "11px", color: "#e8ecf0",
+    });
+    idText.setScrollFactor?.(0);
+    overlay.add(idText);
 
-    orderedKeys.forEach((key, i) => {
-      const vital = vitals[key];
-      if (!vital || typeof vital !== "object") return;
-      const { current = 0, max = 0, regen } = vital;
-      const cfg = VITAL_COLORS[key] ?? DEFAULT_VITAL_COLOR;
-      const rowY = headerH + i * rowH;
-      const barX = padX + labelW + 4;
-      const barY = rowY + rowH / 2 - 2;
-      const tickH = 7;
-      const indicatorH = 10;
-      const frac = max > 0 ? Math.min(1, Math.max(0, current / max)) : 0;
+    const identity = [model.affinity, model.expression].filter(Boolean).join(" \u00b7 ");
+    if (identity) {
+      const affinityHex = GAME_COLOR_PALETTE.affinities?.[model.affinity] || "#8a949e";
+      const identityText = scene.add.text(HUD.padX + HUD.labelW + 6 + HUD.barW - 30, HUD.padY, identity, {
+        fontSize: "10px", color: affinityHex,
+      });
+      identityText.setScrollFactor?.(0);
+      identityText.setName?.("gameplay-hud-identity");
+      overlay.add(identityText);
+    }
 
-      const labelNode = scene.add.text(padX, rowY + 2, cfg.label, { fontSize: "9px", color: cfg.hex });
-      overlay.add(labelNode);
+    model.vitals.forEach((vital, i) => {
+      const rowY = HUD.padY + HUD.headerH + i * HUD.rowH;
+      const barX = HUD.padX + HUD.labelW + 6;
+      const barY = rowY + HUD.rowH / 2 - HUD.barH / 2;
+      const colorInt = hexToInt(vital.colorHex);
 
-      // track
-      const track = scene.add.rectangle(barX + barW / 2, barY, barW, 4, 0x222228, 1);
+      const label = scene.add.text(HUD.padX, rowY, vital.label, { fontSize: "10px", color: vital.colorHex });
+      label.setScrollFactor?.(0);
+      overlay.add(label);
+
+      // Track then fill: a proportional bar reads faster than a moving tick,
+      // which is what the old quick view drew.
+      const track = scene.add.rectangle(barX + HUD.barW / 2, barY + HUD.barH / 2, HUD.barW, HUD.barH, 0x232a31, 1);
+      track.setScrollFactor?.(0);
       overlay.add(track);
 
-      // min tick (left edge)
-      const minTick = scene.add.rectangle(barX, barY, 2, tickH, cfg.int, 1);
-      overlay.add(minTick);
+      const fillW = Math.max(0, Math.round(HUD.barW * vital.fraction));
+      if (fillW > 0) {
+        const fill = scene.add.rectangle(barX + fillW / 2, barY + HUD.barH / 2, fillW, HUD.barH, colorInt, 1);
+        fill.setScrollFactor?.(0);
+        fill.setName?.(`gameplay-hud-bar:${vital.key}`);
+        overlay.add(fill);
+      }
 
-      // max tick (right edge)
-      const maxTick = scene.add.rectangle(barX + barW, barY, 2, tickH, cfg.int, 1);
-      overlay.add(maxTick);
+      const value = scene.add.text(barX + HUD.barW + 6, rowY, `${vital.current}/${vital.max}`, {
+        fontSize: "10px", color: vital.colorHex,
+      });
+      value.setScrollFactor?.(0);
+      overlay.add(value);
 
-      // current indicator
-      const indX = barX + frac * barW;
-      const indicator = scene.add.rectangle(indX, barY, 2, indicatorH, cfg.int, 1);
-      overlay.add(indicator);
-
-      const valText = scene.add.text(barX + barW + 4, rowY + 2, `${current}/${max}`, { fontSize: "9px", color: cfg.hex });
-      overlay.add(valText);
-
-      const regenCount = regen != null && regen > 0 ? Math.floor(regen) : 0;
-      if (regenCount > 0) {
-        const regenStartX = barX + barW + 4 + valW + 4;
-        for (let bi = 0; bi < regenCount; bi++) {
-          const bx = regenStartX + bi * (REGEN_BLOCK_SIZE + REGEN_BLOCK_GAP) + REGEN_BLOCK_SIZE / 2;
-          overlay.add(scene.add.rectangle(bx, barY, REGEN_BLOCK_SIZE, REGEN_BLOCK_SIZE, cfg.int, 1));
-        }
+      for (let b = 0; b < vital.regen; b += 1) {
+        const bx = barX + HUD.barW + 6 + HUD.valueW + b * (REGEN_BLOCK_SIZE + REGEN_BLOCK_GAP);
+        const block = scene.add.rectangle(bx, barY + HUD.barH / 2, REGEN_BLOCK_SIZE, REGEN_BLOCK_SIZE, colorInt, 1);
+        block.setScrollFactor?.(0);
+        overlay.add(block);
       }
     });
 
-    if (model.equippedAffinity?.kind) {
-      const affY = headerH + orderedKeys.length * rowH + 2;
-      const affText = scene.add.text(padX, affY, model.equippedAffinity.kind, { fontSize: "9px", color: "#88aaff" });
-      overlay.add(affText);
+    if (hasFooter) {
+      const footY = HUD.padY + HUD.headerH + rows * HUD.rowH;
+      const motivation = scene.add.text(HUD.padX, footY, model.motivation, {
+        fontSize: "10px", color: "#8a949e",
+      });
+      motivation.setScrollFactor?.(0);
+      motivation.setName?.("gameplay-hud-motivation");
+      overlay.add(motivation);
     }
 
-    overlay.setDepth?.(200);
+    if (stageEl?.dataset) stageEl.dataset.gameplayHud = model.id || model.role;
   }
 
   async function ensureGame(boardState) {
@@ -1091,12 +1156,13 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     isPlayerPanelOpen,
     highlightActor,
     clearHighlight,
-    showQuickView,
-    hideQuickView,
+    showHud,
+    hideHud,
     dispose() {
       closePlayerPanel();
       clearHighlight();
-      hideQuickView();
+      hideHud();
+      hudCamera = null;
       actorNodes.clear();
       if (currentContainer) {
         currentContainer.destroy(true);

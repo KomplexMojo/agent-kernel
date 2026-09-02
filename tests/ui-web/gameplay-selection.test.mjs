@@ -286,19 +286,28 @@ function makeCapturingRenderer() {
   let capturedOnHoverEnd = null;
   const quickViews = [];
   let hideCount = 0;
+  let capturedOnSelect = null;
   const renderer = {
     mount() {},
     async renderRun() {},
     async renderFrame() {},
     dispose() {},
-    showQuickView: (model) => quickViews.push(model),
-    hideQuickView: () => hideCount++,
+    showHud: (model) => quickViews.push(model),
+    hideHud: () => hideCount++,
+    highlightActor() {},
+    centerOnTile() {},
   };
   return {
-    factory: (opts) => { capturedOnHover = opts?.onHover; capturedOnHoverEnd = opts?.onHoverEnd; return renderer; },
+    factory: (opts) => {
+      capturedOnHover = opts?.onHover;
+      capturedOnHoverEnd = opts?.onHoverEnd;
+      capturedOnSelect = opts?.onSelect;
+      return renderer;
+    },
     get onHover() { return capturedOnHover; },
     get onHoverEnd() { return capturedOnHoverEnd; },
-    get quickViews() { return quickViews; },
+    get onSelect() { return capturedOnSelect; },
+    get hudModels() { return quickViews; },
     get hideCount() { return hideCount; },
   };
 }
@@ -310,32 +319,46 @@ test("view passes onHover and onHoverEnd to the renderer factory", () => {
   assert.equal(typeof cap.onHoverEnd, "function", "onHoverEnd must be passed to renderer");
 });
 
-test("onHover callback resolves entity and calls renderer.showQuickView", async () => {
+test("onHover previews the hovered entity into the HUD", async () => {
+  // Hover and selection share ONE panel now. The old quick view was a second,
+  // world-space panel showing the same vitals at 9px anchored to the tile.
   const cap = makeCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
   await view.loadRun(BUNDLE_WITH_ACTORS);
   cap.onHover({ x: 3, y: 4 });
-  assert.equal(cap.quickViews.length, 1);
-  assert.equal(cap.quickViews[0].id, "delver-1");
-  assert.equal(cap.quickViews[0].entityType, "actor");
-  assert.ok(cap.quickViews[0].equippedAffinity, "display model must include equippedAffinity");
+  assert.equal(cap.hudModels.length, 1);
+  assert.equal(cap.hudModels[0].id, "delver-1");
+  assert.equal(cap.hudModels[0].entityType, "actor");
+  assert.ok(cap.hudModels[0].equippedAffinity, "display model must include equippedAffinity");
 });
 
-test("onHover over empty position calls renderer.hideQuickView", async () => {
+test("hovering empty space with nothing selected hides the HUD", async () => {
   const cap = makeCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
   await view.loadRun(BUNDLE_WITH_ACTORS);
   cap.onHover({ x: 99, y: 99 });
   assert.equal(cap.hideCount, 1);
-  assert.equal(cap.quickViews.length, 0);
+  assert.equal(cap.hudModels.length, 0);
 });
 
-test("onHoverEnd calls renderer.hideQuickView", async () => {
+test("hover falls back to the selected entity rather than blanking the HUD", async () => {
+  // The HUD's resting state is the selection; hover only borrows it. Blanking on
+  // hover-end would make the panel flicker every time the pointer crossed a wall.
   const cap = makeCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
   await view.loadRun(BUNDLE_WITH_ACTORS);
+  cap.onSelect({ x: 3, y: 4 });
+  const afterSelect = cap.hudModels.length;
+  assert.ok(afterSelect >= 1, "selecting should show the HUD");
+
+  cap.onHover({ x: 99, y: 99 });
   cap.onHoverEnd();
-  assert.equal(cap.hideCount, 1);
+  assert.equal(cap.hideCount, 0, "the HUD must not be hidden while something is selected");
+  assert.equal(
+    cap.hudModels[cap.hudModels.length - 1].id,
+    "delver-1",
+    "the HUD must return to the selected entity",
+  );
 });
 
 // --- M3: actor highlight wiring ---

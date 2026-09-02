@@ -2,18 +2,17 @@
 
 **Branch:** `feat/minimal-sprite-language-hud`
 **Opened:** 2026-09-02
-**Status:** M0 · M1 · M2 · M3 DONE · M4 next
+**Status:** M0 · M1 · M2 · M3 · M4 DONE · M5 next
 
 ---
 
 ## ⏭️ START HERE
 
 **Done:** M0 (archive) · M1 (sprite composer) · M2 (palette + guards + single-origin colour) ·
-M3 (board wired, camera floor raised).
+M3 (board wired, camera floor raised) · M4 (HUD).
 **Decided:** single equipped affinity · role-shape option **(a)**.
-**Next: M4** — the camera-fixed HUD, which is where everything M1 stripped off the sprite reappears.
-Until it ships the board shows role and affinity only; vitals, expression and motivation are
-currently visible **nowhere**, because M4 replaces `showQuickView()` rather than adding beside it.
+**Next: M5** — legibility harness, verification against the largest scenario (the `MIN_CAMERA_ZOOM`
+raise costs zoom-out range), and the documentation pass.
 
 `docs/design/entity-sprite-sheet.png` now shows the landed palette on the canonical floor tile.
 M5 cannot be judged until M4 ships the HUD that receives what M1 removes from the sprite.
@@ -432,29 +431,41 @@ chips resolve through `icon-resolver.js` and the bundle's `misc/` PNGs, untouche
 
 ---
 
-### M4 — Selected-actor HUD (Phaser, camera-fixed)
+### M4 — Selected-actor HUD (Phaser, camera-fixed) ✅ DONE 2026-09-02
 
-Split by layer, per the charter's `ui-web` renders-only rule:
+**Delivered:**
+- `packages/runtime/src/render/actor-hud-model.js` + `tests/runtime/actor-hud-model.test.js` —
+  ordering, labels, colours, fraction derivation and which vitals a role has are *semantics*, so
+  they live in runtime; `ui-web` draws what it is handed.
+- The camera-fixed HUD in the Phaser renderer, replacing `showQuickView()`.
+- 11 renderer HUD tests replacing the 14 quick-view tests, plus rewritten hover tests.
 
-**runtime** — new `packages/runtime/src/render/actor-hud-model.js`: given an observation actor,
-return a normalized, serializable HUD view-model (`{ id, role, affinity, expression, motivation,
-vitals: [{ key, label, current, max, fraction, regen, colorHex }] }`). Ordering, labels, colours, and
-formatting are *semantics* and belong here — the same reason vital colours already live in the
-composer rather than the renderer. Tested in `tests/runtime/actor-hud-model.test.js`.
+**⚠️ Deviation — hover and selection share one panel.** The plan said the HUD is for the *selected*
+actor and that `showQuickView` should simply be deleted. But `showQuickView` was wired to **hover**,
+not selection, so deleting it would have removed the hover affordance entirely. Instead hover
+previews into the same HUD and hover-end falls back to the selection. One panel, both affordances,
+and still no two panels showing vitals — which was the actual rule.
 
-**ui-web** — a `scrollFactor(0)` container at depth above the board, built from that model.
-- Shows on selection, hides on `clearHighlight()`. Selection already flows
-  `Phaser click → gameplay-view.selectEntity → actorInspector.selectEntityAtPosition`
-  ([gameplay-view.js:324](packages/ui-web/src/views/gameplay-view.js:324)) — the HUD taps the same
-  signal; no new event plumbing.
-- Redraws on tick advance so vitals track the simulation.
-- **Replaces `showQuickView()`** ([gameplay-phaser-renderer.js:687](packages/ui-web/src/views/gameplay-phaser-renderer.js:687)),
-  the world-space floating panel that currently does this job at 9px font anchored to the actor. Do
-  not ship both — a fixed HUD and a floating quick-view showing the same vitals is the same
-  duplication this plan is removing, one layer up.
+**⚠️ Finding — `setScrollFactor(0)` does not make an object camera-fixed.** It stops an object
+*scrolling* with the board but Phaser still *scales* it about the camera centre, so at the fit-zoom
+of 3 the first HUD was drawn 3× and pushed off-screen. **The unit test asserted `scrollFactor === 0`
+and passed** — a guard aimed at the wrong property, the same failure mode as M1's outline test.
+Only running the app caught it. The HUD now renders on its own camera pinned at zoom 1, with each
+camera ignoring the other's objects; the test now asserts the HUD camera exists, stays at zoom 1
+*after the board zooms*, and ignores the board container.
 
-Tests: `tests/ui-web/gameplay-hud.test.mjs` — HUD appears on select, populates from the model,
-clears on deselect, and updates across a tick.
+**⚠️ Finding — vital sets differ by role.** `HAZARD_VITAL_KEYS` is `mana`+`durability`;
+`RESOURCE_VITAL_KEYS` is `health`+`mana`+`stamina`. Drawing four bars for everything would invent
+two of them on a hazard. The model filters by role and keeps any unexpected vital rather than
+dropping it silently.
+
+**Single origin again:** the renderer's `VITAL_COLORS` table (hex + label per vital) was a duplicate
+of `GAME_COLOR_PALETTE.vitals` that still happened to agree. Folded back before it could drift the
+way the affinity copy did.
+
+**Verified in the running app:** a delver HUD showing four proportional bars, `fire · push`,
+regen blocks and an `exploring` footer, and a hazard HUD showing exactly two bars with `decay` and
+no footer — while the board camera sat at zoom 3. No console errors.
 
 ---
 

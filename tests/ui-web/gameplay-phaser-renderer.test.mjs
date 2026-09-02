@@ -156,6 +156,17 @@ function createFakePhaser(records = {}) {
           },
         },
         cameras: {
+          add(x, y, w, h) {
+            const cam = {
+              x, y, width: w, height: h, zoom: 1, scrollX: 0, scrollY: 0, ignored: [],
+              setName(n) { this.name = n; return this; },
+              setZoom(z) { this.zoom = z; return this; },
+              setScroll(sx, sy) { this.scrollX = sx; this.scrollY = sy; return this; },
+              ignore(objs) { this.ignored.push(...[].concat(objs || [])); return this; },
+            };
+            (records.extraCameras = records.extraCameras || []).push(cam);
+            return cam;
+          },
           main: {
             scrollX: 0,
             scrollY: 0,
@@ -965,264 +976,173 @@ const QUICK_VIEW_MODEL_FULL = {
   equippedAffinity: { kind: "fire", expression: "ward", stacks: 2 },
 };
 
-test("showQuickView renders separate label and value text for each vital", async () => {
-  const records = {};
+// --- M4: the camera-fixed selected-entity HUD ---
+//
+// These replace the showQuickView suite. The quick view was a world-space panel
+// anchored to the entity's tile: it scrolled with the board and shrank with camera
+// zoom, so it was least readable exactly when zoomed out. The HUD is fixed to the
+// camera instead, and it is where the vitals, expression and motivation that M1
+// removed from the sprite now live.
+
+async function mountedRenderer(records) {
   const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_FULL);
-  const newTexts = records.texts.slice(textsBefore).map((t) => String(t.text));
-  assert.ok(newTexts.includes("HP"), "health label must be a separate 'HP' text node");
-  assert.ok(newTexts.includes("MP"), "mana label must be a separate 'MP' text node");
-  assert.ok(newTexts.includes("ST"), "stamina label must be a separate 'ST' text node");
-  assert.ok(newTexts.includes("DU"), "durability label must be a separate 'DU' text node");
+  return { renderer, container };
+}
+
+test("HUD renders one labelled bar per vital the role has", async () => {
+  const records = {};
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+  for (const label of ["HP", "MP", "ST", "DU"]) {
+    assert.ok(records.texts.some((t) => t.text === label), `missing ${label} label`);
+  }
+  for (const key of ["health", "mana", "stamina", "durability"]) {
+    assert.ok(
+      records.rectangles.some((r) => r.name === `gameplay-hud-bar:${key}`),
+      `missing proportional bar for ${key}`,
+    );
+  }
   renderer.dispose();
 });
 
-test("showQuickView renders current/max value text for each vital", async () => {
+test("HUD bar length is proportional to the vital fraction", async () => {
+  // The quick view drew a fixed-width track with a 2px tick sliding along it.
+  // A filled bar reads at a glance; a moving tick has to be measured.
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_FULL);
-  const newTexts = records.texts.slice(textsBefore).map((t) => String(t.text));
-  assert.ok(newTexts.includes("8/10"), "health current/max must appear");
-  assert.ok(newTexts.includes("5/8"),  "mana current/max must appear");
-  assert.ok(newTexts.includes("7/7"),  "stamina current/max must appear");
-  assert.ok(newTexts.includes("3/8"),  "durability current/max must appear");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+  const bar = (k) => records.rectangles.find((r) => r.name === `gameplay-hud-bar:${k}`);
+  assert.ok(bar("stamina").width > bar("durability").width,
+    "stamina 7/7 must draw a longer bar than durability 3/8");
+  assert.ok(bar("health").width > bar("mana").width,
+    "health 8/10 must draw a longer bar than mana 5/8");
   renderer.dispose();
 });
 
-test("showQuickView renders regen as block rectangles, not +N text", async () => {
+test("HUD renders current/max text and regen blocks", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const rectsBefore = records.rectangles.length;
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_FULL);
-  // health regen=1 → 1 block, mana regen=2 → 2 blocks, stamina/durability=0 → no blocks
-  const totalRegenBlocks = 1 + 2;
-  const vitalCount = Object.keys(QUICK_VIEW_MODEL_FULL.vitals).length;
-  const newRects = records.rectangles.length - rectsBefore;
-  // bg(1) + per vital: track+minTick+maxTick+indicator(4) + regen blocks
-  assert.equal(newRects, 1 + vitalCount * 4 + totalRegenBlocks,
-    `expected ${1 + vitalCount * 4 + totalRegenBlocks} rectangles, got ${newRects}`);
-  // regen must NOT be rendered as +N text nodes
-  const newTexts = records.texts.slice(textsBefore).map((t) => String(t.text));
-  assert.ok(!newTexts.some((t) => t.startsWith("+")),
-    "regen must not produce any +N text node");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+  for (const value of ["8/10", "5/8", "7/7", "3/8"]) {
+    assert.ok(records.texts.some((t) => t.text === value), `missing value text ${value}`);
+  }
+  const blocks = records.rectangles.filter((r) => r.width === 5 && r.height === 5);
+  assert.equal(blocks.length, 3, "regen 1 + 2 + 0 + 0 should draw three blocks");
   renderer.dispose();
 });
 
-test("showQuickView creates bar-chart rectangles for each vital", async () => {
+test("HUD is independent of board pan AND board zoom", async () => {
+  // scrollFactor 0 alone is NOT enough and asserting only that is a guard aimed at
+  // the wrong property: Phaser still scales scrollFactor-0 objects about the camera
+  // centre, so at zoom 3 the first version of this HUD was scaled 3x and pushed off
+  // screen while this test passed. Running the app is what caught it. The HUD now
+  // renders on its own camera at zoom 1.
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const rectsBefore = records.rectangles.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_FULL);
-  const newRects = records.rectangles.length - rectsBefore;
-  // bg + track + min tick + max tick + indicator per vital + regen blocks
-  const vitalCount = Object.keys(QUICK_VIEW_MODEL_FULL.vitals).length;
-  const totalRegenBlocks = 1 + 2; // health=1, mana=2
-  assert.equal(newRects, 1 + vitalCount * 4 + totalRegenBlocks,
-    `expected ${1 + vitalCount * 4 + totalRegenBlocks} new rectangles, got ${newRects}`);
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+
+  const hud = records.containers.find((c) => c.name === "gameplay-hud");
+  assert.ok(hud, "HUD container missing");
+  assert.equal(hud.scrollFactor, 0, "HUD must not scroll with the board");
+  assert.ok(hud.depth >= 1000, "HUD must draw above the board");
+
+  const hudCam = (records.extraCameras || []).find((c) => c.name === "gameplay-hud-camera");
+  assert.ok(hudCam, "HUD must render on its own camera");
+  assert.equal(hudCam.zoom, 1, "the HUD camera must never zoom");
+
+  // Zooming the board must not touch the HUD camera.
+  renderer.zoomIn?.();
+  renderer.zoomIn?.();
+  assert.ok(records.camera.zoom !== 1, "precondition: the board camera should have zoomed");
+  assert.equal(hudCam.zoom, 1, "board zoom must not reach the HUD camera");
+
+  // And the two cameras must not both draw the same objects.
+  assert.ok(hudCam.ignored.length > 0, "the HUD camera must ignore the board container");
   renderer.dispose();
 });
 
-test("showQuickView uses distinct colors for health and mana label texts", async () => {
+test("HUD shows the identity channels the sprite also carries", async () => {
+  // Affinity and expression appear on the HUD as well as the board so the two can
+  // be checked against each other.
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_FULL);
-  const newTextNodes = records.texts.slice(textsBefore);
-  const hpNode = newTextNodes.find((t) => String(t.text) === "HP");
-  const mpNode = newTextNodes.find((t) => String(t.text) === "MP");
-  assert.ok(hpNode, "HP label node must exist");
-  assert.ok(mpNode, "MP label node must exist");
-  assert.notEqual(hpNode.style?.color, mpNode.style?.color,
-    "health and mana labels must have different colors");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+  const identity = records.texts.find((t) => t.name === "gameplay-hud-identity");
+  assert.ok(identity, "identity line missing");
+  assert.match(identity.text, /fire/);
+  assert.ok(records.texts.some((t) => t.text === "delver-1"), "entity id missing");
   renderer.dispose();
 });
 
-test("showQuickView with partial vitals renders only the present vitals", async () => {
+test("HUD shows motivation, which the sprite no longer encodes", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  const rectsBefore = records.rectangles.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_PARTIAL);
-  const newTexts = records.texts.slice(textsBefore);
-  const labels = newTexts.map((t) => String(t.text));
-  assert.ok(labels.includes("HP"), "HP label must appear");
-  assert.ok(labels.includes("ST"), "ST label must appear");
-  assert.ok(!labels.includes("MP"), "MP label must NOT appear");
-  assert.ok(!labels.includes("DU"), "DU label must NOT appear");
-  const hpVal = newTexts.find((t) => String(t.text) === "5/10");
-  assert.ok(hpVal, "HP value 5/10 must appear");
-  const stVal = newTexts.find((t) => String(t.text) === "3/6");
-  assert.ok(stVal, "ST value 3/6 must appear");
-  const newRects = records.rectangles.length - rectsBefore;
-  const vitalCount = 2;
-  assert.ok(newRects >= 1 + vitalCount * 3,
-    `expected at least ${1 + vitalCount * 3} new rectangles, got ${newRects}`);
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud({ ...QUICK_VIEW_MODEL_FULL, motivation: "patrolling" });
+  const footer = records.texts.find((t) => t.name === "gameplay-hud-motivation");
+  assert.ok(footer, "motivation missing from the HUD");
+  assert.equal(footer.text, "patrolling");
   renderer.dispose();
 });
 
-test("showQuickView with single vital renders that vital as a bar chart", async () => {
+test("HUD renders only the vitals present, without inventing empty bars", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  const rectsBefore = records.rectangles.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_SINGLE);
-  const newTexts = records.texts.slice(textsBefore);
-  const labels = newTexts.map((t) => String(t.text));
-  assert.ok(labels.includes("HP"), "HP label must appear for single-vital entity");
-  assert.ok(!labels.includes("MP"), "MP must not appear");
-  assert.ok(!labels.includes("ST"), "ST must not appear");
-  assert.ok(!labels.includes("DU"), "DU must not appear");
-  const valNode = newTexts.find((t) => String(t.text) === "2/8");
-  assert.ok(valNode, "value text 2/8 must appear");
-  const newRects = records.rectangles.length - rectsBefore;
-  assert.ok(newRects >= 1 + 1 * 3,
-    `expected at least 4 new rectangles for 1 vital, got ${newRects}`);
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_PARTIAL);
+  const bars = records.rectangles.filter((r) => String(r.name || "").startsWith("gameplay-hud-bar:"));
+  assert.ok(bars.length > 0 && bars.length <= 2, `expected at most two bars, got ${bars.length}`);
+  assert.ok(!records.texts.some((t) => t.text === "DU"), "must not show a vital the entity did not report");
   renderer.dispose();
 });
 
-test("showQuickView with no vitals renders only the id label", async () => {
+test("HUD with no vitals still renders the identity header", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView({ ...QUICK_VIEW_MODEL_SINGLE, vitals: null });
-  const newTexts = records.texts.slice(textsBefore);
-  const labels = newTexts.map((t) => String(t.text));
-  assert.ok(!labels.includes("HP"), "HP must not appear when vitals is null");
-  assert.ok(!labels.includes("MP"), "MP must not appear when vitals is null");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud({ ...QUICK_VIEW_MODEL_SINGLE, vitals: null });
+  assert.ok(records.texts.some((t) => t.text === "hazard-1"));
+  const bars = records.rectangles.filter((r) => String(r.name || "").startsWith("gameplay-hud-bar:"));
+  assert.equal(bars.length, 0);
   renderer.dispose();
 });
 
-test("showQuickView creates a Phaser container with vitals text", async () => {
+test("hideHud destroys the HUD container", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const containersBefore = records.containers.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL);
-  assert.ok(records.containers.length > containersBefore, "expected a new container for quick-view");
-  const allText = records.texts.map((t) => String(t.text)).join(" ").toLowerCase();
-  assert.match(allText, /8/, "expected HP current value in quick-view text");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL);
+  const hud = records.containers.find((c) => c.name === "gameplay-hud");
+  renderer.hideHud();
+  assert.equal(hud.destroyed, true);
   renderer.dispose();
 });
 
-test("showQuickView includes equipped affinity kind in the overlay", async () => {
+test("hideHud before showHud does not throw", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL);
-  const newTexts = records.texts.slice(textsBefore).map((t) => String(t.text)).join(" ").toLowerCase();
-  assert.match(newTexts, /fire/, "expected equipped affinity kind in quick-view");
+  const { renderer } = await mountedRenderer(records);
+  assert.doesNotThrow(() => renderer.hideHud());
   renderer.dispose();
 });
 
-test("showQuickView does not include expression, stack count, or motivation text", async () => {
+test("showHud replaces the existing HUD rather than stacking a second one", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL);
-  const newTexts = records.texts.slice(textsBefore).map((t) => String(t.text)).join(" ").toLowerCase();
-  assert.doesNotMatch(newTexts, /ward/, "quick-view must not show affinity expression");
-  assert.doesNotMatch(newTexts, /explore/, "quick-view must not show motivation");
-  assert.doesNotMatch(newTexts, /loot/, "quick-view must not show motivation");
-  assert.doesNotMatch(newTexts, /stack/, "quick-view must not show stack count label");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL);
+  const first = records.containers.find((c) => c.name === "gameplay-hud");
+  renderer.showHud({ ...QUICK_VIEW_MODEL, id: "warden-1" });
+  assert.equal(first.destroyed, true, "the previous HUD must be destroyed");
+  const live = records.containers.filter((c) => c.name === "gameplay-hud" && !c.destroyed);
+  assert.equal(live.length, 1, "exactly one HUD may exist at a time");
   renderer.dispose();
 });
 
-test("hideQuickView destroys the overlay container", async () => {
+test("showHud ignores input that is not an entity", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  renderer.showQuickView(QUICK_VIEW_MODEL);
-  const overlayContainer = records.containers[records.containers.length - 1];
-  renderer.hideQuickView();
-  assert.equal(overlayContainer.destroyed, true, "quick-view container must be destroyed by hideQuickView");
-  renderer.dispose();
-});
-
-test("hideQuickView before showQuickView does not throw", async () => {
-  const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  assert.doesNotThrow(() => renderer.hideQuickView());
-  renderer.dispose();
-});
-
-test("showQuickView replaces any existing quick-view overlay", async () => {
-  const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  renderer.showQuickView(QUICK_VIEW_MODEL);
-  const first = records.containers[records.containers.length - 1];
-  renderer.showQuickView({ ...QUICK_VIEW_MODEL, id: "warden-1", position: { x: 2, y: 3 } });
-  assert.equal(first.destroyed, true, "first overlay must be destroyed when second is shown");
+  const { renderer } = await mountedRenderer(records);
+  for (const bad of [null, undefined, 42, "delver"]) {
+    assert.doesNotThrow(() => renderer.showHud(bad));
+  }
+  assert.equal(records.containers.filter((c) => c.name === "gameplay-hud" && !c.destroyed).length, 0);
   renderer.dispose();
 });
 

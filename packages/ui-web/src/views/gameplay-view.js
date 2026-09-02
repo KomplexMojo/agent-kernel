@@ -166,15 +166,17 @@ export function wireGameplayView({
 
   const renderer = createRenderer({
     onSelect: (pos) => selectEntity(pos),
+    // Hover and selection share ONE panel. Previously hover drew a separate
+    // world-space quick view anchored to the tile, which shrank with camera zoom
+    // and was unreadable exactly when zoomed out. Now hover previews into the
+    // camera-fixed HUD and releasing hover falls back to whatever is selected,
+    // so there is one place to look and never two panels showing vitals.
     onHover: (pos) => {
       const model = resolveDisplayModel(pos);
-      if (model) {
-        renderer.showQuickView?.(model);
-      } else {
-        renderer.hideQuickView?.();
-      }
+      if (model) renderer.showHud?.(model);
+      else refreshHud();
     },
-    onHoverEnd: () => renderer.hideQuickView?.(),
+    onHoverEnd: () => refreshHud(),
     onKeyPress: ({ key }) => {
       if (!isRunActive()) return;
       if (key === "escape") {
@@ -263,6 +265,7 @@ export function wireGameplayView({
     renderer.clearHighlight?.();
     actorInspector?.clearSelection?.();
     actorInspector?.setRunning?.(false);
+    renderer.hideHud?.();
   }
 
   function stepForward() {
@@ -273,6 +276,7 @@ export function wireGameplayView({
     syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
+    refreshHud();
   }
 
   function stepBack() {
@@ -283,6 +287,7 @@ export function wireGameplayView({
     syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
+    refreshHud();
   }
 
   /**
@@ -299,6 +304,7 @@ export function wireGameplayView({
     syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
+    refreshHud();
     setStatus(`Run completed at tick ${currentFrameIndex}.`);
   }
 
@@ -314,6 +320,17 @@ export function wireGameplayView({
     syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
+    refreshHud();
+  }
+
+  // The HUD's resting state is the current selection; hover only borrows it.
+  function refreshHud() {
+    if (!selectedEntity?.position) {
+      renderer.hideHud?.();
+      return;
+    }
+    const model = resolveDisplayModel(selectedEntity.position) || selectedEntity;
+    renderer.showHud?.(model);
   }
 
   function selectEntity(position) {
@@ -326,6 +343,7 @@ export function wireGameplayView({
       renderer.highlightActor?.(entity.position);
       renderer.centerOnTile?.(entity.position);
     }
+    refreshHud();
     return entity;
   }
 
