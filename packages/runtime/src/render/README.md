@@ -59,6 +59,11 @@ Output is plain serializable data: no functions, no class instances.
 
 ## Colour
 
+Board tiles are **flat fills** from `GAME_COLOR_PALETTE.tiles` — the renderer draws
+no tile PNGs. `tiles` holds fills (backgrounds a sprite stands on, and the exact set
+the affinity-contrast gate iterates); `tileBorders` holds strokes, judged against the
+floor rather than against affinities.
+
 There is **one** origin for colour: `GAME_COLOR_PALETTE` and
 `GAME_AFFINITY_COLOR_HEX` in `../contracts/game-elements.js`. `affinity-palette.js`
 re-exports the affinity half and adds stack-intensity rules.
@@ -71,6 +76,7 @@ passes:
 |---|---|---|
 | pairwise ΔE across all 45 pairs | 45 | 53.0 |
 | every affinity vs **every** tile colour | 30 | 30.7 |
+| wall border vs floor | 45 | 69.7 |
 | `AFFINITY_OPPOSITES` pairs | 90 | 103.1 |
 | outline vs fill | 40 | 42.9 |
 | affinity labels vs the UI panel | WCAG AA 4.5:1 | 4.55:1 |

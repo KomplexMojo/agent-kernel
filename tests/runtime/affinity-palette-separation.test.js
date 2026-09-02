@@ -158,6 +158,23 @@ test("affinity labels are readable on the UI panel", () => {
   );
 });
 
+test("the wall border stays visible against the floor", () => {
+  // Regression guard. M3 reused tiles.wall -- a FILL -- as the wall border stroke,
+  // dropping its contrast against the floor from dE 69.7 to 9.7 and making room
+  // outlines nearly invisible on the board. Border colours therefore live in their
+  // own group: they are not backgrounds a sprite stands on, so they are not held to
+  // the affinity floor, but they ARE held to contrast against the floor.
+  const MIN_BORDER_VS_FLOOR = 45;
+  const border = GAME_COLOR_PALETTE.tileBorders?.wall;
+  assert.match(border || "", /^#[0-9a-f]{6}$/, "tileBorders.wall missing from the canonical palette");
+  const d = dE(border, GAME_COLOR_PALETTE.tiles.floor);
+  assert.ok(
+    d >= MIN_BORDER_VS_FLOOR,
+    `the wall border is only dE ${d.toFixed(1)} from the floor (floor ${MIN_BORDER_VS_FLOOR}); ` +
+      "room shape stops reading",
+  );
+});
+
 test("the tile palette is the single origin for board backgrounds", () => {
   // Five separate colour sources existed before M2: this constant, a duplicate in
   // ui-web/tile-affinity-visuals.js whose wind/decay/corrode had already drifted

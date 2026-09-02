@@ -2,7 +2,20 @@
 
 **Branch:** `feat/minimal-sprite-language-hud`
 **Opened:** 2026-09-02
-**Status:** ✅ COMPLETE — M0–M5 delivered 2026-09-02
+**Status:** ✅ COMPLETE — M0–M5 delivered 2026-09-02, plus a post-review visual pass
+
+### Post-review corrections (2026-09-02, after viewing the real UI on `index_c.html`)
+
+Reviewing the actual interface — not the synthetic probes — surfaced three things:
+
+1. **I had been verifying the wrong page.** `index.html` (2414 lines) mixes legacy and current
+   surfaces; the canonical entry is **`index_c.html`** ("Agent Kernel — Current", 189 lines), served
+   by `pnpm run serve:c`. Earlier M3/M4 app checks used the mixed page, which is why its playback
+   controls appeared inert. Re-verified on `index_c.html`.
+2. **Regression I introduced in M3:** the wall border was mapped to `tiles.wall`, a *fill*, dropping
+   contrast against the floor from **ΔE 69.7 to 9.7** — room outlines nearly invisible. Fixed with a
+   dedicated `GAME_COLOR_PALETTE.tileBorders` group, and guarded (perturbation-verified).
+3. **Tiles still drew medallion-era PNGs** over the canonical colour. Now flat fills.
 
 ---
 
@@ -564,7 +577,10 @@ once the visual work lands.
   constraints, one medallion reference. Follow-up if the language proves out.
 - The DOM `#actor-inspector` panel. It keeps the deep detail (affinity stacks, capabilities,
   constraints); the HUD is glance-level. They do not merge under this plan.
-- Tile, wall, and floor rendering. The board reads acceptably; actors are the failure.
+- ~~Tile, wall, and floor rendering.~~ **Brought into scope 2026-09-02** after reviewing the real
+  UI: the bundle's medallion-era floor PNG was a busy checker drawn *on top of* the canonical floor
+  colour, so the palette was never visible and the old art was the loudest thing on the board. Tiles
+  are now flat fills from `GAME_COLOR_PALETTE.tiles`.
 - Benchmarks. No scoring surface is touched.
 
 ---

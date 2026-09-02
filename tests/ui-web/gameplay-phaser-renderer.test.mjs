@@ -34,6 +34,8 @@ function createFakePhaser(records = {}) {
       setVisible(v) { this.visible = v; return this; },
       setInteractive() { this.interactive = true; return this; },
       setScrollFactor(f) { this.scrollFactor = f; return this; },
+      // Phaser Shapes (rectangle/circle) expose setFillStyle, not setTint.
+      setFillStyle(color, alpha) { this.fillColor = color; if (alpha !== undefined) this.fillAlpha = alpha; return this; },
       on(event, handler) { (this.handlers = this.handlers || {})[event] = handler; return this; },
       destroy() { this.destroyed = true; },
     };
@@ -1606,7 +1608,11 @@ test("drawBoard applies tint to floor tiles when tileVisuals are provided", asyn
 
   // Floor tiles at affected positions must have their tint set to the affinity color.
   // Tile at (2,2) is the origin with color 0xff4400.
-  const tintedTiles = [...records.rectangles, ...records.images].filter((node) => node.tint === 0xff4400);
+  // Tiles are Shapes now, so the affinity colour lands on fillColor, not tint.
+  // Accepting either keeps this asserting "the tile shows the affinity colour"
+  // rather than which Phaser API happened to deliver it.
+  const shows = (node, c) => node.tint === c || node.fillColor === c;
+  const tintedTiles = [...records.rectangles, ...records.images].filter((node) => shows(node, 0xff4400));
   assert.ok(
     tintedTiles.length > 0,
     "at least one floor tile node must have the affinity tint applied",
@@ -1671,7 +1677,7 @@ test("drawBoard does not apply tint to tiles without affinity visuals", async ()
   await renderer.renderRun(BOARD_STATE);
 
   // No rectangles should have the affinity tint
-  const affinityTinted = records.rectangles.filter((r) => r.tint === 0xff4400);
+  const affinityTinted = records.rectangles.filter((r) => r.tint === 0xff4400 || r.fillColor === 0xff4400);
   assert.equal(
     affinityTinted.length,
     0,
@@ -1818,7 +1824,7 @@ test("tileVisuals on walls or without overlayAssetId tint tiles without image ov
     ]),
   });
 
-  assert.ok(records.rectangles.some((rect) => rect.tint === 0xff4400 || rect.tint === 0x2b7fff));
+  assert.ok(records.rectangles.some((rect) => [rect.tint, rect.fillColor].some((c) => c === 0xff4400 || c === 0x2b7fff)));
   assert.equal(records.images.length, 0);
   renderer.dispose();
 });
@@ -1838,7 +1844,7 @@ test("renderFrame preserves non-zero tileVisuals across frame updates", async ()
   await renderer.renderRun({ ...BOARD_STATE, tileVisuals });
   await renderer.renderFrame({ ...BOARD_STATE, tileVisuals });
 
-  assert.ok(records.rectangles.some((rect) => rect.tint === 0x2b7fff));
+  assert.ok(records.rectangles.some((rect) => rect.tint === 0x2b7fff || rect.fillColor === 0x2b7fff));
   renderer.dispose();
 });
 
@@ -1851,6 +1857,6 @@ test.skip("tileVisuals with intensity of 0 produces no visual change on the tile
     ...BOARD_STATE,
     tileVisuals: new Map([["2,2", { affinityKind: "fire", intensity: 0, color: 0xff4400, alpha: 0 }]]),
   });
-  assert.equal(records.rectangles.some((rect) => rect.tint === 0xff4400), false);
+  assert.equal(records.rectangles.some((rect) => rect.tint === 0xff4400 || rect.fillColor === 0xff4400), false);
   renderer.dispose();
 });

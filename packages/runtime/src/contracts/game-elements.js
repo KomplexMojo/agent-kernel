@@ -179,6 +179,9 @@ const AFFINITY_TEXT_COLORS = Object.freeze({
 });
 
 export const GAME_COLOR_PALETTE = deepFreeze({
+  // Tile FILLS -- the backgrounds an entity can stand on. The affinity-vs-tile gate
+  // in tests/runtime/affinity-palette-separation.test.js iterates exactly this set,
+  // so only add a key here if a sprite can actually sit on top of it.
   tiles: {
     floor: "#241f22",
     wall: "#3b3237",
@@ -187,6 +190,14 @@ export const GAME_COLOR_PALETTE = deepFreeze({
     exit: "#83704d",
     inaccessible: "#101113",
     fog: "#12181c",
+  },
+  // Tile STROKES. Separate from fills on purpose: a 2px outline is not a background
+  // a sprite stands on, so it is not held to the affinity-contrast floor -- it is
+  // held to contrast against the FLOOR, which is what makes room shape readable.
+  // M3 briefly reused tiles.wall (a fill) as this stroke and dropped floor contrast
+  // from dE 69.7 to 9.7, making room outlines nearly invisible.
+  tileBorders: {
+    wall: "#cccccc",
   },
   actors: {
     delver: "#d8d2bf",

@@ -139,7 +139,9 @@ function resolveActorAssetId(resourceBundle, actor = {}) {
 
 function resolveSurfaceAsset(resourceBundle, category, key, model = {}) {
   let assetId = null;
-  if (category === "tiles") assetId = resourceBundle?.mappings?.tiles?.[key] || null;
+  // No "tiles" branch: tiles are flat fills from GAME_COLOR_PALETTE now, never bundle
+  // art, so nothing resolves a tile asset. The bundle still ships tile PNGs for other
+  // consumers; the board simply stops drawing them.
   if (category === "actors") assetId = resolveActorAssetId(resourceBundle, model);
   if (category === "items" || category === "resources") assetId = resourceBundle?.mappings?.items?.[key] || null;
   if (category === "hazards") assetId = resolveHazardAssetId(resourceBundle, model);
@@ -978,8 +980,10 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     // GAME_COLOR_PALETTE.tiles -- the declared canonical set -- was read by nothing
     // but tests. The affinity palette's contrast guarantee is measured against
     // these values, so they cannot be re-invented here.
-    const FLOOR_BG = hexToTint(GAME_COLOR_PALETTE.tiles.floor);
-    const WALL_BORDER_COLOR = hexToTint(GAME_COLOR_PALETTE.tiles.wall);
+    // A stroke colour, not a fill. M3 briefly used tiles.wall here and dropped the
+    // border's contrast against the floor from dE 69.7 to 9.7, so room outlines
+    // nearly vanished. tileBorders is a separate group for exactly this reason.
+    const WALL_BORDER_COLOR = hexToTint(GAME_COLOR_PALETTE.tileBorders.wall);
     const WALL_BORDER_ALPHA = 0.6;
     const WALL_BORDER_W = 2;
 
@@ -1002,21 +1006,17 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
         const cy = y * tileHeight + tileHeight / 2;
         const isFloor = tileType === "floor" || tileType === "spawn" || tileType === "exit";
 
-        if (isFloor) {
-          const floorBg = scene.add.rectangle(cx, cy, tileWidth, tileHeight, FLOOR_BG, 1);
-          currentContainer.add(floorBg);
-        }
-
-        const tile = addSurfaceImageOrFallback(
-          resourceBundle,
-          "tiles",
-          tileType,
-          null,
-          cx,
-          cy,
-          tileWidth,
-          tileHeight,
+        // Flat fill from the canonical palette -- no tile PNG. The bundle still ships
+        // medallion-era tile art, and drawing it on top of the palette colour meant
+        // the canonical floor was never actually visible: what showed was a busy
+        // checkered texture plus a detailed exit icon, both in the retired visual
+        // language, competing with the two-channel sprites in front of them.
+        const tile = scene.add.rectangle(
+          cx, cy, tileWidth, tileHeight,
+          hexToTint(GAME_COLOR_PALETTE.tiles[tileType] ?? GAME_COLOR_PALETTE.tiles.floor),
+          1,
         );
+        tile.setName?.(`tile:${tileType}`);
         currentContainer.add(tile);
 
         if (isFloor) {
@@ -1031,7 +1031,10 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
           const tileKey = `${x},${y}`;
           const visual = tileVisuals.get(tileKey);
           if (visual) {
-            tile.setTint?.(visual.color);
+            // Rectangles are Shapes: they have no setTint. Calling it would no-op in
+            // real Phaser while the test double recorded a tint that never rendered.
+            if (typeof tile.setFillStyle === "function") tile.setFillStyle(visual.color, 1);
+            else tile.setTint?.(visual.color);
             if (typeof visual.alpha === "number") tile.setAlpha?.(visual.alpha);
             if (visual.overlayAssetId) {
               const overlayNode = scene.add.image(cx, cy, visual.overlayAssetId);
