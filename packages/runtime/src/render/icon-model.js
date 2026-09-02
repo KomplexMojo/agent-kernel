@@ -112,7 +112,12 @@ const ITEM_SHAPES = Object.freeze({
  * concentric rings, which is also the better reading of the words (radiating
  * outward versus converging inward).
  *
- * Coordinates are in the 0..100 icon viewBox.
+ * Coordinates are in the 0..100 icon viewBox, and every glyph must fit inside
+ * ICON_GLYPH_EXTENT so the expression row keeps the same optical weight as the
+ * rows above and below it. The first version drew emit's rays out to radius 48
+ * and draw's outer ring to 44 against an ICON_GLYPH_EXTENT of ~31, so those two
+ * nearly touched the chip edge while every other glyph had margin — the row read
+ * as a different size. Enforced by a test rather than left to care.
  */
 const RAY_COUNT = 8;
 function starburst() {
@@ -120,19 +125,19 @@ function starburst() {
   for (let i = 0; i < RAY_COUNT; i += 1) {
     const a = (i * 2 * Math.PI) / RAY_COUNT;
     out.push({
-      type: "line", width: 8,
-      x1: 50 + 20 * Math.cos(a), y1: 50 + 20 * Math.sin(a),
-      x2: 50 + 44 * Math.cos(a), y2: 50 + 44 * Math.sin(a),
+      type: "line", width: 5,
+      x1: 50 + 7 * Math.cos(a), y1: 50 + 7 * Math.sin(a),
+      x2: 50 + 26 * Math.cos(a), y2: 50 + 26 * Math.sin(a),
     });
   }
-  out.push({ type: "circle", cx: 50, cy: 50, r: 16, filled: true });
+  out.push({ type: "circle", cx: 50, cy: 50, r: 9, filled: true });
   return out;
 }
 function chevron(dir) {
   const d = dir === "out" ? 1 : -1;
   return [
-    { type: "poly", width: 11, points: [[50 - 13 * d, 24], [50 + 17 * d, 50], [50 - 13 * d, 76]] },
-    { type: "line", width: 9, x1: 50 - 24 * d, y1: 50, x2: 50 + 4 * d, y2: 50 },
+    { type: "poly", width: 9, points: [[50 - 12 * d, 28], [50 + 14 * d, 50], [50 - 12 * d, 72]] },
+    { type: "line", width: 8, x1: 50 - 21 * d, y1: 50, x2: 50 + 3 * d, y2: 50 },
   ];
 }
 
@@ -142,12 +147,22 @@ export const EXPRESSION_GEOMETRY = Object.freeze({
   emit: starburst(),
   // Concentric rings: circular where emit is spiked, so the two differ in outline
   // and in area distribution rather than in an interior detail.
+  // A single compact ring with a centre dot: circular where emit is spiked, and
+  // deliberately smaller, so the two differ in outline AND in extent. Tuned
+  // against both constraints at once -- shrinking emit into draw's radius band
+  // to fix the scale pushed their overlap to 0.657 and the guard caught it.
   draw: [
-    { type: "circle", cx: 50, cy: 50, r: 40, filled: false, width: 8 },
-    { type: "circle", cx: 50, cy: 50, r: 22, filled: false, width: 8 },
-    { type: "circle", cx: 50, cy: 50, r: 6, filled: true },
+    { type: "circle", cx: 50, cy: 50, r: 21, filled: false, width: 6 },
+    { type: "circle", cx: 50, cy: 50, r: 5, filled: true },
   ],
 });
+
+/**
+ * The radius every glyph must fit inside, in the 0..100 viewBox.
+ * Matches the inset the shape glyphs use (50 * 0.58) plus half their outline,
+ * so expressions sit at the same optical size as roles, affinities and vitals.
+ */
+export const ICON_GLYPH_EXTENT = 31.5;
 
 /** Neutral ink for categories whose palette cannot carry identity. */
 export const ICON_NEUTRAL_INK = "#cfd6dd";

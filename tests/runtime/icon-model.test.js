@@ -13,6 +13,7 @@ const {
   ICON_SHAPES,
   ICON_NEUTRAL_INK,
   EXPRESSION_GEOMETRY,
+  ICON_GLYPH_EXTENT,
 } = require("../../packages/runtime/src/render/icon-model.js");
 const {
   GAME_COLOR_PALETTE,
@@ -207,6 +208,32 @@ test("expression glyphs stay distinguishable down to 16px", () => {
         );
       }
     }
+  }
+});
+
+test("expression glyphs sit at the same optical size as the other icons", () => {
+  // Reported from the rail: the expressions row read larger than the rows above
+  // and below it. It was -- emit's rays reached radius 48 and draw's outer ring
+  // 44, against roughly 31 for every shape glyph, so those two nearly touched the
+  // chip edge while the rest had margin.
+  const reach = (p) => {
+    if (p.type === "line") {
+      return Math.max(
+        Math.hypot(p.x1 - 50, p.y1 - 50),
+        Math.hypot(p.x2 - 50, p.y2 - 50),
+      ) + p.width / 2;
+    }
+    if (p.type === "poly") {
+      return Math.max(...p.points.map(([x, y]) => Math.hypot(x - 50, y - 50))) + p.width / 2;
+    }
+    return p.r + (p.filled ? 0 : p.width / 2);
+  };
+  for (const [key, prims] of Object.entries(EXPRESSION_GEOMETRY)) {
+    const extent = Math.max(...prims.map(reach));
+    assert.ok(
+      extent <= ICON_GLYPH_EXTENT,
+      `${key} reaches radius ${extent.toFixed(1)}, past the ${ICON_GLYPH_EXTENT} glyph envelope`,
+    );
   }
 });
 
