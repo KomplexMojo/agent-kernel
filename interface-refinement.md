@@ -24,6 +24,15 @@ Reviewing the actual interface — not the synthetic probes — surfaced three t
    were rendered and compared first — `docs/design/icon-chip-variations.png` — and that comparison
    killed three of the five candidates, because a dark glyph on a dark chip fails for `dark` and
    `fortify` unless the outline rule is applied.
+5. **Expressions and motivations** were then the only icons left without the chip, so they were
+   brought in too — but not identically, because they are not the same problem.
+   `docs/design/icon-alt-preview.html` compares five treatments (kept as the decision record).
+   **Expressions** ship as generated geometry: they are directional, so push/pull chevrons and
+   emit/draw rays are near-literal rather than invented. **Motivations** ship as monochrome marks in
+   the same chip, because a generated family scheme *provably cannot cover twelve* — four family
+   shapes × a filled/hollow split is eight slots, and separating the rest by dot count repeats the
+   hazard/resource mistake. Both use a neutral ink: their palettes collide (expressions worst pair
+   ΔE 10.0, motivations ΔE 7.2), so colour cannot carry identity there and is demoted to the wash.
 
 ---
 

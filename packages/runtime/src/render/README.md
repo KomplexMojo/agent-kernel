@@ -63,10 +63,20 @@ Output is plain serializable data: no functions, no class instances.
 role silhouettes and affinity fills — so the left rail and the board speak one
 language, and `ui-web/src/icon-resolver.js` draws the result as inline SVG.
 
-**Where the language has nothing to say, it declines.** Expressions and
-motivations have no shape and no colour in the sprite language, so
-`buildIconModel` returns `kind: "text"` and the caller keeps its unicode glyph.
-Generating marks for them would be design invention, not a port.
+Three kinds come back, and the split is deliberate:
+
+| kind | Categories | Why |
+|---|---|---|
+| `shape` | types, items, affinities, vitals, expressions | Generated geometry. Roles reuse the board silhouettes; expressions are directional (push/pull/emit/draw) so their geometry is near-literal. |
+| `glyph` | motivations | A monochrome mark in the same chip. Abstract, and a generated family scheme provably cannot cover twelve: four family shapes × a filled/hollow split is eight slots. |
+| `text` | ui | Outside the chip system entirely. |
+
+**Colour does not mean the same thing in every category, and the model says so.**
+For roles and affinities colour *is* identity, so the glyph is drawn in it with the
+board outline. For expressions and motivations it is not — those palettes collide
+(expressions worst pair ΔE 10.0, motivations ΔE 7.2) — so the glyph uses
+`ICON_NEUTRAL_INK` and the colour is demoted to the disc wash. Drawing them in
+their own near-identical colours would imply a distinction that is not there.
 
 Two mechanics that are easy to break:
 

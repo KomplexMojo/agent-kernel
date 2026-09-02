@@ -171,8 +171,7 @@ test("actor inspector renders bundle images in group row chips", () =>
     // Motivation chip should have bundle image
     const motivationChip = chips.find((chip) => chip.className?.includes("is-motivation"));
     assert.ok(motivationChip, "Should have motivation chip");
-    assert.match(motivationChip.innerHTML, /<img/, "Motivation chip should contain img tag from bundle");
-    assert.match(motivationChip.innerHTML, /ATTACKING/, "Motivation chip should use attacking asset");
+    assert.match(motivationChip.innerHTML, /<svg /, "Motivation chip renders the generated mark");
   }));
 
 test("actor inspector falls back to glyphs when bundle is missing", () =>
@@ -229,7 +228,7 @@ test("actor inspector falls back to glyphs when bundle is missing", () =>
     // Motivation chip should have glyph fallback
     const motivationChip = chips.find((chip) => chip.className?.includes("is-motivation"));
     assert.ok(motivationChip, "Should have motivation chip");
-    assert.equal(motivationChip.innerHTML, "💥", "Motivation chip should show attacking glyph");
+    assert.match(motivationChip.innerHTML, /<svg /, "Motivation chip is generated");
   }));
 
 test("actor inspector detail panel renders bundle images", () =>
@@ -297,8 +296,7 @@ test("actor inspector detail panel renders bundle images", () =>
 
     const emitExpressionChip = waterChips.find((chip) => chip.className?.includes("is-expression"));
     assert.ok(emitExpressionChip, "Should have emit expression chip");
-    assert.match(emitExpressionChip.innerHTML, /<img/, "Emit expression should use bundle image");
-    assert.match(emitExpressionChip.innerHTML, /EMIT/, "Should use emit asset");
+    assert.match(emitExpressionChip.innerHTML, /<svg /, "Emit expression renders generated geometry");
 
     // Check second affinity row (fire:push)
     const fireRow = affinityRows[1];
@@ -306,8 +304,7 @@ test("actor inspector detail panel renders bundle images", () =>
 
     const pushExpressionChip = fireChips.find((chip) => chip.className?.includes("is-expression"));
     assert.ok(pushExpressionChip, "Should have push expression chip");
-    assert.match(pushExpressionChip.innerHTML, /<img/, "Push expression should use bundle image");
-    assert.match(pushExpressionChip.innerHTML, /PUSH/, "Should use push asset");
+    assert.match(pushExpressionChip.innerHTML, /<svg /, "Push expression renders generated geometry");
   }));
 
 test("actor inspector detail panel falls back to legacy glyphs without bundle", () =>
@@ -365,7 +362,7 @@ test("actor inspector detail panel falls back to legacy glyphs without bundle", 
     assert.match(fireAffinity?.innerHTML, /<svg /, "Fire affinity is generated and needs no bundle");
 
     const pushExpression = firePushChips.find((chip) => chip.className?.includes("is-expression"));
-    assert.equal(pushExpression?.innerHTML, "➡️", "Push expression should use fallback glyph");
+    assert.match(pushExpression?.innerHTML ?? "", /<svg /, "generated mark");
 
     // Check water:pull row
     const waterPullRow = affinityRows[1];
@@ -377,7 +374,7 @@ test("actor inspector detail panel falls back to legacy glyphs without bundle", 
     assert.match(waterAffinity?.innerHTML ?? "", /<svg /, "Water affinity is generated and needs no bundle");
 
     const pullExpression = waterPullChips.find((chip) => chip.className?.includes("is-expression"));
-    assert.equal(pullExpression?.innerHTML, "⬅️", "Pull expression should use fallback glyph");
+    assert.match(pullExpression?.innerHTML ?? "", /<svg /, "generated mark");
 
     // Check motivation chips in traits section
     const traits = card?.children.find((child) => child.className?.includes("design-card-traits"));
@@ -386,6 +383,6 @@ test("actor inspector detail panel falls back to legacy glyphs without bundle", 
     ) || [];
 
     assert.ok(motivationChips.length >= 2, "Should have motivation chips");
-    assert.equal(motivationChips[0]?.innerHTML, "🧭", "Exploring motivation should use legacy glyph");
-    assert.equal(motivationChips[1]?.innerHTML, "💥", "Attacking motivation should use legacy glyph");
+    assert.match(motivationChips[0]?.innerHTML ?? "", /<svg /, "Exploring motivation renders its generated mark");
+    assert.match(motivationChips[1]?.innerHTML ?? "", /<svg /, "Attacking motivation renders its generated mark");
   }));

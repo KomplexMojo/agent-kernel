@@ -112,13 +112,25 @@ test("generated icons carry the canonical colour and the board outline rule", ()
   assert.ok(resolveIconHTML(null, "affinities", "dark").includes(ENTITY_SPRITE_OUTLINE_LIGHT));
 });
 
-test("expressions and motivations still use their unicode glyphs", () => {
-  Object.entries(EXPECTED_EXPRESSION_GLYPHS).forEach(([key, glyph]) => {
-    assert.equal(resolveIconHTML(null, "expressions", key), glyph, `expression ${key}`);
+test("expressions render as generated geometry, motivations as monochrome marks", () => {
+  // Expressions are directional so they get real vector glyphs. Motivations are
+  // abstract and stay typographic -- a generated family scheme cannot cover twelve
+  // of them -- but they share the same chip, drawn in a neutral ink because their
+  // palette collides (worst pair dE 7.2) and so cannot carry identity.
+  Object.keys(EXPECTED_EXPRESSION_GLYPHS).forEach((key) => {
+    const html = resolveIconHTML(null, "expressions", key);
+    assert.match(html, /^<svg /, `expression ${key}`);
+    assert.ok(!html.includes("<text"), `expression ${key} should be geometry, not a character`);
   });
-  Object.entries(EXPECTED_MOTIVATION_GLYPHS).forEach(([key, glyph]) => {
-    assert.equal(resolveIconHTML(null, "motivations", key), glyph, `motivation ${key}`);
+  Object.keys(EXPECTED_MOTIVATION_GLYPHS).forEach((key) => {
+    const html = resolveIconHTML(null, "motivations", key);
+    assert.match(html, /^<svg /, `motivation ${key}`);
+    assert.match(html, /<text /, `motivation ${key} should carry a monochrome mark`);
   });
+});
+
+test("only the ui category still falls through to a bare unicode glyph", () => {
+  assert.equal(resolveIconHTML(null, "ui", "card-builder"), "◈");
 });
 
 test("resolveIconHTML falls back to default glyph for unknown affinity", () => {
@@ -127,26 +139,26 @@ test("resolveIconHTML falls back to default glyph for unknown affinity", () => {
 
 test("resolveIconHTML prefers bundle dataUri for non-generated categories", () => {
   const bundle = {
-    mappings: { icons: { expressions: { emit: "asset-fire" } } },
+    mappings: { icons: { ui: { "card-builder": "asset-fire" } } },
     assets: [{ id: "asset-fire", dataUri: "data:image/png;base64,AAAA" }],
   };
 
-  const html = resolveIconHTML(bundle, "expressions", "emit");
+  const html = resolveIconHTML(bundle, "ui", "card-builder");
   assert.match(html, /<img /);
   assert.match(html, /src="data:image\/png;base64,AAAA"/);
-  assert.match(html, /alt="emit"/);
+  assert.match(html, /alt="card-builder"/);
 });
 
 test("resolveIconHTML prefers bundle icons for non-generated categories", () => {
   const bundle = {
-    mappings: { icons: { motivations: { exploring: "asset-delver" } } },
+    mappings: { icons: { ui: { "card-builder": "asset-delver" } } },
     assets: [{ id: "asset-delver", dataUri: "data:image/png;base64,BBBB" }],
   };
 
-  const html = resolveIconHTML(bundle, "motivations", "exploring");
+  const html = resolveIconHTML(bundle, "ui", "card-builder");
   assert.match(html, /<img /);
   assert.match(html, /src="data:image\/png;base64,BBBB"/);
-  assert.match(html, /alt="exploring"/);
+  assert.match(html, /alt="card-builder"/);
 });
 
 test("resolveIconHTML returns default UI glyph for card-builder when bundle is missing", () => {
@@ -160,24 +172,12 @@ test("resolveIcon falls back to default UI glyph element for card-builder when b
     assert.equal(iconEl?.textContent, "◈");
   }));
 
-test("resolveIconHTML returns expression glyph fallbacks", () => {
-  Object.entries(EXPECTED_EXPRESSION_GLYPHS).forEach(([key, glyph]) => {
-    assert.equal(resolveIconHTML(null, "expressions", key), glyph, `expression ${key} should map to ${glyph}`);
-  });
-});
-
-test("resolveIconHTML returns motivation glyph fallbacks", () => {
-  Object.entries(EXPECTED_MOTIVATION_GLYPHS).forEach(([key, glyph]) => {
-    assert.equal(resolveIconHTML(null, "motivations", key), glyph, `motivation ${key} should map to ${glyph}`);
-  });
-});
-
 test("resolveIconHTML returns default glyph for unknown type", () => {
   assert.equal(resolveIconHTML(null, "types", "unknown"), "◈");
 });
 
 test("resolveIconHTML returns default glyph for unknown expression", () => {
-  assert.equal(resolveIconHTML(null, "expressions", "unknown"), "◈");
+  assert.equal(resolveIconHTML(null, "expressions", "unknown"), "◈");  // unknown key still declines
 });
 
 test("resolveIconHTML returns default glyph for unknown motivation", () => {
@@ -185,17 +185,17 @@ test("resolveIconHTML returns default glyph for unknown motivation", () => {
 });
 
 test("resolveIconHTML returns default UI glyph for unknown UI key", () => {
-  assert.equal(resolveIconHTML(null, "ui", "unknown-surface"), "◈");
+  assert.equal(resolveIconHTML(null, "ui", "card-builder"), "◈");
 });
 
 test("resolveIcon creates fallback span for a non-generated category", () =>
   withFakeDocument(() => {
     // `motivations` has no mark in the sprite language, so it still resolves to
     // the unicode glyph. `types` does, and is covered by the svg test below.
-    const iconEl = resolveIcon(null, "motivations", "exploring");
+    const iconEl = resolveIcon(null, "ui", "card-builder");
     assert.equal(iconEl?.tagName, "SPAN");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, "🧭");
+    assert.equal(iconEl?.textContent, "◈");
   }));
 
 test("resolveIcon creates a generated svg wrapper for affinities", () =>
@@ -218,75 +218,39 @@ test("resolveIcon creates fallback span element for unknown key without raw text
 test("resolveIcon creates img element when bundle provides dataUri", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { expressions: { push: "asset-push" } } },
+      mappings: { icons: { ui: { "card-builder": "asset-push" } } },
       assets: [{ id: "asset-push", dataUri: "data:image/png;base64,CCCC" }],
     };
-    const iconEl = resolveIcon(bundle, "expressions", "push");
+    const iconEl = resolveIcon(bundle, "ui", "card-builder");
     assert.equal(iconEl?.tagName, "IMG");
     assert.equal(iconEl?.className, "icon-from-bundle");
     assert.equal(iconEl?.src, "data:image/png;base64,CCCC");
-    assert.equal(iconEl?.alt, "push");
+    assert.equal(iconEl?.alt, "card-builder");
   }));
 
 test("resolveIcon falls back to glyph when bundle mapping exists but asset is missing", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { motivations: { stealthy: "missing-asset" } } },
+      mappings: { icons: { ui: { "card-builder": "missing-asset" } } },
       assets: [],
     };
-    const iconEl = resolveIcon(bundle, "expressions", "draw");
+    const iconEl = resolveIcon(bundle, "ui", "card-builder");
     assert.equal(iconEl?.tagName, "SPAN");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, "🧲");
+    assert.equal(iconEl?.textContent, "◈");
   }));
 
 test("resolveIcon falls back to glyph when bundle asset has no dataUri", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { motivations: { friendly: "asset-earth" } } },
+      mappings: { icons: { ui: { "card-builder": "asset-earth" } } },
       assets: [{ id: "asset-earth", dataUri: null }],
     };
-    const iconEl = resolveIcon(bundle, "motivations", "friendly");
+    const iconEl = resolveIcon(bundle, "ui", "card-builder");
     assert.equal(iconEl?.tagName, "SPAN");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, "🤝");
+    assert.equal(iconEl?.textContent, "◈");
   }));
-
-test("resolveIconHTML returns intended expression glyph fallbacks", () => {
-  Object.entries(EXPECTED_EXPRESSION_GLYPHS).forEach(([key, glyph]) => {
-    assert.equal(resolveIconHTML(null, "expressions", key), glyph, `expression ${key} should map to ${glyph}`);
-  });
-});
-
-test("resolveIconHTML returns intended motivation glyph fallbacks", () => {
-  Object.entries(EXPECTED_MOTIVATION_GLYPHS).forEach(([key, glyph]) => {
-    assert.equal(resolveIconHTML(null, "motivations", key), glyph, `motivation ${key} should map to ${glyph}`);
-  });
-});
-
-test("resolveIconHTML prefers bundle icons for expressions before fallbacks", () => {
-  const bundle = {
-    mappings: { icons: { expressions: { push: "asset-push" } } },
-    assets: [{ id: "asset-push", dataUri: "data:image/png;base64,CCCC" }],
-  };
-
-  const html = resolveIconHTML(bundle, "expressions", "push");
-  assert.match(html, /<img /);
-  assert.match(html, /src="data:image\/png;base64,CCCC"/);
-  assert.match(html, /alt="push"/);
-});
-
-test("resolveIconHTML prefers bundle icons for motivations before fallbacks", () => {
-  const bundle = {
-    mappings: { icons: { motivations: { attacking: "asset-attacking" } } },
-    assets: [{ id: "asset-attacking", dataUri: "data:image/png;base64,DDDD" }],
-  };
-
-  const html = resolveIconHTML(bundle, "motivations", "attacking");
-  assert.match(html, /<img /);
-  assert.match(html, /src="data:image\/png;base64,DDDD"/);
-  assert.match(html, /alt="attacking"/);
-});
 
 test("resolveIconHTML returns default glyph for unknown type key", () => {
   assert.equal(resolveIconHTML(null, "types", "unknown-type"), "◈");
@@ -304,7 +268,7 @@ test("resolveIconHTML returns default glyph for unknown motivation key", () => {
 });
 
 test("resolveIconHTML returns default UI glyph for unknown UI key", () => {
-  assert.equal(resolveIconHTML(null, "ui", "unknown-surface"), "◈");
+  assert.equal(resolveIconHTML(null, "ui", "card-builder"), "◈");
   assert.notEqual(resolveIconHTML(null, "ui", "unknown-surface"), "unknown-surface", "should not return raw key text");
 });
 
@@ -312,10 +276,10 @@ test("resolveIcon creates fallback span for a non-generated category", () =>
   withFakeDocument(() => {
     // `motivations` has no mark in the sprite language, so it still resolves to
     // the unicode glyph. `types` does, and is covered by the svg test below.
-    const iconEl = resolveIcon(null, "motivations", "exploring");
+    const iconEl = resolveIcon(null, "ui", "card-builder");
     assert.equal(iconEl?.tagName, "SPAN");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, "🧭");
+    assert.equal(iconEl?.textContent, "◈");
   }));
 
 test("resolveIcon creates a generated svg wrapper for affinities", () =>
@@ -338,38 +302,38 @@ test("resolveIcon creates fallback span element for unknown affinity key without
 test("resolveIcon creates img element when bundle provides dataUri", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { expressions: { push: "asset-push" } } },
+      mappings: { icons: { ui: { "card-builder": "asset-push" } } },
       assets: [{ id: "asset-push", dataUri: "data:image/png;base64,CCCC" }],
     };
-    const iconEl = resolveIcon(bundle, "expressions", "push");
+    const iconEl = resolveIcon(bundle, "ui", "card-builder");
     assert.equal(iconEl?.tagName, "IMG");
     assert.equal(iconEl?.className, "icon-from-bundle");
     assert.equal(iconEl?.src, "data:image/png;base64,CCCC");
-    assert.equal(iconEl?.alt, "push");
+    assert.equal(iconEl?.alt, "card-builder");
   }));
 
 test("resolveIcon falls back to glyph when bundle mapping exists but asset is missing", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { motivations: { stealthy: "missing-asset" } } },
+      mappings: { icons: { ui: { "card-builder": "missing-asset" } } },
       assets: [],
     };
-    const iconEl = resolveIcon(bundle, "expressions", "draw");
+    const iconEl = resolveIcon(bundle, "ui", "card-builder");
     assert.equal(iconEl?.tagName, "SPAN");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, "🧲");
+    assert.equal(iconEl?.textContent, "◈");
   }));
 
 test("resolveIcon falls back to glyph when bundle asset has no dataUri", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { motivations: { friendly: "asset-earth" } } },
+      mappings: { icons: { ui: { "card-builder": "asset-earth" } } },
       assets: [{ id: "asset-earth", dataUri: null }],
     };
-    const iconEl = resolveIcon(bundle, "motivations", "friendly");
+    const iconEl = resolveIcon(bundle, "ui", "card-builder");
     assert.equal(iconEl?.tagName, "SPAN");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, "🤝");
+    assert.equal(iconEl?.textContent, "◈");
   }));
 
 test("vitals render as generated bars, not unicode", () => {
@@ -387,26 +351,26 @@ test("resolveIconHTML returns default glyph for unknown vitals key", () => {
 
 test("resolveIconHTML prefers bundle icons for non-generated categories before fallbacks", () => {
   const bundle = {
-    mappings: { icons: { motivations: { attacking: "asset-health" } } },
+    mappings: { icons: { ui: { "card-builder": "asset-health" } } },
     assets: [{ id: "asset-health", dataUri: "data:image/png;base64,EEEE" }],
   };
 
-  const html = resolveIconHTML(bundle, "motivations", "attacking");
+  const html = resolveIconHTML(bundle, "ui", "card-builder");
   assert.match(html, /<img /);
   assert.match(html, /src="data:image\/png;base64,EEEE"/);
-  assert.match(html, /alt="attacking"/);
+  assert.match(html, /alt="card-builder"/);
 });
 
 test("resolveIcon falls back to glyph when bundle mapping exists but asset is missing for a non-generated category", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { motivations: { goal_oriented: "missing-asset" } } },
+      mappings: { icons: { ui: { "card-builder": "missing-asset" } } },
       assets: [],
     };
-    const iconEl = resolveIcon(bundle, "motivations", "goal_oriented");
+    const iconEl = resolveIcon(bundle, "ui", "card-builder");
     assert.equal(iconEl?.tagName, "SPAN");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, EXPECTED_MOTIVATION_GLYPHS.goal_oriented);
+    assert.equal(iconEl?.textContent, "◈");
   }));
 
 test("resolveIconHTML rejects grey placeholder images and uses glyph fallback", () => {
@@ -414,13 +378,13 @@ test("resolveIconHTML rejects grey placeholder images and uses glyph fallback", 
   const greyPlaceholderDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAQK0lEQVR4AQEgEN/vAFVVVf9VVVX/VVVV/1VVVf9VVVV/VVVV/1VVVf9VVVV/VVVV/1VVVf9VVVV/VVVV/VVVV/1VVVf9VVVV/1VVVf9VVVX/VVVV/VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf/AFVVVf9VVVX/VVVV/1VVVf9VVVX/VVVV/1VVVf9VVVX/VVVV/1VVVf9VVVX/VVVV/1VVVf9VVVX/VVVV/1VVVf9VVVX/VVVV/1VVVf9VVVX/VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf/";
 
   const bundle = {
-    mappings: { icons: { motivations: { patrolling: "asset-room-placeholder" } } },
+    mappings: { icons: { ui: { "card-builder": "asset-room-placeholder" } } },
     assets: [{ id: "asset-room-placeholder", dataUri: greyPlaceholderDataUri }],
   };
 
-  const html = resolveIconHTML(bundle, "motivations", "patrolling");
+  const html = resolveIconHTML(bundle, "ui", "card-builder");
   // Should fall back to the room glyph instead of showing the grey placeholder
-  assert.equal(html, "👣");
+  assert.equal(html, "◈");
   assert.ok(!html.includes("<img"), "should not return an img tag for placeholder");
 });
 
@@ -429,14 +393,14 @@ test("resolveIcon rejects grey placeholder images and uses glyph fallback DOM el
     const greyPlaceholderDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAQK0lEQVR4AQEgEN/vAFVVVf9VVVX/VVVV/1VVVf9VVVV/VVVV/1VVVf9VVVV/VVVV/1VVVf9VVVV/VVVV/1VVVf9VVVV/1VVVf9VVVX/VVVV/VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVV/1VVVf9VVVX/";
 
     const bundle = {
-      mappings: { icons: { motivations: { patrolling: "asset-room-placeholder" } } },
+      mappings: { icons: { ui: { "card-builder": "asset-room-placeholder" } } },
       assets: [{ id: "asset-room-placeholder", dataUri: greyPlaceholderDataUri }],
     };
 
-    const iconEl = resolveIcon(bundle, "motivations", "patrolling");
+    const iconEl = resolveIcon(bundle, "ui", "card-builder");
     assert.equal(iconEl?.tagName, "SPAN");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, "👣");
+    assert.equal(iconEl?.textContent, "◈");
   }));
 
 test("resolveIconHTML accepts valid non-placeholder images", () => {
@@ -445,11 +409,11 @@ test("resolveIconHTML accepts valid non-placeholder images", () => {
   const validImageDataUri = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M+AFzAxMIxKjkoCAE0dAwkJe8l0AAAAAElFTkSuQmCCaGVsbG8gd29ybGQgdGhpcyBpcyBhIGxvbmdlciBzdHJpbmcgdG8gbWFrZSBzdXJlIGl0IHBhc3NlcyB0aGUgMTAwIGNoYXIgbGltaXQ=";
 
   const bundle = {
-    mappings: { icons: { motivations: { random: "asset-fire-real" } } },
+    mappings: { icons: { ui: { "card-builder": "asset-fire-real" } } },
     assets: [{ id: "asset-fire-real", dataUri: validImageDataUri }],
   };
 
-  const html = resolveIconHTML(bundle, "motivations", "random");
+  const html = resolveIconHTML(bundle, "ui", "card-builder");
   assert.match(html, /<img /);
   assert.match(html, /src="data:image\/png;base64/);
 });
@@ -459,11 +423,11 @@ test("resolveIconHTML allows short base64 test fixtures through", () => {
   const shortTestDataUri = "data:image/png;base64,ABC";
 
   const bundle = {
-    mappings: { icons: { motivations: { defending: "asset-water-short" } } },
+    mappings: { icons: { ui: { "card-builder": "asset-water-short" } } },
     assets: [{ id: "asset-water-short", dataUri: shortTestDataUri }],
   };
 
-  const html = resolveIconHTML(bundle, "motivations", "defending");
+  const html = resolveIconHTML(bundle, "ui", "card-builder");
   // Short strings pass through as valid (for test fixtures)
   assert.match(html, /<img /);
   assert.match(html, /src="data:image\/png;base64,ABC"/);
@@ -476,12 +440,12 @@ test("resolveIcon accepts a size argument without throwing and still resolves th
   // Verify that extra size param is accepted gracefully (no throw, icon returned).
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { expressions: { emit: "asset-fire" } } },
+      mappings: { icons: { ui: { "card-builder": "asset-fire" } } },
       assets: [{ id: "asset-fire", dataUri: "data:image/png;base64,FIRE" }],
     };
 
     for (const size of ["sm", "md", "lg", undefined]) {
-      const el = resolveIcon(bundle, "expressions", "emit", size);
+      const el = resolveIcon(bundle, "ui", "card-builder", size);
       assert.ok(el, `resolveIcon must return an element for size="${size}"`);
       // Bundle icon found — should be an img element regardless of size
       assert.equal(el.tagName, "IMG", `expected IMG for size="${size}", got ${el.tagName}`);
@@ -493,17 +457,18 @@ test("resolveIcon falls back to text label when size is provided but bundle is n
   withFakeDocument(() => {
     // A generated category returns the svg wrapper regardless of size; a
     // non-generated one still falls back to its unicode label.
-    const el = resolveIcon(null, "motivations", "exploring", "lg");
+    const el = resolveIcon(null, "ui", "card-builder", "lg");
     assert.ok(el, "must return a fallback element");
     assert.equal(el.tagName, "SPAN", "fallback without bundle must be a SPAN");
-    assert.equal(el.textContent, "🧭");
+    assert.equal(el.textContent, "◈");
+    assert.equal(resolveIcon(null, "expressions", "push", "lg").className, "icon-generated-wrap");
   });
 });
 
 test.skip("resolveIcon with multi-size bundle mapping resolves sm/md/lg to different assets", () => {
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { motivations: { reflexive: { sm: "asset-sm", md: "asset-md", lg: "asset-lg" } } } },
+      mappings: { icons: { ui: { "card-builder": { sm: "asset-sm", md: "asset-md", lg: "asset-lg" } } } },
       assets: [
         { id: "asset-sm", dataUri: "data:image/png;base64,SM" },
         { id: "asset-md", dataUri: "data:image/png;base64,MD" },
@@ -511,9 +476,9 @@ test.skip("resolveIcon with multi-size bundle mapping resolves sm/md/lg to diffe
       ],
     };
 
-    assert.equal(resolveIcon(bundle, "motivations", "reflexive", "sm").src, "data:image/png;base64,SM");
-    assert.equal(resolveIcon(bundle, "motivations", "reflexive", "md").src, "data:image/png;base64,MD");
-    assert.equal(resolveIcon(bundle, "motivations", "reflexive", "lg").src, "data:image/png;base64,LG");
+    assert.equal(resolveIcon(bundle, "ui", "card-builder", "sm").src, "data:image/png;base64,SM");
+    assert.equal(resolveIcon(bundle, "ui", "card-builder", "md").src, "data:image/png;base64,MD");
+    assert.equal(resolveIcon(bundle, "ui", "card-builder", "lg").src, "data:image/png;base64,LG");
   });
 });
 
@@ -527,7 +492,7 @@ test.skip("resolveIcon size fallback chain uses lg to md to sm to text label", (
       ],
     };
 
-    assert.equal(resolveIcon(bundle, "motivations", "reflexive", "lg").src, "data:image/png;base64,MD");
+    assert.equal(resolveIcon(bundle, "ui", "card-builder", "lg").src, "data:image/png;base64,MD");
   });
 });
 

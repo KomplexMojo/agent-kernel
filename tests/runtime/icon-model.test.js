@@ -8,7 +8,7 @@
  */
 const assert = require("node:assert/strict");
 
-const { buildIconModel, ICON_SHAPES } = require("../../packages/runtime/src/render/icon-model.js");
+const { buildIconModel, ICON_SHAPES, ICON_NEUTRAL_INK } = require("../../packages/runtime/src/render/icon-model.js");
 const {
   GAME_COLOR_PALETTE,
   GAME_AFFINITY_COLOR_HEX,
@@ -56,15 +56,37 @@ test("vitals take their colour from the canonical vital palette", () => {
   }
 });
 
-test("expressions and motivations decline rather than invent a mark", () => {
-  // These have no shape in the sprite language. Returning a generated glyph here
-  // would be inventing design, so the model reports text and lets the caller use
-  // the existing unicode fallback.
+test("expressions are geometry, motivations are marks, and only ui declines", () => {
+  // Expressions are directional, so their geometry is near-literal. Motivations are
+  // abstract AND a generated family scheme provably cannot cover twelve of them --
+  // four family shapes times a filled/hollow split is eight slots -- so they stay
+  // typographic inside the same chip. Only `ui` sits outside the chip system.
   for (const key of ["push", "pull", "emit", "draw"]) {
-    assert.equal(buildIconModel("expressions", key)?.kind, "text", `expressions/${key}`);
+    const model = buildIconModel("expressions", key);
+    assert.equal(model?.kind, "shape", `expressions/${key}`);
+    assert.equal(model.shape, key, `expressions/${key} shape`);
   }
   for (const key of ["exploring", "attacking", "user_controlled"]) {
-    assert.equal(buildIconModel("motivations", key)?.kind, "text", `motivations/${key}`);
+    const model = buildIconModel("motivations", key);
+    assert.equal(model?.kind, "glyph", `motivations/${key}`);
+    assert.ok(model.mark, `motivations/${key} needs a mark`);
+  }
+  assert.equal(buildIconModel("ui", "game-inspector")?.kind, "text");
+});
+
+test("colour identifies for roles and affinities, and only contains elsewhere", () => {
+  // Expression colours are all cyan (worst pair dE 10.0) and motivation colours
+  // collide (7.2). Drawing those glyphs in their own colours would imply a
+  // distinction that is not there, so the ink goes neutral and colour becomes wash.
+  for (const [cat, key] of [["types", "delver"], ["affinities", "fire"], ["vitals", "health"]]) {
+    const m = buildIconModel(cat, key);
+    assert.equal(m.inkHex, m.colorHex, `${cat}/${key} should draw in its own colour`);
+    assert.ok(m.outlineHex, `${cat}/${key} needs the board outline`);
+  }
+  for (const [cat, key] of [["expressions", "push"], ["motivations", "exploring"]]) {
+    const m = buildIconModel(cat, key);
+    assert.equal(m.inkHex, ICON_NEUTRAL_INK, `${cat}/${key} should use neutral ink`);
+    assert.notEqual(m.inkHex, m.colorHex, `${cat}/${key} colour must not pose as identity`);
   }
 });
 

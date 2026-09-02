@@ -60,27 +60,68 @@ function glyphPath(shape, r) {
 }
 
 /**
+ * Expression glyphs are stroked, not filled, so they return whole markup rather
+ * than a single path. push/pull are chevrons with a stem; emit/draw are rays that
+ * differ by their CORE -- solid versus hollow. An earlier attempt distinguished
+ * them by ray direction alone, which is invisible at chip size.
+ */
+function expressionMarkup(shape, ink) {
+  const c = 50;
+  if (shape === "push" || shape === "pull") {
+    const d = shape === "push" ? 1 : -1;
+    return `<path d="M ${c - 13 * d} ${c - 26} L ${c + 17 * d} ${c} L ${c - 13 * d} ${c + 26}" fill="none"`
+      + ` stroke="${ink}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>`
+      + `<line x1="${c - 24 * d}" y1="${c}" x2="${c + 4 * d}" y2="${c}" stroke="${ink}" stroke-width="9" stroke-linecap="round"/>`;
+  }
+  const out = shape === "emit";
+  let rays = "";
+  for (let i = 0; i < 8; i += 1) {
+    const a = (i * Math.PI) / 4;
+    const r1 = out ? 24 : 40;
+    const r2 = out ? 40 : 24;
+    rays += `<line x1="${(c + r1 * Math.cos(a)).toFixed(1)}" y1="${(c + r1 * Math.sin(a)).toFixed(1)}"`
+      + ` x2="${(c + r2 * Math.cos(a)).toFixed(1)}" y2="${(c + r2 * Math.sin(a)).toFixed(1)}"`
+      + ` stroke="${ink}" stroke-width="7" stroke-linecap="round"/>`;
+  }
+  return rays + (out
+    ? `<circle cx="${c}" cy="${c}" r="15" fill="${ink}"/>`
+    : `<circle cx="${c}" cy="${c}" r="14" fill="none" stroke="${ink}" stroke-width="8"/>`);
+}
+
+const EXPRESSION_SHAPES = ["push", "pull", "emit", "draw"];
+
+/**
  * Build the chip SVG markup for a generated icon model.
  * `color-mix` gives the wash without needing to know the surrounding card colour.
  */
 function iconSvg(model, label) {
   const r = 50 * CHIP.inset;
+  const ink = model.inkHex || model.colorHex;
+  const open = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="icon-generated"`
+    + ` role="img" aria-label="${label}" width="64" height="64" style="display:block">`;
+  const disc = `<circle cx="50" cy="50" r="49" fill="${model.colorHex}" fill-opacity="${CHIP.wash}"/>`;
+
+  // A monochrome mark in the same chip. Motivations are abstract, so they stay
+  // typographic; drawn as SVG text so the card rail can rasterise one code path.
+  if (model.kind === "glyph") {
+    return `${open}${disc}<text x="50" y="50" text-anchor="middle" dominant-baseline="central"`
+      + ` font-size="54" fill="${ink}"`
+      + ` font-family="system-ui, -apple-system, 'Segoe UI Symbol', sans-serif">${model.mark}</text></svg>`;
+  }
+  if (EXPRESSION_SHAPES.includes(model.shape)) {
+    return `${open}${disc}${expressionMarkup(model.shape, ink)}</svg>`;
+  }
   // A translucent fill of the element colour, NOT color-mix on currentColor: the
   // same markup is rasterised into a Phaser texture for the card rail, where there
   // is no inherited colour to mix against. fill-opacity composites over whatever
   // is behind it in both cases.
-  return [
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="icon-generated" role="img" aria-label="${label}"`,
-    // Explicit pixel dimensions, NOT width="100%". The same markup is rasterised
-    // into a Phaser texture, and a percentage has no containing block there, so the
-    // image has no intrinsic size and renders as an empty box. CSS (.icon-generated)
-    // scales it back to fill its chip in the DOM.
-    ` width="64" height="64" style="display:block">`,
-    `<circle cx="50" cy="50" r="49" fill="${model.colorHex}" fill-opacity="${CHIP.wash}"/>`,
-    `<path d="${glyphPath(model.shape, r)}" fill="${model.colorHex}"`,
-    ` stroke="${model.outlineHex}" stroke-width="${CHIP.outline}" stroke-linejoin="round"/>`,
-    `</svg>`,
-  ].join("");
+  // Explicit pixel dimensions, NOT width="100%". The same markup is rasterised
+  // into a Phaser texture, and a percentage has no containing block there, so the
+  // image has no intrinsic size and renders as an empty box. CSS scales it back.
+  const stroke = model.outlineHex
+    ? ` stroke="${model.outlineHex}" stroke-width="${CHIP.outline}" stroke-linejoin="round"`
+    : "";
+  return `${open}${disc}<path d="${glyphPath(model.shape, r)}" fill="${ink}"${stroke}/></svg>`;
 }
 
 
@@ -138,7 +179,7 @@ export function resolveIcon(bundle, category, key) {
   // medallion-era art in the retired visual language; where the sprite language
   // can speak for a category, it wins, and it needs no bundle to do it.
   const model = buildIconModel(category, key);
-  if (model?.kind === "shape") {
+  if (model?.kind === "shape" || model?.kind === "glyph") {
     const span = document.createElement("span");
     span.className = "icon-generated-wrap";
     span.innerHTML = iconSvg(model, String(key));
@@ -188,7 +229,7 @@ export function resolveIconHTML(bundle, category, key) {
   // language covers. Expressions, motivations and ui fall through to unicode,
   // because the language has no mark for them and inventing one is design work.
   const model = buildIconModel(category, key);
-  if (model?.kind === "shape") return iconSvg(model, String(key));
+  if (model?.kind === "shape" || model?.kind === "glyph") return iconSvg(model, String(key));
 
   // Try to find icon in bundle
   if (bundle?.mappings?.icons?.[category]?.[key]) {
