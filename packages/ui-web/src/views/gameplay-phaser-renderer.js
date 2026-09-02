@@ -14,6 +14,10 @@ const DEFAULT_TILE_SIZE = 32;
 // This costs maximum zoom-out on very large dungeons -- verified in M5.
 const MIN_CAMERA_ZOOM = 0.4;
 const MIN_LEGIBLE_TILE_PX = 12;
+// Ceiling on affinity-field opacity. Above this the field stops reading as an
+// overlay on the floor and starts replacing it, which also swallows any sprite
+// standing in a field of its own affinity.
+const MAX_FIELD_ALPHA = 0.45;
 const MAX_CAMERA_ZOOM = 3;
 const CAMERA_ZOOM_STEP = 1.2;
 const DRAG_SELECT_THRESHOLD = 6;
@@ -1031,11 +1035,23 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
           const tileKey = `${x},${y}`;
           const visual = tileVisuals.get(tileKey);
           if (visual) {
-            // Rectangles are Shapes: they have no setTint. Calling it would no-op in
-            // real Phaser while the test double recorded a tint that never rendered.
-            if (typeof tile.setFillStyle === "function") tile.setFillStyle(visual.color, 1);
-            else tile.setTint?.(visual.color);
-            if (typeof visual.alpha === "number") tile.setAlpha?.(visual.alpha);
+            // The affinity field is an OVERLAY on the floor, not the floor's identity.
+            //
+            // It used to tint a floor texture, which multiplies and is therefore
+            // subtle. Once tiles became flat fills, replacing the fill made a
+            // full-intensity field repaint the tile solid -- and since a sprite is
+            // drawn in its own affinity colour, an actor standing in its own field
+            // became that colour on that colour, leaving only its outline visible.
+            //
+            // Drawing a separate capped-alpha rect above the tile keeps the floor
+            // readable underneath and keeps the sprite distinct from its own field.
+            const fieldAlpha = Math.min(
+              MAX_FIELD_ALPHA,
+              typeof visual.alpha === "number" ? visual.alpha : 1,
+            );
+            const field = scene.add.rectangle(cx, cy, tileWidth, tileHeight, visual.color, fieldAlpha);
+            field.setName?.(`tile-field:${tileType}`);
+            currentContainer.add(field);
             if (visual.overlayAssetId) {
               const overlayNode = scene.add.image(cx, cy, visual.overlayAssetId);
               if (overlayNode) {

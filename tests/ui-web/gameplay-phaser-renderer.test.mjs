@@ -1597,6 +1597,29 @@ const AFFINITY_BOARD_STATE = {
   ]),
 };
 
+test("an affinity field never fully replaces the floor under it", async () => {
+  // Regression guard. When tiles became flat fills, a full-intensity field was
+  // painted straight onto the tile at alpha 1. A sprite is drawn in its own
+  // affinity colour, so an actor standing in its own field became that colour on
+  // that colour and only its outline survived -- exactly what the board showed.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
+  renderer.mount(container);
+  await renderer.renderRun(AFFINITY_BOARD_STATE);
+
+  const fields = records.rectangles.filter((r) => String(r.name || "").startsWith("tile-field:"));
+  assert.ok(fields.length > 0, "expected affinity field overlays");
+  for (const f of fields) {
+    assert.ok(
+      f.alpha <= 0.45,
+      `field alpha ${f.alpha} would repaint the tile and swallow a sprite of the same affinity`,
+    );
+    assert.ok(f.alpha > 0, "an invisible field is not a field");
+  }
+  renderer.dispose();
+});
+
 test("drawBoard applies tint to floor tiles when tileVisuals are provided", async () => {
   const records = {};
   const container = makeContainer();
@@ -1608,10 +1631,10 @@ test("drawBoard applies tint to floor tiles when tileVisuals are provided", asyn
 
   // Floor tiles at affected positions must have their tint set to the affinity color.
   // Tile at (2,2) is the origin with color 0xff4400.
-  // Tiles are Shapes now, so the affinity colour lands on fillColor, not tint.
-  // Accepting either keeps this asserting "the tile shows the affinity colour"
-  // rather than which Phaser API happened to deliver it.
-  const shows = (node, c) => node.tint === c || node.fillColor === c;
+  // The affinity field is drawn as a capped-alpha overlay ABOVE the tile rather
+  // than by repainting the tile, so the floor still reads underneath and a sprite
+  // standing in a field of its own affinity is not swallowed by it.
+  const shows = (node, c) => node.tint === c || node.color === c || node.fillColor === c;
   const tintedTiles = [...records.rectangles, ...records.images].filter((node) => shows(node, 0xff4400));
   assert.ok(
     tintedTiles.length > 0,
@@ -1677,7 +1700,7 @@ test("drawBoard does not apply tint to tiles without affinity visuals", async ()
   await renderer.renderRun(BOARD_STATE);
 
   // No rectangles should have the affinity tint
-  const affinityTinted = records.rectangles.filter((r) => r.tint === 0xff4400 || r.fillColor === 0xff4400);
+  const affinityTinted = records.rectangles.filter((r) => [r.tint, r.color, r.fillColor].includes(0xff4400));
   assert.equal(
     affinityTinted.length,
     0,
@@ -1824,7 +1847,7 @@ test("tileVisuals on walls or without overlayAssetId tint tiles without image ov
     ]),
   });
 
-  assert.ok(records.rectangles.some((rect) => [rect.tint, rect.fillColor].some((c) => c === 0xff4400 || c === 0x2b7fff)));
+  assert.ok(records.rectangles.some((rect) => [rect.tint, rect.color, rect.fillColor].some((c) => c === 0xff4400 || c === 0x2b7fff)));
   assert.equal(records.images.length, 0);
   renderer.dispose();
 });
@@ -1844,7 +1867,7 @@ test("renderFrame preserves non-zero tileVisuals across frame updates", async ()
   await renderer.renderRun({ ...BOARD_STATE, tileVisuals });
   await renderer.renderFrame({ ...BOARD_STATE, tileVisuals });
 
-  assert.ok(records.rectangles.some((rect) => rect.tint === 0x2b7fff || rect.fillColor === 0x2b7fff));
+  assert.ok(records.rectangles.some((rect) => [rect.tint, rect.color, rect.fillColor].includes(0x2b7fff)));
   renderer.dispose();
 });
 
@@ -1857,6 +1880,6 @@ test.skip("tileVisuals with intensity of 0 produces no visual change on the tile
     ...BOARD_STATE,
     tileVisuals: new Map([["2,2", { affinityKind: "fire", intensity: 0, color: 0xff4400, alpha: 0 }]]),
   });
-  assert.equal(records.rectangles.some((rect) => rect.tint === 0xff4400 || rect.fillColor === 0xff4400), false);
+  assert.equal(records.rectangles.some((rect) => [rect.tint, rect.color, rect.fillColor].includes(0xff4400)), false);
   renderer.dispose();
 });
