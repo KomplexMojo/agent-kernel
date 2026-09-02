@@ -2,15 +2,22 @@
 
 **Branch:** `feat/minimal-sprite-language-hud`
 **Opened:** 2026-09-02
-**Status:** PLANNED — no code written yet
+**Status:** M0 DONE · M2 palette DERIVED + APPROVED · M1 blocked on one open item
 
 ---
 
 ## ⏭️ START HERE
 
-Nothing is implemented. Work begins at **M0**. Milestones are strictly ordered: M1 depends on M0's
-archive existing, M3 depends on M2's palette, and M5 cannot be judged until M4 ships the HUD that
-receives the information M1 removes from the sprite.
+**Done:** M0 (archive) · M2 palette derived and **approved by the maintainer 2026-09-02**.
+**Decided:** single equipped affinity (see below). Sprite stays two-channel.
+**Next:** M2's remaining work — write the approved values into `GAME_ELEMENT_VISUALS` and land the
+separation guard — then M1.
+
+**⚠️ One open item blocks M1:** the role-shape breakpoint (option a/b/c under M2's second finding).
+Only 3 of 4 silhouettes survive below 16px, and the answer changes what M1 implements.
+
+M3 depends on M2 landing in code; M5 cannot be judged until M4 ships the HUD that receives what M1
+removes from the sprite.
 
 ---
 
@@ -121,7 +128,7 @@ only. Nothing is lost from the game; it is relocated from a 64-pixel budget to a
 
 ## Milestones
 
-### M0 — Archive the existing sprite imagery
+### M0 — Archive the existing sprite imagery ✅ DONE 2026-09-02
 
 The maintainer requires that no current sprite imagery is lost. Git history is not sufficient —
 the archive must be explicit and browsable.
@@ -138,10 +145,26 @@ the archive must be explicit and browsable.
   commit it was retired at, and how to regenerate a contact sheet from the frozen composer.
 - Regenerate and commit a final contact sheet at 64/32/16px as the visual record.
 
-**Gate:** the archive README exists and names every moved directory; `pnpm run test` unchanged.
-**Note:** M0 moves assets that the resource bundle still maps. Either keep the live paths in place
-and *copy* into the archive, or land the mapping updates in the same commit — do not leave the
-bundle pointing at moved files.
+**Delivered** at `docs/design/archive/2026-09-medallion-era/` — *not* the
+`packages/runtime/src/render/visual-assets-archive/` this plan first proposed. A museum does not
+belong inside a source package that guards and the TS program scan; it belongs with the other design
+evidence.
+
+- 424 PNGs (`visual-assets/`, `source-assets/`) — **copied, not moved**, see the finding below.
+- `actor-medallion-composer.frozen.{js,ts}` — the `.js` made **self-contained** by inlining the
+  era's palette, so it still runs after M2 changes the live one. Verified: it imports and renders.
+- `render-contact-sheet.mjs` + `contact-sheet.png` — 6 subjects × 64/32/16px, regenerable.
+- `preview-evidence/` — six renders rescued from gitignored `local-codex/`, which existed on one
+  machine only.
+- `README.md` — what the medallion encoded, why it was retired, how to regenerate.
+
+**⚠️ Finding that made M0 safe: the PNGs are never read at runtime.** Every image is already
+base64-inlined into `packages/runtime/src/render/generated/{affinity,game}-sprite-assets.js`; the
+`relativePath` fields are metadata that nothing opens (`relativePathForGameAssetId` only *builds a
+string* that `resource-bundle.js` stores on the artifact). The trees are source material for an
+out-of-repo generator. So the archive is a **copy** — the live trees stay put, `relativePath`
+metadata stays accurate, and there was no way for M0 to break the bundle. The originals get deleted
+when the code describing them is replaced, not before.
 
 ---
 
@@ -177,7 +200,7 @@ Then implement, then hand `## TODO: Test Permutations` to `/local-test-gen`.
 
 ---
 
-### M2 — Affinity palette re-derivation — **DERIVED 2026-09-02, awaiting sign-off**
+### M2 — Affinity palette re-derivation — **APPROVED 2026-09-02**, code not yet written
 
 Derivation ran ahead of M0 at the maintainer's request. Tooling and output are committed:
 
@@ -210,7 +233,7 @@ one wheel without collisions. Three pairs oppose on hue; `corrode`/`fortify` opp
 (acid vs. inert steel); `light`/`dark` oppose on *lightness*. Every opposite pair now measures
 **ΔE ≥ 103**, so the game's counterplay relation is the most visible relation on the board.
 
-Two semantic re-assignments were required and need explicit sign-off:
+Two semantic re-assignments were required. **Both approved by the maintainer 2026-09-02:**
 - **`decay` moves from brown to magenta** (`#a05828` → `#c64a9a`). It was one of two browns; rot as
   magenta is a common convention and makes it the visual complement of `life`, which it opposes.
 - **`dark` moves from near-black to deep violet** (`#0b0d12` → `#28174a`). Near-black was
@@ -254,6 +277,42 @@ Options, for the maintainer:
   arguably correct for a strategic overview.
 - (c) Reduce to three silhouettes by merging `hazard` and `resource` into one "object" shape,
   distinguished by colour alone.
+
+#### ⚠️ Finding — the ASCII/preview surface and the Phaser board use different tile palettes
+
+Raised by the maintainer 2026-09-02: the ASCII representation should share the palette and read as
+the same game. It does not today, and the gap is wider than colour choice.
+
+There are **three** surfaces with three treatments:
+
+| Surface | Floor | Wall | Affinity colour source |
+|---|---|---|---|
+| Phaser gameplay board | `#3a3a3a` (`FLOOR_BG`) | `#cccccc` border | `AFFINITY_COLOR_HEX` ✅ |
+| Level-preview image | `#d8f6c4` **pale green** | `#0a0f0d` | `AFFINITY_COLOR_HEX` ✅ |
+| ASCII text | `.` | `#` | letters (`f w e n l d c t i k`), no colour |
+
+- **Good news:** affinity colour on both *pixel* surfaces already resolves through
+  `AFFINITY_COLOR_HEX` ([guidance-level-builder.js:12](packages/runtime/src/personas/configurator/guidance-level-builder.js:12),
+  [resource-bundle.js:2](packages/runtime/src/render/resource-bundle.js:2)), so M2's re-derivation
+  propagates to both automatically. No extra wiring.
+- **Bad news:** tile colours do not. `DEFAULT_LEVEL_RENDER_PALETTE` in `guidance-level-builder.js` is
+  a **separate hardcoded map**, and its floor is near-white pale green while the board's is dark
+  grey. Same game, **opposite value polarity**.
+- **This breaks the M2 guarantee.** The palette was validated against `#3a3a3a` only. On a
+  `#d8f6c4` floor, `light` `#fdfed3` is effectively invisible. The background gate must run against
+  *every* surface background, not one.
+- Also note the old `fortify` `#9ca3af` was byte-identical to that map's `barrier` colour — an
+  existing collision the re-derivation happens to fix.
+
+**Added to M2 scope:**
+- Promote the tile colours to a single shared surface palette in `runtime` that the Phaser renderer,
+  the level-preview image, and any ANSI-coloured ASCII all read. Neither `FLOOR_BG` in `ui-web` nor
+  `DEFAULT_LEVEL_RENDER_PALETTE` in a persona is the right home for a cross-surface constant.
+- Extend the separation guard: every affinity must clear the background floor against **each**
+  background in that palette, not just `#3a3a3a`. Expect this to constrain `light` and `dark`
+  hardest, and to require re-running the derivation with both backgrounds as constraints.
+- ASCII *text* stays letter-glyphs — a terminal has no fill. Alignment there means the shared
+  palette drives ANSI colour where ANSI is used, and the letters stay the affinity initials.
 
 #### Remaining M2 work (not yet done)
 
@@ -331,7 +390,7 @@ clears on deselect, and updates across a tick.
 
 ---
 
-## ⚠️ Open design question — single vs. multiple equipped affinity
+## Decided — single equipped affinity (maintainer, 2026-09-02)
 
 Raised by the maintainer 2026-09-02, mid-derivation. It is **not** a rendering detail: the whole
 sprite language assumes exactly one affinity is active per entity at render time.
@@ -349,7 +408,8 @@ simultaneous equips force either a multi-colour fill (stripes, split discs, grad
 fail at 12px, which is the density problem this plan exists to remove) or picking a dominant one to
 display, in which case the board actively lies about state.
 
-**Recommendation: single equipped affinity, swappable, with the swap costing something.**
+**DECIDED: single equipped affinity.** The sprite stays two-channel and M1 is unblocked on this
+axis. Rationale as argued:
 1. It preserves the two-channel sprite. Multi-equip reopens M1.
 2. `AFFINITY_OPPOSITES` implies counterplay. Counterplay only works if an opponent can identify your
    active element at a glance — which is exactly what M2's ΔE ≥ 103 opposite-pair separation buys.
@@ -362,9 +422,11 @@ display, in which case the board actively lies about state.
 **Not Claude's call:** the swap *price* belongs to the Allocator, which owns pricing per the charter.
 This plan should not set it.
 
-**If multi-equip is chosen instead**, M1 changes before it starts: `EntitySpriteState` becomes
-`{ role, primary, secondary }`, the sprite needs a second colour channel, and the 12px legibility
-finding above must be re-tested against split fills before M3.
+**Consequent work, not yet scheduled:** `equippedAffinity` has no runtime contract — it exists only
+in `ui-web`. Single-equip is now a domain rule, so it needs to be modelled in `runtime` (which
+affinity is active, and what a swap costs) rather than inferred by the renderer. The swap *price*
+belongs to the Allocator per the charter; this plan does not set it. Flag as a follow-up milestone
+once the visual work lands.
 
 ---
 
