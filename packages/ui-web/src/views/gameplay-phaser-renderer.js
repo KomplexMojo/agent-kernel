@@ -243,11 +243,16 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   function fitCameraToWorld() {
     const camera = getCamera();
     if (!camera) return cameraState.zoom;
+    // No 1.0 ceiling: the level fills the viewport. That ceiling kept tiles at
+    // native 32px, which left a small level sitting in a corner of an otherwise
+    // empty screen once the inventory rail stopped sharing the width. Sprites are
+    // composed textures scaled by a pixelArt/roundPixels camera, so magnifying
+    // them stays crisp and blocky rather than blurring. MAX_CAMERA_ZOOM still
+    // caps it so a tiny level cannot become absurd.
     const fitZoom = clamp(
       Math.min(
         cameraState.viewportWidth / cameraState.worldWidth,
         cameraState.viewportHeight / cameraState.worldHeight,
-        1,
       ),
       MIN_CAMERA_ZOOM,
       MAX_CAMERA_ZOOM,
@@ -755,9 +760,13 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     const hasFooter = Boolean(model.motivation);
     const panelH = HUD.padY * 2 + HUD.headerH + rows * HUD.rowH + (hasFooter ? HUD.footerH : 0);
 
-    const vh = cameraState.viewportHeight || 300;
-    const originX = HUD.margin;
-    const originY = Math.max(HUD.margin, vh - panelH - HUD.margin);
+    // Top-right. The board fills the screen now that the inventory rail is gone
+    // from this view, and the top-right is the corner least likely to hold level
+    // geometry the player is reading -- bottom-left sat over the entry room on
+    // most generated levels.
+    const vw = cameraState.viewportWidth || 400;
+    const originX = Math.max(HUD.margin, vw - panelW - HUD.margin);
+    const originY = HUD.margin;
 
     const overlay = scene.add.container(originX, originY);
     hudContainer = overlay;

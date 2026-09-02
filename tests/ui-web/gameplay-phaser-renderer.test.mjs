@@ -655,11 +655,16 @@ test("gameplay phaser renderer fits the whole level on first render", async () =
   assert.deepEqual(records.camera.bounds, [0, 0, 960, 640]);
   // Centred on the level, not on a room inside it.
   assert.deepEqual(records.camera.center, [480, 320], "should centre on the whole level");
-  // Zoomed out far enough to contain the world rather than into one room.
-  assert.ok(records.camera.zoom <= 1, `expected a whole-level fit, got zoom ${records.camera.zoom}`);
+  // The whole world fits the viewport in BOTH axes -- that is what "fit" means.
+  // It is no longer capped at 1: the level fills the screen, so a small level is
+  // magnified rather than left sitting in a corner.
   assert.ok(
     records.camera.zoom * 960 <= container.clientWidth + 1,
-    "the fitted world must not be wider than the viewport",
+    `fitted world width ${records.camera.zoom * 960} exceeds viewport ${container.clientWidth}`,
+  );
+  assert.ok(
+    records.camera.zoom * 640 <= container.clientHeight + 1,
+    `fitted world height ${records.camera.zoom * 640} exceeds viewport ${container.clientHeight}`,
   );
   assert.equal(container.stage.dataset.gameplayWorldPixels, "960x640");
   renderer.dispose();
@@ -1062,6 +1067,31 @@ test("HUD renders current/max text and regen blocks", async () => {
   }
   const blocks = records.rectangles.filter((r) => r.width === 5 && r.height === 5);
   assert.equal(blocks.length, 3, "regen 1 + 2 + 0 + 0 should draw three blocks");
+  renderer.dispose();
+});
+
+test("HUD sits in the top-right, clear of the level", async () => {
+  // Moved from bottom-left 2026-09-02: with the inventory rail gone the board
+  // fills the viewport, and bottom-left sat over the entry room on most
+  // generated levels. Asserted against the viewport rather than a literal so a
+  // different panel size cannot silently push it off-screen.
+  const records = {};
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+  const hud = records.containers.find((c) => c.name === "gameplay-hud");
+  assert.ok(hud, "HUD container missing");
+  const { viewportWidth, viewportHeight } = renderer.getCameraState();
+  // Anchored to the right EDGE, not merely "in the right half" -- the panel can
+  // be wide relative to a narrow viewport, and the property that matters is the
+  // gap it leaves, which stays constant at any width.
+  const panel = records.rectangles
+    .filter((r) => r.width && r.height)
+    .reduce((widest, r) => (r.width > (widest?.width ?? 0) ? r : widest), null);
+  assert.ok(panel, "HUD background rect missing");
+  const rightGap = viewportWidth - (hud.x + panel.width);
+  assert.ok(rightGap >= 0 && rightGap <= 16, `HUD right gap ${rightGap} is not flush to the edge`);
+  assert.ok(hud.y >= 0 && hud.y < viewportHeight / 2, `HUD y ${hud.y} is not in the top half`);
+  assert.ok(hud.y <= 16, `HUD y ${hud.y} is not flush to the top`);
   renderer.dispose();
 });
 

@@ -52,8 +52,12 @@ appears in the **HUD** at the bottom-left of the board, for one entity at a time
 - Only the vitals a role actually has are shown — a hazard has `mana` and
   `durability`, so it shows two bars, not four.
 
-Loading a run frames the **whole level**, which is the same view the **Fit**
-control returns to. (It previously framed only the room containing the spawn,
+The level screen is the whole viewport — the inventory rail no longer shares it.
+Loading a run frames the **whole level**, scaled to fill the screen, which is the
+same view the **Fit** control returns to. A level that is not the viewport's
+aspect ratio fills the constraining axis and leaves margin on the other.
+
+The selected entity's HUD sits in the **top-right**, clear of the level. (It previously framed only the room containing the spawn,
 which made a multi-room level look like a single room until you zoomed out.)
 
 Zoom is clamped so a tile never renders below 12px, the size at which the four

@@ -393,22 +393,21 @@ li[data-level="warn"] { border-color: var(--accent); color: var(--accent-strong)
 .interface-c .status-rail { display: none; }
 .interface-c #gameplay-status { display: none; }
 
-/* Full-height grid when gameplay is active (40px = HTML tab bar) */
+/* Full-height, FULL-WIDTH when gameplay is active (40px = HTML tab bar).
+   The inventory rail used to occupy a 200px second column here. It is now its
+   own screen on Cmd/Ctrl+} -- where it has the width to show each item's HUD --
+   so the level gets the whole viewport instead of sharing it with a rail whose
+   labels never fit anyway. */
 .interface-c .workspace[data-active-tab="gameplay"] .workspace-main {
   display: grid;
-  grid-template-columns: 1fr 200px;
+  grid-template-columns: 1fr;
   grid-template-rows: 100%;
   gap: 0;
   align-items: stretch;
   height: calc(100dvh - 40px);
 }
 .interface-c .workspace[data-active-tab="gameplay"] .workspace-main #phaser-frame-root {
-  grid-column: 2;
-  grid-row: 1;
-  height: 100%;
-  min-height: unset;
-  margin-bottom: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  display: none;
 }
 .interface-c .workspace[data-active-tab="gameplay"] .workspace-main [data-tab-panel="gameplay"] {
   grid-column: 1;
