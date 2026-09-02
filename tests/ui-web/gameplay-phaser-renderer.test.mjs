@@ -651,8 +651,13 @@ test("gameplay phaser renderer fits the whole level on first render", async () =
     simConfig: { layout: { data: { width: 30, height: 20, rooms: [{ id: "R1", x: 0, y: 0, width: 4, height: 4 }] } }, seed: 0 },
   });
 
-  // Bounds still span the whole world (scroll clamping).
-  assert.deepEqual(records.camera.bounds, [0, 0, 960, 640]);
+  // Bounds must CONTAIN the world and stay centred on it. They are no longer the
+  // world exactly: Phaser clamps scroll to bounds, so a world smaller than the
+  // viewport could not be centred and pinned to one corner, leaving a dead strip.
+  const [bx, by, bw, bh] = records.camera.bounds;
+  assert.ok(bw >= 960 && bh >= 640, `bounds ${bw}x${bh} must contain the 960x640 world`);
+  assert.equal(bx + bw / 2, 960 / 2, "bounds must stay centred on the world in x");
+  assert.equal(by + bh / 2, 640 / 2, "bounds must stay centred on the world in y");
   // Centred on the level, not on a room inside it.
   assert.deepEqual(records.camera.center, [480, 320], "should centre on the whole level");
   // The whole world fits the viewport in BOTH axes -- that is what "fit" means.
@@ -1080,18 +1085,27 @@ test("HUD sits in the top-right, clear of the level", async () => {
   renderer.showHud(QUICK_VIEW_MODEL_FULL);
   const hud = records.containers.find((c) => c.name === "gameplay-hud");
   assert.ok(hud, "HUD container missing");
-  const { viewportWidth, viewportHeight } = renderer.getCameraState();
-  // Anchored to the right EDGE, not merely "in the right half" -- the panel can
-  // be wide relative to a narrow viewport, and the property that matters is the
-  // gap it leaves, which stays constant at any width.
+  const { viewportWidth, viewportHeight, worldWidth } = renderer.getCameraState();
+  // Overlaid on the LEVEL, not parked in the margin beside it. Anchoring to the
+  // viewport put the panel outside the level whenever its aspect ratio left an
+  // empty strip, which read as a side rail -- the thing this replaced.
   const panel = records.rectangles
     .filter((r) => r.width && r.height)
     .reduce((widest, r) => (r.width > (widest?.width ?? 0) ? r : widest), null);
   assert.ok(panel, "HUD background rect missing");
-  const rightGap = viewportWidth - (hud.x + panel.width);
-  assert.ok(rightGap >= 0 && rightGap <= 16, `HUD right gap ${rightGap} is not flush to the edge`);
-  assert.ok(hud.y >= 0 && hud.y < viewportHeight / 2, `HUD y ${hud.y} is not in the top half`);
-  assert.ok(hud.y <= 16, `HUD y ${hud.y} is not flush to the top`);
+  // The camera is centred on the world after a fit, so the level's on-screen box
+  // follows from exposed state alone -- no reaching into the camera object.
+  const { zoom, worldHeight } = renderer.getCameraState();
+  const levelRight = (worldWidth / 2) * zoom + viewportWidth / 2;
+  const levelTop = viewportHeight / 2 - (worldHeight / 2) * zoom;
+  assert.ok(
+    hud.x + panel.width <= levelRight + 1,
+    `HUD right edge ${hud.x + panel.width} sits past the level's right edge ${levelRight}`,
+  );
+  assert.ok(hud.y >= levelTop - 1, `HUD top ${hud.y} sits above the level's top ${levelTop}`);
+  assert.ok(hud.x >= 0 && hud.y >= 0, "HUD must stay inside the viewport");
+  assert.ok(hud.y < viewportHeight / 2, `HUD y ${hud.y} is not in the top half`);
+  assert.ok(viewportWidth > 0, "precondition");
   renderer.dispose();
 });
 

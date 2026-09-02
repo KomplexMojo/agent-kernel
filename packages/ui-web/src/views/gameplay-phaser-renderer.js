@@ -231,6 +231,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     const zoom = clamp(nextZoom, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
     cameraState.zoom = zoom;
     camera.setZoom?.(zoom);
+    applyCameraBounds();
     const targetCenterX = Number.isFinite(centerX) ? centerX : previousCenter?.x;
     const targetCenterY = Number.isFinite(centerY) ? centerY : previousCenter?.y;
     if (Number.isFinite(targetCenterX) && Number.isFinite(targetCenterY)) {
@@ -238,6 +239,31 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     }
     setStageCameraDataset();
     return zoom;
+  }
+
+  /**
+   * Camera bounds, widened so a level smaller than the viewport can CENTRE.
+   *
+   * Bounds were set to the world exactly, and Phaser clamps scroll to them, so a
+   * world narrower than the viewport could not be centred -- it pinned to the
+   * left and left a dead strip on the right. Expanding the bounds symmetrically
+   * around the world lets it centre while still stopping a pan from wandering
+   * off into nothing. Depends on zoom, so it is recomputed whenever zoom changes.
+   */
+  function applyCameraBounds() {
+    const camera = getCamera();
+    if (!camera?.setBounds) return;
+    const zoom = Number(camera.zoom) || cameraState.zoom || 1;
+    const viewW = (cameraState.viewportWidth || 0) / zoom;
+    const viewH = (cameraState.viewportHeight || 0) / zoom;
+    const boundsW = Math.max(cameraState.worldWidth, viewW);
+    const boundsH = Math.max(cameraState.worldHeight, viewH);
+    camera.setBounds(
+      (cameraState.worldWidth - boundsW) / 2,
+      (cameraState.worldHeight - boundsH) / 2,
+      boundsW,
+      boundsH,
+    );
   }
 
   function fitCameraToWorld() {
@@ -279,7 +305,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   function configureCamera({ resetView = false } = {}) {
     const camera = getCamera();
     if (!camera) return;
-    camera.setBounds?.(0, 0, cameraState.worldWidth, cameraState.worldHeight);
+    applyCameraBounds();
     if (resetView) {
       fitCameraToWorld();
     } else {
@@ -760,13 +786,21 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     const hasFooter = Boolean(model.motivation);
     const panelH = HUD.padY * 2 + HUD.headerH + rows * HUD.rowH + (hasFooter ? HUD.footerH : 0);
 
-    // Top-right. The board fills the screen now that the inventory rail is gone
-    // from this view, and the top-right is the corner least likely to hold level
-    // geometry the player is reading -- bottom-left sat over the entry room on
-    // most generated levels.
+    // Overlaid on the LEVEL's top-right corner, not the viewport's.
+    //
+    // Anchoring to the viewport put the panel out in the empty margin beside the
+    // level whenever the level's aspect ratio left one, so it read as a side rail
+    // rather than an overlay. The level's on-screen box is derived from the
+    // camera, then clamped to the viewport so the panel stays visible when the
+    // board is panned or zoomed past the edges.
     const vw = cameraState.viewportWidth || 400;
-    const originX = Math.max(HUD.margin, vw - panelW - HUD.margin);
-    const originY = HUD.margin;
+    const vh = cameraState.viewportHeight || 300;
+    const cam = getCamera();
+    const zoom = Number(cam?.zoom) || cameraState.zoom || 1;
+    const levelRight = ((cameraState.worldWidth - (Number(cam?.scrollX) || 0)) * zoom);
+    const levelTop = ((0 - (Number(cam?.scrollY) || 0)) * zoom);
+    const originX = clamp(levelRight - panelW - HUD.margin, HUD.margin, Math.max(HUD.margin, vw - panelW - HUD.margin));
+    const originY = clamp(levelTop + HUD.margin, HUD.margin, Math.max(HUD.margin, vh - panelH - HUD.margin));
 
     const overlay = scene.add.container(originX, originY);
     hudContainer = overlay;
