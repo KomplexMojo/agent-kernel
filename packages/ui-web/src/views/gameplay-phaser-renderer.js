@@ -1,4 +1,10 @@
 import { createActorMedallionTextureDescriptor } from "./actor-medallion-textures.js";
+import { GAME_COLOR_PALETTE } from "../../../runtime/src/contracts/game-elements.js";
+
+/** "#rrggbb" -> 0xrrggbb, the numeric form Phaser tints want. */
+function hexToTint(hex) {
+  return Number.parseInt(String(hex).replace("#", ""), 16);
+}
 
 const DEFAULT_TILE_SIZE = 32;
 const MIN_CAMERA_ZOOM = 0.25;
@@ -883,8 +889,14 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       tileTypeGrid.push(typeRow);
     }
 
-    const FLOOR_BG = 0x3a3a3a;
-    const WALL_BORDER_COLOR = 0xcccccc;
+    // Board backgrounds come from the canonical tile palette (M2, 2026-09-02).
+    // These were local literals that agreed with no other surface: the board drew
+    // floor 0x3a3a3a while the level-preview image drew a pale green floor, and
+    // GAME_COLOR_PALETTE.tiles -- the declared canonical set -- was read by nothing
+    // but tests. The affinity palette's contrast guarantee is measured against
+    // these values, so they cannot be re-invented here.
+    const FLOOR_BG = hexToTint(GAME_COLOR_PALETTE.tiles.floor);
+    const WALL_BORDER_COLOR = hexToTint(GAME_COLOR_PALETTE.tiles.wall);
     const WALL_BORDER_ALPHA = 0.6;
     const WALL_BORDER_W = 2;
 

@@ -11,9 +11,10 @@ import {
   normalizeEntitySpriteState,
 } from "../../packages/runtime/src/render/entity-sprite-composer.js";
 import { AFFINITY_KINDS } from "../../packages/runtime/src/contracts/domain-constants.js";
+import { GAME_COLOR_PALETTE } from "../../packages/runtime/src/contracts/game-elements.js";
 
 const SIZES = [32, 16, 12];
-const FLOOR = [58, 58, 58], BG = [21, 24, 28], INK = [232, 236, 240], DIM = [138, 148, 158];
+const FLOOR = [1, 3, 5].map((i) => parseInt(GAME_COLOR_PALETTE.tiles.floor.slice(i, i + 2), 16)), BG = [21, 24, 28], INK = [232, 236, 240], DIM = [138, 148, 158];
 const COLW = 150, ROWH = 44, LEFT = 96, TOP = 84;
 const W = LEFT + ENTITY_SPRITE_ROLES.length * COLW + 24;
 const H = TOP + AFFINITY_KINDS.length * ROWH + 40;
@@ -30,7 +31,7 @@ function text(s, x, y, c, sc = 1) {
 }
 rect(0, 0, W, H, BG);
 text("MINIMAL SPRITE LANGUAGE - ROLE x AFFINITY", 20, 20, INK, 2);
-text("TWO CHANNELS: SILHOUETTE = ROLE, FILL = AFFINITY. 12PX IS THE CAMERA FLOOR.", 20, 42, DIM, 1);
+text("SILHOUETTE = ROLE, FILL = AFFINITY. 12PX IS THE CAMERA FLOOR. BOARD = CANONICAL FLOOR TILE.", 20, 42, DIM, 1);
 rect(LEFT - 12, TOP - 20, ENTITY_SPRITE_ROLES.length * COLW + 8, AFFINITY_KINDS.length * ROWH + 24, FLOOR);
 ENTITY_SPRITE_ROLES.forEach((role, c) => {
   text(role, LEFT + c * COLW, TOP - 34, INK, 1);

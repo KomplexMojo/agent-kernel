@@ -10,13 +10,26 @@
 import { generateGridLayoutFromInput } from "./level-layout.js";
 import { deriveLevelGenFromRoomCards } from "./card-model.js";
 import { AFFINITY_COLOR_HEX, resolveStackIntensity } from "../../render/affinity-palette.js";
+import { GAME_COLOR_PALETTE } from "../../contracts/game-elements.js";
 
+// Tile colours come from the canonical palette, not from a copy here.
+//
+// Until M2 (2026-09-02) this map was independent of the board, and disagreed with
+// it on the most basic thing: the preview floor was "#d8f6c4", a pale green, while
+// the Phaser board floor was dark grey -- the same level rendered at opposite value
+// polarity depending on which surface you looked at. Worse, the affinity palette is
+// validated for contrast against DARK tiles; on the pale floor the `light` affinity
+// measured dE 12.3, i.e. invisible. `B` was also byte-identical to the old `fortify`
+// affinity colour.
+//
+// Affinity colour on this surface already resolved through AFFINITY_COLOR_HEX, so
+// only the tile backgrounds were diverging. They now share one origin.
 export const DEFAULT_LEVEL_RENDER_PALETTE = Object.freeze({
-  "#": "#0a0f0d",
-  ".": "#d8f6c4",
-  S: "#4cc9f0",
-  E: "#f4a261",
-  B: "#9ca3af",
+  "#": GAME_COLOR_PALETTE.tiles.wall,
+  ".": GAME_COLOR_PALETTE.tiles.floor,
+  S: GAME_COLOR_PALETTE.tiles.spawn,
+  E: GAME_COLOR_PALETTE.tiles.exit,
+  B: GAME_COLOR_PALETTE.tiles.barrier,
 });
 const AFFINITY_ASCII_GLYPHS = Object.freeze({
   fire: "f",

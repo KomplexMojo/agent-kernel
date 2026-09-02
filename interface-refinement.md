@@ -2,23 +2,18 @@
 
 **Branch:** `feat/minimal-sprite-language-hud`
 **Opened:** 2026-09-02
-**Status:** M0 DONE · M1 DONE · M2 palette APPROVED (code pending) · M3 next
+**Status:** M0 · M1 · M2 DONE · M3 next
 
 ---
 
 ## ⏭️ START HERE
 
-**Done:** M0 (archive) · M1 (sprite composer + tests) · M2 palette derived and **approved**.
-**Decided:** single equipped affinity · role-shape option **(a)** — raise `MIN_CAMERA_ZOOM` so a
-tile never renders below 12px.
+**Done:** M0 (archive) · M1 (sprite composer) · M2 (palette landed + guard + single-origin colour).
+**Decided:** single equipped affinity · role-shape option **(a)**.
+**Next: M3** — wire the composer into the Phaser renderer, extend it to hazards/resources, and raise
+`MIN_CAMERA_ZOOM` to `0.4`.
 
-**Next: M2's remaining code work** — write the approved values into `GAME_ELEMENT_VISUALS`, land the
-separation guard, and unify the tile palettes across the Phaser board and the level-preview image.
-Then M3.
-
-⚠️ **`docs/design/entity-sprite-sheet.png` still shows the OLD colours.** The composer reads
-`AFFINITY_COLOR_HEX`, which M2 has not yet rewritten. The shapes in it are final; the colours are not.
-
+`docs/design/entity-sprite-sheet.png` now shows the landed palette on the canonical floor tile.
 M5 cannot be judged until M4 ships the HUD that receives what M1 removes from the sprite.
 
 ---
@@ -221,7 +216,7 @@ affinity-dependent → invariance guard fails. Baseline restored and green after
 
 ---
 
-### M2 — Affinity palette re-derivation — **APPROVED 2026-09-02**, code not yet written
+### M2 — Affinity palette re-derivation ✅ DONE 2026-09-02
 
 Derivation ran ahead of M0 at the maintainer's request. Tooling and output are committed:
 
@@ -335,17 +330,58 @@ There are **three** surfaces with three treatments:
 - ASCII *text* stays letter-glyphs — a terminal has no fill. Alignment there means the shared
   palette drives ANSI colour where ANSI is used, and the letters stay the affinity initials.
 
-#### Remaining M2 work (not yet done)
+#### What landed
 
-- Write the derived values into `GAME_ELEMENT_VISUALS.affinities` in
-  [game-elements.js](packages/runtime/src/contracts/game-elements.js).
-- Land `tests/runtime/affinity-palette-separation.test.js` asserting the four gates above against
-  the palette constant, so a future colour edit fails the suite.
-- The palette also feeds ASCII styling, tile affinity visuals, and resource-bundle sprite generation
-  ([affinity-palette.js:9-11](packages/runtime/src/render/affinity-palette.js:9)). Query callers with
-  Serena `find_referencing_symbols` and update affected goldens in the same diff.
-- Check `GAME_AFFINITY_TEXT_COLOR_HEX` separately — `light` `#fdfed3` and `corrode` `#d3e602` are
-  fills, not text colours, and will fail contrast on a light background.
+- Approved values written into `AFFINITY_COLORS`
+  ([game-elements.js](packages/runtime/src/contracts/game-elements.js)).
+- `tests/runtime/affinity-palette-separation.test.js` — six executable gates:
+  pairwise ≥ 45 (achieved 53.0) · every affinity vs **every** tile ≥ 30 (achieved 30.7) · opposites
+  ≥ 90 (achieved 103.1) · outline-vs-fill ≥ 40 (achieved 42.9) · text labels ≥ WCAG AA 4.5:1 ·
+  the tile palette is complete. All six confirmed failing against the old palette first.
+- **Single origin for colour.** `GAME_COLOR_PALETTE.tiles` was already the declared canonical tile
+  set and was read by *nothing but tests*; the Phaser board and the level-preview image now both
+  read it, and `ui-web/tile-affinity-visuals.js` derives its Phaser tints from
+  `GAME_AFFINITY_COLOR_HEX` instead of holding a copy.
+
+#### ⚠️ Finding — the ui-web palette copy had already drifted into a live bug
+
+`tile-affinity-visuals.js` held a second palette labelled "Canonical 10-kind palette". It was not:
+three values had drifted to **entirely different colours** — `wind` `0x8fd3ff` pale blue vs
+`#60d8c0` teal, `decay` `0x6f7b46` olive vs `#a05828` amber-rust, `corrode` `0x7fbf42` green vs
+`#c8c030` acid yellow. Board tile tints therefore disagreed with every other surface. Two tests had
+copied the drifted values as goldens, so the bug was pinned in place and *fixing* it would have
+failed the suite. Those assertions now check propagation from the single origin instead of
+re-stating literals.
+
+#### ⚠️ Finding — `dark` was invisible on two tiles
+
+The old `dark` `#0b0d12` measured **ΔE 2.1** against the `inaccessible` tile and 4.9 against `fog`.
+Not "hard to see" — the same colour. Caught by the new tile gate, fixed by the palette.
+
+#### ⚠️ Finding — the sprite outline was invisible on light fills (M1 defect)
+
+M1 shipped one constant near-white outline. Against the near-white `light` fill that is **ΔE 23.4**,
+so a `light` sprite was a white blob with no edge. M1's own outline test missed it by only checking
+the `dark` fill. A single mid-tone clearing both extremes exists (the search returned a pale pink),
+but imposing one hue on every sprite is a large aesthetic cost. The outline is now picked from fill
+lightness — still a pure function of the affinity already shown, so the two-channel budget holds —
+giving worst case ΔE 42.9. **Division of labour:** the fill separates the sprite from the board, the
+outline separates the edge from the fill.
+
+#### ⚠️ Finding — text colours cannot mirror fills
+
+A fill is judged against dark board tiles; a label is judged against the dark UI panel by WCAG
+contrast, and they disagree. Mirroring fills into `AFFINITY_TEXT_COLORS` left `earth` at **2.18:1**
+and `dark` at **1.09:1**. Three overrides added (`earth`, `decay`, `dark`), each lightened along its
+own hue; the rest pass unchanged. Now guarded.
+
+#### Resolved: the ASCII/preview divergence
+
+The level-preview image floor was `#d8f6c4` pale green against the board's dark grey — the same
+level at opposite value polarity, and the approved palette measured `light` at ΔE 12.3 against it,
+i.e. invisible. Both surfaces now read `GAME_COLOR_PALETTE.tiles`, so the preview is dark like the
+board and the palette's contrast guarantee holds on both. ASCII *text* keeps letter-glyphs — a
+terminal has no fill — and the shared palette drives colour wherever colour is used.
 
 ---
 

@@ -21,10 +21,12 @@
  * `tests/runtime/entity-sprite-composer.test.mts` asserts that passing them
  * changes not one byte. That refusal is the design; do not widen the state.
  *
- * Figure-ground is the **outline's** job, not the fill's. A constant light
- * outline separates any fill from the board, which is what allows the affinity
- * palette to spend its range on separating fills from each other rather than
- * from the background.
+ * Figure-ground is split between the two, and the split matters:
+ *   the FILL separates the sprite from the board -- guaranteed by the tile gate
+ *     in `tests/runtime/affinity-palette-separation.test.js`;
+ *   the OUTLINE separates the silhouette's edge from its own fill.
+ * That is why the palette can spend its range on separating fills from each
+ * other, and why the outline is chosen from fill lightness rather than fixed.
  *
  * Pure: no IO, no clock, no randomness. Identical input yields a byte-identical
  * buffer.
@@ -45,10 +47,45 @@ const DEFAULT_ROLE = "delver";
 const DEFAULT_AFFINITY = "fire";
 
 /**
- * Outline colour. Constant across every role and affinity: it is the channel
- * that guarantees figure-ground, so it must not vary with the fill.
+ * Outline colours.
+ *
+ * These were a single near-white constant until M2 measured it: against the
+ * near-white `light` fill it came out at dE 23.4, so a `light` sprite was a white
+ * blob with no visible edge. A single mid-tone that clears both `light` and
+ * `dark` exists (the search returned a pale pink), but imposing one hue on every
+ * sprite is a large aesthetic cost to pay for a constant.
+ *
+ * Instead the outline is chosen from the fill's own lightness. That adds no
+ * information channel -- it is a pure function of the affinity already shown, so
+ * the two-channel budget is intact -- and it guarantees a hard edge on every
+ * fill. Worst case is now dE 42.9 (`fortify`).
+ *
+ * Division of labour: the FILL separates the sprite from the board (guaranteed by
+ * the tile gate in affinity-palette-separation.test.js); the OUTLINE separates the
+ * silhouette's edge from its own fill.
  */
-const OUTLINE = Object.freeze(hexToRgba("#f2f5f8", 255));
+export const ENTITY_SPRITE_OUTLINE_LIGHT = "#f2f5f8";
+export const ENTITY_SPRITE_OUTLINE_DARK = "#0a0c10";
+
+/** CIE L* of a hex colour. Only the lightness axis is needed here. */
+function lightnessOf(hex) {
+  const linear = [1, 3, 5].map((i) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v > 0.04045 ? Math.pow((v + 0.055) / 1.055, 2.4) : v / 12.92;
+  });
+  const y = linear[0] * 0.2126729 + linear[1] * 0.7151522 + linear[2] * 0.072175;
+  const f = y > 216 / 24389 ? Math.cbrt(y) : (841 / 108) * y + 4 / 29;
+  return 116 * f - 16;
+}
+
+/**
+ * Pick the outline for a fill colour.
+ * @param {string} fillHex
+ * @returns {string} one of ENTITY_SPRITE_OUTLINE_LIGHT / ENTITY_SPRITE_OUTLINE_DARK
+ */
+export function outlineForFill(fillHex) {
+  return lightnessOf(fillHex) > 55 ? ENTITY_SPRITE_OUTLINE_DARK : ENTITY_SPRITE_OUTLINE_LIGHT;
+}
 
 /** Minimum size that still yields a recognisable silhouette. */
 const MIN_SIZE = 6;
@@ -173,7 +210,9 @@ export function composeEntitySprite({ state, entity, size } = {}) {
     ? normalizeEntitySpriteState(state)
     : normalizeEntitySpriteState(entity);
   const dim = clampSize(size);
-  const fill = hexToRgba(AFFINITY_COLOR_HEX[resolved.affinity] || AFFINITY_COLOR_HEX[DEFAULT_AFFINITY], 255);
+  const fillHex = AFFINITY_COLOR_HEX[resolved.affinity] || AFFINITY_COLOR_HEX[DEFAULT_AFFINITY];
+  const fill = hexToRgba(fillHex, 255);
+  const outline = hexToRgba(outlineForFill(fillHex), 255);
   const pixels = new Uint8ClampedArray(dim * dim * 4);
 
   // Pass 1 -- solid fill wherever the silhouette covers.
@@ -204,10 +243,10 @@ export function composeEntitySprite({ state, entity, size } = {}) {
       );
       if (!edge) continue;
       const i = (y * dim + x) * 4;
-      pixels[i] = OUTLINE[0];
-      pixels[i + 1] = OUTLINE[1];
-      pixels[i + 2] = OUTLINE[2];
-      pixels[i + 3] = OUTLINE[3];
+      pixels[i] = outline[0];
+      pixels[i + 1] = outline[1];
+      pixels[i + 2] = outline[2];
+      pixels[i + 3] = outline[3];
     }
   }
 

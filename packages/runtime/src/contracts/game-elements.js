@@ -133,22 +133,49 @@ export const GAME_MOTIVATION_DISPLAY_GROUPS = deepFreeze([
   { id: "control_user_controlled", kinds: ["user_controlled"] },
 ]);
 
+// Derived 2026-09-02 by scripts/design/derive-affinity-palette.mjs (seeded, reproducible)
+// and approved by the maintainer. Enforced by tests/runtime/affinity-palette-separation.test.js.
+//
+// This is the ONLY channel carrying affinity on a board sprite -- the silhouette is
+// spent on role -- so separation is load-bearing, not taste. The previous palette had
+// three visually identical pairs (corrode/light dE 14.6, earth/decay 22.3) and `dark`
+// sat dE 2.1 from the inaccessible tile, i.e. invisible. Worst pair is now 53.0.
+//
+// Opposition follows AFFINITY_OPPOSITES on three axes, because ten hues do not fit one
+// wheel without collisions:
+//   hue       fire/water, earth/wind, life/decay
+//   chroma    corrode (acid) / fortify (inert steel)
+//   lightness light (near-white) / dark (charcoal violet)
+// Every opposed pair measures dE >= 103, so the counterplay relation is the most
+// visible relation on the board.
+//
+// Do not hand-edit a value here. Re-run the derivation, check the sheet at
+// docs/design/affinity-palette-sheet.png, and let the guard confirm it.
 const AFFINITY_COLORS = Object.freeze({
-  fire:    "#f05a28",  // red-orange
-  water:   "#2b7fff",  // vivid blue
-  earth:   "#7a5c33",  // warm brown
-  wind:    "#60d8c0",  // teal/cyan — distinct from water's blue
-  life:    "#49b96b",  // emerald green
-  decay:   "#a05828",  // amber-rust — distinct from life/corrode green family
-  corrode: "#c8c030",  // acid yellow — corrosion/chemical distinct from green family
-  fortify: "#9ca3af",  // neutral ward-steel — distinct from water blue
-  light:   "#f5d14d",  // yellow
-  dark:    "#0b0d12",  // near-black moon base with light sprite highlights
+  fire:    "#fe4b2c",  // red-orange — opposes water on hue
+  water:   "#5e82f1",  // blue — opposes fire on hue
+  earth:   "#794301",  // deep brown — opposes wind on hue
+  wind:    "#06f6f5",  // cyan — opposes earth on hue
+  life:    "#3ba251",  // green — opposes decay on hue
+  decay:   "#c64a9a",  // magenta rot — was a second brown, indistinguishable from earth
+  corrode: "#d3e602",  // acid yellow-green — opposes fortify on chroma
+  fortify: "#708591",  // inert steel — opposes corrode on chroma
+  light:   "#fdfed3",  // near-white — opposes dark on lightness
+  dark:    "#28174a",  // charcoal violet — near-black was invisible on the board
 });
 
+// Text colours are a SEPARATE concern from fills and cannot simply mirror them.
+// A fill is judged against the dark board tiles; a label is judged against the dark
+// UI panel (~#1e1818) by WCAG contrast, and the two disagree. Measured 2026-09-02
+// against #1e1818: `dark` 1.09, `earth` 2.18 and `decay` 4.04 all fail AA (4.5:1),
+// while every other affinity passes unchanged. Only the three failures are
+// overridden, each lightened along its own hue so the label still reads as the same
+// element as the sprite.
 const AFFINITY_TEXT_COLORS = Object.freeze({
   ...AFFINITY_COLORS,
-  dark: "#ffffff",  // legible against the near-black dark affinity background
+  earth: "#ab7948",  // fill #794301 is 2.18:1 on a dark panel — unreadable as text
+  decay: "#c65da7",  // fill #c64a9a is 4.04:1 — just under AA
+  dark:  "#ffffff",  // fill #28174a is 1.09:1 — effectively invisible
 });
 
 export const GAME_COLOR_PALETTE = deepFreeze({

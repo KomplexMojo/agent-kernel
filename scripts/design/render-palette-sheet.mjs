@@ -48,13 +48,13 @@ function shape(role, cx, cy, size, fill, outline) {
   }
 }
 rect(0, 0, W, H, rgb(BG));
-text("AFFINITY PALETTE - DERIVED 2026-09-02", 24, 22, rgb(INK), 2);
+text("AFFINITY PALETTE - LANDED 2026-09-02", 24, 22, rgb(INK), 2);
 text("BOXED BY SEMANTICS, OPTIMISED IN OKLCH, PAIRED BY THE AFFINITY-OPPOSITES TABLE", 24, 46, rgb(DIM), 1);
 
 // --- Section 1: old vs new, grouped by opposite pair
 let y = 76;
-text("CURRENT", 250, y, rgb(DIM), 1);
-text("DERIVED", 340, y, rgb(DIM), 1);
+text("RETIRED", 250, y, rgb(DIM), 1);
+text("LANDED", 340, y, rgb(DIM), 1);
 text("OPPOSED ON", 470, y, rgb(DIM), 1);
 y += 14;
 const PAIRS = [["fire","water","HUE"],["earth","wind","HUE"],["life","decay","HUE"],
@@ -101,7 +101,7 @@ for (let i = 0; i < ORDER.length; i++) {
   shape("warden", bx + 250, by + 76, 12, rgb(OLD[name]), rgb(OUTLINE));
   shape("warden", bx + 274, by + 76, 8, rgb(OLD[name]), rgb(OUTLINE));
 }
-text("LEFT BLOCK - DERIVED       RIGHT BLOCK - CURRENT", sx, 706, rgb(DIM), 1);
+text("LEFT BLOCK - LANDED       RIGHT BLOCK - RETIRED", sx, 706, rgb(DIM), 1);
 // four roles
 text("ROLES AT 32 / 16 / 12 / 8 - SHAPE SEPARABILITY", 24, 470, rgb(INK), 1);
 rect(24, 486, 420, 210, rgb(FLOOR));
