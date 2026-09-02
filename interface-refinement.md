@@ -2,22 +2,24 @@
 
 **Branch:** `feat/minimal-sprite-language-hud`
 **Opened:** 2026-09-02
-**Status:** M0 DONE · M2 palette DERIVED + APPROVED · M1 blocked on one open item
+**Status:** M0 DONE · M1 DONE · M2 palette APPROVED (code pending) · M3 next
 
 ---
 
 ## ⏭️ START HERE
 
-**Done:** M0 (archive) · M2 palette derived and **approved by the maintainer 2026-09-02**.
-**Decided:** single equipped affinity (see below). Sprite stays two-channel.
-**Next:** M2's remaining work — write the approved values into `GAME_ELEMENT_VISUALS` and land the
-separation guard — then M1.
+**Done:** M0 (archive) · M1 (sprite composer + tests) · M2 palette derived and **approved**.
+**Decided:** single equipped affinity · role-shape option **(a)** — raise `MIN_CAMERA_ZOOM` so a
+tile never renders below 12px.
 
-**⚠️ One open item blocks M1:** the role-shape breakpoint (option a/b/c under M2's second finding).
-Only 3 of 4 silhouettes survive below 16px, and the answer changes what M1 implements.
+**Next: M2's remaining code work** — write the approved values into `GAME_ELEMENT_VISUALS`, land the
+separation guard, and unify the tile palettes across the Phaser board and the level-preview image.
+Then M3.
 
-M3 depends on M2 landing in code; M5 cannot be judged until M4 ships the HUD that receives what M1
-removes from the sprite.
+⚠️ **`docs/design/entity-sprite-sheet.png` still shows the OLD colours.** The composer reads
+`AFFINITY_COLOR_HEX`, which M2 has not yet rewritten. The shapes in it are final; the colours are not.
+
+M5 cannot be judged until M4 ships the HUD that receives what M1 removes from the sprite.
 
 ---
 
@@ -168,7 +170,7 @@ when the code describing them is replaced, not before.
 
 ---
 
-### M1 — Sprite semantics module (`runtime`), tests first
+### M1 — Sprite semantics module (`runtime`), tests first ✅ DONE 2026-09-02
 
 New module `packages/runtime/src/render/entity-sprite-composer.js` (+ `.ts`), replacing
 `actor-medallion-composer` as the actor path. Per the charter, sprite *semantics* stay in `runtime`;
@@ -187,16 +189,35 @@ export const ENTITY_SPRITE_ROLES  // delver | warden | hazard | resource
 deliberately absent from the type — a state object that cannot express them cannot leak them back
 onto the sprite. This is a refusal test, not a comment.
 
-Write failing tests first in `tests/runtime/entity-sprite-composer.test.mts`:
-- Every (role × affinity) pair composes without throwing.
-- The composed buffer is a pure function of `{ role, affinity, size }` — identical inputs give a
-  byte-identical buffer (determinism).
-- Two sprites differing only in `role` differ in **silhouette occupancy**, not merely in colour.
-- Two sprites differing only in `affinity` have identical alpha masks (shape is affinity-invariant).
-- **Refusal:** passing `vitals`/`expression`/`motivation` into `normalizeEntitySpriteState` does not
-  change the composed output.
+**Delivered:** `packages/runtime/src/render/entity-sprite-composer.js` +
+`tests/runtime/entity-sprite-composer.test.mts` (11 tests, 10 permutation stubs) +
+`scripts/design/render-sprite-sheet.mjs` → `docs/design/entity-sprite-sheet.png`.
 
-Then implement, then hand `## TODO: Test Permutations` to `/local-test-gen`.
+**Deviation — `.js` only, no `.ts` twin.** The plan said "+ `.ts`". There is **no build step**:
+everything imports the `.js`, and `actor-medallion-composer.ts` is the only implementation `.ts` in
+`render/` — nothing imports it, and the typecheck gate does not cover it, so it is two hand-maintained
+copies with nothing keeping them in sync. Every other module in `render/` is `.js`. JSDoc types
+instead.
+
+**⚠️ Both original guards were too weak, and perturbation caught it.** Each is now measured:
+
+| Guard | First form | Why it failed | Now |
+|---|---|---|---|
+| Refusal | compared two *pre-normalized* `state` inputs | `composeEntitySprite` re-normalizes `state`, so extra channels were stripped before any pixel was written — it passed **vacuously**. A real vitals leak through the `entity` path went undetected. | Exercises **both** entry points; `entity` is the one the renderer uses |
+| Shape distinctness | asserted masks were *not identical* | `hazard` and `resource` differed by 16 px of 144 at 12px — visually one blob, but "not identical", so it passed | Asserts **Jaccard overlap ≤ 0.60** at 32/16/12px |
+
+**The shape guard then failed, so the shapes changed — not the threshold.** The first pair was a
+four-point star (hazard) and a diamond (resource): same family, both centred and pointy, **0.79
+overlap**. Inverting the hazard to a downward triangle and tightening the resource diamond gives
+**0.53 worst-case**, and moves the binding pair to delver/warden, which is inherently the most
+distinct. Final language: `delver ▲` · `warden ⬢` · `hazard ▼` · `resource ◆`.
+
+**Perturbation evidence** — all four guards were proven to bite by breaking the implementation:
+leak vitals via `entity` → refusal + state-keys fail · collapse hazard into resource → both shape
+guards fail · outline recoloured to match a dark fill → outline guard fails · make the silhouette
+affinity-dependent → invariance guard fails. Baseline restored and green after each.
+
+`## TODO: Test Permutations` carries 10 named stubs for `/local-test-gen`.
 
 ---
 
@@ -329,6 +350,11 @@ There are **three** surfaces with three treatments:
 ---
 
 ### M3 — Wire the new sprite into the Phaser gameplay renderer
+
+**Decided (maintainer, 2026-09-02): option (a)** — raise `MIN_CAMERA_ZOOM` from `0.25` so a tile
+never renders below **12px**, the floor M1's shape guard defends. With `DEFAULT_TILE_SIZE = 32` that
+is `12/32 = 0.375`; use `0.4` for headroom. This costs maximum zoom-out range on very large dungeons
+and must be sanity-checked against the largest scenario in M5.
 
 In [gameplay-phaser-renderer.js](packages/ui-web/src/views/gameplay-phaser-renderer.js):
 

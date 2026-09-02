@@ -1,0 +1,215 @@
+/**
+ * entity-sprite-composer.js
+ *
+ * Composes the board sprite for one entity as raw RGBA pixels.
+ *
+ * This replaces `actor-medallion-composer.js`, which encoded eight independent
+ * dimensions (role, affinity, expression, motivation and four vitals) into a
+ * single 32x32 tile. That is ~64 physical pixels once the gameplay camera zooms
+ * out, and eight channels do not fit in 64 pixels -- the medallion was legible
+ * at 64px, muddy at 32px and noise at 16px. See
+ * `docs/design/archive/2026-09-medallion-era/` for the retired art and the
+ * measurement, and `interface-refinement.md` for the plan.
+ *
+ * The budget here is deliberately **two channels**:
+ *
+ *   role     -> silhouette shape   (readable without colour)
+ *   affinity -> flat fill colour   (readable without shape)
+ *
+ * Everything else -- vitals, expression, motivation -- belongs to the HUD.
+ * `EntitySpriteState` has no field to carry them, and
+ * `tests/runtime/entity-sprite-composer.test.mts` asserts that passing them
+ * changes not one byte. That refusal is the design; do not widen the state.
+ *
+ * Figure-ground is the **outline's** job, not the fill's. A constant light
+ * outline separates any fill from the board, which is what allows the affinity
+ * palette to spend its range on separating fills from each other rather than
+ * from the background.
+ *
+ * Pure: no IO, no clock, no randomness. Identical input yields a byte-identical
+ * buffer.
+ *
+ * @module entity-sprite-composer
+ */
+
+import { AFFINITY_COLOR_HEX, hexToRgba } from "./affinity-palette.js";
+import { AFFINITY_KINDS } from "../contracts/domain-constants.js";
+
+/** Canonical composition size. Callers may request any size; this is the reference. */
+export const ENTITY_SPRITE_CANONICAL_SIZE = 32;
+
+/** The four board silhouettes. Order is stable -- tests iterate it. */
+export const ENTITY_SPRITE_ROLES = Object.freeze(["delver", "warden", "hazard", "resource"]);
+
+const DEFAULT_ROLE = "delver";
+const DEFAULT_AFFINITY = "fire";
+
+/**
+ * Outline colour. Constant across every role and affinity: it is the channel
+ * that guarantees figure-ground, so it must not vary with the fill.
+ */
+const OUTLINE = Object.freeze(hexToRgba("#f2f5f8", 255));
+
+/** Minimum size that still yields a recognisable silhouette. */
+const MIN_SIZE = 6;
+
+/**
+ * @typedef {object} EntitySpriteState
+ * @property {string} role     One of ENTITY_SPRITE_ROLES.
+ * @property {string} affinity One of AFFINITY_KINDS.
+ */
+
+function normalizeToken(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+/**
+ * Infer the board role from an entity. Mirrors the renderer's historical
+ * inference so hazards and resources keep resolving as they did.
+ */
+function inferRole(entity) {
+  const explicit = normalizeToken(
+    [entity?.role, entity?.type, entity?.archetype, entity?.actorType, entity?.kind]
+      .find((v) => typeof v === "string" && v.trim()),
+  );
+  if (ENTITY_SPRITE_ROLES.includes(explicit)) return explicit;
+  const haystack = `${explicit} ${normalizeToken(entity?.id)}`;
+  if (haystack.includes("warden") || haystack.includes("defender")) return "warden";
+  if (haystack.includes("hazard")) return "hazard";
+  if (haystack.includes("resource")) return "resource";
+  return DEFAULT_ROLE;
+}
+
+/** Pull the single active affinity. Single-equip is a domain decision (2026-09-02). */
+function inferAffinity(entity) {
+  const explicit = normalizeToken(entity?.affinity);
+  if (AFFINITY_KINDS.includes(explicit)) return explicit;
+
+  const equipped = normalizeToken(entity?.equippedAffinity?.kind ?? entity?.equippedAffinity);
+  if (AFFINITY_KINDS.includes(equipped)) return equipped;
+
+  const list = Array.isArray(entity?.affinities) ? entity.affinities : [];
+  for (const entry of list) {
+    const kind = normalizeToken(typeof entry === "string" ? entry : entry?.kind ?? entry?.name);
+    if (AFFINITY_KINDS.includes(kind)) return kind;
+  }
+
+  const traits = entity?.traits?.affinities;
+  if (traits && typeof traits === "object" && !Array.isArray(traits)) {
+    for (const key of Object.keys(traits)) {
+      const kind = normalizeToken(String(key).split(":")[0]);
+      if (AFFINITY_KINDS.includes(kind)) return kind;
+    }
+  }
+  return DEFAULT_AFFINITY;
+}
+
+/**
+ * Reduce any entity-shaped object to the two channels a sprite may carry.
+ *
+ * Deliberately lossy. Vitals, expression and motivation are dropped here, and
+ * that is the point -- this is the choke point that keeps the sprite readable.
+ *
+ * @param {unknown} entity
+ * @param {Partial<EntitySpriteState>} [override]
+ * @returns {EntitySpriteState}
+ */
+export function normalizeEntitySpriteState(entity = {}, override = {}) {
+  const source = entity && typeof entity === "object" ? entity : {};
+  const role = ENTITY_SPRITE_ROLES.includes(normalizeToken(override.role))
+    ? normalizeToken(override.role)
+    : inferRole(source);
+  const affinity = AFFINITY_KINDS.includes(normalizeToken(override.affinity))
+    ? normalizeToken(override.affinity)
+    : inferAffinity(source);
+  return { role, affinity };
+}
+
+/**
+ * Signed inside-test for each silhouette, in normalized [-1, 1] tile space.
+ * Shapes are chosen for distinct *area distribution*, not decorative detail:
+ * that is what survives downscaling.
+ */
+function isInsideShape(role, u, v) {
+  switch (role) {
+    // Upward triangle: mass at the bottom, a single apex.
+    case "delver":
+      return v > -0.92 && Math.abs(u) <= ((v + 0.92) / 1.84) * 0.98;
+    // Hexagon: broad, flat-sided, reads as a solid block.
+    case "warden": {
+      const angle = Math.atan2(v, u);
+      const sector = (((angle % (Math.PI / 3)) + Math.PI / 3) % (Math.PI / 3)) - Math.PI / 6;
+      return Math.hypot(u, v) <= (0.94 * Math.cos(Math.PI / 6)) / Math.cos(sector);
+    }
+    // Downward triangle: inverts the delver, and orientation is one of the few
+    // cues that survives downscaling. A four-point star was tried first and
+    // measured 0.79 mask overlap with the resource diamond -- same family, both
+    // centred and pointy. Inverting instead drops worst-case overlap to 0.53.
+    case "hazard":
+      return v < 0.92 && Math.abs(u) <= ((0.92 - v) / 1.84) * 0.98;
+    // Small diamond. Deliberately tighter than the warden hexagon: at 12px a
+    // hexagon is a disc, so the resource has to differ in area as well as edges.
+    case "resource":
+      return Math.abs(u) + Math.abs(v) <= 0.7;
+    default:
+      return false;
+  }
+}
+
+function clampSize(size) {
+  const requested = Number(size);
+  if (!Number.isFinite(requested) || requested <= 0) return ENTITY_SPRITE_CANONICAL_SIZE;
+  return Math.max(MIN_SIZE, Math.round(requested));
+}
+
+/**
+ * Compose one sprite.
+ *
+ * @param {{ state?: EntitySpriteState, entity?: unknown, size?: number }} input
+ * @returns {Uint8ClampedArray} RGBA, `size * size * 4` bytes.
+ */
+export function composeEntitySprite({ state, entity, size } = {}) {
+  const resolved = state && typeof state === "object"
+    ? normalizeEntitySpriteState(state)
+    : normalizeEntitySpriteState(entity);
+  const dim = clampSize(size);
+  const fill = hexToRgba(AFFINITY_COLOR_HEX[resolved.affinity] || AFFINITY_COLOR_HEX[DEFAULT_AFFINITY], 255);
+  const pixels = new Uint8ClampedArray(dim * dim * 4);
+
+  // Pass 1 -- solid fill wherever the silhouette covers.
+  const inside = new Uint8Array(dim * dim);
+  for (let y = 0; y < dim; y += 1) {
+    for (let x = 0; x < dim; x += 1) {
+      const u = ((x + 0.5) / dim) * 2 - 1;
+      const v = ((y + 0.5) / dim) * 2 - 1;
+      if (!isInsideShape(resolved.role, u, v)) continue;
+      inside[y * dim + x] = 1;
+      const i = (y * dim + x) * 4;
+      pixels[i] = fill[0];
+      pixels[i + 1] = fill[1];
+      pixels[i + 2] = fill[2];
+      pixels[i + 3] = 255;
+    }
+  }
+
+  // Pass 2 -- overwrite the boundary with the constant outline. Done as a second
+  // pass so outline width does not depend on scan order.
+  for (let y = 0; y < dim; y += 1) {
+    for (let x = 0; x < dim; x += 1) {
+      if (!inside[y * dim + x]) continue;
+      const edge = (
+        x === 0 || y === 0 || x === dim - 1 || y === dim - 1 ||
+        !inside[y * dim + (x - 1)] || !inside[y * dim + (x + 1)] ||
+        !inside[(y - 1) * dim + x] || !inside[(y + 1) * dim + x]
+      );
+      if (!edge) continue;
+      const i = (y * dim + x) * 4;
+      pixels[i] = OUTLINE[0];
+      pixels[i + 1] = OUTLINE[1];
+      pixels[i + 2] = OUTLINE[2];
+      pixels[i + 3] = OUTLINE[3];
+    }
+  }
+
+  return pixels;
+}
