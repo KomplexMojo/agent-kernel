@@ -1,5 +1,6 @@
 import { wireTabs } from "./tabs.js";
 import { createActorInspector } from "./actor-inspector.js";
+import { createInventoryScreen } from "./inventory-screen.js";
 import { createCliWorkerAdapter } from "../../adapters-web/src/adapters/cli-worker/index.js";
 import { buildResultHasBundle } from "./build-orchestrator.js";
 import { shouldReuseActiveRun } from "./gameplay-launch.js";
@@ -45,6 +46,7 @@ let previewView = null;
 let actorInspector = null;
 let gameplayView = null;
 let phaserFrame = null;
+let inventoryScreen = null;
 let gameplayRunPending = false;
 // tabGeneration captured when gameplayRunPending was set; see the onBundleLoaded guard.
 let pendingGameplayGeneration = -1;
@@ -479,6 +481,12 @@ if (document.querySelector("#phaser-frame-root")) {
     onInventorySelect: (card) => gameplayView?.selectEntityById?.(card.id) ?? null,
   });
   phaserFrame.mount();
+  inventoryScreen = createInventoryScreen({
+    getCards: () => phaserFrame?.getCardController?.()?.getCards?.() || [],
+    getAllocationLedger: () => phaserFrame?.getCardController?.()?.getAllocationLedger?.() || null,
+    getResourceBundle: () => _startupResourceBundle,
+  });
+  globalThis.__ak_inventoryScreen = inventoryScreen;
   phaserFrame.setResourceBundle(_startupResourceBundle);
   globalThis.__ak_phaserFrame = phaserFrame;
 }
@@ -494,6 +502,16 @@ if (document.querySelector("#phaser-frame-root")) {
 // Chrome reserves it for browser-tab switching and pages cannot intercept it.
 document.addEventListener("keydown", (event) => {
   if (event.metaKey || event.ctrlKey) {
+    // Checked BEFORE the plain brackets: a layout that reports Shift+"]" as key
+    // "]" would otherwise navigate forward and never reach the toggle.
+    // Cmd/Ctrl+} sits in the same bracket family as screen navigation on purpose
+    // -- it is a screen you switch to, not a game binding -- and Shift keeps it
+    // clear of Cmd+] itself.
+    if (event.key === "}" || (event.shiftKey && event.key === "]")) {
+      event.preventDefault();
+      inventoryScreen?.toggle?.();
+      return;
+    }
     if (event.key === "]") {
       event.preventDefault();
       navigateScreens("forward");
@@ -504,6 +522,11 @@ document.addEventListener("keydown", (event) => {
       navigateScreens("back");
       return;
     }
+  }
+  if (event.key === "Escape" && inventoryScreen?.isOpen?.()) {
+    event.preventDefault();
+    inventoryScreen.hide();
+    return;
   }
   if (event.ctrlKey && !event.metaKey) {
     if (event.key === "1") {

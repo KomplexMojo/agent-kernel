@@ -184,6 +184,8 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   let currentContainer = null;
   let hudContainer = null;
   let hudCamera = null;
+  let hudEntity = null;
+  let resizeObserver = null;
   let lastHoverTile = null;
   let actorNodes = new Map();
   let selectedActorKey = null;
@@ -757,6 +759,40 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     }
   }
 
+  /**
+   * Keep the canvas matched to its container.
+   *
+   * The game was sized once, at creation, and only re-sized on a re-render. The
+   * gameplay tab lays out in a CSS grid (`1fr 200px`) with the inventory rail in
+   * column two, but the game is created while the design layout is active and
+   * full width -- so on switching tabs the canvas kept its old width and
+   * overhung the rail by ~40px, clipping the inventory labels underneath it.
+   * A tab switch does not re-render, so nothing corrected it.
+   */
+  function applyViewportSize() {
+    const width = Math.max(1, Math.round(container?.clientWidth || 0));
+    const height = Math.max(1, Math.round(container?.clientHeight || 0));
+    if (width <= 1 || height <= 1) return;
+    if (width === cameraState.viewportWidth && height === cameraState.viewportHeight) return;
+
+    cameraState.viewportWidth = width;
+    cameraState.viewportHeight = height;
+    game?.scale?.resize?.(width, height);
+    getCamera()?.setSize?.(width, height);
+    hudCamera?.setSize?.(width, height);
+    configureCamera({ resetView: false });
+    // The HUD anchors to the viewport height at draw time, so it has to be
+    // redrawn rather than merely resized.
+    if (hudEntity) showHud(hudEntity);
+    setStageCameraDataset();
+  }
+
+  function observeContainerSize() {
+    if (resizeObserver || typeof globalThis.ResizeObserver !== "function" || !container) return;
+    resizeObserver = new globalThis.ResizeObserver(() => applyViewportSize());
+    resizeObserver.observe(container);
+  }
+
   const hexToInt = (hex) => Number.parseInt(String(hex).replace("#", ""), 16);
 
   /**
@@ -773,6 +809,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
    */
   function showHud(entity) {
     hideHud();
+    hudEntity = entity ?? null;
     if (!scene?.add?.container) return;
     const model = buildActorHudModel(entity);
     if (!model) return;
@@ -1138,6 +1175,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     mount(nextContainer) {
       container = nextContainer || container;
       stageEl = ensureGameplayStageElement(container);
+      observeContainerSize();
     },
     async renderRun(boardState, { tickIndex = null } = {}) {
       return drawBoard(boardState, { resetCamera: true, tickIndex });
@@ -1181,7 +1219,10 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       closePlayerPanel();
       clearHighlight();
       hideHud();
+      hudEntity = null;
       hudCamera = null;
+      resizeObserver?.disconnect?.();
+      resizeObserver = null;
       actorNodes.clear();
       if (currentContainer) {
         currentContainer.destroy(true);

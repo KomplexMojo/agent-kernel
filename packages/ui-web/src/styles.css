@@ -428,3 +428,42 @@ li[data-level="warn"] { border-color: var(--accent); color: var(--accent-strong)
   min-height: unset;
   border: none;
 }
+
+/* --- Inventory summary screen (Cmd/Ctrl+} ) -------------------------------
+   A DOM overlay rather than more canvas: the inventory rail is painted inside
+   the card-builder canvas, which is why it sat under the gameplay canvas and
+   why its labels clipped rather than wrapped. */
+.ak-inventory-screen {
+  position: fixed; inset: 0; z-index: 9000;
+  display: grid; place-items: center;
+  background: rgba(8, 7, 9, 0.72);
+  backdrop-filter: blur(2px);
+}
+.ak-inventory-screen[hidden] { display: none !important; }
+.ak-inv-panel {
+  width: min(620px, 92vw); max-height: 84vh; overflow: auto;
+  background: linear-gradient(162deg, rgba(30, 24, 24, 0.98), rgba(21, 16, 16, 0.99));
+  border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+.ak-inv-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+.ak-inv-header h2 { margin: 0; font-size: 1rem; letter-spacing: 0.06em; }
+.ak-inv-hint { color: var(--muted); font-size: 0.75rem; }
+.ak-inv-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.ak-inv-table th {
+  text-align: right; font-weight: 400; color: var(--muted);
+  font-size: 0.7rem; letter-spacing: 0.08em; padding: 0 0 8px; border-bottom: 1px solid var(--border);
+}
+.ak-inv-table th:nth-child(1), .ak-inv-table th:nth-child(2) { text-align: left; }
+.ak-inv-table td { padding: 7px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+.ak-inv-table tr.is-empty { opacity: 0.45; }
+.ak-inv-table tr.is-unknown { color: #ffb4a2; }
+.ak-inv-icon { width: 30px; }
+.ak-inv-chip {
+  width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid #674f48; border-radius: 999px; overflow: hidden;
+}
+.ak-inv-chip svg { width: 100%; height: 100%; display: block; }
+.ak-inv-count, .ak-inv-num { text-align: right; font-variant-numeric: tabular-nums; }
+.ak-inv-num.is-over { color: #ff6b6b; }
+.ak-inv-table tfoot td { border-top: 1px solid var(--border); border-bottom: none; padding-top: 10px; font-weight: 600; }

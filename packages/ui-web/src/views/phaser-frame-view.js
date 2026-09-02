@@ -103,6 +103,9 @@ export function createPhaserFrameView({
     setActiveTab: (tabId) => cardRenderer?.setActiveTab?.(tabId),
     setRenderMode: (mode) => cardRenderer?.setRenderMode?.(mode),
     ingest: (payload) => ingestion.ingest(payload),
+    // Exposed so surfaces outside the canvas -- the inventory summary screen --
+    // read the same card state the shelf rail draws, instead of a second copy.
+    getCardController: () => cardBuilderController,
     getCardBuilderSurface: () => cardBuilderSurface,
     getGameplaySurface: () => gameplaySurface,
     getCardBuilderHost: () => cardBuilderHost,
