@@ -30,8 +30,9 @@ independent dimensions** into a single 32×32 tile:
 | Stamina | continuous | Bottom edge bar |
 | Mana | continuous | Left edge bar |
 
-The generated contact sheet (`local-codex/actor-medallion-preview/generated/actor-medallions-contact-sheet.png`)
-shows the failure directly: legible at 64px, muddy at 32px, indistinguishable noise at 16px.
+The generated contact sheet shows the failure directly: legible at 64px, muddy at 32px,
+indistinguishable noise at 16px. (It lives under `local-codex/`, which is **gitignored** — M0 must
+copy it to a tracked path, or this plan cites evidence no other clone can see.)
 
 **32px is not the worst case — it is the best case.** `DEFAULT_TILE_SIZE` is 32, but
 `fitCameraToWorld()` clamps zoom to `MIN_CAMERA_ZOOM = 0.25`
@@ -72,6 +73,8 @@ they are not.** CIE76 ΔE over `GAME_AFFINITY_COLOR_HEX`, and against the floor 
 
 Reliable discrimination of small colour patches needs roughly **ΔE ≥ 30** between any two, and
 **ΔE ≥ 45** against the background. Three pairs and two background cases fail.
+
+**The ΔE ≥ 45 background bar turned out to be unreachable, and was retired — see M2.**
 
 **This does not block the decision — it adds M2.** Hue remains the affinity channel; the palette is
 re-derived to meet a measured, test-enforced separation floor. Where hue alone cannot span ten
@@ -174,29 +177,95 @@ Then implement, then hand `## TODO: Test Permutations` to `/local-test-gen`.
 
 ---
 
-### M2 — Affinity palette re-derivation, with a measured gate
+### M2 — Affinity palette re-derivation — **DERIVED 2026-09-02, awaiting sign-off**
 
-This is the milestone the concern above buys.
+Derivation ran ahead of M0 at the maintainer's request. Tooling and output are committed:
 
-- Re-derive `GAME_AFFINITY_COLOR_HEX` in
-  [game-elements.js](packages/runtime/src/contracts/game-elements.js) for perceptual separation.
-  Suggested approach: fix the ten hues at even intervals in a perceptually-uniform space (OKLCH or
-  CIELAB), then push `dark` and `light` apart on the **lightness** axis specifically so they read
-  against a mid-grey floor.
-- Land the measurement itself as an executable guard,
-  `tests/runtime/affinity-palette-separation.test.js`:
-  - Minimum pairwise ΔE across all 45 affinity pairs **≥ 30**.
-  - Minimum ΔE of every affinity against `FLOOR_BG #3a3a3a` **≥ 45**.
-  - The guard asserts against the palette constant, so any future colour edit that regresses
-    separability fails the suite rather than silently degrading the board.
-- Verify no non-sprite consumer depends on specific hex values: the palette also feeds ASCII
-  styling, tile affinity visuals, and resource-bundle sprite generation
+- `scripts/design/derive-affinity-palette.mjs` — seeded simulated annealing in OKLCH.
+- `scripts/design/render-palette-sheet.mjs` — the review sheet.
+- `docs/design/affinity-palette-2026-09.json` — **the frozen palette**.
+- `docs/design/affinity-palette-sheet.png` — the visual record.
+
+The derivation is **seeded** (`PALETTE_SEED=20260902`) and verified byte-reproducible across runs.
+An unseeded optimizer re-rolls a different palette every run, which is not a constant.
+
+#### The palette
+
+| Affinity | Current | Derived | Opposite | Opposed on |
+|---|---|---|---|---|
+| `fire` | `#f05a28` | **`#fe4b2c`** | `water` | hue |
+| `water` | `#2b7fff` | **`#5e82f1`** | `fire` | hue |
+| `earth` | `#7a5c33` | **`#794301`** | `wind` | hue |
+| `wind` | `#60d8c0` | **`#06f6f5`** | `earth` | hue |
+| `life` | `#49b96b` | **`#3ba251`** | `decay` | hue |
+| `decay` | `#a05828` | **`#c64a9a`** | `life` | hue |
+| `corrode` | `#c8c030` | **`#d3e602`** | `fortify` | chroma — saturated vs neutral |
+| `fortify` | `#9ca3af` | **`#708591`** | `corrode` | chroma — saturated vs neutral |
+| `light` | `#f5d14d` | **`#fdfed3`** | `dark` | lightness — near-white vs charcoal |
+| `dark` | `#0b0d12` | **`#28174a`** | `light` | lightness — near-white vs charcoal |
+
+**The palette is structured, not merely optimized.** `AFFINITY_OPPOSITES` is a domain fact, so the
+five opposite pairs are made visually opposite — on three different axes, because ten hues do not fit
+one wheel without collisions. Three pairs oppose on hue; `corrode`/`fortify` oppose on *chroma*
+(acid vs. inert steel); `light`/`dark` oppose on *lightness*. Every opposite pair now measures
+**ΔE ≥ 103**, so the game's counterplay relation is the most visible relation on the board.
+
+Two semantic re-assignments were required and need explicit sign-off:
+- **`decay` moves from brown to magenta** (`#a05828` → `#c64a9a`). It was one of two browns; rot as
+  magenta is a common convention and makes it the visual complement of `life`, which it opposes.
+- **`dark` moves from near-black to deep violet** (`#0b0d12` → `#28174a`). Near-black was
+  near-invisible on the floor (ΔE 21.0).
+
+#### Measured result
+
+| Metric | Current | Derived |
+|---|---|---|
+| Min pairwise ΔE76 (45 pairs) | **14.6** | **53.0** |
+| Min pairwise ΔE2000 | 9.4 | **29.4** |
+| Worst opposite pair | 36.5 | **103.1** |
+| Min ΔE76 vs floor `#3a3a3a` | **21.0** | **31.6** |
+
+#### ⚠️ Finding — the ΔE ≥ 45 floor-contrast bar is unreachable, and the outline replaces it
+
+Forcing the background bar to 45 was tested (`FLOOR_MIN=45`). The optimizer reaches only **38.3**,
+because `dark` must stay dark and `fortify` must stay neutral, and *it makes the palette worse*:
+min pairwise ΔE76 drops 53.0 → 50.1 and perceptual ΔE2000 collapses (`water`/`fortify` 19.9,
+`life`/`corrode` 20.9). Buying background contrast costs foreground separability.
+
+**Resolution:** figure-ground moves to the outline, which the sprite spec already has. A constant
+light 1–2px outline separates any fill from the floor, so the fill only needs to be separable from
+*other fills*. Revised gates:
+
+- Min pairwise ΔE76 across all 45 pairs **≥ 45** (achieved 53.0).
+- Min ΔE76 of every affinity vs floor `#3a3a3a` **≥ 30** (achieved 31.6).
+- Min ΔE76 of the outline colour vs every fill **≥ 40** — new, and load-bearing.
+- Every `AFFINITY_OPPOSITES` pair **≥ 90** (achieved 103.1).
+
+#### ⚠️ Finding — only three of four role shapes survive below 16px
+
+Visible in the sheet's role panel: at 12px `warden` (hexagon) and `resource` (diamond) are both
+round blobs; at 8px `warden`, `resource` and `hazard` are indistinguishable dots. Only the `delver`
+triangle holds. The plan's "must survive downscale to 8px" is **not achievable for four shapes**.
+
+Options, for the maintainer:
+- (a) Raise `MIN_CAMERA_ZOOM` from 0.25 to ~0.4 so a tile never renders below 12px. Cheapest; costs
+  maximum zoom-out range on very large dungeons.
+- (b) Accept that at extreme zoom-out only affinity colour and actor-vs-thing read, which is
+  arguably correct for a strategic overview.
+- (c) Reduce to three silhouettes by merging `hazard` and `resource` into one "object" shape,
+  distinguished by colour alone.
+
+#### Remaining M2 work (not yet done)
+
+- Write the derived values into `GAME_ELEMENT_VISUALS.affinities` in
+  [game-elements.js](packages/runtime/src/contracts/game-elements.js).
+- Land `tests/runtime/affinity-palette-separation.test.js` asserting the four gates above against
+  the palette constant, so a future colour edit fails the suite.
+- The palette also feeds ASCII styling, tile affinity visuals, and resource-bundle sprite generation
   ([affinity-palette.js:9-11](packages/runtime/src/render/affinity-palette.js:9)). Query callers with
-  Serena `find_referencing_symbols` before editing, and update the affected goldens in the same diff.
-
-**Gate:** the separation guard passes; the affinity contact sheet is visually re-checked at 16px.
-**Risk:** this changes colours the maintainer may have opinions about. Surface the re-derived palette
-for sign-off before landing M3 on top of it.
+  Serena `find_referencing_symbols` and update affected goldens in the same diff.
+- Check `GAME_AFFINITY_TEXT_COLOR_HEX` separately — `light` `#fdfed3` and `corrode` `#d3e602` are
+  fills, not text colours, and will fail contrast on a light background.
 
 ---
 
@@ -262,6 +331,43 @@ clears on deselect, and updates across a tick.
 
 ---
 
+## ⚠️ Open design question — single vs. multiple equipped affinity
+
+Raised by the maintainer 2026-09-02, mid-derivation. It is **not** a rendering detail: the whole
+sprite language assumes exactly one affinity is active per entity at render time.
+
+**What the contracts say today:**
+- The loadout is already plural — `affinities: Array<{ name, stacks, expression }>`
+  ([artifacts.ts:481](packages/runtime/src/contracts/artifacts.ts:481)). An actor *carries* several.
+- `equippedAffinity` — the singular, active one — appears **only in `ui-web` and its tests**
+  (`gameplay-phaser-renderer.js`, `gameplay-view.js`, and two test files). **There is no runtime
+  contract for it.** The UI has already invented a single-equipped concept the runtime does not
+  model. Whichever way this decision goes, that gap is a defect to close.
+
+**Visual consequence.** "Affinity = one fill colour" needs exactly one active affinity. Multiple
+simultaneous equips force either a multi-colour fill (stripes, split discs, gradients — all of which
+fail at 12px, which is the density problem this plan exists to remove) or picking a dominant one to
+display, in which case the board actively lies about state.
+
+**Recommendation: single equipped affinity, swappable, with the swap costing something.**
+1. It preserves the two-channel sprite. Multi-equip reopens M1.
+2. `AFFINITY_OPPOSITES` implies counterplay. Counterplay only works if an opponent can identify your
+   active element at a glance — which is exactly what M2's ΔE ≥ 103 opposite-pair separation buys.
+   Multi-equip destroys the read and the counterplay with it.
+3. Multi-equip is a strictly-better loadout with no decision content. Single-equip-plus-swap is a
+   real choice: commit to an element, or spend to change it.
+4. **The swap must cost** — a tick, stamina, or mana. A free swap is functionally multi-equip with
+   extra steps, and the sprite would flicker between colours with no player-legible cause.
+
+**Not Claude's call:** the swap *price* belongs to the Allocator, which owns pricing per the charter.
+This plan should not set it.
+
+**If multi-equip is chosen instead**, M1 changes before it starts: `EntitySpriteState` becomes
+`{ role, primary, secondary }`, the sprite needs a second colour channel, and the 12px legibility
+finding above must be re-tested against split fills before M3.
+
+---
+
 ## Out of scope
 
 - Card-builder visuals (`card-builder-phaser-renderer.js`) — different surface, different scale
@@ -288,5 +394,9 @@ clears on deselect, and updates across a tick.
 1. **M2 palette sign-off** — the re-derived colours change the board's look everywhere affinity is
    shown, including ASCII and tile visuals. Review before M3 builds on them.
 2. **Warden/delver silhouette** — plan assumes ▲/⬢. `local-codex/seeker-keeper-icon-concepts.png`
-   holds four earlier hand-explored pairs (arrow/shield, torch/gate, reach/lock, compass/ward). If
-   one of those is preferred, say so before M1 implementation.
+   (gitignored; copy to `docs/design/` if it is to be cited) holds four earlier hand-explored pairs
+   — arrow/shield, torch/gate, reach/lock, compass/ward. If one is preferred, say so before M1.
+3. **Role shapes below 16px** — see the M2 finding: only 3 of 4 silhouettes survive to 8px. Pick
+   option (a), (b) or (c) there.
+4. **Single vs. multiple equipped affinity** — see the section above. This blocks M1, not just M3:
+   multi-equip changes the sprite state type before any code is written.
