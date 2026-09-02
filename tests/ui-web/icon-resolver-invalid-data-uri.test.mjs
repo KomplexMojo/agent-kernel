@@ -33,26 +33,26 @@ function withFakeDocument(run) {
 test("resolveIcon falls back to glyph when bundle has empty dataUri", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { affinities: { fire: "asset-fire" } } },
+      mappings: { icons: { expressions: { emit: "asset-fire" } } },
       assets: [{ id: "asset-fire", dataUri: "" }],
     };
 
-    const iconEl = resolveIcon(bundle, "affinities", "fire");
+    const iconEl = resolveIcon(bundle, "expressions", "emit");
     assert.equal(iconEl?.tagName, "SPAN", "Should fallback to span for empty dataUri");
     assert.equal(iconEl?.className, "icon-fallback-text");
-    assert.equal(iconEl?.textContent, "🔥", "Should show fire glyph");
+    assert.equal(iconEl?.textContent, "✴️", "Should show emit glyph");
   }));
 
 test("resolveIcon falls back to glyph when bundle has whitespace-only dataUri", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { types: { delver: "asset-delver" } } },
+      mappings: { icons: { motivations: { exploring: "asset-delver" } } },
       assets: [{ id: "asset-delver", dataUri: "   " }],
     };
 
-    const iconEl = resolveIcon(bundle, "types", "delver");
+    const iconEl = resolveIcon(bundle, "motivations", "exploring");
     assert.equal(iconEl?.tagName, "SPAN", "Should fallback to span for whitespace dataUri");
-    assert.equal(iconEl?.textContent, "⛏️", "Should show delver glyph");
+    assert.equal(iconEl?.textContent, "🧭", "Should show exploring glyph");
   }));
 
 test("resolveIcon falls back to glyph when bundle has non-data-uri string", () =>
@@ -81,12 +81,12 @@ test("resolveIcon falls back to glyph when bundle has http URL instead of data U
 
 test("resolveIconHTML falls back to glyph when bundle has empty dataUri", () => {
   const bundle = {
-    mappings: { icons: { affinities: { water: "asset-water" } } },
+    mappings: { icons: { expressions: { draw: "asset-water" } } },
     assets: [{ id: "asset-water", dataUri: "" }],
   };
 
-  const html = resolveIconHTML(bundle, "affinities", "water");
-  assert.equal(html, "💧", "Should return water glyph for empty dataUri");
+  const html = resolveIconHTML(bundle, "expressions", "draw");
+  assert.equal(html, "🧲", "Should return draw glyph for empty dataUri");
   assert.doesNotMatch(html, /<img/, "Should not return img tag");
 });
 
@@ -104,11 +104,11 @@ test("resolveIconHTML falls back to glyph when bundle has non-data-uri string", 
 test("resolveIcon accepts valid data URI with image/png", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { types: { room: "asset-room" } } },
+      mappings: { icons: { motivations: { patrolling: "asset-room" } } },
       assets: [{ id: "asset-room", dataUri: "data:image/png;base64,iVBORw0KGgo=" }],
     };
 
-    const iconEl = resolveIcon(bundle, "types", "room");
+    const iconEl = resolveIcon(bundle, "motivations", "patrolling");
     assert.equal(iconEl?.tagName, "IMG", "Should create img for valid data URI");
     assert.equal(iconEl?.src, "data:image/png;base64,iVBORw0KGgo=");
   }));
@@ -116,11 +116,11 @@ test("resolveIcon accepts valid data URI with image/png", () =>
 test("resolveIcon accepts valid data URI with image/svg+xml", () =>
   withFakeDocument(() => {
     const bundle = {
-      mappings: { icons: { affinities: { fire: "asset-fire" } } },
+      mappings: { icons: { expressions: { emit: "asset-fire" } } },
       assets: [{ id: "asset-fire", dataUri: "data:image/svg+xml,%3Csvg%3E%3C/svg%3E" }],
     };
 
-    const iconEl = resolveIcon(bundle, "affinities", "fire");
+    const iconEl = resolveIcon(bundle, "expressions", "emit");
     assert.equal(iconEl?.tagName, "IMG", "Should create img for valid SVG data URI");
     assert.match(iconEl?.src, /^data:image\/svg\+xml/);
   }));

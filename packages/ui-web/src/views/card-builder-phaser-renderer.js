@@ -135,20 +135,47 @@ export function createCardBuilderPhaserRenderer({
   // Icon texture loading — loads bundle dataUri images into Phaser once per session
   // ---------------------------------------------------------------------------
 
+  /**
+   * Icon strings arrive in two shapes and only one of them used to be handled.
+   * `<img …>` came from the resource bundle; `<svg …>` is a generated icon from
+   * the sprite language. Anything the loader did not recognise fell through to
+   * being drawn as Phaser TEXT -- so the card rail rendered raw SVG source on
+   * screen while the DOM tests, which only inspect innerHTML strings, passed.
+   */
+  function iconSourceUri(icon) {
+    if (icon.startsWith("<img")) {
+      const match = icon.match(/src="([^"]+)"/);
+      return match ? match[1] : null;
+    }
+    if (icon.startsWith("<svg")) {
+      // Inline SVG rasterises through the same Image path once it is a data URI.
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(icon)}`;
+    }
+    return null;
+  }
+
+  function isIconMarkup(icon) {
+    return typeof icon === "string" && (icon.startsWith("<img") || icon.startsWith("<svg"));
+  }
+
   async function loadIconTextures(entries) {
     if (!scene) return;
+    // Headless hosts (tests, SSR) have no Image constructor. Previously this was
+    // never reached because the fixtures carry no bundle icons; generated icons
+    // always exist, so the guard has to be explicit.
+    const ImageCtor = typeof globalThis.Image === "function" ? globalThis.Image : null;
+    if (!ImageCtor) return;
     const toLoad = entries.filter((e) => {
-      if (typeof e.icon !== "string" || !e.icon.startsWith("<img")) return false;
+      if (!isIconMarkup(e.icon)) return false;
       return !iconTextureCache.has(e.icon);
     });
     await Promise.all(
       toLoad.map((e) => {
-        const match = e.icon.match(/src="([^"]+)"/);
-        if (!match) { iconTextureCache.set(e.icon, null); return Promise.resolve(); }
-        const dataUri = match[1];
+        const dataUri = iconSourceUri(e.icon);
+        if (!dataUri) { iconTextureCache.set(e.icon, null); return Promise.resolve(); }
         const key = `cb-icon-${nextIconTextureId++}`;
         return new Promise((resolve) => {
-          const img = new Image();
+          const img = new ImageCtor();
           img.onload = () => {
             try {
               if (!scene.textures.exists(key)) scene.textures.addImage(key, img);
@@ -300,7 +327,7 @@ export function createCardBuilderPhaserRenderer({
   // Returns { drawn, isBundle } so callers can fall back to a unicode-prefixed label.
   function drawIconAt(x, y, icon, size, { alpha = 1 } = {}) {
     if (!scene || typeof icon !== "string") return { drawn: false, isBundle: false };
-    const isBundle = icon.startsWith("<img");
+    const isBundle = isIconMarkup(icon);
     const textureKey = isBundle ? iconTextureCache.get(icon) : null;
     if (textureKey && scene.textures.exists(textureKey)) {
       addObj(
@@ -329,7 +356,7 @@ export function createCardBuilderPhaserRenderer({
     let iconObj = null;
 
     if (icon) {
-      const isBundleHtml = typeof icon === "string" && icon.startsWith("<img");
+      const isBundleHtml = isIconMarkup(icon);
       const textureKey = isBundleHtml ? iconTextureCache.get(icon) : null;
 
       if (textureKey && scene.textures.exists(textureKey)) {
@@ -621,7 +648,7 @@ export function createCardBuilderPhaserRenderer({
 
     function drawIcon(x, y, html, size, alpha) {
       if (!html) return;
-      if (html.startsWith("<img")) {
+      if (isIconMarkup(html)) {
         drawIconAt(x, y, html, size, { alpha });
       } else {
         addObj(scene.add.text(x + size / 2, y + size / 2, html, {

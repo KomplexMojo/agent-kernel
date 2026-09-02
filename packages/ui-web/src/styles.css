@@ -152,6 +152,10 @@ h1 { font-size: clamp(2.4rem, 5vw, 4rem); margin: 0; font-family: "Newsreader", 
 .icon-label { display: inline-flex; align-items: center; gap: 6px; }
 .ui-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.1em; height: 1.1em; line-height: 1; }
 .icon-from-bundle { display: inline-block; max-width: 100%; max-height: 100%; object-fit: contain; }
+/* Generated icons carry an intrinsic 64x64 so they can also be rasterised into a
+   Phaser texture; in the DOM they scale to fill whatever chip holds them. */
+.icon-generated { width: 100%; height: 100%; display: block; }
+.icon-generated-wrap { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 .ui-icon img, .design-property-chip-icon img, .design-card-icon-chip img, .design-card-motivation-icon img, .design-card-group-icon img { width: 100% !important; height: 100% !important; display: block !important; object-fit: contain; }
 .pill { font-size: 0.85rem; color: var(--muted); }
 

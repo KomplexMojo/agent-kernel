@@ -3,12 +3,86 @@
  * Resolves icons from resource bundle mappings, with text label fallback.
  */
 import { GAME_ICON_FALLBACKS } from "../../runtime/src/contracts/game-elements.js";
+import { buildIconModel } from "../../runtime/src/render/icon-model.js";
 
 /**
  * Unicode icon fallbacks for each category and key.
  * Used when no bundle is loaded or icon asset is missing.
  */
 const DEFAULT_UI_ICON = "◈";
+
+/**
+ * Chip geometry, in a 0..100 viewBox so one SVG scales to every chip size in the
+ * UI (1em inline through 28px rail chips) without a raster step.
+ *
+ * The old icons were PNGs with an opaque background baked in, forced to
+ * `width: 100% !important` inside the chip. The art's square background covered
+ * the chip's ring and matched its fill, so the chip read as a solid block with
+ * the glyph jammed edge to edge -- no containment, no breathing room. Here the
+ * background IS the chip: a disc washed toward the element colour, with the
+ * glyph inset inside it.
+ */
+const CHIP = Object.freeze({
+  wash: 0.2,      // how far the disc is tinted toward the element colour
+  inset: 0.58,    // glyph size as a fraction of the disc
+  outline: 4.5,   // outline width in viewBox units
+});
+
+/** Glyph paths in a 0..100 viewBox, centred on (50,50) at the inset radius. */
+function glyphPath(shape, r) {
+  const c = 50;
+  switch (shape) {
+    case "delver":   return `M ${c} ${c - r} L ${c + r} ${c + r * 0.78} L ${c - r} ${c + r * 0.78} Z`;
+    case "hazard":   return `M ${c} ${c + r} L ${c - r} ${c - r * 0.78} L ${c + r} ${c - r * 0.78} Z`;
+    case "resource": return `M ${c} ${c - r} L ${c + r} ${c} L ${c} ${c + r} L ${c - r} ${c} Z`;
+    case "warden": {
+      const pts = [];
+      for (let i = 0; i < 6; i += 1) {
+        const a = (Math.PI / 3) * i - Math.PI / 2;
+        pts.push(`${(c + r * Math.cos(a)).toFixed(2)} ${(c + r * Math.sin(a)).toFixed(2)}`);
+      }
+      return `M ${pts.join(" L ")} Z`;
+    }
+    case "room": {
+      const s = r * 0.92;
+      return `M ${c - s} ${c - s} L ${c + s} ${c - s} L ${c + s} ${c + s} L ${c - s} ${c + s} Z`;
+    }
+    case "bar": {
+      const h = r * 0.42, w = r * 0.98;
+      return `M ${c - w} ${c - h} L ${c + w} ${c - h} L ${c + w} ${c + h} L ${c - w} ${c + h} Z`;
+    }
+    case "mark":
+    default: {
+      // Circle as a path so every shape uses one element and one code path.
+      return `M ${c - r} ${c} a ${r} ${r} 0 1 0 ${r * 2} 0 a ${r} ${r} 0 1 0 ${-r * 2} 0 Z`;
+    }
+  }
+}
+
+/**
+ * Build the chip SVG markup for a generated icon model.
+ * `color-mix` gives the wash without needing to know the surrounding card colour.
+ */
+function iconSvg(model, label) {
+  const r = 50 * CHIP.inset;
+  // A translucent fill of the element colour, NOT color-mix on currentColor: the
+  // same markup is rasterised into a Phaser texture for the card rail, where there
+  // is no inherited colour to mix against. fill-opacity composites over whatever
+  // is behind it in both cases.
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="icon-generated" role="img" aria-label="${label}"`,
+    // Explicit pixel dimensions, NOT width="100%". The same markup is rasterised
+    // into a Phaser texture, and a percentage has no containing block there, so the
+    // image has no intrinsic size and renders as an empty box. CSS (.icon-generated)
+    // scales it back to fill its chip in the DOM.
+    ` width="64" height="64" style="display:block">`,
+    `<circle cx="50" cy="50" r="49" fill="${model.colorHex}" fill-opacity="${CHIP.wash}"/>`,
+    `<path d="${glyphPath(model.shape, r)}" fill="${model.colorHex}"`,
+    ` stroke="${model.outlineHex}" stroke-width="${CHIP.outline}" stroke-linejoin="round"/>`,
+    `</svg>`,
+  ].join("");
+}
+
 
 const TEXT_LABELS = GAME_ICON_FALLBACKS;
 
@@ -60,6 +134,22 @@ function isValidDataUri(dataUri) {
  * @returns {HTMLElement} - <img> element with dataUri or <span> with text label
  */
 export function resolveIcon(bundle, category, key) {
+  // Generated first, and deliberately ahead of the bundle. Bundle icons are
+  // medallion-era art in the retired visual language; where the sprite language
+  // can speak for a category, it wins, and it needs no bundle to do it.
+  const model = buildIconModel(category, key);
+  if (model?.kind === "shape") {
+    const span = document.createElement("span");
+    span.className = "icon-generated-wrap";
+    span.innerHTML = iconSvg(model, String(key));
+    if (span.style) {
+      span.style.display = "inline-flex";
+      span.style.width = "100%";
+      span.style.height = "100%";
+    }
+    return span;
+  }
+
   // Try to find icon in bundle
   if (bundle?.mappings?.icons?.[category]?.[key]) {
     const assetId = bundle.mappings.icons[category][key];
@@ -94,6 +184,12 @@ export function resolveIcon(bundle, category, key) {
  * @returns {string} - Unicode icon or data URI
  */
 export function resolveIconHTML(bundle, category, key) {
+  // See resolveIcon: generated beats bundle art for the categories the sprite
+  // language covers. Expressions, motivations and ui fall through to unicode,
+  // because the language has no mark for them and inventing one is design work.
+  const model = buildIconModel(category, key);
+  if (model?.kind === "shape") return iconSvg(model, String(key));
+
   // Try to find icon in bundle
   if (bundle?.mappings?.icons?.[category]?.[key]) {
     const assetId = bundle.mappings.icons[category][key];

@@ -159,14 +159,14 @@ test("actor inspector renders bundle images in group row chips", () =>
     // Type chip should have bundle image
     const typeChip = chips.find((chip) => chip.className?.includes("is-type"));
     assert.ok(typeChip, "Should have type chip");
-    assert.match(typeChip.innerHTML, /<img/, "Type chip should contain img tag from bundle");
-    assert.match(typeChip.innerHTML, /ATTACKER/, "Type chip should use attacker asset");
+    // Types and affinities are GENERATED from the sprite language now, so they no
+    // longer render bundle art. Motivations have no mark in that language and still do.
+    assert.match(typeChip.innerHTML, /<svg /, "Type chip should render the generated svg");
 
     // Affinity chip should have bundle image
     const affinityChip = chips.find((chip) => chip.className?.includes("is-affinity"));
     assert.ok(affinityChip, "Should have affinity chip");
-    assert.match(affinityChip.innerHTML, /<img/, "Affinity chip should contain img tag from bundle");
-    assert.match(affinityChip.innerHTML, /FIRE/, "Affinity chip should use fire asset");
+    assert.match(affinityChip.innerHTML, /<svg /, "Affinity chip should render the generated svg");
 
     // Motivation chip should have bundle image
     const motivationChip = chips.find((chip) => chip.className?.includes("is-motivation"));
@@ -219,12 +219,12 @@ test("actor inspector falls back to glyphs when bundle is missing", () =>
     // Type chip should have glyph fallback
     const typeChip = chips.find((chip) => chip.className?.includes("is-type"));
     assert.ok(typeChip, "Should have type chip");
-    assert.equal(typeChip.innerHTML, "⚔️", "Type chip should show attacker glyph");
+    assert.match(typeChip.innerHTML, /<svg /, "Type chip is generated and needs no bundle");
 
     // Affinity chip should have glyph fallback
     const affinityChip = chips.find((chip) => chip.className?.includes("is-affinity"));
     assert.ok(affinityChip, "Should have affinity chip");
-    assert.equal(affinityChip.innerHTML, "🔥", "Affinity chip should show fire glyph");
+    assert.match(affinityChip.innerHTML, /<svg /, "Affinity chip is generated and needs no bundle");
 
     // Motivation chip should have glyph fallback
     const motivationChip = chips.find((chip) => chip.className?.includes("is-motivation"));
@@ -293,8 +293,7 @@ test("actor inspector detail panel renders bundle images", () =>
 
     const waterAffinityChip = waterChips.find((chip) => chip.className?.includes("is-affinity"));
     assert.ok(waterAffinityChip, "Should have water affinity chip");
-    assert.match(waterAffinityChip.innerHTML, /<img/, "Water affinity should use bundle image");
-    assert.match(waterAffinityChip.innerHTML, /WATER/, "Should use water asset");
+    assert.match(waterAffinityChip.innerHTML, /<svg /, "Water affinity renders the generated svg");
 
     const emitExpressionChip = waterChips.find((chip) => chip.className?.includes("is-expression"));
     assert.ok(emitExpressionChip, "Should have emit expression chip");
@@ -363,7 +362,7 @@ test("actor inspector detail panel falls back to legacy glyphs without bundle", 
     ) || [];
 
     const fireAffinity = firePushChips.find((chip) => chip.className?.includes("is-affinity"));
-    assert.equal(fireAffinity?.innerHTML, "🔥", "Fire affinity should use legacy glyph");
+    assert.match(fireAffinity?.innerHTML, /<svg /, "Fire affinity is generated and needs no bundle");
 
     const pushExpression = firePushChips.find((chip) => chip.className?.includes("is-expression"));
     assert.equal(pushExpression?.innerHTML, "➡️", "Push expression should use fallback glyph");
@@ -375,7 +374,7 @@ test("actor inspector detail panel falls back to legacy glyphs without bundle", 
     ) || [];
 
     const waterAffinity = waterPullChips.find((chip) => chip.className?.includes("is-affinity"));
-    assert.equal(waterAffinity?.innerHTML, "💧", "Water affinity should use legacy glyph");
+    assert.match(waterAffinity?.innerHTML ?? "", /<svg /, "Water affinity is generated and needs no bundle");
 
     const pullExpression = waterPullChips.find((chip) => chip.className?.includes("is-expression"));
     assert.equal(pullExpression?.innerHTML, "⬅️", "Pull expression should use fallback glyph");

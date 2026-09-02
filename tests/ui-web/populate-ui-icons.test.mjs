@@ -129,19 +129,17 @@ test("populateUIIcons replaces static icon placeholders with bundle images", () 
 
     // Check that room icon was replaced with bundle image
     assert.equal(roomIcon.children.length, 1, "Room icon should have one child");
-    assert.equal(roomIcon.children[0].tagName, "IMG", "Room icon should be an img element");
-    assert.equal(roomIcon.children[0].className, "icon-from-bundle", "Should have bundle icon class");
-    assert.match(roomIcon.children[0].src, /ROOM/, "Should use room asset");
+    // `types` is generated from the sprite language now, so it renders an inline
+    // svg wrapper rather than bundle art or a unicode span.
+    assert.equal(roomIcon.children[0].className, "icon-generated-wrap", "Room icon is generated");
 
     // Check delver icon
     assert.equal(delverIcon.children.length, 1, "Delver icon should have one child");
-    assert.equal(delverIcon.children[0].tagName, "IMG", "Delver icon should be an img element");
-    assert.match(delverIcon.children[0].src, /DELVER/, "Should use delver asset");
+    assert.equal(delverIcon.children[0].className, "icon-generated-wrap", "Delver icon is generated");
 
     // Check warden icon
     assert.equal(wardenIcon.children.length, 1, "Warden icon should have one child");
-    assert.equal(wardenIcon.children[0].tagName, "IMG", "Warden icon should be an img element");
-    assert.match(wardenIcon.children[0].src, /WARDEN/, "Should use warden asset");
+    assert.equal(wardenIcon.children[0].className, "icon-generated-wrap", "Warden icon is generated");
 
     // Check UI icon
     assert.equal(inspectorIcon.children.length, 1, "Inspector icon should have one child");
@@ -171,11 +169,9 @@ test("populateUIIcons falls back to glyphs when bundle is missing", () =>
     // Check that icons fall back to glyphs
     assert.equal(roomIcon.children.length, 1, "Room icon should have one child");
     assert.equal(roomIcon.children[0].tagName, "SPAN", "Should be a span for glyph fallback");
-    assert.equal(roomIcon.children[0].className, "icon-fallback-text", "Should have fallback class");
-    assert.equal(roomIcon.children[0].textContent, "🏛️", "Should show room glyph");
+    assert.equal(roomIcon.children[0].className, "icon-generated-wrap", "generated icons need no bundle");
 
-    assert.equal(delverIcon.children[0].textContent, "⛏️", "Should show delver glyph");
-    assert.equal(wardenIcon.children[0].textContent, "🗝️", "Should show warden glyph");
+    assert.equal(wardenIcon.children[0].className, "icon-generated-wrap", "generated icons need no bundle");
   }));
 
 test("populateUIIcons clears existing content before adding new icon", () =>
@@ -198,6 +194,6 @@ test("populateUIIcons clears existing content before adding new icon", () =>
     // Check that old content was cleared
     assert.equal(iconEl.textContent, "", "textContent should be cleared");
     assert.equal(iconEl.children.length, 1, "Should have exactly one child (the new icon)");
-    assert.equal(iconEl.children[0].tagName, "IMG", "New child should be the bundle image");
+    assert.equal(iconEl.children[0].className, "icon-generated-wrap", "New child should be the generated icon");
     assert.notEqual(iconEl.children[0].textContent, "OLD CHILD", "Old child should be removed");
   }));

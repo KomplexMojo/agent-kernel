@@ -16,6 +16,14 @@ Reviewing the actual interface — not the synthetic probes — surfaced three t
    contrast against the floor from **ΔE 69.7 to 9.7** — room outlines nearly invisible. Fixed with a
    dedicated `GAME_COLOR_PALETTE.tileBorders` group, and guarded (perturbation-verified).
 3. **Tiles still drew medallion-era PNGs** over the canonical colour. Now flat fills.
+4. **UI chip icons** were medallion-era PNGs with opaque baked-in backgrounds, forced to
+   `width: 100% !important` inside a 28px chip — the art's own square background covered the chip's
+   ring and matched its fill, so the chip read as a solid block with no containment. Icons are now
+   generated from the sprite language as inline SVG: a disc washed 20% toward the element colour,
+   with the glyph inset to 58% and carrying the board's own `outlineForFill` outline. Variations
+   were rendered and compared first — `docs/design/icon-chip-variations.png` — and that comparison
+   killed three of the five candidates, because a dark glyph on a dark chip fails for `dark` and
+   `fortify` unless the outline rule is applied.
 
 ---
 

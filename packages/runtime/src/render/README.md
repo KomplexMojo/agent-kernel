@@ -57,6 +57,26 @@ two of them.
 
 Output is plain serializable data: no functions, no class instances.
 
+## UI icons
+
+`icon-model.js` decides what a UI chip icon means. It reuses the board's rules —
+role silhouettes and affinity fills — so the left rail and the board speak one
+language, and `ui-web/src/icon-resolver.js` draws the result as inline SVG.
+
+**Where the language has nothing to say, it declines.** Expressions and
+motivations have no shape and no colour in the sprite language, so
+`buildIconModel` returns `kind: "text"` and the caller keeps its unicode glyph.
+Generating marks for them would be design invention, not a port.
+
+Two mechanics that are easy to break:
+
+- The SVG carries **explicit 64×64 dimensions**, not `width="100%"`. The same
+  markup is rasterised into a Phaser texture for the card rail, where a
+  percentage has no containing block and the image ends up with no intrinsic
+  size. CSS (`.icon-generated`) scales it to fill its chip in the DOM.
+- The disc uses `fill` + `fill-opacity`, not `color-mix` on `currentColor`, for
+  the same reason: there is no inherited colour in a rasterised context.
+
 ## Colour
 
 Board tiles are **flat fills** from `GAME_COLOR_PALETTE.tiles` — the renderer draws
