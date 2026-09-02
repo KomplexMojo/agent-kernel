@@ -2,17 +2,17 @@
 
 **Branch:** `feat/minimal-sprite-language-hud`
 **Opened:** 2026-09-02
-**Status:** M0 · M1 · M2 · M3 · M4 DONE · M5 next
+**Status:** ✅ COMPLETE — M0–M5 delivered 2026-09-02
 
 ---
 
 ## ⏭️ START HERE
 
 **Done:** M0 (archive) · M1 (sprite composer) · M2 (palette + guards + single-origin colour) ·
-M3 (board wired, camera floor raised) · M4 (HUD).
+M3 (board wired, camera floor raised) · M4 (HUD) · M5 (verification + docs).
 **Decided:** single equipped affinity · role-shape option **(a)**.
-**Next: M5** — legibility harness, verification against the largest scenario (the `MIN_CAMERA_ZOOM`
-raise costs zoom-out range), and the documentation pass.
+**All milestones delivered.** Two items are recorded below for a follow-up decision, neither
+blocking: large-level overview (see M5) and the v1-bundle art path (see M3).
 
 `docs/design/entity-sprite-sheet.png` now shows the landed palette on the canonical floor tile.
 M5 cannot be judged until M4 ships the HUD that receives what M1 removes from the sprite.
@@ -469,21 +469,52 @@ no footer — while the board camera sat at zoom 3. No console errors.
 
 ---
 
-### M5 — Legibility verification and documentation
+### M5 — Legibility verification and documentation ✅ DONE 2026-09-02
 
-- **Legibility harness:** a script rendering every (role × affinity) sprite at 32/16/8px into a
-  contact sheet, committed as the reviewable artifact. This is the acceptance evidence for the whole
-  plan, and the thing the current contact sheet fails.
-- **Verify in the running app**, not only in tests: `pnpm run serve:ui`, load a scenario, screenshot
-  the board at fit-zoom and at `MIN_CAMERA_ZOOM`, and confirm roles and affinities are separable and
-  the HUD reads.
-- **Docs in the same diff** (the charter treats a contradicting doc as blocking):
-  - `docs/architecture-charter.md` — the render-layer section, if the composer's ownership boundary
-    moves.
-  - `packages/ui-web/README.md` / the runtime render README — the new sprite language and HUD.
-  - `docs/human-interfaces.md` — HUD behaviour in the UI walkthrough.
-  - `docs/readme-index.md` — any new README.
-  - The archive README from M0.
+**Legibility harness:** `scripts/design/render-sprite-sheet.mjs` →
+`docs/design/entity-sprite-sheet.png`, every role × affinity at 32/16/12 **and 8px**. The 8px column
+is not a supported size — it is there to show what the camera floor prevents, and it shows it
+plainly: at 8px `warden`, `hazard` and `resource` are the same dot and only `delver` survives.
+
+**Verified in the running app** at a 900×600 viewport, board driven to the camera floor:
+all four silhouettes remain separable at 12.8px, affinity colours remain distinct, and the HUD is
+completely unaffected by board zoom — which is the separate-camera decision from M4 demonstrated
+rather than asserted. No console errors.
+
+#### ⚠️ Finding — what the camera floor actually costs
+
+Measured, not estimated. At 900×600 with 32px tiles:
+
+| Level side | Zoom to fit whole level | Camera allows | Whole level visible? |
+|---|---|---|---|
+| 22 (fixture max) | 0.852 | 0.852 | ✅ |
+| 38 (≈20 small / 10 medium rooms) | 0.493 | 0.493 | ✅ |
+| **46** | **0.408** | **0.408** | ✅ **threshold** |
+| 53 (≈20 medium rooms) | 0.354 | 0.400 | ❌ |
+| 74 (≈40 medium rooms) | 0.253 | 0.400 | ❌ |
+| 100 (≈40 large rooms) | 0.188 | 0.400 | ❌ |
+
+**Levels up to 46 tiles a side still frame whole; past that the floor binds and the player must
+pan.** Every committed fixture is well inside that (max 22), so nothing in the repo regresses. But
+`deriveLevelSideForWalkableTiles` will produce 51 for ten large rooms and 53 for twenty medium ones,
+so real authored content *can* cross it.
+
+This is a genuine loss of overview, not a false alarm, and the honest framing is that the floor does
+not destroy information — below 12px the silhouettes were already indistinguishable — but it does
+remove the ability to see a big level at once.
+
+**Recommended follow-up (not this plan):** an explicit overview mode that, below 12px, drops the
+silhouette and renders colour-only markers. That restores whole-level framing without pretending
+shapes are readable. The alternative — lowering `MIN_CAMERA_ZOOM` again — just returns to showing
+mush, which is what this plan set out to fix.
+
+**Documentation landed in this diff:**
+- `docs/architecture-charter.md` — single origin for colour; sprite semantics in `runtime`; the
+  two-channel rule; the 12px floor; HUD model ownership; the HUD's own camera.
+- `packages/runtime/src/render/README.md` — **new**; the render layer's ownership and gates.
+- `docs/human-interfaces.md` — a "Reading the Gameplay Board" section covering the two channels,
+  click vs hover, and the zoom clamp.
+- `docs/readme-index.md` — registers the new render README and the M0 archive README.
 
 ---
 

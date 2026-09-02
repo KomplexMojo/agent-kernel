@@ -21,7 +21,9 @@ the one question it exists to answer: an unlisted directory reads as "no owner d
 |---|---|
 | `packages/core-ts/` | Deterministic simulation logic: state, actors, rules, render buffers, affinity, motivation. No IO. |
 | `packages/runtime/src/personas/` | Persona FSMs and controller responsibilities (per-persona READMEs below). |
+| `packages/runtime/src/render/README.md` | Visual semantics: the two-channel board sprite, the HUD view-model, and the single origin for colour. |
 | `packages/runtime/src/render/source-assets/actor-medallions/README.md` | Checked-in source contact sheets for the actor-medallion sprite pipeline. |
+| `docs/design/archive/2026-09-medallion-era/README.md` | Archived pre-refinement sprite imagery, the frozen medallion composer, and why it was retired. |
 
 ## Personas
 

@@ -13,9 +13,13 @@ import {
 import { AFFINITY_KINDS } from "../../packages/runtime/src/contracts/domain-constants.js";
 import { GAME_COLOR_PALETTE } from "../../packages/runtime/src/contracts/game-elements.js";
 
-const SIZES = [32, 16, 12];
+// 8px is included deliberately and is NOT a supported size: it shows what the
+// camera floor exists to prevent. MIN_CAMERA_ZOOM (0.4) stops a tile rendering
+// below 12px, which is the smallest size at which M1's shape guard holds.
+const SIZES = [32, 16, 12, 8];
+const CAMERA_FLOOR_PX = 12;
 const FLOOR = [1, 3, 5].map((i) => parseInt(GAME_COLOR_PALETTE.tiles.floor.slice(i, i + 2), 16)), BG = [21, 24, 28], INK = [232, 236, 240], DIM = [138, 148, 158];
-const COLW = 150, ROWH = 44, LEFT = 96, TOP = 84;
+const COLW = 168, ROWH = 44, LEFT = 96, TOP = 104;
 const W = LEFT + ENTITY_SPRITE_ROLES.length * COLW + 24;
 const H = TOP + AFFINITY_KINDS.length * ROWH + 40;
 const buf = Buffer.alloc(W * H * 4);
@@ -31,11 +35,12 @@ function text(s, x, y, c, sc = 1) {
 }
 rect(0, 0, W, H, BG);
 text("MINIMAL SPRITE LANGUAGE - ROLE x AFFINITY", 20, 20, INK, 2);
-text("SILHOUETTE = ROLE, FILL = AFFINITY. 12PX IS THE CAMERA FLOOR. BOARD = CANONICAL FLOOR TILE.", 20, 42, DIM, 1);
+text("SILHOUETTE = ROLE, FILL = AFFINITY. BOARD IS THE CANONICAL FLOOR TILE.", 20, 42, DIM, 1);
+text("12PX IS THE CAMERA FLOOR - 8PX IS SHOWN ONLY TO SHOW WHAT THE FLOOR PREVENTS.", 20, 54, DIM, 1);
 rect(LEFT - 12, TOP - 20, ENTITY_SPRITE_ROLES.length * COLW + 8, AFFINITY_KINDS.length * ROWH + 24, FLOOR);
 ENTITY_SPRITE_ROLES.forEach((role, c) => {
-  text(role, LEFT + c * COLW, TOP - 34, INK, 1);
-  text("32   16  12", LEFT + c * COLW, TOP - 24, DIM, 1);
+  text(role, LEFT + c * COLW, TOP - 32, INK, 1);
+  text("32   16  12 | 8", LEFT + c * COLW, TOP - 20, DIM, 1);
 });
 AFFINITY_KINDS.forEach((affinity, r) => {
   const y = TOP + r * ROWH;
@@ -43,6 +48,7 @@ AFFINITY_KINDS.forEach((affinity, r) => {
   ENTITY_SPRITE_ROLES.forEach((role, c) => {
     let ox = LEFT + c * COLW;
     for (const size of SIZES) {
+      if (size < CAMERA_FLOOR_PX) ox += 6; // visual gutter before the unsupported size
       const px = composeEntitySprite({ state: normalizeEntitySpriteState({ role, affinity }), size });
       const oy = y + (36 - size) / 2;
       for (let sy = 0; sy < size; sy++) for (let sx = 0; sx < size; sx++) {
