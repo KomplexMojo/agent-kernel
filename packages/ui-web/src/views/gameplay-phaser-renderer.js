@@ -259,90 +259,24 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return fitZoom;
   }
 
-  // Tile-space bounds of "the entry": the structured room (from
-  // simConfig.layout.data.rooms) containing the spawn tile or the first
-  // delver, expanded to also cover every delver's position. Falls back to
-  // null (caller should then fit the whole level) when no spawn/room/delver
-  // data is available to anchor on.
-  function computeEntryFocusTileBounds(boardState) {
-    const rooms = Array.isArray(boardState?.simConfig?.layout?.data?.rooms)
-      ? boardState.simConfig.layout.data.rooms : [];
-    const tiles = Array.isArray(boardState?.tiles) ? boardState.tiles : [];
-
-    let spawn = null;
-    for (let y = 0; y < tiles.length && !spawn; y += 1) {
-      const x = String(tiles[y] || "").indexOf("S");
-      if (x !== -1) spawn = { x, y };
-    }
-
-    const actors = Array.isArray(boardState?.observation?.actors) ? boardState.observation.actors : [];
-    const delverPositions = actors
-      .filter((actor) => inferActorRole(actor) === "delver")
-      .map((actor) => ({ x: Number(actor?.position?.x), y: Number(actor?.position?.y) }))
-      .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
-
-    const anchor = spawn || delverPositions[0] || null;
-    if (!anchor && delverPositions.length === 0) return null;
-
-    const room = anchor
-      ? rooms.find((r) => (
-        anchor.x >= r.x && anchor.x < r.x + r.width &&
-        anchor.y >= r.y && anchor.y < r.y + r.height
-      )) || null
-      : null;
-
-    const points = [...delverPositions];
-    if (room) {
-      points.push({ x: room.x, y: room.y }, { x: room.x + room.width - 1, y: room.y + room.height - 1 });
-    } else if (anchor) {
-      points.push(anchor);
-    }
-    if (points.length === 0) return null;
-
-    const PAD = 1;
-    return {
-      minX: Math.min(...points.map((p) => p.x)) - PAD,
-      minY: Math.min(...points.map((p) => p.y)) - PAD,
-      maxX: Math.max(...points.map((p) => p.x)) + PAD,
-      maxY: Math.max(...points.map((p) => p.y)) + PAD,
-    };
-  }
-
-  // Like fitCameraToWorld(), but fits/centers on a tile-space sub-region
-  // instead of the entire level.
-  function fitCameraToRegion(tileBounds) {
-    const camera = getCamera();
-    if (!camera) return cameraState.zoom;
-    const { tileWidth, tileHeight } = currentBoardMetrics;
-    const regionWidth = Math.max(1, (tileBounds.maxX - tileBounds.minX + 1) * tileWidth);
-    const regionHeight = Math.max(1, (tileBounds.maxY - tileBounds.minY + 1) * tileHeight);
-    const centerX = tileBounds.minX * tileWidth + regionWidth / 2;
-    const centerY = tileBounds.minY * tileHeight + regionHeight / 2;
-    const fitZoom = clamp(
-      Math.min(
-        cameraState.viewportWidth / regionWidth,
-        cameraState.viewportHeight / regionHeight,
-      ),
-      MIN_CAMERA_ZOOM,
-      MAX_CAMERA_ZOOM,
-    );
-    cameraState.fitZoom = fitZoom;
-    applyCameraZoom(fitZoom, { centerX, centerY });
-    setStageCameraDataset();
-    return fitZoom;
-  }
-
-  function configureCamera({ resetView = false, focusBoardState = null } = {}) {
+  // Loading a run frames the WHOLE level (maintainer, 2026-09-02).
+  //
+  // It used to fit only "the entry" -- the room containing the spawn tile or the
+  // first delver -- which made a five-room level look like a one-room level on
+  // load, because the other four sat off-screen with nothing indicating they
+  // existed. The entry-focus helpers (computeEntryFocusTileBounds and
+  // fitCameraToRegion) are removed rather than left unused; git history has them
+  // if a "focus the entry" action is ever wanted as an explicit control.
+  //
+  // This deliberately shares fitCameraToWorld with the Fit button, so the view on
+  // load is exactly the view Fit returns you to -- including its clamp at zoom 1,
+  // which keeps a small level at native pixel scale instead of magnifying it.
+  function configureCamera({ resetView = false } = {}) {
     const camera = getCamera();
     if (!camera) return;
     camera.setBounds?.(0, 0, cameraState.worldWidth, cameraState.worldHeight);
     if (resetView) {
-      const region = focusBoardState ? computeEntryFocusTileBounds(focusBoardState) : null;
-      if (region) {
-        fitCameraToRegion(region);
-      } else {
-        fitCameraToWorld();
-      }
+      fitCameraToWorld();
     } else {
       applyCameraZoom(cameraState.zoom);
     }
@@ -1001,7 +935,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
         stageEl.dataset.gameplayCurrentTick = String(tickIndex);
       }
     }
-    configureCamera({ resetView: resetCamera || worldChanged, focusBoardState: boardState });
+    configureCamera({ resetView: resetCamera || worldChanged });
 
     currentContainer = scene.add.container(0, 0);
 

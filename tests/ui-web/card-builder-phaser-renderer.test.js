@@ -78,6 +78,15 @@ function createFakePhaser(records = {}) {
               lineTo() { return this; },
               strokePath() { return this; },
               strokeRect() { return this; },
+              // Reached once a TYPED card renders its affinity blocks -- no test
+              // exercised that path before, so the stub was missing these.
+              strokeCircle() { return this; },
+              strokeTriangle() { return this; },
+              arc() { return this; },
+              closePath() { return this; },
+              setScrollFactor() { return this; },
+              setDepth() { return this; },
+              setAlpha() { return this; },
               clear() { return this; },
               destroy() {},
             };
@@ -397,5 +406,45 @@ test.skip("render is idempotent and does not duplicate catalog chips", async () 
   await renderer.render();
 
   assert.equal(records.texts.length, firstRenderTextCount);
+  renderer.dispose();
+});
+
+test("no icon markup is ever drawn as canvas text", async () => {
+  // Reported twice from the running app: an icon string reaching a text draw
+  // renders the raw <svg …> source on screen. It happened first in the property
+  // rail and then again on the card face, where the fallback drew it at 40px.
+  //
+  // This forbids the CAPABILITY rather than the two sites that had it: any text
+  // object whose content looks like markup fails, wherever it came from.
+  //
+  // A card must be TYPED for the card face to draw at all, and headless runs have
+  // no Image constructor so icon textures never rasterise -- which is precisely
+  // the state that exercises the fallback. Rendering an untyped card skips the
+  // path entirely and the guard passes vacuously.
+  const records = {};
+  const controller = createCardBuilderController();
+  const renderer = createCardBuilderPhaserRenderer({
+    controller,
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(makeContainer());
+  await renderer.render();
+
+  renderer.emitIntent({
+    kind: "drop_chip",
+    cardId: controller.getActiveCard().id,
+    property: { group: "type", value: "warden" },
+  });
+  assert.equal(controller.getActiveCard().type, "warden", "precondition: card must be typed");
+  await renderer.render();
+
+  const offenders = records.texts
+    .map((t) => String(t.text ?? ""))
+    .filter((text) => /<svg|<img|<circle|<path|viewBox=/.test(text));
+  assert.deepEqual(
+    offenders,
+    [],
+    `icon markup drawn as text: ${offenders.map((o) => o.slice(0, 70)).join(" | ")}`,
+  );
   renderer.dispose();
 });

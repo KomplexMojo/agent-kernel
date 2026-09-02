@@ -823,9 +823,14 @@ export function createCardBuilderPhaserRenderer({
         : { drawn: false };
       if (!iconResult.drawn && cardType) {
         const catalogEntry = buildPropertyCatalog().type.find((e) => e.value === cardType);
-        const emoji = catalogEntry?.icon || "";
-        if (emoji) {
-          addObj(scene.add.text(cardCx, cardCy, emoji, { fontSize: "40px" }).setOrigin(0.5, 0.5).setAlpha(0.55));
+        const fallback = catalogEntry?.icon || "";
+        // Never render markup as text. This fallback exists for unicode glyphs;
+        // when the icon is generated SVG and its texture is not ready (or failed
+        // to rasterise), drawing the string put the raw <svg …> source across the
+        // card face at 40px. Draw nothing instead -- the texture arrives on the
+        // next render pass, and nothing is better than source code either way.
+        if (fallback && !isIconMarkup(fallback)) {
+          addObj(scene.add.text(cardCx, cardCy, fallback, { fontSize: "40px" }).setOrigin(0.5, 0.5).setAlpha(0.55));
         }
       }
     }

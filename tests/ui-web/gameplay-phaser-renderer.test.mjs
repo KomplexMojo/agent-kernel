@@ -631,7 +631,11 @@ test("gameplay phaser renderer wires onSelect through input handler", async () =
   renderer.dispose();
 });
 
-test("gameplay phaser renderer focuses the entry room on first render instead of fitting the full level", async () => {
+test("gameplay phaser renderer fits the whole level on first render", async () => {
+  // Changed 2026-09-02. The initial view used to frame only the room containing
+  // the spawn, which made a five-room level look like a one-room level on load:
+  // the other four sat off-screen with nothing indicating they existed. Loading a
+  // run now shows exactly what the Fit button shows.
   const records = {};
   const container = makeContainer();
   const renderer = createGameplayPhaserRenderer({
@@ -647,15 +651,40 @@ test("gameplay phaser renderer focuses the entry room on first render instead of
     simConfig: { layout: { data: { width: 30, height: 20, rooms: [{ id: "R1", x: 0, y: 0, width: 4, height: 4 }] } }, seed: 0 },
   });
 
-  // setBounds always spans the whole world (scroll clamping), even though
-  // the initial view only focuses on the entry room.
+  // Bounds still span the whole world (scroll clamping).
   assert.deepEqual(records.camera.bounds, [0, 0, 960, 640]);
-  // Focused on the 4x4 entry room (plus 1-tile padding) instead of the full
-  // 960x640 world, so the fit zoom is well above 1 rather than the ~0.42
-  // the old whole-level fit would have produced.
-  assert.ok(records.camera.zoom > 1, "should zoom in on the entry room, not out to fit the whole level");
-  assert.notDeepEqual(records.camera.center, [480, 320], "should not center on the whole level");
+  // Centred on the level, not on a room inside it.
+  assert.deepEqual(records.camera.center, [480, 320], "should centre on the whole level");
+  // Zoomed out far enough to contain the world rather than into one room.
+  assert.ok(records.camera.zoom <= 1, `expected a whole-level fit, got zoom ${records.camera.zoom}`);
+  assert.ok(
+    records.camera.zoom * 960 <= container.clientWidth + 1,
+    "the fitted world must not be wider than the viewport",
+  );
   assert.equal(container.stage.dataset.gameplayWorldPixels, "960x640");
+  renderer.dispose();
+});
+
+test("the view on load is the view the Fit control returns to", async () => {
+  // The two share fitCameraToWorld deliberately, so Fit is never a different
+  // framing from the one the run opened with.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 30,
+    boardHeight: 20,
+    tiles: Array.from({ length: 20 }, () => ".".repeat(30)),
+  });
+  const onLoad = renderer.getCameraState().zoom;
+  renderer.zoomIn();
+  assert.notEqual(renderer.getCameraState().zoom, onLoad, "precondition: zoom should have changed");
+  renderer.fitToLevel();
+  assert.equal(renderer.getCameraState().zoom, onLoad, "Fit must return to the load framing");
   renderer.dispose();
 });
 
@@ -679,10 +708,10 @@ test("gameplay phaser renderer exposes zoom and fit camera controls", async () =
   assert.ok(zoomedIn > fitZoom);
   const zoomedOut = renderer.zoomOut();
   assert.ok(zoomedOut <= zoomedIn);
-  // fitToLevel() is the explicit "zoom out to see everything" action — it
-  // should still fit the whole level (lower zoom), unlike the entry-focused
-  // zoom the view started at.
-  assert.ok(renderer.fitToLevel() < fitZoom);
+  // fitToLevel() used to zoom OUT relative to the load view, because loading
+  // framed the entry room. Loading now fits the whole level, so Fit returns to
+  // exactly the framing the run opened with rather than a different one.
+  assert.equal(renderer.fitToLevel(), fitZoom);
   renderer.dispose();
 });
 
