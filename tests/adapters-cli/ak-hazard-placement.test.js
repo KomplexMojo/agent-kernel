@@ -350,6 +350,28 @@ test("hazard with room-relative coords exceeding the room interior is rejected w
   );
 });
 
+test("#148: hazard_outside_room's rejection message reports real numbers, not \"undefined\"", () => {
+  // Regression guard for #148: orchestrate-build.js formatted every level-gen error with a
+  // template written for floor_tile_budget_insufficient's {target, required, roomCount} shape.
+  // hazard_outside_room's actual detail shape is {x, y, roomId, roomWidth, roomHeight}, so every
+  // interpolated field came out literally as the string "undefined". The rejection itself was
+  // always correct — this guards the MESSAGE, not the rejection decision above.
+  const result = runCli([
+    "create",
+    "--room", "size=medium;count=1",
+    "--hazard", "x=8;y=8;affinity=fire;expression=emit;stacks=1",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--budget-tokens", "1000",
+    "--budget", BUDGET,
+    "--price-list", PRICE_LIST,
+    "--out-dir", mkdtempSync(join(os.tmpdir(), "ak-hazard-placement-message-")),
+  ]);
+  assert.notEqual(result.status, 0);
+  const combined = `${result.stdout}\n${result.stderr}`;
+  assert.doesNotMatch(combined, /undefined/, `error message must not contain "undefined": ${combined}`);
+  assert.match(combined, /8,8/, `error message should report the actual out-of-bounds position: ${combined}`);
+});
+
 test("hazard x or y supplied as a string token is rejected at parse time", () => {
   const result = runCli([
     "create",

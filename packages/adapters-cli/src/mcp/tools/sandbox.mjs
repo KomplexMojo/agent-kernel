@@ -1331,7 +1331,18 @@ export const sandboxTools = [
       "(the shape ak_run writes after M7 stitching), or an inline bundle object. " +
       "Returns ok: false with bundleNotFound: true when no bundle is found at the resolved path, " +
       "SANDBOX_UI_NOT_CONNECTED when no browser UI is connected and requireClient is true, and " +
-      "SANDBOX_BRIDGE_START_FAILED when the bridge server failed to start.",
+      "SANDBOX_BRIDGE_START_FAILED when the bridge server failed to start. " +
+      "IMPORTANT (#142): the bridge is a raw WebSocket port opened directly by this MCP server " +
+      "process, and requires the browser loading the UI to reach that same port on the same " +
+      "machine. In a harness where the MCP server runs in a different network namespace/sandbox " +
+      "than the harness's own browser/preview surface, that port is unreachable even though the " +
+      "UI's own HTTP dev server may load fine -- confirmed via connection-refused from both a " +
+      "local curl and the browser's own WebSocket attempt in that kind of environment. " +
+      "openBrowser: true does not help there either -- it opens the HOST machine's default system " +
+      "browser, not the calling harness's own preview surface. If you cannot confirm the caller " +
+      "and this MCP server share a reachable network path, use ak_show_state / ak_tick_forward / " +
+      "ak_tick_backward with a visualization mode instead -- they return state over the MCP " +
+      "response itself (ascii inline, image as a file path since #144), with no second network hop.",
     inputSchema: {
       properties: {
         outDir: pathSchema(

@@ -116,15 +116,69 @@ function formatBudgetReceiptDenial(receipt) {
     const omitted = allDeniedItems.length - deniedLines.length;
     parts.push(`deniedLines=${deniedLines.join(",")}${omitted > 0 ? ` (+${omitted} more)` : ""}`);
   }
+  // #145 — the denial reported what was denied (id, spent, cap) but not the shortfall, so a
+  // caller had no way to compute the minimum budget that would clear it without trial and error.
+  // `short N` is the extra capacity this one pool alone needed; the total budgetTokens that would
+  // resolve it isn't computable from the receipt (capTokens' relationship to the overall budget
+  // isn't a simple proportion — see #145's own investigation), so this reports the one thing that
+  // is always correct: how far over this pool's own cap the spend landed.
   const deniedPools = Array.isArray(receipt?.poolStatuses)
     ? receipt.poolStatuses
       .filter((pool) => pool?.status !== "approved")
-      .map((pool) => `${pool.id}:${pool.spentTokens}/${pool.capTokens}`)
+      .map((pool) => {
+        const shortfall = Number(pool.spentTokens) - Number(pool.capTokens);
+        const shortfallText = Number.isFinite(shortfall) && shortfall > 0 ? ` (short ${shortfall})` : "";
+        return `${pool.id}:${pool.spentTokens}/${pool.capTokens}${shortfallText}`;
+      })
     : [];
   if (deniedPools.length > 0) {
     parts.push(`deniedPools=${deniedPools.join(",")}`);
   }
   return `Budget receipt denied: ${parts.join("; ")}`;
+}
+
+// #148 — level-layout.js raises five distinct error codes, each with its own detail shape. This
+// used to be one hardcoded template (`requested X, need at least Y for Z rooms`) applied to every
+// code; only floor_tile_budget_insufficient's detail actually has {target, required, roomCount}, so
+// the other four silently formatted as "(requested undefined, need at least undefined for undefined
+// rooms)" — a real rejection with a broken message. Code-aware now: each code formats its own known
+// shape, and an error code with no formatter here (or a detail object missing the fields it expects)
+// falls back to no parenthetical rather than guessing wrong.
+const LEVEL_GEN_ERROR_DETAIL_FORMATTERS = {
+  floor_tile_budget_insufficient: (detail) => {
+    if (!Number.isFinite(detail?.target) || !Number.isFinite(detail?.required) || !Number.isFinite(detail?.roomCount)) {
+      return "";
+    }
+    return ` (requested ${detail.target}, need at least ${detail.required} for `
+      + `${detail.roomCount} room${detail.roomCount === 1 ? "" : "s"})`;
+  },
+  hazard_outside_room: (detail) => {
+    if (!Number.isFinite(detail?.x) || !Number.isFinite(detail?.y)) return "";
+    const bounds = Number.isFinite(detail?.roomWidth) && Number.isFinite(detail?.roomHeight)
+      ? ` — room ${detail.roomId ?? "?"}'s interior is ${detail.roomWidth}x${detail.roomHeight}`
+      : "";
+    return ` (position ${detail.x},${detail.y} is outside the target room${bounds})`;
+  },
+  hazard_on_wall: (detail) => {
+    if (!Number.isFinite(detail?.x) || !Number.isFinite(detail?.y)) return "";
+    const affinity = detail?.affinity ? ` (affinity ${detail.affinity})` : "";
+    return ` (position ${detail.x},${detail.y} is a wall tile${affinity})`;
+  },
+  element_on_wall: (detail) => {
+    if (!Number.isFinite(detail?.x) || !Number.isFinite(detail?.y)) return "";
+    const id = detail?.id ? ` (id ${detail.id})` : "";
+    return ` (position ${detail.x},${detail.y} is a wall tile${id})`;
+  },
+  target_mismatch: (detail) => {
+    if (!Number.isFinite(detail?.target) || !Number.isFinite(detail?.walkableTiles)) return "";
+    return ` (expected ${detail.target} walkable tiles, computed ${detail.walkableTiles})`;
+  },
+};
+
+function formatLevelGenErrorDetail(err) {
+  if (!err?.detail || typeof err.detail !== "object") return "";
+  const formatter = LEVEL_GEN_ERROR_DETAIL_FORMATTERS[err.code];
+  return formatter ? formatter(err.detail) : "";
 }
 
 function assertSchema(artifact, expectedSchema) {
@@ -396,11 +450,7 @@ export async function orchestrateBuild({
     });
     if (!layoutResult.ok) {
       const details = layoutResult.errors.map((err) => {
-        const detail = err.detail && typeof err.detail === "object"
-          ? ` (requested ${err.detail.target}, need at least ${err.detail.required} for `
-            + `${err.detail.roomCount} room${err.detail.roomCount === 1 ? "" : "s"})`
-          : "";
-        return `${err.field}:${err.code}${detail}`;
+        return `${err.field}:${err.code}${formatLevelGenErrorDetail(err)}`;
       }).join(", ");
       throw new Error(`level-gen input invalid: ${details}`);
     }

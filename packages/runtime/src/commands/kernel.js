@@ -1128,6 +1128,24 @@ export function createCommandKernel(host = {}) {
       assertSchema(affinityLoadouts, SCHEMAS.actorLoadout);
     }
 
+    // #149 — action-log.json/run-summary.json/world-state.json used to stamp meta.id/createdAt via
+    // createMeta()'s wall-clock (Date.now()/Math.random()), while every other artifact this command
+    // writes (tick-frames.json, effects-log.json, runtime-decision-captures.json) is timestamped by
+    // this same seeded clock. Two runs of byte-identical input then produced byte-identical
+    // simulation output but different meta stamps on these three files, breaking reproducibility the
+    // simulation itself already has. Constructed here (moved up from below) so it can seed all three.
+    const clock = createDeterministicClock(resolveClockSeed(simConfig, initialState));
+    function deterministicRunArtifactMeta(tag, producedBy) {
+      return {
+        id: `artifact_${runId}_${tag}`,
+        runId,
+        createdAt: clock(),
+        producedBy,
+        correlationId: undefined,
+        note: undefined,
+      };
+    }
+
     let actionLog = null;
     if (actionsPath) {
       actionLog = await readJson(actionsPath);
@@ -1136,14 +1154,14 @@ export function createCommandKernel(host = {}) {
       }
       actionLog.schema = actionLog.schema || ACTION_SEQUENCE_SCHEMA;
       actionLog.schemaVersion = actionLog.schemaVersion || 1;
-      actionLog.meta = actionLog.meta || createMeta({ producedBy: "cli-run", runId });
+      actionLog.meta = actionLog.meta || deterministicRunArtifactMeta("actionlog", "cli-run");
       actionLog.simConfigRef = actionLog.simConfigRef || toRef(simConfig);
       actionLog.initialStateRef = actionLog.initialStateRef || toRef(initialState);
     } else {
       actionLog = {
         schema: ACTION_SEQUENCE_SCHEMA,
         schemaVersion: 1,
-        meta: createMeta({ producedBy: "cli-run", runId }),
+        meta: deterministicRunArtifactMeta("actionlog", "cli-run"),
         simConfigRef: toRef(simConfig),
         initialStateRef: toRef(initialState),
         actions: [],
@@ -1195,7 +1213,6 @@ export function createCommandKernel(host = {}) {
       };
     }
 
-    const clock = createDeterministicClock(resolveClockSeed(simConfig, initialState));
     const core = createCommandRuntimeCore();
     const runtime = createRuntime({ core, adapters: {}, runId, clock });
     // AM.5/F13 — an actor's affinities must reach the OBSERVATION, or the Actor
@@ -1259,7 +1276,7 @@ export function createCommandKernel(host = {}) {
       tickFrames,
       effectLog,
       ticksRequested: ticks,
-      meta: createMeta({ producedBy: "annotator", runId }),
+      meta: deterministicRunArtifactMeta("runsummary", "annotator"),
       simConfigRef: toRef(simConfig),
     });
 
@@ -1284,7 +1301,7 @@ export function createCommandKernel(host = {}) {
     // the injected host `writeJson` like every other artifact, so the runtime
     // still performs no IO of its own.
     const worldState = runtime.captureWorldState({
-      meta: createMeta({ producedBy: "annotator", runId }),
+      meta: deterministicRunArtifactMeta("worldstate", "annotator"),
       simConfigRef,
     });
     await writeJson(join(outDir, "world-state.json"), worldState);

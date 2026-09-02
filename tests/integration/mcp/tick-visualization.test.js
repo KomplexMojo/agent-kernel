@@ -8,7 +8,7 @@
 
 const assert = require("node:assert/strict");
 const { spawn, spawnSync } = require("node:child_process");
-const { mkdtempSync, mkdirSync, writeFileSync } = require("node:fs");
+const { mkdtempSync, mkdirSync, writeFileSync, existsSync, readFileSync } = require("node:fs");
 const { resolve, join, dirname } = require("node:path");
 const os = require("node:os");
 
@@ -205,7 +205,12 @@ test("ak_show_state with visualization:ascii returns visualization object", asyn
   }
 });
 
-test("ak_show_state with visualization:image returns visualizationDataUri PNG data URI", async () => {
+test("ak_show_state with visualization:image writes a PNG file and returns its path (#144)", async () => {
+  // #144 — a data URI this size (443,790 characters on a trivial one-room, one-actor real run)
+  // reliably blows an MCP tool-result token budget; ascii mode never carries image bytes and
+  // stayed well under it. Image mode now writes the PNG to disk and returns visualizationPath
+  // instead of inlining the bytes, the same convention every other artifact-producing ak_* tool
+  // already follows.
   const workDir      = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-img-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId        = "run_mcp_viz_img";
@@ -216,15 +221,28 @@ test("ak_show_state with visualization:image returns visualizationDataUri PNG da
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
   try {
     await harness.initialize();
-    // FAILS until M4
     const result = await harness.callToolRaw("ak_show_state", { runId, visualization: "image" });
     assert.equal(result.ok, true);
     assert.ok(result.visualization !== undefined, "visualization must be present");
     assert.equal(result.visualization.mode, "image");
-    assert.ok(
-      typeof result.visualization.visualizationDataUri === "string" &&
-      result.visualization.visualizationDataUri.startsWith("data:image/png;base64,"),
-      "visualizationDataUri must be a PNG data URI",
+    assert.equal(
+      result.visualization.visualizationDataUri,
+      null,
+      "visualizationDataUri must be null -- the bytes are on disk, not inlined",
+    );
+    assert.equal(
+      typeof result.visualization.visualizationPath,
+      "string",
+      "visualizationPath must be a string path",
+    );
+    assert.ok(existsSync(result.visualization.visualizationPath), "the PNG file must actually exist");
+    const pngBytes = readFileSync(result.visualization.visualizationPath);
+    assert.ok(pngBytes.length > 0, "the PNG file must not be empty");
+    // PNG signature: 89 50 4E 47 0D 0A 1A 0A
+    assert.deepEqual(
+      [...pngBytes.subarray(0, 8)],
+      [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+      "the file must be a valid PNG (correct signature bytes)",
     );
   } finally {
     await harness.close();

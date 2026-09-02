@@ -34,16 +34,26 @@ function markPosition(rows, x, y, char) {
   rows[y] = row.slice(0, x) + char + row.slice(x + 1);
 }
 
-function computeActorPositions(initialState, tickFrame) {
+// #147 — this used to take a single `tickFrame` and overlay only that one frame's
+// `acceptedActions`. The frame callers had on hand (readTickFrame's "last phase-frame for this
+// tick", i.e. `summarize`) always carries `acceptedActions: []` by construction — the actual moves
+// land on that tick's earlier `apply` phase-frame — so the overlay never applied and every actor
+// rendered frozen at its initial-state.json spawn position for the whole run. Fixed by replaying
+// every accepted move from every frame up to and including the requested tick, cumulatively — the
+// same approach adapters-cli's own resolveActorPositionsAtTick() (tick-session.mjs) already used
+// correctly; this was the one caller of this data that didn't.
+function computeActorPositions(initialState, frames, tick) {
   const positions = new Map();
   for (const actor of initialState.actors) {
     positions.set(actor.id, { x: actor.position.x, y: actor.position.y });
   }
-  if (tickFrame) {
-    for (const action of tickFrame.acceptedActions) {
-      if (action.kind === "move" && action.params && action.params.to) {
-        positions.set(action.actorId, { x: action.params.to.x, y: action.params.to.y });
-      }
+  if (!Array.isArray(frames)) return positions;
+  const limit = Number.isFinite(tick) ? tick : Infinity;
+  for (const frame of frames) {
+    if (Number.isFinite(frame?.tick) && frame.tick > limit) break;
+    for (const action of frame?.acceptedActions || []) {
+      if (action?.kind !== "move" || !action.params?.to) continue;
+      positions.set(action.actorId, { x: action.params.to.x, y: action.params.to.y });
     }
   }
   return positions;
@@ -96,7 +106,7 @@ export async function createVisualizationSnapshot({
   runId,
   simConfig,
   initialState,
-  tickFrame,
+  frames,
   clock = null,
 }) {
   // PX.3 extended to the render layer. This used to read the wall clock twice —
@@ -119,7 +129,7 @@ export async function createVisualizationSnapshot({
     meta.createdAt = clock();
   }
 
-  const actorPositions = computeActorPositions(initialState, tickFrame);
+  const actorPositions = computeActorPositions(initialState, frames, tick);
   const actorDetails = buildActorDetails(initialState, actorPositions);
 
   if (mode === "image") {
@@ -145,11 +155,20 @@ export async function createVisualizationSnapshot({
   const delverRows = buildBlankGrid(width, height);
   const wardenRows = buildBlankGrid(width, height);
 
-  for (const hazard of (simConfig.hazards || [])) {
+  // #153 — a real ak_create sim-config never populates the top-level simConfig.hazards/
+  // .resources; the actual data lives at simConfig.layout.data.hazards/.resources (confirmed:
+  // a real 2-hazard, 2-resource level had hazards: null, resources: null at the top level and
+  // both arrays, length 2 each, under layout.data). So the `|| []` fallback always fired and
+  // these loops never ran. buildPngDataUri() (tick-session.mjs, the image path) already has the
+  // correct fallback -- this brings the ascii path in line with it.
+  const hazards = simConfig.hazards ?? simConfig.layout?.data?.hazards ?? [];
+  const resources = simConfig.resources ?? simConfig.layout?.data?.resources ?? [];
+
+  for (const hazard of hazards) {
     markPosition(hazardRows, hazard.x, hazard.y, "H");
   }
 
-  for (const resource of (simConfig.resources || [])) {
+  for (const resource of resources) {
     markPosition(resourceRows, resource.x, resource.y, "R");
   }
 

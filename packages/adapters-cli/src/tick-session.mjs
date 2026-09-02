@@ -6,7 +6,18 @@ import { TICK_CURSOR_SCHEMA } from "../../runtime/src/contracts/artifacts.ts";
 
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 
-export function resolveRunDir(runId) {
+// #143 — this always resolved to the canonical <cwd>/artifacts/runs/<runId> layout, ignoring the
+// MCP server's own "remembered outDir per runId" mechanism that ak_create/ak_run/ak_show/
+// ak_runs_list already use when outDir is left to default. A run created via that default (the
+// MCP README's own "most common agent loop") was invisible to ak_show_state/ak_tick_forward/
+// ak_tick_backward, which reported "run directory not found" even though ak_show/ak_runs_list
+// found the same run immediately. `runDirOverride`, when supplied, is used verbatim instead of
+// the canonical-layout guess -- the MCP server (server.mjs's resolveRememberedRunDirOverride)
+// passes one through when it has a remembered outDir for this runId; the plain CLI (`ak tick`,
+// which has no session/remembered-run concept at all) never supplies one, so its behavior is
+// unchanged.
+export function resolveRunDir(runId, runDirOverride) {
+  if (runDirOverride) return runDirOverride;
   const artifactsDir = process.env.AK_ARTIFACTS_DIR
     ? process.env.AK_ARTIFACTS_DIR
     : join(process.cwd(), DEFAULT_ARTIFACTS_DIR);
@@ -102,7 +113,15 @@ function resolveBuildArtifact(runDir, filename) {
   return null;
 }
 
-export async function buildVisualizationSnapshot(runDir, runId, tick, tickFrame, mode) {
+// #147 — this used to accept a single `tickFrame` (the last phase-frame for the requested tick,
+// i.e. `summarize`, which always carries acceptedActions: [] by construction) and hand it straight
+// to createVisualizationSnapshot/buildPngDataUri, which only overlaid that one frame. The actual
+// accepted moves live on that tick's earlier `apply` phase-frame, so the overlay never applied and
+// every actor rendered frozen at spawn for the whole run. Reads the full frame history instead, so
+// both the ascii/actorDetails path (createVisualizationSnapshot) and the image path
+// (buildPngDataUri, via resolveActorPositionsAtTick — the same cumulative replay renderAscii()
+// already used correctly) can accumulate every accepted move up to the requested tick.
+export async function buildVisualizationSnapshot(runDir, runId, tick, mode) {
   const simConfigPath = resolveBuildArtifact(runDir, "sim-config.json");
   const initialStatePath = resolveBuildArtifact(runDir, "initial-state.json");
   if (!simConfigPath || !initialStatePath) return null;
@@ -111,9 +130,26 @@ export async function buildVisualizationSnapshot(runDir, runId, tick, tickFrame,
       readFile(simConfigPath, "utf8").then(JSON.parse),
       readFile(initialStatePath, "utf8").then(JSON.parse),
     ]);
-    const snap = await createVisualizationSnapshot({ mode, tick, runId, simConfig, initialState, tickFrame });
+    const framesPath = join(runDir, "run", "tick-frames.json");
+    let frames = null;
+    if (existsSync(framesPath)) {
+      try {
+        frames = JSON.parse(await readFile(framesPath, "utf8"));
+      } catch {
+        frames = null;
+      }
+    }
+    const snap = await createVisualizationSnapshot({ mode, tick, runId, simConfig, initialState, frames });
     if (mode === "image" && snap) {
-      snap.visualizationDataUri = await buildPngDataUri(simConfig, initialState, tickFrame, runDir);
+      const dataUri = await buildPngDataUri(simConfig, initialState, frames, tick, runDir);
+      // #144 — a data URI this size (443,790 characters on a trivial one-room, one-actor run in
+      // the session that found this) inlined into the MCP tool result blows the caller's
+      // tool-result token limit; `ascii` mode worked at a fraction of the size because it never
+      // carries image bytes. Write the PNG to a file instead, the same convention every other
+      // artifact-producing ak_* tool already follows, and hand back the path — a caller reads the
+      // file directly rather than receiving its bytes inline.
+      snap.visualizationDataUri = null;
+      snap.visualizationPath = await writePngToFile(dataUri, runDir, tick);
     }
     return snap;
   } catch {
@@ -121,7 +157,17 @@ export async function buildVisualizationSnapshot(runDir, runId, tick, tickFrame,
   }
 }
 
-async function buildPngDataUri(simConfig, initialState, tickFrame, runDir) {
+async function writePngToFile(dataUri, runDir, tick) {
+  if (!dataUri) return null;
+  const base64 = dataUri.replace(/^data:image\/png;base64,/, "");
+  const sessionDir = join(runDir, "session");
+  await mkdir(sessionDir, { recursive: true });
+  const path = join(sessionDir, `visualization-tick-${tick}.png`);
+  await writeFile(path, Buffer.from(base64, "base64"));
+  return path;
+}
+
+async function buildPngDataUri(simConfig, initialState, frames, tick, runDir) {
   const { renderBoardWithResourceBundle, encodeRgbaToPng } = await import(
     "../../runtime/src/render/resource-bundle.js"
   );
@@ -140,13 +186,8 @@ async function buildPngDataUri(simConfig, initialState, tickFrame, runDir) {
     }
   }
 
-  // Apply move actions from tickFrame to get positions at this tick.
-  const posOverrides = new Map();
-  for (const action of (tickFrame?.acceptedActions || [])) {
-    if (action.kind === "move" && action.params?.to) {
-      posOverrides.set(action.actorId, { x: action.params.to.x, y: action.params.to.y });
-    }
-  }
+  // Cumulative replay of every accepted move up to `tick`, not just one frame's overlay.
+  const posOverrides = resolveActorPositionsAtTick(initialState, frames, tick);
   // Spread full actor data so renderBoardWithResourceBundle can resolve affinity/motivation sprites.
   const renderActors = (initialState.actors || []).map((actor) => {
     const pos = posOverrides.get(actor.id) || actor.position;

@@ -100,7 +100,7 @@ test("createVisualizationSnapshot in ascii mode returns a valid snapshot object"
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   assert.equal(snap.schema, "agent-kernel/VisualizationSnapshot");
   assert.equal(snap.schemaVersion, 1);
@@ -119,7 +119,7 @@ test("ascii detail renderer includes layout layer matching sim-config grid", asy
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   const rows = snap.layers.layout.split("\n");
   assert.equal(rows.length, SIM_CONFIG.layout.data.height, "layout row count must match map height");
@@ -135,7 +135,7 @@ test("ascii detail renderer marks hazard position in hazards layer", async () =>
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   // hazard at x=2, y=1 in a 7-wide grid; hazard row is row index 1 (y=1)
   const hazardRow = snap.layers.hazards.split("\n")[1];
@@ -150,11 +150,51 @@ test("ascii detail renderer marks resource position in resources layer", async (
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   // resource at x=4, y=1
   const resourceRow = snap.layers.resources.split("\n")[1];
   assert.notEqual(resourceRow[4], " ", "resources layer must mark resource position at x=4");
+});
+
+// #153 regression: a real ak_create sim-config never populates the top-level simConfig.hazards/
+// .resources -- the actual data lives at simConfig.layout.data.hazards/.resources. The shared
+// SIM_CONFIG fixture above puts hazards/resources at the top level, which is NOT how ak_create
+// actually shapes them, so it never exercised this bug. This fixture reproduces the real shape
+// (hazards/resources nested under layout.data, absent at the top level) instead.
+const NESTED_ONLY_SIM_CONFIG = {
+  schema: "agent-kernel/SimConfigArtifact",
+  schemaVersion: 1,
+  meta: { id: "sc-nested", runId: "run_viz_nested", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
+  layout: {
+    kind: "grid",
+    width: 7,
+    height: 3,
+    data: {
+      width: 7,
+      height: 3,
+      tiles: ["#######", "#.....#", "#######"],
+      legend: { "#": { tile: "wall" }, ".": { tile: "floor" } },
+      hazards: [{ id: "hazard_1", x: 2, y: 1, affinity: { kind: "fire", expression: "emit", stacks: 3 }, blocking: false }],
+      resources: [{ id: "resource_1", x: 4, y: 1, permanenceMode: "consumable", affinity: { kind: "water", expression: "draw", stacks: 1, mana: 5 } }],
+    },
+  },
+};
+
+test("ascii hazards/resources layers populate from simConfig.layout.data, not just top-level fields (#153)", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const snap = await createVisualizationSnapshot({
+    mode: "ascii",
+    tick: 1,
+    runId: "run_viz_nested",
+    simConfig: NESTED_ONLY_SIM_CONFIG,
+    initialState: INITIAL_STATE,
+    frames: [TICK_FRAME],
+  });
+  const hazardRow = snap.layers.hazards.split("\n")[1];
+  assert.notEqual(hazardRow[2], " ", "hazards layer must mark hazard position at x=2 even when hazards live only under layout.data");
+  const resourceRow = snap.layers.resources.split("\n")[1];
+  assert.notEqual(resourceRow[4], " ", "resources layer must mark resource position at x=4 even when resources live only under layout.data");
 });
 
 test("ascii detail renderer marks delver position in delvers layer", async () => {
@@ -165,7 +205,7 @@ test("ascii detail renderer marks delver position in delvers layer", async () =>
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   // delver starts at x=1,y=1; after move action ends at x=2,y=1
   const delverRow = snap.layers.delvers.split("\n")[1];
@@ -181,7 +221,7 @@ test("ascii detail renderer marks warden position in wardens layer", async () =>
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   // warden at x=5, y=1
   const wardenRow = snap.layers.wardens.split("\n")[1];
@@ -196,7 +236,7 @@ test("actorDetails includes affinities, vitals, and motivation for each actor", 
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   assert.ok(Array.isArray(snap.actorDetails) && snap.actorDetails.length === 2,
     "actorDetails must contain all actors");
@@ -218,7 +258,7 @@ test("createVisualizationSnapshot at tick 0 returns ascii with initial positions
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: null,
+    frames: null,
   });
   assert.equal(snap.tick, 0);
   assert.equal(snap.mode, "ascii");
@@ -233,7 +273,7 @@ test("createVisualizationSnapshot with no hazards produces empty hazards layer",
     runId: "run_viz",
     simConfig: { ...SIM_CONFIG, hazards: [] },
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   assert.doesNotMatch(snap.layers.hazards, /H/);
   assert.equal(snap.layers.hazards.replace(/\n/g, "").trim(), "");
@@ -247,13 +287,13 @@ test("createVisualizationSnapshot with no resources produces empty resources lay
     runId: "run_viz",
     simConfig: { ...SIM_CONFIG, resources: [] },
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   assert.doesNotMatch(snap.layers.resources, /R/);
   assert.equal(snap.layers.resources.replace(/\n/g, "").trim(), "");
 });
 
-test("createVisualizationSnapshot with null tickFrame at tick greater than zero uses initial positions", async () => {
+test("createVisualizationSnapshot with no frame history at tick greater than zero uses initial positions", async () => {
   const { createVisualizationSnapshot } = await loadVisualizationModule();
   const snap = await createVisualizationSnapshot({
     mode: "ascii",
@@ -261,11 +301,69 @@ test("createVisualizationSnapshot with null tickFrame at tick greater than zero 
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: null,
+    frames: null,
   });
   const delverRow = snap.layers.delvers.split("\n")[1];
   assert.notEqual(delverRow[1], " ", "delver should remain at initial x=1");
-  assert.equal(delverRow[2], " ", "delver should not use tick-frame x=2 without a tickFrame");
+  assert.equal(delverRow[2], " ", "delver should not use tick-frame x=2 without any frame history");
+});
+
+// #147 regression: computeActorPositions() used to take a single tickFrame and overlay only that
+// one frame's acceptedActions. In real runs the frame callers actually had (readTickFrame's "last
+// phase-frame for this tick", i.e. `summarize`) always carries acceptedActions: [] by construction
+// -- the accepted moves live on that tick's earlier `apply` phase-frame -- so the overlay never
+// applied and every actor rendered frozen at spawn for the whole run. This fixture reproduces that
+// exact real shape (apply frame WITH the move, summarize frame WITHOUT it) rather than the
+// simplified single-frame TICK_FRAME fixture above, which never exercised the bug.
+function applyAndSummarizeFrames(tick, moves) {
+  return [
+    {
+      schema: "agent-kernel/TickFrame",
+      schemaVersion: 1,
+      meta: { id: `tf${tick}a`, runId: "run_viz", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
+      tick,
+      phase: "execute",
+      phaseDetail: "apply",
+      acceptedActions: moves,
+    },
+    {
+      schema: "agent-kernel/TickFrame",
+      schemaVersion: 1,
+      meta: { id: `tf${tick}s`, runId: "run_viz", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
+      tick,
+      phase: "execute",
+      phaseDetail: "summarize",
+      acceptedActions: [],
+    },
+  ];
+}
+
+function moveAction(actorId, tick, to) {
+  return { schema: "agent-kernel/Action", schemaVersion: 1, actorId, tick, kind: "move", params: { to } };
+}
+
+test("createVisualizationSnapshot accumulates moves across apply-phase frames from multiple ticks (regression #147)", async () => {
+  const { createVisualizationSnapshot } = await loadVisualizationModule();
+  const frames = [
+    ...applyAndSummarizeFrames(1, [moveAction("actor_delver_1", 1, { x: 2, y: 1 })]),
+    ...applyAndSummarizeFrames(2, [moveAction("actor_delver_1", 2, { x: 3, y: 1 })]),
+  ];
+
+  // Requesting tick 1: only tick 1's apply-phase move has happened yet.
+  const tick1 = await createVisualizationSnapshot({
+    mode: "ascii", tick: 1, runId: "run_viz", simConfig: SIM_CONFIG, initialState: INITIAL_STATE, frames,
+  });
+  assert.equal(tick1.actorDetails.find((a) => a.id === "actor_delver_1").position.x, 2);
+
+  // Requesting tick 2: tick 2's own apply-phase move has also happened, cumulatively.
+  const tick2 = await createVisualizationSnapshot({
+    mode: "ascii", tick: 2, runId: "run_viz", simConfig: SIM_CONFIG, initialState: INITIAL_STATE, frames,
+  });
+  assert.equal(
+    tick2.actorDetails.find((a) => a.id === "actor_delver_1").position.x,
+    3,
+    "position must reflect BOTH ticks' accepted moves, not just the single (always-empty) summarize frame",
+  );
 });
 
 test("createVisualizationSnapshot in image mode returns visualizationDataUri field and no layers", async () => {
@@ -276,7 +374,7 @@ test("createVisualizationSnapshot in image mode returns visualizationDataUri fie
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   assert.equal(snap.mode, "image");
   assert.ok(Object.prototype.hasOwnProperty.call(snap, "visualizationDataUri"));
@@ -291,7 +389,7 @@ test("actorDetails for stationary warden reflects motivation", async () => {
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   const warden = snap.actorDetails.find((actor) => actor.id === "actor_warden_1");
   assert.ok(warden, "warden actor detail must exist");
@@ -307,7 +405,7 @@ test("actorDetails affinities preserve stacks and expression fields", async () =
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   const delver = snap.actorDetails.find((actor) => actor.id === "actor_delver_1");
   assert.deepEqual(delver.affinities[0], { name: "fire", stacks: 2, expression: "emit" });
@@ -327,7 +425,7 @@ test("actorDetails vitals include stamina and mana when present", async () => {
     runId: "run_viz",
     simConfig: SIM_CONFIG,
     initialState,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   const delver = snap.actorDetails.find((actor) => actor.id === "actor_delver_1");
   assert.ok(delver.vitals.stamina, "stamina vital must be present");
@@ -343,7 +441,7 @@ test("createVisualizationSnapshot tolerates missing hazards and resources fields
     runId: "run_viz",
     simConfig,
     initialState: INITIAL_STATE,
-    tickFrame: TICK_FRAME,
+    frames: [TICK_FRAME],
   });
   assert.equal(snap.mode, "ascii");
   assert.equal(snap.layers.hazards.replace(/\n/g, "").trim(), "");
