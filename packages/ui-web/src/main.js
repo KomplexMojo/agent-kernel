@@ -227,6 +227,14 @@ globalThis.__ak_loadGameplayBundle = async (bundle, { targetTab = "design" } = {
       ctrl.pullCardToEditor(cardToShow.id);
       await surface.render?.();
     }
+    // Seed the reuse baseline from the design this bundle carries. Without it the
+    // run we just loaded has no baseline, so the next navigation to Gameplay
+    // treats the design as changed, rebuilds, and silently replaces the loaded
+    // level with a differently generated one.
+    const seeded = await ctrl.publishSpecText?.({ source: "bundle-load" });
+    if (seeded?.ok && typeof seeded.specText === "string") {
+      lastGameplaySpecText = seeded.specText;
+    }
   }
   const ALLOWED_TABS = new Set(["design", "gameplay", "preview"]);
   // Opening the gameplay tab normally re-generates a run from the design
