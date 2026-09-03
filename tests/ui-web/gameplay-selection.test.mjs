@@ -678,3 +678,110 @@ test("openPlayerPanel with actor missing vitals and Escape while closed do not t
   assert.doesNotThrow(() => view.openPlayerPanel());
   assert.doesNotThrow(() => onKeyPress({ key: "escape" }));
 });
+
+// ---------------------------------------------------------------------------
+// Selecting an actor after the run has been stepped.
+//
+// The board and the actor inspector talk to each other, and that conversation
+// destroyed its own result. selectEntity resolved the actor correctly, then told
+// the inspector about the tile; the inspector had no actor of its own there, so
+// it resolved the nearest positioned entity instead -- a room -- and notified
+// back. handleInspectorSelect assigned unconditionally, so the room's tile
+// (absent from entityIndex) overwrote the good selection with null and the HUD
+// never appeared. On screen: clicking an actor did nothing, while clicking a
+// block away, where the actor used to be, worked.
+// ---------------------------------------------------------------------------
+
+const MOVING_ACTOR_BUNDLE = {
+  artifacts: [
+    {
+      schema: "agent-kernel/SimConfigArtifact",
+      schemaVersion: 1,
+      meta: { id: "sim-move", runId: "run-move", createdAt: "2026-09-03T00:00:00Z", producedBy: "director" },
+      layout: { data: { width: 8, height: 8, rooms: [{ id: "R1", x: 0, y: 0, width: 8, height: 8 }] } },
+      seed: 0,
+    },
+    {
+      schema: "agent-kernel/InitialStateArtifact",
+      schemaVersion: 1,
+      meta: { id: "state-move", runId: "run-move", createdAt: "2026-09-03T00:00:00Z", producedBy: "director" },
+      actors: [{ id: "delver-1", type: "delver", position: { x: 2, y: 2 },
+        vitals: { health: { current: 9, max: 10 } } }],
+    },
+  ],
+  tickFrames: [
+    { tick: 0, acceptedActions: [] },
+    { tick: 1, acceptedActions: [{ kind: "move", actorId: "delver-1", params: { to: { x: 3, y: 3 } } }] },
+    { tick: 2, acceptedActions: [{ kind: "move", actorId: "delver-1", params: { to: { x: 4, y: 3 } } }] },
+  ],
+};
+
+test("clicking an actor selects it at every tick, not only at tick 0", async () => {
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(MOVING_ACTOR_BUNDLE);
+
+  assert.equal(view.selectEntity({ x: 2, y: 2 })?.id, "delver-1", "tick 0");
+
+  view.stepForward();
+  const atTick1 = view.selectEntity({ x: 3, y: 3 });
+  assert.ok(atTick1, "the actor must be selectable where it now stands, at tick 1");
+  assert.equal(atTick1.id, "delver-1");
+  assert.deepEqual(atTick1.position, { x: 3, y: 3 });
+
+  view.stepForward();
+  const atTick2 = view.selectEntity({ x: 4, y: 3 });
+  assert.ok(atTick2, "and at tick 2");
+  assert.deepEqual(atTick2.position, { x: 4, y: 3 });
+
+  // And the tile it has left behind holds nothing.
+  assert.equal(view.selectEntity({ x: 2, y: 2 }), null, "the vacated tile must be empty");
+});
+
+test("the selection survives the inspector's own notification", async () => {
+  // The loop: selectEntity -> inspector -> notify -> handleInspectorSelect.
+  // A fake inspector that answers back with an unrelated tile, exactly as the
+  // real one did when it substituted a room for the actor.
+  const calls = [];
+  let viewRef = null;
+  const inspector = {
+    setScenario() {},
+    setMode() {},
+    setActors() {},
+    setRunning() {},
+    clearSelection() {},
+    selectEntityAtPosition(position, options) {
+      calls.push({ position, options });
+      // Only answer back if the caller asked to be notified.
+      if (options?.notify === false) return null;
+      viewRef.handleInspectorSelect({ id: "card_room_1-2", position: { x: 0, y: 0 } });
+      return null;
+    },
+  };
+  viewRef = wireGameplayView({ root: makeRoot(), actorInspector: inspector });
+  await viewRef.loadRun(MOVING_ACTOR_BUNDLE);
+  viewRef.stepForward();
+
+  const selected = viewRef.selectEntity({ x: 3, y: 3 });
+  assert.ok(selected, "selectEntity must resolve the actor");
+  assert.equal(
+    viewRef.getSelectedEntity()?.id,
+    "delver-1",
+    "the inspector's answer must not wipe the selection the board just made",
+  );
+  assert.equal(calls.at(-1)?.options?.notify, false, "board clicks must not ask for a notification");
+});
+
+test("an inspector callback that resolves nothing leaves the board selection alone", async () => {
+  // Resolving nothing is not a request to deselect.
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(MOVING_ACTOR_BUNDLE);
+  view.stepForward();
+  assert.ok(view.selectEntity({ x: 3, y: 3 }), "precondition: something is selected");
+
+  view.handleInspectorSelect({ id: "card_room_1-2", position: { x: 7, y: 7 } });
+  assert.equal(
+    view.getSelectedEntity()?.id,
+    "delver-1",
+    "a miss must not clear the current selection",
+  );
+});

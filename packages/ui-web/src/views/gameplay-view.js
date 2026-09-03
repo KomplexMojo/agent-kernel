@@ -338,7 +338,14 @@ export function wireGameplayView({
     const key = `${position.x},${position.y}`;
     const entity = entityIndex.get(key) ?? null;
     selectedEntity = entity;
-    actorInspector?.selectEntityAtPosition?.(position);
+    // notify:false breaks a feedback loop that destroyed this very selection.
+    // The inspector, told about a position with no actor of its own there,
+    // resolves the nearest positioned entity instead -- a ROOM -- and notifies,
+    // which re-enters handleInspectorSelect with the room's tile. That tile is
+    // not in entityIndex, so the selection we just made was overwritten with
+    // null and the HUD never appeared. Board clicks drive the inspector, not the
+    // other way round; it has no business answering back here.
+    actorInspector?.selectEntityAtPosition?.(position, { notify: false });
     if (entity?.position) {
       renderer.highlightActor?.(entity.position);
       renderer.centerOnTile?.(entity.position);
@@ -458,9 +465,17 @@ export function wireGameplayView({
     const pos = payload.position;
     const key = `${Math.floor(Number(pos.x))},${Math.floor(Number(pos.y))}`;
     const entity = entityIndex.get(key) ?? null;
+    // Resolving nothing is not a request to deselect. This assigned
+    // unconditionally, so any callback carrying a tile the board does not index
+    // -- a room, or a stale position from an earlier tick -- silently dropped
+    // the current selection and hid its HUD. Leave the board alone instead of
+    // clearing it on a miss, and do not move the camera to a tile that holds
+    // nothing.
+    if (!entity) return;
     selectedEntity = entity;
     renderer.highlightActor?.(pos);
     renderer.centerOnTile?.(pos);
+    refreshHud();
   }
 
   return {
