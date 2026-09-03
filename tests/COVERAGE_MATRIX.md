@@ -16,7 +16,7 @@ a missing case becomes a failing test, never silent drift.
 |---|---|---|
 | **L1 — CLI/MCP per-element** | [`integration/element-matrix-cli.test.mjs`](integration/element-matrix-cli.test.mjs) | `ak create`/`run`; asserts each element round-trips into sim-config / initial-state / spec |
 | **Ladder — author→build→run** | [`integration/complexity-ladder.test.mjs`](integration/complexity-ladder.test.mjs) + [`fixtures/scenarios/complexity-ladder/`](fixtures/scenarios/complexity-ladder/) | escalating T0→T3 fixtures through the full pipeline |
-| **L2 — UI element render** | _removed with the Playwright subsystem (2026-08-01)_ | was `index_c.html` via `serve:c`; build → gameplay render. **This layer is now uncovered** — L1 and L3 assert the data round-trip, but nothing asserts the rendered frame. |
+| **L2 — UI element render** | _removed with the Playwright subsystem (2026-08-01)_ | was `index_c.html` via the then-separate `serve:c` script (removed 2026-09-03; `serve:ui` now serves that entry); build → gameplay render. **This layer is now uncovered** — L1 and L3 assert the data round-trip, but nothing asserts the rendered frame. |
 | **L3 — UI↔CLI parity** | [`integration/ui-cli-equivalence.test.js`](integration/ui-cli-equivalence.test.js) (ladder block) | CLI `build` vs in-process cli-worker (browser) adapter |
 
 Run: `pnpm run test:vitest -- tests/integration/element-matrix-cli.test.mjs`

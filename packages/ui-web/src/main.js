@@ -1,6 +1,7 @@
 import { wireTabs } from "./tabs.js";
 import { createActorInspector } from "./actor-inspector.js";
 import { createInventoryScreen } from "./inventory-screen.js";
+import { resolveScreenShortcut } from "./screen-shortcuts.js";
 import { createCliWorkerAdapter } from "../../adapters-web/src/adapters/cli-worker/index.js";
 import { buildResultHasBundle } from "./build-orchestrator.js";
 import { shouldReuseActiveRun } from "./gameplay-launch.js";
@@ -509,41 +510,38 @@ if (document.querySelector("#phaser-frame-root")) {
 // back/forward, Ctrl+digit to direct screen jumps. Cmd+digit is off-limits —
 // Chrome reserves it for browser-tab switching and pages cannot intercept it.
 document.addEventListener("keydown", (event) => {
-  if (event.metaKey || event.ctrlKey) {
-    // Checked BEFORE the plain brackets: a layout that reports Shift+"]" as key
-    // "]" would otherwise navigate forward and never reach the toggle.
-    // Cmd/Ctrl+} sits in the same bracket family as screen navigation on purpose
-    // -- it is a screen you switch to, not a game binding -- and Shift keeps it
-    // clear of Cmd+] itself.
-    if (event.key === "}" || (event.shiftKey && event.key === "]")) {
-      event.preventDefault();
-      inventoryScreen?.toggle?.();
-      return;
-    }
-    if (event.key === "]") {
-      event.preventDefault();
-      navigateScreens("forward");
-      return;
-    }
-    if (event.key === "[") {
-      event.preventDefault();
-      navigateScreens("back");
-      return;
-    }
-  }
-  if (event.key === "Escape" && inventoryScreen?.isOpen?.()) {
+  // The binding table lives in screen-shortcuts.js so it can be tested: this
+  // handler only performs what the resolver decided. A chord the browser
+  // reserves resolves to null there, which is how the inventory's old Cmd+}
+  // binding is prevented from coming back.
+  const resolved = resolveScreenShortcut(event);
+  if (!resolved) return;
+
+  if (resolved.action === "close-inventory") {
+    if (!inventoryScreen?.isOpen?.()) return;
     event.preventDefault();
     inventoryScreen.hide();
     return;
   }
-  if (event.ctrlKey && !event.metaKey) {
-    if (event.key === "1") {
-      event.preventDefault();
-      tabs?.setActive("design");
-    } else if (event.key === "2") {
-      event.preventDefault();
-      tabs?.setActive("gameplay");
-    }
+
+  event.preventDefault();
+  switch (resolved.action) {
+    case "forward":
+    case "back":
+      navigateScreens(resolved.action);
+      return;
+    case "inventory":
+      inventoryScreen?.toggle?.();
+      return;
+    // Screens are mutually exclusive: switching away closes the inventory
+    // rather than leaving it floating over the screen you moved to.
+    case "design":
+    case "gameplay":
+      inventoryScreen?.hide?.();
+      tabs?.setActive(resolved.action);
+      return;
+    default:
+      return;
   }
 });
 

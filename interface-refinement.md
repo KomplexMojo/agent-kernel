@@ -10,7 +10,7 @@ Reviewing the actual interface — not the synthetic probes — surfaced three t
 
 1. **I had been verifying the wrong page.** `index.html` (2414 lines) mixes legacy and current
    surfaces; the canonical entry is **`index_c.html`** ("Agent Kernel — Current", 189 lines), served
-   by `pnpm run serve:c`. Earlier M3/M4 app checks used the mixed page, which is why its playback
+   by `pnpm run serve:ui`. Earlier M3/M4 app checks used the mixed page, which is why its playback
    controls appeared inert. Re-verified on `index_c.html`.
 2. **Regression I introduced in M3:** the wall border was mapped to `tiles.wall`, a *fill*, dropping
    contrast against the floor from **ΔE 69.7 to 9.7** — room outlines nearly invisible. Fixed with a

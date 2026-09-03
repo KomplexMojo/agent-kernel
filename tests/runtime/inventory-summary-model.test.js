@@ -107,6 +107,38 @@ test("the summary is serializable", () => {
   assert.deepEqual(JSON.parse(JSON.stringify(summary)), summary);
 });
 
+test("an item's token cost comes from the card's budget envelope", () => {
+  // Cards carry no flat `tokens` field -- the priced total sits in the budget /
+  // cardValue / tokenReceipt envelopes. Reading `card.tokens` made every
+  // inventory row render 0t while the group headers showed the real spend.
+  const summary = buildInventorySummary({
+    cards: [
+      { id: "R-1", type: "room", count: 5, budget: { totalTokens: 320 }, cardValue: { totalTokens: 320 } },
+      { id: "A-1", type: "delver", count: 1, budget: { totalTokens: 55 } },
+      { id: "D-1", type: "warden", count: 1, cardValue: { totalTokens: 51 } },
+      { id: "H-1", type: "hazard", count: 1, tokenReceipt: { tokenTotals: { total: 17 } } },
+    ],
+  });
+  const tokensFor = (type) => summary.groups.find((g) => g.type === type).cards[0].tokens;
+  assert.equal(tokensFor("room"), 320, "budget.totalTokens");
+  assert.equal(tokensFor("delver"), 55, "budget.totalTokens without cardValue");
+  assert.equal(tokensFor("warden"), 51, "cardValue.totalTokens");
+  assert.equal(tokensFor("hazard"), 17, "tokenReceipt.tokenTotals.total");
+});
+
+test("a card priced only by a flat tokens field still reports it", () => {
+  // Plain shapes (fixtures, callers outside the card builder) keep working.
+  const summary = buildInventorySummary({ cards: [{ id: "R-1", type: "room", tokens: 12 }] });
+  assert.equal(summary.groups.find((g) => g.type === "room").cards[0].tokens, 12);
+});
+
+test("a genuinely free card reports zero rather than an invented number", () => {
+  const summary = buildInventorySummary({
+    cards: [{ id: "R-0", type: "room", budget: { totalTokens: 0 }, tokens: 0 }],
+  });
+  assert.equal(summary.groups.find((g) => g.type === "room").cards[0].tokens, 0);
+});
+
 // ## TODO: Test Permutations
 // Named permutations awaiting /local-test-gen. Empty bodies on purpose -- see
 // tests/README.md: un-skipping one creates a vacuously passing empty test.

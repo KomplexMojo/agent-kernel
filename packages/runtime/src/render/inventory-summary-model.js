@@ -52,6 +52,31 @@ function finite(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+/**
+ * A card's token cost.
+ *
+ * Cards do not carry a flat `tokens` field: the priced total lives in the
+ * card's budget/receipt envelopes, which is why every inventory row rendered
+ * "0t" while the group headers (read from the allocation ledger) showed the real
+ * spend. Read the envelopes in the order the card builder fills them, and only
+ * fall back to a flat field for callers that hand us a plain shape.
+ */
+function tokensOf(card) {
+  const candidates = [
+    card?.budget?.totalTokens,
+    card?.cardValue?.totalTokens,
+    card?.tokenReceipt?.tokenTotals?.total,
+    card?.tokens,
+  ];
+  for (const value of candidates) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed !== 0) return parsed;
+  }
+  // Every source agreed it is zero (or absent) -- report zero rather than
+  // inventing a number.
+  return 0;
+}
+
 function colourFor(type) {
   return GAME_COLOR_PALETTE.types?.[type] || GAME_COLOR_PALETTE.items?.[type] || "#8a8588";
 }
@@ -89,7 +114,7 @@ export function buildInventorySummary({ cards, allocationLedger } = {}) {
     const type = typeof card?.type === "string" ? card.type.trim().toLowerCase() : "";
     const entry = {
       id: typeof card?.id === "string" ? card.id : "",
-      tokens: finite(card?.tokens),
+      tokens: tokensOf(card),
       count: Math.max(1, Math.round(finite(card?.count, 1))),
       // The same view-model the board HUD uses, so an inventory row and the HUD
       // cannot describe the same entity differently.

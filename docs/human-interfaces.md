@@ -65,9 +65,17 @@ silhouettes stop being distinguishable. On very large levels — past roughly 46
 tiles a side — this means the whole level may not fit on screen at once; pan to
 see the rest.
 
-Press **⌘}** (or Ctrl+Shift+]) for the **inventory screen**: a full-width screen
+Press **Ctrl+3** for the **inventory screen**: a full-width screen
 listing every card grouped by type, with per-group spend and remaining budget.
 Each row carries that entity's HUD laid out across it — affinity · expression,
 its vitals as side-by-side bars, motivation and token cost — so an entity can be
 read without finding and selecting it on the board. Escape or the same key closes it.
+
+Screens are on **Ctrl+<digit>**: Ctrl+1 Design, Ctrl+2 Gameplay, Ctrl+3 Inventory.
+Ctrl+digit is used because it is free on macOS, where the browser's own tab
+switching is Cmd+digit. The inventory was previously on ⌘} — which is literally
+Cmd+Shift+], a chord macOS browsers reserve for "next tab" — so the keypress
+never reached the page and the screen could not be opened at all. On Windows and
+Linux, Chrome binds Ctrl+1..8 to tab switching, so these chords would need
+revisiting there.
 

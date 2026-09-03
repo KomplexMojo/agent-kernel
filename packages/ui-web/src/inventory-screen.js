@@ -130,7 +130,7 @@ export function createInventoryScreen({
             ${fmt(summary.totals.usedTokens)} of ${fmt(summary.totals.allocatedTokens)} ·
             <b class="${summary.totals.overspent ? "is-over" : ""}">${fmt(summary.totals.remainingTokens)} left</b>
           </span>
-          <span class="ak-inv-hint">⌘} or Esc to close</span>
+          <span class="ak-inv-hint">Ctrl+3 or Esc to close</span>
         </header>
         <div class="ak-inv-groups">${sections}${unknown}</div>
       </div>`;
