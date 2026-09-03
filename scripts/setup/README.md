@@ -261,3 +261,40 @@ surfaces and `mcp.json` is gitignored, so nothing is committed as the live confi
 Verify a registration by listing tools — the server reports `name: "agent-kernel-cli"` and 49 tools;
 `tools/call ak_create {…, "dryRun": true}` returns a validated result without writing artifacts. The
 `tools/list` handshake snippet is in `packages/adapters-cli/src/mcp/README.md`.
+
+---
+
+# Bridging CLAUDE.md guidance to Cursor
+
+`AGENTS.md` is read natively by Cursor (IDE and cloud), so its roster, workflow, file placement,
+naming, test/benchmark strategy, and pre-handoff checklist need no porting. **`CLAUDE.md` is not a
+Cursor rule source** — content that lives only there is invisible to Cursor agents. The load-bearing
+sections are therefore bridged into Cursor-native files:
+
+| CLAUDE.md section | Cursor bridge | How it loads |
+| --- | --- | --- |
+| Reporting protocol | `.cursor/rules/reporting.mdc` | always-on (`alwaysApply: true`) |
+| Enforcement checklist + escalation | `.cursor/rules/enforcement.mdc` | auto-attaches on `packages/**`, `tests/**` |
+| Code navigation (Serena/Graphify/grep) | `.cursor/rules/code-navigation.mdc` | pulled in when relevant (`description`) |
+| Session-start protocol | `.cursor/rules/session-start.mdc` + `scripts/setup/session-refresh.sh` | always-on |
+
+Rules must use the `.mdc` extension with frontmatter — a plain `.md` under `.cursor/rules/` is ignored.
+
+## Subagents
+
+`.claude/agents/*.md` load in Cursor for compatibility, but their Claude model pins (Haiku/Opus/
+Sonnet) don't map to Cursor models. Cursor-native overrides pin valid Cursor models (`.cursor/`
+wins over `.claude/` on name conflict):
+
+- `.cursor/agents/fast-pass.md` — detection-only test run, `model: composer-2.5`, `readonly: true`.
+- `.cursor/agents/fix-pass.md` — diagnosis/fix pass, `model: claude-opus-5[effort=high]`.
+- **codex-reviewer** is **not** ported: its `.claude` version shells out to the Codex plugin runtime
+  (Claude Code only), and Cursor already provides a native `codex-reviewer` subagent. Use that.
+
+Adjust the pinned model IDs to your plan's available models via the in-app model picker if needed.
+
+## Not portable
+
+The Obsidian vault / knowledge-management workflow (`local-codex/*`, `~/vault`, `/save`) is
+machine-local to the maintainer's Mac and has no cloud-agent equivalent; it is intentionally not
+bridged.

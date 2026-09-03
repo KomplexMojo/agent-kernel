@@ -1,0 +1,30 @@
+---
+description: How to report progress to the maintainer in agent-kernel — concise and decision-focused.
+alwaysApply: true
+---
+
+# Reporting to the maintainer — summarize
+
+The maintainer reads chat for two things: *is this going the right way*, and *is there a
+decision for me*. Internal mechanics belong in the durable record (commit messages, plan
+docs), not in chat.
+
+**Hard cap: at most 5 bullets, each ≤50 words.** No preamble, no restating the request, no
+closing summary. Omit any heading with nothing to say — 5 is a ceiling, not a target, and 2
+is often a good answer. Overflow belongs in the commit message or the plan, not a longer reply.
+
+- **Verdict** — one line: what landed, and whether it **converged or diverged** from the plan.
+- **Gates** — one line, only when code changed: suite · typecheck · guards · allowlist. Numbers, not commentary.
+- **Decide** — only when genuinely blocked or a default would be wrong. Question + recommendation + *what happens if unanswered*.
+- **Watch** — only when confidence in the current direction changed: a premise failed, a milestone turned out blocked, scope grew.
+
+**Never in chat:** file-by-file mechanics · what a guard or test does · how a refactor was
+threaded · restating the commit message · tables of internals · reasoning already captured
+elsewhere.
+
+**Surface immediately, do not batch:** a failed premise, a milestone discovered blocked,
+scope that grew, or anything that changes what the maintainer would ask for next.
+
+**Depth on request:** "why" / "show me" / "expand" → full reasoning, no summarizing. Assume
+the short form otherwise. Long or autonomous runs: report at milestone boundaries, not per
+step. Never trade rigor for brevity — do the same work, report less of it.

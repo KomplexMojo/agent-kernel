@@ -1,0 +1,55 @@
+---
+description: agent-kernel architecture guardrails and enforcement checklist — dependency direction, persona FSM rules, artifacts, types, tests, docs, and escalation. Applies when changing code.
+globs: packages/**,tests/**
+alwaysApply: false
+---
+
+# Enforcement checklist (run on every diff — fix failures, don't just flag them)
+
+**Dependency direction (non-negotiable):** `adapters-* / ui-web` → `runtime` (personas) →
+`core-ts` (pure logic, no IO). Violations are **blocking**. The guards in `tests/architecture/`
+enforce most of this mechanically; this is what you check before they do.
+
+**Architecture** — dependency flows only adapters/ui → runtime → core-ts · `core-ts` has no IO
+and no imports outside itself · all external IO behind an adapter · no adapter code in
+`runtime`/`core-ts`.
+
+**Personas** — pure FSM (`view()` + `advance(event, payload)`) · clock injected (never read
+directly) · context serializable (no class instances, no functions) · effects returned as data
+and routed via `packages/runtime/src/ports/effects.js`, never executed inline · no imports of
+persona internals from outside the persona directory (controllers only) · no domain logic in
+glue · persona states must gate real behavior (label-only states are defects) · all pricing
+goes through the Allocator (base costs in `base-costs.json`, no silent fallbacks).
+
+**Artifacts** — boundary-crossing data uses a versioned schema from
+`packages/runtime/src/contracts/artifacts.ts` with `schema`/`schemaVersion`/`meta` present ·
+evolve `schemaVersion` on breaking changes; never remove or rename fields in place.
+
+**Types** — `pnpm run typecheck` stays at zero (gate: `tsconfig.typecheck.json`, covering
+core-ts and its tests). Do not widen the gate casually.
+
+**Tests** — failing tests written *before* production code · new behavior covered under
+`tests/` · deterministic behavior uses fixtures · negative cases under
+`tests/fixtures/artifacts/invalid/` · no test hits live external services · persona behavior
+tests live in `tests/personas/<persona>/` named `<persona>-<behavior>.test.*` · anything a
+benchmark surfaced that a deterministic test could catch lands as that test, not the next run.
+
+**Code quality** — every changed line traces to the current task (no drive-by cleanup) · not
+over-engineered · assumptions stated before implementation.
+
+**Documentation, same diff** — architecture boundaries changed → `docs/architecture-charter.md`
++ `docs/architecture/diagram.mmd` (maintainer sign-off) · CLI flags or behavior changed →
+`packages/adapters-cli/README.md` · a module's canonical file moved or a persona surface
+changed → that persona's or package's `README.md`. A doc that now contradicts the code is a
+**blocking** defect: fix it in the diff that made it wrong.
+
+## Refactor vs escalate
+
+**Refactor without asking** when the fix is clear: preserve intent, move code to the right
+layer, extract missing ports, update tests in the same pass. **Escalate** — state the violation
+and the charter rule, propose the minimal fix with tradeoffs, and wait — when the correct layer
+is genuinely ambiguous, the fix needs `docs/architecture-charter.md` / `docs/architecture/diagram.mmd`,
+or it crosses more than one package boundary with unclear intent.
+
+**Clean-up found but not required by the task gets logged as a `gh issue`, not fixed inline**
+and not left as a comment or plan-doc aside.
