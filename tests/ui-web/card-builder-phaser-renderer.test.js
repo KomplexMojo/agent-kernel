@@ -21,13 +21,22 @@ function createFakePhaser(records = {}) {
       type,
       ...props,
       setOrigin() { return this; },
+      // Real Phaser game objects have these; the double was missing them, so a
+      // renderer that measures a label and then places it failed only in tests.
+      setPosition(x, y) { this.x = x; this.y = y; return this; },
+      setStrokeStyle(...args) { this.stroke = args; return this; },
+      setFillStyle(...args) { this.fill = args; return this; },
+      setColor(color) { this.color = color; return this; },
+      setStyle(style) { this.style = { ...(this.style || {}), ...style }; return this; },
       setDepth() { return this; },
       setData(k, v) { (this.data = this.data || {})[k] = v; return this; },
       setName(n) { this.name = n; return this; },
       setInteractive() { this.interactive = true; return this; },
       on(event, handler) { (this.handlers = this.handlers || {})[event] = handler; return this; },
       setVisible() { return this; },
-      setAlpha() { return this; },
+      // Record it: a stub that swallowed the value made every "is this visible?"
+      // assertion pass vacuously.
+      setAlpha(a) { this.alpha = a; return this; },
       setTint() { return this; },
       destroy() { this.destroyed = true; },
     };
@@ -78,6 +87,9 @@ function createFakePhaser(records = {}) {
               lineTo() { return this; },
               strokePath() { return this; },
               strokeRect() { return this; },
+              // Room cards draw closed shapes for their floor plans.
+              fillPath() { return this; },
+              closePath() { return this; },
               // Reached once a TYPED card renders its affinity blocks -- no test
               // exercised that path before, so the stub was missing these.
               strokeCircle() { return this; },
@@ -446,5 +458,97 @@ test("no icon markup is ever drawn as canvas text", async () => {
     [],
     `icon markup drawn as text: ${offenders.map((o) => o.slice(0, 70)).join(" | ")}`,
   );
+  renderer.dispose();
+});
+
+// ---------------------------------------------------------------------------
+// The shelve button.
+//
+// It used to be an unlabelled 22px square at the end of the editor's content
+// flow, so it moved with the card: a delver carrying two motivation rows put it
+// 32px below where a warden with one row did. A control that lands somewhere
+// different per card cannot be aimed at from memory, and with its label hidden
+// until hover there was nothing to aim at either. Now it is pinned to the
+// editor's top-right corner and always carries its label.
+// ---------------------------------------------------------------------------
+
+/** Configure a card of `type` with `motivations` applied, then render. */
+async function renderCardWithMotivations(records, type, motivations) {
+  const controller = createCardBuilderController();
+  const id = controller.getActiveCard().id;
+  controller.applyPropertyDrop(id, { group: "type", value: type });
+  for (const m of motivations) {
+    controller.applyPropertyDrop(controller.getActiveCard().id, { group: "motivations", value: m });
+  }
+  const renderer = createCardBuilderPhaserRenderer({
+    controller,
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(makeContainer());
+  await renderer.render();
+  const button = renderer.getEditorChips().find((c) => c.role === "shelve_button");
+  return { renderer, button };
+}
+
+test("the shelve button holds one position regardless of what the card contains", async () => {
+  // The defect: its y came from the running content offset.
+  const a = await renderCardWithMotivations({}, "delver", []);
+  const b = await renderCardWithMotivations({}, "delver", ["exploring", "attacking"]);
+  const c = await renderCardWithMotivations({}, "warden", ["defending"]);
+
+  assert.ok(a.button && b.button && c.button, "every configured card needs a shelve button");
+  assert.equal(a.button.y, b.button.y, "extra motivation rows must not move the button");
+  assert.equal(a.button.y, c.button.y, "a different card type must not move it either");
+
+  // And it stays at the top of the panel rather than trailing the content.
+  assert.ok(a.button.y < 60, `expected the button near the top, got y=${a.button.y}`);
+  for (const r of [a, b, c]) r.renderer.dispose();
+});
+
+test("the shelve button is right-aligned to the editor panel", async () => {
+  // Its right edge is the anchor, so a longer label grows leftwards and the
+  // button does not drift as the type name changes length.
+  const delver = await renderCardWithMotivations({}, "delver", []);
+  const room = await renderCardWithMotivations({}, "room", []);
+  const rightEdge = (b) => b.x + b.width;
+
+  assert.equal(
+    rightEdge(delver.button),
+    rightEdge(room.button),
+    "both buttons must share a right edge despite different label widths",
+  );
+  assert.notEqual(delver.button.width, room.button.width, "the labels differ in length");
+  delver.renderer.dispose();
+  room.renderer.dispose();
+});
+
+test("the shelve button names the group it moves the card to, without hovering", async () => {
+  // The label used to render at alpha 0 until pointerover, so nothing on screen
+  // said what the control did.
+  const records = {};
+  const { renderer, button } = await renderCardWithMotivations(records, "warden", []);
+  const label = records.texts.find((t) => String(t.text) === "Shelve as warden");
+
+  assert.ok(label, "expected a visible 'Shelve as warden' label");
+  assert.notEqual(label.alpha, 0, "the label must not be hidden until hover");
+  assert.equal(button.value, "warden");
+  renderer.dispose();
+});
+
+test("the shelve button's hit area covers the button that is drawn", async () => {
+  // Registry rect and interactive zone must describe the same rectangle: this is
+  // the claim a user makes when they say a control is "misaligned".
+  const records = {};
+  const { renderer, button } = await renderCardWithMotivations(records, "delver", ["exploring"]);
+  const zone = records.rectangles.find((r) => (
+    r.type === "zone"
+    && Math.abs(r.width - button.width) < 0.5
+    && Math.abs(r.height - button.height) < 0.5
+  ));
+
+  assert.ok(zone, "expected an interactive zone matching the button's size");
+  // Zones are centre-origin; the registry records the top-left.
+  assert.ok(Math.abs((zone.x - zone.width / 2) - button.x) < 0.5, "zone x must match the drawn box");
+  assert.ok(Math.abs((zone.y - zone.height / 2) - button.y) < 0.5, "zone y must match the drawn box");
   renderer.dispose();
 });

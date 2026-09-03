@@ -1314,33 +1314,59 @@ export function createCardBuilderPhaserRenderer({
     }
 
     if (type) {
-      const SHELVE_SZ = 22;
-      const shelveCx = editorX + SHELVE_SZ / 2 + 2;
-      const shelveCy = row + SHELVE_SZ / 2;
+      // Pinned to the editor's top-right corner, and always labelled.
+      //
+      // It used to be an unlabelled 22px square at the end of the content flow,
+      // so its position moved with the card: a delver with two motivation rows
+      // put it 32px lower than a warden with one. A control that lands somewhere
+      // different per card cannot be aimed at from memory, and with the label
+      // hidden until hover there was nothing to aim at either. Neither its hit
+      // area nor its drawing was ever wrong -- the target simply moved.
+      const SHELVE_H = 24;
+      const SHELVE_PAD_X = 10;
+      const SHELVE_GLYPH_W = 9;
+      const SHELVE_GAP = 7;
+      const shelveText = `Shelve as ${type}`;
+
+      // Graphics first so the label sits on top of the box; the box is drawn
+      // once the label's real width is known.
       const shelveG = addObj(scene.add.graphics());
-      shelveG.fillStyle(0x3a3420, 1);
-      shelveG.fillRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4);
-      shelveG.lineStyle(1, 0x806820, 0.8);
-      shelveG.strokeRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4);
-      shelveG.fillStyle(0xf0d060, 1);
-      shelveG.fillTriangle(
-        shelveCx - 4, shelveCy - 5,
-        shelveCx + 5, shelveCy,
-        shelveCx - 4, shelveCy + 5,
-      );
       const shelveLabel = addObj(
-        scene.add.text(shelveCx + SHELVE_SZ / 2 + 6, shelveCy, `Shelve as ${type}`,
-          { fontSize: "11px", color: COLOR_SHELVE_BTN }).setOrigin(0, 0.5).setAlpha(0),
+        scene.add.text(0, 0, shelveText, { fontSize: "11px", color: COLOR_SHELVE_BTN }).setOrigin(0, 0.5),
       );
+      const labelW = Number(shelveLabel.width) || shelveText.length * 6;
+      const boxW = SHELVE_PAD_X + SHELVE_GLYPH_W + SHELVE_GAP + labelW + SHELVE_PAD_X;
+      // Right-aligned to the editor panel's own edge, on the header row, so it
+      // holds still no matter what the card below it contains.
+      const boxX = editorX + editorW - boxW;
+      const boxY = topOffset + 8;
+      const glyphX = boxX + SHELVE_PAD_X;
+      const centerY = boxY + SHELVE_H / 2;
+      shelveLabel.setPosition(glyphX + SHELVE_GLYPH_W + SHELVE_GAP, centerY);
+
+      const paintShelve = (hovered) => {
+        shelveG.clear();
+        shelveG.fillStyle(hovered ? 0x4a4428 : 0x3a3420, 1);
+        shelveG.fillRoundedRect(boxX, boxY, boxW, SHELVE_H, 5);
+        shelveG.lineStyle(1, hovered ? 0xa08830 : 0x806820, hovered ? 1 : 0.8);
+        shelveG.strokeRoundedRect(boxX, boxY, boxW, SHELVE_H, 5);
+        shelveG.fillStyle(hovered ? 0xffdd88 : 0xf0d060, 1);
+        shelveG.fillTriangle(
+          glyphX, centerY - 5,
+          glyphX + SHELVE_GLYPH_W, centerY,
+          glyphX, centerY + 5,
+        );
+      };
+      paintShelve(false);
+
       const shelveHit = addObj(
-        scene.add.zone(shelveCx, shelveCy, SHELVE_SZ, SHELVE_SZ).setInteractive({ useHandCursor: true }),
+        scene.add.zone(boxX + boxW / 2, centerY, boxW, SHELVE_H).setInteractive({ useHandCursor: true }),
       );
-      shelveHit.on("pointerover", () => { shelveLabel.setAlpha(1); shelveG.clear().fillStyle(0x4a4428, 1).fillRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).lineStyle(1, 0xa08830, 1).strokeRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).fillStyle(0xffdd88, 1).fillTriangle(shelveCx - 4, shelveCy - 5, shelveCx + 5, shelveCy, shelveCx - 4, shelveCy + 5); });
-      shelveHit.on("pointerout", () => { shelveLabel.setAlpha(0); shelveG.clear().fillStyle(0x3a3420, 1).fillRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).lineStyle(1, 0x806820, 0.8).strokeRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).fillStyle(0xf0d060, 1).fillTriangle(shelveCx - 4, shelveCy - 5, shelveCx + 5, shelveCy, shelveCx - 4, shelveCy + 5); });
+      shelveHit.on("pointerover", () => { paintShelve(true); shelveLabel.setColor?.(COLOR_HOVER); });
+      shelveHit.on("pointerout", () => { paintShelve(false); shelveLabel.setColor?.(COLOR_SHELVE_BTN); });
       shelveHit.on("pointerdown", () => { applyIntent({ kind: "move_card_between_groups", group: type }); void render(); });
       chipRegistry.push({ label: `shelve_${type}`, zone: "editor", role: "shelve_button", value: type,
-        x: shelveCx - SHELVE_SZ / 2, y: row, width: SHELVE_SZ, height: SHELVE_SZ });
-      row += SHELVE_SZ + 4;
+        x: boxX, y: boxY, width: boxW, height: SHELVE_H });
     }
 
   }

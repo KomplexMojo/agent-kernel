@@ -79,3 +79,16 @@ never reached the page and the screen could not be opened at all. On Windows and
 Linux, Chrome binds Ctrl+1..8 to tab switching, so these chords would need
 revisiting there.
 
+
+## 5) The Design Screen's Shelve Control
+
+Once a card has a type, a **Shelve as \<type\>** button sits in the **top-right
+corner of the editor panel**, right-aligned to the panel's edge. Clicking it
+moves the card out of the editor and into that group in the inventory rail.
+
+It is pinned there deliberately. It used to be an unlabelled 22px square at the
+end of the editor's content flow, so its position moved with the card — a delver
+carrying two motivation rows put it 32px below where a warden with one row did —
+and its label only appeared on hover. A control that lands somewhere different
+per card, with nothing on it to read, cannot be aimed at from memory. The button
+grows leftwards as the type name lengthens so its right edge never moves.
