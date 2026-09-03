@@ -204,6 +204,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   let resizeObserver = null;
   let domPointerHandlers = null;
   let domPointerTarget = null;
+  let domPanAnchor = null;
   let lastHoverTile = null;
   let actorNodes = new Map();
   let selectedActorKey = null;
@@ -404,7 +405,13 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       domPointerHandlers = {
         pointerdown: (event) => {
           const hit = pointerEventToTile(event);
+          // Two separate points on purpose. pressOrigin is where the button went
+          // down and never moves, so displacement is measured against the press.
+          // panAnchor is the incremental reference for panning and does move.
+          // Collapsing them into one made `moved` at pointerup measure only the
+          // final mouse segment rather than how far the press had travelled.
           domStart = hit ? { x: event.clientX, y: event.clientY } : null;
+          domPanAnchor = domStart ? { ...domStart } : null;
           domDragged = false;
         },
         pointermove: (event) => {
@@ -421,22 +428,46 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
           }
           lastHoverTile = null;
           if (!domStart) return;
-          const dx = event.clientX - domStart.x;
-          const dy = event.clientY - domStart.y;
-          if (dx || dy) {
+          if (!domDragged) {
+            // A real mouse jitters a pixel or two while the button is down, so
+            // treating ANY movement as a drag meant a click on an actor selected
+            // nothing at all -- only a perfectly still click worked, and this
+            // threshold was never consulted. Become a drag only once the press
+            // has actually travelled past it.
+            const travelX = event.clientX - domStart.x;
+            const travelY = event.clientY - domStart.y;
+            const travelled = Math.hypot(travelX, travelY);
+            if (travelled <= DRAG_SELECT_THRESHOLD) return;
             domDragged = true;
+            // Anchor where the drag crossed the threshold, so this move pans by
+            // the distance BEYOND it. Anchoring at the press would lurch the view
+            // by the whole threshold; anchoring here and skipping the pan would
+            // swallow the motion of a single large move entirely.
+            const ratio = DRAG_SELECT_THRESHOLD / travelled;
+            domPanAnchor = {
+              x: domStart.x + travelX * ratio,
+              y: domStart.y + travelY * ratio,
+            };
+          }
+          const dx = event.clientX - (domPanAnchor?.x ?? event.clientX);
+          const dy = event.clientY - (domPanAnchor?.y ?? event.clientY);
+          if (dx || dy) {
             panCameraBy(dx, dy);
-            domStart = { x: event.clientX, y: event.clientY };
+            domPanAnchor = { x: event.clientX, y: event.clientY };
           }
         },
         pointerup: (event) => {
-          const start = domStart;
           const dragged = domDragged;
           domStart = null;
+          domPanAnchor = null;
           domDragged = false;
           if (playerPanelOpen) return;
-          const moved = start ? Math.hypot(event.clientX - start.x, event.clientY - start.y) : 0;
-          if (dragged || moved > DRAG_SELECT_THRESHOLD) return;
+          // One authority: pointermove latches `dragged` once the press travels
+          // past DRAG_SELECT_THRESHOLD. Re-measuring displacement here as well
+          // was unreachable -- every move produces a tile, so the threshold is
+          // always evaluated there first -- and a second, dead spelling of the
+          // same rule is exactly what let the click bug hide behind green tests.
+          if (dragged) return;
           const hit = pointerEventToTile(event);
           if (hit) onSelect?.({ x: hit.x, y: hit.y });
         },
@@ -799,6 +830,10 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       hudContainer.destroy(true);
       hudContainer = null;
     }
+    // showHud stamps the entity here, so leaving it set after the panel is gone
+    // reports a selection that is not on screen -- and it is the field tests read
+    // to decide whether the HUD is up.
+    if (stageEl?.dataset) delete stageEl.dataset.gameplayHud;
   }
 
   /**

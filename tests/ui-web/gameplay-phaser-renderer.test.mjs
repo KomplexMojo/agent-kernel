@@ -686,6 +686,154 @@ function makeContainerWithLateStage() {
   };
 }
 
+test("the HUD readout is cleared when the HUD is hidden", async () => {
+  // The dataset field is how a caller (and these tests) tell whether the HUD is
+  // up. Leaving the last entity's id on it after deselecting reports a selection
+  // that is not on screen.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+  const stage = container.stage;
+
+  renderer.showHud({ id: "delver-1", type: "delver", position: { x: 2, y: 2 },
+    vitals: { health: { current: 8, max: 10 } } });
+  assert.equal(stage.dataset.gameplayHud, "delver-1", "showing the HUD should stamp the readout");
+
+  renderer.hideHud();
+  assert.equal(
+    stage.dataset.gameplayHud,
+    undefined,
+    "deselecting must clear it, not leave the previous entity behind",
+  );
+  renderer.dispose();
+});
+
+test("a click that jitters still selects -- a real mouse is never perfectly still", async () => {
+  // The defect this exists for: pointermove latched "dragged" on ANY movement,
+  // so one pixel of hand tremor between press and release threw the click away
+  // and clicking an actor did nothing. Every test here dispatched down->up with
+  // no move in between, which is a path no real hand takes, so all of them
+  // passed while the board was unusable.
+  const records = {};
+  const container = makeContainer();
+  const selected = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onSelect: (pos) => selected.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+  const dom = boardListeners();
+
+  for (const jitter of [1, 2, 3, 5, 6]) {
+    selected.length = 0;
+    dom.pointerdown(screenPointer(80, 80, { buttons: 1 }));
+    dom.pointermove(screenPointer(80 + jitter, 80, { buttons: 1 }));
+    dom.pointerup(screenPointer(80 + jitter, 80));
+    assert.equal(selected.length, 1, `a ${jitter}px jitter must still select`);
+  }
+
+  // Jitter that wanders back and forth is still a click, not a drag.
+  selected.length = 0;
+  dom.pointerdown(screenPointer(80, 80, { buttons: 1 }));
+  for (const [x, y] of [[81, 80], [81, 81], [80, 81], [82, 81]]) {
+    dom.pointermove(screenPointer(x, y, { buttons: 1 }));
+  }
+  dom.pointerup(screenPointer(82, 81));
+  assert.equal(selected.length, 1, "several small moves are still a click");
+  renderer.dispose();
+});
+
+test("movement past the threshold is a drag and selects nothing", async () => {
+  // The other half: the threshold has to still mean something.
+  const records = {};
+  const container = makeContainer();
+  const selected = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onSelect: (pos) => selected.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+  const dom = boardListeners();
+
+  dom.pointerdown(screenPointer(80, 80, { buttons: 1 }));
+  dom.pointermove(screenPointer(100, 90, { buttons: 1 }));
+  dom.pointermove(screenPointer(130, 110, { buttons: 1 }));
+  dom.pointerup(screenPointer(130, 110));
+  assert.equal(selected.length, 0, "a real drag must not select");
+  renderer.dispose();
+});
+
+test("displacement is measured from the press, not from the last move", async () => {
+  // With one shared point, `moved` at pointerup measured only the final mouse
+  // segment: a long drag that ended with a small step read as a click.
+  const records = {};
+  const container = makeContainer();
+  const selected = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onSelect: (pos) => selected.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+  const dom = boardListeners();
+
+  dom.pointerdown(screenPointer(80, 80, { buttons: 1 }));
+  // Travel a long way, then creep the last pixel before releasing.
+  dom.pointermove(screenPointer(200, 80, { buttons: 1 }));
+  dom.pointermove(screenPointer(201, 80, { buttons: 1 }));
+  dom.pointerup(screenPointer(201, 80));
+  assert.equal(selected.length, 0, "ending a drag slowly must not read as a click");
+  renderer.dispose();
+});
+
+// Mirrors DRAG_SELECT_THRESHOLD in the renderer: how far a press may travel and
+// still count as a click.
+const DRAG_SELECT_THRESHOLD_PX = 6;
+
+test("crossing the drag threshold does not jump the camera by the threshold", async () => {
+  // Panning starts from where the drag began, not from the press, or the view
+  // lurches by the whole threshold distance the moment a drag is recognised.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 30,
+    boardHeight: 20,
+    tiles: Array.from({ length: 20 }, () => ".".repeat(30)),
+  });
+  const dom = boardListeners();
+  const camera = records.scene.cameras.main;
+  const startScroll = { x: camera.scrollX, y: camera.scrollY };
+
+  dom.pointerdown(screenPointer(200, 150, { buttons: 1 }));
+  // One pixel past the threshold: the view should move by about that one pixel,
+  // not by the whole threshold distance.
+  dom.pointermove(screenPointer(207, 150, { buttons: 1 }));
+  const afterCrossing = Math.abs(camera.scrollX - startScroll.x) * (records.camera.zoom || 1);
+  assert.ok(
+    afterCrossing < DRAG_SELECT_THRESHOLD_PX,
+    `crossing the threshold lurched ${afterCrossing}px, expected under ${DRAG_SELECT_THRESHOLD_PX}`,
+  );
+
+  // Continuing the drag keeps panning, and the motion is not swallowed.
+  dom.pointermove(screenPointer(247, 150, { buttons: 1 }));
+  assert.ok(
+    Math.abs(camera.scrollX - startScroll.x) > afterCrossing,
+    "continuing the drag must pan further",
+  );
+  renderer.dispose();
+});
+
 test("a bind that attached no listeners is retried, not latched", async () => {
   // The latch guarding bindCameraInput used to be set even when nothing was
   // bound. One early miss then disabled board input for the life of the
