@@ -45,7 +45,15 @@ function createFakePhaser(records = {}) {
   class Game {
     constructor(config) {
       records.config = config;
-      this.canvas = { style: {} };
+      // A canvas with a real DOM surface: board input is DOM listeners on the
+      // canvas, so a bare stub means no listeners register and every pointer
+      // test below silently asserts nothing.
+      this.canvas = {
+        style: {},
+        width: 800,
+        height: 600,
+        getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }),
+      };
       this.scale = {
         resize(w, h) {
           records.resizes.push({ w, h });
@@ -170,6 +178,20 @@ function createFakePhaser(records = {}) {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * The listeners production actually binds.
+ *
+ * Board input is DOM listeners on the STAGE (Phaser v4 delivers no scene.input
+ * pointer events). Driving them, rather than calling handler functions with
+ * synthetic pointer objects, is the whole point: the old tests asserted the
+ * handler's logic and never that an event reached it, so clicking an actor was
+ * dead in the browser while they stayed green.
+ */
+let lastStage = null;
+function boardListeners() {
+  return lastStage?.listeners || {};
+}
+
 function makeContainer(width = 800, height = 600) {
   let stage = null;
   return {
@@ -180,6 +202,7 @@ function makeContainer(width = 800, height = 600) {
     },
     appendChild(child) {
       stage = child;
+      lastStage = child;
       child.parentElement = this;
     },
     get stage() {
@@ -404,8 +427,19 @@ describe("Z key opens and closes overlay", () => {
     renderer.openPlayerPanel(makePlayerPanelModel());
 
     // Attempt a tile click while panel is open
-    records.inputHandlers.pointerdown?.({ x: 80, y: 80, worldX: 80, worldY: 80 });
-    records.inputHandlers.pointerup?.({ x: 80, y: 80, worldX: 80, worldY: 80 });
+    const at = (extra) => {
+      const cam = records.scene.cameras.main;
+      const zoom = Number(cam.zoom) || 1;
+      return {
+        clientX: (80 - (cam.scrollX || 0)) * zoom,
+        clientY: (80 - (cam.scrollY || 0)) * zoom,
+        buttons: 0,
+        preventDefault() {},
+        ...extra,
+      };
+    };
+    boardListeners().pointerdown(at({ buttons: 1 }));
+    boardListeners().pointerup(at());
 
     assert.equal(selected.length, 0, "tile selection must be blocked while player panel is open");
     renderer.dispose();
@@ -419,8 +453,19 @@ describe("Z key opens and closes overlay", () => {
     renderer.closePlayerPanel();
 
     // Tile click should work again after closing the panel
-    records.inputHandlers.pointerdown?.({ x: 80, y: 80, worldX: 80, worldY: 80 });
-    records.inputHandlers.pointerup?.({ x: 80, y: 80, worldX: 80, worldY: 80 });
+    const at = (extra) => {
+      const cam = records.scene.cameras.main;
+      const zoom = Number(cam.zoom) || 1;
+      return {
+        clientX: (80 - (cam.scrollX || 0)) * zoom,
+        clientY: (80 - (cam.scrollY || 0)) * zoom,
+        buttons: 0,
+        preventDefault() {},
+        ...extra,
+      };
+    };
+    boardListeners().pointerdown(at({ buttons: 1 }));
+    boardListeners().pointerup(at());
 
     assert.equal(selected.length, 1, "tile selection must resume after closing the player panel");
     renderer.dispose();

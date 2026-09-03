@@ -157,12 +157,28 @@ function resolveSurfaceAsset(resourceBundle, category, key, model = {}) {
   return findBundleAsset(resourceBundle, assetId);
 }
 
+/** A minimal stage for environments with no DOM (headless callers, tests). */
+function createHeadlessStage() {
+  const listeners = Object.create(null);
+  return {
+    dataset: {},
+    classList: { add() {} },
+    querySelector: () => null,
+    listeners,
+    addEventListener(type, handler) { listeners[type] = handler; },
+    removeEventListener(type) { delete listeners[type]; },
+  };
+}
+
 function ensureGameplayStageElement(container) {
   if (!container) return null;
   let stage = container.querySelector?.("[data-gameplay-phaser-stage]");
   if (stage) return stage;
   const create = globalThis.document?.createElement?.bind?.(globalThis.document);
-  stage = create ? create("div") : { dataset: {}, classList: { add() {} } };
+  // The headless stub is an event target, not just a dataset bag: board input
+  // binds this element, so a stub without listeners would bind nothing at all
+  // and every headless caller would exercise a different path from the browser.
+  stage = create ? create("div") : createHeadlessStage();
   if (stage.dataset) stage.dataset.gameplayPhaserStage = "true";
   if (stage.classList?.add) stage.classList.add("gameplay-phaser-stage");
   container.appendChild(stage);
@@ -186,6 +202,8 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   let hudCamera = null;
   let hudEntity = null;
   let resizeObserver = null;
+  let domPointerHandlers = null;
+  let domPointerTarget = null;
   let lastHoverTile = null;
   let actorNodes = new Map();
   let selectedActorKey = null;
@@ -321,67 +339,126 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     camera.scrollY = (Number(camera.scrollY) || 0) - deltaY / zoom;
   }
 
+  /** The canvas actually in the document, falling back to Phaser's reference. */
+  function boardCanvas() {
+    return stageEl?.querySelector?.("canvas") || game?.canvas || null;
+  }
+
+  /**
+   * Convert a DOM pointer position to a tile.
+   *
+   * Board input is DOM listeners on the stage rather than scene.input, for the
+   * same reason the keyboard already is (see the note on keydownHandler):
+   * Phaser v4 does not deliver these the way v3 did, so the handlers this file
+   * used to register on scene.input never fired and clicking an actor did
+   * nothing. Measured on the running app, one click produced 0 scene.input
+   * events and 1 DOM event. The unit tests called those handlers directly, so
+   * they stayed green over a dead path -- asserting the handler's logic, never
+   * that an event reached it.
+   *
+   * The geometry still comes from the canvas: it is the element whose box the
+   * camera transform is expressed against.
+   */
+  function pointerEventToTile(event) {
+    const canvasEl = boardCanvas();
+    const camera = getCamera();
+    if (!canvasEl?.getBoundingClientRect || !camera) return null;
+    const rect = canvasEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    // The backing store can differ from the CSS box; map through both.
+    const scaleX = (canvasEl.width || rect.width) / rect.width;
+    const scaleY = (canvasEl.height || rect.height) / rect.height;
+    const zoom = Number(camera.zoom) || 1;
+    const worldX = (Number(camera.scrollX) || 0) + ((event.clientX - rect.left) * scaleX) / zoom;
+    const worldY = (Number(camera.scrollY) || 0) + ((event.clientY - rect.top) * scaleY) / zoom;
+    const { tileWidth, tileHeight } = currentBoardMetrics;
+    const x = Math.floor(worldX / tileWidth);
+    const y = Math.floor(worldY / tileHeight);
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y, worldX, worldY } : null;
+  }
+
   function bindCameraInput() {
     if (!scene || inputBound) return;
-    let dragStart = null;
-    let lastPointer = null;
-    let dragged = false;
+    // Board pointer input is DOM listeners on the canvas, not scene.input.
+    // Phaser v4 does not deliver scene.input pointer events here at all (the
+    // same v4 breakage the keyboard already works around below), so the
+    // registrations this function used to make never fired and clicking an
+    // actor did nothing. Measured on the running app: 0 scene.input pointer
+    // events against 1 DOM event for the same click.
+    //
+    // Bind the STAGE, not the canvas. Both receive the event -- pointer events
+    // from the canvas bubble to the stage -- but the stage exists from mount
+    // onward while the canvas does not exist yet on the first bind, and the
+    // inputBound latch below would make that miss permanent and silent.
+    const inputTarget = stageEl;
+    if (!inputTarget?.addEventListener) {
+      // Latching inputBound here would make a single early miss permanent and
+      // silent -- exactly how board clicks stayed dead. Leave it unset so the
+      // next renderRun tries again.
+      return;
+    }
+    {
+      let domStart = null;
+      let domDragged = false;
 
-    scene.input.on("pointerdown", (pointer) => {
-      dragStart = { x: pointer.x ?? pointer.worldX ?? 0, y: pointer.y ?? pointer.worldY ?? 0 };
-      lastPointer = { ...dragStart };
-      dragged = false;
-    });
-    scene.input.on("pointermove", (pointer) => {
-      const isDragging = pointer.isDown || pointer.primaryDown || pointer.buttons > 0;
-      if (!isDragging) {
-        if (!playerPanelOpen) {
-          const tx = Math.floor((pointer.worldX ?? 0) / currentBoardMetrics.tileWidth);
-          const ty = Math.floor((pointer.worldY ?? 0) / currentBoardMetrics.tileHeight);
-          if (Number.isFinite(tx) && Number.isFinite(ty)) {
-            if (tx !== lastHoverTile?.x || ty !== lastHoverTile?.y) {
-              lastHoverTile = { x: tx, y: ty };
-              onHover?.({ x: tx, y: ty });
+      domPointerHandlers = {
+        pointerdown: (event) => {
+          const hit = pointerEventToTile(event);
+          domStart = hit ? { x: event.clientX, y: event.clientY } : null;
+          domDragged = false;
+        },
+        pointermove: (event) => {
+          const hit = pointerEventToTile(event);
+          if (!hit) return;
+          const dragging = (event.buttons ?? 0) > 0;
+          if (!dragging) {
+            if (playerPanelOpen) return;
+            if (hit.x !== lastHoverTile?.x || hit.y !== lastHoverTile?.y) {
+              lastHoverTile = { x: hit.x, y: hit.y };
+              onHover?.({ x: hit.x, y: hit.y });
             }
+            return;
           }
-        }
-        return;
+          lastHoverTile = null;
+          if (!domStart) return;
+          const dx = event.clientX - domStart.x;
+          const dy = event.clientY - domStart.y;
+          if (dx || dy) {
+            domDragged = true;
+            panCameraBy(dx, dy);
+            domStart = { x: event.clientX, y: event.clientY };
+          }
+        },
+        pointerup: (event) => {
+          const start = domStart;
+          const dragged = domDragged;
+          domStart = null;
+          domDragged = false;
+          if (playerPanelOpen) return;
+          const moved = start ? Math.hypot(event.clientX - start.x, event.clientY - start.y) : 0;
+          if (dragged || moved > DRAG_SELECT_THRESHOLD) return;
+          const hit = pointerEventToTile(event);
+          if (hit) onSelect?.({ x: hit.x, y: hit.y });
+        },
+        pointerleave: () => {
+          lastHoverTile = null;
+          onHoverEnd?.();
+        },
+        wheel: (event) => {
+          const hit = pointerEventToTile(event);
+          event.preventDefault?.();
+          const zoomFactor = event.deltaY > 0 ? 1 / CAMERA_ZOOM_STEP : CAMERA_ZOOM_STEP;
+          applyCameraZoom(cameraState.zoom * zoomFactor, {
+            centerX: hit?.worldX,
+            centerY: hit?.worldY,
+          });
+        },
+      };
+      domPointerTarget = inputTarget;
+      for (const [type, handler] of Object.entries(domPointerHandlers)) {
+        inputTarget.addEventListener(type, handler, type === "wheel" ? { passive: false } : undefined);
       }
-      lastHoverTile = null;
-      if (!lastPointer) return;
-      const x = pointer.x ?? pointer.worldX ?? lastPointer.x;
-      const y = pointer.y ?? pointer.worldY ?? lastPointer.y;
-      const dx = x - lastPointer.x;
-      const dy = y - lastPointer.y;
-      if (dx !== 0 || dy !== 0) {
-        dragged = true;
-        panCameraBy(dx, dy);
-      }
-      lastPointer = { x, y };
-    });
-    scene.input.on("gameout", () => {
-      lastHoverTile = null;
-      onHoverEnd?.();
-    });
-    scene.input.on("pointerup", (pointer) => {
-      const end = { x: pointer.x ?? pointer.worldX ?? 0, y: pointer.y ?? pointer.worldY ?? 0 };
-      const distance = dragStart ? Math.hypot(end.x - dragStart.x, end.y - dragStart.y) : 0;
-      const isSelection = !dragged && distance <= DRAG_SELECT_THRESHOLD;
-      dragStart = null;
-      lastPointer = null;
-      dragged = false;
-      if (!isSelection) return;
-      if (playerPanelOpen) return;
-      const x = Math.floor(pointer.worldX / currentBoardMetrics.tileWidth);
-      const y = Math.floor(pointer.worldY / currentBoardMetrics.tileHeight);
-      if (Number.isFinite(x) && Number.isFinite(y)) {
-        onSelect?.({ x, y });
-      }
-    });
-    scene.input.on("wheel", (pointer, _objects, _deltaX, deltaY) => {
-      const zoomFactor = deltaY > 0 ? 1 / CAMERA_ZOOM_STEP : CAMERA_ZOOM_STEP;
-      applyCameraZoom(cameraState.zoom * zoomFactor, { centerX: pointer.worldX, centerY: pointer.worldY });
-    });
+    }
     // Keyboard goes through a window-level DOM listener rather than
     // scene.input.keyboard: Phaser v4 does not expose the v3 keyboard plugin
     // on the scene, so that binding never fires (silently, via the optional
@@ -1200,6 +1277,13 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       hudCamera = null;
       resizeObserver?.disconnect?.();
       resizeObserver = null;
+      if (domPointerTarget && domPointerHandlers) {
+        for (const [type, handler] of Object.entries(domPointerHandlers)) {
+          domPointerTarget.removeEventListener?.(type, handler);
+        }
+      }
+      domPointerHandlers = null;
+      domPointerTarget = null;
       actorNodes.clear();
       if (currentContainer) {
         currentContainer.destroy(true);

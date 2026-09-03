@@ -44,7 +44,15 @@ function createFakePhaser(records = {}) {
   class Game {
     constructor(config) {
       records.config = config;
-      this.canvas = { style: {} };
+      // A canvas that accepts DOM listeners and reports a box, so tests can
+      // exercise the listeners that actually run in the browser rather than
+      // calling the scene.input handlers directly.
+      this.canvas = {
+        style: {},
+        width: 800,
+        height: 600,
+        getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }),
+      };
       const textureStore = records.textureStore || new Map();
       records.textureStore = textureStore;
       this.scale = {
@@ -225,6 +233,20 @@ function createFakePhaser(records = {}) {
   return { AUTO: "AUTO", Scale: { NONE: "NONE" }, Game };
 }
 
+/**
+ * The listeners production actually binds.
+ *
+ * Board input is DOM listeners on the STAGE (Phaser v4 delivers no scene.input
+ * pointer events). Driving them, rather than calling handler functions with
+ * synthetic pointer objects, is the whole point: the old tests asserted the
+ * handler's logic and never that an event reached it, so clicking an actor was
+ * dead in the browser while they stayed green.
+ */
+let lastStage = null;
+function boardListeners() {
+  return lastStage?.listeners || {};
+}
+
 function makeContainer() {
   let stage = null;
   return {
@@ -235,12 +257,37 @@ function makeContainer() {
     },
     appendChild(child) {
       stage = child;
+      lastStage = child;
       child.parentElement = this;
     },
     get stage() {
       return stage;
     },
   };
+}
+
+/**
+ * A DOM pointer event over a world point.
+ *
+ * Board input is DOM listeners on the canvas (Phaser v4 delivers no scene.input
+ * pointer events), so tests drive events, not handler arguments -- otherwise
+ * they assert the handler's logic without proving anything reaches it. The fake
+ * canvas reports a 0,0-anchored box at scale 1, so this is just the camera
+ * transform the renderer inverts.
+ */
+function pointerAt(records, worldX, worldY, extra = {}) {
+  const cam = records.scene?.cameras?.main || {};
+  const zoom = Number(cam.zoom) || 1;
+  return screenPointer(
+    (worldX - (cam.scrollX || 0)) * zoom,
+    (worldY - (cam.scrollY || 0)) * zoom,
+    extra,
+  );
+}
+
+/** A DOM pointer event at a screen position, for drags measured in screen px. */
+function screenPointer(clientX, clientY, extra = {}) {
+  return { clientX, clientY, buttons: 0, preventDefault() {}, ...extra };
 }
 
 const BOARD_STATE = {
@@ -612,7 +659,80 @@ test("gameplay phaser renderer calls game.destroy on dispose", async () => {
   assert.equal(records.destroyed, true);
 });
 
-test("gameplay phaser renderer wires onSelect through input handler", async () => {
+/**
+ * A container whose stage cannot take listeners until `enableListeners()`.
+ *
+ * This is the browser failure in miniature: on the first bind the element was
+ * not yet an event target, so nothing attached.
+ */
+function makeContainerWithLateStage() {
+  const listeners = Object.create(null);
+  const stage = {
+    dataset: {},
+    classList: { add() {} },
+    querySelector: () => null,
+    listeners,
+  };
+  return {
+    clientWidth: 400,
+    clientHeight: 300,
+    stage,
+    querySelector: (sel) => (sel === "[data-gameplay-phaser-stage]" ? stage : null),
+    appendChild() {},
+    enableListeners() {
+      stage.addEventListener = (type, handler) => { listeners[type] = handler; };
+      stage.removeEventListener = (type) => { delete listeners[type]; };
+    },
+  };
+}
+
+test("a bind that attached no listeners is retried, not latched", async () => {
+  // The latch guarding bindCameraInput used to be set even when nothing was
+  // bound. One early miss then disabled board input for the life of the
+  // renderer, silently -- there is no error, the clicks simply do nothing.
+  const records = {};
+  const container = makeContainerWithLateStage();
+  const selected = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onSelect: (pos) => selected.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+  assert.deepEqual(
+    Object.keys(container.stage.listeners),
+    [],
+    "nothing is bindable yet, so nothing should be bound",
+  );
+
+  container.enableListeners();
+  await renderer.renderRun(BOARD_STATE);
+
+  assert.equal(
+    typeof container.stage.listeners.pointerup,
+    "function",
+    "the next render must retry the bind rather than trust a latch",
+  );
+  const cam = records.scene.cameras.main;
+  const at = (extra) => ({
+    clientX: (80 - (cam.scrollX || 0)) * (cam.zoom || 1),
+    clientY: (80 - (cam.scrollY || 0)) * (cam.zoom || 1),
+    buttons: 0,
+    preventDefault() {},
+    ...extra,
+  });
+  container.stage.listeners.pointerdown(at({ buttons: 1 }));
+  container.stage.listeners.pointerup(at());
+  assert.equal(selected.length, 1, "board input must work after the retry");
+  renderer.dispose();
+});
+
+test("a real pointer click on the board selects the tile under it", async () => {
+  // The pre-existing selection test drove records.inputHandlers.pointerup(...)
+  // directly, which asserts the handler's logic but never that an event reaches
+  // it. In Phaser v4 nothing reached it, so clicking an actor did nothing while
+  // that test stayed green -- the guard was aimed at the wrong thing.
+  // This dispatches through the canvas listeners that actually run.
   const records = {};
   const container = makeContainer();
   const selected = [];
@@ -620,14 +740,74 @@ test("gameplay phaser renderer wires onSelect through input handler", async () =
     loadPhaser: async () => createFakePhaser(records),
     onSelect: (pos) => selected.push(pos),
   });
-
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
 
-  assert.equal(typeof records.inputHandlers.pointerup, "function", "pointerup handler must be registered");
-  records.inputHandlers.pointerdown({ x: 20, y: 20, worldX: 20, worldY: 20 });
-  records.inputHandlers.pointerup({ x: 20, y: 20, worldX: 20, worldY: 20 });
-  assert.equal(selected.length, 1);
+  const dom = boardListeners();
+  assert.ok(dom?.pointerdown && dom?.pointerup, "canvas pointer listeners must be registered");
+
+  const click = (x, y) => {
+    dom.pointerdown({ clientX: x, clientY: y, buttons: 1 });
+    dom.pointerup({ clientX: x, clientY: y, buttons: 0 });
+  };
+  click(80, 80);
+  assert.equal(selected.length, 1, "a click must select");
+
+  // Assert the MAPPING rather than an absolute tile: where the camera happens to
+  // sit is not what this is testing, and pinning it would bake the fake's scroll
+  // into the expectation. A tile is 32 WORLD px, so on screen it spans 32 * zoom
+  // -- the fit no longer clamps at 1, so this cannot assume they are the same.
+  const { zoom } = renderer.getCameraState();
+  click(80 + 32 * zoom, 80 + 32 * zoom);
+  assert.equal(selected.length, 2);
+  assert.deepEqual(
+    { dx: selected[1].x - selected[0].x, dy: selected[1].y - selected[0].y },
+    { dx: 1, dy: 1 },
+    "a 32px move must advance exactly one tile",
+  );
+  renderer.dispose();
+});
+
+test("a drag pans the board instead of selecting", async () => {
+  const records = {};
+  const container = makeContainer();
+  const selected = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onSelect: (pos) => selected.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+
+  const dom = boardListeners();
+  dom.pointerdown({ clientX: 80, clientY: 80, buttons: 1 });
+  dom.pointermove({ clientX: 160, clientY: 140, buttons: 1 });
+  dom.pointerup({ clientX: 160, clientY: 140, buttons: 0 });
+  assert.equal(selected.length, 0, "a drag must not select");
+  renderer.dispose();
+});
+
+test("hovering the board reports the tile under the pointer", async () => {
+  const records = {};
+  const container = makeContainer();
+  const hovered = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onHover: (pos) => hovered.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+
+  boardListeners().pointermove({ clientX: 48, clientY: 48, buttons: 0 });
+  const first = hovered.at(-1);
+  boardListeners().pointermove({ clientX: 48 + 64, clientY: 48, buttons: 0 });
+  const second = hovered.at(-1);
+  assert.ok(first && second, "hover must report a tile");
+  assert.deepEqual(
+    { dx: second.x - first.x, dy: second.y - first.y },
+    { dx: 2, dy: 0 },
+    "a 64px horizontal move must advance exactly two tiles",
+  );
   renderer.dispose();
 });
 
@@ -740,9 +920,9 @@ test("gameplay phaser zoom controls preserve the current camera center", async (
     tiles: Array.from({ length: 20 }, () => ".".repeat(30)),
   });
 
-  records.inputHandlers.pointerdown({ x: 120, y: 100, worldX: 120, worldY: 100 });
-  records.inputHandlers.pointermove({ x: 80, y: 130, worldX: 80, worldY: 130, isDown: true });
-  records.inputHandlers.pointerup({ x: 80, y: 130, worldX: 80, worldY: 130 });
+  boardListeners().pointerdown(screenPointer(120, 100, { buttons: 1 }));
+  boardListeners().pointermove(screenPointer(80, 130, { buttons: 1 }));
+  boardListeners().pointerup(screenPointer(80, 130));
 
   const camera = records.scene.cameras.main;
   const centerBeforeZoom = {
@@ -770,9 +950,9 @@ test("gameplay phaser renderer supports drag panning without selecting a tile", 
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
 
-  records.inputHandlers.pointerdown({ x: 100, y: 100, worldX: 100, worldY: 100 });
-  records.inputHandlers.pointermove({ x: 130, y: 120, worldX: 130, worldY: 120, isDown: true });
-  records.inputHandlers.pointerup({ x: 130, y: 120, worldX: 130, worldY: 120 });
+  boardListeners().pointerdown(screenPointer(100, 100, { buttons: 1 }));
+  boardListeners().pointermove(screenPointer(130, 120, { buttons: 1 }));
+  boardListeners().pointerup(screenPointer(130, 120));
 
   assert.equal(selected.length, 0);
   assert.notEqual(records.scene.cameras.main.scrollX, 0);
@@ -904,7 +1084,7 @@ test("renderer fires onHover with tile position on pointer move (no drag)", asyn
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
   // DEFAULT_TILE_SIZE=32: tile (2,2) center worldX=80, worldY=80
-  records.inputHandlers.pointermove({ worldX: 80, worldY: 80, isDown: false, buttons: 0 });
+  boardListeners().pointermove(pointerAt(records, 80, 80));
   assert.equal(hovered.length, 1);
   assert.deepEqual(hovered[0], { x: 2, y: 2 });
   renderer.dispose();
@@ -920,8 +1100,8 @@ test("renderer fires onHover again when pointer moves to a different tile", asyn
   });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  records.inputHandlers.pointermove({ worldX: 80, worldY: 80, isDown: false, buttons: 0 });
-  records.inputHandlers.pointermove({ worldX: 112, worldY: 80, isDown: false, buttons: 0 });
+  boardListeners().pointermove(pointerAt(records, 80, 80));
+  boardListeners().pointermove(pointerAt(records, 112, 80));
   assert.equal(hovered.length, 2);
   assert.deepEqual(hovered[1], { x: 3, y: 2 });
   renderer.dispose();
@@ -937,8 +1117,8 @@ test("renderer does not fire onHover again when pointer stays on the same tile",
   });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  records.inputHandlers.pointermove({ worldX: 80, worldY: 80, isDown: false, buttons: 0 });
-  records.inputHandlers.pointermove({ worldX: 85, worldY: 82, isDown: false, buttons: 0 });
+  boardListeners().pointermove(pointerAt(records, 80, 80));
+  boardListeners().pointermove(pointerAt(records, 85, 82));
   assert.equal(hovered.length, 1, "must not fire twice for same tile");
   renderer.dispose();
 });
@@ -953,8 +1133,8 @@ test("renderer does not fire onHover during a camera drag", async () => {
   });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  records.inputHandlers.pointerdown({ x: 80, y: 80, worldX: 80, worldY: 80 });
-  records.inputHandlers.pointermove({ worldX: 112, worldY: 80, isDown: true, buttons: 1 });
+  boardListeners().pointerdown(pointerAt(records, 80, 80, { buttons: 1 }));
+  boardListeners().pointermove(pointerAt(records, 112, 80, { buttons: 1 }));
   assert.equal(hovered.length, 0);
   renderer.dispose();
 });
@@ -969,8 +1149,8 @@ test("renderer fires onHoverEnd when pointer leaves the canvas", async () => {
   });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  assert.equal(typeof records.inputHandlers.gameout, "function", "gameout handler must be registered");
-  records.inputHandlers.gameout({});
+  assert.equal(typeof boardListeners().pointerleave, "function", "pointerleave must be registered");
+  boardListeners().pointerleave(screenPointer(0, 0));
   assert.equal(endCount, 1);
   renderer.dispose();
 });
@@ -1605,7 +1785,7 @@ test("onHover is suppressed while Player Panel is open", async () => {
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
   renderer.openPlayerPanel(PLAYER_PANEL_MODEL);
-  records.inputHandlers.pointermove({ worldX: 80, worldY: 80, isDown: false, buttons: 0 });
+  boardListeners().pointermove(pointerAt(records, 80, 80));
   assert.equal(hovered.length, 0, "onHover must be suppressed while player panel is open");
   renderer.dispose();
 });
@@ -1621,8 +1801,8 @@ test("onSelect is suppressed while Player Panel is open", async () => {
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
   renderer.openPlayerPanel(PLAYER_PANEL_MODEL);
-  records.inputHandlers.pointerdown({ x: 80, y: 80, worldX: 80, worldY: 80 });
-  records.inputHandlers.pointerup({ x: 80, y: 80, worldX: 80, worldY: 80 });
+  boardListeners().pointerdown(pointerAt(records, 80, 80, { buttons: 1 }));
+  boardListeners().pointerup(pointerAt(records, 80, 80));
   assert.equal(selected.length, 0, "onSelect must be suppressed while player panel is open");
   renderer.dispose();
 });
@@ -1898,9 +2078,11 @@ test("onHover and onSelect resume after closePlayerPanel", async () => {
   renderer.openPlayerPanel(PLAYER_PANEL_MODEL);
   renderer.closePlayerPanel();
 
-  records.inputHandlers.pointermove?.({ worldX: 80, worldY: 80, x: 80, y: 80 });
-  records.inputHandlers.pointerdown?.({ worldX: 80, worldY: 80, x: 80, y: 80 });
-  records.inputHandlers.pointerup?.({ worldX: 80, worldY: 80, x: 80, y: 80 });
+  // No optional chaining: a listener that is not registered must fail here
+  // rather than no-op into an assertion about an empty array.
+  boardListeners().pointermove(pointerAt(records, 80, 80));
+  boardListeners().pointerdown(pointerAt(records, 80, 80, { buttons: 1 }));
+  boardListeners().pointerup(pointerAt(records, 80, 80));
 
   assert.ok(hovered.length >= 1);
   assert.ok(selected.length >= 1);
