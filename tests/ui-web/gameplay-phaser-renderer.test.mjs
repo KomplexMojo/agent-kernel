@@ -2073,9 +2073,17 @@ test("drawBoard registers overlay textures for affected tiles with overlayAssetI
   renderer.mount(container);
   await renderer.renderRun(AFFINITY_BOARD_STATE);
 
-  // Tiles with overlayAssetId should produce image nodes with the overlay texture key.
+  // The PREFIXED key, which is what the texture is actually registered under.
+  // This asserted the bare asset id -- the very value the renderer used to hand
+  // Phaser, and a key that never exists, so Phaser painted its missing-texture
+  // placeholder over the tile. The test pinned the defect in place.
   const overlayImages = records.images.filter(
-    (img) => img.textureKey === "overlay-fire-glow",
+    (img) => img.textureKey === "ak-bundle:overlay-fire-glow",
+  );
+  assert.equal(
+    records.images.filter((img) => img.textureKey === "overlay-fire-glow").length,
+    0,
+    "the unprefixed asset id must never reach Phaser as a texture key",
   );
   assert.ok(
     overlayImages.length > 0,
@@ -2086,6 +2094,38 @@ test("drawBoard registers overlay textures for affected tiles with overlayAssetI
     overlayImages.length >= 5,
     `expected at least 5 overlay images (origin + 4 cardinal), got ${overlayImages.length}`,
   );
+  renderer.dispose();
+});
+
+test("an overlay mapping pointing at an asset the bundle does not ship draws nothing", async () => {
+  // The failure this guards is a Phaser missing-texture placeholder painted over
+  // the tile -- worse than no overlay, because it looks like real art. The
+  // mapping and the asset list are separate parts of the bundle and can
+  // disagree, so the renderer has to tolerate a dangling reference.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...AFFINITY_BOARD_STATE,
+    resourceBundle: {
+      ...AFFINITY_BOARD_STATE.resourceBundle,
+      // The mapping still names an overlay, but the asset is gone.
+      assets: (AFFINITY_BOARD_STATE.resourceBundle.assets || [])
+        .filter((a) => a.id !== "overlay-fire-glow"),
+    },
+  });
+
+  const drawnKeys = records.images.map((img) => String(img.textureKey));
+  assert.equal(
+    drawnKeys.filter((k) => k.includes("overlay-fire-glow")).length,
+    0,
+    `a dangling overlay reference must draw nothing, got ${drawnKeys.join("|")}`,
+  );
+  // The board itself still renders.
+  assert.ok(records.rectangles.length > 0, "tiles must still be drawn");
   renderer.dispose();
 });
 

@@ -1179,10 +1179,18 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
             field.setName?.(`tile-field:${tileType}`);
             currentContainer.add(field);
             if (visual.overlayAssetId) {
-              const overlayNode = scene.add.image(cx, cy, visual.overlayAssetId);
+              // Resolve through the bundle like every other image. This passed
+              // the raw asset id straight to Phaser as a texture key, but
+              // textures are registered under `ak-bundle:<id>` -- so the key
+              // never existed and Phaser drew its missing-texture placeholder
+              // over the tile instead of the overlay. addBundleImage prefixes
+              // the key and checks the texture is actually loaded, returning
+              // null rather than drawing a placeholder when it is not.
+              const overlayAsset = findBundleAsset(resourceBundle, visual.overlayAssetId);
+              const overlayNode = overlayAsset
+                ? addBundleImage(overlayAsset, cx, cy, tileWidth, tileHeight)
+                : null;
               if (overlayNode) {
-                overlayNode.setDisplaySize?.(tileWidth, tileHeight);
-                overlayNode.setOrigin?.(0.5);
                 if (typeof visual.alpha === "number") overlayNode.setAlpha?.(visual.alpha);
                 currentContainer.add(overlayNode);
               }

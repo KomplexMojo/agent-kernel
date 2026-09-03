@@ -2,7 +2,8 @@
 
 **Branch:** `feat/minimal-sprite-language-hud`
 **Opened:** 2026-09-02
-**Status:** ✅ COMPLETE — M0–M5 delivered 2026-09-02, plus a post-review visual pass
+**Status:** ✅ CLOSED — M0–M5 delivered 2026-09-02; post-review visual pass 2026-09-02;
+interface-defect pass 2026-09-03. Branch pushed, 27 commits.
 
 ### Post-review corrections (2026-09-02, after viewing the real UI on `index_c.html`)
 
@@ -612,14 +613,55 @@ once the visual work lands.
   executable. A visual rule that is only written down will regress.
 - **Gates:** `pnpm run test` · `pnpm run typecheck` · architecture guards.
 
-## Open items for the maintainer
+## Decisions taken (all open items resolved)
 
-1. **M2 palette sign-off** — the re-derived colours change the board's look everywhere affinity is
-   shown, including ASCII and tile visuals. Review before M3 builds on them.
-2. **Warden/delver silhouette** — plan assumes ▲/⬢. `local-codex/seeker-keeper-icon-concepts.png`
-   (gitignored; copy to `docs/design/` if it is to be cited) holds four earlier hand-explored pairs
-   — arrow/shield, torch/gate, reach/lock, compass/ward. If one is preferred, say so before M1.
-3. **Role shapes below 16px** — see the M2 finding: only 3 of 4 silhouettes survive to 8px. Pick
-   option (a), (b) or (c) there.
-4. **Single vs. multiple equipped affinity** — see the section above. This blocks M1, not just M3:
-   multi-equip changes the sprite state type before any code is written.
+1. **M2 palette** — approved by the maintainer 2026-09-02 as re-derived. Landed in
+   `GAME_COLOR_PALETTE`, with `AFFINITY_TEXT_COLORS` overriding three entries for text contrast.
+2. **Warden/delver silhouette** — ▲ delver / ⬢ warden confirmed. Hazard became ▼ (not the 4-point
+   star: it overlapped the resource diamond at Jaccard 0.79; ▼ brings the worst pair to 0.53).
+3. **Role shapes below 16px** — option **(a)**: `MIN_CAMERA_ZOOM` raised 0.25 → 0.4 to hold a 12px
+   floor, so no silhouette is ever drawn below its legible size.
+4. **Single vs. multiple equipped affinity** — **single**, swappable in one turn. The sprite carries
+   one fill colour, which is what makes the two-channel language readable.
+
+---
+
+## Interface-defect pass — 2026-09-03
+
+Five defects found by using the real UI. Every one was invisible to a green suite, and the shared
+cause is worth recording: **the test doubles were cleaner than reality.** Each fix ships a test that
+drives the path the app actually takes.
+
+| Defect | Why the suite missed it | Commit |
+|---|---|---|
+| Board clicks did nothing — Phaser v4 delivers no `scene.input` pointer events | Tests called the handlers directly, so nothing proved an event ever reached one | `dd78d26` |
+| Switching to Gameplay regenerated the level, replacing a loaded 31×31 run with a 28×28 one | Reuse compared raw spec text, which restamps `runId`/`createdAt` every publish; its tests compared strings like `"SPEC-same"` that the design never emits | `281fcfd` |
+| One pixel of hand tremor discarded every click, so no HUD ever appeared | Tests dispatched `pointerdown`→`pointerup` with no move between — a sequence no hand produces | `b92e25c` |
+| Clicking an actor after a tick selected nothing: the click's own inspector round-trip overwrote the selection with `null` | Every selection test used tick 0, where the actor still sits on its authored tile and the bug cannot appear | `d4acc72` |
+| Tile affinity overlays drew Phaser's missing-texture placeholder | The test asserted the *unprefixed* asset id — the exact broken value — pinning the defect in place | this commit |
+
+Also closed:
+
+- **Shelve control** — reported as a misaligned hit area; it was not. Hit area, drawing and Phaser's
+  coordinate mapping were all verified exact. The real fault was a control whose position was a
+  function of card content (y=400 or 432 depending on motivation rows) with its label hidden until
+  hover — indistinguishable from a broken hit area when you are trying to click it. Now pinned to
+  the editor's top-right, always labelled (`f61a74f`).
+- **v1 bundles still render PNG actor art.** Not a defect — `shouldComposeEntitySprite` gates
+  composed sprites on `schemaVersion >= 2` deliberately: what a v1 bundle renders is a contract, not
+  a rendering choice. Recorded here so it is not "fixed" by mistake.
+
+### Test-double repairs made along the way
+
+The doubles were missing real Phaser methods (`setPosition`, `setColor`, `setStrokeStyle`,
+`setFillStyle`, `fillPath`, `closePath`, `strokeCircle`), so renderers failed only under test. More
+seriously, the card-builder double's `setAlpha()` **discarded its argument**, which made a
+"the label is visible without hovering" assertion pass vacuously — caught only by perturbing the
+production code and noticing no test changed. A double that silently swallows state is a test that
+asserts nothing.
+
+---
+
+## Gates at close-out
+
+`pnpm run test` 3643 passed / 471 files · `pnpm run typecheck` 0 · architecture guards 113.

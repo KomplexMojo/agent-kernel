@@ -1,11 +1,11 @@
-# Graph Report - .  (2026-09-02)
+# Graph Report - .  (2026-09-03)
 
 ## Corpus Check
-- 684 files · ~2,776,951 words
+- 690 files · ~2,797,505 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 4142 nodes · 6302 edges · 656 communities detected
+- 4173 nodes · 6339 edges · 661 communities detected
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS · INFERRED: 8 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
@@ -666,6 +666,11 @@
 - [[_COMMUNITY_Community 653|Community 653]]
 - [[_COMMUNITY_Community 654|Community 654]]
 - [[_COMMUNITY_Community 655|Community 655]]
+- [[_COMMUNITY_Community 656|Community 656]]
+- [[_COMMUNITY_Community 657|Community 657]]
+- [[_COMMUNITY_Community 658|Community 658]]
+- [[_COMMUNITY_Community 659|Community 659]]
+- [[_COMMUNITY_Community 660|Community 660]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `addError()` - 35 edges
@@ -715,40 +720,40 @@ Cohesion: 0.08
 Nodes (60): adjustAffinityStack(), adjustCardCount(), adjustCardVital(), adjustHazardManaVital(), allocatorFor(), applyAffinityDrop(), applyExpressionDrop(), applyMotivationDrop() (+52 more)
 
 ### Community 4 - "Community 4"
+Cohesion: 0.1
+Nodes (45): addError(), isNonEmptyString(), isObject(), validateActorGroupHints(), validateActorHints(), validateAgentCommandCompatibility(), validateAgentCommandCompilation(), validateAgentCommandObject() (+37 more)
+
+### Community 5 - "Community 5"
 Cohesion: 0.08
 Nodes (51): actionCanReachTarget(), buildActorDecisionObjective(), buildAdjacentMoveProposals(), buildAffinityCastProposal(), buildArtifactRef(), buildCandidateActionId(), buildCompatibilityDecisionRows(), buildMotivatedProposals() (+43 more)
 
-### Community 5 - "Community 5"
+### Community 6 - "Community 6"
 Cohesion: 0.05
 Nodes (22): allowedEvents(), assertArray(), assertArtifactRef(), assertNonNegativeInteger(), assertResumeContext(), clone(), createAdaptiveWorkflowFailure(), createAdaptiveWorkflowFailureRef() (+14 more)
 
-### Community 6 - "Community 6"
+### Community 7 - "Community 7"
 Cohesion: 0.13
 Nodes (47): applyHostOverrides(), assertEndpointModelAvailable(), assertLocalEndpointReachable(), assertRemoteProfileHealthy(), assertTunnelPortAvailable(), canConnect(), clientEndpoint(), defaultLocalPort() (+39 more)
 
-### Community 7 - "Community 7"
+### Community 8 - "Community 8"
 Cohesion: 0.1
 Nodes (41): actorIndex(), aggregateExecutionResults(), artifactStats(), assertComparableExecutionResults(), checkpointFilename(), clamp(), compareGateValue(), completeCheckpointStates() (+33 more)
 
-### Community 8 - "Community 8"
+### Community 9 - "Community 9"
 Cohesion: 0.08
 Nodes (35): actorAffinityKinds(), actorMatchesCardAffinities(), buildInspectorModel(), buildTextBag(), cardAffinityKinds(), clearElement(), collectTemplateCards(), createDomElement() (+27 more)
 
-### Community 9 - "Community 9"
+### Community 10 - "Community 10"
 Cohesion: 0.09
 Nodes (40): alpha_bbox(), brighten_vital_bar(), build_clean_frame_base(), build_demo_atlas(), build_expression_arrow_components(), build_expression_triangle_components(), center_alpha(), command_compose() (+32 more)
 
-### Community 10 - "Community 10"
+### Community 11 - "Community 11"
 Cohesion: 0.2
 Nodes (36): addIssue(), createContentAddressedRef(), isBoolean(), isNonEmptyString(), isNonNegativeInteger(), isObject(), report(), validateAdaptiveWorkflowExecutionEvent() (+28 more)
 
-### Community 11 - "Community 11"
+### Community 12 - "Community 12"
 Cohesion: 0.16
 Nodes (37): assertModelInstalled(), assertPortAvailable(), chooseManager(), ensureDirs(), fail(), logFile(), logsCommand(), main() (+29 more)
-
-### Community 12 - "Community 12"
-Cohesion: 0.2
-Nodes (37): addError(), isNonEmptyString(), isObject(), validateActorGroupHints(), validateActorHints(), validateAgentCommandCompatibility(), validateAgentCommandCompilation(), validateAgentCommandObject() (+29 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.08
@@ -835,64 +840,64 @@ Cohesion: 0.26
 Nodes (19): createModelCapabilityProfileV1(), createModelFailureResponseV1(), createModelLatencyV1(), createModelRequestV1(), createModelResponseV1(), createModelUsageV1(), durationBetween(), freezePlain() (+11 more)
 
 ### Community 34 - "Community 34"
-Cohesion: 0.14
-Nodes (8): isConstraintDomain(), isNonEmptyString(), isObject(), normalizeConstraintResult(), validateConstraintProblem(), createSchemaCatalog(), filterSchemaCatalogEntries(), sortSchemas()
-
-### Community 35 - "Community 35"
 Cohesion: 0.17
 Nodes (17): buildCardAffinityProfiles(), buildMixedRoomComposition(), buildMixedRoomProfilesFromCardSet(), buildMixedRoomTemplateMap(), collectCardAffinityHazards(), collectMixedRoomTemplateHazards(), composeMixedRooms(), createRng() (+9 more)
 
-### Community 36 - "Community 36"
+### Community 35 - "Community 35"
 Cohesion: 0.27
 Nodes (18): addError(), findAffinityRule(), findExpressionRule(), isNonEmptyString(), isNonNegativeNumber(), isPlainObject(), normalizeAffinity(), normalizeAffinityRulesArtifact() (+10 more)
 
-### Community 37 - "Community 37"
+### Community 36 - "Community 36"
 Cohesion: 0.26
 Nodes (17): addError(), addWarning(), capturePromptResponse(), isAmbulatoryMotivation(), isNonEmptyString(), normalizeDelverAffinitiesMap(), normalizeDelverAffinityStacksMap(), normalizeDelverConfig() (+9 more)
 
-### Community 38 - "Community 38"
+### Community 37 - "Community 37"
 Cohesion: 0.24
 Nodes (18): addSessionError(), applySummaryContentErrors(), buildRepairRequestOptions(), captureWithFallback(), extractJsonObject(), extractResponseText(), hasErrorCode(), isNonEmptyString() (+10 more)
 
-### Community 39 - "Community 39"
+### Community 38 - "Community 38"
 Cohesion: 0.17
 Nodes (14): getDefaultMotivationPattern(), getMotivationCognitionTier(), getMotivationCombatTier(), getMotivationDefaultFlagMask(), getMotivationExclusiveGroup(), getMotivationFamily(), getMotivationMobilityTier(), getMotivationPatternCodeAt() (+6 more)
 
-### Community 40 - "Community 40"
+### Community 39 - "Community 39"
 Cohesion: 0.18
 Nodes (13): endpointFor(), expandHome(), hostForRoute(), loadConfig(), numberFrom(), parseEnvFile(), positiveIntegerFrom(), probeTcp() (+5 more)
 
-### Community 41 - "Community 41"
+### Community 40 - "Community 40"
 Cohesion: 0.22
 Nodes (18): buildActionFromEffect(), buildEnvironmentEffects(), buildVitalEffect(), findAdjacent(), isBarrierTile(), isFloorTile(), normalizeAffinityEntry(), normalizeAffinityTargetType() (+10 more)
 
-### Community 42 - "Community 42"
+### Community 41 - "Community 41"
 Cohesion: 0.24
 Nodes (17): buildCommandResult(), cloneJson(), collectDirectoryArtifacts(), createBrowserKernelHost(), dirnamePath(), ensureDirectoryHref(), ensureLeadingSlash(), executeBrowserCommand() (+9 more)
 
-### Community 43 - "Community 43"
+### Community 42 - "Community 42"
 Cohesion: 0.12
 Nodes (4): clearElement(), createFixtureAdapter(), normalizeFixtureResponses(), replaceChildren()
 
-### Community 44 - "Community 44"
+### Community 43 - "Community 43"
 Cohesion: 0.27
 Nodes (16): bools(), classifyBenchmarkEvidence(), createStrategyPolicyV1(), effectiveContextTokens(), evaluateEvidence(), evaluateStrategy(), freeze(), isStrategyPolicyV1() (+8 more)
 
-### Community 45 - "Community 45"
+### Community 44 - "Community 44"
 Cohesion: 0.24
 Nodes (15): buildActorsAndGroups(), buildBuildSpecFromSummary(), defaultMeta(), deriveLevelGen(), deriveLevelGenFromLayout(), deriveLevelGenFromSummary(), deriveLevelSideForWalkableTiles(), deriveRoomCountFromRooms() (+7 more)
 
-### Community 46 - "Community 46"
+### Community 45 - "Community 45"
 Cohesion: 0.2
 Nodes (16): addAffinityStack(), addAffinityTargetStack(), applyPresetToVitals(), applyVitalModifier(), computeHazardVitals(), deriveAbilitiesFromEffects(), ensureVitalRecord(), ensureVitals() (+8 more)
 
-### Community 47 - "Community 47"
+### Community 46 - "Community 46"
 Cohesion: 0.15
 Nodes (7): extractJsonObject(), extractResponseText(), isNotFound(), normalizeBaseUrl(), postJson(), requestLlmResponse(), unwrapCodeFence()
 
-### Community 48 - "Community 48"
+### Community 47 - "Community 47"
 Cohesion: 0.18
 Nodes (5): makeMeta(), makeTickFrame(), McpServerHarness, scaffoldRun(), writeJson()
+
+### Community 48 - "Community 48"
+Cohesion: 0.17
+Nodes (9): createHeadlessStage(), ensureGameplayStageElement(), findBundleAsset(), inferActorRole(), normalizeResourceAssets(), primaryAffinityKind(), resolveActorAssetId(), resolveHazardAssetId() (+1 more)
 
 ### Community 49 - "Community 49"
 Cohesion: 0.3
@@ -903,47 +908,47 @@ Cohesion: 0.2
 Nodes (4): makeTempDir(), McpServerHarness, runCliSync(), setupSandboxRun()
 
 ### Community 51 - "Community 51"
-Cohesion: 0.17
-Nodes (7): findBundleAsset(), inferActorRole(), normalizeResourceAssets(), primaryAffinityKind(), resolveActorAssetId(), resolveHazardAssetId(), resolveSurfaceAsset()
-
-### Community 52 - "Community 52"
 Cohesion: 0.27
 Nodes (14): applyOperation(), applyPatchRequest(), clone(), containsContentRef(), decodePointer(), issue(), object(), overlaps() (+6 more)
 
-### Community 53 - "Community 53"
+### Community 52 - "Community 52"
 Cohesion: 0.33
 Nodes (14): assertKeys(), canonicalJson(), canonicalValue(), isObject(), loadExecutionCatalog(), predicateMetrics(), readJson(), scenarioPurpose() (+6 more)
 
-### Community 54 - "Community 54"
+### Community 53 - "Community 53"
 Cohesion: 0.21
 Nodes (2): McpServerHarness, setupSessionWithDelver()
 
-### Community 55 - "Community 55"
+### Community 54 - "Community 54"
 Cohesion: 0.26
 Nodes (14): crop_affinity(), draw_delver(), draw_draw(), draw_emit(), draw_pull(), draw_push(), draw_warden(), main() (+6 more)
 
-### Community 56 - "Community 56"
+### Community 55 - "Community 55"
 Cohesion: 0.34
 Nodes (14): createBenchmarkEvidenceV1(), createDeclaredModelCapabilityV1(), createRuntimeProfileSnapshotV1(), freeze(), isBenchmarkEvidenceV1(), isDeclaredModelCapabilityV1(), isRuntimeProfileSnapshotV1(), meta() (+6 more)
 
-### Community 57 - "Community 57"
+### Community 56 - "Community 56"
 Cohesion: 0.2
 Nodes (7): addError(), isPlainObject(), normalizeAffinityList(), normalizeRegen(), normalizeVitals(), readNonNegativeInt(), validateAffinityPrereqs()
 
-### Community 58 - "Community 58"
+### Community 57 - "Community 57"
 Cohesion: 0.36
 Nodes (13): clampNumber(), clampOptionalInt(), isInteger(), normalizeHazardList(), normalizeLevelGenInput(), normalizePatternType(), pushError(), pushWarning() (+5 more)
 
-### Community 59 - "Community 59"
+### Community 58 - "Community 58"
 Cohesion: 0.31
 Nodes (13): changedPaths(), completed(), ensureSourceMirror(), envValue(), git(), main(), markEvaluated(), parseArgs() (+5 more)
 
-### Community 60 - "Community 60"
+### Community 59 - "Community 59"
 Cohesion: 0.38
 Nodes (13): assertAllowedKeys(), assertNonEmptyString(), assertStringArray(), canonicalize(), canonicalJson(), isPlainObject(), loadScenarioCatalog(), loadScenarios() (+5 more)
 
-### Community 61 - "Community 61"
+### Community 60 - "Community 60"
 Cohesion: 0.21
+Nodes (1): McpServerHarness
+
+### Community 61 - "Community 61"
+Cohesion: 0.22
 Nodes (1): McpServerHarness
 
 ### Community 62 - "Community 62"
@@ -951,304 +956,304 @@ Cohesion: 0.22
 Nodes (1): McpServerHarness
 
 ### Community 63 - "Community 63"
-Cohesion: 0.22
-Nodes (1): McpServerHarness
-
-### Community 64 - "Community 64"
 Cohesion: 0.16
 Nodes (4): formatMissingCardTypes(), summarizeActor(), summarizeVitals(), validatePreviewLaunchBundle()
 
-### Community 65 - "Community 65"
+### Community 64 - "Community 64"
 Cohesion: 0.27
 Nodes (11): addSortIndicators(), enableUI(), getNthColumn(), getTable(), getTableBody(), getTableHeader(), loadColumns(), loadData() (+3 more)
 
-### Community 66 - "Community 66"
+### Community 65 - "Community 65"
 Cohesion: 0.24
 Nodes (7): atomicWriteJson(), eligibleHardwareProfiles(), generatedContentCanaries(), loadJson(), runCanonicalFixtureValidation(), runCorpusIntegrationValidation(), runtimeArtifactSetEvidence()
 
-### Community 67 - "Community 67"
+### Community 66 - "Community 66"
 Cohesion: 0.36
 Nodes (12): assertExactKeys(), assertNonEmptyString(), assertNonNegativeInteger(), assertStringArray(), canonicalize(), canonicalJson(), evaluateAbstractPlan(), isPlainObject() (+4 more)
 
-### Community 68 - "Community 68"
+### Community 67 - "Community 67"
 Cohesion: 0.23
 Nodes (9): atomicWriteJson(), buildExecutionCommand(), checkpointsForTicks(), definitiveFailure(), executeLocalRun(), planExecutionSchedule(), requestFor(), runExecutionSchedule() (+1 more)
 
-### Community 69 - "Community 69"
+### Community 68 - "Community 68"
 Cohesion: 0.27
 Nodes (8): createBundleReviewElements(), createPreviewRoot(), createStorage(), makeButton(), makeCanvas(), makeElement(), makeInput(), withUiGlobals()
 
-### Community 70 - "Community 70"
+### Community 69 - "Community 69"
 Cohesion: 0.22
 Nodes (3): McpServerHarness, scaffoldRun(), writeJson()
 
-### Community 71 - "Community 71"
+### Community 70 - "Community 70"
 Cohesion: 0.22
 Nodes (1): McpServerHarness
 
-### Community 72 - "Community 72"
+### Community 71 - "Community 71"
 Cohesion: 0.23
 Nodes (6): findArtifact(), getBundleRunId(), loadGameplayBundle(), populateUIIcons(), syncBundleViews(), updateStatusRail()
 
-### Community 73 - "Community 73"
+### Community 72 - "Community 72"
 Cohesion: 0.21
 Nodes (5): element(), getResourceBundleAssetSpecs(), ipfsUriForAssetId(), relativePathForGameAssetId(), specForVisual()
 
-### Community 74 - "Community 74"
+### Community 73 - "Community 73"
 Cohesion: 0.27
 Nodes (10): alphaBlend(), applyAuraMask(), clamp01(), conflictMask(), deterministicNoise(), drawMask(), emitMask(), layeredMask() (+2 more)
 
-### Community 75 - "Community 75"
+### Community 74 - "Community 74"
 Cohesion: 0.35
 Nodes (11): color_mask(), component(), contact_sheet(), content_box(), main(), make_components(), new_mask(), normalize_source() (+3 more)
 
-### Community 76 - "Community 76"
+### Community 75 - "Community 75"
 Cohesion: 0.35
 Nodes (11): color_mask(), contact_sheet(), content_box(), main(), make_components(), new_mask(), normalize_source(), rectangle_mask() (+3 more)
 
-### Community 77 - "Community 77"
+### Community 76 - "Community 76"
 Cohesion: 0.23
 Nodes (5): readSnapshot(), setOutput(), setStatus(), storageFor(), wireBuildOrchestrator()
 
-### Community 78 - "Community 78"
+### Community 77 - "Community 77"
 Cohesion: 0.38
 Nodes (11): computeEffectivePotency(), computeIntensity(), computeManaCost(), computePotency(), computeRadius(), computeStackAlphaMultiplier(), computeTileAlpha(), resolveMergedStacks() (+3 more)
 
-### Community 79 - "Community 79"
+### Community 78 - "Community 78"
 Cohesion: 0.3
 Nodes (9): AllocatorRoomGeometryError, AllocatorTilePriceError, buildLayoutLineItems(), evaluateLayoutSpend(), evaluateRoomCardLayoutSpend(), isInteger(), normalizeLayoutCosts(), requireRoomGeometry() (+1 more)
 
-### Community 80 - "Community 80"
+### Community 79 - "Community 79"
 Cohesion: 0.36
 Nodes (11): assessLayoutFeasibility(), collectFloorPositions(), collectWalkablePositions(), deriveLevelGenFromCounts(), deriveLevelSideForWalkableTiles(), normalizeLayoutCount(), normalizeLayoutCountsOrZero(), positionKey() (+3 more)
 
-### Community 81 - "Community 81"
+### Community 80 - "Community 80"
 Cohesion: 0.45
 Nodes (10): addError(), isObject(), validateConfiguratorConfig(), validateLevelGen(), validateLevelGenShape(), validateMotivationSets(), validateOptionalBoolean(), validateOptionalObjectArray() (+2 more)
 
-### Community 82 - "Community 82"
+### Community 81 - "Community 81"
 Cohesion: 0.35
 Nodes (9): addError(), isInteger(), isNumber(), isPlainObject(), normalizeAbility(), normalizeActorLoadoutCatalog(), normalizeAffinityPresetCatalog(), normalizeEffect() (+1 more)
 
-### Community 83 - "Community 83"
+### Community 82 - "Community 82"
 Cohesion: 0.24
 Nodes (7): createCliWorkerAdapter(), createInProcessCliWorkerAdapter(), createInProcessLevelBuilderAdapter(), createLevelBuilderAdapter(), createLlmAdapter(), fetchWithTimeout(), resolvePositiveInt()
 
-### Community 84 - "Community 84"
+### Community 83 - "Community 83"
 Cohesion: 0.29
 Nodes (7): getMcpBuildTools(), normalizeEntitySpec(), normalizeToolArgs(), pythonReprToJson(), repairJsonBrackets(), runScenario(), toArray()
 
-### Community 85 - "Community 85"
+### Community 84 - "Community 84"
 Cohesion: 0.53
 Nodes (10): bareGit(), branchExists(), ensureMirror(), git(), hasCompletedRunKey(), isLocalGitDir(), listHistoryPaths(), prepareCheckout() (+2 more)
 
-### Community 86 - "Community 86"
+### Community 85 - "Community 85"
 Cohesion: 0.33
 Nodes (10): acceptedActionsByActor(), buildActor(), buildInitialState(), buildSimConfig(), buildStateWithActors(), coverageForActors(), loadRuntimeDeps(), makeFloorGrid() (+2 more)
 
-### Community 87 - "Community 87"
+### Community 86 - "Community 86"
 Cohesion: 0.33
 Nodes (8): allPackageSourceFiles(), collectSourceFiles(), importSpecifiers(), isInside(), resolveImportTarget(), scanViolations(), targetPersona(), toRepoPath()
 
-### Community 88 - "Community 88"
+### Community 87 - "Community 87"
 Cohesion: 0.25
 Nodes (6): createValidatorRegistry(), normalizeValidationIssues(), normalizeValidationResult(), registryValidators(), runValidators(), selectAffectedValidators()
 
-### Community 89 - "Community 89"
+### Community 88 - "Community 88"
 Cohesion: 0.38
 Nodes (10): deepFreeze(), fingerprint(), inferModel(), intOrNull(), isNonEmptyPrimitive(), scanSecrets(), summarizeAdaptiveWorkflowMetrics(), summarizeBenchmark() (+2 more)
 
-### Community 90 - "Community 90"
+### Community 89 - "Community 89"
 Cohesion: 0.36
 Nodes (9): buildAllocationAudit(), buildAllocationRef(), buildPriceMap(), buildRef(), calculatePriceTotal(), isFiniteNumber(), normalizePriceItems(), normalizeQuantity() (+1 more)
 
-### Community 91 - "Community 91"
+### Community 90 - "Community 90"
 Cohesion: 0.35
 Nodes (9): addError(), addWarning(), buildPlacementGrid(), clampInt(), createRng(), generateActorSet(), isPositiveInt(), normalizeMenu() (+1 more)
 
-### Community 92 - "Community 92"
+### Community 91 - "Community 91"
 Cohesion: 0.36
 Nodes (10): addBasePressure(), buildAmbientAffinityPressure(), buildZeroByKind(), collectHazardPressureSources(), collectRoomPressureSources(), normalizeAffinityExpression(), normalizeAffinitySourceEntry(), resolveAffinityExpressionProfile() (+2 more)
 
-### Community 93 - "Community 93"
+### Community 92 - "Community 92"
 Cohesion: 0.25
 Nodes (6): collectCoreStaticHazards(), mergeHazardLists(), readActorAffinityGrants(), readObservation(), renderBaseTiles(), renderFrameBuffer()
 
-### Community 94 - "Community 94"
+### Community 93 - "Community 93"
 Cohesion: 0.35
 Nodes (8): a(), B(), D(), g(), i(), k(), Q(), y()
 
-### Community 95 - "Community 95"
+### Community 94 - "Community 94"
 Cohesion: 0.22
 Nodes (2): createBrowserAdapter(), createFixtureFetch()
 
-### Community 96 - "Community 96"
+### Community 95 - "Community 95"
 Cohesion: 0.38
 Nodes (8): cooldown(), createRandomHarness(), loadActorPersonaModules(), makeFloorGrid(), oneProposeCycle(), proposeRandomAction(), runRandomTrajectory(), runTrajectory()
 
-### Community 97 - "Community 97"
+### Community 96 - "Community 96"
 Cohesion: 0.24
 Nodes (3): importSpecifiers(), maskSource(), specifierFromStatement()
 
-### Community 98 - "Community 98"
+### Community 97 - "Community 97"
 Cohesion: 0.29
 Nodes (6): indexToLineColumn(), parseJsonWithDetails(), readSnapshot(), setStatus(), storageFor(), wireBundleReview()
 
-### Community 99 - "Community 99"
+### Community 98 - "Community 98"
 Cohesion: 0.27
 Nodes (5): compileScenarioPlaybackBundle(), createPlaybackRuntime(), createRuntimeCore(), readCoreAffinityFieldRecords(), readCoreAffinityFieldRecordsFromArtifacts()
 
-### Community 100 - "Community 100"
+### Community 99 - "Community 99"
 Cohesion: 0.42
 Nodes (9): clampSize(), composeEntitySprite(), inferAffinity(), inferRole(), isInsideShape(), lightnessOf(), normalizeEntitySpriteState(), normalizeToken() (+1 more)
 
-### Community 101 - "Community 101"
+### Community 100 - "Community 100"
 Cohesion: 0.4
 Nodes (7): buildActorHudModel(), inferAffinity(), inferExpression(), inferMotivation(), inferRole(), orderedVitalKeys(), token()
 
-### Community 102 - "Community 102"
+### Community 101 - "Community 101"
 Cohesion: 0.36
 Nodes (8): buildCategorySpend(), buildCategoryTargets(), buildLegacyCategorySpend(), buildPoolTargets(), buildScenarioSpendReport(), computeIncentiveMultiplier(), normalizeSpend(), sumLineItemsByCategory()
 
-### Community 103 - "Community 103"
+### Community 102 - "Community 102"
 Cohesion: 0.33
 Nodes (8): artifactName(), assertRef(), canonical(), clone(), createFilesystemWorkflowStore(), failure(), reservation(), serialize()
 
-### Community 104 - "Community 104"
+### Community 103 - "Community 103"
 Cohesion: 0.47
 Nodes (8): assertSafeInputs(), boundedText(), defaultPreflightSteps(), git(), prepareBenchmarkSource(), registeredWorktrees(), removeOwnedWorktree(), runPreflightStep()
 
-### Community 105 - "Community 105"
+### Community 104 - "Community 104"
 Cohesion: 0.44
 Nodes (6): collapseMargins(), median(), quality(), ratio(), round(), summarizeProgress()
 
-### Community 106 - "Community 106"
+### Community 105 - "Community 105"
 Cohesion: 0.33
 Nodes (7): assertRatio(), CollapseError, describe(), evaluateCollapse(), rate(), resolveBreaker(), round()
 
-### Community 107 - "Community 107"
+### Community 106 - "Community 106"
 Cohesion: 0.44
 Nodes (8): aggregatePairs(), average(), comparePairedAttempts(), pairKey(), round(), tally(), validateComparisonMetadata(), validateSettings()
 
-### Community 108 - "Community 108"
+### Community 107 - "Community 107"
 Cohesion: 0.28
 Nodes (4): copyCatalog(), mutateCatalog(), scoringFixture(), writeJson()
 
-### Community 109 - "Community 109"
+### Community 108 - "Community 108"
 Cohesion: 0.28
 Nodes (3): isWalkable(), shortestWalkLength(), walkableNeighborCount()
 
-### Community 110 - "Community 110"
+### Community 109 - "Community 109"
 Cohesion: 0.31
 Nodes (6): buildFixture(), executionAdapter(), fixtureExecutionResult(), git(), routeKeys(), setupRepository()
 
-### Community 111 - "Community 111"
+### Community 110 - "Community 110"
 Cohesion: 0.31
 Nodes (6): buildInitialState(), buildSimConfig(), loadRuntimeDeps(), makeFloorGrid(), makeVitals(), runRuntimeScenario()
 
-### Community 112 - "Community 112"
+### Community 111 - "Community 111"
 Cohesion: 0.28
 Nodes (4): buildSimConfig(), loadRuntimeDeps(), makeFloorGrid(), runScenario()
 
-### Community 113 - "Community 113"
+### Community 112 - "Community 112"
 Cohesion: 0.42
 Nodes (7): asList(), collectSourceFiles(), isCanonicalFile(), lineNumberAt(), maskCommentsAndStrings(), scanGuard(), toRepoPath()
 
-### Community 114 - "Community 114"
+### Community 113 - "Community 113"
 Cohesion: 0.33
 Nodes (6): announceReady(), connect(), connectSandboxBridge(), handleBundle(), scheduleReconnect(), sendJson()
 
-### Community 115 - "Community 115"
+### Community 114 - "Community 114"
 Cohesion: 0.36
 Nodes (5): collectBuildSpecCardSet(), deriveContentAwareSplit(), extractDesignStateFromBuildSpec(), mergeCardArrays(), normalizeBuildSpecForEditor()
 
-### Community 116 - "Community 116"
+### Community 115 - "Community 115"
 Cohesion: 0.44
 Nodes (8): assertCoreSupportsGrid(), directionFromDelta(), findChar(), isDiagonalStepAllowed(), isWalkable(), reconstructPath(), runMvpMovement(), shortestPath()
 
-### Community 117 - "Community 117"
+### Community 116 - "Community 116"
 Cohesion: 0.39
 Nodes (7): addCoordinateLegend(), buildActorDetails(), buildBlankGrid(), computeActorPositions(), createVisualizationSnapshot(), inferKind(), markPosition()
 
-### Community 118 - "Community 118"
+### Community 117 - "Community 117"
 Cohesion: 0.36
 Nodes (5): buildPlanArtifactFromIntent(), isNonEmptyString(), resolveIntentEnvelope(), resolveIntentRef(), resolvePlanArtifact()
 
-### Community 119 - "Community 119"
+### Community 118 - "Community 118"
 Cohesion: 0.33
 Nodes (5): buildLlmTraceTelemetryRecord(), buildLlmTraceTurns(), isLlmCaptureArtifact(), isObject(), summarizeLlmTrace()
 
-### Community 120 - "Community 120"
+### Community 119 - "Community 119"
 Cohesion: 0.44
 Nodes (7): buildRoomDesignFromRoomCards(), deriveLayoutFromRoomCards(), deriveLevelGenFromRoomCards(), deriveLevelSideForWalkableTiles(), deriveRoomShapeFromRoomCards(), extractRoomCards(), readRoomCardLayoutBySize()
 
-### Community 121 - "Community 121"
+### Community 120 - "Community 120"
 Cohesion: 0.53
 Nodes (8): addError(), normalizeFlags(), normalizeGoal(), normalizeGoalParams(), normalizeMotivation(), normalizeMotivationKindList(), normalizeMotivations(), normalizePattern()
 
-### Community 122 - "Community 122"
+### Community 121 - "Community 121"
 Cohesion: 0.42
 Nodes (8): buildSpecFromSummaryFlow(), cloneJson(), normalizeAgentHints(), normalizeArrayField(), normalizeArtifactRef(), normalizeBuildSpecForUi(), normalizeRepeatableField(), runPoolFlow()
 
-### Community 123 - "Community 123"
+### Community 122 - "Community 122"
 Cohesion: 0.42
 Nodes (8): deriveSource(), loadBenchmarkEvidenceFromSummary(), matchHeader(), parseAggregateTable(), parseSummary(), toFiniteNumber(), toFraction(), toPositiveInt()
 
-### Community 124 - "Community 124"
+### Community 123 - "Community 123"
 Cohesion: 0.39
 Nodes (5): assertSha256(), compatibilityFor(), readPublishedBenchmarkResult(), resultPath(), validatePublishedBenchmarkResult()
 
-### Community 125 - "Community 125"
+### Community 124 - "Community 124"
 Cohesion: 0.36
 Nodes (5): manifestPath(), readCompletedRunIds(), readPriorRecords(), readRunManifest(), writeRunManifest()
 
-### Community 126 - "Community 126"
+### Community 125 - "Community 125"
 Cohesion: 0.43
 Nodes (7): acquireAgentLock(), emptyState(), ensureDir(), loadAgentState(), ownerAlive(), readLockOwner(), saveAgentState()
 
-### Community 127 - "Community 127"
+### Community 126 - "Community 126"
 Cohesion: 0.32
 Nodes (3): combineBenchmarkQualification(), executionProjection(), executionQualifies()
 
-### Community 128 - "Community 128"
+### Community 127 - "Community 127"
 Cohesion: 0.29
 Nodes (2): actorAt(), vitals()
 
-### Community 129 - "Community 129"
+### Community 128 - "Community 128"
 Cohesion: 0.29
 Nodes (2): countFloorTiles(), floorAt()
 
-### Community 130 - "Community 130"
+### Community 129 - "Community 129"
 Cohesion: 0.29
 Nodes (2): floorAt(), reachableFrom()
 
-### Community 131 - "Community 131"
+### Community 130 - "Community 130"
 Cohesion: 0.29
 Nodes (2): buildSimConfig(), makeFloorGrid()
 
-### Community 132 - "Community 132"
+### Community 131 - "Community 131"
 Cohesion: 0.43
 Nodes (6): assertOpaqueTileHides(), captureFirstObservation(), captureObservationPersona(), makeInitialState(), makeSimConfig(), makeVitals()
 
-### Community 133 - "Community 133"
+### Community 132 - "Community 132"
 Cohesion: 0.32
 Nodes (3): buildSimConfig(), makeFloorGrid(), startRuntime()
 
-### Community 134 - "Community 134"
+### Community 133 - "Community 133"
 Cohesion: 0.32
 Nodes (3): buildRoomIndex(), countInternalBlocked(), hasGapAroundInternalBarrier()
 
-### Community 135 - "Community 135"
+### Community 134 - "Community 134"
 Cohesion: 0.36
 Nodes (5): listCardSet(), listDelverCards(), listRoomCards(), runCli(), runCliOk()
 
-### Community 136 - "Community 136"
+### Community 135 - "Community 135"
 Cohesion: 0.32
 Nodes (1): Harness
 
-### Community 137 - "Community 137"
+### Community 136 - "Community 136"
 Cohesion: 0.5
 Nodes (6): createFrame(), createInitialState(), createMeta(), createSimConfig(), writeComparableRun(), writeJson()
+
+### Community 137 - "Community 137"
+Cohesion: 0.46
+Nodes (6): expressionMarkup(), glyphPath(), iconSvg(), isValidDataUri(), resolveIcon(), resolveIconHTML()
 
 ### Community 138 - "Community 138"
 Cohesion: 0.54
@@ -1543,40 +1548,40 @@ Cohesion: 0.5
 Nodes (2): git(), publishHeartbeat()
 
 ### Community 211 - "Community 211"
-Cohesion: 0.4
-Nodes (0): 
+Cohesion: 0.5
+Nodes (2): makeContainer(), renderCardWithMotivations()
 
 ### Community 212 - "Community 212"
 Cohesion: 0.4
 Nodes (0): 
 
 ### Community 213 - "Community 213"
+Cohesion: 0.4
+Nodes (0): 
+
+### Community 214 - "Community 214"
 Cohesion: 0.6
 Nodes (3): createResource(), runCli(), runCliOk()
 
-### Community 214 - "Community 214"
+### Community 215 - "Community 215"
 Cohesion: 0.4
 Nodes (0): 
 
-### Community 215 - "Community 215"
+### Community 216 - "Community 216"
 Cohesion: 0.5
 Nodes (2): runCli(), runCliOk()
 
-### Community 216 - "Community 216"
+### Community 217 - "Community 217"
 Cohesion: 0.6
 Nodes (3): validateAsciiSnapshot(), validateBase(), validateImageSnapshot()
 
-### Community 217 - "Community 217"
+### Community 218 - "Community 218"
 Cohesion: 0.6
 Nodes (3): isObject(), validatePriceListArtifact(), validatePriceListItem()
 
-### Community 218 - "Community 218"
+### Community 219 - "Community 219"
 Cohesion: 0.6
 Nodes (4): contrast(), dE(), labOf(), relLum()
-
-### Community 219 - "Community 219"
-Cohesion: 0.4
-Nodes (0): 
 
 ### Community 220 - "Community 220"
 Cohesion: 0.4
@@ -1599,72 +1604,72 @@ Cohesion: 0.4
 Nodes (0): 
 
 ### Community 225 - "Community 225"
+Cohesion: 0.4
+Nodes (0): 
+
+### Community 226 - "Community 226"
 Cohesion: 0.5
 Nodes (2): loadPersonaDeps(), oneProposeCycle()
 
-### Community 226 - "Community 226"
+### Community 227 - "Community 227"
 Cohesion: 0.6
 Nodes (3): collectSourceFiles(), findTokenCostDeclarations(), toRepoPath()
 
-### Community 227 - "Community 227"
+### Community 228 - "Community 228"
 Cohesion: 0.6
 Nodes (3): OPEN_MARKER(), readmePath(), statusBlock()
-
-### Community 228 - "Community 228"
-Cohesion: 0.4
-Nodes (0): 
 
 ### Community 229 - "Community 229"
 Cohesion: 0.4
 Nodes (0): 
 
 ### Community 230 - "Community 230"
-Cohesion: 0.5
-Nodes (2): createGridArtifacts(), writeJson()
+Cohesion: 0.4
+Nodes (0): 
 
 ### Community 231 - "Community 231"
 Cohesion: 0.5
-Nodes (2): runCli(), runCliOk()
-
-### Community 232 - "Community 232"
-Cohesion: 0.4
-Nodes (0): 
-
-### Community 233 - "Community 233"
-Cohesion: 0.5
 Nodes (2): createGridArtifacts(), writeJson()
 
-### Community 234 - "Community 234"
+### Community 232 - "Community 232"
+Cohesion: 0.5
+Nodes (2): runCli(), runCliOk()
+
+### Community 233 - "Community 233"
 Cohesion: 0.4
 Nodes (0): 
+
+### Community 234 - "Community 234"
+Cohesion: 0.5
+Nodes (2): createGridArtifacts(), writeJson()
 
 ### Community 235 - "Community 235"
 Cohesion: 0.4
 Nodes (0): 
 
 ### Community 236 - "Community 236"
+Cohesion: 0.4
+Nodes (0): 
+
+### Community 237 - "Community 237"
 Cohesion: 0.6
 Nodes (3): makeMeta(), scaffoldRun(), writeJson()
 
-### Community 237 - "Community 237"
+### Community 238 - "Community 238"
 Cohesion: 0.8
 Nodes (4): closeOnce(), findStartPort(), listenOnce(), withBlockedPort()
 
-### Community 238 - "Community 238"
+### Community 239 - "Community 239"
 Cohesion: 0.5
 Nodes (2): configuratorCapabilities(), configuratorNormalizeMotivations()
 
-### Community 239 - "Community 239"
+### Community 240 - "Community 240"
 Cohesion: 0.8
 Nodes (4): generateTierActors(), generateTierLayout(), loadGenerators(), resolveTierSpec()
 
-### Community 240 - "Community 240"
-Cohesion: 0.6
-Nodes (3): classifyIngestionPayload(), hasGameplayArtifacts(), isPlainObject()
-
 ### Community 241 - "Community 241"
 Cohesion: 0.6
-Nodes (3): isValidDataUri(), resolveIcon(), resolveIconHTML()
+Nodes (3): classifyIngestionPayload(), hasGameplayArtifacts(), isPlainObject()
 
 ### Community 242 - "Community 242"
 Cohesion: 0.5
@@ -1679,104 +1684,104 @@ Cohesion: 0.6
 Nodes (3): createReplayEnvelope(), createReplayModelAdapter(), replayError()
 
 ### Community 245 - "Community 245"
+Cohesion: 0.5
+Nodes (2): buildIconModel(), token()
+
+### Community 246 - "Community 246"
+Cohesion: 0.6
+Nodes (3): buildInventorySummary(), finite(), tokensOf()
+
+### Community 247 - "Community 247"
 Cohesion: 0.4
 Nodes (1): AllocatorReconciliationError
 
-### Community 246 - "Community 246"
+### Community 248 - "Community 248"
 Cohesion: 0.4
 Nodes (1): PersonaClockError
 
-### Community 247 - "Community 247"
+### Community 249 - "Community 249"
 Cohesion: 0.6
 Nodes (3): ensureAuthoringLevelGenCapacity(), prepareLevelGen(), resolveRoomSizeProfile()
 
-### Community 248 - "Community 248"
+### Community 250 - "Community 250"
 Cohesion: 0.5
 Nodes (2): distributeVitalPoints(), maximizeActorBudget()
 
-### Community 249 - "Community 249"
+### Community 251 - "Community 251"
 Cohesion: 0.5
 Nodes (2): createSolverAdapter(), loadFixture()
 
-### Community 250 - "Community 250"
+### Community 252 - "Community 252"
 Cohesion: 0.6
 Nodes (3): createIpfsAdapter(), joinPath(), normalizeCid()
 
-### Community 251 - "Community 251"
+### Community 253 - "Community 253"
 Cohesion: 0.7
 Nodes (4): goToNext(), goToPrevious(), makeCurrent(), toggleClass()
 
-### Community 252 - "Community 252"
+### Community 254 - "Community 254"
 Cohesion: 0.4
 Nodes (5): adapters-test Package, Blockchain Adapter (Test), IPFS Adapter (Test), LLM Adapter (Test), Fixture-First External IO
 
-### Community 253 - "Community 253"
+### Community 255 - "Community 255"
 Cohesion: 0.83
 Nodes (3): main(), parseArgs(), parseList()
 
-### Community 254 - "Community 254"
+### Community 256 - "Community 256"
 Cohesion: 0.83
 Nodes (3): extractToolArgs(), getBuildTools(), runAbstractScenario()
-
-### Community 255 - "Community 255"
-Cohesion: 0.5
-Nodes (0): 
-
-### Community 256 - "Community 256"
-Cohesion: 0.5
-Nodes (0): 
 
 ### Community 257 - "Community 257"
 Cohesion: 0.5
 Nodes (0): 
 
 ### Community 258 - "Community 258"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 259 - "Community 259"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 260 - "Community 260"
 Cohesion: 0.67
 Nodes (2): copyCatalog(), mutateCatalog()
 
-### Community 259 - "Community 259"
+### Community 261 - "Community 261"
 Cohesion: 0.67
 Nodes (2): git(), setupRepository()
 
-### Community 260 - "Community 260"
+### Community 262 - "Community 262"
 Cohesion: 0.5
 Nodes (0): 
-
-### Community 261 - "Community 261"
-Cohesion: 0.83
-Nodes (3): git(), record(), seededRemote()
-
-### Community 262 - "Community 262"
-Cohesion: 0.67
-Nodes (2): git(), setupRemote()
 
 ### Community 263 - "Community 263"
 Cohesion: 0.83
-Nodes (3): git(), published(), remoteRepository()
+Nodes (3): git(), record(), seededRemote()
 
 ### Community 264 - "Community 264"
 Cohesion: 0.67
-Nodes (2): runCli(), runCliOk()
+Nodes (2): git(), setupRemote()
 
 ### Community 265 - "Community 265"
 Cohesion: 0.83
-Nodes (3): buildReceipt(), readJson(), refFor()
+Nodes (3): git(), published(), remoteRepository()
 
 ### Community 266 - "Community 266"
 Cohesion: 0.67
-Nodes (2): isObject(), validateResourceArtifact()
+Nodes (2): runCli(), runCliOk()
 
 ### Community 267 - "Community 267"
 Cohesion: 0.83
-Nodes (3): buildBudgetedRun(), readJson(), refFor()
+Nodes (3): buildReceipt(), readJson(), refFor()
 
 ### Community 268 - "Community 268"
-Cohesion: 0.5
-Nodes (0): 
+Cohesion: 0.67
+Nodes (2): isObject(), validateResourceArtifact()
 
 ### Community 269 - "Community 269"
-Cohesion: 0.5
-Nodes (0): 
+Cohesion: 0.83
+Nodes (3): buildBudgetedRun(), readJson(), refFor()
 
 ### Community 270 - "Community 270"
 Cohesion: 0.5
@@ -1799,8 +1804,8 @@ Cohesion: 0.5
 Nodes (0): 
 
 ### Community 275 - "Community 275"
-Cohesion: 0.67
-Nodes (2): clock(), seamArgs()
+Cohesion: 0.5
+Nodes (0): 
 
 ### Community 276 - "Community 276"
 Cohesion: 0.5
@@ -1812,7 +1817,7 @@ Nodes (0):
 
 ### Community 278 - "Community 278"
 Cohesion: 0.67
-Nodes (2): recordingCore(), runWith()
+Nodes (2): clock(), seamArgs()
 
 ### Community 279 - "Community 279"
 Cohesion: 0.5
@@ -1823,8 +1828,8 @@ Cohesion: 0.5
 Nodes (0): 
 
 ### Community 281 - "Community 281"
-Cohesion: 0.5
-Nodes (0): 
+Cohesion: 0.67
+Nodes (2): recordingCore(), runWith()
 
 ### Community 282 - "Community 282"
 Cohesion: 0.5
@@ -1839,204 +1844,204 @@ Cohesion: 0.5
 Nodes (0): 
 
 ### Community 285 - "Community 285"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 286 - "Community 286"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 287 - "Community 287"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 288 - "Community 288"
 Cohesion: 0.67
 Nodes (2): loadActorModules(), proposeOnce()
 
-### Community 286 - "Community 286"
+### Community 289 - "Community 289"
 Cohesion: 0.67
 Nodes (2): solverEnvelope(), tileKinds()
 
-### Community 287 - "Community 287"
+### Community 290 - "Community 290"
 Cohesion: 0.67
 Nodes (2): coreEmittingUnsourcedFacts(), runtimeWith()
-
-### Community 288 - "Community 288"
-Cohesion: 0.5
-Nodes (0): 
-
-### Community 289 - "Community 289"
-Cohesion: 0.5
-Nodes (0): 
-
-### Community 290 - "Community 290"
-Cohesion: 0.5
-Nodes (0): 
 
 ### Community 291 - "Community 291"
 Cohesion: 0.5
 Nodes (0): 
 
 ### Community 292 - "Community 292"
-Cohesion: 0.67
-Nodes (2): duplicateKeysIn(), walk()
+Cohesion: 0.5
+Nodes (0): 
 
 ### Community 293 - "Community 293"
-Cohesion: 0.67
-Nodes (2): actualInventory(), countCalls()
+Cohesion: 0.5
+Nodes (0): 
 
 ### Community 294 - "Community 294"
-Cohesion: 0.67
-Nodes (2): fetchFn(), fixtureResponse()
+Cohesion: 0.5
+Nodes (0): 
 
 ### Community 295 - "Community 295"
 Cohesion: 0.67
-Nodes (2): runCli(), runCliRaw()
+Nodes (2): duplicateKeysIn(), walk()
 
 ### Community 296 - "Community 296"
 Cohesion: 0.67
-Nodes (2): runCli(), runCliOk()
+Nodes (2): actualInventory(), countCalls()
 
 ### Community 297 - "Community 297"
-Cohesion: 0.5
-Nodes (0): 
+Cohesion: 0.67
+Nodes (2): fetchFn(), fixtureResponse()
 
 ### Community 298 - "Community 298"
-Cohesion: 0.5
-Nodes (0): 
+Cohesion: 0.67
+Nodes (2): runCli(), runCliRaw()
 
 ### Community 299 - "Community 299"
 Cohesion: 0.67
-Nodes (2): ok(), runCli()
+Nodes (2): runCli(), runCliOk()
 
 ### Community 300 - "Community 300"
 Cohesion: 0.5
 Nodes (0): 
 
 ### Community 301 - "Community 301"
-Cohesion: 0.67
-Nodes (2): fixturePath(), readFixture()
+Cohesion: 0.5
+Nodes (0): 
 
 ### Community 302 - "Community 302"
-Cohesion: 0.83
-Nodes (3): createEntitySpriteTextureDescriptor(), normalizeEntitySpriteTextureSize(), shouldComposeEntitySprite()
+Cohesion: 0.67
+Nodes (2): ok(), runCli()
 
 ### Community 303 - "Community 303"
-Cohesion: 0.83
-Nodes (3): createAdaptiveWorkflowPorts(), normalizeIdPort(), normalizeOptionalPort()
+Cohesion: 0.5
+Nodes (0): 
 
 ### Community 304 - "Community 304"
 Cohesion: 0.67
-Nodes (2): reconcileSectionalRooms(), runSectionalBudgetLlmSeam()
+Nodes (2): fixturePath(), readFixture()
 
 ### Community 305 - "Community 305"
 Cohesion: 0.83
-Nodes (3): classifyFailure(), codeFrom(), hasAny()
+Nodes (3): canonicalize(), designIdentity(), shouldReuseActiveRun()
 
 ### Community 306 - "Community 306"
-Cohesion: 0.5
-Nodes (1): DirectorStateError
+Cohesion: 0.83
+Nodes (3): createEntitySpriteTextureDescriptor(), normalizeEntitySpriteTextureSize(), shouldComposeEntitySprite()
 
 ### Community 307 - "Community 307"
-Cohesion: 0.5
-Nodes (1): AllocatorStateError
+Cohesion: 0.83
+Nodes (3): createAdaptiveWorkflowPorts(), normalizeIdPort(), normalizeOptionalPort()
 
 ### Community 308 - "Community 308"
-Cohesion: 0.83
-Nodes (3): calculateMotivationStackCost(), resolveMotivationFamily(), resolveMotivationUnitCost()
+Cohesion: 0.67
+Nodes (2): reconcileSectionalRooms(), runSectionalBudgetLlmSeam()
 
 ### Community 309 - "Community 309"
-Cohesion: 0.5
-Nodes (0): 
+Cohesion: 0.83
+Nodes (3): classifyFailure(), codeFrom(), hasAny()
 
 ### Community 310 - "Community 310"
 Cohesion: 0.5
-Nodes (0): 
+Nodes (1): DirectorStateError
 
 ### Community 311 - "Community 311"
+Cohesion: 0.5
+Nodes (1): AllocatorStateError
+
+### Community 312 - "Community 312"
+Cohesion: 0.83
+Nodes (3): calculateMotivationStackCost(), resolveMotivationFamily(), resolveMotivationUnitCost()
+
+### Community 313 - "Community 313"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 314 - "Community 314"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 315 - "Community 315"
 Cohesion: 0.83
 Nodes (3): buildLlmCaptureArtifact(), buildMeta(), isNonEmptyString()
 
-### Community 312 - "Community 312"
-Cohesion: 0.5
-Nodes (0): 
-
-### Community 313 - "Community 313"
-Cohesion: 0.83
-Nodes (3): isNonEmptyString(), preconditionFailure(), runLlmSessionHosted()
-
-### Community 314 - "Community 314"
-Cohesion: 0.83
-Nodes (3): beginDirectorBuildCapabilities(), beginDirectorRound(), directorBuildCapabilities()
-
-### Community 315 - "Community 315"
-Cohesion: 0.5
-Nodes (0): 
-
 ### Community 316 - "Community 316"
-Cohesion: 0.67
-Nodes (2): createSolverPort(), solveWithAdapter()
+Cohesion: 0.5
+Nodes (0): 
 
 ### Community 317 - "Community 317"
 Cohesion: 0.83
-Nodes (3): adapterHandlesDomain(), checkSolverConformance(), describeSolverCapabilities()
+Nodes (3): isNonEmptyString(), preconditionFailure(), runLlmSessionHosted()
 
 ### Community 318 - "Community 318"
-Cohesion: 0.5
-Nodes (1): serializeError()
+Cohesion: 0.83
+Nodes (3): beginDirectorBuildCapabilities(), beginDirectorRound(), directorBuildCapabilities()
 
 ### Community 319 - "Community 319"
 Cohesion: 0.5
 Nodes (0): 
 
 ### Community 320 - "Community 320"
-Cohesion: 0.5
-Nodes (0): 
+Cohesion: 0.67
+Nodes (2): createSolverPort(), solveWithAdapter()
 
 ### Community 321 - "Community 321"
-Cohesion: 0.5
-Nodes (0): 
+Cohesion: 0.83
+Nodes (3): adapterHandlesDomain(), checkSolverConformance(), describeSolverCapabilities()
 
 ### Community 322 - "Community 322"
 Cohesion: 0.5
-Nodes (4): CLI Adapters Package, MCP Server (agent-kernel-cli), MCP-First Test Rule, Test Authoring Playbook
+Nodes (1): serializeError()
 
 ### Community 323 - "Community 323"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 324 - "Community 324"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 325 - "Community 325"
+Cohesion: 0.5
+Nodes (0): 
+
+### Community 326 - "Community 326"
+Cohesion: 0.5
+Nodes (4): CLI Adapters Package, MCP Server (agent-kernel-cli), MCP-First Test Rule, Test Authoring Playbook
+
+### Community 327 - "Community 327"
 Cohesion: 1.0
 Nodes (2): main(), parseArgs()
 
-### Community 324 - "Community 324"
+### Community 328 - "Community 328"
 Cohesion: 1.0
 Nodes (2): classify(), selectScenarios()
 
-### Community 325 - "Community 325"
-Cohesion: 1.0
-Nodes (2): collectLocalTelemetry(), runCapture()
-
-### Community 326 - "Community 326"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 327 - "Community 327"
-Cohesion: 0.67
-Nodes (0): 
-
-### Community 328 - "Community 328"
-Cohesion: 1.0
-Nodes (2): health(), requestJson()
-
 ### Community 329 - "Community 329"
 Cohesion: 1.0
-Nodes (2): extractJsonObject(), runRepairableJsonSession()
+Nodes (2): collectLocalTelemetry(), runCapture()
 
 ### Community 330 - "Community 330"
 Cohesion: 0.67
 Nodes (0): 
 
 ### Community 331 - "Community 331"
-Cohesion: 1.0
-Nodes (2): createFrameRoot(), makeNode()
+Cohesion: 0.67
+Nodes (0): 
 
 ### Community 332 - "Community 332"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): health(), requestJson()
 
 ### Community 333 - "Community 333"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): extractJsonObject(), runRepairableJsonSession()
 
 ### Community 334 - "Community 334"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): createFrameRoot(), makeNode()
 
 ### Community 335 - "Community 335"
 Cohesion: 0.67
@@ -2083,28 +2088,28 @@ Cohesion: 0.67
 Nodes (0): 
 
 ### Community 346 - "Community 346"
-Cohesion: 1.0
-Nodes (2): buildWithBudget(), readJson()
+Cohesion: 0.67
+Nodes (0): 
 
 ### Community 347 - "Community 347"
 Cohesion: 0.67
 Nodes (0): 
 
 ### Community 348 - "Community 348"
-Cohesion: 1.0
-Nodes (2): buildFromFixture(), deepFreeze()
-
-### Community 349 - "Community 349"
 Cohesion: 0.67
 Nodes (0): 
+
+### Community 349 - "Community 349"
+Cohesion: 1.0
+Nodes (2): buildWithBudget(), readJson()
 
 ### Community 350 - "Community 350"
 Cohesion: 0.67
 Nodes (0): 
 
 ### Community 351 - "Community 351"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): buildFromFixture(), deepFreeze()
 
 ### Community 352 - "Community 352"
 Cohesion: 0.67
@@ -2119,12 +2124,12 @@ Cohesion: 0.67
 Nodes (0): 
 
 ### Community 355 - "Community 355"
-Cohesion: 1.0
-Nodes (2): makeBaseTiles(), runOneProposeCycle()
+Cohesion: 0.67
+Nodes (0): 
 
 ### Community 356 - "Community 356"
-Cohesion: 1.0
-Nodes (2): host(), recordingAdapter()
+Cohesion: 0.67
+Nodes (0): 
 
 ### Community 357 - "Community 357"
 Cohesion: 0.67
@@ -2136,11 +2141,11 @@ Nodes (0):
 
 ### Community 359 - "Community 359"
 Cohesion: 1.0
-Nodes (2): buildCore(), makeRuntime()
+Nodes (2): makeBaseTiles(), runOneProposeCycle()
 
 ### Community 360 - "Community 360"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): host(), recordingAdapter()
 
 ### Community 361 - "Community 361"
 Cohesion: 0.67
@@ -2151,8 +2156,8 @@ Cohesion: 0.67
 Nodes (0): 
 
 ### Community 363 - "Community 363"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): buildCore(), makeRuntime()
 
 ### Community 364 - "Community 364"
 Cohesion: 0.67
@@ -2163,8 +2168,8 @@ Cohesion: 0.67
 Nodes (0): 
 
 ### Community 366 - "Community 366"
-Cohesion: 1.0
-Nodes (2): create(), reportedMinimum()
+Cohesion: 0.67
+Nodes (0): 
 
 ### Community 367 - "Community 367"
 Cohesion: 0.67
@@ -2179,8 +2184,8 @@ Cohesion: 0.67
 Nodes (0): 
 
 ### Community 370 - "Community 370"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): create(), reportedMinimum()
 
 ### Community 371 - "Community 371"
 Cohesion: 0.67
@@ -2191,8 +2196,8 @@ Cohesion: 0.67
 Nodes (0): 
 
 ### Community 373 - "Community 373"
-Cohesion: 1.0
-Nodes (2): recordingAdapter(), runSession()
+Cohesion: 0.67
+Nodes (0): 
 
 ### Community 374 - "Community 374"
 Cohesion: 0.67
@@ -2207,8 +2212,8 @@ Cohesion: 0.67
 Nodes (0): 
 
 ### Community 377 - "Community 377"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): recordingAdapter(), runSession()
 
 ### Community 378 - "Community 378"
 Cohesion: 0.67
@@ -2263,36 +2268,36 @@ Cohesion: 0.67
 Nodes (0): 
 
 ### Community 391 - "Community 391"
-Cohesion: 1.0
-Nodes (2): writeJson(), writeRun()
+Cohesion: 0.67
+Nodes (0): 
 
 ### Community 392 - "Community 392"
 Cohesion: 0.67
 Nodes (0): 
 
 ### Community 393 - "Community 393"
-Cohesion: 1.0
-Nodes (2): find_target(), main()
+Cohesion: 0.67
+Nodes (0): 
 
 ### Community 394 - "Community 394"
-Cohesion: 1.0
-Nodes (2): createCardBuilderController(), createStatusSink()
+Cohesion: 0.67
+Nodes (0): 
 
 ### Community 395 - "Community 395"
 Cohesion: 1.0
-Nodes (2): compileScenarioToBundle(), loadScenarioFromUrl()
+Nodes (2): writeJson(), writeRun()
 
 ### Community 396 - "Community 396"
-Cohesion: 1.0
-Nodes (2): promoteBenchmarkPolicy(), text()
+Cohesion: 0.67
+Nodes (0): 
 
 ### Community 397 - "Community 397"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): find_target(), main()
 
 ### Community 398 - "Community 398"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): createCardBuilderController(), createStatusSink()
 
 ### Community 399 - "Community 399"
 Cohesion: 0.67
@@ -2300,15 +2305,15 @@ Nodes (0):
 
 ### Community 400 - "Community 400"
 Cohesion: 1.0
-Nodes (2): isRecord(), restorePersonaView()
+Nodes (2): isBrowserReserved(), resolveScreenShortcut()
 
 ### Community 401 - "Community 401"
 Cohesion: 1.0
-Nodes (2): authorDelverCandidate(), isNonEmptyString()
+Nodes (2): compileScenarioToBundle(), loadScenarioFromUrl()
 
 ### Community 402 - "Community 402"
 Cohesion: 1.0
-Nodes (2): buildManualMoveAction(), resolveObservedActors()
+Nodes (2): promoteBenchmarkPolicy(), text()
 
 ### Community 403 - "Community 403"
 Cohesion: 0.67
@@ -2316,7 +2321,7 @@ Nodes (0):
 
 ### Community 404 - "Community 404"
 Cohesion: 0.67
-Nodes (1): createBlockchainAdapter()
+Nodes (0): 
 
 ### Community 405 - "Community 405"
 Cohesion: 0.67
@@ -2324,34 +2329,34 @@ Nodes (0):
 
 ### Community 406 - "Community 406"
 Cohesion: 1.0
-Nodes (2): createGameplayBridgeOperation(), executionError()
+Nodes (2): isRecord(), restorePersonaView()
 
 ### Community 407 - "Community 407"
-Cohesion: 0.67
-Nodes (0): 
+Cohesion: 1.0
+Nodes (2): authorDelverCandidate(), isNonEmptyString()
 
 ### Community 408 - "Community 408"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): buildManualMoveAction(), resolveObservedActors()
 
 ### Community 409 - "Community 409"
-Cohesion: 1.0
+Cohesion: 0.67
 Nodes (0): 
 
 ### Community 410 - "Community 410"
-Cohesion: 1.0
-Nodes (0): 
+Cohesion: 0.67
+Nodes (1): createBlockchainAdapter()
 
 ### Community 411 - "Community 411"
-Cohesion: 1.0
+Cohesion: 0.67
 Nodes (0): 
 
 ### Community 412 - "Community 412"
 Cohesion: 1.0
-Nodes (0): 
+Nodes (2): createGameplayBridgeOperation(), executionError()
 
 ### Community 413 - "Community 413"
-Cohesion: 1.0
+Cohesion: 0.67
 Nodes (0): 
 
 ### Community 414 - "Community 414"
@@ -3308,518 +3313,536 @@ Nodes (0):
 
 ### Community 652 - "Community 652"
 Cohesion: 1.0
-Nodes (1): Solver-Z3 Adapter
+Nodes (0): 
 
 ### Community 653 - "Community 653"
 Cohesion: 1.0
-Nodes (1): CLI build Command
+Nodes (0): 
 
 ### Community 654 - "Community 654"
 Cohesion: 1.0
-Nodes (1): CLI llm-plan Command
+Nodes (0): 
 
 ### Community 655 - "Community 655"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 656 - "Community 656"
+Cohesion: 1.0
+Nodes (0): 
+
+### Community 657 - "Community 657"
+Cohesion: 1.0
+Nodes (1): Solver-Z3 Adapter
+
+### Community 658 - "Community 658"
+Cohesion: 1.0
+Nodes (1): CLI build Command
+
+### Community 659 - "Community 659"
+Cohesion: 1.0
+Nodes (1): CLI llm-plan Command
+
+### Community 660 - "Community 660"
 Cohesion: 1.0
 Nodes (1): Structured Stdout Contract
 
 ## Knowledge Gaps
 - **31 isolated node(s):** `Read named components from a contact sheet.      The manifest maps each componen`, `Compose one full sprite from the atlas and semantic selection.`, `Keep the visible stone corner pieces while dropping dark sheet backing.`, `Build expression overlays from white arrow indicators.      Corner-arrow semanti`, `Build expression overlays from minimal white triangle indicators.      Triangle` (+26 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **Thin community `Community 408`** (2 nodes): `wireCardListView()`, `source.js`
+- **Thin community `Community 414`** (2 nodes): `wireCardListView()`, `source.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 409`** (2 nodes): `activeCardId()`, `card-builder-controller.test.js`
+- **Thin community `Community 415`** (2 nodes): `activeCardId()`, `card-builder-controller.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 410`** (2 nodes): `createFakeSurfaces()`, `gameplay-surface-ingestion.test.js`
+- **Thin community `Community 416`** (2 nodes): `createFakeSurfaces()`, `gameplay-surface-ingestion.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 411`** (2 nodes): `passingResult()`, `execution-benchmark-runner.test.js`
+- **Thin community `Community 417`** (2 nodes): `passingResult()`, `execution-benchmark-runner.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 412`** (2 nodes): `runningProfileStateDir()`, `remote-ollama-benchmark.test.js`
+- **Thin community `Community 418`** (2 nodes): `runningProfileStateDir()`, `remote-ollama-benchmark.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 413`** (2 nodes): `passingAttempt()`, `remote-ollama-content-gen-resume.test.js`
+- **Thin community `Community 419`** (2 nodes): `passingAttempt()`, `remote-ollama-content-gen-resume.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 414`** (2 nodes): `rows()`, `scenario-selection.test.js`
+- **Thin community `Community 420`** (2 nodes): `rows()`, `scenario-selection.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 415`** (2 nodes): `delverOf()`, `remote-ollama-json-array-repair.test.js`
+- **Thin community `Community 421`** (2 nodes): `delverOf()`, `remote-ollama-json-array-repair.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 416`** (2 nodes): `run()`, `benchmark-identity-command.test.js`
+- **Thin community `Community 422`** (2 nodes): `run()`, `benchmark-identity-command.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 417`** (2 nodes): `denied()`, `content-gen-denial-scoring.test.js`
+- **Thin community `Community 423`** (2 nodes): `denied()`, `content-gen-denial-scoring.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 418`** (2 nodes): `create()`, `create-actor-placement-refusal-detail.test.js`
+- **Thin community `Community 424`** (2 nodes): `create()`, `create-actor-placement-refusal-detail.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 419`** (2 nodes): `create()`, `create-placement-refusal-detail.test.js`
+- **Thin community `Community 425`** (2 nodes): `create()`, `create-placement-refusal-detail.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 420`** (2 nodes): `loadValidator()`, `sandbox-session-artifact.test.js`
+- **Thin community `Community 426`** (2 nodes): `loadValidator()`, `sandbox-session-artifact.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 421`** (2 nodes): `loadValidator()`, `hazard-artifact.test.js`
+- **Thin community `Community 427`** (2 nodes): `loadValidator()`, `hazard-artifact.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 422`** (2 nodes): `loadValidator()`, `build-spec.test.js`
+- **Thin community `Community 428`** (2 nodes): `loadValidator()`, `build-spec.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 423`** (2 nodes): `collectJsFiles()`, `prompt-template-centralization.test.js`
+- **Thin community `Community 429`** (2 nodes): `collectJsFiles()`, `prompt-template-centralization.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 424`** (2 nodes): `parseStringUnion()`, `domain-constants-parity.test.js`
+- **Thin community `Community 430`** (2 nodes): `parseStringUnion()`, `domain-constants-parity.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 425`** (2 nodes): `clock()`, `adaptive-workflow-repair-controller.test.js`
+- **Thin community `Community 431`** (2 nodes): `clock()`, `adaptive-workflow-repair-controller.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 426`** (2 nodes): `readJson()`, `prompt-contract-e2e.test.js`
+- **Thin community `Community 432`** (2 nodes): `readJson()`, `prompt-contract-e2e.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 427`** (2 nodes): `tick-frames.test.js`, `createRuntimeWithCore()`
+- **Thin community `Community 433`** (2 nodes): `tick-frames.test.js`, `createRuntimeWithCore()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 428`** (2 nodes): `clock()`, `adaptive-workflow-replay.test.js`
+- **Thin community `Community 434`** (2 nodes): `clock()`, `adaptive-workflow-replay.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 429`** (2 nodes): `ui-flow-normalize.test.js`, `loadUiFlow()`
+- **Thin community `Community 435`** (2 nodes): `ui-flow-normalize.test.js`, `loadUiFlow()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 430`** (2 nodes): `effectFactory()`, `external-fact.test.js`
+- **Thin community `Community 436`** (2 nodes): `effectFactory()`, `external-fact.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 431`** (2 nodes): `roomWithComposition()`, `mixed-room-design-spend.test.js`
+- **Thin community `Community 437`** (2 nodes): `roomWithComposition()`, `mixed-room-design-spend.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 432`** (2 nodes): `readJson()`, `e2e-budget-refs.test.js`
+- **Thin community `Community 438`** (2 nodes): `readJson()`, `e2e-budget-refs.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 433`** (2 nodes): `rng()`, `irregular-room-sizes.test.js`
+- **Thin community `Community 439`** (2 nodes): `rng()`, `irregular-room-sizes.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 434`** (2 nodes): `loadSetupModule()`, `core-setup-static-hazards.test.js`
+- **Thin community `Community 440`** (2 nodes): `loadSetupModule()`, `core-setup-static-hazards.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 435`** (2 nodes): `roleForVisual()`, `game-elements-registry.test.js`
+- **Thin community `Community 441`** (2 nodes): `roleForVisual()`, `game-elements-registry.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 436`** (2 nodes): `readJson()`, `e2e-allocator-artifacts.test.js`
+- **Thin community `Community 442`** (2 nodes): `readJson()`, `e2e-allocator-artifacts.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 437`** (2 nodes): `readJson()`, `e2e-actor-fixtures.test.js`
+- **Thin community `Community 443`** (2 nodes): `readJson()`, `e2e-actor-fixtures.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 438`** (2 nodes): `fixedClock()`, `runner-deterministic.test.js`
+- **Thin community `Community 444`** (2 nodes): `fixedClock()`, `runner-deterministic.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 439`** (2 nodes): `loadRuntimeDeps()`, `runtime-fsm-loop.test.js`
+- **Thin community `Community 445`** (2 nodes): `loadRuntimeDeps()`, `runtime-fsm-loop.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 440`** (2 nodes): `readJson()`, `e2e-scenario-fixtures.test.js`
+- **Thin community `Community 446`** (2 nodes): `readJson()`, `e2e-scenario-fixtures.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 441`** (2 nodes): `clock()`, `director-artifact-seeding.test.js`
+- **Thin community `Community 447`** (2 nodes): `clock()`, `director-artifact-seeding.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 442`** (2 nodes): `captureObservationPersona()`, `hazard-vitals-in-observation.test.js`
+- **Thin community `Community 448`** (2 nodes): `captureObservationPersona()`, `hazard-vitals-in-observation.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 443`** (2 nodes): `loadStore()`, `adaptive-workflow-store.test.js`
+- **Thin community `Community 449`** (2 nodes): `loadStore()`, `adaptive-workflow-store.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 444`** (2 nodes): `z3-solver-adapter.test.js`, `buildRequest()`
+- **Thin community `Community 450`** (2 nodes): `z3-solver-adapter.test.js`, `buildRequest()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 445`** (2 nodes): `makeDirector()`, `director-card-translation.test.js`
+- **Thin community `Community 451`** (2 nodes): `makeDirector()`, `director-card-translation.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 446`** (2 nodes): `loadMapper()`, `director-owns-build-plan.test.js`
+- **Thin community `Community 452`** (2 nodes): `loadMapper()`, `director-owns-build-plan.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 447`** (2 nodes): `clock()`, `director-hazard-seeding.test.js`
+- **Thin community `Community 453`** (2 nodes): `clock()`, `director-hazard-seeding.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 448`** (2 nodes): `makeDirector()`, `director-build-round.test.js`
+- **Thin community `Community 454`** (2 nodes): `makeDirector()`, `director-build-round.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 449`** (2 nodes): `makeFakeCore()`, `moderator-pause-gates-tick.test.js`
+- **Thin community `Community 455`** (2 nodes): `makeFakeCore()`, `moderator-pause-gates-tick.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 450`** (2 nodes): `readAllocatorFixture()`, `allocator-spend-proposal.test.js`
+- **Thin community `Community 456`** (2 nodes): `readAllocatorFixture()`, `allocator-spend-proposal.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 451`** (2 nodes): `delverEntry()`, `allocator-budget-fulfillment.test.js`
+- **Thin community `Community 457`** (2 nodes): `delverEntry()`, `allocator-budget-fulfillment.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 452`** (2 nodes): `constrainedScenario()`, `allocator-per-pool-denial.test.js`
+- **Thin community `Community 458`** (2 nodes): `constrainedScenario()`, `allocator-per-pool-denial.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 453`** (2 nodes): `allocator()`, `allocator-build-policy.test.js`
+- **Thin community `Community 459`** (2 nodes): `allocator()`, `allocator-build-policy.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 454`** (2 nodes): `load()`, `allocator-tile-charging.test.js`
+- **Thin community `Community 460`** (2 nodes): `load()`, `allocator-tile-charging.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 455`** (2 nodes): `freshCore()`, `allocator-action-budget-costs.test.js`
+- **Thin community `Community 461`** (2 nodes): `freshCore()`, `allocator-action-budget-costs.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 456`** (2 nodes): `makeAllocator()`, `allocator-controller-api.test.js`
+- **Thin community `Community 462`** (2 nodes): `makeAllocator()`, `allocator-controller-api.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 457`** (2 nodes): `allocator()`, `allocator-mixed-room-spend.test.js`
+- **Thin community `Community 463`** (2 nodes): `allocator()`, `allocator-mixed-room-spend.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 458`** (2 nodes): `makeConfigurator()`, `configurator-input-prep.test.js`
+- **Thin community `Community 464`** (2 nodes): `makeConfigurator()`, `configurator-input-prep.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 459`** (2 nodes): `configurator()`, `configurator-actor-placement-capability.test.js`
+- **Thin community `Community 465`** (2 nodes): `configurator()`, `configurator-actor-placement-capability.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 460`** (2 nodes): `baseHazard()`, `configurator-guidance-level-builder.test.js`
+- **Thin community `Community 466`** (2 nodes): `baseHazard()`, `configurator-guidance-level-builder.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 461`** (2 nodes): `expectedNetPressure()`, `configurator-affinity-interaction-core.test.js`
+- **Thin community `Community 467`** (2 nodes): `expectedNetPressure()`, `configurator-affinity-interaction-core.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 462`** (2 nodes): `vitals()`, `configurator-actor-viability-floor.test.js`
+- **Thin community `Community 468`** (2 nodes): `vitals()`, `configurator-actor-viability-floor.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 463`** (2 nodes): `inputLayout()`, `configurator-mixed-room-capability.test.js`
+- **Thin community `Community 469`** (2 nodes): `inputLayout()`, `configurator-mixed-room-capability.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 464`** (2 nodes): `zeroVitals()`, `configurator-satisfiability-problem.test.js`
+- **Thin community `Community 470`** (2 nodes): `zeroVitals()`, `configurator-satisfiability-problem.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 465`** (2 nodes): `solverEnvelope()`, `actor-motivation-profile-reaches-decision-envelope.test.js`
+- **Thin community `Community 471`** (2 nodes): `solverEnvelope()`, `actor-motivation-profile-reaches-decision-envelope.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 466`** (2 nodes): `solverEnvelope()`, `actor-affinities-reach-decision-envelope.test.js`
+- **Thin community `Community 472`** (2 nodes): `solverEnvelope()`, `actor-affinities-reach-decision-envelope.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 467`** (2 nodes): `newRound()`, `orchestrator-llm-round.test.js`
+- **Thin community `Community 473`** (2 nodes): `newRound()`, `orchestrator-llm-round.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 468`** (2 nodes): `canonicalPriceList()`, `orchestrator-llm-budget-loop.test.js`
+- **Thin community `Community 474`** (2 nodes): `canonicalPriceList()`, `orchestrator-llm-budget-loop.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 469`** (2 nodes): `z3-adapter-copies-in-sync.test.js`, `bodyOf()`
+- **Thin community `Community 475`** (2 nodes): `z3-adapter-copies-in-sync.test.js`, `bodyOf()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 470`** (2 nodes): `isTestFile()`, `persona-test-layout.test.js`
+- **Thin community `Community 476`** (2 nodes): `isTestFile()`, `persona-test-layout.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 471`** (2 nodes): `stub()`, `persona-authority.test.js`
+- **Thin community `Community 477`** (2 nodes): `stub()`, `persona-authority.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 472`** (2 nodes): `source()`, `actor-adapter-policy-residue.test.js`
+- **Thin community `Community 478`** (2 nodes): `source()`, `actor-adapter-policy-residue.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 473`** (2 nodes): `deriveKinds()`, `schema-catalog-coverage.test.js`
+- **Thin community `Community 479`** (2 nodes): `deriveKinds()`, `schema-catalog-coverage.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 474`** (2 nodes): `runCli()`, `ak-scenario.test.js`
+- **Thin community `Community 480`** (2 nodes): `runCli()`, `ak-scenario.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 475`** (2 nodes): `runCli()`, `ak-affinity-summary.test.js`
+- **Thin community `Community 481`** (2 nodes): `runCli()`, `ak-affinity-summary.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 476`** (2 nodes): `readJson()`, `demo-smoke.test.js`
+- **Thin community `Community 482`** (2 nodes): `readJson()`, `demo-smoke.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 477`** (2 nodes): `runCli()`, `ak-adapter-commands.test.js`
+- **Thin community `Community 483`** (2 nodes): `runCli()`, `ak-adapter-commands.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 478`** (2 nodes): `loadMapper()`, `build-spec-map.test.js`
+- **Thin community `Community 484`** (2 nodes): `loadMapper()`, `build-spec-map.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 479`** (2 nodes): `readAllocatorFixture()`, `allocator-validation.test.js`
+- **Thin community `Community 485`** (2 nodes): `readAllocatorFixture()`, `allocator-validation.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 480`** (2 nodes): `assertMissingField()`, `schema-validation.test.js`
+- **Thin community `Community 486`** (2 nodes): `assertMissingField()`, `schema-validation.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 481`** (2 nodes): `readPlacementFixture()`, `actor-placement-fixtures.test.js`
+- **Thin community `Community 487`** (2 nodes): `readPlacementFixture()`, `actor-placement-fixtures.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 482`** (2 nodes): `roundTrip()`, `roundtrip.test.js`
+- **Thin community `Community 488`** (2 nodes): `roundTrip()`, `roundtrip.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 483`** (2 nodes): `coordsEqual()`, `basic-mvp-actor-movement.test.js`
+- **Thin community `Community 489`** (2 nodes): `coordsEqual()`, `basic-mvp-actor-movement.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 484`** (2 nodes): `runNodeTest()`, `node-test-runner.js`
+- **Thin community `Community 490`** (2 nodes): `runNodeTest()`, `node-test-runner.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 485`** (2 nodes): `directorResolveSummary()`, `director-capabilities.js`
+- **Thin community `Community 491`** (2 nodes): `directorResolveSummary()`, `director-capabilities.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 486`** (2 nodes): `shouldReuseActiveRun()`, `gameplay-launch.js`
+- **Thin community `Community 492`** (2 nodes): `tabs.js`, `wireTabs()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 487`** (2 nodes): `tabs.js`, `wireTabs()`
+- **Thin community `Community 493`** (2 nodes): `buildBuildSpecPrompt()`, `ollama-template.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 488`** (2 nodes): `buildBuildSpecPrompt()`, `ollama-template.js`
+- **Thin community `Community 494`** (2 nodes): `wireDesignView()`, `design-view.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 489`** (2 nodes): `wireDesignView()`, `design-view.js`
+- **Thin community `Community 495`** (2 nodes): `phaser-frame-view.js`, `createPhaserFrameView()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 490`** (2 nodes): `phaser-frame-view.js`, `createPhaserFrameView()`
+- **Thin community `Community 496`** (2 nodes): `runtime.js`, `createRuntime()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 491`** (2 nodes): `runtime.js`, `createRuntime()`
+- **Thin community `Community 497`** (2 nodes): `resolveBudgetCategoryId()`, `budget-categories.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 492`** (2 nodes): `resolveBudgetCategoryId()`, `budget-categories.js`
+- **Thin community `Community 498`** (2 nodes): `getAffinitySpriteAsset()`, `affinity-sprite-assets.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 493`** (2 nodes): `getAffinitySpriteAsset()`, `affinity-sprite-assets.js`
+- **Thin community `Community 499`** (2 nodes): `getGameSpriteAsset()`, `game-sprite-assets.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 494`** (2 nodes): `getGameSpriteAsset()`, `game-sprite-assets.js`
+- **Thin community `Community 500`** (2 nodes): `tick-close.js`, `planTickClose()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 495`** (2 nodes): `tick-close.js`, `planTickClose()`
+- **Thin community `Community 501`** (2 nodes): `tick-ordering.js`, `planPersonaOrder()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 496`** (2 nodes): `tick-ordering.js`, `planPersonaOrder()`
+- **Thin community `Community 502`** (2 nodes): `createModeratorPersona()`, `controller.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 497`** (2 nodes): `createModeratorPersona()`, `controller.js`
+- **Thin community `Community 503`** (2 nodes): `planAffinityInteractions()`, `affinity-interactions.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 498`** (2 nodes): `planAffinityInteractions()`, `affinity-interactions.js`
+- **Thin community `Community 504`** (2 nodes): `attachAnnotatorServices()`, `annotator-services.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 499`** (2 nodes): `attachAnnotatorServices()`, `annotator-services.js`
+- **Thin community `Community 505`** (2 nodes): `createAnnotatorPersona()`, `controller.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 500`** (2 nodes): `createAnnotatorPersona()`, `controller.js`
+- **Thin community `Community 506`** (2 nodes): `createAllocatorPersona()`, `controller.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 501`** (2 nodes): `createAllocatorPersona()`, `controller.js`
+- **Thin community `Community 507`** (2 nodes): `createConfiguratorPersona()`, `controller.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 502`** (2 nodes): `createConfiguratorPersona()`, `controller.js`
+- **Thin community `Community 508`** (2 nodes): `createOrchestratorPersona()`, `controller.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 503`** (2 nodes): `createOrchestratorPersona()`, `controller.js`
+- **Thin community `Community 509`** (2 nodes): `solver-host.js`, `createHostedLayoutBudgetFitter()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 504`** (2 nodes): `solver-host.js`, `createHostedLayoutBudgetFitter()`
+- **Thin community `Community 510`** (2 nodes): `createLlmTestAdapter()`, `index.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 505`** (2 nodes): `createLlmTestAdapter()`, `index.js`
+- **Thin community `Community 511`** (2 nodes): `createBlockchainTestAdapter()`, `index.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 506`** (2 nodes): `createBlockchainTestAdapter()`, `index.js`
+- **Thin community `Community 512`** (2 nodes): `createWebSolverAdapter()`, `index.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 507`** (2 nodes): `createWebSolverAdapter()`, `index.js`
+- **Thin community `Community 513`** (2 nodes): `runtime-profile.js`, `createRuntimeProfileAdapter()`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 508`** (2 nodes): `runtime-profile.js`, `createRuntimeProfileAdapter()`
+- **Thin community `Community 514`** (2 nodes): `readMotivationEvaluation()`, `motivation-readers.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 509`** (2 nodes): `readMotivationEvaluation()`, `motivation-readers.ts`
+- **Thin community `Community 515`** (1 nodes): `ak-tool-schema.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 510`** (1 nodes): `ak-tool-schema.js`
+- **Thin community `Community 516`** (1 nodes): `ui-startup-readiness.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 511`** (1 nodes): `ui-startup-readiness.test.js`
+- **Thin community `Community 517`** (1 nodes): `execution-benchmark-validation.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 512`** (1 nodes): `execution-benchmark-validation.test.js`
+- **Thin community `Community 518`** (1 nodes): `runner-identity.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 513`** (1 nodes): `runner-identity.test.js`
+- **Thin community `Community 519`** (1 nodes): `price-brief.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 514`** (1 nodes): `price-brief.test.js`
+- **Thin community `Community 520`** (1 nodes): `remote-ollama-abstract-plan.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 515`** (1 nodes): `remote-ollama-abstract-plan.test.js`
+- **Thin community `Community 521`** (1 nodes): `content-gen-scenarios.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 516`** (1 nodes): `content-gen-scenarios.test.js`
+- **Thin community `Community 522`** (1 nodes): `affinity-pipeline-e2e.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 517`** (1 nodes): `affinity-pipeline-e2e.test.js`
+- **Thin community `Community 523`** (1 nodes): `motivation-pipeline-e2e.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 518`** (1 nodes): `motivation-pipeline-e2e.test.js`
+- **Thin community `Community 524`** (1 nodes): `ui-aura-display.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 519`** (1 nodes): `ui-aura-display.test.js`
+- **Thin community `Community 525`** (1 nodes): `captured-input-artifact.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 520`** (1 nodes): `captured-input-artifact.test.js`
+- **Thin community `Community 526`** (1 nodes): `summary-selections.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 521`** (1 nodes): `summary-selections.test.js`
+- **Thin community `Community 527`** (1 nodes): `resource-bundle-aura-rendering.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 522`** (1 nodes): `resource-bundle-aura-rendering.test.js`
+- **Thin community `Community 528`** (1 nodes): `hazard-room-labels.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 523`** (1 nodes): `hazard-room-labels.test.js`
+- **Thin community `Community 529`** (1 nodes): `runtime-plan-artifact.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 524`** (1 nodes): `runtime-plan-artifact.test.js`
+- **Thin community `Community 530`** (1 nodes): `budget-caps.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 525`** (1 nodes): `budget-caps.test.js`
+- **Thin community `Community 531`** (1 nodes): `runner-effects.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 526`** (1 nodes): `runner-effects.test.js`
+- **Thin community `Community 532`** (1 nodes): `adaptive-workflow-validators.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 527`** (1 nodes): `adaptive-workflow-validators.test.js`
+- **Thin community `Community 533`** (1 nodes): `ports.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 528`** (1 nodes): `ports.test.js`
+- **Thin community `Community 534`** (1 nodes): `design-spend-ledger.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 529`** (1 nodes): `design-spend-ledger.test.js`
+- **Thin community `Community 535`** (1 nodes): `motivation-loadouts.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 530`** (1 nodes): `motivation-loadouts.test.js`
+- **Thin community `Community 536`** (1 nodes): `affinity-tile-mask.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 531`** (1 nodes): `affinity-tile-mask.test.js`
+- **Thin community `Community 537`** (1 nodes): `configurator-startup.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 532`** (1 nodes): `configurator-startup.test.js`
+- **Thin community `Community 538`** (1 nodes): `llm-request-effect.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 533`** (1 nodes): `llm-request-effect.test.js`
+- **Thin community `Community 539`** (1 nodes): `affinity-spatial-formulas.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 534`** (1 nodes): `affinity-spatial-formulas.test.js`
+- **Thin community `Community 540`** (1 nodes): `run-helpers-runtime-decision.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 535`** (1 nodes): `run-helpers-runtime-decision.test.js`
+- **Thin community `Community 541`** (1 nodes): `motivation-coercion-agreement.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 536`** (1 nodes): `motivation-coercion-agreement.test.js`
+- **Thin community `Community 542`** (1 nodes): `e2e-fixture-generators.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 537`** (1 nodes): `e2e-fixture-generators.test.js`
+- **Thin community `Community 543`** (1 nodes): `pool-buildspec.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 538`** (1 nodes): `pool-buildspec.test.js`
+- **Thin community `Community 544`** (1 nodes): `mvp-movement.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 539`** (1 nodes): `mvp-movement.test.js`
+- **Thin community `Community 545`** (1 nodes): `prompt-contract.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 540`** (1 nodes): `prompt-contract.test.js`
+- **Thin community `Community 546`** (1 nodes): `runner-smoke.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 541`** (1 nodes): `runner-smoke.test.js`
+- **Thin community `Community 547`** (1 nodes): `runtime-moderator-affinity-actions.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 542`** (1 nodes): `runtime-moderator-affinity-actions.test.js`
+- **Thin community `Community 548`** (1 nodes): `smoke.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 543`** (1 nodes): `smoke.test.js`
+- **Thin community `Community 549`** (1 nodes): `pool-catalog.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 544`** (1 nodes): `pool-catalog.test.js`
+- **Thin community `Community 550`** (1 nodes): `schema-catalog.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 545`** (1 nodes): `schema-catalog.test.js`
+- **Thin community `Community 551`** (1 nodes): `affinity-palette.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 546`** (1 nodes): `affinity-palette.test.js`
+- **Thin community `Community 552`** (1 nodes): `actor-hud-model.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 547`** (1 nodes): `actor-hud-model.test.js`
+- **Thin community `Community 553`** (1 nodes): `affinity-aura-lifecycle.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 548`** (1 nodes): `affinity-aura-lifecycle.test.js`
+- **Thin community `Community 554`** (1 nodes): `director-round-created-at.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 549`** (1 nodes): `director-round-created-at.test.js`
+- **Thin community `Community 555`** (1 nodes): `pool-budget.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 550`** (1 nodes): `pool-budget.test.js`
+- **Thin community `Community 556`** (1 nodes): `runtime-persona-schedule.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 551`** (1 nodes): `runtime-persona-schedule.test.js`
+- **Thin community `Community 557`** (1 nodes): `base-cost-standard.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 552`** (1 nodes): `base-cost-standard.test.js`
+- **Thin community `Community 558`** (1 nodes): `pool-mapper.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 553`** (1 nodes): `pool-mapper.test.js`
+- **Thin community `Community 559`** (1 nodes): `actor-proposal-replay.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 554`** (1 nodes): `actor-proposal-replay.test.js`
+- **Thin community `Community 560`** (1 nodes): `card-authoring.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 555`** (1 nodes): `card-authoring.test.js`
+- **Thin community `Community 561`** (1 nodes): `runtime-decision-contract.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 556`** (1 nodes): `runtime-decision-contract.test.js`
+- **Thin community `Community 562`** (1 nodes): `multi-actor-initial-state.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 557`** (1 nodes): `multi-actor-initial-state.test.js`
+- **Thin community `Community 563`** (1 nodes): `solver.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 558`** (1 nodes): `solver.test.js`
+- **Thin community `Community 564`** (1 nodes): `effects-routing.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 559`** (1 nodes): `effects-routing.test.js`
+- **Thin community `Community 565`** (1 nodes): `smoke.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 560`** (1 nodes): `smoke.test.js`
+- **Thin community `Community 566`** (1 nodes): `fixtures.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 561`** (1 nodes): `fixtures.test.js`
+- **Thin community `Community 567`** (1 nodes): `adaptive-workflow-llm-fixtures.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 562`** (1 nodes): `adaptive-workflow-llm-fixtures.test.js`
+- **Thin community `Community 568`** (1 nodes): `tick-orchestrator.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 563`** (1 nodes): `tick-orchestrator.test.js`
+- **Thin community `Community 569`** (1 nodes): `tick-inspect.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 564`** (1 nodes): `tick-inspect.test.js`
+- **Thin community `Community 570`** (1 nodes): `tick-state-machine.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 565`** (1 nodes): `tick-state-machine.test.js`
+- **Thin community `Community 571`** (1 nodes): `director-budget-allocation.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 566`** (1 nodes): `director-budget-allocation.test.js`
+- **Thin community `Community 572`** (1 nodes): `director-persona-phase.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 567`** (1 nodes): `director-persona-phase.test.js`
+- **Thin community `Community 573`** (1 nodes): `director-solver.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 568`** (1 nodes): `director-solver.test.js`
+- **Thin community `Community 574`** (1 nodes): `director-configurator-behavior.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 569`** (1 nodes): `director-configurator-behavior.test.js`
+- **Thin community `Community 575`** (1 nodes): `director-room-geometry.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 570`** (1 nodes): `director-room-geometry.test.js`
+- **Thin community `Community 576`** (1 nodes): `director-state-machine.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 571`** (1 nodes): `director-state-machine.test.js`
+- **Thin community `Community 577`** (1 nodes): `moderator-persona-phase.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 572`** (1 nodes): `moderator-persona-phase.test.js`
+- **Thin community `Community 578`** (1 nodes): `moderator-affinity-target-effects.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 573`** (1 nodes): `moderator-affinity-target-effects.test.js`
+- **Thin community `Community 579`** (1 nodes): `moderator-state-machine.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 574`** (1 nodes): `moderator-state-machine.test.js`
+- **Thin community `Community 580`** (1 nodes): `annotator-state-machine.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 575`** (1 nodes): `annotator-state-machine.test.js`
+- **Thin community `Community 581`** (1 nodes): `annotator-persona-phase.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 576`** (1 nodes): `annotator-persona-phase.test.js`
+- **Thin community `Community 582`** (1 nodes): `annotator-llm-trace.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 577`** (1 nodes): `annotator-llm-trace.test.js`
+- **Thin community `Community 583`** (1 nodes): `annotator-telemetry.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 578`** (1 nodes): `annotator-telemetry.test.js`
+- **Thin community `Community 584`** (1 nodes): `allocator-solver.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 579`** (1 nodes): `allocator-solver.test.js`
+- **Thin community `Community 585`** (1 nodes): `allocator-motivation-spend-integration.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 580`** (1 nodes): `allocator-motivation-spend-integration.test.js`
+- **Thin community `Community 586`** (1 nodes): `allocator-persona-phase.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 581`** (1 nodes): `allocator-persona-phase.test.js`
+- **Thin community `Community 587`** (1 nodes): `allocator-actor-behavior.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 582`** (1 nodes): `allocator-actor-behavior.test.js`
+- **Thin community `Community 588`** (1 nodes): `allocator-proposal-admissibility.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 583`** (1 nodes): `allocator-proposal-admissibility.test.js`
+- **Thin community `Community 589`** (1 nodes): `allocator-state-machine.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 584`** (1 nodes): `allocator-state-machine.test.js`
+- **Thin community `Community 590`** (1 nodes): `configurator-artifact-fixtures.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 585`** (1 nodes): `configurator-artifact-fixtures.test.js`
+- **Thin community `Community 591`** (1 nodes): `configurator-artifact-builders.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 586`** (1 nodes): `configurator-artifact-builders.test.js`
+- **Thin community `Community 592`** (1 nodes): `configurator-guidance-levelgen.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 587`** (1 nodes): `configurator-guidance-levelgen.test.js`
+- **Thin community `Community 593`** (1 nodes): `configurator-level-strategy-map.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 588`** (1 nodes): `configurator-level-strategy-map.test.js`
+- **Thin community `Community 594`** (1 nodes): `configurator-state-machine.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 589`** (1 nodes): `configurator-state-machine.test.js`
+- **Thin community `Community 595`** (1 nodes): `configurator-level-gen-input.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 590`** (1 nodes): `configurator-level-gen-input.test.js`
+- **Thin community `Community 596`** (1 nodes): `configurator-actor-generator.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 591`** (1 nodes): `configurator-actor-generator.test.js`
+- **Thin community `Community 597`** (1 nodes): `configurator-affinity-runtime-math.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 592`** (1 nodes): `configurator-affinity-runtime-math.test.js`
+- **Thin community `Community 598`** (1 nodes): `configurator-hazard-vitals.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 593`** (1 nodes): `configurator-hazard-vitals.test.js`
+- **Thin community `Community 599`** (1 nodes): `configurator-feasibility.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 594`** (1 nodes): `configurator-feasibility.test.js`
+- **Thin community `Community 600`** (1 nodes): `configurator-affinity-loadouts.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 595`** (1 nodes): `configurator-affinity-loadouts.test.js`
+- **Thin community `Community 601`** (1 nodes): `configurator-motivation-evaluation-core.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 596`** (1 nodes): `configurator-motivation-evaluation-core.test.js`
+- **Thin community `Community 602`** (1 nodes): `configurator-affinity-effects.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 597`** (1 nodes): `configurator-affinity-effects.test.js`
+- **Thin community `Community 603`** (1 nodes): `configurator-persona-phase.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 598`** (1 nodes): `configurator-persona-phase.test.js`
+- **Thin community `Community 604`** (1 nodes): `configurator-solver.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 599`** (1 nodes): `configurator-solver.test.js`
+- **Thin community `Community 605`** (1 nodes): `actor-state-machine.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 600`** (1 nodes): `actor-state-machine.test.js`
+- **Thin community `Community 606`** (1 nodes): `actor-persona-phase.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 601`** (1 nodes): `actor-persona-phase.test.js`
+- **Thin community `Community 607`** (1 nodes): `actor-runtime-decision.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 602`** (1 nodes): `actor-runtime-decision.test.js`
+- **Thin community `Community 608`** (1 nodes): `actor-persona-filter.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 603`** (1 nodes): `actor-persona-filter.test.js`
+- **Thin community `Community 609`** (1 nodes): `orchestrator-llm-capture.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 604`** (1 nodes): `orchestrator-llm-capture.test.js`
+- **Thin community `Community 610`** (1 nodes): `orchestrator-state-machine.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 605`** (1 nodes): `orchestrator-state-machine.test.js`
+- **Thin community `Community 611`** (1 nodes): `orchestrator-llm-session.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 606`** (1 nodes): `orchestrator-llm-session.test.js`
+- **Thin community `Community 612`** (1 nodes): `orchestrator-persona-phase.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 607`** (1 nodes): `orchestrator-persona-phase.test.js`
+- **Thin community `Community 613`** (1 nodes): `orchestrator-llm-budget-loop-feasibility.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 608`** (1 nodes): `orchestrator-llm-budget-loop-feasibility.test.js`
+- **Thin community `Community 614`** (1 nodes): `configurator-actor-placement-authority.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 609`** (1 nodes): `configurator-actor-placement-authority.test.js`
+- **Thin community `Community 615`** (1 nodes): `typecheck-gate.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 610`** (1 nodes): `typecheck-gate.test.js`
+- **Thin community `Community 616`** (1 nodes): `configurator-mixed-room-authority.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 611`** (1 nodes): `configurator-mixed-room-authority.test.js`
+- **Thin community `Community 617`** (1 nodes): `allocator-build-policy-authority.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 612`** (1 nodes): `allocator-build-policy-authority.test.js`
+- **Thin community `Community 618`** (1 nodes): `incentive-model.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 613`** (1 nodes): `incentive-model.test.js`
+- **Thin community `Community 619`** (1 nodes): `budget-allocation.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 614`** (1 nodes): `budget-allocation.test.js`
+- **Thin community `Community 620`** (1 nodes): `budget-pool-handoff.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 615`** (1 nodes): `budget-pool-handoff.test.js`
+- **Thin community `Community 621`** (1 nodes): `solver.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 616`** (1 nodes): `solver.test.js`
+- **Thin community `Community 622`** (1 nodes): `adapter-modules.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 617`** (1 nodes): `adapter-modules.test.js`
+- **Thin community `Community 623`** (1 nodes): `smoke.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 618`** (1 nodes): `smoke.test.js`
+- **Thin community `Community 624`** (1 nodes): `solver.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 619`** (1 nodes): `solver.test.js`
+- **Thin community `Community 625`** (1 nodes): `adapter-fixtures.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 620`** (1 nodes): `adapter-fixtures.test.js`
+- **Thin community `Community 626`** (1 nodes): `adapter-modules.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 621`** (1 nodes): `adapter-modules.test.js`
+- **Thin community `Community 627`** (1 nodes): `smoke.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 622`** (1 nodes): `smoke.test.js`
+- **Thin community `Community 628`** (1 nodes): `allocator-selection-spend.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 623`** (1 nodes): `allocator-selection-spend.test.js`
+- **Thin community `Community 629`** (1 nodes): `allocator-layout-spend.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 624`** (1 nodes): `allocator-layout-spend.test.js`
+- **Thin community `Community 630`** (1 nodes): `level-generation-benchmark.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 625`** (1 nodes): `level-generation-benchmark.test.js`
+- **Thin community `Community 631`** (1 nodes): `observation-affinity.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 626`** (1 nodes): `observation-affinity.test.js`
+- **Thin community `Community 632`** (1 nodes): `affinity-readers.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 627`** (1 nodes): `affinity-readers.test.js`
+- **Thin community `Community 633`** (1 nodes): `observation-static-hazards.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 628`** (1 nodes): `observation-static-hazards.test.js`
+- **Thin community `Community 634`** (1 nodes): `smoke.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 629`** (1 nodes): `smoke.test.js`
+- **Thin community `Community 635`** (1 nodes): `core-ts.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 630`** (1 nodes): `core-ts.test.js`
+- **Thin community `Community 636`** (1 nodes): `movement.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 631`** (1 nodes): `movement.test.js`
+- **Thin community `Community 637`** (1 nodes): `motivation-readers.test.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 632`** (1 nodes): `motivation-readers.test.js`
+- **Thin community `Community 638`** (1 nodes): `index.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 633`** (1 nodes): `index.js`
+- **Thin community `Community 639`** (1 nodes): `index.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 634`** (1 nodes): `index.ts`
+- **Thin community `Community 640`** (1 nodes): `persona.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 635`** (1 nodes): `persona.js`
+- **Thin community `Community 641`** (1 nodes): `contracts.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 636`** (1 nodes): `contracts.ts`
+- **Thin community `Community 642`** (1 nodes): `persona.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 637`** (1 nodes): `persona.js`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 638`** (1 nodes): `contracts.ts`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 639`** (1 nodes): `persona.js`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 640`** (1 nodes): `contracts.ts`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 641`** (1 nodes): `persona.js`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 642`** (1 nodes): `contracts.ts`
-  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 643`** (1 nodes): `movement-directions.js`
+- **Thin community `Community 643`** (1 nodes): `contracts.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 644`** (1 nodes): `persona.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 645`** (1 nodes): `contracts.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 646`** (1 nodes): `defaults.js`
+- **Thin community `Community 646`** (1 nodes): `persona.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 647`** (1 nodes): `persona.js`
+- **Thin community `Community 647`** (1 nodes): `contracts.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 648`** (1 nodes): `contracts.ts`
+- **Thin community `Community 648`** (1 nodes): `movement-directions.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 649`** (1 nodes): `persona.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 - **Thin community `Community 650`** (1 nodes): `contracts.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 651`** (1 nodes): `index.js`
+- **Thin community `Community 651`** (1 nodes): `defaults.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 652`** (1 nodes): `Solver-Z3 Adapter`
+- **Thin community `Community 652`** (1 nodes): `persona.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 653`** (1 nodes): `CLI build Command`
+- **Thin community `Community 653`** (1 nodes): `contracts.ts`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 654`** (1 nodes): `CLI llm-plan Command`
+- **Thin community `Community 654`** (1 nodes): `persona.js`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
-- **Thin community `Community 655`** (1 nodes): `Structured Stdout Contract`
+- **Thin community `Community 655`** (1 nodes): `contracts.ts`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 656`** (1 nodes): `index.js`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 657`** (1 nodes): `Solver-Z3 Adapter`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 658`** (1 nodes): `CLI build Command`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 659`** (1 nodes): `CLI llm-plan Command`
+  Too small to be a meaningful cluster - may be noise or needs more connections extracted.
+- **Thin community `Community 660`** (1 nodes): `Structured Stdout Contract`
   Too small to be a meaningful cluster - may be noise or needs more connections extracted.
 
 ## Suggested Questions
@@ -3836,6 +3859,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `Community 3` be split into smaller, more focused modules?**
   _Cohesion score 0.08 - nodes in this community are weakly interconnected._
 - **Should `Community 4` be split into smaller, more focused modules?**
-  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.1 - nodes in this community are weakly interconnected._
 - **Should `Community 5` be split into smaller, more focused modules?**
-  _Cohesion score 0.05 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08 - nodes in this community are weakly interconnected._
