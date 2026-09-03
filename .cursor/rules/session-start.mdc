@@ -1,0 +1,36 @@
+---
+description: agent-kernel session-start protocol — bring the workspace to a known-good state (source, tools, tests) before other work, on cloud or local.
+alwaysApply: true
+---
+
+# Session-start protocol (cloud or local)
+
+At the **start of a coding session**, before making changes, bring the workspace to a
+known-good state by running:
+
+```bash
+bash scripts/setup/session-refresh.sh
+```
+
+Run it **once** per session — you do not need to repeat it every message. It is
+idempotent and environment-aware, and it guarantees:
+
+1. **Source is up to date** — fetches and `git pull --ff-only` when the current branch
+   tracks a remote and the working tree is clean. It never touches uncommitted work and
+   never switches branches; a dirty tree or a locally-ahead branch is fetched only.
+2. **Supporting tools are refreshed** — `pnpm install --frozen-lockfile`, re-applies the
+   Serena ignored-dirs patch, and refreshes the Graphify context when available (Graphify
+   is a Mac-only tool, skipped elsewhere).
+3. **Tests have been run** — `pnpm run test`.
+
+Then report the summary (`source` / `tools` / `tests`). If the script exits non-zero
+(deps failed to install, or tests failed), surface that to the user before proceeding.
+
+Skip parts only when the user explicitly asks: `--no-pull`, `--no-tools`, `--no-tests`.
+
+Notes:
+- On cloud agents the VM already checks out fresh source and runs `.cursor/install.sh`
+  (Node runtime, pnpm, Serena) at boot; running this at session start additionally
+  guarantees the tests have been run and re-verifies tool state. It is cheap to re-run.
+- This protocol is scoped to local/cloud dev refresh. Do **not** launch the full remote
+  benchmark matrix as part of it — see `AGENTS.md → Benchmark strategy`.
