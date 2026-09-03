@@ -1,0 +1,93 @@
+<!doctype html><meta charset="utf-8"><title>Expression / motivation icon alternatives</title>
+<style>
+  body{background:#1e1818;color:#e8ecf0;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;margin:0;padding:24px}
+  h1{font-size:17px;margin:0 0 4px} p.sub{color:#8a949e;margin:0 0 18px;max-width:960px}
+  table{border-collapse:collapse} th{color:#8a949e;font-weight:400;text-align:left;padding:0 14px 10px 0;vertical-align:bottom;font-size:11px}
+  th small{display:block;color:#6b747d} td{padding:7px 14px 7px 0;vertical-align:middle}
+  .k{color:#e8ecf0}
+  .chip{width:30px;height:30px;border:1px solid #674f48;border-radius:999px;display:inline-flex;
+        align-items:center;justify-content:center;overflow:hidden}
+  .chip.bare{border-color:transparent}
+  .emoji{font-size:16px;line-height:1}
+  .mono{font-size:17px;line-height:1;color:#cfd6dd}
+  svg{display:block;width:100%;height:100%}
+  .note{color:#8a949e;font-size:11px;margin-top:16px;max-width:960px}
+</style>
+<h1>Expression &amp; motivation icons — alternatives</h1>
+<p style="color:#8fd3a8;margin:0 0 10px"><strong>DECIDED 2026-09-02:</strong> expressions ship as
+<strong>C, generated geometry</strong>; motivations ship as <strong>B, monochrome marks</strong> in the same chip.
+C/D were ruled out for motivations because four family shapes × a filled/hollow split is eight slots for twelve
+items — the scheme provably cannot cover them, and separating the rest by dot count is the same failure as
+separating two silhouettes by sixteen pixels. Kept as the decision record.</p>
+<p class="sub">Colour cannot identify these: expression colours are all cyan (worst pair ΔE 10.0) and motivation
+colours collide too (ΔE 7.2). So the glyph must carry identity and the disc only provides containment —
+the opposite of affinities, where colour is the whole message.</p>
+<table id="t"></table>
+<p class="note">A keeps today's emoji and only adds the chip. B swaps to a monochrome geometric glyph in one neutral ink.
+C generates real vector glyphs — for expressions these are near-literal (push/pull/emit/draw are directional), for
+motivations they are family shape + member marker. D colours the disc by motivation <em>family</em> (4 families
+separate cleanly) with a monochrome glyph.</p>
+<script type="module">
+const EXPR = { push:"➡️", pull:"⬅️", emit:"✴️", draw:"🧲" };
+const MOTI = { random:"🎲", exploring:"🧭", attacking:"💥", defending:"🚧", reflexive:"⚡", user_controlled:"🕹️" };
+const MONO = { push:"→", pull:"←", emit:"✳", draw:"⊙", random:"⁙", exploring:"◇", attacking:"✕",
+               defending:"⌂", reflexive:"⌁", user_controlled:"⎈" };
+const FAMILY = { random:"mobility", exploring:"mobility", attacking:"posture", defending:"posture",
+                 reflexive:"cognition", user_controlled:"control" };
+const FAMILY_COLOR = { mobility:"#5aaec4", posture:"#de7c36", cognition:"#d5b84a", control:"#cdbb9e" };
+const INK = "#cfd6dd", OUTLINE = "#0a0c10";
+
+// C: generated geometry. Expressions are directional, so these are near-literal.
+function geo(key){
+  const c=50;
+  // Expressions are DIRECTIONAL, so these are near-literal rather than invented.
+  // Sized to fill the disc: the first pass drew them at ~30% and they read as dots.
+  const chev=(dir)=>{const d=dir==="out"?1:-1;
+    return `<path d="M ${c-13*d} ${c-26} L ${c+17*d} ${c} L ${c-13*d} ${c+26}" fill="none" stroke="${INK}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>`
+         + `<line x1="${c-24*d}" y1="${c}" x2="${c+4*d}" y2="${c}" stroke="${INK}" stroke-width="9" stroke-linecap="round"/>`;};
+  // emit: rays leaving a solid core. draw: rays arriving at a hollow ring.
+  // The first pass used inward vs outward ray lengths, which is invisible at 30px;
+  // the core (solid vs ring) is the cue that actually survives.
+  const rays=(out)=>{let p="";for(let i=0;i<8;i++){const a=i*Math.PI/4;
+      const r1=out?24:40,r2=out?40:24;
+      p+=`<line x1="${(c+r1*Math.cos(a)).toFixed(1)}" y1="${(c+r1*Math.sin(a)).toFixed(1)}" x2="${(c+r2*Math.cos(a)).toFixed(1)}" y2="${(c+r2*Math.sin(a)).toFixed(1)}" stroke="${INK}" stroke-width="7" stroke-linecap="round"/>`;}
+    return p + (out
+      ? `<circle cx="${c}" cy="${c}" r="15" fill="${INK}"/>`
+      : `<circle cx="${c}" cy="${c}" r="14" fill="none" stroke="${INK}" stroke-width="8"/>`);};
+  if(key==="push") return chev("out");
+  if(key==="pull") return chev("in");
+  if(key==="emit") return rays(true);
+  if(key==="draw") return rays(false);
+  // Motivations: gross shape per family, and a FILL/HOLLOW split for the member --
+  // not a dot count. Counting small dots is the same failure as separating two
+  // silhouettes by 16 pixels; it does not survive the size these render at.
+  const fam=FAMILY[key], members=Object.keys(MOTI).filter(k=>FAMILY[k]===fam), idx=members.indexOf(key);
+  const filled = idx % 2 === 1;
+  const fill = filled ? INK : "none", sw = filled ? 0 : 8;
+  const shapes={
+    mobility:`<circle cx="${c}" cy="${c}" r="28" fill="${fill}" stroke="${INK}" stroke-width="${sw}"/>`,
+    posture:`<path d="M ${c} ${c-30} L ${c+28} ${c+20} L ${c-28} ${c+20} Z" fill="${fill}" stroke="${INK}" stroke-width="${sw}" stroke-linejoin="round"/>`,
+    cognition:`<rect x="${c-26}" y="${c-26}" width="52" height="52" rx="8" fill="${fill}" stroke="${INK}" stroke-width="${sw}"/>`,
+    control:`<path d="M ${c} ${c-30} L ${c+30} ${c} L ${c} ${c+30} L ${c-30} ${c} Z" fill="${fill}" stroke="${INK}" stroke-width="${sw}"/>`};
+  return shapes[fam];
+}
+function svg(inner, wash){ return `<svg viewBox="0 0 100 100">${wash?`<circle cx="50" cy="50" r="49" fill="${wash}" fill-opacity="0.2"/>`:""}${inner}</svg>`; }
+
+const rows=[["EXPRESSIONS",EXPR],["MOTIVATIONS",MOTI]];
+const cols=[["CURRENT","emoji, no chip"],["A","emoji in the chip"],["B","monochrome glyph"],
+            ["C","generated geometry"],["D","family-coloured disc"]];
+let html="<tr><th></th>"+cols.map(([a,b])=>`<th>${a}<small>${b}</small></th>`).join("")+"</tr>";
+for(const [title,set] of rows){
+  html+=`<tr><td colspan="6" style="padding-top:14px;color:#8a949e;font-size:11px">${title}</td></tr>`;
+  for(const key of Object.keys(set)){
+    const fam=FAMILY[key], famCol=fam?FAMILY_COLOR[fam]:"#67e8f9";
+    html+=`<tr><td class="k">${key}</td>`
+      + `<td><span class="chip bare"><span class="emoji">${set[key]}</span></span></td>`
+      + `<td><span class="chip"><span class="emoji">${set[key]}</span></span></td>`
+      + `<td><span class="chip"><span class="mono">${MONO[key]??"◈"}</span></span></td>`
+      + `<td><span class="chip">${svg(geo(key), null)}</span></td>`
+      + `<td><span class="chip">${svg(geo(key), famCol)}</span></td></tr>`;
+  }
+}
+document.getElementById("t").innerHTML=html;
+</script>

@@ -152,6 +152,10 @@ h1 { font-size: clamp(2.4rem, 5vw, 4rem); margin: 0; font-family: "Newsreader", 
 .icon-label { display: inline-flex; align-items: center; gap: 6px; }
 .ui-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.1em; height: 1.1em; line-height: 1; }
 .icon-from-bundle { display: inline-block; max-width: 100%; max-height: 100%; object-fit: contain; }
+/* Generated icons carry an intrinsic 64x64 so they can also be rasterised into a
+   Phaser texture; in the DOM they scale to fill whatever chip holds them. */
+.icon-generated { width: 100%; height: 100%; display: block; }
+.icon-generated-wrap { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
 .ui-icon img, .design-property-chip-icon img, .design-card-icon-chip img, .design-card-motivation-icon img, .design-card-group-icon img { width: 100% !important; height: 100% !important; display: block !important; object-fit: contain; }
 .pill { font-size: 0.85rem; color: var(--muted); }
 
@@ -389,22 +393,21 @@ li[data-level="warn"] { border-color: var(--accent); color: var(--accent-strong)
 .interface-c .status-rail { display: none; }
 .interface-c #gameplay-status { display: none; }
 
-/* Full-height grid when gameplay is active (40px = HTML tab bar) */
+/* Full-height, FULL-WIDTH when gameplay is active (40px = HTML tab bar).
+   The inventory rail used to occupy a 200px second column here. It is now its
+   own screen on Cmd/Ctrl+} -- where it has the width to show each item's HUD --
+   so the level gets the whole viewport instead of sharing it with a rail whose
+   labels never fit anyway. */
 .interface-c .workspace[data-active-tab="gameplay"] .workspace-main {
   display: grid;
-  grid-template-columns: 1fr 200px;
+  grid-template-columns: 1fr;
   grid-template-rows: 100%;
   gap: 0;
   align-items: stretch;
   height: calc(100dvh - 40px);
 }
 .interface-c .workspace[data-active-tab="gameplay"] .workspace-main #phaser-frame-root {
-  grid-column: 2;
-  grid-row: 1;
-  height: 100%;
-  min-height: unset;
-  margin-bottom: 0;
-  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  display: none;
 }
 .interface-c .workspace[data-active-tab="gameplay"] .workspace-main [data-tab-panel="gameplay"] {
   grid-column: 1;
@@ -423,4 +426,76 @@ li[data-level="warn"] { border-color: var(--accent); color: var(--accent-strong)
   flex: 1 1 0;
   min-height: unset;
   border: none;
+}
+
+/* --- Inventory screen (Cmd/Ctrl+} ) ---------------------------------------
+   Its own full-width screen, not a modal card: the rail it replaces was a 200px
+   canvas column whose labels clipped, and the point of moving it to the DOM is
+   that it can use the space and wrap. Each item carries its own HUD, laid out
+   ACROSS rather than stacked, so one row reads as one entity. */
+.ak-inventory-screen {
+  position: fixed; inset: 0; z-index: 9000; overflow: auto;
+  background: linear-gradient(165deg, rgba(24, 19, 19, 0.985), rgba(15, 12, 12, 0.995));
+}
+.ak-inventory-screen[hidden] { display: none !important; }
+.ak-inv-screen-inner { width: 100%; padding: 22px clamp(16px, 3vw, 44px) 40px; }
+
+.ak-inv-header {
+  display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap;
+  padding-bottom: 12px; margin-bottom: 18px; border-bottom: 1px solid var(--border);
+}
+.ak-inv-header h2 { margin: 0; font-size: 1.05rem; letter-spacing: 0.08em; }
+.ak-inv-totals { color: var(--muted); font-size: 0.82rem; font-variant-numeric: tabular-nums; }
+.ak-inv-totals b { color: #cfd6dd; }
+.ak-inv-hint { margin-left: auto; color: var(--muted); font-size: 0.74rem; }
+.is-over { color: #ff6b6b !important; }
+
+.ak-inv-groups { display: grid; gap: 16px; }
+.ak-inv-group > header {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 6px 0 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.ak-inv-group > header h3 {
+  margin: 0; font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--g, #cfd6dd);
+}
+.ak-inv-gcount {
+  font-size: 0.72rem; color: var(--muted); border: 1px solid var(--border);
+  border-radius: 999px; padding: 1px 8px; font-variant-numeric: tabular-nums;
+}
+.ak-inv-gtokens { margin-left: auto; font-size: 0.76rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ak-inv-group ul { list-style: none; margin: 0; padding: 0; }
+
+/* The item row: identity, then the HUD across the remaining width. */
+.ak-inv-item {
+  display: grid;
+  grid-template-columns: 28px minmax(120px, 1fr) 44px minmax(90px, 130px) minmax(280px, 3fr) minmax(90px, 140px) 70px;
+  align-items: center; gap: 12px;
+  padding: 8px 4px; border-bottom: 1px solid rgba(255, 255, 255, 0.035);
+  font-size: 0.82rem;
+}
+.ak-inv-item.is-empty { opacity: 0.4; }
+.ak-inv-chip {
+  width: 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid #674f48; border-radius: 999px; overflow: hidden;
+}
+.ak-inv-chip svg { width: 100%; height: 100%; display: block; }
+.ak-inv-id { color: #e8ecf0; font-variant-numeric: tabular-nums; }
+.ak-inv-mult { color: var(--muted); font-variant-numeric: tabular-nums; }
+.ak-inv-identity { color: #9aa4ad; }
+.ak-inv-motivation { color: var(--muted); }
+.ak-inv-tokens { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ak-inv-novitals { color: var(--muted); opacity: 0.6; }
+
+/* Vitals side by side rather than stacked. */
+.ak-inv-vitals { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+.ak-inv-vital { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ak-inv-vital b { color: var(--v); font-weight: 500; font-size: 0.72rem; width: 18px; }
+.ak-inv-vital em { font-style: normal; color: var(--v); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
+.ak-inv-bar { display: inline-block; width: 54px; height: 4px; background: #232a31; border-radius: 2px; overflow: hidden; }
+.ak-inv-bar > span { display: block; height: 100%; background: var(--v); }
+.ak-inv-regen { font-style: normal; color: var(--v); opacity: 0.75; font-size: 0.68rem; }
+
+@media (max-width: 1100px) {
+  .ak-inv-item { grid-template-columns: 26px 1fr auto; grid-auto-rows: min-content; }
+  .ak-inv-vitals { grid-column: 1 / -1; }
 }

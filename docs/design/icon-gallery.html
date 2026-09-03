@@ -1,0 +1,53 @@
+<!doctype html><meta charset="utf-8"><title>Icon gallery — live</title>
+<style>
+  body{background:#1e1818;color:#e8ecf0;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;margin:0;padding:26px}
+  h1{font-size:18px;margin:0 0 4px}
+  p.sub{color:#8a949e;margin:0 0 20px;max-width:900px}
+  h2{font-size:12px;color:#8a949e;font-weight:400;letter-spacing:.08em;margin:24px 0 10px;
+     border-bottom:1px solid #2c2626;padding-bottom:6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px 14px}
+  .item{display:flex;align-items:center;gap:9px}
+  /* the real chip geometry from styles.css */
+  .chip{width:28px;height:28px;flex:0 0 28px;border:1px solid #674f48;border-radius:999px;
+        display:inline-flex;align-items:center;justify-content:center;overflow:hidden;
+        background:color-mix(in srgb,#1e1818 84%, black)}
+  .chip svg{width:100%;height:100%;display:block}
+  .name{color:#cfd6dd}
+  .sizes{display:flex;align-items:center;gap:10px;margin-top:6px}
+  .s16{width:16px;height:16px;flex:0 0 16px}
+  .s20{width:20px;height:20px;flex:0 0 20px}
+  .legend{color:#6b747d;font-size:11px;margin-top:6px}
+</style>
+<h1>Icon gallery — rendered by the shipped resolver</h1>
+<p class="sub">Every icon below is produced by <code>packages/ui-web/src/icon-resolver.js</code> at run time — this page
+imports the real module rather than reproducing it. Chips are the real 28px geometry; the second row of each
+section repeats them at 20px and 16px, the sizes they actually appear at in the rails.</p>
+<div id="out"></div>
+<script type="module">
+import { resolveIconHTML } from "/packages/ui-web/src/icon-resolver.js";
+import { GAME_COLOR_PALETTE, GAME_AFFINITY_COLOR_HEX } from "/packages/runtime/src/contracts/game-elements.js";
+
+const SECTIONS = [
+  ["TYPES — role silhouettes, colour identifies", "types", Object.keys(GAME_COLOR_PALETTE.types)],
+  ["ITEMS", "items", Object.keys(GAME_COLOR_PALETTE.items)],
+  ["AFFINITIES — one mark, ten fills", "affinities", Object.keys(GAME_AFFINITY_COLOR_HEX)],
+  ["VITALS", "vitals", Object.keys(GAME_COLOR_PALETTE.vitals)],
+  ["EXPRESSIONS — generated geometry, neutral ink", "expressions", ["push","pull","emit","draw"]],
+  ["MOTIVATIONS — monochrome marks, neutral ink", "motivations", Object.keys(GAME_COLOR_PALETTE.motivations)],
+  ["UI — outside the chip system", "ui", ["playing-surface","card-builder","game-preview","system-console","game-inspector"]],
+];
+let html = "";
+for (const [title, cat, keys] of SECTIONS) {
+  html += `<h2>${title}</h2><div class="grid">`;
+  for (const key of keys) {
+    const icon = resolveIconHTML(null, cat, key);
+    const bare = !icon.startsWith("<svg");
+    html += `<div class="item"><span class="chip">${bare ? `<span style="font-size:15px">${icon}</span>` : icon}</span>`
+          + `<span><span class="name">${key}</span>`
+          + (bare ? "" : `<span class="sizes"><span class="chip s20">${icon}</span><span class="chip s16">${icon}</span></span>`)
+          + `</span></div>`;
+  }
+  html += `</div>`;
+}
+document.getElementById("out").innerHTML = html;
+</script>

@@ -1,21 +1,51 @@
-import { createActorMedallionTextureDescriptor } from "./actor-medallion-textures.js";
+import { createEntitySpriteTextureDescriptor } from "./entity-sprite-textures.js";
+import { GAME_COLOR_PALETTE } from "../../../runtime/src/contracts/game-elements.js";
+import { buildActorHudModel } from "../../../runtime/src/render/actor-hud-model.js";
+
+/** "#rrggbb" -> 0xrrggbb, the numeric form Phaser tints want. */
+function hexToTint(hex) {
+  return Number.parseInt(String(hex).replace("#", ""), 16);
+}
 
 const DEFAULT_TILE_SIZE = 32;
-const MIN_CAMERA_ZOOM = 0.25;
+// Option (a), maintainer 2026-09-02. M1's silhouettes are guaranteed distinct down
+// to 12px and no further, so the camera must not shrink a tile past that. With
+// DEFAULT_TILE_SIZE 32 the floor is 12/32 = 0.375; 0.4 keeps a little headroom.
+// This costs maximum zoom-out on very large dungeons -- verified in M5.
+const MIN_CAMERA_ZOOM = 0.4;
+const MIN_LEGIBLE_TILE_PX = 12;
+// Ceiling on affinity-field opacity. Above this the field stops reading as an
+// overlay on the floor and starts replacing it, which also swallows any sprite
+// standing in a field of its own affinity.
+const MAX_FIELD_ALPHA = 0.45;
 const MAX_CAMERA_ZOOM = 3;
 const CAMERA_ZOOM_STEP = 1.2;
 const DRAG_SELECT_THRESHOLD = 6;
 const SELECTION_TINT = 0xffd700;
-const VITAL_COLORS = {
-  health:     { hex: "#ff4455", int: 0xff4455, label: "HP" },
-  mana:       { hex: "#4499ff", int: 0x4499ff, label: "MP" },
-  stamina:    { hex: "#44cc77", int: 0x44cc77, label: "ST" },
-  durability: { hex: "#ffaa33", int: 0xffaa33, label: "DU" },
-};
-const DEFAULT_VITAL_COLOR = { hex: "#aaaaaa", int: 0xaaaaaa, label: "?" };
-const VITAL_ORDER = ["health", "mana", "stamina", "durability"];
+// Vital colours, labels and ordering come from the HUD view-model in runtime.
+// They used to be a table here -- a duplicate of GAME_COLOR_PALETTE.vitals that
+// still happened to agree. The affinity palette had the same shape of duplicate
+// and had already drifted into a live bug (M2), so this one is folded back.
 const REGEN_BLOCK_SIZE = 5;
 const REGEN_BLOCK_GAP = 2;
+
+// HUD geometry. Fixed to the camera, so these are screen pixels, not world.
+const HUD = Object.freeze({
+  margin: 12,
+  padX: 10,
+  padY: 8,
+  rowH: 16,
+  labelW: 20,
+  barW: 96,
+  barH: 5,
+  valueW: 46,
+  headerH: 16,
+  footerH: 13,
+  bg: 0x0d1014,
+  bgAlpha: 0.88,
+  border: 0x2c333c,
+  depth: 1000,
+});
 const ACTOR_CONTROL_KEYS = new Set([
   "arrowup", "arrowdown", "arrowleft", "arrowright",
   "w", "a", "s", "d",
@@ -113,9 +143,12 @@ function resolveActorAssetId(resourceBundle, actor = {}) {
 
 function resolveSurfaceAsset(resourceBundle, category, key, model = {}) {
   let assetId = null;
-  if (category === "tiles") assetId = resourceBundle?.mappings?.tiles?.[key] || null;
+  // No "tiles" branch: tiles are flat fills from GAME_COLOR_PALETTE now, never bundle
+  // art, so nothing resolves a tile asset. The bundle still ships tile PNGs for other
+  // consumers; the board simply stops drawing them.
   if (category === "actors") assetId = resolveActorAssetId(resourceBundle, model);
-  if (category === "items") assetId = resourceBundle?.mappings?.items?.[key] || null;
+  if (category === "items" || category === "resources") assetId = resourceBundle?.mappings?.items?.[key] || null;
+  if (category === "hazards") assetId = resolveHazardAssetId(resourceBundle, model);
   if (category === "overlays") {
     assetId = key === "darknessMask"
       ? resourceBundle?.mappings?.overlays?.darknessMask
@@ -124,12 +157,28 @@ function resolveSurfaceAsset(resourceBundle, category, key, model = {}) {
   return findBundleAsset(resourceBundle, assetId);
 }
 
+/** A minimal stage for environments with no DOM (headless callers, tests). */
+function createHeadlessStage() {
+  const listeners = Object.create(null);
+  return {
+    dataset: {},
+    classList: { add() {} },
+    querySelector: () => null,
+    listeners,
+    addEventListener(type, handler) { listeners[type] = handler; },
+    removeEventListener(type) { delete listeners[type]; },
+  };
+}
+
 function ensureGameplayStageElement(container) {
   if (!container) return null;
   let stage = container.querySelector?.("[data-gameplay-phaser-stage]");
   if (stage) return stage;
   const create = globalThis.document?.createElement?.bind?.(globalThis.document);
-  stage = create ? create("div") : { dataset: {}, classList: { add() {} } };
+  // The headless stub is an event target, not just a dataset bag: board input
+  // binds this element, so a stub without listeners would bind nothing at all
+  // and every headless caller would exercise a different path from the browser.
+  stage = create ? create("div") : createHeadlessStage();
   if (stage.dataset) stage.dataset.gameplayPhaserStage = "true";
   if (stage.classList?.add) stage.classList.add("gameplay-phaser-stage");
   container.appendChild(stage);
@@ -149,7 +198,13 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
   let inputBound = false;
   let currentBoardMetrics = { tileWidth: DEFAULT_TILE_SIZE, tileHeight: DEFAULT_TILE_SIZE };
   let currentContainer = null;
-  let quickViewContainer = null;
+  let hudContainer = null;
+  let hudCamera = null;
+  let hudEntity = null;
+  let resizeObserver = null;
+  let domPointerHandlers = null;
+  let domPointerTarget = null;
+  let domPanAnchor = null;
   let lastHoverTile = null;
   let actorNodes = new Map();
   let selectedActorKey = null;
@@ -195,6 +250,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     const zoom = clamp(nextZoom, MIN_CAMERA_ZOOM, MAX_CAMERA_ZOOM);
     cameraState.zoom = zoom;
     camera.setZoom?.(zoom);
+    applyCameraBounds();
     const targetCenterX = Number.isFinite(centerX) ? centerX : previousCenter?.x;
     const targetCenterY = Number.isFinite(centerY) ? centerY : previousCenter?.y;
     if (Number.isFinite(targetCenterX) && Number.isFinite(targetCenterY)) {
@@ -204,14 +260,44 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return zoom;
   }
 
+  /**
+   * Camera bounds, widened so a level smaller than the viewport can CENTRE.
+   *
+   * Bounds were set to the world exactly, and Phaser clamps scroll to them, so a
+   * world narrower than the viewport could not be centred -- it pinned to the
+   * left and left a dead strip on the right. Expanding the bounds symmetrically
+   * around the world lets it centre while still stopping a pan from wandering
+   * off into nothing. Depends on zoom, so it is recomputed whenever zoom changes.
+   */
+  function applyCameraBounds() {
+    const camera = getCamera();
+    if (!camera?.setBounds) return;
+    const zoom = Number(camera.zoom) || cameraState.zoom || 1;
+    const viewW = (cameraState.viewportWidth || 0) / zoom;
+    const viewH = (cameraState.viewportHeight || 0) / zoom;
+    const boundsW = Math.max(cameraState.worldWidth, viewW);
+    const boundsH = Math.max(cameraState.worldHeight, viewH);
+    camera.setBounds(
+      (cameraState.worldWidth - boundsW) / 2,
+      (cameraState.worldHeight - boundsH) / 2,
+      boundsW,
+      boundsH,
+    );
+  }
+
   function fitCameraToWorld() {
     const camera = getCamera();
     if (!camera) return cameraState.zoom;
+    // No 1.0 ceiling: the level fills the viewport. That ceiling kept tiles at
+    // native 32px, which left a small level sitting in a corner of an otherwise
+    // empty screen once the inventory rail stopped sharing the width. Sprites are
+    // composed textures scaled by a pixelArt/roundPixels camera, so magnifying
+    // them stays crisp and blocky rather than blurring. MAX_CAMERA_ZOOM still
+    // caps it so a tiny level cannot become absurd.
     const fitZoom = clamp(
       Math.min(
         cameraState.viewportWidth / cameraState.worldWidth,
         cameraState.viewportHeight / cameraState.worldHeight,
-        1,
       ),
       MIN_CAMERA_ZOOM,
       MAX_CAMERA_ZOOM,
@@ -223,90 +309,24 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return fitZoom;
   }
 
-  // Tile-space bounds of "the entry": the structured room (from
-  // simConfig.layout.data.rooms) containing the spawn tile or the first
-  // delver, expanded to also cover every delver's position. Falls back to
-  // null (caller should then fit the whole level) when no spawn/room/delver
-  // data is available to anchor on.
-  function computeEntryFocusTileBounds(boardState) {
-    const rooms = Array.isArray(boardState?.simConfig?.layout?.data?.rooms)
-      ? boardState.simConfig.layout.data.rooms : [];
-    const tiles = Array.isArray(boardState?.tiles) ? boardState.tiles : [];
-
-    let spawn = null;
-    for (let y = 0; y < tiles.length && !spawn; y += 1) {
-      const x = String(tiles[y] || "").indexOf("S");
-      if (x !== -1) spawn = { x, y };
-    }
-
-    const actors = Array.isArray(boardState?.observation?.actors) ? boardState.observation.actors : [];
-    const delverPositions = actors
-      .filter((actor) => inferActorRole(actor) === "delver")
-      .map((actor) => ({ x: Number(actor?.position?.x), y: Number(actor?.position?.y) }))
-      .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
-
-    const anchor = spawn || delverPositions[0] || null;
-    if (!anchor && delverPositions.length === 0) return null;
-
-    const room = anchor
-      ? rooms.find((r) => (
-        anchor.x >= r.x && anchor.x < r.x + r.width &&
-        anchor.y >= r.y && anchor.y < r.y + r.height
-      )) || null
-      : null;
-
-    const points = [...delverPositions];
-    if (room) {
-      points.push({ x: room.x, y: room.y }, { x: room.x + room.width - 1, y: room.y + room.height - 1 });
-    } else if (anchor) {
-      points.push(anchor);
-    }
-    if (points.length === 0) return null;
-
-    const PAD = 1;
-    return {
-      minX: Math.min(...points.map((p) => p.x)) - PAD,
-      minY: Math.min(...points.map((p) => p.y)) - PAD,
-      maxX: Math.max(...points.map((p) => p.x)) + PAD,
-      maxY: Math.max(...points.map((p) => p.y)) + PAD,
-    };
-  }
-
-  // Like fitCameraToWorld(), but fits/centers on a tile-space sub-region
-  // instead of the entire level.
-  function fitCameraToRegion(tileBounds) {
-    const camera = getCamera();
-    if (!camera) return cameraState.zoom;
-    const { tileWidth, tileHeight } = currentBoardMetrics;
-    const regionWidth = Math.max(1, (tileBounds.maxX - tileBounds.minX + 1) * tileWidth);
-    const regionHeight = Math.max(1, (tileBounds.maxY - tileBounds.minY + 1) * tileHeight);
-    const centerX = tileBounds.minX * tileWidth + regionWidth / 2;
-    const centerY = tileBounds.minY * tileHeight + regionHeight / 2;
-    const fitZoom = clamp(
-      Math.min(
-        cameraState.viewportWidth / regionWidth,
-        cameraState.viewportHeight / regionHeight,
-      ),
-      MIN_CAMERA_ZOOM,
-      MAX_CAMERA_ZOOM,
-    );
-    cameraState.fitZoom = fitZoom;
-    applyCameraZoom(fitZoom, { centerX, centerY });
-    setStageCameraDataset();
-    return fitZoom;
-  }
-
-  function configureCamera({ resetView = false, focusBoardState = null } = {}) {
+  // Loading a run frames the WHOLE level (maintainer, 2026-09-02).
+  //
+  // It used to fit only "the entry" -- the room containing the spawn tile or the
+  // first delver -- which made a five-room level look like a one-room level on
+  // load, because the other four sat off-screen with nothing indicating they
+  // existed. The entry-focus helpers (computeEntryFocusTileBounds and
+  // fitCameraToRegion) are removed rather than left unused; git history has them
+  // if a "focus the entry" action is ever wanted as an explicit control.
+  //
+  // This deliberately shares fitCameraToWorld with the Fit button, so the view on
+  // load is exactly the view Fit returns you to -- including its clamp at zoom 1,
+  // which keeps a small level at native pixel scale instead of magnifying it.
+  function configureCamera({ resetView = false } = {}) {
     const camera = getCamera();
     if (!camera) return;
-    camera.setBounds?.(0, 0, cameraState.worldWidth, cameraState.worldHeight);
+    applyCameraBounds();
     if (resetView) {
-      const region = focusBoardState ? computeEntryFocusTileBounds(focusBoardState) : null;
-      if (region) {
-        fitCameraToRegion(region);
-      } else {
-        fitCameraToWorld();
-      }
+      fitCameraToWorld();
     } else {
       applyCameraZoom(cameraState.zoom);
     }
@@ -320,67 +340,156 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     camera.scrollY = (Number(camera.scrollY) || 0) - deltaY / zoom;
   }
 
+  /** The canvas actually in the document, falling back to Phaser's reference. */
+  function boardCanvas() {
+    return stageEl?.querySelector?.("canvas") || game?.canvas || null;
+  }
+
+  /**
+   * Convert a DOM pointer position to a tile.
+   *
+   * Board input is DOM listeners on the stage rather than scene.input, for the
+   * same reason the keyboard already is (see the note on keydownHandler):
+   * Phaser v4 does not deliver these the way v3 did, so the handlers this file
+   * used to register on scene.input never fired and clicking an actor did
+   * nothing. Measured on the running app, one click produced 0 scene.input
+   * events and 1 DOM event. The unit tests called those handlers directly, so
+   * they stayed green over a dead path -- asserting the handler's logic, never
+   * that an event reached it.
+   *
+   * The geometry still comes from the canvas: it is the element whose box the
+   * camera transform is expressed against.
+   */
+  function pointerEventToTile(event) {
+    const canvasEl = boardCanvas();
+    const camera = getCamera();
+    if (!canvasEl?.getBoundingClientRect || !camera) return null;
+    const rect = canvasEl.getBoundingClientRect();
+    if (!rect.width || !rect.height) return null;
+    // The backing store can differ from the CSS box; map through both.
+    const scaleX = (canvasEl.width || rect.width) / rect.width;
+    const scaleY = (canvasEl.height || rect.height) / rect.height;
+    const zoom = Number(camera.zoom) || 1;
+    const worldX = (Number(camera.scrollX) || 0) + ((event.clientX - rect.left) * scaleX) / zoom;
+    const worldY = (Number(camera.scrollY) || 0) + ((event.clientY - rect.top) * scaleY) / zoom;
+    const { tileWidth, tileHeight } = currentBoardMetrics;
+    const x = Math.floor(worldX / tileWidth);
+    const y = Math.floor(worldY / tileHeight);
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y, worldX, worldY } : null;
+  }
+
   function bindCameraInput() {
     if (!scene || inputBound) return;
-    let dragStart = null;
-    let lastPointer = null;
-    let dragged = false;
+    // Board pointer input is DOM listeners on the canvas, not scene.input.
+    // Phaser v4 does not deliver scene.input pointer events here at all (the
+    // same v4 breakage the keyboard already works around below), so the
+    // registrations this function used to make never fired and clicking an
+    // actor did nothing. Measured on the running app: 0 scene.input pointer
+    // events against 1 DOM event for the same click.
+    //
+    // Bind the STAGE, not the canvas. Both receive the event -- pointer events
+    // from the canvas bubble to the stage -- but the stage exists from mount
+    // onward while the canvas does not exist yet on the first bind, and the
+    // inputBound latch below would make that miss permanent and silent.
+    const inputTarget = stageEl;
+    if (!inputTarget?.addEventListener) {
+      // Latching inputBound here would make a single early miss permanent and
+      // silent -- exactly how board clicks stayed dead. Leave it unset so the
+      // next renderRun tries again.
+      return;
+    }
+    {
+      let domStart = null;
+      let domDragged = false;
 
-    scene.input.on("pointerdown", (pointer) => {
-      dragStart = { x: pointer.x ?? pointer.worldX ?? 0, y: pointer.y ?? pointer.worldY ?? 0 };
-      lastPointer = { ...dragStart };
-      dragged = false;
-    });
-    scene.input.on("pointermove", (pointer) => {
-      const isDragging = pointer.isDown || pointer.primaryDown || pointer.buttons > 0;
-      if (!isDragging) {
-        if (!playerPanelOpen) {
-          const tx = Math.floor((pointer.worldX ?? 0) / currentBoardMetrics.tileWidth);
-          const ty = Math.floor((pointer.worldY ?? 0) / currentBoardMetrics.tileHeight);
-          if (Number.isFinite(tx) && Number.isFinite(ty)) {
-            if (tx !== lastHoverTile?.x || ty !== lastHoverTile?.y) {
-              lastHoverTile = { x: tx, y: ty };
-              onHover?.({ x: tx, y: ty });
+      domPointerHandlers = {
+        pointerdown: (event) => {
+          const hit = pointerEventToTile(event);
+          // Two separate points on purpose. pressOrigin is where the button went
+          // down and never moves, so displacement is measured against the press.
+          // panAnchor is the incremental reference for panning and does move.
+          // Collapsing them into one made `moved` at pointerup measure only the
+          // final mouse segment rather than how far the press had travelled.
+          domStart = hit ? { x: event.clientX, y: event.clientY } : null;
+          domPanAnchor = domStart ? { ...domStart } : null;
+          domDragged = false;
+        },
+        pointermove: (event) => {
+          const hit = pointerEventToTile(event);
+          if (!hit) return;
+          const dragging = (event.buttons ?? 0) > 0;
+          if (!dragging) {
+            if (playerPanelOpen) return;
+            if (hit.x !== lastHoverTile?.x || hit.y !== lastHoverTile?.y) {
+              lastHoverTile = { x: hit.x, y: hit.y };
+              onHover?.({ x: hit.x, y: hit.y });
             }
+            return;
           }
-        }
-        return;
+          lastHoverTile = null;
+          if (!domStart) return;
+          if (!domDragged) {
+            // A real mouse jitters a pixel or two while the button is down, so
+            // treating ANY movement as a drag meant a click on an actor selected
+            // nothing at all -- only a perfectly still click worked, and this
+            // threshold was never consulted. Become a drag only once the press
+            // has actually travelled past it.
+            const travelX = event.clientX - domStart.x;
+            const travelY = event.clientY - domStart.y;
+            const travelled = Math.hypot(travelX, travelY);
+            if (travelled <= DRAG_SELECT_THRESHOLD) return;
+            domDragged = true;
+            // Anchor where the drag crossed the threshold, so this move pans by
+            // the distance BEYOND it. Anchoring at the press would lurch the view
+            // by the whole threshold; anchoring here and skipping the pan would
+            // swallow the motion of a single large move entirely.
+            const ratio = DRAG_SELECT_THRESHOLD / travelled;
+            domPanAnchor = {
+              x: domStart.x + travelX * ratio,
+              y: domStart.y + travelY * ratio,
+            };
+          }
+          const dx = event.clientX - (domPanAnchor?.x ?? event.clientX);
+          const dy = event.clientY - (domPanAnchor?.y ?? event.clientY);
+          if (dx || dy) {
+            panCameraBy(dx, dy);
+            domPanAnchor = { x: event.clientX, y: event.clientY };
+          }
+        },
+        pointerup: (event) => {
+          const dragged = domDragged;
+          domStart = null;
+          domPanAnchor = null;
+          domDragged = false;
+          if (playerPanelOpen) return;
+          // One authority: pointermove latches `dragged` once the press travels
+          // past DRAG_SELECT_THRESHOLD. Re-measuring displacement here as well
+          // was unreachable -- every move produces a tile, so the threshold is
+          // always evaluated there first -- and a second, dead spelling of the
+          // same rule is exactly what let the click bug hide behind green tests.
+          if (dragged) return;
+          const hit = pointerEventToTile(event);
+          if (hit) onSelect?.({ x: hit.x, y: hit.y });
+        },
+        pointerleave: () => {
+          lastHoverTile = null;
+          onHoverEnd?.();
+        },
+        wheel: (event) => {
+          const hit = pointerEventToTile(event);
+          event.preventDefault?.();
+          const zoomFactor = event.deltaY > 0 ? 1 / CAMERA_ZOOM_STEP : CAMERA_ZOOM_STEP;
+          applyCameraZoom(cameraState.zoom * zoomFactor, {
+            centerX: hit?.worldX,
+            centerY: hit?.worldY,
+          });
+        },
+      };
+      domPointerTarget = inputTarget;
+      for (const [type, handler] of Object.entries(domPointerHandlers)) {
+        inputTarget.addEventListener(type, handler, type === "wheel" ? { passive: false } : undefined);
       }
-      lastHoverTile = null;
-      if (!lastPointer) return;
-      const x = pointer.x ?? pointer.worldX ?? lastPointer.x;
-      const y = pointer.y ?? pointer.worldY ?? lastPointer.y;
-      const dx = x - lastPointer.x;
-      const dy = y - lastPointer.y;
-      if (dx !== 0 || dy !== 0) {
-        dragged = true;
-        panCameraBy(dx, dy);
-      }
-      lastPointer = { x, y };
-    });
-    scene.input.on("gameout", () => {
-      lastHoverTile = null;
-      onHoverEnd?.();
-    });
-    scene.input.on("pointerup", (pointer) => {
-      const end = { x: pointer.x ?? pointer.worldX ?? 0, y: pointer.y ?? pointer.worldY ?? 0 };
-      const distance = dragStart ? Math.hypot(end.x - dragStart.x, end.y - dragStart.y) : 0;
-      const isSelection = !dragged && distance <= DRAG_SELECT_THRESHOLD;
-      dragStart = null;
-      lastPointer = null;
-      dragged = false;
-      if (!isSelection) return;
-      if (playerPanelOpen) return;
-      const x = Math.floor(pointer.worldX / currentBoardMetrics.tileWidth);
-      const y = Math.floor(pointer.worldY / currentBoardMetrics.tileHeight);
-      if (Number.isFinite(x) && Number.isFinite(y)) {
-        onSelect?.({ x, y });
-      }
-    });
-    scene.input.on("wheel", (pointer, _objects, _deltaX, deltaY) => {
-      const zoomFactor = deltaY > 0 ? 1 / CAMERA_ZOOM_STEP : CAMERA_ZOOM_STEP;
-      applyCameraZoom(cameraState.zoom * zoomFactor, { centerX: pointer.worldX, centerY: pointer.worldY });
-    });
+    }
     // Keyboard goes through a window-level DOM listener rather than
     // scene.input.keyboard: Phaser v4 does not expose the v3 keyboard plugin
     // on the scene, so that binding never fires (silently, via the optional
@@ -499,16 +608,19 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return texture?.getSourceImage?.() || texture?.source?.[0]?.image || null;
   }
 
-  function ensureActorMedallionTexture(resourceBundle, actor, width, height) {
-    const descriptor = createActorMedallionTextureDescriptor({ resourceBundle, actor, width, height });
+  function ensureEntitySpriteTexture(resourceBundle, entity, role, width, height) {
+    const descriptor = createEntitySpriteTextureDescriptor({ resourceBundle, entity, role, width, height });
     if (!descriptor || !scene?.textures) return "";
 
-    let texture = scene.textures.get?.(descriptor.key) || null;
-    const exists = scene.textures.exists?.(descriptor.key) === true;
-    if (!exists) {
-      if (typeof scene.textures.createCanvas !== "function") return "";
-      texture = scene.textures.createCanvas(descriptor.key, descriptor.size, descriptor.size);
+    // Shared across every entity with the same role+affinity, so a texture that
+    // already exists is finished -- recomposing it would write identical pixels.
+    if (scene.textures.exists?.(descriptor.key) === true) {
+      if (stageEl?.dataset) stageEl.dataset.gameplayEntitySprites = "runtime";
+      return descriptor.key;
     }
+
+    if (typeof scene.textures.createCanvas !== "function") return "";
+    const texture = scene.textures.createCanvas(descriptor.key, descriptor.size, descriptor.size);
 
     const canvas = canvasForTexture(texture);
     const context = canvas?.getContext?.("2d");
@@ -518,18 +630,18 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     imageData.data.set(descriptor.pixels);
     context.putImageData(imageData, 0, 0);
     texture?.refresh?.();
-    if (stageEl?.dataset) stageEl.dataset.gameplayActorMedallions = "runtime";
+    if (stageEl?.dataset) stageEl.dataset.gameplayEntitySprites = "runtime";
     return descriptor.key;
   }
 
-  function addActorMedallionImage(resourceBundle, actor, x, y, width, height) {
-    const textureKey = ensureActorMedallionTexture(resourceBundle, actor, width, height);
+  function addEntitySpriteImage(resourceBundle, entity, role, x, y, width, height) {
+    const textureKey = ensureEntitySpriteTexture(resourceBundle, entity, role, width, height);
     if (!textureKey || typeof scene?.add?.image !== "function") return null;
     const node = scene.add.image(x, y, textureKey);
     node.setDisplaySize?.(width, height);
     node.setOrigin?.(0.5);
-    node.setName?.(`actor-medallion:${actor?.id || inferActorRole(actor)}`);
-    node.setData?.("actorMedallion", true);
+    node.setName?.(`entity-sprite:${entity?.id || role || inferActorRole(entity)}`);
+    node.setData?.("entitySprite", true);
     return node;
   }
 
@@ -540,10 +652,19 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return node;
   }
 
+  // Categories the composer owns, and the sprite role each maps to. Hazards and
+  // resources used to skip the composed path entirely and draw bundle PNGs, so the
+  // board mixed the new sprite language for actors with retired art for everything
+  // else. One composer, one language, four roles.
+  const COMPOSED_ROLE_BY_CATEGORY = { actors: null, hazards: "hazard", resources: "resource" };
+
   function addSurfaceImageOrFallback(resourceBundle, category, key, model, x, y, width, height) {
-    if (category === "actors") {
-      const actorImage = addActorMedallionImage(resourceBundle, model, x, y, width, height);
-      if (actorImage) return actorImage;
+    if (category in COMPOSED_ROLE_BY_CATEGORY) {
+      // `actors` passes role null so the composer infers delver vs warden itself.
+      const composed = addEntitySpriteImage(
+        resourceBundle, model, COMPOSED_ROLE_BY_CATEGORY[category], x, y, width, height,
+      );
+      if (composed) return composed;
     }
     const asset = resolveSurfaceAsset(resourceBundle, category, key, model);
     const image = addBundleImage(asset, x, y, width, height);
@@ -679,107 +800,207 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     return true;
   }
 
-  function hideQuickView() {
-    if (quickViewContainer) {
-      quickViewContainer.destroy(true);
-      quickViewContainer = null;
-    }
+  // A dedicated, non-zooming camera for the HUD. Created lazily so a scene without
+  // camera support (or a test double) simply falls back to the main camera.
+  function ensureHudCamera() {
+    if (hudCamera) return hudCamera;
+    const add = scene?.cameras?.add;
+    if (typeof add !== "function") return null;
+    hudCamera = scene.cameras.add(
+      0, 0,
+      cameraState.viewportWidth || 1,
+      cameraState.viewportHeight || 1,
+    ) || null;
+    hudCamera?.setName?.("gameplay-hud-camera");
+    hudCamera?.setZoom?.(1);
+    hudCamera?.setScroll?.(0, 0);
+    return hudCamera;
   }
 
-  function showQuickView(model) {
-    hideQuickView();
-    if (!scene || !model?.position) return;
-    const { tileWidth, tileHeight } = currentBoardMetrics;
-    const px = model.position.x * tileWidth + tileWidth / 2;
-    const py = model.position.y * tileHeight;
-    const overlayX = px + tileWidth;
-    const overlayY = py - tileHeight * 0.5;
+  function attachHudCamera(overlay) {
+    const cam = ensureHudCamera();
+    if (!cam) return;
+    // Each camera renders exactly one of the two worlds.
+    cam.ignore?.(currentContainer ? [currentContainer] : []);
+    scene?.cameras?.main?.ignore?.(overlay);
+  }
 
-    const vitals = model.vitals && typeof model.vitals === "object" ? model.vitals : {};
-    const orderedKeys = [...VITAL_ORDER.filter((k) => k in vitals), ...Object.keys(vitals).filter((k) => !VITAL_ORDER.includes(k))];
+  function hideHud() {
+    if (hudContainer) {
+      hudContainer.destroy(true);
+      hudContainer = null;
+    }
+    // showHud stamps the entity here, so leaving it set after the panel is gone
+    // reports a selection that is not on screen -- and it is the field tests read
+    // to decide whether the HUD is up.
+    if (stageEl?.dataset) delete stageEl.dataset.gameplayHud;
+  }
 
-    const rowH = 18;
-    const labelW = 22;
-    const barW = 72;
-    const valW = 30;
-    const padX = 6;
-    const headerH = 14;
-    const footerH = model.equippedAffinity?.kind ? 14 : 0;
-    const maxRegen = orderedKeys.reduce((m, k) => Math.max(m, Number(vitals[k]?.regen) || 0), 0);
-    const regenColW = maxRegen > 0 ? 4 + maxRegen * (REGEN_BLOCK_SIZE + REGEN_BLOCK_GAP) : 0;
-    const panelW = padX + labelW + 4 + barW + 4 + valW + regenColW + padX;
-    const panelH = headerH + orderedKeys.length * rowH + footerH + 6;
+  /**
+   * Keep the canvas matched to its container.
+   *
+   * The game was sized once, at creation, and only re-sized on a re-render. The
+   * gameplay tab lays out in a CSS grid (`1fr 200px`) with the inventory rail in
+   * column two, but the game is created while the design layout is active and
+   * full width -- so on switching tabs the canvas kept its old width and
+   * overhung the rail by ~40px, clipping the inventory labels underneath it.
+   * A tab switch does not re-render, so nothing corrected it.
+   */
+  function applyViewportSize() {
+    const width = Math.max(1, Math.round(container?.clientWidth || 0));
+    const height = Math.max(1, Math.round(container?.clientHeight || 0));
+    if (width <= 1 || height <= 1) return;
+    if (width === cameraState.viewportWidth && height === cameraState.viewportHeight) return;
 
-    const overlay = scene.add.container(overlayX, overlayY);
-    quickViewContainer = overlay;
+    cameraState.viewportWidth = width;
+    cameraState.viewportHeight = height;
+    game?.scale?.resize?.(width, height);
+    getCamera()?.setSize?.(width, height);
+    hudCamera?.setSize?.(width, height);
+    configureCamera({ resetView: false });
+    // The HUD anchors to the viewport height at draw time, so it has to be
+    // redrawn rather than merely resized.
+    if (hudEntity) showHud(hudEntity);
+    setStageCameraDataset();
+  }
 
-    const bg = addSurfaceImageOrFallback(
-      model.resourceBundle,
-      "overlays",
-      "darknessMask",
-      null,
-      panelW / 2,
-      panelH / 2,
-      panelW,
-      panelH,
-    );
+  function observeContainerSize() {
+    if (resizeObserver || typeof globalThis.ResizeObserver !== "function" || !container) return;
+    resizeObserver = new globalThis.ResizeObserver(() => applyViewportSize());
+    resizeObserver.observe(container);
+  }
+
+  const hexToInt = (hex) => Number.parseInt(String(hex).replace("#", ""), 16);
+
+  /**
+   * Draw the selected-entity HUD, fixed to the camera at the bottom-left.
+   *
+   * This replaces the old world-space quick view, which anchored a 9px panel to
+   * the entity's tile: it moved when the board moved, shrank with camera zoom,
+   * and was the reason vitals were unreadable at the very zoom levels where you
+   * most needed them. The HUD does not scroll (`setScrollFactor(0)`), so its
+   * legibility is independent of the board.
+   *
+   * Vitals, expression and motivation are exactly what M1 removed from the
+   * sprite; this is where they reappear, at readable size, for one entity.
+   */
+  function showHud(entity) {
+    hideHud();
+    hudEntity = entity ?? null;
+    if (!scene?.add?.container) return;
+    const model = buildActorHudModel(entity);
+    if (!model) return;
+
+    const rows = model.vitals.length;
+    const maxRegen = model.vitals.reduce((m, v) => Math.max(m, v.regen), 0);
+    const regenColW = maxRegen > 0 ? 6 + maxRegen * (REGEN_BLOCK_SIZE + REGEN_BLOCK_GAP) : 0;
+    const panelW = HUD.padX * 2 + HUD.labelW + 6 + HUD.barW + 6 + HUD.valueW + regenColW;
+    const hasFooter = Boolean(model.motivation);
+    const panelH = HUD.padY * 2 + HUD.headerH + rows * HUD.rowH + (hasFooter ? HUD.footerH : 0);
+
+    // Overlaid on the LEVEL's top-right corner, not the viewport's.
+    //
+    // Anchoring to the viewport put the panel out in the empty margin beside the
+    // level whenever the level's aspect ratio left one, so it read as a side rail
+    // rather than an overlay. The level's on-screen box is derived from the
+    // camera, then clamped to the viewport so the panel stays visible when the
+    // board is panned or zoomed past the edges.
+    const vw = cameraState.viewportWidth || 400;
+    const vh = cameraState.viewportHeight || 300;
+    const cam = getCamera();
+    const zoom = Number(cam?.zoom) || cameraState.zoom || 1;
+    const levelRight = ((cameraState.worldWidth - (Number(cam?.scrollX) || 0)) * zoom);
+    const levelTop = ((0 - (Number(cam?.scrollY) || 0)) * zoom);
+    const originX = clamp(levelRight - panelW - HUD.margin, HUD.margin, Math.max(HUD.margin, vw - panelW - HUD.margin));
+    const originY = clamp(levelTop + HUD.margin, HUD.margin, Math.max(HUD.margin, vh - panelH - HUD.margin));
+
+    const overlay = scene.add.container(originX, originY);
+    hudContainer = overlay;
+    overlay.setScrollFactor?.(0);
+    overlay.setDepth?.(HUD.depth);
+    overlay.setName?.("gameplay-hud");
+
+    // scrollFactor(0) stops the HUD SCROLLING with the board, but it does not stop
+    // it ZOOMING: Phaser still scales scrollFactor-0 objects about the camera
+    // centre, so at zoom 3 the panel was scaled 3x and pushed off screen. The fix
+    // is a second camera at zoom 1 that renders only the HUD, with each camera
+    // ignoring the other's objects -- the standard Phaser HUD arrangement, and the
+    // only one that makes the panel genuinely independent of board zoom.
+    attachHudCamera(overlay);
+
+    const bg = scene.add.rectangle(panelW / 2, panelH / 2, panelW, panelH, HUD.bg, HUD.bgAlpha);
+    bg.setStrokeStyle?.(1, HUD.border, 1);
+    bg.setScrollFactor?.(0);
     overlay.add(bg);
 
-    const idLabel = scene.add.text(padX, 3, model.id ?? "", { fontSize: "9px", color: "#c8c8c8" });
-    overlay.add(idLabel);
+    // Header: who this is, and the two identity channels the sprite does show,
+    // so the HUD and the board can be checked against each other.
+    const idText = scene.add.text(HUD.padX, HUD.padY, model.id || model.role, {
+      fontSize: "11px", color: "#e8ecf0",
+    });
+    idText.setScrollFactor?.(0);
+    overlay.add(idText);
 
-    orderedKeys.forEach((key, i) => {
-      const vital = vitals[key];
-      if (!vital || typeof vital !== "object") return;
-      const { current = 0, max = 0, regen } = vital;
-      const cfg = VITAL_COLORS[key] ?? DEFAULT_VITAL_COLOR;
-      const rowY = headerH + i * rowH;
-      const barX = padX + labelW + 4;
-      const barY = rowY + rowH / 2 - 2;
-      const tickH = 7;
-      const indicatorH = 10;
-      const frac = max > 0 ? Math.min(1, Math.max(0, current / max)) : 0;
+    const identity = [model.affinity, model.expression].filter(Boolean).join(" \u00b7 ");
+    if (identity) {
+      const affinityHex = GAME_COLOR_PALETTE.affinities?.[model.affinity] || "#8a949e";
+      const identityText = scene.add.text(HUD.padX + HUD.labelW + 6 + HUD.barW - 30, HUD.padY, identity, {
+        fontSize: "10px", color: affinityHex,
+      });
+      identityText.setScrollFactor?.(0);
+      identityText.setName?.("gameplay-hud-identity");
+      overlay.add(identityText);
+    }
 
-      const labelNode = scene.add.text(padX, rowY + 2, cfg.label, { fontSize: "9px", color: cfg.hex });
-      overlay.add(labelNode);
+    model.vitals.forEach((vital, i) => {
+      const rowY = HUD.padY + HUD.headerH + i * HUD.rowH;
+      const barX = HUD.padX + HUD.labelW + 6;
+      const barY = rowY + HUD.rowH / 2 - HUD.barH / 2;
+      const colorInt = hexToInt(vital.colorHex);
 
-      // track
-      const track = scene.add.rectangle(barX + barW / 2, barY, barW, 4, 0x222228, 1);
+      const label = scene.add.text(HUD.padX, rowY, vital.label, { fontSize: "10px", color: vital.colorHex });
+      label.setScrollFactor?.(0);
+      overlay.add(label);
+
+      // Track then fill: a proportional bar reads faster than a moving tick,
+      // which is what the old quick view drew.
+      const track = scene.add.rectangle(barX + HUD.barW / 2, barY + HUD.barH / 2, HUD.barW, HUD.barH, 0x232a31, 1);
+      track.setScrollFactor?.(0);
       overlay.add(track);
 
-      // min tick (left edge)
-      const minTick = scene.add.rectangle(barX, barY, 2, tickH, cfg.int, 1);
-      overlay.add(minTick);
+      const fillW = Math.max(0, Math.round(HUD.barW * vital.fraction));
+      if (fillW > 0) {
+        const fill = scene.add.rectangle(barX + fillW / 2, barY + HUD.barH / 2, fillW, HUD.barH, colorInt, 1);
+        fill.setScrollFactor?.(0);
+        fill.setName?.(`gameplay-hud-bar:${vital.key}`);
+        overlay.add(fill);
+      }
 
-      // max tick (right edge)
-      const maxTick = scene.add.rectangle(barX + barW, barY, 2, tickH, cfg.int, 1);
-      overlay.add(maxTick);
+      const value = scene.add.text(barX + HUD.barW + 6, rowY, `${vital.current}/${vital.max}`, {
+        fontSize: "10px", color: vital.colorHex,
+      });
+      value.setScrollFactor?.(0);
+      overlay.add(value);
 
-      // current indicator
-      const indX = barX + frac * barW;
-      const indicator = scene.add.rectangle(indX, barY, 2, indicatorH, cfg.int, 1);
-      overlay.add(indicator);
-
-      const valText = scene.add.text(barX + barW + 4, rowY + 2, `${current}/${max}`, { fontSize: "9px", color: cfg.hex });
-      overlay.add(valText);
-
-      const regenCount = regen != null && regen > 0 ? Math.floor(regen) : 0;
-      if (regenCount > 0) {
-        const regenStartX = barX + barW + 4 + valW + 4;
-        for (let bi = 0; bi < regenCount; bi++) {
-          const bx = regenStartX + bi * (REGEN_BLOCK_SIZE + REGEN_BLOCK_GAP) + REGEN_BLOCK_SIZE / 2;
-          overlay.add(scene.add.rectangle(bx, barY, REGEN_BLOCK_SIZE, REGEN_BLOCK_SIZE, cfg.int, 1));
-        }
+      for (let b = 0; b < vital.regen; b += 1) {
+        const bx = barX + HUD.barW + 6 + HUD.valueW + b * (REGEN_BLOCK_SIZE + REGEN_BLOCK_GAP);
+        const block = scene.add.rectangle(bx, barY + HUD.barH / 2, REGEN_BLOCK_SIZE, REGEN_BLOCK_SIZE, colorInt, 1);
+        block.setScrollFactor?.(0);
+        overlay.add(block);
       }
     });
 
-    if (model.equippedAffinity?.kind) {
-      const affY = headerH + orderedKeys.length * rowH + 2;
-      const affText = scene.add.text(padX, affY, model.equippedAffinity.kind, { fontSize: "9px", color: "#88aaff" });
-      overlay.add(affText);
+    if (hasFooter) {
+      const footY = HUD.padY + HUD.headerH + rows * HUD.rowH;
+      const motivation = scene.add.text(HUD.padX, footY, model.motivation, {
+        fontSize: "10px", color: "#8a949e",
+      });
+      motivation.setScrollFactor?.(0);
+      motivation.setName?.("gameplay-hud-motivation");
+      overlay.add(motivation);
     }
 
-    overlay.setDepth?.(200);
+    if (stageEl?.dataset) stageEl.dataset.gameplayHud = model.id || model.role;
   }
 
   async function ensureGame(boardState) {
@@ -869,7 +1090,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
         stageEl.dataset.gameplayCurrentTick = String(tickIndex);
       }
     }
-    configureCamera({ resetView: resetCamera || worldChanged, focusBoardState: boardState });
+    configureCamera({ resetView: resetCamera || worldChanged });
 
     currentContainer = scene.add.container(0, 0);
 
@@ -883,8 +1104,16 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       tileTypeGrid.push(typeRow);
     }
 
-    const FLOOR_BG = 0x3a3a3a;
-    const WALL_BORDER_COLOR = 0xcccccc;
+    // Board backgrounds come from the canonical tile palette (M2, 2026-09-02).
+    // These were local literals that agreed with no other surface: the board drew
+    // floor 0x3a3a3a while the level-preview image drew a pale green floor, and
+    // GAME_COLOR_PALETTE.tiles -- the declared canonical set -- was read by nothing
+    // but tests. The affinity palette's contrast guarantee is measured against
+    // these values, so they cannot be re-invented here.
+    // A stroke colour, not a fill. M3 briefly used tiles.wall here and dropped the
+    // border's contrast against the floor from dE 69.7 to 9.7, so room outlines
+    // nearly vanished. tileBorders is a separate group for exactly this reason.
+    const WALL_BORDER_COLOR = hexToTint(GAME_COLOR_PALETTE.tileBorders.wall);
     const WALL_BORDER_ALPHA = 0.6;
     const WALL_BORDER_W = 2;
 
@@ -907,21 +1136,17 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
         const cy = y * tileHeight + tileHeight / 2;
         const isFloor = tileType === "floor" || tileType === "spawn" || tileType === "exit";
 
-        if (isFloor) {
-          const floorBg = scene.add.rectangle(cx, cy, tileWidth, tileHeight, FLOOR_BG, 1);
-          currentContainer.add(floorBg);
-        }
-
-        const tile = addSurfaceImageOrFallback(
-          resourceBundle,
-          "tiles",
-          tileType,
-          null,
-          cx,
-          cy,
-          tileWidth,
-          tileHeight,
+        // Flat fill from the canonical palette -- no tile PNG. The bundle still ships
+        // medallion-era tile art, and drawing it on top of the palette colour meant
+        // the canonical floor was never actually visible: what showed was a busy
+        // checkered texture plus a detailed exit icon, both in the retired visual
+        // language, competing with the two-channel sprites in front of them.
+        const tile = scene.add.rectangle(
+          cx, cy, tileWidth, tileHeight,
+          hexToTint(GAME_COLOR_PALETTE.tiles[tileType] ?? GAME_COLOR_PALETTE.tiles.floor),
+          1,
         );
+        tile.setName?.(`tile:${tileType}`);
         currentContainer.add(tile);
 
         if (isFloor) {
@@ -936,13 +1161,36 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
           const tileKey = `${x},${y}`;
           const visual = tileVisuals.get(tileKey);
           if (visual) {
-            tile.setTint?.(visual.color);
-            if (typeof visual.alpha === "number") tile.setAlpha?.(visual.alpha);
+            // The affinity field is an OVERLAY on the floor, not the floor's identity.
+            //
+            // It used to tint a floor texture, which multiplies and is therefore
+            // subtle. Once tiles became flat fills, replacing the fill made a
+            // full-intensity field repaint the tile solid -- and since a sprite is
+            // drawn in its own affinity colour, an actor standing in its own field
+            // became that colour on that colour, leaving only its outline visible.
+            //
+            // Drawing a separate capped-alpha rect above the tile keeps the floor
+            // readable underneath and keeps the sprite distinct from its own field.
+            const fieldAlpha = Math.min(
+              MAX_FIELD_ALPHA,
+              typeof visual.alpha === "number" ? visual.alpha : 1,
+            );
+            const field = scene.add.rectangle(cx, cy, tileWidth, tileHeight, visual.color, fieldAlpha);
+            field.setName?.(`tile-field:${tileType}`);
+            currentContainer.add(field);
             if (visual.overlayAssetId) {
-              const overlayNode = scene.add.image(cx, cy, visual.overlayAssetId);
+              // Resolve through the bundle like every other image. This passed
+              // the raw asset id straight to Phaser as a texture key, but
+              // textures are registered under `ak-bundle:<id>` -- so the key
+              // never existed and Phaser drew its missing-texture placeholder
+              // over the tile instead of the overlay. addBundleImage prefixes
+              // the key and checks the texture is actually loaded, returning
+              // null rather than drawing a placeholder when it is not.
+              const overlayAsset = findBundleAsset(resourceBundle, visual.overlayAssetId);
+              const overlayNode = overlayAsset
+                ? addBundleImage(overlayAsset, cx, cy, tileWidth, tileHeight)
+                : null;
               if (overlayNode) {
-                overlayNode.setDisplaySize?.(tileWidth, tileHeight);
-                overlayNode.setOrigin?.(0.5);
                 if (typeof visual.alpha === "number") overlayNode.setAlpha?.(visual.alpha);
                 currentContainer.add(overlayNode);
               }
@@ -982,10 +1230,16 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       if (hx === null || hy === null) continue;
       const cx = hx * tileWidth + tileWidth / 2;
       const cy = hy * tileHeight + tileHeight / 2;
-      const hazardAssetId = resolveHazardAssetId(resourceBundle, hazard);
-      const hazardAsset = findBundleAsset(resourceBundle, hazardAssetId);
-      const hazardShape = addBundleImage(hazardAsset, cx, cy, tileWidth, tileHeight)
-        || addMissingBundleFallback(cx, cy, tileWidth, tileHeight);
+      const hazardShape = addSurfaceImageOrFallback(
+        resourceBundle,
+        "hazards",
+        "hazard",
+        hazard,
+        cx,
+        cy,
+        tileWidth,
+        tileHeight,
+      );
       currentContainer.add(hazardShape);
     }
 
@@ -998,7 +1252,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       const cy = ry * tileHeight + tileHeight / 2;
       const resourceShape = addSurfaceImageOrFallback(
         resourceBundle,
-        "items",
+        "resources",
         "resource",
         resource,
         cx,
@@ -1018,6 +1272,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     mount(nextContainer) {
       container = nextContainer || container;
       stageEl = ensureGameplayStageElement(container);
+      observeContainerSize();
     },
     async renderRun(boardState, { tickIndex = null } = {}) {
       return drawBoard(boardState, { resetCamera: true, tickIndex });
@@ -1055,12 +1310,23 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     isPlayerPanelOpen,
     highlightActor,
     clearHighlight,
-    showQuickView,
-    hideQuickView,
+    showHud,
+    hideHud,
     dispose() {
       closePlayerPanel();
       clearHighlight();
-      hideQuickView();
+      hideHud();
+      hudEntity = null;
+      hudCamera = null;
+      resizeObserver?.disconnect?.();
+      resizeObserver = null;
+      if (domPointerTarget && domPointerHandlers) {
+        for (const [type, handler] of Object.entries(domPointerHandlers)) {
+          domPointerTarget.removeEventListener?.(type, handler);
+        }
+      }
+      domPointerHandlers = null;
+      domPointerTarget = null;
       actorNodes.clear();
       if (currentContainer) {
         currentContainer.destroy(true);

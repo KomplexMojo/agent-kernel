@@ -1,3 +1,4 @@
+import { GAME_AFFINITY_COLOR_HEX } from "../../packages/runtime/src/contracts/game-elements.js";
 import { describe, it } from "vitest";
 import assert from "node:assert/strict";
 import {
@@ -362,11 +363,13 @@ describe("water fire overlap", () => {
 
 describe("deriveTileAffinityVisuals permutations", () => {
   it("supports non-fire canonical hazard affinities", () => {
-    const canonical = [
-      ["water", 0x2b7fff],
-      ["earth", 0x7a5c33],
-      ["wind", 0x8fd3ff],
-    ];
+    // Values come from the canonical palette. The previous literals included
+    // wind 0x8fd3ff, which was ui-web's own drifted copy rather than the real
+    // palette colour -- this test was pinning that divergence.
+    const canonical = ["water", "earth", "wind"].map((kind) => [
+      kind,
+      Number.parseInt(GAME_AFFINITY_COLOR_HEX[kind].slice(1), 16),
+    ]);
 
     for (const [kind, color] of canonical) {
       const visuals = deriveTileAffinityVisuals({

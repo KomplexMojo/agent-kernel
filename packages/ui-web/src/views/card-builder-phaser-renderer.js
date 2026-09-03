@@ -135,20 +135,47 @@ export function createCardBuilderPhaserRenderer({
   // Icon texture loading — loads bundle dataUri images into Phaser once per session
   // ---------------------------------------------------------------------------
 
+  /**
+   * Icon strings arrive in two shapes and only one of them used to be handled.
+   * `<img …>` came from the resource bundle; `<svg …>` is a generated icon from
+   * the sprite language. Anything the loader did not recognise fell through to
+   * being drawn as Phaser TEXT -- so the card rail rendered raw SVG source on
+   * screen while the DOM tests, which only inspect innerHTML strings, passed.
+   */
+  function iconSourceUri(icon) {
+    if (icon.startsWith("<img")) {
+      const match = icon.match(/src="([^"]+)"/);
+      return match ? match[1] : null;
+    }
+    if (icon.startsWith("<svg")) {
+      // Inline SVG rasterises through the same Image path once it is a data URI.
+      return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(icon)}`;
+    }
+    return null;
+  }
+
+  function isIconMarkup(icon) {
+    return typeof icon === "string" && (icon.startsWith("<img") || icon.startsWith("<svg"));
+  }
+
   async function loadIconTextures(entries) {
     if (!scene) return;
+    // Headless hosts (tests, SSR) have no Image constructor. Previously this was
+    // never reached because the fixtures carry no bundle icons; generated icons
+    // always exist, so the guard has to be explicit.
+    const ImageCtor = typeof globalThis.Image === "function" ? globalThis.Image : null;
+    if (!ImageCtor) return;
     const toLoad = entries.filter((e) => {
-      if (typeof e.icon !== "string" || !e.icon.startsWith("<img")) return false;
+      if (!isIconMarkup(e.icon)) return false;
       return !iconTextureCache.has(e.icon);
     });
     await Promise.all(
       toLoad.map((e) => {
-        const match = e.icon.match(/src="([^"]+)"/);
-        if (!match) { iconTextureCache.set(e.icon, null); return Promise.resolve(); }
-        const dataUri = match[1];
+        const dataUri = iconSourceUri(e.icon);
+        if (!dataUri) { iconTextureCache.set(e.icon, null); return Promise.resolve(); }
         const key = `cb-icon-${nextIconTextureId++}`;
         return new Promise((resolve) => {
-          const img = new Image();
+          const img = new ImageCtor();
           img.onload = () => {
             try {
               if (!scene.textures.exists(key)) scene.textures.addImage(key, img);
@@ -300,7 +327,7 @@ export function createCardBuilderPhaserRenderer({
   // Returns { drawn, isBundle } so callers can fall back to a unicode-prefixed label.
   function drawIconAt(x, y, icon, size, { alpha = 1 } = {}) {
     if (!scene || typeof icon !== "string") return { drawn: false, isBundle: false };
-    const isBundle = icon.startsWith("<img");
+    const isBundle = isIconMarkup(icon);
     const textureKey = isBundle ? iconTextureCache.get(icon) : null;
     if (textureKey && scene.textures.exists(textureKey)) {
       addObj(
@@ -329,7 +356,7 @@ export function createCardBuilderPhaserRenderer({
     let iconObj = null;
 
     if (icon) {
-      const isBundleHtml = typeof icon === "string" && icon.startsWith("<img");
+      const isBundleHtml = isIconMarkup(icon);
       const textureKey = isBundleHtml ? iconTextureCache.get(icon) : null;
 
       if (textureKey && scene.textures.exists(textureKey)) {
@@ -621,7 +648,7 @@ export function createCardBuilderPhaserRenderer({
 
     function drawIcon(x, y, html, size, alpha) {
       if (!html) return;
-      if (html.startsWith("<img")) {
+      if (isIconMarkup(html)) {
         drawIconAt(x, y, html, size, { alpha });
       } else {
         addObj(scene.add.text(x + size / 2, y + size / 2, html, {
@@ -796,9 +823,14 @@ export function createCardBuilderPhaserRenderer({
         : { drawn: false };
       if (!iconResult.drawn && cardType) {
         const catalogEntry = buildPropertyCatalog().type.find((e) => e.value === cardType);
-        const emoji = catalogEntry?.icon || "";
-        if (emoji) {
-          addObj(scene.add.text(cardCx, cardCy, emoji, { fontSize: "40px" }).setOrigin(0.5, 0.5).setAlpha(0.55));
+        const fallback = catalogEntry?.icon || "";
+        // Never render markup as text. This fallback exists for unicode glyphs;
+        // when the icon is generated SVG and its texture is not ready (or failed
+        // to rasterise), drawing the string put the raw <svg …> source across the
+        // card face at 40px. Draw nothing instead -- the texture arrives on the
+        // next render pass, and nothing is better than source code either way.
+        if (fallback && !isIconMarkup(fallback)) {
+          addObj(scene.add.text(cardCx, cardCy, fallback, { fontSize: "40px" }).setOrigin(0.5, 0.5).setAlpha(0.55));
         }
       }
     }
@@ -1282,33 +1314,59 @@ export function createCardBuilderPhaserRenderer({
     }
 
     if (type) {
-      const SHELVE_SZ = 22;
-      const shelveCx = editorX + SHELVE_SZ / 2 + 2;
-      const shelveCy = row + SHELVE_SZ / 2;
+      // Pinned to the editor's top-right corner, and always labelled.
+      //
+      // It used to be an unlabelled 22px square at the end of the content flow,
+      // so its position moved with the card: a delver with two motivation rows
+      // put it 32px lower than a warden with one. A control that lands somewhere
+      // different per card cannot be aimed at from memory, and with the label
+      // hidden until hover there was nothing to aim at either. Neither its hit
+      // area nor its drawing was ever wrong -- the target simply moved.
+      const SHELVE_H = 24;
+      const SHELVE_PAD_X = 10;
+      const SHELVE_GLYPH_W = 9;
+      const SHELVE_GAP = 7;
+      const shelveText = `Shelve as ${type}`;
+
+      // Graphics first so the label sits on top of the box; the box is drawn
+      // once the label's real width is known.
       const shelveG = addObj(scene.add.graphics());
-      shelveG.fillStyle(0x3a3420, 1);
-      shelveG.fillRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4);
-      shelveG.lineStyle(1, 0x806820, 0.8);
-      shelveG.strokeRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4);
-      shelveG.fillStyle(0xf0d060, 1);
-      shelveG.fillTriangle(
-        shelveCx - 4, shelveCy - 5,
-        shelveCx + 5, shelveCy,
-        shelveCx - 4, shelveCy + 5,
-      );
       const shelveLabel = addObj(
-        scene.add.text(shelveCx + SHELVE_SZ / 2 + 6, shelveCy, `Shelve as ${type}`,
-          { fontSize: "11px", color: COLOR_SHELVE_BTN }).setOrigin(0, 0.5).setAlpha(0),
+        scene.add.text(0, 0, shelveText, { fontSize: "11px", color: COLOR_SHELVE_BTN }).setOrigin(0, 0.5),
       );
+      const labelW = Number(shelveLabel.width) || shelveText.length * 6;
+      const boxW = SHELVE_PAD_X + SHELVE_GLYPH_W + SHELVE_GAP + labelW + SHELVE_PAD_X;
+      // Right-aligned to the editor panel's own edge, on the header row, so it
+      // holds still no matter what the card below it contains.
+      const boxX = editorX + editorW - boxW;
+      const boxY = topOffset + 8;
+      const glyphX = boxX + SHELVE_PAD_X;
+      const centerY = boxY + SHELVE_H / 2;
+      shelveLabel.setPosition(glyphX + SHELVE_GLYPH_W + SHELVE_GAP, centerY);
+
+      const paintShelve = (hovered) => {
+        shelveG.clear();
+        shelveG.fillStyle(hovered ? 0x4a4428 : 0x3a3420, 1);
+        shelveG.fillRoundedRect(boxX, boxY, boxW, SHELVE_H, 5);
+        shelveG.lineStyle(1, hovered ? 0xa08830 : 0x806820, hovered ? 1 : 0.8);
+        shelveG.strokeRoundedRect(boxX, boxY, boxW, SHELVE_H, 5);
+        shelveG.fillStyle(hovered ? 0xffdd88 : 0xf0d060, 1);
+        shelveG.fillTriangle(
+          glyphX, centerY - 5,
+          glyphX + SHELVE_GLYPH_W, centerY,
+          glyphX, centerY + 5,
+        );
+      };
+      paintShelve(false);
+
       const shelveHit = addObj(
-        scene.add.zone(shelveCx, shelveCy, SHELVE_SZ, SHELVE_SZ).setInteractive({ useHandCursor: true }),
+        scene.add.zone(boxX + boxW / 2, centerY, boxW, SHELVE_H).setInteractive({ useHandCursor: true }),
       );
-      shelveHit.on("pointerover", () => { shelveLabel.setAlpha(1); shelveG.clear().fillStyle(0x4a4428, 1).fillRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).lineStyle(1, 0xa08830, 1).strokeRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).fillStyle(0xffdd88, 1).fillTriangle(shelveCx - 4, shelveCy - 5, shelveCx + 5, shelveCy, shelveCx - 4, shelveCy + 5); });
-      shelveHit.on("pointerout", () => { shelveLabel.setAlpha(0); shelveG.clear().fillStyle(0x3a3420, 1).fillRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).lineStyle(1, 0x806820, 0.8).strokeRoundedRect(shelveCx - SHELVE_SZ / 2, row, SHELVE_SZ, SHELVE_SZ, 4).fillStyle(0xf0d060, 1).fillTriangle(shelveCx - 4, shelveCy - 5, shelveCx + 5, shelveCy, shelveCx - 4, shelveCy + 5); });
+      shelveHit.on("pointerover", () => { paintShelve(true); shelveLabel.setColor?.(COLOR_HOVER); });
+      shelveHit.on("pointerout", () => { paintShelve(false); shelveLabel.setColor?.(COLOR_SHELVE_BTN); });
       shelveHit.on("pointerdown", () => { applyIntent({ kind: "move_card_between_groups", group: type }); void render(); });
       chipRegistry.push({ label: `shelve_${type}`, zone: "editor", role: "shelve_button", value: type,
-        x: shelveCx - SHELVE_SZ / 2, y: row, width: SHELVE_SZ, height: SHELVE_SZ });
-      row += SHELVE_SZ + 4;
+        x: boxX, y: boxY, width: boxW, height: SHELVE_H });
     }
 
   }

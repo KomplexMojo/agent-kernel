@@ -475,20 +475,21 @@ test("wireDesignView refreshes design rail and card icons from the resource bund
       .querySelector('[data-property-value="delver"]')
       ?.querySelector(".design-property-chip-icon");
     assert.ok(delverChipIcon, "delver type chip icon must exist");
-    assert.match(delverChipIcon.innerHTML, /DELVER_ICON/);
+    // Delver is a role: generated from the sprite language, not bundle art.
+    assert.match(delverChipIcon.innerHTML, /<svg /);
 
     const fireChipIcon = elements["#design-property-group-affinities"]
       .querySelector('[data-property-value="fire"]')
       ?.querySelector(".design-property-chip-icon");
     assert.ok(fireChipIcon);
-    assert.match(fireChipIcon.innerHTML, /FIRE_ICON/);
+    assert.match(fireChipIcon.innerHTML, /<svg /);
 
     const blank = view.getActiveCard();
     view.applyPropertyDrop(blank.id, { group: "type", value: "delver" });
     const renderedCard = elements["#design-card-grid"].children.find((child) => child.dataset?.cardId === view.getActiveCard().id);
     const typeIcon = renderedCard?.querySelector(".is-type");
     assert.ok(typeIcon);
-    assert.match(typeIcon.innerHTML, /DELVER_ICON/);
+    assert.match(typeIcon.innerHTML, /<svg /);
   } finally {
     view.setResourceBundle(null);
     setDesignResourceBundle(null);

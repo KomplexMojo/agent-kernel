@@ -75,13 +75,13 @@ result of that run through MCP tools alone.
 
 **What's failing:** `ak_push_to_ui` starts a sandbox bridge WebSocket server on a port it picks
 (`38487` in this run) inside the MCP server's own process, and the browser UI (`packages/ui-web`,
-served via `serve:c`) connects to that port directly (`packages/ui-web/src/main.js:520-521`,
+served via `serve:ui`) connects to that port directly (`packages/ui-web/src/main.js:520-521`,
 `AK_BRIDGE_PORT = globalThis.__ak_sandboxBridgePort ?? 38487`). In this Claude Code harness:
 
 - `curl http://127.0.0.1:38487/` from the harness's own Bash tool: **connection refused**, and the
   port doesn't appear in `lsof -i :38487` at all.
 - The harness's Browser pane (opened via `preview_start`, which *did* successfully reach the
-  `serve:c` dev server on `:8001` through the harness's own tunnel) logs repeated
+  `serve:ui` dev server on `:8001` through the harness's own tunnel) logs repeated
   `WebSocket connection to 'ws://127.0.0.1:38487/ak-sandbox' failed` — the UI loads, but never
   receives the pushed bundle.
 

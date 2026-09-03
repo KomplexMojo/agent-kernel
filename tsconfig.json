@@ -29,5 +29,9 @@
     "packages/*/src/**/*",
     "tests/**/*",
     "docs/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "docs/design/archive/**/*"
   ]
 }

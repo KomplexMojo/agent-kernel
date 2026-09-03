@@ -10,20 +10,23 @@
  * When fieldRecords are absent, falls back to hazard-based JS spread.
  */
 
-// ── Canonical 10-kind palette (numeric RGB for Phaser tint) ──
+// ── Affinity palette, derived from the single origin in runtime ──
+//
+// This module used to hold its own copy of the ten colours as Phaser tint ints,
+// labelled "canonical". It was not: by M2 (2026-09-02) three of its values had
+// drifted to entirely different colours from the real palette --
+//   wind    0x8fd3ff pale blue  vs  #60d8c0 teal
+//   decay   0x6f7b46 olive      vs  #a05828 amber-rust
+//   corrode 0x7fbf42 green      vs  #c8c030 acid yellow
+// so board tile tints disagreed with every other surface in the game. The copy is
+// gone; the ints are computed from GAME_AFFINITY_COLOR_HEX at load.
+import { GAME_AFFINITY_COLOR_HEX } from "../../../runtime/src/contracts/game-elements.js";
 
-const AFFINITY_COLORS = {
-  fire:    0xf05a28,
-  water:   0x2b7fff,
-  earth:   0x7a5c33,
-  wind:    0x8fd3ff,
-  life:    0x49b96b,
-  decay:   0x6f7b46,
-  corrode: 0x7fbf42,
-  fortify: 0x9ca3af,
-  light:   0xf5d14d,
-  dark:    0x0b0d12,
-};
+const AFFINITY_COLORS = Object.freeze(
+  Object.fromEntries(
+    Object.entries(GAME_AFFINITY_COLOR_HEX).map(([kind, hex]) => [kind, Number.parseInt(hex.slice(1), 16)]),
+  ),
+);
 
 const DEFAULT_COLOR = 0xffffff;
 

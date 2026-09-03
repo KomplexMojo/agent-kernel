@@ -9,6 +9,7 @@ import {
   validateAffinityPalette,
 } from "../../packages/runtime/src/render/affinity-palette.js";
 import { AFFINITY_KINDS } from "../../packages/runtime/src/contracts/domain-constants.js";
+import { GAME_AFFINITY_COLOR_HEX } from "../../packages/runtime/src/contracts/game-elements.js";
 
 describe("affinity-palette", () => {
   describe("AFFINITY_COLOR_HEX", () => {
@@ -30,12 +31,14 @@ describe("affinity-palette", () => {
       assert.equal(Object.keys(AFFINITY_COLOR_HEX).length, 10);
     });
 
-    it("should provide the expected colors for key affinities", () => {
-      assert.equal(AFFINITY_COLOR_HEX.fire, "#f05a28");
-      assert.equal(AFFINITY_COLOR_HEX.water, "#2b7fff");
-      assert.equal(AFFINITY_COLOR_HEX.light, "#f5d14d");
-      assert.equal(AFFINITY_COLOR_HEX.fortify, "#9ca3af");
-      assert.equal(AFFINITY_COLOR_HEX.dark, "#0b0d12");
+    it("re-exports the canonical palette without altering it", () => {
+      // This used to be a frozen list of five hex literals. That is a second copy
+      // of the palette wearing a test's clothes: it broke on every legitimate
+      // colour change while catching nothing about whether the colours were any
+      // good. Separation quality is now owned by
+      // tests/runtime/affinity-palette-separation.test.js; what matters HERE is
+      // that this module does not diverge from its origin.
+      assert.deepEqual(AFFINITY_COLOR_HEX, GAME_AFFINITY_COLOR_HEX);
     });
   });
 
@@ -136,8 +139,10 @@ describe("affinity-palette", () => {
 
   describe("getAffinityRgba", () => {
     it("should return RGBA for valid affinity kind", () => {
+      // Literal on purpose: computing the expectation the same way the function
+      // does would not catch a swapped channel. #fe4b2c.
       const rgba = getAffinityRgba("fire");
-      assert.deepEqual(rgba, [240, 90, 40, 255]);
+      assert.deepEqual(rgba, [254, 75, 44, 255]);
     });
 
     it("should apply custom alpha", () => {

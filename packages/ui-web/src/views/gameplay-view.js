@@ -166,15 +166,17 @@ export function wireGameplayView({
 
   const renderer = createRenderer({
     onSelect: (pos) => selectEntity(pos),
+    // Hover and selection share ONE panel. Previously hover drew a separate
+    // world-space quick view anchored to the tile, which shrank with camera zoom
+    // and was unreadable exactly when zoomed out. Now hover previews into the
+    // camera-fixed HUD and releasing hover falls back to whatever is selected,
+    // so there is one place to look and never two panels showing vitals.
     onHover: (pos) => {
       const model = resolveDisplayModel(pos);
-      if (model) {
-        renderer.showQuickView?.(model);
-      } else {
-        renderer.hideQuickView?.();
-      }
+      if (model) renderer.showHud?.(model);
+      else refreshHud();
     },
-    onHoverEnd: () => renderer.hideQuickView?.(),
+    onHoverEnd: () => refreshHud(),
     onKeyPress: ({ key }) => {
       if (!isRunActive()) return;
       if (key === "escape") {
@@ -263,6 +265,7 @@ export function wireGameplayView({
     renderer.clearHighlight?.();
     actorInspector?.clearSelection?.();
     actorInspector?.setRunning?.(false);
+    renderer.hideHud?.();
   }
 
   function stepForward() {
@@ -273,6 +276,7 @@ export function wireGameplayView({
     syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
+    refreshHud();
   }
 
   function stepBack() {
@@ -283,6 +287,7 @@ export function wireGameplayView({
     syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
+    refreshHud();
   }
 
   /**
@@ -299,6 +304,7 @@ export function wireGameplayView({
     syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
+    refreshHud();
     setStatus(`Run completed at tick ${currentFrameIndex}.`);
   }
 
@@ -314,6 +320,17 @@ export function wireGameplayView({
     syncEntityIndex();
     updateStepButtons();
     actorInspector?.setActors?.(frame?.observation?.actors || [], { tick: currentFrameIndex });
+    refreshHud();
+  }
+
+  // The HUD's resting state is the current selection; hover only borrows it.
+  function refreshHud() {
+    if (!selectedEntity?.position) {
+      renderer.hideHud?.();
+      return;
+    }
+    const model = resolveDisplayModel(selectedEntity.position) || selectedEntity;
+    renderer.showHud?.(model);
   }
 
   function selectEntity(position) {
@@ -321,11 +338,19 @@ export function wireGameplayView({
     const key = `${position.x},${position.y}`;
     const entity = entityIndex.get(key) ?? null;
     selectedEntity = entity;
-    actorInspector?.selectEntityAtPosition?.(position);
+    // notify:false breaks a feedback loop that destroyed this very selection.
+    // The inspector, told about a position with no actor of its own there,
+    // resolves the nearest positioned entity instead -- a ROOM -- and notifies,
+    // which re-enters handleInspectorSelect with the room's tile. That tile is
+    // not in entityIndex, so the selection we just made was overwritten with
+    // null and the HUD never appeared. Board clicks drive the inspector, not the
+    // other way round; it has no business answering back here.
+    actorInspector?.selectEntityAtPosition?.(position, { notify: false });
     if (entity?.position) {
       renderer.highlightActor?.(entity.position);
       renderer.centerOnTile?.(entity.position);
     }
+    refreshHud();
     return entity;
   }
 
@@ -440,9 +465,17 @@ export function wireGameplayView({
     const pos = payload.position;
     const key = `${Math.floor(Number(pos.x))},${Math.floor(Number(pos.y))}`;
     const entity = entityIndex.get(key) ?? null;
+    // Resolving nothing is not a request to deselect. This assigned
+    // unconditionally, so any callback carrying a tile the board does not index
+    // -- a room, or a stale position from an earlier tick -- silently dropped
+    // the current selection and hid its HUD. Leave the board alone instead of
+    // clearing it on a miss, and do not move the camera to a tile that holds
+    // nothing.
+    if (!entity) return;
     selectedEntity = entity;
     renderer.highlightActor?.(pos);
     renderer.centerOnTile?.(pos);
+    refreshHud();
   }
 
   return {

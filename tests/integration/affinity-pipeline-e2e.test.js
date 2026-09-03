@@ -12,6 +12,11 @@
  *   runtime (core-setup) -> core-ts -> core-ts -> ui-web (tile-affinity-visuals)
  */
 
+const { GAME_AFFINITY_COLOR_HEX: _PALETTE_HEX } = require("../../packages/runtime/src/contracts/game-elements.js");
+const PALETTE_INT = Object.fromEntries(
+  Object.entries(_PALETTE_HEX).map(([kind, hex]) => [kind, Number.parseInt(hex.slice(1), 16)]),
+);
+
 const assert = require("node:assert/strict");
 
 test("affinity pipeline e2e: fixture -> core -> field records -> tile visuals -> renderer shape", async () => {
@@ -146,7 +151,7 @@ test("affinity pipeline e2e: fixture -> core -> field records -> tile visuals ->
   const originVisual = tileVisualsMap.get("3,3");
   assert.ok(originVisual, "origin tile has visual");
   assert.equal(originVisual.affinityKind, "fire", "origin visual kind = fire");
-  assert.equal(originVisual.color, 0xf05a28, "fire color");
+  assert.equal(originVisual.color, PALETTE_INT.fire, "fire color propagates from the canonical palette");
   assert.ok(originVisual.intensity > 0, "origin visual intensity > 0");
   assert.ok(originVisual.alpha > 0, "origin visual alpha > 0");
   assert.ok(originVisual.alpha <= 1, "origin visual alpha <= 1");
@@ -169,7 +174,7 @@ test("affinity pipeline e2e: fixture -> core -> field records -> tile visuals ->
   const actorVisual = tileVisualsMap.get("0,0");
   if (actorVisual) {
     assert.equal(actorVisual.affinityKind, "water", "actor tile has water affinity");
-    assert.equal(actorVisual.color, 0x2b7fff, "water color");
+    assert.equal(actorVisual.color, PALETTE_INT.water, "water color propagates from the canonical palette");
   }
 
   // Only fire and water visuals should be present (no other kinds)
@@ -239,18 +244,15 @@ test("water/fire sandbox bundle: full pipeline produces visuals with contributio
 test("affinity pipeline visual permutations preserve colors, dominance, contributions, and key shape", async () => {
   const { deriveTileAffinityVisuals } = await import("../../packages/ui-web/src/views/tile-affinity-visuals.js");
 
-  const colors = {
-    fire: 0xf05a28,
-    water: 0x2b7fff,
-    earth: 0x7a5c33,
-    wind: 0x8fd3ff,
-    life: 0x49b96b,
-    decay: 0x6f7b46,
-    corrode: 0x7fbf42,
-    fortify: 0x9ca3af,
-    light: 0xf5d14d,
-    dark: 0x0b0d12,
-  };
+  // Derived from the single origin, not copied. This table used to hold literals --
+  // and had copied ui-web's DRIFTED wind/decay/corrode, so it pinned the bug in place
+  // and would have failed when the bug was fixed. What this test is for is that colour
+  // survives the pipeline, so it asserts propagation, not specific values; the values
+  // themselves are owned by tests/runtime/affinity-palette-separation.test.js.
+  const { GAME_AFFINITY_COLOR_HEX } = require("../../packages/runtime/src/contracts/game-elements.js");
+  const colors = Object.fromEntries(
+    Object.entries(GAME_AFFINITY_COLOR_HEX).map(([kind, hex]) => [kind, Number.parseInt(hex.slice(1), 16)]),
+  );
   const fieldRecords = Object.keys(colors).map((kind, index) => ({
     x: index,
     y: 0,

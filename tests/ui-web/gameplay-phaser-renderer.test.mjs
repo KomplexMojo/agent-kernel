@@ -34,6 +34,8 @@ function createFakePhaser(records = {}) {
       setVisible(v) { this.visible = v; return this; },
       setInteractive() { this.interactive = true; return this; },
       setScrollFactor(f) { this.scrollFactor = f; return this; },
+      // Phaser Shapes (rectangle/circle) expose setFillStyle, not setTint.
+      setFillStyle(color, alpha) { this.fillColor = color; if (alpha !== undefined) this.fillAlpha = alpha; return this; },
       on(event, handler) { (this.handlers = this.handlers || {})[event] = handler; return this; },
       destroy() { this.destroyed = true; },
     };
@@ -42,7 +44,15 @@ function createFakePhaser(records = {}) {
   class Game {
     constructor(config) {
       records.config = config;
-      this.canvas = { style: {} };
+      // A canvas that accepts DOM listeners and reports a box, so tests can
+      // exercise the listeners that actually run in the browser rather than
+      // calling the scene.input handlers directly.
+      this.canvas = {
+        style: {},
+        width: 800,
+        height: 600,
+        getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 }),
+      };
       const textureStore = records.textureStore || new Map();
       records.textureStore = textureStore;
       this.scale = {
@@ -156,6 +166,17 @@ function createFakePhaser(records = {}) {
           },
         },
         cameras: {
+          add(x, y, w, h) {
+            const cam = {
+              x, y, width: w, height: h, zoom: 1, scrollX: 0, scrollY: 0, ignored: [],
+              setName(n) { this.name = n; return this; },
+              setZoom(z) { this.zoom = z; return this; },
+              setScroll(sx, sy) { this.scrollX = sx; this.scrollY = sy; return this; },
+              ignore(objs) { this.ignored.push(...[].concat(objs || [])); return this; },
+            };
+            (records.extraCameras = records.extraCameras || []).push(cam);
+            return cam;
+          },
           main: {
             scrollX: 0,
             scrollY: 0,
@@ -212,6 +233,20 @@ function createFakePhaser(records = {}) {
   return { AUTO: "AUTO", Scale: { NONE: "NONE" }, Game };
 }
 
+/**
+ * The listeners production actually binds.
+ *
+ * Board input is DOM listeners on the STAGE (Phaser v4 delivers no scene.input
+ * pointer events). Driving them, rather than calling handler functions with
+ * synthetic pointer objects, is the whole point: the old tests asserted the
+ * handler's logic and never that an event reached it, so clicking an actor was
+ * dead in the browser while they stayed green.
+ */
+let lastStage = null;
+function boardListeners() {
+  return lastStage?.listeners || {};
+}
+
 function makeContainer() {
   let stage = null;
   return {
@@ -222,12 +257,37 @@ function makeContainer() {
     },
     appendChild(child) {
       stage = child;
+      lastStage = child;
       child.parentElement = this;
     },
     get stage() {
       return stage;
     },
   };
+}
+
+/**
+ * A DOM pointer event over a world point.
+ *
+ * Board input is DOM listeners on the canvas (Phaser v4 delivers no scene.input
+ * pointer events), so tests drive events, not handler arguments -- otherwise
+ * they assert the handler's logic without proving anything reaches it. The fake
+ * canvas reports a 0,0-anchored box at scale 1, so this is just the camera
+ * transform the renderer inverts.
+ */
+function pointerAt(records, worldX, worldY, extra = {}) {
+  const cam = records.scene?.cameras?.main || {};
+  const zoom = Number(cam.zoom) || 1;
+  return screenPointer(
+    (worldX - (cam.scrollX || 0)) * zoom,
+    (worldY - (cam.scrollY || 0)) * zoom,
+    extra,
+  );
+}
+
+/** A DOM pointer event at a screen position, for drags measured in screen px. */
+function screenPointer(clientX, clientY, extra = {}) {
+  return { clientX, clientY, buttons: 0, preventDefault() {}, ...extra };
 }
 
 const BOARD_STATE = {
@@ -341,7 +401,7 @@ test("gameplay phaser renderer renders archetype wardens and delvers as distinct
   renderer.dispose();
 });
 
-test("gameplay phaser renderer composes actor medallion textures for v2 resource bundles", async () => {
+test("gameplay phaser renderer composes entity sprite textures for v2 resource bundles", async () => {
   const records = {};
   const container = makeContainer();
   const renderer = createGameplayPhaserRenderer({
@@ -379,15 +439,142 @@ test("gameplay phaser renderer composes actor medallion textures for v2 resource
     },
   });
 
-  const medallionImages = records.images.filter((img) => String(img.textureKey).startsWith("ak-medallion:64:delver-1"));
-  assert.equal(medallionImages.length, 1, "actor should render from a generated medallion texture");
+  // Key is {size}:{role}:{affinity} -- deliberately NOT the actor id. The medallion
+  // keyed on id plus a fingerprint of all four vitals, so one texture existed per
+  // actor and was rebuilt on every point of damage.
+  const spriteImages = records.images.filter((img) => String(img.textureKey) === "ak-sprite:64:delver:fire");
+  assert.equal(spriteImages.length, 1, "actor should render from a generated entity sprite texture");
   assert.equal(records.createdTextures.length, 1, "one canvas texture should be created for the composed actor");
   assert.deepEqual(
     { width: records.canvasPuts[0]?.width, height: records.canvasPuts[0]?.height },
     { width: 64, height: 64 },
   );
   assert.equal(records.canvasPuts[0].data.length, 64 * 64 * 4);
-  assert.equal(container.stage.dataset.gameplayActorMedallions, "runtime");
+  assert.equal(container.stage.dataset.gameplayEntitySprites, "runtime");
+  renderer.dispose();
+});
+
+const V2_BUNDLE = {
+  schema: "agent-kernel/ResourceBundleArtifact",
+  schemaVersion: 2,
+  bundleVersion: 2,
+  tileWidth: 32,
+  tileHeight: 32,
+  assets: [],
+  mappings: {},
+};
+
+test("entity sprite textures are shared across entities with the same role and affinity", async () => {
+  // The medallion keyed on actor id, so N actors meant N canvas textures. A sprite
+  // depends only on role+affinity, so three fire delvers share one.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 4,
+    boardHeight: 4,
+    tiles: ["....", "....", "....", "...."],
+    observation: {
+      actors: [
+        { id: "d1", type: "delver", position: { x: 0, y: 0 }, affinities: [{ kind: "fire" }] },
+        { id: "d2", type: "delver", position: { x: 1, y: 0 }, affinities: [{ kind: "fire" }] },
+        { id: "d3", type: "delver", position: { x: 2, y: 0 }, affinities: [{ kind: "fire" }] },
+        { id: "w1", type: "warden", position: { x: 3, y: 0 }, affinities: [{ kind: "fire" }] },
+      ],
+      hazards: [],
+      resources: [],
+    },
+    resourceBundle: V2_BUNDLE,
+  });
+  const keys = records.createdTextures.map((t) => t.key);
+  assert.deepEqual(
+    [...new Set(keys)].sort(),
+    ["ak-sprite:32:delver:fire", "ak-sprite:32:warden:fire"],
+    "three fire delvers and one fire warden should need exactly two textures",
+  );
+  assert.equal(keys.length, 2, "a texture that already exists must not be recomposed");
+  renderer.dispose();
+});
+
+test("changing vitals does not invalidate an entity sprite texture", async () => {
+  // The regression the old cache key caused: its key embedded a fingerprint of all
+  // four vitals, so a point of damage forced a fresh canvas compose every tick.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
+  renderer.mount(container);
+  const frame = (health) => ({
+    ...BOARD_STATE,
+    boardWidth: 2,
+    boardHeight: 2,
+    tiles: ["..", ".."],
+    observation: {
+      actors: [{
+        id: "d1", type: "delver", position: { x: 0, y: 0 },
+        affinities: [{ kind: "water" }],
+        vitals: { health: { current: health, max: 10 } },
+      }],
+      hazards: [],
+      resources: [],
+    },
+    resourceBundle: V2_BUNDLE,
+  });
+  await renderer.renderRun(frame(10));
+  await renderer.renderRun(frame(6));
+  await renderer.renderRun(frame(1));
+  assert.equal(
+    records.createdTextures.filter((t) => t.key === "ak-sprite:32:delver:water").length,
+    1,
+    "vitals belong to the HUD and must not touch the sprite cache",
+  );
+  renderer.dispose();
+});
+
+test("hazards and resources render composed sprites, not bundle art", async () => {
+  // These two bypassed the composed path entirely before M3, so the board mixed
+  // the new sprite language for actors with retired PNG art for everything else.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 3,
+    boardHeight: 3,
+    tiles: ["...", "...", "..."],
+    observation: {
+      actors: [],
+      hazards: [{ id: "h1", position: { x: 0, y: 0 }, affinity: { kind: "decay" } }],
+      resources: [{ id: "r1", position: { x: 2, y: 2 }, affinity: { kind: "life" } }],
+    },
+    resourceBundle: V2_BUNDLE,
+  });
+  const keys = records.createdTextures.map((t) => t.key);
+  assert.ok(keys.includes("ak-sprite:32:hazard:decay"), `hazard sprite missing, got ${JSON.stringify(keys)}`);
+  assert.ok(keys.includes("ak-sprite:32:resource:life"), `resource sprite missing, got ${JSON.stringify(keys)}`);
+  renderer.dispose();
+});
+
+test("camera never shrinks a tile below the legible floor", async () => {
+  // Option (a): M1's silhouettes are guaranteed distinct down to 12px and no
+  // further, so the camera must refuse to go past it however large the level.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 400,
+    boardHeight: 400,
+    tiles: Array.from({ length: 400 }, () => ".".repeat(400)),
+    observation: { actors: [], hazards: [], resources: [] },
+    resourceBundle: V2_BUNDLE,
+  });
+  const { zoom } = renderer.getCameraState();
+  assert.ok(zoom >= 0.4, `camera zoomed to ${zoom}, past the 0.4 floor`);
+  assert.ok(zoom * 32 >= 12, `a tile would render at ${(zoom * 32).toFixed(1)}px, below the 12px floor`);
   renderer.dispose();
 });
 
@@ -424,7 +611,7 @@ test("gameplay phaser renderer keeps v1 static actor asset rendering unchanged",
     records.images.some((img) => img.textureKey === "ak-bundle:actor.delver"),
     "v1 actor rendering should continue to use the static bundle texture",
   );
-  assert.equal(records.createdTextures.length, 0, "v1 actor rendering must not create medallion canvas textures");
+  assert.equal(records.createdTextures.length, 0, "v1 actor rendering must not create composed canvas textures");
   renderer.dispose();
 });
 
@@ -472,7 +659,65 @@ test("gameplay phaser renderer calls game.destroy on dispose", async () => {
   assert.equal(records.destroyed, true);
 });
 
-test("gameplay phaser renderer wires onSelect through input handler", async () => {
+/**
+ * A container whose stage cannot take listeners until `enableListeners()`.
+ *
+ * This is the browser failure in miniature: on the first bind the element was
+ * not yet an event target, so nothing attached.
+ */
+function makeContainerWithLateStage() {
+  const listeners = Object.create(null);
+  const stage = {
+    dataset: {},
+    classList: { add() {} },
+    querySelector: () => null,
+    listeners,
+  };
+  return {
+    clientWidth: 400,
+    clientHeight: 300,
+    stage,
+    querySelector: (sel) => (sel === "[data-gameplay-phaser-stage]" ? stage : null),
+    appendChild() {},
+    enableListeners() {
+      stage.addEventListener = (type, handler) => { listeners[type] = handler; };
+      stage.removeEventListener = (type) => { delete listeners[type]; };
+    },
+  };
+}
+
+test("the HUD readout is cleared when the HUD is hidden", async () => {
+  // The dataset field is how a caller (and these tests) tell whether the HUD is
+  // up. Leaving the last entity's id on it after deselecting reports a selection
+  // that is not on screen.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+  const stage = container.stage;
+
+  renderer.showHud({ id: "delver-1", type: "delver", position: { x: 2, y: 2 },
+    vitals: { health: { current: 8, max: 10 } } });
+  assert.equal(stage.dataset.gameplayHud, "delver-1", "showing the HUD should stamp the readout");
+
+  renderer.hideHud();
+  assert.equal(
+    stage.dataset.gameplayHud,
+    undefined,
+    "deselecting must clear it, not leave the previous entity behind",
+  );
+  renderer.dispose();
+});
+
+test("a click that jitters still selects -- a real mouse is never perfectly still", async () => {
+  // The defect this exists for: pointermove latched "dragged" on ANY movement,
+  // so one pixel of hand tremor between press and release threw the click away
+  // and clicking an actor did nothing. Every test here dispatched down->up with
+  // no move in between, which is a path no real hand takes, so all of them
+  // passed while the board was unusable.
   const records = {};
   const container = makeContainer();
   const selected = [];
@@ -480,18 +725,245 @@ test("gameplay phaser renderer wires onSelect through input handler", async () =
     loadPhaser: async () => createFakePhaser(records),
     onSelect: (pos) => selected.push(pos),
   });
-
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
+  const dom = boardListeners();
 
-  assert.equal(typeof records.inputHandlers.pointerup, "function", "pointerup handler must be registered");
-  records.inputHandlers.pointerdown({ x: 20, y: 20, worldX: 20, worldY: 20 });
-  records.inputHandlers.pointerup({ x: 20, y: 20, worldX: 20, worldY: 20 });
-  assert.equal(selected.length, 1);
+  for (const jitter of [1, 2, 3, 5, 6]) {
+    selected.length = 0;
+    dom.pointerdown(screenPointer(80, 80, { buttons: 1 }));
+    dom.pointermove(screenPointer(80 + jitter, 80, { buttons: 1 }));
+    dom.pointerup(screenPointer(80 + jitter, 80));
+    assert.equal(selected.length, 1, `a ${jitter}px jitter must still select`);
+  }
+
+  // Jitter that wanders back and forth is still a click, not a drag.
+  selected.length = 0;
+  dom.pointerdown(screenPointer(80, 80, { buttons: 1 }));
+  for (const [x, y] of [[81, 80], [81, 81], [80, 81], [82, 81]]) {
+    dom.pointermove(screenPointer(x, y, { buttons: 1 }));
+  }
+  dom.pointerup(screenPointer(82, 81));
+  assert.equal(selected.length, 1, "several small moves are still a click");
   renderer.dispose();
 });
 
-test("gameplay phaser renderer focuses the entry room on first render instead of fitting the full level", async () => {
+test("movement past the threshold is a drag and selects nothing", async () => {
+  // The other half: the threshold has to still mean something.
+  const records = {};
+  const container = makeContainer();
+  const selected = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onSelect: (pos) => selected.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+  const dom = boardListeners();
+
+  dom.pointerdown(screenPointer(80, 80, { buttons: 1 }));
+  dom.pointermove(screenPointer(100, 90, { buttons: 1 }));
+  dom.pointermove(screenPointer(130, 110, { buttons: 1 }));
+  dom.pointerup(screenPointer(130, 110));
+  assert.equal(selected.length, 0, "a real drag must not select");
+  renderer.dispose();
+});
+
+test("displacement is measured from the press, not from the last move", async () => {
+  // With one shared point, `moved` at pointerup measured only the final mouse
+  // segment: a long drag that ended with a small step read as a click.
+  const records = {};
+  const container = makeContainer();
+  const selected = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onSelect: (pos) => selected.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+  const dom = boardListeners();
+
+  dom.pointerdown(screenPointer(80, 80, { buttons: 1 }));
+  // Travel a long way, then creep the last pixel before releasing.
+  dom.pointermove(screenPointer(200, 80, { buttons: 1 }));
+  dom.pointermove(screenPointer(201, 80, { buttons: 1 }));
+  dom.pointerup(screenPointer(201, 80));
+  assert.equal(selected.length, 0, "ending a drag slowly must not read as a click");
+  renderer.dispose();
+});
+
+// Mirrors DRAG_SELECT_THRESHOLD in the renderer: how far a press may travel and
+// still count as a click.
+const DRAG_SELECT_THRESHOLD_PX = 6;
+
+test("crossing the drag threshold does not jump the camera by the threshold", async () => {
+  // Panning starts from where the drag began, not from the press, or the view
+  // lurches by the whole threshold distance the moment a drag is recognised.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 30,
+    boardHeight: 20,
+    tiles: Array.from({ length: 20 }, () => ".".repeat(30)),
+  });
+  const dom = boardListeners();
+  const camera = records.scene.cameras.main;
+  const startScroll = { x: camera.scrollX, y: camera.scrollY };
+
+  dom.pointerdown(screenPointer(200, 150, { buttons: 1 }));
+  // One pixel past the threshold: the view should move by about that one pixel,
+  // not by the whole threshold distance.
+  dom.pointermove(screenPointer(207, 150, { buttons: 1 }));
+  const afterCrossing = Math.abs(camera.scrollX - startScroll.x) * (records.camera.zoom || 1);
+  assert.ok(
+    afterCrossing < DRAG_SELECT_THRESHOLD_PX,
+    `crossing the threshold lurched ${afterCrossing}px, expected under ${DRAG_SELECT_THRESHOLD_PX}`,
+  );
+
+  // Continuing the drag keeps panning, and the motion is not swallowed.
+  dom.pointermove(screenPointer(247, 150, { buttons: 1 }));
+  assert.ok(
+    Math.abs(camera.scrollX - startScroll.x) > afterCrossing,
+    "continuing the drag must pan further",
+  );
+  renderer.dispose();
+});
+
+test("a bind that attached no listeners is retried, not latched", async () => {
+  // The latch guarding bindCameraInput used to be set even when nothing was
+  // bound. One early miss then disabled board input for the life of the
+  // renderer, silently -- there is no error, the clicks simply do nothing.
+  const records = {};
+  const container = makeContainerWithLateStage();
+  const selected = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onSelect: (pos) => selected.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+  assert.deepEqual(
+    Object.keys(container.stage.listeners),
+    [],
+    "nothing is bindable yet, so nothing should be bound",
+  );
+
+  container.enableListeners();
+  await renderer.renderRun(BOARD_STATE);
+
+  assert.equal(
+    typeof container.stage.listeners.pointerup,
+    "function",
+    "the next render must retry the bind rather than trust a latch",
+  );
+  const cam = records.scene.cameras.main;
+  const at = (extra) => ({
+    clientX: (80 - (cam.scrollX || 0)) * (cam.zoom || 1),
+    clientY: (80 - (cam.scrollY || 0)) * (cam.zoom || 1),
+    buttons: 0,
+    preventDefault() {},
+    ...extra,
+  });
+  container.stage.listeners.pointerdown(at({ buttons: 1 }));
+  container.stage.listeners.pointerup(at());
+  assert.equal(selected.length, 1, "board input must work after the retry");
+  renderer.dispose();
+});
+
+test("a real pointer click on the board selects the tile under it", async () => {
+  // The pre-existing selection test drove records.inputHandlers.pointerup(...)
+  // directly, which asserts the handler's logic but never that an event reaches
+  // it. In Phaser v4 nothing reached it, so clicking an actor did nothing while
+  // that test stayed green -- the guard was aimed at the wrong thing.
+  // This dispatches through the canvas listeners that actually run.
+  const records = {};
+  const container = makeContainer();
+  const selected = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onSelect: (pos) => selected.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+
+  const dom = boardListeners();
+  assert.ok(dom?.pointerdown && dom?.pointerup, "canvas pointer listeners must be registered");
+
+  const click = (x, y) => {
+    dom.pointerdown({ clientX: x, clientY: y, buttons: 1 });
+    dom.pointerup({ clientX: x, clientY: y, buttons: 0 });
+  };
+  click(80, 80);
+  assert.equal(selected.length, 1, "a click must select");
+
+  // Assert the MAPPING rather than an absolute tile: where the camera happens to
+  // sit is not what this is testing, and pinning it would bake the fake's scroll
+  // into the expectation. A tile is 32 WORLD px, so on screen it spans 32 * zoom
+  // -- the fit no longer clamps at 1, so this cannot assume they are the same.
+  const { zoom } = renderer.getCameraState();
+  click(80 + 32 * zoom, 80 + 32 * zoom);
+  assert.equal(selected.length, 2);
+  assert.deepEqual(
+    { dx: selected[1].x - selected[0].x, dy: selected[1].y - selected[0].y },
+    { dx: 1, dy: 1 },
+    "a 32px move must advance exactly one tile",
+  );
+  renderer.dispose();
+});
+
+test("a drag pans the board instead of selecting", async () => {
+  const records = {};
+  const container = makeContainer();
+  const selected = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onSelect: (pos) => selected.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+
+  const dom = boardListeners();
+  dom.pointerdown({ clientX: 80, clientY: 80, buttons: 1 });
+  dom.pointermove({ clientX: 160, clientY: 140, buttons: 1 });
+  dom.pointerup({ clientX: 160, clientY: 140, buttons: 0 });
+  assert.equal(selected.length, 0, "a drag must not select");
+  renderer.dispose();
+});
+
+test("hovering the board reports the tile under the pointer", async () => {
+  const records = {};
+  const container = makeContainer();
+  const hovered = [];
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+    onHover: (pos) => hovered.push(pos),
+  });
+  renderer.mount(container);
+  await renderer.renderRun(BOARD_STATE);
+
+  boardListeners().pointermove({ clientX: 48, clientY: 48, buttons: 0 });
+  const first = hovered.at(-1);
+  boardListeners().pointermove({ clientX: 48 + 64, clientY: 48, buttons: 0 });
+  const second = hovered.at(-1);
+  assert.ok(first && second, "hover must report a tile");
+  assert.deepEqual(
+    { dx: second.x - first.x, dy: second.y - first.y },
+    { dx: 2, dy: 0 },
+    "a 64px horizontal move must advance exactly two tiles",
+  );
+  renderer.dispose();
+});
+
+test("gameplay phaser renderer fits the whole level on first render", async () => {
+  // Changed 2026-09-02. The initial view used to frame only the room containing
+  // the spawn, which made a five-room level look like a one-room level on load:
+  // the other four sat off-screen with nothing indicating they existed. Loading a
+  // run now shows exactly what the Fit button shows.
   const records = {};
   const container = makeContainer();
   const renderer = createGameplayPhaserRenderer({
@@ -507,15 +979,50 @@ test("gameplay phaser renderer focuses the entry room on first render instead of
     simConfig: { layout: { data: { width: 30, height: 20, rooms: [{ id: "R1", x: 0, y: 0, width: 4, height: 4 }] } }, seed: 0 },
   });
 
-  // setBounds always spans the whole world (scroll clamping), even though
-  // the initial view only focuses on the entry room.
-  assert.deepEqual(records.camera.bounds, [0, 0, 960, 640]);
-  // Focused on the 4x4 entry room (plus 1-tile padding) instead of the full
-  // 960x640 world, so the fit zoom is well above 1 rather than the ~0.42
-  // the old whole-level fit would have produced.
-  assert.ok(records.camera.zoom > 1, "should zoom in on the entry room, not out to fit the whole level");
-  assert.notDeepEqual(records.camera.center, [480, 320], "should not center on the whole level");
+  // Bounds must CONTAIN the world and stay centred on it. They are no longer the
+  // world exactly: Phaser clamps scroll to bounds, so a world smaller than the
+  // viewport could not be centred and pinned to one corner, leaving a dead strip.
+  const [bx, by, bw, bh] = records.camera.bounds;
+  assert.ok(bw >= 960 && bh >= 640, `bounds ${bw}x${bh} must contain the 960x640 world`);
+  assert.equal(bx + bw / 2, 960 / 2, "bounds must stay centred on the world in x");
+  assert.equal(by + bh / 2, 640 / 2, "bounds must stay centred on the world in y");
+  // Centred on the level, not on a room inside it.
+  assert.deepEqual(records.camera.center, [480, 320], "should centre on the whole level");
+  // The whole world fits the viewport in BOTH axes -- that is what "fit" means.
+  // It is no longer capped at 1: the level fills the screen, so a small level is
+  // magnified rather than left sitting in a corner.
+  assert.ok(
+    records.camera.zoom * 960 <= container.clientWidth + 1,
+    `fitted world width ${records.camera.zoom * 960} exceeds viewport ${container.clientWidth}`,
+  );
+  assert.ok(
+    records.camera.zoom * 640 <= container.clientHeight + 1,
+    `fitted world height ${records.camera.zoom * 640} exceeds viewport ${container.clientHeight}`,
+  );
   assert.equal(container.stage.dataset.gameplayWorldPixels, "960x640");
+  renderer.dispose();
+});
+
+test("the view on load is the view the Fit control returns to", async () => {
+  // The two share fitCameraToWorld deliberately, so Fit is never a different
+  // framing from the one the run opened with.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 30,
+    boardHeight: 20,
+    tiles: Array.from({ length: 20 }, () => ".".repeat(30)),
+  });
+  const onLoad = renderer.getCameraState().zoom;
+  renderer.zoomIn();
+  assert.notEqual(renderer.getCameraState().zoom, onLoad, "precondition: zoom should have changed");
+  renderer.fitToLevel();
+  assert.equal(renderer.getCameraState().zoom, onLoad, "Fit must return to the load framing");
   renderer.dispose();
 });
 
@@ -539,10 +1046,10 @@ test("gameplay phaser renderer exposes zoom and fit camera controls", async () =
   assert.ok(zoomedIn > fitZoom);
   const zoomedOut = renderer.zoomOut();
   assert.ok(zoomedOut <= zoomedIn);
-  // fitToLevel() is the explicit "zoom out to see everything" action — it
-  // should still fit the whole level (lower zoom), unlike the entry-focused
-  // zoom the view started at.
-  assert.ok(renderer.fitToLevel() < fitZoom);
+  // fitToLevel() used to zoom OUT relative to the load view, because loading
+  // framed the entry room. Loading now fits the whole level, so Fit returns to
+  // exactly the framing the run opened with rather than a different one.
+  assert.equal(renderer.fitToLevel(), fitZoom);
   renderer.dispose();
 });
 
@@ -561,9 +1068,9 @@ test("gameplay phaser zoom controls preserve the current camera center", async (
     tiles: Array.from({ length: 20 }, () => ".".repeat(30)),
   });
 
-  records.inputHandlers.pointerdown({ x: 120, y: 100, worldX: 120, worldY: 100 });
-  records.inputHandlers.pointermove({ x: 80, y: 130, worldX: 80, worldY: 130, isDown: true });
-  records.inputHandlers.pointerup({ x: 80, y: 130, worldX: 80, worldY: 130 });
+  boardListeners().pointerdown(screenPointer(120, 100, { buttons: 1 }));
+  boardListeners().pointermove(screenPointer(80, 130, { buttons: 1 }));
+  boardListeners().pointerup(screenPointer(80, 130));
 
   const camera = records.scene.cameras.main;
   const centerBeforeZoom = {
@@ -591,9 +1098,9 @@ test("gameplay phaser renderer supports drag panning without selecting a tile", 
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
 
-  records.inputHandlers.pointerdown({ x: 100, y: 100, worldX: 100, worldY: 100 });
-  records.inputHandlers.pointermove({ x: 130, y: 120, worldX: 130, worldY: 120, isDown: true });
-  records.inputHandlers.pointerup({ x: 130, y: 120, worldX: 130, worldY: 120 });
+  boardListeners().pointerdown(screenPointer(100, 100, { buttons: 1 }));
+  boardListeners().pointermove(screenPointer(130, 120, { buttons: 1 }));
+  boardListeners().pointerup(screenPointer(130, 120));
 
   assert.equal(selected.length, 0);
   assert.notEqual(records.scene.cameras.main.scrollX, 0);
@@ -725,7 +1232,7 @@ test("renderer fires onHover with tile position on pointer move (no drag)", asyn
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
   // DEFAULT_TILE_SIZE=32: tile (2,2) center worldX=80, worldY=80
-  records.inputHandlers.pointermove({ worldX: 80, worldY: 80, isDown: false, buttons: 0 });
+  boardListeners().pointermove(pointerAt(records, 80, 80));
   assert.equal(hovered.length, 1);
   assert.deepEqual(hovered[0], { x: 2, y: 2 });
   renderer.dispose();
@@ -741,8 +1248,8 @@ test("renderer fires onHover again when pointer moves to a different tile", asyn
   });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  records.inputHandlers.pointermove({ worldX: 80, worldY: 80, isDown: false, buttons: 0 });
-  records.inputHandlers.pointermove({ worldX: 112, worldY: 80, isDown: false, buttons: 0 });
+  boardListeners().pointermove(pointerAt(records, 80, 80));
+  boardListeners().pointermove(pointerAt(records, 112, 80));
   assert.equal(hovered.length, 2);
   assert.deepEqual(hovered[1], { x: 3, y: 2 });
   renderer.dispose();
@@ -758,8 +1265,8 @@ test("renderer does not fire onHover again when pointer stays on the same tile",
   });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  records.inputHandlers.pointermove({ worldX: 80, worldY: 80, isDown: false, buttons: 0 });
-  records.inputHandlers.pointermove({ worldX: 85, worldY: 82, isDown: false, buttons: 0 });
+  boardListeners().pointermove(pointerAt(records, 80, 80));
+  boardListeners().pointermove(pointerAt(records, 85, 82));
   assert.equal(hovered.length, 1, "must not fire twice for same tile");
   renderer.dispose();
 });
@@ -774,8 +1281,8 @@ test("renderer does not fire onHover during a camera drag", async () => {
   });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  records.inputHandlers.pointerdown({ x: 80, y: 80, worldX: 80, worldY: 80 });
-  records.inputHandlers.pointermove({ worldX: 112, worldY: 80, isDown: true, buttons: 1 });
+  boardListeners().pointerdown(pointerAt(records, 80, 80, { buttons: 1 }));
+  boardListeners().pointermove(pointerAt(records, 112, 80, { buttons: 1 }));
   assert.equal(hovered.length, 0);
   renderer.dispose();
 });
@@ -790,8 +1297,8 @@ test("renderer fires onHoverEnd when pointer leaves the canvas", async () => {
   });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  assert.equal(typeof records.inputHandlers.gameout, "function", "gameout handler must be registered");
-  records.inputHandlers.gameout({});
+  assert.equal(typeof boardListeners().pointerleave, "function", "pointerleave must be registered");
+  boardListeners().pointerleave(screenPointer(0, 0));
   assert.equal(endCount, 1);
   renderer.dispose();
 });
@@ -838,264 +1345,207 @@ const QUICK_VIEW_MODEL_FULL = {
   equippedAffinity: { kind: "fire", expression: "ward", stacks: 2 },
 };
 
-test("showQuickView renders separate label and value text for each vital", async () => {
-  const records = {};
+// --- M4: the camera-fixed selected-entity HUD ---
+//
+// These replace the showQuickView suite. The quick view was a world-space panel
+// anchored to the entity's tile: it scrolled with the board and shrank with camera
+// zoom, so it was least readable exactly when zoomed out. The HUD is fixed to the
+// camera instead, and it is where the vitals, expression and motivation that M1
+// removed from the sprite now live.
+
+async function mountedRenderer(records) {
   const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_FULL);
-  const newTexts = records.texts.slice(textsBefore).map((t) => String(t.text));
-  assert.ok(newTexts.includes("HP"), "health label must be a separate 'HP' text node");
-  assert.ok(newTexts.includes("MP"), "mana label must be a separate 'MP' text node");
-  assert.ok(newTexts.includes("ST"), "stamina label must be a separate 'ST' text node");
-  assert.ok(newTexts.includes("DU"), "durability label must be a separate 'DU' text node");
+  return { renderer, container };
+}
+
+test("HUD renders one labelled bar per vital the role has", async () => {
+  const records = {};
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+  for (const label of ["HP", "MP", "ST", "DU"]) {
+    assert.ok(records.texts.some((t) => t.text === label), `missing ${label} label`);
+  }
+  for (const key of ["health", "mana", "stamina", "durability"]) {
+    assert.ok(
+      records.rectangles.some((r) => r.name === `gameplay-hud-bar:${key}`),
+      `missing proportional bar for ${key}`,
+    );
+  }
   renderer.dispose();
 });
 
-test("showQuickView renders current/max value text for each vital", async () => {
+test("HUD bar length is proportional to the vital fraction", async () => {
+  // The quick view drew a fixed-width track with a 2px tick sliding along it.
+  // A filled bar reads at a glance; a moving tick has to be measured.
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_FULL);
-  const newTexts = records.texts.slice(textsBefore).map((t) => String(t.text));
-  assert.ok(newTexts.includes("8/10"), "health current/max must appear");
-  assert.ok(newTexts.includes("5/8"),  "mana current/max must appear");
-  assert.ok(newTexts.includes("7/7"),  "stamina current/max must appear");
-  assert.ok(newTexts.includes("3/8"),  "durability current/max must appear");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+  const bar = (k) => records.rectangles.find((r) => r.name === `gameplay-hud-bar:${k}`);
+  assert.ok(bar("stamina").width > bar("durability").width,
+    "stamina 7/7 must draw a longer bar than durability 3/8");
+  assert.ok(bar("health").width > bar("mana").width,
+    "health 8/10 must draw a longer bar than mana 5/8");
   renderer.dispose();
 });
 
-test("showQuickView renders regen as block rectangles, not +N text", async () => {
+test("HUD renders current/max text and regen blocks", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const rectsBefore = records.rectangles.length;
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_FULL);
-  // health regen=1 → 1 block, mana regen=2 → 2 blocks, stamina/durability=0 → no blocks
-  const totalRegenBlocks = 1 + 2;
-  const vitalCount = Object.keys(QUICK_VIEW_MODEL_FULL.vitals).length;
-  const newRects = records.rectangles.length - rectsBefore;
-  // bg(1) + per vital: track+minTick+maxTick+indicator(4) + regen blocks
-  assert.equal(newRects, 1 + vitalCount * 4 + totalRegenBlocks,
-    `expected ${1 + vitalCount * 4 + totalRegenBlocks} rectangles, got ${newRects}`);
-  // regen must NOT be rendered as +N text nodes
-  const newTexts = records.texts.slice(textsBefore).map((t) => String(t.text));
-  assert.ok(!newTexts.some((t) => t.startsWith("+")),
-    "regen must not produce any +N text node");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+  for (const value of ["8/10", "5/8", "7/7", "3/8"]) {
+    assert.ok(records.texts.some((t) => t.text === value), `missing value text ${value}`);
+  }
+  const blocks = records.rectangles.filter((r) => r.width === 5 && r.height === 5);
+  assert.equal(blocks.length, 3, "regen 1 + 2 + 0 + 0 should draw three blocks");
   renderer.dispose();
 });
 
-test("showQuickView creates bar-chart rectangles for each vital", async () => {
+test("HUD sits in the top-right, clear of the level", async () => {
+  // Moved from bottom-left 2026-09-02: with the inventory rail gone the board
+  // fills the viewport, and bottom-left sat over the entry room on most
+  // generated levels. Asserted against the viewport rather than a literal so a
+  // different panel size cannot silently push it off-screen.
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const rectsBefore = records.rectangles.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_FULL);
-  const newRects = records.rectangles.length - rectsBefore;
-  // bg + track + min tick + max tick + indicator per vital + regen blocks
-  const vitalCount = Object.keys(QUICK_VIEW_MODEL_FULL.vitals).length;
-  const totalRegenBlocks = 1 + 2; // health=1, mana=2
-  assert.equal(newRects, 1 + vitalCount * 4 + totalRegenBlocks,
-    `expected ${1 + vitalCount * 4 + totalRegenBlocks} new rectangles, got ${newRects}`);
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+  const hud = records.containers.find((c) => c.name === "gameplay-hud");
+  assert.ok(hud, "HUD container missing");
+  const { viewportWidth, viewportHeight, worldWidth } = renderer.getCameraState();
+  // Overlaid on the LEVEL, not parked in the margin beside it. Anchoring to the
+  // viewport put the panel outside the level whenever its aspect ratio left an
+  // empty strip, which read as a side rail -- the thing this replaced.
+  const panel = records.rectangles
+    .filter((r) => r.width && r.height)
+    .reduce((widest, r) => (r.width > (widest?.width ?? 0) ? r : widest), null);
+  assert.ok(panel, "HUD background rect missing");
+  // The camera is centred on the world after a fit, so the level's on-screen box
+  // follows from exposed state alone -- no reaching into the camera object.
+  const { zoom, worldHeight } = renderer.getCameraState();
+  const levelRight = (worldWidth / 2) * zoom + viewportWidth / 2;
+  const levelTop = viewportHeight / 2 - (worldHeight / 2) * zoom;
+  assert.ok(
+    hud.x + panel.width <= levelRight + 1,
+    `HUD right edge ${hud.x + panel.width} sits past the level's right edge ${levelRight}`,
+  );
+  assert.ok(hud.y >= levelTop - 1, `HUD top ${hud.y} sits above the level's top ${levelTop}`);
+  assert.ok(hud.x >= 0 && hud.y >= 0, "HUD must stay inside the viewport");
+  assert.ok(hud.y < viewportHeight / 2, `HUD y ${hud.y} is not in the top half`);
+  assert.ok(viewportWidth > 0, "precondition");
   renderer.dispose();
 });
 
-test("showQuickView uses distinct colors for health and mana label texts", async () => {
+test("HUD is independent of board pan AND board zoom", async () => {
+  // scrollFactor 0 alone is NOT enough and asserting only that is a guard aimed at
+  // the wrong property: Phaser still scales scrollFactor-0 objects about the camera
+  // centre, so at zoom 3 the first version of this HUD was scaled 3x and pushed off
+  // screen while this test passed. Running the app is what caught it. The HUD now
+  // renders on its own camera at zoom 1.
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_FULL);
-  const newTextNodes = records.texts.slice(textsBefore);
-  const hpNode = newTextNodes.find((t) => String(t.text) === "HP");
-  const mpNode = newTextNodes.find((t) => String(t.text) === "MP");
-  assert.ok(hpNode, "HP label node must exist");
-  assert.ok(mpNode, "MP label node must exist");
-  assert.notEqual(hpNode.style?.color, mpNode.style?.color,
-    "health and mana labels must have different colors");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+
+  const hud = records.containers.find((c) => c.name === "gameplay-hud");
+  assert.ok(hud, "HUD container missing");
+  assert.equal(hud.scrollFactor, 0, "HUD must not scroll with the board");
+  assert.ok(hud.depth >= 1000, "HUD must draw above the board");
+
+  const hudCam = (records.extraCameras || []).find((c) => c.name === "gameplay-hud-camera");
+  assert.ok(hudCam, "HUD must render on its own camera");
+  assert.equal(hudCam.zoom, 1, "the HUD camera must never zoom");
+
+  // Zooming the board must not touch the HUD camera.
+  renderer.zoomIn?.();
+  renderer.zoomIn?.();
+  assert.ok(records.camera.zoom !== 1, "precondition: the board camera should have zoomed");
+  assert.equal(hudCam.zoom, 1, "board zoom must not reach the HUD camera");
+
+  // And the two cameras must not both draw the same objects.
+  assert.ok(hudCam.ignored.length > 0, "the HUD camera must ignore the board container");
   renderer.dispose();
 });
 
-test("showQuickView with partial vitals renders only the present vitals", async () => {
+test("HUD shows the identity channels the sprite also carries", async () => {
+  // Affinity and expression appear on the HUD as well as the board so the two can
+  // be checked against each other.
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  const rectsBefore = records.rectangles.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_PARTIAL);
-  const newTexts = records.texts.slice(textsBefore);
-  const labels = newTexts.map((t) => String(t.text));
-  assert.ok(labels.includes("HP"), "HP label must appear");
-  assert.ok(labels.includes("ST"), "ST label must appear");
-  assert.ok(!labels.includes("MP"), "MP label must NOT appear");
-  assert.ok(!labels.includes("DU"), "DU label must NOT appear");
-  const hpVal = newTexts.find((t) => String(t.text) === "5/10");
-  assert.ok(hpVal, "HP value 5/10 must appear");
-  const stVal = newTexts.find((t) => String(t.text) === "3/6");
-  assert.ok(stVal, "ST value 3/6 must appear");
-  const newRects = records.rectangles.length - rectsBefore;
-  const vitalCount = 2;
-  assert.ok(newRects >= 1 + vitalCount * 3,
-    `expected at least ${1 + vitalCount * 3} new rectangles, got ${newRects}`);
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_FULL);
+  const identity = records.texts.find((t) => t.name === "gameplay-hud-identity");
+  assert.ok(identity, "identity line missing");
+  assert.match(identity.text, /fire/);
+  assert.ok(records.texts.some((t) => t.text === "delver-1"), "entity id missing");
   renderer.dispose();
 });
 
-test("showQuickView with single vital renders that vital as a bar chart", async () => {
+test("HUD shows motivation, which the sprite no longer encodes", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  const rectsBefore = records.rectangles.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL_SINGLE);
-  const newTexts = records.texts.slice(textsBefore);
-  const labels = newTexts.map((t) => String(t.text));
-  assert.ok(labels.includes("HP"), "HP label must appear for single-vital entity");
-  assert.ok(!labels.includes("MP"), "MP must not appear");
-  assert.ok(!labels.includes("ST"), "ST must not appear");
-  assert.ok(!labels.includes("DU"), "DU must not appear");
-  const valNode = newTexts.find((t) => String(t.text) === "2/8");
-  assert.ok(valNode, "value text 2/8 must appear");
-  const newRects = records.rectangles.length - rectsBefore;
-  assert.ok(newRects >= 1 + 1 * 3,
-    `expected at least 4 new rectangles for 1 vital, got ${newRects}`);
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud({ ...QUICK_VIEW_MODEL_FULL, motivation: "patrolling" });
+  const footer = records.texts.find((t) => t.name === "gameplay-hud-motivation");
+  assert.ok(footer, "motivation missing from the HUD");
+  assert.equal(footer.text, "patrolling");
   renderer.dispose();
 });
 
-test("showQuickView with no vitals renders only the id label", async () => {
+test("HUD renders only the vitals present, without inventing empty bars", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView({ ...QUICK_VIEW_MODEL_SINGLE, vitals: null });
-  const newTexts = records.texts.slice(textsBefore);
-  const labels = newTexts.map((t) => String(t.text));
-  assert.ok(!labels.includes("HP"), "HP must not appear when vitals is null");
-  assert.ok(!labels.includes("MP"), "MP must not appear when vitals is null");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL_PARTIAL);
+  const bars = records.rectangles.filter((r) => String(r.name || "").startsWith("gameplay-hud-bar:"));
+  assert.ok(bars.length > 0 && bars.length <= 2, `expected at most two bars, got ${bars.length}`);
+  assert.ok(!records.texts.some((t) => t.text === "DU"), "must not show a vital the entity did not report");
   renderer.dispose();
 });
 
-test("showQuickView creates a Phaser container with vitals text", async () => {
+test("HUD with no vitals still renders the identity header", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const containersBefore = records.containers.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL);
-  assert.ok(records.containers.length > containersBefore, "expected a new container for quick-view");
-  const allText = records.texts.map((t) => String(t.text)).join(" ").toLowerCase();
-  assert.match(allText, /8/, "expected HP current value in quick-view text");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud({ ...QUICK_VIEW_MODEL_SINGLE, vitals: null });
+  assert.ok(records.texts.some((t) => t.text === "hazard-1"));
+  const bars = records.rectangles.filter((r) => String(r.name || "").startsWith("gameplay-hud-bar:"));
+  assert.equal(bars.length, 0);
   renderer.dispose();
 });
 
-test("showQuickView includes equipped affinity kind in the overlay", async () => {
+test("hideHud destroys the HUD container", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL);
-  const newTexts = records.texts.slice(textsBefore).map((t) => String(t.text)).join(" ").toLowerCase();
-  assert.match(newTexts, /fire/, "expected equipped affinity kind in quick-view");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL);
+  const hud = records.containers.find((c) => c.name === "gameplay-hud");
+  renderer.hideHud();
+  assert.equal(hud.destroyed, true);
   renderer.dispose();
 });
 
-test("showQuickView does not include expression, stack count, or motivation text", async () => {
+test("hideHud before showHud does not throw", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  const textsBefore = records.texts.length;
-  renderer.showQuickView(QUICK_VIEW_MODEL);
-  const newTexts = records.texts.slice(textsBefore).map((t) => String(t.text)).join(" ").toLowerCase();
-  assert.doesNotMatch(newTexts, /ward/, "quick-view must not show affinity expression");
-  assert.doesNotMatch(newTexts, /explore/, "quick-view must not show motivation");
-  assert.doesNotMatch(newTexts, /loot/, "quick-view must not show motivation");
-  assert.doesNotMatch(newTexts, /stack/, "quick-view must not show stack count label");
+  const { renderer } = await mountedRenderer(records);
+  assert.doesNotThrow(() => renderer.hideHud());
   renderer.dispose();
 });
 
-test("hideQuickView destroys the overlay container", async () => {
+test("showHud replaces the existing HUD rather than stacking a second one", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  renderer.showQuickView(QUICK_VIEW_MODEL);
-  const overlayContainer = records.containers[records.containers.length - 1];
-  renderer.hideQuickView();
-  assert.equal(overlayContainer.destroyed, true, "quick-view container must be destroyed by hideQuickView");
+  const { renderer } = await mountedRenderer(records);
+  renderer.showHud(QUICK_VIEW_MODEL);
+  const first = records.containers.find((c) => c.name === "gameplay-hud");
+  renderer.showHud({ ...QUICK_VIEW_MODEL, id: "warden-1" });
+  assert.equal(first.destroyed, true, "the previous HUD must be destroyed");
+  const live = records.containers.filter((c) => c.name === "gameplay-hud" && !c.destroyed);
+  assert.equal(live.length, 1, "exactly one HUD may exist at a time");
   renderer.dispose();
 });
 
-test("hideQuickView before showQuickView does not throw", async () => {
+test("showHud ignores input that is not an entity", async () => {
   const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  assert.doesNotThrow(() => renderer.hideQuickView());
-  renderer.dispose();
-});
-
-test("showQuickView replaces any existing quick-view overlay", async () => {
-  const records = {};
-  const container = makeContainer();
-  const renderer = createGameplayPhaserRenderer({
-    loadPhaser: async () => createFakePhaser(records),
-  });
-  renderer.mount(container);
-  await renderer.renderRun(BOARD_STATE);
-  renderer.showQuickView(QUICK_VIEW_MODEL);
-  const first = records.containers[records.containers.length - 1];
-  renderer.showQuickView({ ...QUICK_VIEW_MODEL, id: "warden-1", position: { x: 2, y: 3 } });
-  assert.equal(first.destroyed, true, "first overlay must be destroyed when second is shown");
+  const { renderer } = await mountedRenderer(records);
+  for (const bad of [null, undefined, 42, "delver"]) {
+    assert.doesNotThrow(() => renderer.showHud(bad));
+  }
+  assert.equal(records.containers.filter((c) => c.name === "gameplay-hud" && !c.destroyed).length, 0);
   renderer.dispose();
 });
 
@@ -1483,7 +1933,7 @@ test("onHover is suppressed while Player Panel is open", async () => {
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
   renderer.openPlayerPanel(PLAYER_PANEL_MODEL);
-  records.inputHandlers.pointermove({ worldX: 80, worldY: 80, isDown: false, buttons: 0 });
+  boardListeners().pointermove(pointerAt(records, 80, 80));
   assert.equal(hovered.length, 0, "onHover must be suppressed while player panel is open");
   renderer.dispose();
 });
@@ -1499,8 +1949,8 @@ test("onSelect is suppressed while Player Panel is open", async () => {
   renderer.mount(container);
   await renderer.renderRun(BOARD_STATE);
   renderer.openPlayerPanel(PLAYER_PANEL_MODEL);
-  records.inputHandlers.pointerdown({ x: 80, y: 80, worldX: 80, worldY: 80 });
-  records.inputHandlers.pointerup({ x: 80, y: 80, worldX: 80, worldY: 80 });
+  boardListeners().pointerdown(pointerAt(records, 80, 80, { buttons: 1 }));
+  boardListeners().pointerup(pointerAt(records, 80, 80));
   assert.equal(selected.length, 0, "onSelect must be suppressed while player panel is open");
   renderer.dispose();
 });
@@ -1548,6 +1998,29 @@ const AFFINITY_BOARD_STATE = {
   ]),
 };
 
+test("an affinity field never fully replaces the floor under it", async () => {
+  // Regression guard. When tiles became flat fills, a full-intensity field was
+  // painted straight onto the tile at alpha 1. A sprite is drawn in its own
+  // affinity colour, so an actor standing in its own field became that colour on
+  // that colour and only its outline survived -- exactly what the board showed.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({ loadPhaser: async () => createFakePhaser(records) });
+  renderer.mount(container);
+  await renderer.renderRun(AFFINITY_BOARD_STATE);
+
+  const fields = records.rectangles.filter((r) => String(r.name || "").startsWith("tile-field:"));
+  assert.ok(fields.length > 0, "expected affinity field overlays");
+  for (const f of fields) {
+    assert.ok(
+      f.alpha <= 0.45,
+      `field alpha ${f.alpha} would repaint the tile and swallow a sprite of the same affinity`,
+    );
+    assert.ok(f.alpha > 0, "an invisible field is not a field");
+  }
+  renderer.dispose();
+});
+
 test("drawBoard applies tint to floor tiles when tileVisuals are provided", async () => {
   const records = {};
   const container = makeContainer();
@@ -1559,7 +2032,11 @@ test("drawBoard applies tint to floor tiles when tileVisuals are provided", asyn
 
   // Floor tiles at affected positions must have their tint set to the affinity color.
   // Tile at (2,2) is the origin with color 0xff4400.
-  const tintedTiles = [...records.rectangles, ...records.images].filter((node) => node.tint === 0xff4400);
+  // The affinity field is drawn as a capped-alpha overlay ABOVE the tile rather
+  // than by repainting the tile, so the floor still reads underneath and a sprite
+  // standing in a field of its own affinity is not swallowed by it.
+  const shows = (node, c) => node.tint === c || node.color === c || node.fillColor === c;
+  const tintedTiles = [...records.rectangles, ...records.images].filter((node) => shows(node, 0xff4400));
   assert.ok(
     tintedTiles.length > 0,
     "at least one floor tile node must have the affinity tint applied",
@@ -1596,9 +2073,17 @@ test("drawBoard registers overlay textures for affected tiles with overlayAssetI
   renderer.mount(container);
   await renderer.renderRun(AFFINITY_BOARD_STATE);
 
-  // Tiles with overlayAssetId should produce image nodes with the overlay texture key.
+  // The PREFIXED key, which is what the texture is actually registered under.
+  // This asserted the bare asset id -- the very value the renderer used to hand
+  // Phaser, and a key that never exists, so Phaser painted its missing-texture
+  // placeholder over the tile. The test pinned the defect in place.
   const overlayImages = records.images.filter(
-    (img) => img.textureKey === "overlay-fire-glow",
+    (img) => img.textureKey === "ak-bundle:overlay-fire-glow",
+  );
+  assert.equal(
+    records.images.filter((img) => img.textureKey === "overlay-fire-glow").length,
+    0,
+    "the unprefixed asset id must never reach Phaser as a texture key",
   );
   assert.ok(
     overlayImages.length > 0,
@@ -1609,6 +2094,38 @@ test("drawBoard registers overlay textures for affected tiles with overlayAssetI
     overlayImages.length >= 5,
     `expected at least 5 overlay images (origin + 4 cardinal), got ${overlayImages.length}`,
   );
+  renderer.dispose();
+});
+
+test("an overlay mapping pointing at an asset the bundle does not ship draws nothing", async () => {
+  // The failure this guards is a Phaser missing-texture placeholder painted over
+  // the tile -- worse than no overlay, because it looks like real art. The
+  // mapping and the asset list are separate parts of the bundle and can
+  // disagree, so the renderer has to tolerate a dangling reference.
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...AFFINITY_BOARD_STATE,
+    resourceBundle: {
+      ...AFFINITY_BOARD_STATE.resourceBundle,
+      // The mapping still names an overlay, but the asset is gone.
+      assets: (AFFINITY_BOARD_STATE.resourceBundle.assets || [])
+        .filter((a) => a.id !== "overlay-fire-glow"),
+    },
+  });
+
+  const drawnKeys = records.images.map((img) => String(img.textureKey));
+  assert.equal(
+    drawnKeys.filter((k) => k.includes("overlay-fire-glow")).length,
+    0,
+    `a dangling overlay reference must draw nothing, got ${drawnKeys.join("|")}`,
+  );
+  // The board itself still renders.
+  assert.ok(records.rectangles.length > 0, "tiles must still be drawn");
   renderer.dispose();
 });
 
@@ -1624,7 +2141,7 @@ test("drawBoard does not apply tint to tiles without affinity visuals", async ()
   await renderer.renderRun(BOARD_STATE);
 
   // No rectangles should have the affinity tint
-  const affinityTinted = records.rectangles.filter((r) => r.tint === 0xff4400);
+  const affinityTinted = records.rectangles.filter((r) => [r.tint, r.color, r.fillColor].includes(0xff4400));
   assert.equal(
     affinityTinted.length,
     0,
@@ -1749,9 +2266,11 @@ test("onHover and onSelect resume after closePlayerPanel", async () => {
   renderer.openPlayerPanel(PLAYER_PANEL_MODEL);
   renderer.closePlayerPanel();
 
-  records.inputHandlers.pointermove?.({ worldX: 80, worldY: 80, x: 80, y: 80 });
-  records.inputHandlers.pointerdown?.({ worldX: 80, worldY: 80, x: 80, y: 80 });
-  records.inputHandlers.pointerup?.({ worldX: 80, worldY: 80, x: 80, y: 80 });
+  // No optional chaining: a listener that is not registered must fail here
+  // rather than no-op into an assertion about an empty array.
+  boardListeners().pointermove(pointerAt(records, 80, 80));
+  boardListeners().pointerdown(pointerAt(records, 80, 80, { buttons: 1 }));
+  boardListeners().pointerup(pointerAt(records, 80, 80));
 
   assert.ok(hovered.length >= 1);
   assert.ok(selected.length >= 1);
@@ -1771,7 +2290,7 @@ test("tileVisuals on walls or without overlayAssetId tint tiles without image ov
     ]),
   });
 
-  assert.ok(records.rectangles.some((rect) => rect.tint === 0xff4400 || rect.tint === 0x2b7fff));
+  assert.ok(records.rectangles.some((rect) => [rect.tint, rect.color, rect.fillColor].some((c) => c === 0xff4400 || c === 0x2b7fff)));
   assert.equal(records.images.length, 0);
   renderer.dispose();
 });
@@ -1791,7 +2310,7 @@ test("renderFrame preserves non-zero tileVisuals across frame updates", async ()
   await renderer.renderRun({ ...BOARD_STATE, tileVisuals });
   await renderer.renderFrame({ ...BOARD_STATE, tileVisuals });
 
-  assert.ok(records.rectangles.some((rect) => rect.tint === 0x2b7fff));
+  assert.ok(records.rectangles.some((rect) => [rect.tint, rect.color, rect.fillColor].includes(0x2b7fff)));
   renderer.dispose();
 });
 
@@ -1804,6 +2323,6 @@ test.skip("tileVisuals with intensity of 0 produces no visual change on the tile
     ...BOARD_STATE,
     tileVisuals: new Map([["2,2", { affinityKind: "fire", intensity: 0, color: 0xff4400, alpha: 0 }]]),
   });
-  assert.equal(records.rectangles.some((rect) => rect.tint === 0xff4400), false);
+  assert.equal(records.rectangles.some((rect) => [rect.tint, rect.color, rect.fillColor].includes(0xff4400)), false);
   renderer.dispose();
 });

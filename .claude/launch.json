@@ -4,28 +4,19 @@
     {
       "name": "UI Web Dev Server",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "serve:ui"],
+      "runtimeArgs": [
+        "run",
+        "serve:ui"
+      ],
       "port": 8001,
       "autoPort": false
     },
     {
-      "name": "serve:c",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "serve:c"],
-      "port": 8001,
-      "autoPort": true
-    },
-    {
-      "name": "serve:l",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "serve:l"],
-      "port": 8001,
-      "autoPort": true
-    },
-    {
       "name": "CLI Demo",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["scripts/demo-cli.sh"],
+      "runtimeArgs": [
+        "scripts/demo-cli.sh"
+      ],
       "port": null
     }
   ]

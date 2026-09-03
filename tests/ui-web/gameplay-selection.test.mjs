@@ -286,19 +286,28 @@ function makeCapturingRenderer() {
   let capturedOnHoverEnd = null;
   const quickViews = [];
   let hideCount = 0;
+  let capturedOnSelect = null;
   const renderer = {
     mount() {},
     async renderRun() {},
     async renderFrame() {},
     dispose() {},
-    showQuickView: (model) => quickViews.push(model),
-    hideQuickView: () => hideCount++,
+    showHud: (model) => quickViews.push(model),
+    hideHud: () => hideCount++,
+    highlightActor() {},
+    centerOnTile() {},
   };
   return {
-    factory: (opts) => { capturedOnHover = opts?.onHover; capturedOnHoverEnd = opts?.onHoverEnd; return renderer; },
+    factory: (opts) => {
+      capturedOnHover = opts?.onHover;
+      capturedOnHoverEnd = opts?.onHoverEnd;
+      capturedOnSelect = opts?.onSelect;
+      return renderer;
+    },
     get onHover() { return capturedOnHover; },
     get onHoverEnd() { return capturedOnHoverEnd; },
-    get quickViews() { return quickViews; },
+    get onSelect() { return capturedOnSelect; },
+    get hudModels() { return quickViews; },
     get hideCount() { return hideCount; },
   };
 }
@@ -310,32 +319,46 @@ test("view passes onHover and onHoverEnd to the renderer factory", () => {
   assert.equal(typeof cap.onHoverEnd, "function", "onHoverEnd must be passed to renderer");
 });
 
-test("onHover callback resolves entity and calls renderer.showQuickView", async () => {
+test("onHover previews the hovered entity into the HUD", async () => {
+  // Hover and selection share ONE panel now. The old quick view was a second,
+  // world-space panel showing the same vitals at 9px anchored to the tile.
   const cap = makeCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
   await view.loadRun(BUNDLE_WITH_ACTORS);
   cap.onHover({ x: 3, y: 4 });
-  assert.equal(cap.quickViews.length, 1);
-  assert.equal(cap.quickViews[0].id, "delver-1");
-  assert.equal(cap.quickViews[0].entityType, "actor");
-  assert.ok(cap.quickViews[0].equippedAffinity, "display model must include equippedAffinity");
+  assert.equal(cap.hudModels.length, 1);
+  assert.equal(cap.hudModels[0].id, "delver-1");
+  assert.equal(cap.hudModels[0].entityType, "actor");
+  assert.ok(cap.hudModels[0].equippedAffinity, "display model must include equippedAffinity");
 });
 
-test("onHover over empty position calls renderer.hideQuickView", async () => {
+test("hovering empty space with nothing selected hides the HUD", async () => {
   const cap = makeCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
   await view.loadRun(BUNDLE_WITH_ACTORS);
   cap.onHover({ x: 99, y: 99 });
   assert.equal(cap.hideCount, 1);
-  assert.equal(cap.quickViews.length, 0);
+  assert.equal(cap.hudModels.length, 0);
 });
 
-test("onHoverEnd calls renderer.hideQuickView", async () => {
+test("hover falls back to the selected entity rather than blanking the HUD", async () => {
+  // The HUD's resting state is the selection; hover only borrows it. Blanking on
+  // hover-end would make the panel flicker every time the pointer crossed a wall.
   const cap = makeCapturingRenderer();
   const view = wireGameplayView({ root: makeRoot(), createRenderer: cap.factory });
   await view.loadRun(BUNDLE_WITH_ACTORS);
+  cap.onSelect({ x: 3, y: 4 });
+  const afterSelect = cap.hudModels.length;
+  assert.ok(afterSelect >= 1, "selecting should show the HUD");
+
+  cap.onHover({ x: 99, y: 99 });
   cap.onHoverEnd();
-  assert.equal(cap.hideCount, 1);
+  assert.equal(cap.hideCount, 0, "the HUD must not be hidden while something is selected");
+  assert.equal(
+    cap.hudModels[cap.hudModels.length - 1].id,
+    "delver-1",
+    "the HUD must return to the selected entity",
+  );
 });
 
 // --- M3: actor highlight wiring ---
@@ -654,4 +677,111 @@ test("openPlayerPanel with actor missing vitals and Escape while closed do not t
 
   assert.doesNotThrow(() => view.openPlayerPanel());
   assert.doesNotThrow(() => onKeyPress({ key: "escape" }));
+});
+
+// ---------------------------------------------------------------------------
+// Selecting an actor after the run has been stepped.
+//
+// The board and the actor inspector talk to each other, and that conversation
+// destroyed its own result. selectEntity resolved the actor correctly, then told
+// the inspector about the tile; the inspector had no actor of its own there, so
+// it resolved the nearest positioned entity instead -- a room -- and notified
+// back. handleInspectorSelect assigned unconditionally, so the room's tile
+// (absent from entityIndex) overwrote the good selection with null and the HUD
+// never appeared. On screen: clicking an actor did nothing, while clicking a
+// block away, where the actor used to be, worked.
+// ---------------------------------------------------------------------------
+
+const MOVING_ACTOR_BUNDLE = {
+  artifacts: [
+    {
+      schema: "agent-kernel/SimConfigArtifact",
+      schemaVersion: 1,
+      meta: { id: "sim-move", runId: "run-move", createdAt: "2026-09-03T00:00:00Z", producedBy: "director" },
+      layout: { data: { width: 8, height: 8, rooms: [{ id: "R1", x: 0, y: 0, width: 8, height: 8 }] } },
+      seed: 0,
+    },
+    {
+      schema: "agent-kernel/InitialStateArtifact",
+      schemaVersion: 1,
+      meta: { id: "state-move", runId: "run-move", createdAt: "2026-09-03T00:00:00Z", producedBy: "director" },
+      actors: [{ id: "delver-1", type: "delver", position: { x: 2, y: 2 },
+        vitals: { health: { current: 9, max: 10 } } }],
+    },
+  ],
+  tickFrames: [
+    { tick: 0, acceptedActions: [] },
+    { tick: 1, acceptedActions: [{ kind: "move", actorId: "delver-1", params: { to: { x: 3, y: 3 } } }] },
+    { tick: 2, acceptedActions: [{ kind: "move", actorId: "delver-1", params: { to: { x: 4, y: 3 } } }] },
+  ],
+};
+
+test("clicking an actor selects it at every tick, not only at tick 0", async () => {
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(MOVING_ACTOR_BUNDLE);
+
+  assert.equal(view.selectEntity({ x: 2, y: 2 })?.id, "delver-1", "tick 0");
+
+  view.stepForward();
+  const atTick1 = view.selectEntity({ x: 3, y: 3 });
+  assert.ok(atTick1, "the actor must be selectable where it now stands, at tick 1");
+  assert.equal(atTick1.id, "delver-1");
+  assert.deepEqual(atTick1.position, { x: 3, y: 3 });
+
+  view.stepForward();
+  const atTick2 = view.selectEntity({ x: 4, y: 3 });
+  assert.ok(atTick2, "and at tick 2");
+  assert.deepEqual(atTick2.position, { x: 4, y: 3 });
+
+  // And the tile it has left behind holds nothing.
+  assert.equal(view.selectEntity({ x: 2, y: 2 }), null, "the vacated tile must be empty");
+});
+
+test("the selection survives the inspector's own notification", async () => {
+  // The loop: selectEntity -> inspector -> notify -> handleInspectorSelect.
+  // A fake inspector that answers back with an unrelated tile, exactly as the
+  // real one did when it substituted a room for the actor.
+  const calls = [];
+  let viewRef = null;
+  const inspector = {
+    setScenario() {},
+    setMode() {},
+    setActors() {},
+    setRunning() {},
+    clearSelection() {},
+    selectEntityAtPosition(position, options) {
+      calls.push({ position, options });
+      // Only answer back if the caller asked to be notified.
+      if (options?.notify === false) return null;
+      viewRef.handleInspectorSelect({ id: "card_room_1-2", position: { x: 0, y: 0 } });
+      return null;
+    },
+  };
+  viewRef = wireGameplayView({ root: makeRoot(), actorInspector: inspector });
+  await viewRef.loadRun(MOVING_ACTOR_BUNDLE);
+  viewRef.stepForward();
+
+  const selected = viewRef.selectEntity({ x: 3, y: 3 });
+  assert.ok(selected, "selectEntity must resolve the actor");
+  assert.equal(
+    viewRef.getSelectedEntity()?.id,
+    "delver-1",
+    "the inspector's answer must not wipe the selection the board just made",
+  );
+  assert.equal(calls.at(-1)?.options?.notify, false, "board clicks must not ask for a notification");
+});
+
+test("an inspector callback that resolves nothing leaves the board selection alone", async () => {
+  // Resolving nothing is not a request to deselect.
+  const view = wireGameplayView({ root: makeRoot() });
+  await view.loadRun(MOVING_ACTOR_BUNDLE);
+  view.stepForward();
+  assert.ok(view.selectEntity({ x: 3, y: 3 }), "precondition: something is selected");
+
+  view.handleInspectorSelect({ id: "card_room_1-2", position: { x: 7, y: 7 } });
+  assert.equal(
+    view.getSelectedEntity()?.id,
+    "delver-1",
+    "a miss must not clear the current selection",
+  );
 });

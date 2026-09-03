@@ -26,9 +26,7 @@
     "benchmark:core-ts-affinity": "node scripts/testing/benchmark-compute-affinity-field.mjs",
     "config-sweep": "node scripts/testing/run-configuration-permutation-sweep.mjs",
     "config-sweep:dry-run": "node scripts/testing/run-configuration-permutation-sweep.mjs --dry-run",
-    "serve:ui": "node scripts/serve-ui.mjs",
-    "serve:c": "node scripts/serve-ui.mjs --entry index_c.html",
-    "serve:l": "node scripts/serve-ui.mjs --entry index_l.html",
+    "serve:ui": "node scripts/serve-ui.mjs --entry index_c.html",
     "demo:cli": "bash scripts/demo-cli.sh",
     "mcp:serve": "node packages/adapters-cli/src/mcp/server.mjs",
     "docs:pdf": "mmdc -i WORKFLOW.md -o WORKFLOW-print.md --outputFormat svg && md-to-pdf WORKFLOW-print.md && rm -f WORKFLOW-print.md mermaid-*.svg"

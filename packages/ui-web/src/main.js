@@ -1,5 +1,7 @@
 import { wireTabs } from "./tabs.js";
 import { createActorInspector } from "./actor-inspector.js";
+import { createInventoryScreen } from "./inventory-screen.js";
+import { resolveScreenShortcut } from "./screen-shortcuts.js";
 import { createCliWorkerAdapter } from "../../adapters-web/src/adapters/cli-worker/index.js";
 import { buildResultHasBundle } from "./build-orchestrator.js";
 import { shouldReuseActiveRun } from "./gameplay-launch.js";
@@ -45,6 +47,7 @@ let previewView = null;
 let actorInspector = null;
 let gameplayView = null;
 let phaserFrame = null;
+let inventoryScreen = null;
 let gameplayRunPending = false;
 // tabGeneration captured when gameplayRunPending was set; see the onBundleLoaded guard.
 let pendingGameplayGeneration = -1;
@@ -224,6 +227,14 @@ globalThis.__ak_loadGameplayBundle = async (bundle, { targetTab = "design" } = {
     if (cardToShow) {
       ctrl.pullCardToEditor(cardToShow.id);
       await surface.render?.();
+    }
+    // Seed the reuse baseline from the design this bundle carries. Without it the
+    // run we just loaded has no baseline, so the next navigation to Gameplay
+    // treats the design as changed, rebuilds, and silently replaces the loaded
+    // level with a differently generated one.
+    const seeded = await ctrl.publishSpecText?.({ source: "bundle-load" });
+    if (seeded?.ok && typeof seeded.specText === "string") {
+      lastGameplaySpecText = seeded.specText;
     }
   }
   const ALLOWED_TABS = new Set(["design", "gameplay", "preview"]);
@@ -479,6 +490,12 @@ if (document.querySelector("#phaser-frame-root")) {
     onInventorySelect: (card) => gameplayView?.selectEntityById?.(card.id) ?? null,
   });
   phaserFrame.mount();
+  inventoryScreen = createInventoryScreen({
+    getCards: () => phaserFrame?.getCardController?.()?.getCards?.() || [],
+    getAllocationLedger: () => phaserFrame?.getCardController?.()?.getAllocationLedger?.() || null,
+    getResourceBundle: () => _startupResourceBundle,
+  });
+  globalThis.__ak_inventoryScreen = inventoryScreen;
   phaserFrame.setResourceBundle(_startupResourceBundle);
   globalThis.__ak_phaserFrame = phaserFrame;
 }
@@ -493,26 +510,38 @@ if (document.querySelector("#phaser-frame-root")) {
 // back/forward, Ctrl+digit to direct screen jumps. Cmd+digit is off-limits —
 // Chrome reserves it for browser-tab switching and pages cannot intercept it.
 document.addEventListener("keydown", (event) => {
-  if (event.metaKey || event.ctrlKey) {
-    if (event.key === "]") {
-      event.preventDefault();
-      navigateScreens("forward");
-      return;
-    }
-    if (event.key === "[") {
-      event.preventDefault();
-      navigateScreens("back");
-      return;
-    }
+  // The binding table lives in screen-shortcuts.js so it can be tested: this
+  // handler only performs what the resolver decided. A chord the browser
+  // reserves resolves to null there, which is how the inventory's old Cmd+}
+  // binding is prevented from coming back.
+  const resolved = resolveScreenShortcut(event);
+  if (!resolved) return;
+
+  if (resolved.action === "close-inventory") {
+    if (!inventoryScreen?.isOpen?.()) return;
+    event.preventDefault();
+    inventoryScreen.hide();
+    return;
   }
-  if (event.ctrlKey && !event.metaKey) {
-    if (event.key === "1") {
-      event.preventDefault();
-      tabs?.setActive("design");
-    } else if (event.key === "2") {
-      event.preventDefault();
-      tabs?.setActive("gameplay");
-    }
+
+  event.preventDefault();
+  switch (resolved.action) {
+    case "forward":
+    case "back":
+      navigateScreens(resolved.action);
+      return;
+    case "inventory":
+      inventoryScreen?.toggle?.();
+      return;
+    // Screens are mutually exclusive: switching away closes the inventory
+    // rather than leaving it floating over the screen you moved to.
+    case "design":
+    case "gameplay":
+      inventoryScreen?.hide?.();
+      tabs?.setActive(resolved.action);
+      return;
+    default:
+      return;
   }
 });
 

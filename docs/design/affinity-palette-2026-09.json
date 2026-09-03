@@ -1,0 +1,12 @@
+{
+  "fire": "#fe4b2c",
+  "water": "#5e82f1",
+  "earth": "#794301",
+  "wind": "#06f6f5",
+  "life": "#3ba251",
+  "decay": "#c64a9a",
+  "corrode": "#d3e602",
+  "fortify": "#708591",
+  "light": "#fdfed3",
+  "dark": "#28174a"
+}
