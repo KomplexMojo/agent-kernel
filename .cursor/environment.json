@@ -1,0 +1,17 @@
+{
+  "name": "agent-kernel",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "ui",
+      "command": "bash -lc 'pnpm run serve:ui'",
+      "description": "Browser UI dev server. Open http://localhost:8001/packages/ui-web/index_c.html"
+    }
+  ],
+  "ports": [
+    {
+      "name": "ui",
+      "port": 8001
+    }
+  ]
+}
