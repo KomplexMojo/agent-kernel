@@ -1,0 +1,24 @@
+{
+  "//": "Example Cursor MCP config for this repo. 'mcp.json' is gitignored here, so copy the server(s) you want into a real mcp.json yourself: '~/.cursor/mcp.json' (all projects) or '.cursor/mcp.json' (this project only, stays untracked). Cursor CLOUD agents do NOT read mcp.json \u2014 register the same servers in the Cursor dashboard (Integrations & MCP) instead; see scripts/setup/README.md. Run 'pnpm install' first so agent-kernel-cli's deps are present. agent-kernel-cli needs Node >= 22.18 for native .ts import; the NODE_OPTIONS below make it work even under an older 'node' on PATH.",
+  "mcpServers": {
+    "serena": {
+      "command": "serena",
+      "args": [
+        "start-mcp-server",
+        "--context",
+        "ide-assistant",
+        "--project",
+        "${workspaceFolder}"
+      ]
+    },
+    "agent-kernel-cli": {
+      "command": "node",
+      "args": [
+        "${workspaceFolder}/packages/adapters-cli/src/mcp/server.mjs"
+      ],
+      "env": {
+        "NODE_OPTIONS": "--experimental-strip-types --disable-warning=ExperimentalWarning"
+      }
+    }
+  }
+}

@@ -180,9 +180,9 @@ section records the outcome of validating both tools for Cursor and how to set t
 Serena is a stdio MCP server. Cursor has **two independent surfaces**, and the repo gitignores
 `mcp.json`, so no MCP config is committed — you provide it per surface:
 
-1. **Cursor IDE (local).** Copy `.cursor/mcp.serena.example.json` to either `~/.cursor/mcp.json`
-   (all projects) or `.cursor/mcp.json` (this project only; stays untracked). It runs
-   `serena start-mcp-server --context ide-assistant --project ${workspaceFolder}`.
+1. **Cursor IDE (local).** Copy the `serena` block from `.cursor/mcp.example.json` into either
+   `~/.cursor/mcp.json` (all projects) or `.cursor/mcp.json` (this project only; stays untracked).
+   It runs `serena start-mcp-server --context ide-assistant --project ${workspaceFolder}`.
 
 2. **Cursor cloud agents.** Cloud agents do **not** read `.cursor/mcp.json`. Two things are
    required:
@@ -209,3 +209,55 @@ Read `graphify-out/GRAPH_REPORT.md` directly — no setup needed. To regenerate 
 the private `graphify` package on the machine recorded in `graphify-out/.graphify_python`
 (currently the maintainer's Mac); run `graphify update . && python3
 scripts/setup/regenerate-graph-viz.py` there. This cannot be done on a cloud agent.
+
+---
+
+# agent-kernel CLI & MCP under Cursor
+
+The repo ships its own tool surface: the `ak` CLI and the `agent-kernel-cli` MCP server (the
+structured-tool version of the CLI — 49 `ak_*` tools for authoring, simulation, inspection, LLM
+planning, IPFS, blockchain, and the `ak_test_*` harness). Full tool reference:
+`packages/adapters-cli/src/mcp/README.md`.
+
+Both import `.ts` modules directly, so they need **Node ≥ 22.18** (native type stripping) — the same
+requirement `.cursor/install.sh` already satisfies on cloud agents, and that your Mac's `node` must
+also meet. Run `pnpm install` once so the MCP server's deps (`@modelcontextprotocol/sdk`, `ws`,
+`z3-solver`) are present.
+
+## CLI — run it directly
+
+The CLI is plain shell; a Cursor agent runs it the same way you would:
+
+```bash
+node packages/adapters-cli/src/cli/ak.mjs create \
+  --room "size=small;count=1" \
+  --delver "count=1;affinity=fire;motivation=attacking" \
+  --warden "count=1;affinity=dark;motivation=defending"
+pnpm run demo:cli     # fixture-driven CLI walkthrough
+pnpm run mcp:serve    # start the MCP server manually (stdio)
+```
+
+The package also exposes `ak-persona` and `ak-mcp` bins:
+`pnpm --dir packages/adapters-cli exec ak-persona --help`.
+
+## MCP — register `agent-kernel-cli`
+
+The server is stdio (`node packages/adapters-cli/src/mcp/server.mjs`). As with Serena, Cursor has two
+surfaces and `mcp.json` is gitignored, so nothing is committed as the live config:
+
+1. **Cursor IDE (local).** Copy the `agent-kernel-cli` block from `.cursor/mcp.example.json` into
+   `~/.cursor/mcp.json` or `.cursor/mcp.json`. The bundled `NODE_OPTIONS`
+   (`--experimental-strip-types --disable-warning=ExperimentalWarning`) let it start even under an
+   older `node` on PATH; on Node ≥ 22.18 they are harmless no-ops.
+
+2. **Cursor cloud agents.** Cloud agents do **not** read `.cursor/mcp.json`. Register the server in the
+   Cursor dashboard under **Integrations & MCP** (personal) or **Team → Integrations & MCP**:
+   transport **stdio**, command `node`, args
+   `/workspace/packages/adapters-cli/src/mcp/server.mjs`, and env
+   `NODE_OPTIONS=--experimental-strip-types --disable-warning=ExperimentalWarning` (guards against the
+   VM's default older `node` shim). `.cursor/install.sh` already makes the VM ready (`pnpm install`
+   + native-TS node). Until this dashboard step is done, cloud agents won't see the `ak_*` tools.
+
+Verify a registration by listing tools — the server reports `name: "agent-kernel-cli"` and 49 tools;
+`tools/call ak_create {…, "dryRun": true}` returns a validated result without writing artifacts. The
+`tools/list` handshake snippet is in `packages/adapters-cli/src/mcp/README.md`.
