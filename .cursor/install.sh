@@ -80,4 +80,57 @@ echo "Using pnpm $(pnpm --version)"
 # CI=true keeps pnpm non-interactive (no confirmation prompts) in the cloud shell.
 CI=true pnpm install --frozen-lockfile
 
+# ---------------------------------------------------------------------------
+# Serena — structural code-navigation MCP (optional agent tooling).
+#
+# Serena gives the coding agent LSP-precise structural queries (find_symbol,
+# find_referencing_symbols, find_implementations, ...) that this repo relies on
+# for boundary / blast-radius analysis and that are NOT natively exposed to the
+# Cursor agent (which otherwise has only ripgrep/glob/read). It runs as a stdio
+# MCP server inside this VM.
+#
+# IMPORTANT: installing it here only makes the VM *able* to boot the server.
+# Cursor cloud agents do NOT read `.cursor/mcp.json`; the server must also be
+# registered in the Cursor dashboard (Integrations & MCP) to appear to the
+# agent. See scripts/setup/README.md ("Serena & Graphify under Cursor").
+#
+# This block is best-effort: any failure here is logged and skipped so it can
+# never abort the core (node/pnpm) environment established above.
+# ---------------------------------------------------------------------------
+setup_serena() {
+  # uv hosts the serena-agent tool; install uv if it is missing.
+  export PATH="$HOME/.local/bin:$PATH"
+  if ! command -v uv >/dev/null 2>&1; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null 2>&1 || return 1
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
+  command -v uv >/dev/null 2>&1 || return 1
+
+  # Idempotent: skips if serena-agent is already present on a warm snapshot.
+  uv tool install serena-agent >/dev/null 2>&1 || return 1
+
+  # Re-apply the ignored-dirs patch every boot. Serena's TypeScript adapter
+  # hardcodes `build`/`dist` as ignored *before* project config is consulted,
+  # hiding this repo's tracked packages/runtime/src/build/ and tests/runtime/
+  # build/. A fresh install restores that blind spot; the patch is idempotent.
+  python3 "$REPO_ROOT/scripts/setup/patch-serena-ignored-dirs.py" >/dev/null 2>&1 || true
+
+  # Persist ~/.local/bin on PATH so a dashboard-registered `serena` command
+  # resolves in future interactive shells and agent processes.
+  local serena_marker="# agent-kernel: serena tooling on PATH"
+  if ! grep -qF "$serena_marker" "$HOME/.bashrc" 2>/dev/null; then
+    {
+      echo ""
+      echo "$serena_marker"
+      echo 'export PATH="$HOME/.local/bin:$PATH"'
+    } >> "$HOME/.bashrc"
+  fi
+  echo "Serena ready ($(serena --version 2>/dev/null | head -1 || echo installed)). The TypeScript/JSON language servers auto-install on first use."
+  return 0
+}
+
+if ! setup_serena; then
+  echo "warning: Serena setup skipped (optional tooling). See scripts/setup/README.md." >&2
+fi
+
 echo "agent-kernel install complete."

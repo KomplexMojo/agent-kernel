@@ -151,3 +151,61 @@ backup would be a bare repo outside the vault — still not built.
   replicates. Populate it from git or copy the files across by hand.
 - **Codex can't find `local-codex/Plan.md`** — verify the symlink: `ls -l local-codex/Plan.md`
   should show `-> /Users/<you>/vault/plans/active/Plan.md`
+
+---
+
+# Serena & Graphify under Cursor
+
+`CLAUDE.md` documents Serena and Graphify for **Claude Code**, where Serena is registered as
+an MCP server in `~/.claude/settings.json` and Graphify runs from the maintainer's Mac. When
+this repo is worked on from **Cursor** (IDE or cloud agents), the wiring is different. This
+section records the outcome of validating both tools for Cursor and how to set them up.
+
+## Do we still need them under Cursor?
+
+- **Serena — yes.** Cursor's agent exposes ripgrep/glob/read (plus the `explore` subagent) but
+  not LSP-precise structural queries. Serena's `find_referencing_symbols` / `find_symbol` /
+  `find_implementations` remain the only accurate way to answer "who calls / imports this
+  symbol" — the port→adapter blast-radius question this repo's architecture discipline depends
+  on. It is worth keeping, and must be wired into Cursor explicitly (it is not automatic).
+- **Graphify — yes, but nothing Cursor-specific to install.** Graphify's value is the committed
+  `graphify-out/GRAPH_REPORT.md`, which the agent reads with ordinary file tools identically in
+  Cursor and Claude Code. The `graphify` package itself is private (not on PyPI; pinned to the
+  maintainer's Mac via `graphify-out/.graphify_python`), so **regeneration stays a maintainer
+  task on that machine** — `graph.json` / `graph.html` are gitignored and cannot be rebuilt on a
+  cloud agent. No Cursor wiring is required to *consume* the report.
+
+## Serena setup for Cursor
+
+Serena is a stdio MCP server. Cursor has **two independent surfaces**, and the repo gitignores
+`mcp.json`, so no MCP config is committed — you provide it per surface:
+
+1. **Cursor IDE (local).** Copy `.cursor/mcp.serena.example.json` to either `~/.cursor/mcp.json`
+   (all projects) or `.cursor/mcp.json` (this project only; stays untracked). It runs
+   `serena start-mcp-server --context ide-assistant --project ${workspaceFolder}`.
+
+2. **Cursor cloud agents.** Cloud agents do **not** read `.cursor/mcp.json`. Two things are
+   required:
+   - **VM readiness (automated).** `.cursor/install.sh` installs `uv`, `uv tool install
+     serena-agent`, and re-applies `patch-serena-ignored-dirs.py` on every boot, and puts
+     `~/.local/bin` on `PATH`. So the `serena` command can boot in the agent VM.
+   - **Dashboard registration (manual, one-time).** Register the server in the Cursor dashboard
+     under **Integrations & MCP** (personal) or **Team → Integrations & MCP**. Use transport
+     **stdio**, command `serena`, args
+     `start-mcp-server --context ide-assistant --project /workspace` (this repo's cloud agents
+     check out at `/workspace`). Until this is done, cloud agents will not see Serena's tools.
+
+The TypeScript/JSON language servers Serena needs are downloaded automatically on first use
+(they land in `~/.serena/language_servers/`). Egress to the npm registry must be allowed at that
+time.
+
+⚠️ Re-apply the ignored-dirs patch after any Serena upgrade — see the header of
+`patch-serena-ignored-dirs.py`. `install.sh` does this each boot; if you upgrade Serena by hand,
+run `python3 scripts/setup/patch-serena-ignored-dirs.py` yourself and restart the MCP server.
+
+## Graphify under Cursor
+
+Read `graphify-out/GRAPH_REPORT.md` directly — no setup needed. To regenerate the graph you need
+the private `graphify` package on the machine recorded in `graphify-out/.graphify_python`
+(currently the maintainer's Mac); run `graphify update . && python3
+scripts/setup/regenerate-graph-viz.py` there. This cannot be done on a cloud agent.
