@@ -280,6 +280,18 @@ sections are therefore bridged into Cursor-native files:
 
 Rules must use the `.mdc` extension with frontmatter — a plain `.md` under `.cursor/rules/` is ignored.
 
+## Skills
+
+Cloud slash inventory for this repo is four skills. Each has a Cursor-native entry under
+`.cursor/skills/` (`.claude/skills/` remains the canonical home for scripts / Claude harnesses):
+
+| Skill | Path | Notes |
+| --- | --- | --- |
+| `/farm-remote` | `.cursor/skills/farm-remote/` | Manual only (`disable-model-invocation`) — remote Ollama farming |
+| `/local-test-gen` | `.cursor/skills/local-test-gen/` | Manual only — wraps `.claude/skills/local-test-gen/scripts/main.mjs` |
+| `structured-test-authoring` | `.cursor/skills/structured-test-authoring/` | Uses agent-kernel-cli `ak_test_*` MCP tools |
+| `tiered-test-optimizer` | `.cursor/skills/tiered-test-optimizer/` | Orchestrates Cursor `fast-pass` → `fix-pass` |
+
 ## Subagents
 
 `.claude/agents/*.md` load in Cursor for compatibility, but their Claude model pins (Haiku/Opus/
