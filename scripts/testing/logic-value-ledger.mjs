@@ -27,6 +27,14 @@
  * Run it with `pnpm run logic-sweep`.
  */
 import {
+  bestRoute,
+  enumerateBoards,
+  enumerateHazardBoards,
+  runPolicy,
+  safetyFirstRun,
+  walkable,
+} from "./logic-lookahead.mjs";
+import {
   allocatorObjectiveRank,
   compareRank,
   pathExistsOracle,
@@ -641,6 +649,125 @@ async function runConfiguratorLedger({ bounds, limit, log, offset = 0 }) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// actor_lookahead — Stage C benefit gate (NOT an adopted constraint domain)
+// ---------------------------------------------------------------------------
+
+/**
+ * DOES LOOKAHEAD BEAT ONE STEP? Asked before any solver is written, and with none in it.
+ *
+ * This is not a `CONSTRAINT_DOMAINS` member and must not become one on the strength of a
+ * number alone. It measures whether there is anything for a search to win, which is the
+ * question nobody asked before `actor_action_selection` was adopted -- and the answer
+ * there, measured, was 0.0%.
+ *
+ * THREE WAYS ARE COMPARED, and the third is what makes this a gate rather than an advert:
+ *
+ *   policy       the REAL Actor persona, driven a tick at a time
+ *   safetyFirst  a one-step chooser that weighs safety above progress -- the CONTROL
+ *   oracle       exhaustive enumeration of every route within the horizon
+ *
+ * Without the control this domain would report the current policy losing to an optimal
+ * router and read as proof that search is needed. It is not: the Actor's tuple compares
+ * lexicographically and `intentClass` dominates `fieldSafety`, so an actor crosses hazards
+ * that lie on the way to the exit. Some of that gap is an ORDERING defect, and ordering is
+ * far cheaper than search. Only points that defeat BOTH orderings are evidence for a
+ * horizon, and `bothWorse` is the number this domain exists to produce.
+ *
+ * Boards come from enumerated wall masks rather than hand-drawn maps: an earlier probe
+ * hand-built a corridor "obviously" fatal to a myopic actor and the policy walked around
+ * it cleanly, because with eight-way movement and Chebyshev distance "exit progress" is a
+ * wide class with room for safety to operate inside it.
+ */
+async function runLookaheadLedger({ bounds, limit, log, offset = 0 }) {
+  const { width, height, maxWalls, hazardCounts, horizon, harm } = bounds;
+  const start = { x: 1, y: 1 };
+  const exit = { x: width - 2, y: height - 2 };
+
+  // PRECONDITION, not a test. Both movers must reach the exit on an empty board or their
+  // failures are their own bugs rather than evidence about lookahead. Two driver defects
+  // were caught exactly here, each of which had produced confident fictional numbers: an
+  // invalid motivation kind that silently downgraded the actor to the compatibility tuple,
+  // and a driver that supplied its own proposals -- which an actor ranks at intentClass
+  // 600, above its own exit-seeking candidates at 300.
+  const openBoard = [...enumerateBoards({ width, height, maxWalls: 0, start, exit })][0];
+  const sanityPolicy = await runPolicy({ tiles: openBoard, fields: [], start, exit, horizon, grants: [] });
+  const sanityControl = safetyFirstRun({ tiles: openBoard, fields: [], start, exit, horizon });
+  if (!sanityPolicy.reached || !sanityControl.reached) {
+    throw new Error(
+      "lookahead precondition failed: on a board with no hazards the "
+      + `${!sanityPolicy.reached ? "policy" : "control"} did not reach the exit. Every `
+      + "divergence below would be measuring that bug, not the Actor.",
+    );
+  }
+
+  const counters = {
+    points: 0, unreachable: 0,
+    policyWorse: 0, safetyWorse: 0, bothWorse: 0, reorderFixes: 0,
+    policyFailedToReach: 0, safetyFailedToReach: 0, agree: 0,
+  };
+  const examples = { bothWorse: [], reorderFixes: [] };
+  const gaps = [];
+  const startedAt = Date.now();
+  let seen = 0;
+
+  for (const tiles of enumerateBoards({ width, height, maxWalls, start, exit })) {
+    for (const hazardCount of hazardCounts) {
+      for (const fields of enumerateHazardBoards({ tiles, start, exit, hazardCount, harm })) {
+        seen += 1;
+        if (seen <= offset) continue;
+        if (limit && counters.points >= limit) break;
+
+        const oracle = bestRoute({ tiles, fields, start, exit, horizon, observer: null });
+        // A board the exit cannot be reached on within the horizon asks nobody a question.
+        if (!oracle || !oracle.reached) { counters.unreachable += 1; continue; }
+        counters.points += 1;
+        if (log && counters.points % 250 === 0) {
+          log(`  … ${counters.points} points (${Math.round((Date.now() - startedAt) / 1000)}s)`);
+        }
+
+        const policy = await runPolicy({ tiles, fields, start, exit, horizon, grants: [] });
+        const safety = safetyFirstRun({ tiles, fields, start, exit, horizon });
+
+        const policyWorse = !policy.reached || policy.harm > oracle.harm;
+        const safetyWorse = !safety.reached || safety.harm > oracle.harm;
+        if (!policy.reached) counters.policyFailedToReach += 1;
+        if (!safety.reached) counters.safetyFailedToReach += 1;
+        if (policyWorse) counters.policyWorse += 1;
+        if (safetyWorse) counters.safetyWorse += 1;
+        if (policyWorse && !safetyWorse) counters.reorderFixes += 1;
+        if (policyWorse && safetyWorse) {
+          counters.bothWorse += 1;
+          gaps.push(policy.harm - oracle.harm);
+          if (examples.bothWorse.length < MAX_RECORDED_EXAMPLES) {
+            examples.bothWorse.push({ tiles, hazards: fields.map((f) => f.position), policy, safety, oracle });
+          }
+        }
+        if (!policyWorse && !safetyWorse) counters.agree += 1;
+      }
+    }
+  }
+
+  const points = counters.points;
+  return {
+    domain: "actor_lookahead",
+    bounds,
+    elapsedMs: Date.now() - startedAt,
+    counters,
+    derived: {
+      policyWorseFraction: points === 0 ? 0 : counters.policyWorse / points,
+      safetyWorseFraction: points === 0 ? 0 : counters.safetyWorse / points,
+      // The only figure that argues for a horizon: no one-step ordering reaches these.
+      lookaheadOnlyFraction: points === 0 ? 0 : counters.bothWorse / points,
+      reorderFixesFractionOfPolicyGap: counters.policyWorse === 0
+        ? 0 : counters.reorderFixes / counters.policyWorse,
+      medianHarmGap: median(gaps),
+      maxHarmGap: gaps.reduce((max, value) => Math.max(max, value), 0),
+    },
+    examples,
+  };
+}
+
 function median(values) {
   if (values.length === 0) return null;
   const sorted = [...values].sort((left, right) => left - right);
@@ -683,6 +810,13 @@ export const LEDGER_DOMAINS = Object.freeze({
           { hazards: [{ id: "h1", blocking: true }, { id: "h2", blocking: false }], resources: [{ id: "r1" }] },
         ],
       },
+    },
+  },
+  actor_lookahead: {
+    run: runLookaheadLedger,
+    bounds: {
+      gate: { width: 7, height: 5, maxWalls: 1, hazardCounts: [2], horizon: 6, harm: 5 },
+      sweep: { width: 7, height: 5, maxWalls: 2, hazardCounts: [1, 2, 3], horizon: 7, harm: 5 },
     },
   },
   actor_action_selection: {

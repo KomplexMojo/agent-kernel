@@ -96,6 +96,17 @@ function reportConfigurator(result) {
   }
 }
 
+function reportLookahead(result) {
+  const { counters: c, derived: d } = result;
+  console.log(`  points ${c.points}  ·  boards where the exit was unreachable ${c.unreachable}`);
+  console.log(`  current policy suboptimal : ${c.policyWorse} (${percent(d.policyWorseFraction)})`);
+  console.log(`  safety-first CONTROL      : ${c.safetyWorse} (${percent(d.safetyWorseFraction)})`);
+  console.log(`  a reorder alone fixes     : ${c.reorderFixes}/${c.policyWorse} (${percent(d.reorderFixesFractionOfPolicyGap)} of the gap)`);
+  console.log(`  LOOKAHEAD-ONLY            : ${c.bothWorse} (${percent(d.lookaheadOnlyFraction)}) — defeat BOTH orderings`);
+  console.log(`  harm gap on those: median ${d.medianHarmGap} · max ${d.maxHarmGap}`);
+  console.log(`  failed to reach: policy ${c.policyFailedToReach} · control ${c.safetyFailedToReach}  ·  both optimal ${c.agree}`);
+}
+
 function reportActor(result) {
   const { counters: c, derived: d } = result;
   console.log(`  points ${c.points}  ·  agree ${c.agree}  ·  diverge ${c.diverge} (${percent(d.divergenceFraction)})`);
@@ -201,6 +212,7 @@ async function main() {
       });
     if (domain === "allocator_budget_fit") reportAllocator(result);
     else if (domain === "configurator_satisfiability") reportConfigurator(result);
+    else if (domain === "actor_lookahead") reportLookahead(result);
     else if (domain === "actor_action_selection") reportActor(result);
     console.log(`  elapsed ${(result.elapsedMs / 1000).toFixed(1)}s`);
     results.push(result);

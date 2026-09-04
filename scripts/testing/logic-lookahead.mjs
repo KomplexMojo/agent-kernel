@@ -248,3 +248,67 @@ export function* enumerateHazardBoards({ tiles, start, exit, hazardCount, harm }
   };
   yield* choose(0, []);
 }
+
+const cheb = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
+
+/**
+ * The CONTROL: a one-step chooser that weighs safety above progress.
+ *
+ * Its job is to rule out the cheap explanation. If simply reordering the existing rank
+ * members closes the gap, then the divergence is an ordering defect and adopting search
+ * for it would be the Z10 mistake again. It lives here beside the policy it controls for,
+ * because a control kept in a scratch file is a control nobody re-runs.
+ */
+export function safetyFirstRun({ tiles, fields, start, exit, horizon, observer = null }) {
+  let position = { ...start };
+  let harm = harmAt(fields, position, observer);
+  for (let step = 0; step < horizon; step += 1) {
+    if (position.x === exit.x && position.y === exit.y) break;
+    const moves = DELTAS
+      .map(({ dx, dy }) => ({ x: position.x + dx, y: position.y + dy }))
+      .filter((next) => walkable(tiles, next));
+    if (moves.length === 0) break;
+    moves.sort((left, right) => {
+      const a = harmAt(fields, left, observer);
+      const b = harmAt(fields, right, observer);
+      if (a !== b) return a - b;
+      return cheb(left, exit) - cheb(right, exit);
+    });
+    position = moves[0];
+    harm += harmAt(fields, position, observer);
+  }
+  return { harm, reached: position.x === exit.x && position.y === exit.y };
+}
+
+/** Boards from enumerated wall masks, so no result rests on a board I drew. */
+export function* enumerateBoards({ width, height, maxWalls, start, exit }) {
+  const interior = [];
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      if ((x === start.x && y === start.y) || (x === exit.x && y === exit.y)) continue;
+      interior.push({ x, y });
+    }
+  }
+  const masks = [[]];
+  const build = (from, picked) => {
+    if (picked.length > 0) masks.push([...picked]);
+    if (picked.length === maxWalls) return;
+    for (let index = from; index < interior.length; index += 1) {
+      build(index + 1, [...picked, interior[index]]);
+    }
+  };
+  build(0, []);
+  for (const mask of masks) {
+    const blocked = new Set(mask.map(key));
+    const tiles = [];
+    for (let y = 0; y < height; y += 1) {
+      let row = "";
+      for (let x = 0; x < width; x += 1) {
+        const edge = x === 0 || y === 0 || x === width - 1 || y === height - 1;
+        row += edge || blocked.has(`${x},${y}`) ? "#" : ".";
+      }
+      tiles.push(row);
+    }
+    yield tiles;
+  }
+}
