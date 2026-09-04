@@ -1,0 +1,34 @@
+---
+description: How to navigate agent-kernel code — Serena (structural) vs Graphify (conceptual) vs grep (literal), and the known traps.
+alwaysApply: false
+---
+
+# Code navigation
+
+| Question | Use |
+|---|---|
+| Where is symbol X defined? | Serena `find_symbol` |
+| Who calls / imports X? (port → adapter, blast radius) | Serena `find_referencing_symbols` |
+| What's in this file? | Serena `get_symbols_overview` |
+| What implements this interface / where is it declared? | Serena `find_implementations` / `find_declaration` |
+| High-level orientation / how concepts cluster | `graphify-out/GRAPH_REPORT.md` |
+| Literal text: prose, fixture strings, exact commands or messages | `grep`/`rg` |
+
+Serena answers live from the language server — there is no index to rebuild or watch. If Serena
+is unavailable, say so and read the files; never guess structure from filenames. (Serena is a
+stdio MCP; for cloud agents it must be registered in the Cursor dashboard — see
+`scripts/setup/README.md`.)
+
+⚠️ Traps — all of these have silently bitten this repo:
+- **Re-run `python3 scripts/setup/patch-serena-ignored-dirs.py` after any Serena upgrade.** Its
+  TypeScript adapter re-hardcodes `build`/`dist` as ignored *before* config is consulted, hiding
+  the tracked `packages/runtime/src/build/` and `tests/runtime/build/`. `.cursor/install.sh` and
+  `scripts/setup/session-refresh.sh` re-apply the patch automatically.
+- **`tsconfig.json` must keep `allowJs: true` and `include: packages/*/src/**/*`.** Without them
+  the `.js` majority of the repo is outside the TS program and `find_referencing_symbols` returns
+  `{}` for it while definitions still resolve — a silent, one-sided failure.
+- **An empty Serena result is not proof of absence** — pass `relative_path` to `find_symbol`;
+  without it, it degrades silently and returns wrong rows instead of erroring.
+
+Graphify is a private, Mac-only tool: read the committed `graphify-out/GRAPH_REPORT.md` directly;
+`graph.json`/`graph.html` are gitignored and regenerated only on the maintainer's machine.
