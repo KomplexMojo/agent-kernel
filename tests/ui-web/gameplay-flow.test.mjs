@@ -127,6 +127,31 @@ test("loadRun activates the run and invokes onRunLoaded callback", async () => {
   assert.strictEqual(loadedBundle, bundle);
 });
 
+test("loadRun passes the schema-selected runtime receipt unchanged to the inspector", async () => {
+  let receivedReceipt = Symbol("not-called");
+  const receipt = {
+    schema: "agent-kernel/RuntimeBudgetReceiptArtifact",
+    schemaVersion: 1,
+    unit: "runtimeBudgetUnits",
+    rows: [{ actorId: "delver-1", units: 1 }],
+    actorTotals: [{ actorId: "delver-1", units: 40 }],
+    unattributedUnits: 2,
+    totalUnits: 42,
+  };
+  const actorInspector = {
+    setScenario() {},
+    setMode() {},
+    setActors() {},
+    setRunning() {},
+    setRuntimeBudgetReceipt(value) { receivedReceipt = value; },
+  };
+  const view = wireGameplayView({ root: makeRoot(), actorInspector });
+
+  await view.loadRun({ artifacts: [receipt] });
+
+  assert.strictEqual(receivedReceipt, receipt);
+});
+
 test("clear deactivates the run", async () => {
   const view = wireGameplayView({ root: makeRoot() });
   await view.loadRun({ artifacts: [] });

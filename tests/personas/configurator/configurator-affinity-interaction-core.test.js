@@ -80,6 +80,20 @@ assert.equal(AFFINITY_EXPRESSION_TO_CODE.draw, 4);
   assert.equal(result.relationshipName, "opposite", "fire vs water still opposite");
 }
 
+// Backlash is deliberately directional: the opposite Pull → Push target keeps
+// no effect. This verifies the Configurator reports the core-owned exception
+// rather than reconstructing interaction semantics in persona glue.
+{
+  const result = resolveAffinityInteractionFromCore(core,
+    { kind: "fire", expression: "pull", stacks: 2 },
+    { kind: "water", expression: "push", stacks: 1 },
+  );
+  assert.ok(result !== null, "backlash interaction resolves");
+  assert.equal(result.sourceEffectName, "damage");
+  assert.equal(result.targetEffectName, "none");
+  assert.equal(result.visualStateName, "backlash");
+}
+
 // ── resolveAffinityInteractionFromCore: null core → null ──
 
 {

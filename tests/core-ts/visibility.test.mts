@@ -230,6 +230,48 @@ describe("scopeObservation", () => {
     expect(scoped.hazards).toEqual([]);
   });
 
+  test("field cells use radius and line of sight but are not hidden by target darkness", () => {
+    const observation = {
+      actors: [
+        { id: "self", position: { x: 1, y: 1 } },
+        { id: "concealed_source", position: { x: 3, y: 1 } },
+      ],
+      affinityFields: [
+        { position: { x: 3, y: 1 }, kind: 10, expression: 3, stacks: 2 },
+        { position: { x: 4, y: 1 }, kind: 1, expression: 3, stacks: 1 },
+      ],
+      tiles: { kinds: Array.from({ length: 5 }, () => Array(5).fill(0)) },
+    };
+
+    const scoped = scopeObservation(observation, "self", 3, {
+      darkStacksByCell: { "3,1": 2 },
+    });
+
+    expect(scoped.actors.map((entry) => entry.id)).toEqual(["self"]);
+    expect(scoped.affinityFields).toEqual([
+      { position: { x: 3, y: 1 }, kind: 10, expression: 3, stacks: 2 },
+      { position: { x: 4, y: 1 }, kind: 1, expression: 3, stacks: 1 },
+    ]);
+  });
+
+  test("field cells behind an opaque tile are scoped away", () => {
+    const observation = {
+      actors: [{ id: "self", position: { x: 1, y: 2 } }],
+      affinityFields: [{ position: { x: 3, y: 2 }, kind: 1, expression: 3, stacks: 1 }],
+      tiles: {
+        kinds: [
+          [0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0],
+          [0, 0, 1, 0, 0],
+          [0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0],
+        ],
+      },
+    };
+
+    expect(scopeObservation(observation, "self", 4).affinityFields).toEqual([]);
+  });
+
   test("missing tile geometry preserves the existing radius-only behavior", () => {
     const observation = {
       actors: [

@@ -50,8 +50,8 @@ test("the deprecated z3-real alias reports the canonical hybrid domains", async 
   const caps = describeSolverCapabilities(createRealZ3SolverAdapter());
   assert.deepEqual(
     caps.domains,
-    ["actor_action_selection", "allocator_budget_fit"],
-    "Z7.1 adopts Allocator budget fit; Configurator satisfiability remains a separate milestone",
+    ["actor_action_selection", "allocator_budget_fit", "configurator_satisfiability"],
+    "Z9.1 adopts Configurator object placement through the existing satisfiability domain",
   );
   assert.equal(caps.deterministic, true);
   assert.equal(createRealZ3SolverAdapter().kind, "hybrid-constraint");

@@ -8,6 +8,7 @@
 const assert = require("node:assert/strict");
 
 const ORDER = ["axis_0", "axis_1", "axis_2", "axis_3", "axis_4", "axis_5"];
+const V2_ORDER = [...ORDER, "axis_6"];
 
 async function adapter() {
   const { createRealZ3SolverAdapter } = await import(
@@ -16,7 +17,7 @@ async function adapter() {
   return createRealZ3SolverAdapter();
 }
 
-function envelope(candidates, ranks) {
+function envelope(candidates, ranks, { contract = "actor-decision-objective-v1", order = ORDER } = {}) {
   return {
     contract: "runtime-decision-v1",
     decisionKind: "next_move",
@@ -25,8 +26,8 @@ function envelope(candidates, ranks) {
     candidateActions: candidates,
     objectives: {
       actorDecision: {
-        contract: "actor-decision-objective-v1",
-        order: ORDER,
+        contract,
+        order,
         candidates: candidates.map((candidate, index) => ({
           candidateActionId: candidate.id,
           rank: ranks[index],
@@ -37,6 +38,42 @@ function envelope(candidates, ranks) {
     },
   };
 }
+
+test("both supported opaque objective versions select deterministically", async () => {
+  const solver = await adapter();
+  const candidates = [WAIT, MOVE];
+  const v1 = await solver.solve({
+    problem: { data: envelope(candidates, [[100, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, -1]]) },
+  });
+  const v2 = await solver.solve({
+    problem: {
+      data: envelope(
+        candidates,
+        [[100, 0, 0, 0, 0, 0, 0], [100, 0, 0, 0, 0, 0, 1]],
+        { contract: "actor-decision-objective-v2", order: V2_ORDER },
+      ),
+    },
+  });
+
+  assert.equal(v1.status, "fulfilled");
+  assert.equal(v1.model.selectedActionId, "wait_here");
+  assert.equal(v2.status, "fulfilled");
+  assert.equal(v2.model.selectedActionId, "move_east");
+});
+
+test("an unknown objective version defers instead of being interpreted", async () => {
+  const solver = await adapter();
+  const request = envelope(
+    [WAIT, MOVE],
+    [[100, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, -1]],
+    { contract: "actor-decision-objective-v3", order: V2_ORDER },
+  );
+
+  assert.deepEqual(await solver.solve({ problem: { data: request } }), {
+    status: "deferred",
+    reason: "actor_decision_objective_invalid",
+  });
+});
 
 const CAST = {
   id: "cast_fire",

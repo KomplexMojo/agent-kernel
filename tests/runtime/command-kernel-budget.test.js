@@ -132,3 +132,61 @@ test("command kernel budget reads, writes, and logs artifacts via injected host 
   assert.equal(logged.priceList.schema, "agent-kernel/PriceList");
   assert.equal(logged.receipt.schema, "agent-kernel/BudgetReceiptArtifact");
 });
+
+test("command kernel persists the exact Allocator-issued runtime budget receipt", async () => {
+  const { createCommandKernel } = await loadKernel();
+  const { files, host } = createHost();
+  const simConfig = {
+    schema: "agent-kernel/SimConfigArtifact",
+    schemaVersion: 1,
+    meta: { id: "runtime_receipt_sim", runId: "runtime_receipt", createdAt: "2026-09-02T00:00:00.000Z" },
+    seed: 0,
+    layout: {
+      kind: "grid",
+      data: {
+        width: 5,
+        height: 5,
+        tiles: ["#####", "#...#", "#...#", "#...#", "#####"],
+        spawn: { x: 1, y: 1 },
+        exit: { x: 3, y: 3 },
+        rooms: [{ id: "R1", x: 0, y: 0, width: 5, height: 5 }],
+      },
+    },
+  };
+  const initialState = {
+    schema: "agent-kernel/InitialStateArtifact",
+    schemaVersion: 1,
+    meta: { id: "runtime_receipt_state", runId: "runtime_receipt", createdAt: "2026-09-02T00:00:00.000Z" },
+    simConfigRef: { id: "runtime_receipt_sim", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+    actors: [{
+      id: "delver",
+      kind: "ambulatory",
+      archetype: "delver",
+      role: "delver",
+      position: { x: 1, y: 1 },
+      motivation: { kind: "stationary" },
+      vitals: {
+        health: { current: 10, max: 10, regen: 0 },
+        mana: { current: 10, max: 10, regen: 0 },
+        stamina: { current: 10, max: 10, regen: 0 },
+        durability: { current: 1, max: 1, regen: 0 },
+      },
+    }],
+  };
+  files.set("/fixtures/sim-config.json", simConfig);
+  files.set("/fixtures/initial-state.json", initialState);
+
+  const result = await createCommandKernel(host).run({
+    "sim-config": "/fixtures/sim-config.json",
+    "initial-state": "/fixtures/initial-state.json",
+    ticks: 1,
+    "run-id": "runtime_receipt",
+    "out-dir": "/out/runtime-receipt",
+  });
+
+  const receipt = files.get("/out/runtime-receipt/runtime-budget-receipt.json");
+  assert.equal(receipt.schema, "agent-kernel/RuntimeBudgetReceiptArtifact");
+  assert.equal(receipt.meta.id, "artifact_runtime_receipt_runtimebudgetreceipt");
+  assert.equal(receipt.meta.producedBy, "allocator");
+  assert.deepEqual(receipt, result.runtimeBudgetReceipt, "kernel writes the exact runtime receipt without recomputing it");
+});

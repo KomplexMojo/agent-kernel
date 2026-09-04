@@ -623,10 +623,51 @@ indistinguishable from a state that gates something in every output test. Its FS
 accept any non-empty `signals` array, and signals are counts of effects, fulfilments and actions:
 enough to say a tick was busy, never enough to compare spend against a cap.
 
-⚠️ **A `movement` cap is inert against moves, and that is a core defect this does not fix.**
-`core.applyAction` returns for `ActionKind.Move` before `chargeBudgetForAction`, so moves are never
-charged to any category and a run that moves three hundred times reconciles as spend 0. The
-reconciliation reports what core charged; it does not audit whether core charged correctly.
+**A `movement` cap is intentionally inert against moves.** `core.applyAction` returns for
+`ActionKind.Move` before `chargeBudgetForAction`: stamina is the move's gameplay cost and the runtime
+budget must not gate it a second time. Reconciliation reports the category spend core actually charged;
+the descriptive receipt below records accepted and rejected moves at zero units for auditability.
+
+### Runtime action receipts (T3.0 approved 2026-09-02; T3.1a/T3.1b complete)
+
+Runtime action accounting uses `runtimeBudgetUnits`. It is separate from authoring/build tokens and
+from provider prompt/completion-token telemetry; no conversion or combined total exists. The
+Allocator's runtime-action pricing surface is the only source of these values:
+
+| Runtime outcome | Units |
+|---|---:|
+| accepted `wait` | 1 |
+| accepted `attack` | 1 |
+| accepted `cast_affinity` | 1 |
+| accepted `request_solver` | 2 |
+| accepted `move` | 0 |
+| any other accepted runtime action | 1 |
+| any rejected action | 0 |
+
+The cast price is flat runtime accounting, not the cast's mana payment and not an authoring-price-list
+lookup. Move remains exempt because stamina is its gameplay cost. The existing core category ledger
+continues to own caps, aggregate spend, and limit effects; the runtime receipt is descriptive and may
+not add a rejection path or charge that ledger a second time.
+
+`RuntimeBudgetReceiptArtifact` v1 records submitted actions in application order. Each row is
+`{ actorId, tick, actionKind, outcome, units, source, reason? }`, with source
+`allocator_runtime_action_price_v1`. Runtime passes unit-free application outcomes to the live
+Allocator instance; the Allocator prices and issues the artifact with `meta.producedBy: "allocator"`.
+Glue only persists it. Attribution comes from the originating action. Missing attribution is `null`
+and is reported in an unattributed subtotal rather than guessed. A solver request and the later action
+selected from its result are separate work and therefore separate rows. Actor subtotals, unattributed
+units, and the run total must reconcile exactly to those rows and replay byte-for-byte.
+
+T3.1a exposes this contract through `pricing.runtimeActionCosts()` and
+`issueRuntimeBudgetReceipt({ outcomes, meta })`. T3.1b captures each actual application outcome in the
+runtime, asks that live Allocator instance to issue the receipt, and persists the returned artifact as
+`runtime-budget-receipt.json`. The obsolete `actionBudgetCosts()` compatibility projection was removed;
+there is one schedule. T3.2a exposes the persisted artifact through CLI inspection and bundle handoff;
+T3.2b displays its supplied totals in the web inspector without recalculation.
+
+Example: `delver` waits (1), requests a solver (2), then accepts the resulting attack (1); `warden`
+moves (0) and casts an affinity (1); one unaffiliated malformed attack is rejected (0). Totals are
+`delver: 4`, `warden: 1`, unattributed: `0`, run: `5`.
 
 ---
 

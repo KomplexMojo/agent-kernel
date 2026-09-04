@@ -57,3 +57,69 @@ test("bindings observation includes the actor's live affinity grant pools", asyn
     },
   ]);
 });
+
+test("bindings observation exposes canonical post-cancellation affinity field records", async () => {
+  const [{ createCore, readObservation }, { AffinityExpression, AffinityKind, getAffinityVitalEffect }, { VitalKind }] = await Promise.all([
+    import("../../packages/core-ts/src/index.ts"),
+    import("../../packages/core-ts/src/state/affinity.ts"),
+    import("../../packages/core-ts/src/state/vitals.ts"),
+  ]);
+
+  const core = createCore();
+  core.configureGrid(5, 5);
+  for (let y = 0; y < 5; y += 1) {
+    for (let x = 0; x < 5; x += 1) core.setTileAt(x, y, 1);
+  }
+  core.armStaticHazardAt(2, 2, AffinityKind.Fire, AffinityExpression.Emit, 2, 5);
+  core.computeAffinityField();
+
+  const observation = readObservation(core);
+  const field = observation.affinityFields.find((entry) => (
+    entry.position.x === 2 && entry.position.y === 2 && entry.kind === AffinityKind.Fire
+  ));
+
+  assert.deepEqual(field, {
+    position: { x: 2, y: 2 },
+    kind: AffinityKind.Fire,
+    expression: AffinityExpression.Emit,
+    stacks: core.getAffinityFieldStacksAt(2, 2, AffinityKind.Fire),
+    intensity: core.getAffinityFieldIntensityAt(2, 2, AffinityKind.Fire),
+    contributionCount: core.getAffinityFieldContributionCountAt(2, 2, AffinityKind.Fire),
+    vitalEffects: [
+      {
+        vital: VitalKind.Health,
+        effect: getAffinityVitalEffect(
+          AffinityKind.Fire,
+          AffinityExpression.Emit,
+          VitalKind.Health,
+          core.getAffinityFieldStacksAt(2, 2, AffinityKind.Fire),
+        ),
+      },
+    ],
+  });
+});
+
+test("bindings observation omits field records canceled by an opposite affinity", async () => {
+  const [{ createCore, readObservation }, { AffinityExpression, AffinityKind }] = await Promise.all([
+    import("../../packages/core-ts/src/index.ts"),
+    import("../../packages/core-ts/src/state/affinity.ts"),
+  ]);
+
+  const core = createCore();
+  core.configureGrid(9, 7);
+  for (let y = 0; y < 7; y += 1) {
+    for (let x = 0; x < 9; x += 1) core.setTileAt(x, y, 1);
+  }
+  core.armStaticHazardAt(2, 3, AffinityKind.Fire, AffinityExpression.Emit, 3, 5);
+  core.armStaticHazardAt(6, 3, AffinityKind.Water, AffinityExpression.Emit, 3, 5);
+  core.computeAffinityField();
+
+  const fieldsAtOverlap = readObservation(core).affinityFields.filter((entry) => (
+    entry.position.x === 4 && entry.position.y === 3
+  ));
+  assert.deepEqual(
+    fieldsAtOverlap,
+    [],
+    "the observation must expose core's post-cancellation field, not the two pre-cancellation sources",
+  );
+});

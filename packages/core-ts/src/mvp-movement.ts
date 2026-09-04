@@ -1,4 +1,7 @@
 // @ts-nocheck
+import { getAffinityKindCount, getAffinityVitalEffect } from "./state/affinity.ts";
+import { VitalKind } from "./state/vitals.ts";
+
 const DIR_MAP = Object.freeze({
   north: 0,
   northeast: 1,
@@ -142,6 +145,69 @@ function mergeHazardLists(primary = [], secondary = []) {
   });
   return Array.from(merged.values())
     .sort((a, b) => (a.position?.y ?? 0) - (b.position?.y ?? 0) || (a.position?.x ?? 0) - (b.position?.x ?? 0));
+}
+
+const VITAL_KINDS = Object.freeze([
+  VitalKind.Health,
+  VitalKind.Mana,
+  VitalKind.Stamina,
+  VitalKind.Durability,
+]);
+
+/**
+ * Read the core's already-resolved affinity field as sparse, serializable cell
+ * records. This is deliberately a projection, not a second field calculation:
+ * `computeAffinityField()` has already applied cancellation before these readers
+ * are consulted.
+ */
+function readAffinityFields(core, width, height) {
+  const requiredReaders = [
+    "getAffinityFieldStacksAt",
+    "getAffinityFieldIntensityAt",
+    "getAffinityFieldExpressionAt",
+    "getAffinityFieldContributionCountAt",
+  ];
+  if (!requiredReaders.every((name) => typeof core?.[name] === "function")) return null;
+
+  const fields = [];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      for (let kind = 1; kind <= getAffinityKindCount(); kind += 1) {
+        const stacks = core.getAffinityFieldStacksAt(x, y, kind);
+        if (!Number.isInteger(stacks) || stacks <= 0) continue;
+
+        const expression = core.getAffinityFieldExpressionAt(x, y, kind);
+        const intensity = core.getAffinityFieldIntensityAt(x, y, kind);
+        const contributionCount = core.getAffinityFieldContributionCountAt(x, y, kind);
+        if (
+          !Number.isInteger(expression)
+          || expression <= 0
+          || !Number.isFinite(intensity)
+          || !Number.isInteger(contributionCount)
+          || contributionCount <= 0
+        ) {
+          continue;
+        }
+
+        const vitalEffects = VITAL_KINDS
+          .map((vital) => ({
+            vital,
+            effect: getAffinityVitalEffect(kind, expression, vital, stacks),
+          }))
+          .filter((entry) => entry.effect !== 0);
+        fields.push({
+          position: { x, y },
+          kind,
+          expression,
+          stacks,
+          intensity,
+          contributionCount,
+          vitalEffects,
+        });
+      }
+    }
+  }
+  return fields;
 }
 
 export function packMoveAction({ actorId, from, to, direction, tick }) {
@@ -436,6 +502,7 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
     : [];
   const coreHazardList = collectCoreStaticHazards(core, width, height);
   const mergedHazards = mergeHazardLists(affinityHazardList, coreHazardList);
+  const affinityFields = readAffinityFields(core, width, height);
 
   return {
     tick: core.getCurrentTick(),
@@ -454,5 +521,6 @@ export function readObservation(core, { actorIdLabel = "actor_mvp", actorIds } =
       kinds,
     },
     hazards: mergedHazards.length > 0 ? mergedHazards : undefined,
+    ...(affinityFields ? { affinityFields } : {}),
   };
 }

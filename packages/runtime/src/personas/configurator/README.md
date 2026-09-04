@@ -183,18 +183,23 @@ Validation ensures that the simulation starts from a **coherent state**, not tha
 
 ---
 
-### Solver-backed Validation (Optional)
+### Logical Validation and Solver Boundary
 The Z8.0 current-source benefit test rejects solver routing for actor logical validity. Motivation
 exclusivity, mana/stamina prerequisites, configured-affinity slot count, and stack bounds are bounded
 pair/count/threshold checks with no objective and no choice search. Authored values are hard; omitted
 values already resolve to one approved default or floor. Z3 would only re-evaluate the same rules with
 more machinery.
 
-These checks remain deterministic Configurator validation. Their exact diagnostic families are
+Z8.1 routes these checks through `logical-validation.js` while retaining the existing
+`authorCandidates.assessDelverStructure(...)` public surface. Artifact-specific modules still own
+shape normalization and adapt the shared issues to their established result shapes. The configured
+affinity limit is `AFFINITY_KINDS.length`; it constrains authored loadout entries, not affinity kinds
+gained later from resources. Stack limits remain preset-authored.
+
+The exact diagnostic families are
 `conflicting_kind`, `affinity_requires_mana`, `affinity_requires_mana_regen`,
 `movement_requires_stamina_pool`, `movement_requires_stamina_regen`,
-`affinity_slot_limit_exceeded`, and `stacks_exceed_max`. Z8.1 consolidates their fragmented call sites
-without adding a solver path.
+`affinity_slot_limit_exceeded`, and `stacks_exceed_max`.
 
 The existing `configurator_satisfiability` constraint domain remains reserved for Z9 object-placement
 assignment, which is a genuine combinatorial search. It uses
@@ -342,6 +347,24 @@ wardens prefer rooms matching their affinities, then the exit room, then any roo
 viable room context retain the existing deterministic power-group/anchor fallback. `orchestrateBuild`
 passes only actors, layout, and the delver-count hint through the public persona surface and consumes
 the result; it owns no actor role, ranking, grouping, or placement decision.
+
+### Z9.1 object-placement search (2026-09-02)
+
+`prepareObjectPlacement({ layout, hazards, resources, actors })` authors the Configurator's
+`configurator_satisfiability` problem with `problemKind: "object_placement"`.
+`completeObjectPlacement(...)` validates the model and publishes a new layout. Fixed coordinates,
+room containment, unique walkable cells, spawn/exit/actor reservations, and a surviving
+spawn-to-exit path are hard constraints.
+
+The objective is deterministic: authored object order first, row-major cell order second. The
+problem uses binary placement variables plus integer path-flow variables, allowing both platform Z3
+adapters to compile it through their generic linear solver without learning Configurator policy.
+`orchestrateBuild` only passes plain inputs and consumes the result; it holds no placement helpers.
+
+When the domain is unavailable, deferred, or errors, completion uses the characterized
+hazards-first row-major fallback. A solver `unsat` is final and reports one actionable family:
+`capacity`, `containment`, `collision`, or `path_obstruction`. Both surfaces are stateless and pure;
+neither mutates caller-owned layout or object data.
 
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.

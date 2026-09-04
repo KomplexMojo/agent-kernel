@@ -3,6 +3,7 @@ import { deriveTileAffinityVisuals } from "./tile-affinity-visuals.js";
 import {
   INITIAL_STATE_SCHEMA,
   RESOURCE_BUNDLE_SCHEMA,
+  RUNTIME_BUDGET_RECEIPT_SCHEMA,
   SIM_CONFIG_SCHEMA,
 } from "../../../runtime/src/contracts/artifacts.ts";
 
@@ -234,9 +235,11 @@ export function wireGameplayView({
     if (actorInspector) {
       const simConfig = findArtifact(bundle, SIM_CONFIG_SCHEMA);
       const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA);
+      const runtimeBudgetReceipt = findArtifact(bundle, RUNTIME_BUDGET_RECEIPT_SCHEMA);
       actorInspector.setScenario({ simConfig, initialState, spec: bundle?.spec || null });
       actorInspector.setMode("simulation");
       actorInspector.setActors?.(initialState?.actors || [], { tick: 0 });
+      actorInspector.setRuntimeBudgetReceipt?.(runtimeBudgetReceipt);
       actorInspector.setRunning?.(true);
     }
 

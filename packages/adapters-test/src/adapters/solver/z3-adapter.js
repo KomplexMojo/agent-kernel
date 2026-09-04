@@ -7,7 +7,10 @@
  */
 
 const RUNTIME_DECISION_CONTRACT = "runtime-decision-v1";
-const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v1";
+const ACTOR_DECISION_OBJECTIVE_CONTRACTS = new Set([
+  "actor-decision-objective-v1",
+  "actor-decision-objective-v2",
+]);
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -34,7 +37,7 @@ function readObjectiveRows(envelope) {
   if (objective === undefined) {
     return { ok: false, reason: "actor_decision_objective_missing" };
   }
-  if (!isObject(objective) || objective.contract !== ACTOR_DECISION_OBJECTIVE_CONTRACT
+  if (!isObject(objective) || !ACTOR_DECISION_OBJECTIVE_CONTRACTS.has(objective.contract)
     || !Array.isArray(objective.order) || objective.order.length === 0
     || objective.order.some((entry) => typeof entry !== "string" || entry.trim().length === 0)
     || new Set(objective.order).size !== objective.order.length) {

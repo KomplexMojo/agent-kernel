@@ -79,7 +79,6 @@ never reached the page and the screen could not be opened at all. On Windows and
 Linux, Chrome binds Ctrl+1..8 to tab switching, so these chords would need
 revisiting there.
 
-
 ## 5) The Design Screen's Shelve Control
 
 Once a card has a type, a **Shelve as \<type\>** button sits in the **top-right
@@ -92,3 +91,17 @@ carrying two motivation rows put it 32px below where a warden with one row did â
 and its label only appeared on hover. A control that lands somewhere different
 per card, with nothing on it to read, cannot be aimed at from memory. The button
 grows leftwards as the type name lengthens so its right edge never moves.
+
+## Runtime Cost Display Contract (T3.0)
+
+T3.1a/T3.1b established and persist the Allocator-issued `RuntimeBudgetReceiptArtifact` v1 in run
+output. CLI inspection and the web actor inspector expose that same artifact. The inspector presents
+the selected actor's supplied total, the unattributed subtotal, and the run total in a separate
+runtime-accounting section labelled `runtimeBudgetUnits`; it is distinct from authored card value and
+provider prompt/completion telemetry. Presentation code must not recalculate prices or totals.
+
+These units describe accepted runtime work (`wait`, `attack`, `cast_affinity`, solver requests, and
+other actions). They are separate from authoring/build tokens and provider prompt/completion-token
+telemetry. Accepted moves and all rejected actions appear as zero-unit rows; zero means exempt or
+rejected, not missing data. Neither CLI nor UI runtime-cost display is inferred from the existing
+category budget ledger.

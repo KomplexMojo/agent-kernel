@@ -82,6 +82,7 @@ import { buildAmbientAffinityPressure } from "./affinity-pressure.js";
 import { computeInternalManaUpkeep } from "./cost-model.js";
 import { composeMixedRooms } from "./mixed-room-composition.js";
 import { placeActors } from "./actor-placement.js";
+import { prepareObjectPlacement, completeObjectPlacement } from "./object-placement.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "./motivation-rules.js";
 /**
  * CR.7 / WP-5 — level PREVIEW rendering, published for the web level-builder adapter.
@@ -431,6 +432,8 @@ export function attachConfiguratorServices({ fsm } = {}) {
     computeInternalManaUpkeep,
     composeMixedRooms,
     placeActors,
+    prepareObjectPlacement,
+    completeObjectPlacement,
     normalizeMotivationRulesArtifact,
     resolveMotivationRules,
     // CR.7 / WP-5 — the third card-model derivation. Its two siblings were already published

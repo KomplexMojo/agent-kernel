@@ -27,25 +27,9 @@
  * Deeper normalization of actors/cardSet stays with orchestrateBuild, which
  * owns it today; those are checked only as arrays of objects here.
  *
- * Pure: no IO, no clock, no imports — safe under the runtime persona layer.
+ * Pure: no IO or clock — safe under the runtime persona layer.
  */
-
-import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
-import { motivationKindsConflict } from "../../../../core-ts/src/index.ts";
-
-/**
- * AM.10 — motivation name -> core's 1-based kind code, DERIVED from the shared
- * vocabulary rather than hand-listed. core-ts's `MotivationKind` is documented as
- * "1-based, matching runtime MOTIVATION_KINDS order", so the index IS the
- * correspondence; writing the pairs out again would be a second table free to
- * drift the moment a kind is inserted.
- */
-const MOTIVATION_KIND_CODES = Object.freeze(
-  MOTIVATION_KINDS.reduce((acc, name, index) => {
-    acc[name] = index + 1;
-    return acc;
-  }, {}),
-);
+import { collectMotivationConflicts } from "./logical-validation.js";
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -187,21 +171,12 @@ function validateMotivationSets(actors, field, errors) {
         if (typeof kind === "string" && kind.trim()) kinds.push(kind.trim());
       });
     }
-    if (kinds.length < 2) return;
-
-    for (let i = 0; i < kinds.length; i += 1) {
-      for (let j = i + 1; j < kinds.length; j += 1) {
-        const left = MOTIVATION_KIND_CODES[kinds[i].toLowerCase()];
-        const right = MOTIVATION_KIND_CODES[kinds[j].toLowerCase()];
-        if (!Number.isFinite(left) || !Number.isFinite(right)) continue;
-        if (motivationKindsConflict(left, right)) {
-          errors.push(
-            `${field}[${index}].motivations: "${kinds[i]}" and "${kinds[j]}" are mutually `
-            + "exclusive — they belong to the same motivation family, so an actor cannot hold both",
-          );
-        }
-      }
-    }
+    collectMotivationConflicts(kinds, { canonicalInputOnly: true }).forEach((conflict) => {
+      errors.push(
+        `${field}[${index}].motivations: "${conflict.leftKind}" and "${conflict.rightKind}" are mutually `
+        + "exclusive — they belong to the same motivation family, so an actor cannot hold both",
+      );
+    });
   });
 }
 

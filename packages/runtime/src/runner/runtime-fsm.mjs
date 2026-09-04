@@ -735,6 +735,7 @@ export function createFsmRuntime({
   let tick = 0;
   let moderator = null;
   let annotator = null;
+  let allocator = null;
   // P5.5 — the Orchestrator PERSONA from the registry, not the tick orchestrator that
   // shares its name in this file. Post-run deferred-effect coordination is its work.
   let orchestratorPersona = null;
@@ -770,6 +771,7 @@ export function createFsmRuntime({
   let observationLog = [];
   let affinityEffects = null;
   let orchestrator = null;
+  const runtimeBudgetOutcomes = [];
 
   function nextFrameMeta() {
     frameCounter += 1;
@@ -846,6 +848,16 @@ export function createFsmRuntime({
     if (!registry.moderator) {
       registry.moderator = createModeratorPersona({ clock: activeClock });
     }
+    // Runtime consumes the registered Allocator's published prices and asks
+    // that same live instance to issue its descriptive receipt after application
+    // is complete. Structural tests may provide a registry stub solely to test
+    // ordering; those stubs remain registered untouched, while accounting gets a
+    // real private Allocator rather than treating a non-price-bearing stub as one.
+    const registeredAllocator = registry.allocator;
+    allocator = registeredAllocator?.pricing?.runtimeActionCosts
+      && typeof registeredAllocator.issueRuntimeBudgetReceipt === "function"
+      ? registeredAllocator
+      : createAllocatorPersona({ clock: activeClock });
     moderator = registry.moderator;
     annotator = registry.annotator ?? null;
     orchestratorPersona = registry.orchestrator ?? null;
@@ -1322,12 +1334,31 @@ export function createFsmRuntime({
   function applyActionsToCore(actions) {
     const acceptedActions = [];
     const preCoreRejections = [];
+    const outcomes = [];
     const defaultTick = tick;
+
+    function recordOutcome(action, outcome, reason, appliedAction = action) {
+      outcomes.push({
+        actorId: typeof action?.actorId === "string" && action.actorId.trim() ? action.actorId : null,
+        tick: Number.isInteger(appliedAction?.tick) && appliedAction.tick >= 0 ? appliedAction.tick : defaultTick,
+        actionKind: typeof action?.kind === "string" && action.kind.trim() ? action.kind : "unknown",
+        outcome,
+        ...(reason ? { reason } : {}),
+      });
+    }
+    function accept(action, appliedAction) {
+      acceptedActions.push(appliedAction);
+      recordOutcome(action, "accepted", undefined, appliedAction);
+    }
+    function reject(action, reason) {
+      preCoreRejections.push({ action, reason });
+      recordOutcome(action, "rejected", reason);
+    }
 
     for (const action of actions) {
       const adaptation = adaptActionToCore({ action, core, actorIdMap, defaultTick });
       if (!adaptation.ok) {
-        preCoreRejections.push({ action, reason: adaptation.reason || "invalid_action" });
+        reject(action, adaptation.reason || "invalid_action");
         continue;
       }
       if (adaptation.direct) {
@@ -1337,10 +1368,10 @@ export function createFsmRuntime({
             ? core.destroyBarrierAt(directive.x, directive.y)
             : (core.setTileAt(directive.x, directive.y, TILE_CODES.floor), 1);
           if (Number.isFinite(applied) && applied === 0) {
-            preCoreRejections.push({ action, reason: "destroy_barrier_rejected" });
+            reject(action, "destroy_barrier_rejected");
             continue;
           }
-          acceptedActions.push(adaptation.action);
+          accept(action, adaptation.action);
           continue;
         }
         if (directive.kind === "raise_barrier") {
@@ -1348,10 +1379,10 @@ export function createFsmRuntime({
             ? core.raiseBarrierAt(directive.x, directive.y)
             : (core.setTileAt(directive.x, directive.y, TILE_CODES.barrier), 1);
           if (Number.isFinite(applied) && applied === 0) {
-            preCoreRejections.push({ action, reason: "raise_barrier_rejected" });
+            reject(action, "raise_barrier_rejected");
             continue;
           }
-          acceptedActions.push(adaptation.action);
+          accept(action, adaptation.action);
           continue;
         }
         if (directive.kind === "arm_static_hazard") {
@@ -1364,15 +1395,15 @@ export function createFsmRuntime({
             directive.manaReserve,
           );
           if (Number.isFinite(armed) && armed === 0) {
-            preCoreRejections.push({ action, reason: "arm_static_hazard_rejected" });
+            reject(action, "arm_static_hazard_rejected");
             continue;
           }
-          acceptedActions.push(adaptation.action);
+          accept(action, adaptation.action);
           continue;
         }
         if (directive.kind === "disarm_static_hazard") {
           core.disarmStaticHazardAt(directive.x, directive.y);
-          acceptedActions.push(adaptation.action);
+          accept(action, adaptation.action);
           continue;
         }
         if (directive.kind === "cast_affinity_actor" || directive.kind === "cast_affinity_cell") {
@@ -1388,7 +1419,7 @@ export function createFsmRuntime({
             stacks: directive.stacks,
           });
           if (manaCost === null) {
-            preCoreRejections.push({ action, reason: "affinity_rules_have_no_price_for_cast" });
+            reject(action, "affinity_rules_have_no_price_for_cast");
             continue;
           }
           const casterIndex = directive.casterNumeric - 1;
@@ -1402,7 +1433,7 @@ export function createFsmRuntime({
               const remaining = manaCost - spent;
               const current = core.getMotivatedActorVitalCurrentByIndex(casterIndex, VITAL_MANA);
               if (current < remaining) {
-                preCoreRejections.push({ action, reason: "insufficient_affinity_mana" });
+                reject(action, "insufficient_affinity_mana");
                 continue;
               }
               core.setMotivatedActorVital(
@@ -1444,15 +1475,15 @@ export function createFsmRuntime({
             );
           }
           if (!applied) {
-            preCoreRejections.push({ action, reason: "cast_rejected_by_core" });
+            reject(action, "cast_rejected_by_core");
             continue;
           }
-          acceptedActions.push(adaptation.action);
+          accept(action, adaptation.action);
           continue;
         }
         if (directive.kind === "apply_attack") {
           if (typeof core?.applyAttack !== "function") {
-            preCoreRejections.push({ action, reason: "missing_applyAttack_export" });
+            reject(action, "missing_applyAttack_export");
             continue;
           }
           // resolveActorIdNumeric returns 1-based IDs from actorIdMap; core.applyAttack
@@ -1463,18 +1494,18 @@ export function createFsmRuntime({
             directive.damage,
           );
           if (result === 0) {
-            preCoreRejections.push({ action, reason: "attack_rejected_by_core" });
+            reject(action, "attack_rejected_by_core");
             continue;
           }
-          acceptedActions.push(adaptation.action);
+          accept(action, adaptation.action);
           continue;
         }
-        preCoreRejections.push({ action, reason: "unsupported_directive" });
+        reject(action, "unsupported_directive");
         continue;
       }
       if (adaptation.kind === ACTION_KIND.Move) {
         if (typeof core?.setMoveAction !== "function" || typeof core?.applyAction !== "function") {
-          preCoreRejections.push({ action, reason: "missing_move_exports" });
+          reject(action, "missing_move_exports");
           continue;
         }
         // AM.1 — a move core REFUSED is not an accepted action. Before this,
@@ -1486,28 +1517,29 @@ export function createFsmRuntime({
         try {
           moveResult = applyMoveAction(core, adaptation.value);
         } catch (err) {
-          preCoreRejections.push({ action, reason: err?.message || "move_failed" });
+          reject(action, err?.message || "move_failed");
           continue;
         }
         if (moveResult !== ValidationError.None) {
-          preCoreRejections.push({
-            action,
-            reason: `move_rejected_by_core:${getValidationErrorName(moveResult)}`,
-          });
+          reject(action, `move_rejected_by_core:${getValidationErrorName(moveResult)}`);
           continue;
         }
       } else if (typeof core?.applyAction === "function") {
-        core.applyAction(adaptation.kind, adaptation.value);
+        const actionResult = core.applyAction(adaptation.kind, adaptation.value);
+        if (Number.isFinite(actionResult) && actionResult !== ValidationError.None) {
+          reject(action, `action_rejected_by_core:${getValidationErrorName(actionResult)}`);
+          continue;
+        }
       } else if (typeof core?.step === "function") {
         core.step();
       } else {
-        preCoreRejections.push({ action, reason: "missing_core_applyAction" });
+        reject(action, "missing_core_applyAction");
         continue;
       }
-      acceptedActions.push(adaptation.action);
+      accept(action, adaptation.action);
     }
 
-    return { acceptedActions, preCoreRejections };
+    return { acceptedActions, preCoreRejections, outcomes };
   }
 
   return {
@@ -1526,6 +1558,7 @@ export function createFsmRuntime({
       effectLog.length = 0;
       tickFrames.length = 0;
       observationLog.length = 0;
+      runtimeBudgetOutcomes.length = 0;
       frameCounter = 0;
       simConfig = options.simConfig || null;
       initialState = options.initialState || null;
@@ -1562,10 +1595,9 @@ export function createFsmRuntime({
       // dropped, which is a small part of why nothing could compare issued spend
       // against actual: one half was discarded and the other was never read.
       appliedBudgetCaps = applyBudgetCaps(core, simConfig);
-      // Action costs are Allocator policy; core enforces but must not price.
-      applyActionBudgetCosts(core, createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.actionBudgetCosts());
-
       ensureOrchestrator();
+      // Action costs are Allocator policy; core enforces but must not price.
+      applyActionBudgetCosts(core, allocator.pricing.runtimeActionCosts());
 
       const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog, moderator });
       lastEffects = frameEffects.emittedEffects;
@@ -1781,6 +1813,7 @@ export function createFsmRuntime({
       const applyRecord = await orchestrator.stepPhase("apply", applyInputs);
       const applyActions = Array.isArray(applyRecord.actions) ? applyRecord.actions : [];
       const applied = applyActionsToCore(actions.concat(applyActions));
+      runtimeBudgetOutcomes.push(...applied.outcomes);
 
       // AM.8 — resolve the affinity fields that are in CONTACT, after the tick's
       // actions have moved everyone. The Moderator decides which pairs meet;
@@ -1921,6 +1954,24 @@ export function createFsmRuntime({
 
     getTickFrames() {
       return tickFrames.slice();
+    },
+
+    /**
+     * T3.1b — runtime owns application facts, while the live Allocator remains
+     * the sole owner of unit prices and receipt totals.
+     */
+    issueRuntimeBudgetReceipt({ meta } = {}) {
+      if (!allocator || typeof allocator.issueRuntimeBudgetReceipt !== "function") {
+        const error = new Error(
+          "Runtime has no Allocator to issue a runtime budget receipt: runtime may capture outcomes but may not price them.",
+        );
+        error.code = "allocator_required";
+        throw error;
+      }
+      return allocator.issueRuntimeBudgetReceipt({
+        outcomes: runtimeBudgetOutcomes.map((outcome) => ({ ...outcome })),
+        meta,
+      });
     },
     // CR.8 — the RunSummary is produced by the Annotator that actually observed the
     // run. kernel.js used to mint a fresh `createAnnotatorPersona({ clock: UNUSED_CLOCK })`

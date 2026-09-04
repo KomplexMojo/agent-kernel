@@ -20,16 +20,25 @@ import {
   getMotivationMobilityTier,
   getMotivationReasoningClass,
 } from "../../../../core-ts/src/index.ts";
+import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 
-const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v1";
+const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v2";
 const ACTOR_DECISION_OBJECTIVE_ORDER = Object.freeze([
   "intentClass",
   "targetFinish",
   "profileAlignment",
-  "hazardSafety",
+  "fieldSafety",
+  "fieldBenefit",
   "castReserve",
   "inputOrder",
 ]);
+
+const VITAL_KEYS_BY_CODE = Object.freeze({
+  [VitalKind.Health]: "health",
+  [VitalKind.Mana]: "mana",
+  [VitalKind.Stamina]: "stamina",
+  [VitalKind.Durability]: "durability",
+});
 
 /**
  * AM.9 — motivation name -> core's 1-based kind code, derived from the shared
@@ -572,7 +581,44 @@ function actionCanReachTarget(action, origin, target) {
   return expression === "push" || expression === "pull" ? distance <= stacks : distance <= 1;
 }
 
-function buildCompatibilityDecisionRows({ actor, visibleActors, candidateActions, exit }) {
+function fieldUtilityRanks({ endPosition, affinityFields, actorRecord }) {
+  const effectsByVital = new Map();
+  const fields = Array.isArray(affinityFields) ? affinityFields : [];
+  for (const field of fields) {
+    const position = field?.position;
+    if (!position || position.x !== endPosition?.x || position.y !== endPosition?.y) continue;
+    const effects = Array.isArray(field?.vitalEffects) ? field.vitalEffects : [];
+    for (const entry of effects) {
+      if (!Number.isInteger(entry?.vital) || !Number.isInteger(entry?.effect)) continue;
+      if (!Object.hasOwn(VITAL_KEYS_BY_CODE, entry.vital)) continue;
+      effectsByVital.set(entry.vital, (effectsByVital.get(entry.vital) || 0) + entry.effect);
+    }
+  }
+
+  let harmfulMagnitude = 0;
+  let beneficialMagnitude = 0;
+  const effects = [...effectsByVital.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([vital, effect]) => ({ vital, effect }));
+  for (const { vital, effect } of effects) {
+    if (effect < 0) {
+      harmfulMagnitude += -effect;
+      continue;
+    }
+    const vitalRecord = actorRecord?.vitals?.[VITAL_KEYS_BY_CODE[vital]];
+    const missingCapacity = Number.isFinite(vitalRecord?.max) && Number.isFinite(vitalRecord?.current)
+      ? Math.max(0, Math.trunc(vitalRecord.max) - Math.trunc(vitalRecord.current))
+      : 0;
+    beneficialMagnitude += Math.min(effect, missingCapacity);
+  }
+  return {
+    safety: -harmfulMagnitude,
+    benefit: beneficialMagnitude,
+    effects,
+  };
+}
+
+function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, candidateActions, exit, affinityFields }) {
   const visiblePositions = visibleActors
     .filter((entry) => entry?.hostile !== false && entry?.position)
     .map((entry) => entry.position);
@@ -608,15 +654,23 @@ function buildCompatibilityDecisionRows({ actor, visibleActors, candidateActions
       score = 10;
       ruleId = "wait";
     }
+    const field = fieldUtilityRanks({ endPosition, affinityFields, actorRecord });
     return {
       candidateActionId: candidate.id,
-      rank: [score, 0, 0, 0, 0, -index],
+      rank: [score, 0, 0, field.safety, field.benefit, 0, -index],
       features: {
         actionKind: action?.kind,
         compatibilityRule: ruleId,
         endPosition: endPosition ? { ...endPosition } : null,
+        fieldEffectsByVital: field.effects,
+        fieldSafety: field.safety,
+        fieldBenefit: field.benefit,
       },
-      rationaleTags: [`legacy_${ruleId}`],
+      rationaleTags: [
+        `legacy_${ruleId}`,
+        ...(field.safety < 0 ? ["field_harm"] : []),
+        ...(field.benefit > 0 ? ["field_benefit"] : []),
+      ],
     };
   });
 }
@@ -626,7 +680,7 @@ function buildActorDecisionObjective({
   actorRecord,
   motivationProfile,
   visibleActors,
-  hazards,
+  affinityFields,
   candidateActions,
   proposals,
   exit,
@@ -634,7 +688,14 @@ function buildActorDecisionObjective({
   baseTiles,
 }) {
   if (!motivationProfile) {
-    const rows = buildCompatibilityDecisionRows({ actor, visibleActors, candidateActions, exit });
+    const rows = buildCompatibilityDecisionRows({
+      actor,
+      actorRecord,
+      visibleActors,
+      candidateActions,
+      exit,
+      affinityFields,
+    });
     if (new Set(rows.map((entry) => entry.candidateActionId)).size !== rows.length) return undefined;
     return {
       contract: ACTOR_DECISION_OBJECTIVE_CONTRACT,
@@ -692,15 +753,13 @@ function buildActorDecisionObjective({
     const stealthRank = flags.includes("PrefersStealth") && beforeHostile && afterHostile
       ? 1000 * (afterHostile.distance - beforeHostile.distance)
       : 0;
-    const hazardStacks = hazards.reduce((total, hazard) => {
-      if (!hazard?.position || hazard.position.x !== endPosition?.x || hazard.position.y !== endPosition?.y) return total;
-      return total + (Number.isFinite(hazard.stacks) ? Math.max(1, Math.trunc(hazard.stacks)) : 1);
-    }, 0);
+    const field = fieldUtilityRanks({ endPosition, affinityFields, actorRecord });
     const reserve = castReserveRank(action, actorRecord);
     const rationaleTags = [intentTag];
     if (coverRank) rationaleTags.push("prefers_cover");
     if (stealthRank) rationaleTags.push("prefers_stealth");
-    if (hazardStacks) rationaleTags.push("hazard_exposure");
+    if (field.safety < 0) rationaleTags.push("field_harm");
+    if (field.benefit > 0) rationaleTags.push("field_benefit");
     if (action?.kind === "cast_affinity") rationaleTags.push(`${reserve.source}_reserve`);
     return {
       candidateActionId: candidate.id,
@@ -708,7 +767,8 @@ function buildActorDecisionObjective({
         intentClass,
         targetFinishRank(target),
         coverRank + stealthRank,
-        -hazardStacks,
+        field.safety,
+        field.benefit,
         reserve.rank,
         -index,
       ],
@@ -725,7 +785,9 @@ function buildActorDecisionObjective({
         flags: [...flags],
         beforeMinHostileDistance: beforeHostile?.distance ?? null,
         afterMinHostileDistance: afterHostile?.distance ?? null,
-        hazardStacks,
+        fieldEffectsByVital: field.effects,
+        fieldSafety: field.safety,
+        fieldBenefit: field.benefit,
         castReserveSource: reserve.source,
       },
       rationaleTags,
@@ -882,6 +944,7 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
   }
   const visibleActors = resolveVisibleActors(view, actorId);
   const hazards = resolveHazards(payload, view);
+  const affinityFields = Array.isArray(observation?.affinityFields) ? observation.affinityFields : [];
   const motivationProfile = buildMotivationProfile(view, actorId, payload);
   const baseObjectives = buildRuntimeDecisionObjectives({
     configuredActor: decisionConfig.configuredActor,
@@ -893,7 +956,7 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
     actorRecord,
     motivationProfile,
     visibleActors,
-    hazards,
+    affinityFields,
     candidateActions,
     proposals,
     exit,

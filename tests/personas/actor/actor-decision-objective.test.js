@@ -26,6 +26,7 @@ async function solverEnvelope({
   exit = { x: 2, y: 4 },
   proposals,
   hazards,
+  affinityFields,
 }) {
   const [{ createActorPersona }, { TickPhases }] = await Promise.all([
     import("../../../packages/runtime/src/personas/actor/persona.js"),
@@ -35,6 +36,7 @@ async function solverEnvelope({
     actors: [self, ...others],
     tiles: { baseTiles, kinds: tileKinds(baseTiles) },
     exit,
+    ...(Array.isArray(affinityFields) ? { affinityFields } : {}),
   };
   const payload = {
     actorId: self.id,
@@ -84,9 +86,9 @@ test("attacking ranks its cast proposal with target health and live grant reserv
     hazards: [{ id: "fire_patch", position: { x: 2, y: 1 }, stacks: 3 }],
   });
 
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v1");
-  assert.deepEqual(row(envelope, "cast_affinity_warden_1").rank, [600, 8000, 0, 0, 500, 0]);
-  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 5), [400, 8000, 0, -3, 0]);
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v2");
+  assert.deepEqual(row(envelope, "cast_affinity_warden_1").rank, [600, 8000, 0, 0, 0, 500, 0]);
+  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 6), [400, 8000, 0, 0, 0, 0]);
 });
 
 test("defending holds when its hostile is distant even if a move reaches cover", async () => {
@@ -167,18 +169,136 @@ test("an unknown motivation emits an Actor-owned compatibility tuple", async () 
   });
 
   assert.equal(envelope.actor.motivationProfile, undefined);
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v1");
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v2");
   assert.deepEqual(envelope.objectives.actorDecision.order, [
     "intentClass",
     "targetFinish",
     "profileAlignment",
-    "hazardSafety",
+    "fieldSafety",
+    "fieldBenefit",
     "castReserve",
     "inputOrder",
   ]);
   assert.equal(row(envelope, "move_east").rank[0], 80);
   assert.deepEqual(row(envelope, "move_east").rationaleTags, ["legacy_move_toward_hostile"]);
   assert.equal(row(envelope, "wait_here").rank[0], 10);
+});
+
+test("field safety breaks an otherwise-equal movement tie without changing intent", async () => {
+  const envelope = await solverEnvelope({
+    self: {
+      id: "delver_1",
+      kind: 2,
+      role: "delver",
+      position: { x: 2, y: 2 },
+      motivation: { kind: "random" },
+      vitals: { health: { current: 5, max: 10, regen: 0 } },
+    },
+    proposals: [
+      { kind: "move", params: { direction: "east", from: { x: 2, y: 2 }, to: { x: 3, y: 2 } } },
+      { kind: "move", params: { direction: "south", from: { x: 2, y: 2 }, to: { x: 2, y: 3 } } },
+    ],
+    affinityFields: [{
+      position: { x: 3, y: 2 },
+      kind: 1,
+      expression: 3,
+      stacks: 2,
+      intensity: 2,
+      contributionCount: 1,
+      vitalEffects: [{ vital: 0, effect: -4 }],
+    }],
+  });
+
+  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 5), [600, 0, 0, -4, 0]);
+  assert.deepEqual(row(envelope, "move_south").rank.slice(0, 5), [600, 0, 0, 0, 0]);
+});
+
+test("field benefit is capped by missing vital capacity and ignored when full", async () => {
+  const fields = [{
+    position: { x: 3, y: 2 },
+    kind: 5,
+    expression: 3,
+    stacks: 5,
+    intensity: 5,
+    contributionCount: 1,
+    vitalEffects: [{ vital: 0, effect: 8 }],
+  }];
+  const input = {
+    self: {
+      id: "delver_1",
+      kind: 2,
+      role: "delver",
+      position: { x: 2, y: 2 },
+      motivation: { kind: "random" },
+    },
+    proposals: [
+      { kind: "move", params: { direction: "east", from: { x: 2, y: 2 }, to: { x: 3, y: 2 } } },
+      { kind: "move", params: { direction: "south", from: { x: 2, y: 2 }, to: { x: 2, y: 3 } } },
+    ],
+    affinityFields: fields,
+  };
+  const injured = await solverEnvelope({
+    ...input,
+    self: { ...input.self, vitals: { health: { current: 6, max: 10, regen: 0 } } },
+  });
+  const full = await solverEnvelope({
+    ...input,
+    self: { ...input.self, vitals: { health: { current: 10, max: 10, regen: 0 } } },
+  });
+
+  assert.equal(row(injured, "move_east").rank[4], 4);
+  assert.equal(row(injured, "move_south").rank[4], 0);
+  assert.equal(row(full, "move_east").rank[4], 0);
+});
+
+test("a non-move evaluates the field at the Actor's current cell", async () => {
+  const envelope = await solverEnvelope({
+    self: {
+      id: "delver_1",
+      kind: 2,
+      role: "delver",
+      position: { x: 2, y: 2 },
+      motivation: { kind: "random" },
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    },
+    proposals: [{ kind: "wait", params: {} }],
+    affinityFields: [{
+      position: { x: 2, y: 2 },
+      kind: 1,
+      expression: 3,
+      stacks: 1,
+      intensity: 1,
+      contributionCount: 1,
+      vitalEffects: [{ vital: 0, effect: -3 }],
+    }],
+  });
+
+  assert.deepEqual(row(envelope, "wait_1").rank.slice(0, 5), [600, 0, 0, -3, 0]);
+});
+
+test("field benefit cannot override a stronger primary intent", async () => {
+  const envelope = await solverEnvelope({
+    self: {
+      id: "delver_1",
+      kind: 2,
+      role: "delver",
+      position: { x: 2, y: 2 },
+      motivation: { kind: "stationary" },
+      vitals: { health: { current: 0, max: 10, regen: 0 } },
+    },
+    affinityFields: [{
+      position: { x: 3, y: 2 },
+      kind: 5,
+      expression: 3,
+      stacks: 10,
+      intensity: 10,
+      contributionCount: 1,
+      vitalEffects: [{ vital: 0, effect: 10 }],
+    }],
+  });
+
+  assert.equal(row(envelope, "wait_here").rank[0], 100);
+  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 5), [0, 0, 0, 0, 10]);
 });
 
 test("the Actor objective distinguishes hostile pursuit from movement toward an ally", async () => {

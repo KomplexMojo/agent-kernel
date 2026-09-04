@@ -125,9 +125,15 @@ export interface VisibilityObservationHazard {
   [key: string]: unknown;
 }
 
+export interface VisibilityObservationAffinityField {
+  position?: { x: number; y: number };
+  [key: string]: unknown;
+}
+
 export interface VisibilityObservation {
   actors?: VisibilityObservationActor[];
   hazards?: VisibilityObservationHazard[];
+  affinityFields?: VisibilityObservationAffinityField[];
   tiles?: { kinds?: unknown[][]; [key: string]: unknown };
   [key: string]: unknown;
 }
@@ -288,9 +294,22 @@ export function scopeObservation<T extends VisibilityObservation>(
     })
     : observation.hazards;
 
+  // Field cells are environmental facts, not target entities. They share the
+  // same radius/LOS boundary but deliberately do not apply target-dark
+  // concealment, which would hide the condition of a cell along with a source
+  // actor or hazard standing in it.
+  const affinityFields = Array.isArray(observation.affinityFields)
+    ? observation.affinityFields.filter((field) => {
+      const position = field?.position;
+      if (!isGridPosition(position)) return false;
+      return isPerceived(origin, position, effectiveRadius, tileKinds, {});
+    })
+    : observation.affinityFields;
+
   return {
     ...observation,
     actors,
     ...(Array.isArray(observation.hazards) ? { hazards } : {}),
+    ...(Array.isArray(observation.affinityFields) ? { affinityFields } : {}),
   } as T;
 }

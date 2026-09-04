@@ -26,7 +26,7 @@ import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
 // same arguments, same result shape (proven by the differential in
 // tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "./llm-host.js";
-import { createHostedLayoutBudgetFitter } from "./solver-host.js";
+import { createHostedLayoutBudgetFitter, createHostedObjectPlacer } from "./solver-host.js";
 import { runLlmBudgetLoop } from "../personas/orchestrator/persona.js";
 import { createRuntime } from "../runner/runtime.js";
 // CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
@@ -957,7 +957,15 @@ export function createCommandKernel(host = {}) {
         };
       }
 
-      result = await orchestrateBuild({ spec, producedBy, solver });
+      const objectPlacementAdapter = await createSolverAdapter({});
+      const objectPlacementConfigurator = createConfiguratorPersona({ clock: () => spec.meta.createdAt });
+      const placeObjects = createHostedObjectPlacer({
+        prepare: objectPlacementConfigurator.prepareObjectPlacement,
+        complete: objectPlacementConfigurator.completeObjectPlacement,
+        adapter: objectPlacementAdapter,
+        clock: () => spec.meta.createdAt,
+      });
+      result = await orchestrateBuild({ spec, producedBy, solver, placeObjects });
       const mixedRoomAssemblies = summarizeMixedRoomAssemblies(result?.simConfig?.layout?.data?.rooms);
       if (result?.affinitySummary && typeof result.affinitySummary === "object") {
         result.affinitySummary = {
@@ -1264,6 +1272,15 @@ export function createCommandKernel(host = {}) {
 
     const tickFrames = runtime.getTickFrames();
     const effectLog = runtime.getEffectLog();
+    const runtimeBudgetReceiptMeta = deterministicRunArtifactMeta("runtimebudgetreceipt", "allocator");
+    const runtimeBudgetReceipt = runtime.issueRuntimeBudgetReceipt({
+      meta: {
+        id: runtimeBudgetReceiptMeta.id,
+        runId: runtimeBudgetReceiptMeta.runId,
+        createdAt: runtimeBudgetReceiptMeta.createdAt,
+        producedBy: runtimeBudgetReceiptMeta.producedBy,
+      },
+    });
     const runtimeDecisionCaptures = summarizeRuntimeDecisionCaptures(tickFrames).captures;
     // P3.2: the Annotator owns the run summary (artifacts.ts: "Run-level summary
     // emitted by Annotator at end of run"). It derives a REAL outcome from the
@@ -1308,6 +1325,7 @@ export function createCommandKernel(host = {}) {
 
     await writeJson(join(outDir, "tick-frames.json"), tickFrames);
     await writeJson(join(outDir, "effects-log.json"), effectLog);
+    await writeJson(join(outDir, "runtime-budget-receipt.json"), runtimeBudgetReceipt);
     await writeJson(join(outDir, "runtime-decision-captures.json"), runtimeDecisionCaptures);
     if (deferredCoordination) {
       await writeJson(join(outDir, "deferred-coordination.json"), deferredCoordination);
@@ -1331,7 +1349,7 @@ export function createCommandKernel(host = {}) {
     }
 
     commandLog(`run: wrote ${outDir}`);
-    return { outDir };
+    return { outDir, runtimeBudgetReceipt };
   }
 
   async function replay(args) {
@@ -2345,10 +2363,21 @@ export function createCommandKernel(host = {}) {
     }
 
     const capturedInputsForBuild = captures.length > 0 ? captures : capture ? [capture] : undefined;
+    const objectPlacementAdapter = await createSolverAdapter({});
+    const objectPlacementConfigurator = createConfiguratorPersona({
+      clock: () => buildSpecResult.spec.meta.createdAt,
+    });
+    const placeObjects = createHostedObjectPlacer({
+      prepare: objectPlacementConfigurator.prepareObjectPlacement,
+      complete: objectPlacementConfigurator.completeObjectPlacement,
+      adapter: objectPlacementAdapter,
+      clock: () => buildSpecResult.spec.meta.createdAt,
+    });
     const buildResult = await orchestrateBuild({
       spec: buildSpecResult.spec,
       producedBy: "cli-llm-plan",
       capturedInputs: capturedInputsForBuild,
+      placeObjects,
     });
 
     await writeJson(join(outDir, "spec.json"), buildResult.spec);

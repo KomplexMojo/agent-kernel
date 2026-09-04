@@ -1,4 +1,8 @@
-import { BUDGET_RECEIPT_ARTIFACT_SCHEMA } from "../../contracts/artifacts.ts";
+import {
+  BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  type ArtifactMeta,
+  type RuntimeBudgetReceiptArtifact,
+} from "../../contracts/artifacts.ts";
 
 // Local contracts for the Allocator persona state machine.
 // Cross-persona artifacts live in packages/runtime/src/contracts/artifacts.ts.
@@ -127,16 +131,37 @@ export interface MotivationQuote {
   }>;
 }
 
+export interface RuntimeActionCosts {
+  unit: "runtimeBudgetUnits";
+  source: "allocator_runtime_action_price_v1";
+  default: number;
+  wait: number;
+  attack: number;
+  castAffinity: number;
+  requestSolver: number;
+  move: number;
+}
+
+/** Unit-free runtime application fact supplied by runtime to the Allocator. */
+export interface RuntimeBudgetOutcome {
+  actorId?: string | null;
+  tick: number;
+  actionKind: string;
+  outcome: "accepted" | "rejected";
+  reason?: string;
+}
+
 export interface AllocatorPricingSurface {
   priceList(): unknown;
   priceMap(): Map<string, PriceListItem>;
   unitCosts(): Map<string, number>;
   quoteMotivations(motivations: Array<{ kind: string; intensity?: number }>): MotivationQuote;
+  runtimeActionCosts(): RuntimeActionCosts;
 }
 
 export interface SpendValidationResult {
   receipt: {
-    schema: BUDGET_RECEIPT_ARTIFACT_SCHEMA;
+    schema: typeof BUDGET_RECEIPT_ARTIFACT_SCHEMA;
     schemaVersion: 1;
     status: "approved" | "partial" | "denied";
     totalCost: number;
@@ -154,6 +179,10 @@ export interface AllocatorStateErrorShape extends Error {
 
 export interface AllocatorServiceSurface {
   pricing: AllocatorPricingSurface;
+  issueRuntimeBudgetReceipt(args: {
+    outcomes: RuntimeBudgetOutcome[];
+    meta: ArtifactMeta;
+  }): RuntimeBudgetReceiptArtifact;
   registerBudget(budget: unknown): { state: AllocatorState };
   validateSpend(args: {
     proposal: SpendProposal;

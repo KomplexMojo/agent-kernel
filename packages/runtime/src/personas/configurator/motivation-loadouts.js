@@ -18,11 +18,11 @@
  */
 import { GAME_MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
 import {
-  getMotivationExclusiveGroup,
   MOTIVATION_FAMILIES,
   MOTIVATION_KINDS,
   normalizeMotivationKind,
 } from "../../contracts/domain-constants.js";
+import { findMotivationConflict } from "./logical-validation.js";
 
 export const MOTIVATION_PATTERNS = Object.freeze({
   patrolling: Object.freeze(["loop", "ping_pong", "random_walk"]),
@@ -93,7 +93,6 @@ export function normalizeMotivationKindList(input, { fieldBase = "motivations", 
 
   const value = [];
   const seen = new Set();
-  const selectedGroupKinds = new Map();
   list.forEach((entry, index) => {
     const kind = normalizeMotivationKind(entry);
     if (!kind) {
@@ -101,14 +100,9 @@ export function normalizeMotivationKindList(input, { fieldBase = "motivations", 
       return;
     }
     if (seen.has(kind)) return;
-    const group = getMotivationExclusiveGroup(kind);
-    if (group) {
-      const selectedKind = selectedGroupKinds.get(group.id);
-      if (selectedKind && selectedKind !== kind) {
-        addError(errors, `${fieldBase}[${index}]`, "conflicting_kind");
-        return;
-      }
-      selectedGroupKinds.set(group.id, kind);
+    if (findMotivationConflict(value, kind)) {
+      addError(errors, `${fieldBase}[${index}]`, "conflicting_kind");
+      return;
     }
     seen.add(kind);
     value.push(kind);
@@ -299,18 +293,12 @@ export function normalizeMotivations(input, fieldBase = "motivations") {
   }
 
   const value = [];
-  const selectedGroupKinds = new Map();
   list.forEach((entry, index) => {
     const normalized = normalizeMotivation(entry, `${fieldBase}[${index}]`, errors);
     if (normalized) {
-      const group = getMotivationExclusiveGroup(normalized.kind);
-      if (group) {
-        const selectedKind = selectedGroupKinds.get(group.id);
-        if (selectedKind && selectedKind !== normalized.kind) {
-          addError(errors, `${fieldBase}[${index}]`, "conflicting_kind");
-          return;
-        }
-        selectedGroupKinds.set(group.id, normalized.kind);
+      if (findMotivationConflict(value, normalized.kind)) {
+        addError(errors, `${fieldBase}[${index}]`, "conflicting_kind");
+        return;
       }
       value.push(normalized);
     }

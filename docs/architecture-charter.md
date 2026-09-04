@@ -298,6 +298,39 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
   drives real payloads and compares what was charged against what is published.
 - Receipts (`BudgetReceiptArtifact`) are issued only by the Allocator and are the audit trail for
   every spend. Budget maximization ("spend the rest") is Allocator policy, not adapter code.
+- **Runtime action accounting uses `runtimeBudgetUnits`; it is neither authoring spend nor provider
+  token usage (T3.0 approved 2026-09-02; T3.1a–T3.2b landed Allocator authority, runtime capture,
+  persistence, CLI inspection, bundle handoff, and inspector display).** Authoring/build
+  tokens price persistent content. Provider prompt/completion tokens remain CapturedInput telemetry.
+  Neither may be added to, converted into, or labelled as `runtimeBudgetUnits`.
+
+  The Allocator is the sole source of runtime prices. Its runtime-action pricing surface publishes
+  one unit name and this complete v1 schedule: accepted `wait` = 1, `attack` = 1,
+  `cast_affinity` = 1 flat unit, and `request_solver` = 2; accepted `move` = 0 by the existing
+  stamina-cost ruling; every other accepted runtime action uses the published default of 1; every
+  rejected action = 0. The affinity-cast unit is independent of both its gameplay mana payment and
+  its authoring price-list entries. Runtime may apply these values but may not define a fallback
+  schedule or derive a price from action payloads.
+
+  `RuntimeBudgetReceiptArtifact` v1 is descriptive accounting and **must not** accept, reject, defer,
+  or otherwise gate an action. Existing core category caps, counters, and limit effects remain a
+  separate enforcement mechanism and must not be incremented a second time to produce the receipt.
+  Runtime supplies unit-free application outcomes to the live Allocator instance; the Allocator
+  applies its schedule and issues the artifact with `meta.producedBy: "allocator"`. Glue may persist
+  it but may not stamp, price, or total it.
+  The receipt records every submitted runtime action in application order as
+  `{ actorId, tick, actionKind, outcome, units, source, reason? }`, where `outcome` is `accepted` or
+  `rejected` and `source` is `allocator_runtime_action_price_v1`. An accepted solver request and the
+  later concrete action it enables are two distinct rows. Attribution uses the originating action's
+  actor id; missing attribution is `null`, contributes to an explicit unattributed subtotal and the
+  run total, and is never guessed from mutable core state. Actor subtotals, the unattributed subtotal,
+  and the run total are sums of rows, not presentation-side reconstructions. Stable action order makes
+  replay byte-identical.
+
+  Worked receipt: at tick 1, actor `delver` waits (1) and actor `warden` moves (0); at tick 2,
+  `delver` issues a solver request (2), its resulting attack is accepted (1), `warden` casts an
+  affinity (1), and a malformed unaffiliated attack is rejected (0, `actorId: null`). The actor
+  subtotals are `delver: 4`, `warden: 1`, unattributed: `0`, and the run total is `5`.
 - **Mixed-room spend is real design-token spend (RB3.0, approved 2026-08-30).** The Configurator
   authors room dimensions and components without prices. The Allocator alone resolves those inputs
   against the versioned price list and returns a reconciled `designTokenSpend` summary with unit
@@ -427,15 +460,17 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - Complex motivation must route through the runtime solver port (`packages/runtime/src/ports/solver.js`) and adapter implementations. Runtime code constructs the request envelope and consumes the normalized result; it does not embed solver-specific logic.
 - `packages/runtime/src/personas/_shared/runtime-decision.mts` resolves fulfilled solver results through `resolveActionFromSolverResult()` and maps the selected candidate back to a concrete runtime action.
 - The Actor owns candidate feature meaning and objective order. It emits
-  `actor-decision-objective-v1`; adapters validate and stably sort the six-integer lexicographic tuples
-  without interpreting domain features. Every live Actor request includes an objective; unknown
-  motivation profiles receive an Actor-authored compatibility tuple. Invalid or absent objectives
-  defer with typed reasons, after which runtime applies its deterministic Actor fallback. An adapter
-  must not recreate the compatibility policy or invent ranked diagnostics for an old envelope.
+  `actor-decision-objective-v2`; adapters validate and stably sort the seven-integer lexicographic
+  tuples without interpreting domain features, while retaining opaque validation compatibility for
+  valid v1 envelopes. Every live Actor request includes an objective; unknown motivation profiles
+  receive an Actor-authored compatibility tuple. Invalid or absent objectives defer with typed
+  reasons, after which runtime applies its deterministic Actor fallback. An adapter must not recreate
+  the compatibility policy or invent ranked diagnostics for an old envelope.
 - The active CLI and web platform copies expose the canonical `hybrid-constraint` adapter for
-  `actor_action_selection` and `allocator_budget_fit`. The Actor branch remains a pure tuple validator/
-  stable sort and never initializes Z3. Only the Allocator branch initializes Z3 and compiles the
-  persona-authored opaque integer expressions. `adapters-test` retains fixture/test doubles separately.
+  `actor_action_selection`, `allocator_budget_fit`, and `configurator_satisfiability`. The Actor branch
+  remains a pure tuple validator/stable sort and never initializes Z3. The Allocator and Configurator
+  branches initialize Z3 only to compile their persona-authored opaque integer/linear expressions;
+  adapters attach no domain meaning. `adapters-test` retains fixture/test doubles separately.
 - Allocator budget fit uses the same effect boundary without giving the persona an adapter. The
   Allocator prepares a `solver_request`; `packages/runtime/src/commands/solver-host.js` checks domain
   capability, dispatches it through `createSolverPort`, awaits the result, and invokes the Allocator's

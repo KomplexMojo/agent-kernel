@@ -38,6 +38,16 @@ import {
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 import { reconcileBudget } from "./reconciliation.js";
 import { priceMixedRoomDesignSpend } from "./mixed-room-spend.js";
+import { RUNTIME_BUDGET_RECEIPT_SCHEMA } from "../../contracts/artifacts.ts";
+
+const RUNTIME_BUDGET_UNIT = "runtimeBudgetUnits";
+const RUNTIME_BUDGET_PRICE_SOURCE = "allocator_runtime_action_price_v1";
+
+function runtimeBudgetReceiptError(code, message) {
+  const error = new Error(message);
+  error.code = code;
+  return error;
+}
 
 export class AllocatorStateError extends Error {
   constructor(message) {
@@ -164,11 +174,16 @@ export function attachAllocatorServices({
      * core charges while a simulation runs. Names, not core action codes —
      * runtime maps them onto core's ActionKind codebook.
      */
-    actionBudgetCosts: () => ({
+    runtimeActionCosts: () => ({
+      unit: RUNTIME_BUDGET_UNIT,
+      source: RUNTIME_BUDGET_PRICE_SOURCE,
       default: BASE_COSTS.actionBudget.action_default,
+      wait: BASE_COSTS.actionBudget.action_wait,
+      attack: BASE_COSTS.actionBudget.action_attack,
+      castAffinity: BASE_COSTS.actionBudget.action_cast_affinity,
       requestSolver: BASE_COSTS.actionBudget.action_request_solver,
+      move: BASE_COSTS.actionBudget.action_move,
     }),
-
     /**
      * Split a total token budget into pools (CR.1).
      *
@@ -386,6 +401,92 @@ export function attachAllocatorServices({
     return lastReconciliation;
   }
 
+  /**
+   * Issue the descriptive runtime receipt from application facts. Runtime owns
+   * whether an action was accepted; this persona alone maps that outcome to
+   * policy units and totals. It neither reads nor changes core's cap ledger.
+   */
+  function issueRuntimeBudgetReceipt({ outcomes, meta } = {}) {
+    if (!meta || typeof meta !== "object" || typeof meta.id !== "string" || !meta.id.trim()
+      || typeof meta.createdAt !== "string" || !meta.createdAt.trim()) {
+      throw runtimeBudgetReceiptError(
+        "allocator_runtime_budget_meta_required",
+        "Runtime budget receipt requires deterministic artifact metadata.",
+      );
+    }
+    if (!Array.isArray(outcomes)) {
+      throw runtimeBudgetReceiptError(
+        "allocator_runtime_budget_outcomes_required",
+        "Runtime budget receipt requires an outcomes array.",
+      );
+    }
+
+    const costs = pricing.runtimeActionCosts();
+    const unitsForAcceptedAction = (actionKind) => {
+      if (actionKind === "wait") return costs.wait;
+      if (actionKind === "attack") return costs.attack;
+      if (actionKind === "cast_affinity") return costs.castAffinity;
+      if (actionKind === "request_solver") return costs.requestSolver;
+      if (actionKind === "move") return costs.move;
+      return costs.default;
+    };
+    const totalsByActor = new Map();
+    let unattributedUnits = 0;
+    let totalUnits = 0;
+    const rows = outcomes.map((outcome, index) => {
+      const actorId = typeof outcome?.actorId === "string" && outcome.actorId.trim()
+        ? outcome.actorId
+        : null;
+      const tick = outcome?.tick;
+      const actionKind = outcome?.actionKind;
+      const outcomeKind = outcome?.outcome;
+      const reason = outcome?.reason;
+      if (!Number.isInteger(tick) || tick < 0 || typeof actionKind !== "string" || !actionKind.trim()
+        || (outcomeKind !== "accepted" && outcomeKind !== "rejected")
+        || (reason !== undefined && typeof reason !== "string")) {
+        throw runtimeBudgetReceiptError(
+          "allocator_runtime_budget_outcome_invalid",
+          `Runtime budget outcome ${index} is invalid.`,
+        );
+      }
+      if (outcome?.actorId !== undefined && outcome?.actorId !== null && typeof outcome.actorId !== "string") {
+        throw runtimeBudgetReceiptError(
+          "allocator_runtime_budget_outcome_invalid",
+          `Runtime budget outcome ${index} has a non-string actor id.`,
+        );
+      }
+
+      const units = outcomeKind === "accepted" ? unitsForAcceptedAction(actionKind) : 0;
+      totalUnits += units;
+      if (actorId === null) {
+        unattributedUnits += units;
+      } else {
+        totalsByActor.set(actorId, (totalsByActor.get(actorId) || 0) + units);
+      }
+      return {
+        actorId,
+        tick,
+        actionKind,
+        outcome: outcomeKind,
+        units,
+        source: costs.source,
+        ...(reason ? { reason } : {}),
+      };
+    });
+
+    return {
+      schema: RUNTIME_BUDGET_RECEIPT_SCHEMA,
+      schemaVersion: 1,
+      meta: { ...meta, producedBy: "allocator" },
+      unit: costs.unit,
+      enforcement: "descriptive",
+      rows,
+      actorTotals: Array.from(totalsByActor, ([actorId, units]) => ({ actorId, units })),
+      unattributedUnits,
+      totalUnits,
+    };
+  }
+
   /** Serializable service-side context merged into the persona view. */
   function serviceContext() {
     return {
@@ -401,6 +502,7 @@ export function attachAllocatorServices({
 
   return {
     pricing,
+    issueRuntimeBudgetReceipt,
     resolvePriceList,
     resolveActorExpansionAvailability,
     priceMixedRoomDesignSpend: boundPriceMixedRoomDesignSpend,

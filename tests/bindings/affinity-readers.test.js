@@ -238,6 +238,18 @@ test("readAffinityInteractionResult covers the 48 expression relationship matrix
         const result = readAffinityInteractionResult(core);
         assert.equal(result.relationshipName, relationshipName);
         assert.notEqual(result.visualStateName, "unknown");
+        assert.notEqual(result.sourceEffectName, "unknown");
+        assert.notEqual(result.targetEffectName, "unknown");
+        assert.equal(
+          result.canceledStacks,
+          relationshipName === "opposite" ? 1 : 0,
+          `${sourceExpression}/${targetExpression}/${relationshipName} cancellation`,
+        );
+        if (relationshipName === "neutral") {
+          assert.equal(result.sourceEffectName, "none");
+          assert.equal(result.targetEffectName, "none");
+          assert.equal(result.visualStateName, "layered");
+        }
         count += 1;
       }
     }
