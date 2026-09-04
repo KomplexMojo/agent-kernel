@@ -36,7 +36,7 @@ import { fileURLToPath } from "node:url";
  * production path solves anywhere near this many times in one process.
  */
 const CHUNK_SIZE = 2000;
-const MIN_CHUNK_SIZE = 125;
+const MIN_SPAN_SIZE = 1;
 const SELF = fileURLToPath(import.meta.url);
 
 function parseArgs(argv) {
@@ -114,47 +114,54 @@ function runChunk(domain, profile, offset, limit) {
 }
 
 /**
- * Solve one span, halving it on a crash rather than guessing a chunk size up front.
+ * Walk the enumeration in spans, shrinking the span size when a worker process dies.
  *
- * How many solves a process survives depends on the SIZE of the problems in that span,
- * not just their count: bigger tile counts and prices make Z3 rewrite larger
- * pseudo-boolean constraints, so a span of 2000 near the start of the enumeration
- * completes while the same-sized span further in aborts. A fixed constant would have to
- * be tuned to the worst span and would waste process startups on all the rest, and it
- * would silently need retuning whenever the bounds change. Halving finds the workable
- * size per span on its own.
+ * WHY THE SIZE IS DISCOVERED RATHER THAN CONFIGURED. How many solves a process
+ * survives depends on the SIZE of the problems in that span, not their count: larger
+ * tile counts and prices make Z3 rewrite bigger pseudo-boolean constraints, so early
+ * spans of 2000 complete while later ones abort. Measured on this domain, a span at
+ * offset 16000 survived 60 solves and died at 125.
  *
- * The floor matters: below it, a crash is no longer "the span was too big" but a real
- * defect that must surface rather than be subdivided into invisibility.
+ * THE FLOOR IS 1, AND THAT IS THE WHOLE POINT. An earlier version floored at 125 on
+ * the theory that "below this, a crash is a defect rather than a span-size problem."
+ * That theory was wrong and it failed the sweep: 60 points at the same offset ran
+ * fine, so 125 was still just too big. The only span size that distinguishes a defect
+ * from a capacity limit is ONE -- if a single problem aborts the process, no amount of
+ * subdividing helps and something is genuinely wrong. Any larger floor is a guess
+ * dressed as a diagnosis.
+ *
+ * The size shrinks and does not grow back. Re-discovering the ceiling once per span
+ * costs a crashed process each time, and every crash throws away that span's work.
  */
-function solveSpan(domain, profile, offset, limit, log, parts) {
-  try {
-    parts.push(runChunk(domain, profile, offset, limit));
-    return;
-  } catch (error) {
-    if (limit <= MIN_CHUNK_SIZE) {
-      throw new Error(
-        `a span of only ${limit} points at offset ${offset} crashed the solver process. `
-        + `That is below the ${MIN_CHUNK_SIZE}-point floor, so it is a defect rather than a `
-        + `span-size problem and is not being subdivided further.\n${error.message}`,
-      );
-    }
-    const half = Math.ceil(limit / 2);
-    log(`    span ${offset}..${offset + limit} crashed; retrying as two spans of ~${half}`);
-    solveSpan(domain, profile, offset, half, log, parts);
-    solveSpan(domain, profile, offset + half, limit - half, log, parts);
-  }
-}
-
-async function runChunked(domain, profile, log) {
+function runChunked(domain, profile, log) {
   const total = countAllocatorDecisionPoints(LEDGER_DOMAINS[domain].bounds[profile]);
   const parts = [];
-  const spans = Math.ceil(total / CHUNK_SIZE);
-  for (let offset = 0; offset < total; offset += CHUNK_SIZE) {
-    const limit = Math.min(CHUNK_SIZE, total - offset);
-    log(`  span ${Math.floor(offset / CHUNK_SIZE) + 1}/${spans} — points ${offset}..${offset + limit}`);
-    solveSpan(domain, profile, offset, limit, log, parts);
+  let spanSize = CHUNK_SIZE;
+  let offset = 0;
+  let shrinks = 0;
+
+  while (offset < total) {
+    const limit = Math.min(spanSize, total - offset);
+    try {
+      parts.push(runChunk(domain, profile, offset, limit));
+      offset += limit;
+      if (parts.length % 10 === 0 || limit === total - offset) {
+        log(`  ${offset}/${total} points  ·  span ${spanSize}  ·  ${parts.length} workers`);
+      }
+    } catch (error) {
+      if (limit <= MIN_SPAN_SIZE) {
+        throw new Error(
+          `a SINGLE problem at offset ${offset} crashed the solver process. Subdividing cannot `
+          + `help below one point, so this is a genuine defect rather than a capacity limit.\n`
+          + `${error.message}`,
+        );
+      }
+      spanSize = Math.max(MIN_SPAN_SIZE, Math.floor(limit / 2));
+      shrinks += 1;
+      log(`  span too large at offset ${offset}; shrinking to ${spanSize} (shrink #${shrinks})`);
+    }
   }
+  log(`  done: ${parts.length} workers, final span ${spanSize}, ${shrinks} shrinks`);
   return mergeAllocatorLedgers(parts);
 }
 
@@ -186,7 +193,7 @@ async function main() {
     console.log(`\n[${domain}]`);
     const chunkable = domain === "allocator_budget_fit" && !args.noChunk && !args.limit;
     const result = chunkable
-      ? await runChunked(domain, args.profile, (line) => console.log(line))
+      ? runChunked(domain, args.profile, (line) => console.log(line))
       : await runLedger(domain, {
         profile: args.profile,
         limit: args.limit,
