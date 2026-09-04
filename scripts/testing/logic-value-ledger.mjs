@@ -26,6 +26,7 @@
  * Out of the test gate by construction: this drives real Z3 thousands of times.
  * Run it with `pnpm run logic-sweep`.
  */
+import { enumerateOrderingScenarios, orderingDivergence } from "./logic-actor-ordering.mjs";
 import {
   bestRoute,
   enumerateBoards,
@@ -768,6 +769,76 @@ async function runLookaheadLedger({ bounds, limit, log, offset = 0 }) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// actor_ordering — benefit gate (NOT an adopted constraint domain)
+// ---------------------------------------------------------------------------
+
+/**
+ * DOES WHO-GOES-FIRST CHANGE THE OUTCOME? Asked with no solver in it, before one is written.
+ *
+ * Actor order is currently the alphabetical sort of actor ids (`runtime-fsm.mjs:194`), so
+ * renaming an attacker from `delver_1` to `zealot_1` moves it behind a warden. Core exposes
+ * no initiative, priority or turn concept. The charter assigns ordering to the Moderator so
+ * that "tick semantics are policy, not accidents of the runner loop", and
+ * `moderator/tick-ordering.js` does own the order of the seven PERSONAS — but actor order is
+ * a different subject sharing a name, and is owned by nobody.
+ *
+ * ⚠️ THE CHARTER'S "tick ordering" REFUSAL DOES NOT COVER THIS. That refusal is correct about
+ * persona order, which really is a fixed sort. Actor order is a scheduling question over a
+ * shared, mutually exclusive resource, which is the shape a sort cannot answer.
+ *
+ * Decisions are order-invariant — actors choose independently — so only APPLICATION order
+ * varies here, each permutation against a freshly built core. Real core rules resolve it.
+ */
+async function runActorOrderingLedger({ bounds, limit, log, offset = 0 }) {
+  const counters = { scenarios: 0, orderDependent: 0, orderIrrelevant: 0, maxDistinctOutcomes: 1 };
+  const byKind = {};
+  const examples = [];
+  const startedAt = Date.now();
+  let seen = 0;
+
+  for (const scenario of enumerateOrderingScenarios(bounds)) {
+    seen += 1;
+    if (seen <= offset) continue;
+    if (limit && counters.scenarios >= limit) break;
+    counters.scenarios += 1;
+    if (log && counters.scenarios % 200 === 0) {
+      log(`  … ${counters.scenarios} scenarios (${Math.round((Date.now() - startedAt) / 1000)}s)`);
+    }
+
+    const result = await orderingDivergence(scenario);
+    byKind[scenario.kind] ||= { total: 0, dependent: 0 };
+    byKind[scenario.kind].total += 1;
+    counters.maxDistinctOutcomes = Math.max(counters.maxDistinctOutcomes, result.distinctOutcomes);
+    if (result.distinctOutcomes > 1) {
+      counters.orderDependent += 1;
+      byKind[scenario.kind].dependent += 1;
+      if (examples.length < MAX_RECORDED_EXAMPLES) {
+        examples.push({
+          kind: scenario.kind,
+          actors: scenario.actors,
+          actions: scenario.actions,
+          outcomes: [...result.outcomes.entries()].map(([state, orders]) => ({ state, orders })),
+        });
+      }
+    } else {
+      counters.orderIrrelevant += 1;
+    }
+  }
+
+  return {
+    domain: "actor_ordering",
+    bounds,
+    elapsedMs: Date.now() - startedAt,
+    counters,
+    byKind,
+    derived: {
+      orderDependentFraction: counters.scenarios === 0 ? 0 : counters.orderDependent / counters.scenarios,
+    },
+    examples,
+  };
+}
+
 function median(values) {
   if (values.length === 0) return null;
   const sorted = [...values].sort((left, right) => left - right);
@@ -810,6 +881,13 @@ export const LEDGER_DOMAINS = Object.freeze({
           { hazards: [{ id: "h1", blocking: true }, { id: "h2", blocking: false }], resources: [{ id: "r1" }] },
         ],
       },
+    },
+  },
+  actor_ordering: {
+    run: runActorOrderingLedger,
+    bounds: {
+      gate: { width: 5, height: 5, damages: [3, 6], healths: [5, 10] },
+      sweep: { width: 6, height: 5, damages: [2, 4, 6, 10], healths: [4, 6, 10] },
     },
   },
   actor_lookahead: {

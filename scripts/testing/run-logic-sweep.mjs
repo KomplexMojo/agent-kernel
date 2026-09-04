@@ -96,6 +96,15 @@ function reportConfigurator(result) {
   }
 }
 
+function reportOrdering(result) {
+  const { counters: c, derived: d } = result;
+  console.log(`  scenarios ${c.scenarios}  ·  ORDER-DEPENDENT ${c.orderDependent} (${percent(d.orderDependentFraction)})  ·  irrelevant ${c.orderIrrelevant}`);
+  console.log(`  most distinct outcomes from one scenario: ${c.maxDistinctOutcomes}`);
+  for (const [kind, stat] of Object.entries(result.byKind)) {
+    console.log(`    ${kind.padEnd(24)} ${stat.dependent}/${stat.total} order-dependent`);
+  }
+}
+
 function reportLookahead(result) {
   const { counters: c, derived: d } = result;
   console.log(`  points ${c.points}  ·  boards where the exit was unreachable ${c.unreachable}`);
@@ -212,6 +221,7 @@ async function main() {
       });
     if (domain === "allocator_budget_fit") reportAllocator(result);
     else if (domain === "configurator_satisfiability") reportConfigurator(result);
+    else if (domain === "actor_ordering") reportOrdering(result);
     else if (domain === "actor_lookahead") reportLookahead(result);
     else if (domain === "actor_action_selection") reportActor(result);
     console.log(`  elapsed ${(result.elapsedMs / 1000).toFixed(1)}s`);
