@@ -36,6 +36,13 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Allow Cursor's GitHub App to trigger this advisory review. The action
+          # rejects bot actors by default, so a cursor[bot]-authored PR (e.g. a
+          # Cursor cloud agent) fails with "Workflow initiated by non-human actor".
+          # Scoped to the Cursor bot rather than '*' because this is a public repo
+          # (the action warns that '*' lets external Apps invoke it). Both the
+          # bracketed and plain actor-login forms are listed to match either.
+          allowed_bots: "cursor[bot],cursor"
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
