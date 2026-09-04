@@ -148,6 +148,119 @@ test("an envelope missing the runtime-decision-v1 contract defers cleanly instea
   assert.notEqual(result.status, "fulfilled");
 });
 
+/**
+ * A Z3 Context is a WASM allocation z3-solver never frees, so constructing one per
+ * solve leaks unreclaimably: 10.45 MB per solve measured through the Allocator path,
+ * with solve TIME flat throughout, so nothing gets slower and no existing test notices.
+ * The Allocator's hosted fitter is called from inside `runLlmBudgetLoop`'s round loop,
+ * which is where that became unbounded growth in a real run.
+ *
+ * These two tests forbid the CAPABILITY rather than measuring the symptom. An RSS
+ * threshold would be environment-dependent and would pass on a fast machine with a
+ * small heap; counting constructions is exact, and it fails the moment someone moves
+ * `new Context` back inside the solve. The stub below never solves anything -- it
+ * answers `unsat` immediately -- because what is under test is context lifecycle, not
+ * arithmetic.
+ */
+function countingZ3Stub() {
+  let contexts = 0;
+  const value = {};
+  for (const method of ["add", "mul", "sub", "ge", "le", "eq", "neg"]) value[method] = () => value;
+  class Optimize {
+    add() {}
+    maximize() {}
+    minimize() {}
+    async check() { return "unsat"; }
+    reasonUnknown() { return "stub"; }
+  }
+  class Context {
+    constructor() {
+      contexts += 1;
+      this.Int = { const: () => value, val: () => value };
+      this.Optimize = Optimize;
+      this.If = () => value;
+    }
+  }
+  return { init: async () => ({ Context }), contextCount: () => contexts };
+}
+
+function budgetFitProblem(budget) {
+  return {
+    schema: "agent-kernel/ConstraintProblem",
+    schemaVersion: 1,
+    meta: { id: `ctx_${budget}`, runId: "ctx", createdAt: "2026-09-04T00:00:00.000Z" },
+    domain: "allocator_budget_fit",
+    posedBy: "allocator",
+    variables: [
+      { id: "floorTiles", kind: "integer", min: 0, max: 5 },
+      { id: "hallwayTiles", kind: "integer", min: 0, max: 5 },
+    ],
+    constraints: [{
+      id: "budget_cap",
+      kind: "linear",
+      relation: "<=",
+      rightHandSide: budget,
+      terms: [
+        { variableId: "floorTiles", coefficient: 1 },
+        { variableId: "hallwayTiles", coefficient: 9 },
+      ],
+    }],
+    objective: {
+      kind: "lexicographic",
+      priorities: [{
+        id: "retained_total",
+        sense: "maximize",
+        expression: {
+          kind: "linear",
+          terms: [
+            { variableId: "floorTiles", coefficient: 1 },
+            { variableId: "hallwayTiles", coefficient: 1 },
+          ],
+        },
+      }],
+    },
+    context: {},
+  };
+}
+
+test("many solves do not construct many Z3 contexts", async () => {
+  const { createHybridConstraintSolverAdapter } = await loadAdapter();
+  const stub = countingZ3Stub();
+  const adapter = createHybridConstraintSolverAdapter({ init: stub.init });
+
+  for (let index = 0; index < 60; index += 1) {
+    const result = await adapter.solve({ problem: budgetFitProblem(2 + (index % 7)) });
+    assert.equal(result.status, "unsat", "the stub answers unsat; a compile error would mask the count");
+  }
+
+  assert.equal(
+    stub.contextCount(),
+    1,
+    "60 solves constructed more than one Z3 context. A context is never freed, so one per "
+      + "solve leaks ~10MB every time a persona poses a problem — see createGenericZ3Solver.",
+  );
+});
+
+test("context reuse is bounded, so one context cannot accumulate without limit", async () => {
+  const { createHybridConstraintSolverAdapter } = await loadAdapter();
+  const stub = countingZ3Stub();
+  const adapter = createHybridConstraintSolverAdapter({ init: stub.init });
+
+  // One past the bound: the second context proves recycling actually happens. Reusing a
+  // single context forever aborts the PROCESS with a WASM out-of-bounds once its
+  // ast_manager fills, which is not a failure this adapter could report as a status.
+  for (let index = 0; index < 251; index += 1) {
+    await adapter.solve({ problem: budgetFitProblem(2 + (index % 7)) });
+  }
+
+  assert.equal(
+    stub.contextCount(),
+    2,
+    "the context is never recycled, so a long-running process accumulates AST nodes in one "
+      + "context until Z3 aborts. Reuse must be bounded, not unlimited.",
+  );
+});
+
 // ## TODO: Test Permutations
 //
 // - two candidates with equal tuples: stable input order picks the SAME one on

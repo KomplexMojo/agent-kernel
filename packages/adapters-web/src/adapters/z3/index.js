@@ -22,6 +22,9 @@ const ACTOR_DOMAIN = "actor_action_selection";
 const ALLOCATOR_DOMAIN = "allocator_budget_fit";
 const CONFIGURATOR_DOMAIN = "configurator_satisfiability";
 
+/** See createGenericZ3Solver: reuse a context this many solves, then replace it. */
+const MAX_SOLVES_PER_Z3_CONTEXT = 250;
+
 let sharedZ3Promise;
 
 function getSharedZ3() {
@@ -230,12 +233,63 @@ function evaluateExpression(node, assignments) {
   return node.kind === "absolute_linear" ? Math.abs(value) : value;
 }
 
+/**
+ * A Z3 CONTEXT IS REUSED, AND RECYCLED ON A BOUND. Both halves are load-bearing,
+ * because the two obvious policies each fail, in opposite directions.
+ *
+ * ONE CONTEXT PER SOLVE (what this did before) leaks. A `new Context(...)` is a WASM
+ * allocation that is never reclaimed -- forcing a full GC does not recover it. Measured
+ * through the Allocator path: 10.45 MB per solve, RSS 101 MB -> 2170 MB across 200
+ * solves, linear and unbounded. Solve TIME stayed flat at ~8ms the whole way, which is
+ * why this was never noticed: it fails by exhausting memory, not by slowing down, and
+ * every test in the repo solves too few times to reach it. `runLlmBudgetLoop` calls the
+ * hosted layout fitter from inside its round loop, so a long budget loop under
+ * AK_SOLVER_ENGINE=z3-real grew without limit.
+ *
+ * ONE CONTEXT FOREVER also fails, just later and harder. A context's ast_manager
+ * accumulates every expression node built against it, and past a few thousand solves the
+ * WASM heap aborts with `memory access out of bounds` -- a process-killing crash, not a
+ * status this adapter could return. Observed between 2000 and 2500 solves at the wider
+ * of the two ledger profiles, while the narrower profile completed 2800.
+ *
+ * So the context is reused for a bounded run and then replaced. That amortizes the
+ * unreclaimable per-context cost across MAX_SOLVES_PER_Z3_CONTEXT solves (~0.04 MB per
+ * solve at the current bound) while keeping any single context far below the level where
+ * accumulation becomes fatal. The bound is deliberately about 8x below the lowest
+ * observed failure rather than tuned close to it: the failure mode is an abort that takes
+ * the process with it, so the margin is worth more than the memory it costs.
+ *
+ * Reuse is CORRECT, not merely cheap: nothing solve-specific lives on the context. Each
+ * solve builds its own `Optimize` and adds its own bounds, constraints and objectives to
+ * that, and `Int.const(id)` returning the same AST node for the same id across solves is
+ * exactly why sharing is sound -- the bounds that differ between problems live on the
+ * Optimize, never on the variable. Verified over 1280 solves through the real persona and
+ * host path: zero disagreements with an exhaustive oracle, zero differences between
+ * forward and reverse solve order, and the first problem re-solved after 640 others
+ * returning an identical model.
+ *
+ * This is precisely the property `checkSolverConformance` gates -- identical problem,
+ * identical model -- so `tests/runtime/z3-real-adapter-conformance.test.js` and the
+ * Allocator/Configurator replay assertions are what must stay green when this changes.
+ */
 function createGenericZ3Solver(getZ3) {
+  let contextPromise;
+  let solvesOnContext = 0;
+  let contextSerial = 0;
+  const getContext = () => {
+    if (!contextPromise || solvesOnContext >= MAX_SOLVES_PER_Z3_CONTEXT) {
+      contextSerial += 1;
+      solvesOnContext = 0;
+      const serial = contextSerial;
+      contextPromise = getZ3().then(({ Context }) => new Context(`hybrid_constraint_${serial}`));
+    }
+    solvesOnContext += 1;
+    return contextPromise;
+  };
   return async function solveGeneric(problem) {
     try {
       const generic = readGenericProblem(problem);
-      const { Context } = await getZ3();
-      const context = new Context("hybrid_constraint");
+      const context = await getContext();
       const compiler = buildCompiler(context, generic.variables);
       const optimizer = new context.Optimize();
 
