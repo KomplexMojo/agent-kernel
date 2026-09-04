@@ -267,7 +267,9 @@ test("complex actor with no hostile present lets the Actor-authored tuple select
   const solverResult = await createZ3SolverAdapter().solve(solverRequest);
 
   assert.equal(solverResult.status, "fulfilled");
-  assert.deepEqual(solverResult.model.rationaleTags, ["actor_proposal"]);
+  // v4: the winner still IS the proposal, but its tags now also name the intent that
+  // ranked it. Under v3 the proposal stamp replaced that intent entirely.
+  assert.deepEqual(solverResult.model.rationaleTags, ["exit_progress", "actor_proposal"]);
 });
 
 test("complex actor with hostile far away lets the Actor-authored tuple select move_east", async () => {
@@ -290,7 +292,7 @@ test("complex actor with hostile far away lets the Actor-authored tuple select m
   const solverResult = await createZ3SolverAdapter().solve(solverRequest);
 
   assert.equal(solverResult.status, "fulfilled");
-  assert.deepEqual(solverResult.model.rationaleTags, ["actor_proposal"]);
+  assert.deepEqual(solverResult.model.rationaleTags, ["hostile_progress", "actor_proposal"]);
   assert.equal(solverResult.model.selectedActionId, "move_east");
 });
 
@@ -426,7 +428,8 @@ test("complex actor motivation flip between attacking and defending yields conte
 
   assert.equal(attackingResolved.ok, true);
   assert.equal(attackingResolved.action.kind, "move");
-  assert.equal(attackingResult.model.rationaleTags[0], "actor_proposal");
+  assert.ok(attackingResult.model.rationaleTags.includes("actor_proposal"),
+    `expected the proposal tag among ${JSON.stringify(attackingResult.model.rationaleTags)}`);
   assert.equal(defendingResolved.ok, true);
   assert.equal(defendingResolved.action.kind, "attack");
   assert.equal(defendingResolved.action.params.targetId, WARDEN_ID);

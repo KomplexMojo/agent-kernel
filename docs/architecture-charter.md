@@ -460,7 +460,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - Complex motivation must route through the runtime solver port (`packages/runtime/src/ports/solver.js`) and adapter implementations. Runtime code constructs the request envelope and consumes the normalized result; it does not embed solver-specific logic.
 - `packages/runtime/src/personas/_shared/runtime-decision.mts` resolves fulfilled solver results through `resolveActionFromSolverResult()` and maps the selected candidate back to a concrete runtime action.
 - The Actor owns candidate feature meaning and objective order. It emits
-  `actor-decision-objective-v3`; adapters validate and stably sort the eight-integer lexicographic
+  `actor-decision-objective-v4`; adapters validate and stably sort the nine-integer lexicographic
   tuples without interpreting domain features, while retaining opaque validation compatibility for
   valid v1 envelopes. Every live Actor request includes an objective; unknown motivation profiles
   receive an Actor-authored compatibility tuple. Invalid or absent objectives defer with typed

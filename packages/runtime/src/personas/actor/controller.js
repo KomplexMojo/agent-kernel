@@ -51,7 +51,22 @@ import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
  * modulate; a rank member invented to look richer would be exactly the artificial
  * introduction the charter forbids. They become meaningful with lookahead, not before.
  */
-const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v3";
+/**
+ * v4 — the tuple decides, and a proposal no longer overrules it.
+ *
+ * `actorProposal` used to be an intentClass of 600, above every other class, so any
+ * candidate matching the Actor's own deterministic proposal won outright. Measured over
+ * 3,942 decision steps that was 100% of them: the ranking was computed, validated, carried
+ * across the solver port, sorted, and discarded, because the decision had already been made
+ * upstream. In 495 of the 498 steps that walked into harm, a harm-free candidate was on the
+ * list and lost to the stamp.
+ *
+ * The preference is not deleted -- an Actor's own suggestion is real information, and
+ * deleting the branch outright would drop non-move proposals (an out-of-range cast) to
+ * intentClass 0, below `wait`. It is demoted to a tiebreak just above input order, so it
+ * settles otherwise-equal candidates and nothing else.
+ */
+const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v4";
 const ACTOR_DECISION_OBJECTIVE_ORDER = Object.freeze([
   "intentClass",
   "targetFinish",
@@ -60,6 +75,7 @@ const ACTOR_DECISION_OBJECTIVE_ORDER = Object.freeze([
   "fieldSafety",
   "fieldBenefit",
   "castReserve",
+  "actorProposal",
   "inputOrder",
 ]);
 
@@ -783,7 +799,7 @@ function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, can
     const field = fieldUtilityRanks({ endPosition, affinityFields, actorRecord });
     return {
       candidateActionId: candidate.id,
-      rank: [score, 0, 0, 0, field.safety, field.benefit, 0, -index],
+      rank: [score, 0, 0, 0, field.safety, field.benefit, 0, 0, -index],
       features: {
         actionKind: action?.kind,
         compatibilityRule: ruleId,
@@ -846,10 +862,7 @@ function buildActorDecisionObjective({
     const actorProposal = proposalSignatures.has(candidateSignature(action?.kind, action?.params));
     let intentClass = 0;
     let intentTag = "profile_mismatch";
-    if (actorProposal) {
-      intentClass = 600;
-      intentTag = "actor_proposal";
-    } else if ((action?.kind === "attack" || action?.kind === "cast_affinity")
+    if ((action?.kind === "attack" || action?.kind === "cast_affinity")
       && motivationProfile.combatTier > 0
       && actionCanReachTarget(action, actor.position, explicitTarget)) {
       intentClass = 500;
@@ -884,6 +897,7 @@ function buildActorDecisionObjective({
     const field = fieldUtilityRanks({ endPosition, affinityFields, actorRecord });
     const reserve = castReserveRank(action, actorRecord);
     const rationaleTags = [intentTag];
+    if (actorProposal) rationaleTags.push("actor_proposal");
     if (coverRank) rationaleTags.push("prefers_cover");
     if (stealthRank) rationaleTags.push("prefers_stealth");
     if (field.safety < 0) rationaleTags.push("field_harm");
@@ -899,6 +913,7 @@ function buildActorDecisionObjective({
         field.safety,
         field.benefit,
         reserve.rank,
+        actorProposal ? 1 : 0,
         -index,
       ],
       features: {

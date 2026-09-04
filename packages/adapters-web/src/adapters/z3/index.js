@@ -18,6 +18,7 @@ const ACTOR_DECISION_OBJECTIVE_CONTRACTS = new Set([
   "actor-decision-objective-v1",
   "actor-decision-objective-v2",
   "actor-decision-objective-v3",
+  "actor-decision-objective-v4",
 ]);
 const ACTOR_DOMAIN = "actor_action_selection";
 const ALLOCATOR_DOMAIN = "allocator_budget_fit";

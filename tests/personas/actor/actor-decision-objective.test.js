@@ -86,8 +86,10 @@ test("attacking ranks its cast proposal with target health and live grant reserv
     hazards: [{ id: "fire_patch", position: { x: 2, y: 1 }, stacks: 3 }],
   });
 
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v3");
-  assert.deepEqual(row(envelope, "cast_affinity_warden_1").rank, [600, 8000, 0, 0, 0, 0, 500, 0]);
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v4");
+  // v4: the cast now carries its REAL class (in_range_combat, 500) plus the demoted
+  // proposal flag at index 7. It used to read 600 purely because it was a proposal.
+  assert.deepEqual(row(envelope, "cast_affinity_warden_1").rank, [500, 8000, 0, 0, 0, 0, 500, 1, 0]);
   assert.deepEqual(row(envelope, "move_east").rank.slice(0, 7), [400, 8000, 0, 0, 0, 0, 0]);
 });
 
@@ -142,8 +144,8 @@ test("stealthy prefers the equally intentional move that increases hostile dista
   // This actor prefers STEALTH, so the signal under test is the stealth member (index 3),
   // not cover. Under v2 both collapsed into one summed slot and the distinction could not
   // be asserted at all — which is the information loss Stage B removed.
-  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 4), [600, 0, 0, 0]);
-  assert.equal(row(envelope, "move_southeast").rank[0], 600, "equally intentional");
+  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 4), [300, 0, 0, 0]);
+  assert.equal(row(envelope, "move_southeast").rank[0], 300, "equally intentional");
   assert.equal(row(envelope, "move_southeast").rank[2], 0, "and it is not a cover gain");
   assert.ok(
     row(envelope, "move_southeast").rank[3] > row(envelope, "move_east").rank[3],
@@ -182,7 +184,7 @@ test("an unknown motivation emits an Actor-owned compatibility tuple", async () 
   });
 
   assert.equal(envelope.actor.motivationProfile, undefined);
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v3");
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v4");
   assert.deepEqual(envelope.objectives.actorDecision.order, [
     "intentClass",
     "targetFinish",
@@ -191,6 +193,7 @@ test("an unknown motivation emits an Actor-owned compatibility tuple", async () 
     "fieldSafety",
     "fieldBenefit",
     "castReserve",
+    "actorProposal",
     "inputOrder",
   ]);
   assert.equal(row(envelope, "move_east").rank[0], 80);
@@ -198,7 +201,12 @@ test("an unknown motivation emits an Actor-owned compatibility tuple", async () 
   assert.equal(row(envelope, "wait_here").rank[0], 10);
 });
 
-test("field safety breaks an otherwise-equal movement tie without changing intent", async () => {
+// v4 EXPOSED A FALSE PREMISE HERE. These two moves used to share intentClass 600 only
+// because both were Actor proposals, and field safety broke the resulting tie. With the
+// proposal stamp demoted they carry their real classes -- 200 and 300 -- so intent, not
+// safety, separates them. The assertion now records that, and the genuine tie-break case
+// is covered by "field benefit cannot override a stronger primary intent" below.
+test("intent separates moves the proposal stamp used to equalise", async () => {
   const envelope = await solverEnvelope({
     self: {
       id: "delver_1",
@@ -223,8 +231,8 @@ test("field safety breaks an otherwise-equal movement tie without changing inten
     }],
   });
 
-  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 6), [600, 0, 0, 0, -4, 0]);
-  assert.deepEqual(row(envelope, "move_south").rank.slice(0, 6), [600, 0, 0, 0, 0, 0]);
+  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 6), [200, 0, 0, 0, -4, 0]);
+  assert.deepEqual(row(envelope, "move_south").rank.slice(0, 6), [300, 0, 0, 0, 0, 0]);
 });
 
 test("field benefit is capped by missing vital capacity and ignored when full", async () => {
@@ -287,7 +295,7 @@ test("a non-move evaluates the field at the Actor's current cell", async () => {
     }],
   });
 
-  assert.deepEqual(row(envelope, "wait_1").rank.slice(0, 6), [600, 0, 0, 0, -3, 0]);
+  assert.deepEqual(row(envelope, "wait_1").rank.slice(0, 6), [100, 0, 0, 0, -3, 0]);
 });
 
 test("field benefit cannot override a stronger primary intent", async () => {
@@ -385,7 +393,7 @@ test("Stage B — cover and stealth can no longer alias to the same alignment", 
   // were the same number, so a sort could not tell a sheltering actor from a retreating
   // one. Separate members mean the two signals are independently readable.
   const order = ["intentClass", "targetFinish", "coverAlignment", "stealthAlignment",
-    "fieldSafety", "fieldBenefit", "castReserve", "inputOrder"];
+    "fieldSafety", "fieldBenefit", "castReserve", "actorProposal", "inputOrder"];
   const envelope = await solverEnvelope({
     self: {
       id: "scout_1",

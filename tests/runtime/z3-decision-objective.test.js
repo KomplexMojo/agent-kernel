@@ -70,7 +70,7 @@ test("an unknown objective version defers instead of being interpreted", async (
     // version. The claim under test is "an unknown version defers rather than being
     // guessed at" -- keeping the literal v3 here would have quietly inverted it into
     // "v3 is rejected", which is the opposite of what ships.
-    { contract: "actor-decision-objective-v4", order: V2_ORDER },
+    { contract: "actor-decision-objective-v5", order: V2_ORDER },
   );
 
   assert.deepEqual(await solver.solve({ problem: { data: request } }), {

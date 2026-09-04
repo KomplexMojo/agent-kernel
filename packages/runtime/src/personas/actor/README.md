@@ -131,9 +131,18 @@ core's enums, so the runtime does not maintain a competing vocabulary. An unknow
 profile but still receives an Actor-authored compatibility objective. That tuple preserves the former deterministic
 attack, hostile-progress, exit-progress, fallback-move, and wait ordering without asking an adapter to infer policy.
 
-For known profiles, the `objectives.actorDecision` contract carries one Actor-authored eight-integer rank
+For known profiles, the `objectives.actorDecision` contract carries one Actor-authored nine-integer rank
 per candidate, ordered by intent class, target finish, **cover alignment, stealth alignment**, field safety, field
-benefit, cast reserve, then input order.
+benefit, cast reserve, **actor proposal**, then input order.
+
+v4 demoted `actorProposal` from an intent class of 600 to that second-to-last tiebreak, and it is the change that
+made every other member of this tuple matter. A candidate matching the Actor's own deterministic proposal used to
+outrank every alternative outright: measured over 3,942 decision steps that was 100% of them, and in 495 of the 498
+steps that walked into harm a harm-free candidate had been ranked and lost to the stamp. The ranking was computed,
+validated, carried across the solver port, sorted, and discarded. Demoting it cut suboptimal decisions from 46.3%
+to 16.0% of a 936-board sweep with no new failure to reach the exit. The preference is kept rather than deleted:
+an Actor's own suggestion is real information, and removing the branch outright would drop a non-move proposal —
+an out-of-range cast — to intent class 0, below `wait`.
 
 Stage B (contract v3) split the former single `profileAlignment` member in two. v2 summed them — cover a flat 1000,
 stealth 1000 x a distance delta — so `1000 + 0` and `0 + 1000` were the same number and a lexicographic sort could

@@ -32,7 +32,8 @@ const FORBIDDEN_POLICY_TOKENS = [
 ];
 
 /**
- * Every rank label the Actor must own. Stage B split `profileAlignment` into
+ * Every rank label the Actor must own. v4 demoted `actorProposal` from an intentClass of 600 to a tiebreak member, so the tuple
+ * decides rather than re-stamping whichever proposal arrived. Stage B split `profileAlignment` into
  * `coverAlignment` and `stealthAlignment` (contract v3): summing a flat cover bonus with
  * a scaled stealth delta made the two indistinguishable, so a sort could not tell a
  * sheltering actor from a retreating one. Updating this list is the deliberate half of
@@ -46,6 +47,7 @@ const ACTOR_ORDER_LABELS = [
   "fieldSafety",
   "fieldBenefit",
   "castReserve",
+  "actorProposal",
   "inputOrder",
 ];
 
