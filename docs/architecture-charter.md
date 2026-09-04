@@ -475,10 +475,22 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   Allocator prepares a `solver_request`; `packages/runtime/src/commands/solver-host.js` checks domain
   capability, dispatches it through `createSolverPort`, awaits the result, and invokes the Allocator's
   result consumer. Persona code owns the problem and validation; host glue owns transport only.
-- `createRealZ3SolverAdapter`, `createActorLexicographicSolverAdapter`, and
-  `AK_SOLVER_ENGINE=z3-real` remain compatibility names; the canonical factory is
-  `createHybridConstraintSolverAdapter`. Adapter or domain-capability absence, `deferred`, and `error`
-  return control to the Allocator's exact characterized fallback.
+- **Real Z3 is the DEFAULT engine.** A host builds `createHybridConstraintSolverAdapter` unless a
+  fixture path was explicitly supplied or `AK_SOLVER_ENGINE=fixture` opts out. The default was the
+  fixture stub until 2026-09-04, when measurement showed the stub's greedy fallback was optimal on
+  40.8% of Allocator budget-fit decision points against an exhaustive oracle while real Z3 was
+  optimal on 100% and never worse, and refused 250 affordable layouts outright
+  (`~/vault/decisions/2026-09-04-does-the-solver-actually-win.md`).
+- An explicitly supplied fixture path always selects the fixture adapter, whatever the engine:
+  `ak solve --solver-fixture` and a build spec's `solver.fixture` hint are requests to replay a
+  recorded answer, not to search for one.
+- `createRealZ3SolverAdapter`, `createActorLexicographicSolverAdapter`, and `AK_SOLVER_ENGINE=z3-real`
+  remain compatibility names; the canonical factory is `createHybridConstraintSolverAdapter`, and
+  `z3-real` now names the default rather than enabling it. Adapter or domain-capability absence,
+  `deferred`, and `error` return control to the Allocator's exact characterized fallback.
+- A Z3 context is reused across a bounded run of solves and then replaced. One context per solve
+  leaks ~10.45 MB unreclaimably; one context forever aborts the process with a WASM out-of-bounds
+  once its ast_manager fills. Both bounds are measured, not assumed — see `createGenericZ3Solver`.
 - Z3 adapter code must not move into `runtime` or `core-ts`. The dependency direction remains `adapters-* / ui-web -> runtime -> core-ts`.
 
 ## UI Sandbox Playback

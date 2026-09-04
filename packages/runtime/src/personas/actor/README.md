@@ -141,7 +141,9 @@ diagnostic because this is a one-step choice, while `AggroRangeBoost` remains pe
 shared envelope code validates row identity and deep-copies the contract but does not interpret the ranks. The CLI
 and web Actor lexicographic adapters validate and compare the tuples without re-deriving their meaning, accepting
 valid v1 envelopes for compatibility. The old `createRealZ3SolverAdapter` factory and `AK_SOLVER_ENGINE=z3-real`
-selector remain compatibility aliases; they do not initialize Z3. Missing or malformed objectives defer with typed
+selector remain compatibility aliases; `z3-real` now names the default engine rather than enabling it, and neither
+initializes Z3 on this path. Measured over 819 candidate/rank permutations, this adapter's selection diverges from a
+plain lexicographic sort on 0.0% of them and initializes Z3 zero times — the domain performs no search. Missing or malformed objectives defer with typed
 reasons; runtime then follows its deterministic Actor fallback. Old envelopes remain readable but adapters do not
 manufacture ranked diagnostics.
 

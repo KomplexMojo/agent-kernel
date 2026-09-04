@@ -3114,8 +3114,35 @@ function isLlmBudgetLoopEnabled() {
   return value === "1" || value === "true";
 }
 
-function isRealZ3SolverEnabled() {
-  return process.env.AK_SOLVER_ENGINE === "z3-real";
+/**
+ * Z10: REAL Z3 IS THE DEFAULT, and the fixture stub is now the opt-out.
+ *
+ * It used to be the other way round, and the cost of that was measured rather than
+ * argued. Without AK_SOLVER_ENGINE=z3-real every hosted solver call got a stub
+ * declaring `domains: []`, so the host deferred and each persona took its greedy
+ * fallback. Across 2800 Allocator budget-fit decision points that fallback was
+ * optimal 40.8% of the time against an exhaustive oracle, while real Z3 was optimal
+ * 100% of the time and never worse at any point. It also refused 250 layouts that
+ * were affordable and buildable. Shipping the stub by default meant shipping a
+ * wrong answer to roughly three of every five real decisions.
+ *
+ * See ~/vault/decisions/2026-09-04-does-the-solver-actually-win.md. The flip was
+ * deliberately NOT made before the context-lifecycle leak was fixed: turning Z3 on
+ * by default while every solve leaked ~10MB would have made a correctness win into
+ * an availability problem.
+ *
+ * AN EXPLICIT FIXTURE STILL WINS. `ak solve --solver-fixture` and a build spec's
+ * `solver.fixture` hint are requests to REPLAY a recorded answer, not to search for
+ * one; honouring the engine default over them would silently ignore the file the
+ * caller named. So a supplied fixturePath selects the fixture adapter regardless of
+ * engine, which is also what keeps every fixture-driven test meaningful.
+ */
+function resolveSolverEngine() {
+  const value = process.env.AK_SOLVER_ENGINE;
+  // "z3-real" stays accepted so existing call sites that set it keep working; it is
+  // now a no-op that names the default rather than a switch that enables it.
+  if (value === "fixture" || value === "stub") return "fixture";
+  return "z3-real";
 }
 
 function isLocalBaseUrl(raw) {
@@ -4533,9 +4560,9 @@ const commandKernel = createCommandKernel({
   createBlockchainAdapter,
   createLlmAdapter,
   createSolverAdapter: async (options) => {
-    if (isRealZ3SolverEnabled()) {
-      const { createRealZ3SolverAdapter } = await import("../adapters/z3/index.js");
-      return createRealZ3SolverAdapter(options);
+    if (!options?.fixturePath && resolveSolverEngine() === "z3-real") {
+      const { createHybridConstraintSolverAdapter } = await import("../adapters/z3/index.js");
+      return createHybridConstraintSolverAdapter(options);
     }
     const { createSolverAdapter } = await import("../adapters/solver-z3/index.js");
     return createSolverAdapter(options);
