@@ -10,6 +10,7 @@ import { planAffinityInteractions } from "./affinity-interactions.js";
 // without importing persona internals (charter: external code imports persona
 // controllers only).
 export { FulfillmentDispositions };
+export { describeActorOrdering, orderActorsByIntention } from "./actor-ordering.js";
 
 /**
  * CR.7 / WP-5 — affinity TARGET resolution, published for the Configurator.

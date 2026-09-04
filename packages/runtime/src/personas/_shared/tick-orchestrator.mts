@@ -47,6 +47,8 @@ type TickRecord = {
   tick: number; phase: TickPhase;
   personaViews: Record<string, PersonaSnapshot>;
   actions: unknown[]; effects: unknown[]; telemetry: unknown[]; artifacts: unknown[];
+  /** Actor intentions surfaced this tick, for the Moderator to order actors from. */
+  intentions: unknown[];
   solverResults: JsonRecord[]; solverFulfilled: JsonRecord[];
 };
 
@@ -382,6 +384,7 @@ export function createTickOrchestrator({
     const effects: unknown[] = [];
     const telemetry: unknown[] = [];
     const artifacts: unknown[] = [];
+    const intentions: unknown[] = [];
     const personaEvents = payload?.personaEvents || payload?.events || null;
     const hasPersonaEvents = personaEvents !== null && personaEvents !== undefined;
     const personaPayloads = payload?.personaPayloads || payload?.payloads || null;
@@ -425,6 +428,15 @@ export function createTickOrchestrator({
             if (Array.isArray(result?.artifacts)) {
               artifacts.push(...result.artifacts);
             }
+            // A persona's INTENTIONS travel on their own channel, not as actions or effects.
+            // An intention is neither: it commits the actor to nothing and reaches no adapter.
+            // It exists so the Moderator can decide who resolves first, which is its chartered
+            // authority, without ever being handed the actions themselves — a Moderator holding
+            // actions could reorder outcomes rather than actors.
+            const reported = (result as unknown as { intentions?: unknown[] })?.intentions;
+            if (Array.isArray(reported)) {
+              intentions.push(...reported);
+            }
           }
         }
       } else {
@@ -455,6 +467,7 @@ export function createTickOrchestrator({
       effects,
       telemetry,
       artifacts,
+      intentions,
       solverResults: solverOutcome.results,
       solverFulfilled: solverOutcome.fulfilled,
     };

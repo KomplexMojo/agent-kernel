@@ -62,6 +62,7 @@ import {
   ROOM_TILE_CONFIG_SCHEMA,
   RUN_SUMMARY_SCHEMA,
   WORLD_STATE_SCHEMA,
+  ACTOR_INTENTION_SCHEMA,
   CONSTRAINT_PROBLEM_SCHEMA,
   CONSTRAINT_RESULT_SCHEMA,
   SANDBOX_SESSION_SCHEMA,
@@ -167,6 +168,9 @@ export const SCHEMA_KIND_BY_SCHEMA = Object.freeze({
   [VISUALIZATION_SNAPSHOT_SCHEMA]: SCHEMA_KINDS.PERSISTED_ARTIFACT,
 
   // ── in-process protocol messages (9) ───────────────────────────────────────
+  // In-tick only: an intention is consumed by the Moderator in the same tick that produced
+  // it and is never written to disk, so it is a protocol message rather than a record.
+  [ACTOR_INTENTION_SCHEMA]: SCHEMA_KINDS.PROTOCOL_MESSAGE,
   [ACTION_SCHEMA]: SCHEMA_KINDS.PROTOCOL_MESSAGE,
   [BUDGET_ENVELOPE_SCHEMA]: SCHEMA_KINDS.PROTOCOL_MESSAGE,
   [BUILD_SPEC_SCHEMA]: SCHEMA_KINDS.PROTOCOL_MESSAGE,

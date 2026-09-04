@@ -10,12 +10,26 @@
  * opposite shape: the choice is over a shared, mutually exclusive resource (who resolves
  * first), one ordering forecloses the others, and the outcome of each depends on both actors.
  *
- * WHAT DECIDES IT TODAY. Nothing does. Actor order is the alphabetical sort of actor ids
- * (`runtime-fsm.mjs:194`), so renaming an attacker from `delver_1` to `zealot_1` moves it
- * behind a warden. Core exposes no initiative, priority or turn concept. The charter assigns
- * ordering to the Moderator so that "tick semantics are policy, not accidents of the runner
- * loop", and `moderator/tick-ordering.js` does own the order of the seven PERSONAS — but
- * actor order is a different thing and is owned by no one.
+ * WHAT DECIDES IT TODAY. Nothing does, and it is worse than one arbitrary rule — it is TWO,
+ * neither owned by a persona:
+ *
+ *   decide/act order   `initialState.actors` ARRAY ORDER (`runtime-fsm.mjs:1660`), i.e.
+ *                      however the build happened to emit the actor list. This is the order
+ *                      that decides which action resolves first, and so what this file measures.
+ *   core index         the alphabetical sort of actor ids (`runtime-fsm.mjs:194`). Used for
+ *                      observation labelling, and it is the index `planAffinityInteractions`
+ *                      tie-breaks on — so renaming an actor still changes affinity outcomes.
+ *
+ * ⚠️ An earlier version of this comment claimed the alphabetical sort decided turn order. It
+ * does not; that was a conflation of the two, corrected after reading `runtime-fsm.mjs:1655`,
+ * whose own comment states the distinction explicitly. The measurement below is unaffected —
+ * it varies application order directly and is indifferent to how that order is chosen — but
+ * the explanation was wrong and is recorded here rather than quietly amended.
+ *
+ * Core exposes no initiative, priority or turn concept. The charter assigns ordering to the
+ * Moderator so that "tick semantics are policy, not accidents of the runner loop", and
+ * `moderator/tick-ordering.js` does own the order of the seven PERSONAS — but actor order is
+ * a different thing and is owned by no one.
  *
  * ⚠️ THE CHARTER'S REFUSAL DOES NOT COVER THIS. "Moderator tick ordering" was refused as a
  * solver domain because it is "a sort". That is true of persona order and false of actor

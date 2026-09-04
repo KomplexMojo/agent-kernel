@@ -10,6 +10,7 @@ import {
   resolveRuntimeDecisionProviderPolicy,
 } from "../_shared/runtime-decision.mts";
 import { SOLVER_REQUEST_SCHEMA } from "../../contracts/artifacts.ts";
+import { buildActorIntention } from "../../contracts/actor-intention.js";
 import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
@@ -155,6 +156,33 @@ function buildMotivationProfile(view, actorId, payload) {
       .filter(([, flag]) => (flagMask & flag) === flag)
       .map(([name]) => name),
   };
+}
+
+/**
+ * The Actor's intent classes, named once. The ranking tuple compares them per candidate, and
+ * the intention the Moderator orders on reports the class of whichever candidate won — so the
+ * two must not drift, and a second table of the same numbers is exactly how they would.
+ *
+ * The intention is COARSER than the ranking on purpose. Ranking separates exit progress from a
+ * mobile fallback because that decides which candidate wins; ordering only needs to know that
+ * combat resolves before movement, which the chosen action's kind settles on its own.
+ */
+const ACTOR_INTENT_CLASS = Object.freeze({
+  IN_RANGE_COMBAT: 500,
+  HOSTILE_PROGRESS: 400,
+  EXIT_PROGRESS: 300,
+  MOBILE_FALLBACK: 200,
+  WAIT: 100,
+  NONE: 0,
+});
+
+/** The class of the action an Actor actually chose, for the Moderator's ordering. */
+export function intentClassForAction(action) {
+  const kind = typeof action?.kind === "string" ? action.kind : "";
+  if (kind === "attack" || kind === "cast_affinity") return ACTOR_INTENT_CLASS.IN_RANGE_COMBAT;
+  if (kind === "move") return ACTOR_INTENT_CLASS.MOBILE_FALLBACK;
+  if (kind === "wait") return ACTOR_INTENT_CLASS.WAIT;
+  return ACTOR_INTENT_CLASS.NONE;
 }
 
 export const actorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhases.DECIDE]);
@@ -872,7 +900,7 @@ function buildActorDecisionObjective({
     if ((action?.kind === "attack" || action?.kind === "cast_affinity")
       && motivationProfile.combatTier > 0
       && actionCanReachTarget(action, actor.position, explicitTarget)) {
-      intentClass = 500;
+      intentClass = ACTOR_INTENT_CLASS.IN_RANGE_COMBAT;
       intentTag = "in_range_combat";
     } else if (action?.kind === "move" && motivationProfile.mobilityTier > 0) {
       const hostileProgress = motivationProfile.combatTier === 1
@@ -880,17 +908,17 @@ function buildActorDecisionObjective({
       const beforeExit = chebyshevDistance(actor.position, exit);
       const afterExit = chebyshevDistance(endPosition, exit);
       if (hostileProgress) {
-        intentClass = 400;
+        intentClass = ACTOR_INTENT_CLASS.HOSTILE_PROGRESS;
         intentTag = "hostile_progress";
       } else if (Number.isFinite(beforeExit) && Number.isFinite(afterExit) && afterExit < beforeExit) {
-        intentClass = 300;
+        intentClass = ACTOR_INTENT_CLASS.EXIT_PROGRESS;
         intentTag = "exit_progress";
       } else {
-        intentClass = 200;
+        intentClass = ACTOR_INTENT_CLASS.MOBILE_FALLBACK;
         intentTag = "mobile_fallback";
       }
     } else if (action?.kind === "wait") {
-      intentClass = 100;
+      intentClass = ACTOR_INTENT_CLASS.WAIT;
       intentTag = "wait";
     }
     // Raw counts, not scaled: each is its own lexicographic member now, so nothing can
@@ -1828,11 +1856,46 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       actions.push(...fromEffects.actions);
     }
 
+    // Surface the intention (maintainer ruling, 2026-09-04). This reports WHAT the actor means
+    // to do so the Moderator can decide who resolves first; it commits to nothing and reaches no
+    // adapter. The Moderator is deliberately never handed the actions themselves — one holding
+    // actions could reorder outcomes rather than actors.
+    //
+    // ⚠️ NOT YET BOUND TO RESOLUTION ORDER. The runner still applies actions in collection
+    // order; wiring the Moderator's ruling into `applyActionsToCore` is the remaining step,
+    // and it is blocked on a design question this derivation exposes rather than answers:
+    // an actor can emit SEVERAL actions in one tick (wait, request_solver, move, attack), and
+    // "the first non-telemetry action" is not reliably the one that expresses its intent. A
+    // delver that attacks reports `wait` here. Deciding which action speaks for an actor is
+    // Actor policy and needs a ruling, not a guess — so the intention is surfaced and tested,
+    // and nothing consumes it for ordering yet.
+    //
+    // ONE INTENTION PER ACTOR, not one per advance. A single Actor advance emits actions for
+    // EVERY motivated actor it decided for, not only the `baseActorId` the payload names. An
+    // earlier version keyed off baseActorId alone, so in a two-actor tick exactly one actor
+    // surfaced an intention and the other sorted last at class 0 — which silently handed
+    // resolution order to whichever actor happened to be named in the payload. Caught by
+    // `runtime-combat-application`, where it reversed an attacking delver and a defending warden.
+    const chosenByActor = new Map();
+    for (const action of actions) {
+      const actorId = action?.actorId;
+      if (typeof actorId !== "string" || !actorId) continue;
+      if (action.kind === "emit_log" || action.kind === "emit_telemetry") continue;
+      if (!chosenByActor.has(actorId)) chosenByActor.set(actorId, action);
+    }
+    const intentions = [...chosenByActor.entries()].map(([actorId, action]) => buildActorIntention({
+      actorId,
+      intentClass: intentClassForAction(action),
+      intentTag: action.kind,
+      tick,
+    }));
+
     return {
       ...result,
       tick,
       actions,
       effects,
+      intentions,
       telemetry: null,
     };
   }
