@@ -140,9 +140,11 @@ made every other member of this tuple matter. A candidate matching the Actor's o
 outrank every alternative outright: measured over 3,942 decision steps that was 100% of them, and in 495 of the 498
 steps that walked into harm a harm-free candidate had been ranked and lost to the stamp. The ranking was computed,
 validated, carried across the solver port, sorted, and discarded. Demoting it cut suboptimal decisions from 46.3%
-to 16.0% of a 936-board sweep with no new failure to reach the exit. The preference is kept rather than deleted:
-an Actor's own suggestion is real information, and removing the branch outright would drop a non-move proposal —
-an out-of-range cast — to intent class 0, below `wait`.
+to 16.0% of a 936-board sweep with no new failure to reach the exit. The preference is kept rather than deleted because an Actor's own
+suggestion is real information, and a genuine tie through all eight preceding members is better settled in the
+Actor's favour than by raw input order. ⚠️ An earlier version of this paragraph justified it instead by claiming
+deletion would drop an out-of-range cast to intent class 0; that was false — `intentClass` never reads
+`actorProposal`, so such a cast lands at 0 either way — and adversarial review caught it.
 
 Stage B (contract v3) split the former single `profileAlignment` member in two. v2 summed them — cover a flat 1000,
 stealth 1000 x a distance delta — so `1000 + 0` and `0 + 1000` were the same number and a lexicographic sort could

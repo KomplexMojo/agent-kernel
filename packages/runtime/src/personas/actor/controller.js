@@ -61,10 +61,17 @@ import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
  * upstream. In 495 of the 498 steps that walked into harm, a harm-free candidate was on the
  * list and lost to the stamp.
  *
- * The preference is not deleted -- an Actor's own suggestion is real information, and
- * deleting the branch outright would drop non-move proposals (an out-of-range cast) to
- * intentClass 0, below `wait`. It is demoted to a tiebreak just above input order, so it
- * settles otherwise-equal candidates and nothing else.
+ * WHY THE MEMBER IS KEPT RATHER THAN DELETED. An Actor's own suggestion is real information,
+ * and a genuine tie through all eight preceding members is better settled in the Actor's
+ * favour than by raw candidate input order, which is deterministic but arbitrary.
+ *
+ * ⚠️ An earlier version of this comment justified keeping it on the grounds that deleting the
+ * branch would drop a non-move proposal -- an out-of-range cast -- to intentClass 0, below
+ * `wait`. THAT WAS FALSE, and adversarial review caught it. `intentClass` is computed purely
+ * from `action.kind` and reachability a few lines below and never reads `actorProposal`, so an
+ * out-of-range cast lands at 0 either way. Demotion prevents nothing there. The justification
+ * above is the real one, and `actor-decision-objective.test.js` exercises the tiebreak it
+ * claims -- the earlier rationale had no test because it described an effect that did not exist.
  */
 const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v4";
 const ACTOR_DECISION_OBJECTIVE_ORDER = Object.freeze([

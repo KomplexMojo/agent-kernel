@@ -410,6 +410,89 @@ test("Stage B — cover and stealth can no longer alias to the same alignment", 
   }
 });
 
+test("fieldSafety separates two candidates at the SAME intentClass", async () => {
+  // The coverage v4 lost and the commit wrongly claimed was replaced. The renamed test above
+  // no longer exercises this: with the proposal stamp demoted its two moves carry 200 and 300,
+  // so intent decides and fieldSafety is never consulted. Adversarial review caught the false
+  // replacement claim. This constructs the genuine case — two moves that BOTH close on the
+  // exit, so both are exit_progress, differing only in the harm at their destination.
+  const envelope = await solverEnvelope({
+    self: {
+      id: "delver_1",
+      kind: 2,
+      role: "delver",
+      position: { x: 2, y: 2 },
+      motivation: { kind: "exploring" },
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    },
+    affinityFields: [{
+      position: { x: 3, y: 3 },
+      kind: 1,
+      expression: 3,
+      stacks: 3,
+      intensity: 3,
+      contributionCount: 1,
+      vitalEffects: [{ vital: 0, effect: -6 }],
+    }],
+  });
+
+  const rows = envelope.objectives.actorDecision.candidates
+    .filter((entry) => entry.features?.endPosition)
+    .filter((entry) => entry.rank[0] === 300);
+  assert.ok(rows.length >= 2, `need two exit_progress moves, got ${rows.length}`);
+
+  const harmed = rows.filter((entry) => entry.rank[4] < 0);
+  const safe = rows.filter((entry) => entry.rank[4] === 0);
+  assert.ok(harmed.length >= 1 && safe.length >= 1,
+    `need one harmful and one safe exit_progress move, got ${JSON.stringify(rows.map((r) => r.rank))}`);
+
+  // Same intentClass, same targetFinish, same cover and stealth — fieldSafety is the first
+  // member that differs, and the safe move must therefore outrank the harmful one.
+  const a = safe[0].rank;
+  const b = harmed[0].rank;
+  assert.deepEqual(a.slice(0, 4), b.slice(0, 4), "the two must be tied up to fieldSafety");
+  assert.ok(a[4] > b[4], `fieldSafety must favour the safe move: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`);
+});
+
+test("actorProposal settles a tie that every earlier member leaves equal", async () => {
+  // v4 keeps the proposal as a tiebreak rather than deleting it, and this is the claim that
+  // justifies the ninth member. It had NO test until adversarial review pointed out that the
+  // rationale then on record described an effect that did not exist.
+  const envelope = await solverEnvelope({
+    self: {
+      id: "delver_1",
+      kind: 2,
+      role: "delver",
+      position: { x: 2, y: 2 },
+      motivation: { kind: "exploring" },
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    },
+  });
+
+  const rows = envelope.objectives.actorDecision.candidates;
+  const proposals = rows.filter((entry) => entry.rank[7] === 1);
+  assert.ok(proposals.length >= 1, "the Actor's own derived proposal must be flagged");
+
+  // A proposal and a non-proposal that tie on everything before index 7 must be separated by
+  // it, in the proposal's favour — and never before index 7, which is what "demoted" means.
+  let tiesExercised = 0;
+  for (const proposal of proposals) {
+    const tied = rows.filter((entry) => entry !== proposal
+      && JSON.stringify(entry.rank.slice(0, 7)) === JSON.stringify(proposal.rank.slice(0, 7)));
+    tiesExercised += tied.length;
+    for (const other of tied) {
+      assert.equal(other.rank[7], 0, "a non-proposal carries 0 in the proposal member");
+      assert.ok(proposal.rank[7] > other.rank[7],
+        "the Actor's own suggestion settles a genuine tie in its favour");
+    }
+  }
+  assert.ok(rows.every((entry) => entry.rank[7] === 0 || entry.rank[7] === 1),
+    "the proposal member is a flag, not a score");
+  // Anti-vacuity: without a real tie the loop above asserts nothing, and this test would
+  // pass while proving the tiebreak never fires. This fixture yields two.
+  assert.ok(tiesExercised > 0, "no genuine tie was exercised — this test proved nothing");
+});
+
 // ## TODO: Test Permutations
 // - two same-kind affinity grants use the first live pool in preserved observation order
 // - invalid target health is neutral instead of producing a non-integer rank

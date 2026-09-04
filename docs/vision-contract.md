@@ -63,21 +63,38 @@ Basic Adapters are in place for:
 
 ## Actor Runtime Decisions
 
-- **Field-aware v2 policy:** the Actor emits `actor-decision-objective-v2`, retaining the v1 primary
-  order and inserting `fieldSafety` then `fieldBenefit` before cast reserve. It uses only canonical,
+- **Field-aware policy (v2, extended by v3 and v4):** the Actor emits `actor-decision-objective-v4`,
+  retaining the v1 primary order and inserting `fieldSafety` then `fieldBenefit` before cast reserve.
+  v3 split the former single `profileAlignment` member into `coverAlignment` and `stealthAlignment`,
+  because summing a flat cover bonus with a scaled stealth delta made the two indistinguishable, and
+  graded cover as a count of adjacent opaque cells rather than a boolean. It uses only canonical,
   post-cancellation affinity-field
   cells that the Actor can perceive by radius and line of sight; concealed source identities never
   cross that boundary. A move is evaluated at its destination and every other action at the Actor's
   current cell. Harm is penalized first; beneficial effects count only up to the affected vital's
   missing capacity. These are tie-breakers only: they cannot override intent, target finish, or
-  profile alignment. No field prediction, affordability, price, effect application, or Z3 variable
-  is introduced. Consumers will compare both v1 and v2 tuples opaquely and defer unknown contracts.
-- The Actor owns candidate feature meaning and emits `actor-decision-objective-v2` inside the existing
+  cover or stealth alignment. No field prediction, affordability, price, effect application, or Z3
+  variable is introduced. Consumers compare v1 through v4 tuples opaquely and defer unknown contracts.
+  Field exposure is resolved against the OBSERVING actor rather than per tile: an actor takes no harm
+  from its own affinity, amplified harm from its opposite, and a `draw`-expression actor converts a
+  same-kind field into mana. That relationship rule is derived from the existing 48-cell interaction
+  matrix, not authored a second time.
+- The Actor owns candidate feature meaning and emits `actor-decision-objective-v4` inside the existing
   `runtime-decision-v1` envelope. Its rank is maximized lexicographically in this exact order:
-  `intentClass`, `targetFinish`, `profileAlignment`, `fieldSafety`, `fieldBenefit`, `castReserve`,
-  `inputOrder`. Consumers retain opaque compatibility for valid v1 envelopes.
-- `intentClass` preserves Actor proposal authority and the legacy action-class order. Target health,
-  profile alignment, perceived field effects, and live cast reserve are ordered secondary evidence;
+  `intentClass`, `targetFinish`, `coverAlignment`, `stealthAlignment`, `fieldSafety`, `fieldBenefit`,
+  `castReserve`, `actorProposal`, `inputOrder`. Consumers retain opaque compatibility for valid v1,
+  v2 and v3 envelopes.
+- **`intentClass` no longer carries Actor proposal authority (maintainer ruling, 2026-09-04).** It
+  previously did, and that clause is the one this bullet replaces. A candidate matching the Actor's
+  own deterministic proposal was stamped an `intentClass` above every other class, so it won outright:
+  measured across 3,942 decision steps, that was 100% of them. The rest of the tuple — target health,
+  cover, stealth, perceived field effects, cast reserve — was computed, validated, carried across the
+  solver port, sorted, and discarded. In 495 of the 498 steps that walked into harm, a harm-free
+  candidate had been ranked and lost to the stamp. **The tuple now decides**, and the Actor's own
+  preference is retained as `actorProposal`, second-to-last, settling candidates that are otherwise
+  exactly tied in the Actor's favour rather than by raw input order.
+- `intentClass` still carries the legacy action-class order. Target health, cover and stealth
+  alignment, perceived field effects, and live cast reserve are ordered secondary evidence;
   candidate input order is the deterministic final tie-break. Cognition/reasoning diagnostics do not
   fabricate multi-step planning, and `AggroRangeBoost` does not reveal unseen targets.
 - This per-actor choice has no joint constraint, so Z3 adds no value. Platform adapters validate and
