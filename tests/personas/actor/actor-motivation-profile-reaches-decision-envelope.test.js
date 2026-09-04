@@ -64,7 +64,7 @@ test("the Actor's core-derived motivation profile reaches its decision envelope"
     flagMask: 9,
     flags: ["CanMove", "AggroRangeBoost"],
   });
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v2");
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v3");
   assert.ok(envelope.objectives.actorDecision.candidates.every(
     (entry) => entry.features.mobilityTier === 1 && entry.features.combatTier === 1,
   ));

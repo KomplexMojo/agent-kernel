@@ -60,7 +60,7 @@ test("CLI selects the safer Actor-authored v2 move without interpreting field da
 
   const result = await createRealZ3SolverAdapter().solve({ problem: { data } });
 
-  assert.equal(data.objectives.actorDecision.contract, "actor-decision-objective-v2");
+  assert.equal(data.objectives.actorDecision.contract, "actor-decision-objective-v3");
   assert.equal(result.status, "fulfilled");
   assert.equal(result.model.selectedActionId, "move_south");
 });

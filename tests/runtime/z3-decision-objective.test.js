@@ -66,7 +66,11 @@ test("an unknown objective version defers instead of being interpreted", async (
   const request = envelope(
     [WAIT, MOVE],
     [[100, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, -1]],
-    { contract: "actor-decision-objective-v3", order: V2_ORDER },
+    // Stage B made v3 a real contract, so this guard now names the next UNRELEASED
+    // version. The claim under test is "an unknown version defers rather than being
+    // guessed at" -- keeping the literal v3 here would have quietly inverted it into
+    // "v3 is rejected", which is the opposite of what ships.
+    { contract: "actor-decision-objective-v4", order: V2_ORDER },
   );
 
   assert.deepEqual(await solver.solve({ problem: { data: request } }), {

@@ -28,11 +28,35 @@ import {
 } from "../../../../core-ts/src/index.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 
-const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v2";
+/**
+ * Stage B — `profileAlignment` split into its two independent signals.
+ *
+ * v2 summed them: `coverRank + stealthRank`, cover a flat 1000 and stealth 1000 x a
+ * distance delta. Two actors could therefore produce the SAME alignment number for
+ * different reasons -- 1000 + 0 and 0 + 1000 are indistinguishable -- and a lexicographic
+ * sort cannot separate what a sum has already merged. Adding two incommensurable signals
+ * is not a ranking, it is information loss with a plausible shape.
+ *
+ * Separating them also removes the need for the 1000 scaling factors. Those existed only
+ * to keep one signal from being swamped by the other inside a shared slot; each member is
+ * now compared on its own, so the raw counts carry the meaning and there is no magic
+ * constant left to explain.
+ *
+ * COVER BEFORE STEALTH is a real ordering decision, not an accident of how the old sum
+ * read left to right: an actor that is being shot at benefits from cover this tick, while
+ * a stealth gain pays off next tick. Revisit it when there IS a next tick to reason about.
+ *
+ * cognitionTier and reasoningClass stay diagnostic and are deliberately NOT given slots
+ * here. They describe planning DEPTH, and a one-step choice gives them nothing to
+ * modulate; a rank member invented to look richer would be exactly the artificial
+ * introduction the charter forbids. They become meaningful with lookahead, not before.
+ */
+const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v3";
 const ACTOR_DECISION_OBJECTIVE_ORDER = Object.freeze([
   "intentClass",
   "targetFinish",
-  "profileAlignment",
+  "coverAlignment",
+  "stealthAlignment",
   "fieldSafety",
   "fieldBenefit",
   "castReserve",
@@ -576,13 +600,21 @@ function isOpaqueCell(position, tileKinds, baseTiles) {
   return cell === "#" || cell === "B";
 }
 
-function endsBesideCover(position, tileKinds, baseTiles) {
-  if (!position) return false;
-  return DEFAULT_DELTAS.some(({ dx, dy }) => isOpaqueCell(
+/**
+ * How many of the eight neighbours are opaque, 0-8.
+ *
+ * Stage B: this used to be a boolean. A tile with one wall beside it and a tile wedged in
+ * a corner with five scored identically, so an actor that "prefers cover" could not tell
+ * good cover from technical cover and had no reason to prefer the corner. Counting is the
+ * smallest change that makes the preference mean what its name says.
+ */
+function coverCount(position, tileKinds, baseTiles) {
+  if (!position) return 0;
+  return DEFAULT_DELTAS.reduce((total, { dx, dy }) => total + (isOpaqueCell(
     { x: position.x + dx, y: position.y + dy },
     tileKinds,
     baseTiles,
-  ));
+  ) ? 1 : 0), 0);
 }
 
 function reserveRatio(current, max) {
@@ -751,7 +783,7 @@ function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, can
     const field = fieldUtilityRanks({ endPosition, affinityFields, actorRecord });
     return {
       candidateActionId: candidate.id,
-      rank: [score, 0, 0, field.safety, field.benefit, 0, -index],
+      rank: [score, 0, 0, 0, field.safety, field.benefit, 0, -index],
       features: {
         actionKind: action?.kind,
         compatibilityRule: ruleId,
@@ -841,11 +873,13 @@ function buildActorDecisionObjective({
       intentClass = 100;
       intentTag = "wait";
     }
-    const coverRank = flags.includes("PrefersCover") && endsBesideCover(endPosition, tileKinds, baseTiles)
-      ? 1000
+    // Raw counts, not scaled: each is its own lexicographic member now, so nothing can
+    // swamp anything. An actor without the flag scores 0 and is simply indifferent.
+    const coverRank = flags.includes("PrefersCover")
+      ? coverCount(endPosition, tileKinds, baseTiles)
       : 0;
     const stealthRank = flags.includes("PrefersStealth") && beforeHostile && afterHostile
-      ? 1000 * (afterHostile.distance - beforeHostile.distance)
+      ? afterHostile.distance - beforeHostile.distance
       : 0;
     const field = fieldUtilityRanks({ endPosition, affinityFields, actorRecord });
     const reserve = castReserveRank(action, actorRecord);
@@ -860,7 +894,8 @@ function buildActorDecisionObjective({
       rank: [
         intentClass,
         targetFinishRank(target),
-        coverRank + stealthRank,
+        coverRank,
+        stealthRank,
         field.safety,
         field.benefit,
         reserve.rank,

@@ -131,9 +131,19 @@ core's enums, so the runtime does not maintain a competing vocabulary. An unknow
 profile but still receives an Actor-authored compatibility objective. That tuple preserves the former deterministic
 attack, hostile-progress, exit-progress, fallback-move, and wait ordering without asking an adapter to infer policy.
 
-For known profiles, the `objectives.actorDecision` contract carries one Actor-authored seven-integer rank
-per candidate, ordered by intent class, target finish, profile alignment, field safety, field benefit, cast reserve,
-then input order. A move evaluates the perceived canonical post-cancellation affinity field at its destination;
+For known profiles, the `objectives.actorDecision` contract carries one Actor-authored eight-integer rank
+per candidate, ordered by intent class, target finish, **cover alignment, stealth alignment**, field safety, field
+benefit, cast reserve, then input order.
+
+Stage B (contract v3) split the former single `profileAlignment` member in two. v2 summed them — cover a flat 1000,
+stealth 1000 x a distance delta — so `1000 + 0` and `0 + 1000` were the same number and a lexicographic sort could
+not tell a sheltering actor from a retreating one. Separate members also removed the scaling constants, which existed
+only to stop one signal swamping the other inside a shared slot. Cover precedes stealth deliberately: cover pays off
+this tick, a stealth gain pays off next tick — revisit that ordering when there is a next tick to reason about.
+Cover is now a **count** of adjacent opaque cells rather than a boolean, so a corner outranks a single wall; it used
+to be true for any one neighbour, which meant "prefers cover" could not prefer better cover. `cognitionTier` and
+`reasoningClass` remain diagnostic and deliberately hold no rank slot: they describe planning depth, and a one-step
+choice gives them nothing to modulate. A move evaluates the perceived canonical post-cancellation affinity field at its destination;
 every other action evaluates the current cell. Harm is penalized before beneficial effects, and a benefit is capped
 at its matching vital's missing capacity.
 

@@ -81,7 +81,7 @@ test("the Actor's configured affinities and live grant pools reach its decision 
     (entry) => entry.candidateActionId === "cast_affinity_warden_1",
   );
   assert.equal(castRow.features.castReserveSource, "actor_mana");
-  assert.equal(castRow.rank[4], 0, "a non-matching grant must not price a fire cast");
+  assert.equal(castRow.rank[5], 0, "a non-matching grant must not price a fire cast");
 });
 
 // ## TODO: Test Permutations

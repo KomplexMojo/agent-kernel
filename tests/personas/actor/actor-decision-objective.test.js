@@ -86,9 +86,9 @@ test("attacking ranks its cast proposal with target health and live grant reserv
     hazards: [{ id: "fire_patch", position: { x: 2, y: 1 }, stacks: 3 }],
   });
 
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v2");
-  assert.deepEqual(row(envelope, "cast_affinity_warden_1").rank, [600, 8000, 0, 0, 0, 500, 0]);
-  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 6), [400, 8000, 0, 0, 0, 0]);
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v3");
+  assert.deepEqual(row(envelope, "cast_affinity_warden_1").rank, [600, 8000, 0, 0, 0, 0, 500, 0]);
+  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 7), [400, 8000, 0, 0, 0, 0, 0]);
 });
 
 test("defending holds when its hostile is distant even if a move reaches cover", async () => {
@@ -113,8 +113,13 @@ test("defending holds when its hostile is distant even if a move reaches cover",
     baseTiles,
   });
 
-  assert.deepEqual(row(envelope, "wait_here").rank.slice(0, 3), [100, 0, 0]);
-  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 3), [0, 0, 1000]);
+  // Stage B: cover is a COUNT of adjacent opaque cells, not a flat 1000, so this asserts
+  // the relationship the test is named for -- the move genuinely reaches cover, and intent
+  // still outranks it -- rather than a magic constant that would have to be re-guessed
+  // whenever the map changes.
+  assert.deepEqual(row(envelope, "wait_here").rank.slice(0, 4), [100, 0, 0, 0]);
+  assert.equal(row(envelope, "move_east").rank[0], 0, "moving is a weaker intent than holding");
+  assert.ok(row(envelope, "move_east").rank[2] > 0, "and the move does reach cover");
 });
 
 test("stealthy prefers the equally intentional move that increases hostile distance", async () => {
@@ -134,8 +139,16 @@ test("stealthy prefers the equally intentional move that increases hostile dista
     ],
   });
 
-  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 3), [600, 0, 0]);
-  assert.deepEqual(row(envelope, "move_southeast").rank.slice(0, 3), [600, 0, 1000]);
+  // This actor prefers STEALTH, so the signal under test is the stealth member (index 3),
+  // not cover. Under v2 both collapsed into one summed slot and the distinction could not
+  // be asserted at all — which is the information loss Stage B removed.
+  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 4), [600, 0, 0, 0]);
+  assert.equal(row(envelope, "move_southeast").rank[0], 600, "equally intentional");
+  assert.equal(row(envelope, "move_southeast").rank[2], 0, "and it is not a cover gain");
+  assert.ok(
+    row(envelope, "move_southeast").rank[3] > row(envelope, "move_east").rank[3],
+    "the southeast move is the one that increases hostile distance",
+  );
 });
 
 test("strategy-focused emits diagnostics but holds instead of fabricating lookahead", async () => {
@@ -169,11 +182,12 @@ test("an unknown motivation emits an Actor-owned compatibility tuple", async () 
   });
 
   assert.equal(envelope.actor.motivationProfile, undefined);
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v2");
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v3");
   assert.deepEqual(envelope.objectives.actorDecision.order, [
     "intentClass",
     "targetFinish",
-    "profileAlignment",
+    "coverAlignment",
+    "stealthAlignment",
     "fieldSafety",
     "fieldBenefit",
     "castReserve",
@@ -209,8 +223,8 @@ test("field safety breaks an otherwise-equal movement tie without changing inten
     }],
   });
 
-  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 5), [600, 0, 0, -4, 0]);
-  assert.deepEqual(row(envelope, "move_south").rank.slice(0, 5), [600, 0, 0, 0, 0]);
+  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 6), [600, 0, 0, 0, -4, 0]);
+  assert.deepEqual(row(envelope, "move_south").rank.slice(0, 6), [600, 0, 0, 0, 0, 0]);
 });
 
 test("field benefit is capped by missing vital capacity and ignored when full", async () => {
@@ -246,9 +260,9 @@ test("field benefit is capped by missing vital capacity and ignored when full", 
     self: { ...input.self, vitals: { health: { current: 10, max: 10, regen: 0 } } },
   });
 
-  assert.equal(row(injured, "move_east").rank[4], 4);
-  assert.equal(row(injured, "move_south").rank[4], 0);
-  assert.equal(row(full, "move_east").rank[4], 0);
+  assert.equal(row(injured, "move_east").rank[5], 4);
+  assert.equal(row(injured, "move_south").rank[5], 0);
+  assert.equal(row(full, "move_east").rank[5], 0);
 });
 
 test("a non-move evaluates the field at the Actor's current cell", async () => {
@@ -273,7 +287,7 @@ test("a non-move evaluates the field at the Actor's current cell", async () => {
     }],
   });
 
-  assert.deepEqual(row(envelope, "wait_1").rank.slice(0, 5), [600, 0, 0, -3, 0]);
+  assert.deepEqual(row(envelope, "wait_1").rank.slice(0, 6), [600, 0, 0, 0, -3, 0]);
 });
 
 test("field benefit cannot override a stronger primary intent", async () => {
@@ -298,7 +312,7 @@ test("field benefit cannot override a stronger primary intent", async () => {
   });
 
   assert.equal(row(envelope, "wait_here").rank[0], 100);
-  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 5), [0, 0, 0, 0, 10]);
+  assert.deepEqual(row(envelope, "move_east").rank.slice(0, 6), [0, 0, 0, 0, 0, 10]);
 });
 
 test("the Actor objective distinguishes hostile pursuit from movement toward an ally", async () => {
@@ -329,6 +343,63 @@ test("the Actor objective distinguishes hostile pursuit from movement toward an 
   assert.equal(row(envelope, "move_west").rationaleTags[0], "mobile_fallback");
   assert.equal(row(envelope, "move_east").rationaleTags[0], "hostile_progress");
   assert.ok(row(envelope, "move_east").rank[0] > row(envelope, "move_west").rank[0]);
+});
+
+test("Stage B — cover is graded, so a corner outranks a single wall", async () => {
+  // Under v2 both of these scored a flat 1000 and the actor had no reason to prefer the
+  // corner. Grading is the whole point: "prefers cover" should mean more cover, not any.
+  const baseTiles = [
+    "#######",
+    "#.....#",
+    "#.###.#",
+    "#.#...#",
+    "#.....#",
+    "#..E..#",
+    "#######",
+  ];
+  const envelope = await solverEnvelope({
+    self: {
+      id: "defender_1",
+      kind: 2,
+      role: "delver",
+      position: { x: 2, y: 3 },
+      motivation: { kind: "defending" },
+    },
+    others: [{ id: "warden_1", kind: 2, role: "warden", position: { x: 5, y: 5 } }],
+    baseTiles,
+  });
+
+  const covers = envelope.objectives.actorDecision.candidates
+    .filter((entry) => entry.features?.endPosition)
+    .map((entry) => entry.rank[2]);
+  assert.ok(covers.some((value) => value > 0), "at least one destination is beside cover");
+  assert.ok(
+    new Set(covers.filter((value) => value > 0)).size > 1,
+    `graded cover must distinguish destinations, got ${JSON.stringify(covers)}`,
+  );
+  assert.ok(covers.every((value) => value <= 8), "cover cannot exceed the eight neighbours");
+});
+
+test("Stage B — cover and stealth can no longer alias to the same alignment", async () => {
+  // The v2 defect in one assertion: cover(1000) + stealth(0) and cover(0) + stealth(1000)
+  // were the same number, so a sort could not tell a sheltering actor from a retreating
+  // one. Separate members mean the two signals are independently readable.
+  const order = ["intentClass", "targetFinish", "coverAlignment", "stealthAlignment",
+    "fieldSafety", "fieldBenefit", "castReserve", "inputOrder"];
+  const envelope = await solverEnvelope({
+    self: {
+      id: "scout_1",
+      kind: 2,
+      role: "delver",
+      position: { x: 2, y: 2 },
+      motivation: { kind: "stealthy" },
+    },
+    others: [{ id: "warden_1", kind: 2, role: "warden", position: { x: 1, y: 1 } }],
+  });
+  assert.deepEqual(envelope.objectives.actorDecision.order, order);
+  for (const entry of envelope.objectives.actorDecision.candidates) {
+    assert.equal(entry.rank.length, order.length, "every row carries one member per axis");
+  }
 });
 
 // ## TODO: Test Permutations
