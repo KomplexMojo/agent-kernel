@@ -84,6 +84,18 @@ function reportAllocator(result) {
   }
 }
 
+function reportConfigurator(result) {
+  const { counters: c, derived: d } = result;
+  console.log(`  points ${c.points}  ·  posed a problem ${d.decidedPoints}  ·  unsat/bypass before the choice ${c.notReady}`);
+  console.log(`  optimal vs oracle:      solver ${percent(d.solverOptimalFractionOfDecided)}  ·  greedy ${percent(d.greedyOptimalFractionOfDecided)}`);
+  console.log(`  PATH SEVERED:           solver ${c.solverPathBlocked} (${percent(d.solverPathBlockedFraction)})  ·  greedy ${c.greedyPathBlocked} (${percent(d.greedyPathBlockedFraction)})`);
+  console.log(`  solver usable where greedy was not: ${d.solverRescuedGreedy}  ·  greedy threw ${c.greedyThrew}`);
+  console.log(`  identical placements ${c.agree}  ·  oracle unsat ${c.oracleUnsat}`);
+  if (c.solverPathBlocked > 0) {
+    console.log("  ⚠️  THE SOLVER SEVERED A LEVEL — its path constraint is not doing what it claims.");
+  }
+}
+
 function reportActor(result) {
   const { counters: c, derived: d } = result;
   console.log(`  points ${c.points}  ·  agree ${c.agree}  ·  diverge ${c.diverge} (${percent(d.divergenceFraction)})`);
@@ -181,6 +193,7 @@ async function main() {
         log: (line) => console.log(line),
       });
     if (domain === "allocator_budget_fit") reportAllocator(result);
+    else if (domain === "configurator_satisfiability") reportConfigurator(result);
     else if (domain === "actor_action_selection") reportActor(result);
     console.log(`  elapsed ${(result.elapsedMs / 1000).toFixed(1)}s`);
     results.push(result);

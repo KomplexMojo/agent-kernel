@@ -29,8 +29,10 @@
 import {
   allocatorObjectiveRank,
   compareRank,
+  pathExistsOracle,
   solveActorSelectionExhaustive,
   solveAllocatorBudgetFitExhaustive,
+  solveObjectPlacementExhaustive,
 } from "./logic-oracles.mjs";
 
 const FIXED_CLOCK = () => "2026-09-04T00:00:00.000Z";
@@ -428,6 +430,217 @@ async function runActorLedger({ bounds, limit, log }) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// configurator_satisfiability — object placement
+// ---------------------------------------------------------------------------
+
+/**
+ * THE VALUE HYPOTHESIS HERE IS NOT OPTIMALITY, IT IS FEASIBILITY.
+ *
+ * Both implementations want the same thing — each object on the lowest-indexed
+ * walkable cell it can take, in authored order — so on an open grid they agree
+ * trivially. They differ in what they know: `placeObjectsLegacy` is a row-major
+ * first-fit that never reconsiders, and is entirely blind to reachability. The
+ * authored problem carries a unit-flow constraint that keeps spawn connected to exit
+ * around anything declaring `blocking: true`.
+ *
+ * So the question this domain answers is not "how much better is the layout" but
+ * "how often does the greedy path emit a level you cannot finish". A grid with a
+ * one-tile corridor is where that bites, which is why the domain enumerates wall
+ * masks rather than open rooms: an open room cannot be severed, and a sweep over
+ * open rooms would report a comfortable zero and mean nothing.
+ */
+function* enumerateWallMasks(interior, maxWalls) {
+  yield [];
+  const combine = (start, current) => {
+    if (current.length > 0) results.push([...current]);
+    if (current.length === maxWalls) return;
+    for (let index = start; index < interior.length; index += 1) {
+      current.push(interior[index]);
+      combine(index + 1, current);
+      current.pop();
+    }
+  };
+  const results = [];
+  combine(0, []);
+  yield* results;
+}
+
+function buildGridLayout({ width, height, walls }) {
+  const kinds = Array.from({ length: height }, (_, y) => (
+    Array.from({ length: width }, (_, x) => (walls.has(`${x},${y}`) ? 1 : 0))
+  ));
+  return {
+    data: {
+      kinds,
+      spawn: { x: 0, y: 0 },
+      exit: { x: width - 1, y: height - 1 },
+      rooms: [],
+    },
+  };
+}
+
+function* enumerateConfiguratorPoints({ width, height, maxWalls, objectSets }) {
+  const interior = [];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if ((x === 0 && y === 0) || (x === width - 1 && y === height - 1)) continue;
+      interior.push(`${x},${y}`);
+    }
+  }
+  for (const mask of enumerateWallMasks(interior, maxWalls)) {
+    const walls = new Set(mask);
+    const layout = buildGridLayout({ width, height, walls });
+    for (const objects of objectSets) {
+      yield { layout, hazards: clone(objects.hazards), resources: clone(objects.resources) };
+    }
+  }
+}
+
+const clone = (value) => JSON.parse(JSON.stringify(value));
+
+/** Positions actually assigned, keyed by object id, from a placement result. */
+function placementOf(result) {
+  const data = result?.layout?.data || result?.layout;
+  if (!data) return null;
+  const entries = [
+    ...(Array.isArray(data.hazards) ? data.hazards : []),
+    ...(Array.isArray(data.resources) ? data.resources : []),
+  ];
+  return Object.fromEntries(entries
+    .filter((entry) => entry?.id && entry.position)
+    .map((entry) => [entry.id, `${entry.position.x},${entry.position.y}`]));
+}
+
+/** Does this placement leave spawn able to reach exit? The question greedy never asks. */
+function placementKeepsPathOpen(prepared, placement) {
+  if (!placement) return false;
+  const blocked = new Set(prepared.blocking);
+  prepared.pending.forEach((object) => {
+    if (object.value?.blocking === true && placement[object.id]) blocked.add(placement[object.id]);
+  });
+  return pathExistsOracle(prepared.cells, prepared.spawn, prepared.exit, blocked);
+}
+
+async function runConfiguratorLedger({ bounds, limit, log, offset = 0 }) {
+  const [{ createConfiguratorPersona }, { createHostedObjectPlacer }, { createHybridConstraintSolverAdapter }] =
+    await Promise.all([
+      import("../../packages/runtime/src/personas/configurator/persona.js"),
+      import("../../packages/runtime/src/commands/solver-host.js"),
+      import("../../packages/adapters-cli/src/adapters/z3/index.js"),
+    ]);
+
+  const configurator = createConfiguratorPersona({ clock: FIXED_CLOCK });
+  const hosted = (adapter) => createHostedObjectPlacer({
+    prepare: configurator.prepareObjectPlacement,
+    complete: configurator.completeObjectPlacement,
+    adapter,
+    clock: FIXED_CLOCK,
+  });
+  const solverPlace = hosted(createHybridConstraintSolverAdapter());
+  const greedyPlace = hosted(createDeferringAdapter("configurator_satisfiability"));
+
+  const counters = {
+    points: 0, notReady: 0,
+    solverOk: 0, greedyOk: 0, greedyThrew: 0,
+    solverMatchesOracle: 0, greedyMatchesOracle: 0,
+    solverPathBlocked: 0, greedyPathBlocked: 0,
+    solverFeasibleGreedyNot: 0, greedyFeasibleSolverNot: 0,
+    oracleUnsat: 0, agree: 0,
+  };
+  const examples = { greedyPathBlocked: [], solverPathBlocked: [], disagree: [] };
+  const startedAt = Date.now();
+  let seen = 0;
+
+  for (const point of enumerateConfiguratorPoints(bounds)) {
+    seen += 1;
+    if (seen <= offset) continue;
+    if (limit && counters.points >= limit) break;
+    counters.points += 1;
+    if (log && counters.points % 200 === 0) {
+      log(`  … ${counters.points} points (${Math.round((Date.now() - startedAt) / 1000)}s)`);
+    }
+
+    const prepared = configurator.prepareObjectPlacement(point);
+    // Only "ready" points pose a problem at all; the rest are unsat or bypass before
+    // either implementation gets a choice, and counting them as agreement would
+    // inflate the result with cases nobody decided.
+    if (prepared.status !== "ready") {
+      counters.notReady += 1;
+      continue;
+    }
+
+    const oracle = solveObjectPlacementExhaustive({ prepared });
+    if (oracle.status === "unsat") counters.oracleUnsat += 1;
+
+    const solver = await solverPlace(point);
+    let greedy;
+    try {
+      greedy = await greedyPlace(point);
+    } catch (error) {
+      counters.greedyThrew += 1;
+      greedy = { ok: false, threw: error?.message };
+    }
+
+    const solverPlacement = solver?.ok ? placementOf(solver) : null;
+    const greedyPlacement = greedy?.ok ? placementOf(greedy) : null;
+    if (solver?.ok) counters.solverOk += 1;
+    if (greedy?.ok) counters.greedyOk += 1;
+
+    const solverOpen = solverPlacement ? placementKeepsPathOpen(prepared, solverPlacement) : false;
+    const greedyOpen = greedyPlacement ? placementKeepsPathOpen(prepared, greedyPlacement) : false;
+    if (solverPlacement && !solverOpen) {
+      counters.solverPathBlocked += 1;
+      if (examples.solverPathBlocked.length < MAX_RECORDED_EXAMPLES) {
+        examples.solverPathBlocked.push({ point, placement: solverPlacement });
+      }
+    }
+    if (greedyPlacement && !greedyOpen) {
+      counters.greedyPathBlocked += 1;
+      if (examples.greedyPathBlocked.length < MAX_RECORDED_EXAMPLES) {
+        examples.greedyPathBlocked.push({
+          point: { kinds: point.layout.data.kinds, hazards: point.hazards, resources: point.resources },
+          greedy: greedyPlacement,
+          solver: solverPlacement,
+          oracle: oracle.status === "fulfilled" ? oracle.model : oracle.reason,
+        });
+      }
+    }
+
+    const oracleModel = oracle.status === "fulfilled" ? JSON.stringify(oracle.model) : null;
+    if (oracleModel !== null) {
+      if (JSON.stringify(solverPlacement) === oracleModel) counters.solverMatchesOracle += 1;
+      if (JSON.stringify(greedyPlacement) === oracleModel) counters.greedyMatchesOracle += 1;
+    }
+
+    const solverUsable = Boolean(solverPlacement) && solverOpen;
+    const greedyUsable = Boolean(greedyPlacement) && greedyOpen;
+    if (solverUsable && !greedyUsable) counters.solverFeasibleGreedyNot += 1;
+    else if (greedyUsable && !solverUsable) counters.greedyFeasibleSolverNot += 1;
+    else if (JSON.stringify(solverPlacement) === JSON.stringify(greedyPlacement)) counters.agree += 1;
+    else if (examples.disagree.length < MAX_RECORDED_EXAMPLES) {
+      examples.disagree.push({ solver: solverPlacement, greedy: greedyPlacement, oracle: oracle.model });
+    }
+  }
+
+  const decided = counters.points - counters.notReady;
+  return {
+    domain: "configurator_satisfiability",
+    bounds,
+    elapsedMs: Date.now() - startedAt,
+    counters,
+    derived: {
+      decidedPoints: decided,
+      solverOptimalFractionOfDecided: decided === 0 ? 0 : counters.solverMatchesOracle / decided,
+      greedyOptimalFractionOfDecided: decided === 0 ? 0 : counters.greedyMatchesOracle / decided,
+      greedyPathBlockedFraction: decided === 0 ? 0 : counters.greedyPathBlocked / decided,
+      solverPathBlockedFraction: decided === 0 ? 0 : counters.solverPathBlocked / decided,
+      solverRescuedGreedy: counters.solverFeasibleGreedyNot,
+    },
+    examples,
+  };
+}
+
 function median(values) {
   if (values.length === 0) return null;
   const sorted = [...values].sort((left, right) => left - right);
@@ -441,6 +654,35 @@ export const LEDGER_DOMAINS = Object.freeze({
     bounds: {
       gate: { maxFloor: 4, maxHallway: 4, maxCost: 4 },
       sweep: { maxFloor: 8, maxHallway: 8, maxCost: 6 },
+    },
+  },
+  configurator_satisfiability: {
+    run: runConfiguratorLedger,
+    bounds: {
+      // A 4x3 grid is the smallest that admits a one-tile corridor, which is the
+      // only shape where a path-blind placer can sever the level.
+      gate: {
+        width: 4,
+        height: 3,
+        maxWalls: 3,
+        objectSets: [
+          { hazards: [{ id: "h1", blocking: true }], resources: [] },
+          { hazards: [{ id: "h1", blocking: true }], resources: [{ id: "r1" }] },
+          { hazards: [{ id: "h1", blocking: true }, { id: "h2", blocking: true }], resources: [] },
+          { hazards: [{ id: "h1", blocking: false }], resources: [{ id: "r1" }] },
+        ],
+      },
+      sweep: {
+        width: 5,
+        height: 3,
+        maxWalls: 4,
+        objectSets: [
+          { hazards: [{ id: "h1", blocking: true }], resources: [] },
+          { hazards: [{ id: "h1", blocking: true }], resources: [{ id: "r1" }] },
+          { hazards: [{ id: "h1", blocking: true }, { id: "h2", blocking: true }], resources: [] },
+          { hazards: [{ id: "h1", blocking: true }, { id: "h2", blocking: false }], resources: [{ id: "r1" }] },
+        ],
+      },
     },
   },
   actor_action_selection: {

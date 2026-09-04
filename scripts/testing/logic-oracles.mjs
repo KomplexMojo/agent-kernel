@@ -133,3 +133,98 @@ export function solveActorSelectionExhaustive({ candidateIds, ranks }) {
   }
   return { status: "fulfilled", model: { selectedActionId: winner.id } };
 }
+
+// ---------------------------------------------------------------------------
+// configurator_satisfiability — object placement
+// ---------------------------------------------------------------------------
+
+const cellKey = ({ x, y }) => `${x},${y}`;
+
+/**
+ * Independent reachability check. Deliberately a SECOND implementation of what
+ * `object-placement.js` calls `pathExists`, because an oracle that imported the
+ * production one would agree with it by construction and could not catch it being
+ * wrong. Four-neighbour BFS over the walkable cells, minus the blocked ones.
+ */
+export function pathExistsOracle(cells, spawn, exit, blocked = new Set()) {
+  if (!spawn || !exit) return false;
+  const open = new Set(cells.map(cellKey).filter((key) => !blocked.has(key)));
+  const start = cellKey(spawn);
+  const target = cellKey(exit);
+  if (!open.has(start) || !open.has(target)) return false;
+  const queue = [spawn];
+  const seen = new Set([start]);
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (cellKey(current) === target) return true;
+    for (const [dx, dy] of [[0, -1], [-1, 0], [1, 0], [0, 1]]) {
+      const next = { x: current.x + dx, y: current.y + dy };
+      const key = cellKey(next);
+      if (open.has(key) && !seen.has(key)) {
+        seen.add(key);
+        queue.push(next);
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Exhaustive optimal object placement.
+ *
+ * The Configurator's objective is a lexicographic MINIMIZE of each pending object's
+ * chosen cell index, in authored order. Candidate lists arrive sorted ascending, so a
+ * depth-first search that tries candidates in order and returns the first complete
+ * feasible assignment IS the lexicographic optimum — no scoring pass needed. That is
+ * worth stating because it is also exactly what makes the greedy fallback look correct
+ * until it isn't: greedy takes the same first-fit cells but never backtracks, so it
+ * cannot discover that its choice made the rest infeasible.
+ *
+ * Feasible means: every object on a distinct cell, and — once any object declaring
+ * `blocking: true` is placed — spawn still reaches exit.
+ *
+ * Takes the persona's own `prepared` context rather than re-deriving candidates,
+ * rooms or occupancy. Re-deriving them here would make this a second placement
+ * policy, which is the defect the Configurator authority guards exist to prevent.
+ * What the oracle supplies independently is the SEARCH and the feasibility test.
+ */
+export function solveObjectPlacementExhaustive({ prepared }) {
+  const { pending, candidates, cells, blocking, spawn, exit } = prepared;
+  const staticBlocked = new Set(blocking);
+  const used = new Set();
+  const chosen = new Array(pending.length).fill(-1);
+
+  const feasibleSoFar = () => {
+    const blocked = new Set(staticBlocked);
+    pending.forEach((object, index) => {
+      if (chosen[index] >= 0 && object.value?.blocking === true) {
+        blocked.add(cellKey(cells[chosen[index]]));
+      }
+    });
+    return pathExistsOracle(cells, spawn, exit, blocked);
+  };
+
+  const descend = (index) => {
+    if (index === pending.length) return feasibleSoFar();
+    for (const cellIndex of candidates[index]) {
+      if (used.has(cellIndex)) continue;
+      used.add(cellIndex);
+      chosen[index] = cellIndex;
+      // Prune on the path constraint as soon as a blocker is placed: a severed level
+      // cannot be repaired by placing more objects.
+      if (!(pending[index].value?.blocking === true) || feasibleSoFar()) {
+        if (descend(index + 1)) return true;
+      }
+      used.delete(cellIndex);
+      chosen[index] = -1;
+    }
+    return false;
+  };
+
+  if (!descend(0)) return { status: "unsat", reason: "no_feasible_placement" };
+  return {
+    status: "fulfilled",
+    model: Object.fromEntries(pending.map((object, index) => [object.id, cellKey(cells[chosen[index]])])),
+    cellIndices: [...chosen],
+  };
+}
