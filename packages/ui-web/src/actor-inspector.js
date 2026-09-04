@@ -712,6 +712,20 @@ function resolveEntityValue(entity, liveActor) {
   return runtimeCost;
 }
 
+function resolveRuntimeBudgetDisplay(receipt, runtimeActorId) {
+  if (!receipt || typeof receipt !== "object") return null;
+  const actorId = normalizeName(runtimeActorId);
+  const actorTotal = Array.isArray(receipt.actorTotals)
+    ? receipt.actorTotals.find((entry) => normalizeName(entry?.actorId) === actorId) || null
+    : null;
+  return {
+    unit: receipt.unit,
+    actorUnits: actorTotal?.units ?? null,
+    unattributedUnits: receipt.unattributedUnits,
+    totalUnits: receipt.totalUnits,
+  };
+}
+
 /**
  * Summarizes an actor's affinity grants into one entry per kind.
  *
@@ -807,6 +821,7 @@ export function createActorInspector({
   let resourceBundle = null;
   let simConfig = null;
   let mode = "simulation";
+  let runtimeBudgetReceipt = null;
 
   function fallbackModelFromLiveActors() {
     if (!Array.isArray(liveActors) || liveActors.length === 0) {
@@ -982,6 +997,9 @@ export function createActorInspector({
     const affinities = resolveEntityAffinities(entity, liveActor, hazards);
     const vitals = resolveEntityVitals(entity, liveActor);
     const totalValue = resolveEntityValue(entity, liveActor);
+    const runtimeBudget = entity.runtimeActorId
+      ? resolveRuntimeBudgetDisplay(runtimeBudgetReceipt, entity.runtimeActorId)
+      : null;
     const motivations = Array.isArray(entity?.card?.motivations) ? entity.card.motivations : [];
 
     const card = createDomElement(detailEl, "article");
@@ -1172,6 +1190,31 @@ export function createActorInspector({
       card.append(receipt);
     }
 
+    if (runtimeBudget) {
+      const runtimeReceipt = createDomElement(card, "div");
+      if (runtimeReceipt) {
+        runtimeReceipt.className = "simulation-inspector-runtime-budget";
+        const heading = createDomElement(runtimeReceipt, "div");
+        if (heading) {
+          heading.className = "simulation-inspector-runtime-budget-heading";
+          heading.textContent = `Runtime accounting (${runtimeBudget.unit})`;
+          runtimeReceipt.append(heading);
+        }
+        [
+          ["Selected actor", runtimeBudget.actorUnits ?? "Not recorded"],
+          ["Unattributed", runtimeBudget.unattributedUnits],
+          ["Run total", runtimeBudget.totalUnits],
+        ].forEach(([label, value]) => {
+          const row = createDomElement(runtimeReceipt, "div");
+          if (!row) return;
+          row.className = "simulation-inspector-runtime-budget-row";
+          row.textContent = `${label}: ${value}`;
+          runtimeReceipt.append(row);
+        });
+        card.append(runtimeReceipt);
+      }
+    }
+
     replaceChildren(detailEl, [card]);
   }
 
@@ -1233,6 +1276,11 @@ export function createActorInspector({
 
   function setRunning(nextRunning) {
     running = Boolean(nextRunning);
+    render();
+  }
+
+  function setRuntimeBudgetReceipt(nextReceipt) {
+    runtimeBudgetReceipt = nextReceipt && typeof nextReceipt === "object" ? nextReceipt : null;
     render();
   }
 
@@ -1345,6 +1393,7 @@ export function createActorInspector({
     setScenario,
     setActors,
     setRunning,
+    setRuntimeBudgetReceipt,
     setResourceBundle,
     setMode,
     selectEntityById,

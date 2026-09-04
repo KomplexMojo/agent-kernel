@@ -50,10 +50,14 @@
     "resource_level": 5,
     "resource_permanent": 10
   },
-  "_actionBudgetNote": "Runtime action costs charged against core's per-run budget ledger (NOT the authoring price list). core-ts enforces caps and emits limit events; these numbers are the Allocator's policy, injected via ports/budget.js. action_default applies to every action kind; specific kinds override it.",
+  "_actionBudgetNote": "Runtime action costs are Allocator-owned runtimeBudgetUnits, separate from authoring tokens and provider telemetry. core-ts receives only action_default/action_request_solver for its existing aggregate ledger; the receipt surface uses the complete named schedule. action_move is deliberately zero because stamina is movement's gameplay cost.",
   "actionBudget": {
     "action_default": 1,
-    "action_request_solver": 2
+    "action_wait": 1,
+    "action_attack": 1,
+    "action_cast_affinity": 1,
+    "action_request_solver": 2,
+    "action_move": 0
   },
   "freeFloatingPremium": 1.5,
   "_levelAuthoringNote": "Level-authoring economy knobs, moved out of commands/card-authoring.js by CR.1 — they were pricing policy sitting in glue, feeding calculateCardValue, card receipts, UI guidance and auto-generation. budget_split_percent must sum to 100. The reference budget is NOT here: it is REFERENCE_BUDGET_TOKENS in budget-allocation.js, which card-authoring duplicated as DEFAULT_LEVEL_BUDGET_TOKENS (both 2500) until CR.1 collapsed them.",

@@ -1,4 +1,6 @@
 import {
+  AffinityExpression,
+  AffinityRelationship,
   isValidAffinityExpression,
   isValidAffinityKind,
   resolveAffinityRelationshipCode,
@@ -40,41 +42,36 @@ const MANA_EXPONENT = Object.freeze([0.0, 0.0, 2.0, 2.0]);
 const MAX_MERGED_STACKS = 8;
 const MATRIX_CELL_COUNT = 48;
 
-const N = AffinityEffect.None;
-const D = AffinityEffect.Damage;
-const CD = AffinityEffect.ConditionalDamage;
-const PR = AffinityEffect.PotencyReduced;
-const MG = AffinityEffect.ManaGain;
-const ML = AffinityEffect.ManaLoss;
-const AD = AffinityEffect.AmplifiedDamage;
+const AffinityInteractionVisualState = {
+  ClashNeutral: 1,
+  ClashOpposed: 2,
+  Redirect: 3,
+  Conflict: 4,
+  Disruption: 5,
+  Strike: 6,
+  Vulnerability: 7,
+  Backlash: 8,
+  Siphon: 9,
+  MutualDrain: 10,
+  Absorb: 11,
+  ToxicExposure: 12,
+  Tug: 13,
+  Rend: 14,
+  Reinforcement: 15,
+  ConflictZone: 16,
+  Susceptible: 17,
+  Resonance: 18,
+  Corrosion: 19,
+  Layered: 20,
+  EmitField: 21,
+} as const;
 
-const MATRIX_SRC_EFFECT = new Int32Array([
-  N, CD, N, N, D, N, N, PR, N, N, N, N,
-  N, D, N, MG, D, N, MG, D, N, MG, D, N,
-  N, PR, N, N, PR, N, N, PR, N, N, N, N,
-  D, AD, N, ML, ML, N, MG, D, N, N, D, N,
-]);
-
-const MATRIX_TGT_EFFECT = new Int32Array([
-  N, CD, N, N, D, N, N, PR, N, D, AD, N,
-  N, N, N, ML, D, N, N, PR, N, ML, ML, N,
-  N, PR, N, MG, D, N, N, PR, N, MG, D, N,
-  N, N, N, MG, D, N, N, N, N, N, D, N,
-]);
-
-const MATRIX_VISUAL = new Int32Array([
-  1, 2, 20, 3, 4, 20, 21, 5, 20, 6, 7, 20,
-  3, 8, 20, 9, 10, 20, 11, 12, 20, 13, 14, 20,
-  21, 5, 20, 11, 12, 20, 15, 16, 20, 11, 17, 20,
-  6, 7, 20, 13, 14, 20, 11, 17, 20, 18, 19, 20,
-]);
-
-const MATRIX_CANCEL = new Int32Array([
-  0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
-  0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
-  0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
-  0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0,
-]);
+export interface AffinityInteractionCell {
+  sourceEffect: number;
+  targetEffect: number;
+  visualState: number;
+  usesStackCancellation: number;
+}
 
 function exprIdx(expression: number): number {
   return expression - 1;
@@ -160,10 +157,6 @@ export function getAffinityEffectCount(): number {
   return 7;
 }
 
-function cellIndex(srcExpr: number, tgtExpr: number, relationship: number): number {
-  return ((srcExpr - 1) * 4 + (tgtExpr - 1)) * 3 + relationship;
-}
-
 function isValidCellArgs(
   srcExpr: number,
   tgtExpr: number,
@@ -177,13 +170,170 @@ function isValidCellArgs(
   );
 }
 
+function deriveSourceEffect(
+  sourceExpression: number,
+  targetExpression: number,
+  relationship: number,
+): number {
+  if (relationship === AffinityRelationship.Same) {
+    if (sourceExpression === AffinityExpression.Pull) {
+      return targetExpression === AffinityExpression.Push
+        ? AffinityEffect.None
+        : AffinityEffect.ManaGain;
+    }
+    if (sourceExpression === AffinityExpression.Draw) {
+      if (targetExpression === AffinityExpression.Push) return AffinityEffect.Damage;
+      if (targetExpression === AffinityExpression.Pull) return AffinityEffect.ManaLoss;
+      if (targetExpression === AffinityExpression.Emit) return AffinityEffect.ManaGain;
+    }
+    return AffinityEffect.None;
+  }
+
+  if (sourceExpression === AffinityExpression.Push) {
+    if (targetExpression === AffinityExpression.Push) return AffinityEffect.ConditionalDamage;
+    if (targetExpression === AffinityExpression.Pull) return AffinityEffect.Damage;
+    if (targetExpression === AffinityExpression.Emit) return AffinityEffect.PotencyReduced;
+    return AffinityEffect.None;
+  }
+  if (sourceExpression === AffinityExpression.Pull) return AffinityEffect.Damage;
+  if (sourceExpression === AffinityExpression.Emit) {
+    return targetExpression === AffinityExpression.Draw
+      ? AffinityEffect.None
+      : AffinityEffect.PotencyReduced;
+  }
+  if (targetExpression === AffinityExpression.Push) return AffinityEffect.AmplifiedDamage;
+  if (targetExpression === AffinityExpression.Pull) return AffinityEffect.ManaLoss;
+  return AffinityEffect.Damage;
+}
+
+function deriveTargetEffect(
+  sourceExpression: number,
+  targetExpression: number,
+  relationship: number,
+): number {
+  if (relationship === AffinityRelationship.Same) {
+    if (targetExpression === AffinityExpression.Push) {
+      return AffinityEffect.None;
+    }
+    if (targetExpression === AffinityExpression.Pull) {
+      if (sourceExpression === AffinityExpression.Pull) return AffinityEffect.ManaLoss;
+      return sourceExpression === AffinityExpression.Push
+        ? AffinityEffect.None
+        : AffinityEffect.ManaGain;
+    }
+    if (targetExpression === AffinityExpression.Emit) return AffinityEffect.None;
+    if (sourceExpression === AffinityExpression.Push) return AffinityEffect.Damage;
+    if (sourceExpression === AffinityExpression.Pull) return AffinityEffect.ManaLoss;
+    if (sourceExpression === AffinityExpression.Emit) return AffinityEffect.ManaGain;
+    return AffinityEffect.None;
+  }
+
+  if (targetExpression === AffinityExpression.Push) {
+    if (sourceExpression === AffinityExpression.Push) return AffinityEffect.ConditionalDamage;
+    return sourceExpression === AffinityExpression.Emit
+      ? AffinityEffect.PotencyReduced
+      : AffinityEffect.None;
+  }
+  if (targetExpression === AffinityExpression.Pull) {
+    return AffinityEffect.Damage;
+  }
+  if (targetExpression === AffinityExpression.Emit) {
+    return sourceExpression === AffinityExpression.Draw
+      ? AffinityEffect.None
+      : AffinityEffect.PotencyReduced;
+  }
+  if (sourceExpression === AffinityExpression.Push) return AffinityEffect.AmplifiedDamage;
+  if (sourceExpression === AffinityExpression.Pull) return AffinityEffect.ManaLoss;
+  return AffinityEffect.Damage;
+}
+
+function deriveVisualState(
+  sourceExpression: number,
+  targetExpression: number,
+  relationship: number,
+): number {
+  if (relationship === AffinityRelationship.Neutral) return AffinityInteractionVisualState.Layered;
+  if (relationship === AffinityRelationship.Same) {
+    if (sourceExpression === AffinityExpression.Push) {
+      if (targetExpression === AffinityExpression.Push) return AffinityInteractionVisualState.ClashNeutral;
+      if (targetExpression === AffinityExpression.Pull) return AffinityInteractionVisualState.Redirect;
+      if (targetExpression === AffinityExpression.Emit) return AffinityInteractionVisualState.EmitField;
+      return AffinityInteractionVisualState.Strike;
+    }
+    if (sourceExpression === AffinityExpression.Pull) {
+      if (targetExpression === AffinityExpression.Push) return AffinityInteractionVisualState.Redirect;
+      if (targetExpression === AffinityExpression.Pull) return AffinityInteractionVisualState.Siphon;
+      if (targetExpression === AffinityExpression.Emit) return AffinityInteractionVisualState.Absorb;
+      return AffinityInteractionVisualState.Tug;
+    }
+    if (sourceExpression === AffinityExpression.Emit) {
+      if (targetExpression === AffinityExpression.Push) return AffinityInteractionVisualState.EmitField;
+      if (targetExpression === AffinityExpression.Pull || targetExpression === AffinityExpression.Draw) {
+        return AffinityInteractionVisualState.Absorb;
+      }
+      return AffinityInteractionVisualState.Reinforcement;
+    }
+    if (targetExpression === AffinityExpression.Push) return AffinityInteractionVisualState.Strike;
+    if (targetExpression === AffinityExpression.Pull) return AffinityInteractionVisualState.Tug;
+    if (targetExpression === AffinityExpression.Emit) return AffinityInteractionVisualState.Absorb;
+    return AffinityInteractionVisualState.Resonance;
+  }
+
+  if (sourceExpression === AffinityExpression.Push) {
+    if (targetExpression === AffinityExpression.Push) return AffinityInteractionVisualState.ClashOpposed;
+    if (targetExpression === AffinityExpression.Pull) return AffinityInteractionVisualState.Conflict;
+    if (targetExpression === AffinityExpression.Emit) return AffinityInteractionVisualState.Disruption;
+    return AffinityInteractionVisualState.Vulnerability;
+  }
+  if (sourceExpression === AffinityExpression.Pull) {
+    if (targetExpression === AffinityExpression.Push) return AffinityInteractionVisualState.Backlash;
+    if (targetExpression === AffinityExpression.Pull) return AffinityInteractionVisualState.MutualDrain;
+    if (targetExpression === AffinityExpression.Emit) return AffinityInteractionVisualState.ToxicExposure;
+    return AffinityInteractionVisualState.Rend;
+  }
+  if (sourceExpression === AffinityExpression.Emit) {
+    if (targetExpression === AffinityExpression.Push) return AffinityInteractionVisualState.Disruption;
+    if (targetExpression === AffinityExpression.Pull) return AffinityInteractionVisualState.ToxicExposure;
+    if (targetExpression === AffinityExpression.Emit) return AffinityInteractionVisualState.ConflictZone;
+    return AffinityInteractionVisualState.Susceptible;
+  }
+  if (targetExpression === AffinityExpression.Push) return AffinityInteractionVisualState.Vulnerability;
+  if (targetExpression === AffinityExpression.Pull) return AffinityInteractionVisualState.Rend;
+  if (targetExpression === AffinityExpression.Emit) return AffinityInteractionVisualState.Susceptible;
+  return AffinityInteractionVisualState.Corrosion;
+}
+
+export function deriveAffinityInteractionCell(
+  sourceExpression: number,
+  targetExpression: number,
+  relationship: number,
+): AffinityInteractionCell | null {
+  if (!isValidCellArgs(sourceExpression, targetExpression, relationship)) return null;
+  if (relationship === AffinityRelationship.Neutral) {
+    return {
+      sourceEffect: AffinityEffect.None,
+      targetEffect: AffinityEffect.None,
+      visualState: AffinityInteractionVisualState.Layered,
+      usesStackCancellation: 0,
+    };
+  }
+
+  const sourceEffect = deriveSourceEffect(sourceExpression, targetExpression, relationship);
+  const targetEffect = deriveTargetEffect(sourceExpression, targetExpression, relationship);
+  return {
+    sourceEffect,
+    targetEffect,
+    visualState: deriveVisualState(sourceExpression, targetExpression, relationship),
+    usesStackCancellation: relationship === AffinityRelationship.Opposite ? 1 : 0,
+  };
+}
+
 export function getAffinityMatrixSourceEffect(
   srcExpr: number,
   tgtExpr: number,
   relationship: number,
 ): number {
-  if (!isValidCellArgs(srcExpr, tgtExpr, relationship)) return -1;
-  return MATRIX_SRC_EFFECT[cellIndex(srcExpr, tgtExpr, relationship)];
+  return deriveAffinityInteractionCell(srcExpr, tgtExpr, relationship)?.sourceEffect ?? -1;
 }
 
 export function getAffinityMatrixTargetEffect(
@@ -191,8 +341,7 @@ export function getAffinityMatrixTargetEffect(
   tgtExpr: number,
   relationship: number,
 ): number {
-  if (!isValidCellArgs(srcExpr, tgtExpr, relationship)) return -1;
-  return MATRIX_TGT_EFFECT[cellIndex(srcExpr, tgtExpr, relationship)];
+  return deriveAffinityInteractionCell(srcExpr, tgtExpr, relationship)?.targetEffect ?? -1;
 }
 
 export function getAffinityMatrixVisualState(
@@ -200,8 +349,7 @@ export function getAffinityMatrixVisualState(
   tgtExpr: number,
   relationship: number,
 ): number {
-  if (!isValidCellArgs(srcExpr, tgtExpr, relationship)) return -1;
-  return MATRIX_VISUAL[cellIndex(srcExpr, tgtExpr, relationship)];
+  return deriveAffinityInteractionCell(srcExpr, tgtExpr, relationship)?.visualState ?? -1;
 }
 
 export function getAffinityMatrixUsesStackCancellation(
@@ -209,8 +357,7 @@ export function getAffinityMatrixUsesStackCancellation(
   tgtExpr: number,
   relationship: number,
 ): number {
-  if (!isValidCellArgs(srcExpr, tgtExpr, relationship)) return -1;
-  return MATRIX_CANCEL[cellIndex(srcExpr, tgtExpr, relationship)];
+  return deriveAffinityInteractionCell(srcExpr, tgtExpr, relationship)?.usesStackCancellation ?? -1;
 }
 
 export function createAffinitySpatialState(
@@ -257,12 +404,13 @@ export function createAffinitySpatialState(
     if (relationship < 0) return 0;
 
     lastInteractionRelationship = relationship;
-    const idx = cellIndex(srcExpr, tgtExpr, relationship);
-    lastInteractionSourceEffect = MATRIX_SRC_EFFECT[idx];
-    lastInteractionTargetEffect = MATRIX_TGT_EFFECT[idx];
-    lastInteractionVisualState = MATRIX_VISUAL[idx];
+    const cell = deriveAffinityInteractionCell(srcExpr, tgtExpr, relationship);
+    if (cell === null) return 0;
+    lastInteractionSourceEffect = cell.sourceEffect;
+    lastInteractionTargetEffect = cell.targetEffect;
+    lastInteractionVisualState = cell.visualState;
 
-    if (MATRIX_CANCEL[idx] !== 0) {
+    if (cell.usesStackCancellation !== 0) {
       const canceled = Math.min(srcStacks, tgtStacks);
       lastInteractionCanceledStacks = canceled;
       lastInteractionNetSourceStacks = srcStacks - canceled;

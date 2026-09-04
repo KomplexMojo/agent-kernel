@@ -974,6 +974,7 @@ export interface HazardProposalEffect {
 
 export const BUDGET_ARTIFACT_SCHEMA = "agent-kernel/BudgetArtifact";
 export const BUDGET_RECEIPT_ARTIFACT_SCHEMA = "agent-kernel/BudgetReceiptArtifact";
+export const RUNTIME_BUDGET_RECEIPT_SCHEMA = "agent-kernel/RuntimeBudgetReceiptArtifact";
 export const SPEND_PROPOSAL_SCHEMA = "agent-kernel/SpendProposal";
 export const PRICE_LIST_SCHEMA = "agent-kernel/PriceList";
 export const BUDGET_ALLOCATION_SCHEMA = "agent-kernel/BudgetAllocationArtifact";
@@ -1072,6 +1073,42 @@ export interface BudgetReceiptArtifactV1 {
 
 export type BudgetArtifact = BudgetArtifactV1;
 export type BudgetReceiptArtifact = BudgetReceiptArtifactV1;
+
+/** Allocator-issued accounting outcome for one submitted runtime action. */
+export interface RuntimeBudgetReceiptRowV1 {
+  /** Null when the originating action supplied no actor id; runtime must not infer one. */
+  actorId: string | null;
+  tick: number;
+  actionKind: string;
+  outcome: "accepted" | "rejected";
+  units: number;
+  source: "allocator_runtime_action_price_v1";
+  /** Present for a rejected runtime outcome when runtime has a structured reason. */
+  reason?: string;
+}
+
+export interface RuntimeBudgetActorTotalV1 {
+  actorId: string;
+  units: number;
+}
+
+/**
+ * A descriptive, replayable runtime-work receipt. It does not participate in
+ * action acceptance or core category-cap enforcement.
+ */
+export interface RuntimeBudgetReceiptArtifactV1 {
+  schema: typeof RUNTIME_BUDGET_RECEIPT_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  unit: "runtimeBudgetUnits";
+  enforcement: "descriptive";
+  rows: RuntimeBudgetReceiptRowV1[];
+  actorTotals: RuntimeBudgetActorTotalV1[];
+  unattributedUnits: number;
+  totalUnits: number;
+}
+
+export type RuntimeBudgetReceiptArtifact = RuntimeBudgetReceiptArtifactV1;
 
 export interface BudgetAllocationPoolV1 {
   id: string;

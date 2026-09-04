@@ -104,6 +104,11 @@ test("a single motivation, and an unknown kind, are left alone", async () => {
   // vocabulary is validated elsewhere, and claiming a conflict here would
   // report the wrong defect.
   assert.equal(validate({ ...BASE, actors: [actorWith(["patrolling", "nonsense"])] }).ok, true);
+  assert.equal(
+    validate({ ...BASE, actors: [actorWith(["goal-oriented", "reflexive"])] }).ok,
+    true,
+    "this legacy validator recognizes canonical names only; alias coercion belongs to loadout normalization",
+  );
 });
 
 test("the singular `motivation.kind` shape is checked too, not just `motivations`", async () => {

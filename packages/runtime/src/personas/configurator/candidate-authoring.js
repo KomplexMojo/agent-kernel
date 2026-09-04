@@ -33,8 +33,7 @@
  * BEHAVIOR-PRESERVING. The enumeration order, the bounds, the fill rule and the
  * tie-break are reproduced exactly as the fused loop had them. Goldens are the gate.
  */
-import { ACTOR_VIABILITY_FLOOR, DEFAULT_VITALS, MOTIVATION_KINDS, ROOM_CARD_SIZE_IDS, VITAL_KEYS } from "../../contracts/domain-constants.js";
-import { getMotivationMobilityTier } from "../../../../core-ts/src/index.ts";
+import { ACTOR_VIABILITY_FLOOR, DEFAULT_VITALS, ROOM_CARD_SIZE_IDS, VITAL_KEYS } from "../../contracts/domain-constants.js";
 // CR.9 M4. These three were restated as local consts here and in the Allocator, on the
 // reasoning that `contracts/artifacts.ts` cannot be imported by a runtime `.js` module.
 // True, and beside the point: a runtime `.js` CONTRACTS module can be, so the protocol
@@ -44,9 +43,15 @@ import {
   CONFIGURATION_CANDIDATE_SCHEMA,
   SPEND_PROTOCOL_SCHEMA_VERSION,
 } from "../../contracts/spend-protocol.js";
-import { validateAffinityPrereqs } from "./cost-model.js";
 import { resolveAffinityManaCost } from "./affinity-rules.js";
 import { normalizeMotivations } from "./motivation-loadouts.js";
+import {
+  assessActorLogicalValidity,
+  requiresMovementStamina,
+  resolveWorstCaseMoveCost,
+} from "./logical-validation.js";
+
+export { requiresMovementStamina, resolveWorstCaseMoveCost };
 
 /**
  * Build the envelope the Configurator enumerates against.
@@ -85,42 +90,7 @@ export function cloneVitals(vitals = DEFAULT_VITALS) {
 }
 
 export function hasNonStationaryMobilityMotivation(motivations = []) {
-  return motivations.some((motivation) => motivationMoves(motivation));
-}
-
-/**
- * Does this motivation move the actor? core already knows.
- *
- * This used to be a hand-kept list of three kinds -- random, exploring, patrolling -- which is a
- * second home for something core states authoritatively in PROFILE_MOBILITY, and it disagreed with
- * core: `attacking` has mobility tier 1 there and was absent here. Delvers never noticed, because
- * requiresMovementStamina short-circuited on archetype and gave every delver stamina regardless.
- * Wardens did notice: an attacking warden got stamina {0,0,0} and could not take a step -- the F12
- * defect, fixed for delvers and still live on the warden side.
- *
- * The kind ordering is the contract that makes this work: GAME_MOTIVATION_KINDS is mobility +
- * posture + cognition + control, which is exactly core's 1-based PROFILE_MOBILITY ordering. A test
- * pins that correspondence, because nothing else would notice it drifting.
- */
-function motivationMoves(motivation) {
-  const index = MOTIVATION_KINDS.indexOf(motivation);
-  if (index < 0) return false;
-  return getMotivationMobilityTier(index + 1) > 0;
-}
-
-/**
- * A warden is a delver with a different aim. Whether an actor needs stamina is a question about its
- * MOTIVATION, never its archetype -- the docblock below states the rule as a capability ("an actor
- * whose motivation implies movement must be able to move every tick"), and `type === "delver"` was
- * a proxy for it that made the same configuration cost two different amounts depending on which
- * label it wore.
- *
- * Dropping the proxy moves two cases, both toward what core says: an attacking WARDEN now gets the
- * stamina it always needed, and a stationary DELVER stops paying for stamina it never used.
- */
-export function requiresMovementStamina(card = null) {
-  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  return motivations.some((motivation) => motivationMoves(motivation));
+  return requiresMovementStamina({ motivations });
 }
 
 // ── AM.2b — movement stamina: the POOL, not just the regen ──────────────────
@@ -143,19 +113,8 @@ export function requiresMovementStamina(card = null) {
 // so the pool must cover one worst-case move and regen must refill it.
 // Both derive from movementCost — no second constant to drift.
 
-const DEFAULT_MOVEMENT_COST = 1;
-
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
-}
-
-/** Worst-case cost of one step: core charges a diagonal extra (rules/move.ts computeMovementCost). */
-export function resolveWorstCaseMoveCost(movementCost = DEFAULT_MOVEMENT_COST) {
-  const cardinal = Number.isInteger(movementCost) && movementCost > 0
-    ? movementCost
-    : DEFAULT_MOVEMENT_COST;
-  const diagonalExtra = cardinal > 1 ? Math.max(1, Math.trunc(cardinal / 2)) : 1;
-  return cardinal + diagonalExtra;
 }
 
 /**
@@ -360,26 +319,6 @@ export function buildMinimumDelverCard(card) {
   return next;
 }
 
-function toRequirementVitals(vitals = DEFAULT_VITALS) {
-  return VITAL_KEYS.reduce((acc, key) => {
-    const source = vitals?.[key] && typeof vitals[key] === "object"
-      ? vitals[key]
-      : DEFAULT_VITALS[key];
-    acc[key] = Number.isInteger(source?.max) ? source.max : 0;
-    return acc;
-  }, {});
-}
-
-function toRequirementRegen(vitals = DEFAULT_VITALS) {
-  return VITAL_KEYS.reduce((acc, key) => {
-    const source = vitals?.[key] && typeof vitals[key] === "object"
-      ? vitals[key]
-      : DEFAULT_VITALS[key];
-    acc[key] = Number.isInteger(source?.regen) ? source.regen : 0;
-    return acc;
-  }, {});
-}
-
 /**
  * Does this card's explicit configuration contradict what it needs to function?
  *
@@ -389,56 +328,7 @@ function toRequirementRegen(vitals = DEFAULT_VITALS) {
  * a budget (it raises the infeasibility error); it no longer decides what a conflict IS.
  */
 export function assessDelverStructure({ card, path = "delver" } = {}) {
-  const issues = [];
-  const vitals = cloneVitals(card?.vitals);
-  const prereqResult = validateAffinityPrereqs({
-    vitals: toRequirementVitals(vitals),
-    regen: toRequirementRegen(vitals),
-    affinities: Array.isArray(card?.affinities) ? card.affinities : [],
-    fieldBase: `${path}.affinities`,
-  });
-
-  prereqResult.errors.forEach((error) => {
-    if (error.code === "affinity_requires_mana") {
-      issues.push({
-        code: error.code,
-        path: `${path}.vitals.mana.max`,
-        message: `${path} affinities require mana.max >= 1.`,
-      });
-      return;
-    }
-    if (error.code === "affinity_requires_mana_regen") {
-      issues.push({
-        code: error.code,
-        path: `${path}.vitals.mana.regen`,
-        message: `${path} affinities require mana.regen >= 1.`,
-      });
-    }
-  });
-
-  if (requiresMovementStamina(card)) {
-    const floor = resolveWorstCaseMoveCost(card?.capabilities?.movementCost);
-    // AM.2b — the POOL check is the one that matters: core clamps regen to max,
-    // so `regen >= 1` with `max === 0` still yields an actor that can never
-    // move. Checking regen alone is what let F12 stand. Both are asserted.
-    if (!(vitals?.stamina?.max >= floor)) {
-      issues.push({
-        code: "movement_requires_stamina_pool",
-        path: `${path}.vitals.stamina.max`,
-        message: `${path} movement requires stamina.max >= ${floor} (one worst-case move); `
-          + "regen alone cannot accumulate past max.",
-      });
-    }
-    if (vitals?.stamina?.regen <= 0) {
-      issues.push({
-        code: "movement_requires_stamina_regen",
-        path: `${path}.vitals.stamina.regen`,
-        message: `${path} movement requires stamina.regen >= 1.`,
-      });
-    }
-  }
-
-  return issues;
+  return assessActorLogicalValidity({ card, path });
 }
 
 /**

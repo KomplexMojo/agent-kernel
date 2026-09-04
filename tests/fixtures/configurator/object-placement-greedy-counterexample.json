@@ -1,0 +1,20 @@
+{
+  "schema": "agent-kernel/ObjectPlacementCharacterization",
+  "schemaVersion": 1,
+  "layout": {
+    "tiles": ["######", "#....#", "#...##", "######"],
+    "spawn": { "x": 1, "y": 1 },
+    "exit": { "x": 4, "y": 1 },
+    "rooms": [{ "id": "R1", "x": 2, "y": 1, "width": 1, "height": 1 }, { "id": "R2", "x": 1, "y": 2, "width": 3, "height": 1 }]
+  },
+  "actors": [{ "id": "actor_fixed", "position": { "x": 2, "y": 2 } }],
+  "objects": [{ "id": "fixed_resource", "kind": "resource", "position": { "x": 3, "y": 2 } }, { "id": "flexible_hazard", "kind": "hazard", "blocking": false }, { "id": "room_resource", "kind": "resource", "roomId": "R1", "blocking": false }],
+  "expected": {
+    "greedyFailureAt": "room_resource",
+    "assignment": [
+      { "id": "fixed_resource", "position": { "x": 3, "y": 2 } },
+      { "id": "flexible_hazard", "position": { "x": 3, "y": 1 } },
+      { "id": "room_resource", "position": { "x": 2, "y": 1 } }
+    ]
+  }
+}

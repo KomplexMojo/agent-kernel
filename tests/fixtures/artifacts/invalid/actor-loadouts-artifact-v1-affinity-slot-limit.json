@@ -1,0 +1,28 @@
+{
+  "schema": "agent-kernel/ActorLoadoutArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "actor_loadouts_affinity_slot_limit",
+    "runId": "run_actor_loadouts_affinity_slot_limit",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "loadouts": [
+    {
+      "actorId": "actor_overloaded",
+      "affinities": [
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" },
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" },
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" },
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" },
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" },
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" },
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" },
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" },
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" },
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" },
+        { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "stacks": 1, "targetType": "enemy" }
+      ]
+    }
+  ]
+}

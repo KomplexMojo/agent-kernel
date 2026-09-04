@@ -326,6 +326,29 @@ test("inspector detail shows affinities, vitals, and card value", () => {
   assert.match(elements.detailEl.textContent, /🪙/);
 });
 
+test("inspector displays supplied runtime totals without reconciling receipt rows", () => {
+  const elements = makeInspectorElements();
+  const inspector = createActorInspector(elements);
+  inspector.setScenario({ spec, simConfig, initialState });
+  inspector.setActors(initialState.actors, { tick: 9 });
+  inspector.setRuntimeBudgetReceipt({
+    schema: "agent-kernel/RuntimeBudgetReceiptArtifact",
+    schemaVersion: 1,
+    unit: "runtimeBudgetUnits",
+    rows: [{ actorId: "D-5JH2QW-1", units: 1 }],
+    actorTotals: [{ actorId: "D-5JH2QW-1", units: 40 }],
+    unattributedUnits: 2,
+    totalUnits: 42,
+  });
+  inspector.selectEntityById("D-5JH2QW-1", { notify: false });
+
+  assert.match(elements.detailEl.textContent, /Runtime accounting/);
+  assert.match(elements.detailEl.textContent, /runtimeBudgetUnits/);
+  assert.match(elements.detailEl.textContent, /Selected actor: 40/);
+  assert.match(elements.detailEl.textContent, /Unattributed: 2/);
+  assert.match(elements.detailEl.textContent, /Run total: 42/);
+});
+
 test("inspector omits actor card instances that were not created by the runtime", () => {
   const elements = makeInspectorElements();
   const inspector = createActorInspector({

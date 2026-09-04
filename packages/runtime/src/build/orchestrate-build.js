@@ -212,161 +212,11 @@ function normalizeResolvedRulesArtifact({
   return normalized.value;
 }
 
-function positionKey(pos) {
-  return `${pos.x},${pos.y}`;
-}
-
-function normalizePoint(value) {
-  const raw = value?.position && typeof value.position === "object" ? value.position : value;
-  const x = Number(raw?.x);
-  const y = Number(raw?.y);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  return { x: Math.floor(x), y: Math.floor(y) };
-}
-
-function comparePoints(a, b) {
-  return (a.y - b.y) || (a.x - b.x);
-}
-
-function collectWalkablePositions(layout) {
-  const data = layout?.data || layout;
-  if (!data) return [];
-
-  const walkable = [];
-  const hazards = Array.isArray(data.hazards) ? data.hazards : [];
-  const blockingHazards = new Set(
-    hazards
-      .filter((hazard) => hazard && hazard.blocking === true)
-      .map((hazard) => `${hazard.x},${hazard.y}`),
-  );
-
-  if (Array.isArray(data.kinds)) {
-    for (let y = 0; y < data.kinds.length; y += 1) {
-      const row = data.kinds[y] || [];
-      for (let x = 0; x < row.length; x += 1) {
-        const kind = row[x];
-        if (kind === 1) continue;
-        if (kind === 2 && blockingHazards.has(`${x},${y}`)) continue;
-        walkable.push({ x, y });
-      }
-    }
-    return walkable;
-  }
-
-  if (Array.isArray(data.tiles)) {
-    const legend = data.legend || {};
-    for (let y = 0; y < data.tiles.length; y += 1) {
-      const row = String(data.tiles[y] ?? "");
-      for (let x = 0; x < row.length; x += 1) {
-        const char = row[x];
-        const entry = legend[char];
-        const tileType = entry?.tile;
-        if (tileType === "wall" || tileType === "barrier") continue;
-        walkable.push({ x, y });
-      }
-    }
-  }
-
-  return walkable;
-}
-
-function collectReservedPlacementKeys(layout, {
-  includeSpawnExit = true,
-  includeHazards = true,
-  includeResources = true,
-} = {}) {
-  const data = layout?.data || layout || {};
-  const reserved = new Set();
-  const addPoint = (point) => {
-    const normalized = normalizePoint(point);
-    if (normalized) reserved.add(positionKey(normalized));
-  };
-
-  if (includeSpawnExit) {
-    addPoint(data.spawn || layout?.spawn);
-    addPoint(data.exit || layout?.exit);
-  }
-  if (includeHazards && Array.isArray(data.hazards)) {
-    data.hazards.forEach(addPoint);
-  }
-  if (includeResources && Array.isArray(data.resources)) {
-    data.resources.forEach(addPoint);
-  }
-  return reserved;
-}
-
-function assignPositionedLayoutObjects({ layout, objects = [], kind, occupied = new Set() } = {}) {
-  if (!layout || !Array.isArray(objects) || objects.length === 0) return [];
-  const walkable = collectWalkablePositions(layout);
-  const walkableSet = new Set(walkable.map(positionKey));
-  const candidates = walkable
-    .filter((pos) => !occupied.has(positionKey(pos)))
-    .sort(comparePoints);
-  let cursor = 0;
-
-  return objects.map((object, index) => {
-    const explicit = normalizePoint(object);
-    let assigned = explicit && walkableSet.has(positionKey(explicit)) && !occupied.has(positionKey(explicit))
-      ? explicit
-      : null;
-    while (!assigned && cursor < candidates.length) {
-      const candidate = candidates[cursor];
-      cursor += 1;
-      if (!occupied.has(positionKey(candidate))) {
-        assigned = candidate;
-      }
-    }
-    if (!assigned) {
-      throw new Error(
-        `configurator inputs could not place ${kind}: insufficient unoccupied walkable tiles `
-        + `(${candidates.length} available, ${objects.length} requested, ${index} placed before `
-        + `running out — raise floorTile.count).`,
-      );
-    }
-    occupied.add(positionKey(assigned));
-    const id = typeof object?.id === "string" && object.id.trim()
-      ? object.id.trim()
-      : `${kind}_${index + 1}`;
-    return {
-      ...object,
-      id,
-      position: { x: assigned.x, y: assigned.y },
-      x: assigned.x,
-      y: assigned.y,
-    };
-  });
-}
-
-function placeLayoutObjects({ layout, hazards = [], resources = [] } = {}) {
-  if (!layout) return;
-  const occupied = collectReservedPlacementKeys(layout, {
-    includeSpawnExit: true,
-    includeHazards: true,
-    includeResources: false,
-  });
-  const placedHazards = assignPositionedLayoutObjects({
-    layout,
-    objects: hazards,
-    kind: "hazard",
-    occupied,
-  });
-  const placedResources = assignPositionedLayoutObjects({
-    layout,
-    objects: resources,
-    kind: "resource",
-    occupied,
-  });
-  if (placedHazards.length > 0) {
-    const existingHazards = Array.isArray(layout.hazards) ? layout.hazards : [];
-    layout.hazards = [...existingHazards, ...placedHazards];
-  }
-  if (placedResources.length > 0) layout.resources = placedResources;
-}
-
 export async function orchestrateBuild({
   spec,
   producedBy = "runtime-build",
   solver,
+  placeObjects,
   capturedInputs,
   // CR.3: `{intent, plan}` from the Director round that produced this spec, when
   // the caller ran one. Without it map-build-spec reconstructs a plan from the
@@ -534,11 +384,22 @@ export async function orchestrateBuild({
       cardSet: configuratorInputs?.cardSet,
       seed,
     }).layout;
-    placeLayoutObjects({
+    const objectPlacement = await (typeof placeObjects === "function"
+      ? placeObjects
+      : configuratorBuild.completeObjectPlacement)({
       layout,
       hazards: unpositionedHazards,
       resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
+      actors: actorsInput.actors,
+      meta: createBuildMeta(spec, producedBy, "object_placement"),
     });
+    if (!objectPlacement?.ok) {
+      const error = new Error(`configurator object placement ${objectPlacement?.status || "failed"}: ${objectPlacement?.reason || "unknown"}`);
+      error.code = objectPlacement?.reason || "configurator_object_placement_failed";
+      error.status = objectPlacement?.status || "error";
+      throw error;
+    }
+    layout = objectPlacement.layout;
     const baseVitalsByActorId = Object.fromEntries(
       actorsInput.actors
         .filter((actor) => actor?.id && actor.vitals)

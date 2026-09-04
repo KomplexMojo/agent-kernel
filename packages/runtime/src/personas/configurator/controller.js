@@ -79,6 +79,9 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     composeMixedRooms: services.composeMixedRooms,
     // RB2.2 — actor grouping, role inference, and placement are Configurator policy.
     placeActors: services.placeActors,
+    // Z9.1 — object assignment and path-preserving placement are Configurator policy.
+    prepareObjectPlacement: services.prepareObjectPlacement,
+    completeObjectPlacement: services.completeObjectPlacement,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,
     resolveMotivationRules: services.resolveMotivationRules,
     // CR.7 / WP-5 — the third card-model derivation; its siblings are `deriveRoomLayout` and

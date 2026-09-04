@@ -28,13 +28,56 @@ Basic Adapters are in place for:
   located, the observation remains unchanged rather than silently blinding the actor. The observer
   itself is always retained.
 
+## Affinity Interaction Compatibility
+
+- The pairwise affinity interaction contract is ordered by `(sourceExpression, targetExpression,
+  relationship)`. `relationship` is `same` for equal kinds, `opposite` for a declared opposite pair,
+  and `neutral` otherwise. It is distinct from spatial affinity-field cancellation.
+- Every neutral interaction is a no-op: source and target effects are `none`, no stacks cancel, and
+  the visual is `layered`. Every opposite interaction cancels `min(sourceStacks, targetStacks)`;
+  same and neutral interactions never cancel stacks. Only this cancellation has a core-defined
+  magnitude and may be applied at runtime; effect codes remain descriptive until separately promoted.
+- Effects are directional: source and target effects are separate ordered rules, not a mirrored
+  calculation. For same relationships, the source rule is: Push has none; Pull gains mana except
+  against Push; Emit has none; Draw damages Push, loses mana against Pull, gains mana against Emit,
+  and otherwise has none. The target rule is: Push has none; Pull loses mana from
+  Pull and gains mana from Emit or Draw; Emit has none; Draw takes damage from Push, loses mana from
+  Pull, and gains mana from Emit. For opposite relationships, the source rule is: Push yields
+  conditional damage against Push, damage against Pull, potency reduction against Emit, and none
+  against Draw; Pull deals damage; Emit causes potency reduction except against Draw; Draw causes
+  amplified damage against Push, mana loss against Pull, and damage against Emit or Draw. The target
+  rule is: Push receives conditional damage from Push, potency reduction from Emit, and none
+  otherwise; Pull receives damage; Emit receives potency reduction except from
+  Draw; Draw receives amplified damage from Push, mana loss from Pull, and damage from Emit or Draw.
+- Visual names are stable semantic outputs rather than raw codes. Same interactions are
+  `clash_neutral` (Push/Push), `redirect` (Push/Pull), `emit_field` (Push/Emit), `strike`
+  (Push/Draw), `siphon` (Pull/Pull), `absorb` (Pull/Emit and Emit/Draw), `tug` (Pull/Draw),
+  `reinforcement` (Emit/Emit), and `resonance` (Draw/Draw). Opposite interactions are
+  `clash_opposed` (Push/Push), `conflict` (Push→Pull), `backlash` (Pull→Push), `disruption`
+  (Push/Emit and Emit/Push), `vulnerability` (Push/Draw and Draw/Push), `mutual_drain`
+  (Pull/Pull), `toxic_exposure` (Pull/Emit and Emit/Pull), `rend` (Pull/Draw and Draw/Pull),
+  `conflict_zone` (Emit/Emit), `susceptible` (Emit/Draw and Draw/Emit), and `corrosion`
+  (Draw/Draw).
+- The exhaustive 48-cell v1 oracle is compatibility law. Any change to an effect, visual name, or
+  cancellation outcome is a separate product decision; refactors must preserve every cell exactly.
+
 ## Actor Runtime Decisions
 
-- The Actor owns candidate feature meaning and emits `actor-decision-objective-v1` inside the existing
+- **Field-aware v2 policy:** the Actor emits `actor-decision-objective-v2`, retaining the v1 primary
+  order and inserting `fieldSafety` then `fieldBenefit` before cast reserve. It uses only canonical,
+  post-cancellation affinity-field
+  cells that the Actor can perceive by radius and line of sight; concealed source identities never
+  cross that boundary. A move is evaluated at its destination and every other action at the Actor's
+  current cell. Harm is penalized first; beneficial effects count only up to the affected vital's
+  missing capacity. These are tie-breakers only: they cannot override intent, target finish, or
+  profile alignment. No field prediction, affordability, price, effect application, or Z3 variable
+  is introduced. Consumers will compare both v1 and v2 tuples opaquely and defer unknown contracts.
+- The Actor owns candidate feature meaning and emits `actor-decision-objective-v2` inside the existing
   `runtime-decision-v1` envelope. Its rank is maximized lexicographically in this exact order:
-  `intentClass`, `targetFinish`, `profileAlignment`, `hazardSafety`, `castReserve`, `inputOrder`.
+  `intentClass`, `targetFinish`, `profileAlignment`, `fieldSafety`, `fieldBenefit`, `castReserve`,
+  `inputOrder`. Consumers retain opaque compatibility for valid v1 envelopes.
 - `intentClass` preserves Actor proposal authority and the legacy action-class order. Target health,
-  profile alignment, observed hazard exposure, and live cast reserve are ordered secondary evidence;
+  profile alignment, perceived field effects, and live cast reserve are ordered secondary evidence;
   candidate input order is the deterministic final tie-break. Cognition/reasoning diagnostics do not
   fabricate multi-step planning, and `AggroRangeBoost` does not reveal unseen targets.
 - This per-actor choice has no joint constraint, so Z3 adds no value. Platform adapters validate and

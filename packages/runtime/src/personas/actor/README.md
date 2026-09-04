@@ -131,15 +131,19 @@ core's enums, so the runtime does not maintain a competing vocabulary. An unknow
 profile but still receives an Actor-authored compatibility objective. That tuple preserves the former deterministic
 attack, hostile-progress, exit-progress, fallback-move, and wait ordering without asking an adapter to infer policy.
 
-For known profiles, the `objectives.actorDecision` contract carries one Actor-authored six-integer rank
-per candidate, ordered by intent class, target finish, profile alignment, hazard safety, cast reserve, then input
-order. Mobility/combat tiers and `PrefersCover`/`PrefersStealth` affect those ranks; cognition and reasoning remain
+For known profiles, the `objectives.actorDecision` contract carries one Actor-authored seven-integer rank
+per candidate, ordered by intent class, target finish, profile alignment, field safety, field benefit, cast reserve,
+then input order. A move evaluates the perceived canonical post-cancellation affinity field at its destination;
+every other action evaluates the current cell. Harm is penalized before beneficial effects, and a benefit is capped
+at its matching vital's missing capacity. These remain tie-breakers after intent, target, and profile alignment.
+Mobility/combat tiers and `PrefersCover`/`PrefersStealth` affect those ranks; cognition and reasoning remain
 diagnostic because this is a one-step choice, while `AggroRangeBoost` remains perception/candidate policy. The
-shared envelope code validates row identity and deep-copies the contract but does not interpret the ranks. The
-CLI and web Actor lexicographic adapters validate and compare the tuples without re-deriving their meaning. The
-old `createRealZ3SolverAdapter` factory and `AK_SOLVER_ENGINE=z3-real` selector remain compatibility aliases; they
-do not initialize Z3. Missing or malformed objectives defer with typed reasons; runtime then follows its
-deterministic Actor fallback. Old envelopes remain readable but adapters do not manufacture ranked diagnostics.
+shared envelope code validates row identity and deep-copies the contract but does not interpret the ranks. The CLI
+and web Actor lexicographic adapters validate and compare the tuples without re-deriving their meaning, accepting
+valid v1 envelopes for compatibility. The old `createRealZ3SolverAdapter` factory and `AK_SOLVER_ENGINE=z3-real`
+selector remain compatibility aliases; they do not initialize Z3. Missing or malformed objectives defer with typed
+reasons; runtime then follows its deterministic Actor fallback. Old envelopes remain readable but adapters do not
+manufacture ranked diagnostics.
 
 Live LLM-backed runtime decisions are not implicit. Default execution remains deterministic and replay-safe:
 - solver-first during execution

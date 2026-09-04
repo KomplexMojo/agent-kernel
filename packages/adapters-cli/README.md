@@ -581,7 +581,9 @@ writes that bundle to `bundle.json` in the run outDir, upgrades the create outDi
 `bundle.json` in place to the same loadable playback shape, and reports both under
 `artifactPaths.bundle` and `artifactPaths.create_bundle`. Fixture-driven runs stay
 bundle-free so CLI run output remains artifact-for-artifact equivalent to the browser
-host's run output. The stitched bundle is what `ak_push_to_ui` delivers to the UI.
+host's run output. The run also persists the Allocator-issued
+`runtime-budget-receipt.json`; when a gameplay bundle is stitched, it includes that
+artifact unchanged. The stitched bundle is what `ak_push_to_ui` delivers to the UI.
 
 ### `configurator`
 Build `SimConfigArtifact` + `InitialStateArtifact` outputs from deterministic configurator inputs.
@@ -592,6 +594,11 @@ producing a replay summary and regenerated TickFrames.
 
 ### `inspect`
 Summarize or extract telemetry snapshots for debugging and analysis.
+
+When the supplied `--tick-frames` file has a sibling `runtime-budget-receipt.json`,
+inspection includes `runtimeBudget` and labels its unit `runtimeBudgetUnits`. Its rows,
+actor totals, unattributed subtotal, and run total are the persisted artifact values;
+the CLI does not derive prices or recalculate totals.
 
 ### Adapter demo commands
 These commands exercise the external adapters directly.

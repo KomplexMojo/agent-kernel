@@ -1938,6 +1938,7 @@ const RUN_INDEX_OUTPUT_FILES = Object.freeze([
   ["run_summary", "run-summary.json"],
   ["tick_frames", "tick-frames.json"],
   ["effects_log", "effects-log.json"],
+  ["runtime_budget_receipt", "runtime-budget-receipt.json"],
   ["runtime_decision_captures", "runtime-decision-captures.json"],
   ["inspect_summary", "inspect-summary.json"],
   ["narrative", "narrative.json"],
@@ -2164,7 +2165,15 @@ async function summarizeBuildLikeOutput({
 // it unchanged. Unlike compileScenarioPlaybackBundle (which re-runs the
 // simulation itself), this reuses the tick frames already produced by `run`
 // rather than re-executing the sim.
-function buildGameplayBundleFromRunArtifacts({ runId, createdAt, simConfig, initialState, tickFrames, spec } = {}) {
+function buildGameplayBundleFromRunArtifacts({
+  runId,
+  createdAt,
+  simConfig,
+  initialState,
+  tickFrames,
+  runtimeBudgetReceipt = null,
+  spec,
+} = {}) {
   if (!simConfig || !initialState || !Array.isArray(tickFrames)) {
     return null;
   }
@@ -2177,7 +2186,7 @@ function buildGameplayBundleFromRunArtifacts({ runId, createdAt, simConfig, init
       createdAt: createdAt || new Date().toISOString(),
       producedBy: "cli-run",
     },
-    artifacts: [simConfig, initialState],
+    artifacts: [simConfig, initialState, ...(runtimeBudgetReceipt ? [runtimeBudgetReceipt] : [])],
     ...(spec ? { spec } : {}),
     tickFrames,
   };
@@ -2196,6 +2205,7 @@ async function summarizeRunOutput({ outDir, args } = {}) {
   const artifactPaths = {
     tick_frames: join(outDir, "tick-frames.json"),
     effects_log: join(outDir, "effects-log.json"),
+    runtime_budget_receipt: join(outDir, "runtime-budget-receipt.json"),
     runtime_decision_captures: join(outDir, "runtime-decision-captures.json"),
     run_summary: join(outDir, "run-summary.json"),
     action_log: join(outDir, "action-log.json"),
@@ -2215,6 +2225,7 @@ async function summarizeRunOutput({ outDir, args } = {}) {
   // this run just (re)wrote so ak_push_to_ui has something to deliver to the UI.
   const runId = runSummary?.meta?.runId || simConfig?.meta?.runId || initialState?.meta?.runId || "";
   const tickFrames = await readJsonIfExists(artifactPaths.tick_frames);
+  const runtimeBudgetReceipt = await readJsonIfExists(artifactPaths.runtime_budget_receipt);
   // When the run's inputs came from an ak_create outDir, that directory holds
   // the pre-run preview bundle.json ({ spec, schemas, artifacts } — no
   // schema/schemaVersion/tickFrames). Carry its spec/schemas and any artifacts
@@ -2241,6 +2252,7 @@ async function summarizeRunOutput({ outDir, args } = {}) {
       simConfig,
       initialState,
       tickFrames: Array.isArray(tickFrames) ? tickFrames : null,
+      runtimeBudgetReceipt,
       spec: createBundle.spec,
     })
     : null;
@@ -2277,9 +2289,19 @@ async function summarizeRunOutput({ outDir, args } = {}) {
   };
 }
 
-async function summarizeInspectOutput({ outDir } = {}) {
+async function summarizeInspectOutput({ outDir, runtimeBudgetReceiptPath = null } = {}) {
   const inspectSummary = await readJsonIfExists(join(outDir, "inspect-summary.json"));
-  return {
+  const runtimeBudgetReceipt = await readJsonIfExists(runtimeBudgetReceiptPath);
+  const runtimeBudget = runtimeBudgetReceipt && typeof runtimeBudgetReceipt === "object"
+    ? {
+      unit: runtimeBudgetReceipt.unit,
+      rows: runtimeBudgetReceipt.rows,
+      actorTotals: runtimeBudgetReceipt.actorTotals,
+      unattributedUnits: runtimeBudgetReceipt.unattributedUnits,
+      totalUnits: runtimeBudgetReceipt.totalUnits,
+    }
+    : null;
+  const summary = {
     ok: true,
     command: "inspect",
     runId: inspectSummary?.meta?.runId || "",
@@ -2291,6 +2313,11 @@ async function summarizeInspectOutput({ outDir } = {}) {
     },
     ticks: inspectSummary?.data?.ticks,
   };
+  if (runtimeBudgetReceiptPath && runtimeBudget) {
+    summary.artifactPaths.runtime_budget_receipt = runtimeBudgetReceiptPath;
+    summary.runtimeBudget = runtimeBudget;
+  }
+  return summary;
 }
 
 async function summarizeNarrateOutput({ outDir } = {}) {
@@ -4641,7 +4668,11 @@ async function inspectCommand(argv) {
     return;
   }
   const result = await commandKernel.inspect(args);
-  emitJsonStdout(await summarizeInspectOutput({ outDir: result.outDir }));
+  const tickFramesPath = resolvePath(args["tick-frames"]);
+  emitJsonStdout(await summarizeInspectOutput({
+    outDir: result.outDir,
+    runtimeBudgetReceiptPath: tickFramesPath ? join(dirname(tickFramesPath), "runtime-budget-receipt.json") : null,
+  }));
 }
 
 async function narrateCommand(argv) {
@@ -5971,6 +6002,7 @@ async function scenarioCommand(argv) {
     }),
     summarizeInspectOutput({
       outDir: inspectResult.outDir,
+      runtimeBudgetReceiptPath: join(runResult.outDir, "runtime-budget-receipt.json"),
     }),
   ]);
   if (llmPlanResult) {

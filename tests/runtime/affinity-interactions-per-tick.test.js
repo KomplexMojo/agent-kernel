@@ -251,6 +251,20 @@ test("NEUTRAL-kind fields resolve but do NOT cancel", async () => {
   assert.equal(core.getMotivatedActorAffinityStacksByIndex(1), 2);
 });
 
+test("per-tick backlash preserves the core's directional Pull → Push effects", async () => {
+  const { runtime } = await startRuntime(buildInitialState([
+    actor("delver_1", { x: 5, y: 5 }, { kind: "fire", expression: "pull", stacks: 3 }),
+    actor("warden_1", { x: 6, y: 5 }, { kind: "water", expression: "push", stacks: 2 }),
+  ]));
+
+  await runtime.step();
+  const [interaction] = interactionsFrom(runtime);
+  assert.equal(interaction.relationship, 1, "fire vs water is opposite");
+  assert.equal(interaction.sourceEffect, 1, "Pull source deals damage");
+  assert.equal(interaction.targetEffect, 0, "Push target receives no backlash effect");
+  assert.equal(interaction.visualState, 8, "the recorded semantic cell is backlash");
+});
+
 test("EQUAL opposite stacks cancel to nothing, and BOTH sides are cleared", async () => {
   const { core, runtime } = await startRuntime(buildInitialState([
     actor("delver_1", { x: 5, y: 5 }, { kind: "fire", expression: "emit", stacks: 2 }),

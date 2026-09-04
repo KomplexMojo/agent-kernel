@@ -7,7 +7,7 @@
  *
  * Core now defaults every action to 1 unit (counting actions is enforcement
  * mechanics) and the 2x solver premium is injected by the runtime port from
- * base-costs.json.
+ * the Allocator's named runtime-action schedule.
  */
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
@@ -28,13 +28,21 @@ async function freshCore() {
   return core;
 }
 
-test("the Allocator owns the numbers; base-costs.json is their only home", async () => {
+test("the Allocator publishes the complete named runtime-action schedule from base-costs.json", async () => {
   const { createAllocatorPersona } = await import(ALLOCATOR);
   const { UNUSED_CLOCK } = await import("../../../packages/runtime/src/personas/_shared/require-clock.js");
   const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));
-  const costs = createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.actionBudgetCosts();
-  assert.equal(costs.default, base.actionBudget.action_default);
-  assert.equal(costs.requestSolver, base.actionBudget.action_request_solver);
+  const costs = createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.runtimeActionCosts();
+  assert.deepEqual(costs, {
+    unit: "runtimeBudgetUnits",
+    source: "allocator_runtime_action_price_v1",
+    default: base.actionBudget.action_default,
+    wait: base.actionBudget.action_wait,
+    attack: base.actionBudget.action_attack,
+    castAffinity: base.actionBudget.action_cast_affinity,
+    requestSolver: base.actionBudget.action_request_solver,
+    move: base.actionBudget.action_move,
+  });
 
   // The numbers must not be restated in core.
   const coreSrc = readFileSync(
@@ -66,7 +74,7 @@ test("injecting Allocator costs makes a solver request cost 2", async () => {
   const { UNUSED_CLOCK } = await import("../../../packages/runtime/src/personas/_shared/require-clock.js");
   const core = await freshCore();
 
-  const applied = applyActionBudgetCosts(core, createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.actionBudgetCosts());
+  const applied = applyActionBudgetCosts(core, createAllocatorPersona({ clock: UNUSED_CLOCK }).pricing.runtimeActionCosts());
   assert.equal(applied.length, 1);
   assert.equal(applied[0].kind, REQUEST_SOLVER);
 

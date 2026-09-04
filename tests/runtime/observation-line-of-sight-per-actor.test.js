@@ -91,7 +91,7 @@ function makeSimConfig(tiles, hazards = []) {
   };
 }
 
-async function captureFirstObservation({ simConfig, initialState, configureCore }) {
+async function captureFirstObservation({ simConfig, initialState, configureCore, stepCount = 1 }) {
   const [{ createRuntime }, { createCore }] = await Promise.all([
     import("../../packages/runtime/src/runner/runtime.js"),
     import("../../packages/core-ts/src/index.ts"),
@@ -105,14 +105,14 @@ async function captureFirstObservation({ simConfig, initialState, configureCore 
     personas: { actor: captureObservationPersona(observations) },
   });
   await runtime.init({ seed: 0, simConfig, initialState });
-  await runtime.step();
+  for (let step = 0; step < stepCount; step += 1) await runtime.step();
   assert.ok(observations.length > 0, "the Actor persona must receive an observation");
-  return observations[0];
+  return { observation: observations.at(-1), core };
 }
 
 async function assertOpaqueTileHides(tileCharacter) {
   const row = `..${tileCharacter}....`;
-  const observation = await captureFirstObservation({
+  const { observation } = await captureFirstObservation({
     simConfig: makeSimConfig(
       [".......", ".......", row, ".......", "......."],
       [{ x: 4, y: 2, blocking: false, affinity: { kind: "fire", expression: "emit", stacks: 1 } }],
@@ -134,7 +134,7 @@ test("runtime hides actors and hazards behind a live core barrier", async () => 
 });
 
 test("runtime passes target dark stacks to core's perception transform", async () => {
-  const observation = await captureFirstObservation({
+  const { observation } = await captureFirstObservation({
     simConfig: makeSimConfig([".......", ".......", ".......", ".......", "......."]),
     initialState: makeInitialState({ x: 3, y: 2 }),
     configureCore(core) {
@@ -146,6 +146,28 @@ test("runtime passes target dark stacks to core's perception transform", async (
   });
 
   assert.deepEqual(observation.actors.map((entry) => entry.id), ["observer"]);
+});
+
+test("runtime exposes a perceived canonical field cell", async () => {
+  const initialState = makeInitialState({ x: 2, y: 2 });
+  initialState.actors[1].affinities = [{ kind: "fire", expression: "emit", stacks: 2 }];
+
+  const { observation, core } = await captureFirstObservation({
+    simConfig: makeSimConfig(
+      [".......", ".......", ".......", ".......", "......."],
+      [{ x: 2, y: 2, blocking: false, affinity: { kind: "fire", expression: "emit", stacks: 2 } }],
+    ),
+    initialState,
+    stepCount: 2,
+  });
+
+  assert.equal(core.getAffinityFieldStacksAt(2, 2, 1), 2, "precondition: core must retain target fire");
+  assert.ok(
+    observation.affinityFields.some((entry) => (
+      entry.position.x === 2 && entry.position.y === 2 && entry.kind === 1 && entry.stacks === 2
+    )),
+    "the Actor must receive the core's canonical field record rather than reconstructing one from a source",
+  );
 });
 
 test("two actors receive different scoped views from the same snapshot", async () => {

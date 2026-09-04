@@ -7,6 +7,10 @@ import {
   DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION,
   VITAL_KEYS,
 } from "../../contracts/domain-constants.js";
+import {
+  assessAffinityStackTier,
+  assessConfiguredAffinitySlots,
+} from "./logical-validation.js";
 
 export { AFFINITY_KINDS, AFFINITY_EXPRESSIONS, AFFINITY_TARGET_TYPES };
 const ABILITY_KINDS = Object.freeze(["attack", "buff", "area"]);
@@ -291,6 +295,11 @@ export function normalizeActorLoadoutCatalog(
       addError(errors, `${base}.affinities`, "invalid_list", actorIdValue);
       return;
     }
+    assessConfiguredAffinitySlots({
+      affinities: affinitiesInput,
+      path: `${base}.affinities`,
+      actorId: actorIdValue,
+    }).forEach((issue) => addError(errors, issue.path, issue.code, issue.actorId));
     const affinities = affinitiesInput.map((affinity, affinityIndex) => {
       const affinityBase = `${base}.affinities[${affinityIndex}]`;
       if (!isPlainObject(affinity)) {
@@ -329,9 +338,12 @@ export function normalizeActorLoadoutCatalog(
         if (affinity.expression !== preset.expression) {
           addError(errors, `${affinityBase}.expression`, "mismatched_expression", actorIdValue);
         }
-        if (isInteger(stacks) && isInteger(preset.stack?.max) && stacks > preset.stack.max) {
-          addError(errors, `${affinityBase}.stacks`, "stacks_exceed_max", actorIdValue);
-        }
+        assessAffinityStackTier({
+          affinity: { ...affinity, stacks },
+          preset,
+          path: `${affinityBase}.stacks`,
+          actorId: actorIdValue,
+        }).forEach((issue) => addError(errors, issue.path, issue.code, issue.actorId));
       }
       return {
         presetId: affinity.presetId,

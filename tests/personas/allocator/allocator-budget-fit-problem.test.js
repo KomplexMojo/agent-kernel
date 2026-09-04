@@ -292,7 +292,7 @@ test("deterministic request ids distinguish otherwise identical problems with di
   assert.notEqual(requestIds[0], requestIds[1]);
 });
 
-test("the hybrid adapter reports both domains and keeps the Actor path Z3-free", async () => {
+test("the hybrid adapter reports all adopted domains and keeps the Actor path Z3-free", async () => {
   const { createHybridConstraintSolverAdapter } = await import(
     "../../../packages/adapters-cli/src/adapters/z3/index.js"
   );
@@ -305,7 +305,7 @@ test("the hybrid adapter reports both domains and keeps the Actor path Z3-free",
   });
   assert.equal(adapter.kind, "hybrid-constraint");
   assert.deepEqual(adapter.capabilities, {
-    domains: ["actor_action_selection", "allocator_budget_fit"],
+    domains: ["actor_action_selection", "allocator_budget_fit", "configurator_satisfiability"],
     deterministic: true,
   });
 

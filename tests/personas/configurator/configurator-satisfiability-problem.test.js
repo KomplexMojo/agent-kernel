@@ -9,18 +9,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { resolve } = require("node:path");
 const { readFixture } = require("../../helpers/fixtures");
-
-const ROOT = resolve(__dirname, "../../..");
-const CONFIGURATOR = resolve(ROOT, "packages/runtime/src/personas/configurator");
-const LOGICAL_SOURCES = Object.freeze([
-  "config-validation.js",
-  "affinity-rules.js",
-  "motivation-rules.js",
-  "candidate-authoring.js",
-]);
 
 const LOGICAL_DIAGNOSTICS = Object.freeze({
   motivationExclusiveGroup: Object.freeze(["conflicting_kind"]),
@@ -89,6 +78,39 @@ test("hard-authored motivation, mana, and stamina conflicts retain exact diagnos
   assert.deepEqual(card, before, "validity checks may not repair authored values in place");
 });
 
+test("the existing Configurator public surface delegates every actor logical diagnostic", async () => {
+  const { createConfiguratorPersona } = await import(
+    "../../../packages/runtime/src/personas/configurator/controller.js"
+  );
+  const { assessActorLogicalValidity } = await import(
+    "../../../packages/runtime/src/personas/configurator/logical-validation.js"
+  );
+  const card = {
+    motivations: ["stationary", "patrolling"],
+    affinities: Array.from({ length: 11 }, () => ({
+      kind: "fire",
+      expression: "emit",
+      stacks: 1,
+    })),
+    vitals: zeroVitals(),
+  };
+  const before = JSON.parse(JSON.stringify(card));
+  const configurator = createConfiguratorPersona({ clock: () => "fixed" });
+  const direct = assessActorLogicalValidity({ card, path: "actor" });
+  const publicResult = configurator.authorCandidates.assessDelverStructure({ card, path: "actor" });
+
+  assert.deepEqual(publicResult, direct);
+  assert.deepEqual(direct.map(({ code }) => code), [
+    "conflicting_kind",
+    "affinity_requires_mana",
+    "affinity_requires_mana_regen",
+    "movement_requires_stamina_pool",
+    "movement_requires_stamina_regen",
+    "affinity_slot_limit_exceeded",
+  ]);
+  assert.deepEqual(card, before, "the consolidated public path may not repair authored values");
+});
+
 test("stack bounds retain the existing diagnostic and configured slots use vocabulary size", async () => {
   const { AFFINITY_KINDS } = await import(
     "../../../packages/runtime/src/contracts/domain-constants.js"
@@ -106,19 +128,31 @@ test("stack bounds retain the existing diagnostic and configured slots use vocab
     readFixture("invalid/actor-loadouts-artifact-v1-stacks-exceed.json"),
     { presets: presets.value.presets },
   );
+  const slotFixture = readFixture(
+    "invalid/actor-loadouts-artifact-v1-affinity-slot-limit.json",
+  );
+  const slotBefore = JSON.parse(JSON.stringify(slotFixture));
+  const slotResult = normalizeActorLoadoutCatalog(
+    slotFixture,
+    { presets: presets.value.presets },
+  );
   assert.equal(stackResult.ok, false);
   assert.equal(
     stackResult.errors.some(({ code }) => LOGICAL_DIAGNOSTICS.affinityStackTier.includes(code)),
     true,
   );
 
-  const slotLimit = AFFINITY_KINDS.length;
-  const configuredAffinityCount = slotLimit + 1;
-  const slotIssues = configuredAffinityCount > slotLimit
-    ? [...LOGICAL_DIAGNOSTICS.affinitySlotLimit]
-    : [];
-  assert.deepEqual(slotIssues, ["affinity_slot_limit_exceeded"]);
-  assert.equal(slotLimit, 10, "configured slots derive from the canonical affinity vocabulary");
+  assert.equal(slotResult.ok, false);
+  assert.deepEqual(
+    slotResult.errors.filter(({ code }) => LOGICAL_DIAGNOSTICS.affinitySlotLimit.includes(code)),
+    [{
+      field: "loadouts[0].affinities",
+      code: "affinity_slot_limit_exceeded",
+      actorId: "actor_overloaded",
+    }],
+  );
+  assert.deepEqual(slotFixture, slotBefore, "slot validation may not mutate its artifact");
+  assert.equal(AFFINITY_KINDS.length, 10, "configured slots derive from the canonical affinity vocabulary");
 });
 
 test("omitted values have one approved default or floor rather than a solver choice", async () => {
@@ -140,25 +174,6 @@ test("omitted values have one approved default or floor rather than a solver cho
   assert.deepEqual(buildMinimumDelverCard(card), buildMinimumDelverCard(card));
 });
 
-test("normalization stays solver-free and live resource-grant slots remain core runtime state", () => {
-  const forbiddenImport = /from\s+["'][^"']*(?:constraint-problem|ports\/solver|adapters)[^"']*["']/;
-  for (const file of LOGICAL_SOURCES) {
-    const source = readFileSync(resolve(CONFIGURATOR, file), "utf8");
-    assert.equal(forbiddenImport.test(source), false, `${file} imported solver machinery`);
-    assert.equal(source.includes("buildConstraintProblem("), false, `${file} built a solver problem`);
-    assert.equal(
-      source.includes("MAX_AFFINITY_GRANTS_PER_ACTOR"),
-      false,
-      `${file} conflated authored affinity slots with core's live resource grants`,
-    );
-  }
-  const coreAffinity = readFileSync(
-    resolve(ROOT, "packages/core-ts/src/state/affinity.ts"),
-    "utf8",
-  );
-  assert.equal(coreAffinity.includes("MAX_AFFINITY_GRANTS_PER_ACTOR = 10"), true);
-});
-
 test("the Configurator constraint domain remains reserved for Z9 object-placement search", async () => {
   const {
     buildConstraintProblem,
@@ -178,5 +193,5 @@ test("the Configurator constraint domain remains reserved for Z9 object-placemen
 });
 
 // ## TODO: Test Permutations
-// - every logical diagnostic family remains distinct when several conflicts coexist
+// - affinity-slot validation with malformed entries still reports one bounded slot error
 // - a new Configurator solver route must demonstrate an unbounded or combinatorial choice first

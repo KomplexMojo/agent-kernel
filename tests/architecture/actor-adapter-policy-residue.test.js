@@ -35,7 +35,8 @@ const ACTOR_ORDER_LABELS = [
   "intentClass",
   "targetFinish",
   "profileAlignment",
-  "hazardSafety",
+  "fieldSafety",
+  "fieldBenefit",
   "castReserve",
   "inputOrder",
 ];
