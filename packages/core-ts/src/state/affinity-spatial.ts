@@ -328,6 +328,95 @@ export function deriveAffinityInteractionCell(
   };
 }
 
+
+/**
+ * How much harder an OPPOSITE field bites than an unrelated one. Opposition is the
+ * reactive case throughout this module -- it is the only relationship the interaction
+ * matrix marks `usesStackCancellation` -- so exposure to it costs more. The factor is
+ * named rather than inlined because it is a gameplay tuning value, not a derivation.
+ */
+export const OPPOSITE_EXPOSURE_AMPLIFICATION = 2;
+
+export interface ExposureQuery {
+  /**
+   * The effect the field already reports for this vital. Supplied rather than
+   * recomputed on purpose: the FIELD owns magnitude and this function owns only the
+   * relationship modulation. Recomputing it here would make this a second authority on
+   * how strong a field is, free to drift from the one that produced the field.
+   */
+  baseEffect: number;
+  fieldKind: number;
+  fieldExpression: number;
+  observerKind: number;
+  observerExpression: number;
+}
+
+/**
+ * What a field at this tile actually does to THIS observer's vital.
+ *
+ * Until this existed, exposure was a property of the tile alone:
+ * `getAffinityVitalEffect(kind, expression, vital, stacks)` takes no observer, so every
+ * actor standing on a tile read an identical danger number and an actor's own element
+ * was exactly as lethal to it as anyone else's.
+ *
+ * THE RELATIONSHIP RULE IS DERIVED, NOT INVENTED. Same-kind behaviour comes from the
+ * 48-cell interaction matrix via `deriveAffinityInteractionCell`, which F10M already
+ * made a pure derivation from stated rules. Authoring a second table of "what resists
+ * what" would be the F10 defect -- two authorities for one concept -- that this
+ * codebase has already paid to remove once.
+ *
+ * NEUTRAL DELIBERATELY DOES NOT CONSULT THE MATRIX, and this is the subtle part. The
+ * matrix answers "what happens when two affinities MEET", and for unrelated kinds the
+ * honest answer is `None`: they do not interact. Exposure is a different question. A
+ * corrode field still corrodes someone who has no relationship to it, so reading the
+ * matrix literally here would quietly make every unrelated field harmless -- a far
+ * larger regression than the asymmetry being fixed. Neutral therefore preserves the
+ * previous per-tile effect exactly, which is also what keeps this change additive:
+ * nothing that has no matching affinity observes any difference.
+ */
+export function resolveExposureVitalEffect({
+  baseEffect,
+  fieldKind,
+  fieldExpression,
+  observerKind,
+  observerExpression,
+}: ExposureQuery): number {
+  const base = Number.isFinite(baseEffect) ? baseEffect : 0;
+  if (base === 0) return 0;
+
+  // An observer with no affinity of its own is affected exactly as before. Absent must
+  // mean "unchanged" rather than "immune", or every ordinary actor becomes invulnerable.
+  if (!isValidAffinityKind(observerKind)) return base;
+
+  const relationship = resolveAffinityRelationshipCode(fieldKind, observerKind);
+  if (relationship === AffinityRelationship.Neutral) return base;
+
+  if (relationship === AffinityRelationship.Opposite) {
+    // Only harm is amplified. Amplifying a beneficial effect would reward standing in
+    // the one field the actor is supposed to avoid.
+    return base < 0 ? base * OPPOSITE_EXPOSURE_AMPLIFICATION : base;
+  }
+
+  // Same kind: the actor is the TARGET and the field is the SOURCE, so the matrix's
+  // target effect is the one that applies to it.
+  const cell = deriveAffinityInteractionCell(fieldExpression, observerExpression, relationship);
+  if (!cell) return base;
+  // NOT YET IMPLEMENTED — ManaGain / ManaLoss (Stage A.2). Those cells describe a
+  // CROSS-VITAL transfer: a draw-expression actor standing in a same-kind emit field
+  // converts the field into mana instead of taking health harm. This function returns a
+  // single number for a single vital and structurally cannot express that, so those two
+  // effects currently fall through to the field's own value. Implementing them means
+  // returning a set of vital deltas, which changes this signature and how the Actor
+  // consumes it. Deliberately left out rather than approximated: converting a health
+  // loss into a health gain would be a different rule wearing the right name.
+  if (cell.targetEffect === AffinityEffect.None) return 0;
+  if (cell.targetEffect === AffinityEffect.PotencyReduced) return Math.trunc(base / 2);
+  if (cell.targetEffect === AffinityEffect.AmplifiedDamage) {
+    return base < 0 ? base * OPPOSITE_EXPOSURE_AMPLIFICATION : base;
+  }
+  return base;
+}
+
 export function getAffinityMatrixSourceEffect(
   srcExpr: number,
   tgtExpr: number,

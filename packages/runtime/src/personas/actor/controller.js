@@ -10,7 +10,12 @@ import {
   resolveRuntimeDecisionProviderPolicy,
 } from "../_shared/runtime-decision.mts";
 import { SOLVER_REQUEST_SCHEMA } from "../../contracts/artifacts.ts";
-import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
+import {
+  AFFINITY_EXPRESSIONS,
+  AFFINITY_KINDS,
+  AFFINITY_OPPOSITES,
+  MOTIVATION_KINDS,
+} from "../../contracts/domain-constants.js";
 import {
   MotivationFlag,
   ReasoningClass,
@@ -19,6 +24,7 @@ import {
   getMotivationDefaultFlagMask,
   getMotivationMobilityTier,
   getMotivationReasoningClass,
+  resolveExposureVitalEffect,
 } from "../../../../core-ts/src/index.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 
@@ -32,6 +38,36 @@ const ACTOR_DECISION_OBJECTIVE_ORDER = Object.freeze([
   "castReserve",
   "inputOrder",
 ]);
+
+/**
+ * Affinity name -> core code. Positional, derived from the ordered vocabulary arrays
+ * exactly as `runner/core-setup.mjs` derives its own copy: the authority is the ORDER
+ * of `AFFINITY_KINDS` / `AFFINITY_EXPRESSIONS`, not either derived map, so adding a
+ * kind cannot leave the two disagreeing.
+ */
+const AFFINITY_KIND_CODE_BY_NAME = Object.freeze(
+  AFFINITY_KINDS.reduce((acc, kind, index) => {
+    acc[kind] = index + 1;
+    return acc;
+  }, {}),
+);
+const AFFINITY_EXPRESSION_CODE_BY_NAME = Object.freeze(
+  AFFINITY_EXPRESSIONS.reduce((acc, expression, index) => {
+    acc[expression] = index + 1;
+    return acc;
+  }, {}),
+);
+
+/** Accept either a core numeric code or a vocabulary name; 0 means "not an affinity". */
+function affinityKindCode(value) {
+  if (Number.isInteger(value)) return value > 0 && value <= AFFINITY_KINDS.length ? value : 0;
+  return AFFINITY_KIND_CODE_BY_NAME[String(value || "").trim().toLowerCase()] || 0;
+}
+
+function affinityExpressionCode(value) {
+  if (Number.isInteger(value)) return value > 0 && value <= AFFINITY_EXPRESSIONS.length ? value : 0;
+  return AFFINITY_EXPRESSION_CODE_BY_NAME[String(value || "").trim().toLowerCase()] || 0;
+}
 
 const VITAL_KEYS_BY_CODE = Object.freeze({
   [VitalKind.Health]: "health",
@@ -581,6 +617,31 @@ function actionCanReachTarget(action, origin, target) {
   return expression === "push" || expression === "pull" ? distance <= stacks : distance <= 1;
 }
 
+/**
+ * The observer's live affinity for a field of `fieldKind`, or null when it has none
+ * that relates to it.
+ *
+ * LIVE GRANTS, NOT CONFIGURED ABILITIES (maintainer, 2026-09-04). `affinityGrants` is
+ * read from core and carries real per-grant `stacks`, so resistance tracks what the
+ * actor actually holds right now rather than what it was authored with.
+ *
+ * A grant of the field's OWN kind is preferred over one of its opposite, because an
+ * actor holding both should read the field as its own rather than as its enemy —
+ * immunity is the more specific claim. Beyond that the first match wins, in grant
+ * order, which is stable because the grant list is read from core in slot order.
+ */
+function observerAffinityForField(actorRecord, fieldKindCode) {
+  if (!fieldKindCode) return null;
+  const grants = Array.isArray(actorRecord?.affinityGrants) ? actorRecord.affinityGrants : [];
+  const usable = grants.filter((grant) => Number.isInteger(grant?.stacks) && grant.stacks > 0
+    && affinityKindCode(grant?.kind) > 0);
+  const oppositeName = AFFINITY_OPPOSITES[AFFINITY_KINDS[fieldKindCode - 1]];
+  const oppositeCode = affinityKindCode(oppositeName);
+  return usable.find((grant) => affinityKindCode(grant.kind) === fieldKindCode)
+    || usable.find((grant) => affinityKindCode(grant.kind) === oppositeCode)
+    || null;
+}
+
 function fieldUtilityRanks({ endPosition, affinityFields, actorRecord }) {
   const effectsByVital = new Map();
   const fields = Array.isArray(affinityFields) ? affinityFields : [];
@@ -588,10 +649,36 @@ function fieldUtilityRanks({ endPosition, affinityFields, actorRecord }) {
     const position = field?.position;
     if (!position || position.x !== endPosition?.x || position.y !== endPosition?.y) continue;
     const effects = Array.isArray(field?.vitalEffects) ? field.vitalEffects : [];
+    // Stage A: the same tile is not equally dangerous to everyone. Where the actor holds
+    // an affinity related to this field, core re-resolves the effect against it; where it
+    // does not, `resolveExposureVitalEffect` returns the field's own number and this is
+    // exactly the previous behavior.
+    // Fields and grants speak different dialects of the same vocabulary: core's field
+    // readers emit NUMERIC kind/expression codes, while grant records carry lowercase
+    // NAMES. Normalizing both here rather than assuming one is what keeps this from
+    // silently doing nothing — an earlier draft read only names and resolved no field
+    // at all, which every existing test still passed.
+    const fieldKindCode = affinityKindCode(field?.kind);
+    const fieldExpressionCode = affinityExpressionCode(field?.expression);
+    const observer = observerAffinityForField(actorRecord, fieldKindCode);
+    const observerKindCode = observer ? affinityKindCode(observer.kind) : 0;
+    const observerExpressionCode = observer ? affinityExpressionCode(observer.expression) : 0;
+    const canResolve = observerKindCode > 0 && fieldKindCode > 0
+      && fieldExpressionCode > 0 && observerExpressionCode > 0;
+
     for (const entry of effects) {
       if (!Number.isInteger(entry?.vital) || !Number.isInteger(entry?.effect)) continue;
       if (!Object.hasOwn(VITAL_KEYS_BY_CODE, entry.vital)) continue;
-      effectsByVital.set(entry.vital, (effectsByVital.get(entry.vital) || 0) + entry.effect);
+      const effect = canResolve
+        ? resolveExposureVitalEffect({
+          baseEffect: entry.effect,
+          fieldKind: fieldKindCode,
+          fieldExpression: fieldExpressionCode,
+          observerKind: observerKindCode,
+          observerExpression: observerExpressionCode,
+        })
+        : entry.effect;
+      effectsByVital.set(entry.vital, (effectsByVital.get(entry.vital) || 0) + effect);
     }
   }
 

@@ -69,6 +69,13 @@ export {
   getMotivationMobilityTier,
   getMotivationReasoningClass,
 } from "./state/motivation.ts";
+// Stage A — exposure is resolved against the OBSERVER, not per tile. Re-exported
+// (not merely imported for the `core.*` surface) because the Actor persona needs it
+// while ranking candidate destinations, and a persona holds no core instance.
+export {
+  OPPOSITE_EXPOSURE_AMPLIFICATION,
+  resolveExposureVitalEffect,
+} from "./state/affinity-spatial.ts";
 export * from "./affinity-readers.ts";
 export * from "./motivation-readers.ts";
 export * from "./mvp-movement.ts";

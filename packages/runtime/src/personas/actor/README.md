@@ -135,7 +135,16 @@ For known profiles, the `objectives.actorDecision` contract carries one Actor-au
 per candidate, ordered by intent class, target finish, profile alignment, field safety, field benefit, cast reserve,
 then input order. A move evaluates the perceived canonical post-cancellation affinity field at its destination;
 every other action evaluates the current cell. Harm is penalized before beneficial effects, and a benefit is capped
-at its matching vital's missing capacity. These remain tie-breakers after intent, target, and profile alignment.
+at its matching vital's missing capacity.
+
+Field exposure is resolved **against the observing actor**, not per tile. Core's field readers report one effect per
+tile, so before Stage A an actor's own element was exactly as lethal to it as anyone else's. The Actor now matches the
+field's kind against its live `affinityGrants` — preferring a grant of the field's own kind over one of its opposite,
+since immunity is the more specific claim — and asks core's `resolveExposureVitalEffect` to modulate the field's own
+number. The relationship rule is derived from the 48-cell interaction matrix rather than restated here. A neutral
+relationship deliberately keeps the previous effect: the matrix answers what happens when two affinities *meet*, and
+for unrelated kinds that is correctly nothing, but exposure is not interaction — a corrode field still corrodes an
+actor that has no relationship to it. An actor with no grants observes no change at all. These remain tie-breakers after intent, target, and profile alignment.
 Mobility/combat tiers and `PrefersCover`/`PrefersStealth` affect those ranks; cognition and reasoning remain
 diagnostic because this is a one-step choice, while `AggroRangeBoost` remains perception/candidate policy. The
 shared envelope code validates row identity and deep-copies the contract but does not interpret the ranks. The CLI
