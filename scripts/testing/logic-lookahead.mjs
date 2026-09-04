@@ -312,3 +312,42 @@ export function* enumerateBoards({ width, height, maxWalls, start, exit }) {
     yield tiles;
   }
 }
+
+/**
+ * A one-step chooser that WEIGHS harm against progress instead of ordering them.
+ *
+ * Both lexicographic candidates fail, and they fail in opposite directions: intent-first
+ * crosses hazards that lie on the route, safety-first refuses to cross any and so never
+ * arrives when the only route passes one. That is not two tuning mistakes, it is the
+ * signature of a question a lexicographic order cannot ask -- "is this much harm worth
+ * this much progress" is a tradeoff, and a lexicographic comparison decides the first
+ * axis before it ever looks at the second.
+ *
+ * `weight` is the harm an actor will accept to gain one step of progress. Sweeping it is
+ * the point: if some weight lands near the exhaustive optimum, the fix is a scalar
+ * objective and no search is needed. If every weight plateaus well short, that is a much
+ * stronger argument for lookahead than "the current policy is suboptimal" ever was.
+ */
+export function weightedRun({ tiles, fields, start, exit, horizon, weight, observer = null }) {
+  let position = { ...start };
+  let harm = harmAt(fields, position, observer);
+  for (let step = 0; step < horizon; step += 1) {
+    if (position.x === exit.x && position.y === exit.y) break;
+    const moves = DELTAS
+      .map(({ dx, dy }) => ({ x: position.x + dx, y: position.y + dy }))
+      .filter((next) => walkable(tiles, next));
+    if (moves.length === 0) break;
+    const here = cheb(position, exit);
+    const cost = (candidate) => (harmAt(fields, candidate, observer) * weight)
+      - (here - cheb(candidate, exit));
+    moves.sort((left, right) => {
+      const a = cost(left);
+      const b = cost(right);
+      if (a !== b) return a - b;
+      return cheb(left, exit) - cheb(right, exit);
+    });
+    position = moves[0];
+    harm += harmAt(fields, position, observer);
+  }
+  return { harm, reached: position.x === exit.x && position.y === exit.y };
+}
