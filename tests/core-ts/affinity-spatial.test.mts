@@ -11,11 +11,21 @@ import {
   deriveAffinityInteractionCell,
 } from "../../packages/core-ts/src/state/affinity-spatial.ts";
 
+/**
+ * The 48-cell oracle. Two SAME-relationship cells changed on 2026-09-04 by maintainer
+ * ruling and are marked below: a DRAW converts same-kind energy however it arrives,
+ * including a directed push. Both used to be `Damage`, which made the one expression
+ * built to absorb its own element the only one punished by it. The visual moved with the
+ * effect -- a conversion that still rendered as a Strike would reach players as a bug.
+ *
+ * Every other cell is unchanged, and that is the point of keeping this table: a
+ * derivation edit that quietly moved a third cell would fail here.
+ */
 const INTERACTION_ORACLE = [
   [1, 1, [0, 0, 1], [2, 2, 2]],
   [1, 2, [0, 0, 3], [1, 1, 4]],
   [1, 3, [0, 0, 21], [3, 3, 5]],
-  [1, 4, [0, 1, 6], [0, 6, 7]],
+  [1, 4, [0, 4, 11], [0, 6, 7]], // A.2: push -> same-kind draw converts (was [0,1,6])
   [2, 1, [0, 0, 3], [1, 0, 8]],
   [2, 2, [4, 5, 9], [1, 1, 10]],
   [2, 3, [4, 0, 11], [1, 3, 12]],
@@ -24,7 +34,7 @@ const INTERACTION_ORACLE = [
   [3, 2, [0, 4, 11], [3, 1, 12]],
   [3, 3, [0, 0, 15], [3, 3, 16]],
   [3, 4, [0, 4, 11], [0, 1, 17]],
-  [4, 1, [1, 0, 6], [6, 0, 7]],
+  [4, 1, [4, 0, 11], [6, 0, 7]], // A.2: draw absorbs a same-kind push (was [1,0,6])
   [4, 2, [5, 4, 13], [5, 1, 14]],
   [4, 3, [4, 0, 11], [1, 0, 17]],
   [4, 4, [0, 0, 18], [1, 1, 19]],

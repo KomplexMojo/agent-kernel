@@ -24,7 +24,7 @@ import {
   getMotivationDefaultFlagMask,
   getMotivationMobilityTier,
   getMotivationReasoningClass,
-  resolveExposureVitalEffect,
+  resolveExposureVitalDeltas,
 } from "../../../../core-ts/src/index.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 
@@ -669,16 +669,23 @@ function fieldUtilityRanks({ endPosition, affinityFields, actorRecord }) {
     for (const entry of effects) {
       if (!Number.isInteger(entry?.vital) || !Number.isInteger(entry?.effect)) continue;
       if (!Object.hasOwn(VITAL_KEYS_BY_CODE, entry.vital)) continue;
-      const effect = canResolve
-        ? resolveExposureVitalEffect({
+      // A.2: one field effect can land on a DIFFERENT vital than the one it would have
+      // harmed -- a draw-expression actor converts a same-kind field into mana rather
+      // than taking the hit -- so this accumulates a set of deltas, not one number.
+      const deltas = canResolve
+        ? resolveExposureVitalDeltas({
           baseEffect: entry.effect,
+          vital: entry.vital,
           fieldKind: fieldKindCode,
           fieldExpression: fieldExpressionCode,
           observerKind: observerKindCode,
           observerExpression: observerExpressionCode,
         })
-        : entry.effect;
-      effectsByVital.set(entry.vital, (effectsByVital.get(entry.vital) || 0) + effect);
+        : [{ vital: entry.vital, effect: entry.effect }];
+      for (const delta of deltas) {
+        if (!Object.hasOwn(VITAL_KEYS_BY_CODE, delta.vital)) continue;
+        effectsByVital.set(delta.vital, (effectsByVital.get(delta.vital) || 0) + delta.effect);
+      }
     }
   }
 

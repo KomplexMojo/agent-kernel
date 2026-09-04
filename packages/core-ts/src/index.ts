@@ -74,7 +74,7 @@ export {
 // while ranking candidate destinations, and a persona holds no core instance.
 export {
   OPPOSITE_EXPOSURE_AMPLIFICATION,
-  resolveExposureVitalEffect,
+  resolveExposureVitalDeltas,
 } from "./state/affinity-spatial.ts";
 export * from "./affinity-readers.ts";
 export * from "./motivation-readers.ts";

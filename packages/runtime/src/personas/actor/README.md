@@ -144,7 +144,14 @@ since immunity is the more specific claim — and asks core's `resolveExposureVi
 number. The relationship rule is derived from the 48-cell interaction matrix rather than restated here. A neutral
 relationship deliberately keeps the previous effect: the matrix answers what happens when two affinities *meet*, and
 for unrelated kinds that is correctly nothing, but exposure is not interaction — a corrode field still corrodes an
-actor that has no relationship to it. An actor with no grants observes no change at all. These remain tie-breakers after intent, target, and profile alignment.
+actor that has no relationship to it. An actor with no grants observes no change at all.
+
+Resolution returns a **set of vital deltas**, not one number, because the matrix contains genuine cross-vital
+outcomes. A `draw`-expression actor standing in a same-kind field converts it into mana rather than taking the hit:
+the harmed vital is spared and mana rises by the same magnitude, capped like any benefit at that vital's missing
+capacity — so an actor with no mana vital, or none missing, ranks no benefit from the conversion. The distinction is
+per **expression**, not per kind: a same-kind `emit` actor is immune but gains nothing, while only `draw` converts.
+Light and Dark already target mana, so for those the conversion lands on the same vital and simply reverses its sign. These remain tie-breakers after intent, target, and profile alignment.
 Mobility/combat tiers and `PrefersCover`/`PrefersStealth` affect those ranks; cognition and reasoning remain
 diagnostic because this is a one-step choice, while `AggroRangeBoost` remains perception/candidate policy. The
 shared envelope code validates row identity and deep-copies the contract but does not interpret the ranks. The CLI

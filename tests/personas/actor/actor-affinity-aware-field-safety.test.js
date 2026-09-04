@@ -17,7 +17,7 @@ const FIRE = 1;
 const EMIT = 3;
 const HEALTH_VITAL = 0;
 
-async function fieldSafetyFor(grants) {
+async function fieldRanksFor(grants) {
   const [{ createActorPersona }, { TickPhases }] = await Promise.all([
     import("../../../packages/runtime/src/personas/actor/persona.js"),
     import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
@@ -28,7 +28,11 @@ async function fieldSafetyFor(grants) {
     role: "delver",
     position: { x: 2, y: 2 },
     motivation: { kind: "random" },
-    vitals: { health: { current: 5, max: 10, regen: 0 } },
+    // A mana vital with headroom, because a converted benefit is capped at the matching
+    // vital's MISSING capacity. An actor with no mana vital has nowhere to put the
+    // conversion and correctly ranks no benefit from it -- which is a real behaviour, but
+    // not the one these tests are about.
+    vitals: { health: { current: 5, max: 10, regen: 0 }, mana: { current: 1, max: 9, regen: 0 } },
     affinityGrants: grants,
   };
   const observation = {
@@ -68,8 +72,14 @@ async function fieldSafetyFor(grants) {
   const rows = data.objectives.actorDecision.candidates;
   const eastRow = rows.find((row) => row.features?.endPosition?.x === 3 && row.features?.endPosition?.y === 2);
   assert.ok(eastRow, "the eastward move into the field must be one of the ranked candidates");
-  return eastRow.features.fieldSafety;
+  return {
+    safety: eastRow.features.fieldSafety,
+    benefit: eastRow.features.fieldBenefit,
+    effects: eastRow.features.fieldEffectsByVital,
+  };
 }
+
+const fieldSafetyFor = async (grants) => (await fieldRanksFor(grants)).safety;
 
 test("an actor with no affinity reads the fire field as harmful, exactly as before", async () => {
   assert.equal(await fieldSafetyFor([]), -4);
@@ -93,6 +103,30 @@ test("an actor holding WATER suffers amplified harm in a fire field", async () =
 test("a zero-stack grant is not an affinity and confers no immunity", async () => {
   const spent = [{ kind: "fire", expression: "emit", stacks: 0, mana: 0, manaMax: 5, manaRegen: 0 }];
   assert.equal(await fieldSafetyFor(spent), -4);
+});
+
+test("A.2 — a DRAW actor converts the fire field into mana instead of taking harm", async () => {
+  // The whole reason the core signature moved to vital deltas: this actor must not merely
+  // resist the field, it must come out with mana it did not have.
+  const drawFire = [{ kind: "fire", expression: "draw", stacks: 2, mana: 1, manaMax: 9, manaRegen: 0 }];
+  const ranks = await fieldRanksFor(drawFire);
+
+  assert.equal(ranks.safety, 0, "the health harm is gone, not merely halved");
+  assert.ok(
+    ranks.effects.some((entry) => entry.vital === 1 && entry.effect > 0),
+    `expected a positive mana effect, got ${JSON.stringify(ranks.effects)}`,
+  );
+  assert.ok(ranks.benefit > 0, "the converted mana is a ranked benefit, not just a spared harm");
+});
+
+test("A.2 — an EMIT actor of the same kind is immune but gains nothing", async () => {
+  // Immunity and conversion are different outcomes and must not be conflated: only the
+  // draw expression is built to absorb. If this ever reports a benefit, the matrix's
+  // per-expression distinction has been flattened.
+  const emitFire = [{ kind: "fire", expression: "emit", stacks: 2, mana: 1, manaMax: 9, manaRegen: 0 }];
+  const ranks = await fieldRanksFor(emitFire);
+  assert.equal(ranks.safety, 0);
+  assert.equal(ranks.benefit, 0);
 });
 
 // ## TODO: Test Permutations
