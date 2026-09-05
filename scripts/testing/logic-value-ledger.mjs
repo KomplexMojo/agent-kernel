@@ -332,6 +332,16 @@ export function countAllocatorDecisionPoints(bounds) {
 
 // ---------------------------------------------------------------------------
 // actor_action_selection
+//
+// ⚠️ NO LONGER A `CONSTRAINT_DOMAINS` MEMBER. This ledger measured it at 0.0% divergence
+// from a plain stable sort over 819 permutations with 0 Z3 initializations, and the domain
+// was RETIRED on that evidence (maintainer ruling, 2026-09-05).
+//
+// IT STAYS HERE, AND DELETING IT WOULD BE THE MISTAKE. This measurement is the argument for
+// the retirement; removing it would leave the ruling resting on a number nobody can re-run.
+// It is also the only thing that would notice a silent re-adoption, and the shape a future
+// re-adoption would have to argue against. A gate, exactly like `actor_lookahead` and
+// `actor_ordering` below -- neither of which is an adopted domain either.
 // ---------------------------------------------------------------------------
 
 function* enumerateActorPoints({ maxCandidates, rankArity, rankMax }) {
@@ -660,7 +670,9 @@ async function runConfiguratorLedger({ bounds, limit, log, offset = 0 }) {
  * This is not a `CONSTRAINT_DOMAINS` member and must not become one on the strength of a
  * number alone. It measures whether there is anything for a search to win, which is the
  * question nobody asked before `actor_action_selection` was adopted -- and the answer
- * there, measured, was 0.0%.
+ * there, measured, was 0.0%, which is why that domain was retired on 2026-09-05. Asking
+ * this question first is the whole point of the gate; adopting first is what had to be
+ * undone.
  *
  * THREE WAYS ARE COMPARED, and the third is what makes this a gate rather than an advert:
  *

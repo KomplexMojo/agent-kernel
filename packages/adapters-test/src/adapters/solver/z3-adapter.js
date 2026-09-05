@@ -122,8 +122,11 @@ export function createZ3SolverAdapter(options = {}) {
   return {
     solve,
     kind: "z3",
+    // Declares the CONTRACT it answers. `actor_action_selection` was retired from
+    // CONSTRAINT_DOMAINS 2026-09-05 (0.0% divergence from a plain sort, 0 Z3 inits); this
+    // stand-in never did anything but sort, which is precisely why the domain went.
     capabilities: {
-      domains: ["actor_action_selection"],
+      contracts: [RUNTIME_DECISION_CONTRACT],
       deterministic: true,
     },
   };

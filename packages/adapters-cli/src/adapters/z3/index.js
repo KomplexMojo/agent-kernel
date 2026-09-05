@@ -17,7 +17,6 @@ const ACTOR_DECISION_OBJECTIVE_CONTRACTS = new Set([
   "actor-decision-objective-v4",
   "actor-decision-objective-v5",
 ]);
-const ACTOR_DOMAIN = "actor_action_selection";
 const ALLOCATOR_DOMAIN = "allocator_budget_fit";
 const CONFIGURATOR_DOMAIN = "configurator_satisfiability";
 
@@ -155,7 +154,10 @@ export function createActorLexicographicSolverAdapter() {
   return {
     solve,
     kind: "actor-lexicographic",
-    capabilities: { domains: ["actor_action_selection"], deterministic: true },
+    // Declares the CONTRACT it answers, not a constraint domain. `actor_action_selection` was
+    // retired 2026-09-05: this is a stable sort of a rank tuple the Actor already computed, and
+    // claiming a constraint domain for it was how a sort came to be described as a search.
+    capabilities: { contracts: [RUNTIME_DECISION_CONTRACT], deterministic: true },
   };
 }
 
@@ -362,7 +364,10 @@ export function createHybridConstraintSolverAdapter(options = {}) {
   async function solve(request) {
     const domain = request?.problem?.domain;
     if (domain === ALLOCATOR_DOMAIN || domain === CONFIGURATOR_DOMAIN) return solveGeneric(request.problem);
-    if (domain === ACTOR_DOMAIN || request?.problem?.data?.contract === RUNTIME_DECISION_CONTRACT) {
+    // Dispatched by CONTRACT alone. The `domain === ACTOR_DOMAIN` half that stood here was
+    // already unreachable before `actor_action_selection` was retired -- the Actor never built
+    // a ConstraintProblem, so no request ever arrived carrying that domain.
+    if (request?.problem?.data?.contract === RUNTIME_DECISION_CONTRACT) {
       return actor.solve(request);
     }
     return { status: "deferred", reason: "constraint_domain_unsupported" };
@@ -371,7 +376,11 @@ export function createHybridConstraintSolverAdapter(options = {}) {
   return {
     solve,
     kind: "hybrid-constraint",
-    capabilities: { domains: [ACTOR_DOMAIN, ALLOCATOR_DOMAIN, CONFIGURATOR_DOMAIN], deterministic: true },
+    capabilities: {
+      domains: [ALLOCATOR_DOMAIN, CONFIGURATOR_DOMAIN],
+      contracts: [RUNTIME_DECISION_CONTRACT],
+      deterministic: true,
+    },
   };
 }
 

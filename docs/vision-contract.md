@@ -105,7 +105,11 @@ Basic Adapters are in place for:
   alignment, perceived field effects, and live cast reserve are ordered secondary evidence;
   candidate input order is the deterministic final tie-break. Cognition/reasoning diagnostics do not
   fabricate multi-step planning, and `AggroRangeBoost` does not reveal unseen targets.
-- This per-actor choice has no joint constraint, so Z3 adds no value. Platform adapters validate and
+- This per-actor choice has no joint constraint, so Z3 adds no value — **measured, not assumed, and
+  acted on: `actor_action_selection` was retired from `CONSTRAINT_DOMAINS` on 2026-09-05** after the
+  Z10 ledger recorded 0.0% divergence from a plain sort across 819 permutations with 0 Z3
+  initializations. The sort, the tuple and the envelope all stay; only the claim that this is a
+  search went. Platform adapters validate and
   stably sort Actor-authored tuples without interpreting roles, affinities, motivations, or hazards.
   Every live Actor problem includes an objective: unknown motivation profiles receive an Actor-authored
   compatibility tuple that preserves the former deterministic action order. A missing objective defers

@@ -22,8 +22,21 @@ import {
   CONSTRAINT_DOMAINS,
   CONSTRAINT_PROBLEM_SCHEMA,
   CONSTRAINT_RESULT_STATUS,
+  RUNTIME_DECISION_CONTRACT,
   isConstraintDomain,
 } from "../contracts/constraint-problem.js";
+
+/**
+ * The non-constraint problem contracts an adapter may declare it answers.
+ *
+ * TWO STACKS, NOT ONE. `ConstraintProblemV1` carries real searches (Allocator, Configurator).
+ * `runtime-decision-v1` carries the Actor's ranked evaluation. Before
+ * `actor_action_selection` was retired, the Actor's adapter had to claim a CONSTRAINT DOMAIN
+ * in order to satisfy the "declares something" check below — which is how a sort came to be
+ * described as a search in the first place. Declaring the contract says the same routable
+ * thing without the false claim.
+ */
+const DECLARABLE_CONTRACTS = Object.freeze([RUNTIME_DECISION_CONTRACT]);
 
 /**
  * An adapter declares which domains it can answer. The port defers cleanly on
@@ -37,9 +50,14 @@ export function describeSolverCapabilities(adapter) {
   const declared = Array.isArray(adapter?.capabilities?.domains)
     ? adapter.capabilities.domains.filter(isConstraintDomain)
     : [];
+  const contracts = Array.isArray(adapter?.capabilities?.contracts)
+    ? adapter.capabilities.contracts.filter((entry) => DECLARABLE_CONTRACTS.includes(entry))
+    : [];
   return Object.freeze({
     kind: typeof adapter?.kind === "string" ? adapter.kind : "unknown",
     domains: Object.freeze(declared),
+    /** Non-constraint problem contracts this adapter answers, e.g. the Actor's envelope. */
+    contracts: Object.freeze(contracts),
     /** Deterministic adapters may be used in a replayed run. Absent means NO. */
     deterministic: adapter?.capabilities?.deterministic === true,
   });
@@ -49,12 +67,16 @@ export function adapterHandlesDomain(adapter, domain) {
   return describeSolverCapabilities(adapter).domains.includes(domain);
 }
 
+// Posed as the Allocator's domain since `actor_action_selection` was retired. The problem is
+// deliberately empty: this fixture exists to exercise shape and DETERMINISM, not to be solved,
+// and an adapter is free to defer it. Owner and domain still agree, because a fixture that
+// violated `CONSTRAINT_DOMAIN_OWNERS` would teach the wrong shape to anyone copying it.
 const CONFORMANCE_PROBLEM = Object.freeze({
   schema: CONSTRAINT_PROBLEM_SCHEMA,
   schemaVersion: 1,
   meta: { id: "conformance", runId: "conformance", createdAt: "2026-08-14T00:00:00.000Z" },
-  domain: CONSTRAINT_DOMAINS.ACTOR_ACTION_SELECTION,
-  posedBy: "actor",
+  domain: CONSTRAINT_DOMAINS.ALLOCATOR_BUDGET_FIT,
+  posedBy: "allocator",
   variables: [],
   constraints: [],
   objective: null,
@@ -77,10 +99,11 @@ export async function checkSolverConformance(adapter, { problem = CONFORMANCE_PR
   }
 
   const capabilities = describeSolverCapabilities(adapter);
-  if (capabilities.domains.length === 0) {
+  if (capabilities.domains.length === 0 && capabilities.contracts.length === 0) {
     failures.push(
-      "adapter declares no constraint domains: the port cannot route to it, and an adapter that "
-      + "answers a domain it never claimed is worse than one that defers",
+      "adapter declares neither a constraint domain nor a problem contract: the port cannot "
+      + "route to it, and an adapter that answers a question it never claimed is worse than "
+      + "one that defers",
     );
   }
 

@@ -120,6 +120,11 @@ export function solveAllocatorBudgetFitExhaustive({ requestedLayout, tileCosts, 
  * something beyond sorting; if it never differs — the Z10 prediction — then
  * `actor_action_selection` is an evaluation wearing a constraint domain, and the
  * ledger says so with a number instead of an opinion.
+ *
+ * IT NEVER DIFFERED. 0.0% over 819 permutations, 0 Z3 initializations — and the domain was
+ * retired from `CONSTRAINT_DOMAINS` on 2026-09-05 on exactly that number. The prediction
+ * was recorded before the run, which is what made the result usable as evidence rather
+ * than as a rationalization of whatever came out.
  */
 export function solveActorSelectionExhaustive({ candidateIds, ranks }) {
   if (!Array.isArray(candidateIds) || candidateIds.length === 0) {

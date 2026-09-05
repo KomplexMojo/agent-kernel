@@ -369,8 +369,8 @@ test("deferred and capability-absent solvers retain the exact hazards-first row-
     solve: async () => ({ status: "deferred", reason: "forced_deferred" }),
   };
   const absent = {
-    kind: "actor-only",
-    capabilities: { domains: ["actor_action_selection"], deterministic: true },
+    kind: "allocator-only",
+    capabilities: { domains: ["allocator_budget_fit"], deterministic: true },
     solve: async () => assert.fail("capability-absent adapter must not be called"),
   };
   const expected = {

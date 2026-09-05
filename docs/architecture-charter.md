@@ -475,9 +475,20 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   receive an Actor-authored compatibility tuple. Invalid or absent objectives defer with typed
   reasons, after which runtime applies its deterministic Actor fallback. An adapter must not recreate
   the compatibility policy or invent ranked diagnostics for an old envelope.
+- **`actor_action_selection` was RETIRED from `CONSTRAINT_DOMAINS` (maintainer ruling, 2026-09-05),
+  leaving the adopted set at two.** It was adopted in Z.1 on the qualitative gate alone — *is this a
+  search?* — and failed the quantitative half the Z10 ledger later applied: **0.0% divergence from a
+  plain stable sort over 819 permutations, and 0 Z3 initializations**. It also failed structurally —
+  the Actor never called `buildConstraintProblem`, and `solver-host.js` gates only the other two
+  domains, so the member named a route nothing took. The ledger's interpretation rule was written
+  before the numbers: *a ledger that cannot return a negative verdict is advocacy, not measurement.*
+  **The Actor's decision path is unchanged** — the `runtime-decision-v1` envelope, its rank tuple,
+  the adapter that sorts it and the LLM provider that can answer it instead all remain; adapters
+  declare it through `capabilities.contracts`, and `checkSolverConformance` still holds them to
+  determinism because replay depends on it.
 - The active CLI and web platform copies expose the canonical `hybrid-constraint` adapter for
-  `actor_action_selection`, `allocator_budget_fit`, and `configurator_satisfiability`. The Actor branch
-  remains a pure tuple validator/stable sort and never initializes Z3. The Allocator and Configurator
+  `allocator_budget_fit` and `configurator_satisfiability`, plus the `runtime-decision-v1` contract.
+  The Actor branch remains a pure tuple validator/stable sort and never initializes Z3. The Allocator and Configurator
   branches initialize Z3 only to compile their persona-authored opaque integer/linear expressions;
   adapters attach no domain meaning. `adapters-test` retains fixture/test doubles separately.
 - Allocator budget fit uses the same effect boundary without giving the persona an adapter. The

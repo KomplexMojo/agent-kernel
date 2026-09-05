@@ -50,8 +50,17 @@ test("the deprecated z3-real alias reports the canonical hybrid domains", async 
   const caps = describeSolverCapabilities(createRealZ3SolverAdapter());
   assert.deepEqual(
     caps.domains,
-    ["actor_action_selection", "allocator_budget_fit", "configurator_satisfiability"],
-    "Z9.1 adopts Configurator object placement through the existing satisfiability domain",
+    ["allocator_budget_fit", "configurator_satisfiability"],
+    "Z9.1 adopts Configurator object placement through the existing satisfiability domain. "
+      + "`actor_action_selection` was RETIRED 2026-09-05 — measured at 0.0% divergence from a "
+      + "plain sort with 0 Z3 initializations — so the hybrid adapter is a two-domain solver "
+      + "that also answers one non-constraint envelope.",
+  );
+  assert.deepEqual(
+    caps.contracts,
+    ["runtime-decision-v1"],
+    "the Actor path did not go away with the domain: the adapter still sorts its rank tuple, "
+      + "and now says so as a contract rather than as a search it never performed",
   );
   assert.equal(caps.deterministic, true);
   assert.equal(createRealZ3SolverAdapter().kind, "hybrid-constraint");
