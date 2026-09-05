@@ -1,0 +1,31 @@
+---
+description: Route plans and implementations through persona-* or architecture-* skills so agents stay scoped instead of sweeping the whole app.
+alwaysApply: true
+---
+
+# Agentic skill routing (plan + implement)
+
+Before planning or editing agent-kernel domain/architecture code, **pick and follow a focused skill**. Do not default to a full-application sweep.
+
+## When planning (Plan mode or milestone scoping)
+
+1. Load `.claude/skills/agentic-change-planning/SKILL.md` first.
+2. Use its routing table to name the owning `persona-*` or `architecture-*` skill in the plan.
+3. Constrain the plan to that skill’s allowed edit surfaces, forbidden moves, and validation commands.
+4. If ownership is ambiguous or spans personas without a clean artifact handoff, **stop and escalate** — do not write a “touch everything” plan.
+
+## When implementing
+
+1. Read `.claude/skills/<owner>/SKILL.md` before the first code change (the owner named in the plan, or re-routed via `agentic-change-planning` if there is no plan).
+2. Stay inside that skill’s allowed paths. Cross-boundary needs → switch skill or escalate; do not quietly widen scope.
+3. Persona work → only that persona directory + `tests/personas/<persona>/`. Architecture work → the surfaces listed in the matching `architecture-*` skill.
+
+## Quick owner hints
+
+- `packages/runtime/src/personas/<name>/` → `persona-<name>`
+- Layering / imports across packages → `architecture-dependency-direction`
+- Effects / `dispatchEffect` / solver port → `architecture-effects-routing`
+- `packages/runtime/src/contracts/artifacts.ts` → `architecture-artifacts-contracts`
+- `packages/adapters-*/` IO → `architecture-adapter-io`
+
+Pricing only via Allocator (`persona-allocator`). Effects as data via ports — never execute IO inside personas or `core-ts`.
