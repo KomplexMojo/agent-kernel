@@ -153,7 +153,7 @@ test("the envelope path surfaces the intent the Actor published in its rank", as
         candidateActions: [{ id: "move_east" }, { id: "wait_here" }],
         objectives: {
           actorDecision: {
-            contract: "actor-decision-objective-v5",
+            contract: "actor-decision-objective-v6",
             order: ["intentClass", "targetFinish"],
             candidates: [
               { candidateActionId: "move_east", rank: [400, 0], features: {}, rationaleTags: ["hostile_progress"] },

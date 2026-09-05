@@ -107,7 +107,7 @@ test("actor persona emits runtime-decision solver requests from live observation
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "move_east"));
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "move_northeast"));
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "wait_here"));
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v5");
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v6");
   assert.deepEqual(
     envelope.objectives.actorDecision.candidates.map((entry) => entry.candidateActionId),
     envelope.candidateActions.map((entry) => entry.id),

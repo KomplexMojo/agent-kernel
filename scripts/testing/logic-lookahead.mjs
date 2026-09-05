@@ -194,6 +194,10 @@ async function runPolicy({ tiles, fields, start, exit, horizon, grants }) {
   let position = { ...start };
   let harm = harmAt(fields, position, observer);
   let reached = position.x === exit.x && position.y === exit.y;
+  // The PATH, not just the verdict. `reached: false` on its own says an actor failed and
+  // nothing about how, and the two failure shapes it hides need opposite fixes: standing
+  // still, and oscillating between two tiles. Distinguishing them is the whole diagnosis.
+  const path = [{ ...position }];
   for (let tick = 0; tick < horizon && !reached; tick += 1) {
     const persona = createActorPersona({ clock: FIXED_CLOCK });
     const next = await policyStep({
@@ -201,10 +205,11 @@ async function runPolicy({ tiles, fields, start, exit, horizon, grants }) {
     });
     if (!next) break;
     position = next;
+    path.push({ ...position });
     harm += harmAt(fields, position, observer);
     if (position.x === exit.x && position.y === exit.y) reached = true;
   }
-  return { harm, reached };
+  return { harm, reached, path };
 }
 
 export { bestRoute, harmAt, runPolicy, walkable, DELTAS, key };
@@ -322,6 +327,19 @@ export function* enumerateBoards({ width, height, maxWalls, start, exit }) {
  * signature of a question a lexicographic order cannot ask -- "is this much harm worth
  * this much progress" is a tradeoff, and a lexicographic comparison decides the first
  * axis before it ever looks at the second.
+ *
+ * ⚠️ THE POLICY'S OWN FAILURES WERE NOT WHAT THIS COMMENT ASSUMED, and the diagnosis is worth
+ * keeping. `policyFailedToReach` was read as "freed to prefer safety, the actor wanders" and
+ * recorded as a gameplay tradeoff. Dumping the paths showed something else entirely: 12 of 12
+ * recorded boards were two-cycles taking ZERO harm -- a livelock, not a safety preference, and
+ * on 3 of them a harm-free route existed. Contract v6 split the flat mobile fallback so a
+ * lateral step outranks a retreat, which broke every retreat-vs-progress cycle: 190 -> 60 at
+ * sweep bounds, with every other figure slightly better rather than traded away.
+ *
+ * The residual 60 (0.27%) are a DIFFERENT shape: lateral-vs-lateral cycles between two tiles
+ * EQUIDISTANT from the exit, where no distance rule can separate the candidates. That class
+ * needs one step of memory -- the position occupied last tick -- which the runner would have
+ * to carry, so it is a separate decision rather than a smaller version of the same one.
  *
  * `weight` is the harm an actor will accept to gain one step of progress. Sweeping it is
  * the point: if some weight lands near the exhaustive optimum, the fix is a scalar

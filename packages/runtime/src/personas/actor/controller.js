@@ -74,7 +74,7 @@ import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
  * above is the real one, and `actor-decision-objective.test.js` exercises the tiebreak it
  * claims -- the earlier rationale had no test because it described an effect that did not exist.
  */
-const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v5";
+const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v6";
 const ACTOR_DECISION_OBJECTIVE_ORDER = Object.freeze([
   "intentClass",
   "targetFinish",
@@ -167,11 +167,31 @@ function buildMotivationProfile(view, actorId, payload) {
  * mobile fallback because that decides which candidate wins; ordering only needs to know that
  * combat resolves before movement, which the chosen action's kind settles on its own.
  */
+/**
+ * ⚠️ `MOBILE_FALLBACK` WAS SPLIT INTO LATERAL AND RETREAT (contract v6, 2026-09-05), and the
+ * split exists to break a LIVELOCK rather than to express a preference.
+ *
+ * One flat class for "moves that are not progress" meant that when no move reduced the
+ * distance to the exit, every direction tied at 200 and `fieldSafety` decided — which picked
+ * the harm-free step BACKWARDS. From there progress was available again, so the actor stepped
+ * forward, found no progress, and retreated again: a stable two-cycle, forever, taking zero
+ * harm and never arriving. Measured at sweep bounds: 190 boards (0.85%), and all 12 recorded
+ * examples were two-cycles with `policyHarm 0` against an oracle that reached by accepting 5.
+ *
+ * Grading the class by whether the move INCREASES the distance to the exit breaks the cycle
+ * with no memory at all: a sideways step outranks a backwards one, so the actor stops
+ * retreating into a position it has just proved unproductive. Stateless was the requirement,
+ * not a convenience — an actor that needed to remember where it had been would need the
+ * runner to carry that across ticks, and the context must stay serializable.
+ */
 const ACTOR_INTENT_CLASS = Object.freeze({
   IN_RANGE_COMBAT: 500,
   HOSTILE_PROGRESS: 400,
   EXIT_PROGRESS: 300,
-  MOBILE_FALLBACK: 200,
+  /** A move that holds its distance to the exit. */
+  MOBILE_LATERAL: 200,
+  /** A move that increases it. Ranked below lateral ONLY to stop the two-cycle above. */
+  MOBILE_RETREAT: 150,
   WAIT: 100,
   NONE: 0,
 });
@@ -218,7 +238,12 @@ export function classifyActorIntent({ action, actorPosition, motivationProfile, 
     if (Number.isFinite(beforeExit) && Number.isFinite(afterExit) && afterExit < beforeExit) {
       return { intentClass: ACTOR_INTENT_CLASS.EXIT_PROGRESS, intentTag: "exit_progress" };
     }
-    return { intentClass: ACTOR_INTENT_CLASS.MOBILE_FALLBACK, intentTag: "mobile_fallback" };
+    // Not progress. Retreating still beats being cornered, but it loses to holding ground —
+    // which is the whole anti-livelock rule, and it costs one comparison.
+    if (Number.isFinite(beforeExit) && Number.isFinite(afterExit) && afterExit > beforeExit) {
+      return { intentClass: ACTOR_INTENT_CLASS.MOBILE_RETREAT, intentTag: "mobile_retreat" };
+    }
+    return { intentClass: ACTOR_INTENT_CLASS.MOBILE_LATERAL, intentTag: "mobile_lateral" };
   }
   if (action.kind === "wait") {
     return { intentClass: ACTOR_INTENT_CLASS.WAIT, intentTag: "wait" };
@@ -925,13 +950,17 @@ function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, can
       if (Number.isFinite(before) && Number.isFinite(after) && after < before) {
         score = ACTOR_INTENT_CLASS.EXIT_PROGRESS;
         ruleId = "move_toward_exit";
+      } else if (Number.isFinite(before) && Number.isFinite(after) && after > before) {
+        score = ACTOR_INTENT_CLASS.MOBILE_RETREAT;
+        ruleId = "move_retreat";
       } else {
-        score = ACTOR_INTENT_CLASS.MOBILE_FALLBACK;
-        ruleId = "move_fallback";
+        score = ACTOR_INTENT_CLASS.MOBILE_LATERAL;
+        ruleId = "move_lateral";
       }
     } else if (action?.kind === "move") {
-      score = ACTOR_INTENT_CLASS.MOBILE_FALLBACK;
-      ruleId = "move_fallback";
+      // No exit to measure against, so nothing distinguishes lateral from retreat.
+      score = ACTOR_INTENT_CLASS.MOBILE_LATERAL;
+      ruleId = "move_lateral";
     } else if (action?.kind === "wait") {
       score = ACTOR_INTENT_CLASS.WAIT;
       ruleId = "wait";

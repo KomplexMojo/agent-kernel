@@ -719,7 +719,10 @@ async function runLookaheadLedger({ bounds, limit, log, offset = 0 }) {
     policyWorse: 0, safetyWorse: 0, bothWorse: 0, reorderFixes: 0,
     policyFailedToReach: 0, safetyFailedToReach: 0, agree: 0,
   };
-  const examples = { bothWorse: [], reorderFixes: [] };
+  // `policyFailedToReach` gets examples of its own. It had a counter and nothing else, which
+  // made the 190 cases it reported at sweep bounds un-diagnosable: a number that cannot be
+  // turned back into a board is a number you can only argue about.
+  const examples = { bothWorse: [], reorderFixes: [], policyFailedToReach: [] };
   const gaps = [];
   const startedAt = Date.now();
   let seen = 0;
@@ -744,7 +747,19 @@ async function runLookaheadLedger({ bounds, limit, log, offset = 0 }) {
 
         const policyWorse = !policy.reached || policy.harm > oracle.harm;
         const safetyWorse = !safety.reached || safety.harm > oracle.harm;
-        if (!policy.reached) counters.policyFailedToReach += 1;
+        if (!policy.reached) {
+          counters.policyFailedToReach += 1;
+          if (examples.policyFailedToReach.length < MAX_RECORDED_EXAMPLES) {
+            examples.policyFailedToReach.push({
+              tiles,
+              hazards: fields.map((f) => ({ ...f.position, kind: f.kind, magnitude: f.magnitude })),
+              policyPath: policy.path || null,
+              policyHarm: policy.harm,
+              oracleHarm: oracle.harm,
+              safetyReached: safety.reached,
+            });
+          }
+        }
         if (!safety.reached) counters.safetyFailedToReach += 1;
         if (policyWorse) counters.policyWorse += 1;
         if (safetyWorse) counters.safetyWorse += 1;

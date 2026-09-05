@@ -71,7 +71,7 @@ Basic Adapters are in place for:
   puts both branches on `ACTOR_INTENT_CLASS` (500/400/300/200/100/0). The remap is monotonic, so no
   branch changes which candidate it selects. `actor/classifyActorIntent` is the sole author of the
   value; the Moderator sorts on it and never reinterprets it.
-- **Field-aware policy (v2, extended by v3, v4 and v5):** the Actor emits `actor-decision-objective-v5`,
+- **Field-aware policy (v2, extended by v3, v4 and v5):** the Actor emits `actor-decision-objective-v6`,
   retaining the v1 primary order and inserting `fieldSafety` then `fieldBenefit` before cast reserve.
   v3 split the former single `profileAlignment` member into `coverAlignment` and `stealthAlignment`,
   because summing a flat cover bonus with a scaled stealth delta made the two indistinguishable, and
@@ -87,7 +87,7 @@ Basic Adapters are in place for:
   from its own affinity, amplified harm from its opposite, and a `draw`-expression actor converts a
   same-kind field into mana. That relationship rule is derived from the existing 48-cell interaction
   matrix, not authored a second time.
-- The Actor owns candidate feature meaning and emits `actor-decision-objective-v5` inside the existing
+- The Actor owns candidate feature meaning and emits `actor-decision-objective-v6` inside the existing
   `runtime-decision-v1` envelope. Its rank is maximized lexicographically in this exact order:
   `intentClass`, `targetFinish`, `coverAlignment`, `stealthAlignment`, `fieldSafety`, `fieldBenefit`,
   `castReserve`, `actorProposal`, `inputOrder`. Consumers retain opaque compatibility for valid v1,

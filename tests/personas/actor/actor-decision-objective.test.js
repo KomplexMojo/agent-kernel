@@ -86,7 +86,7 @@ test("attacking ranks its cast proposal with target health and live grant reserv
     hazards: [{ id: "fire_patch", position: { x: 2, y: 1 }, stacks: 3 }],
   });
 
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v5");
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v6");
   // v4: the cast now carries its REAL class (in_range_combat, 500) plus the demoted
   // proposal flag at index 7. It used to read 600 purely because it was a proposal.
   assert.deepEqual(row(envelope, "cast_affinity_warden_1").rank, [500, 8000, 0, 0, 0, 0, 500, 1, 0]);
@@ -184,7 +184,7 @@ test("an unknown motivation emits an Actor-owned compatibility tuple", async () 
   });
 
   assert.equal(envelope.actor.motivationProfile, undefined);
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v5");
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v6");
   assert.deepEqual(envelope.objectives.actorDecision.order, [
     "intentClass",
     "targetFinish",
@@ -392,7 +392,10 @@ test("the Actor objective distinguishes hostile pursuit from movement toward an 
 
   assert.equal(row(envelope, "move_west").features.afterMinHostileDistance, 3);
   assert.equal(row(envelope, "move_east").features.afterMinHostileDistance, 1);
-  assert.equal(row(envelope, "move_west").rationaleTags[0], "mobile_fallback");
+  // v6 split the flat fallback: this move holds its distance to the exit, so it is lateral
+  // rather than a retreat. The claim under test is unchanged -- pursuit still outranks a
+  // non-pursuing move -- and the assertion below is the one that carries it.
+  assert.equal(row(envelope, "move_west").rationaleTags[0], "mobile_lateral");
   assert.equal(row(envelope, "move_east").rationaleTags[0], "hostile_progress");
   assert.ok(row(envelope, "move_east").rank[0] > row(envelope, "move_west").rank[0]);
 });
