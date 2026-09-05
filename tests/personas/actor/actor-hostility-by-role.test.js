@@ -31,7 +31,7 @@
 const assert = require("node:assert/strict");
 
 // ---------------------------------------------------------------------------
-// Helpers — mirrors tests/runtime/actor-motivation-combat.test.js
+// Helpers — mirrors tests/personas/actor/actor-motivation-combat.test.js
 // ---------------------------------------------------------------------------
 
 /** Build a floor-only baseTiles grid ('#' border, '.' interior). */

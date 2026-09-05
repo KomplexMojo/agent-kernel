@@ -10,8 +10,8 @@ const BASE_TILES = ["#####", "#...#", "#...#", "#...#", "##E##"];
 
 async function actorDecision({ self, proposals, affinityFields }) {
   const [{ createActorPersona }, { TickPhases }] = await Promise.all([
-    import("../../packages/runtime/src/personas/actor/persona.js"),
-    import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
+    import("../../../packages/runtime/src/personas/actor/persona.js"),
+    import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
   ]);
   const observation = {
     actors: [self],
@@ -55,7 +55,7 @@ test("CLI selects the safer Actor-authored v2 move without interpreting field da
     }],
   });
   const { createRealZ3SolverAdapter } = await import(
-    "../../packages/adapters-cli/src/adapters/z3/index.js"
+    "../../../packages/adapters-cli/src/adapters/z3/index.js"
   );
 
   const result = await createRealZ3SolverAdapter().solve({ problem: { data } });
@@ -83,7 +83,7 @@ test("CLI cannot let field benefit outrank the Actor's primary intent", async ()
     }],
   });
   const { createRealZ3SolverAdapter } = await import(
-    "../../packages/adapters-cli/src/adapters/z3/index.js"
+    "../../../packages/adapters-cli/src/adapters/z3/index.js"
   );
 
   const result = await createRealZ3SolverAdapter().solve({ problem: { data } });

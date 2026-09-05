@@ -12,7 +12,7 @@ const assert = require("node:assert/strict");
 
 test("randomIrregularRoomDimensions returns { width, height } with aspect ratio >= 1.5", async () => {
   const { randomIrregularRoomDimensions } = await import(
-    "../../packages/runtime/src/personas/configurator/level-layout.js"
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
   );
   // Use a simple seeded-like rng (deterministic sequence)
   let seed = 42;
@@ -34,7 +34,7 @@ test("randomIrregularRoomDimensions returns { width, height } with aspect ratio 
 
 test("randomIrregularRoomDimensions keeps dimensions within [min, max]", async () => {
   const { randomIrregularRoomDimensions } = await import(
-    "../../packages/runtime/src/personas/configurator/level-layout.js"
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
   );
   let seed = 7;
   const rng = () => {
@@ -51,7 +51,7 @@ test("randomIrregularRoomDimensions keeps dimensions within [min, max]", async (
 
 test("randomIrregularRoomDimensions works when min and max leave little room for aspect ratio", async () => {
   const { randomIrregularRoomDimensions } = await import(
-    "../../packages/runtime/src/personas/configurator/level-layout.js"
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
   );
   let seed = 99;
   const rng = () => {
@@ -69,7 +69,7 @@ test("randomIrregularRoomDimensions works when min and max leave little room for
 
 test("generateGridLayoutFromInput produces mostly non-square rooms by default (preferIrregular)", async () => {
   const { generateGridLayoutFromInput } = await import(
-    "../../packages/runtime/src/personas/configurator/level-layout.js"
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
   );
 
   const result = generateGridLayoutFromInput({
@@ -99,7 +99,7 @@ test("generateGridLayoutFromInput produces mostly non-square rooms by default (p
 
 test("randomIrregularRoomDimensions orientation follows wide/tall roll", async () => {
   const { randomIrregularRoomDimensions } = await import(
-    "../../packages/runtime/src/personas/configurator/level-layout.js"
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
   );
   const wide = randomIrregularRoomDimensions(() => 0.1, 3, 9);
   const tall = randomIrregularRoomDimensions(() => 0.9, 3, 9);
@@ -109,7 +109,7 @@ test("randomIrregularRoomDimensions orientation follows wide/tall roll", async (
 
 test("randomIrregularRoomDimensions produces a balanced wide/tall distribution", async () => {
   const { randomIrregularRoomDimensions } = await import(
-    "../../packages/runtime/src/personas/configurator/level-layout.js"
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
   );
   let seed = 123;
   const rng = () => {
@@ -129,7 +129,7 @@ test("randomIrregularRoomDimensions produces a balanced wide/tall distribution",
 
 test("preferIrregular coexists with preferLargeRooms", async () => {
   const { generateGridLayoutFromInput } = await import(
-    "../../packages/runtime/src/personas/configurator/level-layout.js"
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
   );
   const result = generateGridLayoutFromInput({
     seed: 333,
@@ -155,7 +155,7 @@ test("preferIrregular coexists with preferLargeRooms", async () => {
 
 test("dense placement still produces mostly irregular rooms", async () => {
   const { generateGridLayoutFromInput } = await import(
-    "../../packages/runtime/src/personas/configurator/level-layout.js"
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
   );
   const result = generateGridLayoutFromInput({
     seed: 444,
@@ -176,7 +176,7 @@ test("dense placement still produces mostly irregular rooms", async () => {
 
 test.skip("generateGridLayout with preferIrregular explicitly disabled produces more square rooms on average", async () => {
   const { generateGridLayoutFromInput } = await import(
-    "../../packages/runtime/src/personas/configurator/level-layout.js"
+    "../../../packages/runtime/src/personas/configurator/level-layout.js"
   );
   const result = generateGridLayoutFromInput({
     seed: 555,

@@ -1,11 +1,11 @@
 const assert = require("node:assert/strict");
-const { readFixture } = require("../helpers/fixtures");
+const { readFixture } = require("../../helpers/fixtures");
 
 const priceList = readFixture("price-list-artifact-v1-tiles.json");
 
 
 test("allocator layout spend applies tile costs and budget bounds", async () => {
-const { evaluateLayoutSpend, resolveLayoutTileCosts } = await import("../../packages/runtime/src/personas/allocator/layout-spend.js");
+const { evaluateLayoutSpend, resolveLayoutTileCosts } = await import("../../../packages/runtime/src/personas/allocator/layout-spend.js");
 
 const layout = { floorTiles: 3, hallwayTiles: 1 };
 

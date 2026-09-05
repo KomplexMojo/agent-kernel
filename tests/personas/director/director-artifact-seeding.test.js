@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 
 test("director emits artifact_proposal effects for affinity rooms proportional to dungeonBreakdown.artifacts", async () => {
   const { createDirectorPersona } = await import(
-    "../../packages/runtime/src/personas/director/controller.js"
+    "../../../packages/runtime/src/personas/director/controller.js"
   );
 
   const CLOCK = "2025-01-01T00:00:00.000Z";
@@ -81,7 +81,7 @@ test("director emits artifact_proposal effects for affinity rooms proportional t
 
 test("director emits artifact_proposal with zero budget when dungeonBreakdown.artifacts is absent", async () => {
   const { createDirectorPersona } = await import(
-    "../../packages/runtime/src/personas/director/controller.js"
+    "../../../packages/runtime/src/personas/director/controller.js"
   );
 
   const CLOCK = "2025-01-01T00:00:00.000Z";
@@ -128,7 +128,7 @@ test("director emits artifact_proposal with zero budget when dungeonBreakdown.ar
 
 test("director uses room-level artifactVitals and artifactPermanent overrides in artifact_proposal", async () => {
   const { createDirectorPersona } = await import(
-    "../../packages/runtime/src/personas/director/controller.js"
+    "../../../packages/runtime/src/personas/director/controller.js"
   );
 
   const CLOCK = "2025-01-01T00:00:00.000Z";

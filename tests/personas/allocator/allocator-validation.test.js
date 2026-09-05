@@ -1,9 +1,9 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { readFixture } = require("../helpers/fixtures");
+const { readFixture } = require("../../helpers/fixtures");
 
-const allocatorFixtures = resolve(__dirname, "../fixtures/allocator");
+const allocatorFixtures = resolve(__dirname, "../../fixtures/allocator");
 
 function readAllocatorFixture(name) {
   return JSON.parse(readFileSync(resolve(allocatorFixtures, name), "utf8"));
@@ -37,7 +37,7 @@ const cases = [
 
 
 test("allocator validates spend proposals deterministically", async () => {
-const { validateSpendProposal } = await import("../../packages/runtime/src/personas/allocator/validate-spend.js");
+const { validateSpendProposal } = await import("../../../packages/runtime/src/personas/allocator/validate-spend.js");
 
 
 cases.forEach((entry) => {

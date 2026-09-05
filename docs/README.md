@@ -40,7 +40,7 @@ Key facts:
 - TickFrames are emitted per phase and include actions/effects plus persona views/telemetry for deterministic replay.
 - Runtime inputs are documented in `docs/runtime-inputs.md`.
 - The canonical M6 sandbox scenario fixture is `tests/fixtures/scenarios/delver-warden-battle-v1-basic.json`.
-- The motivation-sandbox executable specs are `tests/core-ts/combat-actions.test.mts`, `tests/runtime/actor-motivation-combat.test.js`, `tests/runtime/runtime-combat-application.test.js`, `tests/adapters-test/z3-solver-adapter.test.js`, and `tests/runtime/complex-motivation-z3.test.js`.
+- The motivation-sandbox executable specs are `tests/core-ts/combat-actions.test.mts`, `tests/personas/actor/actor-motivation-combat.test.js`, `tests/runtime/runtime-combat-application.test.js`, `tests/adapters-test/z3-solver-adapter.test.js`, and `tests/personas/actor/actor-complex-motivation-z3.test.js`.
 - The UI sandbox exposes Step and Run-To-End playback over precomputed `tickFrames`; tests and tooling can load scenarios through `window.__ak_loadScenario(scenario, options)` or bundles through `window.__ak_loadGameplayBundle(bundle, options)`.
 - UI preview/playback helpers that need deterministic core setup go through `packages/runtime/src/runner/core-facade.js`; `ui-web` must not import `core-ts` directly.
 - Core affinity field records are the canonical tile visualization input. Runtime `observation.auras` remains compatibility output only.

@@ -2,10 +2,10 @@ const assert = require("node:assert/strict");
 
 test("buildLlmActorConfigPromptTemplate includes allowed lists and warden phase shape", async () => {
   const { ALLOWED_AFFINITIES, ALLOWED_AFFINITY_EXPRESSIONS, ALLOWED_MOTIVATIONS } = await import(
-    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
+    "../../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const { buildLlmActorConfigPromptTemplate } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
   const prompt = buildLlmActorConfigPromptTemplate({
     goal: "Test goal",
@@ -36,7 +36,7 @@ test("buildLlmActorConfigPromptTemplate includes allowed lists and warden phase 
 
 test("buildLlmLevelPromptTemplate injects layout phase metadata", async () => {
   const { buildLlmLevelPromptTemplate } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
   const prompt = buildLlmLevelPromptTemplate({
     goal: "Phase goal",
@@ -71,7 +71,7 @@ test("buildLlmLevelPromptTemplate injects layout phase metadata", async () => {
 
 test("buildLlmLevelPromptTemplate encodes room-first response shape", async () => {
   const { buildLlmLevelPromptTemplate } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
   const prompt = buildLlmLevelPromptTemplate({
     goal: "Rooms layout goal",
@@ -99,7 +99,7 @@ test("buildLlmLevelPromptTemplate encodes room-first response shape", async () =
 
 test("buildLlmPhasePromptTemplate routes to layout and warden templates", async () => {
   const { buildLlmPhasePromptTemplate } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
   const layoutPrompt = buildLlmPhasePromptTemplate({
     goal: "Layout goal",
@@ -121,7 +121,7 @@ test("buildLlmPhasePromptTemplate routes to layout and warden templates", async 
 
 test("buildLlmActorConfigPromptTemplate scopes warden affinities when provided", async () => {
   const { buildLlmActorConfigPromptTemplate } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
   const prompt = buildLlmActorConfigPromptTemplate({
     goal: "Warden goal",
@@ -134,7 +134,7 @@ test("buildLlmActorConfigPromptTemplate scopes warden affinities when provided",
 });
 
 test("normalizeSummary accepts valid summary and rejects invalid fields", async () => {
-  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const { normalizeSummary } = await import("../../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const valid = normalizeSummary({
     dungeonAffinity: "fire",
     budgetTokens: 800,
@@ -197,7 +197,7 @@ test("normalizeSummary accepts valid summary and rejects invalid fields", async 
 });
 
 test("normalizeSummary preserves actor vitals when provided", async () => {
-  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const { normalizeSummary } = await import("../../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const result = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [
@@ -223,7 +223,7 @@ test("normalizeSummary preserves actor vitals when provided", async () => {
 });
 
 test("normalizeSummary requires stamina regen for non-stationary actors", async () => {
-  const { normalizeSummaryWithOptions } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const { normalizeSummaryWithOptions } = await import("../../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const invalid = normalizeSummaryWithOptions({
     dungeonAffinity: "fire",
     phase: "actors_only",
@@ -267,7 +267,7 @@ test("normalizeSummary requires stamina regen for non-stationary actors", async 
 });
 
 test("normalizeSummary defaults delver config mode when omitted", async () => {
-  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const { normalizeSummary } = await import("../../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const result = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [],
@@ -282,7 +282,7 @@ test("normalizeSummary defaults delver config mode when omitted", async () => {
 });
 
 test("normalizeSummary accepts delverConfigs and derives delverCount", async () => {
-  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const { normalizeSummary } = await import("../../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const result = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [],
@@ -299,7 +299,7 @@ test("normalizeSummary accepts delverConfigs and derives delverCount", async () 
 });
 
 test("normalizeSummary preserves delver affinity configuration", async () => {
-  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const { normalizeSummary } = await import("../../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const result = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [],
@@ -322,7 +322,7 @@ test("normalizeSummary preserves delver affinity configuration", async () => {
 });
 
 test("normalizeSummary validates delver affinity configuration", async () => {
-  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const { normalizeSummary } = await import("../../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const invalid = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [],
@@ -343,7 +343,7 @@ test("normalizeSummary validates delver affinity configuration", async () => {
 });
 
 test("normalizeSummary validates delverCount against delverConfigs length", async () => {
-  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const { normalizeSummary } = await import("../../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const invalid = normalizeSummary({
     dungeonAffinity: "fire",
     actors: [],
@@ -359,7 +359,7 @@ test("normalizeSummary validates delverCount against delverConfigs length", asyn
 });
 
 test("normalizeSummary preserves room design details when provided", async () => {
-  const { normalizeSummary } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const { normalizeSummary } = await import("../../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const result = normalizeSummary({
     dungeonAffinity: "fire",
     rooms: [],
@@ -417,7 +417,7 @@ test("normalizeSummary preserves room design details when provided", async () =>
 });
 
 test("capturePromptResponse parses JSON and surfaces errors", async () => {
-  const { capturePromptResponse } = await import("../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
+  const { capturePromptResponse } = await import("../../../packages/runtime/src/personas/orchestrator/prompt-contract.js");
   const captureOk = capturePromptResponse({
     prompt: "prompt text",
     responseText: JSON.stringify({ dungeonAffinity: "fire", actors: [], rooms: [] }),
@@ -431,7 +431,7 @@ test("capturePromptResponse parses JSON and surfaces errors", async () => {
 
 test("normalizeSummaryWithOptions accepts phase metadata and stop reasons", async () => {
   const { normalizeSummaryWithOptions } = await import(
-    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
+    "../../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const ok = normalizeSummaryWithOptions(
     {
@@ -458,7 +458,7 @@ test("normalizeSummaryWithOptions accepts phase metadata and stop reasons", asyn
 
 test("deriveAllowedOptionsFromCatalog unions catalog entries", async () => {
   const { deriveAllowedOptionsFromCatalog, ALLOWED_AFFINITIES, ALLOWED_MOTIVATIONS } = await import(
-    "../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
+    "../../../packages/runtime/src/personas/orchestrator/prompt-contract.js"
   );
   const options = deriveAllowedOptionsFromCatalog({
     entries: [
@@ -473,7 +473,7 @@ test("deriveAllowedOptionsFromCatalog unions catalog entries", async () => {
 
 test("buildLlmRepairPromptTemplate omits allowed lists when not provided", async () => {
   const { buildLlmRepairPromptTemplate } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
   const prompt = buildLlmRepairPromptTemplate({
     basePrompt: "Base prompt",

@@ -65,7 +65,7 @@ function isWalkableCell(baseTiles, x, y) {
 
 /**
  * Run one observe -> decide -> propose cycle on a persona and return the result.
- * Mirrors the harness used in tests/runtime/actor-motivation-combat.test.js.
+ * Mirrors the harness used in tests/personas/actor/actor-motivation-combat.test.js.
  */
 async function oneProposeCycle(persona, { TickPhases }, { actorId, observation, baseTiles, tick = 0, payload = {} }) {
   const base = { actorId, observation, baseTiles, ...payload };
@@ -91,8 +91,8 @@ let actorPersonaModulesPromise;
 
 async function loadActorPersonaModules() {
   actorPersonaModulesPromise ??= Promise.all([
-    import("../../packages/runtime/src/personas/actor/persona.js"),
-    import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
+    import("../../../packages/runtime/src/personas/actor/persona.js"),
+    import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
   ]);
   return actorPersonaModulesPromise;
 }
@@ -156,8 +156,8 @@ async function runRandomTrajectory({ seed, actorId = "delver_1", ticks = 8 } = {
 // ---------------------------------------------------------------------------
 
 test("random-motivation delver emits only legal adjacent-tile move proposals over several ticks", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(7, 7);
   const actorId = "delver_1";
@@ -217,8 +217,8 @@ test("random-motivation delver emits only legal adjacent-tile move proposals ove
 });
 
 test("random-motivation warden also proposes legal random moves (not exit-directed)", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(7, 7);
   const actorId = "warden_1";
@@ -255,8 +255,8 @@ test("random-motivation warden also proposes legal random moves (not exit-direct
 // ---------------------------------------------------------------------------
 
 test("random actor bounces to another legal tile when boxed against walls on three sides", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   // Actor sits in the northwest interior corner (1,1) of a walled room:
   // north, west, northwest, northeast, southwest all blocked by the border
@@ -298,8 +298,8 @@ test("random actor bounces to another legal tile when boxed against walls on thr
 });
 
 test("random actor waits (no move proposal) when fully boxed in by walls and actors", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   // Actor at (1,1) in a 3x3 walled room: the only interior neighbor tiles
   // are (2,1), (1,2), (2,2) — all occupied by other actors, so there is no
@@ -351,8 +351,8 @@ test("random actor waits (no move proposal) when fully boxed in by walls and act
 // ---------------------------------------------------------------------------
 
 test("two independent persona instances with the same seed produce identical random-move trajectories", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(9, 9);
   const actorId = "delver_1";
@@ -398,8 +398,8 @@ test("two independent persona instances with the same seed produce identical ran
 });
 
 test("different seeds are permitted to diverge in random-move trajectory", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(9, 9);
   const actorId = "delver_1";
