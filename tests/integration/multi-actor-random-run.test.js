@@ -6,7 +6,7 @@
  * packages/runtime/src/runner/runtime-fsm.mjs) for an explicit tick count N.
  *
  * This exercises the same actor-controller gap covered at the persona level
- * in tests/runtime/random-movement-ticks.test.js, but end-to-end: today
+ * in tests/personas/actor/actor-random-movement-ticks.test.js, but end-to-end: today
  * "random" motivation is not special-cased in
  * packages/runtime/src/personas/actor/persona.js buildMotivatedProposals()
  * (~line 787), so every "random" actor falls back to buildMoveProposal(),

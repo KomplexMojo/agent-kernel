@@ -6,11 +6,11 @@ const assert = require("node:assert/strict");
 const CLOCK = () => "2026-08-06T00:00:00.000Z";
 
 async function loadSelections() {
-  return import("../../packages/runtime/src/personas/director/summary-selections.js");
+  return import("../../../packages/runtime/src/personas/director/summary-selections.js");
 }
 
 async function loadAssembler() {
-  return import("../../packages/runtime/src/personas/director/buildspec-assembler.js");
+  return import("../../../packages/runtime/src/personas/director/buildspec-assembler.js");
 }
 
 // --- Hazard V2: no durability in card or round-trip ---

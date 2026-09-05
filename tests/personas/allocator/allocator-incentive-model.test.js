@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 
 
 test("incentive multiplier: max(0, async 1 - 1.25×|D/W - 0.8|) (design §3.3)", async () => {
-  const { computeIncentiveMultiplier } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
+  const { computeIncentiveMultiplier } = await import("../../../packages/runtime/src/personas/allocator/incentive-model.js");
 
 // Perfect ratio: D/W = 0.8 → multiplier = 1.0
 assert.equal(computeIncentiveMultiplier(200, 250), 1.0);
@@ -22,17 +22,17 @@ assert.ok(Math.abs(m - 0.9) < 0.001);
 });
 
 test("target delver/warden ratio is 0.8 (design §3.2)", async () => {
-  const { TARGET_DELVER_WARDEN_RATIO } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
+  const { TARGET_DELVER_WARDEN_RATIO } = await import("../../../packages/runtime/src/personas/allocator/incentive-model.js");
 assert.equal(TARGET_DELVER_WARDEN_RATIO, 0.8);
 });
 
 test("reference budget is 2500 (design §2.1)", async () => {
-  const { REFERENCE_BUDGET_TOKENS } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
+  const { REFERENCE_BUDGET_TOKENS } = await import("../../../packages/runtime/src/personas/allocator/incentive-model.js");
 assert.equal(REFERENCE_BUDGET_TOKENS, 2500);
 });
 
 test("reference targets include five budget pools for the 2500-token budget (design §2.2)", async () => {
-  const { REFERENCE_TARGETS } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
+  const { REFERENCE_TARGETS } = await import("../../../packages/runtime/src/personas/allocator/incentive-model.js");
 assert.equal(REFERENCE_TARGETS.rooms, 725);
 assert.equal(REFERENCE_TARGETS.delvers, 625);
 assert.equal(REFERENCE_TARGETS.wardens, 575);
@@ -41,7 +41,7 @@ assert.equal(REFERENCE_TARGETS.resources, 200);
 });
 
 test("scenario spend report includes all required fields (design §14)", async () => {
-  const { buildScenarioSpendReport } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
+  const { buildScenarioSpendReport } = await import("../../../packages/runtime/src/personas/allocator/incentive-model.js");
 
 const report = buildScenarioSpendReport({
   roomsSpend: 500,
@@ -72,7 +72,7 @@ assert.ok(report.incentive.multiplier <= 1);
 });
 
 test("scenario spend report scales default allocation targets for a 10000-token budget", async () => {
-  const { buildScenarioSpendReport } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
+  const { buildScenarioSpendReport } = await import("../../../packages/runtime/src/personas/allocator/incentive-model.js");
 
 const report = buildScenarioSpendReport({ budgetTokens: 10000 });
 
@@ -95,7 +95,7 @@ assert.equal(report.categories.resources.target, 800);
  * `rooms.actual` was 67 for a build whose only room-pool spend was 25 tokens of floor tiles.
  */
 test("the rooms row rolls up the rooms POOL, and hazards are not part of it", async () => {
-  const { buildScenarioSpendReport } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
+  const { buildScenarioSpendReport } = await import("../../../packages/runtime/src/personas/allocator/incentive-model.js");
 
   const report = buildScenarioSpendReport({
     lineItems: [
@@ -114,7 +114,7 @@ test("the rooms row rolls up the rooms POOL, and hazards are not part of it", as
 });
 
 test("floor_tiles and shared_system DO roll up into rooms — they share its pool", async () => {
-  const { buildScenarioSpendReport } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
+  const { buildScenarioSpendReport } = await import("../../../packages/runtime/src/personas/allocator/incentive-model.js");
 
   const report = buildScenarioSpendReport({
     lineItems: [
@@ -138,7 +138,7 @@ test("floor_tiles and shared_system DO roll up into rooms — they share its poo
  * would have surfaced the first time anything passed an explicit categorySpend with hazards.
  */
 test("with no lineItems, totalSpend counts every category exactly once", async () => {
-  const { buildScenarioSpendReport } = await import("../../packages/runtime/src/personas/allocator/incentive-model.js");
+  const { buildScenarioSpendReport } = await import("../../../packages/runtime/src/personas/allocator/incentive-model.js");
 
   const report = buildScenarioSpendReport({
     categorySpend: {

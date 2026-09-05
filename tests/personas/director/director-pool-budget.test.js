@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 
 test("enforceBudget trims to cap deterministically", async () => {
-  const { enforceBudget } = await import("../../packages/runtime/src/personas/director/budget-enforcer.js");
+  const { enforceBudget } = await import("../../../packages/runtime/src/personas/director/budget-enforcer.js");
   const selections = [
     { applied: { id: "hi_cost", cost: 200 }, requested: { count: 2 } },
     { applied: { id: "mid_cost", cost: 120 }, requested: { count: 2 } },
@@ -23,7 +23,7 @@ test("enforceBudget trims to cap deterministically", async () => {
 });
 
 test("enforceBudget passes through when no cap", async () => {
-  const { enforceBudget } = await import("../../packages/runtime/src/personas/director/budget-enforcer.js");
+  const { enforceBudget } = await import("../../../packages/runtime/src/personas/director/budget-enforcer.js");
   const selections = [{ applied: { id: "item", cost: 100 }, requested: { count: 1 } }];
   const result = enforceBudget({ selections });
   assert.equal(result.totalApproved, 100);

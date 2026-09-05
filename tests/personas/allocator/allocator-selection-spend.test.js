@@ -1,20 +1,20 @@
 const assert = require("node:assert/strict");
 // CR.9 M3: selection spend prices raw actor motivations, and the Allocator refuses
 // without the Configurator's vocabulary — injected here exactly as production does.
-const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
+const { configuratorNormalizeMotivations } = require("../../helpers/configurator-capabilities.js");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
 
-const catalogPath = resolve(__dirname, "../fixtures/pool/catalog-basic.json");
+const catalogPath = resolve(__dirname, "../../fixtures/pool/catalog-basic.json");
 const catalogFixture = JSON.parse(readFileSync(catalogPath, "utf8"));
 
 
 
 test("allocator selection spend trims over-budget selections deterministically", async () => {
-const { evaluateSelectionSpend } = await import("../../packages/runtime/src/personas/allocator/selection-spend.js");
+const { evaluateSelectionSpend } = await import("../../../packages/runtime/src/personas/allocator/selection-spend.js");
 const normalizeMotivations = await configuratorNormalizeMotivations();
-const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
+const { mapSummaryToPool } = await import("../../../packages/runtime/src/personas/director/pool-mapper.js");
 
 const summary = {
   dungeonAffinity: "fire",
@@ -33,9 +33,9 @@ assert.ok(result.warnings?.some((entry) => entry.code === "trimmed"));
 });
 
 test("allocator selection spend approves selections when budget allows", async () => {
-const { evaluateSelectionSpend } = await import("../../packages/runtime/src/personas/allocator/selection-spend.js");
+const { evaluateSelectionSpend } = await import("../../../packages/runtime/src/personas/allocator/selection-spend.js");
 const normalizeMotivations = await configuratorNormalizeMotivations();
-const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
+const { mapSummaryToPool } = await import("../../../packages/runtime/src/personas/director/pool-mapper.js");
 
 const summary = {
   dungeonAffinity: "fire",
@@ -54,10 +54,10 @@ assert.equal(result.rejectedSelections.length, 0);
 
 
 test("allocator selection spend includes actor configuration costs", async () => {
-const { evaluateSelectionSpend } = await import("../../packages/runtime/src/personas/allocator/selection-spend.js");
+const { evaluateSelectionSpend } = await import("../../../packages/runtime/src/personas/allocator/selection-spend.js");
 const normalizeMotivations = await configuratorNormalizeMotivations();
-const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
-const { buildDefaultPriceList } = await import("../../packages/runtime/src/personas/allocator/default-price-list.js");
+const { mapSummaryToPool } = await import("../../../packages/runtime/src/personas/director/pool-mapper.js");
+const { buildDefaultPriceList } = await import("../../../packages/runtime/src/personas/allocator/default-price-list.js");
 
 const summary = {
   dungeonAffinity: "fire",

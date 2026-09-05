@@ -26,12 +26,19 @@ The goal is not to invent tests from raw prose. The goal is to:
 
 ## Where Tests Live
 
+- `tests/personas/<persona>/`: persona behavior tests only. Named `<persona>-<behavior>.test.*`. Enforced by `tests/architecture/persona-test-layout.test.js`. Do **not** put persona behavior under `tests/runtime/`, `tests/allocator/`, or `tests/financial-model/`.
+- `tests/runtime/`: runtime contracts, tick orchestration, e2e fixture flows that are not a single persona's behavior test.
 - `tests/core-ts/`: pure deterministic core behavior.
-- `tests/runtime/` and `tests/personas/`: runtime contracts, command kernel behavior, persona transitions.
+- `tests/architecture/`: dependency-direction and charter/persona authority guards.
+- `tests/contracts/`: artifact schema contracts.
 - `tests/adapters-cli/`, `tests/adapters-web/`, `tests/adapters-test/`: adapter-level behavior.
 - `tests/integration/`: cross-package and MCP/CLI/UI flows.
 - `tests/ui-web/`: browser/UI behavior, fixture-backed and headless.
-- `tests/fixtures/`: shared deterministic input and expected-output artifacts.
+- `tests/tools/`: repo tool / benchmark-harness helpers under test.
+- `tests/bindings/`, `tests/scripts/`, `tests/perf/`: binding contracts, script unit tests, perf probes.
+- `tests/fixtures/`: shared deterministic input and expected-output artifacts (data; a few self-tests).
+- `tests/helpers/`: shared test utilities (not a suite root).
+- `tests/llm-suitability/`: scenario pack for LLM suitability (not Vitest by default).
 
 ## Default Rule
 
@@ -87,7 +94,11 @@ Do not use the local model for:
 ## Runner Rules
 
 - Use `Vitest` for Node-side tests.
-- Use `pnpm run test` for the default Node-side suite.
+- Use `pnpm run test` for the default Node-side suite (human-readable reporter).
+- Use `pnpm run test:structured` for machine triage: prints only
+  `{ total, passed, failed, failures:[{ test, file, category, message }] }`
+  (same shape fast-pass / tiered-test-optimizer consume). Narrow with
+  `pnpm run test:structured -- tests/<path>/<name>.test.js`.
 
 ## Recipe-First Mapping
 

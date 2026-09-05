@@ -32,10 +32,10 @@ function makeBaseTiles() {
  */
 async function runOneProposeCycle({ observation, payload, extraPayload = {} }) {
   const { createActorPersona } = await import(
-    "../../packages/runtime/src/personas/actor/persona.js"
+    "../../../packages/runtime/src/personas/actor/persona.js"
   );
   const { TickPhases } = await import(
-    "../../packages/runtime/src/personas/_shared/tick-state-machine.mts"
+    "../../../packages/runtime/src/personas/_shared/tick-state-machine.mts"
   );
   const persona = createActorPersona({ clock: () => "fixed_clock" });
   const fullPayload = { ...payload, observation, baseTiles: makeBaseTiles(), ...extraPayload };
@@ -128,9 +128,9 @@ test("Z3 adapter via solver port resolves the envelope to a fulfilled action", a
 
   // Wire through the solver port to the Z3 adapter
   const [{ createSolverPort }, { createZ3SolverAdapter }, { resolveActionFromSolverResult }] = await Promise.all([
-    import("../../packages/runtime/src/ports/solver.js"),
-    import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js"),
-    import("../../packages/runtime/src/personas/_shared/runtime-decision.mts"),
+    import("../../../packages/runtime/src/ports/solver.js"),
+    import("../../../packages/adapters-test/src/adapters/solver/z3-adapter.js"),
+    import("../../../packages/runtime/src/personas/_shared/runtime-decision.mts"),
   ]);
 
   const port = createSolverPort({ clock: () => "fixed_clock" });
@@ -171,9 +171,9 @@ test("solver deferred response is recorded without throwing or executing IO", as
   const solverRequest = result.effects[0].request;
 
   const [{ createSolverPort }, { createZ3SolverAdapter }, { resolveActionFromSolverResult }] = await Promise.all([
-    import("../../packages/runtime/src/ports/solver.js"),
-    import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js"),
-    import("../../packages/runtime/src/personas/_shared/runtime-decision.mts"),
+    import("../../../packages/runtime/src/ports/solver.js"),
+    import("../../../packages/adapters-test/src/adapters/solver/z3-adapter.js"),
+    import("../../../packages/runtime/src/personas/_shared/runtime-decision.mts"),
   ]);
 
   const port = createSolverPort({ clock: () => "fixed_clock" });
@@ -207,8 +207,8 @@ test("solver error response is recorded without throwing", async () => {
   const solverRequest = result.effects[0].request;
 
   const [{ createSolverPort }, { createZ3SolverAdapter }] = await Promise.all([
-    import("../../packages/runtime/src/ports/solver.js"),
-    import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js"),
+    import("../../../packages/runtime/src/ports/solver.js"),
+    import("../../../packages/adapters-test/src/adapters/solver/z3-adapter.js"),
   ]);
 
   const port = createSolverPort({ clock: () => "fixed_clock" });
@@ -263,7 +263,7 @@ test("complex actor with no hostile present lets the Actor-authored tuple select
   assert.ok(envelope.candidateActions.some((c) => c.action?.kind === "move"));
   assert.ok(envelope.candidateActions.some((c) => c.action?.kind === "wait"));
 
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
+  const { createZ3SolverAdapter } = await import("../../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
   const solverResult = await createZ3SolverAdapter().solve(solverRequest);
 
   assert.equal(solverResult.status, "fulfilled");
@@ -286,7 +286,7 @@ test("complex actor with hostile far away lets the Actor-authored tuple select m
 
   const result = await runOneProposeCycle({ observation, payload });
   const solverRequest = result.effects[0].request;
-  const { createZ3SolverAdapter } = await import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
+  const { createZ3SolverAdapter } = await import("../../../packages/adapters-test/src/adapters/solver/z3-adapter.js");
   const solverResult = await createZ3SolverAdapter().solve(solverRequest);
 
   assert.equal(solverResult.status, "fulfilled");
@@ -310,7 +310,7 @@ test("solver unsat result resolves to ok=false with status unsat", async () => {
 
   const result = await runOneProposeCycle({ observation, payload });
   const solverRequest = result.effects[0].request;
-  const { resolveActionFromSolverResult } = await import("../../packages/runtime/src/personas/_shared/runtime-decision.mts");
+  const { resolveActionFromSolverResult } = await import("../../../packages/runtime/src/personas/_shared/runtime-decision.mts");
 
   const resolved = resolveActionFromSolverResult({
     solverRequest,
@@ -338,7 +338,7 @@ test("solver model referencing a missing candidate id fails resolution", async (
 
   const result = await runOneProposeCycle({ observation, payload });
   const solverRequest = result.effects[0].request;
-  const { resolveActionFromSolverResult } = await import("../../packages/runtime/src/personas/_shared/runtime-decision.mts");
+  const { resolveActionFromSolverResult } = await import("../../../packages/runtime/src/personas/_shared/runtime-decision.mts");
 
   const resolved = resolveActionFromSolverResult({
     solverRequest,
@@ -410,8 +410,8 @@ test("complex actor motivation flip between attacking and defending yields conte
   };
 
   const [{ createZ3SolverAdapter }, { resolveActionFromSolverResult }] = await Promise.all([
-    import("../../packages/adapters-test/src/adapters/solver/z3-adapter.js"),
-    import("../../packages/runtime/src/personas/_shared/runtime-decision.mts"),
+    import("../../../packages/adapters-test/src/adapters/solver/z3-adapter.js"),
+    import("../../../packages/runtime/src/personas/_shared/runtime-decision.mts"),
   ]);
   const adapter = createZ3SolverAdapter();
   const attacking = await runOneProposeCycle({ observation: attackingObservation, payload });

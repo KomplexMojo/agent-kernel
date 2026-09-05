@@ -45,8 +45,8 @@ async function oneProposeCycle(persona, { TickPhases }, { actorId, observation, 
 // ---------------------------------------------------------------------------
 
 test("attacking actor proposes move toward hostile target rather than exit", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   // 5×3 board: delver at (1,1), warden at (3,1), exit at (4,1)
   // Attacking motivation should prefer moving toward warden (3,1) over exit (4,1).
@@ -82,8 +82,8 @@ test("attacking actor proposes move toward hostile target rather than exit", asy
 // ---------------------------------------------------------------------------
 
 test("attacking actor proposes attack action when adjacent to hostile target", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   // delver at (1,1) directly adjacent to warden at (2,1)
   const baseTiles = makeFloorGrid(5, 3);
@@ -115,8 +115,8 @@ test("attacking actor proposes attack action when adjacent to hostile target", a
 // ---------------------------------------------------------------------------
 
 test("defending actor does not move when hostile is not adjacent", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   // warden at (3,1), delver at (1,1) — two tiles away, not adjacent
   const baseTiles = makeFloorGrid(5, 3);
@@ -141,8 +141,8 @@ test("defending actor does not move when hostile is not adjacent", async () => {
 });
 
 test("defending actor proposes attack when hostile becomes adjacent", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   // warden at (3,1), delver at (2,1) — adjacent
   const baseTiles = makeFloorGrid(5, 3);
@@ -173,8 +173,8 @@ test("defending actor proposes attack when hostile becomes adjacent", async () =
 // ---------------------------------------------------------------------------
 
 test("stationary actor proposes no movement even when hostile is present", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(5, 3);
   const actorId = "warden_1";
@@ -197,8 +197,8 @@ test("stationary actor proposes no movement even when hostile is present", async
 });
 
 test("attacking actor with no hostile present falls back to exit pathfinding", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(5, 3);
   const actorId = "delver_1";
@@ -220,8 +220,8 @@ test("attacking actor with no hostile present falls back to exit pathfinding", a
 
 test.skip("attacking actor with hostile at HP 0 ignores defeated actor and falls back to exit", async () => {
   // Current hostile selection does not inspect actor health/vitals.
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(5, 3);
   const actorId = "delver_1";
@@ -243,8 +243,8 @@ test.skip("attacking actor with hostile at HP 0 ignores defeated actor and falls
 });
 
 test("attacking actor with multiple hostiles targets nearest hostile by Chebyshev distance", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(7, 3);
   const actorId = "delver_1";
@@ -266,8 +266,8 @@ test("attacking actor with multiple hostiles targets nearest hostile by Chebyshe
 });
 
 test("defending actor with hostile adjacent on diagonal attacks the diagonal neighbor", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(5, 5);
   const actorId = "warden_1";
@@ -289,8 +289,8 @@ test("defending actor with hostile adjacent on diagonal attacks the diagonal nei
 
 test.skip("defending actor with no visible hostile proposes wait without movement or attack", async () => {
   // Current defending behavior falls back to exit pathing when no hostile is visible.
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(5, 3);
   const actorId = "warden_1";
@@ -310,8 +310,8 @@ test.skip("defending actor with no visible hostile proposes wait without movemen
 });
 
 test("two attacking actors each target the other independently", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(5, 3);
   const observation = {
@@ -341,8 +341,8 @@ test("two attacking actors each target the other independently", async () => {
 });
 
 test("actor with non-combat motivation kind falls back to exit pathing", async () => {
-  const { createActorPersona } = await import("../../packages/runtime/src/personas/actor/persona.js");
-  const { TickPhases } = await import("../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
 
   const baseTiles = makeFloorGrid(5, 3);
   const actorId = "delver_1";

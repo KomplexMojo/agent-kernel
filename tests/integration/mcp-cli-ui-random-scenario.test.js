@@ -226,7 +226,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     // M6->M7 gap for the acceptance scenario: without motivation.kind
     // "random" reaching InitialState, the runtime persona layer
     // (packages/runtime/src/personas/actor/persona.js, see
-    // tests/runtime/random-movement-ticks.test.js) has nothing to key off of
+    // tests/personas/actor/actor-random-movement-ticks.test.js) has nothing to key off of
     // for these CLI-authored actors, even though the persona-level "random"
     // behavior itself is already implemented and working (M3, verified below
     // via direct runtime execution in the next test).
@@ -311,7 +311,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     // Accepted move actions must be present somewhere across the run — random
     // motivation actors in a 5-room level should move at least once in 100 ticks.
     // NOTE: this assertion exercises the runtime's own persona-level random
-    // movement (already implemented per M3 / tests/runtime/random-movement-ticks.test.js)
+    // movement (already implemented per M3 / tests/personas/actor/actor-random-movement-ticks.test.js)
     // operating on whatever motivation ended up in InitialState. Given the
     // "ak_create drops motivation" gap pinned in the previous test, actors run
     // here may have NO motivation at all, in which case the persona falls back
