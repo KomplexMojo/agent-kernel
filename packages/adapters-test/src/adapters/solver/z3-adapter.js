@@ -12,6 +12,7 @@ const ACTOR_DECISION_OBJECTIVE_CONTRACTS = new Set([
   "actor-decision-objective-v2",
   "actor-decision-objective-v3",
   "actor-decision-objective-v4",
+  "actor-decision-objective-v5",
 ]);
 
 function isObject(value) {

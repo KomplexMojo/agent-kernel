@@ -86,7 +86,7 @@ test("attacking ranks its cast proposal with target health and live grant reserv
     hazards: [{ id: "fire_patch", position: { x: 2, y: 1 }, stacks: 3 }],
   });
 
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v4");
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v5");
   // v4: the cast now carries its REAL class (in_range_combat, 500) plus the demoted
   // proposal flag at index 7. It used to read 600 purely because it was a proposal.
   assert.deepEqual(row(envelope, "cast_affinity_warden_1").rank, [500, 8000, 0, 0, 0, 0, 500, 1, 0]);
@@ -184,7 +184,7 @@ test("an unknown motivation emits an Actor-owned compatibility tuple", async () 
   });
 
   assert.equal(envelope.actor.motivationProfile, undefined);
-  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v4");
+  assert.equal(envelope.objectives.actorDecision.contract, "actor-decision-objective-v5");
   assert.deepEqual(envelope.objectives.actorDecision.order, [
     "intentClass",
     "targetFinish",
@@ -196,9 +196,53 @@ test("an unknown motivation emits an Actor-owned compatibility tuple", async () 
     "actorProposal",
     "inputOrder",
   ]);
-  assert.equal(row(envelope, "move_east").rank[0], 80);
+  // v5 PUT THIS BRANCH ON THE SHARED `ACTOR_INTENT_CLASS` SCALE. It used to publish its own
+  // 100/80/50/20/10 under the same `intentClass` member name, which was invisible while
+  // adapters only stable-sorted the tuple -- both scales rank their own branch identically.
+  // It became a live defect when the Moderator started ORDERING ACTORS by rank[0]: a legacy
+  // attacker (100) tied with a motivated actor's WAIT (100) and lost to its mere movement
+  // (200). These literals are the shared scale, and the ratio to `wait_here` is what proves
+  // the remap stayed monotonic -- i.e. that the branch still SELECTS what it selected before.
+  assert.equal(row(envelope, "move_east").rank[0], 400);
   assert.deepEqual(row(envelope, "move_east").rationaleTags, ["legacy_move_toward_hostile"]);
-  assert.equal(row(envelope, "wait_here").rank[0], 10);
+  assert.equal(row(envelope, "wait_here").rank[0], 100);
+  assert.ok(
+    row(envelope, "move_east").rank[0] > row(envelope, "wait_here").rank[0],
+    "the remap must preserve which candidate this branch prefers",
+  );
+});
+
+// THE TRAP THIS GUARDS: one member name, two producers, two scales. It cost nothing until a
+// consumer compared the value ACROSS producers, and then it silently mis-ordered actors.
+// Motivated and unmotivated actors coexist in a tick, so their intentClass values must be
+// drawn from the same set -- not merely be internally consistent.
+test("motivated and legacy branches publish intentClass on one shared scale", async () => {
+  const others = [{ id: "warden_1", kind: 2, role: "warden", position: { x: 3, y: 1 } }];
+  const motivated = await solverEnvelope({
+    self: {
+      id: "delver_1", kind: 2, role: "delver", position: { x: 1, y: 1 },
+      motivation: { kind: "attacking" },
+    },
+    others,
+  });
+  const legacy = await solverEnvelope({
+    self: {
+      id: "delver_1", kind: 2, role: "delver", position: { x: 1, y: 1 },
+      motivation: { kind: "not_a_real_motivation" },
+    },
+    others,
+  });
+  assert.equal(motivated.actor.motivationProfile?.kind, "attacking", "motivated branch not exercised");
+  assert.equal(legacy.actor.motivationProfile, undefined, "legacy branch not exercised");
+  const allowed = new Set([0, 100, 200, 300, 400, 500]);
+  for (const [label, envelope] of [["motivated", motivated], ["legacy", legacy]]) {
+    for (const candidate of envelope.objectives.actorDecision.candidates) {
+      assert.ok(
+        allowed.has(candidate.rank[0]),
+        `${label} branch published intentClass ${candidate.rank[0]}, which is off the shared scale`,
+      );
+    }
+  }
 });
 
 // v4 EXPOSED A FALSE PREMISE HERE. These two moves used to share intentClass 600 only

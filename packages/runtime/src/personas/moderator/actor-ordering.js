@@ -13,16 +13,34 @@
  * order-independent, and only because nothing gates a downed actor from acting.
  *
  * ORDER BY INTENT CLASS, DESCENDING (maintainer ruling, 2026-09-04). Combat resolves before
- * pursuit, before movement, before waiting. The Actor already computes `intentClass` when it
- * ranks its own candidates and then discarded it; this consumes that existing, Actor-owned
- * meaning rather than deriving a second one. THE MODERATOR MUST NOT REINTERPRET IT — a
- * Moderator that re-derived what "combat" means would be a second authority on Actor policy,
- * which is the F10 defect this codebase has already paid to remove once.
+ * pursuit, before exit progress, before movement, before waiting. THE MODERATOR MUST NOT
+ * REINTERPRET THE CLASS — a Moderator that re-derived what "combat" means would be a second
+ * authority on Actor policy, which is the F10 defect this codebase has already paid to remove
+ * once. It receives a number and sorts on it; `actor/classifyActorIntent` is the only thing
+ * that decides what the number means.
+ *
+ * ⚠️ AN EARLIER VERSION OF THIS HEADER MADE THAT CLAIM WHILE IT WAS FALSE. It said the class
+ * came from the Actor's own ranking; in fact the Actor surfaced a SECOND, coarser class keyed
+ * off action kind alone, so `hostile_progress` (400) and `exit_progress` (300) both arrived as
+ * `mobile_fallback` (200) and tie-broke on actor id. The two authorities this paragraph warns
+ * against were both live, 200 lines apart, the day it was written. Both derivations are now
+ * one function.
  *
  * TIES BREAK ON ACTOR ID, and that is a real constraint rather than a detail: `ak replay`
  * compares runs frame by frame, so an ordering that varied between runs would break replay
  * outright rather than degrade it. Id is stable, total, and independent of how the build
  * happened to emit the actor list — which is precisely what the array order was not.
+ *
+ * WHERE INTENTIONS COME FROM — two paths, because an Actor has two. On the plain route it
+ * classifies the action it emitted. On the runtime-decision route it emits no action during
+ * decide, only a solver request, so the intention is surfaced in `tick-orchestrator` when the
+ * result resolves, read back out of the rank the Actor published. Before that second path
+ * existed, 17 of 17 measured advances on it surfaced NOTHING, and this sort degenerated
+ * silently to its alphabetical tie-break on the path with the richest intent data.
+ *
+ * BOUND, NOT ADVISORY. `runtime-fsm.mjs → orderActionsForResolution` applies this ruling to
+ * the tick's actions before core resolves them. A ruling nobody reads is what shipped in
+ * `edaa299`; `moderator-resolution-order-binding.test.js` is what keeps it read.
  *
  * This module is pure: intentions in, ordered ids out. No clock, no IO, no core access.
  */

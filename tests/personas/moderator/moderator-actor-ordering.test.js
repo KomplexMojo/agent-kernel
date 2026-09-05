@@ -124,8 +124,69 @@ test("the Actor surfaces an intention for the action it chose", async () => {
   assert.equal(intention.actorId, "delver_1");
   assert.ok(intention.intentClass > 0, "a chosen action must carry a real class");
   // Anti-vacuity: the intention must describe the action actually emitted, not a default.
+  // The tag is the CLASSIFICATION, not the raw kind -- this actor moves toward the exit, so a
+  // `move` reports `exit_progress` (300) and not the kind-derived `mobile_fallback` (200) the
+  // deleted `intentClassForAction` produced. Asserting the kind here would have been satisfied
+  // by the coarse derivation too, which is exactly the vacuity this check exists to prevent.
   const chosen = result.actions.find((action) => action.kind !== "emit_log" && action.kind !== "emit_telemetry");
-  assert.equal(intention.intentTag, chosen.kind, "the intention must name the chosen action");
+  assert.equal(chosen.kind, "move", "this scenario is only meaningful if the actor moves");
+  assert.equal(intention.intentTag, "exit_progress", "the intention must carry the ranked class");
+  assert.equal(intention.intentClass, 300, "exit progress outranks a bare mobile fallback");
+});
+
+// THE GAP THIS CLOSES. On the runtime-decision route the Actor emits no action during decide --
+// only a solver request -- so the surfacing above never runs. Measured before the fix: 17 of 17
+// advances on that path produced zero actions AND zero intentions, so every actor sorted at
+// class 0 and the Moderator's ordering silently degenerated to its alphabetical tie-break, on
+// precisely the path carrying the richest intent data.
+test("the envelope path surfaces the intent the Actor published in its rank", async () => {
+  const { resolveIntentFromDecision } = await import(
+    "../../../packages/runtime/src/personas/actor/persona.js"
+  );
+  const solverRequest = {
+    problem: {
+      data: {
+        contract: "runtime-decision-v1",
+        decisionKind: "next_move",
+        tick: 4,
+        actor: { id: "delver_1" },
+        candidateActions: [{ id: "move_east" }, { id: "wait_here" }],
+        objectives: {
+          actorDecision: {
+            contract: "actor-decision-objective-v5",
+            order: ["intentClass", "targetFinish"],
+            candidates: [
+              { candidateActionId: "move_east", rank: [400, 0], features: {}, rationaleTags: ["hostile_progress"] },
+              { candidateActionId: "wait_here", rank: [100, 0], features: {}, rationaleTags: ["wait"] },
+            ],
+          },
+        },
+      },
+    },
+  };
+
+  assert.deepEqual(
+    resolveIntentFromDecision({ solverRequest, selectedActionId: "move_east" }),
+    { actorId: "delver_1", intentClass: 400, intentTag: "hostile_progress", tick: 4 },
+  );
+  // It reads the winner, not the first row -- a version that returned candidates[0] would pass
+  // the assertion above and be wrong for every actor whose best candidate is not listed first.
+  assert.equal(
+    resolveIntentFromDecision({ solverRequest, selectedActionId: "wait_here" }).intentClass,
+    100,
+  );
+  // The member is located BY NAME from the published order, never by a hardcoded index.
+  const reordered = JSON.parse(JSON.stringify(solverRequest));
+  reordered.problem.data.objectives.actorDecision.order = ["targetFinish", "intentClass"];
+  assert.equal(
+    resolveIntentFromDecision({ solverRequest: reordered, selectedActionId: "move_east" }).intentClass,
+    0,
+  );
+  // No rank, no intention. Ordering actors on an invented default is worse than not ordering.
+  const missing = JSON.parse(JSON.stringify(solverRequest));
+  delete missing.problem.data.objectives.actorDecision;
+  assert.equal(resolveIntentFromDecision({ solverRequest: missing, selectedActionId: "move_east" }), null);
+  assert.equal(resolveIntentFromDecision({ solverRequest, selectedActionId: "not_a_candidate" }), null);
 });
 
 // ## TODO: Test Permutations

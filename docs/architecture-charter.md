@@ -260,6 +260,15 @@ several phases achieved **structural** routing without **semantic** authority:
   As of CR.8 the RunSummary is produced by the Annotator that actually observed the run: the kernel
   goes through `runtime.summarizeRun()`, which refuses to summarize a ticked run from an instance
   still `idle` (**A5**). Phase 3 has no open gaps.
+- **ACTOR resolution order is Moderator policy too (maintainer ruling, 2026-09-04).** Persona order
+  was covered by CR.5; actor order was not, and was left to `initialState.actors` array order — the
+  sequence the build happened to emit. Measured across 48 two- and three-actor scenarios, 75% had an
+  outcome that depended on it. Actors now surface an `ActorIntentionV1` (a protocol message, no
+  `meta`), the Moderator orders by intent class descending with a stable actor-id tie-break, and
+  `runtime-fsm.mjs → orderActionsForResolution` applies that ruling before core resolves the tick.
+  The Moderator never receives the actions themselves — one holding actions could reorder outcomes
+  rather than actors — and never reinterprets the class, which `actor/classifyActorIntent` alone
+  authors.
 - **Closed by CR.6 and PX.4:** the Actor no longer holds decision-relevant state in a closure — it keeps nothing
   outside its FSM, so its decision is a function of (`view()`, event, payload) (**A4**) — and it no longer
   defines budget admissibility, which now lives in the Allocator and reaches the Actor only as that
@@ -460,7 +469,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - Complex motivation must route through the runtime solver port (`packages/runtime/src/ports/solver.js`) and adapter implementations. Runtime code constructs the request envelope and consumes the normalized result; it does not embed solver-specific logic.
 - `packages/runtime/src/personas/_shared/runtime-decision.mts` resolves fulfilled solver results through `resolveActionFromSolverResult()` and maps the selected candidate back to a concrete runtime action.
 - The Actor owns candidate feature meaning and objective order. It emits
-  `actor-decision-objective-v4`; adapters validate and stably sort the nine-integer lexicographic
+  `actor-decision-objective-v5`; adapters validate and stably sort the nine-integer lexicographic
   tuples without interpreting domain features, while retaining opaque validation compatibility for
   valid v1 envelopes. Every live Actor request includes an objective; unknown motivation profiles
   receive an Actor-authored compatibility tuple. Invalid or absent objectives defer with typed

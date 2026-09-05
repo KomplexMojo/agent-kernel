@@ -63,7 +63,15 @@ Basic Adapters are in place for:
 
 ## Actor Runtime Decisions
 
-- **Field-aware policy (v2, extended by v3 and v4):** the Actor emits `actor-decision-objective-v4`,
+- **`intentClass` has one scale and one author (v5, maintainer ruling, 2026-09-04).** The
+  no-motivation-profile branch used to publish its own 100/80/50/20/10 under the same member name.
+  That was invisible while adapters only stable-sorted the tuple — both scales rank their own branch
+  identically — and became a defect the moment the Moderator began ORDERING ACTORS by `rank[0]`: a
+  legacy attacker (100) tied with a motivated actor's wait, and lost to its mere movement (200). v5
+  puts both branches on `ACTOR_INTENT_CLASS` (500/400/300/200/100/0). The remap is monotonic, so no
+  branch changes which candidate it selects. `actor/classifyActorIntent` is the sole author of the
+  value; the Moderator sorts on it and never reinterprets it.
+- **Field-aware policy (v2, extended by v3, v4 and v5):** the Actor emits `actor-decision-objective-v5`,
   retaining the v1 primary order and inserting `fieldSafety` then `fieldBenefit` before cast reserve.
   v3 split the former single `profileAlignment` member into `coverAlignment` and `stealthAlignment`,
   because summing a flat cover bonus with a scaled stealth delta made the two indistinguishable, and
@@ -74,16 +82,16 @@ Basic Adapters are in place for:
   current cell. Harm is penalized first; beneficial effects count only up to the affected vital's
   missing capacity. These are tie-breakers only: they cannot override intent, target finish, or
   cover or stealth alignment. No field prediction, affordability, price, effect application, or Z3
-  variable is introduced. Consumers compare v1 through v4 tuples opaquely and defer unknown contracts.
+  variable is introduced. Consumers compare v1 through v5 tuples opaquely and defer unknown contracts.
   Field exposure is resolved against the OBSERVING actor rather than per tile: an actor takes no harm
   from its own affinity, amplified harm from its opposite, and a `draw`-expression actor converts a
   same-kind field into mana. That relationship rule is derived from the existing 48-cell interaction
   matrix, not authored a second time.
-- The Actor owns candidate feature meaning and emits `actor-decision-objective-v4` inside the existing
+- The Actor owns candidate feature meaning and emits `actor-decision-objective-v5` inside the existing
   `runtime-decision-v1` envelope. Its rank is maximized lexicographically in this exact order:
   `intentClass`, `targetFinish`, `coverAlignment`, `stealthAlignment`, `fieldSafety`, `fieldBenefit`,
   `castReserve`, `actorProposal`, `inputOrder`. Consumers retain opaque compatibility for valid v1,
-  v2 and v3 envelopes.
+  v2, v3 and v4 envelopes.
 - **`intentClass` no longer carries Actor proposal authority (maintainer ruling, 2026-09-04).** It
   previously did, and that clause is the one this bullet replaces. A candidate matching the Actor's
   own deterministic proposal was stamped an `intentClass` above every other class, so it won outright:
