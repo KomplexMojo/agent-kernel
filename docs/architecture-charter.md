@@ -260,6 +260,15 @@ several phases achieved **structural** routing without **semantic** authority:
   As of CR.8 the RunSummary is produced by the Annotator that actually observed the run: the kernel
   goes through `runtime.summarizeRun()`, which refuses to summarize a ticked run from an instance
   still `idle` (**A5**). Phase 3 has no open gaps.
+- **ACTOR resolution order is Moderator policy too (maintainer ruling, 2026-09-04).** Persona order
+  was covered by CR.5; actor order was not, and was left to `initialState.actors` array order — the
+  sequence the build happened to emit. Measured across 48 two- and three-actor scenarios, 75% had an
+  outcome that depended on it. Actors now surface an `ActorIntentionV1` (a protocol message, no
+  `meta`), the Moderator orders by intent class descending with a stable actor-id tie-break, and
+  `runtime-fsm.mjs → orderActionsForResolution` applies that ruling before core resolves the tick.
+  The Moderator never receives the actions themselves — one holding actions could reorder outcomes
+  rather than actors — and never reinterprets the class, which `actor/classifyActorIntent` alone
+  authors.
 - **Closed by CR.6 and PX.4:** the Actor no longer holds decision-relevant state in a closure — it keeps nothing
   outside its FSM, so its decision is a function of (`view()`, event, payload) (**A4**) — and it no longer
   defines budget admissibility, which now lives in the Allocator and reaches the Actor only as that
@@ -460,25 +469,48 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - Complex motivation must route through the runtime solver port (`packages/runtime/src/ports/solver.js`) and adapter implementations. Runtime code constructs the request envelope and consumes the normalized result; it does not embed solver-specific logic.
 - `packages/runtime/src/personas/_shared/runtime-decision.mts` resolves fulfilled solver results through `resolveActionFromSolverResult()` and maps the selected candidate back to a concrete runtime action.
 - The Actor owns candidate feature meaning and objective order. It emits
-  `actor-decision-objective-v2`; adapters validate and stably sort the seven-integer lexicographic
+  `actor-decision-objective-v6`; adapters validate and stably sort the nine-integer lexicographic
   tuples without interpreting domain features, while retaining opaque validation compatibility for
   valid v1 envelopes. Every live Actor request includes an objective; unknown motivation profiles
   receive an Actor-authored compatibility tuple. Invalid or absent objectives defer with typed
   reasons, after which runtime applies its deterministic Actor fallback. An adapter must not recreate
   the compatibility policy or invent ranked diagnostics for an old envelope.
+- **`actor_action_selection` was RETIRED from `CONSTRAINT_DOMAINS` (maintainer ruling, 2026-09-05),
+  leaving the adopted set at two.** It was adopted in Z.1 on the qualitative gate alone — *is this a
+  search?* — and failed the quantitative half the Z10 ledger later applied: **0.0% divergence from a
+  plain stable sort over 819 permutations, and 0 Z3 initializations**. It also failed structurally —
+  the Actor never called `buildConstraintProblem`, and `solver-host.js` gates only the other two
+  domains, so the member named a route nothing took. The ledger's interpretation rule was written
+  before the numbers: *a ledger that cannot return a negative verdict is advocacy, not measurement.*
+  **The Actor's decision path is unchanged** — the `runtime-decision-v1` envelope, its rank tuple,
+  the adapter that sorts it and the LLM provider that can answer it instead all remain; adapters
+  declare it through `capabilities.contracts`, and `checkSolverConformance` still holds them to
+  determinism because replay depends on it.
 - The active CLI and web platform copies expose the canonical `hybrid-constraint` adapter for
-  `actor_action_selection`, `allocator_budget_fit`, and `configurator_satisfiability`. The Actor branch
-  remains a pure tuple validator/stable sort and never initializes Z3. The Allocator and Configurator
+  `allocator_budget_fit` and `configurator_satisfiability`, plus the `runtime-decision-v1` contract.
+  The Actor branch remains a pure tuple validator/stable sort and never initializes Z3. The Allocator and Configurator
   branches initialize Z3 only to compile their persona-authored opaque integer/linear expressions;
   adapters attach no domain meaning. `adapters-test` retains fixture/test doubles separately.
 - Allocator budget fit uses the same effect boundary without giving the persona an adapter. The
   Allocator prepares a `solver_request`; `packages/runtime/src/commands/solver-host.js` checks domain
   capability, dispatches it through `createSolverPort`, awaits the result, and invokes the Allocator's
   result consumer. Persona code owns the problem and validation; host glue owns transport only.
-- `createRealZ3SolverAdapter`, `createActorLexicographicSolverAdapter`, and
-  `AK_SOLVER_ENGINE=z3-real` remain compatibility names; the canonical factory is
-  `createHybridConstraintSolverAdapter`. Adapter or domain-capability absence, `deferred`, and `error`
-  return control to the Allocator's exact characterized fallback.
+- **Real Z3 is the DEFAULT engine.** A host builds `createHybridConstraintSolverAdapter` unless a
+  fixture path was explicitly supplied or `AK_SOLVER_ENGINE=fixture` opts out. The default was the
+  fixture stub until 2026-09-04, when measurement showed the stub's greedy fallback was optimal on
+  40.8% of Allocator budget-fit decision points against an exhaustive oracle while real Z3 was
+  optimal on 100% and never worse, and refused 250 affordable layouts outright
+  (`~/vault/decisions/2026-09-04-does-the-solver-actually-win.md`).
+- An explicitly supplied fixture path always selects the fixture adapter, whatever the engine:
+  `ak solve --solver-fixture` and a build spec's `solver.fixture` hint are requests to replay a
+  recorded answer, not to search for one.
+- `createRealZ3SolverAdapter`, `createActorLexicographicSolverAdapter`, and `AK_SOLVER_ENGINE=z3-real`
+  remain compatibility names; the canonical factory is `createHybridConstraintSolverAdapter`, and
+  `z3-real` now names the default rather than enabling it. Adapter or domain-capability absence,
+  `deferred`, and `error` return control to the Allocator's exact characterized fallback.
+- A Z3 context is reused across a bounded run of solves and then replaced. One context per solve
+  leaks ~10.45 MB unreclaimably; one context forever aborts the process with a WASM out-of-bounds
+  once its ast_manager fills. Both bounds are measured, not assumed — see `createGenericZ3Solver`.
 - Z3 adapter code must not move into `runtime` or `core-ts`. The dependency direction remains `adapters-* / ui-web -> runtime -> core-ts`.
 
 ## UI Sandbox Playback

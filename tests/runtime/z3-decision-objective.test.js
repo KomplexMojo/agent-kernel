@@ -63,10 +63,29 @@ test("both supported opaque objective versions select deterministically", async 
 
 test("an unknown objective version defers instead of being interpreted", async () => {
   const solver = await adapter();
+
+  // THE SENTINEL IS DISCOVERED, NOT WRITTEN DOWN. This guard has now been silently inverted
+  // TWICE by a version bump: the literal named the next unreleased version, the Actor shipped
+  // that version, and the test kept passing while asserting the opposite of what it claims --
+  // "a RELEASED version is rejected". A hardcoded future is a fact with an expiry date, and
+  // nothing fails when it expires. So probe upward for the first version the adapter actually
+  // refuses, and assert the property against that.
+  let unknownContract = null;
+  for (let version = 1; version <= 32 && !unknownContract; version += 1) {
+    const probe = envelope(
+      [WAIT, MOVE],
+      [[100, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, -1]],
+      { contract: `actor-decision-objective-v${version}`, order: V2_ORDER },
+    );
+    const outcome = await solver.solve({ problem: { data: probe } });
+    if (outcome.status === "deferred") unknownContract = `actor-decision-objective-v${version}`;
+  }
+  assert.ok(unknownContract, "the adapter accepted every version probed — it cannot refuse anything");
+
   const request = envelope(
     [WAIT, MOVE],
     [[100, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, -1]],
-    { contract: "actor-decision-objective-v3", order: V2_ORDER },
+    { contract: unknownContract, order: V2_ORDER },
   );
 
   assert.deepEqual(await solver.solve({ problem: { data: request } }), {

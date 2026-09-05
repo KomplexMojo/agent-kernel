@@ -9,12 +9,36 @@
  * the closed set of adopted constraint domains. Domain adoption does not imply
  * that every question in that persona belongs in a solver:
  *
- *   actor_action_selection      1115 lines / 136 branches, and AM.6 + AM.9 just
- *                               added casts x targets x range x mana to it
  *   allocator_budget_fit        `pickCheapestField` / `selectReductionField` are
  *                               a hand-rolled knapsack approximation
  *   configurator_satisfiability object-placement assignment (Z9); actor configuration
  *                               validity is bounded deterministic validation (Z8.0)
+ *
+ * ⚠️ `actor_action_selection` WAS RETIRED FROM THIS SET (maintainer ruling, 2026-09-05).
+ * It was adopted in Z.1 on the qualitative gate alone — "is this a search?" — and the Z10
+ * ledger later asked the quantitative half. It failed both:
+ *
+ *   MEASUREMENT   0.0% divergence from a plain stable sort over 819 permutations, and 0 Z3
+ *                 initializations. The adapter sorts a rank tuple the Actor has already
+ *                 computed; there is no search to perform.
+ *   STRUCTURE     the Actor never called `buildConstraintProblem` — only the Allocator and
+ *                 Configurator do. It poses a `runtime-decision-v1` envelope, and the
+ *                 adapter dispatches on that CONTRACT. No host ever gated the Actor path on
+ *                 domain membership (`solver-host.js` gates the other two and only those),
+ *                 so the member named a route nothing took.
+ *
+ * The ledger's interpretation rule was written down BEFORE the numbers arrived: negligible
+ * improvement over the domain means the solver is not providing value there and the domain
+ * should be un-adopted, because *a ledger that cannot return a negative verdict is advocacy,
+ * not measurement.* This is that verdict, acted on.
+ *
+ * ⚠️ RETIRING THE DOMAIN DID NOT RETIRE THE ACTOR'S DECISION PATH. The
+ * `runtime-decision-v1` envelope, its lexicographic rank tuple, the adapter that sorts it
+ * and the LLM provider that can answer it instead are all untouched. What stopped being
+ * claimed is that this is a place where SEARCH beats EVALUATION. Adapters that answer the
+ * envelope now declare `capabilities.contracts` rather than a constraint domain — see
+ * `ports/solver-conformance.js`, which still holds them to determinism because replay
+ * depends on it.
  *
  * Four sites were REFUSED and must not acquire a separate domain here: Configurator
  * motivation/affinity/vital validity, plus the Moderator's
@@ -50,8 +74,6 @@ export const CONSTRAINT_PROBLEM_SCHEMA_VERSION = 1;
  * milestone rather than appear as a string.
  */
 export const CONSTRAINT_DOMAINS = Object.freeze({
-  /** Which action should this actor take? Chartered §385; the Actor owns it. */
-  ACTOR_ACTION_SELECTION: "actor_action_selection",
   /** Which purchases fit the budget best? The Allocator owns it, and prices it. */
   ALLOCATOR_BUDGET_FIT: "allocator_budget_fit",
   /** Configurator-owned searches, currently reserved for Z9 object placement. */
@@ -67,15 +89,19 @@ const DOMAIN_VALUES = Object.freeze(Object.values(CONSTRAINT_DOMAINS));
  * one. Enforced by `validateConstraintProblem`.
  */
 export const CONSTRAINT_DOMAIN_OWNERS = Object.freeze({
-  [CONSTRAINT_DOMAINS.ACTOR_ACTION_SELECTION]: "actor",
   [CONSTRAINT_DOMAINS.ALLOCATOR_BUDGET_FIT]: "allocator",
   [CONSTRAINT_DOMAINS.CONFIGURATOR_SATISFIABILITY]: "configurator",
 });
 
 /**
- * `runtime-decision-v1` is the family's FIRST MEMBER, not a parallel scheme.
- * The Actor's existing envelope keeps this contract string so nothing that reads
- * it today has to change; new domains use the family schema.
+ * `runtime-decision-v1` — the Actor's decision envelope.
+ *
+ * It was described here as "the family's FIRST MEMBER, not a parallel scheme". That framing
+ * came with the `actor_action_selection` adoption and did not survive it: the Actor never
+ * posed a `ConstraintProblemV1`, so the two were parallel schemes in practice for the whole
+ * time the domain existed. They are now named as such. This is a RANKED EVALUATION an
+ * adapter (or an LLM) resolves, not a constraint problem, and adapters declare that they
+ * answer it via `capabilities.contracts`.
  */
 export const RUNTIME_DECISION_CONTRACT = "runtime-decision-v1";
 

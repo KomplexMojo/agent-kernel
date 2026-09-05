@@ -2,6 +2,11 @@ import { requireClock } from "./require-clock.js";
 import { createTickStateMachine, TickPhases } from "./tick-state-machine.mts";
 import type { TickEvent, TickPhase } from "./tick-state-machine.mts";
 import { buildLlmCaptureArtifact } from "../orchestrator/persona.js";
+import { buildActorIntention } from "../../contracts/actor-intention.js";
+// The Actor persona, not this module, decides what its rank members MEAN. Naming
+// `"intentClass"` here would put Actor tuple meaning in shared glue, which
+// `actor-adapter-policy-residue.test.js` forbids — and caught on the first attempt.
+import { resolveIntentFromDecision } from "../actor/persona.js";
 import {
   allowsLiveLlmRuntime,
   buildRuntimeDecisionLlmPrompt,
@@ -47,6 +52,8 @@ type TickRecord = {
   tick: number; phase: TickPhase;
   personaViews: Record<string, PersonaSnapshot>;
   actions: unknown[]; effects: unknown[]; telemetry: unknown[]; artifacts: unknown[];
+  /** Actor intentions surfaced this tick, for the Moderator to order actors from. */
+  intentions: unknown[];
   solverResults: JsonRecord[]; solverFulfilled: JsonRecord[];
 };
 
@@ -276,18 +283,22 @@ export function createTickOrchestrator({
 
   async function handleSolverRequests(effects: unknown[], tickValue: number) {
     if (!Array.isArray(effects) || effects.length === 0) {
-      return { results: [], fulfilled: [], actions: [], artifacts: [] };
+      return { results: [], fulfilled: [], actions: [], artifacts: [], intentions: [] };
     }
     const requests = (effects as SolverEffect[]).filter(
       (effect) => effect?.kind === "solver_request" && effect.request,
     ) as Array<SolverEffect & { request: SolverRequest }>;
     if (requests.length === 0) {
-      return { results: [], fulfilled: [], actions: [], artifacts: [] };
+      return { results: [], fulfilled: [], actions: [], artifacts: [], intentions: [] };
     }
     const results: JsonRecord[] = [];
     const fulfilled: JsonRecord[] = [];
     const actions: unknown[] = [];
     const artifacts: unknown[] = [];
+    // Intentions surfaced HERE and not by the persona: on this route the persona emits only a
+    // request during decide, so the chosen action -- and therefore the intent -- does not exist
+    // until the result comes back. See `resolveIntentFromDecision`.
+    const intentions: unknown[] = [];
     for (const entry of requests) {
       const envelope = entry?.request?.problem?.data;
       const providerPolicy = resolveRuntimeDecisionProviderPolicy(envelope?.providerPolicy);
@@ -357,12 +368,17 @@ export function createTickOrchestrator({
         fulfilled.push({ status: solverStatus, result, tick: tickValue });
         if (normalized.ok) {
           actions.push(normalized.action);
+          const intent = resolveIntentFromDecision({
+            solverRequest: entry.request,
+            selectedActionId: normalized.decision?.selectedActionId,
+          });
+          if (intent) intentions.push(buildActorIntention(intent));
         }
       } else {
         fulfilled.push({ status: "deferred", reason: "missing_solver", tick: tickValue });
       }
     }
-    return { results, fulfilled, actions, artifacts };
+    return { results, fulfilled, actions, artifacts, intentions };
   }
 
   async function collectPhaseRecord({
@@ -382,6 +398,7 @@ export function createTickOrchestrator({
     const effects: unknown[] = [];
     const telemetry: unknown[] = [];
     const artifacts: unknown[] = [];
+    const intentions: unknown[] = [];
     const personaEvents = payload?.personaEvents || payload?.events || null;
     const hasPersonaEvents = personaEvents !== null && personaEvents !== undefined;
     const personaPayloads = payload?.personaPayloads || payload?.payloads || null;
@@ -425,6 +442,15 @@ export function createTickOrchestrator({
             if (Array.isArray(result?.artifacts)) {
               artifacts.push(...result.artifacts);
             }
+            // A persona's INTENTIONS travel on their own channel, not as actions or effects.
+            // An intention is neither: it commits the actor to nothing and reaches no adapter.
+            // It exists so the Moderator can decide who resolves first, which is its chartered
+            // authority, without ever being handed the actions themselves — a Moderator holding
+            // actions could reorder outcomes rather than actors.
+            const reported = (result as unknown as { intentions?: unknown[] })?.intentions;
+            if (Array.isArray(reported)) {
+              intentions.push(...reported);
+            }
           }
         }
       } else {
@@ -442,6 +468,9 @@ export function createTickOrchestrator({
     if (solverOutcome.artifacts.length > 0) {
       artifacts.push(...solverOutcome.artifacts);
     }
+    if (solverOutcome.intentions.length > 0) {
+      intentions.push(...solverOutcome.intentions);
+    }
 
     if (actions.length) {
       onActions(actions);
@@ -455,6 +484,7 @@ export function createTickOrchestrator({
       effects,
       telemetry,
       artifacts,
+      intentions,
       solverResults: solverOutcome.results,
       solverFulfilled: solverOutcome.fulfilled,
     };

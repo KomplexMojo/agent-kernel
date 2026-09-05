@@ -341,7 +341,7 @@ the spelling it originally had.
 
 A base cost must never appear in JavaScript. If it does, the JSON stops being the single source of
 truth and the two drift silently — nothing fails, the numbers just quietly disagree.
-`tests/runtime/base-cost-standard.test.js` fails the build if a literal `unitCost` reappears in the
+`tests/personas/allocator/allocator-base-cost-standard.test.js` fails the build if a literal `unitCost` reappears in the
 price-list code, if a cost value in the JSON is anything but a number, or if an emitted item is not
 backed by the JSON.
 

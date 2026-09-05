@@ -131,17 +131,56 @@ core's enums, so the runtime does not maintain a competing vocabulary. An unknow
 profile but still receives an Actor-authored compatibility objective. That tuple preserves the former deterministic
 attack, hostile-progress, exit-progress, fallback-move, and wait ordering without asking an adapter to infer policy.
 
-For known profiles, the `objectives.actorDecision` contract carries one Actor-authored seven-integer rank
-per candidate, ordered by intent class, target finish, profile alignment, field safety, field benefit, cast reserve,
-then input order. A move evaluates the perceived canonical post-cancellation affinity field at its destination;
+For known profiles, the `objectives.actorDecision` contract carries one Actor-authored nine-integer rank
+per candidate, ordered by intent class, target finish, **cover alignment, stealth alignment**, field safety, field
+benefit, cast reserve, **actor proposal**, then input order.
+
+v4 demoted `actorProposal` from an intent class of 600 to that second-to-last tiebreak, and it is the change that
+made every other member of this tuple matter. A candidate matching the Actor's own deterministic proposal used to
+outrank every alternative outright: measured over 3,942 decision steps that was 100% of them, and in 495 of the 498
+steps that walked into harm a harm-free candidate had been ranked and lost to the stamp. The ranking was computed,
+validated, carried across the solver port, sorted, and discarded. Demoting it cut suboptimal decisions from 46.3%
+to 16.0% of a 936-board sweep with no new failure to reach the exit. The preference is kept rather than deleted because an Actor's own
+suggestion is real information, and a genuine tie through all eight preceding members is better settled in the
+Actor's favour than by raw input order. ⚠️ An earlier version of this paragraph justified it instead by claiming
+deletion would drop an out-of-range cast to intent class 0; that was false — `intentClass` never reads
+`actorProposal`, so such a cast lands at 0 either way — and adversarial review caught it.
+
+Stage B (contract v3) split the former single `profileAlignment` member in two. v2 summed them — cover a flat 1000,
+stealth 1000 x a distance delta — so `1000 + 0` and `0 + 1000` were the same number and a lexicographic sort could
+not tell a sheltering actor from a retreating one. Separate members also removed the scaling constants, which existed
+only to stop one signal swamping the other inside a shared slot. Cover precedes stealth deliberately: cover pays off
+this tick, a stealth gain pays off next tick — revisit that ordering when there is a next tick to reason about.
+Cover is now a **count** of adjacent opaque cells rather than a boolean, so a corner outranks a single wall; it used
+to be true for any one neighbour, which meant "prefers cover" could not prefer better cover. `cognitionTier` and
+`reasoningClass` remain diagnostic and deliberately hold no rank slot: they describe planning depth, and a one-step
+choice gives them nothing to modulate. A move evaluates the perceived canonical post-cancellation affinity field at its destination;
 every other action evaluates the current cell. Harm is penalized before beneficial effects, and a benefit is capped
-at its matching vital's missing capacity. These remain tie-breakers after intent, target, and profile alignment.
+at its matching vital's missing capacity.
+
+Field exposure is resolved **against the observing actor**, not per tile. Core's field readers report one effect per
+tile, so before Stage A an actor's own element was exactly as lethal to it as anyone else's. The Actor now matches the
+field's kind against its live `affinityGrants` — preferring a grant of the field's own kind over one of its opposite,
+since immunity is the more specific claim — and asks core's `resolveExposureVitalEffect` to modulate the field's own
+number. The relationship rule is derived from the 48-cell interaction matrix rather than restated here. A neutral
+relationship deliberately keeps the previous effect: the matrix answers what happens when two affinities *meet*, and
+for unrelated kinds that is correctly nothing, but exposure is not interaction — a corrode field still corrodes an
+actor that has no relationship to it. An actor with no grants observes no change at all.
+
+Resolution returns a **set of vital deltas**, not one number, because the matrix contains genuine cross-vital
+outcomes. A `draw`-expression actor standing in a same-kind field converts it into mana rather than taking the hit:
+the harmed vital is spared and mana rises by the same magnitude, capped like any benefit at that vital's missing
+capacity — so an actor with no mana vital, or none missing, ranks no benefit from the conversion. The distinction is
+per **expression**, not per kind: a same-kind `emit` actor is immune but gains nothing, while only `draw` converts.
+Light and Dark already target mana, so for those the conversion lands on the same vital and simply reverses its sign. These remain tie-breakers after intent, target, and profile alignment.
 Mobility/combat tiers and `PrefersCover`/`PrefersStealth` affect those ranks; cognition and reasoning remain
 diagnostic because this is a one-step choice, while `AggroRangeBoost` remains perception/candidate policy. The
 shared envelope code validates row identity and deep-copies the contract but does not interpret the ranks. The CLI
 and web Actor lexicographic adapters validate and compare the tuples without re-deriving their meaning, accepting
 valid v1 envelopes for compatibility. The old `createRealZ3SolverAdapter` factory and `AK_SOLVER_ENGINE=z3-real`
-selector remain compatibility aliases; they do not initialize Z3. Missing or malformed objectives defer with typed
+selector remain compatibility aliases; `z3-real` now names the default engine rather than enabling it, and neither
+initializes Z3 on this path. Measured over 819 candidate/rank permutations, this adapter's selection diverges from a
+plain lexicographic sort on 0.0% of them and initializes Z3 zero times — the domain performs no search. Missing or malformed objectives defer with typed
 reasons; runtime then follows its deterministic Actor fallback. Old envelopes remain readable but adapters do not
 manufacture ranked diagnostics.
 

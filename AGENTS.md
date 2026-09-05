@@ -114,6 +114,41 @@ Documentation moved from GitHub Copilot to Claude on 2026-07-27. Two tiers by st
 
 ---
 
+## Diagnosis before change (2026-09-04)
+
+**The gates catch broken code. Nothing catches a correct change aimed at the wrong mechanism.**
+
+Seven false assertions were made in one session and each was retracted: a wiring change that was a
+complete no-op, two measurement-driver bugs, a verdict from a single hand-drawn board that reversed
+when the domain widened, a constant whose comment asserted an untested cause, and a milestone that
+was specced, built, measured at exactly zero effect, and reverted. Nothing shipped broken — every
+one was caught by a control, a precondition, or an independent oracle. But they were caught *after*
+the work, and they all share one cause: **a causal story was formed and then built on without the
+story itself being tested.** Diagnosis was the last step instead of the first.
+
+The clearest case: a milestone hypothesised that `intentClass 300 > 200` caused an actor's myopia,
+specced against it, implemented it, bumped a contract version — and measured no change at all,
+because the winning candidate was ranked 600 and nobody had looked at which candidate actually won.
+One trace, before the spec, would have cost thirty seconds.
+
+| Rule | The failure it prevents |
+|---|---|
+| **1. Trace before you spec.** Any "X causes Y" claim about EXISTING behaviour requires printing the actual path once, first. | Reading the code correctly and still getting the mechanism wrong — which happened, because reading shows every branch and a trace shows the one that fires. |
+| **2. A comment must not assert a cause you have not tested.** If a constant's comment explains *why that value*, there is a measurement behind it or it says `unverified`. | A subdivision floor documented as "below this, a crash is a defect rather than a size problem". It was false, and it failed its own sweep on that claim. |
+| **3. One instance is a hypothesis, not a finding.** A result from a single board, fixture, or profile is labelled as provisional until the domain is enumerated. | A hand-drawn board reported a control as *worse* than the policy; enumerating boards reversed the verdict outright. |
+| **4. Report the widest evidence, not the first that confirms.** Run the wide profile before a verdict, especially when the narrow one agrees with you. | A change that showed zero regressions at gate bounds and 190 failures at sweep bounds. |
+
+⚠️ **Rule 4 has teeth in both directions.** The narrow profile agreeing with a hypothesis is the
+moment to widen, not the moment to report. A confirming cheap result is the least informative kind.
+
+**This does not replace the perturbation check above; it precedes it.** Perturbation asks *does this
+test have teeth*. Diagnosis asks *is this the mechanism at all*. A perturbed test around the wrong
+mechanism is a well-built guard on a door nobody uses.
+
+⇒ *State plainly which register a claim is in.* "Measured" and "expected" are different words and a
+report that blurs them spends the maintainer's attention on corrections. A hypothesis reported in
+the confident register of a finding is the failure this section exists to stop.
+
 ## Working agreement
 
 - Connect requirements → tests → code in the same change set whenever feasible.
@@ -264,7 +299,9 @@ committing its loose working-tree changes, moving files into git, or tidying. Re
 - All boundary-crossing data uses a versioned schema from `contracts/artifacts.ts`.
 - New files in the correct package (see file placement).
 - Base test file present, ending in `## TODO: Test Permutations` stubs (or Ollama has already expanded them).
+- If the change targets EXISTING behaviour: the mechanism was traced before the fix was designed, and the trace is quoted in the commit message — see `## Diagnosis before change`. A change that measures no effect is the symptom this catches late.
 - `pnpm run test` and `pnpm run typecheck` pass, or a documented reason for skipping. Perturbation check run and reported.
+- Any measured claim in the commit message or PR names the domain it was measured over, and the widest profile run — not the narrowest that agreed.
 - Docs updated IN THIS DIFF if behavior or boundaries changed — a doc that now contradicts the code is a blocking defect.
 - If `ak_create` schema, CLI arg mapping, or entity normalization changed: noted in the commit message. **Do not run a benchmark.**
 - Anything noticed outside the spec (dead code, stale docs, an open disposition, a design direction) is logged as a `gh issue`, not fixed inline and not left as a comment or a plan-doc aside — see `## Working agreement`.

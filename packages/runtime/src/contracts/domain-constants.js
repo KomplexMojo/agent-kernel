@@ -161,7 +161,7 @@ export function getConflictingMotivationKinds(kind) {
  * The REJECTING form — structured errors for a caller that should refuse invalid
  * input — stays with the Configurator as `normalizeMotivationKindList`, because
  * "is this configuration valid?" is that persona's chartered call.
- * `tests/runtime/motivation-coercion-agreement.test.js` pins the two forms to the
+ * `tests/personas/configurator/configurator-motivation-coercion-agreement.test.js` pins the two forms to the
  * same `value` so this split cannot become another "two codebooks, one concept".
  */
 export function coerceMotivationKinds(input, { fallback = "", allowEmpty = false } = {}) {

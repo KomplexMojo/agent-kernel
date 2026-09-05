@@ -10,7 +10,13 @@ import {
   resolveRuntimeDecisionProviderPolicy,
 } from "../_shared/runtime-decision.mts";
 import { SOLVER_REQUEST_SCHEMA } from "../../contracts/artifacts.ts";
-import { MOTIVATION_KINDS } from "../../contracts/domain-constants.js";
+import { buildActorIntention } from "../../contracts/actor-intention.js";
+import {
+  AFFINITY_EXPRESSIONS,
+  AFFINITY_KINDS,
+  AFFINITY_OPPOSITES,
+  MOTIVATION_KINDS,
+} from "../../contracts/domain-constants.js";
 import {
   MotivationFlag,
   ReasoningClass,
@@ -19,19 +25,97 @@ import {
   getMotivationDefaultFlagMask,
   getMotivationMobilityTier,
   getMotivationReasoningClass,
+  resolveExposureVitalDeltas,
 } from "../../../../core-ts/src/index.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 
-const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v2";
+/**
+ * Stage B — `profileAlignment` split into its two independent signals.
+ *
+ * v2 summed them: `coverRank + stealthRank`, cover a flat 1000 and stealth 1000 x a
+ * distance delta. Two actors could therefore produce the SAME alignment number for
+ * different reasons -- 1000 + 0 and 0 + 1000 are indistinguishable -- and a lexicographic
+ * sort cannot separate what a sum has already merged. Adding two incommensurable signals
+ * is not a ranking, it is information loss with a plausible shape.
+ *
+ * Separating them also removes the need for the 1000 scaling factors. Those existed only
+ * to keep one signal from being swamped by the other inside a shared slot; each member is
+ * now compared on its own, so the raw counts carry the meaning and there is no magic
+ * constant left to explain.
+ *
+ * COVER BEFORE STEALTH is a real ordering decision, not an accident of how the old sum
+ * read left to right: an actor that is being shot at benefits from cover this tick, while
+ * a stealth gain pays off next tick. Revisit it when there IS a next tick to reason about.
+ *
+ * cognitionTier and reasoningClass stay diagnostic and are deliberately NOT given slots
+ * here. They describe planning DEPTH, and a one-step choice gives them nothing to
+ * modulate; a rank member invented to look richer would be exactly the artificial
+ * introduction the charter forbids. They become meaningful with lookahead, not before.
+ */
+/**
+ * v4 — the tuple decides, and a proposal no longer overrules it.
+ *
+ * `actorProposal` used to be an intentClass of 600, above every other class, so any
+ * candidate matching the Actor's own deterministic proposal won outright. Measured over
+ * 3,942 decision steps that was 100% of them: the ranking was computed, validated, carried
+ * across the solver port, sorted, and discarded, because the decision had already been made
+ * upstream. In 495 of the 498 steps that walked into harm, a harm-free candidate was on the
+ * list and lost to the stamp.
+ *
+ * WHY THE MEMBER IS KEPT RATHER THAN DELETED. An Actor's own suggestion is real information,
+ * and a genuine tie through all eight preceding members is better settled in the Actor's
+ * favour than by raw candidate input order, which is deterministic but arbitrary.
+ *
+ * ⚠️ An earlier version of this comment justified keeping it on the grounds that deleting the
+ * branch would drop a non-move proposal -- an out-of-range cast -- to intentClass 0, below
+ * `wait`. THAT WAS FALSE, and adversarial review caught it. `intentClass` is computed purely
+ * from `action.kind` and reachability a few lines below and never reads `actorProposal`, so an
+ * out-of-range cast lands at 0 either way. Demotion prevents nothing there. The justification
+ * above is the real one, and `actor-decision-objective.test.js` exercises the tiebreak it
+ * claims -- the earlier rationale had no test because it described an effect that did not exist.
+ */
+const ACTOR_DECISION_OBJECTIVE_CONTRACT = "actor-decision-objective-v6";
 const ACTOR_DECISION_OBJECTIVE_ORDER = Object.freeze([
   "intentClass",
   "targetFinish",
-  "profileAlignment",
+  "coverAlignment",
+  "stealthAlignment",
   "fieldSafety",
   "fieldBenefit",
   "castReserve",
+  "actorProposal",
   "inputOrder",
 ]);
+
+/**
+ * Affinity name -> core code. Positional, derived from the ordered vocabulary arrays
+ * exactly as `runner/core-setup.mjs` derives its own copy: the authority is the ORDER
+ * of `AFFINITY_KINDS` / `AFFINITY_EXPRESSIONS`, not either derived map, so adding a
+ * kind cannot leave the two disagreeing.
+ */
+const AFFINITY_KIND_CODE_BY_NAME = Object.freeze(
+  AFFINITY_KINDS.reduce((acc, kind, index) => {
+    acc[kind] = index + 1;
+    return acc;
+  }, {}),
+);
+const AFFINITY_EXPRESSION_CODE_BY_NAME = Object.freeze(
+  AFFINITY_EXPRESSIONS.reduce((acc, expression, index) => {
+    acc[expression] = index + 1;
+    return acc;
+  }, {}),
+);
+
+/** Accept either a core numeric code or a vocabulary name; 0 means "not an affinity". */
+function affinityKindCode(value) {
+  if (Number.isInteger(value)) return value > 0 && value <= AFFINITY_KINDS.length ? value : 0;
+  return AFFINITY_KIND_CODE_BY_NAME[String(value || "").trim().toLowerCase()] || 0;
+}
+
+function affinityExpressionCode(value) {
+  if (Number.isInteger(value)) return value > 0 && value <= AFFINITY_EXPRESSIONS.length ? value : 0;
+  return AFFINITY_EXPRESSION_CODE_BY_NAME[String(value || "").trim().toLowerCase()] || 0;
+}
 
 const VITAL_KEYS_BY_CODE = Object.freeze({
   [VitalKind.Health]: "health",
@@ -71,6 +155,147 @@ function buildMotivationProfile(view, actorId, payload) {
     flags: Object.entries(MotivationFlag)
       .filter(([, flag]) => (flagMask & flag) === flag)
       .map(([name]) => name),
+  };
+}
+
+/**
+ * The Actor's intent classes, named once. The ranking tuple compares them per candidate, and
+ * the intention the Moderator orders on reports the class of whichever candidate won — so the
+ * two must not drift, and a second table of the same numbers is exactly how they would.
+ *
+ * The intention is COARSER than the ranking on purpose. Ranking separates exit progress from a
+ * mobile fallback because that decides which candidate wins; ordering only needs to know that
+ * combat resolves before movement, which the chosen action's kind settles on its own.
+ */
+/**
+ * ⚠️ `MOBILE_FALLBACK` WAS SPLIT INTO LATERAL AND RETREAT (contract v6, 2026-09-05), and the
+ * split exists to break a LIVELOCK rather than to express a preference.
+ *
+ * One flat class for "moves that are not progress" meant that when no move reduced the
+ * distance to the exit, every direction tied at 200 and `fieldSafety` decided — which picked
+ * the harm-free step BACKWARDS. From there progress was available again, so the actor stepped
+ * forward, found no progress, and retreated again: a stable two-cycle, forever, taking zero
+ * harm and never arriving. Measured at sweep bounds: 190 boards (0.85%), and all 12 recorded
+ * examples were two-cycles with `policyHarm 0` against an oracle that reached by accepting 5.
+ *
+ * Grading the class by whether the move INCREASES the distance to the exit breaks the cycle
+ * with no memory at all: a sideways step outranks a backwards one, so the actor stops
+ * retreating into a position it has just proved unproductive. Stateless was the requirement,
+ * not a convenience — an actor that needed to remember where it had been would need the
+ * runner to carry that across ticks, and the context must stay serializable.
+ */
+const ACTOR_INTENT_CLASS = Object.freeze({
+  IN_RANGE_COMBAT: 500,
+  HOSTILE_PROGRESS: 400,
+  EXIT_PROGRESS: 300,
+  /** A move that holds its distance to the exit. */
+  MOBILE_LATERAL: 200,
+  /** A move that increases it. Ranked below lateral ONLY to stop the two-cycle above. */
+  MOBILE_RETREAT: 150,
+  WAIT: 100,
+  NONE: 0,
+});
+
+/**
+ * THE SINGLE AUTHORITY on what an action MEANS for this actor. One function, two callers:
+ * the candidate ranking's `intentClass` member, and the intention surfaced to the Moderator.
+ *
+ * ⚠️ It replaced a second, coarser derivation that keyed off action KIND alone
+ * (`intentClassForAction`, deleted). That one collapsed HOSTILE_PROGRESS and EXIT_PROGRESS
+ * into MOBILE_FALLBACK, because kind cannot see whether a move closes on a hostile or on the
+ * exit — so a delver running down a warden and an idler wandering both surfaced 200 and
+ * tie-broke on actor id. Two authorities on Actor meaning is the F10 defect this codebase has
+ * already paid to remove once, and `moderator/actor-ordering.js` claimed in its own header
+ * that no second derivation existed while one sat 200 lines away.
+ *
+ * Pure: positions, profile and the visible-actor list in, `{ intentClass, intentTag }` out.
+ */
+export function classifyActorIntent({ action, actorPosition, motivationProfile, visibleActors, exit } = {}) {
+  const none = { intentClass: ACTOR_INTENT_CLASS.NONE, intentTag: "profile_mismatch" };
+  if (!action || !actorPosition || !motivationProfile) return none;
+  const seen = Array.isArray(visibleActors) ? visibleActors : [];
+  const endPosition = candidateEndPosition(action, actorPosition);
+  const beforeHostile = nearestHostile(actorPosition, seen);
+  const afterHostile = nearestHostile(endPosition, seen);
+  const explicitTargetId = typeof action?.params?.targetId === "string" ? action.params.targetId : null;
+  const explicitTarget = explicitTargetId
+    ? seen.find((entry) => entry?.id === explicitTargetId && entry.hostile === true)
+    : null;
+
+  if ((action.kind === "attack" || action.kind === "cast_affinity")
+    && motivationProfile.combatTier > 0
+    && actionCanReachTarget(action, actorPosition, explicitTarget)) {
+    return { intentClass: ACTOR_INTENT_CLASS.IN_RANGE_COMBAT, intentTag: "in_range_combat" };
+  }
+  if (action.kind === "move" && motivationProfile.mobilityTier > 0) {
+    const hostileProgress = motivationProfile.combatTier === 1
+      && beforeHostile && afterHostile && afterHostile.distance < beforeHostile.distance;
+    if (hostileProgress) {
+      return { intentClass: ACTOR_INTENT_CLASS.HOSTILE_PROGRESS, intentTag: "hostile_progress" };
+    }
+    const beforeExit = chebyshevDistance(actorPosition, exit);
+    const afterExit = chebyshevDistance(endPosition, exit);
+    if (Number.isFinite(beforeExit) && Number.isFinite(afterExit) && afterExit < beforeExit) {
+      return { intentClass: ACTOR_INTENT_CLASS.EXIT_PROGRESS, intentTag: "exit_progress" };
+    }
+    // Not progress. Retreating still beats being cornered, but it loses to holding ground —
+    // which is the whole anti-livelock rule, and it costs one comparison.
+    if (Number.isFinite(beforeExit) && Number.isFinite(afterExit) && afterExit > beforeExit) {
+      return { intentClass: ACTOR_INTENT_CLASS.MOBILE_RETREAT, intentTag: "mobile_retreat" };
+    }
+    return { intentClass: ACTOR_INTENT_CLASS.MOBILE_LATERAL, intentTag: "mobile_lateral" };
+  }
+  if (action.kind === "wait") {
+    return { intentClass: ACTOR_INTENT_CLASS.WAIT, intentTag: "wait" };
+  }
+  return none;
+}
+
+/**
+ * The intent the winning candidate carried, read back out of the request envelope.
+ *
+ * WHY THIS IS READING AND NOT RE-DERIVING. The decision objective is SELF-DESCRIBING: it
+ * publishes `order` (the member names) alongside each candidate's `rank` (the integers), so
+ * `rank[order.indexOf("intentClass")]` is the value the posing persona itself computed and
+ * published. Nothing here re-decides what an action means, which is the whole point — the
+ * Actor already classified it once, and a second classifier in glue would be the second
+ * authority `classifyActorIntent`'s header exists to forbid.
+ *
+ * WHY IT IS NEEDED AT ALL. On the runtime-decision route the persona emits NO action during
+ * decide — only a solver request — so it has nothing to surface an intention from. Measured:
+ * 17/17 advances on that path produced zero actions and zero intentions, which silently
+ * collapsed the Moderator's actor ordering to its alphabetical tie-break on exactly the path
+ * that has the richest intent data. The chosen action first exists here, so the intention
+ * does too.
+ *
+ * Returns null rather than a default whenever the envelope cannot supply the value: an
+ * intention invented from a missing rank would order actors on a fiction.
+ */
+export function resolveIntentFromDecision({ solverRequest, selectedActionId } = {}) {
+  const nonEmpty = (value) => (typeof value === "string" && value.trim() ? value.trim() : null);
+  if (!isObject(solverRequest) || !nonEmpty(selectedActionId)) return null;
+  const envelope = isObject(solverRequest.problem?.data) ? solverRequest.problem.data : null;
+  if (!envelope || envelope.contract !== RUNTIME_DECISION_CONTRACT) return null;
+  const actorId = nonEmpty(envelope.actor?.id);
+  if (!actorId) return null;
+  const objective = isObject(envelope.objectives) ? envelope.objectives.actorDecision : null;
+  if (!isObject(objective) || !Array.isArray(objective.order) || !Array.isArray(objective.candidates)) {
+    return null;
+  }
+  const intentIndex = objective.order.indexOf("intentClass");
+  if (intentIndex < 0) return null;
+  const winner = objective.candidates.find(
+    (row) => isObject(row) && row.candidateActionId === selectedActionId,
+  );
+  if (!isObject(winner) || !Array.isArray(winner.rank)) return null;
+  const intentClass = winner.rank[intentIndex];
+  if (!Number.isFinite(intentClass)) return null;
+  const tag = Array.isArray(winner.rationaleTags) ? nonEmpty(winner.rationaleTags[0]) : null;
+  return {
+    actorId,
+    intentClass: Number(intentClass),
+    intentTag: tag || "unknown",
+    tick: Number.isInteger(envelope.tick) ? envelope.tick : 0,
   };
 }
 
@@ -540,13 +765,21 @@ function isOpaqueCell(position, tileKinds, baseTiles) {
   return cell === "#" || cell === "B";
 }
 
-function endsBesideCover(position, tileKinds, baseTiles) {
-  if (!position) return false;
-  return DEFAULT_DELTAS.some(({ dx, dy }) => isOpaqueCell(
+/**
+ * How many of the eight neighbours are opaque, 0-8.
+ *
+ * Stage B: this used to be a boolean. A tile with one wall beside it and a tile wedged in
+ * a corner with five scored identically, so an actor that "prefers cover" could not tell
+ * good cover from technical cover and had no reason to prefer the corner. Counting is the
+ * smallest change that makes the preference mean what its name says.
+ */
+function coverCount(position, tileKinds, baseTiles) {
+  if (!position) return 0;
+  return DEFAULT_DELTAS.reduce((total, { dx, dy }) => total + (isOpaqueCell(
     { x: position.x + dx, y: position.y + dy },
     tileKinds,
     baseTiles,
-  ));
+  ) ? 1 : 0), 0);
 }
 
 function reserveRatio(current, max) {
@@ -581,6 +814,31 @@ function actionCanReachTarget(action, origin, target) {
   return expression === "push" || expression === "pull" ? distance <= stacks : distance <= 1;
 }
 
+/**
+ * The observer's live affinity for a field of `fieldKind`, or null when it has none
+ * that relates to it.
+ *
+ * LIVE GRANTS, NOT CONFIGURED ABILITIES (maintainer, 2026-09-04). `affinityGrants` is
+ * read from core and carries real per-grant `stacks`, so resistance tracks what the
+ * actor actually holds right now rather than what it was authored with.
+ *
+ * A grant of the field's OWN kind is preferred over one of its opposite, because an
+ * actor holding both should read the field as its own rather than as its enemy —
+ * immunity is the more specific claim. Beyond that the first match wins, in grant
+ * order, which is stable because the grant list is read from core in slot order.
+ */
+function observerAffinityForField(actorRecord, fieldKindCode) {
+  if (!fieldKindCode) return null;
+  const grants = Array.isArray(actorRecord?.affinityGrants) ? actorRecord.affinityGrants : [];
+  const usable = grants.filter((grant) => Number.isInteger(grant?.stacks) && grant.stacks > 0
+    && affinityKindCode(grant?.kind) > 0);
+  const oppositeName = AFFINITY_OPPOSITES[AFFINITY_KINDS[fieldKindCode - 1]];
+  const oppositeCode = affinityKindCode(oppositeName);
+  return usable.find((grant) => affinityKindCode(grant.kind) === fieldKindCode)
+    || usable.find((grant) => affinityKindCode(grant.kind) === oppositeCode)
+    || null;
+}
+
 function fieldUtilityRanks({ endPosition, affinityFields, actorRecord }) {
   const effectsByVital = new Map();
   const fields = Array.isArray(affinityFields) ? affinityFields : [];
@@ -588,10 +846,43 @@ function fieldUtilityRanks({ endPosition, affinityFields, actorRecord }) {
     const position = field?.position;
     if (!position || position.x !== endPosition?.x || position.y !== endPosition?.y) continue;
     const effects = Array.isArray(field?.vitalEffects) ? field.vitalEffects : [];
+    // Stage A: the same tile is not equally dangerous to everyone. Where the actor holds
+    // an affinity related to this field, core re-resolves the effect against it; where it
+    // does not, `resolveExposureVitalEffect` returns the field's own number and this is
+    // exactly the previous behavior.
+    // Fields and grants speak different dialects of the same vocabulary: core's field
+    // readers emit NUMERIC kind/expression codes, while grant records carry lowercase
+    // NAMES. Normalizing both here rather than assuming one is what keeps this from
+    // silently doing nothing — an earlier draft read only names and resolved no field
+    // at all, which every existing test still passed.
+    const fieldKindCode = affinityKindCode(field?.kind);
+    const fieldExpressionCode = affinityExpressionCode(field?.expression);
+    const observer = observerAffinityForField(actorRecord, fieldKindCode);
+    const observerKindCode = observer ? affinityKindCode(observer.kind) : 0;
+    const observerExpressionCode = observer ? affinityExpressionCode(observer.expression) : 0;
+    const canResolve = observerKindCode > 0 && fieldKindCode > 0
+      && fieldExpressionCode > 0 && observerExpressionCode > 0;
+
     for (const entry of effects) {
       if (!Number.isInteger(entry?.vital) || !Number.isInteger(entry?.effect)) continue;
       if (!Object.hasOwn(VITAL_KEYS_BY_CODE, entry.vital)) continue;
-      effectsByVital.set(entry.vital, (effectsByVital.get(entry.vital) || 0) + entry.effect);
+      // A.2: one field effect can land on a DIFFERENT vital than the one it would have
+      // harmed -- a draw-expression actor converts a same-kind field into mana rather
+      // than taking the hit -- so this accumulates a set of deltas, not one number.
+      const deltas = canResolve
+        ? resolveExposureVitalDeltas({
+          baseEffect: entry.effect,
+          vital: entry.vital,
+          fieldKind: fieldKindCode,
+          fieldExpression: fieldExpressionCode,
+          observerKind: observerKindCode,
+          observerExpression: observerExpressionCode,
+        })
+        : [{ vital: entry.vital, effect: entry.effect }];
+      for (const delta of deltas) {
+        if (!Object.hasOwn(VITAL_KEYS_BY_CODE, delta.vital)) continue;
+        effectsByVital.set(delta.vital, (effectsByVital.get(delta.vital) || 0) + delta.effect);
+      }
     }
   }
 
@@ -618,6 +909,22 @@ function fieldUtilityRanks({ endPosition, affinityFields, actorRecord }) {
   };
 }
 
+/**
+ * The no-motivation-profile branch: an actor whose motivation kind core does not recognize.
+ * Kept because removing it would silently drop those actors out of ranking entirely.
+ *
+ * ⚠️ ITS `intentClass` NOW USES `ACTOR_INTENT_CLASS`, NOT ITS OWN 100/80/50/20/10 SCALE
+ * (contract v5). Two scales under one member name was harmless while nothing read the value —
+ * adapters only stable-sort the tuple lexicographically, and both scales rank their own branch
+ * identically. It stopped being harmless the moment the Moderator began ORDERING ACTORS by
+ * rank[0]: a legacy attacker (100) and a motivated waiter (100) would have tied, and a legacy
+ * attacker would have resolved after a motivated actor's mere movement (200). A value only has
+ * to be internally consistent until someone compares it ACROSS producers.
+ *
+ * The remap is strictly monotonic (100→500, 80→400, 50→300, 20→200, 10→100, 0→0), so which
+ * candidate this branch selects is unchanged — proved by `actor-decision-objective`'s legacy
+ * rows, which assert the selected candidate rather than the raw score.
+ */
 function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, candidateActions, exit, affinityFields }) {
   const visiblePositions = visibleActors
     .filter((entry) => entry?.hostile !== false && entry?.position)
@@ -625,39 +932,43 @@ function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, can
   return candidateActions.map((candidate, index) => {
     const action = candidate.action;
     const endPosition = candidateEndPosition(action, actor.position);
-    let score = 0;
+    let score = ACTOR_INTENT_CLASS.NONE;
     let ruleId = "no_match";
     if (action?.kind === "attack") {
-      score = 100;
+      score = ACTOR_INTENT_CLASS.IN_RANGE_COMBAT;
       ruleId = "attack";
     } else if (action?.kind === "move" && visiblePositions.some((target) => {
       const before = chebyshevDistance(actor.position, target);
       const after = chebyshevDistance(endPosition, target);
       return Number.isFinite(before) && Number.isFinite(after) && after < before;
     })) {
-      score = 80;
+      score = ACTOR_INTENT_CLASS.HOSTILE_PROGRESS;
       ruleId = "move_toward_hostile";
     } else if (action?.kind === "move" && exit) {
       const before = chebyshevDistance(actor.position, exit);
       const after = chebyshevDistance(endPosition, exit);
       if (Number.isFinite(before) && Number.isFinite(after) && after < before) {
-        score = 50;
+        score = ACTOR_INTENT_CLASS.EXIT_PROGRESS;
         ruleId = "move_toward_exit";
+      } else if (Number.isFinite(before) && Number.isFinite(after) && after > before) {
+        score = ACTOR_INTENT_CLASS.MOBILE_RETREAT;
+        ruleId = "move_retreat";
       } else {
-        score = 20;
-        ruleId = "move_fallback";
+        score = ACTOR_INTENT_CLASS.MOBILE_LATERAL;
+        ruleId = "move_lateral";
       }
     } else if (action?.kind === "move") {
-      score = 20;
-      ruleId = "move_fallback";
+      // No exit to measure against, so nothing distinguishes lateral from retreat.
+      score = ACTOR_INTENT_CLASS.MOBILE_LATERAL;
+      ruleId = "move_lateral";
     } else if (action?.kind === "wait") {
-      score = 10;
+      score = ACTOR_INTENT_CLASS.WAIT;
       ruleId = "wait";
     }
     const field = fieldUtilityRanks({ endPosition, affinityFields, actorRecord });
     return {
       candidateActionId: candidate.id,
-      rank: [score, 0, 0, field.safety, field.benefit, 0, -index],
+      rank: [score, 0, 0, 0, field.safety, field.benefit, 0, 0, -index],
       features: {
         actionKind: action?.kind,
         compatibilityRule: ruleId,
@@ -718,44 +1029,25 @@ function buildActorDecisionObjective({
       : null;
     const target = explicitTarget || (action?.kind === "move" ? afterHostile?.actor : null);
     const actorProposal = proposalSignatures.has(candidateSignature(action?.kind, action?.params));
-    let intentClass = 0;
-    let intentTag = "profile_mismatch";
-    if (actorProposal) {
-      intentClass = 600;
-      intentTag = "actor_proposal";
-    } else if ((action?.kind === "attack" || action?.kind === "cast_affinity")
-      && motivationProfile.combatTier > 0
-      && actionCanReachTarget(action, actor.position, explicitTarget)) {
-      intentClass = 500;
-      intentTag = "in_range_combat";
-    } else if (action?.kind === "move" && motivationProfile.mobilityTier > 0) {
-      const hostileProgress = motivationProfile.combatTier === 1
-        && beforeHostile && afterHostile && afterHostile.distance < beforeHostile.distance;
-      const beforeExit = chebyshevDistance(actor.position, exit);
-      const afterExit = chebyshevDistance(endPosition, exit);
-      if (hostileProgress) {
-        intentClass = 400;
-        intentTag = "hostile_progress";
-      } else if (Number.isFinite(beforeExit) && Number.isFinite(afterExit) && afterExit < beforeExit) {
-        intentClass = 300;
-        intentTag = "exit_progress";
-      } else {
-        intentClass = 200;
-        intentTag = "mobile_fallback";
-      }
-    } else if (action?.kind === "wait") {
-      intentClass = 100;
-      intentTag = "wait";
-    }
-    const coverRank = flags.includes("PrefersCover") && endsBesideCover(endPosition, tileKinds, baseTiles)
-      ? 1000
+    const { intentClass, intentTag } = classifyActorIntent({
+      action,
+      actorPosition: actor.position,
+      motivationProfile,
+      visibleActors,
+      exit,
+    });
+    // Raw counts, not scaled: each is its own lexicographic member now, so nothing can
+    // swamp anything. An actor without the flag scores 0 and is simply indifferent.
+    const coverRank = flags.includes("PrefersCover")
+      ? coverCount(endPosition, tileKinds, baseTiles)
       : 0;
     const stealthRank = flags.includes("PrefersStealth") && beforeHostile && afterHostile
-      ? 1000 * (afterHostile.distance - beforeHostile.distance)
+      ? afterHostile.distance - beforeHostile.distance
       : 0;
     const field = fieldUtilityRanks({ endPosition, affinityFields, actorRecord });
     const reserve = castReserveRank(action, actorRecord);
     const rationaleTags = [intentTag];
+    if (actorProposal) rationaleTags.push("actor_proposal");
     if (coverRank) rationaleTags.push("prefers_cover");
     if (stealthRank) rationaleTags.push("prefers_stealth");
     if (field.safety < 0) rationaleTags.push("field_harm");
@@ -766,10 +1058,12 @@ function buildActorDecisionObjective({
       rank: [
         intentClass,
         targetFinishRank(target),
-        coverRank + stealthRank,
+        coverRank,
+        stealthRank,
         field.safety,
         field.benefit,
         reserve.rank,
+        actorProposal ? 1 : 0,
         -index,
       ],
       features: {
@@ -1677,11 +1971,59 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       actions.push(...fromEffects.actions);
     }
 
+    // Surface the intention (maintainer ruling, 2026-09-04). This reports WHAT the actor means
+    // to do so the Moderator can decide who resolves first; it commits to nothing and reaches no
+    // adapter. The Moderator is deliberately never handed the actions themselves — one holding
+    // actions could reorder outcomes rather than actors.
+    //
+    // ⚠️ AN EARLIER VERSION OF THIS COMMENT CLAIMED A BLOCKER THAT DOES NOT EXIST. It said an
+    // actor emits several actions per tick so "the first non-telemetry action" is unreliable,
+    // and that "a delver that attacks reports wait". Measured with the derivation instrumented
+    // across tests/runtime + tests/personas + tests/integration: every actor emits EXACTLY ONE
+    // gameplay action per advance (360 × `move`, 20 × `attack` in the combat suite), and the
+    // single multi-action case in the whole suite is `move,wait` — first-wins already picks the
+    // meaningful one. The claim was inferred from reading the emit sequence and never run.
+    //
+    // The real hole the measurement DID find is the envelope path, and it is the opposite
+    // shape: on the runtime-decision route this branch never runs at all (17/17 advances
+    // emitted zero actions and zero intentions), because the chosen action does not exist yet —
+    // it is resolved from the solver result in `tick-orchestrator`. That path surfaces its own
+    // intention there, from the rank the Actor published.
+    //
+    // ONE INTENTION PER ACTOR, not one per advance. A single Actor advance emits actions for
+    // EVERY motivated actor it decided for, not only the `baseActorId` the payload names. An
+    // earlier version keyed off baseActorId alone, so in a two-actor tick exactly one actor
+    // surfaced an intention and the other sorted last at class 0 — which silently handed
+    // resolution order to whichever actor happened to be named in the payload. Caught by
+    // `runtime-combat-application`, where it reversed an attacking delver and a defending warden.
+    const chosenByActor = new Map();
+    for (const action of actions) {
+      const actorId = action?.actorId;
+      if (typeof actorId !== "string" || !actorId) continue;
+      if (action.kind === "emit_log" || action.kind === "emit_telemetry") continue;
+      if (!chosenByActor.has(actorId)) chosenByActor.set(actorId, action);
+    }
+    // The SAME classifier the ranking uses, per actor — not a second, kind-only derivation.
+    // Each actor gets its own profile and visible-actor list: a shared one would score every
+    // actor as if it were `baseActorId`, which is the bug class the paragraph above records.
+    const intentions = [...chosenByActor.entries()].map(([actorId, action]) => buildActorIntention({
+      actorId,
+      ...classifyActorIntent({
+        action,
+        actorPosition: resolveActor(observationView, actorId, observation)?.position,
+        motivationProfile: buildMotivationProfile(observationView, actorId, payload),
+        visibleActors: resolveVisibleActors(observationView, actorId),
+        exit,
+      }),
+      tick,
+    }));
+
     return {
       ...result,
       tick,
       actions,
       effects,
+      intentions,
       telemetry: null,
     };
   }

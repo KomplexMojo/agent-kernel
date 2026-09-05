@@ -2119,6 +2119,7 @@ export const WORLD_STATE_SCHEMA = "agent-kernel/WorldStateArtifact";
 // census can see (M7/M8/M9).
 export const CONSTRAINT_PROBLEM_SCHEMA = "agent-kernel/ConstraintProblem";
 export const CONSTRAINT_RESULT_SCHEMA = "agent-kernel/ConstraintResult";
+export const ACTOR_INTENTION_SCHEMA = "agent-kernel/ActorIntention";
 export const NARRATIVE_ARTIFACT_SCHEMA = "agent-kernel/NarrativeArtifact";
 
 /**
@@ -2307,6 +2308,37 @@ export type WorldStateArtifact = WorldStateArtifactV1 | WorldStateArtifactV2;
  * MEAN is the owning persona's business, so they stay opaque here; giving this
  * file an opinion about them would move domain logic into a contract.
  */
+/**
+ * What an actor INTENDS this tick, surfaced to the Moderator so it can decide who resolves
+ * first (maintainer ruling, 2026-09-04: "the Moderator should own actor ordering; intentions
+ * should be surfaced from the actor to the moderator").
+ *
+ * Before this, turn order was `initialState.actors` array order — the sequence actors happened
+ * to be written into the build spec — and no persona owned it. Measured over 48 scenarios, 75%
+ * had an outcome that depended on that order: who claims a contested tile, and whether a
+ * defender escapes a blow or takes it.
+ *
+ * This carries the INTENT, not the action. The Actor keeps authority over what it will do and
+ * over what its intent class means; the Moderator decides only the sequence. A Moderator that
+ * received actions could reorder outcomes rather than actors, which is the persona boundary
+ * this shape exists to keep.
+ */
+export interface ActorIntentionV1 {
+  schema: typeof ACTOR_INTENTION_SCHEMA;
+  schemaVersion: 1;
+  // No `meta`, deliberately, and the classification guard derives the kind from that
+  // absence: an intention is an in-process protocol message like `ActionV1`, not a record.
+  // It is consumed by the Moderator in the tick that produced it and never persisted.
+  actorId: string;
+  /** The Actor's own class for its chosen candidate; higher intends sooner. */
+  intentClass: number;
+  /** Human-readable form of the same ruling, e.g. "in_range_combat". Diagnostic. */
+  intentTag: string;
+  tick: number;
+}
+
+export type ActorIntention = ActorIntentionV1;
+
 export interface ConstraintProblemV1 {
   schema: typeof CONSTRAINT_PROBLEM_SCHEMA;
   schemaVersion: 1;

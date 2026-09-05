@@ -101,17 +101,23 @@ async function runReceipt() {
 test("runtime captures actual direct and core outcomes, then delegates receipt pricing to its live Allocator", async () => {
   const receipt = await runReceipt();
 
+  // ROW ORDER IS NOW THE MODERATOR'S RESOLUTION ORDER, not collection order. Both actors
+  // surface `wait` (intent class 100), so the tie breaks on actor id and `delver` resolves
+  // its whole turn before `warden` starts -- where previously the two actors' actions
+  // interleaved in the order the decide loop happened to collect them. Units, outcomes and
+  // totals are unchanged; only who goes first is, which is the entire point of the binding.
   assert.deepEqual(receipt.rows.map(({ actorId, actionKind, outcome, units }) => ({ actorId, actionKind, outcome, units })), [
     { actorId: "delver", actionKind: "wait", outcome: "accepted", units: 1 },
-    { actorId: "warden", actionKind: "wait", outcome: "accepted", units: 1 },
     { actorId: "delver", actionKind: "request_solver", outcome: "accepted", units: 2 },
     { actorId: "delver", actionKind: "move", outcome: "accepted", units: 0 },
     { actorId: "delver", actionKind: "attack", outcome: "accepted", units: 1 },
-    { actorId: null, actionKind: "attack", outcome: "rejected", units: 0 },
+    { actorId: "warden", actionKind: "wait", outcome: "accepted", units: 1 },
     { actorId: "warden", actionKind: "move", outcome: "rejected", units: 0 },
     { actorId: "warden", actionKind: "fulfill_request", outcome: "rejected", units: 0 },
+    { actorId: null, actionKind: "attack", outcome: "rejected", units: 0 },
   ]);
-  assert.match(receipt.rows[7].reason, /^action_rejected_by_core:/, "non-Move core rejection must not be recorded as accepted");
+  const coreRejected = receipt.rows.find((row) => row.actorId === "warden" && row.actionKind === "fulfill_request");
+  assert.match(coreRejected.reason, /^action_rejected_by_core:/, "non-Move core rejection must not be recorded as accepted");
   assert.deepEqual(receipt.actorTotals, [
     { actorId: "delver", units: 4 },
     { actorId: "warden", units: 1 },

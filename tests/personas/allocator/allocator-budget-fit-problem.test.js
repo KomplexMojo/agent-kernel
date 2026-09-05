@@ -193,8 +193,8 @@ test("deferred and capability-absent adapters preserve the exact characterized f
     solve: async () => ({ status: "deferred", reason: "forced_deferred" }),
   };
   const absent = {
-    kind: "actor-only",
-    capabilities: { domains: ["actor_action_selection"], deterministic: true },
+    kind: "configurator-only",
+    capabilities: { domains: ["configurator_satisfiability"], deterministic: true },
     solve: async () => assert.fail("a capability-absent adapter must not be called"),
   };
 
@@ -305,7 +305,8 @@ test("the hybrid adapter reports all adopted domains and keeps the Actor path Z3
   });
   assert.equal(adapter.kind, "hybrid-constraint");
   assert.deepEqual(adapter.capabilities, {
-    domains: ["actor_action_selection", "allocator_budget_fit", "configurator_satisfiability"],
+    domains: ["allocator_budget_fit", "configurator_satisfiability"],
+    contracts: ["runtime-decision-v1"],
     deterministic: true,
   });
 

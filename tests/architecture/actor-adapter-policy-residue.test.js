@@ -31,13 +31,23 @@ const FORBIDDEN_POLICY_TOKENS = [
   "move_fallback",
 ];
 
+/**
+ * Every rank label the Actor must own. v4 demoted `actorProposal` from an intentClass of 600 to a tiebreak member, so the tuple
+ * decides rather than re-stamping whichever proposal arrived. Stage B split `profileAlignment` into
+ * `coverAlignment` and `stealthAlignment` (contract v3): summing a flat cover bonus with
+ * a scaled stealth delta made the two indistinguishable, so a sort could not tell a
+ * sheltering actor from a retreating one. Updating this list is the deliberate half of
+ * that change -- the guard correctly refused to let a rank member disappear quietly.
+ */
 const ACTOR_ORDER_LABELS = [
   "intentClass",
   "targetFinish",
-  "profileAlignment",
+  "coverAlignment",
+  "stealthAlignment",
   "fieldSafety",
   "fieldBenefit",
   "castReserve",
+  "actorProposal",
   "inputOrder",
 ];
 

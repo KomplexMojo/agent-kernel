@@ -568,7 +568,10 @@ Emit the full runtime schema catalog for UI or agent discovery. With `--out-dir`
 
 ### `solve`
 Stage a constrained scenario (e.g., "two actors conflict") and emit a `SolverRequest`
-artifact plus a `SolverResult` using a stubbed/fixture-driven solver adapter (no network).
+artifact plus a `SolverResult` (no network). Since 2026-09-04 the default engine is real Z3
+(`createHybridConstraintSolverAdapter`); pass `--solver-fixture <path>` to replay a recorded result
+instead, or set `AK_SOLVER_ENGINE=fixture` to force the stub adapter everywhere. An explicitly
+supplied fixture path always wins over the engine default.
 
 ### `run`
 Execute a configured simulation run using captured artifacts, emitting TickFrame and

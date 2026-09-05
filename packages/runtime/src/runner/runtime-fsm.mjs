@@ -9,7 +9,11 @@ import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createAnnotatorPersona } from "../personas/annotator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createDirectorPersona } from "../personas/director/persona.js";
-import { createModeratorPersona, FulfillmentDispositions } from "../personas/moderator/persona.js";
+import {
+  createModeratorPersona,
+  FulfillmentDispositions,
+  orderActorsByIntention,
+} from "../personas/moderator/persona.js";
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs";
 import {
@@ -1331,6 +1335,35 @@ export function createFsmRuntime({
     return resolved;
   }
 
+  /**
+   * Put this tick's actions into the order the MODERATOR ruled, before core resolves them.
+   *
+   * This is the binding that makes the ordering real. Until it existed, actors resolved in
+   * `initialState.actors` array order -- the sequence the build happened to emit -- and the
+   * measurement in `scripts/testing/logic-actor-ordering.mjs` found 75% of two- and
+   * three-actor scenarios had an outcome that depended on it: who claims a contested tile,
+   * and whether a defender escapes a blow or takes it at 1 health.
+   *
+   * STABLE within an actor and for anything the ruling does not name. Actions whose actorId
+   * the Moderator did not rank (telemetry from a persona, an unknown actor) keep their
+   * relative position at the end rather than being dropped or hoisted -- reordering must
+   * change WHO GOES FIRST and nothing else.
+   */
+  function orderActionsForResolution(pendingActions, intentions, actorIds) {
+    const order = orderActorsByIntention({ actorIds, intentions });
+    if (order.length === 0) return pendingActions;
+    const rankByActor = new Map(order.map((id, index) => [id, index]));
+    const unranked = order.length;
+    return pendingActions
+      .map((action, index) => ({
+        action,
+        index,
+        rank: rankByActor.has(action?.actorId) ? rankByActor.get(action.actorId) : unranked,
+      }))
+      .sort((left, right) => (left.rank - right.rank) || (left.index - right.index))
+      .map((entry) => entry.action);
+  }
+
   function applyActionsToCore(actions) {
     const acceptedActions = [];
     const preCoreRejections = [];
@@ -1709,6 +1742,11 @@ export function createFsmRuntime({
       // reads (see packages/runtime/src/personas/_shared/tick-orchestrator.mts).
       const decideActorIterationIds = decideActorIds.length > 0 ? decideActorIds : [primaryActorId];
       const actions = [];
+      // ACCUMULATED ACROSS THE LOOP, not read off `decideRecord`. The loop advances the Actor
+      // once PER ACTOR and keeps only the last record, so reading intentions from it would
+      // surface exactly one actor's -- and every other actor would sort at class 0, handing
+      // resolution order back to the array order this exists to replace.
+      const tickIntentions = [];
       let decideRecord = null;
       let decidePersonaPayloads = null;
       for (let i = 0; i < decideActorIterationIds.length; i += 1) {
@@ -1780,6 +1818,9 @@ export function createFsmRuntime({
         if (Array.isArray(record.actions) && record.actions.length) {
           actions.push(...record.actions);
         }
+        if (Array.isArray(record.intentions) && record.intentions.length) {
+          tickIntentions.push(...record.intentions);
+        }
         decideRecord = record;
       }
 
@@ -1812,7 +1853,8 @@ export function createFsmRuntime({
       };
       const applyRecord = await orchestrator.stepPhase("apply", applyInputs);
       const applyActions = Array.isArray(applyRecord.actions) ? applyRecord.actions : [];
-      const applied = applyActionsToCore(actions.concat(applyActions));
+      const resolutionOrdered = orderActionsForResolution(actions, tickIntentions, decideActorIterationIds);
+      const applied = applyActionsToCore(resolutionOrdered.concat(applyActions));
       runtimeBudgetOutcomes.push(...applied.outcomes);
 
       // AM.8 — resolve the affinity fields that are in CONTACT, after the tick's

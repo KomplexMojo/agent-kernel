@@ -31,15 +31,37 @@ async function loadConformance() {
 // The contract: adopted domains only, and one owner each
 // ---------------------------------------------------------------------------
 
-test("only the three ADOPTED domains exist", async () => {
+test("only the two ADOPTED domains exist", async () => {
   const { CONSTRAINT_DOMAINS } = await loadContract();
   assert.deepEqual(
     Object.values(CONSTRAINT_DOMAINS).sort(),
-    ["actor_action_selection", "allocator_budget_fit", "configurator_satisfiability"],
+    ["allocator_budget_fit", "configurator_satisfiability"],
     "the domain list is closed on purpose. Moderator interaction resolution and tick ordering "
       + "were REFUSED — they evaluate rather than search — and a domain for either would be the "
       + "artificial introduction the adoption rule forbids.",
   );
+});
+
+// ⚠️ THREE → TWO, and the removal is the point. `actor_action_selection` was adopted on the
+// qualitative gate alone and retired 2026-09-05 once the quantitative half was measured: 0.0%
+// divergence from a plain stable sort over 819 permutations, 0 Z3 initializations, and no host
+// ever routed on it. This test guards the retirement in the direction that actually decays —
+// silent RE-adoption — because re-adding the string is a one-line change that no other
+// assertion here would notice.
+test("the retired Actor domain cannot be posed as a constraint problem", async () => {
+  const { buildConstraintProblem, validateConstraintProblem, CONSTRAINT_DOMAIN_OWNERS } = await loadContract();
+  assert.equal(
+    CONSTRAINT_DOMAIN_OWNERS.actor_action_selection,
+    undefined,
+    "a retired domain must not keep an owner: the owner table is what makes a domain posable",
+  );
+  const result = validateConstraintProblem(buildConstraintProblem({
+    domain: "actor_action_selection",
+    posedBy: "actor",
+    meta: { id: "x", runId: "x", createdAt: "2026-08-14T00:00:00.000Z" },
+  }));
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join(" "), /not an adopted constraint domain/);
 });
 
 test("a problem in a refused or invented domain is rejected", async () => {
@@ -76,7 +98,7 @@ test("one persona may not pose another persona's question", async () => {
 test("an unattributed problem is refused", async () => {
   const { buildConstraintProblem, validateConstraintProblem, CONSTRAINT_DOMAINS } = await loadContract();
   const result = validateConstraintProblem(buildConstraintProblem({
-    domain: CONSTRAINT_DOMAINS.ACTOR_ACTION_SELECTION,
+    domain: CONSTRAINT_DOMAINS.CONFIGURATOR_SATISFIABILITY,
     meta: { id: "x", runId: "x", createdAt: "2026-08-14T00:00:00.000Z" },
   }));
   assert.equal(result.ok, false);
@@ -132,7 +154,7 @@ test("conformance CATCHES a non-deterministic adapter", async () => {
   let calls = 0;
   const flaky = {
     kind: "flaky",
-    capabilities: { domains: ["actor_action_selection"], deterministic: true },
+    capabilities: { domains: ["allocator_budget_fit"], deterministic: true },
     async solve() {
       calls += 1;
       return { status: "fulfilled", model: { selectedActionId: `candidate_${calls}` } };
@@ -148,7 +170,7 @@ test("conformance CATCHES a non-deterministic adapter", async () => {
   );
 });
 
-test("conformance CATCHES an adapter that declares no domain", async () => {
+test("conformance CATCHES an adapter that declares neither a domain nor a contract", async () => {
   const { checkSolverConformance } = await loadConformance();
   const silent = {
     kind: "silent",
@@ -157,14 +179,37 @@ test("conformance CATCHES an adapter that declares no domain", async () => {
   };
   const result = await checkSolverConformance(silent);
   assert.equal(result.ok, false);
-  assert.match(result.failures.join(" "), /declares no constraint domains/);
+  assert.match(result.failures.join(" "), /declares neither a constraint domain nor a problem contract/);
+});
+
+// The half that retiring `actor_action_selection` added, and the one that could rot quietly:
+// an adapter answering the Actor's envelope declares a CONTRACT and no domain, and must still
+// clear the gate. Get this wrong and the Actor adapter silently stops being conformance-checked
+// at all -- losing the determinism guarantee that `ak replay` depends on.
+test("an adapter that declares only a problem contract still clears the gate", async () => {
+  const { checkSolverConformance, describeSolverCapabilities } = await loadConformance();
+  const byContract = {
+    kind: "envelope-only",
+    capabilities: { contracts: ["runtime-decision-v1"], deterministic: true },
+    async solve() { return { status: "deferred", reason: "not my envelope" }; },
+  };
+  assert.deepEqual(describeSolverCapabilities(byContract).contracts, ["runtime-decision-v1"]);
+  assert.deepEqual(describeSolverCapabilities(byContract).domains, []);
+  const result = await checkSolverConformance(byContract);
+  assert.equal(result.ok, true, result.failures.join(" | "));
+
+  // ...and an invented contract string declares nothing, exactly as an invented domain does.
+  const bogus = { ...byContract, capabilities: { contracts: ["smt-lib-v2"], deterministic: true } };
+  const rejected = await checkSolverConformance(bogus);
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.failures.join(" "), /declares neither a constraint domain nor a problem contract/);
 });
 
 test("conformance CATCHES an adapter that throws instead of returning a status", async () => {
   const { checkSolverConformance } = await loadConformance();
   const thrower = {
     kind: "thrower",
-    capabilities: { domains: ["actor_action_selection"], deterministic: true },
+    capabilities: { domains: ["allocator_budget_fit"], deterministic: true },
     async solve() { throw new Error("boom"); },
   };
   const result = await checkSolverConformance(thrower);
@@ -178,12 +223,16 @@ test("capability routing: a domain an adapter never claimed is not handed to it"
     "../../packages/adapters-test/src/adapters/solver/z3-adapter.js"
   );
   const adapter = createZ3SolverAdapter();
-  assert.equal(adapterHandlesDomain(adapter, "actor_action_selection"), true);
+  // The stand-in answers the Actor's ENVELOPE and claims no constraint domain at all --
+  // `actor_action_selection` was retired, and this adapter is why it should have been: it
+  // sorts rank tuples and has never searched for anything.
+  assert.deepEqual(describeSolverCapabilities(adapter).contracts, ["runtime-decision-v1"]);
+  assert.deepEqual(describeSolverCapabilities(adapter).domains, []);
   assert.equal(
     adapterHandlesDomain(adapter, "allocator_budget_fit"),
     false,
-    "the stand-in models action selection only. An adapter that answered a domain it never "
-      + "claimed would produce a confidently wrong decision rather than a clean deferral.",
+    "an adapter that answered a domain it never claimed would produce a confidently wrong "
+      + "decision rather than a clean deferral.",
   );
   assert.equal(describeSolverCapabilities(adapter).deterministic, true);
 });
