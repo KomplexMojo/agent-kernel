@@ -20,10 +20,10 @@ const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
-const ROOT = resolve(__dirname, "../..");
+const ROOT = resolve(__dirname, "../../..");
 const PRICE_LIST_JS = resolve(ROOT, "packages/runtime/src/personas/allocator/default-price-list.js");
 const BASE_COSTS_JSON = resolve(ROOT, "packages/runtime/src/personas/allocator/base-costs.json");
-const MODULE = "../../packages/runtime/src/personas/allocator/default-price-list.js";
+const MODULE = "../../../packages/runtime/src/personas/allocator/default-price-list.js";
 
 test("base costs live in JSON", () => {
   const base = JSON.parse(readFileSync(BASE_COSTS_JSON, "utf8"));
@@ -143,7 +143,7 @@ test("P1.4: the motivation policy carries NO cost constants — fail-loud, list-
   // asserted from the Allocator's side in
   // tests/personas/allocator/allocator-unified-pricing.test.js; kept here too because this
   // file is where someone reintroducing a "default cost" would look for permission.
-  const mp = await import("../../packages/runtime/src/personas/allocator/motivation-price-policy.js");
+  const mp = await import("../../../packages/runtime/src/personas/allocator/motivation-price-policy.js");
   assert.equal(mp.DEFAULT_MOTIVATION_COSTS, undefined, "fallback table deleted in P1.4");
   assert.equal(mp.SIMPLE_MOTIVATION_COST, undefined);
   assert.equal(mp.ADVANCED_MOTIVATION_COST, undefined);

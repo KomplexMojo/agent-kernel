@@ -32,6 +32,11 @@
  * assertions, not a fact about paths. `persona-authority.test.js` is where ownership
  * is answered; claiming it here would make this guard read like coverage it has not
  * got — the exact failure mode the registry exists to prevent.
+ *
+ * PARALLEL HOMES OUTSIDE tests/personas/. A second block below forbids
+ * tests/allocator/, tests/financial-model/, and tests/runtime/<persona>/ —
+ * directories this guard's in-personas/ loops never see. Flat tests/runtime/*.test.js
+ * files that import persona modules are out of scope here (deferred triage).
  */
 const assert = require("node:assert/strict");
 const { readdirSync } = require("node:fs");
@@ -139,5 +144,90 @@ test("no directory under tests/personas/ is named for something that is not a ch
     [],
     `tests/personas/ subdirectories must be chartered personas (${[...roster].join(", ")}). `
       + `Found: ${strays.join(", ")}.`,
+  );
+});
+
+/**
+ * Parallel persona homes outside tests/personas/. The in-personas/ rules above
+ * cannot see them: a test under tests/allocator/ or tests/runtime/allocator/
+ * never enters those loops. AGENTS.md says persona behavior tests live in
+ * tests/personas/<persona>/, not tests/runtime/ — this half was aspirational
+ * until these assertions landed.
+ *
+ * WHAT THIS DELIBERATELY DOES NOT CHECK: flat files under tests/runtime/ that
+ * import persona modules (e2e/orchestration). Those need a triage pass; see the
+ * deferred gh issue from the layout-cleanup milestone.
+ */
+const TESTS_ROOT = resolve(ROOT, "tests");
+const FORBIDDEN_PARALLEL_ROOTS = Object.freeze([
+  "allocator",
+  "financial-model",
+]);
+
+function listTestFilesRecursive(dir, prefix = "") {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+  const found = [];
+  for (const entry of entries) {
+    const rel = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) {
+      found.push(...listTestFilesRecursive(resolve(dir, entry.name), rel));
+    } else if (entry.isFile() && isTestFile(entry.name)) {
+      found.push(rel);
+    }
+  }
+  return found;
+}
+
+test("persona behavior tests do not live under forbidden parallel roots outside tests/personas/", () => {
+  const offenders = [];
+  for (const name of FORBIDDEN_PARALLEL_ROOTS) {
+    const dir = resolve(TESTS_ROOT, name);
+    for (const rel of listTestFilesRecursive(dir)) {
+      offenders.push(`tests/${name}/${rel}`);
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `charter §6 / AGENTS: persona behavior tests belong under tests/personas/<persona>/. `
+      + `These sit under a forbidden parallel root: ${offenders.join(", ")}. `
+      + `Move them (and delete the emptied directory) rather than adding an exception here.`,
+  );
+});
+
+test("no tests/runtime/<persona>/ directory exists for a chartered persona", () => {
+  const runtimeRoot = resolve(TESTS_ROOT, "runtime");
+  let entries;
+  try {
+    entries = readdirSync(runtimeRoot, { withFileTypes: true });
+  } catch {
+    return; // no tests/runtime/ at all is fine
+  }
+
+  const roster = new Set(CHARTER_PERSONAS);
+  const offenders = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !roster.has(entry.name)) continue;
+    const files = listTestFilesRecursive(resolve(runtimeRoot, entry.name));
+    for (const rel of files) {
+      offenders.push(`tests/runtime/${entry.name}/${rel}`);
+    }
+    // Empty persona-named dir is still a parallel home — flag the directory itself.
+    if (files.length === 0) {
+      offenders.push(`tests/runtime/${entry.name}/`);
+    }
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `AGENTS: persona behavior tests live in tests/personas/<persona>/, not `
+      + `tests/runtime/<persona>/. Move or delete: ${offenders.join(", ")}.`,
   );
 });

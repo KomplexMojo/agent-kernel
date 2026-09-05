@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 
 test("normalizeMotivations accepts allowed kinds and applies defaults", async () => {
   const { normalizeMotivations, MOTIVATION_DEFAULTS } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   // random (mobility) + attacking (posture) — cross-family, valid
@@ -26,7 +26,7 @@ test("normalizeMotivations accepts allowed kinds and applies defaults", async ()
 
 test("normalizeMotivations surfaces invalid kinds/patterns and clamps intensity", async () => {
   const { normalizeMotivations, MOTIVATION_PATTERNS } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const result = normalizeMotivations([
@@ -44,12 +44,12 @@ test("normalizeMotivations surfaces invalid kinds/patterns and clamps intensity"
 });
 
 test("normalizeMotivations rejects contradictory motivations from the same exclusive group", async () => {
-  const { normalizeMotivations } = await import("../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
+  const { normalizeMotivations } = await import("../../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
   const {
     getConflictingMotivationKinds,
     MOTIVATION_DISPLAY_GROUPS,
   } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   const postureGroup = MOTIVATION_DISPLAY_GROUPS.find((group) => group.id === "posture_attacking_defending");
@@ -76,7 +76,7 @@ test("normalizeMotivations rejects contradictory motivations from the same exclu
 
 test("MOTIVATION_FAMILIES defines canonical motivation families", async () => {
   const { MOTIVATION_FAMILIES, MOTIVATION_KINDS } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   assert.deepEqual(MOTIVATION_FAMILIES.mobility, ["random", "stationary", "exploring", "patrolling"]);
@@ -96,7 +96,7 @@ test("MOTIVATION_FAMILIES defines canonical motivation families", async () => {
 
 test("user_controlled composes outside posture and mobility exclusivity", async () => {
   const { normalizeMotivations } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const result = normalizeMotivations(["user_controlled", "attacking", "exploring"]);
@@ -106,7 +106,7 @@ test("user_controlled composes outside posture and mobility exclusivity", async 
 
 test("stealthy and friendly are valid motivation kinds", async () => {
   const { normalizeMotivationKind, MOTIVATION_KINDS } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   assert.ok(MOTIVATION_KINDS.includes("stealthy"));
@@ -117,7 +117,7 @@ test("stealthy and friendly are valid motivation kinds", async () => {
 
 test("exclusive groups use family names: mobility, posture, cognition", async () => {
   const { MOTIVATION_EXCLUSIVE_GROUPS } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   const groupIds = MOTIVATION_EXCLUSIVE_GROUPS.map((g) => g.id);
@@ -126,7 +126,7 @@ test("exclusive groups use family names: mobility, posture, cognition", async ()
 
 test("posture family rejects stealthy + friendly conflict", async () => {
   const { normalizeMotivations } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const result = normalizeMotivations(["stealthy", "friendly"]);
@@ -137,7 +137,7 @@ test("posture family rejects stealthy + friendly conflict", async () => {
 
 test("posture family rejects attacking + stealthy conflict", async () => {
   const { normalizeMotivations } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const result = normalizeMotivations(["attacking", "stealthy"]);
@@ -148,7 +148,7 @@ test("posture family rejects attacking + stealthy conflict", async () => {
 
 test("cognition family rejects reflexive + goal_oriented conflict", async () => {
   const { normalizeMotivations } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const result = normalizeMotivations(["reflexive", "goal_oriented"]);
@@ -159,7 +159,7 @@ test("cognition family rejects reflexive + goal_oriented conflict", async () => 
 
 test("cross-family motivations compose freely", async () => {
   const { normalizeMotivations } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   // random (mobility) + attacking (posture) + reflexive (cognition)
@@ -179,9 +179,9 @@ test("cross-family motivations compose freely", async () => {
 });
 
 test("shorthand string inputs continue to work for new kinds", async () => {
-  const { normalizeMotivations } = await import("../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
+  const { normalizeMotivations } = await import("../../../packages/runtime/src/personas/configurator/motivation-loadouts.js");
   const { normalizeMotivationKind } = await import(
-    "../../packages/runtime/src/contracts/domain-constants.js"
+    "../../../packages/runtime/src/contracts/domain-constants.js"
   );
 
   // String normalization (case, whitespace, hyphens)
@@ -200,7 +200,7 @@ test("shorthand string inputs continue to work for new kinds", async () => {
 
 test("MOTIVATION_GOAL_TYPES defines supported goal types per kind", async () => {
   const { MOTIVATION_GOAL_TYPES } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   assert.ok(MOTIVATION_GOAL_TYPES.defending.includes("defend_point"));
@@ -215,7 +215,7 @@ test("MOTIVATION_GOAL_TYPES defines supported goal types per kind", async () => 
 
 test("normalizeMotivation includes goal for defending with defend_point", async () => {
   const { normalizeMotivation } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const errors = [];
@@ -239,7 +239,7 @@ test("normalizeMotivation includes goal for defending with defend_point", async 
 
 test("normalizeMotivation includes goal for goal_oriented + reach_point", async () => {
   const { normalizeMotivation } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const errors = [];
@@ -260,7 +260,7 @@ test("normalizeMotivation includes goal for goal_oriented + reach_point", async 
 
 test("normalizeMotivation omits goal when not provided", async () => {
   const { normalizeMotivation } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const errors = [];
@@ -271,7 +271,7 @@ test("normalizeMotivation omits goal when not provided", async () => {
 
 test("normalizeMotivation errors on goal for unsupported kind", async () => {
   const { normalizeMotivation } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const errors = [];
@@ -286,7 +286,7 @@ test("normalizeMotivation errors on goal for unsupported kind", async () => {
 
 test("normalizeMotivation errors on unknown goal type for kind", async () => {
   const { normalizeMotivation } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const errors = [];
@@ -301,7 +301,7 @@ test("normalizeMotivation errors on unknown goal type for kind", async () => {
 
 test("normalizeMotivation errors on missing goal type", async () => {
   const { normalizeMotivation } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const errors = [];
@@ -315,7 +315,7 @@ test("normalizeMotivation errors on missing goal type", async () => {
 
 test("normalizeMotivation errors on unknown goal param keys", async () => {
   const { normalizeMotivation } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const errors = [];
@@ -336,7 +336,7 @@ test("normalizeMotivation errors on unknown goal param keys", async () => {
 
 test("normalizeMotivations passes goals through for composed motivations", async () => {
   const { normalizeMotivations } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const result = normalizeMotivations([
@@ -360,7 +360,7 @@ test("normalizeMotivations passes goals through for composed motivations", async
 
 test("string shorthand motivations do not produce goals", async () => {
   const { normalizeMotivation } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const errors = [];
@@ -372,7 +372,7 @@ test("string shorthand motivations do not produce goals", async () => {
 
 test("goal payload is serializable (frozen params)", async () => {
   const { normalizeMotivation } = await import(
-    "../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
+    "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
 
   const errors = [];

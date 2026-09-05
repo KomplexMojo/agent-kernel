@@ -1,13 +1,13 @@
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
-const { configuratorRoomGeometry } = require("../helpers/configurator-capabilities.js");
+const { configuratorRoomGeometry } = require("../../helpers/configurator-capabilities.js");
 
-const catalogPath = resolve(__dirname, "../fixtures/pool/catalog-basic.json");
+const catalogPath = resolve(__dirname, "../../fixtures/pool/catalog-basic.json");
 
 test("summary + catalog produces a valid BuildSpec", async () => {
   const { buildBuildSpecFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
+    "../../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
   const summary = {
@@ -39,7 +39,7 @@ test("summary + catalog produces a valid BuildSpec", async () => {
 
 test("summary without catalog still produces actor configuration via shared selection mapper", async () => {
   const { buildBuildSpecFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
+    "../../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const summary = {
     dungeonAffinity: "water",
@@ -94,7 +94,7 @@ test("summary without catalog still produces actor configuration via shared sele
 
 test("hazard cards become configurator levelGen hazards in BuildSpec", async () => {
   const { buildBuildSpecFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
+    "../../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const summary = {
     dungeonAffinity: "fire",
@@ -147,7 +147,7 @@ test("hazard cards become configurator levelGen hazards in BuildSpec", async () 
 
 test("summary roomDesign drives connected-room level shape in BuildSpec", async () => {
   const { buildBuildSpecFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
+    "../../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const summary = {
     dungeonAffinity: "fire",
@@ -188,7 +188,7 @@ test("summary roomDesign drives connected-room level shape in BuildSpec", async 
 
 test("summary roomDesign numeric hints drive level shape in BuildSpec", async () => {
   const { buildBuildSpecFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
+    "../../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const summary = {
     dungeonAffinity: "water",
@@ -224,7 +224,7 @@ test("summary roomDesign numeric hints drive level shape in BuildSpec", async ()
 
 test("summary roomDesign rooms with counts map to level roomCount", async () => {
   const { buildBuildSpecFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
+    "../../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const summary = {
     dungeonAffinity: "dark",
@@ -257,7 +257,7 @@ test("summary roomDesign rooms with counts map to level roomCount", async () => 
 
 test("summary hallway overlay hints propagate to level shape in BuildSpec", async () => {
   const { buildBuildSpecFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
+    "../../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const summary = {
     dungeonAffinity: "earth",
@@ -295,7 +295,7 @@ test("summary hallway overlay hints propagate to level shape in BuildSpec", asyn
 
 test("room bounds and total fields drive level shape without explicit layout", async () => {
   const { buildBuildSpecFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/buildspec-assembler.js"
+    "../../../packages/runtime/src/personas/director/buildspec-assembler.js"
   );
   const summary = {
     dungeonAffinity: "wind",

@@ -22,7 +22,7 @@
  *      uniqueness, not by trusting the name is only used once.
  *
  * The BEHAVIORAL half — that this normalization is load-bearing, not decorative — already
- * has extensive coverage this entry does not duplicate: `tests/runtime/prompt-contract.test.js`
+ * has extensive coverage this entry does not duplicate: `tests/personas/orchestrator/orchestrator-prompt-contract.test.js`
  * (the validation rules themselves, ~15 cases) and
  * `tests/adapters-cli/ak-llm-plan.test.js` ("cli llm-plan rejects summaries that do not
  * match catalog entries", exercised through the real CLI). This file's job is narrower:

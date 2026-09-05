@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 
 test("buildSelectionsFromSummary creates deterministic actor and room selections", async () => {
   const { buildSelectionsFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/summary-selections.js"
+    "../../../packages/runtime/src/personas/director/summary-selections.js"
   );
 
   const summary = {
@@ -42,7 +42,7 @@ test("buildSelectionsFromSummary creates deterministic actor and room selections
 
 test("normalizeSummaryPick maps actor-set role/source fields", async () => {
   const { normalizeSummaryPick } = await import(
-    "../../packages/runtime/src/personas/director/summary-selections.js"
+    "../../../packages/runtime/src/personas/director/summary-selections.js"
   );
 
   const actorPick = normalizeSummaryPick(
@@ -65,7 +65,7 @@ test("normalizeSummaryPick maps actor-set role/source fields", async () => {
 
 test("normalizeCardEntry removes contradictory motivations from shared exclusive groups", async () => {
   const { normalizeCardEntry } = await import(
-    "../../packages/runtime/src/personas/director/summary-selections.js"
+    "../../../packages/runtime/src/personas/director/summary-selections.js"
   );
 
   const card = normalizeCardEntry({
@@ -82,7 +82,7 @@ test("normalizeCardEntry removes contradictory motivations from shared exclusive
 
 test("buildSelectionsFromSummary supports delverConfigs array", async () => {
   const { buildSelectionsFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/summary-selections.js"
+    "../../../packages/runtime/src/personas/director/summary-selections.js"
   );
 
   const selections = buildSelectionsFromSummary({
@@ -107,7 +107,7 @@ test("buildSelectionsFromSummary supports delverConfigs array", async () => {
 
 test("extractSummaryFromCardSet keeps delver and warden cards as distinct actor picks", async () => {
   const { extractSummaryFromCardSet } = await import(
-    "../../packages/runtime/src/personas/director/summary-selections.js"
+    "../../../packages/runtime/src/personas/director/summary-selections.js"
   );
 
   const summary = extractSummaryFromCardSet({
@@ -149,7 +149,7 @@ test("extractSummaryFromCardSet keeps delver and warden cards as distinct actor 
 
 test("buildCardSetFromSummary maps attacking actors to delver cards", async () => {
   const { buildCardSetFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/summary-selections.js"
+    "../../../packages/runtime/src/personas/director/summary-selections.js"
   );
 
   const cardSet = buildCardSetFromSummary({
@@ -171,7 +171,7 @@ test("buildCardSetFromSummary maps attacking actors to delver cards", async () =
 
 test("buildSelectionsFromSummary derives instance ids from card template ids", async () => {
   const { buildSelectionsFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/summary-selections.js"
+    "../../../packages/runtime/src/personas/director/summary-selections.js"
   );
 
   const selections = buildSelectionsFromSummary({
@@ -208,7 +208,7 @@ test("buildSelectionsFromSummary derives instance ids from card template ids", a
 
 test("buildSelectionsFromSummary preserves delver and warden actor types", async () => {
   const { buildSelectionsFromSummary } = await import(
-    "../../packages/runtime/src/personas/director/summary-selections.js"
+    "../../../packages/runtime/src/personas/director/summary-selections.js"
   );
 
   const selections = buildSelectionsFromSummary({

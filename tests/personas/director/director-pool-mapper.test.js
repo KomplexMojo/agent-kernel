@@ -2,10 +2,10 @@ const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
-const catalogPath = resolve(__dirname, "../fixtures/pool/catalog-basic.json");
+const catalogPath = resolve(__dirname, "../../fixtures/pool/catalog-basic.json");
 
 test("mapSummaryToPool snaps to nearest entry and generates stable IDs", async () => {
-  const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
+  const { mapSummaryToPool } = await import("../../../packages/runtime/src/personas/director/pool-mapper.js");
   const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
 
   const summary = {
@@ -35,7 +35,7 @@ test("mapSummaryToPool snaps to nearest entry and generates stable IDs", async (
 });
 
 test("mapSummaryToPool reports missing when no match and propagates catalog errors", async () => {
-  const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
+  const { mapSummaryToPool } = await import("../../../packages/runtime/src/personas/director/pool-mapper.js");
   const badCatalog = { entries: [{ id: "x" }] };
   const resBad = mapSummaryToPool({ summary: {}, catalog: badCatalog });
   assert.equal(resBad.ok, false);
@@ -51,7 +51,7 @@ test("mapSummaryToPool reports missing when no match and propagates catalog erro
 });
 
 test("mapSummaryToPool snaps arbitrary token hints down deterministically", async () => {
-  const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
+  const { mapSummaryToPool } = await import("../../../packages/runtime/src/personas/director/pool-mapper.js");
   const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
   const summary = {
     actors: [{ motivation: "defending", affinity: "earth", count: 1, tokenHint: 175 }],
@@ -64,7 +64,7 @@ test("mapSummaryToPool snaps arbitrary token hints down deterministically", asyn
 });
 
 test("mapSummaryToPool keeps IDs unique across separate picks for the same catalog entry", async () => {
-  const { mapSummaryToPool } = await import("../../packages/runtime/src/personas/director/pool-mapper.js");
+  const { mapSummaryToPool } = await import("../../../packages/runtime/src/personas/director/pool-mapper.js");
   const catalog = JSON.parse(readFileSync(catalogPath, "utf8"));
   const summary = {
     actors: [

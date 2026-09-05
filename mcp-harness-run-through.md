@@ -362,7 +362,7 @@ and `stationary` all showed `actions=0`; per `packages/runtime/src/personas/acto
 cognition motivations compose with a *mobility* motivation rather than supplying one, so a
 cognition-only actor legitimately has no movement instruction — consistent with, not contradicting,
 documented behavior. `defending` showed `actions=0, effects=5`, also consistent with existing test
-coverage (`tests/runtime/actor-motivation-combat.test.js`: "defending actor does not move when hostile
+coverage (`tests/personas/actor/actor-motivation-combat.test.js`: "defending actor does not move when hostile
 is not adjacent" — no hostile exists in a single-actor scenario). None of this was investigated
 further; flagged here only so a future sweep doesn't have to re-derive that these are expected.
 

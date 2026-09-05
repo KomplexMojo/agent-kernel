@@ -187,7 +187,7 @@ const REGISTRY = Object.freeze([
         + "checked again independently rather than only cited, because two guards agreeing "
         + "is stronger than one trusting the other. The BEHAVIORAL half — that this "
         + "normalization is load-bearing — is not reproven here: "
-        + "tests/runtime/prompt-contract.test.js (~15 validation-rule cases) and "
+        + "tests/personas/orchestrator/orchestrator-prompt-contract.test.js (~15 validation-rule cases) and "
         + "tests/adapters-cli/ak-llm-plan.test.js (\"cli llm-plan rejects summaries that do "
         + "not match catalog entries\", through the real CLI) already cover it.",
     },
@@ -723,7 +723,7 @@ const REGISTRY = Object.freeze([
         + "_shared/runtime-decision.mts: buildRuntimeDecisionEnvelope poses (called from "
         + "actor/controller.js) and resolveActionFromSolverResult resolves (called from "
         + "_shared/tick-orchestrator.mts's handleSolverRequests) — proven end-to-end with a "
-        + "solver adapter by tests/runtime/complex-motivation-z3.test.js, not reproven "
+        + "solver adapter by tests/personas/actor/actor-complex-motivation-z3.test.js, not reproven "
         + "here. Perturbation run for real: neutered resolveActionFromSolverResult to "
         + "always return ok:false — five assertions in that e2e test failed immediately, "
         + "confirming it is genuinely load-bearing, not merely present. Reverted after. "

@@ -21,7 +21,7 @@
  * `buildRuntimeDecisionEnvelope` is what `actor/controller.js` really calls to pose a
  * problem, and its `resolveActionFromSolverResult` is what
  * `_shared/tick-orchestrator.mts`'s `handleSolverRequests` really calls to resolve one —
- * proven end-to-end through the solver adapter by `tests/runtime/complex-motivation-z3.test.js`,
+ * proven end-to-end through the solver adapter by `tests/personas/actor/actor-complex-motivation-z3.test.js`,
  * not reproven here. This entry owns the one that runs.
  *
  * **RULED 2026-08-18: DELETE** (`local-codex/Plan.md` §POST-AM/Z) — the maintainer asked

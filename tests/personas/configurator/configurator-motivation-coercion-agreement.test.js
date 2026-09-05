@@ -21,8 +21,8 @@
  */
 const assert = require("node:assert/strict");
 
-const CONTRACTS = "../../packages/runtime/src/contracts/domain-constants.js";
-const LOADOUTS = "../../packages/runtime/src/personas/configurator/motivation-loadouts.js";
+const CONTRACTS = "../../../packages/runtime/src/contracts/domain-constants.js";
+const LOADOUTS = "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js";
 
 // [input, options] pairs spanning every branch both implementations have:
 // undefined, non-list, unknown kind, casing/separator variants, duplicates,
