@@ -182,6 +182,7 @@ export const CORE_API_KEYS = [
   "getMotivatedActorAffinityStacksByIndex",
   "getMotivatedActorAffinityStacksForKind",
   "getMotivatedActorCount",
+  "getMotivatedActorExitDwellByIndex",
   "getMotivatedActorIdByIndex",
   "getMotivatedActorMovementCostByIndex",
   "getMotivatedActorVitalCurrentByIndex",
@@ -231,6 +232,7 @@ export const CORE_API_KEYS = [
   "grantMotivatedActorAffinity",
   "hasResourceAt",
   "init",
+  "isMotivatedActorExitedByIndex",
   "loadMvpBarrierScenario",
   "loadMvpScenario",
   "loadTilesFromBuffer",
@@ -549,6 +551,8 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.loadTilesFromBuffer = world.loadTilesFromBuffer as CoreFunction;
   core.setTileAt = world.setTileAt as CoreFunction;
   core.setSpawnPosition = world.setSpawnPosition as CoreFunction;
+  core.getMotivatedActorExitDwellByIndex = world.getMotivatedActorExitDwellByIndex as CoreFunction;
+  core.isMotivatedActorExitedByIndex = world.isMotivatedActorExitedByIndex as CoreFunction;
   core.spawnActorAt = world.spawnActorAt as CoreFunction;
   core.loadMvpScenario = world.loadMvpScenario.bind(world) as CoreFunction;
   core.loadMvpBarrierScenario = world.loadMvpBarrierScenario.bind(world) as CoreFunction;

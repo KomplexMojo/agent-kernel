@@ -1690,9 +1690,18 @@ export function createFsmRuntime({
       // alphabetically-sorted numeric-index order used for core observation
       // labeling above. Every tracked actor must get a chance to propose an
       // action each tick — see tests/runtime/multi-actor-orchestration.test.js.
+      // An actor that has LEFT THE LEVEL is not asked to decide (maintainer ruling,
+      // 2026-09-05). Core owns the rule — two ticks ended on the exit tile — and the
+      // runner only reads the verdict; recomputing "has it exited?" here would be a
+      // second authority on a core state transition.
+      const hasExited = (id) => {
+        if (typeof core.isMotivatedActorExitedByIndex !== "function") return false;
+        const oneBased = actorIdMap.get(id);
+        return Number.isInteger(oneBased) && core.isMotivatedActorExitedByIndex(oneBased - 1) === true;
+      };
       const decideActorIds = Array.isArray(initialState?.actors)
-        ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id))
-        : sortedActorIds;
+        ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id) && !hasExited(id))
+        : sortedActorIds.filter((id) => !hasExited(id));
       const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutHazards, sortedActorIds, initialState);
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
