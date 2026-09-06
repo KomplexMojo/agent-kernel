@@ -20,6 +20,7 @@ Use this tool when local agent workflows should spend inference work on the Ubun
 | Need | Command family |
 | --- | --- |
 | Check remote Ollama state | `status`, `ps`, `logs`, `telemetry`, `doctor` |
+| Check what a benchmark run is doing now | `benchmark-status` |
 | Start or restart a profile | `start`, `restart`, `stop`, `dry-run start` |
 | Run Claude/Codex-side work through remote Ollama | `claude`, `run-local`, `use-remote-ollama` |
 | Run Claude/Codex-side work offline on the Mac's own Ollama | `claude --local`, `run-local --local`, `print-env --local` |
@@ -240,6 +241,50 @@ Remove `~/remote-ollama-control`, `~/.local/share/agent-kernel-benchmark`,
 `~/.local/state/agent-kernel-benchmark`, or the operator environment only after separately deciding
 their retained data is no longer needed. M5—not this installer—authorizes live GPU execution and the
 first `benchmark-results` branch publication.
+
+### Checking a run on demand
+
+The heartbeat below is an alarm, and five minutes is the right cadence for one. It is the wrong
+cadence for a person asking what the run is doing right now, and the beat is only a republish of a
+file that changes far more often -- `run-content-gen` rewrites `progress.json` after **every
+attempt**. So read that file instead:
+
+```bash
+./bin/remote-ollama-mac benchmark-status                      # text, auto route
+./bin/remote-ollama-mac benchmark-status --json               # the raw document
+./bin/remote-ollama-mac benchmark-status --html PATH --open   # formatted page, opened
+```
+
+Measured live: 186 attempts on disk against 180 in the last published beat.
+
+`--html` writes a self-contained page for reviewing **why attempts failed**, which the text form
+cannot show usefully. It carries the per-attempt records from `runs.jsonl`: failure reasons ranked
+by frequency, filters by outcome / model / free text, and per attempt the expected-versus-actual
+outcome, the score breakdown, the executor's stderr, and the tool arguments the model actually
+produced. Reasons are grouped with digits generalised to `N`, so one defect appearing with different
+numbers counts as one row rather than eighty singletons.
+
+When no run is in flight the page shows the most recent finished run, badged `finished run` and
+never rendered as though it were current.
+
+Two things this command deliberately does **not** do, both of which look like shortcuts:
+
+- **It does not glob for `progress.json`.** Every historical run leaves its own copy under
+  `~/.local/state/agent-kernel-benchmark/runs/`, so "newest by mtime" is whichever run last wrote --
+  including one that finished days ago. The run in flight is named by the agent's own `state.json`
+  and resolved from that alone. A glob would report a finished run's numbers as current, silently.
+- **It does not require anything from the installed package.** `~/remote-ollama-control` on the box
+  is a file COPY, so a script added to this repo is not there until someone reinstalls. The probe is
+  self-contained and piped over stdin, which is why this command works against a box provisioned
+  before the command existed.
+
+An unreadable agent state exits non-zero rather than reporting "idle" -- those two look identical
+from the outside, and only one of them is fine.
+
+`~/Desktop/Benchmark Status.app` is a double-click wrapper around the `--html --open` form. It
+resolves `node` itself (nvm is not on a GUI app's PATH) and, on any failure, still opens a page
+saying what went wrong -- a launcher that exited quietly would be indistinguishable from a healthy
+run with nothing to report.
 
 ### Heartbeat and interim progress
 

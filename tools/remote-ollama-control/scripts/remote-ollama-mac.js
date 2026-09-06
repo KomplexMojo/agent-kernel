@@ -37,6 +37,9 @@ function usage() {
   remote-ollama-mac benchmark --profile NAME --model MODEL --context N --num-predict N --scenario NAME
   remote-ollama-mac benchmark-matrix --profiles a,b --models x,y --contexts 4096,8192 --scenario NAME
   remote-ollama-mac benchmark-hardware [--route auto|internal|external] [--models x,y] [--contexts 4096,8192] [--efforts standard,high,max,overnight] [--scenarios a,b] [--no-start] [--no-reset] [--no-isolate]
+  remote-ollama-mac benchmark-status [--route auto|internal|external] [--json] [--html PATH] [--open]
+    Reads the in-flight run's progress.json off the box on demand. Fresher than the
+    five-minute heartbeat, which only republishes that same file.
   remote-ollama-mac project-safety-check [remote-project-safety-check args...]
   remote-ollama-mac project-sync [--branch main]
   remote-ollama-mac project-push-main [--branch main]
@@ -106,6 +109,8 @@ function parseArgs(argv) {
     timeoutMs: 600000,
     sampleMs: 2000,
     json: false,
+    html: null,
+    open: false,
     skipModelCheck: false,
     startProfiles: true,
     resetProfiles: true,
@@ -173,6 +178,13 @@ function parseArgs(argv) {
       options.externalHost = readOptionValue(args, index, arg);
       options.explicitFlags.add(arg);
       index += 1;
+    } else if (arg === '--html') {
+      options.html = readOptionValue(args, index, arg);
+      options.explicitFlags.add(arg);
+      index += 1;
+    } else if (arg === '--open') {
+      options.open = true;
+      options.explicitFlags.add(arg);
     } else if (arg === '--profile') {
       options.profile = readOptionValue(args, index, arg);
       options.explicitFlags.add(arg);
@@ -1243,6 +1255,65 @@ function runRemoteExec(options) {
   process.exit(result.status === null ? 1 : result.status);
 }
 
+/**
+ * Ask the box what the run is doing right now.
+ *
+ * The probe is piped over stdin rather than invoked as an installed script on purpose:
+ * `~/remote-ollama-control` there is a file COPY, so a script added to this repo is not present on
+ * the box until someone reinstalls. Shipping the source each time makes this command work against
+ * any box that can run node, including one provisioned before this command existed.
+ */
+function runBenchmarkStatus(options) {
+  const { PROBE_SOURCE, formatStatusHtml, formatStatusText } = require('./lib/benchmark-status');
+
+  const sshArgs = [...sshBaseArgs(config, options.route), 'node -'];
+  if (options.dryRun) {
+    process.stdout.write(`${displayCommand('ssh', sshArgs)}\n`);
+    return;
+  }
+
+  const probe = spawnSync('ssh', sshArgs, {
+    input: PROBE_SOURCE,
+    encoding: 'utf8',
+    // A full run's failure records run to megabytes; the 1MB default would truncate them into an
+    // unparseable document exactly when there is the most to inspect.
+    maxBuffer: 128 * 1024 * 1024,
+    env: process.env
+  });
+
+  if (probe.status !== 0) {
+    fail(`could not reach the box: ${(probe.stderr || '').trim() || `ssh exited ${probe.status}`}`);
+  }
+
+  let document;
+  try {
+    document = JSON.parse(probe.stdout);
+  } catch {
+    // Anything on stdout that is not our document means the probe did not run -- a login banner, a
+    // node that is missing. Printing it beats reporting "idle", which is what a swallowed parse
+    // failure would look like.
+    fail(`unexpected probe output:\n${probe.stdout.trim() || '(empty)'}`);
+  }
+
+  if (options.html) {
+    const target = path.resolve(options.html);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, formatStatusHtml(document));
+    if (options.open) spawnSync('open', [target], { stdio: 'ignore' });
+    if (!options.json) process.stdout.write(`${formatStatusText(document)}\nPage: ${target}\n`);
+  }
+
+  if (options.json) {
+    process.stdout.write(`${JSON.stringify(document, null, 2)}\n`);
+  } else if (!options.html) {
+    process.stdout.write(formatStatusText(document));
+  }
+
+  // A run that cannot be read is not a healthy one. Exiting zero here would let a watcher treat an
+  // unreadable state file as "nothing to report".
+  if (document.status === 'unreadable') process.exit(1);
+}
+
 async function runContentGen(options) {
   const { loadScenarioCatalog } = require('./lib/ak-scenarios');
   const { classifyExecutionOutcome, classifyFailureClass, runScenario, authoringPolicy } = require('./lib/ak-runner');
@@ -1752,6 +1823,8 @@ async function main() {
     await runAbstractPlan(options);
   } else if (options.command === 'run-content-gen') {
     await runContentGen(options);
+  } else if (options.command === 'benchmark-status') {
+    runBenchmarkStatus(options);
   } else if (options.command === 'project-safety-check') {
     runRemoteProjectTool(options, 'check');
   } else if (options.command === 'project-sync') {
