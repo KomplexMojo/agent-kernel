@@ -92,7 +92,7 @@ CI=true pnpm install --frozen-lockfile
 # IMPORTANT: installing it here only makes the VM *able* to boot the server.
 # Cursor cloud agents do NOT read `.cursor/mcp.json`; the server must also be
 # registered in the Cursor dashboard (Integrations & MCP) to appear to the
-# agent. See scripts/setup/README.md ("Serena & Graphify under Cursor").
+# agent. See scripts/setup/README.md ("Serena under Cursor").
 #
 # This block is best-effort: any failure here is logged and skipped so it can
 # never abort the core (node/pnpm) environment established above.

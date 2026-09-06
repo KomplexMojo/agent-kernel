@@ -12,20 +12,23 @@ function git(cwd, args) {
 }
 
 function installFixture(home) {
-  return execFileSync("bash", [INSTALLER], {
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      HOME: home,
-      XDG_CONFIG_HOME: join(home, ".config"),
-      REMOTE_OLLAMA_INSTALL_SYSTEM: "Linux",
-      REMOTE_OLLAMA_SKIP_SYSTEMCTL: "1",
-      // The operator's real llm-host.env points LLM_REMOTE_*_DIR at paths on the
-      // Ubuntu box, and the installer uses them as local install targets. Without
-      // this the fixture installs to /home/darren instead of its temp HOME.
-      REMOTE_OLLAMA_ENV_FILE: join(home, "absent-llm-host.env"),
-    },
-  });
+  const env = {
+    ...process.env,
+    HOME: home,
+    XDG_CONFIG_HOME: join(home, ".config"),
+    REMOTE_OLLAMA_INSTALL_SYSTEM: "Linux",
+    REMOTE_OLLAMA_SKIP_SYSTEMCTL: "1",
+    // The operator's real llm-host.env points LLM_REMOTE_*_DIR at paths on the
+    // Ubuntu box, and the installer uses them as local install targets. Without
+    // this the fixture installs to /home/darren instead of its temp HOME.
+    REMOTE_OLLAMA_ENV_FILE: join(home, "absent-llm-host.env"),
+  };
+  // A parent shell that sourced llm-host.env (or ran install-remote) leaves these
+  // set; spreading process.env would then ignore the absent env-file guard above.
+  delete env.LLM_REMOTE_PACKAGE_DIR;
+  delete env.LLM_REMOTE_SCRIPTS_DIR;
+  delete env.LLM_REMOTE_PROJECT_DIR;
+  return execFileSync("bash", [INSTALLER], { encoding: "utf8", env });
 }
 
 function setupRemote(root) {
@@ -72,14 +75,22 @@ test("the install target follows the named env file, not whatever config is on t
 
   execFileSync("bash", [INSTALLER], {
     encoding: "utf8",
-    env: {
-      ...process.env,
-      HOME: home,
-      XDG_CONFIG_HOME: join(home, ".config"),
-      REMOTE_OLLAMA_INSTALL_SYSTEM: "Linux",
-      REMOTE_OLLAMA_SKIP_SYSTEMCTL: "1",
-      REMOTE_OLLAMA_ENV_FILE: envFile,
-    },
+    env: (() => {
+      const env = {
+        ...process.env,
+        HOME: home,
+        XDG_CONFIG_HOME: join(home, ".config"),
+        REMOTE_OLLAMA_INSTALL_SYSTEM: "Linux",
+        REMOTE_OLLAMA_SKIP_SYSTEMCTL: "1",
+        REMOTE_OLLAMA_ENV_FILE: envFile,
+      };
+      // Ambient LLM_REMOTE_SCRIPTS_DIR from a sourced operator env would still
+      // mkdir /home/darren even when the env file overrides only PACKAGE_DIR.
+      delete env.LLM_REMOTE_PACKAGE_DIR;
+      delete env.LLM_REMOTE_SCRIPTS_DIR;
+      delete env.LLM_REMOTE_PROJECT_DIR;
+      return env;
+    })(),
   });
 
   assert.equal(existsSync(join(target, "bin/agent-kernel-benchmark")), true);

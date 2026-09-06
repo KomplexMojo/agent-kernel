@@ -59,6 +59,15 @@ fi
 # an hour, which is exactly what happened on 2026-08-23.
 INSTALL_SOURCE_COMMIT="$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || true)"
 INSTALL_SOURCE_REF="$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+# Prefer an explicit provenance from the caller (install-remote.sh knows the Mac checkout's
+# commit; the package directory on the box is a file copy, so git there fails and would leave
+# sourceCommit null — which disables the undeployed-agent alarm).
+if [ -n "${REMOTE_OLLAMA_INSTALL_SOURCE_COMMIT:-}" ]; then
+  INSTALL_SOURCE_COMMIT="$REMOTE_OLLAMA_INSTALL_SOURCE_COMMIT"
+fi
+if [ -n "${REMOTE_OLLAMA_INSTALL_SOURCE_REF:-}" ]; then
+  INSTALL_SOURCE_REF="$REMOTE_OLLAMA_INSTALL_SOURCE_REF"
+fi
 # A source tree that is not a checkout yields null, not the string "null" and not a broken document:
 # the reader treats absent provenance as unknown, and an unparseable one would silence the beacon.
 if [ -n "$INSTALL_SOURCE_COMMIT" ]; then
@@ -111,6 +120,13 @@ cp "$REMOTE_PACKAGE_DIR/systemd/agent-kernel-heartbeat.service" "$SYSTEMD_USER_D
 cp "$REMOTE_PACKAGE_DIR/systemd/agent-kernel-heartbeat.timer" "$SYSTEMD_USER_DIR/agent-kernel-heartbeat.timer"
 if [ "${REMOTE_OLLAMA_SKIP_SYSTEMCTL:-0}" != "1" ] && command -v systemctl >/dev/null 2>&1; then
   systemctl --user daemon-reload
+  # Units are installed without enabling them, but a reinstall of an already-enabled timer must
+  # reactivate it so OnActiveSec can arm a next fire. daemon-reload alone leaves NEXT blank.
+  for timer in agent-kernel-heartbeat.timer agent-kernel-benchmark.timer; do
+    if systemctl --user is-enabled "$timer" >/dev/null 2>&1; then
+      systemctl --user restart "$timer"
+    fi
+  done
 fi
 
 printf 'Installed local Ubuntu package to %s\n' "$REMOTE_PACKAGE_DIR"

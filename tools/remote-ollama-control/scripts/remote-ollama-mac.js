@@ -37,6 +37,9 @@ function usage() {
   remote-ollama-mac benchmark --profile NAME --model MODEL --context N --num-predict N --scenario NAME
   remote-ollama-mac benchmark-matrix --profiles a,b --models x,y --contexts 4096,8192 --scenario NAME
   remote-ollama-mac benchmark-hardware [--route auto|internal|external] [--models x,y] [--contexts 4096,8192] [--efforts standard,high,max,overnight] [--scenarios a,b] [--no-start] [--no-reset] [--no-isolate]
+  remote-ollama-mac benchmark-status [--route auto|internal|external] [--json] [--html PATH] [--open]
+    Reads the in-flight run's progress.json off the box on demand. Fresher than the
+    five-minute heartbeat, which only republishes that same file.
   remote-ollama-mac project-safety-check [remote-project-safety-check args...]
   remote-ollama-mac project-sync [--branch main]
   remote-ollama-mac project-push-main [--branch main]
@@ -106,6 +109,8 @@ function parseArgs(argv) {
     timeoutMs: 600000,
     sampleMs: 2000,
     json: false,
+    html: null,
+    open: false,
     skipModelCheck: false,
     startProfiles: true,
     resetProfiles: true,
@@ -173,6 +178,13 @@ function parseArgs(argv) {
       options.externalHost = readOptionValue(args, index, arg);
       options.explicitFlags.add(arg);
       index += 1;
+    } else if (arg === '--html') {
+      options.html = readOptionValue(args, index, arg);
+      options.explicitFlags.add(arg);
+      index += 1;
+    } else if (arg === '--open') {
+      options.open = true;
+      options.explicitFlags.add(arg);
     } else if (arg === '--profile') {
       options.profile = readOptionValue(args, index, arg);
       options.explicitFlags.add(arg);
@@ -1263,6 +1275,9 @@ function runBenchmarkStatus(options) {
   const probe = spawnSync('ssh', sshArgs, {
     input: PROBE_SOURCE,
     encoding: 'utf8',
+    // A full run's failure records run to megabytes; the 1MB default would truncate them into an
+    // unparseable document exactly when there is the most to inspect.
+    maxBuffer: 128 * 1024 * 1024,
     env: process.env
   });
 

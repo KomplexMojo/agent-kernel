@@ -1,5 +1,5 @@
 ---
-description: How to navigate agent-kernel code — Serena (structural) vs Graphify (conceptual) vs grep (literal), and the known traps.
+description: How to navigate agent-kernel code — Serena (structural) vs grep (literal), and the known traps.
 alwaysApply: false
 ---
 
@@ -11,8 +11,8 @@ alwaysApply: false
 | Who calls / imports X? (port → adapter, blast radius) | Serena `find_referencing_symbols` |
 | What's in this file? | Serena `get_symbols_overview` |
 | What implements this interface / where is it declared? | Serena `find_implementations` / `find_declaration` |
-| High-level orientation / how concepts cluster | `graphify-out/GRAPH_REPORT.md` |
 | Literal text: prose, fixture strings, exact commands or messages | `grep`/`rg` |
+| High-level orientation / how concepts cluster | Persona READMEs + `docs/architecture-charter.md` |
 
 Serena answers live from the language server — there is no index to rebuild or watch. If Serena
 is unavailable, say so and read the files; never guess structure from filenames. (Serena is a
@@ -30,5 +30,5 @@ stdio MCP; for cloud agents it must be registered in the Cursor dashboard — se
 - **An empty Serena result is not proof of absence** — pass `relative_path` to `find_symbol`;
   without it, it degrades silently and returns wrong rows instead of erroring.
 
-Graphify is a private, Mac-only tool: read the committed `graphify-out/GRAPH_REPORT.md` directly;
-`graph.json`/`graph.html` are gitignored and regenerated only on the maintainer's machine.
+There is no code-graph tool in this repo — Graphify was removed 2026-09-06 (nothing consumed it).
+Conceptual orientation comes from the persona READMEs and the charter, not a generated graph.

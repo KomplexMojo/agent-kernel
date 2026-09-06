@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
-const { mkdtempSync, writeFileSync } = require('node:fs');
+const { mkdirSync, mkdtempSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 
@@ -82,6 +82,27 @@ test('the heartbeat reaches the branch and reads back as published', () => {
   const beat = composeHeartbeat({ publishedAt: AT, status: 'idle', sourceCommit: 'abc123' });
   const result = publishHeartbeat({ remote, workDir: join(root, 'beat'), heartbeat: beat });
   assert.equal(result.branch, DEFAULT_BRANCH);
+  assert.deepEqual(published(remote), beat);
+});
+
+// A beat that dies after `checkout --orphan` and before the first commit leaves the worktree with
+// no HEAD. The next timer fire used to hit "You are on a branch yet to be born" forever — silence,
+// which is the one failure the alarm cannot distinguish from a dead box. Recover by wiping.
+test('a worktree left on an unborn orphan branch still publishes the next beat', () => {
+  const { root, remote } = remoteRepository();
+  const workDir = join(root, 'beat');
+  mkdirSync(workDir, { recursive: true });
+  git(workDir, ['init', '--quiet', '.']);
+  git(workDir, ['config', 'user.email', 'benchmark-agent@example.invalid']);
+  git(workDir, ['config', 'user.name', 'Benchmark Agent']);
+  git(workDir, ['checkout', '--quiet', '--orphan', 'beat-stranded']);
+  writeFileSync(join(workDir, HEARTBEAT_NAME), '{}\n');
+  git(workDir, ['add', '--', HEARTBEAT_NAME]);
+  // Staged, no commit — the exact stranded shape seen on the runner for #133.
+  assert.throws(() => git(workDir, ['rev-parse', '--verify', 'HEAD']), /Needed a single revision|unknown revision/);
+
+  const beat = composeHeartbeat({ publishedAt: AT, status: 'idle' });
+  publishHeartbeat({ remote, workDir, heartbeat: beat });
   assert.deepEqual(published(remote), beat);
 });
 

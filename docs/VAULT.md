@@ -13,13 +13,13 @@ Non-load-bearing knowledge for this project lives in an Obsidian vault outside t
 - `concepts/`  — design patterns, mental models, ingested cheatsheets, mockups
 - `decisions/` — ADR-style records of architectural choices
 - `plans/active/`, `plans/completed/`, `plans/backlog/` — current, historical, and future planning material
-- `sources/`   — ingested external documents, graphify snapshots, sample artifact JSONs
+- `sources/`   — ingested external documents, sample artifact JSONs
 
 ## What's *not* in the vault
 
 - All code (`packages/`)
 - The architecture charter, vision contract, runbooks, reference handout (under `docs/`)
-- Live code-structure tooling (`graphify-out/`, Serena MCP)
+- Live code-structure tooling (Serena MCP)
 - CLAUDE.md, AGENTS.md, README.md, RUNME.MD
 
 ## Setup

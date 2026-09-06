@@ -1,0 +1,121 @@
+const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
+const { mkdtempSync, readFileSync, existsSync, statSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+const { join, resolve } = require('node:path');
+
+const INSTALLER = resolve(
+  __dirname, '../../tools/remote-ollama-control/scripts/install-benchmark-status-app.sh',
+);
+const APP_NAME = 'Benchmark Status.app';
+
+function run(env = {}, expectFailure = false) {
+  try {
+    const stdout = execFileSync('bash', [INSTALLER], {
+      encoding: 'utf8',
+      env: { ...process.env, ...env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (expectFailure) assert.fail('installer was expected to refuse, but it succeeded');
+    return { status: 0, stdout, stderr: '' };
+  } catch (error) {
+    if (!expectFailure) {
+      assert.fail(`installer failed: ${error.stderr || error.stdout || error.message}`);
+    }
+    return { status: error.status, stdout: error.stdout || '', stderr: error.stderr || '' };
+  }
+}
+
+function install() {
+  const dir = mkdtempSync(join(tmpdir(), 'ak-bench-app-'));
+  // Forcing the system lets this run on the Ubuntu box too; the icon step degrades on its own when
+  // the macOS image tools are absent.
+  run({ BENCHMARK_STATUS_INSTALL_SYSTEM: 'Darwin', BENCHMARK_STATUS_APP_DIR: dir });
+  return dir;
+}
+
+const launcherAt = (dir) => readFileSync(join(dir, APP_NAME, 'Contents/MacOS/benchmark-status'), 'utf8');
+
+test('the installer is executable, so a fresh clone can run it directly', () => {
+  assert.ok(existsSync(INSTALLER), 'installer script is missing');
+  assert.ok(statSync(INSTALLER).mode & 0o111, 'installer is not executable');
+});
+
+// The bundle only means anything on macOS. Running it on the Ubuntu box should say so rather than
+// scattering a half-built .app into a home directory nothing will ever launch it from.
+test('it refuses to install anywhere but macOS, and names the reason', () => {
+  const { status, stderr } = run({ BENCHMARK_STATUS_INSTALL_SYSTEM: 'Linux' }, true);
+  assert.equal(status, 2);
+  assert.match(stderr, /macOS/);
+});
+
+test('it builds a launchable bundle', () => {
+  const dir = install();
+  for (const relative of ['Contents/Info.plist', 'Contents/MacOS/benchmark-status']) {
+    assert.ok(existsSync(join(dir, APP_NAME, relative)), `${relative} is missing`);
+  }
+  assert.ok(
+    statSync(join(dir, APP_NAME, 'Contents/MacOS/benchmark-status')).mode & 0o111,
+    'the bundle executable is not executable',
+  );
+});
+
+test('installing twice is not an error', () => {
+  const dir = install();
+  run({ BENCHMARK_STATUS_INSTALL_SYSTEM: 'Darwin', BENCHMARK_STATUS_APP_DIR: dir });
+  assert.ok(existsSync(join(dir, APP_NAME, 'Contents/MacOS/benchmark-status')));
+});
+
+// The hand-built first version hardcoded one operator's home directory, so on anybody else's clone
+// it would have opened an error page forever, blaming a missing repo. The path must be DERIVED at
+// install time -- which means the installer source carries none, while its output carries the real
+// one (Finder gives a bundle no working directory to infer a checkout from).
+test('the installer hardcodes nobody\'s home directory', () => {
+  assert.doesNotMatch(readFileSync(INSTALLER, 'utf8'), /\/Users\/[a-z]+\//i);
+});
+
+test('the launcher it writes carries the checkout it was installed from', () => {
+  const launcher = launcherAt(install());
+  assert.match(launcher, /^REPO=/m);
+  assert.ok(
+    launcher.includes(resolve(__dirname, '../..')),
+    'the launcher should name the absolute path of this checkout',
+  );
+});
+
+// Every failure must still END in an open page. A launcher that exits quietly is indistinguishable
+// from a healthy run with nothing to report -- the exact confusion this benchmark rig exists to
+// remove.
+test('every failure path opens a page saying what went wrong', () => {
+  const launcher = launcherAt(install());
+  assert.match(launcher, /show_error/);
+  const failures = launcher.split('\n').filter((line) => /show_error/.test(line));
+  // The definition plus at least three call sites: no node, no repo, and the command failing.
+  assert.ok(failures.length >= 4, `expected several guarded failure paths, saw ${failures.length}`);
+  assert.match(launcher, /open "\$OUT"/);
+});
+
+// `msg | show_error` would run show_error in a SUBSHELL, so its `exit` ended only that subshell and
+// the script carried on to the success path and exited 0. It reported failure and success at once.
+test('failures are not piped into the error handler, which would swallow the exit', () => {
+  const launcher = launcherAt(install());
+  // `||` is the correct guard form; only a single pipe creates the subshell.
+  assert.doesNotMatch(launcher, /[^|]\|\s*show_error/);
+});
+
+// nvm keeps node outside any PATH a Finder-launched app inherits, and pinning one version rots at
+// the next upgrade.
+test('the launcher discovers node instead of pinning a version', () => {
+  const launcher = launcherAt(install());
+  assert.match(launcher, /\.nvm/);
+  assert.doesNotMatch(launcher, /v\d+\.\d+\.\d+\/bin\/node/);
+});
+
+test('the plist is valid and names the executable that exists', () => {
+  const dir = install();
+  const plist = readFileSync(join(dir, APP_NAME, 'Contents/Info.plist'), 'utf8');
+  assert.match(plist, /<key>CFBundleExecutable<\/key>\s*<string>benchmark-status<\/string>/);
+  if (process.platform === 'darwin') {
+    execFileSync('plutil', ['-lint', join(dir, APP_NAME, 'Contents/Info.plist')], { stdio: 'ignore' });
+  }
+});
