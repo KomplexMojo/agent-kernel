@@ -71,7 +71,10 @@
       ],
       "motivation": {
         "kind": "attacking"
-      }
+      },
+      "motivations": [
+        "attacking"
+      ]
     }
   ]
 }

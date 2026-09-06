@@ -68,8 +68,23 @@ export function attachMixedRoomAssembliesToBuildResult(buildResult) {
 // runtime persona layer reads (resolveActorMotivationKind expects
 // actor.motivation.kind — see packages/runtime/src/personas/actor/controller.js).
 function resolvePrimaryCardMotivation(card) {
-  const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  return motivations.find((entry) => entry && entry !== "user_controlled") || null;
+  const motivations = resolveCardMotivations(card);
+  return motivations[0] || null;
+}
+
+/** Full authored motivation list, excluding user_controlled, in order, de-duplicated. */
+function resolveCardMotivations(card) {
+  const raw = Array.isArray(card?.motivations) ? card.motivations : [];
+  const kinds = [];
+  const seen = new Set();
+  for (const entry of raw) {
+    const kind = typeof entry === "string" ? entry : entry?.kind;
+    if (!kind || kind === "user_controlled") continue;
+    if (seen.has(kind)) continue;
+    seen.add(kind);
+    kinds.push(kind);
+  }
+  return kinds;
 }
 
 // ak_create/ak_configure accept --delver/--warden "motivation=<kind>" but
@@ -91,10 +106,12 @@ export function applyMotivationToInitialStateActors(initialState, { parsedDelver
     delver: parsedDelvers.map((entry) => ({
       baseId: entry?.value?.id,
       motivation: resolvePrimaryCardMotivation(entry?.value),
+      motivations: resolveCardMotivations(entry?.value),
     })).filter((entry) => isNonEmptyString(entry.baseId) && isNonEmptyString(entry.motivation)),
     warden: parsedWardens.map((entry) => ({
       baseId: entry?.value?.id,
       motivation: resolvePrimaryCardMotivation(entry?.value),
+      motivations: resolveCardMotivations(entry?.value),
     })).filter((entry) => isNonEmptyString(entry.baseId) && isNonEmptyString(entry.motivation)),
   };
 
@@ -110,6 +127,9 @@ export function applyMotivationToInitialStateActors(initialState, { parsedDelver
     const match = cards.find((card) => actor.id === card.baseId || actor.id.startsWith(`${card.baseId}-`));
     if (match) {
       actor.motivation = { kind: match.motivation };
+      actor.motivations = Array.isArray(match.motivations) && match.motivations.length > 0
+        ? [...match.motivations]
+        : [match.motivation];
       // NOTE (AM.2b): what this motivation requires of the actor's vitals is NOT
       // applied here. It is applied in build/orchestrate-build.js, before the
       // Allocator prices the actor list. Raising a vital at this point — after
