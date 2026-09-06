@@ -1911,6 +1911,21 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
     }
   }
 
+  // ⚠️ HOLDS-POSITION APPLIES HERE TOO, and its absence was a real defect. The early
+  // return at the top of this function is gated on `!hasCombatRole`, so `defending`
+  // (mobility 0, combat 2) skipped it, found no hostile, and fell through to exit
+  // pathfinding — a defender walking to the exit. Measured across six positions,
+  // `defending` and `attacking` proposed byte-identical moves.
+  //
+  // The comment above the pursuit branch already claimed this was handled: "a combat
+  // motivation with mobility 0 holds its ground instead of pursuing, which is what
+  // separates defending from attacking". True of pursuit, never true of this line. The
+  // guard existed for one of the two ways an actor can walk away.
+  //
+  // Returning [] rather than a `wait` proposal keeps this identical to the other
+  // holds-position path at the top, so the two cannot drift into different silences.
+  if (holdsPosition) return [];
+
   // Fallback: existing exit pathfinding
   return buildMoveProposal({ observation, payload, simConfig });
 }
