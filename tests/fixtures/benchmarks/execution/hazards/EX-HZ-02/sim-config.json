@@ -21,7 +21,7 @@
         "#.......#",
         "#.......#",
         "#.......#",
-        "#E......#",
+        "E.......#",
         "#########"
       ],
       "kinds": [
@@ -155,7 +155,7 @@
         "y": 3
       },
       "exit": {
-        "x": 1,
+        "x": 0,
         "y": 7
       },
       "bounds": "walls_block_movement",
@@ -177,15 +177,15 @@
         "exitReachable": true
       },
       "hazards": [
-      {
-        "id": "hazard_wind_push",
+        {
+          "id": "hazard_wind_push",
           "x": 4,
           "y": 4,
           "blocking": false,
-        "affinity": {
-          "kind": "wind",
-          "expression": "push",
-          "stacks": 2
+          "affinity": {
+            "kind": "wind",
+            "expression": "push",
+            "stacks": 2
           },
           "vitals": {
             "mana": {
@@ -200,7 +200,11 @@
             }
           }
         }
-      ]
+      ],
+      "exitApproach": {
+        "x": 1,
+        "y": 7
+      }
     }
   }
 }
