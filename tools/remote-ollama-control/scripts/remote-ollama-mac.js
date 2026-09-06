@@ -1243,6 +1243,62 @@ function runRemoteExec(options) {
   process.exit(result.status === null ? 1 : result.status);
 }
 
+/**
+ * Ask the box what the run is doing right now.
+ *
+ * The probe is piped over stdin rather than invoked as an installed script on purpose:
+ * `~/remote-ollama-control` there is a file COPY, so a script added to this repo is not present on
+ * the box until someone reinstalls. Shipping the source each time makes this command work against
+ * any box that can run node, including one provisioned before this command existed.
+ */
+function runBenchmarkStatus(options) {
+  const { PROBE_SOURCE, formatStatusHtml, formatStatusText } = require('./lib/benchmark-status');
+
+  const sshArgs = [...sshBaseArgs(config, options.route), 'node -'];
+  if (options.dryRun) {
+    process.stdout.write(`${displayCommand('ssh', sshArgs)}\n`);
+    return;
+  }
+
+  const probe = spawnSync('ssh', sshArgs, {
+    input: PROBE_SOURCE,
+    encoding: 'utf8',
+    env: process.env
+  });
+
+  if (probe.status !== 0) {
+    fail(`could not reach the box: ${(probe.stderr || '').trim() || `ssh exited ${probe.status}`}`);
+  }
+
+  let document;
+  try {
+    document = JSON.parse(probe.stdout);
+  } catch {
+    // Anything on stdout that is not our document means the probe did not run -- a login banner, a
+    // node that is missing. Printing it beats reporting "idle", which is what a swallowed parse
+    // failure would look like.
+    fail(`unexpected probe output:\n${probe.stdout.trim() || '(empty)'}`);
+  }
+
+  if (options.html) {
+    const target = path.resolve(options.html);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, formatStatusHtml(document));
+    if (options.open) spawnSync('open', [target], { stdio: 'ignore' });
+    if (!options.json) process.stdout.write(`${formatStatusText(document)}\nPage: ${target}\n`);
+  }
+
+  if (options.json) {
+    process.stdout.write(`${JSON.stringify(document, null, 2)}\n`);
+  } else if (!options.html) {
+    process.stdout.write(formatStatusText(document));
+  }
+
+  // A run that cannot be read is not a healthy one. Exiting zero here would let a watcher treat an
+  // unreadable state file as "nothing to report".
+  if (document.status === 'unreadable') process.exit(1);
+}
+
 async function runContentGen(options) {
   const { loadScenarioCatalog } = require('./lib/ak-scenarios');
   const { classifyExecutionOutcome, classifyFailureClass, runScenario, authoringPolicy } = require('./lib/ak-runner');
@@ -1752,6 +1808,8 @@ async function main() {
     await runAbstractPlan(options);
   } else if (options.command === 'run-content-gen') {
     await runContentGen(options);
+  } else if (options.command === 'benchmark-status') {
+    runBenchmarkStatus(options);
   } else if (options.command === 'project-safety-check') {
     runRemoteProjectTool(options, 'check');
   } else if (options.command === 'project-sync') {
