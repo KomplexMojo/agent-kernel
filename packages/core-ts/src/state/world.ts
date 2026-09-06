@@ -16,10 +16,13 @@ import { VitalKind } from "./vitals.ts";
 // ── Tile codes ──
 
 /**
- * Ticks an actor must END on the exit tile before it has left the level.
+ * Ticks an actor must END on the exit **approach** floor before it has left the level.
  *
  * Two, by maintainer ruling (2026-09-05). One would retire an actor that merely passes
- * across the exit on its way somewhere else, which is a different event.
+ * across the doorway on its way somewhere else, which is a different event.
+ *
+ * Exit/Spawn tiles themselves are wall portals (non-walkable); dwell is measured on the
+ * single interior floor cell adjacent to the exit portal.
  */
 export const EXIT_DWELL_TICKS = 2;
 
@@ -126,11 +129,15 @@ export function createWorldState() {
   let affinityFieldExpression = new Int32Array(0);
   let affinityFieldContribCount = new Int32Array(0);
 
-  // ── Spawn and exit ──
+  // ── Spawn and exit (wall portals) + interior approach floors ──
   let spawnX = -1;
   let spawnY = -1;
   let exitX = -1;
   let exitY = -1;
+  let spawnApproachX = -1;
+  let spawnApproachY = -1;
+  let exitApproachX = -1;
+  let exitApproachY = -1;
 
   // ── Active actor state (mirror of motivated actor at activeMotivatedActorIndex) ──
   let actorId = 1;
@@ -155,9 +162,11 @@ export function createWorldState() {
   let motivatedActorVitalMax = new Int32Array(0);
   let motivatedActorVitalRegen = new Int32Array(0);
   // Leaving the level (maintainer ruling, 2026-09-05). Consecutive ticks ENDED on the
-  // exit tile, and the resulting flag. Two ticks means the actor has left.
+  // exit approach floor, and the resulting flag. Two ticks means the actor has left.
+  // exitEligible (1/0) gates retirement — wardens are seeded ineligible.
   let motivatedActorExitDwellArr = new Int32Array(0);
   let motivatedActorExitedArr = new Int32Array(0);
+  let motivatedActorExitEligibleArr = new Int32Array(0);
   let motivatedActorMovementCostArr = new Int32Array(0);
   let motivatedActorActionCostManaArr = new Int32Array(0);
   let motivatedActorActionCostStaminaArr = new Int32Array(0);
@@ -244,6 +253,7 @@ export function createWorldState() {
     motivatedActorVitalRegen = new Int32Array(maxMotivatedActors * VITAL_COUNT);
     motivatedActorExitDwellArr = new Int32Array(maxMotivatedActors);
     motivatedActorExitedArr = new Int32Array(maxMotivatedActors);
+    motivatedActorExitEligibleArr = new Int32Array(maxMotivatedActors);
     motivatedActorMovementCostArr = new Int32Array(maxMotivatedActors);
     motivatedActorActionCostManaArr = new Int32Array(maxMotivatedActors);
     motivatedActorActionCostStaminaArr = new Int32Array(maxMotivatedActors);
@@ -273,7 +283,15 @@ export function createWorldState() {
   }
 
   function actorKindForTile(tile: number): number {
-    if (tile === Tile.Wall || tile === Tile.Barrier) return ActorKind.Barrier;
+    // Spawn/Exit are wall portals — non-walkable markers, not play-surface floors.
+    if (
+      tile === Tile.Wall ||
+      tile === Tile.Barrier ||
+      tile === Tile.Spawn ||
+      tile === Tile.Exit
+    ) {
+      return ActorKind.Barrier;
+    }
     return ActorKind.Stationary;
   }
 
@@ -508,6 +526,7 @@ export function createWorldState() {
     clearActorAffinities();
     motivatedActorExitDwellArr.fill(0);
     motivatedActorExitedArr.fill(0);
+    motivatedActorExitEligibleArr.fill(0);
   }
 
   function syncActorMirrorFromMotivatedIndex(index: number): void {
@@ -684,6 +703,10 @@ export function createWorldState() {
     spawnY = -1;
     exitX = -1;
     exitY = -1;
+    spawnApproachX = -1;
+    spawnApproachY = -1;
+    exitApproachX = -1;
+    exitApproachY = -1;
     resetMotivatedActors();
     currentTick = 0;
     fillTiles(Tile.Wall);
@@ -803,14 +826,21 @@ export function createWorldState() {
    * moved). Releasing occupancy is the observable half; a test asserts it directly.
    */
   function applyExitDwell(): void {
-    if (exitX < 0 || exitY < 0) return;
+    if (exitApproachX < 0 || exitApproachY < 0) return;
     for (let i = 0; i < motivatedActorCount; i++) {
       if (motivatedActorExitedArr[i] !== 0) continue;
-      if (motivatedActorXArr[i] === exitX && motivatedActorYArr[i] === exitY) {
+      if (motivatedActorExitEligibleArr[i] === 0) {
+        motivatedActorExitDwellArr[i] = 0;
+        continue;
+      }
+      if (
+        motivatedActorXArr[i] === exitApproachX &&
+        motivatedActorYArr[i] === exitApproachY
+      ) {
         motivatedActorExitDwellArr[i] += 1;
         if (motivatedActorExitDwellArr[i] >= EXIT_DWELL_TICKS) {
           motivatedActorExitedArr[i] = 1;
-          setMotivatedOccupancyAt(exitX, exitY, 0);
+          setMotivatedOccupancyAt(exitApproachX, exitApproachY, 0);
         }
       } else {
         motivatedActorExitDwellArr[i] = 0;
@@ -950,6 +980,29 @@ export function createWorldState() {
       spawnY = y;
     },
 
+    setExitPosition(x: number, y: number): void {
+      exitX = x;
+      exitY = y;
+    },
+
+    setSpawnApproachPosition(x: number, y: number): void {
+      spawnApproachX = x;
+      spawnApproachY = y;
+    },
+
+    setExitApproachPosition(x: number, y: number): void {
+      exitApproachX = x;
+      exitApproachY = y;
+    },
+
+    getSpawnApproachPosition(): { x: number; y: number } {
+      return { x: spawnApproachX, y: spawnApproachY };
+    },
+
+    getExitApproachPosition(): { x: number; y: number } {
+      return { x: exitApproachX, y: exitApproachY };
+    },
+
     spawnActorAt(x: number, y: number): void {
       if (!withinBounds(x, y)) return;
       motivatedActorCount = 1;
@@ -979,6 +1032,7 @@ export function createWorldState() {
         motivatedActorVitalRegen[offset] = actorVitalRegen[kind];
       }
       applyDefaultCapabilitiesToMotivatedActors(1);
+      motivatedActorExitEligibleArr[0] = 1;
       seedMotivatedOccupancyFromActor();
     },
 
@@ -986,47 +1040,49 @@ export function createWorldState() {
 
     loadMvpScenario(): void {
       this.configureGrid(9, 9);
+      // S/E sit on the perimeter wall; approaches are the adjacent interior floors.
       setRowFromString(0, "#########");
-      setRowFromString(1, "#S..#...#");
+      setRowFromString(1, "S...#...#");
       setRowFromString(2, "#...#.#.#");
       setRowFromString(3, "#.#...#.#");
       setRowFromString(4, "#.###.#.#");
       setRowFromString(5, "#...#...#");
       setRowFromString(6, "#.#.#.###");
-      setRowFromString(7, "#...#..E#");
+      setRowFromString(7, "#...#...E");
       setRowFromString(8, "#########");
+      this.setSpawnApproachPosition(1, 1);
+      this.setExitApproachPosition(7, 7);
       actorId = 1;
       actorKind = ActorKind.Motivated;
       this.setActorVital(VitalKind.Health, 10, 10, 0);
       this.setActorVital(VitalKind.Mana, 0, 0, 0);
       this.setActorVital(VitalKind.Stamina, 12, 12, 0);
       this.setActorVital(VitalKind.Durability, 0, 0, 0);
-      if (spawnX >= 0 && spawnY >= 0) {
-        this.spawnActorAt(spawnX, spawnY);
-      }
+      // Seat on spawn approach (portal itself is non-walkable).
+      this.spawnActorAt(1, 1);
       currentTick = 0;
     },
 
     loadMvpBarrierScenario(): void {
       this.configureGrid(9, 9);
       setRowFromString(0, "#########");
-      setRowFromString(1, "#SB.#...#");
+      setRowFromString(1, "S.B.#...#");
       setRowFromString(2, "#...#.#.#");
       setRowFromString(3, "#.#...#.#");
       setRowFromString(4, "#.###.#.#");
       setRowFromString(5, "#...#...#");
       setRowFromString(6, "#.#.#.###");
-      setRowFromString(7, "#...#..E#");
+      setRowFromString(7, "#...#...E");
       setRowFromString(8, "#########");
+      this.setSpawnApproachPosition(1, 1);
+      this.setExitApproachPosition(7, 7);
       actorId = 1;
       actorKind = ActorKind.Motivated;
       this.setActorVital(VitalKind.Health, 10, 10, 0);
       this.setActorVital(VitalKind.Mana, 0, 0, 0);
       this.setActorVital(VitalKind.Stamina, 12, 12, 0);
       this.setActorVital(VitalKind.Durability, 0, 0, 0);
-      if (spawnX >= 0 && spawnY >= 0) {
-        this.spawnActorAt(spawnX, spawnY);
-      }
+      this.spawnActorAt(1, 1);
       currentTick = 0;
     },
 
@@ -1045,6 +1101,9 @@ export function createWorldState() {
 
     isActorAtExit(): boolean {
       if (!actorActive) return false;
+      if (exitApproachX >= 0 && exitApproachY >= 0) {
+        return actorX === exitApproachX && actorY === exitApproachY;
+      }
       return actorX === exitX && actorY === exitY;
     },
 
@@ -1281,6 +1340,8 @@ export function createWorldState() {
         motivatedActorIdArr[i] = id;
         motivatedActorXArr[i] = getPlacementX(i);
         motivatedActorYArr[i] = getPlacementY(i);
+        // Default exit-eligible; seed layer sets wardens to 0.
+        motivatedActorExitEligibleArr[i] = 1;
       }
       actorActive = count > 0;
       if (actorActive) syncActorMirrorFromMotivatedIndex(0);
@@ -1326,6 +1387,15 @@ export function createWorldState() {
 
     isMotivatedActorExitedByIndex(index: number): boolean {
       return isValidMotivatedActorIndex(index) && motivatedActorExitedArr[index] !== 0;
+    },
+
+    setMotivatedActorExitEligible(index: number, eligible: number): void {
+      if (!isValidMotivatedActorIndex(index)) return;
+      motivatedActorExitEligibleArr[index] = eligible !== 0 ? 1 : 0;
+    },
+
+    isMotivatedActorExitEligible(index: number): boolean {
+      return isValidMotivatedActorIndex(index) && motivatedActorExitEligibleArr[index] !== 0;
     },
 
     getMotivatedActorMovementCostByIndex(index: number): number {
