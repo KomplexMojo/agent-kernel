@@ -389,6 +389,24 @@ export function applySimConfigToCore(core, simConfig) {
   return { ok: true, dimensions, spawn, exit, spawnApproach, exitApproach };
 }
 
+
+function remapPortalSeat(position, { spawn, exit, spawnApproach, exitApproach } = {}) {
+  if (!position) return position;
+  if (
+    spawn && spawnApproach
+    && position.x === spawn.x && position.y === spawn.y
+  ) {
+    return { ...spawnApproach };
+  }
+  if (
+    exit && exitApproach
+    && position.x === exit.x && position.y === exit.y
+  ) {
+    return { ...exitApproach };
+  }
+  return position;
+}
+
 function resolveActorExitEligible(actor) {
   const role = typeof actor?.role === "string" ? actor.role.trim().toLowerCase() : "";
   const type = typeof actor?.type === "string" ? actor.type.trim().toLowerCase() : "";
@@ -398,7 +416,7 @@ function resolveActorExitEligible(actor) {
   return 1;
 }
 
-export function applyInitialStateToCore(core, initialState, { spawn, spawnApproach } = {}) {
+export function applyInitialStateToCore(core, initialState, { spawn, exit, spawnApproach, exitApproach } = {}) {
   if (!core || !initialState) {
     return { ok: false, reason: "missing_inputs" };
   }
@@ -434,9 +452,12 @@ export function applyInitialStateToCore(core, initialState, { spawn, spawnApproa
     const positions = [];
     for (let index = 0; index < actors.length; index += 1) {
       const actor = actors[index];
-      const position = resolvePoint(actor.position)
-        || (index === 0 && spawnApproach ? { ...spawnApproach } : null)
-        || (index === 0 && spawn ? { ...spawn } : null);
+      const position = remapPortalSeat(
+        resolvePoint(actor.position)
+          || (index === 0 && spawnApproach ? { ...spawnApproach } : null)
+          || (index === 0 && spawn ? { ...spawn } : null),
+        { spawn, exit, spawnApproach, exitApproach },
+      );
       if (!position) {
         // Non-primary actors without positions only ever existed in states
         // authored for the legacy spawn path (which ignores them entirely).
@@ -520,9 +541,12 @@ export function applyInitialStateToCore(core, initialState, { spawn, spawnApproa
     return { ok: false, reason: "missing_core_exports" };
   }
 
-  const position = resolvePoint(primary.position)
-    || (spawnApproach ? { ...spawnApproach } : null)
-    || (spawn ? { ...spawn } : null);
+  const position = remapPortalSeat(
+    resolvePoint(primary.position)
+      || (spawnApproach ? { ...spawnApproach } : null)
+      || (spawn ? { ...spawn } : null),
+    { spawn, exit, spawnApproach, exitApproach },
+  );
   if (!position) {
     return { ok: false, reason: "missing_position" };
   }
@@ -561,7 +585,9 @@ export function initializeCoreFromArtifacts(core, { simConfig, initialState } = 
   const layoutResult = applySimConfigToCore(core, simConfig);
   const actorResult = applyInitialStateToCore(core, initialState, {
     spawn: layoutResult.spawn,
+    exit: layoutResult.exit,
     spawnApproach: layoutResult.spawnApproach,
+    exitApproach: layoutResult.exitApproach,
   });
   // Compute combined affinity field after layout hazards and actor affinities are set.
   if (typeof core?.computeAffinityField === "function") {
