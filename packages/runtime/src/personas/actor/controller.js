@@ -1413,6 +1413,107 @@ function buildMoveProposal({ observation, payload, simConfig }) {
   ];
 }
 
+/**
+ * PATROLLING: a clockwise circuit of the actor's own room.
+ *
+ * Before this, `patrolling` had no branch at all. Core's profile table gives it mobility
+ * 2 — the highest tier — and combat 0, so it cleared the holds-position guard, matched no
+ * combat branch, and fell through to `buildMoveProposal`: shortest path to the level
+ * exit. Every patrolling actor walked to the one exit tile alongside everybody else. In a
+ * measured 100-tick run that produced 579 `ActorCollision` rejections and three wardens
+ * that never moved (#169). The motivation named for patrolling left the fastest.
+ *
+ * ⚠️ STATELESS BY REQUIREMENT, NOT BY PREFERENCE. The next cell is a pure function of the
+ * current cell and the room rectangle. Persona context must stay serializable and the
+ * Actor carries nothing between ticks, so a patrol that remembered its next waypoint
+ * would need the runner to thread that state — the problem #162 is still open on. A
+ * circuit needs no memory because the ring itself encodes the order.
+ */
+function roomPerimeterRing(room, tileKinds, baseTiles) {
+  const x0 = room.x;
+  const y0 = room.y;
+  const x1 = room.x + room.width - 1;
+  const y1 = room.y + room.height - 1;
+  if (x1 <= x0 || y1 <= y0) return [];
+  const ring = [];
+  for (let x = x0; x <= x1; x += 1) ring.push({ x, y: y0 });
+  for (let y = y0 + 1; y <= y1; y += 1) ring.push({ x: x1, y });
+  for (let x = x1 - 1; x >= x0; x -= 1) ring.push({ x, y: y1 });
+  for (let y = y1 - 1; y >= y0 + 1; y -= 1) ring.push({ x: x0, y });
+  // A room may be carved so part of its rectangle is wall. Patrolling the walkable
+  // subset keeps the circuit legal rather than proposing moves core will refuse.
+  return ring.filter((cell) => isPassable(cell, tileKinds, baseTiles));
+}
+
+function roomContaining(position, rooms) {
+  if (!Array.isArray(rooms) || !position) return null;
+  for (const room of rooms) {
+    if (!isObject(room)) continue;
+    const { x, y, width, height } = room;
+    if (![x, y, width, height].every((v) => Number.isInteger(v))) continue;
+    if (position.x >= x && position.x <= x + width - 1
+      && position.y >= y && position.y <= y + height - 1) {
+      return room;
+    }
+  }
+  return null;
+}
+
+function resolveRooms(payload, view, simConfig) {
+  const fromConfig = simConfig?.layout?.data?.rooms;
+  if (Array.isArray(fromConfig)) return fromConfig;
+  const fromPayload = payload?.simConfig?.layout?.data?.rooms;
+  if (Array.isArray(fromPayload)) return fromPayload;
+  const fromView = view?.rooms;
+  return Array.isArray(fromView) ? fromView : [];
+}
+
+function buildPatrolProposals({ observation, payload, simConfig }) {
+  const view = resolveObservationView(observation);
+  if (!view) return [];
+  const actor = resolveActor(view, payload?.actorId, observation);
+  if (!actor?.position) return [];
+  const baseTiles = resolveBaseTiles(payload, view, simConfig);
+  const tileKinds = resolveTileKinds(view, payload);
+  const rooms = resolveRooms(payload, view, simConfig);
+  const room = roomContaining(actor.position, rooms);
+  if (!room) return [];
+  const ring = roomPerimeterRing(room, tileKinds, baseTiles);
+  if (ring.length < 2) return [];
+
+  const at = ring.findIndex((cell) => cell.x === actor.position.x && cell.y === actor.position.y);
+  // On the ring: take the next cell round. Inside the room: walk out to the nearest ring
+  // cell first, so an actor that spawned in the middle joins the patrol instead of
+  // standing still — which would look exactly like the defect this replaces.
+  const target = at >= 0 ? ring[(at + 1) % ring.length] : nearestRingCell(actor.position, ring);
+  if (!target) return [];
+
+  const path = findPath(actor.position, target, tileKinds, baseTiles);
+  if (!path || path.length < 2) return [];
+  const from = path[0];
+  const to = path[1];
+  const direction = DEFAULT_DELTAS.find(
+    (entry) => entry.dx === to.x - from.x && entry.dy === to.y - from.y,
+  )?.direction;
+  if (!direction) return [];
+  return [{ kind: "move", params: { direction, from, to } }];
+}
+
+function nearestRingCell(position, ring) {
+  let best = null;
+  let bestDistance = Infinity;
+  for (const cell of ring) {
+    const distance = chebyshevDistance(position, cell);
+    // Ties break on the ring's own order, which is deterministic — replay compares runs
+    // frame by frame, so "whichever came first" must mean the same thing every run.
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = cell;
+    }
+  }
+  return best;
+}
+
 // ── M5: Simple motivation helpers ──────────────────────────────────────────
 
 const DEFAULT_ATTACK_DAMAGE = 2; // M1 contract: fixed deterministic damage
@@ -1730,6 +1831,15 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
   // Random: seed-derived deterministic movement to a legal adjacent tile
   if (motivationKind === "random") {
     return buildRandomMoveProposals({ observation, payload, simConfig, personaSeed });
+  }
+
+  // Patrolling: circuit its own room. Placed before the hostile branch for readability
+  // only — `patrolling` has combat tier 0, so every branch inside `if (hostile)` is
+  // already unreachable for it. Falls through when the actor is in no declared room,
+  // which keeps a room-less layout behaving as it did rather than freezing the actor.
+  if (motivationKind === "patrolling") {
+    const patrol = buildPatrolProposals({ observation, payload, simConfig });
+    if (patrol.length > 0) return patrol;
   }
 
   const hostile = resolveNearestHostile(view, actorId);
