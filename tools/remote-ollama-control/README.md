@@ -284,17 +284,34 @@ from the outside, and only one of them is fine.
 A double-click launcher for the same page installs with:
 
 ```bash
-./scripts/install-benchmark-status-app.sh          # ~/Desktop/Benchmark Status.app
+./scripts/install-benchmark-status-launcher.sh app       # .app bundle, custom icon (default)
+./scripts/install-benchmark-status-launcher.sh command   # .command, opens via Terminal
+./scripts/install-benchmark-status-launcher.sh both
 ```
 
-Re-run it to update; the install is idempotent, and macOS-only (it refuses elsewhere rather than
-leaving a bundle nothing can launch). The bundle is **generated, not committed**: it has to carry the
-absolute path of the checkout it was installed from, and a .app reviews as an opaque blob in a diff.
-The icon is drawn by the installer, so no binary enters the repository.
+**Which form you want depends on macOS privacy protection, not on taste.** The `.app` looks better --
+custom icon, no terminal window -- but macOS refuses it access to a checkout under `~/Documents`,
+`~/Desktop` or `~/Downloads` until it is granted Full Disk Access, and rebuilding the bundle can
+invalidate that grant. The `.command` opens through Terminal, which already holds that grant, so it
+needs no permission and survives reinstalls; the cost is a terminal window behind the page.
+
+Re-run to update; the install is idempotent, and macOS-only (it refuses elsewhere rather than
+leaving a launcher nothing can start). Both forms are **generated, not committed**: each has to carry
+the absolute path of the checkout it was installed from, and a .app reviews as an opaque blob in a
+diff. They share one launcher body, so the failure handling cannot drift between them. The icon is
+drawn by the installer, so no binary enters the repository.
 
 The launcher resolves `node` itself, because nvm is not on a GUI app's PATH and pinning a version
 rots at the next upgrade. On any failure it still opens a page saying what went wrong -- a launcher
 that exited quietly would be indistinguishable from a healthy run with nothing to report.
+
+The symptom of the privacy refusal is `./bin/remote-ollama-mac: Operation not permitted`, and it is
+easy to misread: the identical command works from a terminal, where Terminal already holds the grant.
+The launcher detects that case specifically and names it, with the steps to fix it. Only genuine
+network and ssh failures get the network advice -- `Permission denied (publickey)` is ssh failing to
+authenticate, and routing it to privacy settings would swap one wrong diagnosis for another.
+
+Use the `.command` form to sidestep the permission entirely.
 
 ### Heartbeat and interim progress
 
