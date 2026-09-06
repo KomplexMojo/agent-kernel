@@ -158,7 +158,8 @@ function countFloorTiles(layoutData) {
   layoutData.tiles.forEach((rowValue) => {
     const row = String(rowValue || "");
     for (let i = 0; i < row.length; i += 1) {
-      if (row[i] !== "#") count += 1;
+      // Wall portals (S/E) are perimeter markers, not billable floor.
+      if (row[i] !== "#" && row[i] !== "S" && row[i] !== "E") count += 1;
     }
   });
   if (count > 0) return count;

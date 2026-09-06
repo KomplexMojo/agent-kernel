@@ -39,14 +39,16 @@ test("too many delvers for the entry room refuses with the actual deficit", asyn
   const { status, detail } = await create({
     text: "test",
     room: [{ size: "medium" }],
-    floorTile: [{ count: 3, id: "stone_floor" }],
+    // Wall portals free the old S/E floor cells for seating, so 3 floors fit 3
+    // delvers. Overcrowd with 2 walkable floors vs 3 delvers.
+    floorTile: [{ count: 2, id: "stone_floor" }],
     delver: [
       { affinity: "fire", count: 1, motivation: "exploring" },
       { affinity: "water", count: 1, motivation: "exploring" },
       { affinity: "earth", count: 1, motivation: "exploring" },
     ],
   });
-  assert.notEqual(status, 0, "3 delvers cannot fit the minimum-viable floor budget's entry room");
+  assert.notEqual(status, 0, "3 delvers cannot fit a 2-floor entry room");
   assert.match(detail, /insufficient entry-room tiles for delver \d+ of 3/, detail);
   assert.match(detail, /\d+ entry-room tiles, \d+ already occupied/, detail);
 });

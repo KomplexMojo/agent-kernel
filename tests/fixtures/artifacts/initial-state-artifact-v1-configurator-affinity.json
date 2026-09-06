@@ -2,24 +2,14 @@
   "schema": "agent-kernel/InitialStateArtifact",
   "schemaVersion": 1,
   "meta": {
-    "id": "artifact_mn8ioad0_jok65k",
+    "id": "artifact_mtq4va54_1tmdf9",
     "runId": "run_configurator_hazard",
-    "createdAt": "2026-03-27T06:24:59.508Z",
+    "createdAt": "2026-09-06T18:16:36.376Z",
     "producedBy": "cli-configurator"
   },
   "simConfigRef": {
-    "id": "artifact_mn8ioacy_9vxlzv",
+    "id": "artifact_mtq4va54_hluf5q",
     "schema": "agent-kernel/SimConfigArtifact",
-    "schemaVersion": 1
-  },
-  "affinityRulesRef": {
-    "id": "affinity_rules_basic",
-    "schema": "agent-kernel/AffinityRulesArtifact",
-    "schemaVersion": 1
-  },
-  "motivationRulesRef": {
-    "id": "motivation_rules_basic",
-    "schema": "agent-kernel/MotivationRulesArtifact",
     "schemaVersion": 1
   },
   "actors": [
