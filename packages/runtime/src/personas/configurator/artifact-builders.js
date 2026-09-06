@@ -18,6 +18,8 @@ function cloneLayoutData(layout) {
     render,
     spawn,
     exit,
+    spawnApproach,
+    exitApproach,
     entryRoomId,
     exitRoomId,
     bounds,
@@ -37,6 +39,12 @@ function cloneLayoutData(layout) {
     exit,
     bounds,
   };
+  if (spawnApproach !== undefined) {
+    data.spawnApproach = spawnApproach;
+  }
+  if (exitApproach !== undefined) {
+    data.exitApproach = exitApproach;
+  }
   if (entryRoomId !== undefined) {
     data.entryRoomId = entryRoomId;
   }

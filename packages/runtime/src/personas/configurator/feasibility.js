@@ -66,7 +66,8 @@ function collectWalkablePositions(layout) {
         const char = row[x];
         const entry = legend[char];
         const tileType = entry?.tile;
-        if (tileType === "wall" || tileType === "barrier") continue;
+        if (tileType === "wall" || tileType === "barrier" || tileType === "spawn" || tileType === "exit") continue;
+        if (char === "#" || char === "B" || char === "S" || char === "E") continue;
         walkable.push({ x, y });
       }
     }
@@ -217,13 +218,24 @@ export function validateLayoutAndActors({ levelGen, actorCount = 0, assessActorF
   }
 
   const walkableSet = new Set(walkable.map(positionKey));
-  const spawn = (layout?.data || layout)?.spawn || null;
-  if (spawn) {
-    const spawnKey = positionKey(spawn);
-    if (!walkableSet.has(spawnKey)) {
-      pushError(errors, "layout.spawn", "spawn_not_walkable", spawn);
+  const layoutData = layout?.data || layout;
+  const spawnApproach = layoutData?.spawnApproach || null;
+  const exitApproach = layoutData?.exitApproach || null;
+  if (spawnApproach) {
+    const key = positionKey(spawnApproach);
+    if (!walkableSet.has(key)) {
+      pushError(errors, "layout.spawnApproach", "spawn_approach_not_walkable", spawnApproach);
     }
   }
+  if (exitApproach) {
+    const key = positionKey(exitApproach);
+    if (!walkableSet.has(key)) {
+      pushError(errors, "layout.exitApproach", "exit_approach_not_walkable", exitApproach);
+    }
+  }
+  // Portal-on-wall is enforced at generation time (level-layout). Feasibility only
+  // checks approach walkability when approaches are present, so count-only and
+  // legacy floor-spawn fixtures keep their characterized verdicts.
 
   if (assessActorFit && Number.isInteger(actorCount) && actorCount > 0) {
     const floors = collectFloorPositions(layout);

@@ -30,9 +30,9 @@
       "#######",
       "#######",
       "#######",
-      "###S###",
+      "##S.###",
       "#....##",
-      "#E#.###",
+      "E.#.###",
       "#######"
     ],
     "kinds": [
@@ -126,13 +126,21 @@
       "barrier": "B"
     },
     "spawn": {
-      "x": 3,
+      "x": 2,
       "y": 3
     },
     "exit": {
-      "x": 1,
+      "x": 0,
       "y": 5
     },
-    "bounds": "walls_block_movement"
+    "bounds": "walls_block_movement",
+    "spawnApproach": {
+      "x": 3,
+      "y": 3
+    },
+    "exitApproach": {
+      "x": 1,
+      "y": 5
+    }
   }
 }

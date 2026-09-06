@@ -405,11 +405,48 @@ function resolveBaseTiles(payload, view, simConfig) {
   return null;
 }
 
+function isWarden(actorOrRecord) {
+  const role = typeof actorOrRecord?.role === "string" ? actorOrRecord.role.trim() : "";
+  return role === "warden";
+}
+
+function isFloorGlyph(cell) {
+  return Boolean(cell) && cell !== "#" && cell !== "B" && cell !== "S" && cell !== "E";
+}
+
+/** Unique cardinal floor neighbor of a wall portal, or null when ambiguous/missing. */
+function derivePortalApproachFromTiles(portal, baseTiles) {
+  if (!portal || !Array.isArray(baseTiles)) return null;
+  const height = baseTiles.length;
+  const width = String(baseTiles[0] || "").length;
+  const hits = [];
+  for (const { dx, dy } of [{ dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 }]) {
+    const x = portal.x + dx;
+    const y = portal.y + dy;
+    if (x < 0 || y < 0 || x >= width || y >= height) continue;
+    if (isFloorGlyph(String(baseTiles[y])[x])) hits.push({ x, y });
+  }
+  return hits.length === 1 ? hits[0] : null;
+}
+
+/**
+ * Path target for exit-seeking. Prefers an explicit `exitApproach` (floor cell beside a
+ * wall portal). Without one, falls back to legacy exit coordinates so older floor-`E`
+ * fixtures keep working until they are migrated.
+ */
 function resolveExit(payload, view, baseTiles, simConfigInput) {
+  const simConfig = payload?.simConfig || simConfigInput;
+  const layoutData = simConfig?.layout?.data;
+  const approach = payload?.exitApproach
+    || view?.exitApproach
+    || layoutData?.exitApproach
+    || null;
+  if (approach && Number.isInteger(approach.x) && Number.isInteger(approach.y)) {
+    return { x: approach.x, y: approach.y };
+  }
   if (payload?.exit) return payload.exit;
   if (view?.exit) return view.exit;
-  const simConfig = payload?.simConfig || simConfigInput;
-  if (simConfig?.layout?.data?.exit) return simConfig.layout.data.exit;
+  if (layoutData?.exit) return layoutData.exit;
   if (baseTiles) return findExitFromTiles(baseTiles);
   return null;
 }
@@ -419,7 +456,7 @@ function resolveActor(view, actorId, observation) {
     const matchId = actorId || observation?.actorId;
     const selected = matchId ? view.actors.find((actor) => actor?.id === matchId) : view.actors[0];
     if (selected?.position) {
-      return { id: selected.id, position: selected.position };
+      return { id: selected.id, position: selected.position, role: selected.role };
     }
   }
   if (view?.actor) {
@@ -701,13 +738,14 @@ function buildRuntimeDecisionObjectives({ configuredActor, visibleActors, exit }
   if (role) {
     objectives.role = role;
   }
+  const seeksExit = Boolean(exit) && !isWarden(configuredActor);
   if (visibleActors.length > 0) {
     objectives.primary = role === "boss" ? "control_visible_opponents" : "resolve_visible_contacts";
     objectives.visibleContactCount = visibleActors.length;
-  } else if (exit) {
+  } else if (seeksExit) {
     objectives.primary = "advance_to_exit";
   }
-  if (exit) {
+  if (seeksExit) {
     objectives.exit = { ...exit };
   }
   const goals = extractMotivationGoals(configuredActor);
@@ -929,6 +967,7 @@ function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, can
   const visiblePositions = visibleActors
     .filter((entry) => entry?.hostile !== false && entry?.position)
     .map((entry) => entry.position);
+  const exitTarget = isWarden(actorRecord) || isWarden(actor) ? null : exit;
   return candidateActions.map((candidate, index) => {
     const action = candidate.action;
     const endPosition = candidateEndPosition(action, actor.position);
@@ -944,9 +983,9 @@ function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, can
     })) {
       score = ACTOR_INTENT_CLASS.HOSTILE_PROGRESS;
       ruleId = "move_toward_hostile";
-    } else if (action?.kind === "move" && exit) {
-      const before = chebyshevDistance(actor.position, exit);
-      const after = chebyshevDistance(endPosition, exit);
+    } else if (action?.kind === "move" && exitTarget) {
+      const before = chebyshevDistance(actor.position, exitTarget);
+      const after = chebyshevDistance(endPosition, exitTarget);
       if (Number.isFinite(before) && Number.isFinite(after) && after < before) {
         score = ACTOR_INTENT_CLASS.EXIT_PROGRESS;
         ruleId = "move_toward_exit";
@@ -1322,7 +1361,8 @@ function isPassable({ x, y }, tileKinds, baseTiles) {
     const row = String(baseTiles[y]);
     const cell = row[x];
     if (!cell) return false;
-    return cell !== "#" && cell !== "B";
+    // S/E are wall portals (non-walkable). Path targets use exitApproach.
+    return cell !== "#" && cell !== "B" && cell !== "S" && cell !== "E";
   }
   return false;
 }
@@ -1372,7 +1412,9 @@ function findPath(start, goal, tileKinds, baseTiles) {
       if (Object.prototype.hasOwnProperty.call(cameFrom, key)) {
         continue;
       }
-      if (!isPassable(next, tileKinds, baseTiles) || !isDiagonalStepAllowed(current, next, tileKinds, baseTiles)) {
+      const isGoal = next.x === goal.x && next.y === goal.y;
+      if ((!isPassable(next, tileKinds, baseTiles) && !isGoal)
+        || !isDiagonalStepAllowed(current, next, tileKinds, baseTiles)) {
         continue;
       }
       cameFrom[key] = `${current.x},${current.y}`;
@@ -1389,8 +1431,12 @@ function buildMoveProposal({ observation, payload, simConfig }) {
   const exit = resolveExit(payload, view, baseTiles, simConfig);
   const tileKinds = resolveTileKinds(view, payload);
   const actor = resolveActor(view, payload?.actorId, observation);
-  if (!actor || !actor.position || !exit) return [];
+  if (!actor || !actor.position) return [];
   const actorRecord = resolveActorRecord(view, payload?.actorId, observation);
+  if (isWarden(actorRecord) || isWarden(actor) || isWarden(payload?.configuredActor)) {
+    return [{ kind: "wait", params: { reason: "warden_holds_exit" } }];
+  }
+  if (!exit) return [];
   if (actorRecord?.motivation?.mobility === "stationary") {
     return [{ kind: "wait", params: { reason: "stationary" } }];
   }
@@ -1993,7 +2039,12 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     const candidateProposals = hasBudget
       ? admitProposals(candidates, { budgetReceipt, budgetAllocation })
       : candidates;
-    const exit = resolveExit(payload, observationView, baseTiles, simConfig);
+    const actorIdForExit = payload.actorId || observation?.actorId || "actor";
+    const actorRecordForExit = resolveActorRecord(observationView, actorIdForExit, observation)
+      || resolveConfiguredActor(payload, actorIdForExit);
+    const exit = isWarden(actorRecordForExit)
+      ? null
+      : resolveExit(payload, observationView, baseTiles, simConfig);
     const runtimeDecisionEffect = shouldEmitActions
       ? buildRuntimeDecisionEffect({
           payload: {
@@ -2005,7 +2056,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
           },
           observation,
           view: observationView,
-          actorId: payload.actorId || observation?.actorId || "actor",
+          actorId: actorIdForExit,
           tick,
           baseTiles,
           exit,

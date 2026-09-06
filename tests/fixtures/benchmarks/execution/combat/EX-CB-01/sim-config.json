@@ -15,7 +15,7 @@
       "height": 7,
       "tiles": [
         "#######",
-        "#E....#",
+        "E.....#",
         "#.....#",
         "#..S..#",
         "#.....#",
@@ -117,7 +117,7 @@
         "y": 3
       },
       "exit": {
-        "x": 1,
+        "x": 0,
         "y": 1
       },
       "bounds": "walls_block_movement",
@@ -137,6 +137,10 @@
         "connectedRooms": 1,
         "spawnReachable": true,
         "exitReachable": true
+      },
+      "exitApproach": {
+        "x": 1,
+        "y": 1
       }
     }
   }

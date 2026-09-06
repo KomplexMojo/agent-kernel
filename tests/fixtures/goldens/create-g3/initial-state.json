@@ -32,7 +32,7 @@
       "kind": "ambulatory",
       "position": {
         "x": 4,
-        "y": 3
+        "y": 2
       },
       "vitals": {
         "health": {

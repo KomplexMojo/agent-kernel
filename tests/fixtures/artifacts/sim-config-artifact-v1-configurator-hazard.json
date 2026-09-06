@@ -2,9 +2,9 @@
   "schema": "agent-kernel/SimConfigArtifact",
   "schemaVersion": 1,
   "meta": {
-    "id": "artifact_mn8ioaa4_hs05j2",
+    "id": "artifact_mtq4va54_hluf5q",
     "runId": "run_configurator_hazard",
-    "createdAt": "2026-03-27T06:24:59.404Z",
+    "createdAt": "2026-09-06T18:16:36.376Z",
     "producedBy": "cli-configurator"
   },
   "planRef": {
@@ -19,9 +19,9 @@
       "width": 5,
       "height": 5,
       "tiles": [
-        "#####",
-        "#E..#",
-        "#.S.#",
+        "#ES##",
+        "#...#",
+        "#...#",
         "#...#",
         "#####"
       ],
@@ -89,13 +89,21 @@
       },
       "spawn": {
         "x": 2,
-        "y": 2
+        "y": 0
       },
       "exit": {
         "x": 1,
-        "y": 1
+        "y": 0
       },
       "bounds": "walls_block_movement",
+      "spawnApproach": {
+        "x": 2,
+        "y": 1
+      },
+      "exitApproach": {
+        "x": 1,
+        "y": 1
+      },
       "entryRoomId": "R1",
       "exitRoomId": "R1",
       "rooms": [
@@ -142,16 +150,6 @@
   "budgetReceiptRef": {
     "id": "budget_receipt_basic",
     "schema": "agent-kernel/BudgetReceiptArtifact",
-    "schemaVersion": 1
-  },
-  "affinityRulesRef": {
-    "id": "affinity_rules_basic",
-    "schema": "agent-kernel/AffinityRulesArtifact",
-    "schemaVersion": 1
-  },
-  "motivationRulesRef": {
-    "id": "motivation_rules_basic",
-    "schema": "agent-kernel/MotivationRulesArtifact",
     "schemaVersion": 1
   }
 }

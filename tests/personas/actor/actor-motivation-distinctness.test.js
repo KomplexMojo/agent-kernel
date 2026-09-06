@@ -65,11 +65,11 @@ const vitals = () => ({
   mana: { current: 10, max: 10, regen: 1 },
 });
 
-async function propose({ kind, position = { x: 4, y: 3 }, hostileAt = null }) {
+async function propose({ kind, position = { x: 4, y: 3 }, hostileAt = null, role = "delver" }) {
   const [{ createActorPersona }, { TickPhases }] = await loadModules();
-  const self = { id: "a1", kind: 2, role: "warden", position, motivation: { kind }, vitals: vitals() };
+  const self = { id: "a1", kind: 2, role, position, motivation: { kind }, vitals: vitals() };
   const others = hostileAt
-    ? [{ id: "d1", kind: 2, role: "delver", position: hostileAt, vitals: vitals() }]
+    ? [{ id: "d1", kind: 2, role: role === "delver" ? "warden" : "delver", position: hostileAt, vitals: vitals() }]
     : [];
   const payload = {
     actorId: self.id,
@@ -78,8 +78,8 @@ async function propose({ kind, position = { x: 4, y: 3 }, hostileAt = null }) {
     simConfig: simConfig(),
     initialState: {
       actors: [
-        { id: self.id, role: "warden", kind: "motivated" },
-        ...others.map((o) => ({ id: o.id, role: "delver", kind: "motivated" })),
+        { id: self.id, role, kind: "motivated" },
+        ...others.map((o) => ({ id: o.id, role: o.role, kind: "motivated" })),
       ],
     },
   };

@@ -368,7 +368,7 @@ test('EX-HZ-01 routes an exploring delver from outside a fire emit field through
   assert.ok(chebyshevDistance(actor.position, hazard) > 2, 'actor must start outside emit radius');
   assert.deepEqual(
     { x: hazard.x * 2, y: hazard.y * 2 },
-    { x: actor.position.x + layout.exit.x, y: actor.position.y + layout.exit.y },
+    { x: actor.position.x + (layout.exitApproach?.x ?? layout.exit.x), y: actor.position.y + (layout.exitApproach?.y ?? layout.exit.y) },
   );
 });
 
@@ -402,7 +402,7 @@ test('EX-HZ-03 approaches a pull hazard from outside its focused radius', () => 
   assert.deepEqual(actor.motivation, { kind: 'exploring' });
   assert.deepEqual(
     { x: hazard.x * 2, y: hazard.y * 2 },
-    { x: actor.position.x + layout.exit.x, y: actor.position.y + layout.exit.y },
+    { x: actor.position.x + (layout.exitApproach?.x ?? layout.exit.x), y: actor.position.y + (layout.exitApproach?.y ?? layout.exit.y) },
   );
   assert.equal(isWalkable(layout, hazard), true);
 });
@@ -440,18 +440,19 @@ test('EX-HZ-05 blocks the unique short route while preserving a legal detour', (
   assert.deepEqual(actor.motivation, { kind: 'exploring' });
   assert.deepEqual(actor.traits?.motivations, [{ kind: 'exploring', intensity: 1 }]);
   assert.ok(roomContains(layout.rooms[0], actor.position));
-  assert.ok(roomContains(layout.rooms[0], layout.exit));
+  assert.ok(roomContains(layout.rooms[0], layout.exitApproach ?? layout.exit));
   assert.ok(roomContains(layout.rooms[0], hazard));
 
-  const directLength = chebyshevDistance(actor.position, layout.exit);
+  const exitGoal = layout.exitApproach ?? layout.exit;
+  const directLength = chebyshevDistance(actor.position, exitGoal);
   assert.equal(directLength, 6);
-  assert.equal(Math.abs(actor.position.x - layout.exit.x), directLength);
-  assert.equal(Math.abs(actor.position.y - layout.exit.y), directLength);
+  assert.equal(Math.abs(actor.position.x - exitGoal.x), directLength);
+  assert.equal(Math.abs(actor.position.y - exitGoal.y), directLength);
   assert.deepEqual(
     { x: hazard.x * 2, y: hazard.y * 2 },
-    { x: actor.position.x + layout.exit.x, y: actor.position.y + layout.exit.y },
+    { x: actor.position.x + exitGoal.x, y: actor.position.y + exitGoal.y },
   );
-  const detourLength = shortestWalkLength(layout, actor.position, layout.exit, [hazard]);
+  const detourLength = shortestWalkLength(layout, actor.position, exitGoal, [hazard]);
   assert.ok(detourLength !== null, 'an alternate legal route must exist');
   assert.ok(detourLength > directLength, 'blocking hazard must control the unique shortest route');
 });

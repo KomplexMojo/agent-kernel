@@ -121,7 +121,7 @@ test("level builder adapter supports in-process and worker-backed requests", asy
   assert.equal(fromTiles.ok, true);
   assert.equal(fromTiles.width, 3);
   assert.equal(fromTiles.height, 2);
-  assert.equal(fromTiles.walkableTiles, 5);
+  assert.equal(fromTiles.walkableTiles, 3);
 
   const affinityFromTiles = await inProcess.buildFromTiles({
     tiles: ["..."],

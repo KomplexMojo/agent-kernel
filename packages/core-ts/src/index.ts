@@ -151,6 +151,7 @@ export const CORE_API_KEYS = [
   "getEffectValue",
   "getEffectX",
   "getEffectY",
+  "getExitApproachPosition",
   "getLastAffinityCanceledStacks",
   "getLastAffinityNetSourceStacks",
   "getLastAffinityNetTargetStacks",
@@ -208,6 +209,7 @@ export const CORE_API_KEYS = [
   "getResourceModeAt",
   "getResourceVitalKindAt",
   "getResourceVitalRegenAt",
+  "getSpawnApproachPosition",
   "getStaticHazardAffinityAt",
   "getStaticHazardCount",
   "getStaticHazardDurabilityAt",
@@ -232,7 +234,9 @@ export const CORE_API_KEYS = [
   "grantMotivatedActorAffinity",
   "hasResourceAt",
   "init",
+  "isMotivatedActorExitEligible",
   "isMotivatedActorExitedByIndex",
+  "isWalkablePosition",
   "loadMvpBarrierScenario",
   "loadMvpScenario",
   "loadTilesFromBuffer",
@@ -259,12 +263,16 @@ export const CORE_API_KEYS = [
   "setActorMovementCost",
   "setActorVital",
   "setBudget",
+  "setExitApproachPosition",
+  "setExitPosition",
   "setMotivatedActorActionCostMana",
   "setMotivatedActorActionCostStamina",
   "setMotivatedActorAffinity",
+  "setMotivatedActorExitEligible",
   "setMotivatedActorMovementCost",
   "setMotivatedActorVital",
   "setMoveAction",
+  "setSpawnApproachPosition",
   "setSpawnPosition",
   "setTileAt",
   "spawnActorAt",
@@ -551,8 +559,16 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.loadTilesFromBuffer = world.loadTilesFromBuffer as CoreFunction;
   core.setTileAt = world.setTileAt as CoreFunction;
   core.setSpawnPosition = world.setSpawnPosition as CoreFunction;
+  core.setExitPosition = world.setExitPosition as CoreFunction;
+  core.setSpawnApproachPosition = world.setSpawnApproachPosition as CoreFunction;
+  core.setExitApproachPosition = world.setExitApproachPosition as CoreFunction;
+  core.getSpawnApproachPosition = world.getSpawnApproachPosition as CoreFunction;
+  core.getExitApproachPosition = world.getExitApproachPosition as CoreFunction;
   core.getMotivatedActorExitDwellByIndex = world.getMotivatedActorExitDwellByIndex as CoreFunction;
   core.isMotivatedActorExitedByIndex = world.isMotivatedActorExitedByIndex as CoreFunction;
+  core.setMotivatedActorExitEligible = world.setMotivatedActorExitEligible as CoreFunction;
+  core.isMotivatedActorExitEligible = world.isMotivatedActorExitEligible as CoreFunction;
+  core.isWalkablePosition = world.isWalkablePosition as CoreFunction;
   core.spawnActorAt = world.spawnActorAt as CoreFunction;
   core.loadMvpScenario = world.loadMvpScenario.bind(world) as CoreFunction;
   core.loadMvpBarrierScenario = world.loadMvpBarrierScenario.bind(world) as CoreFunction;

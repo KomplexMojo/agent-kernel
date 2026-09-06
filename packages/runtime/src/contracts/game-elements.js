@@ -367,7 +367,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
       defaultColor: GAME_COLOR_PALETTE.tiles.spawn,
       assetId: "tile.spawn",
       assetKind: "tile",
-      description: "Starting tile or entry point.",
+      description: "Wall portal marking the entry; actors seat on the adjacent approach floor.",
     }),
     element({
       group: "tiles",
@@ -376,7 +376,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
       defaultColor: GAME_COLOR_PALETTE.tiles.exit,
       assetId: "tile.exit",
       assetKind: "tile",
-      description: "Exit tile or level objective.",
+      description: "Wall portal marking the exit; delvers dwell on the adjacent approach floor.",
     }),
     element({
       group: "tiles",

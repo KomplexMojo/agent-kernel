@@ -27,6 +27,86 @@ const NEIGHBORS = Object.freeze([
   { dx: -1, dy: 0 },
 ]);
 
+/**
+ * Cardinal interior approach for a perimeter wall portal.
+ * Returns the unique interior floor neighbor, or null if the portal is invalid.
+ */
+export function derivePortalApproach(portal, { width, height, isInteriorFloor }) {
+  if (!portal || !Number.isInteger(portal.x) || !Number.isInteger(portal.y)) return null;
+  const hits = [];
+  for (const { dx, dy } of NEIGHBORS) {
+    const x = portal.x + dx;
+    const y = portal.y + dy;
+    if (x < 0 || y < 0 || x >= width || y >= height) continue;
+    if (isInteriorFloor(x, y)) hits.push({ x, y });
+  }
+  return hits.length === 1 ? hits[0] : null;
+}
+
+function isInteriorFloorCell(mask, hazardIndex, x, y) {
+  return Boolean(mask[y]?.[x]) && !isHazardCell(hazardIndex, x, y);
+}
+
+/**
+ * Find a wall cell adjacent to `approach` with exactly that one interior floor neighbor.
+ */
+function findWallPortalForApproach(mask, approach, hazardIndex) {
+  if (!approach) return null;
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  for (const { dx, dy } of NEIGHBORS) {
+    const px = approach.x + dx;
+    const py = approach.y + dy;
+    if (px < 0 || py < 0 || px >= width || py >= height) continue;
+    if (mask[py][px]) continue; // must be wall
+    const derived = derivePortalApproach(
+      { x: px, y: py },
+      {
+        width,
+        height,
+        isInteriorFloor: (x, y) => isInteriorFloorCell(mask, hazardIndex, x, y),
+      },
+    );
+    if (derived && derived.x === approach.x && derived.y === approach.y) {
+      return { x: px, y: py };
+    }
+  }
+  return null;
+}
+
+/**
+ * Promote a walkable approach cell into a wall-portal + approach pair.
+ * Searches nearby walkable cells when the preferred approach has no wall neighbor.
+ */
+function promoteToWallPortal(mask, preferredApproach, hazardIndex) {
+  if (!preferredApproach) return null;
+  const direct = findWallPortalForApproach(mask, preferredApproach, hazardIndex);
+  if (direct) return { portal: direct, approach: { x: preferredApproach.x, y: preferredApproach.y } };
+
+  const height = mask.length;
+  const width = mask[0]?.length || 0;
+  const visited = new Set([`${preferredApproach.x},${preferredApproach.y}`]);
+  const queue = [{ x: preferredApproach.x, y: preferredApproach.y }];
+  let head = 0;
+  while (head < queue.length) {
+    const current = queue[head];
+    head += 1;
+    for (const { dx, dy } of NEIGHBORS) {
+      const nx = current.x + dx;
+      const ny = current.y + dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      const key = `${nx},${ny}`;
+      if (visited.has(key)) continue;
+      if (!isInteriorFloorCell(mask, hazardIndex, nx, ny)) continue;
+      visited.add(key);
+      const portal = findWallPortalForApproach(mask, { x: nx, y: ny }, hazardIndex);
+      if (portal) return { portal, approach: { x: nx, y: ny } };
+      queue.push({ x: nx, y: ny });
+    }
+  }
+  return null;
+}
+
 const DEFAULT_RENDER = Object.freeze({
   wall: "#",
   floor: ".",
@@ -2564,6 +2644,17 @@ export function generateGridLayout(levelGen) {
   ) {
     exit = pickExit(mask, levelGen, rng, hazardIndex, spawn);
   }
+
+  // Promote walkable spawn/exit picks into wall portals with interior approaches.
+  // Core treats Spawn/Exit as non-walkable perimeter markers; seating and exit-dwell
+  // use the approach floors.
+  const spawnPortalPair = promoteToWallPortal(mask, spawn, hazardIndex);
+  const exitPortalPair = promoteToWallPortal(mask, exit, hazardIndex);
+  const spawnApproach = spawnPortalPair?.approach || { ...spawn };
+  const exitApproach = exitPortalPair?.approach || { ...exit };
+  if (spawnPortalPair) spawn = spawnPortalPair.portal;
+  if (exitPortalPair) exit = exitPortalPair.portal;
+
   const layout = {
     width: levelGen.width,
     height: levelGen.height,
@@ -2573,19 +2664,21 @@ export function generateGridLayout(levelGen) {
     render: { ...DEFAULT_RENDER },
     spawn,
     exit,
+    spawnApproach,
+    exitApproach,
     bounds: "walls_block_movement",
   };
   if (rooms && rooms.length > 0) {
     layout.rooms = rooms.map((room) => ({ ...room }));
-    const entryRoomIndex = roomPlacement?.entryRoomIndex ?? findRoomIndexForPoint(rooms, spawn);
+    const entryRoomIndex = roomPlacement?.entryRoomIndex ?? findRoomIndexForPoint(rooms, spawnApproach);
     if (Number.isInteger(entryRoomIndex) && entryRoomIndex >= 0) {
       layout.entryRoomId = roomIdAt(rooms[entryRoomIndex], entryRoomIndex);
     }
-    const exitRoomIndex = roomPlacement?.exitRoomIndex ?? findRoomIndexForPoint(rooms, exit);
+    const exitRoomIndex = roomPlacement?.exitRoomIndex ?? findRoomIndexForPoint(rooms, exitApproach);
     if (Number.isInteger(exitRoomIndex) && exitRoomIndex >= 0) {
       layout.exitRoomId = roomIdAt(rooms[exitRoomIndex], exitRoomIndex);
     }
-    const connectivity = computeConnectivity(mask, rooms, spawn, exit);
+    const connectivity = computeConnectivity(mask, rooms, spawnApproach, exitApproach);
     if (connectivity) {
       layout.connectivity = connectivity;
     }
@@ -2628,7 +2721,7 @@ function countLayoutWalkableTiles(layout) {
   for (let y = 0; y < layout.tiles.length; y += 1) {
     const row = String(layout.tiles[y] || "");
     for (let x = 0; x < row.length; x += 1) {
-      if (row[x] !== "#" && !blockedHazardCells.has(`${x},${y}`)) count += 1;
+      if (row[x] !== "#" && row[x] !== "S" && row[x] !== "E" && !blockedHazardCells.has(`${x},${y}`)) count += 1;
     }
   }
   return count;
@@ -2666,11 +2759,9 @@ export function generateGridLayoutFromInput(input) {
     }
   }
 
-  // Universal placement invariant (hard rule): every positioned element must
-  // sit on a walkable tile — nothing may exist inside a wall. Hazards are
-  // covered above with their dedicated code; hazards and resources are
-  // generator-placed and hold this by construction, so this check is a
-  // defense-in-depth guard against placement regressions.
+  // Universal placement invariant: every positioned element must sit on a walkable
+  // tile — except spawn/exit wall portals, which must sit on a wall with a valid
+  // interior approach. Hazards are covered above with their dedicated code.
   if (Array.isArray(layout.tiles)) {
     const wallElementErrors = [];
     for (const kind of ["hazards", "resources"]) {
@@ -2688,6 +2779,42 @@ export function generateGridLayoutFromInput(input) {
           });
         }
       });
+    }
+    // Wall-portal rules apply only when spawn/exit were promoted onto a wall cell
+    // distinct from their approach. Degenerate fallbacks (approach === portal) keep
+    // legacy floor-S/E behavior for tiny/count-derived layouts so feasibility
+    // characterization stays byte-stable.
+    for (const portalKind of ["spawn", "exit"]) {
+      const portal = layout[portalKind];
+      if (!portal || !Number.isInteger(portal.x) || !Number.isInteger(portal.y)) continue;
+      const approachKey = portalKind === "spawn" ? "spawnApproach" : "exitApproach";
+      const approach = layout[approachKey];
+      if (!approach || !Number.isInteger(approach.x) || !Number.isInteger(approach.y)) {
+        continue;
+      }
+      if (approach.x === portal.x && approach.y === portal.y) {
+        continue;
+      }
+      const row = layout.tiles[portal.y];
+      const glyph = typeof row === "string" ? row[portal.x] : null;
+      // Accept either portal glyph: tiny maps may collapse spawn and exit onto one wall cell.
+      if (glyph !== "S" && glyph !== "E" && glyph !== "#") {
+        wallElementErrors.push({
+          field: `layout.${portalKind}`,
+          code: `${portalKind}_portal_not_wall`,
+          detail: { x: portal.x, y: portal.y, glyph },
+        });
+        continue;
+      }
+      const approachRow = layout.tiles[approach.y];
+      const approachGlyph = typeof approachRow === "string" ? approachRow[approach.x] : null;
+      if (approachGlyph === "#" || approachGlyph === "S" || approachGlyph === "E") {
+        wallElementErrors.push({
+          field: `layout.${approachKey}`,
+          code: `${portalKind}_approach_not_floor`,
+          detail: { x: approach.x, y: approach.y, glyph: approachGlyph },
+        });
+      }
     }
     if (wallElementErrors.length > 0) {
       return { ok: false, errors: wallElementErrors, warnings: normalized.warnings, value: null };

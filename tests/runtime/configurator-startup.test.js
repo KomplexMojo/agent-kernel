@@ -17,7 +17,8 @@ test("runtime applies configurator sim config and initial state artifacts", asyn
     readFileSync(resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json"), "utf8"),
   );
   initialState.actors = initialState.actors.filter((actor) => actor.id === "actor_mvp");
-  initialState.actors[0].position = { x: 1, y: 1 };
+  // Seat on spawn approach (wall portals are non-walkable).
+  initialState.actors[0].position = { x: 2, y: 1 };
 
   const core = createCore();
   const runtime = createRuntime({ core, adapters: {} });
@@ -25,15 +26,16 @@ test("runtime applies configurator sim config and initial state artifacts", asyn
 
   assert.equal(core.getMapWidth(), 5);
   assert.equal(core.getMapHeight(), 5);
-  assert.equal(core.getActorX(), 1);
+  assert.equal(core.getActorX(), 2);
   assert.equal(core.getActorY(), 1);
   assert.equal(core.getActorVitalCurrent(0), 11);
   assert.equal(core.getActorVitalMax(0), 12);
   assert.equal(core.getActorVitalMax(1), 2);
-  // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
-  // The regenerated sim-config fixture maps the authored hazard (2,2) into room R1 at (1,1) -> (3,3),
-  // which shifts spawn to (2,2) and exit to (1,1) (hazard tiles are excluded from spawn/exit candidates).
-  assert.equal(String.fromCharCode(core.renderBaseCellChar(2, 2)), "S");
-  assert.equal(String.fromCharCode(core.renderBaseCellChar(1, 1)), "E");
+  // Wall portals sit on the perimeter; approaches are the adjacent interior floors.
+  // Fixture layout: "#ES##" / "#...#" with spawn (2,0), exit (1,0), approaches (2,1)/(1,1).
+  assert.equal(String.fromCharCode(core.renderBaseCellChar(2, 0)), "S");
+  assert.equal(String.fromCharCode(core.renderBaseCellChar(1, 0)), "E");
+  assert.equal(String.fromCharCode(core.renderBaseCellChar(2, 1)), ".");
+  assert.equal(String.fromCharCode(core.renderBaseCellChar(1, 1)), ".");
   assert.equal(core.getTileActorKind(3, 3), 0);
 });
