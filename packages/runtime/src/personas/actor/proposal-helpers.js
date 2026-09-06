@@ -48,11 +48,29 @@ export function resolveBaseTiles(payload, view, simConfig) {
   return null;
 }
 
+export function isWarden(actorOrRecord) {
+  const role = typeof actorOrRecord?.role === "string" ? actorOrRecord.role.trim() : "";
+  return role === "warden";
+}
+
+/**
+ * Path target for exit-seeking. Prefers an explicit `exitApproach` (floor cell beside a
+ * wall portal). Without one, falls back to legacy exit coordinates so older floor-`E`
+ * fixtures keep working until they are migrated.
+ */
 export function resolveExit(payload, view, baseTiles, simConfigInput) {
+  const simConfig = payload?.simConfig || simConfigInput;
+  const layoutData = simConfig?.layout?.data;
+  const approach = payload?.exitApproach
+    || view?.exitApproach
+    || layoutData?.exitApproach
+    || null;
+  if (approach && Number.isInteger(approach.x) && Number.isInteger(approach.y)) {
+    return { x: approach.x, y: approach.y };
+  }
   if (payload?.exit) return payload.exit;
   if (view?.exit) return view.exit;
-  const simConfig = payload?.simConfig || simConfigInput;
-  if (simConfig?.layout?.data?.exit) return simConfig.layout.data.exit;
+  if (layoutData?.exit) return layoutData.exit;
   if (baseTiles) return findExitFromTiles(baseTiles);
   return null;
 }
@@ -62,7 +80,7 @@ export function resolveActor(view, actorId, observation) {
     const matchId = actorId || observation?.actorId;
     const selected = matchId ? view.actors.find((actor) => actor?.id === matchId) : view.actors[0];
     if (selected?.position) {
-      return { id: selected.id, position: selected.position };
+      return { id: selected.id, position: selected.position, role: selected.role };
     }
   }
   if (view?.actor) {
@@ -139,7 +157,8 @@ export function isPassable({ x, y }, tileKinds, baseTiles) {
     const row = String(baseTiles[y]);
     const cell = row[x];
     if (!cell) return false;
-    return cell !== "#" && cell !== "B";
+    // S/E are wall portals (non-walkable). Path targets use exitApproach.
+    return cell !== "#" && cell !== "B" && cell !== "S" && cell !== "E";
   }
   return false;
 }
@@ -189,7 +208,9 @@ export function findPath(start, goal, tileKinds, baseTiles) {
       if (Object.prototype.hasOwnProperty.call(cameFrom, key)) {
         continue;
       }
-      if (!isPassable(next, tileKinds, baseTiles) || !isDiagonalStepAllowed(current, next, tileKinds, baseTiles)) {
+      const isGoal = next.x === goal.x && next.y === goal.y;
+      if ((!isPassable(next, tileKinds, baseTiles) && !isGoal)
+        || !isDiagonalStepAllowed(current, next, tileKinds, baseTiles)) {
         continue;
       }
       cameFrom[key] = `${current.x},${current.y}`;
@@ -206,8 +227,12 @@ export function buildMoveProposal({ observation, payload, simConfig }) {
   const exit = resolveExit(payload, view, baseTiles, simConfig);
   const tileKinds = resolveTileKinds(view, payload);
   const actor = resolveActor(view, payload?.actorId, observation);
-  if (!actor || !actor.position || !exit) return [];
+  if (!actor || !actor.position) return [];
   const actorRecord = resolveActorRecord(view, payload?.actorId, observation);
+  if (isWarden(actorRecord) || isWarden(actor) || isWarden(payload?.configuredActor)) {
+    return [{ kind: "wait", params: { reason: "warden_holds_exit" } }];
+  }
+  if (!exit) return [];
   if (actorRecord?.motivation?.mobility === "stationary") {
     return [{ kind: "wait", params: { reason: "stationary" } }];
   }

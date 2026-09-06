@@ -39,6 +39,7 @@ import {
   buildAdjacentMoveProposals,
   chebyshevDistance,
   findPath,
+  isWarden,
 } from "./proposal-helpers.js";
 import { getMotivationModule } from "./motivations/index.js";
 
@@ -387,7 +388,6 @@ function resolveObservation(payload) {
 
 
 
-
 function resolveConfiguredActor(payload, actorId) {
   const actors = Array.isArray(payload?.initialState?.actors) ? payload.initialState.actors : [];
   if (!actorId) return actors[0] || null;
@@ -611,13 +611,14 @@ function buildRuntimeDecisionObjectives({ configuredActor, visibleActors, exit }
   if (role) {
     objectives.role = role;
   }
+  const seeksExit = Boolean(exit) && !isWarden(configuredActor);
   if (visibleActors.length > 0) {
     objectives.primary = role === "boss" ? "control_visible_opponents" : "resolve_visible_contacts";
     objectives.visibleContactCount = visibleActors.length;
-  } else if (exit) {
+  } else if (seeksExit) {
     objectives.primary = "advance_to_exit";
   }
-  if (exit) {
+  if (seeksExit) {
     objectives.exit = { ...exit };
   }
   const goals = extractMotivationGoals(configuredActor);
@@ -835,6 +836,7 @@ function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, can
   const visiblePositions = visibleActors
     .filter((entry) => entry?.hostile !== false && entry?.position)
     .map((entry) => entry.position);
+  const exitTarget = isWarden(actorRecord) || isWarden(actor) ? null : exit;
   return candidateActions.map((candidate, index) => {
     const action = candidate.action;
     const endPosition = candidateEndPosition(action, actor.position);
@@ -850,9 +852,9 @@ function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, can
     })) {
       score = ACTOR_INTENT_CLASS.HOSTILE_PROGRESS;
       ruleId = "move_toward_hostile";
-    } else if (action?.kind === "move" && exit) {
-      const before = chebyshevDistance(actor.position, exit);
-      const after = chebyshevDistance(endPosition, exit);
+    } else if (action?.kind === "move" && exitTarget) {
+      const before = chebyshevDistance(actor.position, exitTarget);
+      const after = chebyshevDistance(endPosition, exitTarget);
       if (Number.isFinite(before) && Number.isFinite(after) && after < before) {
         score = ACTOR_INTENT_CLASS.EXIT_PROGRESS;
         ruleId = "move_toward_exit";
@@ -1686,7 +1688,12 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     const candidateProposals = hasBudget
       ? admitProposals(candidates, { budgetReceipt, budgetAllocation })
       : candidates;
-    const exit = resolveExit(payload, observationView, baseTiles, simConfig);
+    const actorIdForExit = payload.actorId || observation?.actorId || "actor";
+    const actorRecordForExit = resolveActorRecord(observationView, actorIdForExit, observation)
+      || resolveConfiguredActor(payload, actorIdForExit);
+    const exit = isWarden(actorRecordForExit)
+      ? null
+      : resolveExit(payload, observationView, baseTiles, simConfig);
     const runtimeDecisionEffect = shouldEmitActions
       ? buildRuntimeDecisionEffect({
           payload: {
@@ -1698,7 +1705,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
           },
           observation,
           view: observationView,
-          actorId: payload.actorId || observation?.actorId || "actor",
+          actorId: actorIdForExit,
           tick,
           baseTiles,
           exit,
