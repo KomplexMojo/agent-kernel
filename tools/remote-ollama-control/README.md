@@ -296,6 +296,15 @@ The launcher resolves `node` itself, because nvm is not on a GUI app's PATH and 
 rots at the next upgrade. On any failure it still opens a page saying what went wrong -- a launcher
 that exited quietly would be indistinguishable from a healthy run with nothing to report.
 
+**macOS will refuse it access to a checkout under `~/Documents`, `~/Desktop` or `~/Downloads`.** The
+symptom is `./bin/remote-ollama-mac: Operation not permitted` -- and it is easy to misread, because
+the identical command works from a terminal, where Terminal already holds the grant. Grant it once
+in System Settings &rarr; Privacy & Security &rarr; Full Disk Access. The launcher detects this case
+specifically and says so; only genuine network and ssh failures get the network advice.
+
+Note that re-running the installer rebuilds the bundle, which can invalidate that grant. If that
+becomes tiresome, run `benchmark-status` from a terminal instead -- it needs no grant at all.
+
 ### Heartbeat and interim progress
 
 A full matrix is 6 configurations × 100 scenarios × up to 3 passes — 600 attempts at the floor,

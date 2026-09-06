@@ -119,3 +119,29 @@ test('the plist is valid and names the executable that exists', () => {
     execFileSync('plutil', ['-lint', join(dir, APP_NAME, 'Contents/Info.plist')], { stdio: 'ignore' });
   }
 });
+
+// The launcher's most likely failure on this Mac is macOS refusing it access to the checkout,
+// because the repository sits in a protected folder (~/Documents). The first version blamed the LAN
+// and ssh for it, which sends you to check a network that was never the problem.
+test('a macOS permission refusal is diagnosed as one, not as a network fault', () => {
+  const launcher = launcherAt(install());
+  assert.match(launcher, /PERMISSION_HINT/);
+  assert.match(launcher, /Full Disk Access/);
+  assert.match(launcher, /\*"not permitted"\*\) show_error "\$output" "\$PERMISSION_HINT"/);
+});
+
+// "Permission denied (publickey)" is ssh failing to authenticate. Routing that to the privacy-
+// settings advice would swap one confident wrong diagnosis for another.
+test('an ssh auth failure is not misread as a privacy-settings problem', () => {
+  const launcher = launcherAt(install());
+  const runFailure = launcher.slice(launcher.indexOf('benchmark-status --route auto'));
+  assert.doesNotMatch(runFailure, /ermission denied"\*\)\s*show_error "\$output" "\$PERMISSION_HINT"/);
+  assert.match(runFailure, /NETWORK_HINT/);
+});
+
+test('both hints exist and are distinct, so neither failure gets generic advice', () => {
+  const launcher = launcherAt(install());
+  assert.match(launcher, /NETWORK_HINT='/);
+  assert.match(launcher, /PERMISSION_HINT='/);
+  assert.match(launcher, /ssh-add/);
+});

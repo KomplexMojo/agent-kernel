@@ -73,6 +73,11 @@ mkdir -p "$(dirname "$OUT")"
 # Takes the message as an ARGUMENT. Piping into it would run it in a subshell, where its `exit`
 # ends only that subshell -- the script would then carry on to the success path and exit 0, having
 # reported failure and success at the same time.
+# $1 = the raw failure text, $2 = the remediation paragraph (HTML).
+#
+# The remediation is chosen by the CALLER rather than fixed here, because the generic
+# network/ssh advice actively misdirects for the one failure this launcher hits most: macOS
+# refuses it access to the checkout, and no amount of checking the LAN explains that.
 show_error() {
   {
     printf '%s' '<!doctype html><html><head><meta charset="utf-8"><title>Benchmark status</title>
@@ -80,16 +85,36 @@ show_error() {
 BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}h1{font-size:19px;margin:0 0 6px}
 p{color:#8a8f98;margin:0 0 22px}pre{background:rgba(127,127,127,.12);padding:16px 18px;
 border-radius:8px;overflow-x:auto;white-space:pre-wrap;font-size:12.5px;line-height:1.5}
+ol{color:#8a8f98;margin:0 0 22px;padding-left:22px}li{margin-bottom:5px}
 code{background:rgba(127,127,127,.14);padding:1px 5px;border-radius:4px}</style></head><body>
 <h1>Could not read the benchmark</h1><p>The launcher ran, but the status command did not return a
 page.</p><pre>'
     printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
-    printf '%s' '</pre><p>Usual causes: the Mac is off the LAN and the external route is closed,
-<code>ssh-add</code> has no key loaded after a reboot, or the box is down.</p></body></html>'
+    printf '%s' '</pre>'
+    printf '%s' "$2"
+    printf '%s' '</body></html>'
   } > "$OUT"
   open "$OUT"
   exit 1
 }
+
+NETWORK_HINT='<p>Usual causes: the Mac is off the LAN and the external route is closed,
+<code>ssh-add</code> has no key loaded after a reboot, or the box is down.</p>'
+
+# macOS blocks apps from Desktop/Documents/Downloads until granted. The checkout lives in
+# ~/Documents, so a launcher double-clicked from Finder is refused with EPERM while the very same
+# command works from a terminal -- Terminal already holds the grant. That asymmetry is what makes
+# this worth naming outright: nothing about the message points at privacy settings.
+PERMISSION_HINT='<p><strong>macOS is blocking this app from the checkout</strong> — not a network
+problem. The repository is inside a protected folder, and this app has no access to it yet.</p>
+<ol>
+<li>Open System Settings &rarr; Privacy &amp; Security &rarr; <strong>Full Disk Access</strong></li>
+<li>Press <strong>+</strong>, choose <code>Benchmark Status.app</code>, and switch it on</li>
+<li>Launch it again</li>
+</ol>
+<p>Re-running the installer rebuilds the bundle, which can invalidate that grant and require
+switching it on again. To avoid the permission entirely, run the command from a terminal instead:
+<code>./bin/remote-ollama-mac benchmark-status</code></p>'
 
 # nvm installs node outside any PATH a GUI app inherits. Probe rather than hardcode a version:
 # pinning one would break silently at the next node upgrade.
@@ -100,15 +125,31 @@ done
 if [ -z "$NODE_BIN" ]; then
   NODE_BIN="$(/bin/ls -1d "$HOME"/.nvm/versions/node/*/bin/node 2>/dev/null | sort -V | tail -1)"
 fi
-[ -x "$NODE_BIN" ] || show_error "no node interpreter found (looked in Homebrew, /usr/local and ~/.nvm)"
+[ -x "$NODE_BIN" ] || show_error \
+  "no node interpreter found (looked in Homebrew, /usr/local and ~/.nvm)" "$NETWORK_HINT"
 
 export PATH="$(dirname "$NODE_BIN"):/usr/bin:/bin:/usr/sbin:/sbin"
-cd "$REPO/tools/remote-ollama-control" 2>/dev/null || show_error "checkout not found at $REPO"
+
+# A blocked directory and a missing one both fail this cd. Distinguish them: reporting "checkout not
+# found" for a permissions refusal sends you looking for a directory that is sitting right there.
+if ! cd_error=$(cd "$REPO/tools/remote-ollama-control" 2>&1); then
+  case "$cd_error" in
+    *"not permitted"*|*"ermission denied"*) show_error "$cd_error" "$PERMISSION_HINT" ;;
+    *) show_error "checkout not found at $REPO" "$NETWORK_HINT" ;;
+  esac
+fi
+cd "$REPO/tools/remote-ollama-control"
 
 # --route auto probes the LAN first and falls back to the external path, so the same icon works
 # from home and away.
 if ! output=$(./bin/remote-ollama-mac benchmark-status --route auto --html "$OUT" 2>&1); then
-  show_error "$output"
+  # Match only "Operation not permitted", which is the TCC refusal. NOT "Permission denied":
+  # that is ssh failing to authenticate, and pointing at privacy settings for a missing key would
+  # simply swap one wrong diagnosis for another.
+  case "$output" in
+    *"not permitted"*) show_error "$output" "$PERMISSION_HINT" ;;
+    *) show_error "$output" "$NETWORK_HINT" ;;
+  esac
 fi
 
 open "$OUT"
