@@ -1257,14 +1257,67 @@ const DEFAULT_ATTACK_DAMAGE = 2; // M1 contract: fixed deterministic damage
  *   2. payload.initialState.actors (runtime path — motivation stored in config, not core)
  */
 function resolveActorMotivationKind(view, actorId, payload) {
-  if (view?.actors && Array.isArray(view.actors)) {
-    const self = view.actors.find((a) => a && a.id === actorId);
-    if (self?.motivation?.kind) return self.motivation.kind;
+  const kinds = resolveActorMotivationKinds(view, actorId, payload);
+  return kinds[0] || null;
+}
+
+/**
+ * Every motivation this actor carries, primary first. Prefers the plural
+ * `motivations` list when present; falls back to the singular `motivation.kind`.
+ */
+function resolveActorMotivationKinds(view, actorId, payload) {
+  const fromView = Array.isArray(view?.actors)
+    ? view.actors.find((a) => a && a.id === actorId)
+    : null;
+  const fromConfig = Array.isArray(payload?.initialState?.actors)
+    ? payload.initialState.actors.find((a) => a && a.id === actorId)
+    : null;
+  const record = fromView || fromConfig;
+  const list = record?.motivations;
+  if (Array.isArray(list) && list.length > 0) {
+    const kinds = [];
+    const seen = new Set();
+    for (const entry of list) {
+      const kind = typeof entry === "string" ? entry : entry?.kind;
+      if (typeof kind !== "string" || !kind || kind === "user_controlled") continue;
+      if (seen.has(kind)) continue;
+      seen.add(kind);
+      kinds.push(kind);
+    }
+    if (kinds.length > 0) return kinds;
   }
-  const configActors = payload?.initialState?.actors;
-  if (Array.isArray(configActors)) {
-    const configActor = configActors.find((a) => a && a.id === actorId);
-    if (configActor?.motivation?.kind) return configActor.motivation.kind;
+  const single = fromView?.motivation?.kind || fromConfig?.motivation?.kind || null;
+  return single ? [single] : [];
+}
+
+function resolveActorMotivationParams(view, actorId, payload, kind) {
+  const fromView = Array.isArray(view?.actors)
+    ? view.actors.find((a) => a && a.id === actorId)
+    : null;
+  const fromConfig = Array.isArray(payload?.initialState?.actors)
+    ? payload.initialState.actors.find((a) => a && a.id === actorId)
+    : null;
+  const record = fromView || fromConfig;
+  const list = record?.motivations;
+  if (Array.isArray(list)) {
+    for (const entry of list) {
+      if (entry && typeof entry === "object" && entry.kind === kind) {
+        return {
+          pattern: entry.pattern || null,
+          intensity: entry.intensity,
+          flags: entry.flags,
+          goal: entry.goal,
+        };
+      }
+    }
+  }
+  if (record?.motivation?.kind === kind) {
+    return {
+      pattern: record.motivation.pattern || null,
+      intensity: record.motivation.intensity,
+      flags: record.motivation.flags,
+      goal: record.motivation.goal,
+    };
   }
   return null;
 }
@@ -1450,145 +1503,134 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
   const actor = resolveActor(view, actorId, observation);
   if (!actor?.position) return buildMoveProposal({ observation, payload, simConfig });
 
-  const motivationKind = resolveActorMotivationKind(view, actorId, payload);
+  const kinds = resolveActorMotivationKinds(view, actorId, payload);
+  const motivationKind = kinds[0] || null;
 
-  // AM.9 — gate on the motivation's PROFILE, not on its name.
-  //
-  // This read `motivationKind === "stationary"`. Every other kind fell through
-  // to movement by default, so a kind whose profile says it holds position — and
-  // core's table says `defending`, `reflexive`, `goal_oriented`,
-  // `strategy_focused` and `user_controlled` all do — moved anyway, because
-  // nobody had written an `if` for it. The behavior lived in the list of names
-  // someone remembered, not in the data.
-  //
-  // Mobility tier 0 means stationary; 1 exploring; 2 patrolling. Asking core
-  // means a new motivation kind gets correct movement behavior from its profile
-  // row, with no branch to add here.
-  //
-  // Holding position suppresses MOVEMENT, not every proposal. `defending` has
-  // mobility 0 and combat 2: it holds ground and still strikes what comes to it
-  // (charter §382). Returning early for everything that holds position is the
-  // mistake this comment exists to prevent — it silenced defending actors
-  // entirely, and three tests said so.
-  const holdsPosition = motivationHoldsPosition(motivationKind);
-  const hasCombatRole = motivationHasCombatRole(motivationKind);
+  // Gate on the PROFILE of every carried kind. Holding position suppresses
+  // movement, not combat — a defending actor still strikes what reaches it.
+  const holdsPosition = kinds.some((kind) => motivationHoldsPosition(kind));
+  const hasCombatRole = kinds.some((kind) => motivationHasCombatRole(kind));
   if (holdsPosition && !hasCombatRole) {
     return [];
   }
 
-  // Registry dispatch: each motivation module proposes candidates. Empty means
-  // "no movement from this kind" — combat kinds still fall through to the hostile
-  // block below, which MC.3 keeps here deliberately.
-  const motivationModule = getMotivationModule(motivationKind);
-  if (motivationModule) {
-    const proposed = motivationModule.propose({
+  const composed = [];
+  const seen = new Set();
+  const pushUnique = (proposals) => {
+    if (!Array.isArray(proposals)) return;
+    for (const proposal of proposals) {
+      if (!proposal || typeof proposal !== "object") continue;
+      const signature = `${proposal.kind}:${JSON.stringify(proposal.params || {})}`;
+      if (seen.has(signature)) continue;
+      seen.add(signature);
+      composed.push(proposal);
+    }
+  };
+
+  for (const kind of kinds) {
+    const motivationModule = getMotivationModule(kind);
+    if (!motivationModule) continue;
+    const params = resolveActorMotivationParams(view, actorId, payload, kind);
+    pushUnique(motivationModule.propose({
       actor,
       view,
       observation,
       payload,
       simConfig,
       personaSeed,
-      params: null,
-    });
-    if (Array.isArray(proposed) && proposed.length > 0) return proposed;
+      params,
+    }));
   }
 
-  const hostile = resolveNearestHostile(view, actorId);
-
-  if (hostile) {
-    const adjacent = hostile.distance <= 1;
-
-    // AM.6 — an actor that HOLDS an affinity able to reach this hostile expresses
-    // it, in preference to a generic attack.
-    //
-    // Before this, an actor's affinities were data it carried and never used:
-    // the only combat proposal was `attack` with a flat damage number, so the
-    // whole affinity system — kinds, expressions, stacks, the vital matrix — sat
-    // outside play entirely (F5). Range matches core's own rule for push/pull
-    // (Chebyshev distance <= stacks, rules/affinity-damage.ts), so a proposal
-    // this makes is one core will accept rather than one it will refuse.
-    if (motivationKind === "attacking" || motivationKind === "defending") {
-      // `resolveActor` deliberately returns only id + position, so the affinity
-      // list comes from the full record. Reading it off the trimmed one would
-      // silently find no affinities and never cast — the failure would look
-      // exactly like an actor that simply has none.
-      const record = resolveActorRecord(view, actorId, observation);
-      const cast = buildAffinityCastProposal({
-        actor,
-        affinities: record?.affinities,
-        hostile,
-      });
-      if (cast) return [cast];
-    }
-
-    // Adjacent hostile + attacking or defending → attack
-    if (adjacent && (motivationKind === "attacking" || motivationKind === "defending")) {
-      return [
-        {
-          kind: "attack",
-          params: {
-            targetId: hostile.actor.id,
-            attackerPosition: { ...actor.position },
-            targetPosition: { ...hostile.actor.position },
-            damage: DEFAULT_ATTACK_DAMAGE,
-          },
-        },
-      ];
-    }
-
-    // Non-adjacent + a motivation that both fights and MOVES → close distance.
-    // Gated on the profile: a combat motivation with mobility 0 holds its ground
-    // instead of pursuing, which is what separates defending from attacking.
-    if (!adjacent && hasCombatRole && !holdsPosition) {
-      const baseTiles = resolveBaseTiles(payload, view, simConfig);
-      const tileKinds = resolveTileKinds(view, payload);
-      const path = findPath(actor.position, hostile.actor.position, tileKinds, baseTiles);
-      if (path && path.length >= 2) {
-        const from = path[0];
-        const to = path[1];
-        const delta = { dx: to.x - from.x, dy: to.y - from.y };
-        const direction = DEFAULT_DELTAS.find(
-          (e) => e.dx === delta.dx && e.dy === delta.dy,
-        )?.direction;
-        if (direction) {
-          return [{ kind: "move", params: { direction, from, to } }];
-        }
-      }
-    }
-
-    // Non-adjacent + a combat motivation that holds position → wait it out
-    if (!adjacent && hasCombatRole && holdsPosition) {
-      return [];
-    }
+  // Combat stays owned by the controller for now (MC.3/MC.5): collect proposals
+  // into the same candidate set so the existing intentClass tuple can arbitrate
+  // between e.g. an attack (500) and a patrol step (200).
+  if (hasCombatRole) {
+    pushUnique(buildCombatProposals({
+      observation,
+      payload,
+      simConfig,
+      view,
+      actor,
+      actorId,
+      kinds,
+      holdsPosition,
+      hasCombatRole,
+    }));
   }
 
-  // ⚠️ HOLDS-POSITION APPLIES HERE TOO, and its absence was a real defect. The early
-  // return at the top of this function is gated on `!hasCombatRole`, so `defending`
-  // (mobility 0, combat 2) skipped it, found no hostile, and fell through to exit
-  // pathfinding — a defender walking to the exit. Measured across six positions,
-  // `defending` and `attacking` proposed byte-identical moves.
-  //
-  // The comment above the pursuit branch already claimed this was handled: "a combat
-  // motivation with mobility 0 holds its ground instead of pursuing, which is what
-  // separates defending from attacking". True of pursuit, never true of this line. The
-  // guard existed for one of the two ways an actor can walk away.
-  //
-  // Returning [] rather than a `wait` proposal keeps this identical to the other
-  // holds-position path at the top, so the two cannot drift into different silences.
+  const filtered = holdsPosition
+    ? composed.filter((proposal) => proposal.kind !== "move")
+    : composed;
+  if (filtered.length > 0) return filtered;
   if (holdsPosition) return [];
 
-  // Fallback: existing exit pathfinding
   return buildMoveProposal({ observation, payload, simConfig });
 }
 
-/**
- * @param {object} options
- * @param {(proposals: Array, budget: object) => Array} [options.admitProposals]
- *   The Allocator's budget-admissibility judge, wired in by the runner. CR.6: the
- *   Actor no longer OWNS this policy — it does not define it, cannot reach a
- *   different verdict than the Allocator, and refuses to guess if a budget shows up
- *   with no judge attached (see below).
- */
+function buildCombatProposals({
+  observation,
+  payload,
+  simConfig,
+  view,
+  actor,
+  actorId,
+  kinds,
+  holdsPosition,
+  hasCombatRole,
+}) {
+  const combatKinds = kinds.filter((kind) => motivationHasCombatRole(kind));
+  if (combatKinds.length === 0) return [];
+
+  const hostile = resolveNearestHostile(view, actorId);
+  if (!hostile) return [];
+
+  const adjacent = hostile.distance <= 1;
+  const proposals = [];
+
+  if (combatKinds.some((kind) => kind === "attacking" || kind === "defending")) {
+    const record = resolveActorRecord(view, actorId, observation);
+    const cast = buildAffinityCastProposal({
+      actor,
+      affinities: record?.affinities,
+      hostile,
+    });
+    if (cast) proposals.push(cast);
+  }
+
+  if (adjacent && combatKinds.some((kind) => kind === "attacking" || kind === "defending")) {
+    proposals.push({
+      kind: "attack",
+      params: {
+        targetId: hostile.actor.id,
+        attackerPosition: { ...actor.position },
+        targetPosition: { ...hostile.actor.position },
+        damage: DEFAULT_ATTACK_DAMAGE,
+      },
+    });
+  }
+
+  if (!adjacent && hasCombatRole && !holdsPosition) {
+    const baseTiles = resolveBaseTiles(payload, view, simConfig);
+    const tileKinds = resolveTileKinds(view, payload);
+    const path = findPath(actor.position, hostile.actor.position, tileKinds, baseTiles);
+    if (path && path.length >= 2) {
+      const from = path[0];
+      const to = path[1];
+      const delta = { dx: to.x - from.x, dy: to.y - from.y };
+      const direction = DEFAULT_DELTAS.find(
+        (e) => e.dx === delta.dx && e.dy === delta.dy,
+      )?.direction;
+      if (direction) {
+        proposals.push({ kind: "move", params: { direction, from, to } });
+      }
+    }
+  }
+
+  return proposals;
+}
+
+
 export function createActorPersona({ initialState = ActorStates.IDLE, clock, seed: personaSeed, admitProposals, from } = {}) {
   const fsm = createActorStateMachine({ initialState, clock, from });
   // CR.6 — this persona holds NO state outside `fsm`. It used to cache

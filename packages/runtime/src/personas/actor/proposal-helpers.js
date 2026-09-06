@@ -269,7 +269,28 @@ export function resolveRooms(payload, view, simConfig) {
   return Array.isArray(fromView) ? fromView : [];
 }
 
-export function buildPatrolProposals({ observation, payload, simConfig }) {
+/**
+ * Resolve the next ring cell for a patrol pattern.
+ * `loop` (default): clockwise circuit — the historical behaviour.
+ * `ping_pong`: reverse at the ring ends (triangle wave over tick).
+ * `random_walk`: not handled here — the patrolling module delegates to random.
+ */
+function resolvePatrolRingTarget(at, ring, pattern, tick) {
+  if (at < 0) return null;
+  const normalized = typeof pattern === "string" ? pattern.trim().toLowerCase() : "loop";
+  if (normalized === "ping_pong") {
+    const span = ring.length - 1;
+    if (span <= 0) return ring[0];
+    const period = span * 2;
+    const phase = ((Number.isFinite(tick) ? tick : 0) % period + period) % period;
+    const index = phase <= span ? phase : period - phase;
+    return ring[index];
+  }
+  // loop (default)
+  return ring[(at + 1) % ring.length];
+}
+
+export function buildPatrolProposals({ observation, payload, simConfig, params = null }) {
   const view = resolveObservationView(observation);
   if (!view) return [];
   const actor = resolveActor(view, payload?.actorId, observation);
@@ -283,10 +304,14 @@ export function buildPatrolProposals({ observation, payload, simConfig }) {
   if (ring.length < 2) return [];
 
   const at = ring.findIndex((cell) => cell.x === actor.position.x && cell.y === actor.position.y);
-  // On the ring: take the next cell round. Inside the room: walk out to the nearest ring
-  // cell first, so an actor that spawned in the middle joins the patrol instead of
-  // standing still — which would look exactly like the defect this replaces.
-  const target = at >= 0 ? ring[(at + 1) % ring.length] : nearestRingCell(actor.position, ring);
+  // On the ring: take the next cell for the active pattern. Inside the room: walk out
+  // to the nearest ring cell first, so an actor that spawned in the middle joins the
+  // patrol instead of standing still — which would look exactly like the defect this replaces.
+  const pattern = params?.pattern || "loop";
+  const tick = Number.isFinite(payload?.tick) ? payload.tick : 0;
+  const target = at >= 0
+    ? resolvePatrolRingTarget(at, ring, pattern, tick)
+    : nearestRingCell(actor.position, ring);
   if (!target) return [];
 
   const path = findPath(actor.position, target, tileKinds, baseTiles);
