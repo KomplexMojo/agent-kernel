@@ -459,7 +459,41 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 - Simple actor motivations are resolved deterministically in `packages/runtime/src/personas/actor/controller.js`.
 - `buildMotivatedProposals()` reads `motivation.kind` from the observation actor record or `payload.initialState.actors`. It uses `resolveNearestHostile()` to choose the closest other actor by Chebyshev distance.
-- Current simple motivation kinds are `attacking`, `defending`, `stationary`, and `random`: attacking actors attack adjacent hostiles or pursue distant hostiles, defending actors attack adjacent hostiles or hold position when distant, stationary actors emit no movement proposal, and random actors move to a seed-derived legal adjacent tile.
+- **Gating is on the PROFILE; a few specific behaviours are still selected by NAME.** The
+  questions "may this actor move?" and "does it fight?" are answered from core's mobility and
+  combat tiers, so a new kind inherits correct movement and combat from its profile row with no
+  branch to add — the earlier form tested `kind === "stationary"` and everything else fell
+  through to movement, behaviour living in the list of names someone remembered. But four kinds
+  still have name branches: `random`, `patrolling`, and the `attacking`/`defending` pair that
+  gates casting and striking. Those are the sites a thirteenth motivation would have to be
+  wired into by hand, and the honest statement of the current design rather than the one the
+  profile table implies.
+- **There are twelve kinds, and they produce five distinct behaviours** (audited 2026-09-06).
+  Behaviour collapsing is not automatically a defect: kinds sharing a profile *should* behave
+  alike, and the axis that separates several of them — cognition — is not yet consumed by the
+  Actor.
+
+  | behaviour | kinds |
+  |---|---|
+  | seed-derived move to a legal adjacent tile | `random` |
+  | clockwise circuit of the actor's own room | `patrolling` |
+  | shortest path to the level exit | `exploring`, `stealthy`, `friendly` |
+  | strike an adjacent hostile; else pursue (mobility 1) or hold (mobility 0) | `attacking`, `defending` |
+  | no movement proposal | `stationary`, `reflexive`, `goal_oriented`, `strategy_focused`, `user_controlled` |
+
+- **Mobility 0 means hold position, in BOTH directions an actor can walk away.** The rule is
+  pinned as a rule — every mobility-0 kind proposes no move, every mobility-bearing kind
+  proposes one — because covering only one direction is how it was wrong before: `defending`
+  (mobility 0, combat 2) skipped the holds-position guard, found no hostile, and fell through
+  to exit pathfinding, proposing moves byte-identical to `attacking`. Holding position
+  suppresses MOVEMENT, not every proposal: `defending` holds ground and still strikes what
+  comes to it (§382).
+- ⚠️ **This section previously named four kinds** — `attacking`, `defending`, `stationary`,
+  `random` — as "the current simple motivation kinds", which was true when written and had
+  stopped being true twice over: `patrolling` gained behaviour of its own, and the description
+  of `defending` as holding position when distant described a fix that had not landed yet.
+  A charter that lists behaviours by name goes stale silently every time one is added, which is
+  why the table above is anchored to the PROFILE the dispatch actually reads.
 - `random` movement is deterministic pseudo-random: the choice derives from `seed:actorId:tick` (FNV/mulberry), never `Math.random()`, and synthesizes a `wait` when no legal adjacent tile exists. Replays of the same seed produce identical movement.
 - Multi-actor ticks: `packages/runtime/src/runner/runtime-fsm.mjs` runs the DECIDE phase for every actor each tick and reserves proposed target tiles within the tick so two actors cannot move onto the same tile in the same tick.
 - Complex motivation is opt-in. Actors with runtime decisioning enabled, for example `runtimeDecisioning: { enabled: true, mode: "solver", preferred: "solver", targetAdapter: "z3" }`, emit a `solver_request` effect instead of directly returning a concrete action.
