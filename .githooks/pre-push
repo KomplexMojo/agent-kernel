@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Refuse a push whose DESTINATION is a protected branch.
+#
+# Checked against the remote ref, not the local branch name: `git push origin HEAD:main` from a
+# feature branch is still a direct write to main, and a hook that only looked at the local name
+# would wave it through. That is exactly the shape that put two commits on main by hand.
+set -uo pipefail
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# stdin: <local ref> <local sha> <remote ref> <remote sha>
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  [ -n "${remote_ref:-}" ] || continue
+  case "$remote_ref" in
+    refs/heads/*) target="${remote_ref#refs/heads/}" ;;
+    *) continue ;;
+  esac
+  "$HOOK_DIR/protected-branch.sh" "$target" push || exit 1
+done
+
+exit 0
