@@ -30,8 +30,6 @@ import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 import {
   DEFAULT_DELTAS,
   buildMoveProposal,
-  buildPatrolProposals,
-  buildRandomMoveProposals,
   resolveObservationView,
   resolveBaseTiles,
   resolveExit,
@@ -40,11 +38,9 @@ import {
   resolveTileKinds,
   buildAdjacentMoveProposals,
   chebyshevDistance,
-  isPassable,
   findPath,
-  isOccupied,
-  isReserved,
 } from "./proposal-helpers.js";
+import { getMotivationModule } from "./motivations/index.js";
 
 /**
  * Stage B — `profileAlignment` split into its two independent signals.
@@ -1480,18 +1476,21 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
     return [];
   }
 
-  // Random: seed-derived deterministic movement to a legal adjacent tile
-  if (motivationKind === "random") {
-    return buildRandomMoveProposals({ observation, payload, simConfig, personaSeed });
-  }
-
-  // Patrolling: circuit its own room. Placed before the hostile branch for readability
-  // only — `patrolling` has combat tier 0, so every branch inside `if (hostile)` is
-  // already unreachable for it. Falls through when the actor is in no declared room,
-  // which keeps a room-less layout behaving as it did rather than freezing the actor.
-  if (motivationKind === "patrolling") {
-    const patrol = buildPatrolProposals({ observation, payload, simConfig });
-    if (patrol.length > 0) return patrol;
+  // Registry dispatch: each motivation module proposes candidates. Empty means
+  // "no movement from this kind" — combat kinds still fall through to the hostile
+  // block below, which MC.3 keeps here deliberately.
+  const motivationModule = getMotivationModule(motivationKind);
+  if (motivationModule) {
+    const proposed = motivationModule.propose({
+      actor,
+      view,
+      observation,
+      payload,
+      simConfig,
+      personaSeed,
+      params: null,
+    });
+    if (Array.isArray(proposed) && proposed.length > 0) return proposed;
   }
 
   const hostile = resolveNearestHostile(view, actorId);
