@@ -374,7 +374,7 @@ phase_6_migrate() {
     # Reference cheatsheets and tactical docs
     for f in CODEX-CHEATSHEET.md MODEL-SELECTION-CHEATSHEET.md test-classification.md \
              ui-cli-parity-matrix.md ui-cli-unification-plan.md \
-             graphify-follow-on-recommendations.md runtime-reasoning-contract.md \
+             runtime-reasoning-contract.md \
              test-inventory.json; do
       [[ -f "$REPO_ROOT/local-codex/$f" ]] && run cp "$REPO_ROOT/local-codex/$f" "$VAULT_HOME/concepts/$f"
     done
@@ -516,7 +516,7 @@ template_index() { cat <<'EOF'
 - [plans/active/](plans/active/) — current Plan / Prompt / Implement (symlinked from repo `local-codex/`)
 - [plans/completed/](plans/completed/) — historical milestone plans
 - [plans/backlog/](plans/backlog/) — dictation, future ideas
-- [sources/](sources/) — ingested documents, graphify snapshots, sample artifacts
+- [sources/](sources/) — ingested documents, sample artifacts
 - [meta/](meta/) — Bases dashboards
 - [_templates/](_templates/) — Templater templates for plans, decisions, sources
 
@@ -540,7 +540,6 @@ and `docs/architecture-charter.md` for the binding contracts.
 ## Where things live
 - **Code** — repo `packages/`
 - **Code structure (live)** — CodeGraphContext MCP queries
-- **Code structure (snapshot)** — repo `graphify-out/wiki/`
 - **Decisions / history / planning** — this vault
 EOF
 }
@@ -559,11 +558,11 @@ You are inside the agent-kernel knowledge vault. The repo lives elsewhere; this 
 
 1. **Code is not here.** Do not write production code in this vault. If a question requires
    code, switch to the agent-kernel repo.
-2. **One-way ingest.** Vault may cite graphify/CCG nodes. Vault never *generates* code structure.
+2. **One-way ingest.** Vault may cite CCG nodes. Vault never *generates* code structure.
 3. **Cross-machine handoff rides on `plans/active/Plan.md`.** There is no hot cache: `hot.md` was
    removed 2026-08-18 because nothing ever wrote to it. Do not reintroduce one without a write side.
-4. **Cite stable IDs.** When referencing code, use `[[ccg://<package>/<path>]]` or
-   `[[graphify://community/<name>]]` — these are checked by `wiki-lint`.
+4. **Cite stable IDs.** When referencing code, use `[[ccg://<package>/<path>]]` — these are
+   checked by `wiki-lint`.
 5. **Append, don't overwrite, decisions.** A new decision that supersedes an older one creates a
    *new* file in `decisions/` with a `supersedes:` frontmatter field, and the older file gets a
    `superseded-by:` field. Never delete history.
@@ -630,7 +629,6 @@ superseded-by:
 ## Alternatives rejected
 ## Affected code
 - [[ccg://...]]
-- [[graphify://...]]
 EOF
 }
 
@@ -681,13 +679,13 @@ Non-load-bearing knowledge for this project lives in an Obsidian vault outside t
 - `concepts/`  — design patterns, mental models, ingested cheatsheets, mockups
 - `decisions/` — ADR-style records of architectural choices
 - `plans/active/`, `plans/completed/`, `plans/backlog/` — current, historical, and future planning material
-- `sources/`   — ingested external documents, graphify snapshots, sample artifact JSONs
+- `sources/`   — ingested external documents, sample artifact JSONs
 
 ## What's *not* in the vault
 
 - All code (`packages/`)
 - The architecture charter, vision contract, runbooks, reference handout (under `docs/`)
-- Live code-structure graphs (`graphify-out/`, CodeGraphContext MCP)
+- Live code-structure tooling (Serena MCP)
 - CLAUDE.md, AGENTS.md, README.md, RUNME.MD
 
 ## Setup
@@ -710,8 +708,7 @@ an Obsidian vault outside this repo. Code-binding contracts (charter, vision, ru
 
 1. Read `~/vault/plans/active/Plan.md` — START HERE block: last-session handoff
 2. Read `~/vault/index.md`         — vault catalog (only if the plan is sparse)
-3. Read `graphify-out/wiki/index.md` — code-organization map
-4. Query CodeGraphContext MCP just-in-time for the area you're touching
+3. Query the Serena MCP just-in-time for the area you're touching
 
 ### Vault paths
 
@@ -726,8 +723,8 @@ an Obsidian vault outside this repo. Code-binding contracts (charter, vision, ru
   `~/vault/plans/active/...` and `~/vault/sources/codex-snapshots/...`.
 - Decisions live in `~/vault/decisions/`. When you make a non-trivial design call, save it via
   `/save` so it lands there.
-- When citing code from a vault note, use stable IDs: `[[ccg://<pkg>/<path>]]` or
-  `[[graphify://community/<name>]]`. `wiki-lint` validates these on demand.
+- When citing code from a vault note, use stable IDs: `[[ccg://<pkg>/<path>]]`.
+  `wiki-lint` validates these on demand.
 
 ### What does NOT belong in the vault
 

@@ -154,26 +154,20 @@ backup would be a bare repo outside the vault — still not built.
 
 ---
 
-# Serena & Graphify under Cursor
+# Serena under Cursor
 
-`CLAUDE.md` documents Serena and Graphify for **Claude Code**, where Serena is registered as
-an MCP server in `~/.claude/settings.json` and Graphify runs from the maintainer's Mac. When
-this repo is worked on from **Cursor** (IDE or cloud agents), the wiring is different. This
-section records the outcome of validating both tools for Cursor and how to set them up.
+`CLAUDE.md` documents Serena for **Claude Code**, where it is registered as an MCP server in
+`~/.claude/settings.json`. When this repo is worked on from **Cursor** (IDE or cloud agents),
+the wiring is different. This section records the outcome of validating it for Cursor and how
+to set it up.
 
-## Do we still need them under Cursor?
+## Do we still need it under Cursor?
 
 - **Serena — yes.** Cursor's agent exposes ripgrep/glob/read (plus the `explore` subagent) but
   not LSP-precise structural queries. Serena's `find_referencing_symbols` / `find_symbol` /
   `find_implementations` remain the only accurate way to answer "who calls / imports this
   symbol" — the port→adapter blast-radius question this repo's architecture discipline depends
   on. It is worth keeping, and must be wired into Cursor explicitly (it is not automatic).
-- **Graphify — yes, but nothing Cursor-specific to install.** Graphify's value is the committed
-  `graphify-out/GRAPH_REPORT.md`, which the agent reads with ordinary file tools identically in
-  Cursor and Claude Code. The `graphify` package itself is private (not on PyPI; pinned to the
-  maintainer's Mac via `graphify-out/.graphify_python`), so **regeneration stays a maintainer
-  task on that machine** — `graph.json` / `graph.html` are gitignored and cannot be rebuilt on a
-  cloud agent. No Cursor wiring is required to *consume* the report.
 
 ## Serena setup for Cursor
 
@@ -202,13 +196,6 @@ time.
 ⚠️ Re-apply the ignored-dirs patch after any Serena upgrade — see the header of
 `patch-serena-ignored-dirs.py`. `install.sh` does this each boot; if you upgrade Serena by hand,
 run `python3 scripts/setup/patch-serena-ignored-dirs.py` yourself and restart the MCP server.
-
-## Graphify under Cursor
-
-Read `graphify-out/GRAPH_REPORT.md` directly — no setup needed. To regenerate the graph you need
-the private `graphify` package on the machine recorded in `graphify-out/.graphify_python`
-(currently the maintainer's Mac); run `graphify update . && python3
-scripts/setup/regenerate-graph-viz.py` there. This cannot be done on a cloud agent.
 
 ---
 
@@ -275,7 +262,7 @@ sections are therefore bridged into Cursor-native files:
 | --- | --- | --- |
 | Reporting protocol | `.cursor/rules/reporting.mdc` | always-on (`alwaysApply: true`) |
 | Enforcement checklist + escalation | `.cursor/rules/enforcement.mdc` | auto-attaches on `packages/**`, `tests/**` |
-| Code navigation (Serena/Graphify/grep) | `.cursor/rules/code-navigation.mdc` | pulled in when relevant (`description`) |
+| Code navigation (Serena/grep) | `.cursor/rules/code-navigation.mdc` | pulled in when relevant (`description`) |
 | Session-start protocol | `.cursor/rules/session-start.mdc` + `scripts/setup/session-refresh.sh` | always-on |
 
 Rules must use the `.mdc` extension with frontmatter — a plain `.md` under `.cursor/rules/` is ignored.

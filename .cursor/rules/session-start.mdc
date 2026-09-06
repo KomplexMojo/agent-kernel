@@ -19,8 +19,7 @@ idempotent and environment-aware, and it guarantees:
    tracks a remote and the working tree is clean. It never touches uncommitted work and
    never switches branches; a dirty tree or a locally-ahead branch is fetched only.
 2. **Supporting tools are refreshed** — `pnpm install --frozen-lockfile`, re-applies the
-   Serena ignored-dirs patch, and refreshes the Graphify context when available (Graphify
-   is a Mac-only tool, skipped elsewhere).
+   Serena ignored-dirs patch, and refreshes the `local-codex/CodeContext.md` snapshot.
 3. **Tests have been run** — `pnpm run test`.
 
 Then report the summary (`source` / `tools` / `tests`). If the script exits non-zero

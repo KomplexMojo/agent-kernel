@@ -38,7 +38,7 @@ const { join, relative, resolve, sep } = require("node:path");
 const ROOT = resolve(__dirname, "../..");
 const PACKAGES = resolve(ROOT, "packages");
 const SOURCE_EXTENSIONS = new Set([".js", ".mjs", ".mts", ".ts"]);
-const SKIP_DIRECTORIES = new Set(["node_modules", "dist", "build", "graphify-out"]);
+const SKIP_DIRECTORIES = new Set(["node_modules", "dist", "build"]);
 
 function collect(directory, files = []) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {

@@ -4,7 +4,7 @@
 # Brings the workspace to a known-good state at the start of a coding session,
 # on a cloud agent or locally:
 #   1. source up to date   — fetch + ff-only pull (never touches uncommitted work)
-#   2. tools refreshed      — pnpm deps, Serena ignored-dirs patch, Graphify context
+#   2. tools refreshed      — pnpm deps, Serena ignored-dirs patch, agent context
 #   3. tests run            — pnpm run test
 #
 # Idempotent, environment-aware, and best-effort: an individual step that fails
@@ -115,16 +115,12 @@ if [ "$RUN_TOOLS" = 1 ]; then
     python3 scripts/setup/patch-serena-ignored-dirs.py || true
   fi
 
-  # Graphify context is a Mac-only refresh: the graphify package is private and
-  # not installable on cloud agents. Only run it where graphify is importable.
-  if python3 -c 'import graphify' >/dev/null 2>&1; then
-    if bash scripts/setup/agent-context.sh >/dev/null 2>&1; then
-      echo "graphify: context refreshed (local-codex/CodeContext.md)"
-    else
-      echo "graphify: context refresh skipped/failed (non-fatal)"
-    fi
+  # Agent context snapshot (local-codex/CodeContext.md + vault mirror). Best
+  # effort: it needs no external indexer, so a failure here is not fatal.
+  if bash scripts/setup/agent-context.sh >/dev/null 2>&1; then
+    echo "context: agent snapshot refreshed (local-codex/CodeContext.md)"
   else
-    echo "graphify: not installed here — skipping graph refresh (Mac-only tool)"
+    echo "context: agent snapshot refresh failed (non-fatal)"
   fi
   status_tools="refreshed"
 fi
