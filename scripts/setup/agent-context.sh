@@ -5,12 +5,11 @@ usage() {
   cat <<'EOF'
 Usage: bash scripts/setup/agent-context.sh [options]
 
-Refresh branch-local Graphify and CodeGraphContext context, then mirror the
+Refresh branch-local CodeGraphContext context, then mirror the
 results into a stable per-worktree cache under ~/vault/codex-context.
 
 Options:
   --context-home PATH   Override the cache root.
-  --skip-graphify      Do not rebuild Graphify.
   --with-cgc           Also index via the legacy cgc CLI (off by default;
                        structural queries now go through the Serena MCP, which
                        needs no index).
@@ -48,28 +47,6 @@ sha12() {
   fi
 }
 
-detect_graphify_python() {
-  local graphify_bin shebang py
-
-  graphify_bin="$(command -v graphify || true)"
-  if [[ -n "$graphify_bin" ]]; then
-    shebang="$(head -n 1 "$graphify_bin" | sed 's/^#!//')"
-    if [[ -x "$shebang" ]] && "$shebang" -c 'import graphify' >/dev/null 2>&1; then
-      printf '%s\n' "$shebang"
-      return 0
-    fi
-  fi
-
-  for py in python3 python; do
-    if command -v "$py" >/dev/null 2>&1 && "$py" -c 'import graphify' >/dev/null 2>&1; then
-      command -v "$py"
-      return 0
-    fi
-  done
-
-  return 1
-}
-
 copy_tree() {
   local src="$1"
   local dest="$2"
@@ -95,7 +72,6 @@ write_metadata() {
   "commit": "$COMMIT",
   "worktreeId": "$WORKTREE_ID",
   "contextDir": "$CONTEXT_DIR",
-  "graphifyOut": "$CONTEXT_DIR/graphify-out",
   "codeContext": "$CONTEXT_DIR/CodeContext.md",
   "generatedAt": "$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
 }
@@ -107,7 +83,6 @@ EOF
 
 write_code_context() {
   local dest="$1"
-  local graph_report="$CONTEXT_DIR/graphify-out/GRAPH_REPORT.md"
 
   {
     printf '# Agent Context\n\n'
@@ -116,7 +91,6 @@ write_code_context() {
     printf '%s\n' "- Branch: \`$BRANCH\`"
     printf '%s\n' "- Commit: \`$COMMIT\`"
     printf '%s\n' "- Worktree context: \`$CONTEXT_DIR\`"
-    printf '%s\n' "- Graphify mirror: \`$CONTEXT_DIR/graphify-out\`"
     printf '\n'
     printf '## Agent Startup\n\n'
     printf 'Structural queries go through the Serena MCP (live language-server answers, no index to go stale):\n\n'
@@ -127,12 +101,6 @@ write_code_context() {
     printf 'mcp__serena__find_implementations(name_path="<Symbol>")   # implementers of an interface\n'
     printf '```\n\n'
     printf 'grep/rg remain correct for literal text (prose, fixture strings, exact messages).\n\n'
-
-    if [[ -s "$graph_report" ]]; then
-      printf '## Graphify Summary\n\n'
-      sed -n '1,18p' "$graph_report"
-      printf '\n'
-    fi
 
     if [[ -s "$CONTEXT_DIR/cgc-stats.txt" ]]; then
       printf '## CodeGraphContext CLI Stats\n\n```text\n'
@@ -154,7 +122,6 @@ write_code_context() {
   } > "$dest"
 }
 
-SKIP_GRAPHIFY=0
 SKIP_CGC=1
 WATCH_CGC=0
 WRITE_LOCAL=1
@@ -166,10 +133,6 @@ while [[ $# -gt 0 ]]; do
       [[ $# -ge 2 ]] || die "--context-home requires a path"
       CONTEXT_HOME="$2"
       shift 2
-      ;;
-    --skip-graphify)
-      SKIP_GRAPHIFY=1
-      shift
       ;;
     --skip-cgc)
       SKIP_CGC=1
@@ -219,23 +182,6 @@ ln -sfn "../worktrees/$WORKTREE_ID" "$CONTEXT_HOME/by-branch/$SAFE_BRANCH"
 log "repo: $REPO_ROOT"
 log "branch: $BRANCH"
 log "context: $CONTEXT_DIR"
-
-if [[ "$SKIP_GRAPHIFY" -eq 0 ]]; then
-  GRAPHIFY_PYTHON="$(detect_graphify_python)" || die "graphify is not importable; install graphify or put graphify on PATH"
-  log "rebuilding Graphify with $GRAPHIFY_PYTHON"
-  mkdir -p "$REPO_ROOT/graphify-out"
-  printf '%s\n' "$GRAPHIFY_PYTHON" > "$REPO_ROOT/graphify-out/.graphify_python"
-  (
-    cd "$REPO_ROOT"
-    "$GRAPHIFY_PYTHON" -c "from graphify.watch import _rebuild_code; from pathlib import Path; raise SystemExit(0 if _rebuild_code(Path('.')) else 1)"
-  )
-  copy_tree "$REPO_ROOT/graphify-out" "$CONTEXT_DIR/graphify-out"
-else
-  log "skipping Graphify rebuild"
-  if [[ -d "$REPO_ROOT/graphify-out" ]]; then
-    copy_tree "$REPO_ROOT/graphify-out" "$CONTEXT_DIR/graphify-out"
-  fi
-fi
 
 if [[ "$SKIP_CGC" -eq 0 ]]; then
   CGC_BIN="$(command -v cgc || command -v codegraphcontext || true)"

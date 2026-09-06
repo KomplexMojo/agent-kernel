@@ -37,14 +37,22 @@ The maintainer reads chat for **two things only**: *is this going the right way*
 
 Not optional — a stale vault or an unpatched tool produces wrong structural answers that compound. Steps 5–8 cost seconds.
 
+**Steps 2–6 are one idempotent command** — run it once per session, not per message:
+
+```bash
+bash scripts/setup/session-refresh.sh
+```
+
+It fetches and `git pull --ff-only` only when the branch tracks a remote *and* the tree is clean (never touches uncommitted work, never switches branches), runs `pnpm install --frozen-lockfile`, re-applies the Serena ignored-dirs patch, refreshes `local-codex/CodeContext.md`, and runs `pnpm run test`. Then report its `source` / `tools` / `tests` summary; a non-zero exit means deps or tests need attention **before** anything else. Skip parts only when asked: `--no-pull`, `--no-tools`, `--no-tests`. Same script on cloud agents, where `.cursor/install.sh` has already provisioned the VM at boot.
+
 1. Read `~/vault/plans/active/Plan.md` — the START HERE block is the last-session handoff; `~/vault/index.md` only if it is sparse
-2. `git pull --ff-only` — confirm on HEAD
-3. `pnpm install --frozen-lockfile` — confirm lockfile match
-4. `pnpm run test` — confirm no pre-existing failures
-5. `bash scripts/setup/agent-context.sh` — refresh branch-local Graphify + `local-codex/CodeContext.md`
-6. `python3 scripts/setup/patch-serena-ignored-dirs.py --check` — exits 1 if Serena's hardcoded `build`/`dist` blind spot is back; re-apply after any `uv tool upgrade serena-agent`
+2. `git pull --ff-only` — confirm on HEAD *(script)*
+3. `pnpm install --frozen-lockfile` — confirm lockfile match *(script)*
+4. `pnpm run test` — confirm no pre-existing failures *(script)*
+5. `bash scripts/setup/agent-context.sh` — refresh the `local-codex/CodeContext.md` snapshot *(script)*
+6. `python3 scripts/setup/patch-serena-ignored-dirs.py --check` — exits 1 if Serena's hardcoded `build`/`dist` blind spot is back; re-apply after any `uv tool upgrade serena-agent` *(script)*
 7. Confirm the Serena MCP responds (any `mcp__serena__*` tool). Answers are live from the language server — nothing to index, watch, or canary-check
-8. Read `local-codex/CodeContext.md`, then the Graphify report it names
+8. Read `local-codex/CodeContext.md`
 
 ---
 
@@ -54,6 +62,9 @@ The full roster (models, effort levels, tools, scope limits) is in `AGENTS.md �
 
 | Need | Route |
 |---|---|
+| Scoping a change / writing a milestone — *before* code | `/agentic-change-planning` (routes to the owning skill) |
+| Implementing persona domain logic | `/persona-<orchestrator\|director\|configurator\|allocator\|actor\|moderator\|annotator>` |
+| Layering, effects, artifact schemas, adapter IO | `/architecture-<dependency-direction\|effects-routing\|artifacts-contracts\|adapter-io>` |
 | Ideation, plan authoring | `/codex:review` |
 | Adversarial verification of a plan or diff | `/codex:adversarial-review`, or the `codex-reviewer` subagent |
 | Mechanical implementation from a complete milestone spec | `/codex:rescue` |
@@ -61,6 +72,10 @@ The full roster (models, effort levels, tools, scope limits) is in `AGENTS.md �
 | Expand `## TODO: Test Permutations` stubs | `/local-test-gen` (Ollama, local or remote GPU) |
 | Author or scaffold a test to an existing recipe | `/structured-test-authoring` + the `ak_test_*` MCP tools |
 | Summarize / classify / extract structured data | `local_*` MCP tools (Ollama) |
+
+**Routing to a scoped skill is mandatory, not a suggestion.** Before planning or editing agent-kernel domain/architecture code, load the owning skill and stay inside it — do not default to a full-app sweep. `/agentic-change-planning` holds the routing table; the plan it produces must name the exact owner id, copy that skill's allowed edit surfaces, and cite its narrow validation command. Each owner skill then supplies *Allowed edit surfaces · Forbidden · Workflow · Validation · Escalate*, and its Validation block — the persona's own tests plus its specific `tests/architecture/*-authority.test.js` guards — is the gate to run before commit, in place of the full suite. Ambiguous ownership, or a change spanning two owners without a thin artifact handoff, is an **escalation**, not a wider plan.
+
+The skills live in `.claude/skills/`; their roster and mirroring rules are `AGENTS.md → Repo-owned skills`. Cursor gets this same requirement from `.cursor/rules/agentic-skill-routing.mdc` (`alwaysApply: true`) — this paragraph is what keeps the two harnesses at parity, so it is not optional here just because nothing enforces it mechanically.
 
 **Before any milestone code:** state assumptions, surface ambiguity (stop and ask rather than guess), present the tradeoff if a simpler path exists. Implementation order is (1) failing tests + `## TODO: Test Permutations` stubs → (2) production code → (3) hand the stubs to Ollama.
 
@@ -70,7 +85,7 @@ The full roster (models, effort levels, tools, scope limits) is in `AGENTS.md �
 
 ---
 
-## Code Navigation — Serena (structural) · graphify (conceptual) · grep (literal)
+## Code Navigation — Serena (structural) · grep (literal)
 
 | Question | Use |
 |---|---|
@@ -78,8 +93,8 @@ The full roster (models, effort levels, tools, scope limits) is in `AGENTS.md �
 | Who calls / imports X? (port → adapter, blast radius) | Serena `find_referencing_symbols` |
 | What's in this file? | Serena `get_symbols_overview` |
 | What implements this interface / where is it declared? | Serena `find_implementations` / `find_declaration` |
-| How do concepts cluster? / high-level orientation | `graphify-out/GRAPH_REPORT.md` |
 | Literal text: prose, fixture strings, exact commands or messages | `grep`/`rg` — no justification needed |
+| High-level orientation / how concepts cluster | The persona READMEs and `docs/architecture-charter.md` — there is no code-graph tool here |
 
 - **Serena answers live from the language server.** There is no index to rebuild, watch, or sanity-check.
 - ⚠️ **Re-run `python3 scripts/setup/patch-serena-ignored-dirs.py` after every `uv tool upgrade serena-agent`.** `build`/`dist` are hardcoded as ignored directories in Serena's TypeScript adapter, *before* config or `.gitignore` is consulted — no config key reaches them, and an upgrade silently restores the blind spot. This was the repo's fifth ignore-list trap: when adopting any tool, check not just *what* its ignore list holds but *whether config can reach it at all*.
@@ -87,20 +102,11 @@ The full roster (models, effort levels, tools, scope limits) is in `AGENTS.md �
 - ⚠️ **An empty result is not proof of absence.** Pass `relative_path` to `find_symbol` — without it, it degrades silently and returns wrong rows instead of erroring. `find_referencing_symbols` errors loudly.
 - **Failure policy:** if Serena is unavailable, say so and read the files — never guess structure from filenames.
 
-### graphify
+### Codex handoffs
 
-The knowledge graph lives in `graphify-out/`. Rebuild after changing code, and redraw the picture with it:
+`bash scripts/setup/agent-context.sh` writes `local-codex/CodeContext.md` — branch, commit, and the Serena query cheatsheet — and mirrors it into the per-worktree vault cache. Codex reads the snapshot, then verifies structural claims with its own tooling; Claude cites Serena queries when justifying a target area.
 
-```bash
-graphify update . && python3 scripts/setup/regenerate-graph-viz.py
-```
-
-- `graphify update .` re-extracts every code file and rewrites `graph.json` + `GRAPH_REPORT.md`. No LLM, no network. It does **not** redraw `graph.html` — that is why the regeneration is chained above (`graph.html` is gitignored, so drift there surfaces nothing).
-- `regenerate-graph-viz.py` re-execs under the interpreter recorded in `graphify-out/.graphify_python`, and **skips with exit 0** above graphify's own `MAX_NODES_FOR_VIZ` — a graph too large to draw is not a failed rebuild. Headroom is worth watching (~3400 of 5000, growing ~100 nodes per active session).
-- `graphify-out/wiki/` **does not exist** — `to_wiki` has never been run here. Navigate `GRAPH_REPORT.md` and `graph.json`. If you ever generate the wiki, say so here.
-- `graphify-out/manifest.json` is the watch-mode change cache; a rebuild does not refresh it. `GRAPH_REPORT.md` looks permanently modified because the report is inside the corpus. Both are expected, not drift.
-- Full `/graphify` (LLM pass, community naming) is for post-milestone docs passes, onboarding a new agent, or a major structural refactor.
-- **Codex handoffs:** `bash scripts/setup/agent-context.sh` writes `local-codex/CodeContext.md` and mirrors Graphify. Codex reads the snapshot, then verifies structural claims with its own tooling; Claude cites Serena queries when justifying a target area.
+> **There is no code-graph tool in this repo.** Graphify was removed 2026-09-06: nothing consumed it, `graphify-out/wiki/` was never generated, and its report's own "community structure" was 673 unnamed communities of which 367 listed zero nodes. Structural questions go to Serena; conceptual orientation to the charter and the persona READMEs. Do not reintroduce a graph without a named consumer.
 
 ---
 
@@ -190,7 +196,7 @@ Run on every diff. **Fix failures — don't just flag them.** The guards in `tes
 
 **Tests** — failing tests written *before* production code · new behavior covered under `tests/` · anything a benchmark surfaced that a deterministic test could catch is landed as that test, not left to the next run · deterministic behavior uses fixtures · negative cases under `tests/fixtures/artifacts/invalid/` · no test hits live external services · base test file ends with `## TODO: Test Permutations` before Ollama handoff · persona behavior tests live in `tests/personas/<persona>/` named `<persona>-<behavior>.test.*` · label-only persona tests are legacy: replace with a behavior test, then remove — never before.
 
-**Code quality** — every changed line traces to the current milestone spec (no drive-by cleanup) · not over-engineered · assumptions stated before implementation.
+**Code quality** — every changed line traces to the current milestone spec (no drive-by cleanup) · not over-engineered · assumptions stated before implementation · **clean-up found but not required by the task gets logged as a `gh issue`** — not fixed inline, and not left as a code comment or a plan-doc aside.
 
 **Documentation, same diff** — architecture boundaries changed → `docs/architecture-charter.md` + `docs/architecture/diagram.mmd` (Opus/high, maintainer sign-off) · CLI flags or behavior changed → `packages/adapters-cli/README.md` (Sonnet/medium) · a module's canonical file moved or a persona surface changed → that persona's or package's `README.md` (Sonnet/medium). A doc that now contradicts the code is a **blocking** defect: fix it in the diff that made it wrong. `tests/architecture/persona-readme-authority.test.js` enforces part of this.
 
@@ -230,7 +236,7 @@ Non-load-bearing knowledge (plans, design rationale, dictation, scratch notes) l
 
 - **Paths:** Mac `~/Documents/Obsidian/agent-kernel-vault/` · Linux `~/agent-kernel-vault/` · cite via the `~/vault` symlink. Setup: `bash scripts/setup/setup-km.sh`.
 - `local-codex/{Plan,Prompt,Implement,Documentation,Dictation,CodeContext}.md` are symlinks into `~/vault/plans/active/...` and `~/vault/sources/codex-snapshots/...`.
-- Design decisions → `~/vault/decisions/` via `/save`. Cite vault code links as `[[ccg://<pkg>/<path>]]` or `[[graphify://community/<name>]]`.
+- Design decisions → `~/vault/decisions/` via `/save`. Cite vault code links as `[[ccg://<pkg>/<path>]]`.
 - ⚠️ **The vault is machine-local and has no backup of any kind.** Syncthing was removed 2026-08-21 and nothing replaced it: `~/vault` on the Mac and on Ubuntu are now independent directories, so **anything a second machine needs must be in git**. Copy a vault file out before a long edit and verify the result with `file` after writing — replication zeroed `Plan.md` to NUL bytes once, and there is no longer a second copy to recover from. A real backup is a bare repo outside the vault; not yet built.
 - ⚠️ **Do not put `.git` in the vault and do not reintroduce the retired session hooks.** The vault's own git repo was destroyed by file-by-file replication (refs and objects arrive interleaved, so `refs/heads/master` was zeroed and 23,167 objects orphaned). The `hot.md` cache and the three `km-*` hooks were removed 2026-08-18 because each was real machinery with no observable output; retired copies are in `~/vault/.retired/`.
 - ⚠️ **Outstanding on the Ubuntu box:** all three `km-*` hooks are still registered there and keep recreating `hot.md`/`log.md` in the shared vault. Fix: delete `~/.claude/hooks/km-*.sh` and `jq 'del(.hooks.SessionStart) | del(.hooks.PostToolUse) | del(.hooks.Stop)'` over its `settings.json`.
