@@ -15,6 +15,14 @@ import { VitalKind } from "./vitals.ts";
 
 // ── Tile codes ──
 
+/**
+ * Ticks an actor must END on the exit tile before it has left the level.
+ *
+ * Two, by maintainer ruling (2026-09-05). One would retire an actor that merely passes
+ * across the exit on its way somewhere else, which is a different event.
+ */
+export const EXIT_DWELL_TICKS = 2;
+
 export const Tile = {
   Wall: 0,
   Floor: 1,
@@ -146,6 +154,10 @@ export function createWorldState() {
   let motivatedActorVitalCurrent = new Int32Array(0);
   let motivatedActorVitalMax = new Int32Array(0);
   let motivatedActorVitalRegen = new Int32Array(0);
+  // Leaving the level (maintainer ruling, 2026-09-05). Consecutive ticks ENDED on the
+  // exit tile, and the resulting flag. Two ticks means the actor has left.
+  let motivatedActorExitDwellArr = new Int32Array(0);
+  let motivatedActorExitedArr = new Int32Array(0);
   let motivatedActorMovementCostArr = new Int32Array(0);
   let motivatedActorActionCostManaArr = new Int32Array(0);
   let motivatedActorActionCostStaminaArr = new Int32Array(0);
@@ -230,6 +242,8 @@ export function createWorldState() {
     motivatedActorVitalCurrent = new Int32Array(maxMotivatedActors * VITAL_COUNT);
     motivatedActorVitalMax = new Int32Array(maxMotivatedActors * VITAL_COUNT);
     motivatedActorVitalRegen = new Int32Array(maxMotivatedActors * VITAL_COUNT);
+    motivatedActorExitDwellArr = new Int32Array(maxMotivatedActors);
+    motivatedActorExitedArr = new Int32Array(maxMotivatedActors);
     motivatedActorMovementCostArr = new Int32Array(maxMotivatedActors);
     motivatedActorActionCostManaArr = new Int32Array(maxMotivatedActors);
     motivatedActorActionCostStaminaArr = new Int32Array(maxMotivatedActors);
@@ -386,6 +400,9 @@ export function createWorldState() {
     clearMotivatedOccupancy();
     if (motivatedActorCount > 0) {
       for (let i = 0; i < motivatedActorCount; i++) {
+        // An actor that has left the level occupies nothing. Re-seeding its body here
+        // would silently undo the vacate in `applyExitDwell` on the next rebuild.
+        if (motivatedActorExitedArr[i] !== 0) continue;
         const mx = motivatedActorXArr[i];
         const my = motivatedActorYArr[i];
         setMotivatedOccupancyAt(mx, my, i + 1);
@@ -489,6 +506,8 @@ export function createWorldState() {
     resetActorVitals();
     resetActorCapabilities();
     clearActorAffinities();
+    motivatedActorExitDwellArr.fill(0);
+    motivatedActorExitedArr.fill(0);
   }
 
   function syncActorMirrorFromMotivatedIndex(index: number): void {
@@ -763,6 +782,38 @@ export function createWorldState() {
       const current = motivatedActorGrantManaArr[offset];
       if (current < max) {
         motivatedActorGrantManaArr[offset] = Math.min(max, current + regen);
+      }
+    }
+  }
+
+  /**
+   * Advance the exit-dwell counter, and retire any actor that has now left.
+   *
+   * CONSECUTIVE ticks, which is why the else-branch resets rather than decays: without
+   * it an actor could bank a stray tick on the exit early in a run and leave much later
+   * from somewhere else entirely.
+   *
+   * Counted at END of tick, so an actor that steps onto the exit during tick N has dwelt
+   * ONE tick when N closes, and leaves when N+1 closes. That is what "two ticks" means
+   * here, and the arithmetic is pinned by `tests/core-ts/exit-dwell.test.mts`.
+   *
+   * ⚠️ EXITING MUST VACATE THE CELL. The flag alone would leave the actor's body sitting
+   * on the one tile every other actor paths toward — which is the defect this rule exists
+   * to end (#169: 579 ActorCollision rejections in a 100-tick run, three actors that never
+   * moved). Releasing occupancy is the observable half; a test asserts it directly.
+   */
+  function applyExitDwell(): void {
+    if (exitX < 0 || exitY < 0) return;
+    for (let i = 0; i < motivatedActorCount; i++) {
+      if (motivatedActorExitedArr[i] !== 0) continue;
+      if (motivatedActorXArr[i] === exitX && motivatedActorYArr[i] === exitY) {
+        motivatedActorExitDwellArr[i] += 1;
+        if (motivatedActorExitDwellArr[i] >= EXIT_DWELL_TICKS) {
+          motivatedActorExitedArr[i] = 1;
+          setMotivatedOccupancyAt(exitX, exitY, 0);
+        }
+      } else {
+        motivatedActorExitDwellArr[i] = 0;
       }
     }
   }
@@ -1269,6 +1320,14 @@ export function createWorldState() {
       return motivatedActorVitalRegen[vitalIndexFor(index, kind)];
     },
 
+    getMotivatedActorExitDwellByIndex(index: number): number {
+      return isValidMotivatedActorIndex(index) ? motivatedActorExitDwellArr[index] : 0;
+    },
+
+    isMotivatedActorExitedByIndex(index: number): boolean {
+      return isValidMotivatedActorIndex(index) && motivatedActorExitedArr[index] !== 0;
+    },
+
     getMotivatedActorMovementCostByIndex(index: number): number {
       return isValidMotivatedActorIndex(index) ? motivatedActorMovementCostArr[index] : 0;
     },
@@ -1295,6 +1354,7 @@ export function createWorldState() {
 
     advanceTick(): void {
       applyTickRegen();
+      applyExitDwell();
       currentTick++;
     },
 

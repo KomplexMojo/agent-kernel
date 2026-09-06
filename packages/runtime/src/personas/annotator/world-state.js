@@ -191,6 +191,10 @@ export function buildWorldState({ core, meta, simConfigRef = null, actorIdMap = 
       },
       vitals: readActorVitals(core, index),
       affinities: readActorAffinities(core, index),
+      // Has this actor LEFT the level? Reported rather than filtered: the run is a
+      // record of what happened, and silently dropping an actor from world state would
+      // make an exit indistinguishable from an actor that was never there.
+      exited: core.isMotivatedActorExitedByIndex?.(index) === true,
     });
   }
 
