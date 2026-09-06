@@ -281,10 +281,20 @@ Two things this command deliberately does **not** do, both of which look like sh
 An unreadable agent state exits non-zero rather than reporting "idle" -- those two look identical
 from the outside, and only one of them is fine.
 
-`~/Desktop/Benchmark Status.app` is a double-click wrapper around the `--html --open` form. It
-resolves `node` itself (nvm is not on a GUI app's PATH) and, on any failure, still opens a page
-saying what went wrong -- a launcher that exited quietly would be indistinguishable from a healthy
-run with nothing to report.
+A double-click launcher for the same page installs with:
+
+```bash
+./scripts/install-benchmark-status-app.sh          # ~/Desktop/Benchmark Status.app
+```
+
+Re-run it to update; the install is idempotent, and macOS-only (it refuses elsewhere rather than
+leaving a bundle nothing can launch). The bundle is **generated, not committed**: it has to carry the
+absolute path of the checkout it was installed from, and a .app reviews as an opaque blob in a diff.
+The icon is drawn by the installer, so no binary enters the repository.
+
+The launcher resolves `node` itself, because nvm is not on a GUI app's PATH and pinning a version
+rots at the next upgrade. On any failure it still opens a page saying what went wrong -- a launcher
+that exited quietly would be indistinguishable from a healthy run with nothing to report.
 
 ### Heartbeat and interim progress
 
