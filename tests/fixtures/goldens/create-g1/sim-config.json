@@ -34,10 +34,10 @@
       "height": 9,
       "tiles": [
         "#########",
-        "#########",
-        "#E.....##",
+        "##E#S####",
         "##.....##",
-        "##..S..##",
+        "##.....##",
+        "##.....##",
         "##.....##",
         "##.....##",
         "#########",
@@ -171,13 +171,21 @@
       },
       "spawn": {
         "x": 4,
-        "y": 4
+        "y": 1
       },
       "exit": {
-        "x": 1,
-        "y": 2
+        "x": 2,
+        "y": 1
       },
       "bounds": "walls_block_movement",
+      "spawnApproach": {
+        "x": 4,
+        "y": 2
+      },
+      "exitApproach": {
+        "x": 2,
+        "y": 2
+      },
       "entryRoomId": "R1",
       "exitRoomId": "R1",
       "rooms": [
@@ -221,17 +229,13 @@
           },
           "_schemaVersion": 3,
           "position": {
-            "x": 3,
+            "x": 2,
             "y": 2
           },
-          "x": 3,
+          "x": 2,
           "y": 2
         }
-      ],
-      "exitApproach": {
-        "x": 2,
-        "y": 2
-      }
+      ]
     }
   },
   "budgetReceiptRef": {

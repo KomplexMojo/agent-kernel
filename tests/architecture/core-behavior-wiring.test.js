@@ -142,7 +142,7 @@ function findUnwiredBehaviors() {
  * under-reported, the count would be reassuring and wrong, which is the failure
  * mode this whole file exists to end.
  */
-const BASELINE_UNWIRED_BEHAVIOR_COUNT = 22;
+const BASELINE_UNWIRED_BEHAVIOR_COUNT = 13;
 
 test("no core-ts BEHAVIOR is added that production cannot reach", () => {
   const unwired = findUnwiredBehaviors();

@@ -601,6 +601,8 @@ function buildSpriteForSemantic(assetId, size = DEFAULT_RESOURCE_TILE_SIZE) {
       [[14, 14], [24, 14], [24, 11], [30, 16], [24, 21], [24, 18], [14, 18]],
       PALETTE.entranceArrow,
     );
+    // Room marker glyph on the portal lintel (tests pin this color).
+    fillScaledRect(pixels, size, size, 12, 2, 8, 3, PALETTE.roomGlyph);
     drawBorder(pixels, size, 0, 0, size, PALETTE.border);
     return pixels;
   }
@@ -617,6 +619,7 @@ function buildSpriteForSemantic(assetId, size = DEFAULT_RESOURCE_TILE_SIZE) {
       [[30, 14], [20, 14], [20, 11], [14, 16], [20, 21], [20, 18], [30, 18]],
       PALETTE.exitArrow,
     );
+    fillScaledRect(pixels, size, size, 12, 2, 8, 3, PALETTE.roomGlyph);
     drawBorder(pixels, size, 0, 0, size, PALETTE.border);
     return pixels;
   }

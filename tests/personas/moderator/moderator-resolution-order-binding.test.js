@@ -27,6 +27,12 @@ function vitals(amount) {
   };
 }
 
+/**
+ * Wall-portal layout with a 2D interior so `patrolling` can emit room-ring moves.
+ * A 1-tile-tall corridor collapses the patrol ring to [], which falls through to exit
+ * pathing — and after portal-in-wall, wardens wait while delvers take EXIT_PROGRESS,
+ * so the equal-intent control can no longer observe the alphabetical tie-break.
+ */
 function simConfig() {
   return {
     schema: "agent-kernel/SimConfigArtifact",
@@ -36,12 +42,20 @@ function simConfig() {
     layout: {
       kind: "grid",
       data: {
-        width: 5,
+        width: 7,
         height: 5,
-        tiles: ["#####", "#####", "S...E", "#####", "#####"],
+        tiles: [
+          "#######",
+          "#.....#",
+          "S.....#",
+          "#....E#",
+          "#######",
+        ],
         spawn: { x: 0, y: 2 },
-        exit: { x: 4, y: 2 },
-        rooms: [{ id: "R1", x: 0, y: 2, width: 5, height: 1 }],
+        exit: { x: 6, y: 3 },
+        spawnApproach: { x: 1, y: 2 },
+        exitApproach: { x: 5, y: 3 },
+        rooms: [{ id: "R1", x: 1, y: 1, width: 5, height: 3 }],
         hazards: [],
       },
     },
@@ -49,7 +63,7 @@ function simConfig() {
 }
 
 /** `a_warden` leads the array; `z_delver` trails it and trails alphabetically too. */
-function initialState({ delverMotivation }) {
+function initialState({ delverMotivation, wardenPos, delverPos }) {
   return {
     schema: "agent-kernel/InitialStateArtifact",
     schemaVersion: 1,
@@ -60,16 +74,16 @@ function initialState({ delverMotivation }) {
         id: "a_warden",
         kind: "ambulatory",
         archetype: "warden",
-        position: { x: 2, y: 2 },
+        position: wardenPos,
         role: "warden",
-        motivation: { kind: "exploring" },
+        motivation: { kind: "patrolling" },
         vitals: vitals(6),
       },
       {
         id: "z_delver",
         kind: "ambulatory",
         archetype: "delver",
-        position: { x: 1, y: 2 },
+        position: delverPos,
         role: "delver",
         motivation: { kind: delverMotivation },
         vitals: vitals(10),
@@ -78,13 +92,17 @@ function initialState({ delverMotivation }) {
   };
 }
 
-async function resolutionOrder({ delverMotivation }) {
+async function resolutionOrder({ delverMotivation, wardenPos, delverPos }) {
   const [{ createRuntime }, { createCore }] = await Promise.all([
     import("../../../packages/runtime/src/runner/runtime.js"),
     import("../../../packages/core-ts/src/index.ts"),
   ]);
   const runtime = createRuntime({ core: createCore(), adapters: {} });
-  await runtime.init({ seed: 0, simConfig: simConfig(), initialState: initialState({ delverMotivation }) });
+  await runtime.init({
+    seed: 0,
+    simConfig: simConfig(),
+    initialState: initialState({ delverMotivation, wardenPos, delverPos }),
+  });
   await runtime.step();
   const accepted = runtime.getTickFrames()
     .flatMap((frame) => (Array.isArray(frame?.acceptedActions) ? frame.acceptedActions : []));
@@ -97,7 +115,12 @@ async function resolutionOrder({ delverMotivation }) {
 }
 
 test("a combat intent resolves first even from the back of the actor array", async () => {
-  const { order, accepted } = await resolutionOrder({ delverMotivation: "attacking" });
+  // Adjacent seats so the attacking delver can land a combat action.
+  const { order, accepted } = await resolutionOrder({
+    delverMotivation: "attacking",
+    wardenPos: { x: 4, y: 2 },
+    delverPos: { x: 3, y: 2 },
+  });
 
   assert.deepEqual(order, ["z_delver", "a_warden"]);
   assert.equal(
@@ -108,10 +131,14 @@ test("a combat intent resolves first even from the back of the actor array", asy
 });
 
 test("equal intents fall back to the id tie-break, restoring the alphabetical order", async () => {
-  // THE NEGATIVE CONTROL. Same array, same positions, same code path — only the delver's
-  // motivation changes, so both actors now merely move. If the test above passed because of
-  // something other than intent class, this one would still put `z_delver` first.
-  const { order, accepted } = await resolutionOrder({ delverMotivation: "exploring" });
+  // THE NEGATIVE CONTROL. Same array / code path; both patrol so intent classes match
+  // (room-ring moves). If the combat case passed for a reason other than intent class,
+  // this still puts `z_delver` first under the alphabetical tie-break.
+  const { order, accepted } = await resolutionOrder({
+    delverMotivation: "patrolling",
+    wardenPos: { x: 4, y: 2 },
+    delverPos: { x: 2, y: 2 },
+  });
 
   assert.deepEqual(order, ["a_warden", "z_delver"]);
   assert.ok(
