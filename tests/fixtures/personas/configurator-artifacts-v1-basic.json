@@ -24,29 +24,95 @@
         "width": 7,
         "height": 7,
         "tiles": [
-          "#######",
-          "#...S.#",
+          "####S##",
           "#.....#",
           "#.....#",
           "#.....#",
-          "#....E#",
+          "#.....#",
+          "#.....E",
           "#######"
         ],
         "kinds": [
-          [1, 1, 1, 1, 1, 1, 1],
-          [1, 0, 0, 0, 0, 0, 1],
-          [1, 0, 0, 0, 0, 0, 1],
-          [1, 0, 0, 0, 0, 0, 1],
-          [1, 0, 0, 0, 0, 0, 1],
-          [1, 0, 0, 0, 0, 0, 1],
-          [1, 1, 1, 1, 1, 1, 1]
+          [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1
+          ],
+          [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
         ],
         "legend": {
-          "#": { "tile": "wall" },
-          ".": { "tile": "floor" },
-          "S": { "tile": "spawn" },
-          "E": { "tile": "exit" },
-          "B": { "tile": "barrier" }
+          "#": {
+            "tile": "wall"
+          },
+          ".": {
+            "tile": "floor"
+          },
+          "S": {
+            "tile": "spawn"
+          },
+          "E": {
+            "tile": "exit"
+          },
+          "B": {
+            "tile": "barrier"
+          }
         },
         "render": {
           "wall": "#",
@@ -56,9 +122,23 @@
           "actor": "@",
           "barrier": "B"
         },
-        "spawn": { "x": 4, "y": 1 },
-        "exit": { "x": 5, "y": 5 },
-        "bounds": "walls_block_movement"
+        "spawn": {
+          "x": 4,
+          "y": 0
+        },
+        "exit": {
+          "x": 6,
+          "y": 5
+        },
+        "bounds": "walls_block_movement",
+        "spawnApproach": {
+          "x": 4,
+          "y": 1
+        },
+        "exitApproach": {
+          "x": 5,
+          "y": 5
+        }
       }
     },
     "initialState": {
@@ -77,14 +157,24 @@
         {
           "id": "actor_mvp",
           "kind": "ambulatory",
-          "position": { "x": 4, "y": 1 },
-          "traits": { "role": "hero" }
+          "position": {
+            "x": 4,
+            "y": 1
+          },
+          "traits": {
+            "role": "hero"
+          }
         },
         {
           "id": "actor_rival",
           "kind": "ambulatory",
-          "position": { "x": 5, "y": 5 },
-          "traits": { "role": "rival" }
+          "position": {
+            "x": 5,
+            "y": 5
+          },
+          "traits": {
+            "role": "rival"
+          }
         }
       ],
       "resolvedEffects": {
@@ -92,29 +182,87 @@
           {
             "actorId": "actor_mvp",
             "vitals": {
-              "health": { "current": 11, "max": 12, "regen": 0 },
-              "mana": { "current": 0, "max": 2, "regen": 0 },
-              "stamina": { "current": 0, "max": 0, "regen": 0 },
-              "durability": { "current": 0, "max": 0, "regen": 0 }
+              "health": {
+                "current": 11,
+                "max": 12,
+                "regen": 0
+              },
+              "mana": {
+                "current": 0,
+                "max": 2,
+                "regen": 0
+              },
+              "stamina": {
+                "current": 0,
+                "max": 0,
+                "regen": 0
+              },
+              "durability": {
+                "current": 0,
+                "max": 0,
+                "regen": 0
+              }
             },
             "abilities": [
-              { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "potency": 4, "manaCost": 6 },
-              { "id": "life_surge", "kind": "buff", "affinityKind": "life", "expression": "pull", "potency": 1, "manaCost": 0 }
+              {
+                "id": "fire_bolt",
+                "kind": "attack",
+                "affinityKind": "fire",
+                "expression": "push",
+                "potency": 4,
+                "manaCost": 6
+              },
+              {
+                "id": "life_surge",
+                "kind": "buff",
+                "affinityKind": "life",
+                "expression": "pull",
+                "potency": 1,
+                "manaCost": 0
+              }
             ],
-            "affinityStacks": { "fire:push": 2, "life:pull": 1 }
+            "affinityStacks": {
+              "fire:push": 2,
+              "life:pull": 1
+            }
           },
           {
             "actorId": "actor_rival",
             "vitals": {
-              "health": { "current": 5, "max": 6, "regen": 0 },
-              "mana": { "current": 1, "max": 1, "regen": 0 },
-              "stamina": { "current": 0, "max": 0, "regen": 0 },
-              "durability": { "current": 0, "max": 0, "regen": 0 }
+              "health": {
+                "current": 5,
+                "max": 6,
+                "regen": 0
+              },
+              "mana": {
+                "current": 1,
+                "max": 1,
+                "regen": 0
+              },
+              "stamina": {
+                "current": 0,
+                "max": 0,
+                "regen": 0
+              },
+              "durability": {
+                "current": 0,
+                "max": 0,
+                "regen": 0
+              }
             },
             "abilities": [
-              { "id": "decay_field", "kind": "area", "affinityKind": "decay", "expression": "emit", "potency": 1, "manaCost": 2 }
+              {
+                "id": "decay_field",
+                "kind": "area",
+                "affinityKind": "decay",
+                "expression": "emit",
+                "potency": 1,
+                "manaCost": 2
+              }
             ],
-            "affinityStacks": { "decay:emit": 1 }
+            "affinityStacks": {
+              "decay:emit": 1
+            }
           }
         ]
       }
@@ -147,29 +295,95 @@
           "width": 7,
           "height": 7,
           "tiles": [
-            "#######",
-            "#...S.#",
+            "####S##",
             "#.....#",
             "#.....#",
             "#.....#",
-            "#....E#",
+            "#.....#",
+            "#.....E",
             "#######"
           ],
           "kinds": [
-            [1, 1, 1, 1, 1, 1, 1],
-            [1, 0, 0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 1],
-            [1, 0, 0, 0, 0, 0, 1],
-            [1, 1, 1, 1, 1, 1, 1]
+            [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              0,
+              0,
+              0,
+              0,
+              0,
+              1
+            ],
+            [
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
           ],
           "legend": {
-            "#": { "tile": "wall" },
-            ".": { "tile": "floor" },
-            "S": { "tile": "spawn" },
-            "E": { "tile": "exit" },
-            "B": { "tile": "barrier" }
+            "#": {
+              "tile": "wall"
+            },
+            ".": {
+              "tile": "floor"
+            },
+            "S": {
+              "tile": "spawn"
+            },
+            "E": {
+              "tile": "exit"
+            },
+            "B": {
+              "tile": "barrier"
+            }
           },
           "render": {
             "wall": "#",
@@ -179,9 +393,23 @@
             "actor": "@",
             "barrier": "B"
           },
-          "spawn": { "x": 4, "y": 1 },
-          "exit": { "x": 5, "y": 5 },
-          "bounds": "walls_block_movement"
+          "spawn": {
+            "x": 4,
+            "y": 0
+          },
+          "exit": {
+            "x": 6,
+            "y": 5
+          },
+          "bounds": "walls_block_movement",
+          "spawnApproach": {
+            "x": 4,
+            "y": 1
+          },
+          "exitApproach": {
+            "x": 5,
+            "y": 5
+          }
         }
       }
     },
@@ -203,37 +431,101 @@
         {
           "id": "actor_mvp",
           "kind": "ambulatory",
-          "position": { "x": 4, "y": 1 },
+          "position": {
+            "x": 4,
+            "y": 1
+          },
           "vitals": {
-            "health": { "current": 11, "max": 12, "regen": 0 },
-            "mana": { "current": 0, "max": 2, "regen": 0 },
-            "stamina": { "current": 0, "max": 0, "regen": 0 },
-            "durability": { "current": 0, "max": 0, "regen": 0 }
+            "health": {
+              "current": 11,
+              "max": 12,
+              "regen": 0
+            },
+            "mana": {
+              "current": 0,
+              "max": 2,
+              "regen": 0
+            },
+            "stamina": {
+              "current": 0,
+              "max": 0,
+              "regen": 0
+            },
+            "durability": {
+              "current": 0,
+              "max": 0,
+              "regen": 0
+            }
           },
           "traits": {
             "role": "hero",
-            "affinities": { "fire:push": 2, "life:pull": 1 },
+            "affinities": {
+              "fire:push": 2,
+              "life:pull": 1
+            },
             "abilities": [
-              { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "potency": 4, "manaCost": 6 },
-              { "id": "life_surge", "kind": "buff", "affinityKind": "life", "expression": "pull", "potency": 1, "manaCost": 0 }
+              {
+                "id": "fire_bolt",
+                "kind": "attack",
+                "affinityKind": "fire",
+                "expression": "push",
+                "potency": 4,
+                "manaCost": 6
+              },
+              {
+                "id": "life_surge",
+                "kind": "buff",
+                "affinityKind": "life",
+                "expression": "pull",
+                "potency": 1,
+                "manaCost": 0
+              }
             ]
           }
         },
         {
           "id": "actor_rival",
           "kind": "ambulatory",
-          "position": { "x": 5, "y": 5 },
+          "position": {
+            "x": 5,
+            "y": 5
+          },
           "vitals": {
-            "health": { "current": 5, "max": 6, "regen": 0 },
-            "mana": { "current": 1, "max": 1, "regen": 0 },
-            "stamina": { "current": 0, "max": 0, "regen": 0 },
-            "durability": { "current": 0, "max": 0, "regen": 0 }
+            "health": {
+              "current": 5,
+              "max": 6,
+              "regen": 0
+            },
+            "mana": {
+              "current": 1,
+              "max": 1,
+              "regen": 0
+            },
+            "stamina": {
+              "current": 0,
+              "max": 0,
+              "regen": 0
+            },
+            "durability": {
+              "current": 0,
+              "max": 0,
+              "regen": 0
+            }
           },
           "traits": {
             "role": "rival",
-            "affinities": { "decay:emit": 1 },
+            "affinities": {
+              "decay:emit": 1
+            },
             "abilities": [
-              { "id": "decay_field", "kind": "area", "affinityKind": "decay", "expression": "emit", "potency": 1, "manaCost": 2 }
+              {
+                "id": "decay_field",
+                "kind": "area",
+                "affinityKind": "decay",
+                "expression": "emit",
+                "potency": 1,
+                "manaCost": 2
+              }
             ]
           }
         }

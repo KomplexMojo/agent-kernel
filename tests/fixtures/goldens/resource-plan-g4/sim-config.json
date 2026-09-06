@@ -34,7 +34,7 @@
       "height": 5,
       "tiles": [
         "#####",
-        "#E..#",
+        "E...#",
         "#.S.#",
         "#...#",
         "#####"
@@ -106,7 +106,7 @@
         "y": 2
       },
       "exit": {
-        "x": 1,
+        "x": 0,
         "y": 1
       },
       "bounds": "walls_block_movement",
@@ -147,7 +147,11 @@
           "x": 2,
           "y": 1
         }
-      ]
+      ],
+      "exitApproach": {
+        "x": 1,
+        "y": 1
+      }
     }
   },
   "budgetReceiptRef": {

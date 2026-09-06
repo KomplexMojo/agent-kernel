@@ -589,30 +589,32 @@ function buildSpriteForSemantic(assetId, size = DEFAULT_RESOURCE_TILE_SIZE) {
     return pixels;
   }
   if (assetId.startsWith("tile.spawn")) {
-    checker(pixels, size, size, PALETTE.spawnTileA, PALETTE.spawnTileB, Math.max(2, Math.floor(size / 8)));
-    fillScaledRect(pixels, size, size, 7, 7, 15, 18, PALETTE.roomGlyph);
-    fillScaledRect(pixels, size, size, 9, 9, 11, 14, PALETTE.roomGlyphDark);
-    fillScaledRect(pixels, size, size, 12, 18, 5, 7, PALETTE.black);
+    // Wall-portal door: wall base with a recessed doorway and entrance arrow.
+    fillRect(pixels, size, 0, 0, size, size, PALETTE.wallA);
+    checker(pixels, size, size, PALETTE.wallA, PALETTE.wallB, Math.max(2, Math.floor(size / 10)));
+    fillScaledRect(pixels, size, size, 8, 6, 16, 22, PALETTE.spawnTileB);
+    fillScaledRect(pixels, size, size, 10, 8, 12, 18, PALETTE.black);
     fillScaledPolygon(
       pixels,
       size,
       size,
-      [[13, 14], [22, 14], [22, 11], [28, 16], [22, 21], [22, 18], [13, 18]],
+      [[14, 14], [24, 14], [24, 11], [30, 16], [24, 21], [24, 18], [14, 18]],
       PALETTE.entranceArrow,
     );
     drawBorder(pixels, size, 0, 0, size, PALETTE.border);
     return pixels;
   }
   if (assetId.startsWith("tile.exit")) {
-    checker(pixels, size, size, PALETTE.exitTileA, PALETTE.exitTileB, Math.max(2, Math.floor(size / 8)));
-    fillScaledRect(pixels, size, size, 7, 7, 15, 18, PALETTE.roomGlyph);
-    fillScaledRect(pixels, size, size, 9, 9, 11, 14, PALETTE.roomGlyphDark);
-    fillScaledRect(pixels, size, size, 12, 18, 5, 7, PALETTE.black);
+    // Wall-portal door: wall base with a recessed doorway and exit arrow.
+    fillRect(pixels, size, 0, 0, size, size, PALETTE.wallA);
+    checker(pixels, size, size, PALETTE.wallA, PALETTE.wallB, Math.max(2, Math.floor(size / 10)));
+    fillScaledRect(pixels, size, size, 8, 6, 16, 22, PALETTE.exitTileB);
+    fillScaledRect(pixels, size, size, 10, 8, 12, 18, PALETTE.black);
     fillScaledPolygon(
       pixels,
       size,
       size,
-      [[28, 14], [19, 14], [19, 11], [13, 16], [19, 21], [19, 18], [28, 18]],
+      [[30, 14], [20, 14], [20, 11], [14, 16], [20, 21], [20, 18], [30, 18]],
       PALETTE.exitArrow,
     );
     drawBorder(pixels, size, 0, 0, size, PALETTE.border);

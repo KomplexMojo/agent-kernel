@@ -1126,7 +1126,8 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     const isWall = (ty, tx) => {
       if (ty < 0 || ty >= boardHeight || tx < 0 || tx >= boardWidth) return true;
       const t = tileTypeGrid[ty][tx];
-      return t === "wall" || t === "barrier" || t === "inaccessible";
+      // Wall portals occupy the perimeter wall ring; treat them as walls for outlines.
+      return t === "wall" || t === "barrier" || t === "inaccessible" || t === "spawn" || t === "exit";
     };
 
     for (let y = 0; y < boardHeight; y += 1) {
@@ -1134,7 +1135,8 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
         const tileType = tileTypeGrid[y][x];
         const cx = x * tileWidth + tileWidth / 2;
         const cy = y * tileHeight + tileHeight / 2;
-        const isFloor = tileType === "floor" || tileType === "spawn" || tileType === "exit";
+        // Spawn/exit are wall portals — not walkable floor for edge drawing.
+        const isFloor = tileType === "floor";
 
         // Flat fill from the canonical palette -- no tile PNG. The bundle still ships
         // medallion-era tile art, and drawing it on top of the palette colour meant

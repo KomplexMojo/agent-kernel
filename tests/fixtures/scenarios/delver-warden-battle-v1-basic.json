@@ -6,7 +6,10 @@
   "description": "Deterministic scenario for the M1 contract: 5x5 room with one attacking delver moving toward a defending warden, exchanging blows until the warden's HP reaches 0.",
   "ticks": 6,
   "expected": {
-    "delverFinalPosition": { "x": 2, "y": 2 },
+    "delverFinalPosition": {
+      "x": 2,
+      "y": 2
+    },
     "wardenFinalHp": 0,
     "minAttackFrames": 3,
     "expectedFirstMoveDirection": "east"
@@ -32,10 +35,32 @@
           "#####",
           "#####"
         ],
-        "spawn": { "x": 0, "y": 2 },
-        "exit": { "x": 4, "y": 2 },
-        "rooms": [{ "id": "R1", "x": 0, "y": 2, "width": 5, "height": 1 }],
-        "hazards": []
+        "spawn": {
+          "x": 0,
+          "y": 2
+        },
+        "exit": {
+          "x": 4,
+          "y": 2
+        },
+        "rooms": [
+          {
+            "id": "R1",
+            "x": 0,
+            "y": 2,
+            "width": 5,
+            "height": 1
+          }
+        ],
+        "hazards": [],
+        "spawnApproach": {
+          "x": 1,
+          "y": 2
+        },
+        "exitApproach": {
+          "x": 3,
+          "y": 2
+        }
       }
     }
   },
@@ -58,14 +83,39 @@
         "kind": "ambulatory",
         "archetype": "delver",
         "role": "delver",
-        "position": { "x": 1, "y": 2 },
-        "motivation": { "kind": "attacking" },
-        "traits": { "affinities": { "fire": 1 } },
+        "position": {
+          "x": 1,
+          "y": 2
+        },
+        "motivation": {
+          "kind": "attacking"
+        },
+        "traits": {
+          "affinities": {
+            "fire": 1
+          }
+        },
         "vitals": {
-          "health":     { "current": 10, "max": 10, "regen": 0 },
-          "mana":       { "current": 10, "max": 10, "regen": 0 },
-          "stamina":    { "current": 10, "max": 10, "regen": 0 },
-          "durability": { "current": 1,  "max": 1,  "regen": 0 }
+          "health": {
+            "current": 10,
+            "max": 10,
+            "regen": 0
+          },
+          "mana": {
+            "current": 10,
+            "max": 10,
+            "regen": 0
+          },
+          "stamina": {
+            "current": 10,
+            "max": 10,
+            "regen": 0
+          },
+          "durability": {
+            "current": 1,
+            "max": 1,
+            "regen": 0
+          }
         }
       },
       {
@@ -73,14 +123,39 @@
         "kind": "ambulatory",
         "archetype": "warden",
         "role": "warden",
-        "position": { "x": 3, "y": 2 },
-        "motivation": { "kind": "defending" },
-        "traits": { "affinities": { "dark": 1 } },
+        "position": {
+          "x": 3,
+          "y": 2
+        },
+        "motivation": {
+          "kind": "defending"
+        },
+        "traits": {
+          "affinities": {
+            "dark": 1
+          }
+        },
         "vitals": {
-          "health":     { "current": 6, "max": 6, "regen": 0 },
-          "mana":       { "current": 6, "max": 6, "regen": 0 },
-          "stamina":    { "current": 6, "max": 6, "regen": 0 },
-          "durability": { "current": 1, "max": 1, "regen": 0 }
+          "health": {
+            "current": 6,
+            "max": 6,
+            "regen": 0
+          },
+          "mana": {
+            "current": 6,
+            "max": 6,
+            "regen": 0
+          },
+          "stamina": {
+            "current": 6,
+            "max": 6,
+            "regen": 0
+          },
+          "durability": {
+            "current": 1,
+            "max": 1,
+            "regen": 0
+          }
         }
       }
     ]

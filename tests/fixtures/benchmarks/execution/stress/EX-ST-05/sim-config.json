@@ -21,7 +21,7 @@
       "tiles": [
         "############",
         "############",
-        "##E.......##",
+        "#E........##",
         "##........##",
         "##........##",
         "##........##",
@@ -232,7 +232,7 @@
         "y": 6
       },
       "exit": {
-        "x": 2,
+        "x": 1,
         "y": 2
       },
       "bounds": "walls_block_movement",
@@ -252,6 +252,10 @@
         "connectedRooms": 1,
         "spawnReachable": true,
         "exitReachable": true
+      },
+      "exitApproach": {
+        "x": 2,
+        "y": 2
       }
     }
   }
