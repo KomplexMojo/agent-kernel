@@ -1309,14 +1309,18 @@ export function createWorldState() {
       for (let i = 0; i < count; i++) {
         const px = getPlacementX(i);
         const py = getPlacementY(i);
-        if (
-          !allowReservedTiles &&
-          ((spawnX >= 0 && spawnY >= 0 && px === spawnX && py === spawnY) ||
-            (exitX >= 0 && exitY >= 0 && px === exitX && py === exitY))
-        )
+        const onPortal =
+          (spawnX >= 0 && spawnY >= 0 && px === spawnX && py === spawnY) ||
+          (exitX >= 0 && exitY >= 0 && px === exitX && py === exitY);
+        // Authoring reserves portal cells. Seeding may still name them; the
+        // runner remaps to approaches, and allowReservedTiles also waives the
+        // walkability check for those coordinates alone.
+        if (!allowReservedTiles && onPortal)
           return ValidationError.ActorBlocked;
-        if (!isWalkableActorKindLocal(getTileActorKindAt(px, py)))
-          return ValidationError.ActorBlocked;
+        if (!isWalkableActorKindLocal(getTileActorKindAt(px, py))) {
+          if (!(allowReservedTiles && onPortal))
+            return ValidationError.ActorBlocked;
+        }
         const ci = indexFor(px, py);
         if (motivatedOccupancyByCell[ci] !== 0)
           return ValidationError.ActorCollision;
