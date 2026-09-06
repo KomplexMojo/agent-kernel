@@ -5,13 +5,13 @@ const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
 
 const INSTALLER = resolve(
-  __dirname, '../../tools/remote-ollama-control/scripts/install-benchmark-status-app.sh',
+  __dirname, '../../tools/remote-ollama-control/scripts/install-benchmark-status-launcher.sh',
 );
 const APP_NAME = 'Benchmark Status.app';
 
-function run(env = {}, expectFailure = false) {
+function run(env = {}, expectFailure = false, mode = null) {
   try {
-    const stdout = execFileSync('bash', [INSTALLER], {
+    const stdout = execFileSync('bash', mode ? [INSTALLER, mode] : [INSTALLER], {
       encoding: 'utf8',
       env: { ...process.env, ...env },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -26,15 +26,17 @@ function run(env = {}, expectFailure = false) {
   }
 }
 
-function install() {
+function install(mode = 'app') {
   const dir = mkdtempSync(join(tmpdir(), 'ak-bench-app-'));
   // Forcing the system lets this run on the Ubuntu box too; the icon step degrades on its own when
   // the macOS image tools are absent.
-  run({ BENCHMARK_STATUS_INSTALL_SYSTEM: 'Darwin', BENCHMARK_STATUS_APP_DIR: dir });
+  run({ BENCHMARK_STATUS_INSTALL_SYSTEM: 'Darwin', BENCHMARK_STATUS_APP_DIR: dir }, false, mode);
   return dir;
 }
 
-const launcherAt = (dir) => readFileSync(join(dir, APP_NAME, 'Contents/MacOS/benchmark-status'), 'utf8');
+const APP_LAUNCHER = `${APP_NAME}/Contents/MacOS/benchmark-status`;
+const COMMAND_LAUNCHER = 'Benchmark Status.command';
+const launcherAt = (dir, relative = APP_LAUNCHER) => readFileSync(join(dir, relative), 'utf8');
 
 test('the installer is executable, so a fresh clone can run it directly', () => {
   assert.ok(existsSync(INSTALLER), 'installer script is missing');
@@ -55,7 +57,7 @@ test('it builds a launchable bundle', () => {
     assert.ok(existsSync(join(dir, APP_NAME, relative)), `${relative} is missing`);
   }
   assert.ok(
-    statSync(join(dir, APP_NAME, 'Contents/MacOS/benchmark-status')).mode & 0o111,
+    statSync(join(dir, APP_LAUNCHER)).mode & 0o111,
     'the bundle executable is not executable',
   );
 });
@@ -63,7 +65,7 @@ test('it builds a launchable bundle', () => {
 test('installing twice is not an error', () => {
   const dir = install();
   run({ BENCHMARK_STATUS_INSTALL_SYSTEM: 'Darwin', BENCHMARK_STATUS_APP_DIR: dir });
-  assert.ok(existsSync(join(dir, APP_NAME, 'Contents/MacOS/benchmark-status')));
+  assert.ok(existsSync(join(dir, APP_LAUNCHER)));
 });
 
 // The hand-built first version hardcoded one operator's home directory, so on anybody else's clone
@@ -141,7 +143,61 @@ test('an ssh auth failure is not misread as a privacy-settings problem', () => {
 
 test('both hints exist and are distinct, so neither failure gets generic advice', () => {
   const launcher = launcherAt(install());
-  assert.match(launcher, /NETWORK_HINT='/);
-  assert.match(launcher, /PERMISSION_HINT='/);
+  // PERMISSION_HINT is double-quoted so $GRANT_TARGET expands at launch; NETWORK_HINT is single-
+  // quoted because it interpolates nothing. Assert the variables, not a quoting style.
+  assert.match(launcher, /NETWORK_HINT=["']/);
+  assert.match(launcher, /PERMISSION_HINT=["']/);
   assert.match(launcher, /ssh-add/);
+});
+
+// --- the .command variant ------------------------------------------------------------------
+
+// The .app is refused access to a checkout in a protected folder until granted, and rebuilding the
+// bundle can invalidate that grant. A .command runs under Terminal, which already holds it -- so
+// this form works with no permission at all and survives reinstalls.
+test('command mode installs a double-clickable script instead of a bundle', () => {
+  const dir = install('command');
+  assert.ok(existsSync(join(dir, COMMAND_LAUNCHER)), '.command was not installed');
+  assert.ok(statSync(join(dir, COMMAND_LAUNCHER)).mode & 0o111, '.command is not executable');
+  assert.ok(!existsSync(join(dir, APP_NAME)), 'command mode should not also build the bundle');
+});
+
+test('both mode installs each form', () => {
+  const dir = install('both');
+  assert.ok(existsSync(join(dir, APP_LAUNCHER)), 'bundle missing');
+  assert.ok(existsSync(join(dir, COMMAND_LAUNCHER)), '.command missing');
+});
+
+// Written as `[ A ] || [ B ] && install`, the compound evaluates false for the mode it does not
+// match, and under `set -e` that false ended the script -- so `command` exited having installed
+// nothing while still reporting success.
+test('command mode actually installs, rather than exiting on the mode test', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'ak-bench-app-'));
+  const { status } = run(
+    { BENCHMARK_STATUS_INSTALL_SYSTEM: 'Darwin', BENCHMARK_STATUS_APP_DIR: dir }, false, 'command',
+  );
+  assert.equal(status, 0);
+  assert.ok(existsSync(join(dir, COMMAND_LAUNCHER)));
+});
+
+// One body, two destinations: a second copy of the failure handling would drift from this one.
+test('both forms share the same launcher body', () => {
+  const dir = install('both');
+  const app = launcherAt(dir, APP_LAUNCHER);
+  const command = launcherAt(dir, COMMAND_LAUNCHER);
+  const body = (text) => text.slice(text.indexOf('OUT="$HOME'));
+  assert.equal(body(app), body(command));
+});
+
+// The instructions have to name the thing that actually needs the grant, which differs by form.
+test('each form names the right target in its permission instructions', () => {
+  const dir = install('both');
+  assert.match(launcherAt(dir, APP_LAUNCHER), /GRANT_TARGET="Benchmark Status\.app"/);
+  assert.match(launcherAt(dir, COMMAND_LAUNCHER), /GRANT_TARGET="Terminal"/);
+});
+
+test('an unknown mode is refused with usage rather than silently installing the default', () => {
+  const { status, stderr } = run({ BENCHMARK_STATUS_INSTALL_SYSTEM: 'Darwin' }, true, 'nonsense');
+  assert.equal(status, 2);
+  assert.match(stderr, /usage:/);
 });
