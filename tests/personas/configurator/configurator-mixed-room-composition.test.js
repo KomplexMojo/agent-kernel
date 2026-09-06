@@ -125,7 +125,7 @@ test("orchestrateBuild byte-characterizes seeded room profiles and generated emi
         },
       },
       {
-        id: "water_emit_0", x: 8, y: 3, blocking: false,
+        id: "water_emit_0", x: 3, y: 4, blocking: false,
         source: "room_affinity_tile", roomId: "R1",
         affinity: { kind: "water", expression: "emit", stacks: 1, targetType: "floor" },
         vitals: {

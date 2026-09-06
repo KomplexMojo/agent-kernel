@@ -83,7 +83,7 @@ assert.equal(result.ok, true);
 const walkable = result.value.tiles.reduce((sum, row) => {
   const text = String(row ?? "");
   for (let i = 0; i < text.length; i += 1) {
-    if (text[i] !== "#") sum += 1;
+    if (text[i] !== "#" && text[i] !== "S" && text[i] !== "E") sum += 1;
   }
   return sum;
 }, 0);
@@ -107,10 +107,12 @@ const layout = result.value;
 
 const height = layout.tiles.length;
 const width = layout.tiles[0]?.length || 0;
-const isWalkable = (x, y) => x >= 0 && y >= 0 && x < width && y < height && layout.tiles[y][x] !== "#";
+const isWalkable = (x, y) => x >= 0 && y >= 0 && x < width && y < height && layout.tiles[y][x] !== "#" && layout.tiles[y][x] !== "S" && layout.tiles[y][x] !== "E";
 const visited = Array.from({ length: height }, () => Array(width).fill(false));
-const queue = [{ x: layout.spawn.x, y: layout.spawn.y }];
-visited[layout.spawn.y][layout.spawn.x] = true;
+const start = layout.spawnApproach || layout.spawn;
+const goal = layout.exitApproach || layout.exit;
+const queue = [{ x: start.x, y: start.y }];
+visited[start.y][start.x] = true;
 let head = 0;
 while (head < queue.length) {
   const current = queue[head];
@@ -129,7 +131,7 @@ while (head < queue.length) {
   });
 }
 
-assert.equal(visited[layout.exit.y][layout.exit.x], true);
+assert.equal(visited[goal.y][goal.x], true);
 });
 
 test("wider hallways increase carved walkable area for the same room seed", async () => {const { generateGridLayoutFromInput } = await import("../../../packages/runtime/src/personas/configurator/level-layout.js");
@@ -156,7 +158,7 @@ assert.equal(wide.ok, true);
 const countWalkable = (tiles) => tiles.reduce((sum, row) => {
   const text = String(row ?? "");
   for (let i = 0; i < text.length; i += 1) {
-    if (text[i] !== "#") sum += 1;
+    if (text[i] !== "#" && text[i] !== "S" && text[i] !== "E") sum += 1;
   }
   return sum;
 }, 0);
@@ -187,7 +189,7 @@ assert.equal(layoutResult.ok, true);
 const walkable = layoutResult.value.tiles.reduce((sum, row) => {
   const text = String(row || "");
   for (let i = 0; i < text.length; i += 1) {
-    if (text[i] !== "#") sum += 1;
+    if (text[i] !== "#" && text[i] !== "S" && text[i] !== "E") sum += 1;
   }
   return sum;
 }, 0);
@@ -327,7 +329,7 @@ function countWalkable(layout) {
   return layout.tiles.reduce((sum, row) => {
     const text = String(row || "");
     for (let i = 0; i < text.length; i += 1) {
-      if (text[i] !== "#") sum += 1;
+      if (text[i] !== "#" && text[i] !== "S" && text[i] !== "E") sum += 1;
     }
     return sum;
   }, 0);

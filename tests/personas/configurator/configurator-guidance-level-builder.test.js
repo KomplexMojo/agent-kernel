@@ -56,7 +56,7 @@ const fromTiles = buildLevelRenderArtifactsFromTiles(["S.E", ".#."], { includeAs
 assert.equal(fromTiles.ok, true);
 assert.equal(fromTiles.width, 3);
 assert.equal(fromTiles.height, 2);
-assert.equal(fromTiles.walkableTiles, 5);
+assert.equal(fromTiles.walkableTiles, 3);
 assert.ok(fromTiles.image && fromTiles.image.pixels instanceof Uint8ClampedArray);
 assert.equal(fromTiles.image.pixelFormat, "rgba8");
 

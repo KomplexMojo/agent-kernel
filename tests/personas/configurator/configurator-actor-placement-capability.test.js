@@ -14,10 +14,15 @@ async function configurator() {
 
 test("placeActors owns role inference, affinity preference, occupancy, and authored order", async () => {
   const persona = await configurator();
+  const kinds = Array.from({ length: 5 }, () => Array(8).fill(0));
+  kinds[0][0] = 1; // spawn portal wall
+  kinds[4][7] = 1; // exit portal wall
   const layout = {
-    kinds: Array.from({ length: 5 }, () => Array(8).fill(0)),
+    kinds,
     spawn: { x: 0, y: 0 },
     exit: { x: 7, y: 4 },
+    spawnApproach: { x: 1, y: 0 },
+    exitApproach: { x: 6, y: 4 },
     entryRoomId: "R1",
     exitRoomId: "R2",
     rooms: [
@@ -50,9 +55,9 @@ test("placeActors owns role inference, affinity preference, occupancy, and autho
         id: "guard_water",
         motivations: ["defending"],
         affinity: "water",
-        position: { x: 4, y: 1 },
+        position: { x: 6, y: 4 },
       },
-      { id: "mystery_actor", position: { x: 0, y: 1 } },
+      { id: "mystery_actor", position: { x: 2, y: 0 } },
       { id: "raider_alpha", motivations: ["attacking"], position: { x: 1, y: 0 } },
     ],
     changed: true,
