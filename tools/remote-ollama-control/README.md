@@ -263,6 +263,10 @@ systemctl --user list-timers agent-kernel-heartbeat.timer
 agent-kernel-heartbeat          # publish one beat by hand
 ```
 
+Both timers also carry `OnActiveSec`, so a reinstall that restarts an already-enabled timer arms a
+next fire without a reboot and without a manual first start. Without that, `OnUnitActiveSec` /
+`OnUnitInactiveSec` alone leave `NEXT` blank until the service has run once.
+
 The heartbeat branch holds exactly **one commit**, force-replaced on every beat. That is why it does
 not share a code path with `publishResult`, which treats a force as an error because results are
 append-only evidence. The published document carries no host, port, route, or hostname — this is a

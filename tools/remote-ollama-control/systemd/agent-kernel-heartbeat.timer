@@ -3,7 +3,11 @@ Description=Publish the Agent Kernel benchmark heartbeat
 
 [Timer]
 Unit=agent-kernel-heartbeat.service
+# OnActiveSec covers install/daemon-reload/enable in an already-running user session: OnBootSec
+# only arms after a real boot, and OnUnitActiveSec alone leaves NEXT blank until something has
+# already fired the service once — which is how a redeploy left the beacon unscheduled.
 OnBootSec=2m
+OnActiveSec=2m
 # Five minutes against a one-hour alarm threshold. The gap is deliberate: GitHub's scheduled
 # workflows are best-effort and routinely run late, so the beacon has to be far more frequent than
 # the alarm it feeds or ordinary scheduling jitter would read as a dead box.

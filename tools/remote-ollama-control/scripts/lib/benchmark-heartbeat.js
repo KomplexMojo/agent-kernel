@@ -89,7 +89,20 @@ function composeHeartbeat({
 
 function publishHeartbeat({ remote, branch = DEFAULT_BRANCH, workDir, heartbeat }) {
   fs.mkdirSync(workDir, { recursive: true });
-  if (!fs.existsSync(path.join(workDir, '.git'))) {
+  // A beat that dies after `checkout --orphan` and before the first commit leaves HEAD unborn.
+  // The next `checkout --orphan` then fails with "You are on a branch yet to be born", and every
+  // subsequent timer fire fails the same way — silence, which is exactly the alarm condition.
+  // Observed live during the 2026-09-06 redeploy for #133. Wipe and re-init rather than stay dark.
+  const gitDir = path.join(workDir, '.git');
+  if (fs.existsSync(gitDir)) {
+    try {
+      git(workDir, ['rev-parse', '--verify', 'HEAD']);
+    } catch {
+      fs.rmSync(workDir, { recursive: true, force: true });
+      fs.mkdirSync(workDir, { recursive: true });
+    }
+  }
+  if (!fs.existsSync(gitDir)) {
     git(workDir, ['init', '--quiet', '.']);
     git(workDir, ['config', 'user.email', 'benchmark-agent@example.invalid']);
     git(workDir, ['config', 'user.name', 'Benchmark Agent']);

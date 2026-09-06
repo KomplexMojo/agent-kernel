@@ -3,7 +3,11 @@ Description=Poll Agent Kernel benchmark inputs
 
 [Timer]
 Unit=agent-kernel-benchmark.service
+# OnActiveSec arms a first poll after install/restart in a live user session. OnBootSec alone does
+# not, and OnUnitInactiveSec alone leaves NEXT=infinity until the service has run once — so a
+# redeploy that only daemon-reloads can leave the agent permanently unscheduled.
 OnBootSec=5m
+OnActiveSec=5m
 OnUnitInactiveSec=15m
 RandomizedDelaySec=30s
 Persistent=true

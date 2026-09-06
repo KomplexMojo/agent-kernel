@@ -78,7 +78,10 @@ ssh "${SSH_OPTS[@]}" "$REMOTE" "\
   ln -sf '$REMOTE_PACKAGE_DIR/bin/remote-ollama-profile' '$REMOTE_SCRIPTS_DIR/remote-ollama-profile' && \
   ln -sf '$REMOTE_PACKAGE_DIR/bin/remote-ollama-diagnostics' '$REMOTE_SCRIPTS_DIR/remote-ollama-diagnostics' && \
   ln -sf '$REMOTE_PACKAGE_DIR/bin/remote-project-safety-check' '$REMOTE_SCRIPTS_DIR/remote-project-safety-check' && \
-  REMOTE_OLLAMA_INSTALL_IN_PLACE=1 '$REMOTE_PACKAGE_DIR/scripts/install-local-ubuntu.sh'"
+  REMOTE_OLLAMA_INSTALL_IN_PLACE=1 \
+  REMOTE_OLLAMA_INSTALL_SOURCE_COMMIT='$(git -C "$ROOT_DIR" rev-parse HEAD 2>/dev/null || true)' \
+  REMOTE_OLLAMA_INSTALL_SOURCE_REF='$(git -C "$ROOT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)' \
+  '$REMOTE_PACKAGE_DIR/scripts/install-local-ubuntu.sh'"
 
 printf 'Installed remote package to %s:%s\n' "$REMOTE" "$REMOTE_PACKAGE_DIR"
 printf 'Remote profile manager: %s/remote-ollama-profile\n' "$REMOTE_SCRIPTS_DIR"

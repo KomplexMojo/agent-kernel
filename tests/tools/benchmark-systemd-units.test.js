@@ -67,6 +67,15 @@ test('the heartbeat timer fires on a fixed cadence rather than after the previou
   assert.doesNotMatch(timer, /^OnUnitInactiveSec=/m);
 });
 
+// OnUnitActiveSec / OnUnitInactiveSec alone leave NEXT blank until the triggered service has run
+// once. A redeploy that only daemon-reloads then never schedules again. OnActiveSec arms the first
+// fire relative to the timer unit itself becoming active.
+test('both timers arm a first fire when the timer unit itself activates', () => {
+  for (const name of ['agent-kernel-heartbeat.timer', 'agent-kernel-benchmark.timer']) {
+    assert.match(unit(name), /^OnActiveSec=/m, `${name} must schedule relative to timer activation`);
+  }
+});
+
 // ## TODO: Test Permutations
 // - a unit adding ProtectSystem or ProtectHome, which can fail the same safe_path check
 // - PrivateTmp written with whitespace or alternate truthy spellings
