@@ -1,0 +1,169 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-heartbeat/v1",
+  "publishedAt": "2026-09-07T01:29:31.546Z",
+  "status": "running",
+  "dryRun": false,
+  "source": {
+    "commit": "f81428ae02917b9cd57c5ee13c7f4773d5d9afdd",
+    "ref": "main"
+  },
+  "runKey": "2b65f4d02edd371400b755f0e40fed948993f3cda92fc9df440cd370948dda73",
+  "triggerReasons": [],
+  "identity": {
+    "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+    "matrixHash": "3def36d7d6cd0fca73a357bf1080887c3e191505814167fc60fbe211b05efc4e",
+    "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d"
+  },
+  "lastPublishedRunId": "2026-09-04T03-18-34-547Z-5c0cf6d21db3-8d7750bf3eda",
+  "agent": {
+    "installedCommit": "817e609d170599f1f91ccb78a2bf9042d83f1ae0",
+    "installedAt": "2026-09-06T17:50:47Z"
+  },
+  "progress": {
+    "schemaVersion": "agent-kernel-benchmark-progress/v1",
+    "generatedAt": "2026-09-07T01:29:21.244Z",
+    "startedAt": "2026-09-06T17:57:15.304Z",
+    "elapsedMs": 27125940,
+    "attempts": {
+      "recorded": 404,
+      "floor": 600,
+      "ceiling": 1800,
+      "remainingFloor": 196,
+      "remainingCeiling": 1396
+    },
+    "overall": {
+      "attempts": 404,
+      "toolCallRate": 0.9926,
+      "scenarioVerdictRate": 0.797,
+      "executionSuccessRate": 0.7426,
+      "averageScore": 69.3,
+      "meets": {
+        "toolCallRate": true,
+        "scenarioVerdictRate": false,
+        "averageScore": false
+      },
+      "thresholds": {
+        "toolCallRate": 0.99,
+        "scenarioVerdictRate": 0.96,
+        "averageScore": 75
+      }
+    },
+    "performance": {
+      "attemptsPerHour": 53.62,
+      "medianLlmMs": 60565,
+      "medianExecMs": 272,
+      "etaFloorMs": 13159269,
+      "etaCeilingMs": 93726222
+    },
+    "configurations": [
+      {
+        "configurationId": "cg-v1--qwen3.5_9b--primary--ctx8192--out4096",
+        "model": "qwen3.5:9b",
+        "profile": "primary",
+        "attempts": 100,
+        "passesComplete": 1,
+        "toolCallRate": 0.99,
+        "scenarioVerdictRate": 0.59,
+        "averageScore": 62,
+        "canStillQualify": false,
+        "collapse": {
+          "armed": true,
+          "attempts": 100,
+          "toolCallMargin": 0.89,
+          "scoreMargin": 37
+        }
+      },
+      {
+        "configurationId": "cg-v1--qwen3_14b--primary--ctx8192--out4096",
+        "model": "qwen3:14b",
+        "profile": "primary",
+        "attempts": 100,
+        "passesComplete": 1,
+        "toolCallRate": 0.98,
+        "scenarioVerdictRate": 0.73,
+        "averageScore": 64.7,
+        "canStillQualify": false,
+        "collapse": {
+          "armed": true,
+          "attempts": 100,
+          "toolCallMargin": 0.88,
+          "scoreMargin": 39.7
+        }
+      },
+      {
+        "configurationId": "cg-v1--qwen3.8_27b--primary--ctx8192--out4096",
+        "model": "qwen3.8:27b",
+        "profile": "primary",
+        "attempts": 200,
+        "passesComplete": 2,
+        "toolCallRate": 1,
+        "scenarioVerdictRate": 0.93,
+        "averageScore": 75,
+        "canStillQualify": false,
+        "collapse": {
+          "armed": true,
+          "attempts": 200,
+          "toolCallMargin": 0.9,
+          "scoreMargin": 50
+        }
+      },
+      {
+        "configurationId": "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
+        "model": "qwen3.5:27b",
+        "profile": "dual",
+        "attempts": 4,
+        "passesComplete": 0,
+        "toolCallRate": 1,
+        "scenarioVerdictRate": 1,
+        "averageScore": 80,
+        "canStillQualify": true,
+        "collapse": {
+          "armed": false,
+          "attempts": 4,
+          "toolCallMargin": 0.9,
+          "scoreMargin": 55
+        }
+      },
+      {
+        "configurationId": "cg-v1--qwen3.8_27b--dual--ctx65536--out32768",
+        "model": "qwen3.8:27b",
+        "profile": "dual",
+        "attempts": 0,
+        "passesComplete": 0,
+        "toolCallRate": 0,
+        "scenarioVerdictRate": 0,
+        "averageScore": 0,
+        "canStillQualify": true,
+        "collapse": {
+          "armed": false,
+          "attempts": 0,
+          "toolCallMargin": null,
+          "scoreMargin": null
+        }
+      },
+      {
+        "configurationId": "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768",
+        "model": "qwen3-coder:30b-a3b-q4_K_M",
+        "profile": "dual",
+        "attempts": 0,
+        "passesComplete": 0,
+        "toolCallRate": 0,
+        "scenarioVerdictRate": 0,
+        "averageScore": 0,
+        "canStillQualify": true,
+        "collapse": {
+          "armed": false,
+          "attempts": 0,
+          "toolCallMargin": null,
+          "scoreMargin": null
+        }
+      }
+    ],
+    "alerts": [
+      "cg-v1--qwen3.5_9b--primary--ctx8192--out4096 can no longer qualify: 100 attempt(s), average score 62 against a bar of 75, verdict rate 0.59.",
+      "cg-v1--qwen3_14b--primary--ctx8192--out4096 can no longer qualify: 100 attempt(s), average score 64.7 against a bar of 75, verdict rate 0.73.",
+      "cg-v1--qwen3.8_27b--primary--ctx8192--out4096 can no longer qualify: 200 attempt(s), average score 75 against a bar of 75, verdict rate 0.93."
+    ]
+  },
+  "error": null
+}
