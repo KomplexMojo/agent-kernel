@@ -115,6 +115,16 @@ if [ "$RUN_TOOLS" = 1 ]; then
     python3 scripts/setup/patch-serena-ignored-dirs.py || true
   fi
 
+  # Branch guard. .git/hooks is not versioned, so without this every fresh clone and every
+  # cloud agent VM starts with no guard at all — which is precisely when a direct commit to
+  # main happens, because nothing is there to refuse it.
+  if bash scripts/setup/install-git-hooks.sh; then
+    :
+  else
+    echo "git hooks: install FAILED (direct commits to main would not be refused)"
+    fails=$((fails + 1))
+  fi
+
   # Agent context snapshot (local-codex/CodeContext.md + vault mirror). Best
   # effort: it needs no external indexer, so a failure here is not fatal.
   if bash scripts/setup/agent-context.sh >/dev/null 2>&1; then

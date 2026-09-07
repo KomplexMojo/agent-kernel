@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Refuse a commit made directly on a protected branch. See .githooks/protected-branch.sh.
+set -uo pipefail
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# A detached HEAD is not a protected branch: rebases, bisects and worktree surgery all run there,
+# and refusing them would break ordinary git operations for no gain.
+branch="$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+[ -n "$branch" ] || exit 0
+
+exec "$HOOK_DIR/protected-branch.sh" "$branch" commit

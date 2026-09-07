@@ -1,0 +1,35 @@
+---
+description: No change ever lands on main. Every change — any size, any agent — goes on a feature branch, lands through a PR, and the branch is deleted locally and on origin when it merges.
+globs:
+alwaysApply: true
+---
+
+# Never commit on `main`
+
+**No commit lands on `main` directly, ever.** No exception for a one-line fix, a typo, a doc tweak,
+or "this is too small for a PR". No exception for which agent is driving — Cursor, Claude and Codex
+are bound identically. Size was never what made a direct commit safe; it only made it feel safe.
+
+```bash
+git switch -c <type>/<short-description>     # feat/ fix/ chore/ docs/ test/ refactor/
+# ... work, gates green ...
+git push -u origin HEAD
+gh pr create --fill
+gh pr merge --squash --delete-branch         # merges, deletes the branch here AND on origin
+git fetch --prune
+```
+
+`gh pr merge --delete-branch` is the entire cleanup step — remote and local in one command. A branch
+that outlives its merged PR reads as live work to the next agent scanning `git branch -a`.
+
+**If you are already on `main` with uncommitted work:** `git switch -c <branch>` carries the changes
+onto the new branch. Nothing is lost and nothing needs stashing.
+
+`.githooks/pre-commit` and `.githooks/pre-push` refuse this mechanically — the pre-push hook checks
+the *destination* ref, so `git push origin HEAD:main` from a feature branch is refused too. They are
+guards, not walls: `--no-verify` and the ruleset's admin bypass both get through. **A bypass is
+something you report to the maintainer, never something you use quietly to get unblocked.**
+
+The full policy, the naming convention, and the current `Protect Main` ruleset state live in
+`AGENTS.md → Branching — every change goes through a branch and a PR`. That file owns this rule;
+this one points at it.

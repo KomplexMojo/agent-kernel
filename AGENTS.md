@@ -43,7 +43,8 @@ Claude Sonnet/medium (write base tests + TODO permutation stubs)
     ↓
 Ollama (expand permutations in place via /local-test-gen)
     ↓
-Claude (docs in the SAME diff as the code — Sonnet/medium descriptive, Opus/high normative; then commit + PR)
+Claude (docs in the SAME diff as the code — Sonnet/medium descriptive, Opus/high normative;
+         then commit ON A BRANCH + PR — never on main, see "Branching")
 ```
 
 **Docs are not a trailing step.** The agent that changes behavior updates the affected docs in the same diff: it already holds the context, and a doc that contradicts the code is a live hazard, not cosmetic debt — 7 persona READMEs named `.mts` as the canonical source long after `.js` became it, so anyone following them would have edited a re-export shim and their change would silently never run.
@@ -93,11 +94,69 @@ Documentation moved from GitHub Copilot to Claude on 2026-07-27. Two tiers by st
 
 ---
 
+## Branching — every change goes through a branch and a PR
+
+**No commit ever lands on `main` directly. No exception for size, urgency, or which agent is
+driving** — Claude, Codex, Cursor and the maintainer are bound identically. A one-character typo fix
+takes a branch and a PR, the same as a milestone. Size was never the thing that made a direct commit
+safe; it only made it feel safe.
+
+```bash
+git switch -c <type>/<short-description>     # feat/ fix/ chore/ docs/ test/ refactor/
+# ... work, with the gates green ...
+git push -u origin HEAD
+gh pr create --fill
+gh pr merge --squash --delete-branch         # merges, deletes the branch here AND on origin
+git fetch --prune                            # drop any other remote-tracking refs already gone
+```
+
+**`gh pr merge --delete-branch` is the whole cleanup step.** It removes the remote branch and the
+local one in a single command, which is why it is written this way rather than as a merge followed
+by two deletes people forget. A branch that outlives its merged PR is not free: it is one more ref
+that looks like live work to the next agent reading `git branch -a`.
+
+**Branch naming:** `<type>/<short-description>`, lowercase, hyphenated — `fix/actor-motivation-drift`,
+`chore/forbid-direct-commits-to-main`. The type prefix matches the commit type.
+
+### What enforces this, and what does not
+
+| Layer | What it actually does |
+|---|---|
+| `.githooks/pre-commit` | refuses a commit made while `main` or `master` is checked out |
+| `.githooks/pre-push` | refuses a push whose **destination** is `main` — including `git push origin HEAD:main` from a feature branch, which a local-name check would wave through |
+| `Protect Main` ruleset | `deletion`, `non_fast_forward`, **and `pull_request`** (see below) |
+
+The hooks live in `.githooks/` and are activated by `core.hooksPath`, set by
+`scripts/setup/install-git-hooks.sh` and run from `session-refresh.sh` on every session.
+`.git/hooks` is **not** versioned, so a hook installed there would protect one clone and silently
+protect nothing on the next one — including every cloud agent VM, which is exactly where an
+unattended agent would commit to main with nothing to stop it.
+
+⚠️ **These are guards, not walls.** `git commit --no-verify` bypasses the hooks, and the ruleset
+carries a repository-role bypass that lets an admin push straight through — which is how two commits
+reached `main` by hand on 2026-09-06, each reporting `Bypassed rule violations`. The guard exists to
+stop the accident and to make the deliberate override *visible*. **A bypass is a thing you report,
+not a thing you quietly use.**
+
+### `main` requires a PR — verified 2026-09-06
+
+The `Protect Main` ruleset gained a `pull_request` rule at some point after the 2026-08-21 check, and
+this file continued to assert it had none. Current state, from
+`gh api repos/KomplexMojo/agent-kernel/rulesets/14943811`:
+
+- rules: `deletion`, `non_fast_forward`, `pull_request`
+- `required_approving_review_count: 0` — a PR is required, **an approval is not**
+- `bypass_actors`: repository role `5` (admin), `bypass_mode: always`
+
+So the PR requirement and the solo-project model are not in tension: open the PR, merge it yourself,
+no reviewer waits on anything. Re-check with the command above before restating any of this — the
+previous version of this claim was carried forward for two weeks after it stopped being true.
+
 ## Review — solo project, self-merge is the normal path
 
 **No human second reviewer exists, and none is coming.** Do not write, plan, or report as though a PR is waiting on one.
 
-- **`main` is not review-gated.** The `Protect Main` ruleset carries `deletion` and `non_fast_forward` only — no `pull_request` rule, no required approving reviews — plus a repository-role bypass. Re-verified 2026-08-21 via `gh api repos/KomplexMojo/agent-kernel/rulesets`.
+- **`main` requires a PR, but no reviewer.** The `Protect Main` ruleset carries `deletion`, `non_fast_forward` and `pull_request` with `required_approving_review_count: 0`, plus a repository-role bypass. Re-verified 2026-09-06 — the earlier note here claimed there was no `pull_request` rule, which had stopped being true. Details and the verification command: *Branching — every change goes through a branch and a PR* above.
 - **There is no CI test job.** `.github/workflows/` holds the `@claude` responder and `claude-code-review.yml`, an automated advisory review that comments on every PR. Advisory: it blocks nothing, and it does not run the suite. **The local gates are the only gates that run.**
 - A PR is still worth opening — it is the reviewable unit and where the reasoning is indexed — but it is a **record, not a gate**. Never block on, or ask the maintainer to arrange, a review.
 

@@ -6,7 +6,7 @@ Claude is the **orchestration, implementation, and documentation engine**. Codex
 
 **The persona model is enforced** (charter → "Persona Model — ENFORCED"): all domain logic lives in one of the seven personas; everything else is glue; external code imports persona controllers only. The Allocator alone owns pricing.
 
-**Which file owns what — neither file restates the other.** This one owns: reporting, session start, code navigation, commands, architecture summary, the enforcement checklist, escalation. `AGENTS.md` owns: the agent roster and tiers, the handoff workflow, per-agent scope, test and benchmark strategy, file placement, naming, the pre-handoff checklist. Change a rule in its owning file only; a rule copied into both will drift and one copy will be wrong.
+**Which file owns what — neither file restates the other.** This one owns: reporting, session start, code navigation, commands, architecture summary, the enforcement checklist, escalation. `AGENTS.md` owns: the agent roster and tiers, the handoff workflow, **the branching and PR policy**, per-agent scope, test and benchmark strategy, file placement, naming, the pre-handoff checklist. Change a rule in its owning file only; a rule copied into both will drift and one copy will be wrong.
 
 > **Model names, not versions.** Both files name model *tiers* (Opus, Sonnet, Haiku, GPT-5), never dated IDs — those churn and go stale while still looking authoritative. Use the latest release in each tier; pick the exact ID with `/model` or the API.
 
@@ -43,7 +43,7 @@ Not optional — a stale vault or an unpatched tool produces wrong structural an
 bash scripts/setup/session-refresh.sh
 ```
 
-It fetches and `git pull --ff-only` only when the branch tracks a remote *and* the tree is clean (never touches uncommitted work, never switches branches), runs `pnpm install --frozen-lockfile`, re-applies the Serena ignored-dirs patch, refreshes `local-codex/CodeContext.md`, and runs `pnpm run test`. Then report its `source` / `tools` / `tests` summary; a non-zero exit means deps or tests need attention **before** anything else. Skip parts only when asked: `--no-pull`, `--no-tools`, `--no-tests`. Same script on cloud agents, where `.cursor/install.sh` has already provisioned the VM at boot.
+It fetches and `git pull --ff-only` only when the branch tracks a remote *and* the tree is clean (never touches uncommitted work, never switches branches), runs `pnpm install --frozen-lockfile`, re-applies the Serena ignored-dirs patch, points `core.hooksPath` at `.githooks` so direct commits to `main` are refused, refreshes `local-codex/CodeContext.md`, and runs `pnpm run test`. Then report its `source` / `tools` / `tests` summary; a non-zero exit means deps or tests need attention **before** anything else. Skip parts only when asked: `--no-pull`, `--no-tools`, `--no-tests`. Same script on cloud agents, where `.cursor/install.sh` has already provisioned the VM at boot.
 
 1. Read `~/vault/plans/active/Plan.md` — the START HERE block is the last-session handoff; `~/vault/index.md` only if it is sparse
 2. `git pull --ff-only` — confirm on HEAD *(script)*
@@ -195,6 +195,8 @@ Run on every diff. **Fix failures — don't just flag them.** The guards in `tes
 **Types** — `pnpm run typecheck` stays at zero (gate: `tsconfig.typecheck.json`, enforced by `tests/architecture/typecheck-gate.test.js`). The gate covers **core-ts and its tests only** — the code genuinely clean under `strict`. Do not widen it casually: the five `_shared/*.mts` modules carry **180 errors** that leak into every scope importing them, so widening is a fix-first project, not a config change. ⚠️ `checkJs` is **off**, so an all-`.js` package reports 0 because there is nothing to check — read the file count the report prints alongside.
 
 **Tests** — failing tests written *before* production code · new behavior covered under `tests/` · anything a benchmark surfaced that a deterministic test could catch is landed as that test, not left to the next run · deterministic behavior uses fixtures · negative cases under `tests/fixtures/artifacts/invalid/` · no test hits live external services · base test file ends with `## TODO: Test Permutations` before Ollama handoff · persona behavior tests live in `tests/personas/<persona>/` named `<persona>-<behavior>.test.*` · label-only persona tests are legacy: replace with a behavior test, then remove — never before.
+
+**Branching** — the change is on a feature branch, never on `main`; it lands through a PR; the branch is deleted locally and on origin when the PR merges. No exception for a one-line fix. `.githooks/` refuses direct commits and pushes mechanically. Full rule and the cleanup command: `AGENTS.md → Branching`.
 
 **Code quality** — every changed line traces to the current milestone spec (no drive-by cleanup) · not over-engineered · assumptions stated before implementation · **clean-up found but not required by the task gets logged as a `gh issue`** — not fixed inline, and not left as a code comment or a plan-doc aside.
 
