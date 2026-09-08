@@ -16,6 +16,19 @@
  * - Personas operate in `runtime` and communicate using these artifacts.
  */
 
+import type {
+  ActorRecord, ActorPosition, ActorAffinityKey, AffinityKind, AffinityExpression,
+  ActorVitalRecord as VitalRecordV1, ActorVitalGrant as ResourceVitalGrant,
+  ActorHoldingPermanence as ResourcePermanenceMode,
+} from "../../../core-ts/src/state/actor-types.ts";
+export type {
+  ActorRecord, ActorRecordBase, ActorPosition, ActorAlignment, ActorLifecycle,
+  ActorVitalKind, ActorAffinityKey, ActorCapabilities, ActorAffinityEntry,
+  ActorAffinityHolding, ActorVitalHolding, ActorHolding, AffinityKind, AffinityExpression,
+  ActorVitalRecord as VitalRecordV1, ActorVitalGrant as ResourceVitalGrant,
+  ActorHoldingPermanence as ResourcePermanenceMode,
+} from "../../../core-ts/src/state/actor-types.ts";
+
 // -------------------------
 // Shared traceability types
 // -------------------------
@@ -1482,30 +1495,10 @@ export interface InitialStateArtifactV1 {
   /** Reference to the executable config. */
   simConfigRef: ArtifactRef;
 
-  /**
-   * Actor instantiation data. Keep it minimal and serializable.
-   * `core-ts` will validate legality and enforce semantics.
-   */
-  actors: Array<{
-    id: string;
-    /** "stationary" vs "ambulatory" as per Actor persona docs. */
-    kind: "stationary" | "ambulatory";
-    /** Optional archetype/tag for content selection. */
-    archetype?: string;
-    /** Starting position (shape depends on layout kind; keep generic). */
-    position?: Record<string, number>;
-    /** Initial stats/traits (data-only). */
-    traits?: Record<string, number | boolean | string>;
-    /** Optional vitals snapshot for actor-centric initialization. */
-    vitals?: {
-      health: VitalRecordV1;
-      mana: VitalRecordV1;
-      stamina: VitalRecordV1;
-      durability: VitalRecordV1;
-    };
-    /** Optional capability parameters for core-ts (movement/action costs). */
-    capabilities?: CapabilityRecordV1;
-  }>;
+  /** All entity presets normalize to this common mechanical record. */
+  actors: ActorRecord[];
+  /** UI/CLI/MCP labels are keyed by actor ID, outside mechanical state. */
+  presentation: Record<string, ActorPresentation>;
 }
 
 export type SimConfigArtifact = SimConfigArtifactV1;
@@ -1519,8 +1512,6 @@ export const AFFINITY_PRESET_SCHEMA = "agent-kernel/AffinityPresetArtifact";
 export const ACTOR_LOADOUT_SCHEMA = "agent-kernel/ActorLoadoutArtifact";
 export const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
 
-export type AffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "fortify" | "light" | "dark";
-export type AffinityExpression = "push" | "pull" | "emit" | "draw";
 export type AffinityTargetType = "self" | "ally" | "enemy" | "area" | "barrier" | "floor";
 export type AffinityStackScaling = "linear" | "multiplier";
 export type AffinityAbilityKind = "attack" | "buff" | "area";
@@ -1660,18 +1651,10 @@ export interface AffinitySummaryV1 {
 export type AffinitySummary = AffinitySummaryV1;
 
 // -------------------------
-// Actor vital/capability records (shared by the live actor-carrying schemas)
-//
-// PA.2 retired the `agent-kernel/ActorState` artifact — it had no producer and no
-// consumer. These two record types are NOT dead: they are the field types used by
-// InitialStateArtifact actors and the other live actor-carrying contracts below.
+// Authoring cost parameters retained until producer migration. Mechanical vital
+// and capability records now come from core actor-types.ts.
 // -------------------------
 
-export interface VitalRecordV1 {
-  current: number;
-  max: number;
-  regen: number;
-}
 
 export interface CapabilityRecordV1 {
   movementCost?: number;
@@ -1829,65 +1812,26 @@ export interface EffectFulfillmentRecordV1 {
   reason?: string;
 }
 
-/**
- * An action chosen by an Actor policy (human/script/heuristic/AI).
- * Supplied to `core-ts` which decides legality and outcomes.
- *
- * Schema stability rules:
- * - Additive fields must be optional and backward compatible.
- * - Breaking changes require a schemaVersion bump.
- * - Do not embed internal memory layouts.
- */
-export interface ActionV1 {
+/** Envelope for a simulation action; telemetry and IO requests are effects. */
+export interface ActionEnvelopeV1 {
   schema: typeof ACTION_SCHEMA;
   schemaVersion: 1;
-
-  /** Actor that is attempting the action. */
   actorId: string;
-
-  /** A monotonic tick/step index (assigned by runner). */
   tick: number;
-
-  /** Discriminated action kind. Extend by adding new kinds (version if breaking). */
-  kind:
-    | "wait"
-    | "move"
-    | "interact"
-    | "use_item"
-    | "emit_log"
-    | "emit_telemetry"
-    | "request_external_fact"
-    | "request_solver"
-    | "fulfill_request"
-    | "defer_request"
-    | "destroy_barrier"
-    | "raise_barrier"
-    | "arm_static_hazard"
-    | "disarm_static_hazard"
-    /**
-     * AM.5 — an actor deliberately expressing one of its affinities.
-     *
-     * Additive union member, so no schemaVersion bump: nothing is removed or
-     * renamed, and a consumer that does not know this kind sees an action it
-     * ignores rather than a shape it misreads.
-     *
-     * params: { kind, expression, stacks, targetId? , target?: {x,y} }
-     * Routed by target class in runtime-fsm.mjs adaptActionToCore:
-     *   actor target            -> core.applyAffinityDamage
-     *   hazard, durability      -> core.applyAffinityDamageToHazard
-     *   hazard, neutralize      -> core.applyAffinityPullFromHazard
-     * All three already existed, fully unit-tested, with zero production callers
-     * (F5) — an actor's affinity could not reach the world at all before this.
-     */
-    | "cast_affinity"
-    | "custom";
-
-  /**
-   * Action parameters. Keep this minimal; core-ts should validate and interpret.
-   * Use primitive JSON values where possible for portability.
-   */
-  params?: Record<string, unknown>;
 }
+
+/**
+ * Unified-actor clean break: no conventional attacks or category-specific actions.
+ * Core resolves the equipped pair and its stacks; callers cannot invent potency.
+ * Envelope selectors stay unchanged by explicit maintainer instruction.
+ */
+export type ActionV1 = ActionEnvelopeV1 & (
+  | { kind: "wait"; params?: never }
+  | { kind: "move"; params: { target: ActorPosition } }
+  | { kind: "cast_affinity"; params: { targetId: string } }
+  | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey } }
+  | { kind: "take"; params: { targetId: string; holdingId: string } }
+);
 
 /**
  * Observation derived from simulation state for a specific actor.
@@ -2201,99 +2145,28 @@ export type RunSummary = RunSummaryV1;
  * run observability. Persistence stays with the caller, exactly as RunSummary
  * does — the runtime never touches the filesystem.
  */
-export interface WorldStateActorV1 {
-  /** Original string id where known, else the core-assigned numeric id. */
-  id: string;
-  index: number;
-  position: { x: number; y: number };
-  vitals: Record<string, { current: number; max: number; regen: number }>;
-  /** Affinity grants the actor still holds, in slot order. */
-  affinities: Array<{
-    kind: number;
-    expression: number;
-    stacks: number;
-    mana: number;
-    manaMax: number;
-    manaRegen: number;
-  }>;
-}
-
-export interface WorldStateHazardV1 {
-  position: { x: number; y: number };
-  affinity: number;
-  expression: number;
-  stacks: number;
-  mana: { current: number; max: number; regen: number };
-  durability: { current: number; max: number; regen: number };
-}
-
-/** Superseded by V2, which adds `resources`. Retained: artifacts written before
- * that change are still valid v1 documents and must stay readable. */
-export interface WorldStateArtifactV1 {
-  schema: typeof WORLD_STATE_SCHEMA;
-  schemaVersion: 1;
-  meta: ArtifactMeta;
-  simConfigRef?: ArtifactRef;
-  /** The core tick this snapshot was taken at. */
-  tick: number;
-  dimensions: { width: number; height: number };
-  actors: WorldStateActorV1[];
-  hazards: WorldStateHazardV1[];
+/** Presentation only: never supplied as an input to core mechanical rules. */
+export interface ActorPresentation {
+  category: "delver" | "warden" | "hazard" | "resource" | "barrier";
 }
 
 /**
- * A resource still lying on the map at the moment of the snapshot.
- *
- * Collection is destructive: an entered cell's resource is removed. So a resource
- * present in one snapshot and absent from the next was taken in between, and that
- * difference is the only public evidence that a pickup happened exactly once.
- * Both payloads are optional and independent — a cell may carry a vital grant, an
- * affinity grant, or both — and `null` means the resource does not carry that
- * half, not that it was unreadable.
- */
-export interface WorldStateResourceV2 {
-  position: { x: number; y: number };
-  vital: {
-    /** VitalKind code: 0 health, 1 mana, 2 stamina. */
-    kind: number;
-    delta: number;
-    /** ResourceMode code: 0 raises the current vital, 1/2 raise its max. */
-    mode: number;
-    /** Vital regen handed over on top of the delta, whatever the mode. */
-    regen: number;
-  } | null;
-  affinity: {
-    kind: number;
-    expression: number;
-    stacks: number;
-    mana: number;
-    /** > 0 makes the granted affinity permanent. */
-    manaRegen: number;
-  } | null;
-}
-
-/**
- * V1 carried actors and hazards only. A snapshot could therefore not distinguish
- * a resource still on the map from one already collected, which left every
- * resource metric in the execution contract unevidenceable. `resources` is
- * required rather than optional precisely so that distinction survives: an
- * absent field means "this artifact predates resources", not "this world has
- * none", and a consumer must be able to tell those apart.
+ * Unified-actor snapshot. The existing envelope selector stays 2; there is no
+ * historical union or compatibility reader in the rewritten contract.
+ * Runtime producers/consumers migrate in their separately scoped milestones.
  */
 export interface WorldStateArtifactV2 {
   schema: typeof WORLD_STATE_SCHEMA;
   schemaVersion: 2;
   meta: ArtifactMeta;
   simConfigRef?: ArtifactRef;
-  /** The core tick this snapshot was taken at. */
   tick: number;
   dimensions: { width: number; height: number };
-  actors: WorldStateActorV1[];
-  hazards: WorldStateHazardV1[];
-  resources: WorldStateResourceV2[];
+  actors: ActorRecord[];
+  presentation: Record<string, ActorPresentation>;
 }
 
-export type WorldStateArtifact = WorldStateArtifactV1 | WorldStateArtifactV2;
+export type WorldStateArtifact = WorldStateArtifactV2;
 
 /**
  * Z.1 — a constraint problem posed to a solver, and the normalized answer.
@@ -2566,14 +2439,6 @@ export interface ResourceArtifactV1 {
 /** Vital keys that a resource artifact can grant (subset of actor vitals). */
 export type ResourceVitalKey = "health" | "mana" | "stamina";
 
-/** A single vital grant within a ResourceArtifactV2. */
-export interface ResourceVitalGrant {
-  key: ResourceVitalKey;
-  /** Amount added to the vital's max. */
-  delta: number;
-  /** Amount added to the vital's regen rate (optional). */
-  regen?: number;
-}
 
 export interface ResourceArtifactV2 {
   schema: typeof RESOURCE_ARTIFACT_SCHEMA;
@@ -2585,8 +2450,7 @@ export interface ResourceArtifactV2 {
   permanent: boolean;
 }
 
-/** Three permanence modes for resource artifacts. */
-export type ResourcePermanenceMode = "consumable" | "level" | "permanent";
+
 
 /** V3: replaces `permanent: boolean` with explicit three-way permanenceMode. */
 /**

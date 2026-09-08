@@ -4,6 +4,7 @@ const { resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
 const ARTIFACTS_TS = resolve(ROOT, "packages/runtime/src/contracts/artifacts.ts");
+const ACTOR_TYPES_TS = resolve(ROOT, "packages/core-ts/src/state/actor-types.ts");
 const CONFIGURATOR_CONTRACTS_TS = resolve(ROOT, "packages/runtime/src/personas/configurator/contracts.ts");
 
 function parseStringUnion(sourceText, typeName) {
@@ -25,10 +26,11 @@ test("affinity and expression type unions stay aligned with shared runtime const
     AFFINITY_OPPOSITES,
   } = await import("../../packages/runtime/src/contracts/domain-constants.js");
   const artifactsSource = readFileSync(ARTIFACTS_TS, "utf8");
+  const actorTypesSource = readFileSync(ACTOR_TYPES_TS, "utf8");
   const configuratorSource = readFileSync(CONFIGURATOR_CONTRACTS_TS, "utf8");
 
-  const affinityKinds = parseStringUnion(artifactsSource, "AffinityKind");
-  const affinityExpressions = parseStringUnion(artifactsSource, "AffinityExpression");
+  const affinityKinds = parseStringUnion(actorTypesSource, "AffinityKind");
+  const affinityExpressions = parseStringUnion(actorTypesSource, "AffinityExpression");
   const affinityTargetTypes = parseStringUnion(artifactsSource, "AffinityTargetType");
   const hazardAffinityKinds = parseStringUnion(configuratorSource, "HazardAffinityKind");
   const hazardAffinityExpressions = parseStringUnion(configuratorSource, "HazardAffinityExpression");
