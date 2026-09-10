@@ -1,4 +1,10 @@
-import type { ActorPosition, ActorRecord, ActorRegistrySnapshot, TerrainKind } from './actor-types.ts';
+import type { ActorPosition, ActorRecord, ActorRegistrySnapshot, ActorVitalKind, ActorAffinityKey, TerrainKind } from './actor-types.ts';
+
+import { validateActorRecordVitals, changeActorVital, regenerateActor } from './actor-vitals.ts';
+
+import { validateActorInventory, equipActorAffinity } from './actor-inventory.ts';
+
+import { validateActorHoldings, exposeDefeatHoldings, takeActorHolding } from './actor-holdings.ts';
 
 const TERRAIN = new Set<TerrainKind>(['wall', 'floor', 'spawn', 'exit']);
 const ACTOR_FIELDS = new Set([
@@ -57,6 +63,11 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     if (Object.keys(record).some(key => !ACTOR_FIELDS.has(key))) throw new Error('unknown actor field');
     if (terrainBlocks(record.position)) throw new Error(`invalid actor position: ${record.id}`);
     const actor = copy(record);
+    validateActorRecordVitals(actor);
+    validateActorInventory(actor);
+    validateActorHoldings(actor);
+    if (actor.lifecycle === 'alive' && actor.vitals[actor.defeatVital]!.current === 0) actor.lifecycle = 'defeated';
+    exposeDefeatHoldings(actor);
     const cell = index(actor.position);
     const occupants = occupancy.get(cell) ?? [];
     if (actor.lifecycle === 'alive' && actor.capabilities.blocksMovement
@@ -77,6 +88,32 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       .some(actor => actor.lifecycle === 'alive' && actor.capabilities[capability]);
   }
   return {
+    moveActor(id: string, target: ActorPosition): boolean {
+      const actor = actors.get(id);
+      if (!actor || actor.lifecycle !== 'alive' || !actor.capabilities.canMove || terrainBlocks(target)
+        || Math.max(Math.abs(actor.position.x - target.x), Math.abs(actor.position.y - target.y)) !== 1) return false;
+      const destination = occupancy.get(index(target)) ?? [];
+      if (actor.capabilities.blocksMovement && destination.some(other => other.lifecycle === 'alive'
+        && other.capabilities.blocksMovement)) return false;
+      const origin = index(actor.position);
+      occupancy.set(origin, (occupancy.get(origin) ?? []).filter(other => other.id !== id));
+      actor.position = { x: target.x, y: target.y };
+      destination.push(actor);
+      destination.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+      occupancy.set(index(target), destination);
+      return true;
+    },
+    takeHolding(receiverId: string, sourceId: string, holdingId: string): boolean {
+      return takeActorHolding(actors.get(receiverId), actors.get(sourceId), holdingId);
+    },
+    equipAffinity(id: string, key: ActorAffinityKey): boolean { return equipActorAffinity(actors.get(id), key); },
+    changeVital(id: string, key: ActorVitalKind, delta: number): number {
+      const actor = actors.get(id);
+      const actual = changeActorVital(actor, key, delta);
+      if (actor) exposeDefeatHoldings(actor);
+      return actual;
+    },
+    regenerate(): void { for (const actor of ordered) regenerateActor(actor); },
     getActor(id: string): ActorRecord | null { return copy(actors.get(id) ?? null); },
     getActorsAt(point: ActorPosition): ActorRecord[] {
       return copy(withinBounds(point) ? occupancy.get(index(point)) ?? [] : []);

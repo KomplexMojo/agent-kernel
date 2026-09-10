@@ -42,7 +42,7 @@ describe('actor registry', () => {
     expect(registry.isSightBlocked({ x: 2, y: 1 })).toBe(false);
   });
   test('defeated actors remain discoverable but defeated/exited actors never block', () => {
-    const defeated = actor('defeated'); defeated.lifecycle = 'defeated';
+    const defeated = actor('defeated'); defeated.lifecycle = 'defeated'; defeated.vitals.durability!.current = 0;
     const exited = actor('exited'); exited.lifecycle = 'exited';
     defeated.capabilities.blocksSight = exited.capabilities.blocksSight = true;
     const registry = createActorRegistry(world([defeated, exited]));
@@ -83,6 +83,34 @@ describe('actor registry', () => {
     const barrier = world(); (barrier.terrain as string[])[5] = 'barrier';
     expect(() => createActorRegistry(barrier)).toThrow(/terrain/);
   });
+  test('movement updates common occupancy without pickup or coordinate aliases', () => {
+    const mobile = actor('mobile', 1, false); mobile.capabilities.canMove = true;
+    const remnant = actor('remnant', 2, false); remnant.lifecycle = 'defeated'; remnant.vitals.durability!.current = 0;
+    const registry = createActorRegistry(world([mobile, remnant, actor('blocker', 2)]));
+    const holdings = registry.getActor('remnant')!.holdings;
+    const target = { x: 2, y: 1 };
+    expect(registry.moveActor('mobile', target)).toBe(true);
+    target.x = 1;
+    expect(registry.getActorsAt({ x: 1, y: 1 })).toEqual([]);
+    expect(registry.getActorsAt({ x: 2, y: 1 }).map(a => a.id)).toEqual(['blocker', 'mobile', 'remnant']);
+    expect(registry.getActor('remnant')!.holdings).toEqual(holdings);
+    expect(registry.getActor('mobile')!.position).toEqual({ x: 2, y: 1 });
+    expect(createActorRegistry(registry.snapshot()).snapshot()).toEqual(registry.snapshot());
+  });
+  test('movement rejects illegal geometry, blockers and inactive or incapable actors atomically', () => {
+    const mobile = actor('mobile'); mobile.capabilities.canMove = true;
+    const registry = createActorRegistry(world([mobile, actor('blocker', 2)]));
+    const before = registry.snapshot();
+    for (const target of [{ x: 2, y: 1 }, { x: 1, y: 1 }, { x: 0, y: 0 },
+      { x: 3, y: 2 }, { x: 1.5, y: 2 }, { x: NaN, y: 2 }]) {
+      expect(registry.moveActor('mobile', target)).toBe(false);
+    }
+    expect(registry.moveActor('blocker', { x: 2, y: 2 })).toBe(false);
+    expect(registry.moveActor('missing', { x: 2, y: 2 })).toBe(false);
+    expect(registry.snapshot()).toEqual(before);
+    registry.changeVital('mobile', 'durability', -3);
+    expect(registry.moveActor('mobile', { x: 1, y: 2 })).toBe(false);
+  });
   test('refuses presentation leakage and non-JSON state', () => {
     const extra = { ...actor('a'), category: 'hazard' };
     expect(() => createActorRegistry(world([extra]))).toThrow(/actor field/);
@@ -98,5 +126,4 @@ describe('actor registry', () => {
 });
 
 // ## TODO: Test Permutations
-// - Vital/defeat milestone: require numeric bounds and lifecycle transitions.
 // - Equipment/holdings milestones: reject duplicate pairs, missing active keys, repeated claims.

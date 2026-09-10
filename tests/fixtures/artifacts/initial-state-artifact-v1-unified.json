@@ -1,0 +1,66 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "unified-initial",
+    "runId": "unified-fixture",
+    "createdAt": "2026-09-10T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "simConfigRef": {
+    "id": "unified-config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "actor",
+      "alignment": "external",
+      "position": {
+        "x": 1,
+        "y": 1
+      },
+      "lifecycle": "alive",
+      "defeatVital": "health",
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "attacking",
+        "patrolling"
+      ],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "emit",
+          "stacks": 8
+        },
+        {
+          "kind": "fire",
+          "expression": "draw",
+          "stacks": 2
+        }
+      ],
+      "activeAffinityKey": "fire:draw",
+      "holdings": []
+    }
+  ],
+  "presentation": {
+    "actor": {
+      "category": "delver"
+    }
+  }
+}

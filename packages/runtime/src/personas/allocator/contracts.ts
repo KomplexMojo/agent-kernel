@@ -136,7 +136,8 @@ export interface RuntimeActionCosts {
   source: "allocator_runtime_action_price_v1";
   default: number;
   wait: number;
-  attack: number;
+  equipAffinity: number;
+  take: number;
   castAffinity: number;
   requestSolver: number;
   move: number;

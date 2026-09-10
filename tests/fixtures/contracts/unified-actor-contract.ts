@@ -1,3 +1,4 @@
+import type { ActorAction } from '../../../packages/core-ts/src/state/actor-types.ts';
 import type {
   ActorRecord, ActorAffinityEntry, ActorHolding, ActorPresentation,
   ActionV1, InitialStateArtifactV1, WorldStateArtifactV2,
@@ -71,3 +72,8 @@ const splitState: WorldStateArtifactV2 = { ...snapshot, hazards: [] };
 // @ts-expect-error historical world-state envelope shapes are not accepted
 const oldSnapshot: WorldStateArtifactV2 = { ...snapshot, schemaVersion: 1 };
 void [initial, snapshot, actions];
+
+const mechanicalActions: ActorAction[] = actions;
+// @ts-expect-error core shares the no-conventional-attack action vocabulary
+const coreAttack: ActorAction = { actorId: "a", tick: 1, kind: "attack" };
+void mechanicalActions;

@@ -566,3 +566,15 @@ export function createAffinitySpatialState(
     getLastInteractionCanceledStacks: () => lastInteractionCanceledStacks,
   };
 }
+
+/** Existing per-cell opposition arithmetic, shared by both projection call sites during migration. */
+export function cancelAffinityOverlap(sourceIntensity: number, sourceStacks: number, targetIntensity: number, targetStacks: number) {
+  const netSource = Math.max(0, sourceIntensity - targetIntensity);
+  const netTarget = Math.max(0, targetIntensity - sourceIntensity);
+  return {
+    sourceIntensity: netSource,
+    sourceStacks: netSource === 0 ? 0 : netTarget === 0 && sourceStacks > targetStacks ? sourceStacks - targetStacks : sourceStacks,
+    targetIntensity: netTarget,
+    targetStacks: netTarget === 0 ? 0 : netSource === 0 && targetStacks > sourceStacks ? targetStacks - sourceStacks : targetStacks,
+  };
+}

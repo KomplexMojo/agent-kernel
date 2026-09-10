@@ -373,3 +373,27 @@ neither mutates caller-owned layout or object data.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
 - Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
 - Entry points are `.js`. There is no `.mts` twin (no `ts-node/esm` required).
+
+
+## Unified actor normalization (rewrite in progress)
+
+`normalizeActorDefinition(input)` is a pure authoring method on the public
+Configurator controller. It accepts one of the five `category` presets plus
+stable `id`, `position`, explicit `vitals`, and mechanical overrides. It returns
+`{ actor, presentation: { category } }`. Labels are excluded from actor state.
+Alignment, defeat vital and capabilities default from the preset; explicit
+properties override them. Vital quantities and prices are never invented here.
+All motivations and owned affinity/expression pairs are preserved. Core-owned
+validators enforce common vital/inventory/holding shapes. Explicit null values
+are rejected where the property requires a value; only omitted values default.
+
+This is the normalized authoring seam. Existing artifact builders and transport
+commands have not yet been migrated to call it, so it does not establish complete
+CLI/MCP/UI equivalence or replace the running engine.
+
+`resolveActorTurnCosts({ rules?, movementStamina })` assembles the unified turn
+window's vital costs. It reads all five authored mana tiers for all forty pairs,
+including equipment acquired later. Omitted rules use the existing default rules;
+invalid supplied rules fail. Movement stamina costs are explicit nonnegative safe
+integers keyed by actor ID. Returned tables are detached. This does not price
+Allocator tokens or choose movement costs; startup must supply the authored map.

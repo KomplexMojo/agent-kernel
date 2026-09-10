@@ -88,3 +88,12 @@ export interface ActorRegistrySnapshot {
   terrain: TerrainKind[];
   actors: ActorRecord[];
 }
+
+/** Mechanical action vocabulary; runtime supplies artifact envelopes. */
+export type ActorAction = { actorId: string; tick: number } & (
+  | { kind: "wait"; params?: never }
+  | { kind: "move"; params: { target: ActorPosition } }
+  | { kind: "cast_affinity"; params: { targetId: string } }
+  | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey } }
+  | { kind: "take"; params: { targetId: string; holdingId: string } }
+);

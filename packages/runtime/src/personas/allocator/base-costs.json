@@ -54,7 +54,6 @@
   "actionBudget": {
     "action_default": 1,
     "action_wait": 1,
-    "action_attack": 1,
     "action_cast_affinity": 1,
     "action_request_solver": 2,
     "action_move": 0

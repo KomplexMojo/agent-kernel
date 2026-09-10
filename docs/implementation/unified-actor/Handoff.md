@@ -1,13 +1,20 @@
-# Cloud handoff — unified actor rewrite
+# Unified actor rewrite — local continuation
 
 ## Start here
 
-Repository: `KomplexMojo/agent-kernel`. Select branch `codex/unified-actor`, or the
-published handoff commit. Do not start from main or the original base commit:
-they do not contain milestones 1–2. The original rewrite base was
-`9a9168f8c63b07b1e9e789daa598a6edaa061cbd`.
+Repository: `KomplexMojo/agent-kernel`. Continue the existing isolated worktree on
+`codex/unified-actor`, including its uncommitted implementation. Do not reset to
+main or the published handoff checkpoint: neither contains the current local work.
+The original rewrite base was `9a9168f8c63b07b1e9e789daa598a6edaa061cbd`.
 
-**UA.1 (contracts) and UA.2 (registry component) are complete. UA.3 is next.**
+**Current local status (2026-09-10): UA.1–UA.3 complete; routing, exposure,
+passive projection, inventory, claims, movement, focused casting, turn windows
+and Configurator preset normalization implemented.**
+The published de2a932 checkpoint still contains only UA.1/UA.2. Later work is
+uncommitted in the existing isolated worktree; the maintainer did not move to cloud.
+Read Plan.md's next implementation seam and Documentation.md's latest evidence.
+The maintainer authorized continuing across bounded milestones until completion
+or token exhaustion, superseding the old one-milestone stopping limit.
 The new registry is NOT wired into `createCore` or runtime. Existing JavaScript
 still produces legacy shapes. Passing component tests does not prove the new
 mechanics execute in the game. Do not merge this partial rewrite into main.
@@ -42,27 +49,32 @@ be reported accurately; use file inspection if Serena MCP is unavailable. Do not
 block on creating an Obsidian vault. CodeContext can be regenerated locally in
 the cloud checkout by the existing script.
 
-## First cloud task prompt
+## Resume locally
 
-> Continue the unified actor rewrite on the selected codex/unified-actor handoff.
-> Read docs/implementation/unified-actor/Handoff.md and its four linked records.
-> Milestones UA.1–UA.2 are complete; implement UA.3, common vitals and terminal
-> defeat. Preserve the approved clean break, one mana pool, one active pair,
-> affinity-only combat, and one-stack-per-pair conquest semantics. Load the owning
-> skill, write failing tests first, run the core/typecheck/boundary gates and a
-> restored perturbation, and update the tracked execution record. Respect the
-> existing one-M or two-S milestone handoff limit. Do not claim runtime integration
-> until its later milestone is actually implemented. Do not run remote benchmarks
-> or merge into main.
+Continue in the existing codex/unified-actor worktree with its uncommitted changes.
+Do not reset to the old published checkpoint or start again from main. The next
+seam is Configurator artifact assembly and single-list startup, then core/runner
+replacement and remaining persona/adapter/UI migration. Read the exact continuation notes
+in Plan.md. Primitive slot/claim/move APIs are now wrapped by the tested turn window, but
+production Moderator/runner has not adopted it.
+Do not run remote benchmarks or merge this incomplete rewrite into main.
 
-For the next task after UA.3, follow Plan.md's milestone order. Explicitly name
-completed scope, remaining work, tests and any baseline failures at each handoff.
-
-
-## Verified handoff baseline
+## Published checkpoint baseline (historical)
 
 Pre-publication full suite: 489 files passed, 3787 tests passed, 242 skipped,
 zero failures with the documentation host variable above. Typecheck passed.
 A missed source-path parity test from UA.2 was corrected without weakening its
 assertions. The suite includes all 32 architecture files. Details and earlier
 red/green/perturbation evidence are in Documentation.md.
+
+## Latest local verification — September 10
+
+Full suite: 500 files passed, 3903 tests passed, 242 skipped, zero failures.
+Typecheck passed. Separate architecture suite: 32 files and 118 assertions passed.
+Separate core suite: 34 files, 612 passed, 1 skipped.
+Latest additions: authored turn-cost assembly, file-backed invalid actor artifacts,
+Configurator-to-core component acceptance/replay, and Allocator equip/take schedule.
+The named attack charge is removed; legacy attack execution remains pending.
+All perturbations restored; no guard baseline widened. These results cover the
+current uncommitted worktree, not the older published checkpoint. The production
+engine migration remains incomplete; use Plan.md's updated continuation seam.

@@ -38,11 +38,14 @@ test("the Allocator publishes the complete named runtime-action schedule from ba
     source: "allocator_runtime_action_price_v1",
     default: base.actionBudget.action_default,
     wait: base.actionBudget.action_wait,
-    attack: base.actionBudget.action_attack,
+    equipAffinity: base.actionBudget.action_default,
+    take: base.actionBudget.action_default,
     castAffinity: base.actionBudget.action_cast_affinity,
     requestSolver: base.actionBudget.action_request_solver,
     move: base.actionBudget.action_move,
   });
+
+  assert.equal(Object.hasOwn(base.actionBudget, "action_attack"), false);
 
   // The numbers must not be restated in core.
   const coreSrc = readFileSync(
@@ -114,6 +117,23 @@ test("malformed cost input is ignored rather than zeroing the ledger", async () 
   assert.deepEqual(applyActionBudgetCosts(core, null), []);
   assert.deepEqual(applyActionBudgetCosts(core, { default: -5 }), []);
   assert.deepEqual(applyActionBudgetCosts({}, { default: 1 }), [], "core without the setter");
+});
+
+test("equip and take receipts charge only accepted actions at the default rate", async () => {
+  const { createAllocatorPersona } = await import(ALLOCATOR);
+  const allocator = createAllocatorPersona({ clock: () => "2026-09-10T00:00:00.000Z" });
+  const rate = allocator.pricing.runtimeActionCosts().default;
+  const receipt = allocator.issueRuntimeBudgetReceipt({
+    meta: { id: "unified-action-receipt", createdAt: "2026-09-10T00:00:00.000Z" },
+    outcomes: [
+      { actorId: "actor", tick: 1, actionKind: "equip_affinity", outcome: "accepted" },
+      { actorId: "actor", tick: 1, actionKind: "take", outcome: "rejected", reason: "action consumed" },
+      { actorId: "actor", tick: 2, actionKind: "take", outcome: "accepted" },
+      { actorId: "other", tick: 2, actionKind: "take", outcome: "rejected", reason: "already claimed" },
+    ],
+  });
+  assert.deepEqual(receipt.rows.map(row => row.units), [rate, 0, rate, 0]);
+  assert.equal(receipt.enforcement, "descriptive");
 });
 
 // ## TODO: Test Permutations

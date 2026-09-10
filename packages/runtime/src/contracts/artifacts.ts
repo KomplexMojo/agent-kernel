@@ -17,7 +17,7 @@
  */
 
 import type {
-  ActorRecord, ActorPosition, ActorAffinityKey, AffinityKind, AffinityExpression,
+  ActorAction, ActorRecord, ActorPosition, ActorAffinityKey, AffinityKind, AffinityExpression,
   ActorVitalRecord as VitalRecordV1, ActorVitalGrant as ResourceVitalGrant,
   ActorHoldingPermanence as ResourcePermanenceMode,
 } from "../../../core-ts/src/state/actor-types.ts";
@@ -1832,13 +1832,7 @@ export interface ActionEnvelopeV1 {
  * Core resolves the equipped pair and its stacks; callers cannot invent potency.
  * Envelope selectors stay unchanged by explicit maintainer instruction.
  */
-export type ActionV1 = ActionEnvelopeV1 & (
-  | { kind: "wait"; params?: never }
-  | { kind: "move"; params: { target: ActorPosition } }
-  | { kind: "cast_affinity"; params: { targetId: string } }
-  | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey } }
-  | { kind: "take"; params: { targetId: string; holdingId: string } }
-);
+export type ActionV1 = ActionEnvelopeV1 & ActorAction;
 
 /**
  * Observation derived from simulation state for a specific actor.

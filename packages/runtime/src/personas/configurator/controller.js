@@ -61,6 +61,7 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     // configurator/actors (2026-08-18) — a build/run request's delver roster entry.
     authorDelverCandidate: services.authorDelverCandidate,
     normalizeMotivations: services.normalizeMotivations,
+    normalizeActorDefinition: services.normalizeActorDefinition,
     // CR.7 / WP-5 — the BUILD-PLANE helpers. `orchestrate-build.js`, `kernel.js` and
     // `mixed-room-summary.js` imported these seven modules directly and were 11 allowlist rows.
     // Ungated, like `deriveRoomLayout` above: pure functions of their arguments that stamp no
@@ -73,6 +74,7 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     resolveAffinityRules: services.resolveAffinityRules,
     // AM.5 — the authored per-cast mana price, needed on the tick plane.
     resolveAffinityManaCost: services.resolveAffinityManaCost,
+    resolveActorTurnCosts: services.resolveActorTurnCosts,
     buildAmbientAffinityPressure: services.buildAmbientAffinityPressure,
     computeInternalManaUpkeep: services.computeInternalManaUpkeep,
     // RB2.1 — room-profile assignment and affinity-hazard synthesis are Configurator policy.
