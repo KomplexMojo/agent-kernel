@@ -1211,7 +1211,10 @@ export function createCommandKernel(host = {}) {
       affinitySummary = {
         schema: SCHEMAS.affinitySummary,
         schemaVersion: 1,
-        meta: createMeta({ producedBy: "cli-run", runId }),
+        // #150 — same wall-clock non-determinism #149 fixed for action-log/run-summary/world-state;
+        // confirmed here via a two-run diff (see the fix commit) since no test previously exercised
+        // this artifact at all, wantsAffinitySummary being a rarer flag combination.
+        meta: deterministicRunArtifactMeta("affinitysummary", "cli-run"),
         presetsRef: toRef(affinityPresets),
         loadoutsRef: toRef(affinityLoadouts),
         simConfigRef: toRef(simConfig),
