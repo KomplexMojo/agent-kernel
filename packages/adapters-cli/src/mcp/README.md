@@ -7,7 +7,7 @@
 - Server name: `agent-kernel-cli`
 - Server version: `1.0.0`
 - Transport: stdio
-- Tool count: `27`
+- Tool count: `49`
 - Tool source: `packages/adapters-cli/src/mcp/tools/*.mjs`
 
 The server is a thin adapter over the CLI command surface in `packages/adapters-cli/src/cli/ak-impl.mjs`. Each MCP tool maps to one CLI command, translates JSON input into CLI flags, executes the command, and returns structured JSON back to the client.
@@ -40,11 +40,14 @@ Use the CLI directly when you want:
 
 | Workflow | MCP tools | Typical result |
 | --- | --- | --- |
-| Author content | `ak_create`, `ak_configure`, `ak_room_plan`, `ak_delver_plan`, `ak_warden_plan` | BuildSpec, bundle, manifest, runtime inputs |
+| Author content | `ak_create`, `ak_configure`, `ak_room_plan`, `ak_delver_plan`, `ak_warden_plan`, `ak_hazard_plan`, `ak_resource_plan` | BuildSpec, bundle, manifest, runtime inputs |
 | Build and execute | `ak_build`, `ak_configurator`, `ak_run`, `ak_replay`, `ak_budget`, `ak_scenario` | Run artifacts, TickFrames, budget receipts |
 | Inspect outputs | `ak_show`, `ak_diff`, `ak_runs_list`, `ak_inspect`, `ak_narrate`, `ak_schemas` | Summaries, schema catalog, narrative output |
 | LLM planning | `ak_llm`, `ak_ollama`, `ak_llm_plan` | Captured LLM responses and generated artifacts |
 | External adapters | `ak_ipfs`, `ak_ipfs_publish`, `ak_ipfs_load`, `ak_blockchain`, `ak_blockchain_mint`, `ak_blockchain_load` | Adapter response artifacts |
+| Sandbox / interactive | `ak_sandbox_create`, `ak_sandbox_place`, `ak_sandbox_move`, `ak_push_to_ui`, `ak_show_state`, `ak_tick_forward`, `ak_tick_backward` | Sandbox session, action sequence, tick/ASCII/image state |
+| Test authoring | `ak_test_list_suites`, `ak_test_discover_patterns`, `ak_test_plan_from_change`, `ak_test_run`, `ak_test_scaffold_case`, `ak_test_insert_case`, `ak_test_explain_failure`, `ak_test_lint_structure` | Inventory summaries, scaffolded test files, run results |
+| Workflow | `ak_workflow_run`, `ak_workflow_status`, `ak_workflow_replay`, `ak_workflow_cancel`, `ak_workflow_validate` | Durable AdaptiveWorkflowAgent run state |
 
 The most common agent loop is: `ak_create` or `ak_llm_plan` -> `ak_run` -> `ak_show`/`ak_inspect` -> `ak_narrate` or `ak_diff`.
 
@@ -134,7 +137,7 @@ Expected output shape:
     "name": "agent-kernel-cli",
     "version": "1.0.0"
   },
-  "toolCount": 27,
+  "toolCount": 49,
   "firstTools": [
     "ak_create",
     "ak_configure",
@@ -236,6 +239,8 @@ The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollam
 | ak_room_plan | Authoring | Build a room-only authoring plan. | room[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_delver_plan | Authoring | Build a delver-only authoring plan. | delver[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_warden_plan | Authoring | Build a warden-only authoring plan. | warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
+| ak_hazard_plan | Authoring | Build a hazard-only authoring plan. | hazard[], goal, dungeonAffinity, budgetTokens, budget, priceList |
+| ak_resource_plan | Authoring | Build a resource-only authoring plan. | resource[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_build | Simulation | Build artifacts from a build spec. | spec |
 | ak_solve | Simulation | Solve a scenario into runnable artifacts. | scenario, plan, intent, options |
 | ak_run | Simulation | Run a simulation from artifacts or from an existing run. | simConfig, initialState, fromRun, executionPolicy, ticks, seed, actor[], vital[], vitalDefault[], tileWall[], tileBarrier[], tileFloor[], actions, affinityPresets, affinityLoadouts, affinitySummary, progress, dryRun |
@@ -258,6 +263,26 @@ The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollam
 | ak_blockchain | External Adapters | Inspect blockchain adapter state. | rpcUrl, address, fixtureChainId, fixtureBalance, out, outDir |
 | ak_blockchain_mint | External Adapters | Mint a card through the blockchain adapter. | rpcUrl, card, owner, contract, tokenId, fixtureChainId, fixtureMint, out, outDir |
 | ak_blockchain_load | External Adapters | Load a minted card through the blockchain adapter. | rpcUrl, tokenId, owner, contract, fixtureChainId, fixtureLoad, out, outDir |
+| ak_sandbox_create | Sandbox / Interactive | Create a standalone Phaser sandbox session with budget enforcement. | budgetReceipt, budget, width, height, entityCategories |
+| ak_sandbox_place | Sandbox / Interactive | Place and configure an entity in an existing sandbox session. | session, entityType, spec |
+| ak_sandbox_move | Sandbox / Interactive | Compose a single-tile move for an actor in a sandbox session. | session, actorId, direction, actionsOut |
+| ak_push_to_ui | Sandbox / Interactive | Deliver a compiled GameplayBundle to the connected browser UI over the sandbox bridge. | outDir, bundlePath, bundle, targetTab, requireClient, openBrowser, correlationId |
+| ak_show_state | Sandbox / Interactive | Show current dungeon state for a run at the session cursor tick. | runId, visualization |
+| ak_tick_forward | Sandbox / Interactive | Advance the interactive session cursor forward by one tick. | runId, visualization |
+| ak_tick_backward | Sandbox / Interactive | Rewind the interactive session cursor back by one tick. | runId, visualization |
+| ak_test_list_suites | Test Authoring | List discovered test suites and current runner ownership. | none |
+| ak_test_discover_patterns | Test Authoring | Discover repo test recipes and matching files, optionally filtered. | runner, suite, recipe |
+| ak_test_plan_from_change | Test Authoring | Recommend runner scopes from changed paths. | paths[] |
+| ak_test_run | Test Authoring | Run the test harness inventory, Vitest, legacy, or combined matrix scripts. | mode, args[] |
+| ak_test_scaffold_case | Test Authoring | Scaffold a new test file from a limited structured recipe set. | recipe, targetFile, title, (recipe-specific fields) |
+| ak_test_insert_case | Test Authoring | Append a scaffolded case to an existing test file. | recipe, targetFile, title, (recipe-specific fields) |
+| ak_test_explain_failure | Test Authoring | Classify a test failure from runner output into migration-focused categories. | text |
+| ak_test_lint_structure | Test Authoring | Report structural migration gaps: uncategorized recipes and codemod exceptions. | none |
+| ak_workflow_run | Workflow | Run AdaptiveWorkflowAgent through the controlled CLI adapter. | input or objective, policy, runtimeProfile, model, maxModelAttempts |
+| ak_workflow_status | Workflow | Read durable workflow status. | outDir or runId |
+| ak_workflow_replay | Workflow | Replay a workflow run from recorded model content without live IO. | outDir or runId |
+| ak_workflow_cancel | Workflow | Request cancellation through durable workflow state. | outDir or runId, reason |
+| ak_workflow_validate | Workflow | Validate workflow input without model or execution calls. | input or objective, policy, runtimeProfile, model, maxModelAttempts |
 
 ## Tool Groups
 
@@ -288,11 +313,14 @@ Schema:
 | room | string[] | no | Room authoring specs |
 | floorTile | string[] | no | Floor tile specs |
 | hazard | string[] | no | Hazard specs |
+| resource | string[] | no | Resource specs |
 | delver | string[] | no | Delver specs |
 | warden | string[] | no | Warden specs |
 | goal | string | no | Goal text override |
 | dungeonAffinity | string | no | Dungeon affinity override |
 | budgetTokens | integer | no | Minimum 1 |
+| dungeonBudgetTokens | integer | no | Separate hard cap for dungeon-side authored objects, minimum 1 |
+| delverBudgetTokens | integer | no | Separate hard cap for delver-side authored objects, minimum 1 |
 | budget | string | no | Budget artifact path |
 | priceList | string | no | Price list artifact path |
 | emitIntermediates | boolean | no | Persist non-canonical sidecar artifacts |
@@ -342,11 +370,14 @@ Schema:
 | room | string[] | no |
 | floorTile | string[] | no |
 | hazard | string[] | no |
+| resource | string[] | no |
 | delver | string[] | no |
 | warden | string[] | no |
 | goal | string | no |
 | dungeonAffinity | string | no |
 | budgetTokens | integer | no |
+| dungeonBudgetTokens | integer | no |
+| delverBudgetTokens | integer | no |
 | budget | string | no |
 | priceList | string | no |
 | outDir | string | no |
@@ -516,6 +547,98 @@ Expected output shape:
     "spec": "/tmp/agent-kernel/warden-plan/spec.json",
     "plan": "/tmp/agent-kernel/warden-plan/plan.json",
     "manifest": "/tmp/agent-kernel/warden-plan/manifest.json"
+  }
+}
+```
+
+#### `ak_hazard_plan`
+
+Hazard-only authoring flow.
+
+Schema:
+
+| Parameter | Type | Required |
+| --- | --- | --- |
+| hazard | string[] | yes |
+| goal | string | no |
+| dungeonAffinity | string | no |
+| budgetTokens | integer | no |
+| budget | string | no |
+| priceList | string | no |
+| outDir | string | no |
+| runId | string | no |
+| createdAt | string | no |
+
+Example call:
+
+```json
+{
+  "hazard": [
+    "x=2;y=3;affinity=fire;stacks=1"
+  ],
+  "runId": "run_hazard_plan",
+  "outDir": "/tmp/agent-kernel/hazard-plan"
+}
+```
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "hazard-plan",
+  "runId": "run_hazard_plan",
+  "outDir": "/tmp/agent-kernel/hazard-plan",
+  "artifactPaths": {
+    "spec": "/tmp/agent-kernel/hazard-plan/spec.json",
+    "plan": "/tmp/agent-kernel/hazard-plan/plan.json",
+    "manifest": "/tmp/agent-kernel/hazard-plan/manifest.json"
+  }
+}
+```
+
+#### `ak_resource_plan`
+
+Resource-only authoring flow.
+
+Schema:
+
+| Parameter | Type | Required |
+| --- | --- | --- |
+| resource | string[] | yes |
+| goal | string | no |
+| dungeonAffinity | string | no |
+| budgetTokens | integer | no |
+| budget | string | no |
+| priceList | string | no |
+| outDir | string | no |
+| runId | string | no |
+| createdAt | string | no |
+
+Example call:
+
+```json
+{
+  "resource": [
+    "id=res_mana;tier=1;stat=mana;delta=5;dropRate=0.5"
+  ],
+  "runId": "run_resource_plan",
+  "outDir": "/tmp/agent-kernel/resource-plan"
+}
+```
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "resource-plan",
+  "runId": "run_resource_plan",
+  "outDir": "/tmp/agent-kernel/resource-plan",
+  "artifactPaths": {
+    "spec": "/tmp/agent-kernel/resource-plan/spec.json",
+    "plan": "/tmp/agent-kernel/resource-plan/plan.json",
+    "manifest": "/tmp/agent-kernel/resource-plan/manifest.json"
   }
 }
 ```
@@ -1420,6 +1543,461 @@ Expected output shape:
   "artifactPaths": {
     "response": "/tmp/agent-kernel/blockchain-load/blockchain-load.json"
   }
+}
+```
+
+### Sandbox / Interactive
+
+Purpose: drive the interactive Phaser sandbox (session creation, entity placement, actor movement, pushing a compiled bundle to a connected browser UI) and step/inspect a run's tick cursor for a live harness session.
+
+#### `ak_sandbox_create`
+
+Creates a standalone sandbox session with budget enforcement. Requires `budgetReceipt` or `budget`. Returns `ok: false` with `budgetInsufficient: true` if the budget is denied or zero-token.
+
+Schema:
+
+| Parameter | Type | Required | Notes |
+| --- | --- | --- | --- |
+| budgetReceipt | string | no | BudgetReceiptArtifact path (preferred when a receipt already exists) |
+| budget | string | no | BudgetArtifact path (alternative to budgetReceipt) |
+| width | integer | no | Default room width in tiles (default 10) |
+| height | integer | no | Default room height in tiles (default 10) |
+| entityCategories | string[] | no | Allowed: delver, warden, hazard, resource |
+| outDir | string | no | Output directory override |
+| runId | string | no | Run id override |
+| createdAt | string | no | ISO-8601 timestamp |
+
+Example call:
+
+```json
+{
+  "budget": "tests/fixtures/artifacts/budget-artifact-v1-basic.json",
+  "width": 10,
+  "height": 10,
+  "outDir": "/tmp/agent-kernel/sandbox"
+}
+```
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "sandbox-create",
+  "runId": "run_xxx",
+  "outDir": "/tmp/agent-kernel/sandbox",
+  "artifactPaths": {
+    "session": "/tmp/agent-kernel/sandbox/sandbox-session.json"
+  }
+}
+```
+
+#### `ak_sandbox_place`
+
+Places and configures an entity in an existing sandbox session. Returns `ok: false` with `outOfBounds: true` when the position exceeds room dimensions.
+
+Schema:
+
+| Parameter | Type | Required | Notes |
+| --- | --- | --- | --- |
+| session | string | yes | Path to the sandbox-session.json file created by `ak_sandbox_create` |
+| entityType | string | yes | One of delver, warden, hazard, resource |
+| spec | string | yes | Semicolon-delimited key=value spec; required fields id, x, y, plus entity-specific fields |
+
+Example call:
+
+```json
+{
+  "session": "/tmp/agent-kernel/sandbox/sandbox-session.json",
+  "entityType": "delver",
+  "spec": "id=delver_1;x=1;y=1;affinity=water;motivation=exploring"
+}
+```
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "sandbox-place",
+  "session": "/tmp/agent-kernel/sandbox/sandbox-session.json",
+  "entityType": "delver",
+  "entityId": "delver_1"
+}
+```
+
+#### `ak_sandbox_move`
+
+Composes a single-tile move for an actor and appends it to the ActionSequence at `actionsOut` (created if absent). Returns `ok: false` with `blockedByWall: true`, `actorNotFound: true`, or `outOfBounds: true` for the corresponding failure.
+
+Schema:
+
+| Parameter | Type | Required | Notes |
+| --- | --- | --- | --- |
+| session | string | yes | Path to the sandbox-session.json file |
+| actorId | string | yes | Must match an actor id in the session's InitialState |
+| direction | string | yes | One of north, northeast, east, southeast, south, southwest, west, northwest |
+| actionsOut | string | yes | ActionSequence JSON output path |
+
+Example call:
+
+```json
+{
+  "session": "/tmp/agent-kernel/sandbox/sandbox-session.json",
+  "actorId": "delver_1",
+  "direction": "east",
+  "actionsOut": "/tmp/agent-kernel/sandbox/actions.json"
+}
+```
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "sandbox-move",
+  "actorId": "delver_1",
+  "direction": "east",
+  "actionsOut": "/tmp/agent-kernel/sandbox/actions.json"
+}
+```
+
+#### `ak_push_to_ui`
+
+Delivers a compiled `agent-kernel/GameplayBundle` (produced by `ak_create` + `ak_run`) to the connected browser UI over the sandbox WebSocket bridge. Accepts an explicit `bundlePath`, an `outDir` containing `bundle.json`, or an inline `bundle` object. Returns `ok: false` with `bundleNotFound: true`, `SANDBOX_UI_NOT_CONNECTED`, or `SANDBOX_BRIDGE_START_FAILED` for the corresponding failure.
+
+> The bridge is a raw WebSocket port opened directly by the MCP server process and requires the browser loading the UI to reach that same port on the same machine. If the MCP server runs in a different network namespace than the calling harness's own browser/preview surface, prefer `ak_show_state` / `ak_tick_forward` / `ak_tick_backward` with a `visualization` mode instead — those return state over the MCP response itself, with no second network hop.
+
+Schema:
+
+| Parameter | Type | Required | Notes |
+| --- | --- | --- | --- |
+| outDir | string | no | Run or create outDir containing bundle.json |
+| bundlePath | string | no | Explicit path to a GameplayBundle JSON file |
+| bundle | object | no | Inline GameplayBundle object; takes precedence over bundlePath/outDir |
+| targetTab | string | no | design or gameplay; defaults to gameplay |
+| requireClient | boolean | no | Fail immediately if no browser UI is connected; default true |
+| openBrowser | boolean | no | Serve the UI and open it in the default browser, pre-staging the bundle; implies requireClient: false |
+| correlationId | string | no | Caller-supplied correlation ID echoed back in the result |
+
+Example call:
+
+```json
+{
+  "outDir": "/tmp/agent-kernel/run",
+  "targetTab": "gameplay"
+}
+```
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "push-to-ui",
+  "targetTab": "gameplay",
+  "delivered": true
+}
+```
+
+#### `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`
+
+Step and inspect a run's interactive tick cursor. `ak_tick_forward`/`ak_tick_backward` return `ok: false` with an error message when already at `maxTick`/tick 0. All three accept an optional `visualization` mode: `ascii` returns layered ASCII detail with actor details; `image` returns a PNG data URI.
+
+Schema:
+
+| Parameter | Type | Required | Notes |
+| --- | --- | --- | --- |
+| runId | string | yes | Run ID to inspect or advance/rewind the session cursor for |
+| visualization | string | no | ascii or image |
+
+Example call:
+
+```json
+{
+  "runId": "run_123",
+  "visualization": "ascii"
+}
+```
+
+Expected output shape (`ak_show_state`):
+
+```json
+{
+  "ok": true,
+  "command": "tick",
+  "action": "state",
+  "runId": "run_123",
+  "tick": 2,
+  "maxTick": 4,
+  "ascii": "...",
+  "tickFrame": {}
+}
+```
+
+### Test Authoring
+
+Purpose: inventory, discover, scaffold, run, and lint the repo's structured test recipes (see `AGENTS.md` and `tests/README.md`). Reach for these instead of hand-writing test files — the `structured-test-authoring` skill covers the workflow.
+
+#### `ak_test_list_suites`
+
+Lists discovered test suites and current runner ownership from the inventory report. No input parameters.
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "inventoryPath": "local-codex/test-inventory.json",
+  "classificationPath": "local-codex/test-classification.json",
+  "summary": {},
+  "recipes": [],
+  "scaffoldableRecipes": ["cli_success_artifacts", "cli_failure_message"]
+}
+```
+
+#### `ak_test_discover_patterns`
+
+Discovers repo test recipes and matching files, optionally filtered.
+
+Schema:
+
+| Parameter | Type | Required |
+| --- | --- | --- |
+| runner | string | no |
+| suite | string | no |
+| recipe | string | no |
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "count": 12,
+  "files": [],
+  "recipes": []
+}
+```
+
+#### `ak_test_plan_from_change`
+
+Recommends runner scopes from changed repository-relative paths.
+
+Schema:
+
+| Parameter | Type | Required |
+| --- | --- | --- |
+| paths | string[] | yes |
+
+Example call:
+
+```json
+{
+  "paths": ["packages/runtime/src/personas/allocator/state-machine.js"]
+}
+```
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "runners": ["vitest"],
+  "suites": ["runtime"]
+}
+```
+
+#### `ak_test_run`
+
+Runs the test harness inventory, Vitest, legacy, or combined matrix scripts.
+
+Schema:
+
+| Parameter | Type | Required | Notes |
+| --- | --- | --- | --- |
+| mode | string | yes | One of inventory, classify, coverage, recipe-adoption, parity, vitest, legacy, all |
+| args | string[] | no | Additional args passed to the selected runner script |
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "mode": "vitest",
+  "status": 0,
+  "stdout": "...",
+  "stderr": ""
+}
+```
+
+#### `ak_test_scaffold_case` / `ak_test_insert_case`
+
+Scaffold a new test file, or append a scaffolded case to an existing one, from a limited structured recipe set. `recipe`, `targetFile`, and `title` are always required; every other field is recipe-specific (e.g. `commandArgs`/`expectedArtifacts` for `cli_success_artifacts`, `modulePath`/`exportName`/`inputJson` for `budget_policy_invariant`) — see `packages/adapters-cli/src/mcp/tools/testing.mjs` for the full per-recipe field list, or call `ak_test_list_suites` for the current `scaffoldableRecipes`.
+
+Example call:
+
+```json
+{
+  "recipe": "cli_success_artifacts",
+  "targetFile": "tests/adapters-cli/example-new-case.test.js",
+  "title": "ak_create writes the canonical artifact set",
+  "commandArgs": ["create", "--text", "Create one fire delver.", "--dry-run"],
+  "expectedArtifacts": ["spec.json"]
+}
+```
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "targetFile": "tests/adapters-cli/example-new-case.test.js",
+  "recipe": "cli_success_artifacts"
+}
+```
+
+#### `ak_test_explain_failure`
+
+Classifies a test failure from runner output into a small set of migration-focused categories.
+
+Schema:
+
+| Parameter | Type | Required |
+| --- | --- | --- |
+| text | string | yes |
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "explanation": {
+    "kind": "unknown",
+    "summary": "Failure did not match a built-in classifier."
+  }
+}
+```
+
+#### `ak_test_lint_structure`
+
+Reports structural migration gaps: uncategorized recipes and codemod exceptions. No input parameters.
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "uncategorizedCount": 0,
+  "uncategorized": [],
+  "codemodExceptionCount": 0,
+  "codemodExceptions": [],
+  "recipeAdoption": {},
+  "scaffoldableRecipes": []
+}
+```
+
+### Workflow
+
+Purpose: run and manage `AdaptiveWorkflowAgent` through the controlled CLI adapter, and read/replay/cancel its durable run state. Every `ak_workflow_*` tool maps to the `workflow <action>` CLI command; `status`/`replay`/`cancel` require either `outDir` or `runId` (a remembered workflow run id resolves to its outDir automatically).
+
+#### `ak_workflow_run`
+
+Runs `AdaptiveWorkflowAgent`. Requires exactly one of `input` or `objective`.
+
+Schema:
+
+| Parameter | Type | Required | Notes |
+| --- | --- | --- | --- |
+| input | string | one of input/objective | AdaptiveWorkflowCliRunInput fixture path |
+| objective | string | one of input/objective | Workflow objective |
+| policy | string | no | Strategy policy path |
+| runtimeProfile | string | no | Runtime profile path |
+| model | string | no | Model override |
+| maxModelAttempts | integer | no | Bounded model attempts, minimum 1 |
+| outDir | string | no | Durable run directory; MCP temp storage used when omitted |
+| runId | string | no | Run id |
+| createdAt | string | no | ISO-8601 timestamp |
+
+Example call:
+
+```json
+{
+  "objective": "Plan a small fire dungeon.",
+  "outDir": "/tmp/agent-kernel/workflow"
+}
+```
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "workflow",
+  "action": "run",
+  "runId": "run_xxx",
+  "outDir": "/tmp/agent-kernel/workflow"
+}
+```
+
+#### `ak_workflow_status` / `ak_workflow_replay`
+
+Read durable workflow status, or replay a run from recorded model content without live IO. Requires `outDir` or `runId`.
+
+Schema:
+
+| Parameter | Type | Required |
+| --- | --- | --- |
+| outDir | string | one of outDir/runId |
+| runId | string | one of outDir/runId |
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "workflow",
+  "action": "status",
+  "outDir": "/tmp/agent-kernel/workflow",
+  "status": "completed"
+}
+```
+
+#### `ak_workflow_cancel`
+
+Requests cancellation through durable workflow state. Requires `outDir` or `runId`.
+
+Schema:
+
+| Parameter | Type | Required |
+| --- | --- | --- |
+| outDir | string | one of outDir/runId |
+| runId | string | one of outDir/runId |
+| reason | string | no |
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "workflow",
+  "action": "cancel",
+  "outDir": "/tmp/agent-kernel/workflow",
+  "cancelled": true
+}
+```
+
+#### `ak_workflow_validate`
+
+Validates workflow input without making model or execution calls. Same schema as `ak_workflow_run`.
+
+Expected output shape:
+
+```json
+{
+  "ok": true,
+  "command": "workflow",
+  "action": "validate",
+  "valid": true
 }
 ```
 
