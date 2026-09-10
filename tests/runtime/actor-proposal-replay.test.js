@@ -1,3 +1,6 @@
+// #158 triage: stays here (not tests/personas/actor/) — it asserts on how the RUNTIME maps actor
+// proposals to core-ts actions and replays them deterministically, not on the Actor persona's own
+// proposal-generation logic in isolation. Runtime-to-core orchestration, not persona-alone behavior.
 const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
