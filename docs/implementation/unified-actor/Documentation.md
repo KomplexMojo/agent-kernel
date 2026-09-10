@@ -283,3 +283,25 @@ Work remains uncommitted on codex/unified-actor at published HEAD de2a9325.
 No original or benchmark worktree was modified. Completion is not claimed:
 production still uses the legacy engine; normalized artifact/startup replacement,
 remaining core mechanics, persona migration, pricing and UI/CLI/MCP still pending.
+
+### September 10 — requested commit and UA.8c continuation
+Committed the previously verified work as 4736f9ab. No push requested/performed.
+Then added capability-driven exit progress to the common actor record and a
+once-only resolveExits phase after regeneration. The two-tick threshold is shared
+with the existing world rule. Exited actors vacate spatial queries without
+removing other occupants; records retain terminal lifecycle and dwell progress.
+JSON replay preserves both progress and phase completion. No preset dispatch.
+
+Baseline: existing advanceTick invokes regeneration followed by exit dwell; all
+six old exit tests passed. Five new tests first failed for missing implementation.
+After implementation the focused new/old/turn suites passed (20 tests). Added a
+sixth new shared-cell test and alive-at-threshold negative case. Removing exit
+occupancy release produced one failure; restored. Initial typecheck found one
+test's missing optional-vital assertion; corrected without widening types.
+All six new exit tests pass. Full-gate results recorded below when complete.
+
+UA.8c final gates: full suite 501 files, 3909 passed, 242 skipped, exit 0;
+typecheck exit 0; separate architecture suite 32 files/118 passed. Owner/core
+combined suite passed before the additional shared-cell test (41 files, 635
+passed, 1 skipped); all six exit tests and the final full suite cover that addition.
+All perturbations restored. Logs /tmp/ua-exit-{full,types-final,architecture-final}.log.

@@ -12,6 +12,7 @@ export interface ActorTurnSnapshot {
   closed: boolean;
   fieldsResolved: boolean;
   regenerated: boolean;
+  exitsResolved: boolean;
   suppressions: ActorEffectSuppression[];
 }
 export interface ActorTurnCosts { castMana: ActorCastManaCosts; movementStamina: Record<string, number> }
@@ -31,9 +32,10 @@ export function createActorTurn(
     || Object.values(costs.castMana).some(prices => !Array.isArray(prices) || prices.length !== 5
       || [...prices].some(price => !Number.isSafeInteger(price) || price < 0))) throw new Error('invalid action costs');
   const prices = copy(costs);
-  const state = saved ? copy(saved) : { tick, acceptedActorIds: [], closed: false, fieldsResolved: false, regenerated: false, suppressions: [] };
+  const state = saved ? copy(saved) : { tick, acceptedActorIds: [], closed: false, fieldsResolved: false, regenerated: false, exitsResolved: false, suppressions: [] };
   if (state.tick !== tick || typeof state.closed !== 'boolean'
     || typeof state.fieldsResolved !== 'boolean' || typeof state.regenerated !== 'boolean'
+    || typeof state.exitsResolved !== 'boolean' || state.exitsResolved && !state.regenerated
     || state.fieldsResolved && !state.closed || state.regenerated && !state.fieldsResolved || !Array.isArray(state.acceptedActorIds)
     || new Set(state.acceptedActorIds).size !== state.acceptedActorIds.length
     || state.acceptedActorIds.some(id => typeof id !== 'string' || !registry.getActor(id))
@@ -107,6 +109,12 @@ export function createActorTurn(
     regenerate(): boolean {
       if (!state.fieldsResolved || state.regenerated) return false;
       registry.regenerate(); state.regenerated = true; return true;
+    },
+    resolveExits(): string[] | null {
+      if (!state.regenerated || state.exitsResolved) return null;
+      const exited = registry.advanceExitDwell();
+      state.exitsResolved = true;
+      return exited;
     },
     snapshot(): ActorTurnSnapshot { return copy({ ...state, acceptedActorIds: [...state.acceptedActorIds].sort() }); },
   };

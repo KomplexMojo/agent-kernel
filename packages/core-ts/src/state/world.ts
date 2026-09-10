@@ -1,3 +1,4 @@
+import { EXIT_DWELL_TICKS } from "../rules/actor-exit.ts";
 // World state — grid, tiles, actors, motivated actors, hazards, resources, affinity field.
 // Ported from packages/core-ts/src/state/world.ts (1618 lines).
 // No IO, no imports outside core-ts.
@@ -24,7 +25,7 @@ import { VitalKind } from "./vitals.ts";
  * Exit/Spawn tiles themselves are wall portals (non-walkable); dwell is measured on the
  * single interior floor cell adjacent to the exit portal.
  */
-export const EXIT_DWELL_TICKS = 2;
+export { EXIT_DWELL_TICKS } from "../rules/actor-exit.ts";
 
 export const Tile = {
   Wall: 0,

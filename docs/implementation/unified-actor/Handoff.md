@@ -3,15 +3,17 @@
 ## Start here
 
 Repository: `KomplexMojo/agent-kernel`. Continue the existing isolated worktree on
-`codex/unified-actor`, including its uncommitted implementation. Do not reset to
+`codex/unified-actor`, preserving its local commits and any working changes. Do not reset to
 main or the published handoff checkpoint: neither contains the current local work.
 The original rewrite base was `9a9168f8c63b07b1e9e789daa598a6edaa061cbd`.
 
 **Current local status (2026-09-10): UA.1–UA.3 complete; routing, exposure,
 passive projection, inventory, claims, movement, focused casting, turn windows
 and Configurator preset normalization implemented.**
-The published de2a932 checkpoint still contains only UA.1/UA.2. Later work is
-uncommitted in the existing isolated worktree; the maintainer did not move to cloud.
+The published de2a932 checkpoint still contains only UA.1/UA.2. Local commit
+4736f9ab contains the subsequent mechanics/authoring work. The maintainer did not
+move to cloud. Continue from the local branch tip, which also includes later
+exit-dwell work; no push was requested this continuation.
 Read Plan.md's next implementation seam and Documentation.md's latest evidence.
 The maintainer authorized continuing across bounded milestones until completion
 or token exhaustion, superseding the old one-milestone stopping limit.
@@ -51,7 +53,7 @@ the cloud checkout by the existing script.
 
 ## Resume locally
 
-Continue in the existing codex/unified-actor worktree with its uncommitted changes.
+Continue in the existing codex/unified-actor worktree from its local branch tip.
 Do not reset to the old published checkpoint or start again from main. The next
 seam is Configurator artifact assembly and single-list startup, then core/runner
 replacement and remaining persona/adapter/UI migration. Read the exact continuation notes
@@ -69,12 +71,13 @@ red/green/perturbation evidence are in Documentation.md.
 
 ## Latest local verification — September 10
 
-Full suite: 500 files passed, 3903 tests passed, 242 skipped, zero failures.
+Full suite: 501 files passed, 3909 tests passed, 242 skipped, zero failures.
 Typecheck passed. Separate architecture suite: 32 files and 118 assertions passed.
 Separate core suite: 34 files, 612 passed, 1 skipped.
 Latest additions: authored turn-cost assembly, file-backed invalid actor artifacts,
 Configurator-to-core component acceptance/replay, and Allocator equip/take schedule.
 The named attack charge is removed; legacy attack execution remains pending.
+Capability-driven exit dwell and once-only exit phase now pass their six tests.
 All perturbations restored; no guard baseline widened. These results cover the
-current uncommitted worktree, not the older published checkpoint. The production
+local implementation, not the older published checkpoint. The production
 engine migration remains incomplete; use Plan.md's updated continuation seam.

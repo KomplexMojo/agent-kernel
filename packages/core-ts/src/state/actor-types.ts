@@ -62,6 +62,8 @@ export interface ActorRecordBase {
   alignment: ActorAlignment;
   position: ActorPosition;
   lifecycle: ActorLifecycle;
+  /** Consecutive completed ticks on exit terrain; omitted means zero. */
+  exitDwell?: number;
   capabilities: ActorCapabilities;
   motivations: string[];
   affinities: ActorAffinityEntry[];

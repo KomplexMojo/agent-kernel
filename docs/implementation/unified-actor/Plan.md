@@ -6,7 +6,7 @@ Approved behavior is fully recorded in Prompt.md; no access to the original conv
 UA.7a and UA.8a are implemented and verified in the local working tree. The
 published checkpoint de2a932 contains only UA.1/UA.2. Focused casting and serializable one-action windows (UA.5b2a/UA.6b0–2), plus
 Configurator preset normalization (UA.9a), are now implemented locally. Public core
-replacement, area cast actions, exit dwell, producer migration and milestones
+replacement, area cast actions, producer migration and milestones
 9b–20 remain pending. Do not
 report component tests as proof of runtime integration.
 
@@ -43,8 +43,8 @@ Validation: new compiler-backed fixture test red before declarations, green afte
 Fire/earth 5 vs durability 3, health 10 => 0/8. Water/decay => 3/5. Corrode => 0/10. Life drain kills through durability and transfers actual removal. Defeat is terminal. Equip preserves mana and allows no second action. Finite field absorption. Stack-8 source grants one stack per pair once. Mobile resource/motivated barrier use common rules. Label-only changes do not affect behavior/price. Equal alignment allies regardless of preset. Composed motivation/equipment choices deterministic with no tie-switch churn. CLI/MCP/UI normalization equivalent. Core snapshots and tick frames replay identically.
 
 ## Next implementation seam (updated September 10)
-Continue in this worktree with its uncommitted changes, never from the old remote
-checkpoint. Read rules/actor-turn.ts and its tests, plus Configurator's public
+Continue in this worktree at local checkpoint 4736f9ab plus its later changes,
+never from the old remote checkpoint. Read rules/actor-turn.ts and its tests, plus Configurator's public
 normalizeActorDefinition method. Component focused casts, action exclusivity,
 field suppression and once-only field/regeneration phases now work and replay.
 They are not wired to createCore or the old Moderator/runner.
@@ -66,11 +66,12 @@ and must not substitute for the authored table.
 
 The new turn window consumes ActorAction, a common registry, cast-tier prices and
 per-ID movement stamina costs. Moderator must own tick ordering and invoke
-closeActions -> resolveFields -> regenerate once. Its snapshot (accepted IDs,
+closeActions -> resolveFields -> regenerate -> resolveExits once. Its snapshot (accepted IDs,
 phase flags and suppressions) must travel with registry state for replay. Area
 cast actions currently reject at the focused cast primitive; establish their
 single-pass integration without an extra pulse before switching production.
-Exit dwell and complete public core export removal also remain outstanding.
+Capability-driven exit dwell now works in the component turn window (UA.8c).
+Complete public core export removal and production adoption remain outstanding.
 
 File-backed InitialState fixtures now cover invalid active keys, duplicate pairs
 and defeat vitals, with a valid control (UA.1b). They exercise core record loading.
@@ -373,3 +374,23 @@ to zero; schedule and receipt assertions must fail. Run Allocator suite,
 pricing/single-origin/base-costs/receipt authority guards, typecheck and full gates.
 Stop at green action accounting. Legacy attack execution and unified spawn pricing
 remain separate pending milestones.
+
+### UA.8c — capability-driven exit dwell (M)
+Prerequisite pulled forward before runtime replacement. Owner dependency-direction,
+with shared mechanical contract extension. Targets core state/actor-types.ts,
+state/actor-registry.ts, state/world.ts, new rules/actor-exit.ts, rules/actor-turn.ts,
+new tests/core-ts/actor-exit.test.mts, contracts README and execution records.
+Expose optional actor exitDwell (omitted = zero), validate integer 0..2, and share
+existing EXIT_DWELL_TICKS constant between old world and new rule. A living canExit
+actor standing on exit terrain for two consecutive end-of-tick passes exits.
+Leaving resets progress. Defeated/exited actors do not advance. Exiting removes
+spatial occupancy but retains terminal record. No category/alignment dispatch.
+Turn resolveExits() runs once after regeneration, recording exitsResolved in its
+snapshot. Return newly exited IDs, null when phase disallows the pass. Replay
+must preserve counter and phase guard. No exit action or extra field pulse.
+Baseline trace: legacy advanceTick calls regeneration then exit dwell; six legacy
+exit-dwell tests passed, including two-tick threshold and vacated occupancy.
+Tests first: threshold, capability override, departure/reset, terminal no-revive,
+mid-turn JSON replay, duplicate pass rejection and invalid counters. Perturbation
+omits spatial removal, occupancy assertion must fail. Validate core, typecheck,
+owner architecture guards and schema origin/catalog; stop at green component.

@@ -1,3 +1,4 @@
+import { advanceActorExit, EXIT_DWELL_TICKS } from "../rules/actor-exit.ts";
 import type { ActorPosition, ActorRecord, ActorRegistrySnapshot, ActorVitalKind, ActorAffinityKey, TerrainKind } from './actor-types.ts';
 
 import { validateActorRecordVitals, changeActorVital, regenerateActor } from './actor-vitals.ts';
@@ -9,7 +10,7 @@ import { validateActorHoldings, exposeDefeatHoldings, takeActorHolding } from '.
 const TERRAIN = new Set<TerrainKind>(['wall', 'floor', 'spawn', 'exit']);
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
-  'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings',
+  'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell',
 ]);
 
 /** Reject values JSON cannot faithfully represent before taking ownership. */
@@ -62,6 +63,9 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     if (actors.has(record.id)) throw new Error(`duplicate actor id: ${record.id}`);
     if (Object.keys(record).some(key => !ACTOR_FIELDS.has(key))) throw new Error('unknown actor field');
     if (terrainBlocks(record.position)) throw new Error(`invalid actor position: ${record.id}`);
+    if (record.exitDwell !== undefined && (!Number.isSafeInteger(record.exitDwell)
+      || record.exitDwell < 0 || record.exitDwell > EXIT_DWELL_TICKS
+      || record.lifecycle === 'alive' && record.exitDwell === EXIT_DWELL_TICKS)) throw new Error('invalid exit dwell');
     const actor = copy(record);
     validateActorRecordVitals(actor);
     validateActorInventory(actor);
@@ -114,6 +118,16 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       return actual;
     },
     regenerate(): void { for (const actor of ordered) regenerateActor(actor); },
+    advanceExitDwell(): string[] {
+      const exited: string[] = [];
+      for (const actor of ordered) {
+        const cell = index(actor.position);
+        if (!advanceActorExit(actor, terrain[cell] === 'exit')) continue;
+        occupancy.set(cell, (occupancy.get(cell) ?? []).filter(other => other.id !== actor.id));
+        exited.push(actor.id);
+      }
+      return exited;
+    },
     getActor(id: string): ActorRecord | null { return copy(actors.get(id) ?? null); },
     getActorsAt(point: ActorPosition): ActorRecord[] {
       return copy(withinBounds(point) ? occupancy.get(index(point)) ?? [] : []);

@@ -95,7 +95,7 @@ from editable presets and explicit vital data, sharing core shape validators.
 It preserves all authored motivations and owned pairs.
 
 **The running pipeline has not adopted these components.** Area cast actions,
-exit dwell, public core replacement, artifact producers/consumers, pricing and
+public core replacement, artifact producers/consumers, pricing and
 UI/CLI/MCP equivalence remain outstanding. Runtime frames do not yet carry turn
 state. Existing JavaScript still runs the legacy engine; passing these component
 tests is not proof of completed gameplay migration.
@@ -104,3 +104,10 @@ The `initial-state-artifact-v1-unified` fixture supplies a file-backed valid act
 control. Invalid siblings cover unowned active equipment, duplicate pairs and an
 invalid defeat vital. Contract tests pass their actor records through the common
 registry; full envelope and transport validation remain part of loader migration.
+
+Unified actors may carry `exitDwell`, a consecutive end-of-tick counter (omitted
+means zero). A living actor with `canExit` exits after two completed ticks on exit
+terrain, independently of alignment or preset. Exiting releases occupancy and is
+terminal. Leaving the exit resets progress. The turn window's `resolveExits()`
+phase follows regeneration exactly once and snapshots `exitsResolved`; registry
+snapshots preserve actor counters. Production Moderator adoption remains pending.
