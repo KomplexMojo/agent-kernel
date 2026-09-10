@@ -1698,7 +1698,14 @@ export interface SolverRequestV1 {
 
   /**
    * Problem description to solve. Keep deterministic and fully captured here.
-   * `language: "smt2"` expects a serialized SMT-LIB string.
+   *
+   * `language: "smt2"` is declared intent, not a working route: nothing in this repo produces
+   * a `data` string in SMT-LIB syntax, and nothing consumes `language` to decide how to parse
+   * `data` (see #166). The two live problem stacks (`ConstraintProblemV1` for Allocator/
+   * Configurator, `runtime-decision-v1` for Actor) both go through `language: "custom"` with a
+   * structured `data` object. Using `"smt2"` today would require: an adapter that serializes
+   * `data` to SMT-LIB text, and a solver port implementation that shells out to (or embeds) an
+   * SMT-LIB-speaking solver and parses its output back into `SolverResultV1` -- neither exists.
    */
   problem: {
     language: "smt2" | "custom";
