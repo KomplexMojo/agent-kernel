@@ -397,3 +397,12 @@ including equipment acquired later. Omitted rules use the existing default rules
 invalid supplied rules fail. Movement stamina costs are explicit nonnegative safe
 integers keyed by actor ID. Returned tables are detached. This does not price
 Allocator tokens or choose movement costs; startup must supply the authored map.
+
+`normalizeActorRoster({ actors, dimensions, terrain })` assembles normalized
+`{ actors, presentation }` for artifact assembly. Entries use the single-actor
+preset definition above. Core validates the whole roster against terrain and
+capabilities, rejects duplicate IDs and blocking overlaps, and resolves initial
+zero-vital defeat before occupancy. Results are detached and sorted by ordinal
+actor ID; labels remain in the separate presentation map. No placement or defeat
+rule is duplicated in Configurator. Existing artifact producers have not yet
+adopted this collection method.

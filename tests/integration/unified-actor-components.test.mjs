@@ -4,13 +4,15 @@ import { createActorRegistry } from '../../packages/core-ts/src/state/actor-regi
 import { createActorTurn } from '../../packages/core-ts/src/rules/actor-turn.ts';
 const configurator = createConfiguratorPersona({ clock: () => '2026-09-10T00:00:00.000Z' });
 function actor(id, category, patch = {}) {
-  return configurator.normalizeActorDefinition({ id, category, position: { x: 0, y: 0 },
+  return { id, category, position: { x: 0, y: 0 },
     defeatVital: 'health', vitals: { health: { current: 10, max: 10, regen: 0 },
       mana: { current: 20, max: 20, regen: 0 } },
-    capabilities: { blocksMovement: false, canTake: true, canEquip: true }, ...patch }).actor;
+    capabilities: { blocksMovement: false, canTake: true, canEquip: true }, ...patch };
 }
 function setup(actors) {
-  return createActorRegistry({ dimensions: { width: 3, height: 1 }, terrain: ['floor', 'floor', 'floor'], actors });
+  const geometry = { dimensions: { width: 3, height: 1 }, terrain: ['floor', 'floor', 'floor'] };
+  const roster = configurator.normalizeActorRoster({ ...geometry, actors });
+  return createActorRegistry({ ...geometry, actors: roster.actors });
 }
 function costs(actors) {
   return configurator.resolveActorTurnCosts({ movementStamina: Object.fromEntries(actors.map(a => [a.id, 0])) });
@@ -21,6 +23,8 @@ function finish(turn) {
   expect(turn.resolveFields()).toBeNull();
   expect(turn.regenerate()).toBe(true);
   expect(turn.regenerate()).toBe(false);
+  expect(turn.resolveExits()).toEqual([]);
+  expect(turn.resolveExits()).toBeNull();
   return fields;
 }
 test('authored costs compose with lethal combat, atomic competing claims, equipment and replay', () => {

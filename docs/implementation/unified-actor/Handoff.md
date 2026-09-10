@@ -71,13 +71,16 @@ red/green/perturbation evidence are in Documentation.md.
 
 ## Latest local verification — September 10
 
-Full suite: 501 files passed, 3909 tests passed, 242 skipped, zero failures.
+Full suite: 502 files passed, 3914 tests passed, 242 skipped, zero failures.
 Typecheck passed. Separate architecture suite: 32 files and 118 assertions passed.
 Separate core suite: 34 files, 612 passed, 1 skipped.
 Latest additions: authored turn-cost assembly, file-backed invalid actor artifacts,
 Configurator-to-core component acceptance/replay, and Allocator equip/take schedule.
 The named attack charge is removed; legacy attack execution remains pending.
 Capability-driven exit dwell and once-only exit phase now pass their six tests.
+Whole-roster Configurator normalization and the component scenarios using it also
+pass. Production artifact producers remain pending; see the Director producer
+inspection notes at the end of Plan.md.
 All perturbations restored; no guard baseline widened. These results cover the
 local implementation, not the older published checkpoint. The production
 engine migration remains incomplete; use Plan.md's updated continuation seam.

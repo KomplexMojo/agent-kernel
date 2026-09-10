@@ -305,3 +305,32 @@ typecheck exit 0; separate architecture suite 32 files/118 passed. Owner/core
 combined suite passed before the additional shared-cell test (41 files, 635
 passed, 1 skipped); all six exit tests and the final full suite cover that addition.
 All perturbations restored. Logs /tmp/ua-exit-{full,types-final,architecture-final}.log.
+
+### September 10 — UA.9b2 and UA.20b roster continuation
+Public Configurator normalizeActorRoster now assembles one actor list and separate
+presentation map using the single-actor presets plus a fresh core registry for
+identity, geometry, capability occupancy and zero-vital initial defeat. No second
+placement/defeat evaluator, artifact builder or historical reader. Five tests
+failed before implementation and pass afterward; bypassing registry validation
+caused four failures, restored. Configurator + four owner guards: 41 files,
+200 passed, 1 skipped. Typecheck passed.
+
+The existing component combat/loot/fire-room scenarios now enter via whole-roster
+normalization and complete the exit phase after regeneration. Both pass. Removing
+the once-only exit guard caused both to fail; restored before final gates.
+
+Producer inspection for the next milestone: Director buildspec-assembler.js
+buildActorsAndGroups (line 310 at this checkpoint) constructs legacy kind/archetype,
+normalizes vitals, and creates motivations: [inst.motivation]. Its caller at line
+397 feeds mapped selections into Configurator inputs. The current artifact builder
+also merges resolved-effects/traits and drops motivations. Production replacement
+therefore needs that fresh authoring producer migrated, not a legacy artifact
+reader or another builder. Existing CLI configurator also reads authored actors
+from a file in commands/kernel.js (line 1521 at inspection). Preserve explicit
+properties in the authoring path and move configuration decisions into Configurator;
+Director should pass preset requests. No production producer switched in UA.9b2.
+
+UA.9b2/UA.20b final gates: full suite 502 files, 3914 passed, 242 skipped,
+exit 0; typecheck exit 0; separate architecture suite 32 files/118 tests passed.
+All perturbations restored and git diff --check clean. Logs:
+/tmp/ua-roster-{full,types-final,architecture}.log. No remote benchmarks or push.

@@ -49,7 +49,8 @@ normalizeActorDefinition method. Component focused casts, action exclusivity,
 field suppression and once-only field/regeneration phases now work and replay.
 They are not wired to createCore or the old Moderator/runner.
 
-Configurator now exposes resolveActorTurnCosts with all forty pairs/five tiers
+Configurator now exposes normalizeActorRoster (UA.9b2), plus
+resolveActorTurnCosts with all forty pairs/five tiers
 and explicit per-ID movement costs (UA.9b1). Allocator exposes equip/take at the
 default-action rate and no named attack charge (UA.11a); property pricing remains.
 Component integration tests cover Configurator -> core combat/loot/equipment and
@@ -394,3 +395,38 @@ Tests first: threshold, capability override, departure/reset, terminal no-revive
 mid-turn JSON replay, duplicate pass rejection and invalid counters. Perturbation
 omits spatial removal, occupancy assertion must fail. Validate core, typecheck,
 owner architecture guards and schema origin/catalog; stop at green component.
+
+### UA.9b2 — normalized roster assembly (S)
+Owner persona-configurator. Targets unified-actors.js, configurator-services.js,
+controller.js, Configurator README, new configurator-unified-roster.test.mjs.
+Expose normalizeActorRoster({actors,dimensions,terrain}) -> {actors,presentation}.
+Normalize authored presets with normalizeActorDefinition; ask a fresh core registry
+to validate geometry, duplicate identities, capability-based occupancy and initial
+terminal state. Return ordinal-ID records and a separate ID-keyed category map.
+Use core's existing path, not Configurator placement/defeat rules or a new engine.
+Input/output detached; prototype-like IDs work; duplicate ID rejection precedes
+map construction; no category collections. Tests reject overlaps/walls/out-of-bounds,
+retain nonblocking co-occupants and terminal rewards, and are order-invariant.
+Perturb by skipping registry validation: collision test must fail. Run Configurator
+suite + four owner guards and typecheck. This prepares the existing artifact builder
+replacement; no parallel artifact builder or historical reader is introduced.
+
+### UA.20b — use roster assembly in component scenarios (XS)
+Owner dependency-direction, target tests/integration/unified-actor-components.test.mjs.
+Replace per-actor normalization in its setup with Configurator.normalizeActorRoster;
+feed its actors to core. Finish the newly added exit phase after regeneration.
+Retain the same combat/claim/replay/fire-room assertions. This is component wiring,
+not production runner adoption. Run the integration test and final gates. Existing
+UA.9b2 bypass-registry perturbation establishes roster validation teeth; additionally
+bypass the turn exit phase guard and verify the repeated-pass assertion turns red.
+
+#### Remaining producer scope after UA.9b2 (inspection, not completed)
+Director buildspec-assembler.js buildActorsAndGroups currently constructs legacy
+kind/archetype, vitals, and [inst.motivation] (called by buildspec assembly around
+line 397). Include this producer and its mapped selection source in the next
+Director-owned request migration; do not teach the new builder to read historical
+legacy state. Configurator then assembles authored definitions via normalizeActorRoster.
+commands/kernel.js also reads an actors file directly; replace its affected input
+fixtures in place. Existing artifact-builders.js resolved-effects/traits merge must
+be removed when producers provide common owned equipment and explicit vitals.
+This is a multi-owner sequence, not a single oversized builder edit.

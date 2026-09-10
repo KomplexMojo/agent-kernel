@@ -1,3 +1,4 @@
+import { createActorRegistry } from '../../../../core-ts/src/state/actor-registry.ts';
 import { validateActorRecordVitals } from '../../../../core-ts/src/state/actor-vitals.ts';
 import { validateActorInventory } from '../../../../core-ts/src/state/actor-inventory.ts';
 import { validateActorHoldings } from '../../../../core-ts/src/state/actor-holdings.ts';
@@ -43,4 +44,15 @@ export function normalizeActorDefinition(input) {
   validateActorInventory(actor);
   validateActorHoldings(actor);
   return { actor, presentation: { category: request.category } };
+}
+
+/** Assemble an authored roster using core-owned identity, lifecycle and occupancy rules. */
+export function normalizeActorRoster({ actors, dimensions, terrain } = {}) {
+  if (!Array.isArray(actors)) throw new Error(`invalid actor roster: expected array, received ${typeof actors}`);
+  const entries = actors.map(normalizeActorDefinition);
+  const registry = createActorRegistry({ dimensions, terrain, actors: entries.map(entry => entry.actor) });
+  const normalized = registry.snapshot().actors;
+  const categories = new Map(entries.map(entry => [entry.actor.id, entry.presentation]));
+  return { actors: normalized,
+    presentation: Object.fromEntries(normalized.map(actor => [actor.id, categories.get(actor.id)])) };
 }

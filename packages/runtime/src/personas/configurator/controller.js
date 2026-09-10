@@ -62,6 +62,7 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     authorDelverCandidate: services.authorDelverCandidate,
     normalizeMotivations: services.normalizeMotivations,
     normalizeActorDefinition: services.normalizeActorDefinition,
+    normalizeActorRoster: services.normalizeActorRoster,
     // CR.7 / WP-5 — the BUILD-PLANE helpers. `orchestrate-build.js`, `kernel.js` and
     // `mixed-room-summary.js` imported these seven modules directly and were 11 allowlist rows.
     // Ungated, like `deriveRoomLayout` above: pure functions of their arguments that stamp no

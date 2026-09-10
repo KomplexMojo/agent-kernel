@@ -1,4 +1,4 @@
-import { normalizeActorDefinition } from './unified-actors.js';
+import { normalizeActorDefinition, normalizeActorRoster } from './unified-actors.js';
 /**
  * Configurator service surface — the synchronous API behind the controller.
  *
@@ -420,6 +420,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
      */
     normalizeMotivations,
     normalizeActorDefinition,
+    normalizeActorRoster,
     // CR.7 / WP-5 — the build-plane helpers; see the import block for why they are ungated.
     generateGridLayoutFromInput,
     buildSimConfigArtifact,
