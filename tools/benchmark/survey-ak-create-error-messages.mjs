@@ -62,15 +62,47 @@ function lineAt(text, index) {
   return text.slice(0, index).split("\n").length;
 }
 
+// A `/` starts a regex literal rather than a division operator when the preceding significant
+// (non-whitespace, non-comment) token cannot be the end of a value expression. Division follows an
+// identifier/number/string-end char or a closing `)`/`]`/`}` (a call result, index, or block value);
+// everything else -- including these keywords, which end in identifier chars themselves and would
+// otherwise be misread as "an identifier precedes it, so this is division" -- means a new expression
+// is starting, so `/` opens a regex. Heuristic by nature (division vs. regex is genuinely ambiguous
+// from source text alone without a real parser); see the issue this fixes for why a quick patch
+// instead of a full tokenizer is the deliberate scope here.
+const REGEX_PRECEDING_KEYWORDS = new Set([
+  "return", "typeof", "instanceof", "in", "of", "new", "delete", "void", "yield", "throw",
+  "case", "do", "else", "await",
+]);
+
+function precedingTokenAllowsRegex(text, index) {
+  let i = index - 1;
+  while (i >= 0 && /\s/.test(text[i])) i--;
+  if (i < 0) return true;
+  const c = text[i];
+  if (/[A-Za-z0-9_$]/.test(c)) {
+    let wordEnd = i + 1;
+    let wordStart = i;
+    while (wordStart >= 0 && /[A-Za-z0-9_$]/.test(text[wordStart])) wordStart--;
+    wordStart++;
+    const word = text.slice(wordStart, wordEnd);
+    return REGEX_PRECEDING_KEYWORDS.has(word);
+  }
+  if (c === ")" || c === "]" || c === "}") return false;
+  return true;
+}
+
 // Scans forward from `openIndex` (the index of an opening bracket char) to find the index of its
-// matching close, honoring string/template-literal/comment boundaries so a brace inside a string
-// doesn't desync the count. Returns -1 if the file ends before the bracket closes (malformed input,
-// not expected in a linted source file).
+// matching close, honoring string/template-literal/comment/regex-literal boundaries so a brace
+// inside one of those doesn't desync the count. Returns -1 if the file ends before the bracket
+// closes (malformed input, not expected in a linted source file).
 function matchBracket(text, openIndex, openChar, closeChar) {
   let depth = 0;
   let inString = null; // one of ' " ` or null
   let inLineComment = false;
   let inBlockComment = false;
+  let inRegex = false;
+  let inRegexClass = false; // inside a regex literal's [...] char class, where `/` is not the end
   let escaped = false;
   for (let i = openIndex; i < text.length; i++) {
     const c = text[i];
@@ -83,6 +115,17 @@ function matchBracket(text, openIndex, openChar, closeChar) {
       if (c === "*" && next === "/") { inBlockComment = false; i++; }
       continue;
     }
+    if (inRegex) {
+      if (escaped) { escaped = false; continue; }
+      if (c === "\\") { escaped = true; continue; }
+      if (c === "[") { inRegexClass = true; continue; }
+      if (c === "]") { inRegexClass = false; continue; }
+      if (c === "/" && !inRegexClass) {
+        inRegex = false;
+        while (i + 1 < text.length && /[a-z]/i.test(text[i + 1])) i++; // trailing flags (g, i, ...)
+      }
+      continue;
+    }
     if (inString) {
       if (escaped) { escaped = false; continue; }
       if (c === "\\") { escaped = true; continue; }
@@ -91,6 +134,7 @@ function matchBracket(text, openIndex, openChar, closeChar) {
     }
     if (c === "/" && next === "/") { inLineComment = true; i++; continue; }
     if (c === "/" && next === "*") { inBlockComment = true; i++; continue; }
+    if (c === "/" && precedingTokenAllowsRegex(text, i)) { inRegex = true; continue; }
     if (c === '"' || c === "'" || c === "`") { inString = c; continue; }
     if (c === openChar) depth++;
     else if (c === closeChar) {
@@ -205,7 +249,7 @@ export function surveyErrorMessages({ repoRoot = REPO_ROOT, readFile = readFileS
   return results;
 }
 
-export { SCOPE };
+export { SCOPE, matchBracket };
 
 function main() {
   const results = surveyErrorMessages();
