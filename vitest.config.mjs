@@ -41,6 +41,18 @@ export default defineConfig({
     hookTimeout: 60_000,
     testTimeout: 60_000,
     reporters: "default",
+    pool: "forks",
+    poolOptions: {
+      forks: {
+        // Unbounded, this defaults to one forked process per CPU core. Several
+        // test files spawn real subprocesses (pnpm install, git, ak.mjs builds),
+        // and individual workers have been observed at ~3GB RSS -- uncapped on a
+        // 12-core/36GB machine that ran the whole box out of memory with zero
+        // swap configured. Capped well under core count so a full run can't get
+        // close to exhausting RAM.
+        maxForks: 6,
+      },
+    },
     coverage: {
       provider: "v8",
       include: ["packages/core-ts/src/**/*.ts"],
