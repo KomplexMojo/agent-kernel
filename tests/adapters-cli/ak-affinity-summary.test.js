@@ -91,3 +91,30 @@ test("cli run rejects affinity summary without presets or loadouts", (t) => {
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /Affinity summary requires/);
 });
+
+// #150 — affinity-summary.json used to stamp meta.id/createdAt via createMeta()'s host wall-clock
+// (Date.now()/Math.random()) instead of the run's seeded clock, the same bug #149 fixed for
+// action-log/run-summary/world-state. Two runs of byte-identical input must produce a
+// byte-identical meta stamp; asserting on the run's own seeded id/timestamp (not a hardcoded
+// literal) keeps this from silently passing if the clock seed itself ever changes.
+test("cli run stamps affinity-summary.json meta from the seeded clock, not the wall clock", (t) => {
+  const runOnce = () => {
+    const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-affinity-determinism-"));
+    const outDir = join(workDir, "out");
+    runCli([
+      "run",
+      "--sim-config", SIM_CONFIG,
+      "--initial-state", INITIAL_STATE,
+      "--ticks", "0",
+      "--out-dir", outDir,
+      "--affinity-presets", PRESETS,
+      "--affinity-loadouts", LOADOUTS,
+      "--affinity-summary",
+    ]);
+    return JSON.parse(readFileSync(join(outDir, "affinity-summary.json"), "utf8")).meta;
+  };
+
+  const first = runOnce();
+  const second = runOnce();
+  assert.deepEqual(second, first);
+});
