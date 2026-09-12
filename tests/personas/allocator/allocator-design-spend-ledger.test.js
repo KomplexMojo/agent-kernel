@@ -1,14 +1,17 @@
+// #158 — migrated from tests/runtime/design-spend-ledger.test.js: every assertion here is about
+// buildDesignSpendLedger, an Allocator-owned function; Configurator/Director are injected
+// collaborators, exactly as production wires them, not the subject under test.
 const assert = require("node:assert/strict");
 // CR.9 M3: ledgers price raw actor motivations, and the Allocator refuses without the
 // Configurator's vocabulary. Injected here exactly as production injects it.
-const { configuratorNormalizeMotivations } = require("../helpers/configurator-capabilities.js");
+const { configuratorNormalizeMotivations } = require("../../helpers/configurator-capabilities.js");
 // D8 follow-up: a ledger built from CARDS needs the Director's translation, and the
 // Allocator refuses without it. Injected here exactly as production injects it.
-const { directorResolveSummary } = require("../helpers/director-capabilities.js");
+const { directorResolveSummary } = require("../../helpers/director-capabilities.js");
 
 test("buildDesignSpendLedger computes level, actor base, and actor config categories", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
   const normalizeMotivations = await configuratorNormalizeMotivations();
 
@@ -62,7 +65,7 @@ test("buildDesignSpendLedger computes level, actor base, and actor config catego
 
 test("buildDesignSpendLedger flags over-budget totals", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
   const normalizeMotivations = await configuratorNormalizeMotivations();
 
@@ -81,7 +84,7 @@ test("buildDesignSpendLedger flags over-budget totals", async () => {
 
 test("buildDesignSpendLedger prices actor configuration from price list items", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
   const normalizeMotivations = await configuratorNormalizeMotivations();
 
@@ -140,7 +143,7 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
 
 test("buildDesignSpendLedger treats tokenHint as per-unit and multiplies by count", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
   const normalizeMotivations = await configuratorNormalizeMotivations();
 
@@ -202,13 +205,13 @@ test("buildDesignSpendLedger treats tokenHint as per-unit and multiplies by coun
 
 test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is provided", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
   const normalizeMotivations = await configuratorNormalizeMotivations();
   // CR.9 M2: the Allocator prices room geometry, it does not derive it — the
   // Configurator's derivation is injected, as production wires it.
   const { createConfiguratorPersona } = await import(
-    "../../packages/runtime/src/personas/configurator/persona.js"
+    "../../../packages/runtime/src/personas/configurator/persona.js"
   );
   const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-08-04T00:00:00.000Z" }).deriveRoomLayout;
   const resolveSummary = await directorResolveSummary();
@@ -246,13 +249,13 @@ test("buildDesignSpendLedger uses shared room-card layout budget when cardSet is
 
 test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
   const normalizeMotivations = await configuratorNormalizeMotivations();
   // CR.9 M2: the Allocator prices room geometry, it does not derive it — the
   // Configurator's derivation is injected, as production wires it.
   const { createConfiguratorPersona } = await import(
-    "../../packages/runtime/src/personas/configurator/persona.js"
+    "../../../packages/runtime/src/personas/configurator/persona.js"
   );
   const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-08-04T00:00:00.000Z" }).deriveRoomLayout;
 
@@ -308,11 +311,11 @@ test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost
 
 test("buildDesignSpendLedger REFUSES to price a card set without the Director's translation", async () => {
   const { buildDesignSpendLedger, AllocatorSummaryResolutionError } = await import(
-    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
   const normalizeMotivations = await configuratorNormalizeMotivations();
   const { createConfiguratorPersona } = await import(
-    "../../packages/runtime/src/personas/configurator/persona.js"
+    "../../../packages/runtime/src/personas/configurator/persona.js"
   );
   const deriveRoomLayout = createConfiguratorPersona({ clock: () => "2026-08-04T00:00:00.000Z" }).deriveRoomLayout;
 
@@ -335,7 +338,7 @@ test("buildDesignSpendLedger REFUSES to price a card set without the Director's 
 
 test("buildDesignSpendLedger refuses the `cards` spelling of a card set too", async () => {
   const { buildDesignSpendLedger, AllocatorSummaryResolutionError } = await import(
-    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
   const normalizeMotivations = await configuratorNormalizeMotivations();
 
@@ -358,7 +361,7 @@ test("buildDesignSpendLedger refuses the `cards` spelling of a card set too", as
 
 test("buildDesignSpendLedger prices a card-free summary with NO resolveSummary", async () => {
   const { buildDesignSpendLedger } = await import(
-    "../../packages/runtime/src/personas/allocator/spend-proposal.js"
+    "../../../packages/runtime/src/personas/allocator/spend-proposal.js"
   );
   const normalizeMotivations = await configuratorNormalizeMotivations();
 

@@ -1,3 +1,6 @@
+// #158 triage: stays here (not tests/personas/allocator/) — it asserts on the RUNTIME's capture
+// of direct/core outcomes and its delegation to a live Allocator, not on Allocator pricing logic
+// in isolation. Runtime-to-Allocator orchestration, not persona-alone behavior.
 const assert = require("node:assert/strict");
 
 const FIXED_CLOCK = () => "2026-09-02T00:00:00.000Z";

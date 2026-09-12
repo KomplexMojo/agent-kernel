@@ -1,3 +1,6 @@
+// #158 triage: stays here (not tests/personas/moderator/) — it wires a full runtime with a real
+// Moderator persona and asserts on what the RUNTIME applies to core, not on the persona's own
+// decision output in isolation. Runtime-to-core orchestration, not persona-alone behavior.
 const assert = require("node:assert/strict");
 
 test("runtime applies moderator affinity environment actions to core", async () => {
