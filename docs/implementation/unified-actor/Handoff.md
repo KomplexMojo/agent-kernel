@@ -2,11 +2,12 @@
 
 ## Start here
 
-**CURRENT CUTOVER: Actor proposals and observations are next.** The branch was rebased onto
-main at portal merge `7a8888f4`; unified artifact production is checkpointed at
-`d71af7e8`. Runtime startup loads those artifacts into one detached actor registry,
-and runtime apply routes the five public actions through one ActorTurn. Current
-action changes remain uncommitted; do not reset them.
+**CURRENT CUTOVER: Actor proposals and observations are in progress.** The branch was
+rebased onto main at portal merge `7a8888f4`; unified artifact production is
+checkpointed at `d71af7e8`, runtime startup at `e3e53dc3`, and unified action
+execution at `4d0dd0dc`. Runtime loads one detached actor registry and routes the
+five public actions through one ActorTurn. The current Actor alignment and action
+shape migration is uncommitted; preserve it and do not reset it.
 Existing artifact builders now emit normalized state; core-setup loads one registry
 and no longer exports category placement functions. Director actor requests now carry common properties and full motivations.
 Generated layouts and actor placement now use canonical terrain.
@@ -20,11 +21,15 @@ Documentation.md/Plan.md cutover section before using older green evidence below
 
 Latest measured post-rebase baseline: Configurator is green (43 files, 200 passed,
 one skipped); the focused unified action/startup/loader/integration/core domain is
-19/19, dependency/ports guards are 5/5, and typecheck passes. The action-admission
-perturbation fails as required and was restored. The core-behavior reachability
-guard remains expected-red because 23 legacy setup exports and applyAttack are now
-unreachable; remove those exports with their legacy core test consumers during the
-prescribed export/test cutover.
+19/19, dependency/ports guards are 5/5, and typecheck passes. During the Actor
+cutover, the Actor suite measured 20 files, 90 passed, 11 failed, and 5 pending;
+the remaining failures are legacy runtime artifact setup, solver fixtures that
+still expect attack, one objective fixture without the new active pair, and two
+exit/production characterization seams. The action-admission perturbation fails
+as required and was restored. The core-behavior reachability guard remains
+expected-red because 23 legacy setup exports and applyAttack are now unreachable;
+remove those exports with their legacy core test consumers during the prescribed
+export/test cutover.
 
 Repository: `KomplexMojo/agent-kernel`. Continue the existing isolated worktree on
 `codex/unified-actor`, preserving its local commits and any working changes. Do not reset to
@@ -42,9 +47,10 @@ Read Plan.md's next implementation seam and Documentation.md's latest evidence.
 The maintainer authorized continuing across bounded milestones until completion
 or token exhaustion, superseding the old one-milestone stopping limit.
 The new registry is retained by runtime startup and available through the runtime
-snapshot surface. Tick actions and field sequencing use ActorTurn; observations,
-Actor proposals, effects, budget accounting and world-state capture still use the
-legacy core path. Passing startup
+snapshot surface. Tick actions and field sequencing use ActorTurn. The Actor
+persona now uses alignment for hostility, emits move targets and active-pair casts,
+and no longer emits conventional attacks; runtime observations, effects, budget
+accounting and world-state capture still use legacy paths. Passing startup
 and component tests does not prove a whole game tick. Do not merge this partial
 rewrite into main.
 
@@ -81,12 +87,28 @@ the cloud checkout by the existing script.
 ## Resume locally
 
 Continue in the existing codex/unified-actor worktree from its local branch tip.
-Do not reset to the old published checkpoint or start again from main. The next
-seam is Configurator artifact assembly and single-list startup, then core/runner
-replacement and remaining persona/adapter/UI migration. Read the exact continuation notes
-in Plan.md. Primitive slot/claim/move APIs are now wrapped by the tested turn window, but
-production Moderator/runner has not adopted it.
+Do not reset to the old published checkpoint or start again from main. The immediate
+seam is finishing Actor proposal and observation migration: update solver/objective
+fixtures to the alignment and active-pair contracts, then move runtime observation
+off legacy world state. After that continue core export/test removal, Moderator/effects,
+adapters, and UI migration. Read the exact continuation notes in Plan.md. Primitive
+slot/claim/move APIs are wrapped by the tested turn window, and production runtime
+action execution has adopted it; budget/effects and full observation have not.
 Do not run remote benchmarks or merge this incomplete rewrite into main.
+
+## September 13 continuation update — Actor proposal cutover in progress
+
+The committed runtime checkpoint is `4d0dd0dc`. The current local diff updates
+Actor to use alignment rather than presentation role for hostility, capability
+checks rather than category dispatch for movement/exit/casting, move `{target}`
+parameters, active-pair `cast_affinity` parameters containing only `targetId`,
+and no conventional attack proposals. Obsolete role/attack behavior fixtures were
+removed or replaced with unified-action coverage. The Actor suite currently reports
+20 files: 90 passed, 11 failed, 5 pending. The remaining failures must be migrated
+before this persona milestone is committed; they are not evidence to widen a test
+baseline. Typecheck and the focused runtime/architecture gates were green before
+this local Actor diff. Re-run the Actor skill gates after completing fixture
+migration, then commit the persona milestone and proceed to unified observations.
 
 ## Published checkpoint baseline (historical)
 
