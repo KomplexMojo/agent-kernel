@@ -32,9 +32,9 @@ test("summary + catalog produces a valid BuildSpec", async () => {
   assert.equal(result.spec.intent.goal.includes("fire"), true);
   assert.equal(result.spec.configurator.inputs.actors.length, 1);
   assert.equal(result.spec.configurator.inputs.actorGroups[0].count, 1);
-  assert.equal(result.spec.configurator.inputs.actors[0].tokenCost, 200);
-  assert.equal(result.spec.configurator.inputs.actors[0].vitals.health.current, 1);
-  assert.equal(result.spec.configurator.inputs.actors[0].traits.affinities.fire, 1);
+  assert.equal(result.selections.find(selection => selection.kind === "actor").instances[0].cost, 200);
+  assert.equal(Object.hasOwn(result.spec.configurator.inputs.actors[0], "vitals"), false);
+  assert.equal(Object.hasOwn(result.spec.configurator.inputs.actors[0], "traits"), false);
 });
 
 test("summary without catalog still produces actor configuration via shared selection mapper", async () => {
@@ -81,10 +81,10 @@ test("summary without catalog still produces actor configuration via shared sele
 
   assert.equal(result.ok, true);
   assert.equal(result.spec.configurator.inputs.actors.length, 1);
-  assert.equal(result.spec.configurator.inputs.actors[0].affinity, "water");
+  assert.equal(result.spec.configurator.inputs.actors[0].affinities[0].kind, "water");
   assert.equal(result.spec.configurator.inputs.actors[0].vitals.health.current, 5);
-  assert.equal(result.spec.configurator.inputs.actors[0].setupMode, "auto");
-  assert.equal(result.spec.configurator.inputs.actors[0].traits.affinities.water, 2);
+  assert.equal(result.selections.find(selection => selection.kind === "actor").instances[0].setupMode, "auto");
+  assert.equal(result.spec.configurator.inputs.actors[0].affinities[0].stacks, 2);
   assert.equal(result.spec.intent.hints.delverCount, 2);
   assert.equal(result.spec.plan.hints.delverCount, 2);
   assert.equal(result.spec.configurator.inputs.delverCount, 2);

@@ -184,6 +184,14 @@ function textBag(entry) {
 }
 
 function inferActorCategory(actor) {
+  const presentation = String(actor?.category || "").toLowerCase();
+  if (presentation === "delver") return "delvers";
+  if (presentation === "warden") return "wardens";
+  if (presentation === "hazard") return "hazards";
+  if (presentation === "resource") return "resources";
+  if (presentation === "barrier") return "hazards";
+  if (actor?.alignment === "external") return "delvers";
+  if (actor?.alignment === "dungeon") return "wardens";
   const explicit = String(actor?.archetype || actor?.actorType || actor?.type || actor?.kind || "").toLowerCase();
   if (explicit === "delver") return "delvers";
   if (explicit === "warden") return "wardens";

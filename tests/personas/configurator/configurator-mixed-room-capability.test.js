@@ -11,8 +11,9 @@ function inputLayout() {
       { id: "R1", x: 0, y: 0, width: 2, height: 2 },
       { id: "R2", x: 3, y: 0, width: 2, height: 2 },
     ],
-    spawn: { x: 0, y: 0 },
-    exit: { x: 4, y: 1 },
+    width: 5, height: 2,
+    terrain: ["spawn", "floor", "wall", "floor", "floor",
+      "floor", "floor", "wall", "floor", "exit"],
     hazards: [{ id: "existing", x: 1, y: 0, blocking: false }],
   };
 }

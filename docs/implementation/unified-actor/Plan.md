@@ -1,5 +1,10 @@
 # Unified Actor Rewrite — execution source
 ## START HERE
+**Production cutover is now active after 41d2c1df.** Existing artifact builders
+and core-setup were replaced in the working tree. Legacy fresh authoring producers
+and runtime/UI callers still need migration; full gates are temporarily red.
+Read the production cutover section at the end. Do not add fallback readers or
+reset to the previous green checkpoint to hide migration failures.
 Branch codex/unified-actor in the current repository checkout, base 9a9168f8c63b07b1e9e789daa598a6edaa061cbd. Original worktree has unrelated uncommitted work. Do not stage, modify, or copy it.
 
 Approved behavior is fully recorded in Prompt.md; no access to the original conversation is required. UA.1–UA.3 are complete. Core components UA.4a, UA.5a, UA.5b1, UA.6a,
@@ -430,3 +435,209 @@ commands/kernel.js also reads an actors file directly; replace its affected inpu
 fixtures in place. Existing artifact-builders.js resolved-effects/traits merge must
 be removed when producers provide common owned equipment and explicit vitals.
 This is a multi-owner sequence, not a single oversized builder edit.
+
+## Production cutover — approved September 10 continuation
+The maintainer approved the coordinated artifact/loader migration after discussion
+of temporary failures. Replace the existing paths; do not add alternate builders,
+legacy readers or compatibility dispatch. Full-suite failures during cutover are
+migration work, not a reason to retain obsolete representations. Do not claim the
+cutover complete until producers, runtime/personas and surfaces pass their gates.
+
+### UA.9c — replace existing artifact assembly (M)
+Owner Configurator with artifacts-contracts for the thin schema handoff. Targets
+artifact-builders.js, artifacts.ts, existing configurator-artifact-builders.test.js,
+its configurator-artifacts-v1-basic.json fixture, and contract/Configurator READMEs.
+SimConfig grid data becomes explicit width/height/terrain, with authored actionCosts
+from resolveActorTurnCosts({rules:affinityRules,movementStamina}). Initial builder
+accepts authored definitions plus dimensions/terrain and existing meta/simConfigRef;
+normalizes via normalizeActorRoster and emits actors/presentation. Remove traits,
+resolved-effects merging and legacy entity collections. Keep schema selectors.
+Tests: deterministic/detached assembly, known mana tiers, duplicate IDs, rejection
+of legacy input, all motivations and pairs preserved. Perturb omission of
+presentation and prove assertion red. Narrow Configurator/schema/typecheck gates;
+record unmigrated producer failures explicitly and continue to UA.12a.
+
+### UA.12a — replace existing artifact loader (M)
+Owner dependency-direction. Targets runner/core-setup.mjs and new
+runtime/core-setup-unified.test.mjs, with runner/contract docs. Replace category
+placement, actor numeric-index mapping and primary fallback with one loader:
+initializeCoreFromArtifacts({simConfig,initialState}) -> {registry,costs,presentation}.
+Require normalized grid terrain, matching artifact references, complete presentation
+IDs/categories, owned authored records, and explicit movement cost for mobile
+actors. Use createActorRegistry and core turn validation; do not supply defaults
+or authoring conversions. No startup field pulse. Test real Configurator artifacts
+serialized to JSON then loaded, focused cast and take, detached snapshots, invalid
+references, missing prices, duplicate/blocking placement and legacy shape rejection.
+Perturb reference equality check: test must fail. Remove superseded setup exports;
+callers are migrated next, without compatibility aliases. Record full failure
+census to guide remaining work; passing this slice is not whole-runtime completion.
+
+### UA.10a — Director actor request handoff (M)
+Targets Director buildspec-assembler.js, summary-selections.js, pool-mapper.js,
+README.md and tests/personas/director/director-unified-requests.test.mjs.
+Replace buildActorsAndGroups legacy kind/archetype/traits/tokenCost output with
+category plus authored common properties. Preserve explicit overrides, null active
+key and complete motivation lists through summary and catalog selection paths.
+Retain planning prices in selections; Configurator owns defaults and placement.
+Tests first: five categories relay equal properties; requests pass existing
+Configurator normalization; summary motivations survive; catalog motivations survive.
+Validation: Director suite, persona-boundary/persona-authority guards, typecheck.
+Stop at the production Director handoff, recording downstream legacy failures.
+Perturbation: truncate the emitted motivation list; composed-motivation test must fail.
+Card hazard/resource conversion and generator placement remain subsequent slices.
+
+UA.10a follow-through migrated existing Director assertions in
+director-pool-buildspec.test.js and director-build-spec-card-set-roundtrip.test.js
+(category replaces archetype; planning prices/setup stay in selections; owned pairs
+replace traits). See September 11 Documentation for red/green and remaining work.
+
+### UA.9d — canonical terrain from the production generator (M)
+Owner persona-configurator. Targets level-layout.js, Configurator README,
+configurator-level-layout.test.js and new configurator-generated-terrain.test.mjs.
+Replace generated tiles/kinds/legend and duplicate spawn/exit coordinates with a
+row-major TerrainKind array. Keep room geometry, connectivity and rendering hints.
+Build terrain from the existing generation mask: hazard positions are floor, not
+walls or terrain hazards. Adapt generator validation/counting to terrain directly;
+retain existing blocking-hazard floor-budget policy until actor planning migration.
+Tests: fixed seeded geometry, seeded determinism, direct public generation ->
+SimConfig builder acceptance, core terrain validation and no obsolete properties.
+Migrate existing geometry tests using a test-only glyph projection for their graph
+oracles, without providing a production legacy view. Perturb floor routing to wall
+and prove seeded geometry test red, restore. Run generator suites, Configurator
+owner gates and typecheck; record remaining consumer failures. Stop at the terrain
+producer; pending hazard/resource actor authoring is not silently dropped.
+
+### UA.9e — Configurator placement reads canonical terrain (S)
+Targets new terrain-layout.js, actor-placement.js, Configurator README and new
+configurator-terrain-placement.test.mjs. Replace numeric/glyph walkability readers
+and duplicate marker coordinates with canonical terrain queries. Preserve strategic
+room selection and existing placement ordering in this slice. No legacy fallback
+reader; no live actor mutation. Tests use public generated layout -> placeActors ->
+InitialState builder, prove valid unique placements and marker-derived entry anchor.
+Validate narrow tests and Configurator owner gates. Perturb spawn lookup to missing,
+show marker-anchor regression red, restore. Capability/occupant placement policy
+migration remains separate and must use core registry validation.
+
+UA.9d/e fixture follow-through (XS): migrate
+configurator-level-layout-rooms.test.js and
+configurator-actor-placement-capability.test.js to canonical terrain, retaining
+all existing room connectivity and placement coordinates. Both suites pass (3 tests).
+Next: object-placement.js, feasibility.js, guidance-level-builder.js still consume
+old generated layout fields. Complete these readers and hazard/resource actor
+requests before rewiring build/kernel assembly. See Documentation for evidence.
+
+### UA.9f — feasibility and preview terrain readers (S)
+Owner Configurator. Targets feasibility.js, guidance-level-builder.js, Configurator
+README and existing feasibility/layout-feasibility/guidance tests. Replace glyph/
+numeric terrain readers with terrainPositions/terrainMarker. Preserve walkable
+counts excluding blocking planned occupants; floor-capacity counts exclude all
+planned hazard cells, matching the prior generated kinds=0 path (including markers).
+Project canonical terrain to glyphs only at the existing preview rendering boundary.
+Failing tests: configurator-feasibility, configurator-layout-feasibility and
+configurator-guidance-level-builder. Run those suites and the Configurator owner
+gates/typecheck. Perturb walkability to empty; feasibility test must fail; restore.
+Stop when these consumers pass without a historical layout reader.
+
+### UA.9g — object-placement terrain readers (M)
+Owner Configurator. Targets object-placement.js, existing object-placement-problem
+test and object-placement-greedy-counterexample.json fixture, README. Replace both
+numeric/glyph candidate collectors and marker readers with canonical terrain queries.
+Preserve solver constraints, fallback ordering and existing planned occupancy filters.
+Migrate the fixture and independent exhaustive-search oracle in place; preserve its
+expected assignments and unsat cases. Run object-placement suite and owner gates;
+full-build case can remain red at the next unmigrated builder seam. Perturb marker
+reservation and require the collision/assignment oracle to fail, then restore.
+No actor identity/preset/pricing policy changes in this terrain-reader milestone.
+
+UA.9f/g completed reader migration; latest Configurator gates are 199 passed,
+4 failed,1 skipped. All four remaining failures now reach unsupported
+hazards/resources in artifact assembly. Next migrate those authoring outputs and
+explicit turn costs, not another terrain reader. See Documentation for evidence.
+
+### UA.9h — room-composition marker reader (S)
+Configurator owner: mixed-room-composition.js, existing mixed-room-capability test,
+new configurator-room-terrain-markers.test.mjs and README. Diagnosis before change:
+0..29 seeds did not expose it, but 0..999 produced164 emitters on spawn/exit in
+9x9 single3x3-room generation. composeMixedRooms reads removed layout.spawn/exit.
+Replace only marker lookup with terrainMarker, preserving random draw sequence,
+profiles and candidate ordering. Migrate existing inline geometry fixture to
+canonical terrain with unchanged expected positions. New test spans all1000 seeds
+and verifies no generated hazard on either marker and one emitter per room.
+Run narrow tests, Configurator owner gates and typecheck. Perturb lookup back to
+missing: test must fail; restore. Stop at marker correctness before actor outputs.
+
+UA.9h completed September12:1000-seed marker oracle red/green/perturbation verified.
+Configurator owner result200 passed/4 failed/1 skipped; four failures still require
+hazard/resource authoring conversion. See Documentation for actual producer seams.
+
+### UA.9i — resource preset request authoring (S)
+Owner Configurator. Targets input-preparation.js, existing configurator-input-prep
+suite and new configurator-resource-actors.test.mjs, README. Replace mapResources'
+version-specific and tier/stat projections with normalizeActorDefinition using
+resource as the omitted category default. Require common vitals and stable ID;
+preserve explicit category/property overrides, motivation list, owned pairs,
+active key and named holdings. For unpositioned authoring validate with temporary
+0,0 then omit position in the returned request, so placement remains required.
+Reject superseded fields rather than reading historical shapes. Existing public
+FSM gate remains. Tests prove mapped positioned request builds InitialState and
+source vitals do not become loot; invalid active key/legacy fields reject.
+Run owner gates/typecheck; perturb holdings omission -> test red; restore.
+Stop at resource request output; placement/CLI producers and pricing remain pending.
+
+UA.9i completed: mapResources now emits common resource actor requests; narrow
+mapping/InitialState tests pass. Existing input-prep and validate-lock fixtures
+migrated (the latter now rejects missing ID during mapping). Configurator final
+203 pass/4 fail/1 skipped; same remaining layout collection failures. Remain local
+for the session per maintainer. Next move placed resource output into actor-list
+handoff with preserved holdings; migrate hazard authoring and old CLI/card inputs.
+
+### UA.9j — resource placement actor output (M)
+Configurator owner: object-placement.js, resource-actors test, existing object-placement
+suite/fixture and README. Both solver and fallback output placed resource requests
+as result.actors, normalized by mapResources after removing placement-only metadata
+(kind, roomId, x/y, blocking). Do not write layout.resources. Preserve position,
+holdings, equipment and capabilities. Keep hazard output pending its own migration.
+Tests run mapped resource -> fallback placement -> InitialState builder; migrate
+solver fixture's resource inputs to explicit durability and inspect result.actors.
+Run owner gates/typecheck; perturb omit result.actors -> new test red, restore.
+Next dependency-direction step consumes result.actors in build glue; no claim of
+full-build completion before pricing and remaining hazard pipeline are migrated.
+
+### UA.12b — consume placed resource actors in production build (M)
+Owner dependency-direction for orchestrate-build.js and new integration test;
+Configurator substep actor-placement.js accepts reservedActors, preserving prior
+resource-cell reservations while their records move out of layout. Pass placement
+result.actors separately, append them to final authored actor definitions, and
+build InitialState with actual dimensions/terrain (remove obsolete refs/effects
+arguments). Build SimConfig with explicit configurator.inputs.movementStamina and
+affinityRules; no cost defaults in glue. Publish final actors as resolvedActors.
+Test budgetless canonical resource request through orchestrateBuild -> JSON ->
+production loader, retaining vitals/holdings/category and authored costs.
+Run narrow integration, owner boundaries, Configurator suite/typecheck. Perturb
+resource-list append omission -> integration red; restore. Budgeted property
+pricing, hazard authoring and runtime FSM remain pending; do not claim those work.
+
+### Execution assignment policy — Luna
+Bounded implementation milestones may be assigned to GPT-5.6 Luna at high
+reasoning effort when their target files, API, tests, validation and stop
+condition are explicit. Before any PR, a more capable model must review the
+complete accumulated diff and verify architecture, mechanics, tests and gates.
+This review is a release prerequisite, not an optional follow-up.
+
+### UA.9k/UA.12c — hazard actor production handoff (completed September 12)
+Configurator converts all hazards reaching object-placement completion into
+common actors, removes the layout collection, assigns the authored affinity pair
+as active equipment, and derives default mana/durability through the existing
+balance helper. Strategic actor placement reserves these actor coordinates and
+uses alignment instead of words in ids, roles, or motivations. Production build
+merges the reserved actors after strategic placement. Next migrate property-based
+Allocator pricing and remove the remaining legacy affinity-summary/effect path.
+
+### UA.12d — runtime constructor cutover (next, split before implementation)
+The production loader now returns an actor registry and authored action costs,
+but runtime-fsm still requires the legacy mutable core API at construction and
+imports two deleted setup functions. Split the cutover by call family: startup
+and snapshots first, then action execution, observations/effects, and budget
+ports. Do not restore the deleted setup exports as aliases. Each submilestone
+must replace its legacy core calls with registry/turn operations and migrate the
+corresponding runtime tests before proceeding to the next family.

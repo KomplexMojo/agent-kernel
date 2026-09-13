@@ -1,3 +1,4 @@
+import type { ActorTurnCosts } from "../../../core-ts/src/rules/actor-turn.ts";
 /**
  * Runtime Contracts: Canonical Artifacts
  * -------------------------------------
@@ -17,7 +18,7 @@
  */
 
 import type {
-  ActorAction, ActorRecord, ActorPosition, ActorAffinityKey, AffinityKind, AffinityExpression,
+  TerrainKind, ActorAction, ActorRecord, ActorPosition, ActorAffinityKey, AffinityKind, AffinityExpression,
   ActorVitalRecord as VitalRecordV1, ActorVitalGrant as ResourceVitalGrant,
   ActorHoldingPermanence as ResourcePermanenceMode,
 } from "../../../core-ts/src/state/actor-types.ts";
@@ -1445,13 +1446,16 @@ export interface SimConfigArtifactV1 {
   flags?: Record<string, boolean>;
 
   /**
-   * Static layout representation. Keep it data-only; interpretation is done by core rules.
-   * Structure is intentionally flexible for now.
+   * Normalized terrain, with optional presentation/planning metadata.
+   * All mechanical entities live in InitialState actors, never layout category lists.
    */
   layout: {
-    kind: "grid" | "graph" | "custom";
-    data: Record<string, unknown>;
+    kind: "grid";
+    data: { width: number; height: number; terrain: TerrainKind[] } & Record<string, unknown>;
   };
+
+  /** Configurator-authored vital costs, separate from Allocator token pricing. */
+  actionCosts: ActorTurnCosts;
 
   /**
    * Externally supplied caps/limits for core enforcement.
@@ -2147,8 +2151,9 @@ export type RunSummary = RunSummaryV1;
  * does — the runtime never touches the filesystem.
  */
 /** Presentation only: never supplied as an input to core mechanical rules. */
+export const ACTOR_PRESENTATION_CATEGORIES = ["delver", "warden", "hazard", "resource", "barrier"] as const;
 export interface ActorPresentation {
-  category: "delver" | "warden" | "hazard" | "resource" | "barrier";
+  category: typeof ACTOR_PRESENTATION_CATEGORIES[number];
 }
 
 /**

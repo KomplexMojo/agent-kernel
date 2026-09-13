@@ -241,6 +241,7 @@ export async function runAuthoringBuild(input = {}) {
     floorTiles = [],
     hazards = [],
     resources = [],
+    movementStamina,
     maximizeBudget = false,
     parsedDelvers = [],
     parsedWardens = [],
@@ -267,6 +268,9 @@ export async function runAuthoringBuild(input = {}) {
   }
   if (Array.isArray(resources) && resources.length > 0) {
     spec.configurator.inputs.resources = configurator.mapResources(resources);
+  }
+  if (movementStamina !== undefined) {
+    spec.configurator.inputs.movementStamina = structuredClone(movementStamina);
   }
 
   // CR.2 — the Configurator must actually validate and lock before the build

@@ -14,11 +14,11 @@ action union, and world-state shape in place. Existing envelope selectors remain
 unchanged by maintainer instruction: InitialState/Action use 1 and WorldState uses
 2. No historical WorldState union is retained.
 
-**This milestone declares the target contract; runtime producers and consumers
-have not migrated yet.** Existing JavaScript can still emit the old shapes, so
-passing declaration tests does not prove runtime conformance. Do not use this
-branch as a completed engine migration. Subsequent core, Configurator, Actor,
-Moderator, Annotator, and adapter milestones must wire the new contracts.
+**Production cutover is in progress.** The existing Configurator builders and
+artifact loader now require/produce normalized state. Legacy authoring producers
+and runner/UI callers have not yet migrated, so the full application is not
+currently functional on this branch. Passing the builder/loader tests is not
+whole-runtime completion. No historical reader or fallback loader is retained.
 
 - `ActorRecord` uses a stable string ID, explicit alignment/capabilities, optional
   vitals with a required defeat vital, lifecycle, motivation list, inventory,
@@ -111,3 +111,12 @@ terrain, independently of alignment or preset. Exiting releases occupancy and is
 terminal. Leaving the exit resets progress. The turn window's `resolveExits()`
 phase follows regeneration exactly once and snapshots `exitsResolved`; registry
 snapshots preserve actor counters. Production Moderator adoption remains pending.
+
+
+SimConfig now carries `actionCosts` (core ActorTurnCosts) and grid data with required
+`width`, `height`, `terrain`. InitialState contains `actors` and a complete
+`presentation` map. `initializeCoreFromArtifacts({simConfig,initialState})` validates
+reference identity and returns `{registry,costs,presentation}` with detached data.
+It performs no startup field pulse or authoring conversion. Old setup exports
+`applySimConfigToCore` and `applyInitialStateToCore` were removed; their callers are
+remaining migration work, not supported compatibility entry points.

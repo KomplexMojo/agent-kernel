@@ -30,11 +30,6 @@
     "reason": "Module-load-time assertion on the hardcoded DEFAULT_AFFINITY_RULES_ARTIFACT constant -- fires once at import, never from a create request. Already reports field:code for every error."
   },
   {
-    "file": "packages/runtime/src/personas/configurator/artifact-builders.js",
-    "line": 80,
-    "reason": "assertUniqueActorIds -- already includes the duplicate id when one exists; the id-missing case has nothing else to add."
-  },
-  {
     "file": "packages/runtime/src/personas/configurator/budget-maximizer.js",
     "line": 38,
     "reason": "requireUnitCost -- already interpolates the specific missing price-list key."

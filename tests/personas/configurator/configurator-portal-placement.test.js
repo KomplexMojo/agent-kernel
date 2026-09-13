@@ -36,18 +36,22 @@ describe("configurator portal placement", () => {
       const layout = result.value;
       assert.ok(layout.spawnApproach, `seed ${seed} missing spawnApproach`);
       assert.ok(layout.exitApproach, `seed ${seed} missing exitApproach`);
-      assert.equal(layout.tiles[layout.spawn.y][layout.spawn.x], "S");
-      assert.equal(layout.tiles[layout.exit.y][layout.exit.x], "E");
-      assert.equal(layout.tiles[layout.spawnApproach.y][layout.spawnApproach.x], ".");
-      assert.equal(layout.tiles[layout.exitApproach.y][layout.exitApproach.x], ".");
+      const at = ({ x, y }) => layout.terrain[y * layout.width + x];
+      const marker = (kind) => {
+        const index = layout.terrain.indexOf(kind);
+        return { x: index % layout.width, y: Math.floor(index / layout.width) };
+      };
+      const spawn = marker("spawn");
+      const exit = marker("exit");
+      assert.equal(at(spawn), "spawn");
+      assert.equal(at(exit), "exit");
+      assert.equal(at(layout.spawnApproach), "floor");
+      assert.equal(at(layout.exitApproach), "floor");
       // Portal cells are on the perimeter or against carved floor (wall glyph overwritten by S/E).
-      const spawnApproach = derivePortalApproach(layout.spawn, {
+      const spawnApproach = derivePortalApproach(spawn, {
         width: layout.width,
         height: layout.height,
-        isInteriorFloor: (x, y) => {
-          const g = layout.tiles[y]?.[x];
-          return g === "." || g === "B";
-        },
+        isInteriorFloor: (x, y) => at({ x, y }) === "floor",
       });
       assert.deepEqual(spawnApproach, layout.spawnApproach);
     }
@@ -57,21 +61,13 @@ describe("configurator portal placement", () => {
     const layout = {
       width: 7,
       height: 5,
-      tiles: [
-        "#######",
-        "S.....#",
-        "#.....#",
-        "#.....E",
-        "#######",
+      terrain: [
+        ...Array(7).fill("wall"),
+        "spawn", ...Array(5).fill("floor"), "wall",
+        "wall", ...Array(5).fill("floor"), "wall",
+        "wall", ...Array(5).fill("floor"), "exit",
+        ...Array(7).fill("wall"),
       ],
-      legend: {
-        "#": { tile: "wall" },
-        ".": { tile: "floor" },
-        S: { tile: "spawn" },
-        E: { tile: "exit" },
-      },
-      spawn: { x: 0, y: 1 },
-      exit: { x: 6, y: 3 },
       spawnApproach: { x: 1, y: 1 },
       exitApproach: { x: 5, y: 3 },
       rooms: [
@@ -84,8 +80,8 @@ describe("configurator portal placement", () => {
 
     const { actors, changed } = placeActors({
       actors: [
-        { id: "delver_1", role: "delver" },
-        { id: "warden_1", role: "warden" },
+        { id: "delver_1", alignment: "external" },
+        { id: "warden_1", alignment: "dungeon" },
       ],
       layout,
       delverCount: 1,

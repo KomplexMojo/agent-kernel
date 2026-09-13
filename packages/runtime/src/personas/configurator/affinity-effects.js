@@ -181,7 +181,7 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
  * @param {number} stacks - stack count >= 1
  * @returns {{ mana: { current: number, max: number, regen: number }, durability: { current: number, max: number, regen: number } }}
  */
-function computeHazardVitals(expression, stacks) {
+export function computeHazardVitals(expression, stacks) {
   const s = Number.isInteger(stacks) && stacks >= 1 ? stacks : 1;
 
   if (expression === "emit" || expression === "draw") {

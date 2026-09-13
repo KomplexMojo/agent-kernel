@@ -8,10 +8,6 @@ import {
 } from "./summary-selections.js";
 import { validateBuildSpec } from "../../contracts/build-spec.js";
 import {
-  DEFAULT_VITALS,
-  normalizeVitals as normalizeDomainVitals,
-} from "../../contracts/domain-constants.js";
-import {
   BUDGET_ARTIFACT_SCHEMA,
   BUILD_SPEC_SCHEMA,
 } from "../../contracts/artifacts.ts";
@@ -287,26 +283,6 @@ export function deriveLevelGenFromSummary(summary, roomGeometry) {
   });
 }
 
-function normalizeActorVitals(vitals) {
-  return normalizeDomainVitals(vitals, DEFAULT_VITALS);
-}
-
-function normalizeAffinityTraits(affinities, fallbackAffinity) {
-  const traits = {};
-  if (Array.isArray(affinities)) {
-    affinities.forEach((entry) => {
-      const kind = typeof entry?.kind === "string" && entry.kind.trim() ? entry.kind.trim() : "";
-      if (!kind) return;
-      const stacks = Number.isFinite(entry?.stacks) ? Math.max(1, Math.floor(entry.stacks)) : 1;
-      traits[kind] = Math.max(stacks, traits[kind] || 0);
-    });
-  }
-  if (Object.keys(traits).length === 0 && fallbackAffinity) {
-    traits[fallbackAffinity] = 1;
-  }
-  return Object.keys(traits).length > 0 ? traits : null;
-}
-
 function buildActorsAndGroups(selections) {
   const actors = [];
   const groupCounts = new Map();
@@ -316,42 +292,19 @@ function buildActorsAndGroups(selections) {
     .filter((sel) => sel.kind === "actor" && sel.instances && sel.instances.length > 0)
     .forEach((sel) => {
       sel.instances.forEach((inst) => {
-        const vitals = normalizeActorVitals(inst?.vitals);
-        const affinityEntries = Array.isArray(inst?.affinities)
-          ? inst.affinities
-            .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
-            .map((entry) => ({
-              kind: entry.kind,
-              expression: entry.expression,
-              stacks: Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1,
-            }))
-          : [];
-        const affinityTraits = normalizeAffinityTraits(inst?.affinities, inst?.affinity);
+        // Selections retain planning prices. The configuration request contains only
+        // authored actor properties; Configurator owns preset defaults and validation.
         const entry = {
           id: inst.id,
-          kind: sel.applied?.subType === "static" ? "static" : "ambulatory",
-          affinity: inst.affinity,
-          motivations: [inst.motivation],
-          position: { x: actorIndex, y: 0 },
-          tokenCost: Number.isInteger(inst?.cost) && inst.cost > 0 ? inst.cost : undefined,
-          vitals,
+          category: Object.hasOwn(inst, "category") ? inst.category : (inst.actorType ?? "warden"),
+          position: structuredClone(Object.hasOwn(inst, "position") ? inst.position : { x: actorIndex, y: 0 }),
+          motivations: structuredClone(Object.hasOwn(inst, "motivations") ? inst.motivations : (inst.motivation ? [inst.motivation] : [])),
         };
+        for (const key of ["alignment", "lifecycle", "defeatVital", "vitals", "capabilities",
+          "affinities", "activeAffinityKey", "holdings"]) {
+          if (Object.hasOwn(inst, key)) entry[key] = structuredClone(inst[key]);
+        }
         actorIndex += 1;
-        if (inst.actorType === "delver" || inst.actorType === "warden") {
-          entry.archetype = inst.actorType;
-        }
-        if (typeof inst?.setupMode === "string" && inst.setupMode.trim()) {
-          entry.setupMode = inst.setupMode.trim();
-        }
-        if (affinityEntries.length > 0) {
-          entry.affinities = affinityEntries;
-        }
-        if (affinityTraits) {
-          const baseTraits = inst?.traits && typeof inst.traits === "object" && !Array.isArray(inst.traits)
-            ? { ...inst.traits }
-            : {};
-          entry.traits = { ...baseTraits, affinities: affinityTraits };
-        }
         actors.push(entry);
       });
       const key = sel.applied?.motivation || "unknown";

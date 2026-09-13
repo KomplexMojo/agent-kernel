@@ -317,3 +317,13 @@ The Director is therefore a **planner and intent shaper**, focused on *what shou
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
 - Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
 - Entry points are `.js`. There is no `.mts` twin (no `ts-node/esm` required).
+
+### Unified actor request cutover
+
+BuildSpec actor requests now carry `category` and authored common actor properties.
+All motivations and explicit alignment, capabilities, defeat vital, active pair
+(including null), and holdings survive selection mapping. Planning cost and setup
+mode remain on selections; legacy kind/archetype/traits/tokenCost fields are not
+mechanical configuration. Configurator applies preset defaults and validates the
+request. The remaining card hazard/resource and level generation paths are still
+being migrated; this handoff does not establish a working production runner.

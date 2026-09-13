@@ -203,7 +203,7 @@ test("buildBuildSpecFromSummary: actor card instances keep role and unique posit
   const { spec } = buildBuildSpecFromSummary({ summary, clock: CLOCK });
   const actors = spec.configurator.inputs.actors;
   assert.equal(actors.length, 5);
-  assert.deepEqual(actors.map((actor) => actor.archetype), [
+  assert.deepEqual(actors.map((actor) => actor.category), [
     "delver",
     "delver",
     "warden",

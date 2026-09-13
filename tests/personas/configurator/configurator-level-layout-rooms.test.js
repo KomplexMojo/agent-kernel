@@ -1,4 +1,13 @@
 const assert = require("node:assert/strict");
+function grid(layout) {
+  return Array.from({ length: layout.height }, (_, y) =>
+    layout.terrain.slice(y * layout.width, (y + 1) * layout.width));
+}
+function marker(layout, kind) {
+  const index = layout.terrain.indexOf(kind);
+  assert.ok(index >= 0);
+  return { x: index % layout.width, y: Math.floor(index / layout.width) };
+}
 
 const tiers = [
   { name: "tier3", width: 20, height: 20, roomCount: 2, seed: 303 },
@@ -16,7 +25,7 @@ test("room layouts are deterministic and connected for tiered sizes", async () =
   );
 
   function isWalkable(cell) {
-    return cell !== "#" && cell !== "S" && cell !== "E";
+    return cell === "floor";
   }
 
   function bfs(tiles, start) {
@@ -124,24 +133,21 @@ test("room layouts are deterministic and connected for tiered sizes", async () =
     assert.equal(layout.height, tier.height);
     assert.ok(Array.isArray(layout.rooms));
     assert.ok(layout.rooms.length >= tier.roomCount);
-    assert.equal(layoutAgain.tiles.join(""), layout.tiles.join(""));
+    assert.equal(grid(layoutAgain).join(""), grid(layout).join(""));
     assert.deepEqual(layoutAgain.rooms, layout.rooms);
 
     assert.ok(layout.spawnApproach, "spawnApproach required for wall portal");
     assert.ok(layout.exitApproach, "exitApproach required for wall portal");
-    assert.equal(layout.tiles[layout.spawn.y][layout.spawn.x], "S");
-    assert.equal(layout.tiles[layout.exit.y][layout.exit.x], "E");
-    // Portals occupy walls; approaches are the walkable seating cells.
-    assert.equal(layout.kinds[layout.spawn.y][layout.spawn.x], 1);
-    assert.equal(layout.kinds[layout.exit.y][layout.exit.x], 1);
-    assert.equal(layout.kinds[layout.spawnApproach.y][layout.spawnApproach.x], 0);
-    assert.equal(layout.kinds[layout.exitApproach.y][layout.exitApproach.x], 0);
+    assert.equal(grid(layout)[marker(layout, "spawn").y][marker(layout, "spawn").x], "spawn");
+    assert.equal(grid(layout)[marker(layout, "exit").y][marker(layout, "exit").x], "exit");
+    assert.equal(grid(layout)[layout.spawnApproach.y][layout.spawnApproach.x], "floor");
+    assert.equal(grid(layout)[layout.exitApproach.y][layout.exitApproach.x], "floor");
 
-    const reachable = bfs(layout.tiles, layout.spawnApproach);
+    const reachable = bfs(grid(layout), layout.spawnApproach);
     assert.equal(reachable[layout.exitApproach.y][layout.exitApproach.x], true);
 
     layout.rooms.forEach((room) => {
-      const anchor = roomAnchor(layout.tiles, room);
+      const anchor = roomAnchor(grid(layout), room);
       assert.equal(reachable[anchor.y][anchor.x], true);
     });
 

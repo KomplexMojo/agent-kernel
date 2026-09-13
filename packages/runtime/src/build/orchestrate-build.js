@@ -400,6 +400,7 @@ export async function orchestrateBuild({
       throw error;
     }
     layout = objectPlacement.layout;
+    const placedActors = Array.isArray(objectPlacement.actors) ? objectPlacement.actors : [];
     const baseVitalsByActorId = Object.fromEntries(
       actorsInput.actors
         .filter((actor) => actor?.id && actor.vitals)
@@ -459,7 +460,7 @@ export async function orchestrateBuild({
       budgetAllocation = allocationResult.allocation;
     }
 
-    const configuratorResources = Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [];
+    const pricedActors = () => [...actorsInput.actors, ...placedActors];
 
     if (configuratorInputs?.maximizeBudget && !budgetReceipt && mapped.budget?.budget && resolvedPriceList) {
       const probeResult = evaluateConfiguratorSpend({
@@ -467,8 +468,8 @@ export async function orchestrateBuild({
         priceList: resolvedPriceList,
         allocation: budgetAllocation,
         layout,
-        actors: actorsInput.actors,
-        resources: configuratorResources,
+        actors: pricedActors(),
+        resources: [],
         proposalMeta: createBuildMeta(spec, producedBy, "spend_proposal_probe"),
         receiptMeta: createBuildMeta(spec, producedBy, "budget_receipt_probe"),
         normalizeMotivations: configuratorMotivations,
@@ -500,8 +501,8 @@ export async function orchestrateBuild({
         priceList: resolvedPriceList,
         allocation: budgetAllocation,
         layout,
-        actors: actorsInput.actors,
-        resources: configuratorResources,
+        actors: pricedActors(),
+        resources: [],
         motivationRules,
         affinityRules,
         proposalMeta: createBuildMeta(spec, producedBy, "spend_proposal"),
@@ -527,29 +528,32 @@ export async function orchestrateBuild({
     const normalizedActors = configuratorBuild.placeActors({
       actors: actorsInput.actors,
       layout,
+      reservedActors: placedActors,
       delverCount: configuratorInputs?.delverCount,
     });
     if (normalizedActors.changed) {
       actorsInput.actors = normalizedActors.actors;
-      resolvedActors = normalizedActors.actors;
     }
+    const existingActorIds = new Set(actorsInput.actors.map((actor) => actor?.id).filter(Boolean));
+    actorsInput.actors = [...actorsInput.actors,
+      ...placedActors.filter((actor) => actor?.id && !existingActorIds.has(actor.id))];
+    resolvedActors = actorsInput.actors;
 
     simConfig = buildSimConfigArtifact({
       meta: createBuildMeta(spec, producedBy, "sim_config"),
       planRef: toRef(mapped.plan),
       budgetReceiptRef: budgetReceipt ? toRef(budgetReceipt) : undefined,
-      affinityRulesRef: affinityRules ? toRef(affinityRules) : undefined,
-      motivationRulesRef: motivationRules ? toRef(motivationRules) : undefined,
+      affinityRules,
+      movementStamina: configuratorInputs?.movementStamina,
       seed,
       layout,
     });
     initialState = buildInitialStateArtifact({
       meta: createBuildMeta(spec, producedBy, "initial_state"),
       simConfigRef: toRef(simConfig),
-      affinityRulesRef: affinityRules ? toRef(affinityRules) : undefined,
-      motivationRulesRef: motivationRules ? toRef(motivationRules) : undefined,
       actors: actorsInput.actors,
-      resolvedEffects,
+      dimensions: { width: layout.width, height: layout.height },
+      terrain: layout.terrain,
     });
 
     if (affinityPresets && affinityLoadouts) {

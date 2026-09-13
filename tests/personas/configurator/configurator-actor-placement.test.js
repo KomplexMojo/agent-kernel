@@ -44,38 +44,48 @@ function buildSpec({ actors, delverCount = 2 } = {}) {
             affinities: [{ kind: "water", expression: "emit", stacks: 1 }],
           },
         ],
-        resources: [{ id: "resource_reserved" }],
-        actors,
+        resources: [{ id: "resource_reserved",
+          vitals: { durability: { current: 1, max: 1, regen: 0 } }, holdings: [] }],
+        actors, movementStamina: {},
       },
     },
   };
 }
 
+const vital = () => ({ health: { current: 10, max: 10, regen: 0 } });
 const ACTORS = Object.freeze([
-  { id: "guard_water", motivations: ["defending"], affinity: "water" },
-  { id: "mystery_beta" },
-  { id: "raider_alpha", motivations: ["attacking"] },
-  { id: "guard_fire", motivations: ["defending"], affinity: "fire" },
-  { id: "mystery_alpha" },
+  { id: "guard_water", category: "warden", motivations: ["defending"], vitals: vital(),
+    affinities: [{ kind: "water", expression: "emit", stacks: 1 }], activeAffinityKey: "water:emit" },
+  { id: "mystery_beta", category: "warden", motivations: [], vitals: vital() },
+  { id: "raider_alpha", category: "delver", motivations: ["exploring"], vitals: vital() },
+  { id: "guard_fire", category: "warden", motivations: ["defending"], vitals: vital(),
+    affinities: [{ kind: "fire", expression: "emit", stacks: 1 }], activeAffinityKey: "fire:emit" },
+  { id: "mystery_alpha", category: "delver", motivations: [], vitals: vital() },
 ]);
 
 function projectPlacement(result) {
   const data = result.simConfig.layout.data;
+  const pointFor = (kind) => {
+    const index = data.terrain.indexOf(kind);
+    return { x: index % data.width, y: Math.floor(index / data.width) };
+  };
+  const actorCategory = (actor) => result.initialState.presentation[actor.id]?.category;
   return {
-    spawn: data.spawn,
-    exit: data.exit,
+    spawn: pointFor("spawn"),
+    exit: pointFor("exit"),
     entryRoomId: data.entryRoomId,
     exitRoomId: data.exitRoomId,
     rooms: (data.rooms || []).map(({ id, x, y, width, height, templateId }) => ({
       id, x, y, width, height, templateId,
     })),
-    reservedObjectKeys: [
-      ...(data.hazards || []).map(({ x, y }) => `${x},${y}`),
-      ...(data.resources || []).map(({ x, y }) => `${x},${y}`),
-    ].sort(),
+    reservedObjectKeys: result.initialState.actors
+      .filter((actor) => ["hazard", "resource"].includes(actorCategory(actor)))
+      .map(({ position }) => `${position.x},${position.y}`).sort(),
     resolvedActors: (result.spec.configurator.resolved.actors || [])
+      .filter((actor) => ["delver", "warden"].includes(actorCategory(actor)))
       .map(({ id, position }) => ({ id, position })),
-    initialActorIds: result.initialState.actors.map(({ id }) => id),
+    initialActorIds: result.initialState.actors
+      .filter((actor) => ["delver", "warden"].includes(actorCategory(actor))).map(({ id }) => id),
   };
 }
 
@@ -111,11 +121,11 @@ test("orchestrateBuild byte-characterizes role classification, preferences, occu
     ],
     reservedObjectKeys: ["14,10", "3,15", "3,2", "3,4"],
     resolvedActors: [
-      { id: "guard_water", position: { x: 4, y: 2 } },
-      { id: "mystery_beta", position: { x: 15, y: 11 } },
-      { id: "raider_alpha", position: { x: 6, y: 2 } },
+      { id: "guard_water", position: { x: 15, y: 11 } },
+      { id: "mystery_beta", position: { x: 13, y: 10 } },
+      { id: "raider_alpha", position: { x: 5, y: 2 } },
       { id: "guard_fire", position: { x: 15, y: 10 } },
-      { id: "mystery_alpha", position: { x: 5, y: 2 } },
+      { id: "mystery_alpha", position: { x: 6, y: 2 } },
     ],
     initialActorIds: [
       "guard_fire", "guard_water", "mystery_alpha", "mystery_beta", "raider_alpha",
@@ -129,7 +139,7 @@ test("orchestrateBuild preserves the current typed placement failure", async () 
   );
   const actors = Array.from({ length: 200 }, (_, index) => ({
     id: `delver_${String(index + 1).padStart(3, "0")}`,
-    motivations: ["attacking"],
+    category: "delver", motivations: ["exploring"], vitals: vital(),
   }));
 
   await assert.rejects(

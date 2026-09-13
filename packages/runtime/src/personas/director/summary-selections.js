@@ -309,10 +309,11 @@ export function normalizeSummaryPick(
   const defaultAffinity = source === "room"
     ? DEFAULT_ROOM_CARD_AFFINITY
     : (dungeonAffinity || DEFAULT_DUNGEON_AFFINITY);
-  const motivation = normalizeMotivationKinds(
+  const motivations = normalizeMotivationKinds(
     entry?.motivations,
     entry?.role || entry?.motivation || "stationary",
-  )[0] || "stationary";
+  );
+  const motivation = motivations[0] || "stationary";
   const affinity = typeof entry?.affinity === "string" && entry.affinity.trim()
     ? entry.affinity.trim()
     : defaultAffinity;
@@ -334,6 +335,11 @@ export function normalizeSummaryPick(
     const roomSize = normalizeRoomCardSize(entry?.size ?? entry?.roomSize);
     pick.size = roomSize;
     return pick;
+  }
+  pick.motivations = motivations;
+  for (const key of ["category", "position", "alignment", "lifecycle", "defeatVital",
+    "capabilities", "activeAffinityKey", "holdings"]) {
+    if (Object.hasOwn(entry, key)) pick[key] = structuredClone(entry[key]);
   }
   pick.setupMode = setupMode;
   const withMaxOverrides = applyVitalMaxOverrides(
@@ -458,6 +464,7 @@ function cardEntryToWardenPick(card, dungeonAffinity) {
     {
       id: card.id,
       actorType: "warden",
+      motivations: card.motivations,
       role: card.motivations?.[0] || "defending",
       affinity: card.affinity || dungeonAffinity,
       count: card.count,
@@ -795,6 +802,12 @@ function pickToSelection(pick, kind, index, dungeonAffinity) {
       };
       if (actorType) {
         instance.actorType = actorType;
+      }
+      if (kind === "actor") {
+        for (const key of ["motivations", "category", "position", "alignment", "lifecycle",
+          "defeatVital", "capabilities", "activeAffinityKey", "holdings"]) {
+          if (Object.hasOwn(normalizedPick, key)) instance[key] = structuredClone(normalizedPick[key]);
+        }
       }
       if (Array.isArray(normalizedPick.affinities) && normalizedPick.affinities.length > 0) {
         instance.affinities = normalizedPick.affinities.map((entry) => ({ ...entry }));

@@ -1,3 +1,6 @@
+import { normalizeActorDefinition } from "./unified-actors.js";
+import { computeHazardVitals } from "./affinity-effects.js";
+
 /**
  * Configurator input preparation — the pure grid-sizing / hazard / resource
  * logic that turns authored entities (rooms, floor tiles, hazards, resources)
@@ -12,7 +15,7 @@
  * tests/personas/configurator/configurator-input-prep.test.js. P2.3.1 threads
  * the CLI through the configurator service surface and deletes the inline copy.
  *
- * Pure: no IO, no clock, no imports — safe under the runtime persona layer.
+ * Pure: no IO or clock — safe under the runtime persona layer.
  */
 
 // Minimum room dimensions when placedHazards/hazards occupy floor tiles alongside entrance + exit.
@@ -169,23 +172,46 @@ export function prepareLevelGen({ existingLevelGen = {}, rooms = [], floorTiles 
   return levelGen;
 }
 
-/**
- * Map authored resource values onto the configurator resource-input shape.
- * Takes UNWRAPPED resource values (the CLI passes `parsedResources.map(e => e.value)`).
- * Mirrors ak-impl's inline mapping byte-for-byte.
- */
+/** Author resource presets through the same mechanical normalization as every actor. */
 export function mapResources(resources = []) {
   return resources.map((entry) => {
-    if (entry._schemaVersion === 3) {
-      return {
-        id: entry.id,
-        permanenceMode: entry.permanenceMode,
-        vitals: entry.vitals,
-        ...(entry.affinity && typeof entry.affinity === "object"
-          ? { affinity: { ...entry.affinity } }
-          : {}),
-      };
+    const positioned = Object.hasOwn(entry, "position");
+    const { actor, presentation } = normalizeActorDefinition({
+      category: "resource", ...entry,
+      position: positioned ? entry.position : { x: 0, y: 0 },
+    });
+    const request = { ...actor, category: presentation.category };
+    if (!positioned) delete request.position;
+    return request;
+  });
+}
+
+/** Translate the hazard authoring preset into the common mechanical actor shape. */
+export function mapHazards(hazards = []) {
+  return hazards.map((entry) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)
+      || typeof entry.id !== "string" || !entry.id.trim()
+      || !entry.affinity || typeof entry.affinity !== "object") {
+      throw new Error("invalid hazard actor request");
     }
-    return { id: entry.id, tier: entry.tier, stat: entry.stat, delta: entry.delta, dropRate: entry.dropRate };
+    const position = entry.position ?? (
+      Number.isSafeInteger(entry.x) && Number.isSafeInteger(entry.y)
+        ? { x: entry.x, y: entry.y }
+        : null
+    );
+    const { kind, expression, stacks } = entry.affinity;
+    const defaults = computeHazardVitals(expression, stacks);
+    const { actor, presentation } = normalizeActorDefinition({
+      category: "hazard",
+      id: entry.id,
+      position,
+      vitals: { ...defaults, ...(entry.vitals || {}) },
+      capabilities: { blocksMovement: entry.blocking === true },
+      affinities: [{ kind, expression, stacks }],
+      activeAffinityKey: `${kind}:${expression}`,
+      motivations: Array.isArray(entry.motivations) ? entry.motivations : [],
+      holdings: Array.isArray(entry.holdings) ? entry.holdings : [],
+    });
+    return { ...actor, category: presentation.category };
   });
 }

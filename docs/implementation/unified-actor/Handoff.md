@@ -2,6 +2,25 @@
 
 ## Start here
 
+**CURRENT CUTOVER: uncommitted production artifact/loader replacement is in progress.**
+The last fully green commit is 41d2c1df. Do not reset away the subsequent work.
+Existing artifact builders now emit normalized state; core-setup loads one registry
+and no longer exports category placement functions. Director actor requests now carry common properties and full motivations.
+Generated layouts and actor placement now use canonical terrain.
+Object placement, feasibility and previews now read canonical terrain too.
+Resource and hazard placement now returns common actor requests and the production
+build merges them after reserving their coordinates. SimConfig no longer stores
+hazard/resource collections. Upstream CLI/card defaults, pricing, runtime FSM,
+adapter and UI callers remain unmigrated. The full application is temporarily broken as approved
+by the maintainer; narrow builder/loader tests and typecheck pass. Read the latest
+Documentation.md/Plan.md cutover section before using older green evidence below.
+
+Latest measured baseline: Configurator is green (42 files, 197 passed, one
+skipped); production resource/hazard integration and typecheck pass. Full suite:
+599/744 files and 3182/4174 tests pass. Runtime startup is the next blocking seam;
+split it by startup, actions, observations/effects, and budget calls rather than
+restoring deleted setup aliases.
+
 Repository: `KomplexMojo/agent-kernel`. Continue the existing isolated worktree on
 `codex/unified-actor`, preserving its local commits and any working changes. Do not reset to
 main or the published handoff checkpoint: neither contains the current local work.
@@ -69,7 +88,7 @@ A missed source-path parity test from UA.2 was corrected without weakening its
 assertions. The suite includes all 32 architecture files. Details and earlier
 red/green/perturbation evidence are in Documentation.md.
 
-## Latest local verification — September 10
+## Last green pre-cutover verification — September 10
 
 Full suite: 502 files passed, 3914 tests passed, 242 skipped, zero failures.
 Typecheck passed. Separate architecture suite: 32 files and 118 assertions passed.
@@ -84,3 +103,10 @@ inspection notes at the end of Plan.md.
 All perturbations restored; no guard baseline widened. These results cover the
 local implementation, not the older published checkpoint. The production
 engine migration remains incomplete; use Plan.md's updated continuation seam.
+
+## Review requirement before PR
+All Luna-produced implementation milestones must be checked by a more capable
+model before opening or updating the PR. The reviewer must inspect the complete
+diff, verify the locked mechanics and dependency/persona boundaries, rerun or
+inspect the relevant gates, and record any required fixes. Do not treat Luna's
+narrow green tests as sufficient approval for publication.
