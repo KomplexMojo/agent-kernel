@@ -2,7 +2,7 @@
   "schemaVersion": "agent-kernel-abstract-plan-catalog/v1",
   "sourceScenarioSet": {
     "count": 100,
-    "sha256": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001"
+    "sha256": "ddfcdbadef489cb12fbb42df3b9e6cc9f8d119b0b3fb747883863d95e694507b"
   },
   "scenarios": [
     {
@@ -254,11 +254,11 @@
           },
           "p-09948a746081": {
             "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1"
+            "spec": "id=room_1_field_1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1;durability=5"
           },
           "p-b94d982ee8f7": {
             "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1"
+            "spec": "id=room_1_field_1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1;durability=5"
           }
         }
       }
@@ -393,11 +393,11 @@
           },
           "p-faa9c47ec19f": {
             "target": "hazard",
-            "spec": "id=hazard_fire_emit;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_fire_emit;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-c1d74d2e66a0": {
             "target": "hazard",
-            "spec": "id=hazard_fire_emit;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_fire_emit;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-509f353b52a3": {
             "target": "delver",
@@ -2709,11 +2709,11 @@
           },
           "p-b1a34c689c93": {
             "target": "hazard",
-            "spec": "id=hazard_blocking_choke;affinity=fortify;expression=emit;proximityRadius=1;stacks=2;blocking=true;mana=regen:12:12:2"
+            "spec": "id=hazard_blocking_choke;affinity=fortify;expression=emit;proximityRadius=1;stacks=2;blocking=true;mana=regen:12:12:2;durability=5"
           },
           "p-63bf2ed0102f": {
             "target": "hazard",
-            "spec": "id=hazard_blocking_choke;affinity=fortify;expression=emit;proximityRadius=1;stacks=2;blocking=true;mana=regen:12:12:2"
+            "spec": "id=hazard_blocking_choke;affinity=fortify;expression=emit;proximityRadius=1;stacks=2;blocking=true;mana=regen:12:12:2;durability=5"
           },
           "p-d75461987dc5": {
             "target": "delver",
@@ -4207,51 +4207,51 @@
           },
           "p-54cc19d75a28": {
             "target": "hazard",
-            "spec": "id=hazard_dense_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-bb419845cc4c": {
             "target": "hazard",
-            "spec": "id=hazard_dense_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-cbc48218dcad": {
             "target": "hazard",
-            "spec": "id=hazard_dense_water;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_water;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-64f0f95f1191": {
             "target": "hazard",
-            "spec": "id=hazard_dense_water;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_water;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-3158395bc965": {
             "target": "hazard",
-            "spec": "id=hazard_dense_earth;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_earth;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-367d809e52de": {
             "target": "hazard",
-            "spec": "id=hazard_dense_earth;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_earth;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-8c0d6e163fce": {
             "target": "hazard",
-            "spec": "id=hazard_dense_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-0d48493ba526": {
             "target": "hazard",
-            "spec": "id=hazard_dense_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-10f325c07f52": {
             "target": "hazard",
-            "spec": "id=hazard_dense_light;affinity=light;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_light;affinity=light;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-c73489f2a5bb": {
             "target": "hazard",
-            "spec": "id=hazard_dense_light;affinity=light;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_light;affinity=light;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-cc48c19e5129": {
             "target": "hazard",
-            "spec": "id=hazard_dense_dark;affinity=dark;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_dark;affinity=dark;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-ba556e50640c": {
             "target": "hazard",
-            "spec": "id=hazard_dense_dark;affinity=dark;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_dense_dark;affinity=dark;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-fc1e205f42b4": {
             "target": "resource",
@@ -4624,19 +4624,19 @@
           },
           "p-429b4d5ab9f7": {
             "target": "hazard",
-            "spec": "id=hazard_stress_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_stress_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-d5b04434f8c0": {
             "target": "hazard",
-            "spec": "id=hazard_stress_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_stress_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-2523f18c590a": {
             "target": "hazard",
-            "spec": "id=hazard_stress_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_stress_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-c2fcd8ee1c40": {
             "target": "hazard",
-            "spec": "id=hazard_stress_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_stress_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-5b4ca73cb8f9": {
             "target": "resource",
@@ -11671,11 +11671,11 @@
           },
           "p-4bda79f50c2e": {
             "target": "hazard",
-            "spec": "affinity=dark;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "spec": "affinity=dark;expression=emit;proximityRadius=2;mana=regen:3:3:1;durability=5"
           },
           "p-c5e53074a181": {
             "target": "hazard",
-            "spec": "affinity=dark;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "spec": "affinity=dark;expression=emit;proximityRadius=2;mana=regen:3:3:1;durability=5"
           },
           "p-87d3c729687b": {
             "target": "delver",
@@ -13617,11 +13617,11 @@
           },
           "p-857cebeb086c": {
             "target": "hazard",
-            "spec": "id=hazard_water_draw;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_water_draw;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-b340a84382b1": {
             "target": "hazard",
-            "spec": "id=hazard_water_draw;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_water_draw;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-337914f30621": {
             "target": "delver",
@@ -13772,11 +13772,11 @@
           },
           "p-4941e70995ed": {
             "target": "hazard",
-            "spec": "id=hazard_wind_push;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_wind_push;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-9a24f293f229": {
             "target": "hazard",
-            "spec": "id=hazard_wind_push;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_wind_push;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-4d338ddb0506": {
             "target": "delver",
@@ -13919,11 +13919,11 @@
           },
           "p-ad9f7feec674": {
             "target": "hazard",
-            "spec": "id=hazard_earth_pull;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_earth_pull;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-b84a58969d88": {
             "target": "hazard",
-            "spec": "id=hazard_earth_pull;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+            "spec": "id=hazard_earth_pull;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
           },
           "p-a9be387b724b": {
             "target": "delver",

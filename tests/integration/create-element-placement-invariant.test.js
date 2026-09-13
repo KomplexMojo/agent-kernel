@@ -146,7 +146,7 @@ const SHAPES = [
       room: ["size=medium;count=1"],
       hazard: [
         "x=2;y=2;affinity=earth;expression=emit;stacks=1;blocking=false",
-        "id=h1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1",
+        "id=h1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1;durability=5",
       ],
       delver: ["count=1;affinity=fire;motivation=exploring"],
       budgetTokens: 2500,
@@ -173,7 +173,7 @@ const SHAPES = [
       // resources pool unless a hazard is present (deniedPools=resources:N/0
       // otherwise) — every canonical resource scenario carries one. Logged
       // 2026-07-11 as an open observation; code-is-law until adjudicated.
-      hazard: ["id=h1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"],
+      hazard: ["id=h1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1;durability=5"],
       room: ["size=medium;count=1"],
       resource: [
         "tier=permanent;stat=vitalMax;delta=6;dropRate=5",

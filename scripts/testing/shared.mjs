@@ -65,9 +65,6 @@ function detectRecipe(relativePath, content) {
   if (relativePath.startsWith("tests/adapters-test/") || relativePath.startsWith("tests/adapters-web/")) {
     return "adapter_port_contract";
   }
-  if (relativePath.startsWith("tests/allocator/") || relativePath.startsWith("tests/financial-model/")) {
-    return "budget_policy_invariant";
-  }
   if (content.includes("manifest.json") && content.includes("bundle.json")) {
     return "manifest_bundle_consistency";
   }

@@ -315,7 +315,7 @@ test("i3 positioned and auto-placed hazards obey the same room-containment contr
       floorTile: ["count=32"],
       hazard: [
         "x=1;y=1;affinity=fire;expression=emit;stacks=1;blocking=false",
-        "affinity=fire;expression=emit;proximityRadius=1;mana=regen:2:2:1",
+        "affinity=fire;expression=emit;proximityRadius=1;mana=regen:2:2:1;durability=5",
       ],
       budgetTokens: 2500,
       runId: "i3_hazard_containment",

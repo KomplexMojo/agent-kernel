@@ -110,7 +110,7 @@ function summarizeActors(actors) {
   }));
 }
 
-const HAZARD_SPEC = "id=room_1_field_1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1";
+const HAZARD_SPEC = "id=room_1_field_1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1;durability=5";
 
 let permutationOutDir;
 
@@ -205,7 +205,7 @@ test("i1 small room accepts two hazards when medium accepts the same pair", asyn
   const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
   const hazardSpecs = [
     HAZARD_SPEC,
-    "id=room_1_field_2;affinity=water;expression=emit;proximityRadius=2;mana=regen:2:2:1",
+    "id=room_1_field_2;affinity=water;expression=emit;proximityRadius=2;mana=regen:2:2:1;durability=5",
   ];
 
   const smallDir = join(permutationOutDir, "small-two-hazards");
@@ -342,8 +342,8 @@ test("i1 large room accepts hazard counts proportional to its larger interior", 
 
   const hazardSpecs = [
     HAZARD_SPEC,
-    "id=room_1_field_2;affinity=water;expression=emit;proximityRadius=2;mana=regen:2:2:1",
-    "id=room_1_field_3;affinity=earth;expression=emit;proximityRadius=1;mana=regen:1:1:1",
+    "id=room_1_field_2;affinity=water;expression=emit;proximityRadius=2;mana=regen:2:2:1;durability=5",
+    "id=room_1_field_3;affinity=earth;expression=emit;proximityRadius=1;mana=regen:1:1:1;durability=5",
   ];
 
   const mediumDir = join(permutationOutDir, "medium-three-hazards");
@@ -388,7 +388,7 @@ test("i1 small and medium both accept the same dense 10-hazard request", async (
   const hazardSpecs = Array.from({ length: 10 }, (_, index) =>
     `id=room_1_field_${index + 1};affinity=${["fire", "water", "earth", "wind"][index % 4]};expression=emit;proximityRadius=${
       (index % 3) + 1
-    };mana=regen:${index + 1}:${index + 1}:1`,
+    };mana=regen:${index + 1}:${index + 1}:1;durability=5`,
   );
 
   const smallDir = join(permutationOutDir, "small-dense-hazards");

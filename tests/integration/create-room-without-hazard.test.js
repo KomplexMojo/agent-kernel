@@ -152,7 +152,7 @@ describe("hazard-free rooms are first-class (rooms carry no affinity)", () => {
   test("resources with and without a hazard cost the same (no hazard surcharge/discount coupling)", async () => {
     const withHazard = await createShape(outDir, "resources-hazard", {
       room: ["size=medium;count=1"],
-      hazard: ["id=h1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"],
+      hazard: ["id=h1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1;durability=5"],
       resource: RESOURCE_SPECS,
       budgetTokens: 2500,
     });
@@ -201,7 +201,7 @@ test("room with resources, a hazard, and actors approves every requested pool", 
   try {
     const result = await createShape(outDir, "mixed-pools", {
       room: ["size=medium;count=1"],
-      hazard: ["id=h1;affinity=life;expression=emit;proximityRadius=1;mana=regen:3:3:1"],
+      hazard: ["id=h1;affinity=life;expression=emit;proximityRadius=1;mana=regen:3:3:1;durability=5"],
       resource: RESOURCE_SPECS,
       delver: ["count=1;affinity=fire;motivation=exploring"],
       warden: ["count=1;affinity=water;motivation=defending"],

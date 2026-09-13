@@ -92,7 +92,27 @@ test("integration: a real AWA-style summary compiles to a SimConfig+InitialState
   assert.ok(schemas.some((s) => /InitialState/.test(s)), "bundle must include an InitialState artifact");
 });
 
-// ## TODO: Test Permutations
-// - onBundle write failure surfaces as an execution error
-// - compile throwing propagates without pushing
-// - timedOutClientIds are reported in the receipt
+
+test("onBundle write failure surfaces as an execution error", async () => {
+  const { createGameplayBridgeOperation } = await loadOp();
+  const s = stubs({ onBundle: () => { throw new Error("write failed"); } });
+  const op = createGameplayBridgeOperation(s);
+  await assert.rejects(() => op({ runId: "r", generated: { rooms: [{ id: "r1" }] } }), /write failed/);
+  assert.equal(s.calls.push.length, 0);
+});
+
+test("compile throwing propagates without pushing", async () => {
+  const { createGameplayBridgeOperation } = await loadOp();
+  const s = stubs({ compile: () => { throw new Error("compile error"); } });
+  const op = createGameplayBridgeOperation(s);
+  await assert.rejects(() => op({ runId: "r", generated: { rooms: [{ id: "r1" }] } }), /compile error/);
+  assert.equal(s.calls.push.length, 0);
+});
+
+test("timedOutClientIds are reported in the receipt", async () => {
+  const { createGameplayBridgeOperation } = await loadOp();
+  const s = stubs({ push: () => ({ deliveredClientIds: ["ui_1"], timedOutClientIds: ["ui_2"] }) });
+  const op = createGameplayBridgeOperation(s);
+  const receipt = await op({ runId: "r", generated: { rooms: [{ id: "r1" }] } });
+  assert.deepEqual(receipt.timedOutClientIds, ["ui_2"]);
+});

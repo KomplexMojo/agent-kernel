@@ -20,12 +20,14 @@
   ],
   "vitals": {
     "mana": {
-      "kind": "one-time",
-      "amount": 0
+      "kind": "regen",
+      "current": 4,
+      "max": 4,
+      "regen": 1
     },
     "durability": {
       "kind": "one-time",
-      "amount": 1
+      "amount": 5
     }
   }
 }

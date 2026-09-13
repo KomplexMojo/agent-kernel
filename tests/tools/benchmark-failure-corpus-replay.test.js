@@ -4,9 +4,9 @@ const { mkdtempSync, readdirSync, readFileSync, rmSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 
-const { normalizeToolArgs, classifyExecutionOutcome, REPO_ROOT, AK_CLI } = require(
-  "../../tools/remote-ollama-control/scripts/lib/ak-runner",
-);
+const {
+  normalizeToolArgs, backfillPreRequiredHazardVitals, classifyExecutionOutcome, REPO_ROOT, AK_CLI,
+} = require("../../tools/remote-ollama-control/scripts/lib/ak-runner");
 
 // The corpus this test replays. See tests/fixtures/benchmark-failures/README.md for how it was
 // harvested and tools/benchmark/extract-benchmark-failure-fixtures.mjs for the extraction itself.
@@ -28,13 +28,17 @@ async function replay(fixture) {
   const outDir = mkdtempSync(join(tmpdir(), `ak-benchmark-failure-${fixture.id}-`));
   try {
     const constrained = fixture.scenarioBudget != null;
-    const normalizedArgs = normalizeToolArgs({
+    // This corpus predates #180's hazard mana/durability requirement -- back-fill the minimum
+    // valid amount so replay reaches the ORIGINAL recorded outcome instead of a new, earlier
+    // CLI-parse denial. See backfillPreRequiredHazardVitals's own comment for why this stays
+    // out of normalizeToolArgs itself.
+    const normalizedArgs = normalizeToolArgs(backfillPreRequiredHazardVitals({
       ...fixture.toolArgs,
       budgetTokens: constrained ? fixture.scenarioBudget : undefined,
       outDir,
       runId: fixture.id,
       emitIntermediates: true,
-    });
+    }));
     if (!constrained) delete normalizedArgs.budgetTokens;
 
     const cliArgs = buildArgv(normalizedArgs, authoringSpec);
