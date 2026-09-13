@@ -145,7 +145,9 @@ fi
 cd "$REPO/tools/remote-ollama-control"
 
 # --route auto probes the LAN first and falls back to the external path, so the same launcher works
-# from home and away.
+# from home and away. --serve is intentionally NOT used here: a Finder-launched .app must exit, and
+# a long-lived proxy would orphan. Open the HTML; for local Ollama re-prompt use
+# `./bin/remote-ollama-mac benchmark-status --html "$OUT" --serve` from a terminal.
 if ! output=$(./bin/remote-ollama-mac benchmark-status --route auto --html "$OUT" 2>&1); then
   # Match only "Operation not permitted", which is the TCC refusal. NOT "Permission denied":
   # that is ssh failing to authenticate, and pointing at privacy settings for a missing key would

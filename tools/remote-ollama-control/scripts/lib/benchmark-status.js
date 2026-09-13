@@ -44,6 +44,7 @@ const stateDir = process.env.AK_BENCHMARK_STATE_DIR
 const MAX_ATTEMPT_RECORDS = 4000;
 const MAX_STDERR_CHARS = 4000;
 const MAX_TOOL_ARGS_CHARS = 4000;
+const MAX_PROMPT_CHARS = 12000;
 
 const out = {
   schemaVersion: '${STATUS_SCHEMA_VERSION}',
@@ -184,6 +185,24 @@ try {
       llmMs: record.llmMs,
       execMs: record.execMs,
       toolArgs: clip(JSON.stringify(record.toolArgs), MAX_TOOL_ARGS_CHARS),
+      // Exact chat inputs when the run recorded them. Messages only — the tool schema is attached
+      // once by the Mac-side formatter so a long run does not multiply a 15KB blob by every attempt.
+      llmRequest: record.llmRequest ? {
+        provenance: record.llmRequest.provenance || 'recorded',
+        model: record.llmRequest.model || null,
+        think: record.llmRequest.think === true,
+        tool_choice: record.llmRequest.tool_choice || null,
+        temperature: record.llmRequest.temperature,
+        max_tokens: record.llmRequest.max_tokens,
+        options: record.llmRequest.options || null,
+        toolsSchemaSha256: record.llmRequest.toolsSchemaSha256 || null,
+        messages: Array.isArray(record.llmRequest.messages)
+          ? record.llmRequest.messages.map((message) => ({
+              role: message && message.role,
+              content: clip(message && message.content, MAX_PROMPT_CHARS),
+            }))
+          : null,
+      } : null,
     });
   }
 } catch {
@@ -459,6 +478,27 @@ font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .sb.got{background:color-mix(in srgb,var(--met) 16%,transparent);color:var(--met)}
 .sb.zero{background:color-mix(in srgb,var(--miss) 14%,transparent);color:var(--miss)}
 .small{font-size:11px;margin:14px 0 0}
+.prompt-block{margin-top:12px}
+.prompt-block h4{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge-mini{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10px;
+font-weight:600;letter-spacing:.03em;text-transform:uppercase}
+.badge-mini.recorded{background:color-mix(in srgb,var(--met) 16%,transparent);color:var(--met)}
+.badge-mini.reconstructed{background:color-mix(in srgb,var(--pend) 22%,transparent);color:var(--muted)}
+.badge-mini.mismatch{background:color-mix(in srgb,var(--miss) 16%,transparent);color:var(--miss)}
+.replay{margin-top:14px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;
+background:color-mix(in srgb,var(--panel) 70%,var(--bg))}
+.replay .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.replay label{font-size:12px;color:var(--muted)}
+.replay input,.replay select,.replay button{font:inherit;font-size:13px;padding:7px 10px;
+border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--ink)}
+.replay button.primary{background:var(--accent);color:#fff;border-color:var(--accent);cursor:pointer}
+.replay button{cursor:pointer}
+.replay .status{font-size:12px;color:var(--muted);margin:0}
+.replay .status.err{color:var(--miss)}
+.replay .status.ok{color:var(--met)}
+.pkg details{margin-top:10px}
+.pkg .slot{color:var(--accent);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.pkg pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
 `;
 
 /**
@@ -471,7 +511,46 @@ const embedJson = (value) => JSON.stringify(value)
   .replace(/\u2028/g, '\\u2028')
   .replace(/\u2029/g, '\\u2029');
 
-function failuresSection(document) {
+function standardPackageSection(pageOptions = {}) {
+  const pkg = pageOptions.standardPackage || {};
+  const head = pkg.systemHead || '';
+  const tail = pkg.systemTail || '';
+  const priceBrief = pkg.priceBrief || '';
+  const toolsJson = pageOptions.tools
+    ? JSON.stringify(pageOptions.tools, null, 2)
+    : '(tool schema not embedded — regenerate the page)';
+
+  const budgetSlot = pkg.budgetConstrainedPattern
+    ? `[ ${pkg.budgetUnconstrained?.trim() || 'Omit budgetTokens…'}  |  ${pkg.budgetConstrainedPattern.trim()} ]`
+    : '[budget instruction]';
+
+  return `
+<div class="panel pkg">
+  <h2>Standard package — included in every content-gen call</h2>
+  <p class="muted small" style="margin:0 0 12px">Shown once. Attempts below only list what varies
+  (scenario user text, budget line, model/ctx) and what came back.</p>
+  <div class="kv">
+    <span>temperature</span><code>${escapeHtml(pkg.temperature ?? 0.1)}</code>
+    <span>tool_choice</span><code>${escapeHtml(pkg.tool_choice || 'required')}</code>
+    <span>think</span><code>${escapeHtml(String(pkg.think === true))}</code>
+    <span>tools sha256</span><code>${escapeHtml((pkg.toolsSchemaSha256 || pageOptions.toolsSchemaSha256 || '').slice(0, 12))}…</code>
+  </div>
+  <h4 style="margin:16px 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">System template</h4>
+  <pre>${escapeHtml(head)}<span class="slot">${escapeHtml(budgetSlot)}</span>${escapeHtml(tail)}${
+      priceBrief ? escapeHtml(`\n\n${priceBrief}`) : ''
+    }</pre>
+  <p class="muted small">Unconstrained scenarios get
+  <code>${escapeHtml((pkg.budgetUnconstrained || '').trim())}</code>;
+  constrained ones get <code>Set budgetTokens to N.</code> Price brief is
+  ${priceBrief ? 'appended below the system text.' : '<strong>empty</strong> (deliberately not sent).'}</p>
+  <details>
+    <summary class="muted small">Tool schema (<code>ak_create</code>) — affinity / expression / motivation enums live here</summary>
+    <pre>${escapeHtml(toolsJson)}</pre>
+  </details>
+</div>`;
+}
+
+function failuresSection(document, pageOptions = {}) {
   const attempts = Array.isArray(document.attempts) ? document.attempts : [];
   if (attempts.length === 0) {
     return '<div class="panel"><h2>Failures</h2><p class="empty">No attempt records yet.</p></div>';
@@ -479,7 +558,8 @@ function failuresSection(document) {
 
   const summary = summarizeFailures(attempts);
   if (summary.failing === 0) {
-    return `<div class="panel"><h2>Failures</h2><p class="empty">No failing attempts in the
+    return `${standardPackageSection(pageOptions)}
+<div class="panel"><h2>Failures</h2><p class="empty">No failing attempts in the
       ${escapeHtml(summary.attempts)} recorded so far.</p></div>`;
   }
 
@@ -501,7 +581,17 @@ function failuresSection(document) {
     failed: hasFailed(attempt),
   }));
 
+  const pageConfig = {
+    ollamaBase: pageOptions.ollamaBase || 'http://127.0.0.1:11434',
+    toolsSchemaSha256: pageOptions.toolsSchemaSha256 || null,
+    viaProxy: Boolean(pageOptions.viaProxy),
+    systemHead: pageOptions.standardPackage?.systemHead || '',
+    systemTail: pageOptions.standardPackage?.systemTail || '',
+  };
+
   return `
+${standardPackageSection(pageOptions)}
+
 <div class="panel">
   <h2>Why attempts failed — ${escapeHtml(summary.failing)} of ${escapeHtml(summary.attempts)} recorded</h2>
   <div class="chips">${outcomeChips}</div>
@@ -509,13 +599,14 @@ function failuresSection(document) {
     <th class="num">Count</th><th class="num">Share</th><th>Reason (numbers generalised)</th>
   </tr></thead><tbody>${reasonRows}</tbody></table></div>
   <p class="note" style="text-align:left;margin-top:12px">Click a reason or an outcome to filter the
-  list below.</p>
+  list below. Each attempt shows only the <strong>scenario variance</strong> and the
+  <strong>result</strong> — the standard package above is not repeated.</p>
 </div>
 
 <div class="panel">
-  <h2>Failing attempts</h2>
+  <h2>Attempts — variance + result</h2>
   <div class="filters">
-    <input id="q" type="search" placeholder="Search scenario, model, reason, stderr…" autocomplete="off">
+    <input id="q" type="search" placeholder="Search scenario, model, reason, stderr, user prompt…" autocomplete="off">
     <select id="fOutcome"><option value="">All outcomes</option>${
       summary.byOutcome.map((r) => `<option>${escapeHtml(r.name)}</option>`).join('')}</select>
     <select id="fModel"><option value="">All models</option>${
@@ -528,9 +619,13 @@ function failuresSection(document) {
 </div>
 
 <script id="attempts" type="application/json">${embedJson(payload)}</script>
+<script id="page-config" type="application/json">${embedJson(pageConfig)}</script>
+<script id="ak-create-tool" type="application/json">${embedJson(pageOptions.tools || null)}</script>
 <script>
 (function () {
   var DATA = JSON.parse(document.getElementById('attempts').textContent);
+  var CONFIG = JSON.parse(document.getElementById('page-config').textContent);
+  var TOOLS = JSON.parse(document.getElementById('ak-create-tool').textContent);
   var list = document.getElementById('list');
   var count = document.getElementById('count');
   var q = document.getElementById('q');
@@ -538,11 +633,34 @@ function failuresSection(document) {
   var fModel = document.getElementById('fModel');
   var fOnlyFailed = document.getElementById('fOnlyFailed');
   var reasonFilter = '';
+  var modelCache = null;
+  var modelCacheError = null;
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
+  }
+
+  function ollamaUrl(path) {
+    var base = String(CONFIG.ollamaBase || 'http://127.0.0.1:11434').replace(/\\/$/, '');
+    return base + path;
+  }
+
+  function messageOf(req, role) {
+    if (!req || !Array.isArray(req.messages)) return '';
+    var hit = req.messages.find(function (m) { return m && m.role === role; });
+    return hit ? (hit.content || '') : '';
+  }
+
+  function budgetInstructionOf(req) {
+    var sys = messageOf(req, 'system');
+    var head = CONFIG.systemHead || '';
+    var tail = CONFIG.systemTail || '';
+    if (head && tail && sys.indexOf(head) === 0 && sys.indexOf(tail) !== -1) {
+      return sys.slice(head.length, sys.lastIndexOf(tail));
+    }
+    return '';
   }
 
   function matches(a) {
@@ -552,12 +670,91 @@ function failuresSection(document) {
     if (fModel.value && a.model !== fModel.value) return false;
     var term = q.value.trim().toLowerCase();
     if (!term) return true;
-    return [a.scenarioTitle, a.model, a.reason, a.execStderr, a.toolArgs, a.runId, a.scenarioTier]
+    var user = messageOf(a.llmRequest, 'user');
+    var budget = budgetInstructionOf(a.llmRequest);
+    return [a.scenarioTitle, a.model, a.reason, a.execStderr, a.toolArgs, a.runId, a.scenarioTier, user, budget]
       .join(' ').toLowerCase().indexOf(term) !== -1;
   }
 
-  function detail(a) {
-    var rows = '';
+  function buildChatBody(a, model) {
+    var req = a.llmRequest;
+    if (!req || !req.messages) throw new Error('No llmRequest on this attempt');
+    if (!TOOLS) throw new Error('Tool schema missing from this page — regenerate with the latest status command');
+    var body = {
+      model: model,
+      think: req.think === true,
+      messages: req.messages,
+      tools: [TOOLS],
+      tool_choice: req.tool_choice || 'required',
+      stream: false,
+      temperature: req.temperature == null ? 0.1 : req.temperature,
+      max_tokens: req.max_tokens || 8192
+    };
+    if (req.options) body.options = req.options;
+    return body;
+  }
+
+  function curlFor(a, model) {
+    var body = buildChatBody(a, model);
+    return 'curl -sS ' + JSON.stringify(ollamaUrl('/v1/chat/completions'))
+      + " \\\\\\n  -H 'content-type: application/json' \\\\\\n  -d "
+      + JSON.stringify(JSON.stringify(body));
+  }
+
+  function varianceSection(a) {
+    var req = a.llmRequest;
+    if (!req) {
+      return '<div class="prompt-block"><h4>Scenario variance</h4>'
+        + '<p class="muted small">Not recorded on this attempt, and it could not be reconstructed '
+        + 'from the local catalog (missing scenario match).</p></div>';
+    }
+    var provenance = req.provenance || 'recorded';
+    var badge = '<span class="badge-mini ' + esc(provenance) + '">' + esc(provenance) + '</span>';
+    if (a.toolsSchemaMatch === false) {
+      badge += ' <span class="badge-mini mismatch">tools schema drifted</span>';
+    }
+    var user = messageOf(req, 'user');
+    var budget = budgetInstructionOf(req);
+    var knobs = 'model ' + esc(req.model || a.model)
+      + ' · max_tokens ' + esc(req.max_tokens)
+      + (req.options && req.options.num_ctx ? ' · num_ctx ' + esc(req.options.num_ctx) : '');
+    return '<div class="prompt-block">'
+      + '<h4>Scenario variance ' + badge + '</h4>'
+      + '<p class="muted small">' + knobs + (provenance === 'reconstructed'
+        ? ' — rebuilt from catalog + current authoring instructions; not bit-identical to the original run.'
+        : ' — exact inputs recorded with the attempt. Standard package is above, not repeated here.') + '</p>'
+      + (budget ? '<h4>Budget instruction</h4><pre>' + esc(budget) + '</pre>' : '')
+      + '<h4>User prompt</h4><pre>' + esc(user) + '</pre>'
+      + '</div>';
+  }
+
+  function replaySection(a, idx) {
+    if (!a.llmRequest || !a.llmRequest.messages) {
+      return '';
+    }
+    var defaultModel = a.llmRequest.model || a.model || '';
+    return '<div class="replay" data-idx="' + idx + '">'
+      + '<h4>Re-prompt on local Ollama</h4>'
+      + '<p class="muted small">Replays the full call: standard package + this attempt&apos;s variance.</p>'
+      + '<div class="row">'
+      + '<label>Model <select class="replay-model" data-idx="' + idx + '"><option value="">Loading…</option></select></label>'
+      + '<button type="button" class="primary replay-run" data-idx="' + idx + '">Re-prompt</button>'
+      + '<button type="button" class="replay-copy-json" data-idx="' + idx + '">Copy request JSON</button>'
+      + '<button type="button" class="replay-copy-curl" data-idx="' + idx + '">Copy curl</button>'
+      + '</div>'
+      + '<p class="status muted" data-status-for="' + idx + '">'
+      + (CONFIG.viaProxy
+        ? 'Using the status page proxy at ' + esc(CONFIG.ollamaBase) + '.'
+        : 'Talking to ' + esc(CONFIG.ollamaBase) + ' from the browser. If this fails with CORS, reopen via '
+          + '<code>benchmark-status --html PATH --serve</code>.')
+      + '</p>'
+      + '<pre class="replay-out" data-out-for="' + idx + '" hidden></pre>'
+      + '<input type="hidden" class="replay-default-model" value="' + esc(defaultModel) + '">'
+      + '</div>';
+  }
+
+  function resultSection(a) {
+    var rows = '<h4>Result</h4>';
     if (a.scenarioVerdict) {
       rows += '<div class="kv"><span>Expected</span><code>' + esc(a.scenarioVerdict.expected)
         + '</code><span>Actual</span><code>' + esc(a.scenarioVerdict.actual) + '</code></div>';
@@ -581,12 +778,148 @@ function failuresSection(document) {
     return rows;
   }
 
+  function detail(a, idx) {
+    return varianceSection(a) + replaySection(a, idx) + resultSection(a);
+  }
+
+  function setStatus(idx, text, kind) {
+    var el = list.querySelector('[data-status-for="' + idx + '"]');
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function fillModelSelects() {
+    var selects = list.querySelectorAll('select.replay-model');
+    selects.forEach(function (sel) {
+      var idx = sel.getAttribute('data-idx');
+      var wrap = list.querySelector('.replay[data-idx="' + idx + '"]');
+      var preferred = wrap ? wrap.querySelector('.replay-default-model').value : '';
+      sel.innerHTML = '';
+      if (modelCacheError) {
+        sel.innerHTML = '<option value="">' + esc(modelCacheError) + '</option>';
+        return;
+      }
+      if (!modelCache || !modelCache.length) {
+        sel.innerHTML = '<option value="">No local models</option>';
+        return;
+      }
+      modelCache.forEach(function (name) {
+        var opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        if (name === preferred) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      if (!sel.value && preferred) {
+        var fallback = document.createElement('option');
+        fallback.value = preferred;
+        fallback.textContent = preferred + ' (not listed locally)';
+        fallback.selected = true;
+        sel.appendChild(fallback);
+      }
+    });
+  }
+
+  function loadModels() {
+    return fetch(ollamaUrl('/api/tags'))
+      .then(function (res) {
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' listing models');
+        return res.json();
+      })
+      .then(function (body) {
+        modelCache = (body.models || []).map(function (m) { return m.name; }).filter(Boolean);
+        modelCacheError = null;
+        fillModelSelects();
+      })
+      .catch(function (err) {
+        modelCache = [];
+        modelCacheError = err.message || String(err);
+        fillModelSelects();
+      });
+  }
+
+  function wireReplay() {
+    list.querySelectorAll('.replay-run').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = Number(btn.getAttribute('data-idx'));
+        var a = DATA[idx];
+        var sel = list.querySelector('select.replay-model[data-idx="' + idx + '"]');
+        var out = list.querySelector('[data-out-for="' + idx + '"]');
+        var model = sel && sel.value;
+        if (!model) { setStatus(idx, 'Pick a local model first.', 'err'); return; }
+        var body;
+        try { body = buildChatBody(a, model); }
+        catch (err) { setStatus(idx, err.message, 'err'); return; }
+        btn.disabled = true;
+        setStatus(idx, 'Calling ' + model + '…', '');
+        out.hidden = true;
+        fetch(ollamaUrl('/v1/chat/completions'), {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(body)
+        }).then(function (res) {
+          return res.text().then(function (text) {
+            var parsed = null;
+            try { parsed = JSON.parse(text); } catch (e) {}
+            if (!res.ok) {
+              throw new Error((parsed && (parsed.error || parsed.message)) || ('HTTP ' + res.status + ': ' + text.slice(0, 400)));
+            }
+            return parsed || text;
+          });
+        }).then(function (parsed) {
+          var msg = parsed && parsed.choices && parsed.choices[0] && parsed.choices[0].message;
+          var tool = msg && msg.tool_calls && msg.tool_calls[0];
+          var pretty;
+          if (tool && tool.function) {
+            var args = tool.function.arguments;
+            try { args = JSON.stringify(JSON.parse(args), null, 2); } catch (e) {}
+            pretty = 'tool: ' + tool.function.name + '\\n' + args;
+          } else if (msg && msg.content) {
+            pretty = String(msg.content);
+          } else {
+            pretty = JSON.stringify(parsed, null, 2);
+          }
+          out.hidden = false;
+          out.textContent = pretty;
+          setStatus(idx, 'Done.', 'ok');
+        }).catch(function (err) {
+          setStatus(idx, err.message || String(err), 'err');
+        }).finally(function () { btn.disabled = false; });
+      });
+    });
+    list.querySelectorAll('.replay-copy-json').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = Number(btn.getAttribute('data-idx'));
+        var a = DATA[idx];
+        var sel = list.querySelector('select.replay-model[data-idx="' + idx + '"]');
+        try {
+          var body = buildChatBody(a, (sel && sel.value) || a.model);
+          navigator.clipboard.writeText(JSON.stringify(body, null, 2));
+          setStatus(idx, 'Request JSON copied.', 'ok');
+        } catch (err) { setStatus(idx, err.message, 'err'); }
+      });
+    });
+    list.querySelectorAll('.replay-copy-curl').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idx = Number(btn.getAttribute('data-idx'));
+        var a = DATA[idx];
+        var sel = list.querySelector('select.replay-model[data-idx="' + idx + '"]');
+        try {
+          navigator.clipboard.writeText(curlFor(a, (sel && sel.value) || a.model));
+          setStatus(idx, 'curl command copied.', 'ok');
+        } catch (err) { setStatus(idx, err.message, 'err'); }
+      });
+    });
+  }
+
   function render() {
     var shown = DATA.filter(matches);
     count.textContent = shown.length + ' of ' + DATA.length + ' attempts'
       + (reasonFilter ? ' · reason: ' + reasonFilter : '');
     if (!shown.length) { list.innerHTML = '<p class="empty">Nothing matches these filters.</p>'; return; }
-    list.innerHTML = shown.map(function (a, i) {
+    list.innerHTML = shown.map(function (a) {
+      var idx = DATA.indexOf(a);
       return '<details class="item' + (a.failed ? '' : ' ok') + '">'
         + '<summary><span class="pill ' + (a.failed ? 'dead' : 'live') + '">'
         + esc(a.executionOutcome) + '</span>'
@@ -594,8 +927,11 @@ function failuresSection(document) {
         + '<span class="meta">' + esc(a.model) + ' · ' + esc(a.scenarioTier)
         + ' · score ' + esc(a.score) + '</span>'
         + '<span class="why">' + esc(a.reason) + '</span></summary>'
-        + '<div class="body">' + detail(a) + '</div></details>';
+        + '<div class="body">' + detail(a, idx) + '</div></details>';
     }).join('');
+    fillModelSelects();
+    wireReplay();
+    if (!modelCache && !modelCacheError) loadModels();
   }
 
   document.querySelectorAll('.reasons tr.clickable').forEach(function (tr) {
@@ -629,7 +965,7 @@ function failuresSection(document) {
 </script>`;
 }
 
-function formatStatusHtml(document) {
+function formatStatusHtml(document, pageOptions = {}) {
   const generated = escapeHtml(document.probedAt);
   const head = (bodyHtml, badge, badgeText) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
@@ -640,7 +976,7 @@ function formatStatusHtml(document) {
 <p class="sub">Read from the box at ${generated}</p>
 ${bodyHtml}
 <p class="note">Snapshot read directly from <code>progress.json</code>, not the five-minute heartbeat.
-Double-click the launcher again to refresh.</p>
+Refresh with the launcher (or <code>benchmark-status --html … --serve</code> for local Ollama replay).</p>
 </div></body></html>`;
 
   if (document.status === 'unreadable') {
@@ -648,7 +984,9 @@ Double-click the launcher again to refresh.</p>
       escapeHtml(document.error || 'agent state could not be read')
     }</div></div>`, 'unreadable', 'unreadable');
   }
-  if (document.status !== 'running') {
+  // Finished runs are the HITL case: nothing is live, but the attempt evidence is what you inspect.
+  const inspectable = document.status === 'running' || document.status === 'finished';
+  if (!inspectable) {
     return head(`<div class="panel"><p class="empty">No run in flight.${
       document.sourceCommit
         ? ` Last evaluated commit <code>${escapeHtml(document.sourceCommit.slice(0, 8))}</code>.`
@@ -657,7 +995,9 @@ Double-click the launcher again to refresh.</p>
   }
   if (!document.progress) {
     return head('<div class="panel"><p class="empty">Running — no progress written yet. '
-      + 'The first attempt has not finished.</p></div>', 'running', 'running');
+      + 'The first attempt has not finished.</p></div>',
+    document.status === 'finished' ? 'finished' : 'running',
+    document.status === 'finished' ? 'finished run' : 'running');
   }
 
   const { progress } = document;
@@ -675,6 +1015,9 @@ Double-click the launcher again to refresh.</p>
 
   const alerts = (progress.alerts || [])
     .map((alert) => `<div class="alert">${escapeHtml(alert)}</div>`).join('\n');
+
+  const badge = document.live === false || document.status === 'finished' ? 'finished' : 'running';
+  const badgeText = badge === 'finished' ? 'finished run' : 'running';
 
   return head(`
 <div class="panel">
@@ -724,8 +1067,8 @@ Double-click the launcher again to refresh.</p>
 </div>
 
 ${alerts ? `<div class="panel"><h2>Alerts</h2>${alerts}</div>` : ''}
-${failuresSection(document)}
-`, document.live === false ? 'finished' : 'running', document.live === false ? 'finished run' : 'running');
+${failuresSection(document, pageOptions)}
+`, badge, badgeText);
 }
 
 module.exports = {

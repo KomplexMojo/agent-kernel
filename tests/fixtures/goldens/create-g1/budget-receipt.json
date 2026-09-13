@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 160,
-  "remaining": 4840,
+  "totalCost": 169,
+  "remaining": 4831,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -286,6 +286,34 @@
     {
       "id": "vital_durability_point",
       "kind": "vital",
+      "quantity": 5,
+      "unitCost": 1,
+      "totalCost": 5,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_mana_point",
+      "kind": "vital",
+      "quantity": 4,
+      "unitCost": 1,
+      "totalCost": 4,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_mana_regen_tick",
+      "kind": "vital",
       "quantity": 1,
       "unitCost": 1,
       "totalCost": 1,
@@ -309,8 +337,8 @@
     {
       "id": "hazards",
       "capTokens": 1087,
-      "spentTokens": 42,
-      "remainingTokens": 1045,
+      "spentTokens": 51,
+      "remainingTokens": 1036,
       "status": "approved"
     },
     {
@@ -337,8 +365,8 @@
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 160,
-    "remainingBudget": 4840,
+    "totalSpend": 169,
+    "remainingBudget": 4831,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -352,9 +380,9 @@
         "usagePercent": 1
       },
       "hazards": {
-        "actual": 42,
+        "actual": 51,
         "target": 1087,
-        "usagePercent": 4
+        "usagePercent": 5
       },
       "resources": {
         "actual": 0,

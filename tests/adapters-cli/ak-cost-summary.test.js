@@ -87,9 +87,10 @@ test("ak create cost.totalSpend + cost.remaining equals cost.budgetTokens", () =
   );
 });
 
-test.skip("ak show with budget artifacts includes receiptPath and proposalPath", () => {});
-test.skip("ak show with no budget artifacts omits cost and budgetSpend", () => {});
-test.skip("ak runs list entries include cost summaries for budgeted runs", () => {});
-test.skip("ak create --dry-run with --budget-tokens estimates cost without writing paths", () => {});
-test.skip("cost.status is approved when totalSpend is within budget and all lines are approved", () => {});
-test.skip("cost.status is partial when some line items are denied", () => {});
+// ## TODO: Test Permutations
+// - ak show with budget artifacts includes receiptPath and proposalPath
+// - ak show with no budget artifacts omits cost and budgetSpend
+// - ak runs list entries include cost summaries for budgeted runs
+// - ak create --dry-run with --budget-tokens estimates cost without writing paths
+// - cost.status is approved when totalSpend is within budget and all lines are approved
+// - cost.status is partial when some line items are denied

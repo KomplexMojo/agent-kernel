@@ -139,10 +139,52 @@ test("a genuinely free card reports zero rather than an invented number", () => 
   assert.equal(summary.groups.find((g) => g.type === "room").cards[0].tokens, 0);
 });
 
-// ## TODO: Test Permutations
-// Named permutations awaiting /local-test-gen. Empty bodies on purpose -- see
-// tests/README.md: un-skipping one creates a vacuously passing empty test.
-test.skip("card token values arriving as strings are coerced", () => {});
-test.skip("duplicate card ids are both counted", () => {});
-test.skip("a ledger entry for a type with no cards still reports its allocation", () => {});
-test.skip("very large token counts format without loss", () => {});
+
+test("card token values arriving as strings are coerced", () => {
+  const summary = buildInventorySummary({
+    cards: [{ id: "R-1", type: "room", budget: { totalTokens: "320" } }],
+    allocationLedger: { byType: { room: { allocatedTokens: 725, usedTokens: 320 } } },
+  });
+  const room = summary.groups.find((g) => g.type === "room");
+  assert.equal(room.cards[0].tokens, 320);
+  assert.equal(room.usedTokens, 320);
+});
+
+test("duplicate card ids are both counted", () => {
+  const summary = buildInventorySummary({
+    cards: [
+      { id: "R-1", type: "room", tokens: 100 },
+      { id: "R-1", type: "room", tokens: 150 },
+    ],
+    allocationLedger: { byType: { room: { allocatedTokens: 725, usedTokens: 250 } } },
+  });
+  const room = summary.groups.find((g) => g.type === "room");
+  assert.equal(room.count, 2);
+  assert.equal(room.usedTokens, 250);
+  assert.equal(summary.totals.cardCount, 2);
+});
+
+test("a ledger entry for a type with no cards still reports its allocation", () => {
+  const summary = buildInventorySummary({
+    cards: [],
+    allocationLedger: { byType: { room: { allocatedTokens: 725, usedTokens: 0 } } },
+  });
+  const room = summary.groups.find((g) => g.type === "room");
+  assert.equal(room.count, 0);
+  assert.equal(room.allocatedTokens, 725);
+  assert.equal(room.usedTokens, 0);
+  assert.equal(room.remainingTokens, 725);
+});
+
+test("very large token counts format without loss", () => {
+  const largeNumber = 1e15;
+  const summary = buildInventorySummary({
+    cards: [{ id: "R-1", type: "room", budget: { totalTokens: largeNumber } }],
+    allocationLedger: { byType: { room: { allocatedTokens: largeNumber, usedTokens: largeNumber } } },
+  });
+  const room = summary.groups.find((g) => g.type === "room");
+  assert.equal(room.cards[0].tokens, largeNumber);
+  assert.equal(room.allocatedTokens, largeNumber);
+  assert.equal(room.usedTokens, largeNumber);
+  assert.equal(room.remainingTokens, 0);
+});

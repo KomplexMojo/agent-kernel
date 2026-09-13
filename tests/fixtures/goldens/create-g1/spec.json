@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 160,
+      "runTotalTokens": 169,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g1_budget_receipt",
@@ -143,12 +143,14 @@
             ],
             "vitals": {
               "mana": {
-                "kind": "one-time",
-                "amount": 0
+                "kind": "regen",
+                "current": 4,
+                "max": 4,
+                "regen": 1
               },
               "durability": {
                 "kind": "one-time",
-                "amount": 1
+                "amount": 5
               }
             },
             "_schemaVersion": 3
@@ -2081,7 +2083,7 @@
         },
         {
           "kind": "hazard",
-          "prompt": "affinity=fire;expression=emit;proximityRadius=2",
+          "prompt": "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1;durability=5",
           "id": "hazard_1",
           "attributes": {
             "affinity": "fire",
@@ -2097,12 +2099,14 @@
             ],
             "vitals": {
               "mana": {
-                "kind": "one-time",
-                "amount": 0
+                "kind": "regen",
+                "current": 4,
+                "max": 4,
+                "regen": 1
               },
               "durability": {
                 "kind": "one-time",
-                "amount": 1
+                "amount": 5
               }
             }
           }

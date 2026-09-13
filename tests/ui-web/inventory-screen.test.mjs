@@ -145,10 +145,49 @@ test("refresh is a no-op while closed", () =>
     assert.doesNotThrow(() => screen.refresh());
   }));
 
-// ## TODO: Test Permutations
-// Named permutations awaiting /local-test-gen. Empty bodies on purpose -- see
-// tests/README.md: un-skipping one creates a vacuously passing empty test.
-test.skip("cards of an unknown type render an Unplaced row", () => {});
-test.skip("an empty inventory renders every group at zero", () => {});
-test.skip("dispose removes the root and resets state", () => {});
-test.skip("show twice does not append a second root", () => {});
+
+test("cards of an unknown type render an Unplaced row", () =>
+  withFakeDom((doc, body) => {
+    const screen = makeScreen({
+      getCards: () => [{ id: "U-1", type: "unknown", tokens: 50 }],
+    });
+    screen.show();
+    const html = body.children[0].innerHTML;
+    assert.ok(html.includes("Unplaced"), "Unplaced section should be present");
+    assert.ok(html.includes("U-1"), "card ID should appear in Unplaced");
+    assert.ok(html.includes("unknown"), "unknown type should be shown");
+  }));
+
+test("an empty inventory renders every group at zero", () =>
+  withFakeDom((doc, body) => {
+    const screen = makeScreen({
+      getCards: () => [],
+      getAllocationLedger: () => ({ byType: { room: { allocatedTokens: 0, usedTokens: 0 }, delver: { allocatedTokens: 0, usedTokens: 0 } } }),
+    });
+    screen.show();
+    const html = body.children[0].innerHTML;
+    assert.ok(html.includes("0 cards"), "card count should be zero");
+    assert.ok(html.includes("0t of 0t"), "token usage should be zero");
+    assert.ok(html.includes("0t left"), "remaining tokens should be zero");
+  }));
+
+test("dispose removes the root and resets state", () =>
+  withFakeDom((doc, body) => {
+    const screen = makeScreen();
+    screen.show();
+    assert.equal(screen.isOpen(), true);
+    assert.ok(body.children[0], "root should exist after show");
+    screen.dispose();
+    assert.equal(screen.isOpen(), false);
+    assert.ok(body.children[0]?.removed, "root should be removed from DOM");
+  }));
+
+test("show twice does not append a second root", () =>
+  withFakeDom((doc, body) => {
+    const screen = makeScreen();
+    screen.show();
+    const firstRoot = body.children[0];
+    screen.show();
+    assert.equal(body.children.length, 1, "only one root should exist");
+    assert.equal(body.children[0], firstRoot, "root should be reused");
+  }));

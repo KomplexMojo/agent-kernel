@@ -243,3 +243,54 @@ test('a run that is no longer live is labelled finished, never as the current ru
   assert.match(html, /finished run/);
   assert.doesNotMatch(html, /badge running/);
 });
+
+test('finished status still renders attempt evidence for HITL review', () => {
+  const html = formatStatusHtml({
+    ...RUNNING,
+    status: 'finished',
+    live: false,
+    attempts: [attempt({
+      llmRequest: {
+        provenance: 'recorded',
+        model: 'qwen3.5:9b',
+        messages: [
+          { role: 'system', content: 'You are an agent-kernel dungeon designer. Omit budgetTokens — the budget is unconstrained. Always set emitIntermediates' },
+          { role: 'user', content: 'create a two-room loop' },
+        ],
+        tool_choice: 'required',
+        temperature: 0.1,
+        max_tokens: 8192,
+      },
+    })],
+  }, {
+    tools: { type: 'function', function: { name: 'ak_create' } },
+    toolsSchemaSha256: 'abc123def456',
+    ollamaBase: '/ollama',
+    viaProxy: true,
+    standardPackage: {
+      systemHead: 'You are an agent-kernel dungeon designer. ',
+      systemTail: 'Always set emitIntermediates',
+      priceBrief: '',
+      budgetUnconstrained: 'Omit budgetTokens — the budget is unconstrained. ',
+      budgetConstrainedPattern: 'Set budgetTokens to <N>. ',
+      temperature: 0.1,
+      tool_choice: 'required',
+      think: false,
+      toolsSchemaSha256: 'abc123def456',
+    },
+  });
+  assert.match(html, /finished run/);
+  assert.match(html, /Standard package/);
+  assert.match(html, /create a two-room loop/);
+  assert.match(html, /Attempts — variance \+ result/);
+  assert.match(html, /Re-prompt on local Ollama/);
+  assert.match(html, /"provenance":"recorded"/);
+  assert.match(html, /Scenario variance/);
+  assert.doesNotMatch(html, /<h4>System<\/h4>/);
+});
+
+test('the probe forwards llmRequest messages from attempt records', () => {
+  assert.match(PROBE_SOURCE, /llmRequest/);
+  assert.match(PROBE_SOURCE, /toolsSchemaSha256/);
+  assert.match(PROBE_SOURCE, /provenance/);
+});

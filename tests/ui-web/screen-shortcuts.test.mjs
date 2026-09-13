@@ -82,9 +82,20 @@ test("the reserved table explains itself", () => {
   }
 });
 
-// ## TODO: Test Permutations
-// Named permutations awaiting /local-test-gen. Empty bodies on purpose -- see
-// tests/README.md: un-skipping one creates a vacuously passing empty test.
-test.skip("Ctrl+digit for a screen that does not exist resolves to nothing", () => {});
-test.skip("a chord with both Ctrl and Cmd held is not a screen binding", () => {});
-test.skip("key values arriving with different capitalisation are handled", () => {});
+
+test("Ctrl+digit for a screen that does not exist resolves to nothing", () => {
+  assert.equal(resolveScreenShortcut(press("0", { ctrlKey: true })), null);
+  assert.equal(resolveScreenShortcut(press("4", { ctrlKey: true })), null);
+  assert.equal(resolveScreenShortcut(press("5", { ctrlKey: true })), null);
+});
+
+test("a chord with both Ctrl and Cmd held is not a screen binding", () => {
+  assert.equal(resolveScreenShortcut(press("1", { ctrlKey: true, metaKey: true })), null);
+  assert.equal(resolveScreenShortcut(press("2", { ctrlKey: true, metaKey: true })), null);
+  assert.equal(resolveScreenShortcut(press("3", { ctrlKey: true, metaKey: true })), null);
+});
+
+test("key values arriving with different capitalisation are handled", () => {
+  assert.deepEqual(resolveScreenShortcut(press("1", { ctrlKey: true })), { action: "design" });
+  assert.deepEqual(resolveScreenShortcut(press("1", { ctrlKey: true, shiftKey: true })), { action: "design" });
+});
