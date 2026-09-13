@@ -16,6 +16,7 @@ import {
 } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
+import { createActorTurn } from "../../../core-ts/src/rules/actor-turn.ts";
 import {
   applyMoveAction,
   getValidationErrorName,
@@ -37,6 +38,7 @@ import {
 import { computeAuraMap, serializeAuraMap } from "../render/affinity-aura.js";
 import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../contracts/affinity-spatial-rules.js";
 import {
+  ACTION_SCHEMA,
   EFFECT_SCHEMA,
   PLAN_ARTIFACT_SCHEMA,
   TICK_FRAME_SCHEMA,
@@ -503,6 +505,37 @@ function resolveActorIdNumeric({ actorId, actorIdMap, core }) {
   return 1;
 }
 
+const UNIFIED_ACTOR_ACTIONS = new Set(["move", "cast_affinity", "equip_affinity", "take", "wait"]);
+
+function normalizeUnifiedActorAction(action, defaultTick) {
+  const kind = resolveActionKind(action);
+  if (!UNIFIED_ACTOR_ACTIONS.has(kind)) return null;
+  if (typeof action?.actorId !== "string" || !action.actorId.trim()) return null;
+  const tick = Number.isSafeInteger(action.tick) && action.tick >= 0 ? action.tick : defaultTick;
+  const envelope = { schema: ACTION_SCHEMA, schemaVersion: 1, actorId: action.actorId, tick };
+  const params = resolveActionParams(action);
+  if (kind === "wait") {
+    if (action.params !== undefined && Object.keys(params).length > 0) return null;
+    return { ...envelope, kind: "wait" };
+  }
+  if (kind === "move") {
+    if (Object.keys(params).length !== 1 || !params.target) return null;
+    return { ...envelope, kind: "move", params: { target: { ...params.target } } };
+  }
+  if (kind === "cast_affinity") {
+    if (Object.keys(params).length !== 1 || typeof params.targetId !== "string") return null;
+    return { ...envelope, kind: "cast_affinity", params: { targetId: params.targetId } };
+  }
+  if (kind === "equip_affinity") {
+    if (Object.keys(params).length !== 1 || typeof params.affinityKey !== "string") return null;
+    return { ...envelope, kind: "equip_affinity", params: { affinityKey: params.affinityKey } };
+  }
+  if (Object.keys(params).length !== 2 || typeof params.targetId !== "string"
+    || typeof params.holdingId !== "string") return null;
+  return { ...envelope, kind: "take",
+    params: { targetId: params.targetId, holdingId: params.holdingId } };
+}
+
 function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
   const kind = resolveActionKind(action);
   const params = resolveActionParams(action);
@@ -560,28 +593,6 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
         tick: coreTick,
       });
       return { ok: true, action: { ...action, tick: coreTick }, kind: ACTION_KIND.Move, value: packed };
-    }
-    case "attack": {
-      // M5: simple motivation combat dispatch.
-      // Resolves attacker/defender by actor ID, passes to core.applyAttack via direct directive.
-      const targetId = params.targetId;
-      if (!targetId) {
-        return { ok: false, reason: "missing_target_id" };
-      }
-      const attackerNumeric = resolveActorIdNumeric({ actorId: action.actorId, actorIdMap, core });
-      const defenderNumeric = resolveActorIdNumeric({ actorId: targetId, actorIdMap, core });
-      const damage = typeof params.damage === "number" && params.damage > 0 ? params.damage : 2;
-      return {
-        ok: true,
-        action: { ...action, tick: actionTick },
-        direct: {
-          kind: "apply_attack",
-          attackerNumeric,
-          defenderNumeric,
-          damage,
-          targetId,
-        },
-      };
     }
     case "destroy_barrier": {
       const x = toInt(params.x);
@@ -813,6 +824,7 @@ export function createFsmRuntime({
     telemetry = null,
     solverResults = null,
     solverFulfilled = null,
+    emittedSnapshot = null,
   } = {}) {
     const frame = {
       schema: TICK_FRAME_SCHEMA,
@@ -841,6 +853,7 @@ export function createFsmRuntime({
     if (telemetry) frame.telemetry = telemetry;
     if (solverResults) frame.solverResults = solverResults;
     if (solverFulfilled) frame.solverFulfilled = solverFulfilled;
+    if (emittedSnapshot) frame.emittedSnapshot = emittedSnapshot;
     tickFrames.push(frame);
   }
 
@@ -1381,6 +1394,9 @@ export function createFsmRuntime({
     const preCoreRejections = [];
     const outcomes = [];
     const defaultTick = tick;
+    const actorTurn = actorRegistry && actorCosts
+      ? createActorTurn(actorRegistry, defaultTick, actorCosts)
+      : null;
 
     function recordOutcome(action, outcome, reason, appliedAction = action) {
       outcomes.push({
@@ -1401,6 +1417,19 @@ export function createFsmRuntime({
     }
 
     for (const action of actions) {
+      if (actorTurn && (UNIFIED_ACTOR_ACTIONS.has(resolveActionKind(action)) || resolveActionKind(action) === "attack")) {
+        const normalized = normalizeUnifiedActorAction(action, defaultTick);
+        if (!normalized) {
+          reject(action, "unsupported_action_kind");
+          continue;
+        }
+        if (!actorTurn.apply(normalized)) {
+          reject(action, "actor_action_rejected_by_core");
+          continue;
+        }
+        accept(action, normalized);
+        continue;
+      }
       const adaptation = adaptActionToCore({ action, core, actorIdMap, defaultTick });
       if (!adaptation.ok) {
         reject(action, adaptation.reason || "invalid_action");
@@ -1526,25 +1555,6 @@ export function createFsmRuntime({
           accept(action, adaptation.action);
           continue;
         }
-        if (directive.kind === "apply_attack") {
-          if (typeof core?.applyAttack !== "function") {
-            reject(action, "missing_applyAttack_export");
-            continue;
-          }
-          // resolveActorIdNumeric returns 1-based IDs from actorIdMap; core.applyAttack
-          // expects 0-based motivated actor indices. Convert here.
-          const result = core.applyAttack(
-            directive.attackerNumeric - 1,
-            directive.defenderNumeric - 1,
-            directive.damage,
-          );
-          if (result === 0) {
-            reject(action, "attack_rejected_by_core");
-            continue;
-          }
-          accept(action, adaptation.action);
-          continue;
-        }
         reject(action, "unsupported_directive");
         continue;
       }
@@ -1584,7 +1594,20 @@ export function createFsmRuntime({
       accept(action, adaptation.action);
     }
 
-    return { acceptedActions, preCoreRejections, outcomes };
+    let actorFields = null;
+    let exitedActorIds = [];
+    let actorTurnSnapshot = null;
+    let actorSnapshot = null;
+    if (actorTurn) {
+      actorTurn.closeActions();
+      actorFields = actorTurn.resolveFields();
+      actorTurn.regenerate();
+      exitedActorIds = actorTurn.resolveExits() || [];
+      actorTurnSnapshot = actorTurn.snapshot();
+      actorSnapshot = actorRegistry.snapshot();
+    }
+    return { acceptedActions, preCoreRejections, outcomes,
+      actorFields, exitedActorIds, actorTurn: actorTurnSnapshot, actorSnapshot };
   }
 
   return {
@@ -1702,12 +1725,14 @@ export function createFsmRuntime({
       // runner only reads the verdict; recomputing "has it exited?" here would be a
       // second authority on a core state transition.
       const hasExited = (id) => {
+        if (actorRegistry) return actorRegistry.getActor(id)?.lifecycle === "exited";
         if (typeof core.isMotivatedActorExitedByIndex !== "function") return false;
         const oneBased = actorIdMap.get(id);
         return Number.isInteger(oneBased) && core.isMotivatedActorExitedByIndex(oneBased - 1) === true;
       };
       const decideActorIds = Array.isArray(initialState?.actors)
-        ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id) && !hasExited(id))
+        ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id)
+          && !hasExited(id) && (!actorRegistry || actorRegistry.getActor(id)?.lifecycle === "alive"))
         : sortedActorIds.filter((id) => !hasExited(id));
       const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutHazards, sortedActorIds, initialState);
       const observePersonaPayloads = buildPersonaPayloads({
@@ -1876,7 +1901,7 @@ export function createFsmRuntime({
       // AM.8 — resolve the affinity fields that are in CONTACT, after the tick's
       // actions have moved everyone. The Moderator decides which pairs meet;
       // core's 48-cell matrix decides what happens between them.
-      const affinityInteractions = resolveAffinityInteractionsForTick();
+      const affinityInteractions = actorRegistry ? [] : resolveAffinityInteractionsForTick();
 
       applyPersonaArtifacts(applyRecord);
       recordTickFrame({
@@ -1891,6 +1916,20 @@ export function createFsmRuntime({
         telemetry: applyRecord.telemetry,
         solverResults: applyRecord.solverResults,
         solverFulfilled: applyRecord.solverFulfilled,
+        emittedSnapshot: applied.actorSnapshot ? {
+          tick,
+          simConfigRef: simConfig?.meta ? {
+            id: simConfig.meta.id,
+            schema: simConfig.schema,
+            schemaVersion: simConfig.schemaVersion,
+          } : undefined,
+          view: {
+            registry: applied.actorSnapshot,
+            turn: applied.actorTurn,
+            fields: applied.actorFields,
+            exitedActorIds: applied.exitedActorIds,
+          },
+        } : null,
       });
 
       const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog, moderator });
@@ -1990,10 +2029,10 @@ export function createFsmRuntime({
         );
       }
 
-      if (tickClose.advanceTick && typeof core.advanceTick === "function") {
+      if (!actorRegistry && tickClose.advanceTick && typeof core.advanceTick === "function") {
         core.advanceTick();
       }
-      if (tickClose.recomputeAffinityField && typeof core.computeAffinityField === "function") {
+      if (!actorRegistry && tickClose.recomputeAffinityField && typeof core.computeAffinityField === "function") {
         // Actors have moved; their auras must move with them. Without this the
         // field is a snapshot of the starting positions for the whole run.
         core.computeAffinityField();

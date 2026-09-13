@@ -653,3 +653,14 @@ made the test fail; restored. The owner reachability guard is expected-red from
 UA.12c's 23 newly unreachable setup exports. Next: UA.12d2 routes move, focused
 cast, equip, take and wait through one ActorTurn, removes conventional attack and
 actor-index translation, then closes fields/regeneration/exits once per tick.
+
+UA.12d2 action execution completed September 13. Runtime normalizes the five
+public action kinds into versioned Action envelopes, passes stable actor IDs to a
+single ActorTurn, and closes fields, regeneration, and exits once after ordered
+actions. Conventional attack dispatch and its direct core directive are removed.
+Apply TickFrames retain the registry, turn, field, and exit snapshots needed for
+replay. Focused runtime/core tests: 19/19; dependency/ports guards: 5/5;
+typecheck passes. Temporarily admitting attack made the action oracle fail and
+was restored. The reachability ratchet is expected-red at 37 versus 13 because
+the 23 setup exports and applyAttack now have no production caller. Next migrate
+Actor proposals and observations to the unified action and registry shapes.

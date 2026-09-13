@@ -2,11 +2,11 @@
 
 ## Start here
 
-**CURRENT CUTOVER: runtime action execution is next.** The branch was rebased onto
+**CURRENT CUTOVER: Actor proposals and observations are next.** The branch was rebased onto
 main at portal merge `7a8888f4`; unified artifact production is checkpointed at
-`d71af7e8`. Runtime startup now loads those artifacts into one detached actor
-registry without calling the deleted category setup functions. The current startup
-changes remain uncommitted; do not reset them.
+`d71af7e8`. Runtime startup loads those artifacts into one detached actor registry,
+and runtime apply routes the five public actions through one ActorTurn. Current
+action changes remain uncommitted; do not reset them.
 Existing artifact builders now emit normalized state; core-setup loads one registry
 and no longer exports category placement functions. Director actor requests now carry common properties and full motivations.
 Generated layouts and actor placement now use canonical terrain.
@@ -19,11 +19,12 @@ by the maintainer; narrow builder/loader tests and typecheck pass. Read the late
 Documentation.md/Plan.md cutover section before using older green evidence below.
 
 Latest measured post-rebase baseline: Configurator is green (43 files, 200 passed,
-one skipped); the focused startup/loader/integration domain is 8/8 and typecheck
-passes. Runtime startup's registry-retention perturbation fails as required and was
-restored. The core-behavior reachability guard remains expected-red because the
-artifact checkpoint made 23 legacy setup exports unreachable; remove those exports
-with their legacy core test consumers during the prescribed export/test cutover.
+one skipped); the focused unified action/startup/loader/integration/core domain is
+19/19, dependency/ports guards are 5/5, and typecheck passes. The action-admission
+perturbation fails as required and was restored. The core-behavior reachability
+guard remains expected-red because 23 legacy setup exports and applyAttack are now
+unreachable; remove those exports with their legacy core test consumers during the
+prescribed export/test cutover.
 
 Repository: `KomplexMojo/agent-kernel`. Continue the existing isolated worktree on
 `codex/unified-actor`, preserving its local commits and any working changes. Do not reset to
@@ -41,8 +42,9 @@ Read Plan.md's next implementation seam and Documentation.md's latest evidence.
 The maintainer authorized continuing across bounded milestones until completion
 or token exhaustion, superseding the old one-milestone stopping limit.
 The new registry is retained by runtime startup and available through the runtime
-snapshot surface. Tick actions, observations, field sequencing, effects, budget
-accounting and world-state capture still use the legacy core path. Passing startup
+snapshot surface. Tick actions and field sequencing use ActorTurn; observations,
+Actor proposals, effects, budget accounting and world-state capture still use the
+legacy core path. Passing startup
 and component tests does not prove a whole game tick. Do not merge this partial
 rewrite into main.
 

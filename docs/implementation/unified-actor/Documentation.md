@@ -647,3 +647,21 @@ legacy setup exports. Deleting those exports immediately made 17 legacy core tes
 files fail typecheck, so that broader removal was reverted for its explicit
 core-export/test migration milestone. No guard baseline or compatibility alias was
 added. Next is ActorTurn action execution and once-only tick closing.
+
+## September 13 — UA.12d2 unified runtime actions
+
+Runtime now sends move, cast_affinity, equip_affinity, take, and wait through one
+ActorTurn per apply phase using stable string actor IDs. Accepted actions use the
+versioned Action envelope. After ordered actions, runtime resolves fields,
+regeneration, and exits exactly once and records the resulting registry and turn
+state in the apply TickFrame for replay. Conventional attack adaptation and its
+direct applyAttack dispatch are removed.
+
+The focused runtime, loader, production, and ActorTurn domain passes 19 tests; the
+dependency-direction and ports guards pass 5 tests; typecheck passes. Temporarily
+allowing attack through normalization made the runtime oracle fail, then restoring
+the five-kind vocabulary returned it to green. The behavior reachability ratchet
+is expected-red at 37 versus 13: the prior 23 setup exports plus applyAttack now
+have no production caller. Actor still emits legacy proposals and runtime
+observation still reads legacy world state, so the next milestone migrates that
+decision boundary rather than claiming an end-to-end autonomous actor path.
