@@ -50,7 +50,7 @@ function collectWalkablePositions(layout) {
       const row = String(data.tiles[y] ?? "");
       for (let x = 0; x < row.length; x += 1) {
         const tile = legend[row[x]]?.tile;
-        if (row[x] === "#" || row[x] === "B" || tile === "wall" || tile === "barrier") continue;
+        if (row[x] === "#" || row[x] === "B" || row[x] === "S" || row[x] === "E" || tile === "wall" || tile === "barrier" || tile === "spawn" || tile === "exit") continue;
         result.push({ x, y });
       }
     }
@@ -223,8 +223,13 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
   if (candidates.some((list) => list.length === 0) || !hasCompleteMatching(candidates)) {
     return { status: "unsat", reason: "capacity" };
   }
-  const spawn = normalizePoint(data?.spawn || layout.spawn);
-  const exit = normalizePoint(data?.exit || layout.exit);
+  // Path endpoints are approach floors; wall portals themselves are non-walkable.
+  const spawn = normalizePoint(
+    data?.spawnApproach || layout.spawnApproach || data?.spawn || layout.spawn,
+  );
+  const exit = normalizePoint(
+    data?.exitApproach || layout.exitApproach || data?.exit || layout.exit,
+  );
   if (!pathExists(cells, spawn, exit, blocking)) {
     return { status: "unsat", reason: "path_obstruction" };
   }

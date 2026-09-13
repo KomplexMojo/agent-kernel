@@ -24,25 +24,65 @@
       "width": 5,
       "height": 5,
       "tiles": [
-        "#####",
-        "#.S.#",
-        "#..E#",
+        "##S##",
+        "#...#",
+        "#...E",
         "#...#",
         "#####"
       ],
       "kinds": [
-        [1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 1],
-        [1, 0, 2, 0, 1],
-        [1, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1]
+        [
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          2,
+          0,
+          1
+        ],
+        [
+          1,
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1,
+          1
+        ]
       ],
       "legend": {
-        "#": { "tile": "wall" },
-        ".": { "tile": "floor" },
-        "S": { "tile": "spawn" },
-        "E": { "tile": "exit" },
-        "B": { "tile": "barrier" }
+        "#": {
+          "tile": "wall"
+        },
+        ".": {
+          "tile": "floor"
+        },
+        "S": {
+          "tile": "spawn"
+        },
+        "E": {
+          "tile": "exit"
+        },
+        "B": {
+          "tile": "barrier"
+        }
       },
       "render": {
         "wall": "#",
@@ -52,8 +92,14 @@
         "actor": "@",
         "barrier": "B"
       },
-      "spawn": { "x": 2, "y": 1 },
-      "exit": { "x": 3, "y": 2 },
+      "spawn": {
+        "x": 2,
+        "y": 0
+      },
+      "exit": {
+        "x": 4,
+        "y": 2
+      },
       "bounds": "walls_block_movement",
       "hazards": [
         {
@@ -66,11 +112,27 @@
             "stacks": 2
           },
           "vitals": {
-            "mana": { "current": 3, "max": 3, "regen": 1 },
-            "durability": { "current": 5, "max": 5, "regen": 0 }
+            "mana": {
+              "current": 3,
+              "max": 3,
+              "regen": 1
+            },
+            "durability": {
+              "current": 5,
+              "max": 5,
+              "regen": 0
+            }
           }
         }
-      ]
+      ],
+      "spawnApproach": {
+        "x": 2,
+        "y": 1
+      },
+      "exitApproach": {
+        "x": 3,
+        "y": 2
+      }
     }
   }
 }

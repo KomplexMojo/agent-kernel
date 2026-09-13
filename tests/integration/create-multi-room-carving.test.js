@@ -86,7 +86,8 @@ function readJson(filePath) {
 
 function floorAt(layoutData, x, y) {
   const ch = layoutData.tiles?.[y]?.[x];
-  return ch !== undefined && layoutData.legend?.[ch]?.tile !== "wall";
+  // Wall portals (S/E) are perimeter markers, not carved floor.
+  return ch === ".";
 }
 
 function carvedInRoom(layoutData, room) {

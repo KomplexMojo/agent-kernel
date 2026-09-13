@@ -49,8 +49,13 @@ function simConfig() {
 
 async function walk(pattern, steps) {
   const [{ createActorPersona }, { TickPhases }] = await loadModules();
-  const path = [{ x: 1, y: 1 }];
-  let at = { x: 1, y: 1 };
+  // Start on the ring but not at ring[0]. ping_pong's triangle wave targets
+  // ring[0] at tick 0; starting there produces a zero-length first step, and
+  // the walker treats that as a stall. A warden must not fall through to
+  // exit-seeking, so the three patterns have to diverge on patrol itself.
+  const start = { x: 2, y: 1 };
+  const path = [{ ...start }];
+  let at = { ...start };
   for (let tick = 0; tick < steps; tick += 1) {
     const persona = createActorPersona({ clock: () => "fixed" });
     const self = {

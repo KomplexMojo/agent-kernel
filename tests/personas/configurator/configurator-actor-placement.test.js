@@ -100,8 +100,8 @@ test("orchestrateBuild byte-characterizes role classification, preferences, occu
     false,
   );
   assert.deepEqual(actual, {
-    spawn: { x: 6, y: 4 },
-    exit: { x: 15, y: 10 },
+    spawn: { x: 6, y: 1 },
+    exit: { x: 15, y: 9 },
     entryRoomId: "R1",
     exitRoomId: "R2",
     rooms: [
@@ -109,13 +109,13 @@ test("orchestrateBuild byte-characterizes role classification, preferences, occu
       { id: "R2", x: 10, y: 10, width: 6, height: 4, templateId: "R-FIRE" },
       { id: "R3", x: 3, y: 10, width: 4, height: 6, templateId: "R-FIRE" },
     ],
-    reservedObjectKeys: ["14,10", "3,15", "3,2", "8,3"],
+    reservedObjectKeys: ["14,10", "3,15", "3,2", "3,4"],
     resolvedActors: [
       { id: "guard_water", position: { x: 4, y: 2 } },
       { id: "mystery_beta", position: { x: 15, y: 11 } },
-      { id: "raider_alpha", position: { x: 6, y: 3 } },
-      { id: "guard_fire", position: { x: 3, y: 10 } },
-      { id: "mystery_alpha", position: { x: 5, y: 4 } },
+      { id: "raider_alpha", position: { x: 6, y: 2 } },
+      { id: "guard_fire", position: { x: 15, y: 10 } },
+      { id: "mystery_alpha", position: { x: 5, y: 2 } },
     ],
     initialActorIds: [
       "guard_fire", "guard_water", "mystery_alpha", "mystery_beta", "raider_alpha",

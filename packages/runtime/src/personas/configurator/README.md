@@ -342,8 +342,10 @@ power fallback, legacy leader/support grouping and distant anchors, role inferen
 placement, affinity-room preference, and occupancy. It is stateless and pure: it never mutates the
 caller-owned actor list or layout and returns `{ actors, changed }` in authored actor order.
 
-The strategic path reserves spawn, exit, hazards, and resources. Delvers prefer the entry room;
-wardens prefer rooms matching their affinities, then the exit room, then any room. Layouts without a
+The strategic path reserves spawn/exit **wall portals**, hazards, and resources. Delvers seat on
+the spawn approach (entry doorway floor), then prefer the entry room; the first warden seats on the
+exit approach, then wardens prefer affinity-matching rooms, then the exit room, then any room.
+Spawn and exit tiles themselves are non-walkable perimeter portals — not seating cells. Layouts without a
 viable room context retain the existing deterministic power-group/anchor fallback. `orchestrateBuild`
 passes only actors, layout, and the delver-count hint through the public persona surface and consumes
 the result; it owns no actor role, ranking, grouping, or placement decision.

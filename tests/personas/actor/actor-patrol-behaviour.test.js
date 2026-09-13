@@ -66,16 +66,16 @@ function simConfig() {
   };
 }
 
-async function proposeFrom(position, { motivation = { kind: "patrolling" }, others = [] } = {}) {
+async function proposeFrom(position, { motivation = { kind: "patrolling" }, others = [], role = "warden" } = {}) {
   const [{ createActorPersona }, { TickPhases }] = await loadModules();
   const persona = createActorPersona({ clock: () => "fixed" });
-  const self = { id: "warden_1", kind: 2, role: "warden", position, motivation };
+  const self = { id: `${role}_1`, kind: 2, role, position, motivation };
   const payload = {
     actorId: self.id,
     observation: { tick: 0, actors: [self, ...others], exit: { x: 0, y: 3 } },
     baseTiles: BASE_TILES,
     simConfig: simConfig(),
-    initialState: { actors: [{ id: self.id, role: "warden", kind: "motivated" }] },
+    initialState: { actors: [{ id: self.id, role, kind: "motivated" }] },
   };
   persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick: 0 });
   persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick: 0 });
@@ -157,7 +157,7 @@ test("a non-patrolling actor still heads for the exit", async () => {
   // ANTI-VACUITY. Without this, deleting exit-seeking altogether would pass every test
   // above — and the change under test is meant to give `patrolling` its OWN behaviour,
   // not to remove exit-seeking from the actors that should have it.
-  const move = await proposeFrom({ x: 3, y: 3 }, { motivation: { kind: "exploring" } });
+  const move = await proposeFrom({ x: 3, y: 3 }, { motivation: { kind: "exploring" }, role: "delver" });
   assert.ok(move, "an exploring actor must still propose a move");
   assert.ok(
     move.params.to.x < 3,

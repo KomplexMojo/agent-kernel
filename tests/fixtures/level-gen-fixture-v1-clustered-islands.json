@@ -29,11 +29,11 @@
     "tiles": [
       "#######",
       "##....#",
-      "####.E#",
+      "####..E",
       "####.##",
       "#....##",
-      "###.S.#",
-      "#######"
+      "###...#",
+      "####S##"
     ],
     "kinds": [
       [
@@ -127,12 +127,20 @@
     },
     "spawn": {
       "x": 4,
-      "y": 5
+      "y": 6
     },
     "exit": {
-      "x": 5,
+      "x": 6,
       "y": 2
     },
-    "bounds": "walls_block_movement"
+    "bounds": "walls_block_movement",
+    "spawnApproach": {
+      "x": 4,
+      "y": 5
+    },
+    "exitApproach": {
+      "x": 5,
+      "y": 2
+    }
   }
 }

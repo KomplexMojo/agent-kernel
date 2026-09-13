@@ -567,7 +567,9 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
   const waterWarden = actors.find((actor) => actor.id === "def_water");
   assert.ok(fireWarden);
   assert.ok(waterWarden);
-  assert.equal(inRoom(fireWarden.position, fireRoom), true);
+  // First warden seats on exitApproach (wall-portal seating); later wardens
+  // prefer affinity rooms. def_fire is first in the warden partition.
+  assert.deepEqual(fireWarden.position, layout.exitApproach);
   assert.equal(inRoom(waterWarden.position, waterRoom), true);
 
   const generatedHazards = (layout.hazards || []).filter((hazard) => hazard?.source === "room_affinity_tile");

@@ -151,10 +151,12 @@ function buildTileGrid(layoutData, dimensions) {
 
   const spawn = resolvePoint(layoutData.spawn, dimensions);
   const exit = resolvePoint(layoutData.exit, dimensions);
+  const spawnApproach = resolvePoint(layoutData.spawnApproach, dimensions);
+  const exitApproach = resolvePoint(layoutData.exitApproach, dimensions);
   if (spawn) grid[spawn.y][spawn.x] = TILE_CODES.spawn;
   if (exit) grid[exit.y][exit.x] = TILE_CODES.exit;
 
-  return { grid, spawn, exit };
+  return { grid, spawn, exit, spawnApproach, exitApproach };
 }
 
 function loadTileGrid(core, grid, dimensions) {
@@ -360,7 +362,7 @@ export function applySimConfigToCore(core, simConfig) {
     return { ok: false, reason: "missing_dimensions" };
   }
 
-  const { grid, spawn, exit } = buildTileGrid(layout.data, dimensions);
+  const { grid, spawn, exit, spawnApproach, exitApproach } = buildTileGrid(layout.data, dimensions);
   const error = core.configureGrid(dimensions.width, dimensions.height);
   if (Number.isFinite(error) && error !== 0) {
     return { ok: false, reason: "invalid_dimensions", error };
@@ -369,13 +371,52 @@ export function applySimConfigToCore(core, simConfig) {
   if (Number.isFinite(tileError) && tileError !== 0) {
     return { ok: false, reason: "invalid_layout_tiles", error: tileError };
   }
+  if (spawn && typeof core.setSpawnPosition === "function") {
+    core.setSpawnPosition(spawn.x, spawn.y);
+  }
+  if (exit && typeof core.setExitPosition === "function") {
+    core.setExitPosition(exit.x, exit.y);
+  }
+  if (spawnApproach && typeof core.setSpawnApproachPosition === "function") {
+    core.setSpawnApproachPosition(spawnApproach.x, spawnApproach.y);
+  }
+  if (exitApproach && typeof core.setExitApproachPosition === "function") {
+    core.setExitApproachPosition(exitApproach.x, exitApproach.y);
+  }
   armStaticHazardsFromLayout(core, layout.data);
   placeResourcesFromLayout(core, layout.data);
 
-  return { ok: true, dimensions, spawn, exit };
+  return { ok: true, dimensions, spawn, exit, spawnApproach, exitApproach };
 }
 
-export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
+
+function remapPortalSeat(position, { spawn, exit, spawnApproach, exitApproach } = {}) {
+  if (!position) return position;
+  if (
+    spawn && spawnApproach
+    && position.x === spawn.x && position.y === spawn.y
+  ) {
+    return { ...spawnApproach };
+  }
+  if (
+    exit && exitApproach
+    && position.x === exit.x && position.y === exit.y
+  ) {
+    return { ...exitApproach };
+  }
+  return position;
+}
+
+function resolveActorExitEligible(actor) {
+  const role = typeof actor?.role === "string" ? actor.role.trim().toLowerCase() : "";
+  const type = typeof actor?.type === "string" ? actor.type.trim().toLowerCase() : "";
+  const id = typeof actor?.id === "string" ? actor.id.trim().toLowerCase() : "";
+  const bag = `${role} ${type} ${id}`;
+  if (bag.includes("warden") || bag.includes("guard") || bag.includes("defend")) return 0;
+  return 1;
+}
+
+export function applyInitialStateToCore(core, initialState, { spawn, exit, spawnApproach, exitApproach } = {}) {
   if (!core || !initialState) {
     return { ok: false, reason: "missing_inputs" };
   }
@@ -411,7 +452,12 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
     const positions = [];
     for (let index = 0; index < actors.length; index += 1) {
       const actor = actors[index];
-      const position = resolvePoint(actor.position) || (index === 0 && spawn ? { ...spawn } : null);
+      const position = remapPortalSeat(
+        resolvePoint(actor.position)
+          || (index === 0 && spawnApproach ? { ...spawnApproach } : null)
+          || (index === 0 && spawn ? { ...spawn } : null),
+        { spawn, exit, spawnApproach, exitApproach },
+      );
       if (!position) {
         // Non-primary actors without positions only ever existed in states
         // authored for the legacy spawn path (which ignores them entirely).
@@ -429,6 +475,11 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
     const applyError = core.applyActorPlacements(true);
     if (Number.isFinite(applyError) && applyError !== 0) {
       return { ok: false, reason: "invalid_actor_placement", error: applyError };
+    }
+    if (typeof core.setMotivatedActorExitEligible === "function") {
+      for (let index = 0; index < actors.length; index += 1) {
+        core.setMotivatedActorExitEligible(index, resolveActorExitEligible(actors[index]));
+      }
     }
     for (let index = 0; index < actors.length; index += 1) {
       const vitals = normalizeVitals(actors[index].vitals);
@@ -490,12 +541,20 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
     return { ok: false, reason: "missing_core_exports" };
   }
 
-  const position = resolvePoint(primary.position) || (spawn ? { ...spawn } : null);
+  const position = remapPortalSeat(
+    resolvePoint(primary.position)
+      || (spawnApproach ? { ...spawnApproach } : null)
+      || (spawn ? { ...spawn } : null),
+    { spawn, exit, spawnApproach, exitApproach },
+  );
   if (!position) {
     return { ok: false, reason: "missing_position" };
   }
 
   core.spawnActorAt(position.x, position.y);
+  if (typeof core.setMotivatedActorExitEligible === "function") {
+    core.setMotivatedActorExitEligible(0, resolveActorExitEligible(primary));
+  }
 
   const vitals = normalizeVitals(primary.vitals);
   VITAL_KEYS.forEach((key) => {
@@ -524,7 +583,12 @@ export function applyInitialStateToCore(core, initialState, { spawn } = {}) {
 
 export function initializeCoreFromArtifacts(core, { simConfig, initialState } = {}) {
   const layoutResult = applySimConfigToCore(core, simConfig);
-  const actorResult = applyInitialStateToCore(core, initialState, { spawn: layoutResult.spawn });
+  const actorResult = applyInitialStateToCore(core, initialState, {
+    spawn: layoutResult.spawn,
+    exit: layoutResult.exit,
+    spawnApproach: layoutResult.spawnApproach,
+    exitApproach: layoutResult.exitApproach,
+  });
   // Compute combined affinity field after layout hazards and actor affinities are set.
   if (typeof core?.computeAffinityField === "function") {
     core.computeAffinityField();

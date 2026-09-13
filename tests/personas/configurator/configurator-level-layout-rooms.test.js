@@ -16,7 +16,7 @@ test("room layouts are deterministic and connected for tiered sizes", async () =
   );
 
   function isWalkable(cell) {
-    return cell !== "#";
+    return cell !== "#" && cell !== "S" && cell !== "E";
   }
 
   function bfs(tiles, start) {
@@ -127,10 +127,18 @@ test("room layouts are deterministic and connected for tiered sizes", async () =
     assert.equal(layoutAgain.tiles.join(""), layout.tiles.join(""));
     assert.deepEqual(layoutAgain.rooms, layout.rooms);
 
-    const reachable = bfs(layout.tiles, layout.spawn);
-    assert.equal(layout.kinds[layout.spawn.y][layout.spawn.x], 0);
-    assert.equal(layout.kinds[layout.exit.y][layout.exit.x], 0);
-    assert.equal(reachable[layout.exit.y][layout.exit.x], true);
+    assert.ok(layout.spawnApproach, "spawnApproach required for wall portal");
+    assert.ok(layout.exitApproach, "exitApproach required for wall portal");
+    assert.equal(layout.tiles[layout.spawn.y][layout.spawn.x], "S");
+    assert.equal(layout.tiles[layout.exit.y][layout.exit.x], "E");
+    // Portals occupy walls; approaches are the walkable seating cells.
+    assert.equal(layout.kinds[layout.spawn.y][layout.spawn.x], 1);
+    assert.equal(layout.kinds[layout.exit.y][layout.exit.x], 1);
+    assert.equal(layout.kinds[layout.spawnApproach.y][layout.spawnApproach.x], 0);
+    assert.equal(layout.kinds[layout.exitApproach.y][layout.exitApproach.x], 0);
+
+    const reachable = bfs(layout.tiles, layout.spawnApproach);
+    assert.equal(reachable[layout.exitApproach.y][layout.exitApproach.x], true);
 
     layout.rooms.forEach((room) => {
       const anchor = roomAnchor(layout.tiles, room);
@@ -142,10 +150,10 @@ test("room layouts are deterministic and connected for tiered sizes", async () =
     assert.equal(layout.connectivity.spawnReachable, true);
     assert.equal(layout.connectivity.exitReachable, true);
 
-    const spawnRoom = roomForPoint(layout.rooms, layout.spawn);
-    const exitRoom = roomForPoint(layout.rooms, layout.exit);
-    assert.ok(spawnRoom, "spawn should land inside a room");
-    assert.ok(exitRoom, "exit should land inside a room");
+    const spawnRoom = roomForPoint(layout.rooms, layout.spawnApproach);
+    const exitRoom = roomForPoint(layout.rooms, layout.exitApproach);
+    assert.ok(spawnRoom, "spawn approach should land inside a room");
+    assert.ok(exitRoom, "exit approach should land inside a room");
 
     const bestPair = pickGreatestDeltaPair(layout.rooms);
     assert.ok(bestPair, "expected at least two rooms for delta pair");

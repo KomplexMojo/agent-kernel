@@ -34,7 +34,37 @@ function isWalkable(grid, { x, y }) {
   if (y < 0 || y >= grid.length) return false;
   if (x < 0 || x >= grid[y].length) return false;
   const cell = grid[y][x];
-  return cell !== "#";
+  // Wall portals (S/E) are markers only — path across the approach floor.
+  return cell !== "#" && cell !== "S" && cell !== "E";
+}
+
+function resolveExitGoal(core, grid) {
+  if (typeof core.getExitApproachPosition === "function") {
+    const approach = core.getExitApproachPosition();
+    if (
+      approach
+      && Number.isFinite(approach.x)
+      && Number.isFinite(approach.y)
+      && approach.x >= 0
+      && approach.y >= 0
+    ) {
+      return { x: approach.x, y: approach.y };
+    }
+  }
+  const exit = findChar(grid, "E");
+  if (!exit) return null;
+  const dirs = [
+    [0, -1],
+    [0, 1],
+    [-1, 0],
+    [1, 0],
+  ];
+  const hits = [];
+  for (const [dx, dy] of dirs) {
+    const next = { x: exit.x + dx, y: exit.y + dy };
+    if (isWalkable(grid, next)) hits.push(next);
+  }
+  return hits.length === 1 ? hits[0] : exit;
 }
 
 function isDiagonalStepAllowed(grid, current, next) {
@@ -123,9 +153,9 @@ export function runMvpMovement({
   }
 
   const baseTiles = renderBaseTiles(core);
-  const exit = findChar(baseTiles, "E");
-  if (!exit) {
-    throw new Error("MVP map is missing an exit tile.");
+  const exitGoal = resolveExitGoal(core, baseTiles);
+  if (!exitGoal) {
+    throw new Error("MVP map is missing an exit approach.");
   }
 
   const frames = [renderFrameBuffer(core, { actorIdLabel })];
@@ -133,10 +163,10 @@ export function runMvpMovement({
 
   for (let i = 0; i < maxTicks; i += 1) {
     const from = { x: core.getActorX(), y: core.getActorY() };
-    if (from.x === exit.x && from.y === exit.y) {
+    if (from.x === exitGoal.x && from.y === exitGoal.y) {
       break;
     }
-    const path = shortestPath(baseTiles, from, exit);
+    const path = shortestPath(baseTiles, from, exitGoal);
     if (!path || path.length < 2) {
       break;
     }

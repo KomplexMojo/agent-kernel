@@ -159,7 +159,7 @@ function collectWalkablePositions(layout) {
       const row = String(data.tiles[y] ?? "");
       for (let x = 0; x < row.length; x += 1) {
         const entry = legend[row[x]];
-        if (entry?.tile === "wall" || entry?.tile === "barrier") continue;
+        if (entry?.tile === "wall" || entry?.tile === "barrier" || entry?.tile === "spawn" || entry?.tile === "exit") continue;
         walkable.push({ x, y });
       }
     }
@@ -176,6 +176,7 @@ function collectReservedPlacementKeys(layout) {
   };
   addPoint(data.spawn || layout?.spawn);
   addPoint(data.exit || layout?.exit);
+  // Approaches are seating targets — do not reserve them before placement.
   if (Array.isArray(data.hazards)) data.hazards.forEach(addPoint);
   if (Array.isArray(data.resources)) data.resources.forEach(addPoint);
   return reserved;
@@ -471,16 +472,20 @@ function placeActorsLegacy(actors, layout) {
   }
   const walkableSet = new Set(walkable.map(positionKey));
   const spawn = data.spawn || layout?.spawn || null;
-  const spawnKey = spawn ? positionKey(spawn) : null;
+  const spawnApproach = data.spawnApproach || layout?.spawnApproach || null;
+  const seatingSpawn = spawnApproach || spawn;
+  const spawnKey = seatingSpawn ? positionKey(seatingSpawn) : null;
   if (spawnKey && !walkableSet.has(spawnKey)) {
-    throw new Error(`configurator inputs could not place actors: spawn (${spawn.x}, ${spawn.y}) not walkable.`);
+    throw new Error(
+      `configurator inputs could not place actors: spawn seating (${seatingSpawn.x}, ${seatingSpawn.y}) not walkable.`,
+    );
   }
 
   const groups = createActorGroups(actors, { supportPerLeader: 3 });
   const anchors = selectGroupAnchors({
     walkable,
     groupCount: groups.length,
-    spawn: spawnKey && spawn ? { x: spawn.x, y: spawn.y } : null,
+    spawn: spawnKey && seatingSpawn ? { x: seatingSpawn.x, y: seatingSpawn.y } : null,
   });
   if (anchors.length === 0) {
     throw new Error(
@@ -559,11 +564,18 @@ export function placeActors({ actors, layout, delverCount = 1 } = {}) {
   const walkableSet = new Set(walkable.map(positionKey));
   const spawn = data.spawn || layout?.spawn || null;
   const exit = data.exit || layout?.exit || null;
-  if (spawn && !walkableSet.has(positionKey(spawn))) {
-    throw new Error(`configurator inputs could not place actors: spawn (${spawn.x}, ${spawn.y}) not walkable.`);
+  const spawnApproach = data.spawnApproach || layout?.spawnApproach || null;
+  const exitApproach = data.exitApproach || layout?.exitApproach || null;
+  // Spawn/exit are wall portals (non-walkable). Seating uses approach floors.
+  if (spawnApproach && !walkableSet.has(positionKey(spawnApproach))) {
+    throw new Error(
+      `configurator inputs could not place actors: spawnApproach (${spawnApproach.x}, ${spawnApproach.y}) not walkable.`,
+    );
   }
-  if (exit && !walkableSet.has(positionKey(exit))) {
-    throw new Error(`configurator inputs could not place actors: exit (${exit.x}, ${exit.y}) not walkable.`);
+  if (exitApproach && !walkableSet.has(positionKey(exitApproach))) {
+    throw new Error(
+      `configurator inputs could not place actors: exitApproach (${exitApproach.x}, ${exitApproach.y}) not walkable.`,
+    );
   }
 
   const context = deriveRoomPlacementContext({ data, walkable });
@@ -571,11 +583,11 @@ export function placeActors({ actors, layout, delverCount = 1 } = {}) {
   const { delvers, wardens } = partitionActorsByRole(actors, { delverCountHint: delverCount });
   const used = collectReservedPlacementKeys(layout);
   const assignedById = new Map();
-  const entryAnchor = spawn && walkableSet.has(positionKey(spawn))
-    ? { x: spawn.x, y: spawn.y }
+  const entryAnchor = spawnApproach && walkableSet.has(positionKey(spawnApproach))
+    ? { x: spawnApproach.x, y: spawnApproach.y }
     : context.entryRoomWalkable[0];
-  const exitAnchor = exit && walkableSet.has(positionKey(exit))
-    ? { x: exit.x, y: exit.y }
+  const exitAnchor = exitApproach && walkableSet.has(positionKey(exitApproach))
+    ? { x: exitApproach.x, y: exitApproach.y }
     : context.exitRoomWalkable[0];
 
   delvers.forEach((actor, index) => {
@@ -601,17 +613,23 @@ export function placeActors({ actors, layout, delverCount = 1 } = {}) {
     assignedById.set(actor.id, assigned);
   });
 
-  wardens.forEach((actor) => {
-    const affinityCandidateSets = collectActorAffinityKinds(actor)
-      .map((kind) => context.roomAffinityWalkableByKind?.[kind])
-      .filter((set) => Array.isArray(set) && set.length > 0);
-    const affinityAnchor = affinityCandidateSets[0]?.[0] || null;
-    const assigned = pickPreferredPosition({
-      candidateSets: [...affinityCandidateSets, context.exitRoomWalkable, context.allRoomsWalkable],
-      used,
-      anchor: affinityAnchor || exitAnchor || context.exitRoomWalkable[0]
-        || context.allRoomsWalkable[0] || walkable[0],
-    });
+  wardens.forEach((actor, index) => {
+    let assigned = null;
+    if (index === 0 && exitAnchor && !used.has(positionKey(exitAnchor))) {
+      assigned = { x: exitAnchor.x, y: exitAnchor.y };
+    }
+    if (!assigned) {
+      const affinityCandidateSets = collectActorAffinityKinds(actor)
+        .map((kind) => context.roomAffinityWalkableByKind?.[kind])
+        .filter((set) => Array.isArray(set) && set.length > 0);
+      const affinityAnchor = affinityCandidateSets[0]?.[0] || null;
+      assigned = pickPreferredPosition({
+        candidateSets: [...affinityCandidateSets, context.exitRoomWalkable, context.allRoomsWalkable],
+        used,
+        anchor: affinityAnchor || exitAnchor || context.exitRoomWalkable[0]
+          || context.allRoomsWalkable[0] || walkable[0],
+      });
+    }
     if (!assigned) {
       throw new Error(
         `configurator inputs could not place actors: insufficient room tiles for warden "${actor.id}" `

@@ -56,7 +56,8 @@ function countWalkableTiles(tiles = []) {
   for (let y = 0; y < tiles.length; y += 1) {
     const row = String(tiles[y] || "");
     for (let x = 0; x < row.length; x += 1) {
-      if (row[x] !== "#") count += 1;
+      // Wall portals (S/E) occupy perimeter walls and are not walkable.
+      if (row[x] !== "#" && row[x] !== "S" && row[x] !== "E") count += 1;
     }
   }
   return count;

@@ -219,8 +219,8 @@ describe("core-ts world state permutations", () => {
     // Corners are walls (#)
     expect(call(core.renderBaseCellChar, 0, 0)).toBe(35); // '#'
     // Interior floor tiles
-    expect(call(core.renderBaseCellChar, 1, 1)).toBe(83); // 'S' (spawn)
-    // Actor should be at spawn
+    // Spawn portal on the west wall; actor seats on the approach floor.
+    expect(call(core.renderBaseCellChar, 0, 1)).toBe(83); // 'S' (spawn)
     expect(call(core.getActorX)).toBe(1);
     expect(call(core.getActorY)).toBe(1);
   });
