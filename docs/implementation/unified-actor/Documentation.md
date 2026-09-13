@@ -623,3 +623,27 @@ legacy runtime, CLI, adapter, and UI consumers. The immediate blocker is
 runtime-fsm importing `applySimConfigToCore` and `applyInitialStateToCore` while
 also depending broadly on the legacy core API. This requires a split runtime
 cutover; compatibility aliases would conceal rather than complete the rewrite.
+
+## September 13 — portal rebase and UA.12d1 runtime startup
+
+Merged PR #174 and rebased `codex/unified-actor` onto main commit `7a8888f4`.
+Resolved the 14-file overlap by retaining canonical row-major terrain and common
+actors while carrying forward wall `spawn`/`exit` portals plus walkable
+`spawnApproach`/`exitApproach` endpoints. The post-rebase Configurator and production
+integration domain passes 43 files, 200 tests, one skip; the focused 11-file
+architecture set passes 38 tests and typecheck passes.
+
+UA.12d1 replaces runtime-fsm's deleted setup calls with
+`initializeCoreFromArtifacts`. Runtime retains the detached registry, authored
+costs and presentation, exposes detached snapshot readers, and projects canonical
+terrain for the existing render boundary. The startup test installs throwing stubs
+for all legacy setup call families and still loads a delver plus barrier. Narrow
+startup/loader/production integration is 8/8; typecheck passes. Nulling the retained
+registry turns the startup oracle red; the implementation was restored.
+
+The dependency-direction and ports guards pass. The behavior-reachability ratchet
+reports 36 instead of 13 because UA.12c removed all production references to 23
+legacy setup exports. Deleting those exports immediately made 17 legacy core test
+files fail typecheck, so that broader removal was reverted for its explicit
+core-export/test migration milestone. No guard baseline or compatibility alias was
+added. Next is ActorTurn action execution and once-only tick closing.

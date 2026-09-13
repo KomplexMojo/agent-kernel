@@ -633,7 +633,7 @@ uses alignment instead of words in ids, roles, or motivations. Production build
 merges the reserved actors after strategic placement. Next migrate property-based
 Allocator pricing and remove the remaining legacy affinity-summary/effect path.
 
-### UA.12d — runtime constructor cutover (next, split before implementation)
+### UA.12d — runtime constructor cutover
 The production loader now returns an actor registry and authored action costs,
 but runtime-fsm still requires the legacy mutable core API at construction and
 imports two deleted setup functions. Split the cutover by call family: startup
@@ -641,3 +641,15 @@ and snapshots first, then action execution, observations/effects, and budget
 ports. Do not restore the deleted setup exports as aliases. Each submilestone
 must replace its legacy core calls with registry/turn operations and migrate the
 corresponding runtime tests before proceeding to the next family.
+
+UA.12d1 startup/snapshots completed September 13 after rebasing onto the merged
+wall-portal work. Target files: runtime-fsm.mjs and runtime-unified-startup.test.mjs.
+Runtime retains the loader's registry/cost/presentation state, exposes detached
+registry and presentation snapshots, projects canonical terrain for existing
+render consumers, and rejects an InitialState without its referenced SimConfig.
+The test replaces every legacy category setup method with a throwing stub. Narrow
+startup/loader/integration: 8/8; typecheck passes. Nulling the retained registry
+made the test fail; restored. The owner reachability guard is expected-red from
+UA.12c's 23 newly unreachable setup exports. Next: UA.12d2 routes move, focused
+cast, equip, take and wait through one ActorTurn, removes conventional attack and
+actor-index translation, then closes fields/regeneration/exits once per tick.

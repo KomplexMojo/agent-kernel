@@ -15,7 +15,7 @@ import {
   orderActorsByIntention,
 } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
-import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs";
+import { initializeCoreFromArtifacts } from "./core-setup.mjs";
 import {
   applyMoveAction,
   getValidationErrorName,
@@ -226,6 +226,15 @@ function canReadObservation(core) {
 }
 
 function resolveBaseTiles(simConfig, core) {
+  const terrain = simConfig?.layout?.data?.terrain;
+  const width = simConfig?.layout?.data?.width;
+  const height = simConfig?.layout?.data?.height;
+  if (Array.isArray(terrain) && Number.isSafeInteger(width) && width > 0
+    && Number.isSafeInteger(height) && height > 0 && terrain.length === width * height) {
+    const glyph = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+    return Array.from({ length: height }, (_, y) => terrain
+      .slice(y * width, (y + 1) * width).map(kind => glyph[kind] || "#").join(""));
+  }
   const tiles = simConfig?.layout?.data?.tiles;
   if (Array.isArray(tiles)) return tiles;
   if (core && canRenderBaseTiles(core)) {
@@ -766,6 +775,9 @@ export function createFsmRuntime({
   let planArtifact = null;
   let actorIdMap = new Map();
   let primaryActorId = "actor";
+  let actorRegistry = null;
+  let actorCosts = null;
+  let actorPresentation = null;
   let baseTiles = null;
   let lastEffects = [];
   let lastFulfilled = [];
@@ -1601,25 +1613,20 @@ export function createFsmRuntime({
       const mapping = buildActorIdMap(initialState);
       actorIdMap = mapping.map;
       primaryActorId = mapping.primaryActorId;
+      actorRegistry = null;
+      actorCosts = null;
+      actorPresentation = null;
       baseTiles = null;
 
       core.init(seed);
-      if (simConfig?.layout) {
-        const layoutResult = applySimConfigToCore(core, simConfig);
-        if (!layoutResult.ok) {
-          throw new Error(`Failed to apply sim config layout: ${layoutResult.reason || "unknown"}`);
-        }
-        if (initialState) {
-          const actorResult = applyInitialStateToCore(core, initialState, { spawn: layoutResult.spawn });
-          if (!actorResult.ok) {
-            throw new Error(`Failed to apply initial state: ${actorResult.reason || "unknown"}`);
-          }
-        }
-      } else if (initialState) {
-        const actorResult = applyInitialStateToCore(core, initialState);
-        if (!actorResult.ok) {
-          throw new Error(`Failed to apply initial state: ${actorResult.reason || "unknown"}`);
-        }
+      if (initialState && !simConfig) {
+        throw new Error("Runtime requires the simulation config referenced by the initial state.");
+      }
+      if (simConfig && initialState) {
+        const loaded = initializeCoreFromArtifacts({ simConfig, initialState });
+        actorRegistry = loaded.registry;
+        actorCosts = loaded.costs;
+        actorPresentation = loaded.presentation;
       }
 
       baseTiles = resolveBaseTiles(simConfig, core);
@@ -1997,6 +2004,14 @@ export function createFsmRuntime({
 
     getState() {
       return { counter: core.getCounter ? core.getCounter() : 0 };
+    },
+
+    getActorSnapshot() {
+      return actorRegistry ? actorRegistry.snapshot() : null;
+    },
+
+    getActorPresentation() {
+      return actorPresentation ? structuredClone(actorPresentation) : null;
     },
 
     getEffectLog() {

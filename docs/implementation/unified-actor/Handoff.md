@@ -2,24 +2,28 @@
 
 ## Start here
 
-**CURRENT CUTOVER: uncommitted production artifact/loader replacement is in progress.**
-The last fully green commit is 41d2c1df. Do not reset away the subsequent work.
+**CURRENT CUTOVER: runtime action execution is next.** The branch was rebased onto
+main at portal merge `7a8888f4`; unified artifact production is checkpointed at
+`d71af7e8`. Runtime startup now loads those artifacts into one detached actor
+registry without calling the deleted category setup functions. The current startup
+changes remain uncommitted; do not reset them.
 Existing artifact builders now emit normalized state; core-setup loads one registry
 and no longer exports category placement functions. Director actor requests now carry common properties and full motivations.
 Generated layouts and actor placement now use canonical terrain.
 Object placement, feasibility and previews now read canonical terrain too.
 Resource and hazard placement now returns common actor requests and the production
 build merges them after reserving their coordinates. SimConfig no longer stores
-hazard/resource collections. Upstream CLI/card defaults, pricing, runtime FSM,
-adapter and UI callers remain unmigrated. The full application is temporarily broken as approved
+hazard/resource collections. Upstream CLI/card defaults, remaining pricing,
+runtime actions/observations, adapter and UI callers remain unmigrated. The full application is temporarily broken as approved
 by the maintainer; narrow builder/loader tests and typecheck pass. Read the latest
 Documentation.md/Plan.md cutover section before using older green evidence below.
 
-Latest measured baseline: Configurator is green (42 files, 197 passed, one
-skipped); production resource/hazard integration and typecheck pass. Full suite:
-599/744 files and 3182/4174 tests pass. Runtime startup is the next blocking seam;
-split it by startup, actions, observations/effects, and budget calls rather than
-restoring deleted setup aliases.
+Latest measured post-rebase baseline: Configurator is green (43 files, 200 passed,
+one skipped); the focused startup/loader/integration domain is 8/8 and typecheck
+passes. Runtime startup's registry-retention perturbation fails as required and was
+restored. The core-behavior reachability guard remains expected-red because the
+artifact checkpoint made 23 legacy setup exports unreachable; remove those exports
+with their legacy core test consumers during the prescribed export/test cutover.
 
 Repository: `KomplexMojo/agent-kernel`. Continue the existing isolated worktree on
 `codex/unified-actor`, preserving its local commits and any working changes. Do not reset to
@@ -36,9 +40,11 @@ exit-dwell work; no push was requested this continuation.
 Read Plan.md's next implementation seam and Documentation.md's latest evidence.
 The maintainer authorized continuing across bounded milestones until completion
 or token exhaustion, superseding the old one-milestone stopping limit.
-The new registry is NOT wired into `createCore` or runtime. Existing JavaScript
-still produces legacy shapes. Passing component tests does not prove the new
-mechanics execute in the game. Do not merge this partial rewrite into main.
+The new registry is retained by runtime startup and available through the runtime
+snapshot surface. Tick actions, observations, field sequencing, effects, budget
+accounting and world-state capture still use the legacy core path. Passing startup
+and component tests does not prove a whole game tick. Do not merge this partial
+rewrite into main.
 
 Read these real, tracked files in order:
 1. `Prompt.md` — approved mechanics, including the full affinity matrix.
