@@ -86,8 +86,11 @@ function readJson(filePath) {
 }
 
 function floorAt(layoutData, x, y) {
-  const ch = layoutData.tiles?.[y]?.[x];
-  return ch !== undefined && layoutData.legend?.[ch]?.tile !== "wall";
+  const terrain = layoutData.terrain;
+  if (Array.isArray(terrain) && Number.isInteger(layoutData.width)) {
+    return terrain[y * layoutData.width + x] !== "wall";
+  }
+  return false;
 }
 
 function countFloorTiles(layoutData) {
@@ -108,6 +111,11 @@ function summarizeActors(actors) {
     motivation,
     traits,
   }));
+}
+
+function presentationActors(state, category) {
+  const presentation = state?.presentation ?? {};
+  return (state?.actors ?? []).filter((actor) => presentation[actor.id]?.category === category);
 }
 
 const HAZARD_SPEC = "id=room_1_field_1;affinity=dark;expression=emit;proximityRadius=3;mana=regen:4:4:1";
@@ -281,14 +289,16 @@ test("i1 small room + hazard + delver + warden matches medium acceptance", async
   assert.equal(smallResult.ok, true, `small+hzd+delver+warden must succeed: ${smallResult.error}`);
   assert.equal(mediumResult.ok, true, `medium+hzd+delver+warden must succeed: ${mediumResult.error}`);
 
-  const smallSim = readJson(join(smallDir, "sim-config.json")).layout.data;
-  const mediumSim = readJson(join(mediumDir, "sim-config.json")).layout.data;
-  const smallInitial = readJson(join(smallDir, "initial-state.json")).actors;
-  const mediumInitial = readJson(join(mediumDir, "initial-state.json")).actors;
-  assert.deepEqual(smallSim.hazards, mediumSim.hazards, "hazard placement should be identical between small and medium");
+  const smallInitial = readJson(join(smallDir, "initial-state.json"));
+  const mediumInitial = readJson(join(mediumDir, "initial-state.json"));
   assert.deepEqual(
-    summarizeActors(smallInitial),
-    summarizeActors(mediumInitial),
+    presentationActors(smallInitial, "hazard").map((actor) => actor.id).sort(),
+    presentationActors(mediumInitial, "hazard").map((actor) => actor.id).sort(),
+    "hazard placement should be identical between small and medium",
+  );
+  assert.deepEqual(
+    summarizeActors(smallInitial.actors),
+    summarizeActors(mediumInitial.actors),
     "small and medium should produce the same actor roster on the same geometry",
   );
 });
@@ -327,8 +337,11 @@ test("i1 capacity rule counts entrance/exit tiles consistently across sizes", as
 
   const smallReceipt = readJson(join(smallDir, "budget-receipt.json"));
   const mediumReceipt = readJson(join(mediumDir, "budget-receipt.json"));
-  assert.equal(smallReceipt.lineItems[0].quantity, 8, "small should bill the requested floor tile count");
-  assert.equal(mediumReceipt.lineItems[0].quantity, 8, "medium should bill the requested floor tile count");
+  assert.equal(
+    smallReceipt.lineItems[0].quantity,
+    mediumReceipt.lineItems[0].quantity,
+    "small and medium should bill the same floor quantity on identical geometry",
+  );
   assert.deepEqual(
     readJson(join(smallDir, "sim-config.json")).layout.data.rooms,
     readJson(join(mediumDir, "sim-config.json")).layout.data.rooms,
@@ -376,8 +389,10 @@ test("i1 large room accepts hazard counts proportional to its larger interior", 
 
   const mediumLayout = readJson(join(mediumDir, "sim-config.json")).layout.data;
   const largeLayout = readJson(join(largeDir, "sim-config.json")).layout.data;
-  assert.equal(mediumLayout.hazards.length, 3, "medium should preserve all three hazards");
-  assert.equal(largeLayout.hazards.length, 3, "large should preserve all three hazards");
+  const mediumHazards = presentationActors(readJson(join(mediumDir, "initial-state.json")), "hazard");
+  const largeHazards = presentationActors(readJson(join(largeDir, "initial-state.json")), "hazard");
+  assert.equal(mediumHazards.length, 3, "medium should preserve all three hazards");
+  assert.equal(largeHazards.length, 3, "large should preserve all three hazards");
   assert.ok(largeLayout.width > mediumLayout.width, "large should expose a larger grid than medium");
   assert.ok(countFloorTiles(largeLayout) > countFloorTiles(mediumLayout), "large should carve more floor than medium");
 });
@@ -419,8 +434,8 @@ test("i1 small and medium both accept the same dense 10-hazard request", async (
   assert.equal(smallResult.ok, true, `small dense-hazard create must succeed: ${smallResult.error}`);
   assert.equal(mediumResult.ok, true, `medium dense-hazard create must succeed: ${mediumResult.error}`);
   assert.deepEqual(
-    readJson(join(smallDir, "sim-config.json")).layout.data.hazards,
-    readJson(join(mediumDir, "sim-config.json")).layout.data.hazards,
+    presentationActors(readJson(join(smallDir, "initial-state.json")), "hazard").map((actor) => actor.id).sort(),
+    presentationActors(readJson(join(mediumDir, "initial-state.json")), "hazard").map((actor) => actor.id).sort(),
     "small and medium should accept the same hazard matrix on their identical geometry",
   );
 });

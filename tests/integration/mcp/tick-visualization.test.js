@@ -125,36 +125,49 @@ function writeJson(filePath, value) {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-function scaffoldRun(artifactsDir, runId, { maxTick = 5 } = {}) {
+async function scaffoldRun(artifactsDir, runId, { maxTick = 5 } = {}) {
   const buildDir = join(artifactsDir, "runs", runId, "build");
   const runDir   = join(artifactsDir, "runs", runId, "run");
-
-  writeJson(join(buildDir, "sim-config.json"), {
-    schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1,
-    meta: { id: "sc1", runId, createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
-    layout: {
-      kind: "grid", width: 7, height: 3,
-      data: { width: 7, height: 3, tiles: ["#######", "#.....#", "#######"],
-        legend: { "#": { tile: "wall" }, ".": { tile: "floor" } } },
-    },
-    hazards: [{ id: "hazard_1", x: 2, y: 1, affinity: "fire", expression: "emit", stacks: 3, blocking: false }],
-    resources: [{ id: "res_1", x: 4, y: 1, tier: "level", stat: "vitalMax", delta: 10, dropRate: 50 }],
-  });
-
-  writeJson(join(buildDir, "initial-state.json"), {
-    schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1,
-    meta: { id: "is1", runId, createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../../fixtures/personas/unified-actor-runtime.mjs");
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 7,
+    height: 3,
+    terrain: boxedTerrain(7, 3),
+    runId,
     actors: [
-      { id: "actor_delver_1", kind: "motivated", role: "delver", position: { x: 1, y: 1 },
-        affinity: "fire", motivation: "exploring",
-        affinities: [{ name: "fire", stacks: 2, expression: "emit" }],
-        vitals: { health: { current: 10, max: 10, regen: 1 } } },
-      { id: "actor_warden_1", kind: "motivated", role: "warden", position: { x: 5, y: 1 },
-        affinity: "dark", motivation: "stationary",
-        affinities: [{ name: "dark", stacks: 1, expression: "emit" }],
-        vitals: { health: { current: 15, max: 15, regen: 0 } } },
+      {
+        id: "actor_delver_1",
+        category: "delver",
+        position: { x: 1, y: 1 },
+        motivations: ["exploring"],
+        affinities: [{ kind: "fire", expression: "emit", stacks: 2 }],
+        vitals: { health: { current: 10, max: 10, regen: 1 } },
+      },
+      {
+        id: "actor_warden_1",
+        category: "warden",
+        position: { x: 5, y: 1 },
+        motivations: ["stationary"],
+        affinities: [{ kind: "dark", expression: "emit", stacks: 1 }],
+        vitals: { health: { current: 15, max: 15, regen: 0 } },
+      },
+      {
+        id: "hazard_1",
+        category: "hazard",
+        position: { x: 2, y: 1 },
+        affinities: [{ kind: "fire", expression: "emit", stacks: 3 }],
+        vitals: { durability: { current: 3, max: 3, regen: 0 } },
+      },
+      {
+        id: "res_1",
+        category: "resource",
+        position: { x: 4, y: 1 },
+        vitals: { durability: { current: 1, max: 1, regen: 0 } },
+      },
     ],
   });
+  writeJson(join(buildDir, "sim-config.json"), simConfig);
+  writeJson(join(buildDir, "initial-state.json"), initialState);
 
   const frames = Array.from({ length: maxTick }, (_, i) => ({
     schema: "agent-kernel/TickFrame", schemaVersion: 1,
@@ -181,7 +194,7 @@ test("ak_show_state with visualization:ascii returns visualization object", asyn
   const workDir     = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-ascii-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId       = "run_mcp_viz_ascii";
-  scaffoldRun(artifactsDir, runId, { maxTick: 5 });
+  await scaffoldRun(artifactsDir, runId, { maxTick: 5 });
 
   // Advance cursor via CLI so state is at tick 1
   runCli(["tick", "forward", "--run-id", runId], workDir);
@@ -214,7 +227,7 @@ test("ak_show_state with visualization:image writes a PNG file and returns its p
   const workDir      = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-img-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId        = "run_mcp_viz_img";
-  scaffoldRun(artifactsDir, runId, { maxTick: 5 });
+  await scaffoldRun(artifactsDir, runId, { maxTick: 5 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
 
@@ -253,7 +266,7 @@ test("ak_tick_forward with visualization:ascii returns visualization at the new 
   const workDir      = mkdtempSync(join(os.tmpdir(), "ak-mcp-fwd-viz-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId        = "run_mcp_fwd_viz";
-  scaffoldRun(artifactsDir, runId, { maxTick: 5 });
+  await scaffoldRun(artifactsDir, runId, { maxTick: 5 });
 
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
   try {
@@ -274,7 +287,7 @@ test("ak_tick_backward with visualization:ascii returns visualization at the rew
   const workDir      = mkdtempSync(join(os.tmpdir(), "ak-mcp-bwd-viz-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId        = "run_mcp_bwd_viz";
-  scaffoldRun(artifactsDir, runId, { maxTick: 5 });
+  await scaffoldRun(artifactsDir, runId, { maxTick: 5 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   runCli(["tick", "forward", "--run-id", runId], workDir);
@@ -297,7 +310,7 @@ test("ak_show_state with unknown visualization value returns ok:false with struc
   const workDir      = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-bad-"));
   const artifactsDir = join(workDir, "artifacts");
   const runId        = "run_mcp_viz_bad";
-  scaffoldRun(artifactsDir, runId, { maxTick: 3 });
+  await scaffoldRun(artifactsDir, runId, { maxTick: 3 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
 
@@ -313,10 +326,94 @@ test("ak_show_state with unknown visualization value returns ok:false with struc
   }
 });
 
-test.skip("mcp ak_show_state without visualization arg returns no visualization field", () => {});
-test.skip("mcp ak_show_state at tick 0 with visualization ascii returns initial ascii snapshot", () => {});
-test.skip("mcp ak_show_state at tick 0 with visualization image returns data URI or null gracefully", () => {});
-test.skip("mcp ak_tick_forward at maxTick with visualization ascii returns boundary ok:false", () => {});
-test.skip("mcp ak_tick_backward at tick 0 with visualization ascii returns boundary ok:false", () => {});
 test.skip("mcp ak_show_state visualization ascii with missing core-ts returns best-effort ascii", () => {});
 test.skip("mcp ak_tick_forward visualization ascii successive calls report different actor positions", () => {});
+
+test("mcp ak_show_state without visualization arg returns no visualization field", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-none-"));
+  const artifactsDir = join(workDir, "artifacts");
+  const runId = "run_mcp_viz_none";
+  await scaffoldRun(artifactsDir, runId, { maxTick: 3 });
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  try {
+    await harness.initialize();
+    const result = await harness.callToolRaw("ak_show_state", { runId });
+    assert.equal(result.ok, true);
+    assert.equal(result.visualization, undefined);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_show_state at tick 0 with visualization ascii returns initial ascii snapshot", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-tick0-"));
+  const artifactsDir = join(workDir, "artifacts");
+  const runId = "run_mcp_viz_tick0";
+  await scaffoldRun(artifactsDir, runId, { maxTick: 3 });
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  try {
+    await harness.initialize();
+    const result = await harness.callToolRaw("ak_show_state", { runId, visualization: "ascii" });
+    assert.equal(result.ok, true);
+    assert.equal(result.tick, 0);
+    assert.equal(result.visualization.mode, "ascii");
+    assert.equal(typeof result.visualization.layers.layout, "string");
+    assert.match(result.visualization.layers.layout, /#/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_show_state at tick 0 with visualization image returns path or null gracefully", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-img0-"));
+  const artifactsDir = join(workDir, "artifacts");
+  const runId = "run_mcp_viz_img0";
+  await scaffoldRun(artifactsDir, runId, { maxTick: 3 });
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  try {
+    await harness.initialize();
+    const result = await harness.callToolRaw("ak_show_state", { runId, visualization: "image" });
+    assert.equal(result.ok, true);
+    assert.equal(result.tick, 0);
+    assert.equal(result.visualization.mode, "image");
+    assert.equal(result.visualization.visualizationDataUri, null);
+    if (result.visualization.visualizationPath) {
+      assert.ok(existsSync(result.visualization.visualizationPath));
+    }
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_tick_forward at maxTick with visualization ascii returns boundary ok:false", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-max-"));
+  const artifactsDir = join(workDir, "artifacts");
+  const runId = "run_mcp_viz_max";
+  await scaffoldRun(artifactsDir, runId, { maxTick: 1 });
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  try {
+    await harness.initialize();
+    await harness.callToolRaw("ak_tick_forward", { runId, visualization: "ascii" });
+    const result = await harness.callToolRaw("ak_tick_forward", { runId, visualization: "ascii" });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /cannot advance past max tick/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_tick_backward at tick 0 with visualization ascii returns boundary ok:false", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "ak-mcp-viz-bwd0-"));
+  const artifactsDir = join(workDir, "artifacts");
+  const runId = "run_mcp_viz_bwd0";
+  await scaffoldRun(artifactsDir, runId, { maxTick: 2 });
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: artifactsDir });
+  try {
+    await harness.initialize();
+    const result = await harness.callToolRaw("ak_tick_backward", { runId, visualization: "ascii" });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /cannot rewind past tick 0/);
+  } finally {
+    await harness.close();
+  }
+});

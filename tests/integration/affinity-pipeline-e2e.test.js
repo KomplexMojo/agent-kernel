@@ -26,95 +26,46 @@ test("affinity pipeline e2e: fixture -> core -> field records -> tile visuals ->
     import("../../packages/ui-web/src/views/tile-affinity-visuals.js"),
   ]);
 
-  const { createCore, readAffinityFieldAt, AFFINITY_KIND_BY_CODE } = bindings;
+  const { createCore } = bindings;
   const { initializeCoreFromArtifacts } = coreSetup;
   const { deriveTileAffinityVisuals } = tileVisuals;
+  const { readCoreAffinityFieldRecordsFromArtifacts } = await import(
+    "../../packages/runtime/src/runner/core-facade.js"
+  );
+  const { buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
 
-  const core = createCore();
-  core.init(0);
-
-  // ── Build fixture artifacts ──
-
-  const simConfig = {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    layout: {
-      kind: "grid",
-      data: {
-        width: 7,
-        height: 7,
-        tiles: [
-          ".......",
-          ".......",
-          ".......",
-          ".......",
-          ".......",
-          ".......",
-          ".......",
-        ],
-        hazards: [
-          {
-            id: "h-fire-1",
-            entityType: "hazard",
-            position: { x: 3, y: 3 },
-            emitStrength: 2,
-            affinityStacks: [{ kind: "fire", stacks: 2, expression: "emit" }],
-          },
-        ],
-      },
-    },
-  };
-
-  const initialState = {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 7,
+    height: 7,
+    terrain: Array(49).fill("floor"),
     actors: [
       {
         id: "delver-1",
-        entityType: "actor",
+        category: "delver",
         position: { x: 0, y: 0 },
+        motivations: ["exploring"],
+        affinities: [{ kind: "water", expression: "push", stacks: 1 }],
         vitals: {
-          hp: { current: 10, max: 10, regen: 0 },
+          health: { current: 10, max: 10, regen: 0 },
           mana: { current: 5, max: 5, regen: 0 },
           stamina: { current: 5, max: 5, regen: 0 },
         },
-        capabilities: { movementCost: 1 },
-        affinities: [{ kind: "water", expression: "push", stacks: 1 }],
+      },
+      {
+        id: "h-fire-1",
+        category: "hazard",
+        position: { x: 3, y: 3 },
+        affinities: [{ kind: "fire", expression: "emit", stacks: 2 }],
+        activeAffinityKey: "fire:emit",
+        vitals: { durability: { current: 3, max: 3, regen: 0 } },
       },
     ],
-  };
+  });
 
-  // ── Step 1: Initialize core from artifacts ──
+  const loaded = initializeCoreFromArtifacts({ simConfig, initialState });
+  assert.ok(loaded.registry, "unified registry loaded");
 
-  const result = initializeCoreFromArtifacts(core, { simConfig, initialState });
-  assert.equal(result.layout.ok, true, "layout init ok");
-  assert.equal(result.actor.ok, true, "actor init ok");
-
-  // ── Step 2: Read field records from the core ──
-
-  const kindCount = Object.keys(AFFINITY_KIND_BY_CODE).length;
-  const fieldRecords = [];
-
-  for (let y = 0; y < 7; y++) {
-    for (let x = 0; x < 7; x++) {
-      for (let kindCode = 1; kindCode <= kindCount; kindCode++) {
-        const field = readAffinityFieldAt(core, x, y, kindCode);
-        if (field && field.intensity > 0) {
-          fieldRecords.push({
-            x,
-            y,
-            kind: AFFINITY_KIND_BY_CODE[kindCode] || "unknown",
-            kindCode,
-            intensity: field.intensity,
-            stacks: field.stacks,
-            expression: field.expression,
-            expressionName: field.expressionName,
-            contributionCount: field.contributionCount,
-          });
-        }
-      }
-    }
-  }
+  const { fieldRecords } = readCoreAffinityFieldRecordsFromArtifacts(createCore(), { simConfig, initialState });
 
   assert.ok(fieldRecords.length > 0, "field records collected from core");
 
@@ -189,24 +140,45 @@ test("affinity pipeline e2e: fixture -> core -> field records -> tile visuals ->
 // ---------------------------------------------------------------------------
 
 test("water/fire sandbox bundle: full pipeline produces visuals with contributions at overlap tile", async () => {
-  const { readFile } = await import("node:fs/promises");
-  const { resolve } = await import("node:path");
-  const { fileURLToPath } = await import("node:url");
-
-  const __dirname = fileURLToPath(new URL(".", import.meta.url));
-  const fixturePath = resolve(
-    __dirname,
-    "../fixtures/sandbox/affinity-overlap-v1-water-fire.json",
-  );
-  const fixture = JSON.parse(await readFile(fixturePath, "utf8"));
-
   const { buildTileAffinityVisualsFromSandboxBundle } = await import(
     "../../packages/ui-web/src/views/affinity-field-bridge.js"
   );
+  const { buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 5,
+    height: 5,
+    terrain: Array(25).fill("floor"),
+    runId: "aff_overlap_test",
+    actors: [
+      {
+        id: "delver_1",
+        category: "delver",
+        position: { x: 0, y: 2 },
+        motivations: ["exploring"],
+        vitals: { health: { current: 10, max: 10, regen: 0 } },
+      },
+      {
+        id: "hazard-water-north",
+        category: "hazard",
+        position: { x: 2, y: 0 },
+        affinities: [{ kind: "water", expression: "emit", stacks: 3 }],
+        activeAffinityKey: "water:emit",
+        vitals: { durability: { current: 3, max: 3, regen: 0 } },
+      },
+      {
+        id: "hazard-fire-south",
+        category: "hazard",
+        position: { x: 2, y: 4 },
+        affinities: [{ kind: "fire", expression: "emit", stacks: 3 }],
+        activeAffinityKey: "fire:emit",
+        vitals: { durability: { current: 3, max: 3, regen: 0 } },
+      },
+    ],
+  });
 
   const visuals = await buildTileAffinityVisualsFromSandboxBundle({
-    simConfig:    fixture.simConfig,
-    initialState: fixture.initialState,
+    simConfig,
+    initialState,
     resourceBundle: null,
   });
 

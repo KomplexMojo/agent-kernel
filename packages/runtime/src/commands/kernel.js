@@ -16,6 +16,8 @@ const {
   buildSimConfigArtifact,
   buildInitialStateArtifact,
   resolveAffinityEffects,
+  completeObjectPlacement,
+  assembleMovementStamina,
 } = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 import { createCore } from "../../../core-ts/src/index.ts";
 // CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
@@ -43,6 +45,7 @@ import { deriveAllowedOptionsFromCatalog, normalizeSummary } from "../personas/o
 import {
   applyActorOverrides,
   applyTileOverrides,
+  barrierSpecsFromTileOverrides,
   baseVitalsFromActors,
   compareFrameSummaries,
   compareRuntimeDecisionCaptureSummaries,
@@ -1183,14 +1186,14 @@ export function createCommandKernel(host = {}) {
     const tileBarriers = normalizeArgList(args["tile-barrier"]);
     const tileFloors = normalizeArgList(args["tile-floor"]);
     const vitalDefaults = resolveVitalDefaults(vitalDefaultSpecs);
+    const barrierSpecs = barrierSpecsFromTileOverrides(tileBarriers);
 
     const tileOverrideResult = applyTileOverrides(simConfig, {
       walls: tileWalls,
-      barriers: tileBarriers,
       floors: tileFloors,
     });
     const actorOverrideResult = applyActorOverrides(initialState, simConfig, {
-      actorSpecs,
+      actorSpecs: [...actorSpecs, ...barrierSpecs],
       vitalSpecs,
       vitalDefaults,
     });
@@ -1201,12 +1204,11 @@ export function createCommandKernel(host = {}) {
       : null;
     let affinitySummary = null;
     if (wantsAffinitySummary) {
-      const hazards = simConfig?.layout?.data?.hazards;
       const resolved = resolveAffinityEffects({
         presets: affinityPresets?.presets,
         loadouts: affinityLoadouts?.loadouts,
         baseVitalsByActorId: baseVitalsFromActors(initialState?.actors),
-        hazards: Array.isArray(hazards) ? hazards : [],
+        hazards: [],
       });
       affinitySummary = {
         schema: SCHEMAS.affinitySummary,
@@ -1525,6 +1527,15 @@ export function createCommandKernel(host = {}) {
     if (!actorsInput || !Array.isArray(actorsInput.actors)) {
       throw new Error("actors file must include an actors array.");
     }
+    const objectPlacement = completeObjectPlacement({
+      layout: layoutResult.value,
+      hazards: [],
+      resources: [],
+    });
+    if (!objectPlacement?.ok) {
+      throw new Error(`configurator object placement ${objectPlacement?.status || "failed"}: ${objectPlacement?.reason || "unknown"}`);
+    }
+    const layout = objectPlacement.layout;
 
     let plan = null;
     let budgetReceipt = null;
@@ -1558,16 +1569,12 @@ export function createCommandKernel(host = {}) {
       assertSchema(affinityLoadouts, ACTOR_LOADOUT_SCHEMA);
     }
 
-    const layout = layoutResult.value;
-    const baseVitalsByActorId = baseVitalsFromActors(actorsInput.actors);
-    const resolvedEffects = (affinityPresets && affinityLoadouts)
-      ? resolveAffinityEffects({
-        presets: affinityPresets.presets,
-        loadouts: affinityLoadouts.loadouts,
-        baseVitalsByActorId,
-        hazards: Array.isArray(layout.hazards) ? layout.hazards : [],
-      })
-      : {};
+    const placedActors = Array.isArray(objectPlacement.actors) ? objectPlacement.actors : [];
+    const existingActorIds = new Set(actorsInput.actors.map((actor) => actor?.id).filter(Boolean));
+    const actors = [
+      ...actorsInput.actors,
+      ...placedActors.filter((actor) => actor?.id && !existingActorIds.has(actor.id)),
+    ];
     const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;
 
     if (budget && priceList) {
@@ -1575,7 +1582,7 @@ export function createCommandKernel(host = {}) {
         budget,
         priceList,
         layout,
-        actors: actorsInput.actors,
+        actors,
         proposalMeta: createMeta({ producedBy: "cli-configurator", runId }),
         receiptMeta: createMeta({ producedBy: "cli-configurator", runId }),
         // CR.9 M3: motivation vocabulary is the Configurator's, injected here rather
@@ -1591,12 +1598,14 @@ export function createCommandKernel(host = {}) {
       budgetReceiptRef: budgetReceipt ? toRef(budgetReceipt) : undefined,
       seed,
       layout,
+      movementStamina: assembleMovementStamina({ actors }),
     });
     const initialState = buildInitialStateArtifact({
       meta: createMeta({ producedBy: "cli-configurator", runId }),
       simConfigRef: toRef(simConfig),
-      actors: actorsInput.actors,
-      resolvedEffects,
+      actors,
+      dimensions: { width: layout.width, height: layout.height },
+      terrain: layout.terrain,
     });
 
     await writeJson(join(outDir, "sim-config.json"), simConfig);

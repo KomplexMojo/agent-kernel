@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "producedBy": "cli-create",
     "cost": {
-      "runTotalTokens": 160,
+      "runTotalTokens": 226,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g1_budget_receipt",
@@ -29,11 +29,13 @@
   "actors": [
     {
       "id": "card_delver_1-1",
-      "kind": "ambulatory",
       "position": {
         "x": 4,
         "y": 2
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -56,12 +58,19 @@
           "regen": 1
         }
       },
-      "archetype": "delver",
-      "traits": {
-        "affinities": {
-          "water": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
+      "motivations": [
+        "attacking",
+        "user_controlled"
+      ],
       "affinities": [
         {
           "kind": "water",
@@ -69,12 +78,57 @@
           "stacks": 1
         }
       ],
-      "motivation": {
-        "kind": "attacking"
+      "activeAffinityKey": null,
+      "holdings": []
+    },
+    {
+      "id": "hazard_1",
+      "position": {
+        "x": 3,
+        "y": 2
       },
-      "motivations": [
-        "attacking"
-      ]
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": "fire:emit",
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "card_delver_1-1": {
+      "category": "delver"
+    },
+    "hazard_1": {
+      "category": "hazard"
+    }
+  }
 }

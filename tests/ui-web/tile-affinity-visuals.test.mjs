@@ -7,6 +7,8 @@ import {
 } from "../../packages/ui-web/src/views/tile-affinity-visuals.js";
 import bundle from "../fixtures/ui-web/resource-hazard-run-bundle.json" with { type: "json" };
 import overlapFixture from "../fixtures/sandbox/affinity-overlap-v1-water-fire.json" with { type: "json" };
+import { buildUnifiedArtifacts } from "../fixtures/personas/unified-actor-runtime.mjs";
+import { createConfiguratorPersona } from "../../packages/runtime/src/personas/configurator/persona.js";
 
 const simConfig = bundle.artifacts[0];
 const resourceBundle = bundle.artifacts[2];
@@ -280,6 +282,15 @@ describe("resolveTileVisualAt", () => {
 const overlapTiles   = overlapFixture.simConfig.layout.data.tiles;
 const overlapHazards = overlapFixture.simConfig.layout.data.hazards;
 
+function seedAuthoredActor(actor) {
+  const configurator = createConfiguratorPersona({ clock: () => "2026-09-14T00:00:00.000Z" });
+  const { applyViabilityDerivedVitalRequirements, applyAffinityDerivedVitalRequirements, applyMotivationDerivedVitalRequirements } = configurator.authorCandidates;
+  applyViabilityDerivedVitalRequirements(actor);
+  applyAffinityDerivedVitalRequirements(actor);
+  applyMotivationDerivedVitalRequirements(actor);
+  return actor;
+}
+
 describe("water fire overlap", () => {
   it("hazard-spread path: water hazard origin (2,0) has affinityKind water", () => {
     const visuals = deriveTileAffinityVisuals({
@@ -339,14 +350,41 @@ describe("water fire overlap", () => {
   });
 
   it("field-records path: overlap tile contributions contain both water and fire", async () => {
-    // Uses the full field-records pipeline via affinity-field-bridge.
-    // This test validates the sandbox bundle path end-to-end.
     const { buildTileAffinityVisualsFromSandboxBundle } = await import(
       "../../packages/ui-web/src/views/affinity-field-bridge.js"
     );
+    const width = 5;
+    const height = 5;
+    const { simConfig, initialState } = buildUnifiedArtifacts({
+      width,
+      height,
+      terrain: Array(width * height).fill("floor"),
+      actors: [
+        seedAuthoredActor({
+          category: "hazard",
+          id: "hazard-water-north",
+          position: { x: 2, y: 0 },
+          affinities: [{ kind: "water", expression: "emit", stacks: 3 }],
+          activeAffinityKey: "water:emit",
+        }),
+        seedAuthoredActor({
+          category: "hazard",
+          id: "hazard-fire-south",
+          position: { x: 2, y: 4 },
+          affinities: [{ kind: "fire", expression: "emit", stacks: 3 }],
+          activeAffinityKey: "fire:emit",
+        }),
+        seedAuthoredActor({
+          category: "delver",
+          id: "delver_1",
+          position: { x: 0, y: 2 },
+          motivations: ["exploring"],
+        }),
+      ],
+    });
     const visuals = await buildTileAffinityVisualsFromSandboxBundle({
-      simConfig:     overlapFixture.simConfig,
-      initialState:  overlapFixture.initialState,
+      simConfig,
+      initialState,
       resourceBundle: null,
     });
     assert.ok(visuals instanceof Map, "must return a Map");

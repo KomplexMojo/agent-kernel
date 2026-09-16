@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 670,
+      "runTotalTokens": 126,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g2_budget_receipt",
@@ -61,26 +61,82 @@
       "resources": [
         {
           "id": "resource_1",
-          "permanenceMode": "consumable",
-          "vitals": [],
-          "affinity": {
-            "kind": "water",
-            "expression": "emit",
-            "stacks": 2,
-            "mana": 50,
-            "manaRegen": 5
-          }
+          "alignment": "dungeon",
+          "lifecycle": "alive",
+          "defeatVital": "durability",
+          "vitals": {
+            "durability": {
+              "current": 1,
+              "max": 1,
+              "regen": 0
+            },
+            "mana": {
+              "current": 50,
+              "max": 50,
+              "regen": 5
+            }
+          },
+          "capabilities": {
+            "canMove": false,
+            "canCast": true,
+            "canEquip": false,
+            "canTake": false,
+            "canExit": false,
+            "blocksMovement": false,
+            "blocksSight": false
+          },
+          "motivations": [],
+          "affinities": [
+            {
+              "kind": "water",
+              "expression": "emit",
+              "stacks": 2
+            }
+          ],
+          "activeAffinityKey": "water:emit",
+          "holdings": [],
+          "category": "resource"
         },
         {
           "id": "resource_2",
-          "permanenceMode": "permanent",
-          "vitals": [
-            {
-              "key": "health",
-              "delta": 5,
-              "regen": 2
+          "alignment": "dungeon",
+          "lifecycle": "alive",
+          "defeatVital": "durability",
+          "vitals": {
+            "durability": {
+              "current": 1,
+              "max": 1,
+              "regen": 0
             }
-          ]
+          },
+          "capabilities": {
+            "canMove": false,
+            "canCast": true,
+            "canEquip": false,
+            "canTake": false,
+            "canExit": false,
+            "blocksMovement": false,
+            "blocksSight": false
+          },
+          "motivations": [],
+          "affinities": [],
+          "activeAffinityKey": null,
+          "holdings": [
+            {
+              "id": "resource_2",
+              "kind": "vital",
+              "permanenceMode": "permanent",
+              "claimedBy": null,
+              "vitals": [
+                {
+                  "key": "health",
+                  "delta": 5,
+                  "regen": 2
+                }
+              ]
+            }
+          ],
+          "category": "resource"
         }
       ]
     },
@@ -1790,7 +1846,95 @@
           }
         ]
       },
-      "actors": []
+      "actors": [
+        {
+          "id": "resource_1",
+          "position": {
+            "x": 3,
+            "y": 2
+          },
+          "alignment": "dungeon",
+          "lifecycle": "alive",
+          "defeatVital": "durability",
+          "vitals": {
+            "durability": {
+              "current": 1,
+              "max": 1,
+              "regen": 0
+            },
+            "mana": {
+              "current": 50,
+              "max": 50,
+              "regen": 5
+            }
+          },
+          "capabilities": {
+            "canMove": false,
+            "canCast": true,
+            "canEquip": false,
+            "canTake": false,
+            "canExit": false,
+            "blocksMovement": false,
+            "blocksSight": false
+          },
+          "motivations": [],
+          "affinities": [
+            {
+              "kind": "water",
+              "expression": "emit",
+              "stacks": 2
+            }
+          ],
+          "activeAffinityKey": "water:emit",
+          "holdings": [],
+          "category": "resource"
+        },
+        {
+          "id": "resource_2",
+          "position": {
+            "x": 5,
+            "y": 2
+          },
+          "alignment": "dungeon",
+          "lifecycle": "alive",
+          "defeatVital": "durability",
+          "vitals": {
+            "durability": {
+              "current": 1,
+              "max": 1,
+              "regen": 0
+            }
+          },
+          "capabilities": {
+            "canMove": false,
+            "canCast": true,
+            "canEquip": false,
+            "canTake": false,
+            "canExit": false,
+            "blocksMovement": false,
+            "blocksSight": false
+          },
+          "motivations": [],
+          "affinities": [],
+          "activeAffinityKey": null,
+          "holdings": [
+            {
+              "id": "resource_2",
+              "kind": "vital",
+              "permanenceMode": "permanent",
+              "claimedBy": null,
+              "vitals": [
+                {
+                  "key": "health",
+                  "delta": 5,
+                  "regen": 2
+                }
+              ]
+            }
+          ],
+          "category": "resource"
+        }
+      ]
     }
   },
   "budget": {

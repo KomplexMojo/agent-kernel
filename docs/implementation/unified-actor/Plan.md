@@ -39,6 +39,65 @@ report component tests as proof of runtime integration.
 
 Each owner reads its skill before edits. Keep each milestone bounded; the maintainer on 2026-09-08 authorized continuing locally across milestones until completion or token exhaustion. No generic ECS, new persona, unrelated cleanup, or legacy backend. Reuse spatial/balance helpers except explicitly replaced outcomes. Remaining runtime integration is expected after the declaration milestone; do not preserve deprecated declarations merely to disguise pending work.
 
+## Autonomous completion workflow — September 16
+
+Standing order: continue bounded S milestones without waiting for a maintainer
+"continue". Report only at escalate, a failed premise, or queue exhaustion.
+Do not push or open a PR. A local checkpoint commit on this branch is allowed;
+the rewrite in this worktree remains the source of truth. Do not use a cloud
+agent or a fresh clone (they miss later uncommitted work).
+Do not touch `/Users/darren/Documents/GitHub/agent-kernel` or benchmark worktrees.
+Do not widen `core-behavior-wiring` (37 vs 13). Session refresh uses `--no-pull`.
+
+Each S: load the named skill, write a failing oracle, implement inside allowed
+paths, run that skill’s validation, perturb and restore, update Handoff/Plan/
+Documentation, then start the next row. Prefer diagnosis-before-change.
+
+| # | Slice | Owner skill | Agent |
+|---|---|---|---|
+| 1 | CLI V1 resources: convert lossless `tier`/`stat` vital grants to holdings; still reject loot keys (`dropRate`, invented affinity stats). Skip the row if mapping would invent quantities. | `persona-configurator` | local implementer |
+| 2 | Remaining `tests/runtime/*` that still feed `layout.tiles` / `layout.hazards` into `runtime.init`. One test family per S. | `architecture-dependency-direction` | local implementer |
+| 3 | Stop `visibility.ts` / `mvp-movement` from emitting a separate hazards collection. Do not delete `placeResourceAt` / `armStaticHazardAt` in this slice. | `architecture-dependency-direction` | local implementer |
+| 4 | UI/render consumers of `observation.hazards` read hazard actors instead. | `architecture-adapter-io` (ui-web only) | local implementer |
+| 5 | Moderator `arm_static_hazard` vs hazard-as-actor. Split if tick policy vs core legality blurs. | `persona-moderator` | local implementer |
+| 6 | Annotator unified snapshots / equipment / defeat / claim events. | `persona-annotator` | local implementer |
+| 7 | Remaining CLI/MCP fixture producers. No actor authoring in adapters. | `architecture-adapter-io` | local implementer |
+| 8 | Full suite + typecheck. Record counts. Do not treat remaining red as license to restore legacy APIs. | `architecture-dependency-direction` | local implementer |
+| 9 | Adversarial review of the accumulated uncommitted diff. No PR from this queue. | review-only; more capable model | later reviewer |
+
+Stop (write Decide into Handoff, do not guess): ownership spans two personas without a thin artifact handoff; charter/diagram would change; a change would raise the reachability baseline; V1 conversion would invent loot keys; the next edit needs a commit/PR.
+
+Assigned executor for rows 1–8: a local Cursor agent in this worktree, following
+`.cursor/skills/<owner>/SKILL.md`. Not a cloud agent. Not a second worktree.
+
+Status September 16: rows 1–8 executed (row 1 skipped). Leftover create
+hazards map to actors; leftover ambulatory kind/role/motivation maps to
+category; omitted vitals seed from Configurator defaults then the floor;
+leftover CLI hazard/placement/run/affinity-summary/sandbox oracles use
+presentation actors, terrain spawn/exit, and Configurator artifacts.
+Sandbox MCP no longer writes leftover tiles/traits. `ak run --tile-wall`
+mutates terrain; leftover `--tile-barrier` becomes barrier actors; leftover
+motivated/ambulatory `--actor` kinds are rejected. Leftover CLI V1
+`tier`/`stat`/`dropRate` is rejected at parse. Leftover `--vital-default`
+uses Configurator DEFAULT_VITALS. Phaser/preview/affinity-summary/Actor
+geometry no longer read leftover hazards/tiles collections. Leftover overlay
+occupancy uses terrain spawn/exit. Leftover MCP place stubs now run.
+Leftover hazard-placement oracles read presentation actors. Leftover
+field-records overlap uses Configurator artifacts. Leftover execution-benchmark
+fixtures now use terrain plus presentation actors. Leftover sandbox-tick
+S1/S2/S3, MCP tick-control, tick-visualization, 10-tick ring, and
+cost-summary stubs now run. Resource-plan grant regen snapshots equal
+measured charges. Leftover gameplay-view/inspector/field-bridge read
+presentation hazard/resource actors and terrain glyphs. Scenario compose,
+room/warden/delver-pool denials,
+leftover room-pool overlay denials, leftover spawn/exit occupancy skips,
+auto-place without proximityRadius, dry-run invalid permanenceMode, VSR
+vault V1 resources, leftover JS-spread overlap fixture collections, and
+cli-worker llm-plan warden-pool 0 remain leftover-red.
+Row 8 recount: 4198 tests, 3808 passed, 162 failed, 228 pending; typecheck 0.
+Wiring 36 vs 13, not widened. Do not restore legacy APIs. Local checkpoint
+commit on this branch; no push or PR.
+
 ## UA.1 exact scope — COMPLETE
 Owner architecture-artifacts-contracts; supporting structured-test-authoring. Targets packages/runtime/src/contracts/artifacts.ts; tests/contracts/unified-actor-contract.test.js; tests/fixtures/contracts/unified-actor-contract.ts; packages/runtime/src/contracts/README.md; docs/readme-index.md. Add ActorRecord and its supporting shapes; use it for InitialStateArtifactV1.actors and WorldStateArtifactV2.actors. Presentation is an external ID map. Replace ActionV1 with a discriminated union of wait/move/cast_affinity/equip_affinity/take. Keep envelope selectors unchanged. Delete superseded world-state subtype declarations. Hazard/Resource authoring artifacts remain until producer migration; do not implement their compatibility handling.
 
@@ -664,3 +723,128 @@ typecheck passes. Temporarily admitting attack made the action oracle fail and
 was restored. The reachability ratchet is expected-red at 37 versus 13 because
 the 23 setup exports and applyAttack now have no production caller. Next migrate
 Actor proposals and observations to the unified action and registry shapes.
+
+### September 16 — shared runtime-decision reader (S)
+
+Owner architecture-dependency-direction, with a thin Actor call-site onto the
+shared projector. Targets runtime-decision.mts, runtime-decision-contract.test.js,
+actor-adapter-policy-residue.test.js, Actor controller.js/README, and these
+execution records. Do not migrate CLI producers, remaining core category APIs,
+or runtime observation.hazards in this slice.
+
+`buildRuntimeDecisionEnvelope` currently copies injected actor records and a
+separate hazards collection. Project self and visible actors onto the same live
+mechanical keys Actor already emits, retain motivationProfile/hostile extras,
+and drop role/kind/affinityGrants/vitalEffects plus the hazards field. LLM prompt
+payloads must not reintroduce that collection. Solver adapters already ignore
+those fields; guard them so they cannot grow a reader.
+
+Failing oracle: injected hazards/role/grants survive on the envelope and prompt.
+Validation: the new contract test, Actor suite, four Actor owner guards including
+adapter-policy residue, dependency/ports guards, typecheck. Perturb by copying
+hazards through again and require the contract test red; restore. Stop on those
+gates. Remaining producer/CLI fixtures and legacy core state stay pending.
+
+### September 16 — hazard authoring vitals (S)
+
+Owner persona-configurator. Targets input-preparation.js mapHazards,
+configurator-hazard-vitals.test.js, Configurator README, and these records.
+CLI placed-hazard specs still carry authoring `kind: "regen"` on mana/durability.
+Spreading those records into normalizeActorDefinition fails core's three-field
+vital check. Project current/max/regen only; do not invent quantities or accept
+one-time amount shapes in this slice. Do not migrate movementStamina, CLI parsers,
+or remaining card defaults.
+
+Failing oracle: mapHazards of a CLI regen vital keeps `kind` and throws
+invalid vital record. Validation: Configurator suite and owner guards, typecheck.
+Perturb by spreading authored vitals unchanged; the new test must fail; restore.
+Stop on those gates. Production create may still fail later producer seams.
+
+### September 16 — movement stamina from placed roster (S)
+
+Owner persona-configurator, with a thin orchestrate-build.js call-site. Targets
+unified-actors.js assembleMovementStamina, the Configurator public surface,
+configurator-movement-stamina.test.js, orchestrate-build.js, production-build
+integration, Configurator README, and these records. Production create omitted
+the ID-keyed map, so resolveActorTurnCosts received undefined. Assemble keys from
+the placed roster; explicit costs and nonnegative capabilities.movementCost win;
+mobile actors otherwise take the Configurator cardinal default. Glue must call
+the helper, not invent IDs. Do not migrate remaining CLI/card defaults or leftover
+core APIs in this slice.
+
+Failing oracle: omitted movementStamina leaves mobile actors without a cost.
+Validation: Configurator suite, production-build integration, owner guards,
+typecheck. Perturb by returning only the explicit map; omitted-map tests must
+fail; restore. Stop on those gates. Remaining producer/CLI fixtures stay pending.
+
+### September 16 — one-time hazard vitals (S)
+
+Owner persona-configurator. Targets input-preparation.js mechanicalVitals,
+configurator-hazard-vitals.test.js, Configurator README, and these records.
+CLI canonical hazards still default mana/durability to one-time `{amount}`.
+Projecting current/max/regen from those records wrote undefined and failed
+core validation, overwriting computed expression defaults. Convert finite
+one-time amounts to current=max=amount, regen 0; skip incomplete records.
+Do not migrate remaining CLI parsers or leftover core APIs.
+
+Failing oracle: mapHazards of CLI one-time vitals throws invalid vital record.
+Validation: Configurator suite and owner guards, typecheck. Perturb by copying
+current/max/regen from one-time records; the new test must fail; restore.
+Stop on those gates. Remaining producer/CLI fixtures stay pending.
+
+### September 16 — CLI hazard affinity authoring (S)
+
+Owner persona-configurator. Targets input-preparation.js mapHazards,
+configurator-hazard-vitals.test.js, Configurator README, and these records.
+Unpositioned `ak create --hazard` still sent string affinity plus affinityStacks.
+mapHazards required an object pair and threw invalid hazard actor request.
+Read affinityStacks[0], then object affinity, then string affinity+expression.
+Do not spread extra CLI fields. Do not migrate resource extras or leftover core APIs.
+
+Failing oracle: mapHazards of CLI string affinity throws invalid hazard actor request.
+Validation: Configurator suite and owner guards, typecheck. Perturb by requiring
+an affinity object; the new test must fail; restore. Stop on those gates.
+
+### September 16 — CLI resource vital holdings (S)
+
+Owner persona-configurator. Targets input-preparation.js mapResources,
+configurator-resource-actors.test.mjs, Configurator README, and these records.
+CLI V3 resources send permanenceMode plus grant vitals. Spreading those extras
+failed normalizeActorDefinition. Convert grants into one unclaimed vital holding
+and default source durability. Keep rejecting V1 tier/stat and unknown fields.
+Do not invent V1 loot keys or leftover core APIs.
+
+Failing oracle: mapResources of a V3 grant payload throws invalid unified actor definition.
+Validation: Configurator suite and owner guards, typecheck. Perturb by spreading
+CLI extras; the new V3 test must fail; restore. Stop on those gates.
+
+### September 16 — budgetScaffold layout strip (S)
+
+Owner persona-configurator. Targets artifact-builders.js cloneLayoutData,
+configurator-artifact-builders.test.js, Configurator README, and these records.
+Resource-only create stamps budgetScaffold onto the working layout for Allocator
+spend. cloneLayoutData treated it as an unknown layout field. Strip it at the
+artifact boundary; do not add it to authored geometry. Keep rejecting hazards
+and other extras. Do not convert V1 resource shapes or leftover core APIs.
+
+Failing oracle: buildSimConfigArtifact of layout with budgetScaffold throws
+unsupported normalized layout fields: budgetScaffold.
+Validation: Configurator suite and owner guards, typecheck. Perturb by treating
+it as a layout field; the new test must fail; restore. Stop on those gates.
+
+### September 16 — runtime observation hazards (S)
+
+Owner architecture-dependency-direction. Targets runtime-fsm.mjs observation
+assembly, hazard-vitals-in-observation.test.js,
+observation-line-of-sight-per-actor.test.js, and these records. Loader already
+rejects category storage. Tests still fed layout.hazards and glyph tiles.
+Migrate those oracles onto Configurator terrain plus hazard/barrier actors.
+Remove layout-hazard vitals enrichment. Do not convert V1 resources or remove
+placeResourceAt / armStaticHazardAt.
+
+Failing oracle: those two runtime files throw expected normalized grid terrain
+without category storage.
+Validation: the two observation files, unified observation, aura lifecycle,
+dependency-direction, ports-and-adapters-boundary, typecheck. Perturb by
+reattaching hazards: [] on the registry observation; the vitals test must fail;
+restore. Stop on those gates.

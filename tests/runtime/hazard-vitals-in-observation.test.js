@@ -15,81 +15,75 @@ function captureObservationPersona(captured) {
   };
 }
 
-test("runtime observation enriches static hazards with vitals from sim config layout", async () => {
-  const [{ createRuntime }, { createCore }] = await Promise.all([
+test("runtime observation carries hazard actor vitals without a hazards collection", async () => {
+  const [{ createRuntime }, { createCore }, { createConfiguratorPersona }] = await Promise.all([
     import("../../packages/runtime/src/runner/runtime.js"),
     import("../../packages/core-ts/src/index.ts"),
+    import("../../packages/runtime/src/personas/configurator/controller.js"),
   ]);
   const observations = [];
+  const configurator = createConfiguratorPersona({ clock: () => "2026-09-16T00:00:00.000Z" });
+  const terrain = Array(25).fill("floor");
+  const actors = [
+    {
+      id: "observer",
+      category: "delver",
+      position: { x: 2, y: 2 },
+      motivations: ["stationary"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    },
+    {
+      id: "flame",
+      category: "hazard",
+      position: { x: 1, y: 1 },
+      affinities: [{ kind: "fire", expression: "emit", stacks: 2 }],
+      activeAffinityKey: "fire:emit",
+      vitals: {
+        mana: { current: 12, max: 12, regen: 4 },
+        durability: { current: 10, max: 10, regen: 0 },
+      },
+    },
+    {
+      id: "tide",
+      category: "hazard",
+      position: { x: 3, y: 2 },
+      affinities: [{ kind: "water", expression: "emit", stacks: 1 }],
+      activeAffinityKey: "water:emit",
+      vitals: {
+        mana: { current: 9, max: 9, regen: 3 },
+        durability: { current: 5, max: 5, regen: 0 },
+      },
+    },
+  ];
+  const simConfig = configurator.buildSimConfigArtifact({
+    meta: { id: "sim_hazard_vitals", runId: "run_hazard_vitals", createdAt: "2026-09-16T00:00:00.000Z", producedBy: "test" },
+    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    layout: { width: 5, height: 5, terrain },
+    movementStamina: { observer: 1 },
+  });
+  const initialState = configurator.buildInitialStateArtifact({
+    meta: { id: "state_hazard_vitals", runId: "run_hazard_vitals", createdAt: "2026-09-16T00:00:00.000Z", producedBy: "test" },
+    simConfigRef: { id: simConfig.meta.id, schema: simConfig.schema, schemaVersion: 1 },
+    dimensions: { width: 5, height: 5 },
+    terrain,
+    actors,
+  });
   const runtime = createRuntime({
     core: createCore(),
     adapters: {},
     personas: { actor: captureObservationPersona(observations) },
   });
-  const simConfig = {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: { id: "sim_hazard_vitals", runId: "run_hazard_vitals", createdAt: "2026-06-11T00:00:00.000Z", producedBy: "test" },
-    layout: {
-      kind: "grid",
-      data: {
-        width: 5,
-        height: 5,
-        tiles: [".....", ".....", ".....", ".....", "....."],
-        hazards: [
-          {
-            x: 1,
-            y: 1,
-            blocking: false,
-            affinity: { kind: "fire", expression: "emit", stacks: 2 },
-            vitals: {
-              mana: { current: 12, max: 12, regen: 4 },
-              durability: { current: 10, max: 10, regen: 0 },
-            },
-          },
-          {
-            x: 3,
-            y: 2,
-            blocking: false,
-            affinity: { kind: "water", expression: "emit", stacks: 1 },
-            vitals: {
-              mana: { current: 9, max: 9, regen: 3 },
-              durability: { current: 5, max: 5, regen: 0 },
-            },
-          },
-        ],
-      },
-    },
-  };
-  const initialState = {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: { id: "state_hazard_vitals", runId: "run_hazard_vitals", createdAt: "2026-06-11T00:00:00.000Z" },
-    simConfigRef: { id: "sim_hazard_vitals", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
-    actors: [{
-      id: "observer",
-      kind: "ambulatory",
-      archetype: "delver",
-      position: { x: 2, y: 2 },
-      motivation: { kind: "stationary" },
-      vitals: {
-        health: { current: 10, max: 10, regen: 0 },
-        mana: { current: 10, max: 10, regen: 0 },
-        stamina: { current: 10, max: 10, regen: 0 },
-        durability: { current: 1, max: 1, regen: 0 },
-      },
-    }],
-  };
 
   await runtime.init({ seed: 0, simConfig, initialState });
   await runtime.step();
 
   assert.ok(observations.length > 0);
   const observation = observations[0];
-  assert.ok(Array.isArray(observation.hazards));
-  const hazardAtOneOne = observation.hazards.find((hazard) => hazard.position?.x === 1 && hazard.position?.y === 1);
-  const hazardAtThreeTwo = observation.hazards.find((hazard) => hazard.position?.x === 3 && hazard.position?.y === 2);
-
-  assert.deepEqual(hazardAtOneOne.vitals, simConfig.layout.data.hazards[0].vitals);
-  assert.deepEqual(hazardAtThreeTwo.vitals, simConfig.layout.data.hazards[1].vitals);
+  assert.equal(Object.hasOwn(observation, "hazards"), false);
+  const flame = observation.actors.find((actor) => actor.id === "flame");
+  const tide = observation.actors.find((actor) => actor.id === "tide");
+  assert.deepEqual(flame.vitals.mana, { current: 12, max: 12, regen: 4 });
+  assert.deepEqual(flame.vitals.durability, { current: 10, max: 10, regen: 0 });
+  assert.deepEqual(tide.vitals.mana, { current: 9, max: 9, regen: 3 });
+  assert.deepEqual(tide.vitals.durability, { current: 5, max: 5, regen: 0 });
 });

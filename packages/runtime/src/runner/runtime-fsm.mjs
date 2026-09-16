@@ -17,6 +17,7 @@ import {
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
 import { createActorTurn } from "../../../core-ts/src/rules/actor-turn.ts";
+import { readActorRegistryObservation, scopeActorRegistryObservation } from "../../../core-ts/src/rules/actor-observation.ts";
 import {
   applyMoveAction,
   getValidationErrorName,
@@ -249,7 +250,7 @@ function resolveBaseTiles(simConfig, core) {
   return null;
 }
 
-function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layoutHazards = [], actorIds = [], initialState = null) {
+function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, actorIds = [], initialState = null) {
   if (!core || !canReadObservation(core)) return null;
   try {
     const observation = readObservation(core, { actorIdLabel, affinityEffects, actorIds });
@@ -263,9 +264,8 @@ function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layo
     // DS.2's unknown-role fail-safe, and delvers keep attacking delvers while
     // the persona suite stays green.
     //
-    // Same shape as the hazard-vitals enrichment directly below: config data the
-    // observation needs and core does not hold. An existing role is never
-    // overwritten, so a hand-built observation stays authoritative over config.
+    // An existing role is never overwritten, so a hand-built observation stays
+    // authoritative over config.
     if (observation && Array.isArray(observation.actors) && Array.isArray(initialState?.actors)) {
       const factionById = new Map();
       initialState.actors.forEach((configActor) => {
@@ -282,42 +282,10 @@ function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layo
       }
     }
 
-    // Enrich observation hazards with full vitals from layout
-    if (observation && Array.isArray(observation.hazards) && Array.isArray(layoutHazards)) {
-      const hazardVitalsByPosition = new Map();
-      layoutHazards.forEach((layoutHazard) => {
-        if (layoutHazard?.position?.x != null && layoutHazard?.position?.y != null) {
-          const key = `${layoutHazard.position.x},${layoutHazard.position.y}`;
-          hazardVitalsByPosition.set(key, layoutHazard.vitals);
-        } else if (layoutHazard?.x != null && layoutHazard?.y != null) {
-          const key = `${layoutHazard.x},${layoutHazard.y}`;
-          hazardVitalsByPosition.set(key, layoutHazard.vitals);
-        }
-      });
-
-      observation.hazards = observation.hazards.map((hazard) => {
-        const key = `${hazard.position?.x ?? 0},${hazard.position?.y ?? 0}`;
-        const vitals = hazardVitalsByPosition.get(key);
-        return vitals ? { ...hazard, vitals } : hazard;
-      });
-    }
-
     // Compatibility only: existing renderers/tests still consume observation.auras.
     // New tile visuals should come from core affinity field records.
-    if (observation && baseTiles && (Array.isArray(observation.actors) || Array.isArray(observation.hazards))) {
-      const actors = Array.isArray(observation.actors) ? observation.actors : [];
-      const hazards = Array.isArray(observation.hazards) ? observation.hazards : [];
-
-      // Convert hazards to pseudo-actors for the compatibility aura projection.
-      const hazardActors = hazards.map((hazard, index) => ({
-        id: `hazard_${index}`,
-        x: hazard.position?.x ?? 0,
-        y: hazard.position?.y ?? 0,
-        affinities: hazard.affinities || [],
-      }));
-
-      const allActors = [...actors, ...hazardActors];
-      const auraMap = computeAuraMap(allActors, baseTiles, {
+    if (observation && baseTiles && Array.isArray(observation.actors)) {
+      const auraMap = computeAuraMap(observation.actors, baseTiles, {
         affinityOpposites: AFFINITY_OPPOSITES,
         weights: SPATIAL_WEIGHTS,
       });
@@ -536,7 +504,7 @@ function normalizeUnifiedActorAction(action, defaultTick) {
     params: { targetId: params.targetId, holdingId: params.holdingId } };
 }
 
-function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
+function adaptActionToCore({ action, core, actorIdMap, defaultTick, actorRegistry }) {
   const kind = resolveActionKind(action);
   const params = resolveActionParams(action);
   const actionTick = Number.isFinite(action?.tick) ? action.tick : defaultTick;
@@ -642,7 +610,7 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
       if (!Number.isFinite(stacks) || stacks <= 0 || !Number.isFinite(manaReserve) || manaReserve <= 0) {
         return { ok: false, reason: "invalid_static_hazard_costs" };
       }
-      if (typeof core?.armStaticHazardAt !== "function") {
+      if (!actorRegistry && typeof core?.armStaticHazardAt !== "function") {
         return { ok: false, reason: "missing_armStaticHazardAt" };
       }
       return {
@@ -656,6 +624,8 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
           affinityExpression,
           stacks,
           manaReserve,
+          kindName: kind,
+          expressionName: expression,
         },
       };
     }
@@ -928,6 +898,7 @@ export function createFsmRuntime({
    */
   function scopeObservationForActor(observation, observingActorId) {
     if (!observation || !observingActorId) return observation;
+    if (actorRegistry) return scopeActorRegistryObservation(observation, observingActorId);
     if (typeof core?.getVisibilityRadiusAt !== "function") return observation;
     if (!Array.isArray(observation.actors)) return observation;
 
@@ -939,10 +910,7 @@ export function createFsmRuntime({
 
     const darkStacksByCell = {};
     if (typeof core?.getAffinityFieldStacksAt === "function") {
-      const positionedEntities = [
-        ...observation.actors,
-        ...(Array.isArray(observation.hazards) ? observation.hazards : []),
-      ];
+      const positionedEntities = [...observation.actors];
       for (const entity of positionedEntities) {
         const target = entity?.position;
         if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.y)) continue;
@@ -1417,7 +1385,7 @@ export function createFsmRuntime({
     }
 
     for (const action of actions) {
-      if (actorTurn && (UNIFIED_ACTOR_ACTIONS.has(resolveActionKind(action)) || resolveActionKind(action) === "attack")) {
+      if (actorTurn && UNIFIED_ACTOR_ACTIONS.has(resolveActionKind(action))) {
         const normalized = normalizeUnifiedActorAction(action, defaultTick);
         if (!normalized) {
           reject(action, "unsupported_action_kind");
@@ -1430,7 +1398,7 @@ export function createFsmRuntime({
         accept(action, normalized);
         continue;
       }
-      const adaptation = adaptActionToCore({ action, core, actorIdMap, defaultTick });
+      const adaptation = adaptActionToCore({ action, core, actorIdMap, defaultTick, actorRegistry });
       if (!adaptation.ok) {
         reject(action, adaptation.reason || "invalid_action");
         continue;
@@ -1460,15 +1428,25 @@ export function createFsmRuntime({
           continue;
         }
         if (directive.kind === "arm_static_hazard") {
-          const armed = core.armStaticHazardAt(
-            directive.x,
-            directive.y,
-            directive.affinityKind,
-            directive.affinityExpression,
-            directive.stacks,
-            directive.manaReserve,
-          );
-          if (Number.isFinite(armed) && armed === 0) {
+          const armed = actorRegistry
+            ? actorRegistry.persistOrSpawnHazardAt(
+              { x: directive.x, y: directive.y },
+              {
+                kind: directive.kindName,
+                expression: directive.expressionName,
+                stacks: directive.stacks,
+                manaReserve: directive.manaReserve,
+              },
+            )
+            : core.armStaticHazardAt(
+              directive.x,
+              directive.y,
+              directive.affinityKind,
+              directive.affinityExpression,
+              directive.stacks,
+              directive.manaReserve,
+            );
+          if (armed === false || (Number.isFinite(armed) && armed === 0)) {
             reject(action, "arm_static_hazard_rejected");
             continue;
           }
@@ -1709,7 +1687,6 @@ export function createFsmRuntime({
       }
 
       const currentPhase = orchestrator.view().phase;
-      const layoutHazards = simConfig?.layout?.data?.hazards || [];
       // Build sorted actor ID list so readObservation labels all actors by their original IDs.
       // actorIdMap maps id → 1-based numeric index; sort by index to get core ordering.
       const sortedActorIds = actorIdMap.size > 0
@@ -1734,7 +1711,9 @@ export function createFsmRuntime({
         ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id)
           && !hasExited(id) && (!actorRegistry || actorRegistry.getActor(id)?.lifecycle === "alive"))
         : sortedActorIds.filter((id) => !hasExited(id));
-      const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutHazards, sortedActorIds, initialState);
+      const observation = actorRegistry
+        ? readActorRegistryObservation(actorRegistry, tick)
+        : resolveObservation(core, primaryActorId, baseTiles, affinityEffects, sortedActorIds, initialState);
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
         observation,
@@ -1796,8 +1775,8 @@ export function createFsmRuntime({
         // tick, so two actors can't both propose a move onto the same
         // currently-unoccupied tile before core state updates at APPLY time.
         const reservedTargets = actions
-          .filter((a) => a?.kind === "move" && a.params?.to)
-          .map((a) => ({ x: a.params.to.x, y: a.params.to.y }));
+          .filter((a) => a?.kind === "move" && a.params?.target)
+          .map((a) => ({ ...a.params.target }));
         decidePersonaPayloads = buildPersonaPayloads({
           phase: TickPhases.DECIDE,
           observation,
@@ -2146,7 +2125,17 @@ export function createFsmRuntime({
         error.code = "annotator_did_not_observe";
         throw error;
       }
-      return annotator.captureWorldState({ ...args, core, actorIdMap });
+      return annotator.captureWorldState({
+        ...args,
+        registry: actorRegistry,
+        presentation: actorPresentation,
+        tick,
+        simConfigRef: args.simConfigRef ?? (simConfig?.meta ? {
+          id: simConfig.meta.id,
+          schema: simConfig.schema,
+          schemaVersion: simConfig.schemaVersion,
+        } : null),
+      });
     },
 
     /**

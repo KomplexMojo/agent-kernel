@@ -125,6 +125,13 @@ test("mapResources rejects superseded resource schemas", async () => {
   ]));
 });
 
+test("mapResources rejects unknown fields on otherwise valid actor requests", async () => {
+  const { mapResources } = await import(PREP);
+  const resource = { id: 'resource', vitals: { durability: { current: 1, max: 1, regen: 0 } } };
+  assert.equal(mapResources([resource])[0].id, 'resource');
+  assert.throws(() => mapResources([{ ...resource, misspelledCapability: true }]));
+});
+
 // ---------------------------------------------------------------------------
 // FSM gating — the state gates real behavior (charter: no label-only states)
 // ---------------------------------------------------------------------------

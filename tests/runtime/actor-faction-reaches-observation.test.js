@@ -30,98 +30,67 @@
 const assert = require("node:assert/strict");
 
 const TICK_COUNT = 6;
+const WIDTH = 9;
+const HEIGHT = 3;
+const CLOCK = "2026-08-20T00:00:00.000Z";
 
-function makeFloorGrid(w, h) {
-  return Array.from({ length: h }, (_, y) =>
-    Array.from({ length: w }, (_, x) =>
-      x === 0 || x === w - 1 || y === 0 || y === h - 1 ? "#" : "."
-    ).join("")
-  );
+function corridorTerrain() {
+  const terrain = Array(WIDTH * HEIGHT).fill("floor");
+  for (let y = 0; y < HEIGHT; y += 1) {
+    for (let x = 0; x < WIDTH; x += 1) {
+      if (x === 0 || x === WIDTH - 1 || y === 0 || y === HEIGHT - 1) terrain[y * WIDTH + x] = "wall";
+    }
+  }
+  terrain[1 * WIDTH + (WIDTH - 2)] = "exit";
+  return terrain;
 }
 
-function makeVitals(hp) {
+function combatant(id, category, position) {
   return {
-    health: { current: hp, max: hp, regen: 0 },
-    mana: { current: hp, max: hp, regen: 0 },
-    stamina: { current: hp, max: hp, regen: 2 },
-    durability: { current: 1, max: 1, regen: 0 },
-  };
-}
-
-function buildSimConfig({ width = 9, height = 3 } = {}) {
-  const tiles = makeFloorGrid(width, height);
-  return {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "ds1_faction_sim",
-      runId: "ds1_faction",
-      createdAt: "2026-08-20T00:00:00.000Z",
+    id,
+    category,
+    position,
+    motivations: ["attacking"],
+    vitals: {
+      health: { current: 10, max: 10, regen: 0 },
+      mana: { current: 20, max: 20, regen: 0 },
     },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width,
-        height,
-        tiles,
-        spawn: { x: 1, y: 1 },
-        exit: { x: width - 2, y: 1 },
-        rooms: [{ id: "R1", x: 0, y: 0, width, height }],
-        hazards: [],
-      },
-    },
+    affinities: [{ kind: "fire", expression: "push", stacks: 2 }],
+    activeAffinityKey: "fire:push",
   };
 }
 
 /**
  * Two delvers standing adjacent, one warden further away.
  *
- * ⚠️ `archetype` ONLY — deliberately no `role` field. This mirrors what
- * `ak create` actually writes. Adding `role` here would make the test pass
- * against the old code and prove nothing.
+ * Category is the production presentation label. Configurator maps it to
+ * alignment; tests must not hand-set role/archetype on the observation.
  */
-function buildInitialState() {
-  return {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "ds1_faction_state",
-      runId: "ds1_faction",
-      createdAt: "2026-08-20T00:00:00.000Z",
-    },
-    simConfigRef: {
-      id: "ds1_faction_sim",
-      schema: "agent-kernel/SimConfigArtifact",
-      schemaVersion: 1,
-    },
-    actors: [
-      {
-        id: "delver_a",
-        kind: "ambulatory",
-        archetype: "delver",
-        position: { x: 1, y: 1 },
-        motivation: { kind: "attacking" },
-        vitals: makeVitals(10),
-      },
-      {
-        id: "delver_b",
-        kind: "ambulatory",
-        archetype: "delver",
-        position: { x: 2, y: 1 },
-        motivation: { kind: "attacking" },
-        vitals: makeVitals(10),
-      },
-      {
-        id: "warden_1",
-        kind: "ambulatory",
-        archetype: "warden",
-        position: { x: 6, y: 1 },
-        motivation: { kind: "attacking" },
-        vitals: makeVitals(10),
-      },
-    ],
-  };
+async function buildArtifacts() {
+  const { createConfiguratorPersona } = await import(
+    "../../packages/runtime/src/personas/configurator/controller.js"
+  );
+  const configurator = createConfiguratorPersona({ clock: () => CLOCK });
+  const terrain = corridorTerrain();
+  const actors = [
+    combatant("delver_a", "delver", { x: 1, y: 1 }),
+    combatant("delver_b", "delver", { x: 2, y: 1 }),
+    combatant("warden_1", "warden", { x: 4, y: 1 }),
+  ];
+  const simConfig = configurator.buildSimConfigArtifact({
+    meta: { id: "ds1_faction_sim", runId: "ds1_faction", createdAt: CLOCK, producedBy: "test" },
+    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    layout: { width: WIDTH, height: HEIGHT, terrain, exitApproach: { x: WIDTH - 2, y: 1 } },
+    movementStamina: { delver_a: 0, delver_b: 0, warden_1: 0 },
+  });
+  const initialState = configurator.buildInitialStateArtifact({
+    meta: { id: "ds1_faction_state", runId: "ds1_faction", createdAt: CLOCK, producedBy: "test" },
+    simConfigRef: { id: simConfig.meta.id, schema: simConfig.schema, schemaVersion: 1 },
+    dimensions: { width: WIDTH, height: HEIGHT },
+    terrain,
+    actors,
+  });
+  return { simConfig, initialState };
 }
 
 async function runRuntimeScenario({ ticks = TICK_COUNT } = {}) {
@@ -129,11 +98,8 @@ async function runRuntimeScenario({ ticks = TICK_COUNT } = {}) {
     import("../../packages/runtime/src/runner/runtime.js"),
     import("../../packages/core-ts/src/index.ts"),
   ]);
-  const simConfig = buildSimConfig();
-  const initialState = buildInitialState();
-  const core = createCore();
-  // Same seam the CLI `run` command uses (runtime/src/commands/kernel.js).
-  const runtime = createRuntime({ core, adapters: {} });
+  const { simConfig, initialState } = await buildArtifacts();
+  const runtime = createRuntime({ core: createCore(), adapters: {} });
   await runtime.init({ seed: 0, simConfig, initialState });
   for (let t = 0; t < ticks; t += 1) {
     await runtime.step();
@@ -141,34 +107,37 @@ async function runRuntimeScenario({ ticks = TICK_COUNT } = {}) {
   return { frames: runtime.getTickFrames(), initialState };
 }
 
-/** Every accepted attack across the run, as {attackerId, targetId}. */
-function acceptedAttacks(frames) {
-  const attacks = [];
+/** Every accepted focused cast across the run, as {attackerId, targetId}. */
+function acceptedCasts(frames) {
+  const casts = [];
   frames.forEach((frame) => {
     const accepted = Array.isArray(frame?.acceptedActions) ? frame.acceptedActions : [];
     accepted.forEach((action) => {
-      if (action?.kind !== "attack") return;
-      attacks.push({
+      if (action?.kind !== "cast_affinity") return;
+      casts.push({
         attackerId: action.actorId,
         targetId: action.params?.targetId,
       });
     });
   });
-  return attacks;
+  return casts;
+}
+
+function factionById(initialState) {
+  return new Map(
+    Object.entries(initialState.presentation).map(([id, entry]) => [id, entry.category]),
+  );
 }
 
 // ---------------------------------------------------------------------------
 
 test("in a real run over production-shaped data, no delver ever attacks a fellow delver", async () => {
   const { frames, initialState } = await runRuntimeScenario();
+  const factions = factionById(initialState);
 
-  const factionById = new Map(
-    initialState.actors.map((actor) => [actor.id, actor.archetype]),
-  );
-
-  const friendlyFire = acceptedAttacks(frames).filter(({ attackerId, targetId }) => {
-    const attackerFaction = factionById.get(attackerId);
-    const targetFaction = factionById.get(targetId);
+  const friendlyFire = acceptedCasts(frames).filter(({ attackerId, targetId }) => {
+    const attackerFaction = factions.get(attackerId);
+    const targetFaction = factions.get(targetId);
     if (!attackerFaction || !targetFaction) return false;
     return attackerFaction === targetFaction;
   });
@@ -178,20 +147,18 @@ test("in a real run over production-shaped data, no delver ever attacks a fellow
     [],
     "same-faction actors attacked each other in a real runtime run. The persona-level rule (DS.2) "
       + "is correct but INERT here unless the faction signal actually reaches the observation: "
-      + "core supplies no role, and generated initialState carries `archetype`, not `role`. If this "
-      + "fails while the persona suite is green, the rule exists and production cannot see it.",
+      + "core supplies no role, and generated initialState carries presentation category rather "
+      + "than `role`. If this fails while the persona suite is green, the rule exists and "
+      + "production cannot see it.",
   );
 });
 
 test("the run is not vacuous — the delvers and the warden do engage each other", async () => {
   const { frames, initialState } = await runRuntimeScenario();
-
-  const factionById = new Map(
-    initialState.actors.map((actor) => [actor.id, actor.archetype]),
-  );
-  const crossFaction = acceptedAttacks(frames).filter(({ attackerId, targetId }) => {
-    const attackerFaction = factionById.get(attackerId);
-    const targetFaction = factionById.get(targetId);
+  const factions = factionById(initialState);
+  const crossFaction = acceptedCasts(frames).filter(({ attackerId, targetId }) => {
+    const attackerFaction = factions.get(attackerId);
+    const targetFaction = factions.get(targetId);
     if (!attackerFaction || !targetFaction) return false;
     return attackerFaction !== targetFaction;
   });

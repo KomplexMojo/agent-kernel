@@ -1,5 +1,506 @@
 # Historical milestone evidence
 
+## September 16 — leftover UI layout.hazards consumers dropped
+
+Gameplay-view selection, inspector lists, and affinity-field-bridge fallback
+read presentation hazard/resource actors and terrain glyphs. Leftover
+layout.hazards/tiles collections are unused there. Overlap selection prefers
+the mobile actor. gameplay-selection 47; actor-inspector 16; gameplay-flow 29/2;
+phaser 98/4; tile-affinity 28/1. Leave leftover JS-spread overlap fixture
+collections and pool denials red. Typecheck 0. Wiring 36 vs 13.
+
+## September 16 — leftover sandbox tick, MCP, ring, and cost stubs
+
+Sandbox-tick S1 budget-artifact/zero-token/malformed, S2 upsert/wall-rim,
+S3 northeast/stamina/append now run. MCP tick unknown-run/maxTick-1/state-0
+and visualization tick-0/boundary cases run. 10-tick ring boundary/state-0/
+replay cases run; auto-place without proximityRadius stays skipped. Cost
+show/list/dry-run/approved run; leftover partial denial stays skipped.
+Resource-plan grant regen snapshots equal measured 6 vs 6. sandbox-tick
+45 passed / 8 skipped; mcp-tick-control 15/2; tick-visualization 10/2;
+cli-verification 12/2; cost-summary 8/1; create-hazard-resource 30/3.
+Leave proximityRadius, spawn/exit occupancy, pools, and VSR vault V1 red.
+Typecheck 0. Wiring 36 vs 13.
+
+## September 16 — leftover tile-barrier and V1 loot parse
+
+`--tile-barrier` places Configurator barrier actors (`blocksMovement`).
+Leftover CLI `tier`/`stat`/`dropRate` is rejected at parse. ak-errors 20;
+create-hazard-resource 31/3 skipped; element-matrix 38. Leave
+llm-plan/warden-pool 0, overlay string-affinity, and MCP skipped stubs red.
+Typecheck 0. Wiring 36 vs 13.
+
+## September 16 — leftover hazards/tiles consumers dropped
+
+`--vital-default` clones Configurator DEFAULT_VITALS, not a glue health-10
+table. Kernel affinity-summary passes empty leftover hazards. Phaser and
+preview draw presentation hazard/resource actors. Actor `resolveBaseTiles`
+and visualization snapshots use terrain. Phaser 94 passed / 4 skipped;
+affinity-aura 2; affinity-summary 3; actor-decision-inputs 5. Leave pool
+denials, overlay string-affinity, leftover `--tile-barrier`, and MCP skipped
+stubs red. Typecheck 0. Wiring 36 vs 13.
+
+## September 16 — leftover sandbox MCP through Configurator
+
+Sandbox place rebuilds SimConfig/InitialState via Configurator boxed terrain
+and a unified roster. Leftover `tiles`/`legend`/`traits`/V1 loot are gone.
+Resource specs use V3 permanence. Wall-rim occupancy is rejected, so leftover
+x=0 OOB setup cannot stand on a wall. sandbox-tick 37 passed / 16 skipped;
+sandbox-entities 14 passed / 16 skipped including create→place→ak_run.
+`ak run --tile-wall/--tile-floor` mutate `layout.data.terrain`; leftover
+`--tile-barrier` still rejects category storage. `--actor` requires
+delver/warden/hazard/resource/barrier and rebuilds through Configurator.
+ak-errors 20 passed. Leave leftover `--vital-default` glue table red.
+Typecheck 0. Wiring 36 vs 13.
+
+## September 16 — leftover affinity-summary and 10-tick V3 resources
+
+Affinity-summary run writes Configurator artifacts; `summary.hazards` is empty
+because unified layout has no leftover hazards collection. CLI verification
+and MCP tick-session creates use V3 permanence resources. V1 loot stays
+rejected. Leave leftover sandbox `tiles`/`traits` and pool denials red.
+Typecheck 0. Wiring 36 vs 13.
+
+## September 16 — leftover UI/CLI run and V3 resource creates
+
+Run/replay/inspect write Configurator artifacts to tmp and drop leftover
+`--actor`/`--tile-barrier` flags. t2-stress, hazard-free rooms, and leftover
+create-resource success cases use V3 permanence payloads. Receipts filter
+`category === "resources"`. V1 loot stays rejected. Perturb leftover
+simConfigRef failed; restored. Leave llm-plan warden-pool 0 and t1-medium
+room-pool red. Typecheck 0. Wiring 36 vs 13.
+
+## September 16 — leftover placement invariant uses terrain spawn/exit
+
+Walkable tiles come from `layout.data.terrain`. Spawn/exit are terrain cells,
+not leftover layout.spawn objects. Shrine resources use V3 permanence/affinity
+payloads; V1 loot stays rejected. llm-plan/ui-cli warden-pool 0 left red.
+Typecheck 0. Wiring 36 vs 13.
+
+## September 16 — leftover CLI hazard oracles read presentation actors
+
+element-matrix (38), room-size hazard capacity (7), and authoring bundle/configure
+now read `initial-state.presentation` hazard/delver categories. V3 resource
+holdings carry permanenceMode. V1 loot keys stay rejected. Delver-pool denials
+left red. Perturb using actor.category failed; restored. Typecheck 0.
+Wiring 36 vs 13.
+
+## September 16 — omitted actor vitals seed from Configurator defaults
+
+`applyViabilityDerivedVitalRequirements` fills missing vitals from
+`cloneVitals`/`DEFAULT_VITALS` then applies `ACTOR_VIABILITY_FLOOR`. Motivation
+floor seeds stamina the same way when omitted. Does not invent quantities
+beyond those tables. `orchestrateBuild aligns actors` now places walkable
+actors off spawn/exit terrain cells. Perturb dropping omitted-vitals fill
+failed; restored. Typecheck 0. Wiring 36 vs 13. Leave room-pool denials and
+V1 loot/string-affinity red.
+
+## September 16 — leftover kind/role/motivation to category
+
+`prepareAuthoredActor` maps leftover ambulatory attacking→delver and
+defending/patrolling→warden, strips kind/role/tokenCost, and still throws when
+no lossless category exists. Does not invent vitals. spawn-distinct and
+room-affinity tests read terrain + hazard actors. Perturb dropping
+attacking→delver failed; restored. Typecheck 0. Wiring 36 vs 13.
+
+## September 16 — leftover create hazards become actors
+
+`mapHazards` assigns `hazard_N` when generated occupants omit id and still
+rejects missing affinity. cloneLayoutData strips leftover
+tiles/hazards/kinds/actors. CLI configurator runs object-placement then
+unified builders. Create-blocking (8), ak-build (15), ak-configurator (3)
+passed. Perturb requiring ids failed the new oracle; restored. Typecheck 0.
+Wiring 36 vs 13. Leave orchestrateBuild budget/category leftovers red.
+
+## September 16 — row 8 full suite + leftover attack conversion
+
+Combat/receipt/battle tests use Configurator artifacts. Adjacent combat is
+`cast_affinity`; conventional `attack` is `unsupported_action_kind`. Receipt
+units are Allocator `actionBudget` (wait 1, solver 2, move 0, attack 0).
+Perturb restoring attack-accepted units failed; restored. Pool-denial remaining
+measured 132. Scenario compose left red (wardens:57/0). Full suite 4198 tests:
+3808 passed, 162 failed, 228 pending; typecheck 0. Wiring 36 vs 13.
+
+## September 16 — row 7 goldens / CLI V3 affinity resources
+
+`mapResources` converts CLI `affinity:{kind,expression,stacks,mana,manaRegen}`
+into pairs + mechanical mana, strips undefined Director leftovers, and ignores
+`permanent: false`. Spreading `affinity` onto normalizeActorDefinition failed
+the new oracle; restored. Create/resource-plan goldens regenerated from live
+output (g2 total 126, shared affinity payload 120). Dual-surface SimConfig
+keys now include `actionCosts`. Configurator + golden + owner guards: 7 files,
+33 passed; typecheck 0.
+
+## September 16 — row 2 leftover runtime.init families
+
+Configurator `buildUnifiedArtifacts` plus registry snapshots replaced
+`layout.tiles` / `getMotivatedActor*` in affinity-field-per-tick,
+multi-tick-world-state, cast-affinity-action, affinity-interactions-per-tick,
+multi-actor-initial-state, and multi-actor-random-run. Field overlap oracles
+read projected nets vs contributions; ActorTurn regen covers hazard mana.
+21 + 13 tests passed. Typecheck 0. Wiring 36 vs 13 expected-red. Perturb not
+needed: restoring world.ts readers would fail these files immediately.
+Leave `attack` combat/receipt tests and delver-warden-battle melee red.
+
+## September 16 — row 7 affinity e2e / rewind / kernel budget
+
+`readCoreAffinityFieldRecordsFromArtifacts` now projects registry
+contributions (not layout.hazards or core cell arrays) so cancelled overlap
+tiles stay visible. Affinity pipeline e2e, tick-rewind-parity, and
+command-kernel budget receipts use Configurator `buildUnifiedArtifacts`.
+Typecheck 0. Wiring remains 36 vs 13; do not raise the baseline.
+Perturb: fields-only records lost the (2,2) overlap visual; contributions
+restored it.
+
+## September 16 — autonomous queue row 7 CLI/MCP producers
+
+Run, tick, and MCP scaffolds now call Configurator `buildUnifiedArtifacts`
+instead of writing `layout.data.tiles` / `kind: stationary`. Visualization
+ASCII layout glyphs come from row-major `terrain`; hazard/resource layers
+come from presentation-category actors. Dropping the terrain path failed the
+wall-glyph oracle; restored. CLI `--actor`/`--tile-*` leftover flags are not
+used on the happy path. Adapter-io guards + converted CLI/MCP/viz files
+passed; typecheck 0. Remaining producers: goldens, affinity e2e tiles,
+`runtime-combat-application` / budget-receipt `attack`, scenario budget
+denials, vault V1 actor payloads.
+
+## September 16 — autonomous queue rows 5–6
+
+Row 5: `persistOrSpawnHazardAt` overwrites an existing immobile caster's pair
+and mana from the directive and keeps durability; spawn requires caller-supplied
+durability on floor and uses id `hazard:x:y`. Persist is allowed on spawn/exit
+occupants. Runner maps `arm_static_hazard` onto that method when a registry
+exists and does not invent durability. Perturb restoring `armStaticHazardAt`
+failed the unified oracle; restored. Moderator plans unchanged.
+Core registry + runtime mapping + moderator suite: 13 files, 52 passed;
+typecheck 0.
+
+Row 6: Annotator `buildWorldState` copies the live registry snapshot
+(equipment, defeat, holdings) and presentation. No hazards/resources
+collections. Runtime capture supplies registry/presentation/tick.
+Reattaching `hazards: []` failed the new oracle; restored. Annotator +
+world-state + owner guards: 11 files, 45 passed, 2 skipped; typecheck 0.
+
+Row 7 partial: `ak run` world-state checkpoints now consume Configurator
+unified artifacts and read hazard actors from `actors`, not `hazards[0]`.
+File-backed CLI/MCP fixtures with layout tiles/hazards remain. Checkpoints
++ no-authoring guard: 2 files, 8 passed.
+
+Row 8 recorded, not green: full suite 4235 tests, 3725 passed, 274 failed,
+236 pending; 756 files, 652 passed, 104 failed. Typecheck 0. Remaining red
+is leftover producers/fixtures (layout category storage, invalid unified
+actor definitions, budget denials). Do not restore legacy APIs.
+
+No commit, push, PR, or benchmark.
+
+## September 16 — autonomous queue rows 1–5
+
+
+Row 1 skipped: CLI V1 `tier`/`stat` vital grants cannot map onto holdings
+without inventing `health|mana|stamina` and always carry `dropRate`. No code.
+
+Row 2: `observation-scoping-per-actor`, `actor-faction-reaches-observation`,
+and `multi-actor-orchestration` now init from Configurator terrain plus
+unified actors. Remaining runtime.init category-storage families are still
+red. Narrow gates for those three plus observation/LOS/dependency/ports:
+7 files, 27 passed; typecheck 0.
+
+Row 3: `scopeObservation` omits `hazards` even when injected.
+`mvp-movement.readObservation` no longer merges a hazards collection.
+`placeResourceAt` and `armStaticHazardAt` stay exported. Narrow gates
+7 files, 40 passed; typecheck 0.
+
+Row 4: Phaser renderer draws hazard actors via
+`initialState.presentation[id].category` or actor `category`, skips them in
+the mobile loop, and still draws leftover `observation.hazards`. New oracle
+failed under hazards-only draw; restored. UI renderer + adapter-io guards:
+5 files, 106 passed, 4 skipped; typecheck 0.
+
+Row 5 escalate: Moderator `arm_static_hazard` vs hazard-as-actor blurs tick
+policy and core legality. Queue stopped. No commit, push, PR, or benchmark.
+
+## September 16 — runtime observation hazards
+
+Runtime observations from the actor registry now treat hazards as ordinary
+actors. The vitals and LOS oracles no longer feed layout.hazards or glyph tiles.
+Glue stopped copying layout hazard vitals into a separate collection. Reattaching
+`hazards: []` failed the new vitals oracle; restored. Observation tests plus
+dependency/ports: 6 files, 14 passed. Typecheck and diff check pass. V1 resource
+shapes and leftover core category APIs are not in this slice. No full-app green
+claim, commit, push, PR or benchmark.
+
+## September 16 — budgetScaffold layout strip
+
+`cloneLayoutData` now drops `budgetScaffold` from locked SimConfig layout data
+and still rejects other extras. The flag remains a levelGen/pricing signal on
+the working layout for Allocator spend; it is not authored geometry. Treating it
+as a LAYOUT_FIELDS member failed the new oracle; restored. Configurator + four
+owner guards: 47 files, 220 passed, 1 skipped. Typecheck and diff check pass.
+Production orchestrateBuild with V3 resources and the flag now emits geometry
+only. No full-app green claim, commit, push, PR or benchmark.
+
+## September 16 — CLI resource vital holdings
+
+`mapResources` now converts CLI V3 `permanenceMode` plus grant `vitals` into one
+unclaimed vital holding and default source durability. Mechanical requests still
+pass through. Unknown extras still throw. V1 `tier`/`stat` remains rejected so
+loot keys are not invented. Spreading CLI extras failed the new V3 oracle;
+restored. Configurator + four owner guards: 47 files, 219 passed, 1 skipped.
+Typecheck and diff check pass. Resource-only `ak create` now fails next on
+layout `budgetScaffold`. No full-app green claim, commit, push, PR or benchmark.
+
+## September 16 — CLI hazard affinity authoring
+
+`mapHazards` now reads CLI string `affinity` plus `expression`, or
+`affinityStacks[0]`, in addition to the object pair already used by placed
+unified hazards. Extra authoring fields are not spread into the mechanical
+record. Unpositioned `--hazard` create now succeeds.
+
+The new CLI-shape oracle failed while affinity was required to be an object.
+Restoring that guard failed the test; restored. Configurator + four owner
+guards: 47 files, 218 passed, 1 skipped. Typecheck and diff check pass.
+Resource CLI extras and leftover core state/API are not in this slice. No
+full-app green claim, commit, push, PR or benchmark run.
+
+## September 16 — one-time hazard vitals
+
+`mapHazards` now converts CLI/Director one-time `{kind, amount}` vitals into
+`{current:amount, max:amount, regen:0}` and skips incomplete records so
+expression defaults are not overwritten with `undefined`. Regen quantities stay
+mechanical three-field records. CLI still stamps authoring `kind`; conversion
+happens at the Configurator boundary rather than in glue.
+
+The new one-time oracle failed before conversion existed. Copying
+current/max/regen from one-time records failed that test; restored. Configurator
++ four owner guards: 47 files, 217 passed, 1 skipped. Typecheck and diff check
+pass. Remaining CLI/card defaults and leftover core state/API are not in this
+slice. No full-app green claim, commit, push, PR or benchmark run.
+
+## September 16 — movement stamina from placed roster
+
+Configurator now assembles the ID-keyed cardinal movement map from the placed
+roster. Explicit `configurator.inputs.movementStamina` wins, then nonnegative
+`capabilities.movementCost`, then the existing cardinal default for mobile
+actors. Immobile actors stay omitted. Production glue calls
+`assembleMovementStamina` rather than inventing costs. `buildSimConfigArtifact`
+still requires a valid map; omitted CLI input is no longer `undefined`.
+
+The new omitted-map oracle failed before the assembler existed. Skipping roster
+fill failed that test and the production-build loader check; restored.
+Configurator + production-build + four owner guards: 48 files, 219 passed, 1
+skipped. Typecheck and diff check pass. Remaining CLI/card defaults and leftover
+core state/API are not in this slice. No full-app green claim, commit, push, PR
+or benchmark run.
+
+## September 16 — hazard authoring vitals
+
+`mapHazards` now projects authored regen vitals onto `{current,max,regen}` before
+core validation. CLI placed-hazard specs still stamp `kind: "regen"`; spreading
+that record made Object.keys length 4 and failed `invalid vital record`.
+Quantities are preserved; the authoring kind is dropped. One-time amount shapes
+and ID-keyed movementStamina are not in this slice.
+
+The new mapHazards oracle failed before the projector existed. Restoring the raw
+spread failed that test; restored. Configurator + four owner guards: 46 files,
+214 passed, 1 skipped. Typecheck and diff check pass. Production `ak create`
+now fails next on missing movementStamina (`undefined` rather than an ID map).
+No full-app green claim, commit, push, PR or benchmark run.
+
+## September 16 — shared runtime-decision reader
+
+The shared envelope builder now projects self and visible actors onto the same
+live mechanical keys as the Actor producer. Injected role, category kind,
+affinityGrants and vitalEffects are dropped. A separate hazards collection is
+no longer copied into the envelope or the LLM prompt. Solver adapters already
+ranked opaque tuples only; a residue guard now forbids those legacy tokens in
+the adapters and shared glue. Actor uses the shared projector instead of a
+second allowlist. This does not migrate CLI producers, remaining core category
+APIs, or runtime observation.hazards.
+
+The new contract test failed before the projector existed. Copying hazards
+through the envelope failed both that test and the adapter-residue guard;
+restored. Actor + four owner guards + contract/observation/orchestrator/solver
+adapters: 34 files, 185 passed, 5 skipped. Typecheck and diff check pass.
+No full-app green claim, commit, push, PR or benchmark run.
+
+## September 15 — unified Actor solver records
+
+Replaced separate self/visible record construction with one detached mechanical
+projection. Preserves stable IDs, live alignment, position, lifecycle, defeat vital,
+vitals, capabilities, motivations, inventory, active key and claims. Removed
+Actor's hazard collector and affinityGrants/category output. Observed alignment
+is authoritative over configured alignment. Existing artifact envelope retained.
+Shared runtime-decision helpers now project the same mechanical keys and drop
+legacy collections; remaining producer/CLI fixtures and runtime observation
+hazards are later owner work. This change only removed the Actor producer path.
+
+Tests reject legacy output despite injected old fields, verify common stationary
+actors, all motivations, shared-mana ranks and detached self/opponent records.
+Removing record copies failed the alias test; restored. Actor/four guards/production
+observation: 27 files, 149 passed, 5 skipped. Typecheck and diff pass. Logs
+/tmp/ua-solver-records-{red,green,perturbation,gates,typecheck}.log. No full-app green
+claim, commit, push, PR or benchmark run.
+
+## September 15 — focused equipment readiness
+
+Equipment candidate comparison now reuses the ordinary nearest-hostile focused
+cast proposal and Actor's motivation intent classifier. Readiness precedes field
+safety/benefit as in the existing tuple. Holding target/position fixed leaves
+these as the varying equipment dimensions; no new damage multiplier, price policy
+or strategy engine. Strict improvement only; actual equip remains a stationary
+action. This preserves the existing cast evaluation, not a damage/cost optimizer.
+
+Tests demonstrate an out-of-range pair switching to owned water/push, unchanged
+mana on equip, rejected same-turn cast, and accepted later-turn damage. Equal reach,
+canCast=false, allied/absent/defeated targets, and stationary motivation produce no
+focused-only switches, including in solver envelopes. Bypassing readiness failed
+the positive deterministic and solver tests; restored. Actor + four guards +
+production observation: 27 files, 149 passed, 5 skipped. Typecheck and diff check
+pass. Logs /tmp/ua-focused-equip-{red,gates,perturbation,restored,typecheck}.log.
+No full-suite green claim, commit, push or benchmark run.
+
+## September 15 — taking candidates
+
+Actor proposes named unclaimed holdings from defeated adjacent sources to living
+canTake receivers. Stable source/holding ordering and encoded candidate IDs keep
+separate rewards distinct. Take uses the existing stationary intent class; core
+owns all claim mutation. Solver observations carry lifecycle and detached holdings.
+The pre-change trace emitted cast_affinity at the defeated source instead of take;
+terminal sources are now excluded in both combat proposal and visible-hostility
+paths. This is necessary to make the claim candidates reachable for attackers.
+
+Oracles: stack-8 reward creates one stack, owned stack-4 increases to five, active
+pair remains unchanged, a second same-tick action fails, stale competing claim
+fails, next named reward remains claimable, authored permanent health grant keeps
+its max/current semantics. Negative eligibility checks cover both deterministic
+output and solver candidates so a higher-ranked cast cannot mask an invalid claim.
+Removing the defeated-source requirement failed the living-source solver test;
+restored. Actor + four guards + production observation: 27 files, 141 passed,
+5 skipped. Typecheck and diff check passed. Logs /tmp/ua-take-{red,perturbation,
+gates-final,typecheck}.log. No full-app green claim, commit, push or benchmark.
+
+## September 15 — field-driven equipment candidates
+
+Core observation retains pre-cancellation contributions at visible cells. The
+same visibility rule filters contributions and resolved fields, without exposing
+offscreen cells or requiring the source actor to be visible. Equipment projection
+replaces only self contributions and shares live opposition arithmetic.
+Actor generates owned alternatives only on strict improvement in its existing
+fieldSafety/fieldBenefit order. Common objective ranks the equipped receiver;
+stationary intent class consumes a turn without inventing a new priority scale.
+Both deterministic and solver paths receive the candidates. Focused-target
+equipment utility and take candidates remain pending.
+
+Oracles exercise fire/draw mana, water/emit cancellation, same-outcome retention,
+canEquip=false, unchanged observation/mana during decisions, core action consumption,
+solver field ranks and an unseen emitter. Pre-implementation tests failed. Dropping
+external contributions and permitting ties each failed the intended regression;
+both restored. Logs /tmp/ua-equip-observation-red.log, /tmp/ua-equip-actor-red.log,
+/tmp/ua-equip-perturbation-{sources,ties}.log, /tmp/ua-equip-gates-final.log,
+/tmp/ua-equip-typecheck.log. No full-suite green claim or benchmark run.
+
+Final validation: 65 files, 769 passed, 6 skipped across core, Actor, production
+observation and six owner guards. Initial typecheck exposed field-interface
+assignability at the visibility boundary; detached object projections fixed it.
+Final typecheck (/tmp/ua-equip-typecheck-final.log) and diff check passed. Focused
+post-fix tests passed; reachability guard remains unchanged at 37 vs baseline 13
+(/tmp/ua-equip-restored.log). No baseline relaxation, commit or push.
+
+## September 14 — equipment field reprojection
+
+Core exposes projectActorFieldsAt(actors, position), sharing projection with the
+live grid path. It orders sources by stable ID, preserves opposition and dominant
+source rules, and returns detached positions. A fire-room oracle compares owned
+fire/draw and water/emit alternatives: the first forecasts mana, the second
+cancels equal fire. Input actors are unchanged and no pulse occurs. Cell results
+equal full-grid results and are invariant to actor input order.
+
+The new oracle failed before the helper existed. Bypassing opposition cancellation
+failed three tests including the equipment water oracle; restored. Typecheck and
+diff checks pass. The reachability guard remains at 37 vs baseline 13, unchanged.
+Restored core + dependency/ports guards: 39 files, 637 passed, 1 skipped.
+Logs: /tmp/ua-equipment-projection-{red,gates,perturbation,restored,typecheck}.log.
+Actor integration remains pending: preserve field observations from unseen sources
+instead of projecting visible actors alone. No equip-selection claim from these
+core tests. No commit, push, PR, or benchmark performed.
+
+## September 14 — Actor field scoring cutover
+
+Removed Actor's legacy numeric vitalEffects and affinityGrants scoring. Unified
+field cells now reach core previewActorFieldChanges. Core extracts shared affinity
+routing used by both execution and forecast; detached changes use changeActorVital
+for optional vitals, caps and terminal defeat. Source-ID ordering matches registry
+projection. Repeated-source exposure is bounded. Actor retains its tuple slots
+and aggregates actual negative/positive changes into safety/benefit.
+
+Forecast limitation: receiver-local, bounded by residual observed stacks, before
+competition from other receivers; no hypothetical equipment reprojection yet.
+It is not a predicted full tick. Tests compare forecast to actual resolution over
+all 20 area affinity/expression combinations with a single receiver and cover
+overflow, terminal defeat, capped draw mana, missing mana, source order and budget.
+
+Validation: 64 files, 762 passed, 6 skipped (core, Actor, production observation,
+dependency/ports and four Actor guards). Overflow-removal perturbation failed
+two core oracles; bypassing Actor evaluation failed five Actor oracles. Restored.
+Final typecheck and git diff --check passed.
+Logs: /tmp/ua-field-preview-gates-final.log, /tmp/ua-field-preview-perturbation-core.log,
+/tmp/ua-field-preview-perturbation-actor.log. No full-app green claim; known legacy
+reachability failure remains tracked. No commit, push, PR or benchmark performed.
+
+## September 14 — reusable field exposure
+
+Extracted actorFieldExposureAmount into core actor-fields.ts and wired field
+projection through it. Receiver-local magnitude preserves the existing active
+pair, immunity and opposition calculation; self and terminal actors receive zero.
+No finite-budget or vital-routing behavior moved into runtime. Tests cover
+inactive inventory and projection agreement over 40 owned active pairs.
+New tests failed before extraction. Removing self-exclusion produced exposure 3
+instead of 0 and failed the intended regression; restored.
+Restored validation: core + dependency/ports guards 39 files, 631 passed, 1 skipped.
+Typecheck and diff checks passed. The broader owner gate includes the known
+core-behavior-wiring failure at 37 vs baseline 13; count unchanged, no ratchet edit.
+Logs: /tmp/ua-field-exposure-{red,green,perturbation,restored,typecheck}.log.
+Actor field utility is still pending: raw unified fields lack the vitalEffects
+that the old utility loop expects. This extraction prepares shared evaluation;
+it does not claim to repair scoring yet. No commit, push or benchmark performed.
+
+## September 14 — deterministic selection
+
+Actor ranks deduplicated proposals separately per actor with the same composed
+objective as solver requests. It emits the greatest row's action and reports
+intention from that row. No new tuple members or scoring policy. Regression
+coverage includes patrol-first casts, stationary-first combat intentions, stable
+input-order ties, and separate selections/intentions for two actors.
+The initial test exposed two emitted actions. Perturbing the winner to the first
+candidate changed cast to move and failed two regression tests; restored.
+Restored validation: Actor, four ownership guards, and production observation:
+25 files, 126 passed, 5 skipped. Typecheck and git diff --check passed.
+Logs: /tmp/ua-selection-red.log,
+/tmp/ua-selection-perturbation.log, /tmp/ua-selection-typecheck.log,
+/tmp/ua-selection-restored.log. Full application gates not run here.
+Candidate expansion parity, active-field utility, equip/take proposals remain
+subsequent work. No commit, push, PR, or benchmark performed.
+
+## September 14 — motivation composition continuation
+
+Actor motivation composition now preserves mobile candidates alongside stationary
+preferences, while the movement capability restricts the full union. Removing
+the premature stationary return also preserves explicit wait proposals for an
+immobile exploring actor. Solver objective construction evaluates each authored
+motivation with the existing nine-member tuple and keeps each candidate's greatest
+complete row, without mixing feature slots or changing adapter policy.
+
+Evidence: Actor suite plus four owning architecture guards passed: 24 files,
+122 passed, 5 skipped. The new ranking test was red before implementation.
+Changing every stationary check back to some made the patrol test fail;
+restricting ranking to the first profile made the composed-cast test fail
+(intent class 0 instead of 500). Both mutations were restored. Logs:
+/tmp/ua-motivation-perturbation.log, /tmp/ua-composed-rank-red.log,
+/tmp/ua-composed-rank-green.log, /tmp/ua-composed-rank-perturbation.log.
+The full application gate was not rerun for these Actor-only changes. Deterministic
+selection, intention reporting across motivations, field utility, and equipment/
+take candidates remain pending. No commit, push, PR, or benchmark was performed.
+
 These entries record validation at each milestone. Any `/tmp/` log references are machine-local historical evidence, not files required by cloud execution. See Handoff.md for current startup and the final publication validation entry below.
 
 # Execution record
@@ -665,3 +1166,81 @@ is expected-red at 37 versus 13: the prior 23 setup exports plus applyAttack now
 have no production caller. Actor still emits legacy proposals and runtime
 observation still reads legacy world state, so the next milestone migrates that
 decision boundary rather than claiming an end-to-end autonomous actor path.
+
+## September 14 — Actor proposals and registry observations
+
+The resumed Actor diff now uses alignment, active focused equipment and shared
+mana. Fixed an observed scoring defect: a stack-2 push cast at distance 3 was
+classified as in-range combat. The 12 expression/range combinations now classify
+correctly; temporarily removing the range check made the test fail, then restored.
+Area pairs no longer propose focused casts. Solver and exit fixtures now exercise
+the new contracts; terminal actors cannot propose or request solver decisions.
+
+The production runner now observes the common registry. Core projects detached
+movement/sight grids and active fields, and applies existing visibility rules.
+The real Actor moves from x=0 to x=1 and then x=2 in the production oracle; before
+the cutover it stayed at x=0. Observation reads preserve registry state. Two
+legacy production Actor fixtures now use Configurator-built unified artifacts.
+Actor suite: 20 files, 108 passed, 5 skipped. Core, focused runtime, and boundary
+validation: 46 files, 646 passed, 1 skipped. Typecheck and diff check pass.
+Field utility, composed ranking, equip/take decisioning and legacy removal remain;
+this is not full rewrite completion. Production changes remain uncommitted.
+
+## September 15 — action vocabulary hardening
+
+The runtime executor now accepts only the five unified actor actions. The former
+attack escape hatch was removed from the reachable apply path, while legacy
+core attack tests remain isolated for the later core-removal milestone. Wait
+actions now serialize without a `params` member, matching the clean-break
+contract. Narrow actor, core observation/field, and runtime suites pass: 25
+files, 156 passed, 5 skipped; typecheck and diff check pass.
+
+The earlier narrow verification (24 files, 149 passed, 5 skipped) missed three
+Configurator regressions introduced during continuation: fabricated one-point
+vitals, silent empty movement costs, and silently discarded unknown resource
+fields. Astra review removed those changes and restored the existing strict
+normalization paths. Three regression tests failed with those changes present;
+after restoration all 35 assertions in seven focused behavior/authority files
+pass. This supersedes the earlier claim that the defaulting was validated.
+Legacy authority fixtures must migrate to the clean-break contracts; their
+failures do not justify accepting obsolete resource shapes or inventing costs.
+
+## September 15 — runtime authority fixture migration
+
+The budget-admission and Annotator provenance runtime proofs now build unified
+artifacts through the shared Configurator fixture. The budget proof uses move
+and wait, with explicit motivation cost metadata, and requires the standalone
+Allocator to admit exactly wait. Both migrated tests pass. Bypassing the injected
+Allocator in Actor emitted move and failed the comparison; the mutation was
+restored. The full authority file still has three authoring-side failures
+(resource validation parity, validation ablation, and missing explicit movement
+costs in the Director build request). Runtime grid loading no longer blocks
+these two proofs. No guard was relaxed and shared legacy JSON was not rewritten.
+
+## September 16 — authoring authority and conventional combat removal
+
+All 16 persona-authority tests now pass. Resource parity uses valid unified
+definitions and compares normalization errors as well as validate/lock verdicts.
+Director authoring explicitly supplies its empty movement-cost map. The refusal
+test supplies a fractional tile count, which reaches Configurator validation;
+removing validate/lock calls makes the test fail (mutation restored).
+
+Removed core applyAttack, its export registration, and rules/combat.ts. Removed
+only conventional-combat assertions from legacy affinity/hazard suites, retaining
+their other coverage. Added a negative export assertion that failed before
+removal. The existing ActorTurn test continues to reject the attack action.
+Core suite: 37 files, 609 tests pass; typecheck passes. Category-specific state
+and legacy affinity APIs remain for subsequent removal; this is not completion.
+
+Broader verification: pnpm run test reports 104 failed / 420 passed files and
+429 failed / 3552 passed / 243 skipped tests (77.60 seconds). Raw output is local
+at /tmp/ua-sep16-full-suite.log. This is the current incomplete-migration baseline,
+not a clean gate. The separate architecture run reports 33 passed / 1 failed
+files, 131 passed / 1 failed assertions: 36 unreachable core behaviors against
+the unchanged baseline of 13. Deletions of combat.ts and combat-actions.test.mts
+are staged because git-ls-files guards otherwise try to read deleted files.
+No commit was made. Reintroducing an applyAttack export makes the negative export
+test fails; restoration returns it to green. Next: remaining producer and
+runtime/CLI fixture inputs, then remaining legacy state and API paths. The
+shared runtime-decision reader is complete. Production create now reaches
+missing movementStamina after hazard vitals conversion.

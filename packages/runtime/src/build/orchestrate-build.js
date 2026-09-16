@@ -26,6 +26,8 @@ const {
   generateGridLayoutFromInput,
   buildSimConfigArtifact,
   buildInitialStateArtifact,
+  assembleMovementStamina,
+  prepareAuthoredActor,
   resolveAffinityEffects,
   normalizeAffinityRulesArtifact,
   resolveAffinityRules,
@@ -329,13 +331,14 @@ export async function orchestrateBuild({
     // precisely because affinityRules/motivationRules/actors used to be written
     // back over the locked artifact after the Configurator's round had closed.
     actorsInput.actors = actorsInput.actors.map((actor) => {
+      const prepared = prepareAuthoredActor(actor);
       const draft = {
-        ...actor,
-        vitals: actor?.vitals
+        ...prepared,
+        vitals: prepared?.vitals
           ? Object.fromEntries(
-            Object.entries(actor.vitals).map(([key, vital]) => [key, { ...vital }]),
+            Object.entries(prepared.vitals).map(([key, vital]) => [key, { ...vital }]),
           )
-          : actor?.vitals,
+          : prepared?.vitals,
       };
       configuratorApplyMotivationVitalRequirements(draft);
       configuratorApplyAffinityVitalRequirements(draft);
@@ -544,7 +547,10 @@ export async function orchestrateBuild({
       planRef: toRef(mapped.plan),
       budgetReceiptRef: budgetReceipt ? toRef(budgetReceipt) : undefined,
       affinityRules,
-      movementStamina: configuratorInputs?.movementStamina,
+      movementStamina: assembleMovementStamina({
+        actors: actorsInput.actors,
+        movementStamina: configuratorInputs?.movementStamina,
+      }),
       seed,
       layout,
     });

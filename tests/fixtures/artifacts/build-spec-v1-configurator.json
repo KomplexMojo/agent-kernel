@@ -73,7 +73,7 @@
       "actors": [
         {
           "id": "actor_mvp",
-          "kind": "ambulatory",
+          "category": "delver",
           "position": {
             "x": 2,
             "y": 1
@@ -103,7 +103,7 @@
         },
         {
           "id": "actor_rival",
-          "kind": "ambulatory",
+          "category": "warden",
           "position": {
             "x": 3,
             "y": 2

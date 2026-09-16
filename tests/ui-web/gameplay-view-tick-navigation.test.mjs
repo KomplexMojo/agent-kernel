@@ -19,11 +19,8 @@ function buildMultiTickBundle() {
       data: {
         width: 5,
         height: 1,
-        tiles: ["....."],
-        spawn: { x: 0, y: 0 },
-        exit: { x: 4, y: 0 },
+        terrain: ["floor", "floor", "floor", "floor", "floor"],
         rooms: [],
-        hazards: [],
       },
     },
   };

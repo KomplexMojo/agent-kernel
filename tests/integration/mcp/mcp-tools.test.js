@@ -697,7 +697,7 @@ test("mcp tick session: ak_tick_forward, ak_show_state, ak_tick_backward after a
     "create",
     "--room", "size=medium;count=1",
     "--hazard", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
-    "--resource", "tier=level;stat=vitalMax;delta=10;dropRate=50",
+    "--resource", "permanenceMode=level;vital=health;delta=10",
     "--delver", "count=1;affinity=fire;motivation=attacking",
     "--warden", "count=1;affinity=dark;motivation=defending",
     "--run-id", runId,

@@ -126,7 +126,7 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
 
   const spec = readJson(join(outDir, "spec.json"));
   const request = spec.authoring.request;
-  const simConfig = readJson(join(outDir, "sim-config.json"));
+  const initialState = readJson(join(outDir, "initial-state.json"));
   const bundle = readJson(join(outDir, "bundle.json"));
   const manifest = readJson(join(outDir, "manifest.json"));
   const telemetry = readJson(join(outDir, "telemetry.json"));
@@ -153,15 +153,19 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   assert.equal(spec.configurator.inputs.levelGen.hazards.length, 1);
   assert.equal(spec.configurator.inputs.levelGen.hazards[0].id, "hazard_fire");
 
-  assert.ok(Array.isArray(simConfig.layout.data.hazards));
+  assert.ok(Array.isArray(initialState.actors));
+  const presentation = initialState.presentation ?? {};
+  const hazards = (initialState.actors ?? []).filter((entry) => presentation[entry.id]?.category === "hazard");
   // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
   // Authored (2,2) maps into room R1 at (1,1): absolute = (1+2, 1+2) = (3,3).
-  assert.ok(simConfig.layout.data.hazards.some((entry) => (
-    entry.x === 3
-    && entry.y === 3
-    && entry.affinity?.kind === "fire"
-    && entry.affinity?.expression === "push"
-    && entry.affinity?.stacks === 2
+  assert.ok(hazards.some((entry) => (
+    entry.position?.x === 3
+    && entry.position?.y === 3
+    && entry.affinities?.some((affinity) => (
+      affinity.kind === "fire"
+      && affinity.expression === "push"
+      && affinity.stacks === 2
+    ))
   )));
   assert.ok(manifest.artifacts.every((entry) => entry.path !== "request.json"));
   assert.ok(manifest.artifacts.some((entry) => entry.path === "spend-proposal.json"));
@@ -301,7 +305,7 @@ test("cli configure preserves generic parsing but records configure action", () 
   assert.equal(summary.preview.ready, true);
   assert.equal(summary.preview.bundlePath, join(outDir, "bundle.json"));
   assert.equal(summary.preview.resourceBundlePath, join(outDir, "resource-bundle.json"));
-  assert.equal(summary.preview.hasActors, false);
+  assert.equal(summary.preview.hasActors, true);
   assert.equal(summary.preview.runReady, false);
 });
 

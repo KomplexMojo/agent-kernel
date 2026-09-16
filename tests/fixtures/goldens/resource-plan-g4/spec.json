@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-resource-plan",
     "cost": {
-      "runTotalTokens": 538,
+      "runTotalTokens": 120,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g4_budget_receipt",
@@ -1826,7 +1826,50 @@
           }
         ]
       },
-      "actors": []
+      "actors": [
+        {
+          "id": "resource_1",
+          "position": {
+            "x": 3,
+            "y": 1
+          },
+          "alignment": "dungeon",
+          "lifecycle": "alive",
+          "defeatVital": "durability",
+          "vitals": {
+            "durability": {
+              "current": 1,
+              "max": 1,
+              "regen": 0
+            },
+            "mana": {
+              "current": 50,
+              "max": 50,
+              "regen": 5
+            }
+          },
+          "capabilities": {
+            "canMove": false,
+            "canCast": true,
+            "canEquip": false,
+            "canTake": false,
+            "canExit": false,
+            "blocksMovement": false,
+            "blocksSight": false
+          },
+          "motivations": [],
+          "affinities": [
+            {
+              "kind": "water",
+              "expression": "emit",
+              "stacks": 2
+            }
+          ],
+          "activeAffinityKey": "water:emit",
+          "holdings": [],
+          "category": "resource"
+        }
+      ]
     }
   },
   "budget": {

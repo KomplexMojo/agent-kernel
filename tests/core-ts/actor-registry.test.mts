@@ -123,6 +123,33 @@ describe('actor registry', () => {
     const cyclic = world(); (cyclic as unknown as { cycle: unknown }).cycle = cyclic;
     expect(() => createActorRegistry(cyclic)).toThrow(/JSON/);
   });
+  test('persist-or-spawn hazard uses only supplied quantities', () => {
+    const registry = createActorRegistry(world([actor('flame', 1, false)]));
+    expect(registry.persistOrSpawnHazardAt({ x: 1, y: 1 }, {
+      kind: 'water', expression: 'emit', stacks: 3, manaReserve: 4,
+    })).toBe(true);
+    const flame = registry.getActor('flame')!;
+    expect(flame.affinities).toEqual([{ kind: 'water', expression: 'emit', stacks: 3 }]);
+    expect(flame.activeAffinityKey).toBe('water:emit');
+    expect(flame.vitals.mana).toEqual({ current: 4, max: 4, regen: 0 });
+    expect(flame.vitals.durability).toEqual({ current: 3, max: 3, regen: 0 });
+    expect(registry.persistOrSpawnHazardAt({ x: 2, y: 2 }, {
+      kind: 'fire', expression: 'emit', stacks: 1, manaReserve: 2,
+    })).toBe(false);
+    expect(registry.getActor('hazard:2:2')).toBeNull();
+    expect(registry.persistOrSpawnHazardAt({ x: 2, y: 2 }, {
+      kind: 'fire', expression: 'emit', stacks: 1, manaReserve: 2,
+      durability: { current: 5, max: 5, regen: 0 },
+    })).toBe(true);
+    const spawned = registry.getActor('hazard:2:2')!;
+    expect(spawned.vitals.durability).toEqual({ current: 5, max: 5, regen: 0 });
+    expect(spawned.vitals.mana).toEqual({ current: 2, max: 2, regen: 0 });
+    expect(spawned.capabilities.blocksMovement).toBe(false);
+    expect(registry.persistOrSpawnHazardAt({ x: 0, y: 0 }, {
+      kind: 'fire', expression: 'emit', stacks: 1, manaReserve: 2,
+      durability: { current: 5, max: 5, regen: 0 },
+    })).toBe(false);
+  });
 });
 
 // ## TODO: Test Permutations

@@ -44,5 +44,20 @@ test('production build converts a hazard preset into an equipped common actor', 
   expect(presentation.flame.category).toBe('hazard');
   expect(Object.hasOwn(result.simConfig.layout.data, 'hazards')).toBe(false);
 });
+
+test('production build assembles movement stamina from placed mobile actors when omitted', async () => {
+  const result = await orchestrateBuild({ spec: {
+    schema: 'agent-kernel/BuildSpec', schemaVersion: 1,
+    meta: { id: 'stamina', runId: 'stamina', createdAt: '2026-09-16T00:00:00Z', source: 'test' },
+    intent: { goal: 'assemble movement costs from the placed roster' }, plan: {}, configurator: { inputs: {
+      levelGen: { width: 9, height: 9, seed: 42, shape: { roomCount: 1, roomMinSize: 3, roomMaxSize: 3 } },
+      actors: [], resources: [{ id: 'ore',
+        vitals: { durability: { current: 8, max: 8, regen: 0 } },
+        capabilities: { canMove: true }, motivations: ['exploring'] }],
+    } },
+  } });
+  const { costs } = initializeCoreFromArtifacts(JSON.parse(JSON.stringify(result)));
+  expect(costs.movementStamina).toEqual({ ore: 1 });
+});
 // ## TODO: Test Permutations
 // - Budgeted and hazard-bearing production builds after their owning migrations.

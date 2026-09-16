@@ -20,6 +20,24 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
+function hazardActorsFromOutDir(outDir) {
+  const simConfig = readJson(join(outDir, "sim-config.json"));
+  const initialState = readJson(join(outDir, "initial-state.json"));
+  const presentation = initialState.presentation ?? {};
+  return {
+    layout: simConfig.layout?.data ?? {},
+    hazards: (initialState.actors ?? []).filter((actor) => presentation[actor.id]?.category === "hazard"),
+  };
+}
+
+function affinityKind(actor) {
+  return actor.affinities?.[0]?.kind ?? actor.activeAffinityKey?.split(":")[0];
+}
+
+function terrainAt(layout, x, y) {
+  return layout.terrain?.[y * layout.width + x];
+}
+
 // Shared minimal args that produce a valid single-hazard create (dry-run safe).
 const BASE_VALID_HAZARD_ARGS = [
   "create",
@@ -177,7 +195,7 @@ test("hazard on a small room succeeds and maps into the room interior exactly li
   const result = runCli([
     "create",
     "--room", "size=small;count=1",
-    "--hazard", "x=2;y=2;affinity=fire",
+    "--hazard", "x=2;y=2;affinity=fire;expression=emit;stacks=1",
     "--delver", "count=1;affinity=fire;motivation=attacking",
     "--budget-tokens", "1000",
     "--budget", BUDGET,
@@ -185,14 +203,14 @@ test("hazard on a small room succeeds and maps into the room interior exactly li
     "--out-dir", outDir,
   ]);
   assert.equal(result.status, 0, `small room + hazard must succeed like medium: ${result.stderr}`);
-  const layout = readJson(join(outDir, "sim-config.json")).layout?.data ?? {};
-  const fireHazard = (layout.hazards ?? []).find((t) => t.affinity?.kind === "fire");
+  const { layout, hazards } = hazardActorsFromOutDir(outDir);
+  const fireHazard = hazards.find((actor) => affinityKind(actor) === "fire");
   const room = (layout.rooms ?? [])[0];
-  assert.ok(fireHazard, "fire hazard should be present in sim-config");
+  assert.ok(fireHazard, "fire hazard should be present as an actor");
   assert.ok(room, "layout should declare a room");
-  assert.equal(fireHazard.x, room.x + 2, "hazard x should be room.x + authored relative x");
-  assert.equal(fireHazard.y, room.y + 2, "hazard y should be room.y + authored relative y");
-  assert.notEqual(layout.tiles?.[fireHazard.y]?.[fireHazard.x], "#", "mapped hazard tile must be floor, not wall");
+  assert.equal(fireHazard.position.x, room.x + 2, "hazard x should be room.x + authored relative x");
+  assert.equal(fireHazard.position.y, room.y + 2, "hazard y should be room.y + authored relative y");
+  assert.equal(terrainAt(layout, fireHazard.position.x, fireHazard.position.y), "floor");
 });
 
 // ---------------------------------------------------------------------------
@@ -268,17 +286,15 @@ test("authored room-relative hazard coordinates are mapped to absolute room-inte
   if (result.status !== 0) {
     throw new Error(`Expected success, got: ${result.stderr}`);
   }
-  const simConfig = readJson(join(outDir, "sim-config.json"));
-  const layout = simConfig.layout?.data ?? {};
-  const hazards = layout.hazards ?? [];
+  const { layout, hazards } = hazardActorsFromOutDir(outDir);
   const rooms = layout.rooms ?? [];
-  const fireHazard = hazards.find((t) => t.affinity?.kind === "fire");
-  assert.ok(fireHazard, "fire hazard should be present in sim-config");
+  const fireHazard = hazards.find((actor) => affinityKind(actor) === "fire");
+  assert.ok(fireHazard, "fire hazard should be present as an actor");
   assert.ok(rooms.length >= 1, "layout should declare at least one room");
   const room = rooms[0];
-  assert.equal(fireHazard.x, room.x + 2, "hazard x should be room.x + authored relative x");
-  assert.equal(fireHazard.y, room.y + 2, "hazard y should be room.y + authored relative y");
-  assert.notEqual(layout.tiles?.[fireHazard.y]?.[fireHazard.x], "#", "mapped hazard tile must be floor, not wall");
+  assert.equal(fireHazard.position.x, room.x + 2, "hazard x should be room.x + authored relative x");
+  assert.equal(fireHazard.position.y, room.y + 2, "hazard y should be room.y + authored relative y");
+  assert.equal(terrainAt(layout, fireHazard.position.x, fireHazard.position.y), "floor");
 });
 
 test("two hazards at the same coordinate are rejected with a duplicate position error", () => {
@@ -318,14 +334,14 @@ test("hazard authored at room-relative (0,0) maps onto the room's top-left inter
     "--out-dir", outDir,
   ]);
   assert.equal(result.status, 0, `hazard at room-relative (0,0) must be accepted: ${result.stderr}`);
-  const layout = readJson(join(outDir, "sim-config.json")).layout?.data ?? {};
-  const fireHazard = (layout.hazards ?? []).find((t) => t.affinity?.kind === "fire");
+  const { layout, hazards } = hazardActorsFromOutDir(outDir);
+  const fireHazard = hazards.find((actor) => affinityKind(actor) === "fire");
   const room = (layout.rooms ?? [])[0];
-  assert.ok(fireHazard, "fire hazard should be present in sim-config");
+  assert.ok(fireHazard, "fire hazard should be present as an actor");
   assert.ok(room, "layout should declare a room");
-  assert.equal(fireHazard.x, room.x, "relative (0,0) maps to the room's top-left x");
-  assert.equal(fireHazard.y, room.y, "relative (0,0) maps to the room's top-left y");
-  assert.notEqual(layout.tiles?.[fireHazard.y]?.[fireHazard.x], "#", "mapped hazard tile must be floor, not wall");
+  assert.equal(fireHazard.position.x, room.x, "relative (0,0) maps to the room's top-left x");
+  assert.equal(fireHazard.position.y, room.y, "relative (0,0) maps to the room's top-left y");
+  assert.equal(terrainAt(layout, fireHazard.position.x, fireHazard.position.y), "floor");
 });
 
 test("hazard with room-relative coords exceeding the room interior is rejected with hazard_outside_room", () => {
@@ -397,11 +413,8 @@ test("multiple hazards with distinct coordinates appear in sim-config in declare
   ]);
   assert.equal(result.status, 0, result.stderr);
 
-  const simConfig = readJson(join(outDir, "sim-config.json"));
-  assert.deepEqual(
-    (simConfig.layout?.data?.hazards ?? []).map((hazard) => hazard.affinity?.kind),
-    ["fire", "water"],
-  );
+  const { hazards } = hazardActorsFromOutDir(outDir);
+  assert.deepEqual(hazards.map((actor) => affinityKind(actor)), ["fire", "water"]);
 });
 
 for (const [axis, x, y] of [["x", 8, 2], ["y", 2, 8]]) {

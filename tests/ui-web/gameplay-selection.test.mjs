@@ -53,8 +53,6 @@ const BUNDLE_WITH_RENDERED_NON_ACTORS = {
           width: 5,
           height: 5,
           rooms: [],
-          hazards: [{ id: "hazard-1", position: { x: 1, y: 2 }, affinity: { kind: "fire" } }],
-          resources: [{ id: "resource-1", position: { x: 4, y: 2 }, kind: "mana" }],
         },
       },
       seed: 0,
@@ -63,7 +61,23 @@ const BUNDLE_WITH_RENDERED_NON_ACTORS = {
       schema: "agent-kernel/InitialStateArtifact",
       schemaVersion: 1,
       meta: { id: "state-2", runId: "run-2", createdAt: "2026-05-12T00:00:00Z", producedBy: "director" },
-      actors: [],
+      actors: [
+        {
+          id: "hazard-1",
+          category: "hazard",
+          position: { x: 1, y: 2 },
+          affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+        },
+        {
+          id: "resource-1",
+          category: "resource",
+          position: { x: 4, y: 2 },
+        },
+      ],
+      presentation: {
+        "hazard-1": { category: "hazard" },
+        "resource-1": { category: "resource" },
+      },
     },
   ],
 };
@@ -554,14 +568,23 @@ test("selectEntity resolves a warden with its properties", async () => {
   assert.equal(entity.affinities[0].kind, "dark");
 });
 
-test.skip("selectEntity prefers an actor over a hazard at the same position", async () => {
+test("selectEntity prefers an actor over a hazard at the same position", async () => {
   const bundle = {
     artifacts: [
       {
         schema: "agent-kernel/SimConfigArtifact",
-        layout: { data: { width: 3, height: 3, hazards: [{ id: "hazard-overlap", position: { x: 1, y: 1 } }] } },
+        layout: { data: { width: 3, height: 3 } },
       },
-      { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "actor-overlap", position: { x: 1, y: 1 } }] },
+      {
+        schema: "agent-kernel/InitialStateArtifact",
+        actors: [
+          { id: "hazard-overlap", category: "hazard", position: { x: 1, y: 1 } },
+          { id: "actor-overlap", position: { x: 1, y: 1 } },
+        ],
+        presentation: {
+          "hazard-overlap": { category: "hazard" },
+        },
+      },
     ],
   };
   const view = wireGameplayView({ root: makeRoot() });

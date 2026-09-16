@@ -35,6 +35,7 @@ test('resources may move and barriers retain authored motivations and equipment 
 });
 test('rejects malformed inventory, defeat vitals and obsolete fields', () => {
   for (const patch of [{ activeAffinityKey: 'water:emit' }, { defeatVital: 'mana' }, { vitals: {} },
+    { vitals: undefined }, { vitals: null },
     { role: 'warden' }, { alignment: null }, { motivations: null }, { defeatVital: null }, { capabilities: { canMove: 1 } }, { category: 'unknown' }]) {
     expect(() => configurator.normalizeActorDefinition({ ...input(), ...patch })).toThrow();
   }
@@ -49,5 +50,23 @@ test('normalization owns detached state without mutating inputs or preset defaul
   expect(configurator.normalizeActorDefinition(request).actor.affinities[0].stacks).toBe(1);
   expect(configurator.normalizeActorDefinition(request).actor.capabilities.canMove).toBe(true);
 });
-// ## TODO: Test Permutations
-// - Artifact builders and CLI/MCP/UI must normalize through this same controller method.
+test('prepareAuthoredActor maps leftover kind/role/motivation without inventing vitals', () => {
+  const attacking = configurator.prepareAuthoredActor({
+    id: 'delver_1', kind: 'ambulatory', motivations: ['attacking'], position: { x: 1, y: 1 },
+    vitals: { health: { current: 10, max: 10, regen: 0 } }, tokenCost: 100, affinity: 'fire',
+  });
+  expect(attacking).toEqual({
+    category: 'delver', id: 'delver_1', position: { x: 1, y: 1 },
+    vitals: { health: { current: 10, max: 10, regen: 0 } }, motivations: ['attacking'],
+  });
+  const defending = configurator.prepareAuthoredActor({
+    id: 'warden_1', kind: 'ambulatory', role: 'warden', motivations: ['defending'],
+    position: { x: 2, y: 1 }, vitals: { health: { current: 6, max: 6, regen: 0 } },
+  });
+  expect(defending.category).toBe('warden');
+  expect(defending).not.toHaveProperty('kind');
+  expect(defending).not.toHaveProperty('role');
+  expect(() => configurator.prepareAuthoredActor({
+    id: 'unknown', kind: 'ambulatory', position: { x: 0, y: 0 },
+  })).toThrow(/invalid unified actor definition/);
+});

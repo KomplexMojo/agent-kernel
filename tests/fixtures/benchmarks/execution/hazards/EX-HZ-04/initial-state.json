@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "delver_draw_subject",
-      "kind": "ambulatory",
       "position": {
         "x": 7,
         "y": 1
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -42,27 +44,72 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "role": "delver",
-      "motivation": {
-        "kind": "attacking"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "attacking",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "attacking"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
+    },
+    {
+      "id": "hazard_life_draw",
+      "position": {
+        "x": 4,
+        "y": 4
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "life",
+          "expression": "draw",
+          "stacks": 2
+        }
+      ],
+      "activeAffinityKey": "life:draw",
+      "holdings": []
     },
     {
       "id": "warden_unrelated_target",
-      "kind": "stationary",
       "position": {
         "x": 1,
         "y": 7
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 18,
@@ -85,19 +132,32 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "role": "warden",
-      "motivation": {
-        "kind": "stationary"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "stationary",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "stationary"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "delver_draw_subject": {
+      "category": "delver"
+    },
+    "hazard_life_draw": {
+      "category": "hazard"
+    },
+    "warden_unrelated_target": {
+      "category": "warden"
+    }
+  }
 }

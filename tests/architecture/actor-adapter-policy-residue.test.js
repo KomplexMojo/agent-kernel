@@ -65,6 +65,19 @@ function source(relativePath) {
   return readFileSync(resolve(ROOT, relativePath), "utf8");
 }
 
+test("solver adapters and shared envelope glue do not keep a hazards collection or grant aliases", () => {
+  for (const relativePath of [...ADAPTERS, SHARED]) {
+    const consumerSource = source(relativePath);
+    for (const token of ["hazards", "affinityGrants", "vitalEffects"]) {
+      assert.equal(
+        consumerSource.includes(token),
+        false,
+        `${relativePath} still carries legacy runtime-decision token ${token}`,
+      );
+    }
+  }
+});
+
 test("solver adapters contain no Actor scoring policy", () => {
   for (const relativePath of ADAPTERS) {
     const adapterSource = source(relativePath);

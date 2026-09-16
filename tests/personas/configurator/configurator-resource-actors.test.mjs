@@ -32,6 +32,79 @@ test('resource mapping rejects obsolete shapes and unowned active equipment', ()
   expect(() => c.mapResources([{ ...request(), activeAffinityKey: 'water:draw' }])).toThrow();
   expect(() => c.mapResources([{ ...request(), position: null }])).toThrow();
 });
+test('resource mapping ignores undefined Director leftovers without accepting V1 loot keys', () => {
+  const c = configurator();
+  const input = {
+    id: 'resource_1',
+    permanenceMode: 'consumable',
+    vitals: [],
+    affinity: { kind: 'water', expression: 'emit', stacks: 2, mana: 50, manaRegen: 5 },
+    resourceVitals: undefined,
+    permanent: false,
+    tier: undefined,
+    stat: undefined,
+    delta: undefined,
+    dropRate: undefined,
+    budgetCeiling: undefined,
+  };
+  const [mapped] = c.mapResources([input]);
+  expect(mapped.id).toBe('resource_1');
+  expect(mapped.affinities).toEqual([{ kind: 'water', expression: 'emit', stacks: 2 }]);
+  expect(Object.hasOwn(mapped, 'permanent')).toBe(false);
+  expect(() => c.mapResources([{ ...input, tier: 'common', stat: 'health', delta: 3 }])).toThrow();
+});
+
+test('resource mapping converts V3 CLI affinity payloads into pairs and mana without spreading extras', () => {
+  const c = configurator();
+  const input = {
+    id: 'resource_1',
+    permanenceMode: 'consumable',
+    vitals: [],
+    _schemaVersion: 3,
+    affinity: { kind: 'water', expression: 'emit', stacks: 2, mana: 50, manaRegen: 5 },
+  };
+  const [mapped] = c.mapResources([input]);
+  expect(mapped).toMatchObject({
+    id: 'resource_1',
+    category: 'resource',
+    defeatVital: 'durability',
+    affinities: [{ kind: 'water', expression: 'emit', stacks: 2 }],
+    activeAffinityKey: 'water:emit',
+    vitals: {
+      durability: { current: 1, max: 1, regen: 0 },
+      mana: { current: 50, max: 50, regen: 5 },
+    },
+  });
+  expect(Object.hasOwn(mapped, 'affinity')).toBe(false);
+  expect(Object.hasOwn(mapped, 'permanenceMode')).toBe(false);
+  expect(Object.hasOwn(mapped, '_schemaVersion')).toBe(false);
+});
+
+test('resource mapping converts V3 CLI vital grants into holdings without spreading extras', () => {
+  const c = configurator();
+  const input = {
+    id: 'resource_1',
+    permanenceMode: 'consumable',
+    vitals: [{ key: 'health', delta: 10 }],
+    _schemaVersion: 3,
+  };
+  const [mapped] = c.mapResources([input]);
+  expect(mapped).toMatchObject({
+    id: 'resource_1',
+    category: 'resource',
+    defeatVital: 'durability',
+    holdings: [{
+      id: 'resource_1', kind: 'vital', permanenceMode: 'consumable', claimedBy: null,
+      vitals: [{ key: 'health', delta: 10 }],
+    }],
+  });
+  expect(mapped.vitals.durability).toEqual({ current: 1, max: 1, regen: 0 });
+  expect(Object.hasOwn(mapped, 'permanenceMode')).toBe(false);
+  expect(Object.hasOwn(mapped, '_schemaVersion')).toBe(false);
+  expect(Array.isArray(mapped.vitals)).toBe(false);
+  input.vitals[0].delta = 99;
+  expect(mapped.holdings[0].vitals[0].delta).toBe(10);
+});
 // ## TODO: Test Permutations
 // - Resource CLI parser fixtures after its common request contract migration.
 

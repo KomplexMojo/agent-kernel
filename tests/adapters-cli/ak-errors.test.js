@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { mkdtempSync, writeFileSync, existsSync } = require("node:fs");
+const { mkdtempSync, writeFileSync, existsSync, readFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
 
@@ -45,49 +45,20 @@ function createTempDir(prefix) {
   return mkdtempSync(join(os.tmpdir(), prefix));
 }
 
-function createGridArtifacts(dir) {
-  const simConfig = {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "sim_config",
-      runId: "run_error",
-      createdAt: new Date().toISOString(),
-      producedBy: "test",
-    },
-    planRef: {
-      id: "plan_test",
-      schema: "agent-kernel/PlanArtifact",
-      schemaVersion: 1,
-    },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width: 2,
-        height: 2,
-        tiles: ["..", ".."],
-        legend: { ".": { tile: "floor" }, "#": { tile: "wall" } },
-        render: { wall: "#", floor: "." },
-      },
-    },
-  };
-  const initialState = {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "initial_state",
-      runId: "run_error",
-      createdAt: new Date().toISOString(),
-      producedBy: "test",
-    },
-    simConfigRef: {
-      id: simConfig.meta.id,
-      schema: simConfig.schema,
-      schemaVersion: simConfig.schemaVersion,
-    },
-    actors: [{ id: "actor_1", kind: "stationary" }],
-  };
+async function createGridArtifacts(dir) {
+  const { buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 2,
+    height: 2,
+    terrain: ["floor", "floor", "floor", "floor"],
+    actors: [{
+      id: "actor_1",
+      category: "delver",
+      position: { x: 0, y: 0 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
   const simConfigPath = join(dir, "sim-config.json");
   const initialStatePath = join(dir, "initial-state.json");
   writeJson(simConfigPath, simConfig);
@@ -210,9 +181,9 @@ test("cli run rejects initial state schema kind mismatch", (t) => {
   assert.match(result.stderr, /Expected schema/);
 });
 
-test("cli run rejects out-of-bounds tile overrides", (t) => {
+test("cli run rejects leftover tile-wall overrides outside terrain bounds", async () => {
   const tempDir = createTempDir("agent-kernel-cli-override-");
-  const { simConfigPath, initialStatePath } = createGridArtifacts(tempDir);
+  const { simConfigPath, initialStatePath } = await createGridArtifacts(tempDir);
   const result = runCliExpectFailure([
     "run",
     "--sim-config",
@@ -220,15 +191,46 @@ test("cli run rejects out-of-bounds tile overrides", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",    "--tile-wall",
+    "0",
+    "--tile-wall",
     "5,5",
   ]);
   assert.match(result.stderr, /tile override out of bounds/);
 });
 
-test("cli run rejects malformed vital specs", (t) => {
+test("cli run converts leftover tile-barrier into a barrier actor", async () => {
+  const tempDir = createTempDir("agent-kernel-cli-barrier-");
+  const { simConfigPath, initialStatePath } = await createGridArtifacts(tempDir);
+  const outDir = join(tempDir, "out");
+  const result = spawnSync(process.execPath, [
+    CLI,
+    "run",
+    "--sim-config",
+    simConfigPath,
+    "--initial-state",
+    initialStatePath,
+    "--ticks",
+    "0",
+    "--tile-barrier",
+    "1,1",
+    "--out-dir",
+    outDir,
+  ], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const resolved = JSON.parse(readFileSync(join(outDir, "resolved-initial-state.json"), "utf8"));
+  assert.equal(resolved.presentation?.barrier_1_1?.category, "barrier");
+  const barrier = resolved.actors.find((actor) => actor.id === "barrier_1_1");
+  assert.ok(barrier, "barrier actor must be in resolved initial-state");
+  assert.deepEqual(barrier.position, { x: 1, y: 1 });
+  assert.equal(barrier.capabilities?.blocksMovement, true);
+});
+
+test("cli run rejects malformed vital specs", async () => {
   const tempDir = createTempDir("agent-kernel-cli-override-");
-  const { simConfigPath, initialStatePath } = createGridArtifacts(tempDir);
+  const { simConfigPath, initialStatePath } = await createGridArtifacts(tempDir);
   const result = runCliExpectFailure([
     "run",
     "--sim-config",
@@ -236,15 +238,16 @@ test("cli run rejects malformed vital specs", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",    "--vital",
+    "0",
+    "--vital",
     "actor_1,health,1,2",
   ]);
   assert.match(result.stderr, /--vital expects actorId,vital,current,max,regen/);
 });
 
-test("cli run rejects invalid actor kind", (t) => {
+test("cli run rejects invalid actor kind", async () => {
   const tempDir = createTempDir("agent-kernel-cli-override-");
-  const { simConfigPath, initialStatePath } = createGridArtifacts(tempDir);
+  const { simConfigPath, initialStatePath } = await createGridArtifacts(tempDir);
   const result = runCliExpectFailure([
     "run",
     "--sim-config",
@@ -252,10 +255,11 @@ test("cli run rejects invalid actor kind", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",    "--actor",
+    "0",
+    "--actor",
     "actor_x,0,0,unknown",
   ]);
-  assert.match(result.stderr, /--actor kind/);
+  assert.match(result.stderr, /--actor kind|unknown actor field/);
 });
 
 test("cli solve rejects plan schema mismatch", () => {

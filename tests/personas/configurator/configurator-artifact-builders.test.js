@@ -25,5 +25,29 @@ test('initial-state builder rejects duplicate IDs and obsolete resolved-effects 
   assert.throws(() => buildInitialStateArtifact({ ...input, actors: [input.actors[0], input.actors[0]] }), /duplicate actor id/);
   assert.throws(() => buildInitialStateArtifact({ ...input, resolvedEffects: {} }), /resolvedEffects/);
 });
+test('sim-config builder requires an explicitly authored movement cost map', async () => {
+  const { createConfiguratorPersona } = await import('../../../packages/runtime/src/personas/configurator/controller.js');
+  const c = createConfiguratorPersona({ clock: () => '2026-09-10T00:00:00.000Z' });
+  for (const movementStamina of [undefined, null]) {
+    assert.throws(() => c.buildSimConfigArtifact({ ...fixture.input.simConfig, movementStamina }), /movement stamina/);
+  }
+});
+test('sim-config builder strips leftover category storage and still rejects unknown extras', async () => {
+  const { createConfiguratorPersona } = await import('../../../packages/runtime/src/personas/configurator/controller.js');
+  const c = createConfiguratorPersona({ clock: () => '2026-09-10T00:00:00.000Z' });
+  const layout = { ...fixture.input.simConfig.layout, budgetScaffold: true, hazards: [], tiles: ['....'] };
+  const sim = c.buildSimConfigArtifact({ ...fixture.input.simConfig, layout });
+  assert.equal(Object.hasOwn(sim.layout.data, 'budgetScaffold'), false);
+  assert.equal(Object.hasOwn(sim.layout.data, 'hazards'), false);
+  assert.equal(Object.hasOwn(sim.layout.data, 'tiles'), false);
+  assert.deepEqual(sim.layout.data, fixture.input.simConfig.layout);
+  assert.throws(
+    () => c.buildSimConfigArtifact({
+      ...fixture.input.simConfig,
+      layout: { ...layout, extraGeometry: true },
+    }),
+    /unsupported normalized layout fields: extraGeometry/,
+  );
+});
 // ## TODO: Test Permutations
 // - Migrate Director and CLI fresh authoring requests to these same production builders.

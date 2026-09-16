@@ -53,15 +53,16 @@ export function buildAction({
   params?: JsonRecord;
   personaRef?: string;
 }) {
-  return {
+  const action: Record<string, unknown> = {
     schema: ACTION_SCHEMA,
     schemaVersion: 1,
     actorId,
     tick,
     kind,
-    params,
     personaRef,
   };
+  if (kind !== "wait") action.params = params;
+  return action;
 }
 
 export function buildSolverRequestEffect({

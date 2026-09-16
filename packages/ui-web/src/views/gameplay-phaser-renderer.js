@@ -76,6 +76,58 @@ function inferActorRole(actor = {}) {
   return "delver";
 }
 
+function presentationById(boardState) {
+  const presentation = boardState?.initialState?.presentation;
+  if (!presentation || typeof presentation !== "object" || Array.isArray(presentation)) return {};
+  return presentation;
+}
+
+function actorPresentationCategory(actor, presentation) {
+  const fromActor = actor?.category ?? actor?.presentation?.category;
+  if (typeof fromActor === "string" && fromActor.trim()) return fromActor.trim().toLowerCase();
+  const id = typeof actor?.id === "string" ? actor.id : "";
+  const fromMap = id ? presentation?.[id]?.category : "";
+  if (typeof fromMap === "string" && fromMap.trim()) return fromMap.trim().toLowerCase();
+  return "";
+}
+
+function isHazardActor(actor, presentation) {
+  return actorPresentationCategory(actor, presentation) === "hazard";
+}
+
+function isResourceActor(actor, presentation) {
+  return actorPresentationCategory(actor, presentation) === "resource";
+}
+
+function collectCategoryDrawModels(boardState, isMatch) {
+  const presentation = presentationById(boardState);
+  const out = [];
+  const seen = new Set();
+  const add = (model) => {
+    if (!model || typeof model !== "object") return;
+    const id = typeof model.id === "string" && model.id ? model.id : "";
+    const x = Number.isFinite(model?.position?.x) ? model.position.x : null;
+    const y = Number.isFinite(model?.position?.y) ? model.position.y : null;
+    const key = id || (x !== null && y !== null ? `${x},${y}` : "");
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(model);
+  };
+  const actors = Array.isArray(boardState?.observation?.actors) ? boardState.observation.actors : [];
+  for (const actor of actors) {
+    if (isMatch(actor, presentation)) add(actor);
+  }
+  return out;
+}
+
+function collectHazardDrawModels(boardState) {
+  return collectCategoryDrawModels(boardState, isHazardActor);
+}
+
+function collectResourceDrawModels(boardState) {
+  return collectCategoryDrawModels(boardState, isResourceActor);
+}
+
 function actorDiagnostics(actors = []) {
   return actors
     .map((actor) => {
@@ -1076,6 +1128,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     const worldChanged = worldWidth !== cameraState.worldWidth || worldHeight !== cameraState.worldHeight;
     cameraState.worldWidth = worldWidth;
     cameraState.worldHeight = worldHeight;
+    const presentation = presentationById(boardState);
     const actors = Array.isArray(boardState?.observation?.actors) ? boardState.observation.actors : [];
     if (stageEl?.dataset) {
       const diagnostics = actorDiagnostics(actors);
@@ -1206,6 +1259,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
     else wallG.destroy();
 
     for (const actor of actors) {
+      if (isHazardActor(actor, presentation) || isResourceActor(actor, presentation)) continue;
       const ax = Number.isFinite(actor?.position?.x) ? actor.position.x : null;
       const ay = Number.isFinite(actor?.position?.y) ? actor.position.y : null;
       if (ax === null || ay === null) continue;
@@ -1225,7 +1279,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       currentContainer.add(actorImage);
     }
 
-    const hazards = Array.isArray(boardState?.observation?.hazards) ? boardState.observation.hazards : [];
+    const hazards = collectHazardDrawModels(boardState);
     for (const hazard of hazards) {
       const hx = Number.isFinite(hazard?.position?.x) ? hazard.position.x : null;
       const hy = Number.isFinite(hazard?.position?.y) ? hazard.position.y : null;
@@ -1245,7 +1299,7 @@ export function createGameplayPhaserRenderer({ loadPhaser = defaultLoadPhaser, o
       currentContainer.add(hazardShape);
     }
 
-    const resources = Array.isArray(boardState?.observation?.resources) ? boardState.observation.resources : [];
+    const resources = collectResourceDrawModels(boardState);
     for (const resource of resources) {
       const rx = Number.isFinite(resource?.position?.x) ? resource.position.x : null;
       const ry = Number.isFinite(resource?.position?.y) ? resource.position.y : null;

@@ -90,7 +90,7 @@ async function walk(from, steps) {
   for (let i = 0; i < steps; i += 1) {
     const move = await proposeFrom(at);
     if (!move) break;
-    at = { x: move.params.to.x, y: move.params.to.y };
+    at = { x: move.params.target.x, y: move.params.target.y };
     path.push({ ...at });
   }
   return path;
@@ -138,7 +138,7 @@ test("every step is to an adjacent tile", async () => {
 test("an actor inside the room joins the perimeter rather than stalling", async () => {
   const move = await proposeFrom({ x: 4, y: 3 });
   assert.ok(move, "an actor away from the perimeter must still propose a move");
-  const to = move.params.to;
+  const to = move.params.target;
   const r = ROOMS[0];
   const before = Math.min(4 - r.x, r.x + r.width - 1 - 4, 3 - r.y, r.y + r.height - 1 - 3);
   const after = Math.min(to.x - r.x, r.x + r.width - 1 - to.x, to.y - r.y, r.y + r.height - 1 - to.y);
@@ -157,11 +157,11 @@ test("a non-patrolling actor still heads for the exit", async () => {
   // ANTI-VACUITY. Without this, deleting exit-seeking altogether would pass every test
   // above — and the change under test is meant to give `patrolling` its OWN behaviour,
   // not to remove exit-seeking from the actors that should have it.
-  const move = await proposeFrom({ x: 3, y: 3 }, { motivation: { kind: "exploring" }, role: "delver" });
+  const move = await proposeFrom({ x: 3, y: 3 }, { motivation: { kind: "exploring" }, alignment: "external" });
   assert.ok(move, "an exploring actor must still propose a move");
   assert.ok(
-    move.params.to.x < 3,
-    `exploring should close on the exit at (0,3), went to ${JSON.stringify(move.params.to)}`,
+    move.params.target.x < 3,
+    `exploring should close on the exit at (0,3), went to ${JSON.stringify(move.params.target)}`,
   );
 });
 

@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "delver_acceptance-1",
-      "kind": "ambulatory",
       "position": {
         "x": 4,
         "y": 3
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -42,62 +44,31 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "traits": {
-        "affinities": {
-          "water": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
-    },
-    {
-      "id": "warden_acceptance-10",
-      "kind": "ambulatory",
-      "position": {
-        "x": 3,
-        "y": 2
-      },
-      "vitals": {
-        "health": {
-          "current": 12,
-          "max": 12,
-          "regen": 0
-        },
-        "mana": {
-          "current": 0,
-          "max": 0,
-          "regen": 0
-        },
-        "stamina": {
-          "current": 30,
-          "max": 30,
-          "regen": 3
-        },
-        "durability": {
-          "current": 3,
-          "max": 3,
-          "regen": 0
-        }
-      },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
-      },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_acceptance-1",
-      "kind": "ambulatory",
       "position": {
         "x": 2,
         "y": 3
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -120,23 +91,78 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
+    },
+    {
+      "id": "warden_acceptance-10",
+      "position": {
+        "x": 3,
+        "y": 2
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
+      "vitals": {
+        "health": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 30,
+          "max": 30,
+          "regen": 3
+        },
+        "durability": {
+          "current": 3,
+          "max": 3,
+          "regen": 0
         }
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_acceptance-2",
-      "kind": "ambulatory",
       "position": {
         "x": 4,
         "y": 2
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -159,23 +185,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_acceptance-3",
-      "kind": "ambulatory",
       "position": {
         "x": 3,
         "y": 3
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -198,23 +232,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_acceptance-4",
-      "kind": "ambulatory",
       "position": {
         "x": 2,
         "y": 4
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -237,23 +279,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_acceptance-5",
-      "kind": "ambulatory",
       "position": {
         "x": 5,
         "y": 2
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -276,23 +326,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_acceptance-6",
-      "kind": "ambulatory",
       "position": {
         "x": 3,
         "y": 4
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -315,23 +373,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_acceptance-7",
-      "kind": "ambulatory",
       "position": {
         "x": 2,
         "y": 5
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -354,23 +420,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_acceptance-8",
-      "kind": "ambulatory",
       "position": {
         "x": 6,
         "y": 2
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -393,23 +467,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_acceptance-9",
-      "kind": "ambulatory",
       "position": {
         "x": 5,
         "y": 3
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -432,15 +514,56 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "delver_acceptance-1": {
+      "category": "delver"
+    },
+    "warden_acceptance-1": {
+      "category": "warden"
+    },
+    "warden_acceptance-10": {
+      "category": "warden"
+    },
+    "warden_acceptance-2": {
+      "category": "warden"
+    },
+    "warden_acceptance-3": {
+      "category": "warden"
+    },
+    "warden_acceptance-4": {
+      "category": "warden"
+    },
+    "warden_acceptance-5": {
+      "category": "warden"
+    },
+    "warden_acceptance-6": {
+      "category": "warden"
+    },
+    "warden_acceptance-7": {
+      "category": "warden"
+    },
+    "warden_acceptance-8": {
+      "category": "warden"
+    },
+    "warden_acceptance-9": {
+      "category": "warden"
+    }
+  }
 }

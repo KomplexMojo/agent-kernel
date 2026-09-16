@@ -6,14 +6,12 @@ import {
   RUNTIME_DECISION_CONTRACT,
   allowsLiveLlmRuntime,
   buildRuntimeDecisionEnvelope,
+  projectRuntimeDecisionActor,
   resolveRuntimeDecisionProviderPolicy,
 } from "../_shared/runtime-decision.mts";
 import { SOLVER_REQUEST_SCHEMA } from "../../contracts/artifacts.ts";
 import { buildActorIntention } from "../../contracts/actor-intention.js";
 import {
-  AFFINITY_EXPRESSIONS,
-  AFFINITY_KINDS,
-  AFFINITY_OPPOSITES,
   MOTIVATION_KINDS,
 } from "../../contracts/domain-constants.js";
 import {
@@ -24,8 +22,8 @@ import {
   getMotivationDefaultFlagMask,
   getMotivationMobilityTier,
   getMotivationReasoningClass,
-  resolveExposureVitalDeltas,
 } from "../../../../core-ts/src/index.ts";
+import { projectActorEquipmentFields, previewActorFieldChanges } from "../../../../core-ts/src/rules/actor-fields.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 import {
   DEFAULT_DELTAS,
@@ -39,7 +37,7 @@ import {
   buildAdjacentMoveProposals,
   chebyshevDistance,
   findPath,
-  isWarden,
+  actorCanExit,
 } from "./proposal-helpers.js";
 import { getMotivationModule } from "./motivations/index.js";
 
@@ -101,36 +99,6 @@ const ACTOR_DECISION_OBJECTIVE_ORDER = Object.freeze([
   "inputOrder",
 ]);
 
-/**
- * Affinity name -> core code. Positional, derived from the ordered vocabulary arrays
- * exactly as `runner/core-setup.mjs` derives its own copy: the authority is the ORDER
- * of `AFFINITY_KINDS` / `AFFINITY_EXPRESSIONS`, not either derived map, so adding a
- * kind cannot leave the two disagreeing.
- */
-const AFFINITY_KIND_CODE_BY_NAME = Object.freeze(
-  AFFINITY_KINDS.reduce((acc, kind, index) => {
-    acc[kind] = index + 1;
-    return acc;
-  }, {}),
-);
-const AFFINITY_EXPRESSION_CODE_BY_NAME = Object.freeze(
-  AFFINITY_EXPRESSIONS.reduce((acc, expression, index) => {
-    acc[expression] = index + 1;
-    return acc;
-  }, {}),
-);
-
-/** Accept either a core numeric code or a vocabulary name; 0 means "not an affinity". */
-function affinityKindCode(value) {
-  if (Number.isInteger(value)) return value > 0 && value <= AFFINITY_KINDS.length ? value : 0;
-  return AFFINITY_KIND_CODE_BY_NAME[String(value || "").trim().toLowerCase()] || 0;
-}
-
-function affinityExpressionCode(value) {
-  if (Number.isInteger(value)) return value > 0 && value <= AFFINITY_EXPRESSIONS.length ? value : 0;
-  return AFFINITY_EXPRESSION_CODE_BY_NAME[String(value || "").trim().toLowerCase()] || 0;
-}
-
 const VITAL_KEYS_BY_CODE = Object.freeze({
   [VitalKind.Health]: "health",
   [VitalKind.Mana]: "mana",
@@ -150,8 +118,7 @@ const MOTIVATION_KIND_CODES = Object.freeze(
   }, {}),
 );
 
-function buildMotivationProfile(view, actorId, payload) {
-  const rawKind = resolveActorMotivationKind(view, actorId, payload);
+function buildMotivationProfile(view, actorId, payload, rawKind = resolveActorMotivationKind(view, actorId, payload)) {
   const kind = typeof rawKind === "string" ? rawKind.trim().toLowerCase() : "";
   const kindCode = MOTIVATION_KIND_CODES[kind];
   if (!Number.isFinite(kindCode)) return undefined;
@@ -224,7 +191,7 @@ const ACTOR_INTENT_CLASS = Object.freeze({
  *
  * Pure: positions, profile and the visible-actor list in, `{ intentClass, intentTag }` out.
  */
-export function classifyActorIntent({ action, actorPosition, motivationProfile, visibleActors, exit } = {}) {
+export function classifyActorIntent({ action, actorPosition, actorRecord, motivationProfile, visibleActors, exit } = {}) {
   const none = { intentClass: ACTOR_INTENT_CLASS.NONE, intentTag: "profile_mismatch" };
   if (!action || !actorPosition || !motivationProfile) return none;
   const seen = Array.isArray(visibleActors) ? visibleActors : [];
@@ -236,9 +203,9 @@ export function classifyActorIntent({ action, actorPosition, motivationProfile, 
     ? seen.find((entry) => entry?.id === explicitTargetId && entry.hostile === true)
     : null;
 
-  if ((action.kind === "attack" || action.kind === "cast_affinity")
+  if (action.kind === "cast_affinity"
     && motivationProfile.combatTier > 0
-    && actionCanReachTarget(action, actorPosition, explicitTarget)) {
+    && actionCanReachTarget(action, actorPosition, explicitTarget, actorRecord)) {
     return { intentClass: ACTOR_INTENT_CLASS.IN_RANGE_COMBAT, intentTag: "in_range_combat" };
   }
   if (action.kind === "move" && motivationProfile.mobilityTier > 0) {
@@ -258,6 +225,9 @@ export function classifyActorIntent({ action, actorPosition, motivationProfile, 
       return { intentClass: ACTOR_INTENT_CLASS.MOBILE_RETREAT, intentTag: "mobile_retreat" };
     }
     return { intentClass: ACTOR_INTENT_CLASS.MOBILE_LATERAL, intentTag: "mobile_lateral" };
+  }
+  if (action.kind === "equip_affinity" || action.kind === "take") {
+    return { intentClass: ACTOR_INTENT_CLASS.WAIT, intentTag: action.kind };
   }
   if (action.kind === "wait") {
     return { intentClass: ACTOR_INTENT_CLASS.WAIT, intentTag: "wait" };
@@ -318,8 +288,6 @@ export const actorSubscribePhases = Object.freeze([TickPhases.OBSERVE, TickPhase
 const SOLVER_ENGINE = "z3";
 
 
-const MOTIVATED_KIND = 2;
-
 // CR.6 — AFFINITY_EXPRESSION_IDS, MOTIVATION_IDS, normalizeMotivationTier,
 // resolveMotivationId, resolveAffinityExpressionId, hasBudgetAllowance and
 // filterBudgetedProposals all moved to
@@ -332,41 +300,10 @@ function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function isMotivatedKind(kind) {
-  if (typeof kind === "number") return kind === MOTIVATED_KIND;
-  // The actor contract only uses "stationary" | "ambulatory".
-  // "ambulatory" actors CAN move and should have their proposals accepted.
-  // Treat both "motivated" (legacy) and "ambulatory" as proposal-eligible.
-  if (typeof kind === "string") {
-    const k = kind.toLowerCase();
-    return k === "motivated" || k === "ambulatory";
-  }
-  return false;
-}
-
-function resolveActorKind(view, actorId, observation) {
-  if (view?.actors && Array.isArray(view.actors)) {
-    const matchId = actorId || observation?.actorId;
-    const selected = matchId ? view.actors.find((actor) => actor?.id === matchId) : view.actors[0];
-    if (selected && selected.kind !== undefined) {
-      return selected.kind;
-    }
-  }
-  if (view?.actor && (!actorId || view.actor.id === actorId)) {
-    if (view.actor.kind !== undefined) {
-      return view.actor.kind;
-    }
-  }
-  if (!actorId && observation?.actorId && observation?.kind !== undefined) {
-    return observation.kind;
-  }
-  return null;
-}
-
-function isMotivatedActor(actorId, view, observation) {
+function isEligibleActor(actorId, view, observation) {
   if (!actorId) return false;
-  const kind = resolveActorKind(view, actorId, observation);
-  return isMotivatedKind(kind);
+  const actor = resolveActorRecord(view, actorId, observation);
+  return Boolean(actor) && actor.lifecycle !== "defeated" && actor.lifecycle !== "exited";
 }
 
 
@@ -396,7 +333,7 @@ function resolveConfiguredActor(payload, actorId) {
 
 
 
-function buildCandidateActionId(proposal, index) {
+function buildCandidateActionId(proposal, index, actorPosition = null) {
   if (!proposal || typeof proposal !== "object") {
     return `candidate_${index + 1}`;
   }
@@ -408,15 +345,18 @@ function buildCandidateActionId(proposal, index) {
     : "candidate";
   const params = isObject(proposal.params) ? proposal.params : proposal;
   if (kind === "move") {
-    const direction = typeof params.direction === "string" && params.direction.trim()
-      ? params.direction.trim().toLowerCase()
-      : null;
-    if (direction) return `move_${direction}`;
+    const target = isObject(params.target) ? params.target : null;
+    if (actorPosition && Number.isInteger(target?.x) && Number.isInteger(target?.y)) {
+      const direction = DEFAULT_DELTAS.find((entry) => entry.dx === target.x - actorPosition.x
+        && entry.dy === target.y - actorPosition.y)?.direction;
+      if (direction) return `move_${direction}`;
+    }
   }
   const targetId = typeof params.targetId === "string" && params.targetId.trim()
     ? params.targetId.trim()
     : null;
   if (targetId) {
+    if (kind === "take") return `take:${encodeURIComponent(targetId)}:${encodeURIComponent(params.holdingId)}`;
     return `${kind}_${targetId}`;
   }
   return `${kind}_${index + 1}`;
@@ -454,7 +394,7 @@ function buildRuntimeDecisionCandidateActions({ actor, actorId, tick, proposals 
     }
     const kind = typeof proposal.kind === "string" && proposal.kind.trim() ? proposal.kind.trim() : "custom";
     addCandidate(
-      buildCandidateActionId(proposal, index),
+      buildCandidateActionId(proposal, index, actor?.position),
       buildAction({
         tick,
         kind,
@@ -468,7 +408,7 @@ function buildRuntimeDecisionCandidateActions({ actor, actorId, tick, proposals 
   const movementCandidates = buildAdjacentMoveProposals({ actor, tileKinds, baseTiles });
   movementCandidates.forEach((proposal, index) => {
     addCandidate(
-      buildCandidateActionId(proposal, proposalList.length + index),
+      buildCandidateActionId(proposal, proposalList.length + index, actor?.position),
       buildAction({
         tick,
         kind: proposal.kind,
@@ -486,7 +426,6 @@ function buildRuntimeDecisionCandidateActions({ actor, actorId, tick, proposals 
       kind: "wait",
       actorId,
       personaRef: "actor",
-      params: {},
     }),
   );
 
@@ -499,90 +438,40 @@ function buildRuntimeDecisionCandidateActions({ actor, actorId, tick, proposals 
  *
  * ⚠️ **`hostile` is stamped here so the SOLVER path cannot reach a different
  * answer than the deterministic one.** `resolveNearestHostile` below applies
- * `rolesAreAllied` and skips allies; the Z3 adapter ranks `visibleActors` and
+ * `alignmentsAreAllied` and skips allies; the Z3 adapter ranks `visibleActors` and
  * had no faction concept at all, so a run routed through the solver kept
  * closing on its own allies after DS.2 fixed the other path. Sending the ruling
- * rather than the raw roles keeps ONE allegiance authority: an adapter that
- * compared roles itself would be free to disagree with this function — and
- * would have to re-derive the fail-safe in `rolesAreAllied`, which is exactly
+ * rather than the raw alignments keeps ONE allegiance authority: an adapter that
+ * compared alignments itself would be free to disagree with this function — and
+ * would have to re-derive the fail-safe in `alignmentsAreAllied`, which is exactly
  * the kind of quietly divergent second rule (F10) this codebase has removed
  * once already.
  *
- * The self role is read from the observation, the same source
+ * The self alignment is read from the observation, the same source
  * `resolveNearestHostile` reads, so the two paths agree by construction rather
  * than by coincidence. `hostile` is always present and always a boolean:
- * unknown roles resolve to `true`, never to a missing field, because a consumer
+ * unknown alignments resolve to `true`, never to a missing field, because a consumer
  * defaulting an absent flag has to guess and half of them would guess "allied".
  */
-function resolveVisibleActors(view, actorId) {
-  const actors = Array.isArray(view?.actors) ? view.actors : [];
-  const selfRole = actors.find((entry) => entry && entry.id === actorId)?.role;
-  return actors
-    .filter((entry) => entry && entry.id && entry.id !== actorId)
-    .map((entry) => {
-      const next = {
-        id: entry.id,
-      };
-      if (entry.kind !== undefined) next.kind = entry.kind;
-      if (entry.role !== undefined) next.role = entry.role;
-      if (entry.position) next.position = { ...entry.position };
-      if (entry.vitals) next.vitals = JSON.parse(JSON.stringify(entry.vitals));
-      next.hostile = !rolesAreAllied(selfRole, entry.role);
-      return next;
-    });
+function alignmentsAreAllied(selfAlignment, otherAlignment) {
+  if (typeof selfAlignment !== "string" || typeof otherAlignment !== "string") return false;
+  const self = selfAlignment.trim().toLowerCase();
+  const other = otherAlignment.trim().toLowerCase();
+  return Boolean(self && other && self === other);
 }
 
-function resolveHazards(payload, view) {
-  const hazards = [];
-  const seen = new Set();
+function decisionActorRecord(actor) {
+  return projectRuntimeDecisionActor(actor);
+}
 
-  function addHazard(entry) {
-    if (!entry || typeof entry !== "object") return;
-    const position = isObject(entry.position)
-      ? { ...entry.position }
-      : Number.isFinite(entry.x) && Number.isFinite(entry.y)
-        ? { x: entry.x, y: entry.y }
-        : null;
-    if (!position) return;
-    const kind = "hazard";
-    const id = typeof entry.id === "string" && entry.id.trim()
-      ? entry.id.trim()
-      : `${kind}_${position.x}_${position.y}`;
-    const key = `${id}:${position.x}:${position.y}:${kind}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    const next = { id, kind, position };
-    const affinity = typeof entry.affinity === "string" && entry.affinity.trim()
-      ? entry.affinity.trim()
-      : typeof entry.affinity?.kind === "string" && entry.affinity.kind.trim()
-        ? entry.affinity.kind.trim()
-        : null;
-    const expression = typeof entry.expression === "string" && entry.expression.trim()
-      ? entry.expression.trim()
-      : typeof entry.affinity?.expression === "string" && entry.affinity.expression.trim()
-        ? entry.affinity.expression.trim()
-        : null;
-    const stacks = Number.isFinite(entry.stacks)
-      ? entry.stacks
-      : Number.isFinite(entry.affinity?.stacks)
-        ? entry.affinity.stacks
-        : null;
-    if (expression) next.expression = expression;
-    if (affinity) next.affinity = affinity;
-    if (Number.isFinite(stacks)) next.stacks = Math.max(1, Math.trunc(stacks));
-    hazards.push(next);
-  }
-
-  const explicitHazards = Array.isArray(payload?.hazards) ? payload.hazards : [];
-  explicitHazards.forEach((entry) => addHazard(entry));
-
-  const viewHazards = Array.isArray(view?.hazards) ? view.hazards : [];
-  viewHazards.forEach((entry) => addHazard(entry));
-
-  const affinityHazards = Array.isArray(payload?.affinityEffects?.hazards) ? payload.affinityEffects.hazards : [];
-  affinityHazards.forEach((entry) => addHazard(entry));
-
-  return hazards;
+function resolveVisibleActors(view, actorId) {
+  const actors = Array.isArray(view?.actors) ? view.actors : [];
+  const selfAlignment = actors.find(entry => entry?.id === actorId)?.alignment;
+  return actors.filter(entry => entry?.id && entry.id !== actorId).map(entry => ({
+    ...decisionActorRecord(entry),
+    hostile: !["defeated", "exited"].includes(entry.lifecycle)
+      && !alignmentsAreAllied(selfAlignment, entry.alignment),
+  }));
 }
 
 function extractMotivationGoals(configuredActor) {
@@ -605,15 +494,15 @@ function extractMotivationGoals(configuredActor) {
 
 function buildRuntimeDecisionObjectives({ configuredActor, visibleActors, exit }) {
   const objectives = {};
-  const role = typeof configuredActor?.role === "string" && configuredActor.role.trim()
-    ? configuredActor.role.trim()
+  const alignment = typeof configuredActor?.alignment === "string" && configuredActor.alignment.trim()
+    ? configuredActor.alignment.trim()
     : null;
-  if (role) {
-    objectives.role = role;
+  if (alignment) {
+    objectives.alignment = alignment;
   }
-  const seeksExit = Boolean(exit) && !isWarden(configuredActor);
+  const seeksExit = Boolean(exit) && actorCanExit(configuredActor);
   if (visibleActors.length > 0) {
-    objectives.primary = role === "boss" ? "control_visible_opponents" : "resolve_visible_contacts";
+    objectives.primary = "resolve_visible_contacts";
     objectives.visibleContactCount = visibleActors.length;
   } else if (seeksExit) {
     objectives.primary = "advance_to_exit";
@@ -652,8 +541,8 @@ function nearestHostile(position, visibleActors) {
 }
 
 function candidateEndPosition(action, actorPosition) {
-  return action?.kind === "move" && isObject(action?.params?.to)
-    ? action.params.to
+  return action?.kind === "move" && isObject(action?.params?.target)
+    ? action.params.target
     : actorPosition;
 }
 
@@ -697,121 +586,38 @@ function reserveRatio(current, max) {
 
 function castReserveRank(action, actorRecord) {
   if (action?.kind !== "cast_affinity") return { rank: 0, source: "not_cast" };
-  const affinityKind = typeof action?.params?.kind === "string"
-    ? action.params.kind.trim().toLowerCase()
-    : "";
-  const grant = (Array.isArray(actorRecord?.affinityGrants) ? actorRecord.affinityGrants : [])
-    .find((entry) => typeof entry?.kind === "string" && entry.kind.trim().toLowerCase() === affinityKind);
-  if (grant) return { rank: reserveRatio(grant.mana, grant.manaMax), source: "affinity_grant" };
   const mana = actorRecord?.vitals?.mana;
   return { rank: reserveRatio(mana?.current, mana?.max), source: "actor_mana" };
 }
 
-function actionCanReachTarget(action, origin, target) {
+function actionCanReachTarget(action, origin, target, actorRecord) {
   const distance = chebyshevDistance(origin, target?.position);
   if (!Number.isFinite(distance)) return false;
-  if (action?.kind === "attack") return distance <= 1;
   if (action?.kind !== "cast_affinity") return false;
-  const expression = typeof action?.params?.expression === "string"
-    ? action.params.expression.trim().toLowerCase()
-    : "push";
-  const stacks = Number.isInteger(action?.params?.stacks) && action.params.stacks > 0
-    ? action.params.stacks
-    : 1;
-  return expression === "push" || expression === "pull" ? distance <= stacks : distance <= 1;
+  const pair = actorRecord?.affinities?.find(entry => `${entry.kind}:${entry.expression}` === actorRecord.activeAffinityKey);
+  return actorRecord?.capabilities?.canCast !== false
+    && Boolean(pair && ["push", "pull"].includes(pair.expression) && distance <= pair.stacks);
 }
 
-/**
- * The observer's live affinity for a field of `fieldKind`, or null when it has none
- * that relates to it.
- *
- * LIVE GRANTS, NOT CONFIGURED ABILITIES (maintainer, 2026-09-04). `affinityGrants` is
- * read from core and carries real per-grant `stacks`, so resistance tracks what the
- * actor actually holds right now rather than what it was authored with.
- *
- * A grant of the field's OWN kind is preferred over one of its opposite, because an
- * actor holding both should read the field as its own rather than as its enemy —
- * immunity is the more specific claim. Beyond that the first match wins, in grant
- * order, which is stable because the grant list is read from core in slot order.
- */
-function observerAffinityForField(actorRecord, fieldKindCode) {
-  if (!fieldKindCode) return null;
-  const grants = Array.isArray(actorRecord?.affinityGrants) ? actorRecord.affinityGrants : [];
-  const usable = grants.filter((grant) => Number.isInteger(grant?.stacks) && grant.stacks > 0
-    && affinityKindCode(grant?.kind) > 0);
-  const oppositeName = AFFINITY_OPPOSITES[AFFINITY_KINDS[fieldKindCode - 1]];
-  const oppositeCode = affinityKindCode(oppositeName);
-  return usable.find((grant) => affinityKindCode(grant.kind) === fieldKindCode)
-    || usable.find((grant) => affinityKindCode(grant.kind) === oppositeCode)
-    || null;
-}
-
-function fieldUtilityRanks({ endPosition, affinityFields, actorRecord }) {
+function fieldUtilityRanks({ endPosition, affinityFields, affinityContributions, actorRecord, action }) {
+  const receiver = action?.kind === "equip_affinity"
+    ? { ...actorRecord, activeAffinityKey: action.params.affinityKey } : actorRecord;
+  const fields = Array.isArray(affinityContributions) && receiver
+    ? projectActorEquipmentFields({ ...receiver, position: endPosition }, endPosition, affinityContributions)
+    : (Array.isArray(affinityFields) ? affinityFields : []).filter(field =>
+    field.position?.x === endPosition?.x && field.position?.y === endPosition?.y);
+  const changes = fields.length && receiver
+    ? previewActorFieldChanges(receiver, fields) : [];
   const effectsByVital = new Map();
-  const fields = Array.isArray(affinityFields) ? affinityFields : [];
-  for (const field of fields) {
-    const position = field?.position;
-    if (!position || position.x !== endPosition?.x || position.y !== endPosition?.y) continue;
-    const effects = Array.isArray(field?.vitalEffects) ? field.vitalEffects : [];
-    // Stage A: the same tile is not equally dangerous to everyone. Where the actor holds
-    // an affinity related to this field, core re-resolves the effect against it; where it
-    // does not, `resolveExposureVitalEffect` returns the field's own number and this is
-    // exactly the previous behavior.
-    // Fields and grants speak different dialects of the same vocabulary: core's field
-    // readers emit NUMERIC kind/expression codes, while grant records carry lowercase
-    // NAMES. Normalizing both here rather than assuming one is what keeps this from
-    // silently doing nothing — an earlier draft read only names and resolved no field
-    // at all, which every existing test still passed.
-    const fieldKindCode = affinityKindCode(field?.kind);
-    const fieldExpressionCode = affinityExpressionCode(field?.expression);
-    const observer = observerAffinityForField(actorRecord, fieldKindCode);
-    const observerKindCode = observer ? affinityKindCode(observer.kind) : 0;
-    const observerExpressionCode = observer ? affinityExpressionCode(observer.expression) : 0;
-    const canResolve = observerKindCode > 0 && fieldKindCode > 0
-      && fieldExpressionCode > 0 && observerExpressionCode > 0;
-
-    for (const entry of effects) {
-      if (!Number.isInteger(entry?.vital) || !Number.isInteger(entry?.effect)) continue;
-      if (!Object.hasOwn(VITAL_KEYS_BY_CODE, entry.vital)) continue;
-      // A.2: one field effect can land on a DIFFERENT vital than the one it would have
-      // harmed -- a draw-expression actor converts a same-kind field into mana rather
-      // than taking the hit -- so this accumulates a set of deltas, not one number.
-      const deltas = canResolve
-        ? resolveExposureVitalDeltas({
-          baseEffect: entry.effect,
-          vital: entry.vital,
-          fieldKind: fieldKindCode,
-          fieldExpression: fieldExpressionCode,
-          observerKind: observerKindCode,
-          observerExpression: observerExpressionCode,
-        })
-        : [{ vital: entry.vital, effect: entry.effect }];
-      for (const delta of deltas) {
-        if (!Object.hasOwn(VITAL_KEYS_BY_CODE, delta.vital)) continue;
-        effectsByVital.set(delta.vital, (effectsByVital.get(delta.vital) || 0) + delta.effect);
-      }
-    }
+  for (const { vital, delta } of changes) {
+    const code = Number(Object.keys(VITAL_KEYS_BY_CODE).find(key => VITAL_KEYS_BY_CODE[key] === vital));
+    effectsByVital.set(code, (effectsByVital.get(code) || 0) + delta);
   }
-
-  let harmfulMagnitude = 0;
-  let beneficialMagnitude = 0;
-  const effects = [...effectsByVital.entries()]
-    .sort(([left], [right]) => left - right)
+  const effects = [...effectsByVital.entries()].sort(([left], [right]) => left - right)
     .map(([vital, effect]) => ({ vital, effect }));
-  for (const { vital, effect } of effects) {
-    if (effect < 0) {
-      harmfulMagnitude += -effect;
-      continue;
-    }
-    const vitalRecord = actorRecord?.vitals?.[VITAL_KEYS_BY_CODE[vital]];
-    const missingCapacity = Number.isFinite(vitalRecord?.max) && Number.isFinite(vitalRecord?.current)
-      ? Math.max(0, Math.trunc(vitalRecord.max) - Math.trunc(vitalRecord.current))
-      : 0;
-    beneficialMagnitude += Math.min(effect, missingCapacity);
-  }
   return {
-    safety: -harmfulMagnitude,
-    benefit: beneficialMagnitude,
+    safety: -changes.reduce((sum, change) => sum + Math.max(0, -change.delta), 0),
+    benefit: changes.reduce((sum, change) => sum + Math.max(0, change.delta), 0),
     effects,
   };
 }
@@ -832,19 +638,20 @@ function fieldUtilityRanks({ endPosition, affinityFields, actorRecord }) {
  * candidate this branch selects is unchanged — proved by `actor-decision-objective`'s legacy
  * rows, which assert the selected candidate rather than the raw score.
  */
-function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, candidateActions, exit, affinityFields }) {
+function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, candidateActions, exit, affinityFields, affinityContributions }) {
   const visiblePositions = visibleActors
     .filter((entry) => entry?.hostile !== false && entry?.position)
     .map((entry) => entry.position);
-  const exitTarget = isWarden(actorRecord) || isWarden(actor) ? null : exit;
+  const exitTarget = actorCanExit(actorRecord) && actorCanExit(actor) ? exit : null;
   return candidateActions.map((candidate, index) => {
     const action = candidate.action;
     const endPosition = candidateEndPosition(action, actor.position);
     let score = ACTOR_INTENT_CLASS.NONE;
     let ruleId = "no_match";
-    if (action?.kind === "attack") {
+    if (action?.kind === "cast_affinity" && actionCanReachTarget(action, actor.position,
+      visibleActors.find((entry) => entry?.id === action?.params?.targetId), actorRecord)) {
       score = ACTOR_INTENT_CLASS.IN_RANGE_COMBAT;
-      ruleId = "attack";
+      ruleId = "cast_affinity";
     } else if (action?.kind === "move" && visiblePositions.some((target) => {
       const before = chebyshevDistance(actor.position, target);
       const after = chebyshevDistance(endPosition, target);
@@ -873,7 +680,7 @@ function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, can
       score = ACTOR_INTENT_CLASS.WAIT;
       ruleId = "wait";
     }
-    const field = fieldUtilityRanks({ endPosition, affinityFields, actorRecord });
+    const field = fieldUtilityRanks({ endPosition, affinityFields, affinityContributions, actorRecord, action });
     return {
       candidateActionId: candidate.id,
       rank: [score, 0, 0, 0, field.safety, field.benefit, 0, 0, -index],
@@ -894,12 +701,41 @@ function buildCompatibilityDecisionRows({ actor, actorRecord, visibleActors, can
   });
 }
 
-function buildActorDecisionObjective({
+function compareDecisionRanks(left, right) {
+  const slot = left.findIndex((value, index) => value !== right[index]);
+  return slot < 0 ? 0 : left[slot] - right[slot];
+}
+
+function buildActorDecisionObjective({ motivationProfiles, ...inputs }) {
+  const profiles = Array.isArray(motivationProfiles) && motivationProfiles.length > 0
+    ? motivationProfiles
+    : [inputs.motivationProfile];
+  const objectives = profiles.map((motivationProfile) => buildProfileDecisionObjective({
+    ...inputs, motivationProfile,
+  }));
+  const objective = objectives[0];
+  if (!objective) return undefined;
+  return {
+    ...objective,
+    candidates: objective.candidates.map((row, index) => {
+      let best = row;
+      for (const alternative of objectives.slice(1)) {
+        const candidate = alternative?.candidates[index];
+        if (!candidate) continue;
+        if (compareDecisionRanks(candidate.rank, best.rank) > 0) best = candidate;
+      }
+      return best;
+    }),
+  };
+}
+
+function buildProfileDecisionObjective({
   actor,
   actorRecord,
   motivationProfile,
   visibleActors,
   affinityFields,
+  affinityContributions,
   candidateActions,
   proposals,
   exit,
@@ -914,6 +750,7 @@ function buildActorDecisionObjective({
       candidateActions,
       exit,
       affinityFields,
+      affinityContributions,
     });
     if (new Set(rows.map((entry) => entry.candidateActionId)).size !== rows.length) return undefined;
     return {
@@ -940,6 +777,7 @@ function buildActorDecisionObjective({
     const { intentClass, intentTag } = classifyActorIntent({
       action,
       actorPosition: actor.position,
+      actorRecord,
       motivationProfile,
       visibleActors,
       exit,
@@ -952,7 +790,7 @@ function buildActorDecisionObjective({
     const stealthRank = flags.includes("PrefersStealth") && beforeHostile && afterHostile
       ? afterHostile.distance - beforeHostile.distance
       : 0;
-    const field = fieldUtilityRanks({ endPosition, affinityFields, actorRecord });
+    const field = fieldUtilityRanks({ endPosition, affinityFields, affinityContributions, actorRecord, action });
     const reserve = castReserveRank(action, actorRecord);
     const rationaleTags = [intentTag];
     if (actorProposal) rationaleTags.push("actor_proposal");
@@ -1145,7 +983,6 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
     return null;
   }
   const visibleActors = resolveVisibleActors(view, actorId);
-  const hazards = resolveHazards(payload, view);
   const affinityFields = Array.isArray(observation?.affinityFields) ? observation.affinityFields : [];
   const motivationProfile = buildMotivationProfile(view, actorId, payload);
   const baseObjectives = buildRuntimeDecisionObjectives({
@@ -1157,8 +994,12 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
     actor,
     actorRecord,
     motivationProfile,
+    motivationProfiles: resolveActorMotivationKinds(view, actorId, payload)
+      .map((kind) => buildMotivationProfile(view, actorId, payload, kind))
+      .filter(Boolean),
     visibleActors,
     affinityFields,
+    affinityContributions: observation?.affinityContributions,
     candidateActions,
     proposals,
     exit,
@@ -1172,22 +1013,8 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
     decisionKind: "next_move",
     phase: "decide",
     tick,
-    actor: {
-      id: actorId,
-      role: decisionConfig.configuredActor?.role || actorRecord?.role,
-      kind: actorRecord?.kind,
-      position: actor.position ? { ...actor.position } : undefined,
-      vitals: isObject(actorRecord?.vitals) ? JSON.parse(JSON.stringify(actorRecord.vitals)) : undefined,
-      affinities: Array.isArray(actorRecord?.affinities)
-        ? JSON.parse(JSON.stringify(actorRecord.affinities))
-        : [],
-      affinityGrants: Array.isArray(actorRecord?.affinityGrants)
-        ? JSON.parse(JSON.stringify(actorRecord.affinityGrants))
-        : [],
-      motivationProfile,
-    },
+    actor: { ...decisionActorRecord(actorRecord), id: actorId, motivationProfile },
     visibleActors,
-    hazards,
     candidateActions,
     objectives,
     constraints: buildRuntimeDecisionConstraints({ actorRecord }),
@@ -1246,8 +1073,6 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
 
 // ── M5: Simple motivation helpers ──────────────────────────────────────────
 
-const DEFAULT_ATTACK_DAMAGE = 2; // M1 contract: fixed deterministic damage
-
 /**
  * Read the motivation kind string from the self-actor in the observation view.
  * Returns null if not found.
@@ -1281,7 +1106,7 @@ function resolveActorMotivationKinds(view, actorId, payload) {
     const seen = new Set();
     for (const entry of list) {
       const kind = typeof entry === "string" ? entry : entry?.kind;
-      if (typeof kind !== "string" || !kind || kind === "user_controlled") continue;
+      if (typeof kind !== "string" || !kind) continue;
       if (seen.has(kind)) continue;
       seen.add(kind);
       kinds.push(kind);
@@ -1325,31 +1150,6 @@ function resolveActorMotivationParams(view, actorId, payload, kind) {
 }
 
 /**
- * DS.2 — are these two actors on the same side?
- *
- * Maintainer ruling 2026-08-20: delvers are friendly to delvers, wardens are
- * friendly to wardens, delvers and wardens are hostile to each other. There are
- * only ever two actor roles in this game (`contracts/artifacts.ts` types the
- * category as `"delver" | "warden"`), so `role` already IS a complete faction
- * system and no new field was introduced to represent one.
- *
- * ⚠️ **Unknown roles are treated as HOSTILE, deliberately.** The tempting
- * formulation is `selfRole === otherRole -> allied`, but two *missing* roles
- * compare equal, which would make every actor in a run without role data
- * everyone else's ally and quietly pacify the entire game — combat would stop,
- * and every test asserting "does not attack an ally" would still pass. So this
- * answers "allied" only when BOTH roles are actually known and equal, and the
- * caller's default is to remain hostile. Fail-safe toward the previous
- * behaviour, never toward a silent ceasefire.
- */
-function rolesAreAllied(selfRole, otherRole) {
-  if (typeof selfRole !== "string" || typeof otherRole !== "string") return false;
-  const self = selfRole.trim().toLowerCase();
-  const other = otherRole.trim().toLowerCase();
-  if (!self || !other) return false;
-  return self === other;
-}
-
 /**
  * Find the nearest HOSTILE actor by Chebyshev distance, skipping allies.
  * Returns { actor, distance } or null if no hostile actor exists.
@@ -1367,7 +1167,8 @@ function resolveNearestHostile(view, actorId) {
   let nearestDist = Infinity;
   for (const other of view.actors) {
     if (!other || other.id === actorId || !other.position) continue;
-    if (rolesAreAllied(selfActor.role, other.role)) continue;
+    if (["defeated", "exited"].includes(other.lifecycle)) continue;
+    if (alignmentsAreAllied(selfActor.alignment, other.alignment)) continue;
     const dist = Math.max(
       Math.abs(other.position.x - selfActor.position.x),
       Math.abs(other.position.y - selfActor.position.y),
@@ -1458,9 +1259,14 @@ function motivationHasCombatRole(motivationKind) {
   return getMotivationCombatTier(code) > 0;
 }
 
-function buildAffinityCastProposal({ actor, affinities: rawAffinities, hostile }) {
+function buildAffinityCastProposal({ actor, actorRecord, hostile }) {
+  if (actorRecord?.capabilities?.canCast === false) return null;
+  const rawAffinities = actorRecord?.affinities;
   const affinities = Array.isArray(rawAffinities) ? rawAffinities : [];
-  if (affinities.length === 0) return null;
+  const activeKey = typeof actorRecord?.activeAffinityKey === "string"
+    ? actorRecord.activeAffinityKey.trim().toLowerCase()
+    : "";
+  if (affinities.length === 0 || !activeKey) return null;
 
   const distance = Number.isFinite(hostile?.distance)
     ? hostile.distance
@@ -1469,33 +1275,57 @@ function buildAffinityCastProposal({ actor, affinities: rawAffinities, hostile }
       Math.abs((hostile?.actor?.position?.y ?? 0) - actor.position.y),
     );
 
-  const ordered = affinities
-    .filter((entry) => typeof entry?.kind === "string" && entry.kind.trim())
-    .slice()
-    .sort((a, b) => String(a.kind).localeCompare(String(b.kind))
-      || String(a.expression || "").localeCompare(String(b.expression || "")));
-
-  for (const entry of ordered) {
-    const expression = typeof entry.expression === "string" && entry.expression.trim()
-      ? entry.expression.trim().toLowerCase()
-      : "push";
-    const stacks = Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1;
-    const focused = expression === "push" || expression === "pull";
-    const canReach = focused ? distance <= stacks : distance <= 1;
-    if (!canReach) continue;
-    return {
-      kind: "cast_affinity",
-      params: {
-        kind: entry.kind.trim().toLowerCase(),
-        expression,
-        stacks,
-        targetId: hostile.actor.id,
-      },
-    };
-  }
-  return null;
+  const active = affinities.find((entry) => `${String(entry?.kind).trim().toLowerCase()}:${String(entry?.expression).trim().toLowerCase()}` === activeKey);
+  if (!active) return null;
+  const expression = String(active.expression).trim().toLowerCase();
+  const stacks = Number.isInteger(active.stacks) && active.stacks > 0 ? active.stacks : 1;
+  const focused = expression === "push" || expression === "pull";
+  if (!focused || distance > stacks) return null;
+  return { kind: "cast_affinity", params: { targetId: hostile.actor.id } };
 }
 
+
+function buildTakingProposals(receiver, view) {
+  if (receiver?.lifecycle !== "alive" || !receiver.capabilities?.canTake) return [];
+  const sources = (Array.isArray(view?.actors) ? view.actors : [])
+    .filter(source => source.lifecycle === "defeated"
+      && chebyshevDistance(receiver.position, source.position) <= 1)
+    .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+  return sources.flatMap(source => (Array.isArray(source.holdings) ? source.holdings : [])
+    .filter(holding => holding.claimedBy === null)
+    .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+    .map(holding => ({ kind: "take", params: { targetId: source.id, holdingId: holding.id } })));
+}
+
+function buildEquipmentProposals(actorRecord, observation, view, payload) {
+  if (actorRecord?.lifecycle !== "alive" || !actorRecord.capabilities?.canEquip
+    || !Array.isArray(observation?.affinityContributions)) return [];
+  const evaluation = { endPosition: actorRecord.position, actorRecord,
+    affinityFields: observation.affinityFields, affinityContributions: observation.affinityContributions };
+  const hostile = resolveNearestHostile(view, actorRecord.id);
+  const profiles = resolveActorMotivationKinds(view, actorRecord.id, payload)
+    .map(kind => buildMotivationProfile(view, actorRecord.id, payload, kind)).filter(Boolean);
+  const readiness = (receiver) => {
+    const cast = hostile && buildAffinityCastProposal({ actor: receiver, actorRecord: receiver, hostile });
+    if (!cast) return ACTOR_INTENT_CLASS.WAIT;
+    return Math.max(ACTOR_INTENT_CLASS.WAIT, ...profiles.map(motivationProfile => classifyActorIntent({
+      action: cast, actorPosition: receiver.position, actorRecord: receiver, motivationProfile,
+      visibleActors: [{ ...hostile.actor, hostile: true }],
+    }).intentClass));
+  };
+  // Same target and position: readiness, field safety and benefit are the tuple
+  // members that can differ across equipment. The equip itself still takes a turn.
+  const currentField = fieldUtilityRanks(evaluation);
+  const current = [readiness(actorRecord), currentField.safety, currentField.benefit];
+  return actorRecord.affinities.flatMap(pair => {
+    const affinityKey = `${pair.kind}:${pair.expression}`;
+    if (affinityKey === actorRecord.activeAffinityKey) return [];
+    const action = { kind: "equip_affinity", params: { affinityKey } };
+    const alternative = fieldUtilityRanks({ ...evaluation, action });
+    return compareDecisionRanks([readiness({ ...actorRecord, activeAffinityKey: affinityKey }), alternative.safety, alternative.benefit], current) > 0
+      ? [action] : [];
+  });
+}
 
 function buildMotivatedProposals({ observation, payload, simConfig, personaSeed }) {
   const view = resolveObservationView(observation);
@@ -1506,15 +1336,12 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
   if (!actor?.position) return buildMoveProposal({ observation, payload, simConfig });
 
   const kinds = resolveActorMotivationKinds(view, actorId, payload);
-  const motivationKind = kinds[0] || null;
-
-  // Gate on the PROFILE of every carried kind. Holding position suppresses
-  // movement, not combat — a defending actor still strikes what reaches it.
-  const holdsPosition = kinds.some((kind) => motivationHoldsPosition(kind));
+  // Each motivation contributes candidates; only the actor's capability vetoes
+  // movement across the union. A stationary preference cannot erase a patrol.
+  const record = resolveActorRecord(view, actorId, observation);
+  const holdsPosition = record?.capabilities?.canMove === false
+    || (kinds.length > 0 && kinds.every((kind) => motivationHoldsPosition(kind)));
   const hasCombatRole = kinds.some((kind) => motivationHasCombatRole(kind));
-  if (holdsPosition && !hasCombatRole) {
-    return [];
-  }
 
   const composed = [];
   const seen = new Set();
@@ -1544,9 +1371,12 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
     }));
   }
 
+  pushUnique(buildEquipmentProposals(record, observation, view, payload));
+  pushUnique(buildTakingProposals(record, view));
+
   // Combat stays owned by the controller for now (MC.3/MC.5): collect proposals
   // into the same candidate set so the existing intentClass tuple can arbitrate
-  // between e.g. an attack (500) and a patrol step (200).
+  // between an affinity cast and a patrol step.
   if (hasCombatRole) {
     pushUnique(buildCombatProposals({
       observation,
@@ -1594,22 +1424,10 @@ function buildCombatProposals({
     const record = resolveActorRecord(view, actorId, observation);
     const cast = buildAffinityCastProposal({
       actor,
-      affinities: record?.affinities,
+      actorRecord: record,
       hostile,
     });
     if (cast) proposals.push(cast);
-  }
-
-  if (adjacent && combatKinds.some((kind) => kind === "attacking" || kind === "defending")) {
-    proposals.push({
-      kind: "attack",
-      params: {
-        targetId: hostile.actor.id,
-        attackerPosition: { ...actor.position },
-        targetPosition: { ...hostile.actor.position },
-        damage: DEFAULT_ATTACK_DAMAGE,
-      },
-    });
   }
 
   if (!adjacent && hasCombatRole && !holdsPosition) {
@@ -1617,15 +1435,8 @@ function buildCombatProposals({
     const tileKinds = resolveTileKinds(view, payload);
     const path = findPath(actor.position, hostile.actor.position, tileKinds, baseTiles);
     if (path && path.length >= 2) {
-      const from = path[0];
       const to = path[1];
-      const delta = { dx: to.x - from.x, dy: to.y - from.y };
-      const direction = DEFAULT_DELTAS.find(
-        (e) => e.dx === delta.dx && e.dy === delta.dy,
-      )?.direction;
-      if (direction) {
-        proposals.push({ kind: "move", params: { direction, from, to } });
-      }
+      proposals.push({ kind: "move", params: { target: to } });
     }
   }
 
@@ -1663,6 +1474,10 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     const baseTiles = resolveBaseTiles(payload, observationView, simConfig);
 
     const shouldEmitActions = event === "propose";
+    const decidingActor = resolveActorRecord(observationView, payload.actorId || observation?.actorId, observation);
+    if (shouldEmitActions && ["defeated", "exited"].includes(decidingActor?.lifecycle)) {
+      return { ...view(), tick, actions: [], effects: [], telemetry: null };
+    }
     const derivedProposals = shouldEmitActions ? buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed }) : [];
     // CR.6 — the Actor derives CANDIDATE proposals. Budget admissibility used to
     // be decided here by a local filterBudgetedProposals; the policy now lives in
@@ -1691,16 +1506,14 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     const actorIdForExit = payload.actorId || observation?.actorId || "actor";
     const actorRecordForExit = resolveActorRecord(observationView, actorIdForExit, observation)
       || resolveConfiguredActor(payload, actorIdForExit);
-    const exit = isWarden(actorRecordForExit)
-      ? null
-      : resolveExit(payload, observationView, baseTiles, simConfig);
+    const exit = actorCanExit(actorRecordForExit)
+      ? resolveExit(payload, observationView, baseTiles, simConfig)
+      : null;
     const runtimeDecisionEffect = shouldEmitActions
       ? buildRuntimeDecisionEffect({
           payload: {
             ...payload,
             proposals: candidateProposals,
-            affinityEffects: payload.affinityEffects,
-            hazards: payload.hazards,
             clock,
           },
           observation,
@@ -1731,26 +1544,52 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     }
 
     const baseActorId = payload.actorId || observation?.actorId || "actor";
-    const baseIsMotivated = isMotivatedActor(baseActorId, observationView, observation);
+    const baseIsMotivated = isEligibleActor(baseActorId, observationView, observation);
     const actions = [];
     const effects = [];
+    const selectedRanks = new Map();
     const proposalList = Array.isArray(candidateProposals) ? candidateProposals : [];
     if (!runtimeDecisionEffect) {
+      const candidatesByActor = new Map();
       for (let i = 0; i < proposalList.length; i += 1) {
         const proposal = proposalList[i];
         const proposalActorId = proposal.actorId || baseActorId;
-        if (!isMotivatedActor(proposalActorId, observationView, observation)) {
+        if (!isEligibleActor(proposalActorId, observationView, observation)) {
           continue;
         }
-        actions.push(
-          buildAction({
+        const actorCandidates = candidatesByActor.get(proposalActorId) || [];
+        const action = buildAction({
             tick,
             kind: proposal.kind || "custom",
             actorId: proposalActorId,
             personaRef: "actor",
             params: proposal.params || proposal,
-          }),
-        );
+        });
+        if (!actorCandidates.some((candidate) => candidateSignature(candidate.action.kind, candidate.action.params)
+          === candidateSignature(action.kind, action.params))) {
+          actorCandidates.push({ id: String(i), action });
+        }
+        candidatesByActor.set(proposalActorId, actorCandidates);
+      }
+      for (const [actorId, candidateActions] of candidatesByActor) {
+        const actor = resolveActor(observationView, actorId, observation);
+        const actorRecord = resolveActorRecord(observationView, actorId, observation);
+        const objective = buildActorDecisionObjective({
+          actor, actorRecord, candidateActions,
+          proposals: proposalList.filter((proposal) => (proposal.actorId || baseActorId) === actorId),
+          motivationProfiles: resolveActorMotivationKinds(observationView, actorId, payload)
+            .map((kind) => buildMotivationProfile(observationView, actorId, payload, kind)).filter(Boolean),
+          visibleActors: resolveVisibleActors(observationView, actorId),
+          affinityFields: Array.isArray(observation?.affinityFields) ? observation.affinityFields : [],
+          affinityContributions: observation?.affinityContributions,
+          exit: actorCanExit(actorRecord) ? resolveExit(payload, observationView, baseTiles, simConfig) : null,
+          tileKinds: resolveTileKinds(observationView, payload), baseTiles,
+        });
+        const winner = objective.candidates.reduce((best, row) =>
+          compareDecisionRanks(row.rank, best.rank) > 0 ? row : best);
+        const selected = candidateActions.find((candidate) => candidate.id === winner.candidateActionId);
+        actions.push(selected.action);
+        selectedRanks.set(actorId, winner);
       }
     } else {
       effects.push(runtimeDecisionEffect.solverEffect);
@@ -1796,31 +1635,8 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       actions.push(...fromEffects.actions);
     }
 
-    // Surface the intention (maintainer ruling, 2026-09-04). This reports WHAT the actor means
-    // to do so the Moderator can decide who resolves first; it commits to nothing and reaches no
-    // adapter. The Moderator is deliberately never handed the actions themselves — one holding
-    // actions could reorder outcomes rather than actors.
-    //
-    // ⚠️ AN EARLIER VERSION OF THIS COMMENT CLAIMED A BLOCKER THAT DOES NOT EXIST. It said an
-    // actor emits several actions per tick so "the first non-telemetry action" is unreliable,
-    // and that "a delver that attacks reports wait". Measured with the derivation instrumented
-    // across tests/runtime + tests/personas + tests/integration: every actor emits EXACTLY ONE
-    // gameplay action per advance (360 × `move`, 20 × `attack` in the combat suite), and the
-    // single multi-action case in the whole suite is `move,wait` — first-wins already picks the
-    // meaningful one. The claim was inferred from reading the emit sequence and never run.
-    //
-    // The real hole the measurement DID find is the envelope path, and it is the opposite
-    // shape: on the runtime-decision route this branch never runs at all (17/17 advances
-    // emitted zero actions and zero intentions), because the chosen action does not exist yet —
-    // it is resolved from the solver result in `tick-orchestrator`. That path surfaces its own
-    // intention there, from the rank the Actor published.
-    //
-    // ONE INTENTION PER ACTOR, not one per advance. A single Actor advance emits actions for
-    // EVERY motivated actor it decided for, not only the `baseActorId` the payload names. An
-    // earlier version keyed off baseActorId alone, so in a two-actor tick exactly one actor
-    // surfaced an intention and the other sorted last at class 0 — which silently handed
-    // resolution order to whichever actor happened to be named in the payload. Caught by
-    // `runtime-combat-application`, where it reversed an attacking delver and a defending warden.
+    // Report one intention per actor from the selected objective row. Solver
+    // selections report later, when their selected candidate ID is available.
     const chosenByActor = new Map();
     for (const action of actions) {
       const actorId = action?.actorId;
@@ -1828,18 +1644,20 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       if (action.kind === "emit_log" || action.kind === "emit_telemetry") continue;
       if (!chosenByActor.has(actorId)) chosenByActor.set(actorId, action);
     }
-    // The SAME classifier the ranking uses, per actor — not a second, kind-only derivation.
-    // Each actor gets its own profile and visible-actor list: a shared one would score every
-    // actor as if it were `baseActorId`, which is the bug class the paragraph above records.
+    // Effect-only output has no selected gameplay row; retain its classifier.
     const intentions = [...chosenByActor.entries()].map(([actorId, action]) => buildActorIntention({
       actorId,
-      ...classifyActorIntent({
+      ...(selectedRanks.has(actorId) ? {
+        intentClass: selectedRanks.get(actorId).rank[0],
+        intentTag: selectedRanks.get(actorId).rationaleTags[0],
+      } : classifyActorIntent({
         action,
         actorPosition: resolveActor(observationView, actorId, observation)?.position,
+        actorRecord: resolveActorRecord(observationView, actorId, observation),
         motivationProfile: buildMotivationProfile(observationView, actorId, payload),
         visibleActors: resolveVisibleActors(observationView, actorId),
         exit,
-      }),
+      })),
       tick,
     }));
 

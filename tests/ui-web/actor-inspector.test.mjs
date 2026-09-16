@@ -447,17 +447,29 @@ test("inspector tracks preview mode on the container dataset", () => {
 
 // --- M1: hazard and resource inspector support ---
 
-const simConfigWithHazardsAndResources = {
-  layout: {
-    data: {
-      rooms: [],
-      hazards: [
-        { id: "hazard-1", position: { x: 3, y: 3 }, affinity: { kind: "fire" } },
-        { id: "hazard-2", position: { x: 5, y: 5 } },
-      ],
-      resources: [
-        { id: "resource-1", position: { x: 1, y: 1 }, kind: "mana" },
-      ],
+const inspectorWorldState = {
+  simConfig: {
+    layout: {
+      data: {
+        rooms: [],
+      },
+    },
+  },
+  initialState: {
+    actors: [
+      {
+        id: "hazard-1",
+        category: "hazard",
+        position: { x: 3, y: 3 },
+        affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+      },
+      { id: "hazard-2", category: "hazard", position: { x: 5, y: 5 } },
+      { id: "resource-1", category: "resource", position: { x: 1, y: 1 } },
+    ],
+    presentation: {
+      "hazard-1": { category: "hazard" },
+      "hazard-2": { category: "hazard" },
+      "resource-1": { category: "resource" },
     },
   },
 };
@@ -467,7 +479,7 @@ test("inspector lists hazards from layout data", () => {
   const elements = makeInspectorElements();
   const hazardListEl = makeNode("div", doc);
   const inspector = createActorInspector({ ...elements, hazardListEl });
-  inspector.setScenario({ spec: null, simConfig: simConfigWithHazardsAndResources, initialState: { actors: [] } });
+  inspector.setScenario({ spec: null, ...inspectorWorldState });
   const rows = hazardListEl.querySelectorAll(".simulation-inspector-instance");
   assert.equal(rows.length, 2);
   assert.match(hazardListEl.textContent, /hazard-1/);
@@ -479,7 +491,7 @@ test("inspector lists resources from layout data", () => {
   const elements = makeInspectorElements();
   const resourceListEl = makeNode("div", doc);
   const inspector = createActorInspector({ ...elements, resourceListEl });
-  inspector.setScenario({ spec: null, simConfig: simConfigWithHazardsAndResources, initialState: { actors: [] } });
+  inspector.setScenario({ spec: null, ...inspectorWorldState });
   const rows = resourceListEl.querySelectorAll(".simulation-inspector-instance");
   assert.equal(rows.length, 1);
   assert.match(resourceListEl.textContent, /resource-1/);
@@ -490,7 +502,7 @@ test("inspector can select hazard by position", () => {
   const elements = makeInspectorElements();
   const hazardListEl = makeNode("div", doc);
   const inspector = createActorInspector({ ...elements, hazardListEl });
-  inspector.setScenario({ spec: null, simConfig: simConfigWithHazardsAndResources, initialState: { actors: [] } });
+  inspector.setScenario({ spec: null, ...inspectorWorldState });
   const result = inspector.selectEntityAtPosition({ x: 3, y: 3 }, { notify: false });
   assert.ok(result, "expected hazard entity at (3, 3)");
   assert.equal(result.instanceId, "hazard-1");
@@ -503,7 +515,7 @@ test("inspector fires onSelectEntity with hazard type and position", () => {
   const hazardListEl = makeNode("div", doc);
   const selections = [];
   const inspector = createActorInspector({ ...elements, hazardListEl, onSelectEntity: (p) => selections.push(p) });
-  inspector.setScenario({ spec: null, simConfig: simConfigWithHazardsAndResources, initialState: { actors: [] } });
+  inspector.setScenario({ spec: null, ...inspectorWorldState });
   inspector.selectEntityById("hazard-1");
   assert.equal(selections.length, 1);
   assert.equal(selections[0].type, "hazard");
@@ -515,7 +527,7 @@ test("inspector can select resource by position", () => {
   const elements = makeInspectorElements();
   const resourceListEl = makeNode("div", doc);
   const inspector = createActorInspector({ ...elements, resourceListEl });
-  inspector.setScenario({ spec: null, simConfig: simConfigWithHazardsAndResources, initialState: { actors: [] } });
+  inspector.setScenario({ spec: null, ...inspectorWorldState });
   const result = inspector.selectEntityAtPosition({ x: 1, y: 1 }, { notify: false });
   assert.ok(result, "expected resource entity at (1, 1)");
   assert.equal(result.instanceId, "resource-1");
@@ -528,7 +540,7 @@ test("inspector fires onSelectEntity with resource type and position", () => {
   const resourceListEl = makeNode("div", doc);
   const selections = [];
   const inspector = createActorInspector({ ...elements, resourceListEl, onSelectEntity: (p) => selections.push(p) });
-  inspector.setScenario({ spec: null, simConfig: simConfigWithHazardsAndResources, initialState: { actors: [] } });
+  inspector.setScenario({ spec: null, ...inspectorWorldState });
   inspector.selectEntityById("resource-1");
   assert.equal(selections.length, 1);
   assert.equal(selections[0].type, "resource");
@@ -540,7 +552,7 @@ test("inspector hazard highlight syncs with inspector selected state", () => {
   const elements = makeInspectorElements();
   const hazardListEl = makeNode("div", doc);
   const inspector = createActorInspector({ ...elements, hazardListEl });
-  inspector.setScenario({ spec: null, simConfig: simConfigWithHazardsAndResources, initialState: { actors: [] } });
+  inspector.setScenario({ spec: null, ...inspectorWorldState });
   inspector.selectEntityById("hazard-1", { notify: false });
   // stub querySelectorAll only handles single-class selectors; check .selected directly
   const selectedRows = hazardListEl.querySelectorAll(".selected");

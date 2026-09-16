@@ -4,14 +4,19 @@ import { resolveActorTurnCosts } from './affinity-rules.js';
 
 const LAYOUT_FIELDS = new Set(['width', 'height', 'terrain', 'rooms', 'connectivity',
   'bounds', 'entryRoomId', 'exitRoomId', 'spawnApproach', 'exitApproach', 'render']);
+const LEFTOVER_LAYOUT_FIELDS = new Set(['hazards', 'resources', 'tiles', 'kinds', 'actors',
+  'spawn', 'exit', 'legend']);
 function cloneLayoutData(layout) {
   if (!layout || typeof layout !== 'object' || Array.isArray(layout)) {
     throw new Error(`invalid normalized layout: expected object, received ${typeof layout}`);
   }
-  const unknown = Object.keys(layout).filter(key => !LAYOUT_FIELDS.has(key));
+  const geometry = { ...layout };
+  delete geometry.budgetScaffold;
+  for (const key of LEFTOVER_LAYOUT_FIELDS) delete geometry[key];
+  const unknown = Object.keys(geometry).filter(key => !LAYOUT_FIELDS.has(key));
   if (unknown.length) throw new Error(`unsupported normalized layout fields: ${unknown.join(', ')}`);
-  normalizeActorRoster({ actors: [], dimensions: { width: layout.width, height: layout.height }, terrain: layout.terrain });
-  return structuredClone(layout);
+  normalizeActorRoster({ actors: [], dimensions: { width: geometry.width, height: geometry.height }, terrain: geometry.terrain });
+  return structuredClone(geometry);
 }
 
 export function buildSimConfigArtifact({

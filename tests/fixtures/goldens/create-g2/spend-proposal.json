@@ -9,79 +9,101 @@
   },
   "items": [
     {
-      "id": "resource_affinity_base",
-      "kind": "resource",
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_base",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_expression_localized",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_stack",
+      "kind": "affinity",
       "quantity": 2,
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ResourceArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "resource_affinity_expression_localized",
-      "kind": "resource",
-      "quantity": 2,
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "quantity": 1,
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ResourceArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "resource_affinity_stack",
-      "kind": "resource",
-      "quantity": 4,
+      "id": "vital_mana_point",
+      "kind": "vital",
+      "quantity": 50,
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ResourceArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "resource_vital_mana_point",
-      "kind": "resource",
-      "quantity": 100,
+      "id": "vital_mana_regen_tick",
+      "kind": "vital",
+      "quantity": 5,
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ResourceArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "resource_vital_mana_regen_tick",
-      "kind": "resource",
-      "quantity": 10,
-      "category": "resources",
-      "subjectRef": {
-        "id": "resource_1",
-        "schema": "agent-kernel/ResourceArtifact",
-        "schemaVersion": 1
-      }
-    },
-    {
-      "id": "resource_permanent",
-      "kind": "resource",
-      "quantity": 10,
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
       "category": "resources",
       "subjectRef": {
         "id": "resource_2",
-        "schema": "agent-kernel/ResourceArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "resource_vital_health_regen_tick",
-      "kind": "resource",
-      "quantity": 4,
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "quantity": 1,
       "category": "resources",
       "subjectRef": {
         "id": "resource_2",
-        "schema": "agent-kernel/ResourceArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     }

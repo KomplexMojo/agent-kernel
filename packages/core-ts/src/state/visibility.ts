@@ -286,18 +286,10 @@ export function scopeObservation<T extends VisibilityObservation>(
     return isPerceived(origin, position, effectiveRadius, tileKinds, darkStacksByCell);
   });
 
-  const hazards = Array.isArray(observation.hazards)
-    ? observation.hazards.filter((hazard) => {
-      const position = hazard?.position;
-      if (!isGridPosition(position)) return true;
-      return isPerceived(origin, position, effectiveRadius, tileKinds, darkStacksByCell);
-    })
-    : observation.hazards;
-
   // Field cells are environmental facts, not target entities. They share the
   // same radius/LOS boundary but deliberately do not apply target-dark
   // concealment, which would hide the condition of a cell along with a source
-  // actor or hazard standing in it.
+  // actor standing in it.
   const affinityFields = Array.isArray(observation.affinityFields)
     ? observation.affinityFields.filter((field) => {
       const position = field?.position;
@@ -306,10 +298,11 @@ export function scopeObservation<T extends VisibilityObservation>(
     })
     : observation.affinityFields;
 
-  return {
+  const scoped = {
     ...observation,
     actors,
-    ...(Array.isArray(observation.hazards) ? { hazards } : {}),
     ...(Array.isArray(observation.affinityFields) ? { affinityFields } : {}),
   } as T;
+  delete scoped.hazards;
+  return scoped;
 }

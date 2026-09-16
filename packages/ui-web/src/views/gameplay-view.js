@@ -13,41 +13,90 @@ function findArtifact(bundle, schema) {
   return artifacts.find((a) => a?.schema === schema) || null;
 }
 
-function resolveHazards(layoutData) {
-  const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
-  return hazards.map((hazard) => ({
-    ...hazard,
-    position: hazard.position || { x: hazard.x, y: hazard.y },
-    entityType: "hazard",
-    emitStrength: hazard.emitStrength ?? hazard.affinity?.stacks ?? 0,
-    affinityStacks: Array.isArray(hazard.affinityStacks)
-      ? hazard.affinityStacks
-      : hazard.affinity
-        ? [{ kind: hazard.affinity.kind, expression: hazard.affinity.expression }]
-        : [],
+function presentationById(initialState) {
+  const presentation = initialState?.presentation;
+  if (!presentation || typeof presentation !== "object" || Array.isArray(presentation)) return {};
+  return presentation;
+}
+
+function presentationCategory(actor, presentation) {
+  const fromActor = actor?.category ?? actor?.presentation?.category;
+  if (typeof fromActor === "string" && fromActor.trim()) return fromActor.trim().toLowerCase();
+  const id = typeof actor?.id === "string" ? actor.id : "";
+  const fromMap = id ? presentation?.[id]?.category : "";
+  if (typeof fromMap === "string" && fromMap.trim()) return fromMap.trim().toLowerCase();
+  return "";
+}
+
+function entityTypeFor(actor, presentation) {
+  const category = presentationCategory(actor, presentation);
+  if (category === "hazard" || category === "hazards") return "hazard";
+  if (category === "resource" || category === "resources") return "resource";
+  return actor?.entityType || "actor";
+}
+
+function tilesFromLayout(layoutData) {
+  const width = layoutData?.width;
+  const height = layoutData?.height;
+  const terrain = layoutData?.terrain;
+  if (Array.isArray(terrain) && Number.isInteger(width) && Number.isInteger(height)
+    && width > 0 && height > 0 && terrain.length === width * height) {
+    const glyphs = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+    const rows = [];
+    for (let y = 0; y < height; y += 1) {
+      let row = "";
+      for (let x = 0; x < width; x += 1) {
+        row += glyphs[terrain[y * width + x]] || ".";
+      }
+      rows.push(row);
+    }
+    return rows;
+  }
+  if (Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0) {
+    return Array.from({ length: height }, () => ".".repeat(width));
+  }
+  return [];
+}
+
+function collectIndexedEntities(initialState, actors) {
+  const presentation = presentationById(initialState);
+  const live = Array.isArray(actors) && actors.length
+    ? actors
+    : (Array.isArray(initialState?.actors) ? initialState.actors : []);
+  return live.map((entity) => ({
+    ...entity,
+    entityType: entityTypeFor(entity, presentation),
   }));
 }
 
-// Build a position-keyed index for a given set of actors plus the bundle's
-// (immobile) hazards/resources. `actors` should be the CURRENT-TICK actor
-// records (e.g. frame.observation.actors) so the index reflects playback
-// state rather than always the tick-0 InitialStateArtifact snapshot.
+function hazardVisualsFromActors(entities) {
+  return entities
+    .filter((entity) => entity.entityType === "hazard")
+    .map((entity) => {
+      const stacks = Array.isArray(entity.affinities) ? entity.affinities : [];
+      return {
+        ...entity,
+        entityType: "hazard",
+        position: entity.position,
+        affinityStacks: stacks,
+        emitStrength: stacks[0]?.stacks ?? 0,
+      };
+    });
+}
+
 function buildEntityIndex(bundle, actors) {
-  const simConfig = findArtifact(bundle, SIM_CONFIG_SCHEMA);
-  const layoutData = simConfig?.layout?.data || {};
-  const hazards = resolveHazards(layoutData);
-  const resources = Array.isArray(layoutData.resources) ? layoutData.resources : [];
+  const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA);
   const index = new Map();
-  [
-    ...(Array.isArray(actors) ? actors : []).map((entity) => ({ ...entity, entityType: entity?.entityType || "actor" })),
-    ...hazards.map((entity) => ({ ...entity, entityType: entity?.entityType || "hazard" })),
-    ...resources.map((entity) => ({ ...entity, entityType: entity?.entityType || "resource" })),
-  ].forEach((entity) => {
+  const entities = collectIndexedEntities(initialState, actors);
+  const ranked = [
+    ...entities.filter((entity) => entity.entityType !== "actor"),
+    ...entities.filter((entity) => entity.entityType === "actor"),
+  ];
+  for (const entity of ranked) {
     if (entity?.position != null) {
-      const key = `${entity.position.x},${entity.position.y}`;
-      index.set(key, entity);
+      index.set(`${entity.position.x},${entity.position.y}`, entity);
     }
-  });
+  }
   return index;
 }
 
@@ -56,11 +105,10 @@ async function buildBoardState(bundle, { buildTileVisualsFn } = {}) {
   const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA);
   const resourceBundle = findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA);
   const layoutData = simConfig?.layout?.data || {};
-  const tiles = Array.isArray(layoutData.tiles) ? layoutData.tiles : [];
-  const hazards = resolveHazards(layoutData);
+  const tiles = tilesFromLayout(layoutData);
+  const entities = collectIndexedEntities(initialState, initialState?.actors);
+  const hazards = hazardVisualsFromActors(entities);
 
-  // Derive tile visuals via injected facade or default hazard-based fallback.
-  // The injected function may be async depending on the field bridge.
   let tileVisuals;
   if (typeof buildTileVisualsFn === "function") {
     const result = buildTileVisualsFn(bundle);
@@ -77,8 +125,6 @@ async function buildBoardState(bundle, { buildTileVisualsFn } = {}) {
     initialState,
     observation: {
       actors: Array.isArray(initialState?.actors) ? initialState.actors : [],
-      hazards,
-      resources: Array.isArray(layoutData.resources) ? layoutData.resources : [],
     },
     resourceBundle,
     tileVisuals,

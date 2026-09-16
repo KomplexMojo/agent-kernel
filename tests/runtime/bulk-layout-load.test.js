@@ -1,61 +1,44 @@
+/**
+ * Bulk layout load now goes through one registry snapshot, not per-cell setTileAt.
+ */
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { resolve } = require("node:path");
 
-const ROOT = resolve(__dirname, "../..");
-
-test("runtime bulk layout loading matches per-cell results", async () => {
-  const [{ applySimConfigToCore }, { createCore }] = await Promise.all([
-    import("../../packages/runtime/src/runner/core-setup.mjs"),
-    import("../../packages/core-ts/src/index.ts"),
-  ]);
-
-  function buildCore({ bulk }) {
-    const core = createCore();
-    let bulkUsed = false;
-    if (bulk) {
-      const prepareTileBuffer = core.prepareTileBuffer.bind(core);
-      core.prepareTileBuffer = (...args) => {
-        bulkUsed = true;
-        return prepareTileBuffer(...args);
-      };
-    } else {
-      delete core.prepareTileBuffer;
-      delete core.loadTilesFromBuffer;
-    }
-    return { core, bulkUsed: () => bulkUsed };
-  }
-
-  function readBaseTiles(core) {
-    const width = core.getMapWidth();
-    const height = core.getMapHeight();
-    const rows = [];
-    for (let y = 0; y < height; y += 1) {
-      let row = "";
-      for (let x = 0; x < width; x += 1) {
-        row += String.fromCharCode(core.renderBaseCellChar(x, y));
-      }
-      rows.push(row);
-    }
-    return rows;
-  }
-
-  const simConfig = JSON.parse(
-    readFileSync(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"), "utf8"),
+test("initializeCoreFromArtifacts loads a full terrain grid in one snapshot", async () => {
+  const { createConfiguratorPersona } = await import(
+    "../../packages/runtime/src/personas/configurator/controller.js"
   );
-
-  const perCellWrapper = buildCore({ bulk: false });
-  const bulkWrapper = buildCore({ bulk: true });
-  const perCellCore = perCellWrapper.core;
-  const bulkCore = bulkWrapper.core;
-
-  const perCellResult = applySimConfigToCore(perCellCore, simConfig);
-  const bulkResult = applySimConfigToCore(bulkCore, simConfig);
-  assert.equal(perCellResult.ok, true);
-  assert.equal(bulkResult.ok, true);
-  assert.equal(bulkWrapper.bulkUsed(), true);
-
-  const perCellTiles = readBaseTiles(perCellCore);
-  const bulkTiles = readBaseTiles(bulkCore);
-  assert.deepEqual(bulkTiles, perCellTiles);
+  const { initializeCoreFromArtifacts } = await import(
+    "../../packages/runtime/src/runner/core-setup.mjs"
+  );
+  const configurator = createConfiguratorPersona({ clock: () => "fixed" });
+  const width = 8;
+  const height = 4;
+  const terrain = Array(width * height).fill("floor");
+  for (let x = 0; x < width; x += 1) {
+    terrain[x] = "wall";
+    terrain[(height - 1) * width + x] = "wall";
+  }
+  terrain[width] = "spawn";
+  terrain[width + 1] = "exit";
+  const simConfig = configurator.buildSimConfigArtifact({
+    meta: { id: "cfg", runId: "r", createdAt: "fixed" },
+    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    layout: { width, height, terrain, exitApproach: { x: 1, y: 1 } },
+    movementStamina: { walker: 0 },
+  });
+  const initialState = configurator.buildInitialStateArtifact({
+    meta: { id: "st", runId: "r", createdAt: "fixed" },
+    simConfigRef: { id: simConfig.meta.id, schema: simConfig.schema, schemaVersion: 1 },
+    dimensions: { width, height },
+    terrain,
+    actors: [{
+      id: "walker", category: "delver", position: { x: 1, y: 1 },
+      vitals: { health: { current: 10, max: 10, regen: 0 } }, motivations: ["exploring"],
+    }],
+  });
+  const snapshot = initializeCoreFromArtifacts({ simConfig, initialState }).registry.snapshot();
+  assert.equal(snapshot.terrain.length, width * height);
+  assert.equal(snapshot.terrain[0], "wall");
+  assert.equal(snapshot.terrain[width], "spawn");
+  assert.equal(snapshot.actors[0].id, "walker");
 });

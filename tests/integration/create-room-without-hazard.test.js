@@ -81,9 +81,13 @@ async function createShape(outDir, name, args) {
   );
 }
 
+function receiptResourceLines(receipt) {
+  return (receipt.lineItems ?? []).filter((line) => line.category === "resources");
+}
+
 const RESOURCE_SPECS = [
-  "tier=level;stat=vitalRegen;delta=1;dropRate=20",
-  "tier=permanent;stat=vitalMax;delta=6;dropRate=5",
+  "permanenceMode=level;vital=mana;delta=1",
+  "permanenceMode=permanent;vital=health;delta=6",
 ];
 
 describe("hazard-free rooms are first-class (rooms carry no affinity)", () => {
@@ -138,7 +142,7 @@ describe("hazard-free rooms are first-class (rooms carry no affinity)", () => {
 
     const receipt = JSON.parse(readFileSync(join(outDir, "resources", "budget-receipt.json"), "utf8"));
     assert.equal(receipt.status, "approved", `budget receipt must be approved, got ${receipt.status}`);
-    const resourceLines = (receipt.lineItems ?? []).filter((line) => line.kind === "resource");
+    const resourceLines = receiptResourceLines(receipt);
     assert.ok(resourceLines.length >= RESOURCE_SPECS.length, "receipt must itemize the requested resources");
     for (const line of resourceLines) {
       assert.equal(
@@ -164,7 +168,7 @@ describe("hazard-free rooms are first-class (rooms carry no affinity)", () => {
     const withoutReceipt = JSON.parse(readFileSync(join(outDir, "resources", "budget-receipt.json"), "utf8"));
     const sumResources = (receipt) =>
       (receipt.lineItems ?? [])
-        .filter((line) => line.kind === "resource" && line.status === "approved")
+        .filter((line) => line.category === "resources" && line.status === "approved")
         .reduce((total, line) => total + (line.totalCost ?? 0), 0);
     assert.equal(
       sumResources(withoutReceipt),
@@ -185,7 +189,7 @@ test("hazard-free multi-room dungeon with resources creates approved resource li
     assert.equal(result.ok, true, result.error);
 
     const receipt = JSON.parse(readFileSync(join(outDir, "multi-room", "budget-receipt.json"), "utf8"));
-    const resourceLines = receipt.lineItems.filter((line) => line.kind === "resource");
+    const resourceLines = receiptResourceLines(receipt);
     assert.ok(resourceLines.length >= RESOURCE_SPECS.length);
     assert.ok(resourceLines.every((line) => line.status === "approved"));
 
@@ -212,7 +216,7 @@ test("room with resources, a hazard, and actors approves every requested pool", 
     const receipt = JSON.parse(readFileSync(join(outDir, "mixed-pools", "budget-receipt.json"), "utf8"));
     assert.equal(receipt.status, "approved");
     const requestedKinds = new Set(receipt.lineItems.map((line) => line.kind));
-    for (const kind of ["tile", "hazard", "resource", "actor"]) {
+    for (const kind of ["tile", "actor", "vital"]) {
       assert.ok(requestedKinds.has(kind), `receipt must itemize ${kind}`);
     }
     assert.ok(receipt.lineItems.every((line) => line.status === "approved"));
@@ -231,7 +235,7 @@ test("resource-only request without a room uses the default layout and approves"
     assert.equal(result.ok, true, result.error);
 
     const receipt = JSON.parse(readFileSync(join(outDir, "resource-only", "budget-receipt.json"), "utf8"));
-    const resourceLines = receipt.lineItems.filter((line) => line.kind === "resource");
+    const resourceLines = receiptResourceLines(receipt);
     assert.ok(resourceLines.length >= 1);
     assert.ok(resourceLines.every((line) => line.status === "approved"));
 

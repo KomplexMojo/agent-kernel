@@ -399,7 +399,11 @@ window's vital costs. It reads all five authored mana tiers for all forty pairs,
 including equipment acquired later. Omitted rules use the existing default rules;
 invalid supplied rules fail. Movement stamina costs are explicit nonnegative safe
 integers keyed by actor ID. Returned tables are detached. This does not price
-Allocator tokens or choose movement costs; startup must supply the authored map.
+Allocator tokens. `assembleMovementStamina({ actors, movementStamina? })` builds
+that ID map from the placed roster: explicit entries win, then nonnegative
+`capabilities.movementCost`, then the Configurator cardinal default for mobile
+actors (category preset, `canMove`, or unmigrated `type: delver|warden`). Immobile
+actors are omitted. Glue must call this helper rather than inventing costs.
 
 `normalizeActorRoster({ actors, dimensions, terrain })` assembles normalized
 `{ actors, presentation }` for artifact assembly. Entries use the single-actor
@@ -412,10 +416,13 @@ method; its legacy authoring callers still require migration.
 
 
 Production artifact assembly (unified cutover): `buildSimConfigArtifact` requires
-`layout: {width,height,terrain}` and explicit `movementStamina`; optional
-`affinityRules` supply authored tuning. It emits `actionCosts` and normalized grid
+`layout: {width,height,terrain}` and a valid `movementStamina` map; optional
+`affinityRules` supply authored tuning. Production create assembles that map
+through `assembleMovementStamina` from the placed roster when CLI input omits it. It emits `actionCosts` and normalized grid
 data. Entity lists, numeric kinds and ASCII tiles are no longer accepted there.
-`buildInitialStateArtifact` requires `actors` as preset definitions, `dimensions`,
+`budgetScaffold` stays a levelGen/pricing flag on the working layout for
+Allocator spend; locked SimConfig layout data drops it and still rejects other
+extras. `buildInitialStateArtifact` requires `actors` as preset definitions, `dimensions`,
 `terrain`, `meta` and `simConfigRef`. It emits one actor list and presentation map.
 The resolved-effects/traits merge has been removed. Envelope versions stay fixed
 by the approved clean-break decision. Current legacy producers fail until migrated.
@@ -434,6 +441,13 @@ terrain, preserving those cells when choosing emitter locations.
 `mapResources` now authors resource presets through `normalizeActorDefinition`.
 Requests require a stable ID and common vital records; rewards are explicit
 `holdings` and owned affinity pairs. Capability/alignment/equipment overrides are
-preserved. An omitted position stays omitted until placement. The mapper rejects
-version-specific and tier/stat resource shapes; remaining CLI/card producers must
-author this contract directly. Source vital pools are not synthesized into loot.
+preserved. An omitted position stays omitted until placement. CLI V3
+`permanenceMode` plus grant `vitals` becomes one unclaimed vital holding; source
+durability uses the Configurator default rather than synthesizing loot from the
+source pool. Version-specific `tier`/`stat` shapes are still rejected.
+`mapHazards` uses the same mechanical boundary: authored regen vitals keep their
+quantities and drop the authoring `kind` field; one-time `{amount}` becomes
+`{current:amount, max:amount, regen:0}`. Incomplete records are skipped so
+computed expression defaults remain. CLI string `affinity` plus `expression` or
+`affinityStacks[0]` is accepted; extra authoring fields are not spread into the
+mechanical record.

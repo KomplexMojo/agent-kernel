@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 160,
+      "runTotalTokens": 226,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g1_budget_receipt",
@@ -159,16 +159,15 @@
       "actors": [
         {
           "id": "card_delver_1-1",
-          "kind": "ambulatory",
-          "affinity": "water",
-          "motivations": [
-            "attacking"
-          ],
+          "category": "delver",
           "position": {
             "x": 0,
             "y": 0
           },
-          "tokenCost": 1,
+          "motivations": [
+            "attacking",
+            "user_controlled"
+          ],
           "vitals": {
             "health": {
               "current": 1,
@@ -191,20 +190,13 @@
               "regen": 0
             }
           },
-          "archetype": "delver",
-          "setupMode": "auto",
           "affinities": [
             {
               "kind": "water",
               "expression": "push",
               "stacks": 1
             }
-          ],
-          "traits": {
-            "affinities": {
-              "water": 1
-            }
-          }
+          ]
         }
       ],
       "actorGroups": [
@@ -1983,16 +1975,15 @@
       "actors": [
         {
           "id": "card_delver_1-1",
-          "kind": "ambulatory",
-          "affinity": "water",
-          "motivations": [
-            "attacking"
-          ],
+          "category": "delver",
           "position": {
             "x": 4,
             "y": 2
           },
-          "tokenCost": 1,
+          "motivations": [
+            "attacking",
+            "user_controlled"
+          ],
           "vitals": {
             "health": {
               "current": 10,
@@ -2015,20 +2006,55 @@
               "regen": 1
             }
           },
-          "archetype": "delver",
-          "setupMode": "auto",
           "affinities": [
             {
               "kind": "water",
               "expression": "push",
               "stacks": 1
             }
-          ],
-          "traits": {
-            "affinities": {
-              "water": 1
+          ]
+        },
+        {
+          "id": "hazard_1",
+          "position": {
+            "x": 3,
+            "y": 2
+          },
+          "alignment": "dungeon",
+          "lifecycle": "alive",
+          "defeatVital": "durability",
+          "vitals": {
+            "mana": {
+              "current": 0,
+              "max": 0,
+              "regen": 0
+            },
+            "durability": {
+              "current": 1,
+              "max": 1,
+              "regen": 0
             }
-          }
+          },
+          "capabilities": {
+            "canMove": false,
+            "canCast": true,
+            "canEquip": false,
+            "canTake": false,
+            "canExit": false,
+            "blocksMovement": false,
+            "blocksSight": false
+          },
+          "motivations": [],
+          "affinities": [
+            {
+              "kind": "fire",
+              "expression": "emit",
+              "stacks": 1
+            }
+          ],
+          "activeAffinityKey": "fire:emit",
+          "holdings": [],
+          "category": "hazard"
         }
       ]
     }

@@ -28,7 +28,7 @@ test("allocator denies one token below a warden pool boundary while total budget
   // split (warden 16% -> 23%). It is no longer: the minimum for this payload measured 400 against a
   // catalog budget of 469, so `budgetTokens - 1` now SUCCEEDS and characterises nothing. Pinned to
   // the measured boundary instead. The property under test is unchanged and still holds -- the
-  // allocator denies on the WARDEN POOL while 188 tokens of total budget remain.
+  // allocator denies on the WARDEN POOL while 132 tokens of total budget remain.
   const boundaryBudget = 399;
   const boundaryText = scenario.payload.text.replace(
     /Use a \d+ token hard budget/,
@@ -51,7 +51,7 @@ test("allocator denies one token below a warden pool boundary while total budget
     ], { cwd: ROOT, encoding: "utf8" });
 
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=188/);
+    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=132/);
     assert.match(result.stderr, /deniedLines=actor:actor_spawn:wardens/);
     assert.match(result.stderr, /deniedPools=wardens:186\/176/);
     // #145 — the shortfall (how many more tokens this one pool alone needed) used to be

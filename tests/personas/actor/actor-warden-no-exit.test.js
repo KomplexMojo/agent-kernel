@@ -34,13 +34,13 @@ function chebyshev(a, b) {
   return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 }
 
-async function propose({ role, position, motivation = { kind: "exploring" } }) {
+async function propose({ alignment, canExit, position, motivation = { kind: "exploring" } }) {
   const [{ createActorPersona }, { TickPhases }] = await loadModules();
   const persona = createActorPersona({ clock: () => "fixed" });
   const self = {
-    id: `${role}_1`,
-    kind: 2,
-    role,
+    id: "actor_1",
+    alignment,
+    capabilities: { canMove: true, canExit },
     position,
     motivation,
   };
@@ -64,7 +64,7 @@ async function propose({ role, position, motivation = { kind: "exploring" } }) {
         },
       },
     },
-    initialState: { actors: [{ id: self.id, role, kind: "motivated" }] },
+    initialState: { actors: [self] },
   };
   persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick: 0 });
   persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick: 0 });
@@ -74,10 +74,10 @@ async function propose({ role, position, motivation = { kind: "exploring" } }) {
 
 test("warden with exploring motivation does not propose an exit-closing move", async () => {
   const start = { x: 1, y: 1 };
-  const actions = await propose({ role: "warden", position: start });
+  const actions = await propose({ alignment: "dungeon", canExit: false, position: start });
   const moves = actions.filter((action) => action.kind === "move");
   for (const move of moves) {
-    const to = move.params?.to;
+    const to = move.params?.target;
     assert.ok(to, "move proposals include a destination");
     assert.ok(
       chebyshev(to, EXIT_APPROACH) >= chebyshev(start, EXIT_APPROACH),
@@ -92,13 +92,18 @@ test("warden with exploring motivation does not propose an exit-closing move", a
 
 test("delver still proposes a move that reduces distance to exit approach", async () => {
   const start = { x: 1, y: 1 };
-  const actions = await propose({ role: "delver", position: start });
+  const actions = await propose({ alignment: "external", canExit: true, position: start });
   const move = actions.find((action) => action.kind === "move");
   assert.ok(move, "delver must propose a move toward the exit approach");
-  const to = move.params?.to;
+  const to = move.params?.target;
   assert.ok(to, "delver move includes destination");
   assert.ok(
     chebyshev(to, EXIT_APPROACH) < chebyshev(start, EXIT_APPROACH),
     `delver should close on exitApproach; start=${chebyshev(start, EXIT_APPROACH)} after=${chebyshev(to, EXIT_APPROACH)}`,
   );
+});
+
+test("dungeon alignment can seek an exit when the capability is enabled", async () => {
+  const actions = await propose({ alignment: "dungeon", canExit: true, position: { x: 1, y: 1 } });
+  assert.ok(actions.some(action => action.kind === "move"));
 });

@@ -23,11 +23,18 @@ type RuntimeDecisionProviderPolicy = {
   model?: string; baseUrl?: string; format?: string; options?: JsonRecord;
 };
 
+const RUNTIME_DECISION_ACTOR_KEYS = Object.freeze([
+  "id", "alignment", "position", "lifecycle", "defeatVital", "vitals",
+  "capabilities", "motivations", "affinities", "activeAffinityKey", "holdings",
+]);
+const RUNTIME_DECISION_SELF_EXTRA_KEYS = Object.freeze(["motivationProfile"]);
+const RUNTIME_DECISION_VISIBLE_EXTRA_KEYS = Object.freeze(["hostile"]);
+
 type RuntimeDecisionEnvelope = JsonRecord & {
   contract: string; decisionKind: string; phase: string; tick: number;
   actor: JsonRecord; candidateActions: CandidateAction[];
   providerPolicy: RuntimeDecisionProviderPolicy;
-  visibleActors?: JsonRecord[]; hazards?: JsonRecord[];
+  visibleActors?: JsonRecord[];
   objectives?: JsonRecord; constraints?: JsonRecord;
 };
 
@@ -80,6 +87,20 @@ function asBoolean(value: unknown, fallback = false) {
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+export function projectRuntimeDecisionActor(
+  actor: unknown,
+  extraKeys: readonly string[] = [],
+): JsonRecord {
+  if (!isObject(actor)) return {};
+  const record: JsonRecord = {};
+  for (const key of [...RUNTIME_DECISION_ACTOR_KEYS, ...extraKeys]) {
+    if (actor[key] !== undefined) {
+      record[key] = cloneJson(actor[key]);
+    }
+  }
+  return record;
 }
 
 function normalizeActorDecisionObjective(
@@ -225,7 +246,6 @@ export function buildRuntimeDecisionEnvelope({
   tick = 0,
   actor = null,
   visibleActors = [],
-  hazards = [],
   candidateActions = [],
   objectives = undefined,
   constraints = undefined,
@@ -236,13 +256,12 @@ export function buildRuntimeDecisionEnvelope({
   tick?: unknown;
   actor?: unknown;
   visibleActors?: unknown[];
-  hazards?: unknown[];
   candidateActions?: unknown[];
   objectives?: unknown;
   constraints?: unknown;
   providerPolicy?: unknown;
 } = {}): RuntimeDecisionEnvelope {
-  const actorRecord = isObject(actor) ? { ...actor } : {};
+  const actorRecord = projectRuntimeDecisionActor(actor, RUNTIME_DECISION_SELF_EXTRA_KEYS);
   const actorId = asNonEmptyString(actorRecord.id) || null;
   const resolvedTick = asTick(tick, 0);
   const normalizedCandidates = normalizeCandidateActions(candidateActions, { actorId, tick: resolvedTick });
@@ -257,10 +276,9 @@ export function buildRuntimeDecisionEnvelope({
     providerPolicy: normalizedPolicy,
   };
   if (Array.isArray(visibleActors) && visibleActors.length > 0) {
-    envelope.visibleActors = visibleActors.filter(isObject).map((entry) => ({ ...entry }));
-  }
-  if (Array.isArray(hazards) && hazards.length > 0) {
-    envelope.hazards = hazards.filter(isObject).map((entry) => ({ ...entry }));
+    envelope.visibleActors = visibleActors
+      .filter(isObject)
+      .map((entry) => projectRuntimeDecisionActor(entry, RUNTIME_DECISION_VISIBLE_EXTRA_KEYS));
   }
   if (isObject(objectives)) {
     const normalizedObjectives = { ...objectives };
@@ -328,9 +346,10 @@ export function buildRuntimeDecisionLlmPrompt(
   if (!isObject(requestEnvelope)) {
     throw new Error("runtime decision prompt requires requestEnvelope");
   }
-  const actor = isObject(requestEnvelope.actor) ? requestEnvelope.actor : {};
-  const visibleActors = Array.isArray(requestEnvelope.visibleActors) ? requestEnvelope.visibleActors : [];
-  const hazards = Array.isArray(requestEnvelope.hazards) ? requestEnvelope.hazards : [];
+  const actor = projectRuntimeDecisionActor(requestEnvelope.actor, RUNTIME_DECISION_SELF_EXTRA_KEYS);
+  const visibleActors = Array.isArray(requestEnvelope.visibleActors)
+    ? requestEnvelope.visibleActors.map((entry) => projectRuntimeDecisionActor(entry, RUNTIME_DECISION_VISIBLE_EXTRA_KEYS))
+    : [];
   const candidateActions = (Array.isArray(requestEnvelope.candidateActions) ? requestEnvelope.candidateActions : []) as CandidateAction[];
   const promptPayload = {
     contract: RUNTIME_DECISION_CONTRACT,
@@ -339,7 +358,6 @@ export function buildRuntimeDecisionLlmPrompt(
     tick: requestEnvelope.tick ?? 0,
     actor,
     visibleActors,
-    hazards,
     objectives: requestEnvelope.objectives || undefined,
     constraints: requestEnvelope.constraints || undefined,
     candidateActions: candidateActions.map((entry) => ({

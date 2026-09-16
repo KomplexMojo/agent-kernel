@@ -216,7 +216,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
     affinityPresetsPath: "/tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json",
     affinityLoadoutsPath: "/tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json",
     affinitySummary: true,
-    actor: "actor_probe,1,1,motivated",
+    actor: "actor_probe,1,1,delver",
     vitalDefault: "stamina,2,2,0",
     tileBarrier: "1,0",
   });

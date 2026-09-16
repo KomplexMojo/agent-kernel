@@ -248,7 +248,15 @@ export function applyAffinityDerivedVitalRequirements(actor) {
  * applies all three at one point rather than knowing which are card-level and which are actor-level.
  */
 export function applyViabilityDerivedVitalRequirements(actor) {
-  if (!actor?.vitals || typeof actor.vitals !== "object") return false;
+  if (!actor || typeof actor !== "object" || Array.isArray(actor)) return false;
+  if (!actor.vitals || typeof actor.vitals !== "object" || Array.isArray(actor.vitals)) {
+    actor.vitals = cloneVitals();
+  }
+  for (const key of Object.keys(ACTOR_VIABILITY_FLOOR)) {
+    if (!actor.vitals[key] || typeof actor.vitals[key] !== "object" || Array.isArray(actor.vitals[key])) {
+      actor.vitals[key] = { ...DEFAULT_VITALS[key] };
+    }
+  }
   const before = JSON.stringify(actor.vitals);
   applyActorViabilityFloor(actor.vitals);
   return before !== JSON.stringify(actor.vitals);
@@ -256,7 +264,11 @@ export function applyViabilityDerivedVitalRequirements(actor) {
 
 export function applyMotivationDerivedVitalRequirements(actor) {
   const kinds = collectMotivationKinds(actor);
-  if (kinds.length === 0 || !actor?.vitals?.stamina) return false;
+  if (kinds.length === 0) return false;
+  if (!actor.vitals || typeof actor.vitals !== "object" || Array.isArray(actor.vitals)) {
+    actor.vitals = cloneVitals();
+  }
+  if (!actor?.vitals?.stamina) actor.vitals.stamina = { ...DEFAULT_VITALS.stamina };
   const card = {
     type: actor.archetype || actor.type,
     motivations: kinds,

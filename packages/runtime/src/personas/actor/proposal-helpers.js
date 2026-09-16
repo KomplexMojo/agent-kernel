@@ -27,6 +27,26 @@ export function findExitFromTiles(baseTiles) {
   return null;
 }
 
+function terrainToTiles(layoutData) {
+  const terrain = layoutData?.terrain;
+  const width = layoutData?.width;
+  const height = layoutData?.height;
+  if (!Array.isArray(terrain) || !Number.isInteger(width) || !Number.isInteger(height)
+    || width <= 0 || height <= 0 || terrain.length !== width * height) {
+    return null;
+  }
+  const glyphs = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+  const rows = [];
+  for (let y = 0; y < height; y += 1) {
+    let row = "";
+    for (let x = 0; x < width; x += 1) {
+      row += glyphs[terrain[y * width + x]] || ".";
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
 export function resolveObservationView(observation) {
   if (!observation || typeof observation !== "object") {
     return null;
@@ -44,13 +64,13 @@ export function resolveBaseTiles(payload, view, simConfig) {
   if (view?.tiles?.baseTiles) return view.tiles.baseTiles;
   if (view?.tiles?.tiles) return view.tiles.tiles;
   const config = payload?.simConfig || simConfig;
-  if (config?.layout?.data?.tiles) return config.layout.data.tiles;
+  const fromTerrain = terrainToTiles(config?.layout?.data);
+  if (fromTerrain) return fromTerrain;
   return null;
 }
 
-export function isWarden(actorOrRecord) {
-  const role = typeof actorOrRecord?.role === "string" ? actorOrRecord.role.trim() : "";
-  return role === "warden";
+export function actorCanExit(actorOrRecord) {
+  return actorOrRecord?.capabilities?.canExit !== false;
 }
 
 /**
@@ -80,7 +100,12 @@ export function resolveActor(view, actorId, observation) {
     const matchId = actorId || observation?.actorId;
     const selected = matchId ? view.actors.find((actor) => actor?.id === matchId) : view.actors[0];
     if (selected?.position) {
-      return { id: selected.id, position: selected.position, role: selected.role };
+      return {
+        id: selected.id,
+        position: selected.position,
+        alignment: selected.alignment,
+        capabilities: selected.capabilities,
+      };
     }
   }
   if (view?.actor) {
@@ -117,7 +142,7 @@ export function resolveTileKinds(view, payload) {
 }
 
 export function buildAdjacentMoveProposals({ actor, tileKinds, baseTiles }) {
-  if (!actor?.position) {
+  if (!actor?.position || actor.capabilities?.canMove === false) {
     return [];
   }
   const proposals = [];
@@ -131,11 +156,7 @@ export function buildAdjacentMoveProposals({ actor, tileKinds, baseTiles }) {
     }
     proposals.push({
       kind: "move",
-      params: {
-        direction: delta.direction,
-        from: actor.position,
-        to,
-      },
+      params: { target: to },
     });
   }
   return proposals;
@@ -229,30 +250,20 @@ export function buildMoveProposal({ observation, payload, simConfig }) {
   const actor = resolveActor(view, payload?.actorId, observation);
   if (!actor || !actor.position) return [];
   const actorRecord = resolveActorRecord(view, payload?.actorId, observation);
-  if (isWarden(actorRecord) || isWarden(actor) || isWarden(payload?.configuredActor)) {
-    return [{ kind: "wait", params: { reason: "warden_holds_exit" } }];
+  if (actorRecord?.capabilities?.canMove === false || actor?.capabilities?.canMove === false) {
+    return [{ kind: "wait" }];
+  }
+  if (!actorCanExit(actorRecord) || !actorCanExit(actor) || !actorCanExit(payload?.configuredActor)) {
+    return [{ kind: "wait" }];
   }
   if (!exit) return [];
   if (actorRecord?.motivation?.mobility === "stationary") {
-    return [{ kind: "wait", params: { reason: "stationary" } }];
+    return [{ kind: "wait" }];
   }
   const path = findPath(actor.position, exit, tileKinds, baseTiles);
   if (!path || path.length < 2) return [];
-  const from = path[0];
   const to = path[1];
-  const delta = { dx: to.x - from.x, dy: to.y - from.y };
-  const direction = DEFAULT_DELTAS.find((entry) => entry.dx === delta.dx && entry.dy === delta.dy)?.direction;
-  if (!direction) return [];
-  return [
-    {
-      kind: "move",
-      params: {
-        direction,
-        from,
-        to,
-      },
-    },
-  ];
+  return [{ kind: "move", params: { target: to } }];
 }
 
 export function roomPerimeterRing(room, tileKinds, baseTiles) {
@@ -341,13 +352,8 @@ export function buildPatrolProposals({ observation, payload, simConfig, params =
 
   const path = findPath(actor.position, target, tileKinds, baseTiles);
   if (!path || path.length < 2) return [];
-  const from = path[0];
   const to = path[1];
-  const direction = DEFAULT_DELTAS.find(
-    (entry) => entry.dx === to.x - from.x && entry.dy === to.y - from.y,
-  )?.direction;
-  if (!direction) return [];
-  return [{ kind: "move", params: { direction, from, to } }];
+  return [{ kind: "move", params: { target: to } }];
 }
 
 export function nearestRingCell(position, ring) {
@@ -420,17 +426,17 @@ export function buildRandomMoveProposals({ observation, payload, simConfig, pers
   const view = resolveObservationView(observation);
   const actorId = payload?.actorId;
   const actor = resolveActor(view, actorId, observation);
-  if (!actor?.position) return [{ kind: "wait", params: { reason: "random" } }];
+  if (!actor?.position || actor?.capabilities?.canMove === false) return [{ kind: "wait" }];
 
   const baseTiles = resolveBaseTiles(payload, view, simConfig);
   const tileKinds = resolveTileKinds(view, payload);
   const reservedTargets = payload?.reservedTargets;
   const candidates = buildAdjacentMoveProposals({ actor, tileKinds, baseTiles })
-    .filter((proposal) => !isOccupied(proposal.params.to, view, actorId))
-    .filter((proposal) => !isReserved(proposal.params.to, reservedTargets));
+    .filter((proposal) => !isOccupied(proposal.params.target, view, actorId))
+    .filter((proposal) => !isReserved(proposal.params.target, reservedTargets));
 
   if (candidates.length === 0) {
-    return [{ kind: "wait", params: { reason: "random" } }];
+    return [{ kind: "wait" }];
   }
 
   const seed = resolveActorRandomSeed(view, actorId, payload, personaSeed);
@@ -438,17 +444,7 @@ export function buildRandomMoveProposals({ observation, payload, simConfig, pers
   const index = Math.floor(roll * candidates.length) % candidates.length;
   const chosen = candidates[index];
 
-  return [
-    {
-      kind: "move",
-      params: {
-        direction: chosen.params.direction,
-        from: chosen.params.from,
-        to: chosen.params.to,
-        reason: "random",
-      },
-    },
-  ];
+  return [{ kind: "move", params: { target: chosen.params.target } }];
 }
 
 export { DEFAULT_DELTAS };

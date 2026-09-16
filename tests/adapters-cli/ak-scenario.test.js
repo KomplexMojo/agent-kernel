@@ -71,7 +71,7 @@ test("cli scenario composes llm-plan, run, and inspect into one pipeline", (t) =
   assert.equal(existsSync(summary.artifactPaths.inspect_summary), true);
 });
 
-test("cli scenario resumes run and inspect from --from-run", (t) => {
+test("cli scenario resumes run and inspect from --from-run", async () => {
 
   const workspaceDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-scenario-from-run-"));
   const sourceRunId = "run_llm_plan_resume";
@@ -79,47 +79,23 @@ test("cli scenario resumes run and inspect from --from-run", (t) => {
   const outDir = join(workspaceDir, "artifacts", "runs", sourceRunId);
 
   mkdirSync(sourceDir, { recursive: true });
-  writeFileSync(join(sourceDir, "sim-config.json"), `${JSON.stringify({
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "sim_config_resume",
-      runId: sourceRunId,
-      createdAt: "2025-01-01T00:00:00Z",
-      producedBy: "test",
-    },
-    planRef: {
-      id: "plan_resume",
-      schema: "agent-kernel/PlanArtifact",
-      schemaVersion: 1,
-    },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width: 1,
-        height: 1,
-        tiles: ["S"],
-        spawn: { x: 0, y: 0 },
-      },
-    },
-  }, null, 2)}\n`, "utf8");
-  writeFileSync(join(sourceDir, "initial-state.json"), `${JSON.stringify({
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "initial_state_resume",
-      runId: sourceRunId,
-      createdAt: "2025-01-01T00:00:00Z",
-      producedBy: "test",
-    },
-    simConfigRef: {
-      id: "sim_config_resume",
-      schema: "agent-kernel/SimConfigArtifact",
-      schemaVersion: 1,
-    },
-    actors: [{ id: "actor_1", kind: "stationary" }],
-  }, null, 2)}\n`, "utf8");
+  const { buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 1,
+    height: 1,
+    terrain: ["spawn"],
+    runId: sourceRunId,
+    clock: "2025-01-01T00:00:00Z",
+    actors: [{
+      id: "actor_1",
+      category: "delver",
+      position: { x: 0, y: 0 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
+  writeFileSync(join(sourceDir, "sim-config.json"), `${JSON.stringify(simConfig, null, 2)}\n`, "utf8");
+  writeFileSync(join(sourceDir, "initial-state.json"), `${JSON.stringify(initialState, null, 2)}\n`, "utf8");
 
   const result = runCli(
     [

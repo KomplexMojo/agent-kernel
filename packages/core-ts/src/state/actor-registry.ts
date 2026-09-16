@@ -1,5 +1,5 @@
 import { advanceActorExit, EXIT_DWELL_TICKS } from "../rules/actor-exit.ts";
-import type { ActorPosition, ActorRecord, ActorRegistrySnapshot, ActorVitalKind, ActorAffinityKey, TerrainKind } from './actor-types.ts';
+import type { ActorPosition, ActorRecord, ActorRegistrySnapshot, ActorVitalKind, ActorAffinityKey, TerrainKind, AffinityKind, AffinityExpression, ActorVitalRecord } from './actor-types.ts';
 
 import { validateActorRecordVitals, changeActorVital, regenerateActor } from './actor-vitals.ts';
 
@@ -85,8 +85,12 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     }
   }
   // Ordinal UTF-16 order, never locale-dependent ordering or caller insertion order.
-  const ordered = [...actors.values()].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  let ordered = [...actors.values()].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   for (const entries of occupancy.values()) entries.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  function refreshOrder() {
+    ordered = [...actors.values()].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    for (const entries of occupancy.values()) entries.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  }
   function blocks(point: ActorPosition, capability: 'blocksMovement' | 'blocksSight'): boolean {
     return terrainBlocks(point) || (occupancy.get(index(point)) ?? [])
       .some(actor => actor.lifecycle === 'alive' && actor.capabilities[capability]);
@@ -134,6 +138,48 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     },
     isMovementBlocked(point: ActorPosition): boolean { return blocks(point, 'blocksMovement'); },
     isSightBlocked(point: ActorPosition): boolean { return blocks(point, 'blocksSight'); },
+    persistOrSpawnHazardAt(point: ActorPosition, spec: {
+      kind: AffinityKind; expression: AffinityExpression; stacks: number; manaReserve: number;
+      durability?: ActorVitalRecord;
+    }): boolean {
+      if (!withinBounds(point) || terrain[index(point)] === 'wall') return false;
+      if (!Number.isSafeInteger(spec.stacks) || spec.stacks <= 0
+        || !Number.isSafeInteger(spec.manaReserve) || spec.manaReserve < 0) return false;
+      const pair = { kind: spec.kind, expression: spec.expression, stacks: spec.stacks };
+      const mana = { current: spec.manaReserve, max: spec.manaReserve, regen: 0 };
+      const occupants = occupancy.get(index(point)) ?? [];
+      const existing = occupants.find(actor => actor.lifecycle === 'alive'
+        && !actor.capabilities.canMove && actor.capabilities.canCast);
+      if (existing) {
+        existing.affinities = [pair];
+        existing.activeAffinityKey = `${pair.kind}:${pair.expression}`;
+        existing.vitals.mana = { ...mana };
+        validateActorRecordVitals(existing);
+        validateActorInventory(existing);
+        return true;
+      }
+      const durability = spec.durability;
+      if (!durability || durability.current <= 0 || terrain[index(point)] !== 'floor') return false;
+      const id = `hazard:${point.x}:${point.y}`;
+      if (actors.has(id)) return false;
+      const actor: ActorRecord = {
+        id, alignment: 'dungeon', position: { x: point.x, y: point.y }, lifecycle: 'alive',
+        defeatVital: 'durability',
+        vitals: { durability: { ...durability }, mana: { ...mana } },
+        capabilities: { canMove: false, canCast: true, canEquip: false, canTake: false,
+          canExit: false, blocksMovement: false, blocksSight: false },
+        motivations: [], affinities: [pair], activeAffinityKey: `${pair.kind}:${pair.expression}`,
+        holdings: [],
+      };
+      validateActorRecordVitals(actor);
+      validateActorInventory(actor);
+      validateActorHoldings(actor);
+      actors.set(id, actor);
+      occupants.push(actor);
+      occupancy.set(index(point), occupants);
+      refreshOrder();
+      return true;
+    },
     snapshot(): ActorRegistrySnapshot {
       return copy({ dimensions: { width, height }, terrain, actors: ordered });
     },

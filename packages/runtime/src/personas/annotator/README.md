@@ -91,6 +91,10 @@ Raw signals are transformed into:
 
 All aggregation logic is deterministic and reproducible.
 
+End-of-run `WorldStateArtifact` snapshots copy the live actor registry
+(equipment, defeat, claims, hazard/resource actors). They do not emit a
+separate hazards or resources collection.
+
 ---
 
 ### Emission

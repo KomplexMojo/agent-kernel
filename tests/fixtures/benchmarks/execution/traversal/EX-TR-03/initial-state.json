@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "warden_patrol",
-      "kind": "ambulatory",
       "position": {
         "x": 4,
         "y": 4
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -42,18 +44,26 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "motivation": {
-        "kind": "patrolling"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "patrolling",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "patrolling"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "warden_patrol": {
+      "category": "warden"
+    }
+  }
 }

@@ -154,6 +154,18 @@ describe("scopeObservation", () => {
     expect(scoped.actors.length).toBe(observation.actors.length);
   });
 
+  test("scopeObservation omits a hazards collection even when one is injected", () => {
+    const scoped = scopeObservation({
+      actors: [
+        { id: "self", position: { x: 1, y: 1 } },
+        { id: "near", position: { x: 2, y: 1 } },
+      ],
+      hazards: [{ id: "hz", position: { x: 2, y: 1 } }],
+    }, "self", 3);
+    expect(scoped.actors.map((entry) => entry.id)).toEqual(["self", "near"]);
+    expect(Object.hasOwn(scoped, "hazards")).toBe(false);
+  });
+
   test("the wall-or-barrier observation kind blocks actors and hazards behind it", () => {
     const observationWithBarrier = {
       actors: [
@@ -174,7 +186,7 @@ describe("scopeObservation", () => {
 
     const scoped = scopeObservation(observationWithBarrier, "self", 4);
     expect(scoped.actors.map((entry) => entry.id)).toEqual(["self"]);
-    expect(scoped.hazards).toEqual([]);
+    expect(Object.hasOwn(scoped, "hazards")).toBe(false);
   });
 
   test("unobstructed cardinal and diagonal rays retain their targets", () => {
@@ -227,7 +239,7 @@ describe("scopeObservation", () => {
     });
 
     expect(scoped.actors.map((entry) => entry.id)).toEqual(["self", "adjacent_dark"]);
-    expect(scoped.hazards).toEqual([]);
+    expect(Object.hasOwn(scoped, "hazards")).toBe(false);
   });
 
   test("field cells use radius and line of sight but are not hidden by target darkness", () => {

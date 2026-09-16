@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "delver_dense_attacker-1",
-      "kind": "ambulatory",
       "position": {
         "x": 9,
         "y": 6
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 16,
@@ -42,23 +44,31 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "attacking"
-      }
+      "motivations": [
+        "attacking"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "delver_dense_random-1",
-      "kind": "ambulatory",
       "position": {
         "x": 8,
         "y": 7
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 16,
@@ -81,23 +91,537 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "traits": {
-        "affinities": {
-          "water": 1
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
+    },
+    {
+      "id": "hazard_dense_dark",
+      "position": {
+        "x": 9,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 16,
+          "max": 16,
+          "regen": 2
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
         }
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "dark",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": "dark:emit",
+      "holdings": []
+    },
+    {
+      "id": "hazard_dense_earth",
+      "position": {
+        "x": 10,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 16,
+          "max": 16,
+          "regen": 2
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "earth",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": "earth:push",
+      "holdings": []
+    },
+    {
+      "id": "hazard_dense_fire",
+      "position": {
+        "x": 6,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 16,
+          "max": 16,
+          "regen": 2
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "pull",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": "water:pull",
+      "holdings": []
+    },
+    {
+      "id": "hazard_dense_life",
+      "position": {
+        "x": 8,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 16,
+          "max": 16,
+          "regen": 2
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "life",
+          "expression": "draw",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": "life:draw",
+      "holdings": []
+    },
+    {
+      "id": "hazard_dense_water",
+      "position": {
+        "x": 5,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 16,
+          "max": 16,
+          "regen": 2
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": "fire:emit",
+      "holdings": []
+    },
+    {
+      "id": "hazard_dense_wind",
+      "position": {
+        "x": 7,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 16,
+          "max": 16,
+          "regen": 2
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": "wind:push",
+      "holdings": []
+    },
+    {
+      "id": "resource_dense_health",
+      "position": {
+        "x": 11,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": [
+        {
+          "id": "resource_dense_health",
+          "kind": "vital",
+          "permanenceMode": "consumable",
+          "claimedBy": null,
+          "vitals": [
+            {
+              "key": "health",
+              "delta": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resource_dense_health_max",
+      "position": {
+        "x": 5,
+        "y": 4
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": [
+        {
+          "id": "resource_dense_health_max",
+          "kind": "vital",
+          "permanenceMode": "level",
+          "claimedBy": null,
+          "vitals": [
+            {
+              "key": "health",
+              "delta": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resource_dense_health_regen",
+      "position": {
+        "x": 7,
+        "y": 4
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": [
+        {
+          "id": "resource_dense_health_regen",
+          "kind": "vital",
+          "permanenceMode": "level",
+          "claimedBy": null,
+          "vitals": [
+            {
+              "key": "health",
+              "delta": 0,
+              "regen": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resource_dense_mana_max",
+      "position": {
+        "x": 6,
+        "y": 4
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": [
+        {
+          "id": "resource_dense_mana_max",
+          "kind": "vital",
+          "permanenceMode": "level",
+          "claimedBy": null,
+          "vitals": [
+            {
+              "key": "mana",
+              "delta": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resource_dense_stamina",
+      "position": {
+        "x": 12,
+        "y": 3
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": [
+        {
+          "id": "resource_dense_stamina",
+          "kind": "vital",
+          "permanenceMode": "consumable",
+          "claimedBy": null,
+          "vitals": [
+            {
+              "key": "stamina",
+              "delta": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resource_dense_stamina_regen",
+      "position": {
+        "x": 8,
+        "y": 4
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": [
+        {
+          "id": "resource_dense_stamina_regen",
+          "kind": "vital",
+          "permanenceMode": "level",
+          "claimedBy": null,
+          "vitals": [
+            {
+              "key": "stamina",
+              "delta": 0,
+              "regen": 1
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "warden_dense_attacker-1",
-      "kind": "ambulatory",
       "position": {
         "x": 10,
         "y": 7
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 18,
@@ -120,23 +644,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "life": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "attacking"
-      }
+      "motivations": [
+        "attacking"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_dense_defender-1",
-      "kind": "ambulatory",
       "position": {
         "x": 27,
         "y": 26
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 20,
@@ -159,23 +691,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "dark": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "defending"
-      }
+      "motivations": [
+        "defending"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_dense_patrol-1",
-      "kind": "ambulatory",
       "position": {
         "x": 26,
         "y": 27
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 20,
@@ -198,23 +738,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "earth": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "patrolling"
-      }
+      "motivations": [
+        "patrolling"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_dense_random-1",
-      "kind": "ambulatory",
       "position": {
         "x": 27,
         "y": 25
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 18,
@@ -237,15 +785,77 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "wind": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "delver_dense_attacker-1": {
+      "category": "delver"
+    },
+    "delver_dense_random-1": {
+      "category": "delver"
+    },
+    "hazard_dense_dark": {
+      "category": "hazard"
+    },
+    "hazard_dense_earth": {
+      "category": "hazard"
+    },
+    "hazard_dense_fire": {
+      "category": "hazard"
+    },
+    "hazard_dense_life": {
+      "category": "hazard"
+    },
+    "hazard_dense_water": {
+      "category": "hazard"
+    },
+    "hazard_dense_wind": {
+      "category": "hazard"
+    },
+    "resource_dense_health": {
+      "category": "resource"
+    },
+    "resource_dense_health_max": {
+      "category": "resource"
+    },
+    "resource_dense_health_regen": {
+      "category": "resource"
+    },
+    "resource_dense_mana_max": {
+      "category": "resource"
+    },
+    "resource_dense_stamina": {
+      "category": "resource"
+    },
+    "resource_dense_stamina_regen": {
+      "category": "resource"
+    },
+    "warden_dense_attacker-1": {
+      "category": "warden"
+    },
+    "warden_dense_defender-1": {
+      "category": "warden"
+    },
+    "warden_dense_patrol-1": {
+      "category": "warden"
+    },
+    "warden_dense_random-1": {
+      "category": "warden"
+    }
+  }
 }

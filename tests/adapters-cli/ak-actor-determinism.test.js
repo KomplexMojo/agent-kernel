@@ -8,13 +8,6 @@ const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 const ACTION_FIXTURE = resolve(ROOT, "tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json");
 
-let VITAL_KEYS = [];
-
-beforeAll(async () => {
-  const shared = await import("../../packages/runtime/src/contracts/domain-constants.js");
-  VITAL_KEYS = Array.from(shared.VITAL_KEYS);
-});
-
 function runCli(args, options = {}) {
   const result = spawnSync(process.execPath, [CLI, ...args], {
     cwd: ROOT,
@@ -46,66 +39,47 @@ function normalizeMeta(artifact) {
   return clone;
 }
 
-function createGridArtifacts(dir) {
-  const simConfig = {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "sim_config",
-      runId: "run_test",
-      createdAt: "2025-01-01T00:00:00.000Z",
-      producedBy: "test",
-    },
-    planRef: {
-      id: "plan_test",
-      schema: "agent-kernel/PlanArtifact",
-      schemaVersion: 1,
-    },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width: 3,
-        height: 3,
-        tiles: [
-          "...",
-          "...",
-          "...",
-        ],
-        legend: {
-          ".": { tile: "floor" },
-          "#": { tile: "wall" },
-          "S": { tile: "spawn" },
-          "E": { tile: "exit" },
-        },
-        render: {
-          wall: "#",
-          floor: ".",
-          spawn: "S",
-          exit: "E",
-          actor: "@",
-        },
-        spawn: { x: 0, y: 0 },
-        exit: { x: 2, y: 2 },
+async function createGridArtifacts(dir) {
+  const { buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const terrain = [
+    "wall", "floor", "floor",
+    "floor", "floor", "floor",
+    "floor", "floor", "exit",
+  ];
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 3,
+    height: 3,
+    terrain,
+    actors: [
+      {
+        id: "actor_z",
+        category: "delver",
+        position: { x: 0, y: 1 },
+        motivations: ["exploring"],
+        vitals: { health: { current: 10, max: 10, regen: 0 } },
       },
-    },
-  };
-  const initialState = {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "initial_state",
-      runId: "run_test",
-      createdAt: "2025-01-01T00:00:00.000Z",
-      producedBy: "test",
-    },
-    simConfigRef: {
-      id: simConfig.meta.id,
-      schema: simConfig.schema,
-      schemaVersion: simConfig.schemaVersion,
-    },
-    actors: [{ id: "actor_z", kind: "stationary" }],
-  };
+      {
+        id: "actor_b",
+        category: "delver",
+        position: { x: 1, y: 1 },
+        motivations: ["exploring"],
+        vitals: { health: { current: 5, max: 9, regen: 1 } },
+      },
+      {
+        id: "actor_a",
+        category: "delver",
+        position: { x: 2, y: 1 },
+        motivations: ["exploring"],
+        vitals: { health: { current: 10, max: 10, regen: 0 } },
+      },
+      {
+        id: "barrier_10",
+        category: "barrier",
+        position: { x: 1, y: 0 },
+        vitals: { durability: { current: 1, max: 1, regen: 0 } },
+      },
+    ],
+  });
   const simConfigPath = join(dir, "sim-config.json");
   const initialStatePath = join(dir, "initial-state.json");
   writeJson(simConfigPath, simConfig);
@@ -113,9 +87,9 @@ function createGridArtifacts(dir) {
   return { simConfigPath, initialStatePath };
 }
 
-test("cli run emits deterministic actor configs and action logs", (t) => {
+test("cli run emits deterministic actor configs and action logs", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-determinism-"));
-  const { simConfigPath, initialStatePath } = createGridArtifacts(workDir);
+  const { simConfigPath, initialStatePath } = await createGridArtifacts(workDir);
   const outDirA = join(workDir, "out-a");
   const outDirB = join(workDir, "out-b");
 
@@ -126,49 +100,34 @@ test("cli run emits deterministic actor configs and action logs", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",    "--actions",
+    "0",
+    "--actions",
     ACTION_FIXTURE,
-    "--actor",
-    "actor_b,1,1,motivated",
-    "--actor",
-    "actor_a,2,1,stationary",
-    "--vital",
-    "actor_b,health,5,9,1",
-    "--vital-default",
-    "stamina,2,2,0",
-    "--tile-wall",
-    "0,0",
-    "--tile-barrier",
-    "1,0",
   ];
 
   runCli([...args, "--out-dir", outDirA]);
   runCli([...args, "--out-dir", outDirB]);
 
-  const simA = normalizeMeta(readJson(join(outDirA, "resolved-sim-config.json")));
-  const simB = normalizeMeta(readJson(join(outDirB, "resolved-sim-config.json")));
-  const initA = normalizeMeta(readJson(join(outDirA, "resolved-initial-state.json")));
-  const initB = normalizeMeta(readJson(join(outDirB, "resolved-initial-state.json")));
+  const worldA = normalizeMeta(readJson(join(outDirA, "world-state.json")));
+  const worldB = normalizeMeta(readJson(join(outDirB, "world-state.json")));
   const actionsA = normalizeMeta(readJson(join(outDirA, "action-log.json")));
   const actionsB = normalizeMeta(readJson(join(outDirB, "action-log.json")));
   const actionFixture = readJson(ACTION_FIXTURE);
 
-  assert.deepEqual(simA, simB);
-  assert.deepEqual(initA, initB);
+  assert.deepEqual(worldA, worldB);
   assert.deepEqual(actionsA, actionsB);
   assert.deepEqual(actionsA.actions, actionFixture.actions);
 
-  const actorIds = initA.actors.map((actor) => actor.id);
+  const actorIds = worldA.actors.map((actor) => actor.id);
   assert.deepEqual(actorIds, [...actorIds].sort());
-  const actorB = initA.actors.find((actor) => actor.id === "actor_b");
+  const actorB = worldA.actors.find((actor) => actor.id === "actor_b");
   assert.ok(actorB);
-  assert.deepEqual(Object.keys(actorB.vitals), VITAL_KEYS);
   assert.deepEqual(actorB.vitals.health, { current: 5, max: 9, regen: 1 });
 });
 
-test("cli run normalizes action logs without fixture input", (t) => {
+test("cli run normalizes action logs without fixture input", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-determinism-"));
-  const { simConfigPath, initialStatePath } = createGridArtifacts(workDir);
+  const { simConfigPath, initialStatePath } = await createGridArtifacts(workDir);
   const outDirA = join(workDir, "out-c");
   const outDirB = join(workDir, "out-d");
 
@@ -179,8 +138,7 @@ test("cli run normalizes action logs without fixture input", (t) => {
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",    "--actor",
-    "actor_b,1,1,motivated",
+    "0",
   ];
 
   runCli([...args, "--out-dir", outDirA]);

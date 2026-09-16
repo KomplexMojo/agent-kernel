@@ -16,7 +16,6 @@ const BUDGET = resolve(ROOT, "tests/fixtures/artifacts/budget-receipt-artifact-v
 const BUDGET_ARTIFACT = resolve(ROOT, "tests/fixtures/artifacts/budget-artifact-v1-basic.json");
 const PRICE_LIST = resolve(ROOT, "tests/fixtures/artifacts/price-list-artifact-v1-basic.json");
 const EXPECTED_SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json");
-const EXPECTED_INITIAL = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json");
 const INVALID_LEVEL_GEN = resolve(
   ROOT,
   "tests/fixtures/artifacts/invalid/configurator-level-gen-v1-missing-width.json",
@@ -66,22 +65,23 @@ test("cli configurator builds sim config and initial state artifacts", () => {
   const simConfig = readJson(join(outDir, "sim-config.json"));
   const initialState = readJson(join(outDir, "initial-state.json"));
   const expectedSim = readJson(EXPECTED_SIM_CONFIG);
-  const expectedInitial = readJson(EXPECTED_INITIAL);
 
   assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
   assert.equal(simConfig.schemaVersion, 1);
-  // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
-  // Fixture snapshot regenerated: authored hazard (2,2) maps into room R1 at (1,1) -> absolute (3,3);
-  // spawn/exit shifted because the hazard tile is excluded from spawn/exit candidates. Verified: hazard
-  // tile is floor, inside R1, kinds[3][3] === 2 (KIND_HAZARD), spawn/exit reachable.
-  assert.deepEqual(simConfig.layout, expectedSim.layout);
+  assert.equal(simConfig.layout.kind, "grid");
+  assert.equal(Object.hasOwn(simConfig.layout.data, "hazards"), false);
+  assert.equal(Object.hasOwn(simConfig.layout.data, "tiles"), false);
+  assert.equal(simConfig.layout.data.width, 5);
+  assert.equal(simConfig.layout.data.height, 5);
+  assert.equal(simConfig.layout.data.terrain[3 * 5 + 3], "floor");
   assert.equal(simConfig.seed, expectedSim.seed);
   assert.deepEqual(simConfig.planRef, expectedSim.planRef);
-  assert.deepEqual(simConfig.budgetReceiptRef, expectedSim.budgetReceiptRef);
 
   assert.equal(initialState.schema, "agent-kernel/InitialStateArtifact");
   assert.equal(initialState.schemaVersion, 1);
-  assert.deepEqual(initialState.actors, expectedInitial.actors);
+  const hazard = initialState.actors.find((actor) => initialState.presentation?.[actor.id]?.category === "hazard");
+  assert.ok(hazard, "mapped hazard must land in initial-state actors");
+  assert.deepEqual(hazard.position, { x: 3, y: 3 });
   assert.equal(initialState.simConfigRef.schema, simConfig.schema);
   assert.equal(initialState.simConfigRef.schemaVersion, simConfig.schemaVersion);
   assert.equal(initialState.simConfigRef.id, simConfig.meta.id);
@@ -129,7 +129,10 @@ test("cli configurator emits a budget receipt from budget inputs", () => {
 
   const layoutLine = receipt.lineItems.find((item) => item.id === "tile_floor" && item.kind === "tile");
   assert.ok(layoutLine);
-  assert.equal(layoutLine.quantity, 9);
+  assert.equal(layoutLine.quantity, 25);
+  assert.equal(layoutLine.unitCost, 0);
+  assert.equal(layoutLine.totalCost, 0);
+  assert.equal(layoutLine.status, "denied");
   assert.equal(layoutLine.unitCost, 0);
   assert.equal(layoutLine.totalCost, 0);
   assert.equal(layoutLine.status, "denied");

@@ -208,7 +208,7 @@ test("cli verification ring: 10-tick full dungeon demo with tick session navigat
     "create",
     "--room", "size=medium;count=1",
     "--hazard", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
-    "--resource", "tier=level;stat=vitalMax;delta=10;dropRate=50",
+    "--resource", "permanenceMode=level;vital=health;delta=10",
     "--delver", "count=1;affinity=fire;motivation=attacking",
     "--warden", "count=1;affinity=dark;motivation=defending",
     "--run-id", "ring_10tick_demo",
@@ -261,10 +261,83 @@ test("cli verification ring: 10-tick full dungeon demo with tick session navigat
   assert.equal(bwOutput.previousTick, 3);
 });
 
-test.skip("10-tick ring tick forward past maxTick returns ok:false with stable boundary error", () => {});
-test.skip("10-tick ring tick backward at tick 0 returns ok:false with stable boundary error", () => {});
-test.skip("10-tick ring tick state before forward returns tick 0 and null tickFrame", () => {});
+function createDemoDungeon(workDir, runId) {
+  runCliOk([
+    "create",
+    "--room", "size=medium;count=1",
+    "--hazard", "x=2;y=2;affinity=fire;expression=emit;stacks=3",
+    "--resource", "permanenceMode=level;vital=health;delta=10",
+    "--delver", "count=1;affinity=fire;motivation=attacking",
+    "--warden", "count=1;affinity=dark;motivation=defending",
+    "--run-id", runId,
+    "--created-at", "2026-04-26T00:00:00.000Z",
+  ], { cwd: workDir });
+}
+
+test("10-tick ring tick forward past maxTick returns ok:false with stable boundary error", () => {
+  const workDir = makeWorkDir("agent-kernel-10tick-max-");
+  createDemoDungeon(workDir, "ring_10tick_max");
+  runCliOk(["run", "--from-run", "ring_10tick_max", "--ticks", "2"], { cwd: workDir });
+  runCliOk(["tick", "forward", "--run-id", "ring_10tick_max"], { cwd: workDir });
+  runCliOk(["tick", "forward", "--run-id", "ring_10tick_max"], { cwd: workDir });
+  const result = runCli(["tick", "forward", "--run-id", "ring_10tick_max"], { cwd: workDir });
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.match(output.error, /cannot advance past max tick/);
+});
+
+test("10-tick ring tick backward at tick 0 returns ok:false with stable boundary error", () => {
+  const workDir = makeWorkDir("agent-kernel-10tick-bwd0-");
+  createDemoDungeon(workDir, "ring_10tick_bwd0");
+  runCliOk(["run", "--from-run", "ring_10tick_bwd0", "--ticks", "2"], { cwd: workDir });
+  const result = runCli(["tick", "backward", "--run-id", "ring_10tick_bwd0"], { cwd: workDir });
+  assert.notEqual(result.status, 0);
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, false);
+  assert.match(output.error, /cannot rewind past tick 0/);
+});
+
+test("10-tick ring tick state before forward returns tick 0 and null tickFrame", () => {
+  const workDir = makeWorkDir("agent-kernel-10tick-state0-");
+  createDemoDungeon(workDir, "ring_10tick_state0");
+  runCliOk(["run", "--from-run", "ring_10tick_state0", "--ticks", "2"], { cwd: workDir });
+  const result = runCliOk(["tick", "state", "--run-id", "ring_10tick_state0"], { cwd: workDir });
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.tick, 0);
+  assert.equal(output.tickFrame, null);
+});
+
 test.skip("10-tick ring create with an auto-placed hazard still produces valid sim-config", () => {});
-test.skip("10-tick ring run ticks=1 then tick forward advances to maxTick boundary", () => {});
+
+test("10-tick ring run ticks=1 then tick forward advances to maxTick boundary", () => {
+  const workDir = makeWorkDir("agent-kernel-10tick-one-");
+  createDemoDungeon(workDir, "ring_10tick_one");
+  runCliOk(["run", "--from-run", "ring_10tick_one", "--ticks", "1"], { cwd: workDir });
+  const result = runCliOk(["tick", "forward", "--run-id", "ring_10tick_one"], { cwd: workDir });
+  const output = JSON.parse(result.stdout);
+  assert.equal(output.ok, true);
+  assert.equal(output.tick, 1);
+  assert.equal(output.maxTick, 1);
+});
+
 test.skip("10-tick ring create and run with permanent resource surfaces resource events in tick frames", () => {});
-test.skip("10-tick ring replaying 10-tick run produces identical frame count", () => {});
+
+test("10-tick ring replaying 10-tick run produces identical frame count", () => {
+  const workDir = makeWorkDir("agent-kernel-10tick-replay-");
+  createDemoDungeon(workDir, "ring_10tick_replay");
+  runCliOk(["run", "--from-run", "ring_10tick_replay", "--ticks", "10"], { cwd: workDir });
+  const runDir = join(workDir, "artifacts", "runs", "ring_10tick_replay");
+  const frames = readJson(join(runDir, "run", "tick-frames.json"));
+  const replayOut = join(workDir, "replay");
+  runCliOk([
+    "replay",
+    "--sim-config", join(runDir, "create", "sim-config.json"),
+    "--initial-state", join(runDir, "create", "initial-state.json"),
+    "--tick-frames", join(runDir, "run", "tick-frames.json"),
+    "--out-dir", replayOut,
+  ], { cwd: workDir });
+  const replayFrames = readJson(join(replayOut, "replay-tick-frames.json"));
+  assert.equal(replayFrames.length, frames.length);
+});

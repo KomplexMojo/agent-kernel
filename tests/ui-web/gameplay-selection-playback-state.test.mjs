@@ -71,11 +71,7 @@ function buildBundle() {
       data: {
         width: 6,
         height: 6,
-        tiles: ["......", "......", "......", "......", "......", "......"],
-        spawn: { x: 4, y: 3 },
-        exit: { x: 0, y: 0 },
         rooms: [],
-        hazards: [],
       },
     },
   };

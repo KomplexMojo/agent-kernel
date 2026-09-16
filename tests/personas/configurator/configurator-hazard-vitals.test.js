@@ -126,3 +126,101 @@ test("hazard vitals computation scales with stack levels", async () => {
     assert.equal(hazard.vitals.durability.max, expectedDurability, `stacks=${stacks}: durability.max`);
   });
 });
+
+test("mapHazards projects authored regen vitals onto mechanical records", async () => {
+  const { mapHazards } = await import(
+    "../../../packages/runtime/src/personas/configurator/input-preparation.js"
+  );
+  const authored = {
+    id: "hazard_fire",
+    x: 2,
+    y: 2,
+    affinity: { kind: "fire", expression: "push", stacks: 2 },
+    vitals: {
+      mana: { kind: "regen", current: 3, max: 3, regen: 1 },
+      durability: { kind: "regen", current: 4, max: 4, regen: 0 },
+    },
+  };
+  const [actor] = mapHazards([authored]);
+  assert.deepEqual(actor.vitals.mana, { current: 3, max: 3, regen: 1 });
+  assert.deepEqual(actor.vitals.durability, { current: 4, max: 4, regen: 0 });
+  assert.equal(Object.hasOwn(actor.vitals.mana, "kind"), false);
+  assert.equal(Object.hasOwn(actor.vitals.durability, "kind"), false);
+  assert.equal(authored.vitals.mana.kind, "regen");
+});
+
+test("mapHazards converts one-time amount vitals and keeps computed defaults for incomplete records", async () => {
+  const { mapHazards } = await import(
+    "../../../packages/runtime/src/personas/configurator/input-preparation.js"
+  );
+  const { computeHazardVitals } = await import(
+    "../../../packages/runtime/src/personas/configurator/affinity-effects.js"
+  );
+  const authored = {
+    id: "hazard_push",
+    x: 2,
+    y: 2,
+    affinity: { kind: "fire", expression: "push", stacks: 2 },
+    vitals: {
+      mana: { kind: "one-time", amount: 0 },
+      durability: { kind: "one-time", amount: 1 },
+    },
+  };
+  const [actor] = mapHazards([authored]);
+  assert.deepEqual(actor.vitals.mana, { current: 0, max: 0, regen: 0 });
+  assert.deepEqual(actor.vitals.durability, { current: 1, max: 1, regen: 0 });
+  const [kept] = mapHazards([{
+    id: "hazard_emit",
+    x: 1,
+    y: 1,
+    affinity: { kind: "fire", expression: "emit", stacks: 2 },
+    vitals: { mana: { kind: "one-time" } },
+  }]);
+  assert.deepEqual(kept.vitals, computeHazardVitals("emit", 2));
+});
+
+test("mapHazards accepts CLI string affinity and affinityStacks", async () => {
+  const { mapHazards } = await import(
+    "../../../packages/runtime/src/personas/configurator/input-preparation.js"
+  );
+  const [fromString] = mapHazards([{
+    id: "hazard_1",
+    x: 2,
+    y: 2,
+    affinity: "fire",
+    expression: "emit",
+    stacks: 2,
+    vitals: { mana: { kind: "regen", current: 4, max: 4, regen: 1 } },
+  }]);
+  assert.deepEqual(fromString.affinities, [{ kind: "fire", expression: "emit", stacks: 2 }]);
+  assert.equal(fromString.activeAffinityKey, "fire:emit");
+  assert.deepEqual(fromString.vitals.mana, { current: 4, max: 4, regen: 1 });
+  const [fromStacks] = mapHazards([{
+    id: "hazard_2",
+    position: { x: 1, y: 1 },
+    affinity: "water",
+    affinityStacks: [{ kind: "water", expression: "push", stacks: 3, targetType: "floor" }],
+  }]);
+  assert.deepEqual(fromStacks.affinities, [{ kind: "water", expression: "push", stacks: 3 }]);
+  assert.equal(fromStacks.activeAffinityKey, "water:push");
+});
+
+test("mapHazards assigns hazard_N when generated layout occupants omit id", async () => {
+  const { mapHazards } = await import(
+    "../../../packages/runtime/src/personas/configurator/input-preparation.js"
+  );
+  const [actor] = mapHazards([{
+    x: 2,
+    y: 2,
+    blocking: true,
+    affinity: { kind: "fire", expression: "emit", stacks: 1 },
+  }]);
+  assert.equal(actor.id, "hazard_1");
+  assert.equal(actor.position.x, 2);
+  assert.equal(actor.position.y, 2);
+  assert.equal(actor.capabilities.blocksMovement, true);
+  assert.throws(
+    () => mapHazards([{ id: "no_affinity", x: 1, y: 1 }]),
+    /invalid hazard actor request/,
+  );
+});

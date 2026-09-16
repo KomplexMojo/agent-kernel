@@ -3,7 +3,7 @@
  * 2026-07-11): NOTHING may exist outside a room or hallway — equivalently,
  * there must be a walkable tile under EVERY positioned game element.
  *
- * Coverage: layout.data.hazards / resources, layout.data.spawn / exit,
+ * Coverage: presentation hazard/resource actors, terrain spawn/exit,
  * and every actor position in InitialStateArtifact, across representative
  * create shapes (single room, multi-room + floorTile budget, resource-heavy,
  * benchmark scenario 51's small-room + blocking-hazards shape).
@@ -80,8 +80,22 @@ async function runCliCommand(executeCommand, command, argv) {
 }
 
 function walkableAt(layoutData, x, y) {
-  const ch = layoutData.tiles?.[y]?.[x];
-  return ch !== undefined && layoutData.legend?.[ch]?.tile !== "wall";
+  const terrain = layoutData.terrain;
+  if (!Array.isArray(terrain) || !Number.isInteger(layoutData.width)) return false;
+  const kind = terrain[y * layoutData.width + x];
+  return kind !== undefined && kind !== "wall";
+}
+
+function terrainPositions(layoutData, kind) {
+  const terrain = layoutData.terrain;
+  const positions = [];
+  if (!Array.isArray(terrain) || !Number.isInteger(layoutData.width)) return positions;
+  for (let index = 0; index < terrain.length; index += 1) {
+    if (terrain[index] === kind) {
+      positions.push({ x: index % layoutData.width, y: Math.floor(index / layoutData.width) });
+    }
+  }
+  return positions;
 }
 
 function positionOf(element) {
@@ -99,27 +113,16 @@ function assertPlacementInvariant(createDir, label) {
   const layoutData = JSON.parse(readFileSync(join(createDir, "sim-config.json"), "utf8")).layout.data;
   let checked = 0;
 
-  for (const kind of ["hazards", "resources"]) {
-    for (const [i, element] of (layoutData[kind] ?? []).entries()) {
-      const pos = positionOf(element);
-      assert.ok(pos, `${label}: ${kind}[${i}] (${element.id ?? "?"}) must carry an integer position`);
+  for (const kind of ["spawn", "exit"]) {
+    const positions = terrainPositions(layoutData, kind);
+    assert.ok(positions.length > 0, `${label}: terrain must include a ${kind} cell`);
+    for (const pos of positions) {
       checked += 1;
       assert.ok(
         walkableAt(layoutData, pos.x, pos.y),
-        `${label}: ${kind}[${i}] (${element.id ?? "?"}) @(${pos.x},${pos.y}) violates the hard rule — ` +
-          "every game element must sit on a walkable tile (room or hallway floor), never inside a wall",
+        `${label}: ${kind} @(${pos.x},${pos.y}) must sit on a walkable tile`,
       );
     }
-  }
-
-  for (const kind of ["spawn", "exit"]) {
-    const pos = positionOf(layoutData[kind] ?? {});
-    assert.ok(pos, `${label}: layout.${kind} must carry an integer position`);
-    checked += 1;
-    assert.ok(
-      walkableAt(layoutData, pos.x, pos.y),
-      `${label}: ${kind} @(${pos.x},${pos.y}) must sit on a walkable tile`,
-    );
   }
 
   const initialStatePath = join(createDir, "initial-state.json");
@@ -176,9 +179,9 @@ const SHAPES = [
       hazard: ["id=h1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"],
       room: ["size=medium;count=1"],
       resource: [
-        "tier=permanent;stat=vitalMax;delta=6;dropRate=5",
-        "tier=level;stat=vitalRegen;delta=1;dropRate=20",
-        "tier=level;stat=affinityStack;delta=1;dropRate=15",
+        "permanenceMode=permanent;vital=health;delta=6",
+        "permanenceMode=level;vital=mana;delta=1",
+        "affinity=fire;expression=emit;stacks=1;mana=4;manaRegen=1",
       ],
       delver: ["count=1;affinity=water;motivation=exploring"],
       budgetTokens: 3000,

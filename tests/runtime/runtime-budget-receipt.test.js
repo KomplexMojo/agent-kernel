@@ -5,43 +5,45 @@ const assert = require("node:assert/strict");
 
 const FIXED_CLOCK = () => "2026-09-02T00:00:00.000Z";
 
-function makeSimConfig() {
-  return {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: { id: "runtime_receipt_sim", runId: "runtime_receipt", createdAt: FIXED_CLOCK() },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width: 7,
-        height: 5,
-        tiles: ["#######", "#.....#", "#.....#", "#.....#", "#######"],
-        spawn: { x: 1, y: 1 },
-        exit: { x: 5, y: 3 },
-        rooms: [{ id: "R1", x: 0, y: 0, width: 7, height: 5 }],
-      },
-    },
-  };
-}
-
-function makeInitialState() {
-  const vitals = {
-    health: { current: 10, max: 10, regen: 0 },
-    mana: { current: 10, max: 10, regen: 0 },
-    stamina: { current: 10, max: 10, regen: 0 },
-    durability: { current: 1, max: 1, regen: 0 },
-  };
-  return {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: { id: "runtime_receipt_state", runId: "runtime_receipt", createdAt: FIXED_CLOCK() },
-    simConfigRef: { id: "runtime_receipt_sim", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+async function artifacts() {
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const width = 7;
+  const height = 5;
+  const terrain = boxedTerrain(width, height);
+  terrain[width + 1] = "spawn";
+  terrain[3 * width + 5] = "exit";
+  return buildUnifiedArtifacts({
+    width,
+    height,
+    terrain,
+    runId: "runtime_receipt",
+    clock: FIXED_CLOCK(),
     actors: [
-      { id: "delver", kind: "ambulatory", archetype: "delver", role: "delver", position: { x: 1, y: 1 }, motivation: { kind: "stationary" }, vitals },
-      { id: "warden", kind: "ambulatory", archetype: "warden", role: "warden", position: { x: 3, y: 1 }, motivation: { kind: "stationary" }, vitals },
+      {
+        id: "delver",
+        category: "delver",
+        position: { x: 1, y: 1 },
+        motivations: ["stationary"],
+        vitals: {
+          health: { current: 10, max: 10, regen: 0 },
+          mana: { current: 10, max: 10, regen: 0 },
+          stamina: { current: 10, max: 10, regen: 0 },
+        },
+      },
+      {
+        id: "warden",
+        category: "warden",
+        position: { x: 3, y: 1 },
+        motivations: ["stationary"],
+        vitals: {
+          health: { current: 10, max: 10, regen: 0 },
+          mana: { current: 10, max: 10, regen: 0 },
+          stamina: { current: 10, max: 10, regen: 0 },
+        },
+      },
     ],
-  };
+    movementStamina: { delver: 0, warden: 0 },
+  });
 }
 
 function scriptedActor(actions) {
@@ -75,10 +77,10 @@ async function runReceipt() {
     import("../../packages/runtime/src/personas/allocator/persona.js"),
   ]);
   const actions = [
-    { actorId: "delver", kind: "wait", params: {} },
-    { actorId: "warden", kind: "wait", params: {} },
+    { actorId: "delver", kind: "wait" },
+    { actorId: "warden", kind: "wait" },
     { actorId: "delver", kind: "request_solver", params: { requestId: "solver_1" } },
-    { actorId: "delver", kind: "move", params: { from: { x: 1, y: 1 }, to: { x: 2, y: 1 } } },
+    { actorId: "delver", kind: "move", params: { target: { x: 2, y: 1 } } },
     { actorId: "delver", kind: "attack", params: { targetId: "warden", damage: 2 } },
     { actorId: null, kind: "attack", params: { damage: 2 } },
     { actorId: "warden", kind: "move", params: {} },
@@ -94,7 +96,8 @@ async function runReceipt() {
       allocator: createAllocatorPersona({ clock: FIXED_CLOCK }),
     },
   });
-  await runtime.init({ seed: 0, simConfig: makeSimConfig(), initialState: makeInitialState(), clock: FIXED_CLOCK });
+  const { simConfig, initialState } = await artifacts();
+  await runtime.init({ seed: 0, simConfig, initialState, clock: FIXED_CLOCK });
   await runtime.step();
   return runtime.issueRuntimeBudgetReceipt({
     meta: { id: "artifact_runtime_receipt", runId: "runtime_receipt", createdAt: FIXED_CLOCK(), producedBy: "runtime" },
@@ -112,21 +115,23 @@ test("runtime captures actual direct and core outcomes, then delegates receipt p
   assert.deepEqual(receipt.rows.map(({ actorId, actionKind, outcome, units }) => ({ actorId, actionKind, outcome, units })), [
     { actorId: "delver", actionKind: "wait", outcome: "accepted", units: 1 },
     { actorId: "delver", actionKind: "request_solver", outcome: "accepted", units: 2 },
-    { actorId: "delver", actionKind: "move", outcome: "accepted", units: 0 },
-    { actorId: "delver", actionKind: "attack", outcome: "accepted", units: 1 },
+    { actorId: "delver", actionKind: "move", outcome: "rejected", units: 0 },
+    { actorId: "delver", actionKind: "attack", outcome: "rejected", units: 0 },
     { actorId: "warden", actionKind: "wait", outcome: "accepted", units: 1 },
     { actorId: "warden", actionKind: "move", outcome: "rejected", units: 0 },
     { actorId: "warden", actionKind: "fulfill_request", outcome: "rejected", units: 0 },
     { actorId: null, actionKind: "attack", outcome: "rejected", units: 0 },
   ]);
+  const attackRejected = receipt.rows.find((row) => row.actorId === "delver" && row.actionKind === "attack");
+  assert.equal(attackRejected.reason, "unsupported_action_kind");
   const coreRejected = receipt.rows.find((row) => row.actorId === "warden" && row.actionKind === "fulfill_request");
   assert.match(coreRejected.reason, /^action_rejected_by_core:/, "non-Move core rejection must not be recorded as accepted");
   assert.deepEqual(receipt.actorTotals, [
-    { actorId: "delver", units: 4 },
+    { actorId: "delver", units: 3 },
     { actorId: "warden", units: 1 },
   ]);
   assert.equal(receipt.unattributedUnits, 0);
-  assert.equal(receipt.totalUnits, 5);
+  assert.equal(receipt.totalUnits, 4);
   assert.deepEqual(await runReceipt(), receipt, "identical runs issue byte-identical receipts");
 });
 

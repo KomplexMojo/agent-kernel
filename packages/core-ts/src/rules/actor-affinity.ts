@@ -3,6 +3,17 @@ import { getAffinityExpressionBaseMagnitude, scaleAffinityVitalEffect } from '..
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { AffinityKind, AffinityExpression, ActorVitalKind } from '../state/actor-types.ts';
 
+function applyEffect(effect: Effect, amount: number,
+  change: (vital: ActorVitalKind, delta: number) => number,
+  transfer: (vital: ActorVitalKind, amount: number) => void): void {
+  if (effect.operation === 'restore') change(effect.vital, amount);
+  if (effect.operation === 'damage') {
+    const removed = -change(effect.vital, -amount);
+    if (effect.overflow && amount > removed) change(effect.overflow, -(amount - removed));
+  }
+  if (effect.operation === 'drain') transfer(effect.vital, -change(effect.vital, -amount));
+}
+
 type Effect = { operation: 'damage' | 'restore' | 'drain'; vital: ActorVitalKind; overflow?: 'health' }
   | { operation: 'neutralize' };
 const neutralize: Effect = Object.freeze({ operation: 'neutralize' });
@@ -50,16 +61,16 @@ export function resolveActorAffinity(
     if (actual !== 0) changes.push({ actorId, vital, delta: actual });
     return actual;
   }
-  if (effect.operation === 'restore') change(targetId, effect.vital, amount);
-  if (effect.operation === 'damage') {
-    const removed = -change(targetId, effect.vital, -amount);
-    if (effect.overflow && amount > removed) change(targetId, effect.overflow, -(amount - removed));
-  }
-  if (effect.operation === 'drain') {
-    const removed = -change(targetId, effect.vital, -amount);
-    change(sourceId, effect.vital, removed);
-  }
+  applyEffect(effect, amount, (vital, delta) => change(targetId, vital, delta),
+    (vital, removed) => { change(sourceId, vital, removed); });
   return { operation: effect.operation, changes };
+}
+
+/** Apply the receiver side through the same routing as combat; caller owns detached state. */
+export function evaluateActorAffinityReceiver(kind: AffinityKind, expression: AffinityExpression,
+  amount: number, change: (vital: ActorVitalKind, delta: number) => number): void {
+  if (!Number.isFinite(amount) || amount < 0) throw new Error('invalid affinity magnitude');
+  applyEffect(getActorAffinityEffect(kind, expression), amount, change, () => {});
 }
 
 /** Uses existing expression magnitudes and stack scaling, without legacy sign routing. */

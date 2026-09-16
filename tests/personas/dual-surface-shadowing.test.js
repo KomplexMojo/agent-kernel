@@ -113,7 +113,7 @@ test("PX.5 TRAP: the two planes pass different TYPES, so routing advance() throu
   // What the TICK plane hands the Configurator as `config` (runtime-fsm.mjs: config: simConfig).
   assert.deepEqual(
     Object.keys(simConfig).sort(),
-    ["budgetReceiptRef", "layout", "meta", "planRef", "schema", "schemaVersion", "seed"],
+    ["actionCosts", "budgetReceiptRef", "layout", "meta", "planRef", "schema", "schemaVersion", "seed"],
     "a SimConfigArtifact has none of the fields validateConfiguratorConfig checks",
   );
 
@@ -165,15 +165,30 @@ test("PX.5 RESOLVED: the tick plane no longer sends any build-plane service even
 test("PX.5 RESOLVED: a run claims no build-plane work it did not do", async () => {
   const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
   const { createCore } = await import("../../packages/core-ts/src/index.ts");
-  const load = (p) => JSON.parse(readFileSync(resolve(ROOT, p), "utf8"));
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const terrain = boxedTerrain(9, 9);
+  terrain[9 + 1] = "spawn";
+  terrain[7 * 9 + 7] = "exit";
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 9,
+    height: 9,
+    terrain,
+    runId: "run_px5_resolved",
+    clock: "2025-01-01T00:00:00.000Z",
+    actors: [{
+      id: "actor_mvp",
+      category: "delver",
+      position: { x: 2, y: 1 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
 
   const runtime = createRuntime({ core: createCore(), adapters: {} });
   await runtime.init({
     seed: 0,
-    // A SimConfig that already names its plan — the normal run. The plan was built
-    // on the build plane; the tick plane consumes it.
-    simConfig: load("tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"),
-    initialState: load("tests/fixtures/artifacts/initial-state-artifact-v1-mvp-actor.json"),
+    simConfig,
+    initialState,
     runId: "run_px5_resolved",
     intentEnvelope: {
       schema: "agent-kernel/IntentEnvelope",

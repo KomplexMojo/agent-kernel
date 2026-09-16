@@ -179,3 +179,76 @@ test("captured LLM runtime decision resolves to an action without a live provide
   assert.equal(resolved.action.params.abilityId, "dark_bolt");
   assert.equal(resolved.action.params.targetId, "def_1");
 });
+
+test("shared runtime-decision reader projects live actor records and drops legacy collections", async () => {
+  const {
+    buildRuntimeDecisionEnvelope,
+    buildRuntimeDecisionLlmPrompt,
+  } = await import(
+    "../../packages/runtime/src/personas/_shared/runtime-decision.mts"
+  );
+
+  const actor = {
+    id: "actor_1",
+    role: "delver",
+    kind: 2,
+    alignment: "external",
+    position: { x: 1, y: 1 },
+    lifecycle: "alive",
+    defeatVital: "health",
+    vitals: { mana: { current: 4, max: 8, regen: 0 } },
+    capabilities: { canMove: true, canCast: true },
+    motivations: ["attacking"],
+    affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
+    activeAffinityKey: "fire:push",
+    holdings: [],
+    affinityGrants: [{ kind: "water", expression: "emit", stacks: 2 }],
+    vitalEffects: [{ kind: "fire", amount: 3 }],
+    motivationProfile: { mobilityTier: 2 },
+  };
+  const visible = {
+    id: "warden_1",
+    role: "warden",
+    kind: "hazard",
+    alignment: "dungeon",
+    position: { x: 2, y: 1 },
+    lifecycle: "alive",
+    defeatVital: "durability",
+    vitals: { durability: { current: 3, max: 3, regen: 0 } },
+    affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+    activeAffinityKey: "fire:emit",
+    hostile: true,
+    affinityGrants: [{ kind: "fire", expression: "emit", stacks: 9 }],
+  };
+
+  const envelope = buildRuntimeDecisionEnvelope({
+    tick: 4,
+    actor,
+    visibleActors: [visible],
+    hazards: [{ id: "hazard_1", kind: "hazard", position: { x: 0, y: 1 } }],
+    candidateActions: [{ id: "wait_here", action: { kind: "wait" } }],
+  });
+
+  assert.equal(Object.hasOwn(envelope, "hazards"), false);
+  assert.equal(Object.hasOwn(envelope.actor, "role"), false);
+  assert.equal(Object.hasOwn(envelope.actor, "kind"), false);
+  assert.equal(Object.hasOwn(envelope.actor, "affinityGrants"), false);
+  assert.equal(Object.hasOwn(envelope.actor, "vitalEffects"), false);
+  assert.equal(envelope.actor.alignment, "external");
+  assert.equal(envelope.actor.activeAffinityKey, "fire:push");
+  assert.deepEqual(envelope.actor.motivationProfile, { mobilityTier: 2 });
+  assert.equal(Object.hasOwn(envelope.visibleActors[0], "kind"), false);
+  assert.equal(Object.hasOwn(envelope.visibleActors[0], "role"), false);
+  assert.equal(Object.hasOwn(envelope.visibleActors[0], "affinityGrants"), false);
+  assert.equal(envelope.visibleActors[0].hostile, true);
+  assert.equal(envelope.visibleActors[0].lifecycle, "alive");
+
+  envelope.actor.vitals.mana.current = 0;
+  envelope.visibleActors[0].position.x = 99;
+  assert.equal(actor.vitals.mana.current, 4);
+  assert.equal(visible.position.x, 2);
+
+  const prompt = buildRuntimeDecisionLlmPrompt({ requestEnvelope: envelope });
+  assert.equal(prompt.includes("\"hazards\""), false);
+  assert.equal(prompt.includes("affinityGrants"), false);
+});

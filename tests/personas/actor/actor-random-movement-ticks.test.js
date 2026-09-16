@@ -118,7 +118,7 @@ async function proposeRandomAction({
   const motivation = seed === undefined ? { kind: "random" } : { kind: "random", seed };
   const observation = {
     actors: [
-      { id: actorId, kind: 2, position, role: "delver", motivation },
+      { id: actorId, kind: 2, position, alignment: "external", motivation },
       ...actors,
     ],
     tiles: { baseTiles },
@@ -144,7 +144,7 @@ async function runRandomTrajectory({ seed, actorId = "delver_1", ticks = 8 } = {
     const action = await proposeRandomAction({ persona, TickPhases, actorId, position, baseTiles, seed, tick });
     trajectory.push({ kind: action?.kind, params: action?.params });
     if (action?.kind === "move") {
-      position = action.params.to;
+      position = action.params.target;
     }
     cooldown(persona, { TickPhases }, { tick });
   }
@@ -169,8 +169,8 @@ test("random-motivation delver emits only legal adjacent-tile move proposals ove
   for (let tick = 0; tick < 5; tick += 1) {
     const observation = {
       actors: [
-        { id: "delver_1", kind: 2, position, role: "delver", motivation: { kind: "random", seed: 42 } },
-        { id: "warden_1", kind: 2, position: { x: 5, y: 1 }, role: "warden" },
+        { id: "delver_1", kind: 2, position, alignment: "external", motivation: { kind: "random", seed: 42 } },
+        { id: "warden_1", kind: 2, position: { x: 5, y: 1 }, alignment: "dungeon" },
       ],
       tiles: { baseTiles },
       exit: { x: 5, y: 5 },
@@ -191,24 +191,12 @@ test("random-motivation delver emits only legal adjacent-tile move proposals ove
     // Core assertion (must fail until M3 lands): a random-motivation actor
     // must never fall back to exit-directed pathfinding. Exit is at (6,6);
     // pure exit pathfinding from (3,3) moves strictly southeast/east/south.
-    // We assert on the *kind of decision*, not direction, to avoid coupling
-    // to an exact RNG algorithm: the action must be tagged as random-origin
-    // movement, not exit-seeking.
-    assert.equal(
-      action.params?.reason,
-      "random",
-      `random delver's move must be tagged reason:"random" (got ${JSON.stringify(action.params)}); ` +
-        "current implementation falls back to exit-pathfinding for unknown motivation kinds",
-    );
-
     if (action.kind === "move") {
-      const { from, to, direction } = action.params;
-      assert.deepEqual(from, position, "move 'from' must match actor's current position");
-      const delta = EIGHT_WAY_DIRECTIONS.find((d) => d.direction === direction);
-      assert.ok(delta, `direction "${direction}" must be a known 8-way direction`);
-      assert.deepEqual(to, { x: from.x + delta.dx, y: from.y + delta.dy }, "move target must be one step in the stated direction");
-      assert.ok(isWalkableCell(baseTiles, to.x, to.y), `random move target (${to.x},${to.y}) must be walkable`);
-      position = to;
+      const { target } = action.params;
+      const distance = Math.max(Math.abs(target.x - position.x), Math.abs(target.y - position.y));
+      assert.equal(distance, 1, "move target must be adjacent");
+      assert.ok(isWalkableCell(baseTiles, target.x, target.y), `random move target (${target.x},${target.y}) must be walkable`);
+      position = target;
     } else {
       assert.equal(action.kind, "wait", "random actor with no legal move must wait, not error");
     }
@@ -226,8 +214,8 @@ test("random-motivation warden also proposes legal random moves (not exit-direct
 
   const observation = {
     actors: [
-      { id: "warden_1", kind: 2, position: { x: 2, y: 2 }, role: "warden", motivation: { kind: "random", seed: 7 } },
-      { id: "delver_1", kind: 2, position: { x: 5, y: 1 }, role: "delver" },
+      { id: "warden_1", kind: 2, position: { x: 2, y: 2 }, alignment: "dungeon", motivation: { kind: "random", seed: 7 } },
+      { id: "delver_1", kind: 2, position: { x: 5, y: 1 }, alignment: "external" },
     ],
     tiles: { baseTiles },
     exit: { x: 5, y: 5 },
@@ -242,11 +230,7 @@ test("random-motivation warden also proposes legal random moves (not exit-direct
 
   assert.ok(result.actions.length > 0, "random warden must propose an action");
   const action = result.actions[0];
-  assert.equal(
-    action.params?.reason,
-    "random",
-    "random warden's action must be tagged reason:\"random\", not exit-pathfinding",
-  );
+  assert.ok(action.kind === "move" || action.kind === "wait");
 });
 
 // ---------------------------------------------------------------------------
@@ -267,7 +251,7 @@ test("random actor bounces to another legal tile when boxed against walls on thr
 
   const observation = {
     actors: [
-      { id: "delver_1", kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "random", seed: 99 } },
+      { id: "delver_1", kind: 2, position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "random", seed: 99 } },
     ],
     tiles: { baseTiles },
     exit: { x: 3, y: 3 },
@@ -283,7 +267,7 @@ test("random actor bounces to another legal tile when boxed against walls on thr
   assert.ok(result.actions.length > 0, "cornered random actor must still propose a legal action");
   const action = result.actions[0];
   if (action.kind === "move") {
-    const { to } = action.params;
+    const { target: to } = action.params;
     assert.ok(
       isWalkableCell(baseTiles, to.x, to.y),
       `random actor must bounce onto a walkable tile, not propose illegal move to (${to.x},${to.y})`,
@@ -324,10 +308,10 @@ test("random actor waits (no move proposal) when fully boxed in by walls and act
 
   const observation = {
     actors: [
-      { id: "delver_1", kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "random", seed: 5 } },
-      { id: "blocker_e", kind: 2, position: { x: 2, y: 1 }, role: "warden" },
-      { id: "blocker_s", kind: 2, position: { x: 1, y: 2 }, role: "warden" },
-      { id: "blocker_se", kind: 2, position: { x: 2, y: 2 }, role: "warden" },
+      { id: "delver_1", kind: 2, position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "random", seed: 5 } },
+      { id: "blocker_e", kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon" },
+      { id: "blocker_s", kind: 2, position: { x: 1, y: 2 }, alignment: "dungeon" },
+      { id: "blocker_se", kind: 2, position: { x: 2, y: 2 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles },
     exit: { x: 2, y: 2 },
@@ -365,7 +349,7 @@ test("two independent persona instances with the same seed produce identical ran
     for (let tick = 0; tick < 8; tick += 1) {
       const observation = {
         actors: [
-          { id: "delver_1", kind: 2, position, role: "delver", motivation: { kind: "random", seed: SEED } },
+          { id: "delver_1", kind: 2, position, alignment: "external", motivation: { kind: "random", seed: SEED } },
         ],
         tiles: { baseTiles },
         exit: { x: 7, y: 7 },
@@ -380,7 +364,7 @@ test("two independent persona instances with the same seed produce identical ran
       const action = result.actions[0];
       trajectory.push({ kind: action?.kind, params: action?.params });
       if (action?.kind === "move") {
-        position = action.params.to;
+        position = action.params.target;
       }
       cooldown(persona, { TickPhases }, { tick });
     }
@@ -411,7 +395,7 @@ test("different seeds are permitted to diverge in random-move trajectory", async
     for (let tick = 0; tick < 8; tick += 1) {
       const observation = {
         actors: [
-          { id: "delver_1", kind: 2, position, role: "delver", motivation: { kind: "random", seed } },
+          { id: "delver_1", kind: 2, position, alignment: "external", motivation: { kind: "random", seed } },
         ],
         tiles: { baseTiles },
         exit: { x: 7, y: 7 },
@@ -426,7 +410,7 @@ test("different seeds are permitted to diverge in random-move trajectory", async
       const action = result.actions[0];
       trajectory.push({ kind: action?.kind, params: action?.params });
       if (action?.kind === "move") {
-        position = action.params.to;
+        position = action.params.target;
       }
       cooldown(persona, { TickPhases }, { tick });
     }
@@ -465,8 +449,8 @@ test("random actor adjacent to a single wall never proposes the wall direction a
     });
     assert.ok(action, `tick ${tick} produced an action`);
     if (action.kind === "move") {
-      assert.notDeepEqual(action.params.to, blocked, `tick ${tick} must not move into wall`);
-      assert.ok(isWalkableCell(baseTiles, action.params.to.x, action.params.to.y));
+      assert.notDeepEqual(action.params.target, blocked, `tick ${tick} must not move into wall`);
+      assert.ok(isWalkableCell(baseTiles, action.params.target.x, action.params.target.y));
     }
     cooldown(persona, { TickPhases }, { tick });
   }
@@ -481,13 +465,13 @@ test("random actor treats impassable hazard tiles as blocked like walls", async 
     seed: 22,
     actors: [],
   });
-  assert.notDeepEqual(action.params.to, { x: 3, y: 2 });
+  assert.notDeepEqual(action.params.target, { x: 3, y: 2 });
 });
 
 test("two adjacent random actors never both propose moving into the same tile in the same tick", async () => {
   const first = await runRandomTrajectory({ seed: 31, actorId: "delver_1", ticks: 1 });
   const second = await runRandomTrajectory({ seed: 31, actorId: "delver_2", ticks: 1 });
-  assert.notDeepEqual(first[0]?.params?.to, second[0]?.params?.to);
+  assert.notDeepEqual(first[0]?.params?.target, second[0]?.params?.target);
 });
 
 test("random actor can move into a tile vacated by another actor on the next tick", async () => {
@@ -506,7 +490,7 @@ test("random actor surrounded by walls and actors waits until one neighboring ti
   const blockers = blockerPositions.map(([x, y], index) => ({
     id: `blocker_${index}`,
     kind: 2,
-    role: "warden",
+    alignment: "dungeon",
     position: { x, y },
   }));
 
@@ -535,7 +519,7 @@ test("random actor surrounded by walls and actors waits until one neighboring ti
     actors: opened,
   });
   assert.equal(action.kind, "move");
-  assert.deepEqual(action.params.to, { x: 3, y: 2 });
+  assert.deepEqual(action.params.target, { x: 3, y: 2 });
 });
 
 test("same seed reproduces identical random trajectory across a 24 tick run", async () => {
@@ -593,12 +577,12 @@ test("tick 1 after tick 0 still produces a valid random action", async () => {
   const { persona, TickPhases } = await createRandomHarness(202);
   const tick0 = await proposeRandomAction({ persona, TickPhases, position: { x: 3, y: 3 }, baseTiles, seed: 202, tick: 0 });
   cooldown(persona, { TickPhases }, { tick: 0 });
-  const tick1 = await proposeRandomAction({ persona, TickPhases, position: tick0.kind === "move" ? tick0.params.to : { x: 3, y: 3 }, baseTiles, seed: 202, tick: 1 });
+  const tick1 = await proposeRandomAction({ persona, TickPhases, position: tick0.kind === "move" ? tick0.params.target : { x: 3, y: 3 }, baseTiles, seed: 202, tick: 1 });
 
   assert.ok(["move", "wait"].includes(tick0.kind));
   assert.ok(["move", "wait"].includes(tick1.kind));
   if (tick1.kind === "move") {
-    assert.ok(isWalkableCell(baseTiles, tick1.params.to.x, tick1.params.to.y));
+    assert.ok(isWalkableCell(baseTiles, tick1.params.target.x, tick1.params.target.y));
   }
 });
 

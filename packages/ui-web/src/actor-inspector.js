@@ -116,6 +116,28 @@ function inferActorType(actor, specActor) {
   return "defender";
 }
 
+function presentationById(initialState) {
+  const presentation = initialState?.presentation;
+  if (!presentation || typeof presentation !== "object" || Array.isArray(presentation)) return {};
+  return presentation;
+}
+
+function presentationCategory(actor, presentation) {
+  const fromActor = actor?.category ?? actor?.presentation?.category;
+  if (typeof fromActor === "string" && fromActor.trim()) return fromActor.trim().toLowerCase();
+  const id = typeof actor?.id === "string" ? actor.id : "";
+  const fromMap = id ? presentation?.[id]?.category : "";
+  if (typeof fromMap === "string" && fromMap.trim()) return fromMap.trim().toLowerCase();
+  return "";
+}
+
+function worldEntityType(actor, presentation) {
+  const category = presentationCategory(actor, presentation);
+  if (category === "hazard" || category === "hazards") return "hazard";
+  if (category === "resource" || category === "resources") return "resource";
+  return "";
+}
+
 function normalizeVitalRecord(entry = {}) {
   const current = Number.isFinite(entry?.current) ? Math.floor(entry.current) : 0;
   const max = Number.isFinite(entry?.max) ? Math.floor(entry.max) : 0;
@@ -403,18 +425,18 @@ function buildInspectorModel({ simConfig, initialState, spec } = {}) {
   };
 
   const layoutData = simConfig?.layout?.data || {};
-  const runtimeHazards = Array.isArray(layoutData.hazards)
-    ? layoutData.hazards
-    : [];
-  const runtimeResources = Array.isArray(layoutData.resources) ? layoutData.resources : [];
+  const presentation = presentationById(initialState);
+  const worldActors = runtimeActors.filter((actor) => worldEntityType(actor, presentation));
+  const mobileActors = runtimeActors.filter((actor) => !worldEntityType(actor, presentation));
+  const runtimeHazards = worldActors.filter((actor) => worldEntityType(actor, presentation) === "hazard");
+  const runtimeResources = worldActors.filter((actor) => worldEntityType(actor, presentation) === "resource");
 
   runtimeHazards.forEach((hazard) => {
     const id = normalizeName(hazard?.id, `hazard-${groups.hazard.length + 1}`);
-    const hazardAffinity = hazard?.affinity;
-    const affinity = hazardAffinity?.kind || "";
-    const affinities = hazardAffinity?.kind
-      ? [{ kind: hazardAffinity.kind, expression: hazardAffinity.expression || "", stacks: hazardAffinity.stacks || 1 }]
+    const affinities = Array.isArray(hazard?.affinities)
+      ? hazard.affinities
       : [];
+    const affinity = affinities[0]?.kind || "";
     const position = hazard?.position
       || (hazard?.x != null && hazard?.y != null ? { x: hazard.x, y: hazard.y } : null);
     groups.hazard.push({
@@ -423,7 +445,7 @@ function buildInspectorModel({ simConfig, initialState, spec } = {}) {
       type: "hazard",
       ordinal: groups.hazard.length + 1,
       card: { id, type: "hazard", count: 1, affinity, affinities, motivations: [], vitals: null, cardValue: { unitTokens: 0, totalTokens: 0 } },
-      runtimeActorId: "",
+      runtimeActorId: id,
       roomId: "",
       position,
       runtimeRoom: null,
@@ -438,14 +460,14 @@ function buildInspectorModel({ simConfig, initialState, spec } = {}) {
       type: "resource",
       ordinal: groups.resource.length + 1,
       card: { id, type: "resource", count: 1, affinity: "", affinities: [], motivations: [], vitals: null, cardValue: { unitTokens: 0, totalTokens: 0 } },
-      runtimeActorId: "",
+      runtimeActorId: id,
       roomId: "",
       position: resource?.position || null,
       runtimeRoom: null,
     });
   });
 
-  const runtimeActorPool = runtimeActors
+  const runtimeActorPool = mobileActors
     .map((actor) => {
       const actorId = normalizeName(actor?.id);
       return {
@@ -663,8 +685,8 @@ function resolveEntityAffinities(entity, liveActor, hazards = []) {
     const roomBounds = normalizeRoomBounds(entity?.runtimeRoom);
     if (roomBounds) {
       const roomHazards = hazards.filter((hazard) => {
-        const tx = Number(hazard?.x);
-        const ty = Number(hazard?.y);
+        const tx = Number(hazard?.position?.x ?? hazard?.x);
+        const ty = Number(hazard?.position?.y ?? hazard?.y);
         return Number.isFinite(tx) && Number.isFinite(ty)
           && tx >= roomBounds.x && tx < roomBounds.x + roomBounds.width
           && ty >= roomBounds.y && ty < roomBounds.y + roomBounds.height;
@@ -672,7 +694,9 @@ function resolveEntityAffinities(entity, liveActor, hazards = []) {
       if (roomHazards.length > 0) {
         return roomHazards
           .map((hazard) => {
-            const aff = hazard?.affinity;
+            const aff = Array.isArray(hazard?.affinities)
+              ? hazard.affinities[0]
+              : hazard?.affinity;
             if (!aff || typeof aff !== "object") return null;
             return {
               kind: normalizeName(aff?.kind).toLowerCase(),
@@ -921,7 +945,11 @@ export function createActorInspector({
       if (preview) {
         preview.className = "design-card-group-preview";
         const liveActor = getLiveActor(entity);
-        const hazards = simConfig?.layout?.data?.hazards || [];
+        const hazards = (model?.groups?.hazard || []).map((entry) => ({
+          position: entry.position,
+          affinities: entry.card?.affinities,
+          vitals: entry.card?.vitals,
+        }));
         const affinities = resolveEntityAffinities(entity, liveActor, hazards);
         const motivations = Array.isArray(entity?.card?.motivations) ? entity.card.motivations : [];
 
@@ -993,7 +1021,11 @@ export function createActorInspector({
     }
 
     const liveActor = getLiveActor(entity);
-    const hazards = simConfig?.layout?.data?.hazards || [];
+    const hazards = (model?.groups?.hazard || []).map((entry) => ({
+      position: entry.position,
+      affinities: entry.card?.affinities,
+      vitals: entry.card?.vitals,
+    }));
     const affinities = resolveEntityAffinities(entity, liveActor, hazards);
     const vitals = resolveEntityVitals(entity, liveActor);
     const totalValue = resolveEntityValue(entity, liveActor);

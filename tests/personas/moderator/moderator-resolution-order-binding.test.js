@@ -17,15 +17,8 @@
 const assert = require("node:assert/strict");
 
 const FIXED = "2026-01-01T00:00:00.000Z";
-
-function vitals(amount) {
-  return {
-    health: { current: amount, max: amount, regen: 0 },
-    mana: { current: amount, max: amount, regen: 0 },
-    stamina: { current: amount, max: amount, regen: 0 },
-    durability: { current: 1, max: 1, regen: 0 },
-  };
-}
+const WIDTH = 7;
+const HEIGHT = 5;
 
 /**
  * Wall-portal layout with a 2D interior so `patrolling` can emit room-ring moves.
@@ -33,63 +26,65 @@ function vitals(amount) {
  * pathing — and after portal-in-wall, wardens wait while delvers take EXIT_PROGRESS,
  * so the equal-intent control can no longer observe the alphabetical tie-break.
  */
-function simConfig() {
-  return {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: { id: "order_sim", runId: "order", createdAt: FIXED },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width: 7,
-        height: 5,
-        tiles: [
-          "#######",
-          "#.....#",
-          "S.....#",
-          "#....E#",
-          "#######",
-        ],
-        spawn: { x: 0, y: 2 },
-        exit: { x: 6, y: 3 },
-        spawnApproach: { x: 1, y: 2 },
-        exitApproach: { x: 5, y: 3 },
-        rooms: [{ id: "R1", x: 1, y: 1, width: 5, height: 3 }],
-        hazards: [],
-      },
-    },
-  };
+function terrain() {
+  const tiles = [
+    "#######",
+    "#.....#",
+    "S.....#",
+    "#....E#",
+    "#######",
+  ];
+  const kind = { "#": "wall", ".": "floor", S: "spawn", E: "exit" };
+  return tiles.flatMap((row) => [...row].map((cell) => kind[cell]));
 }
 
-/** `a_warden` leads the array; `z_delver` trails it and trails alphabetically too. */
-function initialState({ delverMotivation, wardenPos, delverPos }) {
-  return {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
+async function artifacts({ delverMotivation, wardenPos, delverPos }) {
+  const { createConfiguratorPersona } = await import(
+    "../../../packages/runtime/src/personas/configurator/controller.js"
+  );
+  const configurator = createConfiguratorPersona({ clock: () => FIXED });
+  const layout = {
+    width: WIDTH,
+    height: HEIGHT,
+    terrain: terrain(),
+    rooms: [{ id: "R1", x: 1, y: 1, width: 5, height: 3 }],
+    spawnApproach: { x: 1, y: 2 },
+    exitApproach: { x: 5, y: 3 },
+  };
+  const simConfig = configurator.buildSimConfigArtifact({
+    meta: { id: "order_sim", runId: "order", createdAt: FIXED },
+    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    layout,
+    movementStamina: { a_warden: 0, z_delver: 0 },
+  });
+  const initialState = configurator.buildInitialStateArtifact({
     meta: { id: "order_state", runId: "order", createdAt: FIXED },
-    simConfigRef: { id: "order_sim", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+    simConfigRef: { id: simConfig.meta.id, schema: simConfig.schema, schemaVersion: 1 },
+    dimensions: { width: WIDTH, height: HEIGHT },
+    terrain: layout.terrain,
     actors: [
       {
         id: "a_warden",
-        kind: "ambulatory",
-        archetype: "warden",
+        category: "warden",
         position: wardenPos,
-        role: "warden",
-        motivation: { kind: "patrolling" },
-        vitals: vitals(6),
+        motivations: ["patrolling"],
+        vitals: { health: { current: 6, max: 6, regen: 0 } },
       },
       {
         id: "z_delver",
-        kind: "ambulatory",
-        archetype: "delver",
+        category: "delver",
         position: delverPos,
-        role: "delver",
-        motivation: { kind: delverMotivation },
-        vitals: vitals(10),
+        motivations: [delverMotivation],
+        vitals: {
+          health: { current: 10, max: 10, regen: 0 },
+          mana: { current: 10, max: 10, regen: 0 },
+        },
+        affinities: [{ kind: "fire", expression: "push", stacks: 2 }],
+        activeAffinityKey: "fire:push",
       },
     ],
-  };
+  });
+  return { simConfig, initialState };
 }
 
 async function resolutionOrder({ delverMotivation, wardenPos, delverPos }) {
@@ -100,8 +95,7 @@ async function resolutionOrder({ delverMotivation, wardenPos, delverPos }) {
   const runtime = createRuntime({ core: createCore(), adapters: {} });
   await runtime.init({
     seed: 0,
-    simConfig: simConfig(),
-    initialState: initialState({ delverMotivation, wardenPos, delverPos }),
+    ...(await artifacts({ delverMotivation, wardenPos, delverPos })),
   });
   await runtime.step();
   const accepted = runtime.getTickFrames()
@@ -115,7 +109,7 @@ async function resolutionOrder({ delverMotivation, wardenPos, delverPos }) {
 }
 
 test("a combat intent resolves first even from the back of the actor array", async () => {
-  // Adjacent seats so the attacking delver can land a combat action.
+  // Adjacent seats so the attacking delver can land a focused cast.
   const { order, accepted } = await resolutionOrder({
     delverMotivation: "attacking",
     wardenPos: { x: 4, y: 2 },
@@ -125,8 +119,8 @@ test("a combat intent resolves first even from the back of the actor array", asy
   assert.deepEqual(order, ["z_delver", "a_warden"]);
   assert.equal(
     accepted.find((action) => action.actorId === "z_delver").kind,
-    "attack",
-    "the scenario is only meaningful while the delver actually attacks (intent class 500)",
+    "cast_affinity",
+    "the scenario is only meaningful while the delver actually casts (intent class 500)",
   );
 });
 
@@ -142,7 +136,7 @@ test("equal intents fall back to the id tie-break, restoring the alphabetical or
 
   assert.deepEqual(order, ["a_warden", "z_delver"]);
   assert.ok(
-    accepted.every((action) => action.kind !== "attack"),
+    accepted.every((action) => action.kind !== "attack" && action.kind !== "cast_affinity"),
     "the control must not contain a combat action, or it is not a control",
   );
 });

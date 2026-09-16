@@ -136,43 +136,21 @@ test("command kernel budget reads, writes, and logs artifacts via injected host 
 test("command kernel persists the exact Allocator-issued runtime budget receipt", async () => {
   const { createCommandKernel } = await loadKernel();
   const { files, host } = createHost();
-  const simConfig = {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: { id: "runtime_receipt_sim", runId: "runtime_receipt", createdAt: "2026-09-02T00:00:00.000Z" },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width: 5,
-        height: 5,
-        tiles: ["#####", "#...#", "#...#", "#...#", "#####"],
-        spawn: { x: 1, y: 1 },
-        exit: { x: 3, y: 3 },
-        rooms: [{ id: "R1", x: 0, y: 0, width: 5, height: 5 }],
-      },
-    },
-  };
-  const initialState = {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: { id: "runtime_receipt_state", runId: "runtime_receipt", createdAt: "2026-09-02T00:00:00.000Z" },
-    simConfigRef: { id: "runtime_receipt_sim", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 5,
+    height: 5,
+    terrain: boxedTerrain(5, 5),
+    runId: "runtime_receipt",
+    clock: "2026-09-02T00:00:00.000Z",
     actors: [{
       id: "delver",
-      kind: "ambulatory",
-      archetype: "delver",
-      role: "delver",
+      category: "delver",
       position: { x: 1, y: 1 },
-      motivation: { kind: "stationary" },
-      vitals: {
-        health: { current: 10, max: 10, regen: 0 },
-        mana: { current: 10, max: 10, regen: 0 },
-        stamina: { current: 10, max: 10, regen: 0 },
-        durability: { current: 1, max: 1, regen: 0 },
-      },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
     }],
-  };
+  });
   files.set("/fixtures/sim-config.json", simConfig);
   files.set("/fixtures/initial-state.json", initialState);
 

@@ -1,3 +1,4 @@
+import { leftoverCategory } from "./unified-actors.js";
 import { terrainPositions, terrainMarker } from "./terrain-layout.js";
 
 /**
@@ -364,8 +365,9 @@ function deriveRoomPlacementContext({ data, walkable } = {}) {
 
 function authoredAlignment(actor) {
   if (actor?.alignment === "external" || actor?.alignment === "dungeon") return actor.alignment;
-  if (actor?.category === "delver") return "external";
-  if (["warden", "hazard", "resource", "barrier"].includes(actor?.category)) return "dungeon";
+  const category = leftoverCategory(actor);
+  if (category === "delver") return "external";
+  if (category) return "dungeon";
   throw new Error(`configurator inputs require actor alignment or category for "${actor?.id || "unknown"}".`);
 }
 

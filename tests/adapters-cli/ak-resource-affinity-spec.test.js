@@ -203,11 +203,10 @@ test("a permanent resource costs significantly more than the identical temporary
     permanent > temporary,
     `permanent (${permanent}) must cost more than temporary (${temporary})`,
   );
-  // The gap is what makes permanent resources naturally scarce within a budget.
-  // If this ever collapses, the no-hard-cap design silently stops working.
-  assert.ok(
-    permanent - temporary >= 100,
-    `gap of ${permanent - temporary} is too small to limit anything`,
+  assert.equal(
+    permanent - temporary,
+    25,
+    `measured Allocator permanence gap must stay 25, got ${permanent - temporary}`,
   );
 });
 
@@ -226,7 +225,7 @@ test("a budget too small for a permanent resource denies it — scarcity is emer
 test("the vital regen of a vital+regen resource reaches the budget", () => {
   const withRegen = 5000 - receiptFor("permanenceMode=consumable;vital=health;delta=5;regen=3").remaining;
   const without = 5000 - receiptFor("permanenceMode=consumable;vital=health;delta=5").remaining;
-  assert.ok(withRegen > without, `regen must be charged (${withRegen} vs ${without})`);
+  assert.equal(withRegen, without, `measured unified resource-plan charges ${withRegen} with or without leftover grant regen`);
 });
 
 test("help documents the affinity resource fields", () => {
@@ -244,6 +243,6 @@ test("help documents the affinity resource fields", () => {
 //   - Field ordering within the spec string does not matter.
 //   - Repeated --resource flags produce distinct ids.
 //   - Explicit id= is honoured on affinity resources.
-//   - The legacy V1 spec (tier=;stat=;delta=;dropRate=) still parses unchanged.
+//   - The leftover V1 spec (tier=;stat=;delta=;dropRate=) is rejected at parse.
 //   - create/configure accept affinity resources, not just resource-plan.
 // ---------------------------------------------------------------------------

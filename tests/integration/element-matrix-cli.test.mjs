@@ -43,7 +43,7 @@ function requestObjects(spec) {
 
 // ---------------------------------------------------------------------------
 // Affinities — author one hazard (emit) per affinity; assert it round-trips into
-// sim-config.layout.data.hazards[].affinity.kind.
+// initial-state hazard actors. Unified layout has no hazards collection.
 // ---------------------------------------------------------------------------
 describe("affinity kinds (hazard, emit)", () => {
   for (const affinity of GAME_AFFINITY_KINDS) {
@@ -54,10 +54,11 @@ describe("affinity kinds (hazard, emit)", () => {
         "--budget-tokens", "700",
       ]);
       expect(run.json.ok, JSON.stringify(run.json.errors || run.json.error)).toBe(true);
-      const sim = run.read("sim-config.json");
-      const hazards = sim?.layout?.data?.hazards ?? [];
+      const state = run.read("initial-state.json");
+      const presentation = state?.presentation ?? {};
+      const hazards = (state?.actors ?? []).filter((a) => presentation[a.id]?.category === "hazard");
       expect(hazards.length).toBeGreaterThan(0);
-      expect(hazards.some((t) => t.affinity?.kind === affinity)).toBe(true);
+      expect(hazards.some((actor) => actor.affinities?.some((entry) => entry.kind === affinity))).toBe(true);
     });
   }
 });
@@ -150,7 +151,8 @@ describe("vital keys (actor structure)", () => {
     ]);
     expect(run.json.ok, JSON.stringify(run.json.errors || run.json.error)).toBe(true);
     const state = run.read("initial-state.json");
-    const delver = (state?.actors ?? []).find((a) => a.archetype === "delver");
+    const presentation = state?.presentation ?? {};
+    const delver = (state?.actors ?? []).find((a) => presentation[a.id]?.category === "delver");
     expect(delver).toBeTruthy();
     for (const vital of GAME_VITAL_KEYS) {
       const rec = delver.vitals?.[vital];
@@ -186,24 +188,22 @@ describe("room sizes scale grid dimensions", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Resources — author each permanence tier; assert it wires into the spec.
+// Resources — author each V3 permanence mode; V1 loot keys stay rejected.
 // ---------------------------------------------------------------------------
-describe("resource tiers", () => {
-  // Code is Law: the V3 spec accepts only `level` and `permanent`. `consumable`
-  // (present in RESOURCE_PERMANENCE_MODES) is rejected — covered as a negative below.
-  for (const tier of ["level", "permanent"]) {
-    test(`resource tier=${tier} wires into spec`, () => {
+describe("resource permanence", () => {
+  for (const mode of ["level", "permanent", "consumable"]) {
+    test(`resource permanenceMode=${mode} wires into spec`, () => {
       const run = runCreate([
-        "--resource", `tier=${tier};stat=vitalMax;delta=5;dropRate=10`,
+        "--resource", `permanenceMode=${mode};vital=health;delta=5`,
       ]);
       expect(run.json.ok, JSON.stringify(run.json.errors || run.json.error)).toBe(true);
       const resources = run.read("spec.json")?.configurator?.inputs?.resources ?? [];
-      expect(resources.some((r) => r.tier === tier)).toBe(true);
+      expect(resources.some((r) => r.holdings?.some((h) => h.permanenceMode === mode))).toBe(true);
     });
   }
 
-  test("resource tier=consumable is rejected by the V3 spec", () => {
-    const run = runCreate(["--resource", "tier=consumable;stat=vitalMax;delta=5;dropRate=10"]);
+  test("resource V1 loot keys remain rejected", () => {
+    const run = runCreate(["--resource", "tier=level;stat=vitalMax;delta=5;dropRate=10"]);
     expect(run.json.ok).toBe(false);
     expect(run.json.errors?.length || run.json.error).toBeTruthy();
   });

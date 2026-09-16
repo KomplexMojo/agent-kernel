@@ -84,11 +84,12 @@ test("orchestrateBuild aligns actors to walkable layout positions", async () => 
   assert.equal(result.ok, true);
 
   const buildResult = await orchestrateBuild({ spec: result.spec, producedBy: "runtime-test" });
-  const spawn = buildResult.simConfig.layout.data.spawn;
-  const exit = buildResult.simConfig.layout.data.exit;
-  const tiles = buildResult.simConfig.layout.data.tiles;
-  assert.ok(spawn);
-  assert.ok(exit);
+  const spawnApproach = buildResult.simConfig.layout.data.spawnApproach;
+  const exitApproach = buildResult.simConfig.layout.data.exitApproach;
+  const terrain = buildResult.simConfig.layout.data.terrain;
+  const width = buildResult.simConfig.layout.data.width;
+  assert.ok(spawnApproach);
+  assert.ok(exitApproach);
 
   const actors = buildResult.initialState.actors;
   assert.ok(actors.length > 0);
@@ -96,11 +97,9 @@ test("orchestrateBuild aligns actors to walkable layout positions", async () => 
   const used = new Set();
   actors.forEach((actor) => {
     const { x, y } = actor.position;
-    assert.notDeepEqual(actor.position, spawn);
-    assert.notDeepEqual(actor.position, exit);
-    const row = String(tiles[y] ?? "");
-    const char = row[x];
-    assert.ok(char && char !== "#" && char !== "B");
+    assert.notEqual(terrain[y * width + x], "spawn");
+    assert.notEqual(terrain[y * width + x], "exit");
+    assert.notEqual(terrain[y * width + x], "wall");
     const key = `${x},${y}`;
     assert.equal(used.has(key), false);
     used.add(key);
@@ -359,9 +358,12 @@ test("orchestrateBuild keeps spawn and actor placements distinct", async () => {
       inputs: {
         levelGen: { width: 8, height: 8, walkableTilesTarget: 36, seed: 1 },
         actors: [
-          { id: "z_strong", tokenCost: 100, kind: "ambulatory", motivations: ["attacking"], affinity: "fire", position: { x: 0, y: 0 } },
-          { id: "a_support", tokenCost: 10, kind: "ambulatory", motivations: ["defending"], affinity: "water", position: { x: 1, y: 0 } },
-          { id: "b_support", tokenCost: 10, kind: "ambulatory", motivations: ["patrolling"], affinity: "earth", position: { x: 2, y: 0 } },
+          { id: "z_strong", tokenCost: 100, kind: "ambulatory", motivations: ["attacking"], affinity: "fire", position: { x: 0, y: 0 },
+            vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 4, max: 4, regen: 0 }, stamina: { current: 10, max: 10, regen: 0 } } },
+          { id: "a_support", tokenCost: 10, kind: "ambulatory", motivations: ["defending"], affinity: "water", position: { x: 1, y: 0 },
+            vitals: { health: { current: 6, max: 6, regen: 0 }, mana: { current: 4, max: 4, regen: 0 }, stamina: { current: 6, max: 6, regen: 0 } } },
+          { id: "b_support", tokenCost: 10, kind: "ambulatory", motivations: ["patrolling"], affinity: "earth", position: { x: 2, y: 0 },
+            vitals: { health: { current: 6, max: 6, regen: 0 }, mana: { current: 4, max: 4, regen: 0 }, stamina: { current: 6, max: 6, regen: 0 } } },
         ],
         actorGroups: [{ role: "attacking", count: 1 }, { role: "defending", count: 2 }],
       },
@@ -369,17 +371,19 @@ test("orchestrateBuild keeps spawn and actor placements distinct", async () => {
   };
 
   const buildResult = await orchestrateBuild({ spec, producedBy: "runtime-test" });
-  const spawn = buildResult.simConfig.layout.data.spawn;
+  const spawnApproach = buildResult.simConfig.layout.data.spawnApproach;
+  const terrain = buildResult.simConfig.layout.data.terrain;
+  const width = buildResult.simConfig.layout.data.width;
   const actors = buildResult.initialState.actors;
 
-  assert.ok(spawn);
+  assert.ok(spawnApproach);
   assert.equal(actors.length, 3);
   const delver = actors.find((actor) => actor.id === "z_strong");
   assert.ok(delver);
-  assert.notDeepEqual(delver.position, spawn);
+  assert.notEqual(terrain[delver.position.y * width + delver.position.x], "spawn");
 
-  const spawnOccupants = actors.filter((actor) => actor.position.x === spawn.x && actor.position.y === spawn.y);
-  assert.equal(spawnOccupants.length, 0);
+  const spawnCells = actors.filter((actor) => terrain[actor.position.y * width + actor.position.x] === "spawn");
+  assert.equal(spawnCells.length, 0);
 
   const used = new Set();
   actors.forEach((actor) => {
@@ -416,13 +420,13 @@ test("orchestrateBuild prevents environmental objects and actors from overlaying
           walkableTilesTarget: 42,
           seed: 2,
           hazards: [
-            { id: "hazard_spawn", affinity: "fire", position: { x: 0, y: 0 } },
-            { id: "hazard_auto", affinity: "water" },
+            { id: "hazard_spawn", affinity: "fire", expression: "emit", stacks: 1, position: { x: 0, y: 0 } },
+            { id: "hazard_auto", affinity: "water", expression: "emit", stacks: 1 },
           ],
         },
         resources: [
-          { id: "resource_spawn", tier: "level", stat: "vitalMax", delta: 5, position: { x: 0, y: 0 } },
-          { id: "resource_auto", tier: "level", stat: "vitalMax", delta: 5 },
+          { id: "resource_spawn", permanenceMode: "level", vitals: [{ key: "stamina", delta: 5 }], position: { x: 0, y: 0 } },
+          { id: "resource_auto", permanenceMode: "level", vitals: [{ key: "stamina", delta: 5 }] },
         ],
         actors: [
           { id: "delver_1", kind: "ambulatory", motivations: ["attacking"], position: { x: 0, y: 0 } },
@@ -435,20 +439,20 @@ test("orchestrateBuild prevents environmental objects and actors from overlaying
 
   const buildResult = await orchestrateBuild({ spec, producedBy: "runtime-test" });
   const data = buildResult.simConfig.layout.data;
-  const spawnKey = `${data.spawn.x},${data.spawn.y}`;
-  const exitKey = `${data.exit.x},${data.exit.y}`;
+  const spawnIndex = Array.isArray(data.terrain) ? data.terrain.indexOf("spawn") : -1;
+  const exitIndex = Array.isArray(data.terrain) ? data.terrain.indexOf("exit") : -1;
+  assert.ok(spawnIndex >= 0, "unified layout must keep a spawn terrain cell");
+  assert.ok(exitIndex >= 0, "unified layout must keep an exit terrain cell");
+  const spawnKey = `${spawnIndex % data.width},${Math.floor(spawnIndex / data.width)}`;
+  const exitKey = `${exitIndex % data.width},${Math.floor(exitIndex / data.width)}`;
   const occupied = new Set([spawnKey, exitKey]);
 
-  for (const collection of [data.hazards, data.resources, buildResult.initialState.actors]) {
-    assert.ok(Array.isArray(collection));
-    for (const entry of collection) {
-      const position = entry.position || { x: entry.x, y: entry.y };
-      const key = `${position.x},${position.y}`;
-      assert.notEqual(key, spawnKey);
-      assert.notEqual(key, exitKey);
-      assert.equal(occupied.has(key), false, `duplicate placement at ${key}`);
-      occupied.add(key);
-    }
+  for (const actor of buildResult.initialState.actors) {
+    const key = `${actor.position.x},${actor.position.y}`;
+    assert.notEqual(key, spawnKey);
+    assert.notEqual(key, exitKey);
+    assert.equal(occupied.has(key), false, `duplicate placement at ${key}`);
+    occupied.add(key);
   }
 });
 
@@ -466,9 +470,9 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
     );
   }
 
-  function roomHasAffinity(room, kind, hazards) {
-    const roomHazards = (hazards || []).filter((hazard) => inRoom({ x: hazard.x, y: hazard.y }, room));
-    return roomHazards.some((hazard) => hazard?.affinity?.kind === kind);
+  function roomHasAffinity(room, kind, actors) {
+    return (actors || []).some((actor) => inRoom(actor.position, room)
+      && actor.affinities?.some((affinity) => affinity.kind === kind));
   }
 
   const spec = {
@@ -524,6 +528,7 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
             affinity: "earth",
             affinities: [{ kind: "earth", expression: "push", stacks: 1 }],
             position: { x: 0, y: 0 },
+            vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 4, max: 4, regen: 0 }, stamina: { current: 10, max: 10, regen: 0 } },
           },
           {
             id: "def_fire",
@@ -532,6 +537,7 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
             affinity: "fire",
             affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
             position: { x: 1, y: 0 },
+            vitals: { health: { current: 6, max: 6, regen: 0 }, mana: { current: 4, max: 4, regen: 0 }, stamina: { current: 6, max: 6, regen: 0 } },
           },
           {
             id: "def_water",
@@ -540,6 +546,7 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
             affinity: "water",
             affinities: [{ kind: "water", expression: "emit", stacks: 1 }],
             position: { x: 2, y: 0 },
+            vitals: { health: { current: 6, max: 6, regen: 0 }, mana: { current: 4, max: 4, regen: 0 }, stamina: { current: 6, max: 6, regen: 0 } },
           },
         ],
         actorGroups: [{ role: "attacking", count: 1 }, { role: "defending", count: 2 }],
@@ -552,13 +559,14 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
 
   const layout = first.simConfig.layout.data;
   const rooms = Array.isArray(layout.rooms) ? layout.rooms : [];
-  const hazards = Array.isArray(layout.hazards) ? layout.hazards : [];
+  const hazardActors = first.initialState.actors.filter((actor) => first.initialState.presentation?.[actor.id]?.category === "hazard"
+    || actor.capabilities?.canMove === false);
   assert.ok(rooms.length >= 2);
-  assert.ok(rooms.some((room) => roomHasAffinity(room, "fire", hazards)));
-  assert.ok(rooms.some((room) => roomHasAffinity(room, "water", hazards)));
+  assert.ok(rooms.some((room) => roomHasAffinity(room, "fire", hazardActors)));
+  assert.ok(rooms.some((room) => roomHasAffinity(room, "water", hazardActors)));
 
-  const fireRoom = rooms.find((room) => roomHasAffinity(room, "fire", hazards));
-  const waterRoom = rooms.find((room) => roomHasAffinity(room, "water", hazards));
+  const fireRoom = rooms.find((room) => roomHasAffinity(room, "fire", hazardActors));
+  const waterRoom = rooms.find((room) => roomHasAffinity(room, "water", hazardActors));
   assert.ok(fireRoom);
   assert.ok(waterRoom);
 
@@ -567,47 +575,42 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
   const waterWarden = actors.find((actor) => actor.id === "def_water");
   assert.ok(fireWarden);
   assert.ok(waterWarden);
-  // First warden seats on exitApproach (wall-portal seating); later wardens
-  // prefer affinity rooms. def_fire is first in the warden partition.
   assert.deepEqual(fireWarden.position, layout.exitApproach);
   assert.equal(inRoom(waterWarden.position, waterRoom), true);
 
-  const generatedHazards = (layout.hazards || []).filter((hazard) => hazard?.source === "room_affinity_tile");
+  const generatedHazards = hazardActors.filter((actor) => actor.id !== "def_fire" && actor.id !== "def_water" && actor.id !== "delver_1");
   assert.ok(generatedHazards.length > 0);
-  assert.equal(generatedHazards.every((hazard) => hazard?.affinity?.expression === "emit"), true);
+  assert.equal(generatedHazards.every((actor) => actor.affinities?.some((affinity) => affinity.expression === "emit")), true);
 
   // Hazards now preserve their stacks from the room affinity
-  const fireHazards = generatedHazards.filter((hazard) => hazard?.affinity?.kind === "fire");
-  const waterHazards = generatedHazards.filter((hazard) => hazard?.affinity?.kind === "water");
+  const fireHazards = generatedHazards.filter((actor) => actor.affinities?.some((affinity) => affinity.kind === "fire"));
+  const waterHazards = generatedHazards.filter((actor) => actor.affinities?.some((affinity) => affinity.kind === "water"));
   assert.ok(fireHazards.length > 0);
   assert.ok(waterHazards.length > 0);
 
-  // Fire room has stacks=2: upkeep = 2+2=4, manaPool = 4*3 = 12, regen = 4
-  assert.equal(fireHazards.every((hazard) => hazard?.affinity?.stacks === 2), true);
-  assert.equal(fireHazards.every((hazard) => hazard?.vitals?.mana?.current === 12), true);
-  assert.equal(fireHazards.every((hazard) => hazard?.vitals?.mana?.max === 12), true);
-  assert.equal(fireHazards.every((hazard) => hazard?.vitals?.mana?.regen === 4), true);
+  assert.equal(fireHazards.every((actor) => actor.affinities?.some((affinity) => affinity.kind === "fire" && affinity.stacks === 2)), true);
+  assert.equal(fireHazards.every((actor) => actor.vitals?.mana?.current === 12), true);
+  assert.equal(fireHazards.every((actor) => actor.vitals?.mana?.max === 12), true);
+  assert.equal(fireHazards.every((actor) => actor.vitals?.mana?.regen === 4), true);
 
-  // Water room has stacks=1: upkeep = 2+1=3, manaPool = 3*3 = 9, regen = 3
-  assert.equal(waterHazards.every((hazard) => hazard?.affinity?.stacks === 1), true);
-  assert.equal(waterHazards.every((hazard) => hazard?.vitals?.mana?.current === 9), true);
-  assert.equal(waterHazards.every((hazard) => hazard?.vitals?.mana?.max === 9), true);
-  assert.equal(waterHazards.every((hazard) => hazard?.vitals?.mana?.regen === 3), true);
+  assert.equal(waterHazards.every((actor) => actor.affinities?.some((affinity) => affinity.kind === "water" && affinity.stacks === 1)), true);
+  assert.equal(waterHazards.every((actor) => actor.vitals?.mana?.current === 9), true);
+  assert.equal(waterHazards.every((actor) => actor.vitals?.mana?.max === 9), true);
+  assert.equal(waterHazards.every((actor) => actor.vitals?.mana?.regen === 3), true);
 
-  const hazardKey = (hazard) => [
-    hazard.x,
-    hazard.y,
-    hazard.affinity?.kind,
-    hazard.affinity?.expression,
-    hazard.affinity?.stacks,
-    hazard.vitals?.mana?.current,
-    hazard.vitals?.mana?.max,
-    hazard.vitals?.mana?.regen,
+  const hazardKey = (actor) => [
+    actor.position.x,
+    actor.position.y,
+    actor.affinities?.[0]?.kind,
+    actor.affinities?.[0]?.expression,
+    actor.affinities?.[0]?.stacks,
+    actor.vitals?.mana?.current,
+    actor.vitals?.mana?.max,
+    actor.vitals?.mana?.regen,
   ].join(":");
   const firstHazardKeys = generatedHazards.map(hazardKey).sort();
-  const secondHazardKeys = (second.simConfig.layout.data.hazards || [])
-    .filter((hazard) => hazard?.source === "room_affinity_tile")
-    .map(hazardKey)
-    .sort();
+  const secondHazardActors = second.initialState.actors.filter((actor) => second.initialState.presentation?.[actor.id]?.category === "hazard"
+    || (actor.capabilities?.canMove === false && !["def_fire", "def_water", "delver_1"].includes(actor.id)));
+  const secondHazardKeys = secondHazardActors.map(hazardKey).sort();
   assert.deepEqual(secondHazardKeys, firstHazardKeys);
 });

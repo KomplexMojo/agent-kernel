@@ -34,16 +34,9 @@
  * not this test.
  */
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { resolve } = require("node:path");
 
-const ROOT = resolve(__dirname, "../../..");
 const CLOCK = () => "2026-08-12T00:00:00.000Z";
 const PERSONAS = "../../../packages/runtime/src/personas/";
-
-function fixture(name) {
-  return JSON.parse(readFileSync(resolve(ROOT, `tests/fixtures/artifacts/${name}`), "utf8"));
-}
 
 async function buildRegistry(annotator) {
   const { createAllocatorPersona } = await import(`${PERSONAS}allocator/persona.js`);
@@ -61,6 +54,28 @@ async function buildRegistry(annotator) {
 async function runTicks(annotator) {
   const { createRuntime } = await import("../../../packages/runtime/src/runner/runtime.js");
   const { createCore } = await import("../../../packages/core-ts/src/index.ts");
+  const { createConfiguratorPersona } = await import(`${PERSONAS}configurator/controller.js`);
+  const configurator = createConfiguratorPersona({ clock: CLOCK });
+  const layout = { width: 4, height: 1, terrain: ["floor", "floor", "floor", "exit"], exitApproach: { x: 2, y: 0 } };
+  const simConfig = configurator.buildSimConfigArtifact({
+    meta: { id: "g1-config", runId: "run_g1_telemetry", createdAt: CLOCK() },
+    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    layout,
+    movementStamina: { walker: 0 },
+  });
+  const initialState = configurator.buildInitialStateArtifact({
+    meta: { id: "g1-state", runId: "run_g1_telemetry", createdAt: CLOCK() },
+    simConfigRef: { id: simConfig.meta.id, schema: simConfig.schema, schemaVersion: 1 },
+    dimensions: { width: 4, height: 1 },
+    terrain: layout.terrain,
+    actors: [{
+      id: "walker",
+      category: "delver",
+      position: { x: 0, y: 0 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
 
   const runtime = createRuntime({
     core: createCore(),
@@ -69,8 +84,8 @@ async function runTicks(annotator) {
   });
   await runtime.init({
     seed: 0,
-    simConfig: fixture("sim-config-artifact-v1-mvp-grid.json"),
-    initialState: fixture("initial-state-artifact-v1-mvp-actor.json"),
+    simConfig,
+    initialState,
     runId: "run_g1_telemetry",
   });
   for (let i = 0; i < 3; i += 1) await runtime.step();

@@ -1,5 +1,52 @@
 # Actor Persona
 
+## Unified rewrite status — September 14
+
+The active implementation reads one actor registry: alignment governs hostility,
+capabilities govern movement/exit/casting, and terminal actors stop deciding.
+Movement actions contain `params.target`; focused casts contain `params.targetId`.
+Only active push/pull equipment supplies focused casting and its range. Cast
+ranking reads shared actor mana. Ordinary walls and floors remain terrain.
+
+Runtime observations now project independent movement and sight grids, active
+fields, and live actor records from core. Observing applies no field effects.
+The Actor suite passes including production movement and the Actor ablation.
+
+Each motivation contributes proposals without vetoing other motivations;
+`canMove: false` filters movement across the union. Solver objective rows evaluate
+every authored motivation and retain the greatest complete nine-member tuple
+for each candidate, preserving the features that produced it.
+
+Deterministic execution ranks the deduplicated proposals with that same objective,
+emits one winning action per actor, and reports its intention from the winning row.
+Equal evaluations retain input order. Solver candidate expansion remains specific
+to the solver request path.
+
+Field scoring now consumes unified projected cells through core's receiver forecast.
+It uses the active pair, common vital routing, actual vital capacity, and terminal
+defeat. The forecast is local to this receiver and uses residual source stacks as
+a conservative budget; it does not predict competing receivers. Observations retain
+pre-cancellation contributions for visible cells, including unseen emitters.
+Field-driven equip candidates replace the actor's contribution and reuse core's
+opposition projection. Equipment comparison uses focused-cast readiness, then field
+safety and benefit, in existing tuple order. Readiness uses the ordinary nearest
+hostile proposal and motivation intent classifier. Only strict improvement over
+the current pair creates a candidate; ties retain equipment. Equip competes in the common
+tuple as a stationary action, and core consumes the turn when it is accepted.
+Taking candidates enumerate unclaimed holdings on defeated sources in the same
+or an adjacent cell for living actors with `canTake`. They use the stationary
+intent class and existing tuple. Source and holding IDs determine stable ordering;
+solver candidate IDs distinguish separate holdings. Core owns atomic claims,
+one-stack affinity rewards and authored vital grants. Newly acquired pairs remain
+unequipped. Defeated/exited sources are excluded from combat targeting, and solver
+observations retain lifecycle and holding claims.
+Focused readiness includes range, casting capability, combat motivation and live
+hostility. It preserves existing cast evaluation; it is not a new damage-efficiency
+or mana-cost optimizer. Core still decides cast affordability and effect outcomes.
+The subtype, role, and independent-grant descriptions below are historical
+material awaiting replacement as those paths are removed; they are superseded by
+the approved unified-actor Prompt.md and this status for the changed paths.
+
 Actors are the foundational building blocks of the simulation.
 
 An **actor** represents any entity that exists in the world. One concept, with clear subtypes:
@@ -112,24 +159,25 @@ When runtime decisioning is enabled for an actor or boss, the Actor persona now 
 envelope from live observation plus candidate-action context and emits it through the existing `solver_request`
 pipeline. Solver-selected decisions are normalized back into executable `Action` records on the same runtime rail.
 
-Each entry in the envelope's `visibleActors` carries a boolean `hostile`, which is **this persona's ruling and not a
-raw fact about the other actor**: delvers ally with delvers, wardens with wardens, and an unknown role is always
-hostile. Solvers and other consumers must read that field rather than compare `role` themselves — allegiance has one
-authority here, and a consumer that re-derives it is free to disagree with the deterministic path. Absent means
-hostile, so an envelope built before this field existed keeps its previous behavior instead of quietly pacifying.
+The envelope's self actor and `visibleActors` carry the same detached mechanical
+fields: stable ID, live alignment, position, lifecycle, defeat vital, optional
+vitals, capabilities, motivations, owned affinities, active key and holdings.
+`hostile` on visible actors is Actor's ruling from live alignment and lifecycle;
+terminal remnants remain inspectable but are not combat targets. Configured
+alignment cannot override observed alignment.
 
-The envelope's self-actor also carries two separate affinity views. `affinities` is the configured
-ability list used to express candidate casts. `affinityGrants` is the live resource-grant list read from core,
-including each grant's independent `stacks`, `mana`, `manaMax`, and `manaRegen` pool. Both are copied at the
-boundary so a solver request cannot alias mutable observation state. Z6.1 uses the matching live grant, or the
-actor mana pool when no grant matches, to author a cast-reserve tie-break. This describes scarcity only: the
-Configurator still owns cast cost and the runner still owns affordability enforcement.
+Actor does not emit category `kind`, `affinityGrants`, or a separate `hazards`
+collection. All owned pairs share the actor's mana vital, which supplies the
+cast-reserve tuple member. Distinct UI categories remain presentation concerns.
+The shared envelope reader now projects the same live mechanical keys, keeps
+`motivationProfile` and `hostile`, and drops injected hazards plus grant aliases
+before adapters see the payload. Solver adapters still rank opaque tuples only.
 
 The self-actor's `motivationProfile` exposes AM.9's core-derived mobility, combat, and cognition tiers together
 with its reasoning class and default flag mask. Human-readable reasoning and flag names are derived directly from
 core's enums, so the runtime does not maintain a competing vocabulary. An unknown motivation kind omits the
 profile but still receives an Actor-authored compatibility objective. That tuple preserves the former deterministic
-attack, hostile-progress, exit-progress, fallback-move, and wait ordering without asking an adapter to infer policy.
+focused-cast, hostile-progress, exit-progress, fallback-move, and wait ordering without asking an adapter to infer policy.
 
 For known profiles, the `objectives.actorDecision` contract carries one Actor-authored nine-integer rank
 per candidate, ordered by intent class, target finish, **cover alignment, stealth alignment**, field safety, field
@@ -158,21 +206,23 @@ choice gives them nothing to modulate. A move evaluates the perceived canonical 
 every other action evaluates the current cell. Harm is penalized before beneficial effects, and a benefit is capped
 at its matching vital's missing capacity.
 
-Field exposure is resolved **against the observing actor**, not per tile. Core's field readers report one effect per
-tile, so before Stage A an actor's own element was exactly as lethal to it as anyone else's. The Actor now matches the
-field's kind against its live `affinityGrants` — preferring a grant of the field's own kind over one of its opposite,
-since immunity is the more specific claim — and asks core's `resolveExposureVitalEffect` to modulate the field's own
-number. The relationship rule is derived from the 48-cell interaction matrix rather than restated here. A neutral
-relationship deliberately keeps the previous effect: the matrix answers what happens when two affinities *meet*, and
-for unrelated kinds that is correctly nothing, but exposure is not interaction — a corrode field still corrodes an
-actor that has no relationship to it. An actor with no grants observes no change at all.
+Field scoring calls core's `previewActorFieldChanges` with the cells at the
+candidate destination (or current cell for non-moves). This forecasts a detached
+receiver using the same damage/restore/drain routing and vital mutation primitive
+as execution. Fire/earth consume durability and overflow into health; water/decay
+bypass durability. Only active equipment supplies protection or draw absorption.
+Owned inactive alternatives confer neither. Matching draw credits mana up to its
+capacity; it never heals health. Missing vitals produce no changes, and terminal
+defeat stops subsequent changes. Field inputs no longer carry legacy `vitalEffects`.
 
-Resolution returns a **set of vital deltas**, not one number, because the matrix contains genuine cross-vital
-outcomes. A `draw`-expression actor standing in a same-kind field converts it into mana rather than taking the hit:
-the harmed vital is spared and mana rises by the same magnitude, capped like any benefit at that vital's missing
-capacity — so an actor with no mana vital, or none missing, ranks no benefit from the conversion. The distinction is
-per **expression**, not per kind: a same-kind `emit` actor is immune but gains nothing, while only `draw` converts.
-Light and Dark already target mana, so for those the conversion lands on the same vital and simply reverses its sign. These remain tie-breakers after intent, target, and profile alignment.
+The forecast follows stable source-ID order, bounds each source by its observed
+residual stacks, and prevents repeated source credit. This is a receiver-local
+estimate before other receivers compete for exposure, not a full future tick.
+Equipment candidates reproject from observed contributions, replacing only the
+actor's own source. This preserves unseen emitters and reveals contributions that
+the previous equipment canceled. Harm and benefit remain tuple members after
+intent and alignment. Focused readiness can also propose equipment in a field-free
+room when an owned alternative brings the ordinary target into range.
 Mobility/combat tiers and `PrefersCover`/`PrefersStealth` affect those ranks; cognition and reasoning remain
 diagnostic because this is a one-step choice, while `AggroRangeBoost` remains perception/candidate policy. The
 shared envelope code validates row identity and deep-copies the contract but does not interpret the ranks. The CLI
