@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="56" viewBox="0 0 640 56" role="img" aria-label="Large multi-year project under active development">
+  <rect width="640" height="56" rx="10" fill="#2A3142" stroke="#C4A35A" stroke-width="2"/>
+  <circle cx="32" cy="28" r="8" fill="#E8A54B"/>
+  <text x="52" y="34" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#E8DFC8">
+    Large multi-year project · Under active development
+  </text>
+</svg>
