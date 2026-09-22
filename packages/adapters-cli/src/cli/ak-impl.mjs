@@ -176,7 +176,7 @@ function usage() {
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
   node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} room-plan --room "size=small;count=2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
-  node ${rel} hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]" [--hazard "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=<amount>|regen:<c>:<max>:<regen>;durability=<amount>" [--hazard "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} resource-plan --resource "permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>" [--resource "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
@@ -218,8 +218,10 @@ Options:
   --dungeon-budget-tokens Separate hard budget cap for dungeon-side objects (rooms, tiles, placedHazards, hazards).
   --delver-budget-tokens  Separate hard budget cap for delver-side objects (delvers, wardens).
   --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
-  --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
-  --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
+  --floor-tile    Floor tile walkable-budget for create/configure (repeatable): count=<n>[;id=<id>]
+                  count is the walkable-tile budget for carving (must cover the room set; e.g. ≥6 for 2 medium rooms).
+                  id is an opaque billing/identity label only — not a terrain/material enum.
+  --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>;mana=<amount>|one-time:<amount>|regen:<current>:<max>:<regen>;durability=<amount>|one-time:<amount>|regen:<current>:<max>:<regen>
   --resource      Resource artifact spec for create/configure/resource-plan (repeatable).
                   Vital payload:   permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]
                   permanenceMode governs delta only (consumable raises current, level/permanent raise max).
@@ -950,7 +952,7 @@ function parsePlacedHazardSpecs(rawHazards) {
 
 function parseHazardVitalSpec(value, field, hazardIndex) {
   if (!value) {
-    return { kind: "one-time", amount: 0 };
+    throw new Error(`hazard[${hazardIndex}] ${field} is required.`);
   }
   const parts = value.split(":").map((s) => s.trim());
   // A bare amount means one-time:<amount>. Models write `mana=10` overwhelmingly and always have:
@@ -958,26 +960,28 @@ function parseHazardVitalSpec(value, field, hazardIndex) {
   // prefixed grammar exists for the regen case, not the common one, so requiring it everywhere
   // taxes the ordinary spelling. Accepting the shorthand removes the mismatch instead of
   // documenting it -- 14 of 21 failures in a 43-attempt sample were exactly this.
+  //
+  // amount/max must be >= 1: core leaves a zero-mana hazard in state with no active danger field,
+  // and zero durability removes it (charter). Authoring an "actual" hazard therefore needs a
+  // positive pool; regen rate itself may be 0.
   if (parts.length === 1 && /^[0-9]+$/.test(parts[0])) {
-    return {
-      kind: "one-time",
-      amount: parseNonNegativeIntStrict(parts[0], `hazard[${hazardIndex}] ${field} amount`),
-    };
+    const amount = parsePositiveIntStrict(parts[0], `hazard[${hazardIndex}] ${field} amount`);
+    return { kind: "one-time", amount };
   }
   if (parts[0] === "one-time" && parts.length === 2) {
-    const amount = parseNonNegativeIntStrict(parts[1], `hazard[${hazardIndex}] ${field} amount`);
+    const amount = parsePositiveIntStrict(parts[1], `hazard[${hazardIndex}] ${field} amount`);
     return { kind: "one-time", amount };
   }
   if (parts[0] === "regen" && parts.length === 4) {
     const current = parseNonNegativeIntStrict(parts[1], `hazard[${hazardIndex}] ${field} current`);
-    const max = parseNonNegativeIntStrict(parts[2], `hazard[${hazardIndex}] ${field} max`);
+    const max = parsePositiveIntStrict(parts[2], `hazard[${hazardIndex}] ${field} max`);
     const regen = parseNonNegativeIntStrict(parts[3], `hazard[${hazardIndex}] ${field} regen`);
     if (current > max) {
       throw new Error(`hazard[${hazardIndex}] ${field} current cannot exceed max.`);
     }
     return { kind: "regen", current, max, regen };
   }
-  throw new Error(`hazard[${hazardIndex}] ${field} must be a plain amount, one-time:<amount>, or regen:<current>:<max>:<regen>; got "${value}".`);
+  throw new Error(`hazard[${hazardIndex}] ${field} must be a plain amount (>=1), one-time:<amount>, or regen:<current>:<max>:<regen>; got "${value}".`);
 }
 
 function placementVitalToHazardVital(vital) {
@@ -1077,6 +1081,16 @@ function parseHazardSpec(value, hazardIndex) {
   if (!fields.has("proximityRadius")) {
     throw new Error(`hazard[${hazardIndex}] proximityRadius is required.`);
   }
+  // Charter: a hazard has affinity, expression, stacks, and mana/durability vitals. Zero mana
+  // contributes no active danger field; zero durability removes the hazard. Authoring therefore
+  // requires both vitals at a positive pool — silent defaults (mana=0, durability=1) produced
+  // inert or under-specified hazards that still looked valid to the LLM tool schema.
+  if (!fields.has("mana")) {
+    throw new Error(`hazard[${hazardIndex}] mana is required (plain amount, one-time:<amount>, or regen:<current>:<max>:<regen>; amount/max must be >= 1).`);
+  }
+  if (!fields.has("durability")) {
+    throw new Error(`hazard[${hazardIndex}] durability is required (plain amount, one-time:<amount>, or regen:<current>:<max>:<regen>; amount/max must be >= 1).`);
+  }
   const affinity = fields.get("affinity");
   const expression = fields.get("expression");
   const stacks = fields.has("stacks")
@@ -1089,9 +1103,7 @@ function parseHazardSpec(value, hazardIndex) {
     stacks,
     proximityRadius: parseNonNegativeIntStrict(fields.get("proximityRadius"), `hazard[${hazardIndex}] proximityRadius`),
     mana: parseHazardVitalSpec(fields.get("mana"), "mana", hazardIndex),
-    durability: fields.has("durability")
-      ? parseHazardVitalSpec(fields.get("durability"), "durability", hazardIndex)
-      : undefined,
+    durability: parseHazardVitalSpec(fields.get("durability"), "durability", hazardIndex),
     blocking: fields.has("blocking")
       ? parseBooleanStrict(fields.get("blocking"), `hazard[${hazardIndex}] blocking`)
       : undefined,

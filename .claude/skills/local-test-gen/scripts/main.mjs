@@ -1,14 +1,19 @@
 #!/usr/bin/env node
 /**
- * local-test-gen: expand ## TODO: Test Permutations stubs using the currently
- * loaded Ollama model (auto-detected via /api/ps), or a specific model via --model.
+ * local-test-gen: expand ## TODO: Test Permutations stubs using a local Ollama
+ * model. Default: the largest installed model on this machine (`--model-policy
+ * largest`). Override with `--model`, or use `--model-policy warm` for the
+ * currently loaded model.
  *
  * Usage:
- *   node main.mjs [--file <path>] [--dry-run] [--model <name>] [--ollama-host <url>] [--runner auto|vitest|node] [--eval-run]
+ *   node main.mjs [--file <path>] [--dry-run] [--model <name>] [--model-policy largest|warm]
+ *                 [--ollama-host <url>] [--runner auto|vitest|node] [--eval-run]
  */
 
 import fs from "fs";
 import path from "path";
+import http from "node:http";
+import https from "node:https";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 
@@ -61,6 +66,11 @@ function normalizeOllamaHost(value) {
 
 const DRY_RUN = args.includes("--dry-run");
 const MODEL_OVERRIDE = argValue("--model") || process.env.OLLAMA_MODEL || null;
+/** `largest` = biggest installed local model (default for Mac local). `warm` = currently loaded. */
+const MODEL_POLICY = (argValue("--model-policy") || process.env.OLLAMA_MODEL_POLICY || "largest").toLowerCase();
+if (!["largest", "warm"].includes(MODEL_POLICY)) {
+  throw new Error(`--model-policy must be "largest" or "warm" (got ${MODEL_POLICY})`);
+}
 const TARGET_FILE = argValue("--file") ? path.resolve(CWD, argValue("--file")) : null;
 const MAX_ITERATIONS = Number(argValue("--max-iterations") || process.env.TEST_GEN_MAX_ITERATIONS || 5);
 const RUNNER_OVERRIDE = argValue("--runner") || process.env.TEST_GEN_RUNNER || "auto";
@@ -78,14 +88,9 @@ const OLLAMA_TIMEOUT_MS = Number(argValue("--ollama-timeout-ms") || process.env.
 if (!Number.isFinite(OLLAMA_TIMEOUT_MS) || OLLAMA_TIMEOUT_MS <= 0) {
   throw new Error("--ollama-timeout-ms / OLLAMA_TIMEOUT_MS must be a positive number");
 }
-// Override undici's default 300-second bodyTimeout so long Ollama generations
-// don't get killed by the socket layer before OLLAMA_TIMEOUT_MS fires.
-try {
-  const { setGlobalDispatcher, Agent } = await import("undici");
-  setGlobalDispatcher(new Agent({ bodyTimeout: OLLAMA_TIMEOUT_MS, headersTimeout: 60_000 }));
-} catch {
-  // undici not available (older Node or bundled differently) — AbortController is the fallback
-}
+// Note: Node's global fetch (undici) defaults to a 300s bodyTimeout and the
+// bundled undici cannot be imported to reconfigure it. fetchOllama uses
+// node:http/https instead so long generations are not killed at 5 minutes.
 if (!Number.isInteger(MAX_ITERATIONS) || MAX_ITERATIONS <= 0) {
   throw new Error("--max-iterations / TEST_GEN_MAX_ITERATIONS must be a positive integer");
 }
@@ -142,44 +147,147 @@ function ollamaApiUrl(pathname) {
   return new URL(pathname, OLLAMA_HOST).toString();
 }
 
+/**
+ * HTTP helper that does not use global fetch/undici (which hard-caps idle body
+ * reads at 300s). Returns a minimal Response-like object.
+ */
 async function fetchOllama(pathname, init = {}, timeoutMs = OLLAMA_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    return await fetch(ollamaApiUrl(pathname), { ...init, signal: controller.signal });
-  } catch (error) {
-    if (error.name === "AbortError") {
-      throw new Error(`Timed out after ${timeoutMs}ms calling ${ollamaApiUrl(pathname)}`);
-    }
-    throw error;
-  } finally {
-    clearTimeout(timeout);
+  const url = new URL(pathname, OLLAMA_HOST);
+  const lib = url.protocol === "https:" ? https : http;
+  const body = init.body == null ? null : String(init.body);
+  const method = init.method || (body ? "POST" : "GET");
+  const headers = {
+    Accept: "application/json",
+    ...(init.headers || {}),
+  };
+  if (body != null) {
+    headers["Content-Type"] = headers["Content-Type"] || "application/json";
+    headers["Content-Length"] = Buffer.byteLength(body);
   }
+
+  return new Promise((resolve, reject) => {
+    const req = lib.request(
+      url,
+      { method, headers },
+      (res) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => {
+          const buf = Buffer.concat(chunks);
+          const text = buf.toString("utf8");
+          resolve({
+            ok: res.statusCode >= 200 && res.statusCode < 300,
+            status: res.statusCode,
+            statusText: res.statusMessage || "",
+            async text() {
+              return text;
+            },
+            async json() {
+              return JSON.parse(text);
+            },
+          });
+        });
+        res.on("error", reject);
+      },
+    );
+    req.on("error", reject);
+    // Idle-socket timeout for the whole call budget. Streaming keep-alives
+    // below reset this; for non-stream responses the timer covers the wait.
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error(`Timed out after ${timeoutMs}ms calling ${url}`));
+    });
+    if (body != null) req.write(body);
+    req.end();
+  });
 }
 
 // ── Model detection ───────────────────────────────────────────────────────────
+/**
+ * Parse Ollama `details.parameter_size` strings like "33B", "30.5B", "7.6B".
+ * @param {string | undefined} raw
+ * @returns {number} billion-params estimate, or 0 if unknown
+ */
+function parseParameterSizeB(raw) {
+  if (!raw || typeof raw !== "string") return 0;
+  const match = raw.trim().match(/^([\d.]+)\s*B$/i);
+  if (!match) return 0;
+  const value = Number(match[1]);
+  return Number.isFinite(value) ? value : 0;
+}
+
+/**
+ * Rank installed models for local Mac use: prefer larger on-disk size, then
+ * larger parameter_size, then name (stable).
+ * @param {Array<{ name?: string, model?: string, size?: number, details?: { parameter_size?: string } }>} models
+ * @returns {string | null}
+ */
+function pickLargestModel(models) {
+  const ranked = (models ?? [])
+    .map((entry) => ({
+      name: entry.name || entry.model || "",
+      size: Number(entry.size) || 0,
+      paramsB: parseParameterSizeB(entry.details?.parameter_size),
+    }))
+    .filter((entry) => entry.name);
+  ranked.sort((a, b) => {
+    if (b.size !== a.size) return b.size - a.size;
+    if (b.paramsB !== a.paramsB) return b.paramsB - a.paramsB;
+    return a.name.localeCompare(b.name);
+  });
+  return ranked[0]?.name ?? null;
+}
+
+async function listInstalledModels() {
+  const res = await fetchOllama("/api/tags", {}, 5000);
+  if (!res.ok) {
+    throw new Error(`Ollama /api/tags failed: HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.models ?? [];
+}
+
+async function listWarmModels() {
+  const res = await fetchOllama("/api/ps", {}, 5000);
+  if (!res.ok) {
+    throw new Error(`Ollama /api/ps failed: HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.models ?? [];
+}
+
+/**
+ * Default on local Mac: largest installed model (`--model-policy largest`).
+ * Use `--model-policy warm` to prefer a model already loaded in VRAM.
+ * `--model` / OLLAMA_MODEL always win.
+ */
 async function detectModel() {
   if (MODEL_OVERRIDE) return MODEL_OVERRIDE;
 
-  // /api/ps lists models currently loaded in memory (warm)
-  try {
-    const res = await fetchOllama("/api/ps", {}, 5000);
-    if (res.ok) {
-      const data = await res.json();
-      const running = data.models ?? [];
-      if (running.length > 0) return running[0].name;
-    }
-  } catch { /* fall through */ }
+  if (MODEL_POLICY === "warm") {
+    try {
+      const running = await listWarmModels();
+      if (running.length > 0) {
+        // Prefer the warm model that is also the largest among warm ones.
+        return pickLargestModel(running) || running[0].name;
+      }
+    } catch { /* fall through to largest installed */ }
+  }
 
-  // Fall back to /api/tags (installed models) and pick the first
   try {
-    const res = await fetchOllama("/api/tags", {}, 5000);
-    if (res.ok) {
-      const data = await res.json();
-      const available = data.models ?? [];
-      if (available.length > 0) return available[0].name;
+    const available = await listInstalledModels();
+    const largest = pickLargestModel(available);
+    if (largest) {
+      if (MODEL_POLICY === "warm") {
+        // warm requested but nothing loaded — fall back to largest installed
+        return largest;
+      }
+      return largest;
     }
-  } catch { /* fall through */ }
+  } catch (err) {
+    throw new Error(
+      `Cannot detect Ollama model (${err.message}) — use --model <name> to specify one explicitly`,
+    );
+  }
 
   throw new Error("Cannot detect Ollama model — use --model <name> to specify one explicitly");
 }
@@ -220,19 +328,35 @@ function parseTodoSection(content) {
   const headerIndex = stripTodoLineSyntax(lines[sectionStart]).trim() === "## TODO: Test Permutations"
     ? sectionStart
     : sectionStart + 1;
+  // Empty test.skip / it.skip stubs are a common handoff shape (visible in Vitest
+  // skip counts). Accept them as stub titles, same as `// -` bullets.
+  const emptySkipRe =
+    /^(?:test|it)\.skip\(\s*["'`]([^"'`]+)["'`]\s*,\s*(?:async\s*)?\(\)\s*=>\s*\{\s*\}\s*\)\s*;?\s*$/;
   for (let i = headerIndex + 1; i < lines.length; i++) {
-    const stripped = stripTodoLineSyntax(lines[i]);
+    const raw = lines[i];
+    const stripped = stripTodoLineSyntax(raw);
     if (stripped.startsWith("- ")) {
       stubs.push(stripped.slice(2).trim());
-    } else if (stripped === "") {
-      // allow blank lines within the section
       continue;
-    } else if (stripped === "*/") {
-      break;
-    } else {
-      // non-bullet, non-blank line after header — stop
+    }
+    const skipMatch = raw.trim().match(emptySkipRe);
+    if (skipMatch) {
+      stubs.push(skipMatch[1].trim());
+      continue;
+    }
+    if (stripped === "") {
+      continue;
+    }
+    if (stripped === "*/") {
       break;
     }
+    // Prose comments under the header (e.g. "Named permutations awaiting…") —
+    // keep scanning; do not end the section.
+    if (raw.trim().startsWith("//") || raw.trim().startsWith("*")) {
+      continue;
+    }
+    // Real code (a live test, import, etc.) ends the TODO section.
+    break;
   }
 
   return { sectionStart, stubs };
@@ -374,18 +498,88 @@ function ollamaOptions() {
 }
 
 async function callOllama(prompt, model, { stripFences = true } = {}) {
-  const res = await fetchOllama("/api/generate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      prompt,
-      stream: false,
-      options: ollamaOptions()
-    }),
+  // stream:true so tokens arrive continuously and the idle socket timeout resets;
+  // stream:false leaves the socket silent until completion and undici/http idle
+  // timers kill 5+ minute generations.
+  const url = new URL("/api/generate", OLLAMA_HOST);
+  const lib = url.protocol === "https:" ? https : http;
+  const body = JSON.stringify({
+    model,
+    prompt,
+    stream: true,
+    // qwen3.x thinking models otherwise spend the whole budget in `thinking`
+    // and return an empty `response`, which this harness treats as failure.
+    think: false,
+    options: ollamaOptions(),
   });
-  if (!res.ok) throw new Error(`Ollama ${res.status}: ${res.statusText}`);
-  const data = await res.json();
+
+  const data = await new Promise((resolve, reject) => {
+    const req = lib.request(
+      url,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(body),
+          Accept: "application/x-ndjson",
+        },
+      },
+      (res) => {
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          const chunks = [];
+          res.on("data", (c) => chunks.push(c));
+          res.on("end", () => {
+            reject(new Error(`Ollama ${res.statusCode}: ${Buffer.concat(chunks).toString("utf8").slice(0, 200)}`));
+          });
+          return;
+        }
+        let buffer = "";
+        let responseText = "";
+        let lastMeta = {};
+        const onTimeout = () => {
+          req.destroy(new Error(`Timed out after ${OLLAMA_TIMEOUT_MS}ms calling ${url}`));
+        };
+        res.setTimeout(OLLAMA_TIMEOUT_MS, onTimeout);
+        res.on("data", (chunk) => {
+          buffer += chunk.toString("utf8");
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let parsed;
+            try {
+              parsed = JSON.parse(line);
+            } catch {
+              continue;
+            }
+            if (typeof parsed.response === "string") responseText += parsed.response;
+            if (parsed.done) lastMeta = parsed;
+          }
+        });
+        res.on("end", () => {
+          if (buffer.trim()) {
+            try {
+              const parsed = JSON.parse(buffer);
+              if (typeof parsed.response === "string") responseText += parsed.response;
+              if (parsed.done) lastMeta = parsed;
+            } catch {
+              // ignore trailing partial
+            }
+          }
+          // lastMeta often ends with response:"" — must not overwrite the accumulated text.
+          resolve({ ...lastMeta, response: responseText });
+        });
+        res.on("error", reject);
+      },
+    );
+    req.on("error", reject);
+    req.setTimeout(OLLAMA_TIMEOUT_MS, () => {
+      req.destroy(new Error(`Timed out after ${OLLAMA_TIMEOUT_MS}ms calling ${url}`));
+    });
+    req.write(body);
+    req.end();
+  });
+
   if (!data.response) throw new Error("Ollama returned empty response");
 
   // Strip markdown fences if present
@@ -853,19 +1047,22 @@ function writeReport(model) {
 // ── Main ───────────────────────────────────────────────────────────────────────
 async function main() {
   const startedAt = new Date().toISOString();
-  // Resolve model (skip Ollama check in dry-run)
-  let MODEL = MODEL_OVERRIDE ?? "(dry-run)";
-  if (!DRY_RUN) {
-    try {
-      MODEL = await detectModel();
-    } catch (err) {
+  // Resolve model even in dry-run so the planned model is visible.
+  let MODEL = MODEL_OVERRIDE ?? null;
+  try {
+    MODEL = await detectModel();
+  } catch (err) {
+    if (!DRY_RUN) {
       log(`ERROR: ${err.message}`);
       process.exit(1);
     }
+    MODEL = MODEL_OVERRIDE ?? "(undetected)";
+    log(`WARN: ${err.message}`);
   }
 
   log("=".repeat(70));
   log(`local-test-gen — model: ${MODEL}${DRY_RUN ? " [DRY RUN]" : ""}`);
+  log(`Model policy: ${MODEL_OVERRIDE ? `override (--model)` : MODEL_POLICY}`);
   log(`Ollama host: ${OLLAMA_HOST}`);
   log(`Runner mode: ${RUNNER_OVERRIDE}; max iterations: ${MAX_ITERATIONS}; keep failing logic: ${KEEP_FAILING_LOGIC ? "yes" : "no"}`);
   log(`Ollama options: num_ctx=${NUM_CTX ?? "default"} num_predict=${NUM_PREDICT ?? "default"} temperature=${TEMPERATURE}`);

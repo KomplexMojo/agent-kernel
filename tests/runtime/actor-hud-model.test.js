@@ -15,6 +15,8 @@ const {
   VITAL_KEYS,
   HAZARD_VITAL_KEYS,
   RESOURCE_VITAL_KEYS,
+  MOTIVATION_KINDS,
+  AFFINITY_EXPRESSIONS,
 } = require("../../packages/runtime/src/contracts/domain-constants.js");
 
 const DELVER = {
@@ -145,11 +147,80 @@ test("reads affinity and expression from the shapes observations actually use", 
   );
 });
 
-// ## TODO: Test Permutations
-// Named permutations awaiting /local-test-gen. Empty bodies on purpose -- see
-// tests/README.md: un-skipping one creates a vacuously passing empty test.
-test.skip("every motivation kind round-trips into the model unchanged", () => {});
-test.skip("every affinity expression round-trips into the model unchanged", () => {});
-test.skip("a vital reported as a bare number rather than an object is handled", () => {});
-test.skip("very large vital values format without overflowing the label", () => {});
-test.skip("warden and delver produce identical vital ordering", () => {});
+test("every motivation kind round-trips into the model unchanged", () => {
+  for (const kind of MOTIVATION_KINDS) {
+    assert.equal(
+      buildActorHudModel({ id: "m", type: "delver", motivation: kind }).motivation,
+      kind,
+      `string motivation ${kind}`,
+    );
+    assert.equal(
+      buildActorHudModel({ id: "m", type: "delver", motivations: [{ kind }] }).motivation,
+      kind,
+      `array motivation ${kind}`,
+    );
+  }
+});
+
+test("every affinity expression round-trips into the model unchanged", () => {
+  for (const expression of AFFINITY_EXPRESSIONS) {
+    assert.equal(
+      buildActorHudModel({
+        id: "e",
+        type: "delver",
+        affinities: [{ kind: "fire", expression }],
+      }).expression,
+      expression,
+      `expression ${expression}`,
+    );
+  }
+});
+
+test("a vital reported as a bare number rather than an object is handled", () => {
+  // Bare numbers are not a supported vital shape; the model must not throw and
+  // must not invent a current from the number itself (only {current,max} records).
+  const model = buildActorHudModel({
+    id: "bare",
+    type: "delver",
+    vitals: { health: 12, mana: { current: 3, max: 9 } },
+  });
+  assert.ok(model);
+  const by = Object.fromEntries(model.vitals.map((v) => [v.key, v]));
+  assert.equal(by.health.current, 0);
+  assert.equal(by.health.max, 0);
+  assert.equal(by.mana.current, 3);
+  assert.equal(by.mana.max, 9);
+});
+
+test("very large vital values format without overflowing the label", () => {
+  // Formatting is the renderer's job; the model must keep finite numeric fields
+  // and a two-character label even when the numbers are huge.
+  const model = buildActorHudModel({
+    id: "big",
+    type: "delver",
+    vitals: { health: { current: 1e15, max: 1e15 } },
+  });
+  const health = model.vitals.find((v) => v.key === "health");
+  assert.equal(health.current, 1e15);
+  assert.equal(health.max, 1e15);
+  assert.equal(health.fraction, 1);
+  assert.equal(health.label, "HP");
+  assert.ok(Number.isFinite(health.current) && Number.isFinite(health.fraction));
+});
+
+test("warden and delver produce identical vital ordering", () => {
+  const vitals = {
+    health: { current: 1, max: 10 },
+    mana: { current: 1, max: 10 },
+    stamina: { current: 1, max: 10 },
+    durability: { current: 1, max: 10 },
+  };
+  const delver = buildActorHudModel({ id: "d", type: "delver", vitals });
+  const warden = buildActorHudModel({ id: "w", type: "warden", vitals });
+  assert.deepEqual(delver.vitals.map((v) => v.key), [...VITAL_KEYS]);
+  assert.deepEqual(warden.vitals.map((v) => v.key), [...VITAL_KEYS]);
+  assert.deepEqual(
+    delver.vitals.map((v) => v.key),
+    warden.vitals.map((v) => v.key),
+  );
+});

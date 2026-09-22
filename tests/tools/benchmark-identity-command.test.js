@@ -95,8 +95,8 @@ test("the runbook's deployment commands exist as written", () => {
 });
 
 // ## TODO: Test Permutations
-test.skip("a corrupt content-gen catalog fails the command loudly rather than printing a partial identity", async () => {});
-test.skip("--env and the JSON form always report the same three hashes in one invocation", async () => {});
-test.skip("changing one execution catalog file moves executionSuiteHash and nothing else", async () => {});
-test.skip("changing one content scenario moves scenarioSet.sha256 and nothing else", async () => {});
-test.skip("an unknown flag is rejected instead of silently printing the default form", async () => {});
+// - a corrupt content-gen catalog fails the command loudly rather than printing a partial identity
+// - --env and the JSON form always report the same three hashes in one invocation
+// - changing one execution catalog file moves executionSuiteHash and nothing else
+// - changing one content scenario moves scenarioSet.sha256 and nothing else
+// - an unknown flag is rejected instead of silently printing the default form

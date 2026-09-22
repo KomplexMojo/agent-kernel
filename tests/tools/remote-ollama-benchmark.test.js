@@ -62,19 +62,22 @@ test("content-gen matrix plans six primary-or-dual configurations in resource or
   assert.equal(plan.contractVersion, "content-gen-matrix-v1");
   // Pinned: the matrix hash is run identity, and a silent change makes two runs look
   // comparable when they measured different things. It moved on 2026-08-24 twice -- when
-  // qwen3.5:27b left the primary profile, and when primary's context dropped to 8192.
-  assert.equal(plan.sha256, "3def36d7d6cd0fca73a357bf1080887c3e191505814167fc60fbe211b05efc4e");
-  assert.equal(plan.configurationCount, 6);
+  // qwen3.5:27b left the primary profile, and when primary's context dropped to 8192 -- and
+  // again on 2026-09-10 when gpt-oss:20b joined the matrix (primary and dual).
+  assert.equal(plan.sha256, "0bbabb99223b0f3a0ed1367978f745a032ffb38bb515bba8bc8db76d5ca79388");
+  assert.equal(plan.configurationCount, 8);
   assert.deepEqual(plan.repeatPolicy, {
     minimumCompletePasses: 1,
     maximumPasses: 3,
     earlyStop: "mathematically_lossless",
   });
-  assert.deepEqual(plan.callBounds, { minimum: 600, maximum: 1800 });
+  assert.deepEqual(plan.callBounds, { minimum: 800, maximum: 2400 });
   assert.deepEqual(plan.configurations.map((entry) => entry.configurationId), [
     "cg-v1--qwen3.5_9b--primary--ctx8192--out4096",
     "cg-v1--qwen3_14b--primary--ctx8192--out4096",
+    "cg-v1--gpt-oss_20b--primary--ctx8192--out4096",
     "cg-v1--qwen3.8_27b--primary--ctx8192--out4096",
+    "cg-v1--gpt-oss_20b--dual--ctx65536--out32768",
     "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
     "cg-v1--qwen3.8_27b--dual--ctx65536--out32768",
     "cg-v1--qwen3-coder_30b-a3b-q4_K_M--dual--ctx65536--out32768",
@@ -91,6 +94,7 @@ test("content-gen matrix plans six primary-or-dual configurations in resource or
   assert.deepEqual(profilesByModel.get("qwen3.5:27b"), ["dual"]);
   assert.deepEqual(profilesByModel.get("qwen3:14b"), ["primary"]);
   assert.deepEqual(profilesByModel.get("qwen3.5:9b"), ["primary"]);
+  assert.deepEqual(profilesByModel.get("gpt-oss:20b"), ["primary", "dual"]);
 
   const resourceTuples = plan.configurations.map((entry) => [
     entry.resourceOrder.gpuCount,
@@ -125,10 +129,10 @@ test("content-gen dry run exposes the complete offline matrix and exact repeat b
     complex: 25,
     constrained: 25,
   });
-  assert.equal(output.matrix.configurationCount, 6);
+  assert.equal(output.matrix.configurationCount, 8);
   assert.equal(output.runsPerScenario, 3);
-  assert.deepEqual(output.matrix.callBounds, { minimum: 600, maximum: 1800 });
-  assert.equal(output.matrix.configurations.length, 6);
+  assert.deepEqual(output.matrix.callBounds, { minimum: 800, maximum: 2400 });
+  assert.equal(output.matrix.configurations.length, 8);
 });
 
 // A state directory whose profile is unmistakably running: the pid is this very test process, so

@@ -182,7 +182,7 @@
           "size=medium;count=1"
         ],
         "hazard": [
-          "affinity=dark;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+          "affinity=dark;expression=emit;proximityRadius=2;mana=regen:3:3:1;durability=5"
         ],
         "delver": [
           "count=1;affinity=fire;motivation=exploring",

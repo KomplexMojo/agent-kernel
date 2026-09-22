@@ -226,7 +226,7 @@ test("ak create --hazard rejects invalid durability regen shape", () => {
   const result = runCli([
     "create",
     "--hazard",
-    "affinity=fire;expression=emit;proximityRadius=1;durability=regen:5:4:0",
+    "affinity=fire;expression=emit;proximityRadius=1;mana=10;durability=regen:5:4:0",
   ]);
   assert.notEqual(result.status, 0, "should fail when durability current exceeds max");
   assert.ok(
@@ -235,12 +235,12 @@ test("ak create --hazard rejects invalid durability regen shape", () => {
   );
 });
 
-test("ak create --hazard emits V3 artifact with default durability", () => {
+test("ak create --hazard emits V3 artifact with required mana and durability", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-v2-"));
   runCliOk([
     "create",
     "--hazard",
-    "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1;durability=5",
     "--run-id", "run_hazard_v2",
     "--created-at", "2026-04-18T00:00:00.000Z",
     "--out-dir", outDir,
@@ -250,7 +250,7 @@ test("ak create --hazard emits V3 artifact with default durability", () => {
   assert.equal(artifact.schemaVersion, 3, "should emit schemaVersion 3");
   assert.equal(artifact.affinity, "fire");
   assert.equal(artifact.vitals.mana.kind, "regen");
-  assert.deepEqual(artifact.vitals.durability, { kind: "one-time", amount: 1 });
+  assert.deepEqual(artifact.vitals.durability, { kind: "one-time", amount: 5 });
 });
 
 test("ak create --resource accepts permanenceMode=consumable and emits V3 artifact", () => {
@@ -330,12 +330,12 @@ test("ak create --resource rejects invalid vital key in V3 spec", () => {
   );
 });
 
-test("ak create --hazard with no mana defaults to zero one-time mana", () => {
+test("ak create --hazard with no mana is rejected", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-create-hazard-default-mana-"));
-  runCliOk([
+  const result = runCli([
     "create",
     "--hazard",
-    "affinity=fire;expression=emit;proximityRadius=1",
+    "affinity=fire;expression=emit;proximityRadius=1;durability=5",
     "--run-id",
     "run_hazard_default_mana",
     "--created-at",
@@ -343,9 +343,8 @@ test("ak create --hazard with no mana defaults to zero one-time mana", () => {
     "--out-dir",
     outDir,
   ]);
-
-  const artifact = readJson(join(outDir, "hazard-1.json"));
-  assert.deepEqual(artifact.vitals.mana, { kind: "one-time", amount: 0 });
+  assert.notEqual(result.status, 0);
+  assert.match(`${result.stdout}\n${result.stderr}`, /mana is required/);
 });
 
 test("ak create --hazard emits canonical hazard public objects", () => {
@@ -518,15 +517,15 @@ test("an out-of-enum value still reports the enum, and quotes what was actually 
 // 14 of 21 failures were this one mismatch.
 for (const [label, value] of [
   ["a plain amount", "10"],
-  ["a plain zero", "0"],
   ["the explicit one-time form", "one-time:5"],
   ["the regen form", "regen:4:4:1"],
 ]) {
   test(`a hazard vital accepts ${label}`, () => {
     const outDir = mkdtempSync(join(os.tmpdir(), "ak-hazard-vital-"));
+    const durability = value.startsWith("regen:") ? "6" : value;
     const result = runCli([
       "create",
-      "--hazard", `affinity=fire;expression=emit;proximityRadius=2;mana=${value};durability=${value}`,
+      "--hazard", `affinity=fire;expression=emit;proximityRadius=2;mana=${value};durability=${durability}`,
       "--run-id", "run_hazard_vital",
       "--created-at", "2026-08-24T00:00:00.000Z",
       "--out-dir", outDir,
@@ -535,11 +534,47 @@ for (const [label, value] of [
   });
 }
 
+test("a hazard rejects a zero mana pool — inert in core, not an authored hazard", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-hazard-vital-zero-"));
+  const result = runCli([
+    "create",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=0;durability=5",
+    "--run-id", "run_hazard_zero",
+    "--created-at", "2026-08-24T00:00:00.000Z",
+    "--out-dir", outDir,
+  ]);
+  assert.notEqual(result.status, 0);
+  assert.match(`${result.stdout}\n${result.stderr}`, /mana amount/i);
+});
+
+test("a hazard requires both mana and durability", () => {
+  const outDir = mkdtempSync(join(os.tmpdir(), "ak-hazard-vital-req-"));
+  const missingDurability = runCli([
+    "create",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=10",
+    "--run-id", "run_hazard_req",
+    "--created-at", "2026-08-24T00:00:00.000Z",
+    "--out-dir", outDir,
+  ]);
+  assert.notEqual(missingDurability.status, 0);
+  assert.match(`${missingDurability.stdout}\n${missingDurability.stderr}`, /durability is required/);
+
+  const missingMana = runCli([
+    "create",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;durability=5",
+    "--run-id", "run_hazard_req2",
+    "--created-at", "2026-08-24T00:00:00.000Z",
+    "--out-dir", outDir,
+  ]);
+  assert.notEqual(missingMana.status, 0);
+  assert.match(`${missingMana.stdout}\n${missingMana.stderr}`, /mana is required/);
+});
+
 test("a plain amount is the one-time form, not a separate kind", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-hazard-vital-eq-"));
   runCliOk([
     "create",
-    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=10",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=10;durability=5",
     "--run-id", "run_hazard_plain",
     "--created-at", "2026-08-24T00:00:00.000Z",
     "--out-dir", outDir,
@@ -549,7 +584,7 @@ test("a plain amount is the one-time form, not a separate kind", () => {
   const outDirExplicit = mkdtempSync(join(os.tmpdir(), "ak-hazard-vital-eq2-"));
   runCliOk([
     "create",
-    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=one-time:10",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=one-time:10;durability=5",
     "--run-id", "run_hazard_plain",
     "--created-at", "2026-08-24T00:00:00.000Z",
     "--out-dir", outDirExplicit,
@@ -564,13 +599,13 @@ test("a hazard vital still rejects a value in no recognised form", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-hazard-vital-bad-"));
   const result = runCli([
     "create",
-    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=nonsense",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=nonsense;durability=5",
     "--run-id", "run_hazard_bad",
     "--created-at", "2026-08-24T00:00:00.000Z",
     "--out-dir", outDir,
   ]);
   assert.notEqual(result.status, 0);
   const message = `${result.stdout}${result.stderr}`;
-  assert.match(message, /plain amount, one-time:<amount>, or regen:/);
+  assert.match(message, /plain amount .*one-time:<amount>, or regen:/);
   assert.match(message, /got "nonsense"/);
 });
