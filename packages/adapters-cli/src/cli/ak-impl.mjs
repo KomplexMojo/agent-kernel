@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { launchCommand, playAsciiInteractive, playAsciiScripted } from "./play-ascii.mjs";
 import { createIpfsAdapter } from "../adapters/ipfs/index.js";
 import { createBlockchainAdapter } from "../adapters/blockchain/index.js";
 import { createLlmAdapter } from "../adapters/llm/index.js";
@@ -181,6 +182,7 @@ function usage() {
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
+  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color]
 
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
@@ -254,6 +256,10 @@ Options:
   --run-id        Override run id for output artifacts
   --created-at    Override createdAt timestamp (ISO-8601) for llm-plan/room-plan/hazard-plan/resource-plan/delver-plan/warden-plan
   --dry-run       Validate schema/budget inputs without executing run or writing artifacts
+  --dir           play: an \`ak create --out-dir\` or run directory holding sim-config.json + initial-state.json
+  --level         play: a bundled ui-ascii level (default: all bundled levels, in order)
+  --keys          play: apply these keys without a terminal and print the final screen (e.g. "ddss.")
+  --json          play: print { ok, level, turns, status, screen, launch } instead of the screen
   --help          Show this help
 
 Schema discovery:
@@ -1887,6 +1893,7 @@ function defaultLlmPlanOutDir(runId) {
 }
 
 const STRUCTURED_STDOUT_COMMANDS = new Set([
+  "play",
   "build",
   "budget",
   "create",
@@ -6219,6 +6226,54 @@ async function tickCommand(argv) {
   emitJsonStdout(stateResult);
 }
 
+/**
+ * `ak play`: the level a create/run produced, in the terminal UI. Which level
+ * is the only thing decided here; the UI program does the rest.
+ */
+async function playCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color"]);
+  const unknown = Object.keys(args).filter((key) => !allowed.has(key));
+  if (unknown.length > 0) throw new Error(`play does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
+  const named = ["dir", "from-run", "level"].filter((key) => args[key] !== undefined);
+  if (args["sim-config"] !== undefined || args["initial-state"] !== undefined) named.push("sim-config");
+  if (named.length > 1) throw new Error("play takes one level source: --dir, --from-run, --sim-config/--initial-state, or --level.");
+
+  let source = {};
+  if (isNonEmptyString(args.dir)) {
+    source = { dir: resolvePath(args.dir) };
+  } else if (args["from-run"] !== undefined) {
+    const resolved = await resolveFromRunArtifactPaths(args["from-run"]);
+    source = { simConfigPath: resolved.simConfigPath, initialStatePath: resolved.initialStatePath };
+  } else if (args["sim-config"] !== undefined || args["initial-state"] !== undefined) {
+    if (!isNonEmptyString(args["sim-config"]) || !isNonEmptyString(args["initial-state"])) {
+      throw new Error("play needs --sim-config and --initial-state together.");
+    }
+    source = { simConfigPath: resolvePath(args["sim-config"]), initialStatePath: resolvePath(args["initial-state"]) };
+  } else if (isNonEmptyString(args.level)) {
+    source = { level: args.level };
+  }
+
+  const color = args["no-color"] ? false : args.color ? true : undefined;
+  // parseArgs reads a bare `--keys ""` as a flag.
+  const keys = args.keys === true ? "" : args.keys;
+  if (keys === undefined && !args.json) {
+    process.exitCode = await playAsciiInteractive({ source, color });
+    return;
+  }
+  const result = playAsciiScripted({ source, keys: keys ?? "", color: color === true });
+  if (!result.ok) throw new Error(result.error);
+  if (args.json) {
+    emitJsonStdout({ ...result, command: "play", source, launch: launchCommand(source) });
+  } else {
+    console.log(result.screen);
+  }
+}
+
 async function runsCommand(argv) {
   const [subcommand, ...rest] = argv;
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
@@ -6610,6 +6665,7 @@ export const COMMANDS = {
   "sandbox-place": sandboxPlaceCommand,
   "sandbox-move": sandboxMoveCommand,
   workflow: workflowCommand,
+  play: playCommand,
 };
 
 /**

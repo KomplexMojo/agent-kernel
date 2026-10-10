@@ -1,0 +1,137 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "initial_state_warden-hall",
+    "runId": "ui_ascii_warden-hall",
+    "createdAt": "2026-10-10T00:00:00.000Z",
+    "producedBy": "ui-ascii"
+  },
+  "simConfigRef": {
+    "id": "sim_config_warden-hall",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "player",
+      "kind": "ambulatory",
+      "role": "delver",
+      "position": {
+        "x": 1,
+        "y": 1
+      },
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "stacks": 1
+        }
+      ]
+    },
+    {
+      "id": "warden-1",
+      "kind": "ambulatory",
+      "role": "warden",
+      "motivation": {
+        "kind": "random"
+      },
+      "position": {
+        "x": 6,
+        "y": 5
+      },
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "push",
+          "stacks": 1
+        }
+      ]
+    },
+    {
+      "id": "warden-2",
+      "kind": "ambulatory",
+      "role": "warden",
+      "motivation": {
+        "kind": "random"
+      },
+      "position": {
+        "x": 12,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "push",
+          "stacks": 1
+        }
+      ]
+    }
+  ]
+}

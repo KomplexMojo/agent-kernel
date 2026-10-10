@@ -45,7 +45,7 @@ Use the CLI directly when you want:
 | Inspect outputs | `ak_show`, `ak_diff`, `ak_runs_list`, `ak_inspect`, `ak_narrate`, `ak_schemas` | Summaries, schema catalog, narrative output |
 | LLM planning | `ak_llm`, `ak_ollama`, `ak_llm_plan` | Captured LLM responses and generated artifacts |
 | External adapters | `ak_ipfs`, `ak_ipfs_publish`, `ak_ipfs_load`, `ak_blockchain`, `ak_blockchain_mint`, `ak_blockchain_load` | Adapter response artifacts |
-| Sandbox / interactive | `ak_sandbox_create`, `ak_sandbox_place`, `ak_sandbox_move`, `ak_push_to_ui`, `ak_show_state`, `ak_tick_forward`, `ak_tick_backward` | Sandbox session, action sequence, tick/ASCII/image state |
+| Sandbox / interactive | `ak_sandbox_create`, `ak_sandbox_place`, `ak_sandbox_move`, `ak_push_to_ui`, `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`, `ak_play_ascii` | Sandbox session, action sequence, tick/ASCII/image state, the terminal UI board |
 | Test authoring | `ak_test_list_suites`, `ak_test_discover_patterns`, `ak_test_plan_from_change`, `ak_test_run`, `ak_test_scaffold_case`, `ak_test_insert_case`, `ak_test_explain_failure`, `ak_test_lint_structure` | Inventory summaries, scaffolded test files, run results |
 | Workflow | `ak_workflow_run`, `ak_workflow_status`, `ak_workflow_replay`, `ak_workflow_cancel`, `ak_workflow_validate` | Durable AdaptiveWorkflowAgent run state |
 
@@ -270,6 +270,7 @@ The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollam
 | ak_show_state | Sandbox / Interactive | Show current dungeon state for a run at the session cursor tick. | runId, visualization |
 | ak_tick_forward | Sandbox / Interactive | Advance the interactive session cursor forward by one tick. | runId, visualization |
 | ak_tick_backward | Sandbox / Interactive | Rewind the interactive session cursor back by one tick. | runId, visualization |
+| ak_play_ascii | Sandbox / Interactive | Show (and optionally play) a level in the ASCII terminal UI; returns the screen text and the command to play it interactively. | runId, dir, simConfig, initialState, level, keys, color |
 | ak_test_list_suites | Test Authoring | List discovered test suites and current runner ownership. | none |
 | ak_test_discover_patterns | Test Authoring | Discover repo test recipes and matching files, optionally filtered. | runner, suite, recipe |
 | ak_test_plan_from_change | Test Authoring | Recommend runner scopes from changed paths. | paths[] |
@@ -1699,6 +1700,19 @@ Expected output shape:
   "delivered": true
 }
 ```
+
+#### `ak_play_ascii`
+
+Shows a level in the terminal UI (`packages/ui-ascii`) through `ak play --json`. This is how a harness answers "create an ascii UI filled with water affinity traps": `ak_create` with water `hazard` specs, then `ak_play_ascii` with that call's `runId` (resolved from this session's remembered runs, else `artifacts/runs/<runId>`). Pass `dir` for any directory holding `sim-config.json` + `initial-state.json`, or `level` for a bundled one.
+
+```json
+{ "ok": true, "command": "play", "level": "water-traps-mcp", "turns": 0,
+  "status": { "tick": 0, "exited": false, "atExit": false },
+  "screen": "agent-kernel maze — ...\n  ####H.@..#\n...",
+  "launch": "node packages/adapters-cli/src/cli/ak.mjs play --sim-config ... --initial-state ..." }
+```
+
+Show `screen` verbatim; `launch` opens the interactive, coloured game in a terminal. `keys` plays moves before the screen is taken, replayed from the start on every call. `color: true` keeps the ANSI escapes in `screen`.
 
 #### `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`
 

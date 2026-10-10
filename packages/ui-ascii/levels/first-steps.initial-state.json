@@ -1,0 +1,66 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "first-steps_initial_state",
+    "runId": "first-steps",
+    "createdAt": "2026-10-10T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "simConfigRef": {
+    "id": "first-steps_sim_config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "card_delver_1-1",
+      "kind": "ambulatory",
+      "position": {
+        "x": 4,
+        "y": 2
+      },
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 2,
+          "max": 2,
+          "regen": 2
+        },
+        "durability": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "archetype": "delver",
+      "traits": {
+        "affinities": {
+          "wind": 1
+        }
+      },
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "motivation": {
+        "kind": "exploring"
+      },
+      "motivations": [
+        "exploring"
+      ]
+    }
+  ]
+}

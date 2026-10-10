@@ -6,6 +6,27 @@ import { VISUALIZATION_SNAPSHOT_SCHEMA } from "../contracts/artifacts.ts";
 export { VISUALIZATION_SNAPSHOT_SCHEMA };
 export const VISUALIZATION_SNAPSHOT_VERSION = 1;
 
+/**
+ * The ASCII glyph vocabulary for board entities. Exported so every ASCII
+ * surface (this snapshot, `packages/ui-ascii`) draws the same letter for the
+ * same thing instead of each restating it.
+ */
+export const ASCII_ENTITY_GLYPHS = Object.freeze({
+  delver: "D",
+  warden: "W",
+  hazard: "H",
+  resource: "R",
+});
+
+/**
+ * An actor's glyph, read the way this snapshot reads it (`inferKind`): role,
+ * kind or id naming a warden makes a warden; anything else is a delver.
+ * Generated levels leave `role` null and say it in the id (`card_warden_1-1`).
+ */
+export function asciiGlyphForActor(actor) {
+  return inferKind(actor || {}) === "warden" ? ASCII_ENTITY_GLYPHS.warden : ASCII_ENTITY_GLYPHS.delver;
+}
+
 function buildBlankGrid(width, height) {
   return Array.from({ length: height }, () => " ".repeat(width));
 }
@@ -165,19 +186,19 @@ export async function createVisualizationSnapshot({
   const resources = simConfig.resources ?? simConfig.layout?.data?.resources ?? [];
 
   for (const hazard of hazards) {
-    markPosition(hazardRows, hazard.x, hazard.y, "H");
+    markPosition(hazardRows, hazard.x, hazard.y, ASCII_ENTITY_GLYPHS.hazard);
   }
 
   for (const resource of resources) {
-    markPosition(resourceRows, resource.x, resource.y, "R");
+    markPosition(resourceRows, resource.x, resource.y, ASCII_ENTITY_GLYPHS.resource);
   }
 
   for (const actor of initialState.actors) {
     const pos = actorPositions.get(actor.id) || actor.position;
     if (inferKind(actor) === "delver") {
-      markPosition(delverRows, pos.x, pos.y, "D");
+      markPosition(delverRows, pos.x, pos.y, ASCII_ENTITY_GLYPHS.delver);
     } else {
-      markPosition(wardenRows, pos.x, pos.y, "W");
+      markPosition(wardenRows, pos.x, pos.y, ASCII_ENTITY_GLYPHS.warden);
     }
   }
 

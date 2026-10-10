@@ -60,6 +60,12 @@ behaviors have a passing G1 test and which do not. Those blocks mirror
 | `packages/adapters-test/src/adapters/ipfs/README.md` | Deterministic IPFS fixtures — no network. |
 | `packages/adapters-test/src/adapters/blockchain/README.md` | Deterministic blockchain fixtures — no network. |
 
+## User interfaces
+
+| README Path | What belongs here |
+|---|---|
+| `packages/ui-ascii/README.md` | Interactive terminal maze over the runtime play session: keys, screen layout, level loading. No rules, no `core-ts` imports. |
+
 ## Fixtures, benchmarks and tooling
 
 | README Path | What belongs here |
