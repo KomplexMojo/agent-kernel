@@ -152,6 +152,25 @@ test("two sessions on the same level are independent and deterministic", async (
   assert.deepEqual(a.view(), b.view());
 });
 
+test("view().hazards reports the layout's traps; a blocking one is core's barrier instead", async () => {
+  const hazards = [
+    { id: "trap-a", affinity: "water", expression: "emit", position: { x: 4, y: 3 } },
+    { id: "trap-b", affinity: "fire", expression: "emit", x: 3, y: 2 },
+    { id: "wall-c", affinity: "earth", expression: "push", blocking: true, position: { x: 5, y: 5 } },
+  ];
+  const withHazards = { ...simConfig, layout: { ...simConfig.layout, data: { ...simConfig.layout.data, hazards } } };
+  const session = await createPlaySession({ simConfig: withHazards, initialState });
+  const view = session.view();
+  assert.deepEqual(view.hazards.map((hazard) => [hazard.id, hazard.position]), [
+    ["trap-a", { x: 4, y: 3 }],
+    ["trap-b", { x: 3, y: 2 }],
+  ]);
+  assert.equal(view.hazards[0].affinity, "water");
+  view.hazards[0].position.x = 99;
+  assert.equal(session.view().hazards[0].position.x, 4, "the view is a copy");
+  assert.deepEqual((await newSession()).view().hazards, [], "no hazards: an empty list");
+});
+
 // ## TODO: Test Permutations
 // - each of the eight directions from an open floor cell (accepted, position delta)
 // - diagonal moves that cut a wall corner (core's answer, whatever it is, is reported verbatim)

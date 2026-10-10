@@ -23,6 +23,7 @@ const USAGE = `Usage: ak-maze [options]
   --sim-config <path>     play a SimConfig artifact...
   --initial-state <path>  ...with this InitialState artifact
   --keys <keys>           non-interactive: apply these keys, print the final screen, exit
+  --json                  with --keys: print {ok, level, turns, status, screen} as JSON
   --list                  list bundled levels
   --color                 colour even when output is not a terminal
   --no-color              plain text output (also: NO_COLOR set in the environment)
@@ -49,6 +50,7 @@ export function parseArgs(argv) {
       case "--initial-state": options.initialStatePath = next(); break;
       case "--keys": options.keys = next(); break;
       case "--list": options.list = true; break;
+      case "--json": options.json = true; break;
       case "--no-color": options.color = false; break;
       case "--color": options.color = "always"; break;
       case "-h":
@@ -141,8 +143,19 @@ export async function main(argv = process.argv.slice(2)) {
     return 1;
   }
   if (options.keys !== undefined) {
-    console.log(await runScripted(game, options.keys, { color: shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env }) }));
+    const color = options.json ? options.color === "always" : shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env });
+    const screen = await runScripted(game, options.keys, { color });
+    if (options.json) {
+      const { levelName, turns, status } = game.state();
+      console.log(JSON.stringify({ ok: true, level: levelName, turns, status, screen }));
+    } else {
+      console.log(screen);
+    }
     return 0;
+  }
+  if (options.json) {
+    console.error("--json needs --keys (an interactive game has no single result).");
+    return 2;
   }
   if (!process.stdin.isTTY) {
     console.error("ak-maze needs an interactive terminal (or pass --keys).");

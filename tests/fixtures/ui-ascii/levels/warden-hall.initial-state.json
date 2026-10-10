@@ -2,23 +2,24 @@
   "schema": "agent-kernel/InitialStateArtifact",
   "schemaVersion": 1,
   "meta": {
-    "id": "warden-hall_initial_state",
-    "runId": "warden-hall",
+    "id": "initial_state_warden-hall",
+    "runId": "ui_ascii_warden-hall",
     "createdAt": "2026-10-10T00:00:00.000Z",
-    "producedBy": "cli-create"
+    "producedBy": "ui-ascii"
   },
   "simConfigRef": {
-    "id": "warden-hall_sim_config",
+    "id": "sim_config_warden-hall",
     "schema": "agent-kernel/SimConfigArtifact",
     "schemaVersion": 1
   },
   "actors": [
     {
-      "id": "card_delver_1-1",
+      "id": "player",
       "kind": "ambulatory",
+      "role": "delver",
       "position": {
-        "x": 12,
-        "y": 12
+        "x": 1,
+        "y": 1
       },
       "vitals": {
         "health": {
@@ -32,20 +33,14 @@
           "regen": 1
         },
         "stamina": {
-          "current": 2,
-          "max": 2,
+          "current": 12,
+          "max": 12,
           "regen": 2
         },
         "durability": {
           "current": 10,
           "max": 10,
           "regen": 1
-        }
-      },
-      "archetype": "delver",
-      "traits": {
-        "affinities": {
-          "wind": 1
         }
       },
       "affinities": [
@@ -54,20 +49,18 @@
           "expression": "push",
           "stacks": 1
         }
-      ],
-      "motivation": {
-        "kind": "exploring"
-      },
-      "motivations": [
-        "exploring"
       ]
     },
     {
-      "id": "card_warden_1-1",
+      "id": "warden-1",
       "kind": "ambulatory",
+      "role": "warden",
+      "motivation": {
+        "kind": "random"
+      },
       "position": {
-        "x": 27,
-        "y": 15
+        "x": 6,
+        "y": 5
       },
       "vitals": {
         "health": {
@@ -81,20 +74,14 @@
           "regen": 1
         },
         "stamina": {
-          "current": 2,
-          "max": 2,
+          "current": 12,
+          "max": 12,
           "regen": 2
         },
         "durability": {
           "current": 10,
           "max": 10,
           "regen": 1
-        }
-      },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
         }
       },
       "affinities": [
@@ -103,20 +90,18 @@
           "expression": "push",
           "stacks": 1
         }
-      ],
-      "motivation": {
-        "kind": "random"
-      },
-      "motivations": [
-        "random"
       ]
     },
     {
-      "id": "card_warden_2-1",
+      "id": "warden-2",
       "kind": "ambulatory",
+      "role": "warden",
+      "motivation": {
+        "kind": "random"
+      },
       "position": {
-        "x": 26,
-        "y": 15
+        "x": 12,
+        "y": 3
       },
       "vitals": {
         "health": {
@@ -130,8 +115,8 @@
           "regen": 1
         },
         "stamina": {
-          "current": 2,
-          "max": 2,
+          "current": 12,
+          "max": 12,
           "regen": 2
         },
         "durability": {
@@ -140,24 +125,12 @@
           "regen": 1
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "water": 1
-        }
-      },
       "affinities": [
         {
           "kind": "water",
           "expression": "push",
           "stacks": 1
         }
-      ],
-      "motivation": {
-        "kind": "random"
-      },
-      "motivations": [
-        "random"
       ]
     }
   ]

@@ -281,6 +281,24 @@ Inputs/outputs:
   `[{runId, createdAt, command, actorCount, roomCount, ticks, outDir}]`
 - `--limit N` caps the number of returned runs.
 
+### `play`
+Shows or plays a level in the terminal UI (`packages/ui-ascii`), which it launches as a separate
+program; adapters-cli never imports it.
+
+```bash
+node packages/adapters-cli/src/cli/ak.mjs play --dir <create-out-dir>         # interactive
+node packages/adapters-cli/src/cli/ak.mjs play --from-run <runId> --keys "dd."  # scripted: print the final screen
+node packages/adapters-cli/src/cli/ak.mjs play --level water-traps --json       # { ok, level, turns, status, screen, launch }
+```
+
+Inputs/outputs:
+- One level source: `--dir` (an `ak create --out-dir` or run directory), `--from-run <runId>`,
+  `--sim-config` + `--initial-state`, or `--level <bundled name>`; none plays the bundled levels in order.
+- With no `--keys` and no `--json` the UI takes the terminal until the player quits (it needs a TTY).
+- `--keys` applies keys without a terminal and prints the final screen; `--json` prints the structured
+  result instead, `launch` being the command to play that level interactively. `--color`/`--no-color`
+  pass through. MCP: `ak_play_ascii`.
+
 ### `create` / `configure`
 Generic additive agent-facing authoring commands that normalize freeform text plus
 structured object flags into an inline `AgentCommandRequestArtifact`, compile that

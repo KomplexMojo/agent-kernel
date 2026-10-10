@@ -2,13 +2,13 @@
   "schema": "agent-kernel/InitialStateArtifact",
   "schemaVersion": 1,
   "meta": {
-    "id": "long-way-round_initial_state",
-    "runId": "long-way-round",
+    "id": "water-traps_initial_state",
+    "runId": "water-traps",
     "createdAt": "2026-10-10T00:00:00.000Z",
     "producedBy": "cli-create"
   },
   "simConfigRef": {
-    "id": "long-way-round_sim_config",
+    "id": "water-traps_sim_config",
     "schema": "agent-kernel/SimConfigArtifact",
     "schemaVersion": 1
   },
@@ -17,8 +17,8 @@
       "id": "card_delver_1-1",
       "kind": "ambulatory",
       "position": {
-        "x": 10,
-        "y": 23
+        "x": 7,
+        "y": 16
       },
       "vitals": {
         "health": {

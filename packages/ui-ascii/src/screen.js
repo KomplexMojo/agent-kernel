@@ -4,13 +4,13 @@
  *
  * Nothing here decides meaning. Board glyphs come from core's frame buffer;
  * vital labels, order and colours come from runtime's HUD model
- * (`render/actor-hud-model.js`); other actors' letters come from the ASCII
- * snapshot vocabulary (`render/visualization-snapshot.js`); every board colour
+ * (`render/actor-hud-model.js`); trap and other actors' letters come from the
+ * ASCII snapshot vocabulary (`render/visualization-snapshot.js`); every board colour
  * comes from `render/ascii-cell-style.js`, which reads the approved palette.
  * This module only lays them out and turns hex into terminal escape codes.
  */
 import { asciiActorCellStyle, buildAsciiCellStyles } from "../../runtime/src/render/ascii-cell-style.js";
-import { asciiGlyphForRole } from "../../runtime/src/render/visualization-snapshot.js";
+import { ASCII_ENTITY_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
 
 const BAR_WIDTH = 10;
@@ -58,30 +58,43 @@ function vitalBar(vital, color) {
   return `${vital.label} ${paint(bar, vital.colorHex, color)} ${vital.current}/${vital.max}`;
 }
 
+function overlay(rows, entities, playerPosition, glyphFor) {
+  if (!Array.isArray(entities) || entities.length === 0) return rows;
+  const grid = rows.map((row) => row.split(""));
+  for (const entity of entities) {
+    const { x, y } = entity?.position || {};
+    if (!grid[y] || grid[y][x] === undefined) continue;
+    if (playerPosition && playerPosition.x === x && playerPosition.y === y) continue;
+    grid[y][x] = glyphFor(entity);
+  }
+  return grid.map((cells) => cells.join(""));
+}
+
 /**
  * Core's frame buffer draws only the player, so other actors (`view.actors`,
  * present once NPCs take turns) are drawn over it. The player's own cell is
  * never overwritten.
  */
 export function overlayActors(rows, actors, playerPosition) {
-  if (!Array.isArray(actors) || actors.length === 0) return rows;
-  const grid = rows.map((row) => row.split(""));
-  for (const actor of actors) {
-    const { x, y } = actor?.position || {};
-    if (!grid[y] || grid[y][x] === undefined) continue;
-    if (playerPosition && playerPosition.x === x && playerPosition.y === y) continue;
-    grid[y][x] = asciiGlyphForRole(actor.role);
-  }
-  return grid.map((cells) => cells.join(""));
+  return overlay(rows, actors, playerPosition, asciiGlyphForActor);
+}
+
+/** Traps (`view.hazards`) are not in core's buffer either; actors stand over them. */
+export function overlayHazards(rows, hazards, playerPosition) {
+  return overlay(rows, hazards, playerPosition, () => ASCII_ENTITY_GLYPHS.hazard);
 }
 
 /**
- * Row -> (column -> style) for every actor with an equipped affinity. The
- * player is listed last so its cell wins if another actor reports the same one.
+ * Row -> (column -> style) for every trap and actor with an affinity. Later
+ * entries win a shared cell, so actors cover traps and the player covers all.
  */
 function actorCellStyles(view) {
   const byRow = new Map();
-  const entities = [...(Array.isArray(view.actors) ? view.actors : []), view.player].filter(Boolean);
+  const entities = [
+    ...(Array.isArray(view.hazards) ? view.hazards : []),
+    ...(Array.isArray(view.actors) ? view.actors : []),
+    view.player,
+  ].filter(Boolean);
   for (const entity of entities) {
     const style = asciiActorCellStyle(entity);
     const { x, y } = entity.position || {};
@@ -97,11 +110,11 @@ function presentVitals(player) {
   return (player?.vitals || []).filter((vital) => vital.max > 0);
 }
 
-export function statusLine(status, message) {
+export function statusLine(status, message, { traps = false } = {}) {
   if (message) return message;
   if (status?.exited) return "You escaped! Press Enter for the next level, r to replay, q to quit.";
   if (status?.atExit) return "You reached the exit. Press . to step through.";
-  return "Find the exit (E).";
+  return traps ? `Find the exit (E). Mind the traps (${ASCII_ENTITY_GLYPHS.hazard}).` : "Find the exit (E).";
 }
 
 /**
@@ -130,14 +143,15 @@ export function renderScreen({
   lines.push("");
   const styles = color ? buildAsciiCellStyles(view.legend) : null;
   const actorCells = color ? actorCellStyles(view) : null;
-  overlayActors(view.rows, view.actors, view.player?.position).forEach((row, y) => {
+  const playerPosition = view.player?.position;
+  overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition).forEach((row, y) => {
     lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y)) : row}`);
   });
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (vitals.length > 0) lines.push(vitals.join("   "));
   lines.push(`Tick ${view.tick}   Turns ${turns}`);
-  lines.push(statusLine(view.status, message));
+  lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
   if (showHelp) {
     lines.push("");
     lines.push(...HELP_LINES);

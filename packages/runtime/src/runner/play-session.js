@@ -22,6 +22,9 @@
  *     `isMotivatedActorExitedByIndex`.
  *   - **Glyphs are core's.** The board is `renderCoreFrame`'s buffer as-is.
  *   - **HUD semantics are runtime render's** (`render/actor-hud-model.js`).
+ *   - **Traps are the level's.** Core arms the layout's static hazards at load
+ *     and applies them when an actor steps in, but its frame buffer does not
+ *     draw them, so `view().hazards` reports them from the SimConfig layout.
  *
  * Tick close: this module IS the tick loop for its session, so — like
  * `mvp/movement.js` — it closes its own tick after every command (charter §29:
@@ -103,6 +106,14 @@ export async function createPlaySession({
   clearCoreEffects(core);
 
   const playerId = primaryId;
+  // A blocking hazard is already a barrier in core's buffer.
+  const hazards = (simConfig.layout?.data?.hazards || [])
+    .filter((hazard) => hazard && typeof hazard === "object" && hazard.blocking !== true)
+    .map((hazard) => ({
+      ...structuredClone(hazard),
+      position: { x: hazard.position?.x ?? hazard.x, y: hazard.position?.y ?? hazard.y },
+    }))
+    .filter((hazard) => Number.isInteger(hazard.position.x) && Number.isInteger(hazard.position.y));
   const playerSource = (initialState.actors || []).find((actor) => actor?.id === playerId) || {};
   let atExit = false;
 
@@ -157,6 +168,7 @@ export async function createPlaySession({
       rows: frame.buffer.slice(),
       legend: frame.legend,
       status: status(),
+      hazards: structuredClone(hazards),
       player: player
         ? {
           // Core's observation reports `affinities: []` unless it is handed the

@@ -18,11 +18,13 @@ export const ASCII_ENTITY_GLYPHS = Object.freeze({
   resource: "R",
 });
 
-/** An actor's glyph from its role; like `inferKind`, anything not a warden is a delver. */
-export function asciiGlyphForRole(role) {
-  return String(role || "").toLowerCase().includes("warden")
-    ? ASCII_ENTITY_GLYPHS.warden
-    : ASCII_ENTITY_GLYPHS.delver;
+/**
+ * An actor's glyph, read the way this snapshot reads it (`inferKind`): role,
+ * kind or id naming a warden makes a warden; anything else is a delver.
+ * Generated levels leave `role` null and say it in the id (`card_warden_1-1`).
+ */
+export function asciiGlyphForActor(actor) {
+  return inferKind(actor || {}) === "warden" ? ASCII_ENTITY_GLYPHS.warden : ASCII_ENTITY_GLYPHS.delver;
 }
 
 function buildBlankGrid(width, height) {

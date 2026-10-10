@@ -74,7 +74,7 @@ export function buildAsciiCellStyles(legend) {
 }
 
 /**
- * The cell style for one actor from its equipped affinity, or null when it has
+ * The cell style for one actor or trap from its equipped affinity, or null when it has
  * none (the caller then uses its glyph's role colour from buildAsciiCellStyles).
  *
  * @param {object} entity any actor-shaped object (observation, HUD model, artifact actor)

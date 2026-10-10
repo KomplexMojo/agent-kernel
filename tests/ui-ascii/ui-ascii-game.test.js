@@ -24,20 +24,26 @@ const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visua
 const { parseArgs, resolveLevels, runScripted, shouldUseColor } = require("../../packages/ui-ascii/src/cli.mjs");
 const { createPlaySession } = require("../../packages/runtime/src/runner/play-session.js");
 
-const CLI = resolve(__dirname, "../../packages/ui-ascii/src/cli.mjs");
-// first-steps: from the spawn approach (1,1) to the exit approach (7,7), then step through.
+const ROOT = resolve(__dirname, "../..");
+const CLI = resolve(ROOT, "packages/ui-ascii/src/cli.mjs");
+const GENERATE_LEVELS = resolve(ROOT, "scripts/ui-ascii/generate-levels.mjs");
+// Hand-written levels with a known shape, for tests that assert exact rows.
+// The bundled levels are `ak create` output, so their shape is the Configurator's.
+const FIXTURE_LEVELS_DIR = resolve(ROOT, "tests/fixtures/ui-ascii/levels");
+const fixtureLevel = (name) => loadBundledLevel(name, FIXTURE_LEVELS_DIR);
+const fixtureLevels = () => loadBundledLevels(FIXTURE_LEVELS_DIR);
+// first-steps fixture: from the spawn approach (1,1) to the exit approach (7,7), then step through.
 const FIRST_STEPS_SOLUTION = "ddssddssssdd.";
 
-function solve(levelName) {
+function solve(level, { othersAreWalls = true } = {}) {
   // Breadth-first over the level's tiles, then replayed through the real
   // session: this proves each bundled level is winnable under core's rules, not
   // under the search's.
-  const level = loadBundledLevel(levelName);
   const { tiles, exitApproach } = level.simConfig.layout.data;
   const start = level.initialState.actors[0].position;
-  // Other actors' starting cells count as walls: the level must be winnable
-  // even if nobody else ever moves.
-  const occupied = new Set(level.initialState.actors.slice(1).map((actor) => `${actor.position.x},${actor.position.y}`));
+  const occupied = new Set(othersAreWalls
+    ? level.initialState.actors.slice(1).map((actor) => `${actor.position.x},${actor.position.y}`)
+    : []);
   const steps = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
   const key = (p) => `${p.x},${p.y}`;
   const prev = new Map([[key(start), null]]);
@@ -75,16 +81,20 @@ test("a chunk of input splits into keys with escape sequences kept whole", () =>
 });
 
 test("bundled levels list in play order and every one loads and is winnable", async () => {
-  assert.deepEqual(listBundledLevels(), ["first-steps", "long-way-round", "warden-hall"]);
+  assert.deepEqual(listBundledLevels(), ["first-steps", "long-way-round", "warden-hall", "water-traps"]);
   for (const name of listBundledLevels()) {
-    const { level, path } = solve(name);
-    assert.ok(path.length > 0, `${name} has a path to its exit`);
+    const level = loadBundledLevel(name);
     // With other actors taking turns the replay is no longer a fixed script,
-    // so only solo levels are replayed move for move.
+    // so only solo levels are replayed move for move. The Configurator posts
+    // the first warden on the exit approach; the level is winnable once it
+    // moves off, so the search ignores other actors here.
     if (level.initialState.actors.length > 1) {
-      assert.equal((await createPlaySession(level)).playerActorId, "player", `${name} plays the delver`);
+      assert.ok(solve(level, { othersAreWalls: false }).path.length > 0, `${name} has a path to its exit`);
+      assert.match((await createPlaySession(level)).playerActorId, /delver/, `${name} plays the delver`);
       continue;
     }
+    const { path } = solve(level);
+    assert.ok(path.length > 0, `${name} has a path to its exit`);
     const session = await createPlaySession(level);
     for (const direction of path) {
       const result = await session.act({ kind: "move", params: { direction } });
@@ -94,8 +104,13 @@ test("bundled levels list in play order and every one loads and is winnable", as
   }
 });
 
-test("bundled levels are versioned artifacts", () => {
-  for (const { simConfig, initialState } of loadBundledLevels()) {
+test("bundled levels are exactly what `ak create` makes from their recipes", () => {
+  const result = spawnSync(process.execPath, [GENERATE_LEVELS, "--check"], { cwd: ROOT, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test("bundled and fixture levels are versioned artifacts", () => {
+  for (const { simConfig, initialState } of [...loadBundledLevels(), ...fixtureLevels()]) {
     assert.equal(simConfig.schema, "agent-kernel/SimConfigArtifact");
     assert.equal(initialState.schema, "agent-kernel/InitialStateArtifact");
     assert.equal(simConfig.schemaVersion, 1);
@@ -104,11 +119,11 @@ test("bundled levels are versioned artifacts", () => {
 });
 
 // The Configurator floors every authored actor to ACTOR_VIABILITY_FLOOR
-// (applyActorViabilityFloor). Bundled levels are hand-written artifacts that
-// never pass through it, so they must already sit at or above the floor.
-test("every actor in a bundled level meets the actor viability floor", () => {
+// (applyActorViabilityFloor). Fixture levels are hand-written artifacts that
+// never pass through it, so they must already sit at or above the floor too.
+test("every actor in a bundled or fixture level meets the actor viability floor", () => {
   const { ACTOR_VIABILITY_FLOOR } = require("../../packages/runtime/src/contracts/domain-constants.js");
-  for (const { name, initialState } of loadBundledLevels()) {
+  for (const { name, initialState } of [...loadBundledLevels(), ...fixtureLevels()]) {
     for (const actor of initialState.actors) {
       for (const [key, floor] of Object.entries(ACTOR_VIABILITY_FLOOR)) {
         const vital = actor.vitals[key];
@@ -128,22 +143,24 @@ test("a level loads from an ak run directory's build artifacts", () => {
   const runDir = mkdtempSync(join(tmpdir(), "ui-ascii-run-"));
   try {
     mkdirSync(join(runDir, "create"));
-    copyFileSync(join(BUNDLED_LEVELS_DIR, "first-steps.sim-config.json"), join(runDir, "create", "sim-config.json"));
-    copyFileSync(join(BUNDLED_LEVELS_DIR, "first-steps.initial-state.json"), join(runDir, "create", "initial-state.json"));
+    copyFileSync(join(FIXTURE_LEVELS_DIR, "first-steps.sim-config.json"), join(runDir, "create", "sim-config.json"));
+    copyFileSync(join(FIXTURE_LEVELS_DIR, "first-steps.initial-state.json"), join(runDir, "create", "initial-state.json"));
     const level = loadLevelFromRunDir(runDir);
     assert.equal(level.simConfig.meta.id, "sim_config_first-steps");
     assert.throws(() => loadLevelFromRunDir(join(runDir, "missing")), /No sim-config.json/);
     // `ak create --out-dir` writes the pair at the top level.
+    // `ak create --out-dir` output, as the bundled levels are.
     copyFileSync(join(BUNDLED_LEVELS_DIR, "long-way-round.sim-config.json"), join(runDir, "sim-config.json"));
     copyFileSync(join(BUNDLED_LEVELS_DIR, "long-way-round.initial-state.json"), join(runDir, "initial-state.json"));
-    assert.equal(loadLevelFromRunDir(runDir).simConfig.meta.id, "sim_config_long-way-round");
+    assert.equal(loadLevelFromRunDir(runDir).simConfig.layout.kind, loadBundledLevel("long-way-round").simConfig.layout.kind);
+    assert.equal(loadLevelFromRunDir(runDir).simConfig.meta.runId, "long-way-round");
   } finally {
     rmSync(runDir, { recursive: true, force: true });
   }
 });
 
 test("playing first-steps through the controller escapes, then Enter loads the next level", async () => {
-  const game = await createGame({ levels: loadBundledLevels() });
+  const game = await createGame({ levels: fixtureLevels() });
   await runScripted(game, FIRST_STEPS_SOLUTION);
   assert.equal(game.state().status.exited, true);
   assert.equal(game.state().turns, FIRST_STEPS_SOLUTION.length);
@@ -153,7 +170,7 @@ test("playing first-steps through the controller escapes, then Enter loads the n
 });
 
 test("Enter does nothing before the exit, and after the last level says so", async () => {
-  const levels = [loadBundledLevel("first-steps")];
+  const levels = [fixtureLevel("first-steps")];
   const game = await createGame({ levels });
   await game.handle({ type: INTENT.NEXT_LEVEL });
   assert.equal(game.state().levelName, "first-steps");
@@ -163,7 +180,7 @@ test("Enter does nothing before the exit, and after the last level says so", asy
 });
 
 test("a wall bump shows a message and costs a turn; restart resets the level", async () => {
-  const game = await createGame({ levels: loadBundledLevels() });
+  const game = await createGame({ levels: fixtureLevels() });
   await game.handle(intentForKey("k"));
   assert.equal(game.state().turns, 1);
   assert.match(game.screen(), /A wall blocks the way\./);
@@ -181,7 +198,7 @@ test("quit is reported to the caller, not acted on", async () => {
 });
 
 test("the screen shows the board, present vitals only, tick, turns and the status hint", async () => {
-  const session = await createPlaySession(loadBundledLevel("first-steps"));
+  const session = await createPlaySession(fixtureLevel("first-steps"));
   const screen = renderScreen({ view: session.view(), levelName: "first-steps", levelCount: 2 });
   assert.match(screen, /first-steps \(1\/2\)/);
   assert.match(screen, /^ {2}S@\.\.#\.\.\.#$/m);
@@ -201,13 +218,28 @@ test("cli arguments parse, and bad ones are errors", () => {
   assert.throws(() => parseArgs(["--bogus"]), /Unknown option/);
   assert.equal(resolveLevels({ level: "long-way-round" }).startIndex, 1);
   assert.equal(resolveLevels({ level: "warden-hall" }).startIndex, 2);
+  assert.equal(parseArgs(["--keys", "", "--json"]).json, true);
   assert.throws(() => resolveLevels({ simConfigPath: "x.json" }), /required together/);
 });
 
-test("the cli plays a scripted game end to end", () => {
-  const result = spawnSync(process.execPath, [CLI, "--no-color", "--keys", FIRST_STEPS_SOLUTION], { encoding: "utf8" });
+test("the cli plays a scripted game end to end, as text or JSON", () => {
+  const files = [
+    "--sim-config", join(FIXTURE_LEVELS_DIR, "first-steps.sim-config.json"),
+    "--initial-state", join(FIXTURE_LEVELS_DIR, "first-steps.initial-state.json"),
+  ];
+  const result = spawnSync(process.execPath, [CLI, ...files, "--no-color", "--keys", FIRST_STEPS_SOLUTION], { encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /You escaped!/);
+  const json = spawnSync(process.execPath, [CLI, ...files, "--json", "--keys", FIRST_STEPS_SOLUTION], { encoding: "utf8" });
+  assert.equal(json.status, 0, json.stderr);
+  const payload = JSON.parse(json.stdout);
+  assert.equal(payload.ok, true);
+  assert.equal(payload.turns, FIRST_STEPS_SOLUTION.length);
+  assert.equal(payload.status.exited, true);
+  assert.match(payload.screen, /You escaped!/);
+  assert.doesNotMatch(payload.screen, /\u001b\[/, "JSON screens are plain unless --color forces it");
+  const noKeys = spawnSync(process.execPath, [CLI, "--json"], { encoding: "utf8", input: "" });
+  assert.equal(noKeys.status, 2);
   const noTty = spawnSync(process.execPath, [CLI], { encoding: "utf8", input: "" });
   assert.equal(noTty.status, 1);
   assert.match(noTty.stderr, /interactive terminal/);
@@ -226,7 +258,7 @@ test("other actors are drawn over core's rows with the snapshot's letters, never
 });
 
 test("the screen draws view.actors when the session reports them", async () => {
-  const session = await createPlaySession(loadBundledLevel("first-steps"));
+  const session = await createPlaySession(fixtureLevel("first-steps"));
   const view = { ...session.view(), actors: [{ id: "warden-1", role: "warden", position: { x: 3, y: 1 } }] };
   assert.match(renderScreen({ view, levelName: "first-steps" }), /^ {2}S@\.W#\.\.\.#$/m);
 });
@@ -237,7 +269,7 @@ const ansi = (hex, layer) => {
 };
 
 test("in colour, board cells take the palette's tile fills and role colours", async () => {
-  const session = await createPlaySession(loadBundledLevel("first-steps"));
+  const session = await createPlaySession(fixtureLevel("first-steps"));
   const screen = renderScreen({ view: session.view(), levelName: "first-steps", color: true });
   assert.ok(screen.includes(ansi(GAME_COLOR_PALETTE.tiles.wall, 48)), "wall fill");
   assert.ok(screen.includes(ansi(GAME_COLOR_PALETTE.tiles.floor, 48)), "floor fill");
@@ -294,6 +326,38 @@ test("in colour, actors with an equipped affinity are filled with it; others kee
   assert.ok(screen.includes(`${ansi(GAME_AFFINITY_COLOR_HEX.fire, 48)}`), "fire warden cell");
   assert.ok(screen.includes(`${ansi(GAME_COLOR_PALETTE.actors.warden, 38)}W`), "unaffiliated warden keeps its role colour");
   assert.equal(screen.replace(/\u001b\[[0-9;]*m/g, ""), renderScreen({ view, levelName: "warden-hall" }));
+});
+
+test("generated actors read as wardens from their id when role is unset", () => {
+  const rows = ["#####", "#@..#", "#####"];
+  const actors = [{ id: "card_warden_1-1", role: null, position: { x: 3, y: 1 } }];
+  assert.deepEqual(overlayActors(rows, actors, { x: 1, y: 1 }), ["#####", `#@.${ASCII_ENTITY_GLYPHS.warden}#`, "#####"]);
+});
+
+test("water-traps draws its traps as H in the water fill, and a trap costs health", async () => {
+  const { GAME_AFFINITY_COLOR_HEX } = require("../../packages/runtime/src/contracts/game-elements.js");
+  const level = loadBundledLevel("water-traps");
+  const session = await createPlaySession(level);
+  const view = session.view();
+  assert.ok(view.hazards.length > 0, "the level's hazards reach the view");
+  const plain = renderScreen({ view, levelName: "water-traps" });
+  const boardRows = plain.split("\n").slice(2, 2 + view.rows.length).map((row) => row.slice(2));
+  for (const { position } of view.hazards) {
+    assert.equal(boardRows[position.y][position.x], ASCII_ENTITY_GLYPHS.hazard, `trap at ${position.x},${position.y}`);
+  }
+  assert.match(plain, /Mind the traps \(H\)/);
+  const colored = renderScreen({ view, levelName: "water-traps", color: true });
+  assert.ok(colored.includes(`${ansi(GAME_AFFINITY_COLOR_HEX.water, 48)}`), "trap cells take the water fill");
+  assert.equal(colored.replace(/\u001b\[[0-9;]*m/g, ""), plain);
+
+  // Walk onto the first trap along a breadth-first path and let core apply it.
+  const trap = view.hazards[0].position;
+  const { path } = solve({ ...level, simConfig: { ...level.simConfig, layout: { ...level.simConfig.layout, data: { ...level.simConfig.layout.data, exitApproach: trap } } } });
+  const healthBefore = view.player.vitals.find((vital) => vital.key === "health").current;
+  for (const direction of path) await session.act({ kind: "move", params: { direction } });
+  const after = session.view();
+  assert.deepEqual(after.player.position, trap);
+  assert.ok(after.player.vitals.find((vital) => vital.key === "health").current < healthBefore, "the trap hurt");
 });
 
 // ## TODO: Test Permutations

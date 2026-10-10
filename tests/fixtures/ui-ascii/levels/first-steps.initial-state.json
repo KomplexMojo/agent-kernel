@@ -2,23 +2,24 @@
   "schema": "agent-kernel/InitialStateArtifact",
   "schemaVersion": 1,
   "meta": {
-    "id": "long-way-round_initial_state",
-    "runId": "long-way-round",
+    "id": "initial_state_first-steps",
+    "runId": "ui_ascii_first-steps",
     "createdAt": "2026-10-10T00:00:00.000Z",
-    "producedBy": "cli-create"
+    "producedBy": "ui-ascii"
   },
   "simConfigRef": {
-    "id": "long-way-round_sim_config",
+    "id": "sim_config_first-steps",
     "schema": "agent-kernel/SimConfigArtifact",
     "schemaVersion": 1
   },
   "actors": [
     {
-      "id": "card_delver_1-1",
+      "id": "player",
       "kind": "ambulatory",
+      "role": "delver",
       "position": {
-        "x": 10,
-        "y": 23
+        "x": 1,
+        "y": 1
       },
       "vitals": {
         "health": {
@@ -32,8 +33,8 @@
           "regen": 1
         },
         "stamina": {
-          "current": 2,
-          "max": 2,
+          "current": 12,
+          "max": 12,
           "regen": 2
         },
         "durability": {
@@ -41,26 +42,7 @@
           "max": 10,
           "regen": 1
         }
-      },
-      "archetype": "delver",
-      "traits": {
-        "affinities": {
-          "wind": 1
-        }
-      },
-      "affinities": [
-        {
-          "kind": "wind",
-          "expression": "push",
-          "stacks": 1
-        }
-      ],
-      "motivation": {
-        "kind": "exploring"
-      },
-      "motivations": [
-        "exploring"
-      ]
+      }
     }
   ]
 }
