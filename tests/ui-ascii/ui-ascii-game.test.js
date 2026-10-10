@@ -20,7 +20,7 @@ const {
 const { createGame } = require("../../packages/ui-ascii/src/game.js");
 const { renderScreen } = require("../../packages/ui-ascii/src/screen.js");
 const { parseArgs, resolveLevels, runScripted } = require("../../packages/ui-ascii/src/cli.mjs");
-const { createPlaySession, PLAY_STATUS } = require("../../packages/runtime/src/runner/play-session.js");
+const { createPlaySession } = require("../../packages/runtime/src/runner/play-session.js");
 
 const CLI = resolve(__dirname, "../../packages/ui-ascii/src/cli.mjs");
 // first-steps: from the spawn approach (1,1) to the exit approach (7,7), then step through.
@@ -69,16 +69,17 @@ test("a chunk of input splits into keys with escape sequences kept whole", () =>
   assert.deepEqual(splitKeys("\u001b"), ["\u001b"]);
 });
 
-test("bundled levels list in play order and every one loads and is winnable", () => {
+test("bundled levels list in play order and every one loads and is winnable", async () => {
   assert.deepEqual(listBundledLevels(), ["first-steps", "long-way-round"]);
   for (const name of listBundledLevels()) {
     const { level, path } = solve(name);
     assert.ok(path.length > 0, `${name} has a path to its exit`);
-    const session = createPlaySession(level);
+    const session = await createPlaySession(level);
     for (const direction of path) {
-      assert.equal(session.move(direction).accepted, true, `${name}: ${direction}`);
+      const result = await session.act({ kind: "move", params: { direction } });
+      assert.equal(result.accepted.length, 1, `${name}: ${direction}`);
     }
-    assert.equal(session.wait().status, PLAY_STATUS.ESCAPED, `${name} escapes`);
+    assert.equal((await session.act({ kind: "wait" })).status.exited, true, `${name} exits`);
   }
 });
 
@@ -109,52 +110,52 @@ test("a level loads from an ak run directory's build artifacts", () => {
   }
 });
 
-test("playing first-steps through the controller escapes, then Enter loads the next level", () => {
-  const game = createGame({ levels: loadBundledLevels() });
-  runScripted(game, FIRST_STEPS_SOLUTION);
-  assert.equal(game.state().status, PLAY_STATUS.ESCAPED);
-  assert.equal(game.state().moves, FIRST_STEPS_SOLUTION.length);
-  game.handle({ type: INTENT.NEXT_LEVEL });
+test("playing first-steps through the controller escapes, then Enter loads the next level", async () => {
+  const game = await createGame({ levels: loadBundledLevels() });
+  await runScripted(game, FIRST_STEPS_SOLUTION);
+  assert.equal(game.state().status.exited, true);
+  assert.equal(game.state().turns, FIRST_STEPS_SOLUTION.length);
+  await game.handle({ type: INTENT.NEXT_LEVEL });
   assert.equal(game.state().levelName, "long-way-round");
-  assert.equal(game.state().moves, 0);
+  assert.equal(game.state().turns, 0);
 });
 
-test("Enter does nothing before the exit, and after the last level says so", () => {
+test("Enter does nothing before the exit, and after the last level says so", async () => {
   const levels = [loadBundledLevel("first-steps")];
-  const game = createGame({ levels });
-  game.handle({ type: INTENT.NEXT_LEVEL });
+  const game = await createGame({ levels });
+  await game.handle({ type: INTENT.NEXT_LEVEL });
   assert.equal(game.state().levelName, "first-steps");
-  runScripted(game, `${FIRST_STEPS_SOLUTION}\r`);
+  await runScripted(game, `${FIRST_STEPS_SOLUTION}\r`);
   assert.equal(game.state().finished, true);
   assert.match(game.screen(), /last level/);
 });
 
-test("a wall bump shows a message and costs no move; restart resets the level", () => {
-  const game = createGame({ levels: loadBundledLevels() });
-  game.handle(intentForKey("k"));
-  assert.equal(game.state().moves, 0);
+test("a wall bump shows a message and costs a turn; restart resets the level", async () => {
+  const game = await createGame({ levels: loadBundledLevels() });
+  await game.handle(intentForKey("k"));
+  assert.equal(game.state().turns, 1);
   assert.match(game.screen(), /A wall blocks the way\./);
-  runScripted(game, "dd");
-  assert.equal(game.state().moves, 2);
-  game.handle({ type: INTENT.RESTART });
-  assert.equal(game.state().moves, 0);
+  await runScripted(game, "dd");
+  assert.equal(game.state().turns, 3);
+  await game.handle({ type: INTENT.RESTART });
+  assert.equal(game.state().turns, 0);
   assert.match(game.screen(), /S@\.\.#/);
 });
 
-test("quit is reported to the caller, not acted on", () => {
-  const game = createGame({ levels: loadBundledLevels() });
-  assert.deepEqual(game.handle({ type: INTENT.QUIT }), { quit: true });
-  assert.deepEqual(game.handle(null), { quit: false });
+test("quit is reported to the caller, not acted on", async () => {
+  const game = await createGame({ levels: loadBundledLevels() });
+  assert.deepEqual(await game.handle({ type: INTENT.QUIT }), { quit: true });
+  assert.deepEqual(await game.handle(null), { quit: false });
 });
 
-test("the screen shows the board, present vitals only, tick, moves and the status hint", () => {
-  const session = createPlaySession(loadBundledLevel("first-steps"));
+test("the screen shows the board, present vitals only, tick, turns and the status hint", async () => {
+  const session = await createPlaySession(loadBundledLevel("first-steps"));
   const screen = renderScreen({ view: session.view(), levelName: "first-steps", levelCount: 2 });
   assert.match(screen, /first-steps \(1\/2\)/);
   assert.match(screen, /^ {2}S@\.\.#\.\.\.#$/m);
   assert.match(screen, /HP █+ 10\/10/);
   assert.doesNotMatch(screen, /MP /, "a 0/0 mana pool is not drawn");
-  assert.match(screen, /Tick 0 {3}Moves 0/);
+  assert.match(screen, /Tick 0 {3}Turns 0/);
   assert.match(screen, /Find the exit/);
   assert.doesNotMatch(screen, /\u001b\[/, "no ANSI unless colour is asked for");
   const colored = renderScreen({ view: session.view(), levelName: "x", color: true });

@@ -1,10 +1,10 @@
 /**
- * The game controller: turns intents into play-session calls and tracks
- * presentation state (which level, how many moves, the last message). No
+ * The game controller: turns intents into play-session commands and tracks
+ * presentation state (which level, how many turns, the last message). No
  * terminal IO and no rules — `cli.mjs` owns the terminal, the runtime play
  * session owns the simulation.
  */
-import { createPlaySession, PLAY_STATUS } from "../../runtime/src/runner/play-session.js";
+import { createPlaySession } from "../../runtime/src/runner/play-session.js";
 import { INTENT } from "./keymap.js";
 import { renderScreen } from "./screen.js";
 
@@ -13,7 +13,7 @@ const REJECTION_MESSAGES = Object.freeze({
   BlockedByWall: "A wall blocks the way.",
   ActorCollision: "Something is in the way.",
   OutOfBounds: "You cannot leave the map that way.",
-  InsufficientStamina: "Too tired to move. Wait (.) to recover.",
+  InsufficientStamina: "Too tired to move.",
 });
 
 function rejectionMessage(reason) {
@@ -26,28 +26,37 @@ function rejectionMessage(reason) {
  * @param {number} [args.startIndex]
  * @param {Function} [args.createSession] injectable for tests
  */
-export function createGame({ levels, startIndex = 0, createSession = createPlaySession } = {}) {
+export async function createGame({ levels, startIndex = 0, createSession = createPlaySession } = {}) {
   if (!Array.isArray(levels) || levels.length === 0) {
     throw new Error("createGame: at least one level is required");
   }
   let levelIndex = Math.max(0, Math.min(levels.length - 1, startIndex));
   let session = null;
-  let moves = 0;
+  let turns = 0;
   let message = "";
   let showHelp = true;
   let finished = false;
 
-  function startLevel(index) {
+  async function startLevel(index) {
     levelIndex = index;
     const level = levels[levelIndex];
-    session = createSession({ simConfig: level.simConfig, initialState: level.initialState });
-    moves = 0;
+    session = await createSession({ simConfig: level.simConfig, initialState: level.initialState });
+    turns = 0;
     message = "";
   }
 
-  startLevel(levelIndex);
+  await startLevel(levelIndex);
 
-  function handle(intent) {
+  async function act(command) {
+    if (session.status().exited) return;
+    const result = await session.act(command);
+    turns += 1;
+    const rejected = result.rejected[0];
+    // At the exit the status line already says how to step through.
+    if (rejected && !result.status.atExit) message = rejectionMessage(rejected.reason);
+  }
+
+  async function handle(intent) {
     if (!intent) return { quit: false };
     message = "";
     switch (intent.type) {
@@ -58,33 +67,23 @@ export function createGame({ levels, startIndex = 0, createSession = createPlayS
         break;
       case INTENT.RESTART:
         finished = false;
-        startLevel(levelIndex);
+        await startLevel(levelIndex);
         break;
       case INTENT.NEXT_LEVEL:
-        if (session.status() !== PLAY_STATUS.ESCAPED) break;
+        if (!session.status().exited) break;
         if (levelIndex + 1 < levels.length) {
-          startLevel(levelIndex + 1);
+          await startLevel(levelIndex + 1);
         } else {
           finished = true;
           message = "That was the last level. Press r to replay it or q to quit.";
         }
         break;
       case INTENT.WAIT:
-        if (session.status() !== PLAY_STATUS.ESCAPED) {
-          session.wait();
-          moves += 1;
-        }
+        await act({ kind: "wait" });
         break;
-      case INTENT.MOVE: {
-        const result = session.move(intent.direction);
-        if (result.accepted) {
-          moves += 1;
-        } else if (result.reason !== "escaped" && result.status !== PLAY_STATUS.AT_EXIT) {
-          // At the exit the status line already says how to step through.
-          message = rejectionMessage(result.reason);
-        }
+      case INTENT.MOVE:
+        await act({ kind: "move", params: { direction: intent.direction } });
         break;
-      }
       default:
         break;
     }
@@ -97,7 +96,7 @@ export function createGame({ levels, startIndex = 0, createSession = createPlayS
       levelName: levels[levelIndex].name,
       levelIndex,
       levelCount: levels.length,
-      moves,
+      turns,
       message,
       showHelp,
       color,
@@ -108,7 +107,7 @@ export function createGame({ levels, startIndex = 0, createSession = createPlayS
     return {
       levelIndex,
       levelName: levels[levelIndex].name,
-      moves,
+      turns,
       status: session.status(),
       finished,
       message,

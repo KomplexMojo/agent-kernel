@@ -20,7 +20,7 @@ pnpm run play:ascii -- --keys "ddss" --no-color     # scripted: apply keys, prin
 | `?` | toggle help |
 | `q` · Esc · Ctrl-C | quit |
 
-Reaching the exit's approach tile puts you **at the exit**; waiting one more tick steps you through. That is core's exit-dwell rule, not a UI rule.
+Reaching the exit's approach tile puts you **at the exit**; waiting one more tick steps you through. That is core's exit-dwell rule, not a UI rule. Every key that acts costs one turn, a blocked move included.
 
 ## Where it sits
 
@@ -35,7 +35,7 @@ Reaching the exit's approach tile puts you **at the exit**; waiting one more tic
 | `src/levels.js` | Finds and parses SimConfig + InitialState artifact pairs |
 | `levels/` | Bundled levels, as `<name>.sim-config.json` + `<name>.initial-state.json` |
 
-The simulation side is `packages/runtime/src/runner/play-session.js`: one player move, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, and when it leaves.
+The simulation side is `packages/runtime/src/runner/play-session.js`: `await createPlaySession(...)`, then `await act({ kind: "move", params: { direction } })` or `act({ kind: "wait" })`, `view()` and `status()`. One command, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, and when it leaves.
 
 ## Not yet
 

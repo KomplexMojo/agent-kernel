@@ -67,9 +67,9 @@ export function resolveLevels(options) {
 }
 
 /** Feed a key string through the game without a terminal; returns the final screen. */
-export function runScripted(game, keys, { color = false } = {}) {
+export async function runScripted(game, keys, { color = false } = {}) {
   for (const key of splitKeys(keys)) {
-    if (game.handle(intentForKey(key)).quit) break;
+    if ((await game.handle(intentForKey(key))).quit) break;
   }
   return game.screen({ color });
 }
@@ -86,19 +86,23 @@ function runInteractive(game, { color }) {
   stdin.setEncoding("utf8");
   stdout.write("\u001b[?25l");
   draw();
+  // Keys are applied strictly in order: each chunk waits for the previous one.
+  let pending = Promise.resolve();
   stdin.on("data", (chunk) => {
-    for (const key of splitKeys(chunk)) {
-      if (game.handle(intentForKey(key)).quit) {
-        restore();
-        stdout.write("\nBye.\n");
-        process.exit(0);
+    pending = pending.then(async () => {
+      for (const key of splitKeys(chunk)) {
+        if ((await game.handle(intentForKey(key))).quit) {
+          restore();
+          stdout.write("\nBye.\n");
+          process.exit(0);
+        }
       }
-    }
-    draw();
+      draw();
+    });
   });
 }
 
-export function main(argv = process.argv.slice(2)) {
+export async function main(argv = process.argv.slice(2)) {
   let options;
   try {
     options = parseArgs(argv);
@@ -116,13 +120,13 @@ export function main(argv = process.argv.slice(2)) {
   }
   let game;
   try {
-    game = createGame(resolveLevels(options));
+    game = await createGame(resolveLevels(options));
   } catch (error) {
     console.error(error.message);
     return 1;
   }
   if (options.keys !== undefined) {
-    console.log(runScripted(game, options.keys, { color: options.color && process.stdout.isTTY }));
+    console.log(await runScripted(game, options.keys, { color: options.color && process.stdout.isTTY }));
     return 0;
   }
   if (!process.stdin.isTTY) {
@@ -134,6 +138,7 @@ export function main(argv = process.argv.slice(2)) {
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
-  const code = main();
-  if (code !== null) process.exitCode = code;
+  main().then((code) => {
+    if (code !== null) process.exitCode = code;
+  });
 }

@@ -37,8 +37,8 @@ function presentVitals(player) {
 
 export function statusLine(status, message) {
   if (message) return message;
-  if (status === "escaped") return "You escaped! Press Enter for the next level, r to replay, q to quit.";
-  if (status === "at_exit") return "You reached the exit. Press . to step through.";
+  if (status?.exited) return "You escaped! Press Enter for the next level, r to replay, q to quit.";
+  if (status?.atExit) return "You reached the exit. Press . to step through.";
   return "Find the exit (E).";
 }
 
@@ -48,7 +48,7 @@ export function statusLine(status, message) {
  * @param {string} args.levelName
  * @param {number} [args.levelIndex]
  * @param {number} [args.levelCount]
- * @param {number} [args.moves]
+ * @param {number} [args.turns]
  * @param {string} [args.message]   overrides the default status line
  * @param {boolean} [args.showHelp]
  * @param {boolean} [args.color]    emit ANSI colour
@@ -58,7 +58,7 @@ export function renderScreen({
   levelName,
   levelIndex = 0,
   levelCount = 1,
-  moves = 0,
+  turns = 0,
   message = "",
   showHelp = true,
   color = false,
@@ -70,7 +70,7 @@ export function renderScreen({
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (vitals.length > 0) lines.push(vitals.join("   "));
-  lines.push(`Tick ${view.tick}   Moves ${moves}`);
+  lines.push(`Tick ${view.tick}   Turns ${turns}`);
   lines.push(statusLine(view.status, message));
   if (showHelp) {
     lines.push("");

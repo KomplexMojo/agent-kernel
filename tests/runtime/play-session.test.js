@@ -1,6 +1,6 @@
 /**
  * The play session is the step-at-a-time seam an interactive UI drives: one
- * player move, one closed tick, one fresh frame. Core stays the authority on
+ * player command, one closed tick, one fresh frame. Core stays the authority on
  * legality and on reaching/leaving the exit; these tests pin that the session
  * reports core's answers rather than inventing its own.
  */
@@ -10,8 +10,8 @@ const { resolve } = require("node:path");
 
 const {
   createPlaySession,
+  normalizePlayCommand,
   PLAY_DIRECTIONS,
-  PLAY_STATUS,
 } = require("../../packages/runtime/src/runner/play-session.js");
 
 const FIXTURES = resolve(__dirname, "../fixtures/artifacts");
@@ -25,89 +25,101 @@ const PATH_TO_EXIT = [
   "south", "south", "south", "south", "east", "east",
 ];
 
-function newSession() {
-  return createPlaySession({ simConfig, initialState });
+const move = (direction) => ({ kind: "move", params: { direction } });
+const newSession = () => createPlaySession({ simConfig, initialState });
+
+async function walkToExit(session) {
+  let last;
+  for (const direction of PATH_TO_EXIT) {
+    last = await session.act(move(direction));
+    assert.equal(last.accepted.length, 1, `${direction} at tick ${last.tick}`);
+  }
+  return last;
 }
 
-test("the first view is core's frame at tick 0 with the player at its seat", () => {
-  const view = newSession().view();
+test("the first view is core's frame at tick 0 with the player at its seat", async () => {
+  const view = (await newSession()).view();
   assert.equal(view.tick, 0);
-  assert.equal(view.status, PLAY_STATUS.PLAYING);
+  assert.deepEqual(view.status, { tick: 0, exited: false, atExit: false });
   assert.deepEqual(view.player.position, { x: 2, y: 1 });
   assert.equal(view.player.id, "actor_mvp");
   assert.equal(view.rows[1], "S.@.#...#");
   assert.equal(view.rows.length, 9);
 });
 
-test("the HUD carries runtime's vital labels with the live values", () => {
-  const { player } = newSession().view();
+test("the HUD carries runtime's vital labels with the live values", async () => {
+  const { player } = (await newSession()).view();
   const health = player.vitals.find((vital) => vital.key === "health");
   assert.equal(health.label, "HP");
   assert.equal(health.current, 10);
   assert.equal(health.max, 10);
 });
 
-test("an accepted move moves the player and closes exactly one tick", () => {
-  const session = newSession();
-  const result = session.move("east");
-  assert.equal(result.accepted, true);
-  assert.equal(result.reason, null);
+test("an accepted move moves the player and closes exactly one tick", async () => {
+  const session = await newSession();
+  const result = await session.act(move("east"));
   assert.equal(result.tick, 1);
+  assert.deepEqual(result.rejected, []);
+  assert.deepEqual(result.accepted, [{
+    actorId: "actor_mvp",
+    tick: 1,
+    kind: "move",
+    params: { direction: "east", from: { x: 2, y: 1 }, to: { x: 3, y: 1 } },
+  }]);
   const view = session.view();
   assert.deepEqual(view.player.position, { x: 3, y: 1 });
   assert.equal(view.rows[1], "S..@#...#");
 });
 
-test("a move into a wall is core's rejection and costs no tick", () => {
-  const session = newSession();
-  const result = session.move("north");
-  assert.equal(result.accepted, false);
-  assert.equal(result.reason, "BlockedByWall");
-  assert.equal(result.tick, 0);
-  assert.deepEqual(session.view().player.position, { x: 2, y: 1 });
-  // The tick did not advance, so the next move still targets tick 1 and lands.
-  assert.equal(session.move("east").accepted, true);
-});
-
-test("wait closes a tick without moving", () => {
-  const session = newSession();
-  const result = session.wait();
+test("a move into a wall is core's rejection and still costs the turn", async () => {
+  const session = await newSession();
+  const result = await session.act(move("north"));
+  assert.equal(result.accepted.length, 0);
+  assert.equal(result.rejected[0].reason, "BlockedByWall");
   assert.equal(result.tick, 1);
   assert.deepEqual(session.view().player.position, { x: 2, y: 1 });
-  assert.equal(session.move("east").tick, 2);
+  // The tick advanced, so the next move targets tick 2 and lands.
+  assert.equal((await session.act(move("east"))).accepted.length, 1);
 });
 
-test("reaching the exit approach is at_exit; core's exit dwell then escapes", () => {
-  const session = newSession();
-  let last;
-  for (const direction of PATH_TO_EXIT) {
-    last = session.move(direction);
-    assert.equal(last.accepted, true, `${direction} at tick ${last.tick}`);
-  }
-  assert.equal(last.status, PLAY_STATUS.AT_EXIT);
+test("wait, and an absent command, close a tick without moving", async () => {
+  const session = await newSession();
+  assert.equal((await session.act({ kind: "wait" })).tick, 1);
+  assert.equal((await session.act()).tick, 2);
+  assert.deepEqual(session.view().player.position, { x: 2, y: 1 });
+});
+
+test("reaching the exit approach is atExit; core's exit dwell then exits", async () => {
+  const session = await newSession();
+  const last = await walkToExit(session);
+  assert.equal(last.status.atExit, true);
+  assert.equal(last.status.exited, false);
   assert.deepEqual(session.view().player.position, { x: 7, y: 7 });
-  assert.equal(session.wait().status, PLAY_STATUS.ESCAPED);
-  assert.equal(session.status(), PLAY_STATUS.ESCAPED);
+  const stepped = await session.act({ kind: "wait" });
+  assert.deepEqual(stepped.status, { tick: stepped.tick, exited: true, atExit: false });
 });
 
-test("stepping off the exit approach clears at_exit", () => {
-  const session = newSession();
-  for (const direction of PATH_TO_EXIT) session.move(direction);
-  assert.equal(session.move("west").status, PLAY_STATUS.PLAYING);
+test("stepping off the exit approach clears atExit", async () => {
+  const session = await newSession();
+  await walkToExit(session);
+  assert.equal((await session.act(move("west"))).status.atExit, false);
 });
 
-test("once escaped, moves are refused and wait no longer advances the tick", () => {
-  const session = newSession();
-  for (const direction of PATH_TO_EXIT) session.move(direction);
-  const escapedAt = session.wait().tick;
-  const result = session.move("west");
-  assert.equal(result.accepted, false);
-  assert.equal(result.reason, "escaped");
-  assert.equal(session.wait().tick, escapedAt);
+test("once exited, commands are refused and the tick no longer advances", async () => {
+  const session = await newSession();
+  await walkToExit(session);
+  const exitedAt = (await session.act({ kind: "wait" })).tick;
+  const result = await session.act(move("west"));
+  assert.equal(result.rejected[0].reason, "exited");
+  assert.equal(result.tick, exitedAt);
+  assert.equal((await session.act({ kind: "wait" })).tick, exitedAt);
 });
 
-test("an unknown direction is a caller error, not a rejected move", () => {
-  assert.throws(() => newSession().move("up"), /unknown direction "up"/);
+test("a malformed command is a caller error, not a rejected move", async () => {
+  const session = await newSession();
+  await assert.rejects(session.act(move("up")), /unknown direction "up"/);
+  await assert.rejects(session.act({ kind: "attack" }), /unknown command kind "attack"/);
+  assert.deepEqual(normalizePlayCommand(null), { kind: "wait" });
 });
 
 test("directions are the shared eight-way set", () => {
@@ -117,17 +129,26 @@ test("directions are the shared eight-way set", () => {
   );
 });
 
-test("a level that does not load is refused with core-setup's reason", () => {
-  assert.throws(() => createPlaySession({ simConfig, initialState: { ...initialState, actors: [] } }), /missing_actors/);
-  assert.throws(() => createPlaySession({ simConfig }), /required/);
+test("a level that does not load is refused with core-setup's reason", async () => {
+  await assert.rejects(createPlaySession({ simConfig, initialState: { ...initialState, actors: [] } }), /missing_actors/);
+  await assert.rejects(createPlaySession({ simConfig }), /required/);
 });
 
-test("two sessions on the same level are independent and deterministic", () => {
-  const a = newSession();
-  const b = newSession();
-  a.move("east");
+test("playerActorId names the primary actor; another actor is refused for now", async () => {
+  const session = await createPlaySession({ simConfig, initialState, playerActorId: "actor_mvp" });
+  assert.equal(session.playerActorId, "actor_mvp");
+  await assert.rejects(
+    createPlaySession({ simConfig, initialState, playerActorId: "warden-1" }),
+    /only the primary actor "actor_mvp"/,
+  );
+});
+
+test("two sessions on the same level are independent and deterministic", async () => {
+  const a = await newSession();
+  const b = await newSession();
+  await a.act(move("east"));
   assert.deepEqual(b.view().player.position, { x: 2, y: 1 });
-  b.move("east");
+  await b.act(move("east"));
   assert.deepEqual(a.view(), b.view());
 });
 
@@ -135,5 +156,5 @@ test("two sessions on the same level are independent and deterministic", () => {
 // - each of the eight directions from an open floor cell (accepted, position delta)
 // - diagonal moves that cut a wall corner (core's answer, whatever it is, is reported verbatim)
 // - multi-actor initial state: the player is the id-sorted primary actor
-// - an exit-ineligible (warden) player reaches at_exit but never escapes
-// - repeated rejected moves never advance the tick
+// - an exit-ineligible (warden) player reaches atExit but never exits
+// - repeated rejected moves each advance the tick by one
