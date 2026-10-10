@@ -1,8 +1,4 @@
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { resolve } = require("node:path");
-
-const ROOT = resolve(__dirname, "../..");
 
 test("runtime drives all personas via the FSM schedule", async () => {
   const { createRuntime } = await import(
@@ -11,11 +7,28 @@ test("runtime drives all personas via the FSM schedule", async () => {
   const { createCore } = await import(
     "../../packages/core-ts/src/index.ts"
   );
-
-  const core = createCore();
-
-  const simConfig = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"), "utf8"));
-  const initialState = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-mvp-actor.json"), "utf8"));
+  const { boxedTerrain, buildUnifiedArtifacts } = await import(
+    "../fixtures/personas/unified-actor-runtime.mjs"
+  );
+  const width = 9;
+  const height = 9;
+  const terrain = boxedTerrain(width, height);
+  terrain[width + 1] = "spawn";
+  terrain[7 * width + 7] = "exit";
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width,
+    height,
+    terrain,
+    runId: "run_runtime_schedule",
+    clock: "2025-01-01T00:00:00.000Z",
+    actors: [{
+      id: "actor_mvp",
+      category: "delver",
+      position: { x: 2, y: 1 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
   const intentEnvelope = {
     schema: "agent-kernel/IntentEnvelope",
     schemaVersion: 1,
@@ -29,6 +42,7 @@ test("runtime drives all personas via the FSM schedule", async () => {
     intent: { goal: "Reach the exit", tags: ["runtime", "schedule"] },
   };
 
+  const core = createCore();
   const runtime = createRuntime({ core, adapters: {} });
   await runtime.init({ seed: 0, simConfig, initialState, runId: "run_runtime_schedule", intentEnvelope });
   await runtime.step();
@@ -43,7 +57,7 @@ test("runtime drives all personas via the FSM schedule", async () => {
 
   const views = last.personaViews;
   assert.equal(views.orchestrator.state, "running");
-  // PX.5: this SimConfig already names its plan (planRef: plan_basic), so the run
+  // PX.5: this SimConfig already names its plan (planRef), so the run
   // consumes it and the Director does no build round. It used to report `ready` —
   // its completed-round state — with buildSpecCount 0 and planId null, while minting
   // a PlanArtifact mid-tick. The Orchestrator still reaches `running` above, now
@@ -60,3 +74,6 @@ test("runtime drives all personas via the FSM schedule", async () => {
   // tick plane the Configurator now correctly stays put.
   assert.equal(views.configurator.state, "uninitialized");
 });
+// ## TODO: Test Permutations
+// - leftover mvp-grid tiles still fail category storage at runtime.init
+// - a run whose SimConfig omits planRef still leaves Configurator uninitialized on the tick plane

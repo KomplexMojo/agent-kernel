@@ -148,6 +148,9 @@ function countFloorTiles(layoutData) {
   if (Number.isInteger(layoutData?.floorTiles) && layoutData.floorTiles > 0) {
     return layoutData.floorTiles;
   }
+  if (Array.isArray(layoutData?.terrain)) {
+    return layoutData.terrain.reduce((count, kind) => count + (kind === "floor" ? 1 : 0), 0);
+  }
   if (!Array.isArray(layoutData?.tiles)) {
     if (isInteger(layoutData?.width) && isInteger(layoutData?.height)) {
       return layoutData.width * layoutData.height;
@@ -506,12 +509,14 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
   // second charging site for tiles — `layout-spend.js` is the other — and fixing one
   // without the other is how a payload comes to have two prices (CR.1's defect class).
   //
-  // ⚠️ ONLY when the floor count is NOT derived. `countFloorTiles` has three modes: an
-  // explicit `floorTiles` field, a `tiles` grid, or `width × height`. The last two count
-  // every walkable cell — hallways INCLUDED — so adding an explicit `hallwayTiles` on top
-  // of them bills the same tiles twice. The guard cannot simply be "floorTiles must be
-  // explicit" either: a hallway-ONLY layout has no floor count at all and must still be
-  // charged, which is exactly what this milestone stopped being free.
+  // ⚠️ ONLY when the floor count is NOT derived. `countFloorTiles` has four modes: an
+  // explicit `floorTiles` field, canonical `terrain` floors, a leftover `tiles` grid, or
+  // `width × height`. Terrain counts floor cells only. Leftover tiles and width×height
+  // count walkable leftover glyphs — hallways INCLUDED — so adding an explicit
+  // `hallwayTiles` on top of them bills the same tiles twice. The guard cannot simply be
+  // "floorTiles must be explicit" either: a hallway-ONLY leftover layout has no floor
+  // count at all and must still be charged, which is exactly what this milestone stopped
+  // being free.
   const hasExplicitFloorCount = Number.isInteger(layoutData?.floorTiles) && layoutData.floorTiles > 0;
   const floorCountIncludesHallways = !hasExplicitFloorCount && floorTiles > 0;
   const hallwayTiles = isScaffold || floorCountIncludesHallways || !Number.isInteger(layoutData?.hallwayTiles)

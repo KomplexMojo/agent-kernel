@@ -70,6 +70,54 @@ Stop (write Decide into Handoff, do not guess): ownership spans two personas wit
 Assigned executor for rows 1–8: a local Cursor agent in this worktree, following
 `.cursor/skills/<owner>/SKILL.md`. Not a cloud agent. Not a second worktree.
 
+Status September 22: leftover demo-cli Configurator artifacts; resource-plan
+denial budget 5; catalog unified resource oracle. Leave invent-required pool
+denials, occupancy, proximityRadius, V1, tools/benchmark env red. Row 9 later
+reviewer.
+
+Status September 22: leftover actor-proposal-replay ActionV1 target params;
+delver/warden affinities oracles; configurator tile_floor 9 terrain floors.
+Leave invent-required pool denials, occupancy, proximityRadius, V1,
+tools/benchmark env red. Row 9 later reviewer.
+
+Status September 22: leftover gameplay-surface-ingestion uses Configurator
+bundles; shared delver-warden-battle tiles stay leftover-red. Leave
+llm-plan/authoring pool denials, occupancy, proximityRadius, V1,
+tools/benchmark env red. Row 9 later reviewer.
+
+Status September 22: leftover ak-golden uses Configurator boxed terrain plus
+delver. Leave llm-plan/t1-medium/pool denials, occupancy, proximityRadius,
+V1, tools/benchmark env red. Row 9 later reviewer.
+
+Status September 22: row 8 recount 4202/3935/86/181; typecheck 0. Wiring
+36 vs 13. Leave invent-required pool denials, occupancy, proximityRadius,
+V1, and tools/benchmark env red. Row 9 later reviewer.
+
+Status September 22: leftover JS-spread water/fire overlap uses Configurator
+terrain plus presentation hazard actors; orphan overlap fixture removed.
+Leave llm-plan/t1-medium/pool denials, occupancy, proximityRadius, V1 red.
+
+Status September 22: leftover e2e-annotator stamps lossless categories;
+AffinitySummary.hazards []. Leave leftover JS-spread overlap fixture
+collections, llm-plan/t1-medium/pool denials, occupancy, proximityRadius,
+V1 red.
+
+Status September 22: leftover configurator-startup uses Configurator terrain
+plus actor_mvp. Leave leftover e2e-annotator ambulatory actors, JS-spread
+overlap, llm-plan/t1-medium/pool denials, occupancy, proximityRadius, V1 red.
+
+Status September 21: leftover Allocator G1 reconciles and leftover
+runtime-persona-schedule use Configurator artifacts. Shared leftover
+mvp-grid tiles stay on the movement fixture. Leave leftover
+configurator-startup hazard tiles, JS-spread overlap, llm-plan/t1-medium
+pool denials, occupancy, proximityRadius, V1 red.
+
+Status September 20: leftover generateTierLayout oracles read terrain
+spawn/exit; leftover countFloorTiles bills terrain floors. I4 carving
+green. create-g1 goldens 25/170. Pool-denial remaining 188; warden
+denial unchanged. Leave leftover mvp-grid tiles, JS-spread overlap,
+llm-plan/t1-medium/pool denials, occupancy, proximityRadius, V1 red.
+
 Status September 16: rows 1–8 executed (row 1 skipped). Leftover create
 hazards map to actors; leftover ambulatory kind/role/motivation maps to
 category; omitted vitals seed from Configurator defaults then the floor;
@@ -848,3 +896,176 @@ Validation: the two observation files, unified observation, aura lifecycle,
 dependency-direction, ports-and-adapters-boundary, typecheck. Perturb by
 reattaching hazards: [] on the registry observation; the vitals test must fail;
 restore. Stop on those gates.
+
+### September 20 — leftover generator terrain oracle (S)
+
+Owner architecture-dependency-direction. Targets
+tests/runtime/e2e-fixture-generators.test.js and these records.
+generateGridLayoutFromInput already emits terrain and spawn/exit approaches.
+The leftover oracle still read layout.tiles and leftover spawn/exit objects.
+Retarget onto terrain cells; keep leftover tiles/spawn/exit off the generated
+layout. Do not invent leftover glyphs. Do not convert leftover core APIs.
+
+Failing oracle: layout.tiles.length throws on undefined.
+Validation: e2e-fixture-generators, configurator-generated-terrain,
+dependency-direction, ports-and-adapters-boundary, typecheck. Perturb by
+requiring leftover tiles; restore. Wiring 36 vs 13 not widened.
+
+### September 20 — leftover terrain floor billing (S)
+
+Owner persona-allocator. Targets spend-proposal.js countFloorTiles,
+allocator-terrain-floor-spend.test.js, create-g1 goldens, Allocator README,
+and these records. After leftover tiles were stripped, countFloorTiles fell
+through to width×height and billed walls as floors (I4 484 vs 50; g1 81 vs
+25). Count terrain === "floor" before leftover tiles or width×height. Do not
+invent prices or pools. Warden pool denial stays 186/176 short 10; remaining
+snapshot 188.
+
+Failing oracle: terrain-only 5×4 layout bills 20 instead of 4 floors.
+Validation: new test, I4 carving, g1 goldens, tile-charging, everything-costs,
+spend-proposal, owner pricing/receipt/single-origin guards, typecheck.
+Perturb by skipping the terrain branch; restore. Leave leftover mvp-grid
+tiles in reconciles fixtures red.
+
+### September 21 — leftover Allocator reconciles artifacts (S)
+
+Owner persona-allocator. Targets allocator-reconciles-or-nothing-does.test.js
+and these records. G1 ablation still fed leftover mvp-grid tiles into
+runtime.init. Rebuild through Configurator boxed terrain plus actor_mvp
+delver; keep the effects cap and solver spend. Do not mutate the shared
+leftover movement fixture. Do not invent pools.
+
+Failing oracle: leftover tiles throw expected normalized grid terrain without
+category storage.
+Validation: the two G1 tests, terrain-floor-spend, owner pricing/receipt
+guards, typecheck. Perturb by restoring leftover mvp-grid fixtures; restore.
+Leave leftover runtime-persona-schedule mvp-grid tiles red.
+
+### September 21 — leftover runtime-persona-schedule artifacts (S)
+
+Owner architecture-dependency-direction. Targets
+runtime-persona-schedule.test.js and these records. The leftover FSM
+schedule oracle still fed leftover mvp-grid tiles into runtime.init.
+Rebuild through Configurator boxed terrain plus actor_mvp delver; keep the
+intent envelope and PX.5 director/configurator uninitialized assertions.
+Do not mutate the shared leftover movement fixture.
+
+Failing oracle: leftover tiles throw expected normalized grid terrain without
+category storage.
+Validation: runtime-persona-schedule, leftover reconciles, dependency-direction,
+ports-and-adapters-boundary, typecheck. Perturb by restoring leftover mvp-grid
+fixtures; restore. Leave leftover configurator-startup hazard tiles red.
+
+### September 22 — leftover configurator-startup artifacts (S)
+
+Owner architecture-dependency-direction. Targets configurator-startup.test.js
+and these records. The leftover hazard-grid oracle still fed tiles/kinds/hazards
+into runtime.init and asserted leftover world getters. Rebuild through
+Configurator boxed terrain plus actor_mvp with fire/push and life/pull;
+assert registry vitals and terrain glyphs. Do not mutate shared leftover
+fixtures. Do not invent layout.hazards occupants.
+
+Failing oracle: leftover hazard fixtures throw expected normalized grid terrain
+without category storage.
+Validation: configurator-startup, persona-schedule, reconciles,
+dependency-direction, ports-and-adapters-boundary, typecheck. Perturb by
+restoring leftover hazard fixtures; restore. Leave leftover e2e-annotator
+ambulatory-without-category red.
+
+### September 22 — leftover e2e-annotator categories (S)
+
+Owner architecture-dependency-direction. Targets e2e-annotator-artifacts.test.js
+and these records. Fixture ambulatory actors lacked category/motivation cues for
+leftoverCategory; AffinitySummary.hazards expected leftover layout hazards.
+Stamp lossless delver/warden + motivations in the test only; expect hazards [].
+Do not invent leftoverCategory for bare ambulatory. Do not invent pools.
+
+Failing oracle: missing category throws invalid unified actor definition;
+non-empty hazards contradict unified mapping.
+Validation: e2e-annotator, configurator-startup, persona-schedule, reconciles,
+dependency-direction, ports-and-adapters-boundary, typecheck. Perturb by
+dropping category stamps; restore. Leave leftover JS-spread overlap fixture
+collections red.
+
+### September 22 — leftover JS-spread overlap artifacts (S)
+
+Owner architecture-adapter-io (ui-web only). Targets tile-affinity-visuals.test.mjs
+and these records. Hazard-spread water/fire overlap still read leftover
+affinity-overlap tiles/hazards collections. Rebuild through Configurator
+terrain plus presentation hazard actors (affinity-field-bridge mapping); remove
+orphan fixture. Do not invent emitStrength-from-stacks (stays skipped). Do not
+invent pools.
+
+Failing oracle: empty hazards lose origin visuals.
+Validation: tile-affinity-visuals, e2e-annotator, dependency-direction,
+ports-and-adapters-boundary, typecheck. Perturb by emptying projected hazards;
+restore. Leave llm-plan/t1-medium/pool denials, occupancy, proximityRadius, V1 red.
+
+### September 22 — row 8 suite recount (S)
+
+Owner architecture-dependency-direction. Full suite + typecheck. Record counts.
+Do not treat remaining red as license to restore legacy APIs. Do not invent
+pools/proximityRadius/V1 loot. No PR.
+
+Validation: `pnpm run test` and `pnpm run typecheck`.
+Recorded: 4202 tests, 3935 passed, 86 failed, 181 pending; typecheck 0.
+Wiring 36 vs 13. Prior 4198/3808/162/228. Leave invent-required reds. Row 9
+adversarial is later reviewer.
+
+### September 22 — leftover ak-golden Configurator artifacts (S)
+
+Owner architecture-adapter-io. Targets ak-golden.test.js and these records.
+Run/replay/inspect still fed leftover basic stationary fixtures (invalid JSON
+state). Write Configurator boxed terrain plus delver with health vitals. Do not
+mutate shared leftover basic fixtures. Do not invent pools.
+
+Failing oracle: leftover basic fixtures throw invalid JSON state.
+Validation: ak-golden, adapters-cli-no-actor-authoring, dependency-direction,
+typecheck. Perturb by restoring basic fixture paths; restore. Leave
+llm-plan/pool denials and tools/benchmark env red.
+
+### September 22 — leftover gameplay-surface-ingestion artifacts (S)
+
+Owner architecture-adapter-io (ui-web only). Targets
+gameplay-surface-ingestion.test.js and these records. Run-bundle oracles still
+compiled leftover delver-warden-battle tiles into core.init. Build Configurator
+boxed terrain plus delver bundles in-test; leave shared battle scenario
+untouched (melee leftover-red). Do not invent pools or restore attack.
+
+Failing oracle: leftover scenario compile throws category storage.
+Validation: gameplay-surface-ingestion, ak-golden, typecheck. Perturb by
+restoring leftover scenario compile; restore. Leave invent-required pool
+denials red.
+
+### September 22 — leftover ActionV1 / affinity / floor oracles (S)
+
+Owner persona-actor + architecture-adapter-io. Targets
+actor-proposal-replay.test.js, ak-delver-plan.test.js, ak-warden-plan.test.js,
+ak-configurator.test.js and these records. Replay still expected leftover
+from/to/direction and tile-kind filters; plan oracles still read
+traits.affinities; configurator still expected width×height floor count.
+Assert params.target + defeated eligibility; actor.affinities; tile_floor 9.
+Do not invent pool budgets. loadMvpScenario stays for leftover
+observation/render until a dedicated dual-surface cut.
+
+Failing oracle: from/to expect fails deepEqual; traits.affinities throws;
+tile_floor 25≠9.
+Validation: actor-proposal-replay, delver/warden advanced affinities,
+configurator, dependency-direction, typecheck. Perturb by restoring from/to
+expect; restore. Leave delver-plan maximize pool short 5 and invent-required
+reds. Row 9 later reviewer.
+
+### September 22 — leftover demo-cli / resource-plan / catalog oracles (S)
+
+Owner architecture-adapter-io. Targets scripts/demo-cli.sh,
+ak-hazard-resource-plan.test.js, remote-ollama-content-gen-catalog.test.js and
+these records. demo-cli still ran leftover basic stationary fixtures; resource-plan
+fail budget 10 was above totalCost 6; catalog expected leftover resource.affinity
+object. Write Configurator demo artifacts; deny at budget 5; assert unified
+affinities/vitals. Do not invent pools.
+
+Failing oracle: basic fixtures throw invalid JSON state; budget 10 exits 0;
+affinity object undefined.
+Validation: demo-smoke, hazard-resource-plan, content-gen catalog route,
+adapters-cli-no-actor-authoring, typecheck. Perturb by restoring basic demo
+paths; restore. Leave invent-required pool denials red. Row 9 later reviewer.

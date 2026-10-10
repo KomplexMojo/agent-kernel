@@ -2,6 +2,87 @@
 
 ## Start here
 
+LATEST September 22: leftover demo-cli writes Configurator boxed terrain plus
+delver artifacts (basic stationary fixtures stay off the run path). resource-plan
+low-budget denial uses budget 5 (totalCost 6). content-gen catalog oracle reads
+unified resource affinities/vitals. Restoring basic demo fixtures failed invalid
+JSON state; restored. Typecheck 0. Wiring 36 vs 13. Leave llm-plan/scenario/
+authoring pool denials, occupancy, proximityRadius, V1, tools/benchmark env
+red. Row 9 later reviewer. No commit/push/PR.
+
+LATEST September 22: leftover actor-proposal-replay asserts ActionV1
+params.target; filter uses defeated eligibility (not leftover tile kinds).
+Leftover delver/warden plan oracles read actor.affinities; configurator
+tile_floor quantity is terrain floors (9). loadMvpScenario stays for
+observation/render surface. Restoring from/to expect failed; restored.
+Typecheck 0. Wiring 36 vs 13. Leave delver-plan maximize pool short 5,
+llm-plan/authoring pool denials, occupancy, proximityRadius, V1,
+tools/benchmark env red. Row 9 later reviewer. No commit/push/PR.
+
+LATEST September 22: leftover gameplay-surface-ingestion builds Configurator
+run bundles instead of compiling leftover delver-warden-battle tiles.
+Restoring leftover scenario compile failed category storage; restored. Shared
+battle scenario stays leftover-red for melee. Typecheck 0. Wiring 36 vs 13.
+Leave llm-plan/warden-pool 0, authoring delver-pool short, occupancy,
+proximityRadius, V1, tools/benchmark env red. Row 9 later reviewer. No
+commit/push/PR.
+
+LATEST September 22: leftover ak-golden run/replay/inspect writes Configurator
+boxed terrain plus delver artifacts; leftover basic stationary fixtures stay
+off the CLI path. Restoring basic fixtures failed invalid JSON state; restored.
+Typecheck 0. Wiring 36 vs 13. Leave llm-plan/warden-pool 0, t1-medium rooms
+pool, occupancy, proximityRadius, V1, and tools/benchmark env red. Row 9
+adversarial is later reviewer. No commit/push/PR.
+
+LATEST September 22: row 8 suite recount — 4202 tests, 3935 passed, 86 failed,
+181 pending; typecheck 0. Wiring 36 vs 13. Prior recount 4198/3808/162/228.
+Remaining red includes invent-required pool denials (llm-plan warden-pool 0),
+tools/benchmark env, occupancy, proximityRadius, V1 — not a license to restore
+legacy APIs. Leave those red. Row 9 adversarial is later reviewer. No
+commit/push/PR.
+
+LATEST September 22: leftover JS-spread water/fire overlap builds tiles and
+hazard visuals from Configurator terrain plus presentation hazard actors
+(affinity-field-bridge mapping). Orphan affinity-overlap fixture removed.
+Empty hazards failed origin visual; restored. Typecheck 0. Wiring 36 vs 13.
+Leave llm-plan/warden-pool 0, t1-medium rooms pool, spawn/exit occupancy,
+proximityRadius, and V1 resources red. No commit/push/PR.
+
+LATEST September 22: leftover e2e-annotator stamps lossless delver/warden
+categories on ambulatory fixture actors; AffinitySummary.hazards is []
+(hazards map to actors); viability stamina floor only on authored actors.
+Dropping categories failed prepareAuthoredActor; restored. Typecheck 0.
+Wiring 36 vs 13. Leave leftover JS-spread overlap fixture collections,
+llm-plan/warden-pool 0, t1-medium rooms pool, spawn/exit occupancy,
+proximityRadius, and V1 resources red. No commit/push/PR.
+
+LATEST September 22: leftover configurator-startup rebuilds the hazard-grid
+oracle through Configurator terrain plus actor_mvp (fire/push, life/pull).
+Asserts registry vitals and terrain glyphs; leftover tiles/kinds/hazards stay
+off SimConfig. Restoring leftover hazard fixtures failed; restored. Typecheck
+0. Wiring 36 vs 13. Leave leftover e2e-annotator ambulatory actors, JS-spread
+overlap, llm-plan/warden-pool 0, t1-medium rooms pool, spawn/exit occupancy,
+proximityRadius, and V1 resources red. No commit/push/PR.
+
+LATEST September 21: leftover Allocator G1 reconciles and leftover
+runtime-persona-schedule use Configurator boxed terrain plus actor_mvp.
+Shared leftover mvp-grid tiles stay on the movement fixture. Restoring
+leftover tiles failed; restored. Typecheck 0. Wiring 36 vs 13. Leave
+leftover configurator-startup hazard tiles, JS-spread overlap,
+llm-plan/warden-pool 0, t1-medium rooms pool, spawn/exit occupancy,
+proximityRadius, and V1 resources red. No commit/push/PR.
+
+LATEST September 20: leftover generateTierLayout oracles read terrain
+spawn/exit cells; leftover tiles/spawn/exit objects stay off generated
+layouts. Allocator countFloorTiles bills terrain floor cells instead of
+falling through to leftover width×height (I4 484→50). create-g1 goldens
+regenerated from live charges (tile_floor 25, total 170). Pool-denial
+remaining snapshot 188; warden 186/176 short 10 unchanged. Leave leftover
+mvp-grid tiles in reconciles fixtures, JS-spread overlap collections,
+llm-plan/warden-pool 0, t1-medium rooms pool, spawn/exit occupancy,
+proximityRadius, and V1 resources red. Typecheck 0. Wiring 36 vs 13.
+No commit/push/PR.
+
 STANDING ORDER September 16: run the autonomous completion queue in Plan.md
 without waiting for a maintainer prompt between S milestones. Local worktree
 only. No push or PR. Stop only on the Plan escalate list.

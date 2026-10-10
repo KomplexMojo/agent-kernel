@@ -8,12 +8,46 @@ OUT_DIR="${1:-"$ROOT/artifacts/demo-bundle"}"
 mkdir -p "$OUT_DIR"
 
 SOLVER_FIXTURE="$ROOT/tests/fixtures/artifacts/solver-result-v1-basic.json"
-SIM_CONFIG="$ROOT/tests/fixtures/artifacts/sim-config-artifact-v1-basic.json"
-INITIAL_STATE="$ROOT/tests/fixtures/artifacts/initial-state-artifact-v1-basic.json"
 IPFS_FIXTURE="$ROOT/tests/fixtures/adapters/ipfs-price-list.json"
 CHAIN_FIXTURE="$ROOT/tests/fixtures/adapters/blockchain-chain-id.json"
 BALANCE_FIXTURE="$ROOT/tests/fixtures/adapters/blockchain-balance.json"
 LLM_FIXTURE="$ROOT/tests/fixtures/adapters/llm-generate.json"
+
+# Leftover basic stationary fixtures fail runtime.init (invalid JSON state). Write
+# Configurator boxed terrain + delver artifacts for the demo run/replay path.
+DEMO_ARTIFACTS="$OUT_DIR/artifacts"
+mkdir -p "$DEMO_ARTIFACTS"
+DEMO_ARTIFACTS="$DEMO_ARTIFACTS" ROOT="$ROOT" node --input-type=module <<'EOF'
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+const { boxedTerrain, buildUnifiedArtifacts } = await import(
+  `${process.env.ROOT}/tests/fixtures/personas/unified-actor-runtime.mjs`
+);
+const width = 3;
+const height = 3;
+const terrain = boxedTerrain(width, height);
+terrain[1 * width + 1] = 'floor';
+const { simConfig, initialState } = buildUnifiedArtifacts({
+  width,
+  height,
+  terrain,
+  runId: 'run_demo_cli',
+  clock: '2025-01-01T00:00:00.000Z',
+  producedBy: 'demo-cli',
+  actors: [{
+    id: 'actor_1',
+    category: 'delver',
+    position: { x: 1, y: 1 },
+    motivations: ['exploring'],
+    vitals: { health: { current: 10, max: 10, regen: 0 } },
+  }],
+});
+const dir = process.env.DEMO_ARTIFACTS;
+writeFileSync(join(dir, 'sim-config.json'), `${JSON.stringify(simConfig, null, 2)}\n`);
+writeFileSync(join(dir, 'initial-state.json'), `${JSON.stringify(initialState, null, 2)}\n`);
+EOF
+SIM_CONFIG="$DEMO_ARTIFACTS/sim-config.json"
+INITIAL_STATE="$DEMO_ARTIFACTS/initial-state.json"
 
 echo "Writing demo artifacts to $OUT_DIR"
 

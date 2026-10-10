@@ -1,6 +1,63 @@
 # Implementation runbook
 Run commands from the existing isolated unified-actor worktree root. Read Handoff.md and Plan.md for current status; cloud startup notes are retained for portability.
 
+Leftover demo-cli Configurator artifacts; resource-plan denial budget 5;
+catalog unified resource oracle. Leave invent-required pool denials red. Row 9
+later reviewer.
+Validation:
+`pnpm run test:vitest -- tests/adapters-cli/demo-smoke.test.js tests/adapters-cli/ak-hazard-resource-plan.test.js tests/tools/remote-ollama-content-gen-catalog.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js` and `pnpm run typecheck`.
+
+Leftover ActionV1 target params, delver/warden affinities oracles, and
+configurator terrain floor billing (9). Leave invent-required pool denials
+red. Row 9 later reviewer.
+Validation:
+`pnpm run test:vitest -- tests/runtime/actor-proposal-replay.test.js tests/adapters-cli/ak-delver-plan.test.js tests/adapters-cli/ak-warden-plan.test.js tests/adapters-cli/ak-configurator.test.js tests/architecture/dependency-direction.test.js` and `pnpm run typecheck`.
+
+Leftover gameplay-surface-ingestion uses Configurator run bundles; shared
+delver-warden-battle tiles stay leftover-red. Leave invent-required pool
+denials red. Row 9 later reviewer.
+Validation:
+`pnpm run test:vitest -- tests/ui-web/gameplay-surface-ingestion.test.js tests/adapters-cli/ak-golden.test.js` and `pnpm run typecheck`.
+
+Leftover ak-golden run/replay/inspect uses Configurator boxed terrain plus
+delver. Leave llm-plan/pool denials, occupancy, proximityRadius, V1 red.
+Validation:
+`pnpm run test:vitest -- tests/adapters-cli/ak-golden.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js tests/architecture/dependency-direction.test.js` and `pnpm run typecheck`.
+
+Row 8 suite recount: 4202/3935/86/181; typecheck 0. Wiring 36 vs 13. Leave
+invent-required pool denials, occupancy, proximityRadius, V1 red. Row 9 later
+reviewer.
+Validation: `pnpm run test` and `pnpm run typecheck`.
+
+Leftover JS-spread water/fire overlap uses Configurator terrain plus
+presentation hazard actors; orphan overlap fixture removed. Leave
+llm-plan/t1-medium/pool denials, occupancy, proximityRadius, V1 red.
+Validation:
+`pnpm run test:vitest -- tests/ui-web/tile-affinity-visuals.test.mjs tests/runtime/e2e-annotator-artifacts.test.js tests/architecture/dependency-direction.test.js tests/architecture/ports-and-adapters-boundary.test.js` and `pnpm run typecheck`.
+
+Leftover e2e-annotator stamps lossless categories; AffinitySummary.hazards [].
+Leave leftover JS-spread overlap fixture collections and pool denials red.
+Validation:
+`pnpm run test:vitest -- tests/runtime/e2e-annotator-artifacts.test.js tests/runtime/configurator-startup.test.js tests/runtime/runtime-persona-schedule.test.js tests/personas/allocator/allocator-reconciles-or-nothing-does.test.js tests/architecture/dependency-direction.test.js tests/architecture/ports-and-adapters-boundary.test.js` and `pnpm run typecheck`.
+
+Leftover configurator-startup uses Configurator terrain plus actor_mvp. Leave
+leftover e2e-annotator ambulatory actors, JS-spread overlap, and pool denials
+red.
+Validation:
+`pnpm run test:vitest -- tests/runtime/configurator-startup.test.js tests/runtime/runtime-persona-schedule.test.js tests/personas/allocator/allocator-reconciles-or-nothing-does.test.js tests/architecture/dependency-direction.test.js tests/architecture/ports-and-adapters-boundary.test.js` and `pnpm run typecheck`.
+
+Leftover Allocator G1 reconciles and leftover runtime-persona-schedule use
+Configurator artifacts. Leave leftover configurator-startup hazard tiles,
+JS-spread overlap, and pool denials red.
+Validation:
+`pnpm run test:vitest -- tests/personas/allocator/allocator-reconciles-or-nothing-does.test.js tests/runtime/runtime-persona-schedule.test.js tests/architecture/pricing-authority.test.js tests/architecture/dependency-direction.test.js tests/architecture/ports-and-adapters-boundary.test.js` and `pnpm run typecheck`.
+
+Leftover generateTierLayout oracles read terrain spawn/exit. Allocator
+countFloorTiles bills terrain floors. Leave leftover mvp-grid tiles,
+JS-spread overlap, and pool denials red.
+Validation:
+`pnpm run test:vitest -- tests/runtime/e2e-fixture-generators.test.js tests/personas/allocator/allocator-terrain-floor-spend.test.js tests/personas/allocator/allocator-golden-receipts.test.js tests/personas/allocator/allocator-per-pool-denial.test.js tests/integration/create-multi-room-carving.test.js tests/architecture/pricing-authority.test.js tests/architecture/single-origin.test.js tests/architecture/allocator-base-costs-authority.test.js tests/architecture/allocator-receipt-authority.test.js` and `pnpm run typecheck`.
+
 Leftover gameplay-view, inspector, and affinity-field-bridge read presentation
 hazard/resource actors and terrain glyphs. Leave leftover JS-spread overlap
 fixture collections and pool denials red.

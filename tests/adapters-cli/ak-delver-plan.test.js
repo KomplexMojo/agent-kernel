@@ -164,8 +164,11 @@ test("cli delver-plan supports advanced affinities, vitals, setup mode, and rece
   const actor = initialState.actors[0];
   assert.equal(actor.vitals.health.max, 12);
   assert.equal(actor.vitals.mana.regen, 2);
-  assert.equal(actor.traits.affinities.fire, 3);
-  assert.equal(actor.traits.affinities.wind, 2);
+  assert.deepEqual(actor.affinities, [
+    { kind: "fire", expression: "push", stacks: 3 },
+    { kind: "wind", expression: "emit", stacks: 2 },
+  ]);
+  assert.equal(actor.traits?.affinities, undefined);
 
   const receipt = readJson(join(outDir, "budget-receipt.json"));
   const byId = new Map(receipt.lineItems.map((item) => [item.id, item]));

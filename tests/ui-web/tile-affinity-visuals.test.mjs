@@ -6,7 +6,6 @@ import {
   resolveTileVisualAt,
 } from "../../packages/ui-web/src/views/tile-affinity-visuals.js";
 import bundle from "../fixtures/ui-web/resource-hazard-run-bundle.json" with { type: "json" };
-import overlapFixture from "../fixtures/sandbox/affinity-overlap-v1-water-fire.json" with { type: "json" };
 import { buildUnifiedArtifacts } from "../fixtures/personas/unified-actor-runtime.mjs";
 import { createConfiguratorPersona } from "../../packages/runtime/src/personas/configurator/persona.js";
 
@@ -276,11 +275,8 @@ describe("resolveTileVisualAt", () => {
 });
 
 // ---------------------------------------------------------------------------
-// water fire overlap — uses affinity-overlap-v1-water-fire.json fixture
+// water fire overlap — Configurator terrain + hazard actors (no leftover tiles/hazards)
 // ---------------------------------------------------------------------------
-
-const overlapTiles   = overlapFixture.simConfig.layout.data.tiles;
-const overlapHazards = overlapFixture.simConfig.layout.data.hazards;
 
 function seedAuthoredActor(actor) {
   const configurator = createConfiguratorPersona({ clock: () => "2026-09-14T00:00:00.000Z" });
@@ -291,12 +287,76 @@ function seedAuthoredActor(actor) {
   return actor;
 }
 
+function waterFireOverlapArtifacts() {
+  const width = 5;
+  const height = 5;
+  return buildUnifiedArtifacts({
+    width,
+    height,
+    terrain: Array(width * height).fill("floor"),
+    actors: [
+      seedAuthoredActor({
+        category: "hazard",
+        id: "hazard-water-north",
+        position: { x: 2, y: 0 },
+        affinities: [{ kind: "water", expression: "emit", stacks: 3 }],
+        activeAffinityKey: "water:emit",
+      }),
+      seedAuthoredActor({
+        category: "hazard",
+        id: "hazard-fire-south",
+        position: { x: 2, y: 4 },
+        affinities: [{ kind: "fire", expression: "emit", stacks: 3 }],
+        activeAffinityKey: "fire:emit",
+      }),
+      seedAuthoredActor({
+        category: "delver",
+        id: "delver_1",
+        position: { x: 0, y: 2 },
+        motivations: ["exploring"],
+      }),
+    ],
+  });
+}
+
+/** JS-spread path inputs projected from unified artifacts (same mapping as affinity-field-bridge). */
+function waterFireSpreadInputs() {
+  const { simConfig, initialState } = waterFireOverlapArtifacts();
+  const width = simConfig.layout.data.width;
+  const height = simConfig.layout.data.height;
+  const terrain = simConfig.layout.data.terrain;
+  const glyphs = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+  const tiles = [];
+  for (let y = 0; y < height; y += 1) {
+    let row = "";
+    for (let x = 0; x < width; x += 1) {
+      row += glyphs[terrain[y * width + x]] || ".";
+    }
+    tiles.push(row);
+  }
+  const presentation = initialState.presentation ?? {};
+  const hazards = (initialState.actors || [])
+    .filter((actor) => {
+      const category = (actor?.category ?? presentation?.[actor?.id]?.category ?? "").toLowerCase();
+      return category === "hazard" || category === "hazards";
+    })
+    .map((actor) => {
+      const stacks = Array.isArray(actor.affinities) ? actor.affinities : [];
+      return {
+        ...actor,
+        entityType: "hazard",
+        position: actor.position,
+        affinityStacks: stacks,
+        emitStrength: stacks[0]?.stacks ?? 0,
+      };
+    });
+  return { tiles, hazards };
+}
+
 describe("water fire overlap", () => {
   it("hazard-spread path: water hazard origin (2,0) has affinityKind water", () => {
-    const visuals = deriveTileAffinityVisuals({
-      tiles: overlapTiles,
-      hazards: overlapHazards,
-    });
+    const { tiles, hazards } = waterFireSpreadInputs();
+    const visuals = deriveTileAffinityVisuals({ tiles, hazards });
     const waterOrigin = visuals.get("2,0");
     assert.ok(waterOrigin, "water hazard origin tile (2,0) must have a visual");
     assert.equal(waterOrigin.affinityKind, "water", "water origin must carry water affinity");
@@ -304,10 +364,8 @@ describe("water fire overlap", () => {
   });
 
   it("hazard-spread path: fire hazard origin (2,4) has affinityKind fire", () => {
-    const visuals = deriveTileAffinityVisuals({
-      tiles: overlapTiles,
-      hazards: overlapHazards,
-    });
+    const { tiles, hazards } = waterFireSpreadInputs();
+    const visuals = deriveTileAffinityVisuals({ tiles, hazards });
     const fireOrigin = visuals.get("2,4");
     assert.ok(fireOrigin, "fire hazard origin tile (2,4) must have a visual");
     assert.equal(fireOrigin.affinityKind, "fire", "fire origin must carry fire affinity");
@@ -318,10 +376,8 @@ describe("water fire overlap", () => {
     // Tile (2,2) is distance 2 from both water@(2,0) and fire@(2,4)
     // with emitStrength=3: intensity = 1 - 2/3 ≈ 0.33 from each hazard.
     // Hazard-spread path: fire wins (last processed), intensity = max(0.33, 0.33) = 0.33.
-    const visuals = deriveTileAffinityVisuals({
-      tiles: overlapTiles,
-      hazards: overlapHazards,
-    });
+    const { tiles, hazards } = waterFireSpreadInputs();
+    const visuals = deriveTileAffinityVisuals({ tiles, hazards });
     const overlap = visuals.get("2,2");
     assert.ok(overlap, "overlap tile (2,2) must have a visual");
     assert.ok(overlap.intensity > 0, "overlap tile intensity must be positive");
@@ -333,17 +389,12 @@ describe("water fire overlap", () => {
 
   it("non-overlapping tiles carry only their respective affinity", () => {
     // emitStrength=3: water@(2,0) reaches tiles up to distance 2; fire@(2,4) likewise.
-    // Tiles at distance 3 from one hazard but within 3 of the other are pure.
-    const visuals = deriveTileAffinityVisuals({
-      tiles: overlapTiles,
-      hazards: overlapHazards,
-    });
-    // (0,0) is distance 2 from water@(2,0) → in water field, and distance 6 from fire@(2,4) → out
+    const { tiles, hazards } = waterFireSpreadInputs();
+    const visuals = deriveTileAffinityVisuals({ tiles, hazards });
     const pureWater = visuals.get("0,0");
     assert.ok(pureWater, "tile (0,0) must be in the water field");
     assert.equal(pureWater.affinityKind, "water", "(0,0) must be pure water");
 
-    // (4,4) is distance 2 from fire@(2,4) → in fire field, and distance 6 from water@(2,0) → out
     const pureFire = visuals.get("4,4");
     assert.ok(pureFire, "tile (4,4) must be in the fire field");
     assert.equal(pureFire.affinityKind, "fire", "(4,4) must be pure fire");
@@ -353,35 +404,7 @@ describe("water fire overlap", () => {
     const { buildTileAffinityVisualsFromSandboxBundle } = await import(
       "../../packages/ui-web/src/views/affinity-field-bridge.js"
     );
-    const width = 5;
-    const height = 5;
-    const { simConfig, initialState } = buildUnifiedArtifacts({
-      width,
-      height,
-      terrain: Array(width * height).fill("floor"),
-      actors: [
-        seedAuthoredActor({
-          category: "hazard",
-          id: "hazard-water-north",
-          position: { x: 2, y: 0 },
-          affinities: [{ kind: "water", expression: "emit", stacks: 3 }],
-          activeAffinityKey: "water:emit",
-        }),
-        seedAuthoredActor({
-          category: "hazard",
-          id: "hazard-fire-south",
-          position: { x: 2, y: 4 },
-          affinities: [{ kind: "fire", expression: "emit", stacks: 3 }],
-          activeAffinityKey: "fire:emit",
-        }),
-        seedAuthoredActor({
-          category: "delver",
-          id: "delver_1",
-          position: { x: 0, y: 2 },
-          motivations: ["exploring"],
-        }),
-      ],
-    });
+    const { simConfig, initialState } = waterFireOverlapArtifacts();
     const visuals = await buildTileAffinityVisualsFromSandboxBundle({
       simConfig,
       initialState,

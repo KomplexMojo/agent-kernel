@@ -243,9 +243,14 @@ test("content authoring preserves blocking hazards and V3 affinity resources thr
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
   assert.equal(spec.configurator.inputs.levelGen.hazards[0].blocking, true);
-  assert.deepEqual(spec.configurator.inputs.resources[0].affinity, {
-    kind: "fire", expression: "push", stacks: 2, mana: 12, manaRegen: 0,
-  });
+  // Unified resource authoring lands as an actor-shaped record (affinities + vitals),
+  // not a leftover affinity object with inline mana/manaRegen fields.
+  const resource = spec.configurator.inputs.resources[0];
+  assert.equal(resource.category, "resource");
+  assert.deepEqual(resource.affinities, [{ kind: "fire", expression: "push", stacks: 2 }]);
+  assert.equal(resource.vitals.mana.current, 12);
+  assert.equal(resource.vitals.mana.max, 12);
+  assert.equal(resource.vitals.mana.regen, 0);
 });
 
 test("generated execution routes bind 26 exact semantic counterparts to the balanced catalog", async () => {
@@ -364,7 +369,8 @@ test("generated execution routes bind 26 exact semantic counterparts to the bala
     assert.equal(existsSync(join(outDir, "initial-state.json")), true);
     if (key === "EX-RS-04" || key === "EX-RS-05") {
       const spec = JSON.parse(readFileSync(join(outDir, "spec.json"), "utf8"));
-      assert.ok(spec.configurator.inputs.resources.every((resource) => resource.affinity),
+      assert.ok(spec.configurator.inputs.resources.every((resource) =>
+        Array.isArray(resource.affinities) && resource.affinities.length > 0),
         `${key} lost affinity during canonical authoring`);
     }
   }

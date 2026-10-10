@@ -129,7 +129,8 @@ test("cli configurator emits a budget receipt from budget inputs", () => {
 
   const layoutLine = receipt.lineItems.find((item) => item.id === "tile_floor" && item.kind === "tile");
   assert.ok(layoutLine);
-  assert.equal(layoutLine.quantity, 25);
+  // Terrain floor cells (not leftover width×height): 5×5 hazard grid bills 9 interior floors.
+  assert.equal(layoutLine.quantity, 9);
   assert.equal(layoutLine.unitCost, 0);
   assert.equal(layoutLine.totalCost, 0);
   assert.equal(layoutLine.status, "denied");

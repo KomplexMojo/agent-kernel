@@ -252,6 +252,10 @@ published reject reason with no producer, one layer down.
 `tests/personas/allocator/allocator-tile-charging.test.js` holds the census that fails if a
 tile price becomes unchargeable again.
 
+Unified layouts bill `terrain === "floor"` cells. Leftover `tiles` glyphs remain only when
+terrain is absent. Width × height is not a leftover-tiles substitute and must not bill walls,
+spawn, or exit as floors.
+
 ### EVERYTHING COSTS SOMETHING — the rule, and why it is a rule
 
 **Maintainer rule, 2026-08-05: everything in the game has a cost, even if only the 1-token

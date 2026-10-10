@@ -165,7 +165,7 @@
     {
       "id": "tile_floor",
       "kind": "tile",
-      "quantity": 81,
+      "quantity": 25,
       "category": "floor_tiles",
       "subjectRef": {
         "id": "layout",

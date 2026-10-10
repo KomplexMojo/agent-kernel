@@ -178,8 +178,11 @@ test("cli warden-plan supports advanced affinities, vitals, and receipt accounti
   const actor = initialState.actors[0];
   assert.equal(actor.vitals.health.max, 15);
   assert.equal(actor.vitals.stamina.regen, 1);
-  assert.equal(actor.traits.affinities.dark, 4);
-  assert.equal(actor.traits.affinities.earth, 1);
+  assert.deepEqual(actor.affinities, [
+    { kind: "dark", expression: "emit", stacks: 4 },
+    { kind: "earth", expression: "pull", stacks: 1 },
+  ]);
+  assert.equal(actor.traits?.affinities, undefined);
 
   const receipt = readJson(join(outDir, "budget-receipt.json"));
   const byId = new Map(receipt.lineItems.map((item) => [item.id, item]));
