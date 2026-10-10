@@ -103,6 +103,23 @@ test("bundled levels are versioned artifacts", () => {
   }
 });
 
+// The Configurator floors every authored actor to ACTOR_VIABILITY_FLOOR
+// (applyActorViabilityFloor). Bundled levels are hand-written artifacts that
+// never pass through it, so they must already sit at or above the floor.
+test("every actor in a bundled level meets the actor viability floor", () => {
+  const { ACTOR_VIABILITY_FLOOR } = require("../../packages/runtime/src/contracts/domain-constants.js");
+  for (const { name, initialState } of loadBundledLevels()) {
+    for (const actor of initialState.actors) {
+      for (const [key, floor] of Object.entries(ACTOR_VIABILITY_FLOOR)) {
+        const vital = actor.vitals[key];
+        assert.ok(vital.max >= floor.max, `${name}/${actor.id} ${key}.max ${vital.max} < ${floor.max}`);
+        assert.ok(vital.current >= floor.max, `${name}/${actor.id} ${key}.current ${vital.current} < ${floor.max}`);
+        assert.ok(vital.regen >= floor.regen, `${name}/${actor.id} ${key}.regen ${vital.regen} < ${floor.regen}`);
+      }
+    }
+  }
+});
+
 test("an unknown bundled level is refused with the list of real ones", () => {
   assert.throws(() => loadBundledLevel("nope"), /Unknown level "nope".*first-steps/);
 });
@@ -165,7 +182,7 @@ test("the screen shows the board, present vitals only, tick, turns and the statu
   assert.match(screen, /first-steps \(1\/2\)/);
   assert.match(screen, /^ {2}S@\.\.#\.\.\.#$/m);
   assert.match(screen, /HP █+ 10\/10/);
-  assert.doesNotMatch(screen, /MP /, "a 0/0 mana pool is not drawn");
+  assert.match(screen, /MP █+ 10\/10/);
   assert.match(screen, /Tick 0 {3}Turns 0/);
   assert.match(screen, /Find the exit/);
   assert.doesNotMatch(screen, /\u001b\[/, "no ANSI unless colour is asked for");
