@@ -9,7 +9,12 @@
  * comes from `render/ascii-cell-style.js`, which reads the approved palette.
  * This module only lays them out and turns hex into terminal escape codes.
  */
-import { asciiActorCellStyle, buildAsciiCellStyles } from "../../runtime/src/render/ascii-cell-style.js";
+import {
+  asciiActorCellStyle,
+  asciiRememberedCellStyle,
+  buildAsciiCellStyles,
+} from "../../runtime/src/render/ascii-cell-style.js";
+import { PLAY_SIGHT } from "../../runtime/src/runner/play-session.js";
 import { ASCII_ENTITY_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
 
@@ -33,14 +38,16 @@ function paint(text, hex, color) {
 /**
  * Colour one board row cell by cell; characters with no style stay plain.
  * `cellStyles` (column -> style) overrides the per-character style, which is
- * how an actor's affinity colours its cell.
+ * how an actor's affinity colours its cell. `sightRow` (the play session's
+ * fog of war) dims the cells the player only remembers.
  */
-export function paintBoardRow(row, styles, cellStyles = null) {
+export function paintBoardRow(row, styles, cellStyles = null, sightRow = null) {
   let out = "";
   let open = null;
   for (let x = 0; x < row.length; x += 1) {
     const char = row[x];
-    const style = cellStyles?.get(x) || styles[char] || null;
+    const base = cellStyles?.get(x) || styles[char] || null;
+    const style = sightRow?.[x] === PLAY_SIGHT.REMEMBERED ? asciiRememberedCellStyle(base) : base;
     const code = style ? `${ansiForHex(style.bg, 48)}${ansiForHex(style.fg, 38)}` : "";
     if (code !== open) {
       out += open ? RESET : "";
@@ -145,7 +152,7 @@ export function renderScreen({
   const actorCells = color ? actorCellStyles(view) : null;
   const playerPosition = view.player?.position;
   overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition).forEach((row, y) => {
-    lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y)) : row}`);
+    lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y]) : row}`);
   });
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
