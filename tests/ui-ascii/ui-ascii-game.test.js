@@ -34,6 +34,9 @@ function solve(levelName) {
   const level = loadBundledLevel(levelName);
   const { tiles, exitApproach } = level.simConfig.layout.data;
   const start = level.initialState.actors[0].position;
+  // Other actors' starting cells count as walls: the level must be winnable
+  // even if nobody else ever moves.
+  const occupied = new Set(level.initialState.actors.slice(1).map((actor) => `${actor.position.x},${actor.position.y}`));
   const steps = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
   const key = (p) => `${p.x},${p.y}`;
   const prev = new Map([[key(start), null]]);
@@ -43,7 +46,7 @@ function solve(levelName) {
     if (at.x === exitApproach.x && at.y === exitApproach.y) break;
     for (const [direction, [dx, dy]] of Object.entries(steps)) {
       const next = { x: at.x + dx, y: at.y + dy };
-      if (tiles[next.y]?.[next.x] !== "." || prev.has(key(next))) continue;
+      if (tiles[next.y]?.[next.x] !== "." || prev.has(key(next)) || occupied.has(key(next))) continue;
       prev.set(key(next), { at, direction });
       queue.push(next);
     }
@@ -71,10 +74,16 @@ test("a chunk of input splits into keys with escape sequences kept whole", () =>
 });
 
 test("bundled levels list in play order and every one loads and is winnable", async () => {
-  assert.deepEqual(listBundledLevels(), ["first-steps", "long-way-round"]);
+  assert.deepEqual(listBundledLevels(), ["first-steps", "long-way-round", "warden-hall"]);
   for (const name of listBundledLevels()) {
     const { level, path } = solve(name);
     assert.ok(path.length > 0, `${name} has a path to its exit`);
+    // With other actors taking turns the replay is no longer a fixed script,
+    // so only solo levels are replayed move for move.
+    if (level.initialState.actors.length > 1) {
+      assert.equal((await createPlaySession(level)).playerActorId, "player", `${name} plays the delver`);
+      continue;
+    }
     const session = await createPlaySession(level);
     for (const direction of path) {
       const result = await session.act({ kind: "move", params: { direction } });
@@ -165,9 +174,11 @@ test("the screen shows the board, present vitals only, tick, turns and the statu
 
 test("cli arguments parse, and bad ones are errors", () => {
   assert.deepEqual(parseArgs(["--level", "long-way-round", "--no-color"]), { color: false, level: "long-way-round" });
+  assert.deepEqual(parseArgs(["--", "--level", "warden-hall"]), { color: true, level: "warden-hall" }, "pnpm's -- separator is ignored");
   assert.throws(() => parseArgs(["--level"]), /needs a value/);
   assert.throws(() => parseArgs(["--bogus"]), /Unknown option/);
   assert.equal(resolveLevels({ level: "long-way-round" }).startIndex, 1);
+  assert.equal(resolveLevels({ level: "warden-hall" }).startIndex, 2);
   assert.throws(() => resolveLevels({ simConfigPath: "x.json" }), /required together/);
 });
 

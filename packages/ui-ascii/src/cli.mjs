@@ -40,6 +40,8 @@ export function parseArgs(argv) {
       return value;
     };
     switch (arg) {
+      // `pnpm run play:ascii -- --level x` forwards the separator itself.
+      case "--": break;
       case "--level": options.level = next(); break;
       case "--run": options.runDir = next(); break;
       case "--sim-config": options.simConfigPath = next(); break;

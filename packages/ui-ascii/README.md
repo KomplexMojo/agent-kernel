@@ -39,6 +39,6 @@ The simulation side is `packages/runtime/src/runner/play-session.js`: `await cre
 
 ## Other actors
 
-Core's frame buffer draws only the player. When the play session reports other actors (`view().actors`), the screen draws them on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden. Whether they move is the play session's business, not this package's.
+Core's frame buffer draws only the player. When the play session reports other actors (`view().actors`), the screen draws them on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden. Whether they move is the play session's business, not this package's. `warden-hall` is the bundled level with wardens in it (two, patrolling).
 
 Add a level by dropping a new artifact pair into `levels/`; file names sort into play order, and `tests/ui-ascii/ui-ascii-game.test.js` checks that every bundled level is winnable.

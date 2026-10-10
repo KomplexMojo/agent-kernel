@@ -1,0 +1,112 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "initial_state_warden-hall",
+    "runId": "ui_ascii_warden-hall",
+    "createdAt": "2026-10-10T00:00:00.000Z",
+    "producedBy": "ui-ascii"
+  },
+  "simConfigRef": {
+    "id": "sim_config_warden-hall",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "player",
+      "kind": "ambulatory",
+      "role": "delver",
+      "position": {
+        "x": 1,
+        "y": 1
+      },
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "warden-1",
+      "kind": "ambulatory",
+      "role": "warden",
+      "motivation": "patrolling",
+      "position": {
+        "x": 6,
+        "y": 5
+      },
+      "vitals": {
+        "health": {
+          "current": 8,
+          "max": 8,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "warden-2",
+      "kind": "ambulatory",
+      "role": "warden",
+      "motivation": "patrolling",
+      "position": {
+        "x": 12,
+        "y": 3
+      },
+      "vitals": {
+        "health": {
+          "current": 8,
+          "max": 8,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    }
+  ]
+}
