@@ -6,6 +6,7 @@ const ROOT = resolve(__dirname, "../..");
 const PACKAGES_ROOT = resolve(ROOT, "packages");
 const CORE_ROOT = resolve(PACKAGES_ROOT, "core-ts/src");
 const RUNTIME_ROOT = resolve(PACKAGES_ROOT, "runtime/src");
+const UI_ASCII_ROOT = resolve(PACKAGES_ROOT, "ui-ascii/src");
 
 const SOURCE_EXTENSIONS = new Set([".cjs", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
 const SKIPPED_DIRECTORIES = new Set(["dist", "node_modules"]);
@@ -14,6 +15,7 @@ const FORBIDDEN_RUNTIME_DEPENDENCIES = new Set([
   "adapters-cli",
   "adapters-test",
   "ui-web",
+  "ui-ascii",
 ]);
 const FORBIDDEN_CORE_IO = [
   { label: "fs", pattern: /\bfs\b/ },
@@ -238,5 +240,38 @@ test("runtime does not import adapter or UI packages", () => {
     violations.length,
     0,
     formatViolations("runtime dependency direction violation(s):", violations),
+  );
+});
+
+// The charter keeps UI code on runtime helpers: "Browser UI code must call
+// runtime helpers rather than importing core-ts directly." ui-ascii is the
+// terminal UI, so it gets the same rule, stated as an allowlist: its own files,
+// runtime, and Node built-ins (it owns terminal and file IO). Adapters and the
+// other UI are siblings, not dependencies.
+test("ui-ascii imports only itself, runtime, and node built-ins", () => {
+  const violations = [];
+  const allowedRoots = [realpathSync(UI_ASCII_ROOT), realpathSync(RUNTIME_ROOT)];
+
+  for (const file of collectSourceFiles(UI_ASCII_ROOT).sort()) {
+    const source = readFileSync(file, "utf8");
+    for (const specifier of importSpecifiers(source)) {
+      if (specifier.startsWith("node:")) continue;
+      if (!specifier.startsWith(".")) {
+        violations.push(`${toRepoPath(file)} -> ${specifier} (bare specifier; use node: built-ins or runtime)`);
+        continue;
+      }
+      const target = resolveImportTarget(file, specifier);
+      if (!target) {
+        violations.push(`${toRepoPath(file)} -> ${specifier} (does not resolve)`);
+      } else if (!allowedRoots.some((root) => isInside(realpathSync(target), root))) {
+        violations.push(`${toRepoPath(file)} -> ${specifier} (outside ui-ascii and runtime)`);
+      }
+    }
+  }
+
+  assert.equal(
+    violations.length,
+    0,
+    formatViolations("ui-ascii dependency direction violation(s):", violations),
   );
 });

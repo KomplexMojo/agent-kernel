@@ -1,0 +1,8 @@
+{
+  "name": "ui-ascii",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "ak-maze": "src/cli.mjs"
+  }
+}
