@@ -1821,6 +1821,47 @@ export function createWorldState() {
       return affinityFieldContribCount[fieldIndexFor(x, y, kind)];
     },
 
+    /**
+     * Fog of war: how much emitted light reaches each cell, row-major
+     * (`y * width + x`), as the strongest emitting source's stacks.
+     *
+     * Sources are light on EMIT only: static hazards that still have mana, and
+     * actors whose primary affinity is light on emit. Reach is the emit radius
+     * (`computeAffinityRadius`), Manhattan like the field projection, but
+     * without the emit dead zone next to the source: that buffer shapes field
+     * intensity, and a lamp that leaves a dark ring around itself is not light.
+     * Dark is NOT applied here; the visibility rule weighs it per cell.
+     */
+    readLightLevels(): number[] {
+      const levels = new Array<number>(cellCount).fill(0);
+      const lightUp = (srcX: number, srcY: number, stacks: number): void => {
+        const radius = computeAffinityRadius(SIGHT_LIGHT_EXPRESSION, stacks);
+        for (let cy = Math.max(srcY - radius, 0); cy <= Math.min(srcY + radius, height - 1); cy++) {
+          const xRange = radius - Math.abs(cy - srcY);
+          for (let cx = Math.max(srcX - xRange, 0); cx <= Math.min(srcX + xRange, width - 1); cx++) {
+            const ci = cy * width + cx;
+            if (stacks > levels[ci]) levels[ci] = stacks;
+          }
+        }
+      };
+      for (let ci = 0; ci < cellCount; ci++) {
+        if (staticHazardAffinityByCell[ci] !== SIGHT_AFFINITY_KINDS.LIGHT) continue;
+        if (staticHazardExpressionByCell[ci] !== SIGHT_LIGHT_EXPRESSION) continue;
+        if (staticHazardManaReserveByCell[ci] <= 0) continue;
+        const stacks = staticHazardStacksByCell[ci];
+        if (stacks <= 0) continue;
+        lightUp(ci % width, Math.trunc(ci / width), stacks);
+      }
+      for (let i = 0; i < motivatedActorCount; i++) {
+        if (motivatedActorAffinityKindArr[i] !== SIGHT_AFFINITY_KINDS.LIGHT) continue;
+        if (motivatedActorAffinityExpressionArr[i] !== SIGHT_LIGHT_EXPRESSION) continue;
+        const stacks = motivatedActorAffinityStacksArr[i];
+        if (stacks <= 0) continue;
+        lightUp(motivatedActorXArr[i], motivatedActorYArr[i], stacks);
+      }
+      return levels;
+    },
+
     computeStaticHazardAffinityField(): number {
       clearAffinityFieldArrays();
       let count = 0;

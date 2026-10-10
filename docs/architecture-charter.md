@@ -415,7 +415,8 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - Data-only effects with deterministic ids/requestIds and adapter hints.
 - Affinity system: 10-kind codebook, spatial formulas, interaction matrix, static hazard and actor field computation.
 - Visibility system: unlit levels (one-tile baseline, extended only by the observer's own emitted
-  light), affinity-derived sight radius, deterministic wall/barrier supercover occlusion, target-dark
+  light), lit cells (any emitted light makes the cells it reaches visible in line of sight unless dark
+  wins there), affinity-derived sight radius, deterministic wall/barrier supercover occlusion, target-dark
   concealment, pure per-observer scoping of actors and hazards, and the per-tile visible set a fog-of-war
   view draws from. Runtime sequences the live tile/field inputs; it does not reimplement perception policy.
 - Motivation system: 12-kind codebook, behavior flags, and profile derivation. (Motivation

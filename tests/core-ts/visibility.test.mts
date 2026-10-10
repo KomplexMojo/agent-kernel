@@ -27,6 +27,7 @@
 import { describe, expect, test } from "vitest";
 
 import { createCore } from "../../packages/core-ts/src/index.ts";
+import { computeAffinityRadius } from "../../packages/core-ts/src/state/affinity-spatial.ts";
 import {
   BASELINE_SIGHT_RADIUS,
   computeVisibleCells,
@@ -450,6 +451,107 @@ describe("computeVisibleCells", () => {
   test("malformed geometry yields an empty grid", () => {
     expect(computeVisibleCells([] as never, { x: 0, y: 0 }, 1)).toEqual([]);
     expect(computeVisibleCells([[0, 0], [0]] as never, { x: 0, y: 0 }, 1)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Lit cells: light that hazards (or anyone) emit lets the observer see into it
+// ---------------------------------------------------------------------------
+
+describe("lit cells", () => {
+  const open = (w: number, h: number) => Array.from({ length: h }, () => Array(w).fill(0));
+
+  test("a lit cell beyond the observer's radius is visible when in line of sight", () => {
+    const grid = computeVisibleCells(open(9, 3), { x: 0, y: 1 }, 1, { lightByCell: { "6,1": 2 } });
+    expect(grid[1][6]).toBe(1);
+    expect(grid[1][5]).toBe(0);
+  });
+
+  test("a lit cell behind a wall stays hidden", () => {
+    const kinds = open(9, 3);
+    kinds[1][3] = 1;
+    const grid = computeVisibleCells(kinds, { x: 0, y: 1 }, 1, { lightByCell: { "6,1": 2 } });
+    expect(grid[1][6]).toBe(0);
+  });
+
+  test("dark at the obscure threshold puts a lit cell out", () => {
+    const grid = computeVisibleCells(open(9, 3), { x: 0, y: 1 }, 1, {
+      lightByCell: { "6,1": 2 },
+      darkStacksByCell: { "6,1": DARKNESS_OBSCURE_STACK_THRESHOLD },
+    });
+    expect(grid[1][6]).toBe(0);
+  });
+
+  test("an actor or hazard standing in a lit cell is perceived from afar", () => {
+    const observation = {
+      actors: [
+        { id: "self", position: { x: 0, y: 1 } },
+        { id: "lit", position: { x: 6, y: 1 } },
+        { id: "dark", position: { x: 7, y: 1 } },
+      ],
+      hazards: [{ id: "lamp", position: { x: 6, y: 1 } }],
+      tiles: { kinds: open(9, 3) },
+    };
+    const scoped = scopeObservation(observation, "self", 1, { lightByCell: { "6,1": 2 } });
+    expect(scoped.actors.map((entry: { id: string }) => entry.id)).toEqual(["self", "lit"]);
+    expect(scoped.hazards).toEqual([{ id: "lamp", position: { x: 6, y: 1 } }]);
+  });
+});
+
+describe("readLightLevels", () => {
+  const LIGHT = 9;
+  const DARK = 10;
+  const PUSH = 1;
+  const EMIT = 3;
+
+  function floorCore(w: number, h: number) {
+    const core = createCore();
+    call(core.configureGrid, w, h);
+    setAllFloors(core, w, h);
+    return core;
+  }
+
+  function levelAt(levels: number[], w: number, x: number, y: number): number {
+    return levels[y * w + x];
+  }
+
+  test("a light hazard on emit lights its own cell and its emit radius, and no further", () => {
+    const core = floorCore(15, 3);
+    call(core.armStaticHazardAt, 2, 1, LIGHT, EMIT, 3, 5);
+    const reach = computeAffinityRadius(EMIT, 3);
+    const levels = call(core.readLightLevels) as number[];
+
+    expect(levels).toHaveLength(15 * 3);
+    expect(levelAt(levels, 15, 2, 1)).toBe(3);
+    expect(levelAt(levels, 15, 2 + reach, 1)).toBe(3);
+    expect(levelAt(levels, 15, 2 + reach + 1, 1)).toBe(0);
+  });
+
+  test("a hazard out of mana, a dark hazard, and pushed light light nothing", () => {
+    const core = floorCore(9, 3);
+    call(core.armStaticHazardAt, 1, 1, LIGHT, EMIT, 3, 0);
+    call(core.armStaticHazardAt, 4, 1, DARK, EMIT, 3, 5);
+    call(core.armStaticHazardAt, 7, 1, LIGHT, PUSH, 3, 5);
+    const levels = call(core.readLightLevels) as number[];
+    expect(levels.every((level) => level === 0)).toBe(true);
+  });
+
+  test("an actor emitting light lights its surroundings too", () => {
+    const core = floorCore(9, 3);
+    call(core.clearActorPlacements);
+    call(core.addActorPlacement, 10, 4, 1);
+    call(core.applyActorPlacements);
+    call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 2);
+    const levels = call(core.readLightLevels) as number[];
+    expect(levelAt(levels, 9, 4, 1)).toBe(2);
+  });
+
+  test("the strongest light reaching a cell wins", () => {
+    const core = floorCore(9, 3);
+    call(core.armStaticHazardAt, 3, 1, LIGHT, EMIT, 1, 5);
+    call(core.armStaticHazardAt, 4, 1, LIGHT, EMIT, 3, 5);
+    const levels = call(core.readLightLevels) as number[];
+    expect(levelAt(levels, 9, 3, 1)).toBe(3);
   });
 });
 
