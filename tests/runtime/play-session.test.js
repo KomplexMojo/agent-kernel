@@ -292,6 +292,29 @@ test("with fog, traps out of sight are not reported", async () => {
   assert.deepEqual(session.view().hazards.map((h) => h.id), ["near"]);
 });
 
+test("with fog, a light-emitting trap lights its cells, which the player sees from afar", async () => {
+  // Player at (2,1), unlit, so its own sight is one tile. The lamp at (3,3) is two
+  // tiles away in line of sight; its light makes it, and the cells it reaches, visible.
+  const withLamp = (affinity) => ({
+    ...simConfig,
+    layout: {
+      ...simConfig.layout,
+      data: {
+        ...simConfig.layout.data,
+        hazards: [{ id: "lamp", affinity, expression: "emit", stacks: 2, position: { x: 3, y: 3 } }],
+      },
+    },
+  });
+  const lit = (await createPlaySession({ simConfig: withLamp("light"), initialState, fog: true })).view();
+  assert.equal(lit.sight[3][3], PLAY_SIGHT.VISIBLE, "the lamp's own cell");
+  assert.equal(lit.sight[3][1], PLAY_SIGHT.VISIBLE, "a cell the lamp lights, in line of sight");
+  assert.deepEqual(lit.hazards.map((h) => h.id), ["lamp"]);
+
+  const unlit = (await createPlaySession({ simConfig: withLamp("fire"), initialState, fog: true })).view();
+  assert.notEqual(unlit.sight[3][3], PLAY_SIGHT.VISIBLE, "fire emits no light");
+  assert.deepEqual(unlit.hazards, []);
+});
+
 test("without fog, every cell is visible and rows are core's frame", async () => {
   const view = (await newSession()).view();
   assert.ok(view.sight.every((row) => /^v+$/.test(row)));

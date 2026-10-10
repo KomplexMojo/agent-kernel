@@ -247,6 +247,7 @@ export const CORE_API_KEYS = [
   "placeResourceAt",
   "prepareTileBuffer",
   "raiseBarrierAt",
+  "readLightLevels",
   "removeResourceAt",
   "renderBaseCellChar",
   "renderCellChar",
@@ -642,6 +643,7 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getAffinityFieldIntensityAt = world.getAffinityFieldIntensityAt as CoreFunction;
   core.getAffinityFieldStacksAt = world.getAffinityFieldStacksAt as CoreFunction;
   core.getVisibilityRadiusForActorIndex = world.getVisibilityRadiusForActorIndex as CoreFunction;
+  core.readLightLevels = world.readLightLevels as CoreFunction;
   core.getAffinityFieldExpressionAt = world.getAffinityFieldExpressionAt as CoreFunction;
   core.getAffinityFieldContributionCountAt = world.getAffinityFieldContributionCountAt as CoreFunction;
   core.computeStaticHazardAffinityField = world.computeStaticHazardAffinityField as CoreFunction;
