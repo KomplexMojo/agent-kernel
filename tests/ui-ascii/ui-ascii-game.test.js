@@ -133,6 +133,10 @@ test("a level loads from an ak run directory's build artifacts", () => {
     const level = loadLevelFromRunDir(runDir);
     assert.equal(level.simConfig.meta.id, "sim_config_first-steps");
     assert.throws(() => loadLevelFromRunDir(join(runDir, "missing")), /No sim-config.json/);
+    // `ak create --out-dir` writes the pair at the top level.
+    copyFileSync(join(BUNDLED_LEVELS_DIR, "long-way-round.sim-config.json"), join(runDir, "sim-config.json"));
+    copyFileSync(join(BUNDLED_LEVELS_DIR, "long-way-round.initial-state.json"), join(runDir, "initial-state.json"));
+    assert.equal(loadLevelFromRunDir(runDir).simConfig.meta.id, "sim_config_long-way-round");
   } finally {
     rmSync(runDir, { recursive: true, force: true });
   }

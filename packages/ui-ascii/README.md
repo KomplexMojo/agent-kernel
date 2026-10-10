@@ -5,7 +5,7 @@ A playable terminal front end for agent-kernel: you are `@`, find the exit `E`.
 ```bash
 pnpm run play:ascii                                 # bundled levels, in order
 pnpm run play:ascii -- --level long-way-round       # start at a bundled level
-pnpm run play:ascii -- --run artifacts/runs/<runId> # play a level an `ak` run built
+pnpm run play:ascii -- --run <dir>                 # play a level `ak create --out-dir <dir>` generated (rooms + corridors)
 pnpm run play:ascii -- --sim-config <p> --initial-state <p>
 pnpm run play:ascii -- --keys "ddss" --no-color     # scripted: apply keys, print, exit
 ```

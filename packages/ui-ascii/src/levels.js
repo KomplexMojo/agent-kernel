@@ -49,10 +49,11 @@ export function loadLevelFromFiles({ simConfigPath, initialStatePath, name } = {
 }
 
 /**
- * An `ak` run directory keeps its build artifacts under one of these
- * subdirectories, depending on which command produced it.
+ * Where an `ak` output directory keeps its build artifacts: `ak create --out-dir`
+ * writes them at the top level; run directories keep them under one of these
+ * subdirectories, depending on which command produced them.
  */
-const RUN_DIR_BUILD_SUBDIRS = ["build", "create", "configurator"];
+const RUN_DIR_BUILD_SUBDIRS = ["", "build", "create", "configurator"];
 
 export function loadLevelFromRunDir(runDir) {
   for (const subdir of RUN_DIR_BUILD_SUBDIRS) {
@@ -62,5 +63,5 @@ export function loadLevelFromRunDir(runDir) {
       return loadLevelFromFiles({ simConfigPath, initialStatePath, name: basename(resolve(runDir)) });
     }
   }
-  throw new Error(`No sim-config.json + initial-state.json under ${runDir}/{${RUN_DIR_BUILD_SUBDIRS.join(",")}}`);
+  throw new Error(`No sim-config.json + initial-state.json in ${runDir} or its ${RUN_DIR_BUILD_SUBDIRS.filter(Boolean).join("/, ")}/ subdirectory`);
 }
