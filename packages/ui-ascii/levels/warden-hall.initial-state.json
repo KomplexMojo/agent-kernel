@@ -42,7 +42,14 @@
           "max": 10,
           "regen": 1
         }
-      }
+      },
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "stacks": 1
+        }
+      ]
     },
     {
       "id": "warden-1",
@@ -76,7 +83,14 @@
           "max": 10,
           "regen": 1
         }
-      }
+      },
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "push",
+          "stacks": 1
+        }
+      ]
     },
     {
       "id": "warden-2",
@@ -110,7 +124,14 @@
           "max": 10,
           "regen": 1
         }
-      }
+      },
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "push",
+          "stacks": 1
+        }
+      ]
     }
   ]
 }

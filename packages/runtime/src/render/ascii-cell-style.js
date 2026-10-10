@@ -14,12 +14,21 @@
  *     (`actors.*`, `items.*`), over the floor fill.
  *
  * The player is `@` in `motivations.user_controlled`: the palette's own colour
- * for a user-controlled actor, which also keeps the player apart from any other
- * delver (`D`).
+ * for a user-controlled actor. An actor's letter (`@`, `D`, `W`) already says
+ * its role.
+ *
+ * An actor with an equipped affinity is coloured by it instead, on the board
+ * sprite's own two-channel rule (role as shape, affinity as fill): the cell
+ * background is the affinity fill (`GAME_AFFINITY_COLOR_HEX`) and the letter
+ * takes the sprite's outline for that fill (`outlineForFill`), so it stays
+ * legible on `light` and `dark` alike. Affinity is read by the sprite's own
+ * `resolveEquippedAffinity`, so the two surfaces cannot disagree.
  *
  * Output is plain data: `{ [char]: { fg, bg } }` with hex strings.
  */
 import { GAME_COLOR_PALETTE } from "../contracts/game-elements.js";
+import { AFFINITY_COLOR_HEX } from "./affinity-palette.js";
+import { outlineForFill, resolveEquippedAffinity } from "./entity-sprite-composer.js";
 import { ASCII_ENTITY_GLYPHS } from "./visualization-snapshot.js";
 
 const { tiles, tileBorders, actors, items, types, motivations } = GAME_COLOR_PALETTE;
@@ -62,4 +71,17 @@ export function buildAsciiCellStyles(legend) {
     styles[legend.actor] = { fg: motivations.user_controlled, bg: tiles.floor };
   }
   return styles;
+}
+
+/**
+ * The cell style for one actor from its equipped affinity, or null when it has
+ * none (the caller then uses its glyph's role colour from buildAsciiCellStyles).
+ *
+ * @param {object} entity any actor-shaped object (observation, HUD model, artifact actor)
+ * @returns {{fg: string, bg: string, affinity: string} | null}
+ */
+export function asciiActorCellStyle(entity) {
+  const affinity = resolveEquippedAffinity(entity);
+  const fill = affinity ? AFFINITY_COLOR_HEX[affinity] : null;
+  return fill ? { fg: outlineForFill(fill), bg: fill, affinity } : null;
 }

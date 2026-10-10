@@ -9,7 +9,7 @@
  * comes from `render/ascii-cell-style.js`, which reads the approved palette.
  * This module only lays them out and turns hex into terminal escape codes.
  */
-import { buildAsciiCellStyles } from "../../runtime/src/render/ascii-cell-style.js";
+import { asciiActorCellStyle, buildAsciiCellStyles } from "../../runtime/src/render/ascii-cell-style.js";
 import { asciiGlyphForRole } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
 
@@ -30,12 +30,17 @@ function paint(text, hex, color) {
   return code ? `${code}${text}${RESET}` : text;
 }
 
-/** Colour one board row cell by cell; characters with no style stay plain. */
-export function paintBoardRow(row, styles) {
+/**
+ * Colour one board row cell by cell; characters with no style stay plain.
+ * `cellStyles` (column -> style) overrides the per-character style, which is
+ * how an actor's affinity colours its cell.
+ */
+export function paintBoardRow(row, styles, cellStyles = null) {
   let out = "";
   let open = null;
-  for (const char of row) {
-    const style = styles[char] || null;
+  for (let x = 0; x < row.length; x += 1) {
+    const char = row[x];
+    const style = cellStyles?.get(x) || styles[char] || null;
     const code = style ? `${ansiForHex(style.bg, 48)}${ansiForHex(style.fg, 38)}` : "";
     if (code !== open) {
       out += open ? RESET : "";
@@ -68,6 +73,23 @@ export function overlayActors(rows, actors, playerPosition) {
     grid[y][x] = asciiGlyphForRole(actor.role);
   }
   return grid.map((cells) => cells.join(""));
+}
+
+/**
+ * Row -> (column -> style) for every actor with an equipped affinity. The
+ * player is listed last so its cell wins if another actor reports the same one.
+ */
+function actorCellStyles(view) {
+  const byRow = new Map();
+  const entities = [...(Array.isArray(view.actors) ? view.actors : []), view.player].filter(Boolean);
+  for (const entity of entities) {
+    const style = asciiActorCellStyle(entity);
+    const { x, y } = entity.position || {};
+    if (!style || !Number.isInteger(x) || !Number.isInteger(y)) continue;
+    if (!byRow.has(y)) byRow.set(y, new Map());
+    byRow.get(y).set(x, style);
+  }
+  return byRow;
 }
 
 /** Vitals the actor actually has: a 0/0 pool is absent, not empty. */
@@ -107,9 +129,10 @@ export function renderScreen({
   lines.push(`agent-kernel maze — ${levelName} (${levelIndex + 1}/${levelCount})`);
   lines.push("");
   const styles = color ? buildAsciiCellStyles(view.legend) : null;
-  for (const row of overlayActors(view.rows, view.actors, view.player?.position)) {
-    lines.push(`  ${styles ? paintBoardRow(row, styles) : row}`);
-  }
+  const actorCells = color ? actorCellStyles(view) : null;
+  overlayActors(view.rows, view.actors, view.player?.position).forEach((row, y) => {
+    lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y)) : row}`);
+  });
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (vitals.length > 0) lines.push(vitals.join("   "));

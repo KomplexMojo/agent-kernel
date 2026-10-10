@@ -7,7 +7,9 @@ const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
-const { buildAsciiCellStyles } = require("../../packages/runtime/src/render/ascii-cell-style.js");
+const { asciiActorCellStyle, buildAsciiCellStyles } = require("../../packages/runtime/src/render/ascii-cell-style.js");
+const { GAME_AFFINITY_COLOR_HEX } = require("../../packages/runtime/src/contracts/game-elements.js");
+const { normalizeEntitySpriteState, outlineForFill } = require("../../packages/runtime/src/render/entity-sprite-composer.js");
 const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/game-elements.js");
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
 const { createPlaySession } = require("../../packages/runtime/src/runner/play-session.js");
@@ -65,6 +67,34 @@ test("characters follow the legend it is given, not a copy of core's", () => {
   assert.equal(styles.P.fg, GAME_COLOR_PALETTE.motivations.user_controlled);
   assert.equal(styles["#"], undefined);
   assert.equal(buildAsciiCellStyles(undefined)["@"], undefined);
+});
+
+test("an actor's equipped affinity is its cell fill, with the sprite's outline as the letter colour", () => {
+  for (const [kind, fill] of Object.entries(GAME_AFFINITY_COLOR_HEX)) {
+    const style = asciiActorCellStyle({ affinities: [{ kind, expression: "push", stacks: 1 }] });
+    assert.deepEqual(style, { bg: fill, fg: outlineForFill(fill), affinity: kind }, kind);
+  }
+});
+
+test("affinity is read the way the board sprite reads it, in every live shape", () => {
+  const shapes = [
+    { affinity: "water" },
+    { affinity: { kind: "water" } },
+    { equippedAffinity: { kind: "water" } },
+    { affinities: [{ kind: "water" }] },
+    { affinityStacks: [{ kind: "water" }] },
+    { traits: { affinities: { "water:push": 1 } } },
+  ];
+  for (const entity of shapes) {
+    assert.equal(asciiActorCellStyle(entity).affinity, "water", JSON.stringify(entity));
+    assert.equal(normalizeEntitySpriteState(entity).affinity, "water", "sprite agrees");
+  }
+});
+
+test("an actor with no affinity gets no affinity style (the sprite's default fill does not leak in)", () => {
+  assert.equal(asciiActorCellStyle({ role: "warden" }), null);
+  assert.equal(asciiActorCellStyle({ affinities: [] }), null);
+  assert.equal(asciiActorCellStyle({ affinity: "not-an-affinity" }), null);
 });
 
 // ## TODO: Test Permutations

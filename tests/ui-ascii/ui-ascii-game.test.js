@@ -274,6 +274,24 @@ test("warden-hall's wardens wander once the play session runs their turns", asyn
   assert.ok(moved.length > 0, "at least one warden left its starting cell");
 });
 
+test("in colour, actors with an equipped affinity are filled with it; others keep their role colour", async () => {
+  const { GAME_AFFINITY_COLOR_HEX } = require("../../packages/runtime/src/contracts/game-elements.js");
+  const session = await createPlaySession(loadBundledLevel("warden-hall"));
+  const view = {
+    ...session.view(),
+    actors: [
+      { id: "warden-1", role: "warden", position: { x: 6, y: 5 }, affinities: [{ kind: "fire" }] },
+      { id: "warden-3", role: "warden", position: { x: 9, y: 3 } },
+    ],
+  };
+  assert.equal(view.player.affinity, "wind", "the authored equipped affinity reaches the view");
+  const screen = renderScreen({ view, levelName: "warden-hall", color: true });
+  assert.ok(screen.includes(`${ansi(GAME_AFFINITY_COLOR_HEX.wind, 48)}`), "player cell is the wind fill");
+  assert.ok(screen.includes(`${ansi(GAME_AFFINITY_COLOR_HEX.fire, 48)}`), "fire warden cell");
+  assert.ok(screen.includes(`${ansi(GAME_COLOR_PALETTE.actors.warden, 38)}W`), "unaffiliated warden keeps its role colour");
+  assert.equal(screen.replace(/\u001b\[[0-9;]*m/g, ""), renderScreen({ view, levelName: "warden-hall" }));
+});
+
 // ## TODO: Test Permutations
 // - every key in the keymap, upper and lower case
 // - --run with each of the build/create/configurator subdirectories

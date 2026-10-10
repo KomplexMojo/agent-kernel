@@ -159,7 +159,14 @@ export async function createPlaySession({
       status: status(),
       player: player
         ? {
-          ...buildActorHudModel({ ...playerSource, ...player, id: playerId }),
+          // Core's observation reports `affinities: []` unless it is handed the
+          // affinity metadata, which would hide the authored equipped affinity.
+          ...buildActorHudModel({
+            ...playerSource,
+            ...player,
+            affinities: player.affinities?.length ? player.affinities : playerSource.affinities,
+            id: playerId,
+          }),
           position: { ...player.position },
         }
         : null,
