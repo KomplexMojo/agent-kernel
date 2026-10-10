@@ -24,6 +24,11 @@
  * legible on `light` and `dark` alike. Affinity is read by the sprite's own
  * `resolveEquippedAffinity`, so the two surfaces cannot disagree.
  *
+ * Fog of war (`view().sight` from the play session) adds two looks: a
+ * never-seen cell is the fog glyph on the palette's `tiles.fog`, and a
+ * remembered cell (seen before, out of sight now) is its usual style dimmed
+ * toward that same fog colour, so memory reads as fading into the dark.
+ *
  * Output is plain data: `{ [char]: { fg, bg } }` with hex strings.
  */
 import { GAME_COLOR_PALETTE } from "../contracts/game-elements.js";
@@ -70,7 +75,39 @@ export function buildAsciiCellStyles(legend) {
   if (typeof legend?.actor === "string") {
     styles[legend.actor] = { fg: motivations.user_controlled, bg: tiles.floor };
   }
+  if (typeof legend?.fog === "string") {
+    styles[legend.fog] = { fg: types.untyped, bg: tiles.fog };
+  }
   return styles;
+}
+
+// How far a remembered cell fades toward the fog fill (0 = unchanged, 1 = fog).
+export const ASCII_REMEMBERED_FADE = 0.55;
+
+function mixHex(from, to, amount) {
+  const parse = (hex) => {
+    const match = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || ""));
+    return match ? match.slice(1).map((part) => parseInt(part, 16)) : null;
+  };
+  const a = parse(from);
+  const b = parse(to);
+  if (!a || !b) return from;
+  return `#${a.map((channel, i) => Math.round(channel + (b[i] - channel) * amount).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/**
+ * A cell's style as remembered under fog of war: both colours faded toward
+ * `tiles.fog`. Null in, null out.
+ *
+ * @param {{fg: string, bg: string} | null} style
+ * @returns {{fg: string, bg: string} | null}
+ */
+export function asciiRememberedCellStyle(style) {
+  if (!style) return null;
+  return {
+    fg: mixHex(style.fg, tiles.fog, ASCII_REMEMBERED_FADE),
+    bg: mixHex(style.bg, tiles.fog, ASCII_REMEMBERED_FADE),
+  };
 }
 
 /**

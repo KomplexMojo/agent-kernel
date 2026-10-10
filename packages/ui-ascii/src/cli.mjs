@@ -27,12 +27,13 @@ const USAGE = `Usage: ak-maze [options]
   --list                  list bundled levels
   --color                 colour even when output is not a terminal
   --no-color              plain text output (also: NO_COLOR set in the environment)
+  --no-fog                show the whole map (fog of war is on by default)
   -h, --help              show this help
 
 ${HELP_LINES.join("\n")}`;
 
 export function parseArgs(argv) {
-  const options = { color: true };
+  const options = { color: true, fog: true };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     const next = () => {
@@ -52,6 +53,7 @@ export function parseArgs(argv) {
       case "--list": options.list = true; break;
       case "--json": options.json = true; break;
       case "--no-color": options.color = false; break;
+      case "--no-fog": options.fog = false; break;
       case "--color": options.color = "always"; break;
       case "-h":
       case "--help": options.help = true; break;
@@ -137,7 +139,7 @@ export async function main(argv = process.argv.slice(2)) {
   }
   let game;
   try {
-    game = await createGame(resolveLevels(options));
+    game = await createGame({ ...resolveLevels(options), fog: options.fog });
   } catch (error) {
     console.error(error.message);
     return 1;

@@ -270,7 +270,7 @@ The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollam
 | ak_show_state | Sandbox / Interactive | Show current dungeon state for a run at the session cursor tick. | runId, visualization |
 | ak_tick_forward | Sandbox / Interactive | Advance the interactive session cursor forward by one tick. | runId, visualization |
 | ak_tick_backward | Sandbox / Interactive | Rewind the interactive session cursor back by one tick. | runId, visualization |
-| ak_play_ascii | Sandbox / Interactive | Show (and optionally play) a level in the ASCII terminal UI; returns the screen text and the command to play it interactively. | runId, dir, simConfig, initialState, level, keys, color |
+| ak_play_ascii | Sandbox / Interactive | Show (and optionally play) a level in the ASCII terminal UI; returns the screen text and the command to play it interactively. | runId, dir, simConfig, initialState, level, keys, color, fog |
 | ak_test_list_suites | Test Authoring | List discovered test suites and current runner ownership. | none |
 | ak_test_discover_patterns | Test Authoring | Discover repo test recipes and matching files, optionally filtered. | runner, suite, recipe |
 | ak_test_plan_from_change | Test Authoring | Recommend runner scopes from changed paths. | paths[] |
@@ -1712,7 +1712,7 @@ Shows a level in the terminal UI (`packages/ui-ascii`) through `ak play --json`.
   "launch": "node packages/adapters-cli/src/cli/ak.mjs play --sim-config ... --initial-state ..." }
 ```
 
-Show `screen` verbatim; `launch` opens the interactive, coloured game in a terminal. `keys` plays moves before the screen is taken, replayed from the start on every call. `color: true` keeps the ANSI escapes in `screen`.
+Show `screen` verbatim; `launch` opens the interactive, coloured game in a terminal. `keys` plays moves before the screen is taken, replayed from the start on every call. `color: true` keeps the ANSI escapes in `screen`. Fog of war is on, so a fresh board is mostly `?`; `fog: false` shows the whole level (every actor and trap), which is what to show after `ak_create`.
 
 #### `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`
 

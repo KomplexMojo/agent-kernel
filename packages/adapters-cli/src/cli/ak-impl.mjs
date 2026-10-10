@@ -182,7 +182,7 @@ function usage() {
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
-  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color]
+  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog]
 
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
@@ -260,6 +260,7 @@ Options:
   --level         play: a bundled ui-ascii level (default: all bundled levels, in order)
   --keys          play: apply these keys without a terminal and print the final screen (e.g. "ddss.")
   --json          play: print { ok, level, turns, status, screen, launch } instead of the screen
+  --no-fog        play: show the whole map (fog of war is on by default)
   --help          Show this help
 
 Schema discovery:
@@ -6236,7 +6237,7 @@ async function playCommand(argv) {
     console.log(usage());
     return;
   }
-  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color"]);
+  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog"]);
   const unknown = Object.keys(args).filter((key) => !allowed.has(key));
   if (unknown.length > 0) throw new Error(`play does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
   const named = ["dir", "from-run", "level"].filter((key) => args[key] !== undefined);
@@ -6259,13 +6260,14 @@ async function playCommand(argv) {
   }
 
   const color = args["no-color"] ? false : args.color ? true : undefined;
+  const fog = !args["no-fog"];
   // parseArgs reads a bare `--keys ""` as a flag.
   const keys = args.keys === true ? "" : args.keys;
   if (keys === undefined && !args.json) {
-    process.exitCode = await playAsciiInteractive({ source, color });
+    process.exitCode = await playAsciiInteractive({ source, color, fog });
     return;
   }
-  const result = playAsciiScripted({ source, keys: keys ?? "", color: color === true });
+  const result = playAsciiScripted({ source, keys: keys ?? "", color: color === true, fog });
   if (!result.ok) throw new Error(result.error);
   if (args.json) {
     emitJsonStdout({ ...result, command: "play", source, launch: launchCommand(source) });

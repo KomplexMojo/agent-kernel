@@ -67,6 +67,9 @@ background; whatever stands on a tile is the glyph in its role colour
 Characters come from core's frame legend and the `ASCII_ENTITY_GLYPHS` that
 `visualization-snapshot.js` exports, so neither glyphs nor colours are restated.
 `tests/runtime/ascii-cell-style.test.js` asserts every value is a palette entry.
+Under fog of war the play session's `?` takes `tiles.fog`, and
+`asciiRememberedCellStyle` fades a remembered cell's colours toward `tiles.fog`
+(`ASCII_REMEMBERED_FADE`), so a cell the player only remembers reads dimmed.
 
 ## UI icons
 

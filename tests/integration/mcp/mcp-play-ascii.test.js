@@ -85,7 +85,13 @@ test("ak_create with water traps, then ak_play_ascii by runId, shows the board w
     });
     assert.equal(created.ok, true, JSON.stringify(created));
 
-    const shown = await server.callTool("ak_play_ascii", { runId: "water-traps-mcp" });
+    // Fog of war is on by default; fog: false shows the whole level that was made.
+    const fogged = await server.callTool("ak_play_ascii", { runId: "water-traps-mcp" });
+    assert.equal(fogged.ok, true, JSON.stringify(fogged));
+    assert.match(fogged.screen, /\?{5}/, "unseen cells are ?");
+    assert.match(tool.description, /fog: false/);
+
+    const shown = await server.callTool("ak_play_ascii", { runId: "water-traps-mcp", fog: false });
     assert.equal(shown.ok, true, JSON.stringify(shown));
     assert.equal(shown.command, "play");
     assert.equal(shown.turns, 0);

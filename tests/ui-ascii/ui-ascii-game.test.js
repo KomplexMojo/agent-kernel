@@ -180,7 +180,7 @@ test("Enter does nothing before the exit, and after the last level says so", asy
 });
 
 test("a wall bump shows a message and costs a turn; restart resets the level", async () => {
-  const game = await createGame({ levels: fixtureLevels() });
+  const game = await createGame({ levels: fixtureLevels(), fog: false });
   await game.handle(intentForKey("k"));
   assert.equal(game.state().turns, 1);
   assert.match(game.screen(), /A wall blocks the way\./);
@@ -212,8 +212,9 @@ test("the screen shows the board, present vitals only, tick, turns and the statu
 });
 
 test("cli arguments parse, and bad ones are errors", () => {
-  assert.deepEqual(parseArgs(["--level", "long-way-round", "--no-color"]), { color: false, level: "long-way-round" });
-  assert.deepEqual(parseArgs(["--", "--level", "warden-hall"]), { color: true, level: "warden-hall" }, "pnpm's -- separator is ignored");
+  assert.deepEqual(parseArgs(["--level", "long-way-round", "--no-color"]), { color: false, fog: true, level: "long-way-round" });
+  assert.deepEqual(parseArgs(["--", "--level", "warden-hall"]), { color: true, fog: true, level: "warden-hall" }, "pnpm's -- separator is ignored");
+  assert.equal(parseArgs(["--no-fog"]).fog, false);
   assert.throws(() => parseArgs(["--level"]), /needs a value/);
   assert.throws(() => parseArgs(["--bogus"]), /Unknown option/);
   assert.equal(resolveLevels({ level: "long-way-round" }).startIndex, 1);
@@ -358,6 +359,42 @@ test("water-traps draws its traps as H in the water fill, and a trap costs healt
   const after = session.view();
   assert.deepEqual(after.player.position, trap);
   assert.ok(after.player.vitals.find((vital) => vital.key === "health").current < healthBefore, "the trap hurt");
+});
+
+test("the game plays under fog of war by default; --no-fog shows the whole map", async () => {
+  const { PLAY_SIGHT } = require("../../packages/runtime/src/runner/play-session.js");
+  const fogged = await createGame({ levels: [loadBundledLevel("water-traps")] });
+  const screen = fogged.screen();
+  const board = screen.split("\n").filter((line) => /^ {2}[#?.@SEH]/.test(line));
+  assert.ok(board.some((line) => line.includes("?")), "unseen cells are ?");
+  assert.ok(board.every((line) => !line.includes("H")), "traps out of sight are hidden");
+  assert.ok(board.some((line) => line.includes("@")));
+
+  const clear = await createGame({ levels: [loadBundledLevel("water-traps")], fog: false });
+  assert.doesNotMatch(clear.screen(), /\?{3}/);
+  assert.match(clear.screen(), /H/);
+
+  const seen = [];
+  await createGame({
+    levels: [fixtureLevel("first-steps")],
+    createSession: async (args) => { seen.push(args.fog); return createPlaySession(args); },
+  });
+  assert.deepEqual(seen, [true], "the controller asks the play session for fog");
+  assert.ok(Object.values(PLAY_SIGHT).includes("r"));
+});
+
+test("in colour, remembered cells are dimmed and unseen cells take the fog fill", async () => {
+  const { asciiRememberedCellStyle, buildAsciiCellStyles } = require("../../packages/runtime/src/render/ascii-cell-style.js");
+  const game = await createGame({ levels: [fixtureLevel("first-steps")] });
+  await runScripted(game, "dd");
+  const screen = game.screen({ color: true });
+  const styles = buildAsciiCellStyles({ floor: ".", fog: "?" });
+  const dim = asciiRememberedCellStyle(styles["."]);
+  assert.ok(screen.includes(`${ansi(dim.bg, 48)}${ansi(dim.fg, 38)}`), "a remembered floor cell is dimmed");
+  assert.ok(screen.includes(`${ansi(GAME_COLOR_PALETTE.tiles.fog, 48)}`), "unseen cells sit on the fog fill");
+  const plain = game.screen();
+  assert.equal(screen.replace(/\u001b\[[0-9;]*m/g, ""), plain, "colour adds escapes only");
+  assert.equal(paintBoardRow("..", styles, null, "rv"), `${ansi(dim.bg, 48)}${ansi(dim.fg, 38)}.\u001b[0m${ansi(styles["."].bg, 48)}${ansi(styles["."].fg, 38)}.\u001b[0m`);
 });
 
 // ## TODO: Test Permutations

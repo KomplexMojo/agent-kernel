@@ -7,7 +7,12 @@ const assert = require("node:assert/strict");
 const { readFileSync } = require("node:fs");
 const { resolve } = require("node:path");
 
-const { asciiActorCellStyle, buildAsciiCellStyles } = require("../../packages/runtime/src/render/ascii-cell-style.js");
+const {
+  ASCII_REMEMBERED_FADE,
+  asciiActorCellStyle,
+  asciiRememberedCellStyle,
+  buildAsciiCellStyles,
+} = require("../../packages/runtime/src/render/ascii-cell-style.js");
 const { GAME_AFFINITY_COLOR_HEX } = require("../../packages/runtime/src/contracts/game-elements.js");
 const { normalizeEntitySpriteState, outlineForFill } = require("../../packages/runtime/src/render/entity-sprite-composer.js");
 const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/game-elements.js");
@@ -97,7 +102,29 @@ test("an actor with no affinity gets no affinity style (the sprite's default fil
   assert.equal(asciiActorCellStyle({ affinity: "not-an-affinity" }), null);
 });
 
+test("fog of war: unseen cells take the fog fill; remembered cells fade toward it", async () => {
+  const legend = await coreLegend();
+  assert.equal(legend.fog, "?", "the play session names the fog glyph");
+  const styles = buildAsciiCellStyles(legend);
+  assert.equal(styles["?"].bg, GAME_COLOR_PALETTE.tiles.fog);
+  assert.equal(styles["?"].fg, GAME_COLOR_PALETTE.types.untyped);
+
+  const floor = styles[legend.floor];
+  const remembered = asciiRememberedCellStyle(floor);
+  const channels = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const fog = channels(GAME_COLOR_PALETTE.tiles.fog);
+  for (const layer of ["fg", "bg"]) {
+    const from = channels(floor[layer]);
+    const to = channels(remembered[layer]);
+    to.forEach((channel, i) => {
+      assert.ok(Math.abs(channel - (from[i] + (fog[i] - from[i]) * ASCII_REMEMBERED_FADE)) <= 0.5, `${layer} channel ${i}`);
+    });
+  }
+  assert.notDeepEqual(remembered, floor);
+  assert.equal(asciiRememberedCellStyle(null), null);
+});
+
 // ## TODO: Test Permutations
 // - a legend with barrier: B takes tiles.barrier
-// - a legend kind with no palette tile (e.g. "fog" char) is left unstyled
+// - a remembered style with a malformed hex keeps that colour unchanged
 // - legend characters that collide with entity glyphs (entity colour wins)
