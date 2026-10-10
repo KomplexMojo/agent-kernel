@@ -371,7 +371,7 @@
           "size=large;count=1"
         ],
         "hazard": [
-          "id=hazard_blocking_choke;affinity=fortify;expression=emit;proximityRadius=1;stacks=2;blocking=true;mana=regen:12:12:2"
+          "id=hazard_blocking_choke;affinity=fortify;expression=emit;proximityRadius=1;stacks=2;blocking=true;mana=regen:12:12:2;durability=5"
         ],
         "delver": [
           "count=1;id=delver_reroute;affinity=wind;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
@@ -698,12 +698,12 @@
           "size=large;count=4"
         ],
         "hazard": [
-          "id=hazard_dense_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2",
-          "id=hazard_dense_water;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2",
-          "id=hazard_dense_earth;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2",
-          "id=hazard_dense_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2",
-          "id=hazard_dense_light;affinity=light;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2",
-          "id=hazard_dense_dark;affinity=dark;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2"
+          "id=hazard_dense_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5",
+          "id=hazard_dense_water;affinity=water;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5",
+          "id=hazard_dense_earth;affinity=earth;expression=pull;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5",
+          "id=hazard_dense_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5",
+          "id=hazard_dense_light;affinity=light;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5",
+          "id=hazard_dense_dark;affinity=dark;expression=draw;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
         ],
         "resource": [
           "id=resource_dense_health;permanenceMode=consumable;vital=health;delta=5",
@@ -765,8 +765,8 @@
           "size=medium;count=3"
         ],
         "hazard": [
-          "id=hazard_stress_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2",
-          "id=hazard_stress_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2"
+          "id=hazard_stress_fire;affinity=fire;expression=emit;proximityRadius=2;stacks=2;blocking=false;mana=regen:12:12:2;durability=5",
+          "id=hazard_stress_wind;affinity=wind;expression=push;proximityRadius=1;stacks=2;blocking=false;mana=regen:12:12:2;durability=5"
         ],
         "resource": [
           "id=resource_stress_health;permanenceMode=consumable;vital=health;delta=5",

@@ -37,7 +37,7 @@ function usage() {
   remote-ollama-mac benchmark --profile NAME --model MODEL --context N --num-predict N --scenario NAME
   remote-ollama-mac benchmark-matrix --profiles a,b --models x,y --contexts 4096,8192 --scenario NAME
   remote-ollama-mac benchmark-hardware [--route auto|internal|external] [--models x,y] [--contexts 4096,8192] [--efforts standard,high,max,overnight] [--scenarios a,b] [--no-start] [--no-reset] [--no-isolate]
-  remote-ollama-mac benchmark-status [--route auto|internal|external] [--json] [--html PATH] [--open]
+  remote-ollama-mac benchmark-status [--route auto|internal|external] [--json] [--html PATH] [--open] [--serve]
     Reads the in-flight run's progress.json off the box on demand. Fresher than the
     five-minute heartbeat, which only republishes that same file.
   remote-ollama-mac project-safety-check [remote-project-safety-check args...]
@@ -111,6 +111,7 @@ function parseArgs(argv) {
     json: false,
     html: null,
     open: false,
+    serve: false,
     skipModelCheck: false,
     startProfiles: true,
     resetProfiles: true,
@@ -183,6 +184,10 @@ function parseArgs(argv) {
       options.explicitFlags.add(arg);
       index += 1;
     } else if (arg === '--open') {
+      options.open = true;
+      options.explicitFlags.add(arg);
+    } else if (arg === '--serve') {
+      options.serve = true;
       options.open = true;
       options.explicitFlags.add(arg);
     } else if (arg === '--profile') {
@@ -1265,6 +1270,9 @@ function runRemoteExec(options) {
  */
 function runBenchmarkStatus(options) {
   const { PROBE_SOURCE, formatStatusHtml, formatStatusText } = require('./lib/benchmark-status');
+  const { enrichAttemptsWithLlmRequest, AK_CREATE_TOOL, CURRENT_TOOLS_SCHEMA_SHA256 } = require('./lib/benchmark-prompt-replay');
+  const { loadScenarioCatalog } = require('./lib/ak-scenarios');
+  const { serveStatusPage } = require('./lib/benchmark-status-serve');
 
   const sshArgs = [...sshBaseArgs(config, options.route), 'node -'];
   if (options.dryRun) {
@@ -1295,12 +1303,61 @@ function runBenchmarkStatus(options) {
     fail(`unexpected probe output:\n${probe.stdout.trim() || '(empty)'}`);
   }
 
+  // Older runs never stored llmRequest. Rebuild from the catalog so the page still shows a prompt
+  // you can re-execute; provenance is labelled reconstructed when that happens.
+  try {
+    document.attempts = enrichAttemptsWithLlmRequest(document.attempts, loadScenarioCatalog());
+  } catch (error) {
+    process.stderr.write(`warning: could not enrich llmRequest: ${error.message}\n`);
+  }
+
+  const pageOptions = {
+    tools: AK_CREATE_TOOL,
+    toolsSchemaSha256: CURRENT_TOOLS_SCHEMA_SHA256,
+    ollamaBase: options.serve ? '/ollama' : (config.local?.host || 'http://127.0.0.1:11434'),
+    viaProxy: Boolean(options.serve),
+    standardPackage: (() => {
+      const {
+        AUTHORING_INSTRUCTIONS_HEAD,
+        AUTHORING_INSTRUCTIONS_TAIL,
+        AUTHORING_PRICE_BRIEF,
+      } = require('./lib/ak-runner');
+      return {
+        systemHead: AUTHORING_INSTRUCTIONS_HEAD,
+        systemTail: AUTHORING_INSTRUCTIONS_TAIL,
+        priceBrief: AUTHORING_PRICE_BRIEF || '',
+        budgetUnconstrained: 'Omit budgetTokens — the budget is unconstrained. ',
+        budgetConstrainedPattern: 'Set budgetTokens to <N>. ',
+        temperature: 0.1,
+        tool_choice: 'required',
+        think: false,
+        toolsSchemaSha256: CURRENT_TOOLS_SCHEMA_SHA256,
+      };
+    })(),
+  };
+
   if (options.html) {
     const target = path.resolve(options.html);
     fs.mkdirSync(path.dirname(target), { recursive: true });
-    fs.writeFileSync(target, formatStatusHtml(document));
-    if (options.open) spawnSync('open', [target], { stdio: 'ignore' });
+    fs.writeFileSync(target, formatStatusHtml(document, pageOptions));
     if (!options.json) process.stdout.write(`${formatStatusText(document)}\nPage: ${target}\n`);
+
+    if (document.status === 'unreadable') process.exit(1);
+
+    if (options.serve) {
+      // Keeps the process alive: the page talks to local Ollama through this proxy so file:// CORS
+      // cannot block the re-prompt button.
+      serveStatusPage({
+        htmlPath: target,
+        ollamaHost: config.local?.host || 'http://127.0.0.1:11434',
+        openBrowser: options.open !== false,
+      }).then(({ pageUrl }) => {
+        process.stdout.write(`Serving HITL page at ${pageUrl} (Ctrl+C to stop)\n`);
+      }).catch((error) => fail(error.message));
+      return;
+    }
+
+    if (options.open) spawnSync('open', [target], { stdio: 'ignore' });
   }
 
   if (options.json) {
@@ -1510,6 +1567,7 @@ async function runContentGen(options) {
             llmError: error.message,
             llmErrorIsTransport: false,
             llmRetries: 0,
+            llmRequest: null,
             execResult: null,
             outDir: null
           };
@@ -1521,6 +1579,7 @@ async function runContentGen(options) {
           scenarioBudget: scenario.budget,
           toolCallProduced: runResult.toolCallProduced,
           toolArgs: runResult.toolArgs || null,
+          llmRequest: runResult.llmRequest || null,
           llmMs: runResult.llmMs,
           llmError: runResult.llmError || null,
           llmRetries: runResult.llmRetries || 0,

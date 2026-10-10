@@ -115,7 +115,7 @@ The skills live in `.claude/skills/`; their roster and mirroring rules are `AGEN
 ```bash
 pnpm install                                          # Install dependencies
 pnpm run test                                         # Vitest suite
-pnpm run test -- --reporter=json --outputFile=<f>     # Structured results (what fast-pass uses)
+pnpm run test:structured                                    # Structured failure JSON (what fast-pass uses)
 pnpm run test:vitest -- tests/<path>/<name>.test.js   # Single Vitest file
 pnpm run test:coverage:core-ts                        # core-ts coverage report
 pnpm run typecheck                                    # Typecheck gate (core-ts + its tests, strict)

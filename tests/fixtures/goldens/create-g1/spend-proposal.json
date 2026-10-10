@@ -209,6 +209,28 @@
     {
       "id": "vital_durability_point",
       "kind": "vital",
+      "quantity": 5,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_mana_point",
+      "kind": "vital",
+      "quantity": 4,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/HazardArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_mana_regen_tick",
+      "kind": "vital",
       "quantity": 1,
       "category": "hazards",
       "subjectRef": {

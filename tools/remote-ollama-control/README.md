@@ -253,6 +253,7 @@ attempt**. So read that file instead:
 ./bin/remote-ollama-mac benchmark-status                      # text, auto route
 ./bin/remote-ollama-mac benchmark-status --json               # the raw document
 ./bin/remote-ollama-mac benchmark-status --html PATH --open   # formatted page, opened
+./bin/remote-ollama-mac benchmark-status --html PATH --serve  # HITL page + local Ollama proxy
 ```
 
 Measured live: 186 attempts on disk against 180 in the last published beat.
@@ -260,9 +261,17 @@ Measured live: 186 attempts on disk against 180 in the last published beat.
 `--html` writes a self-contained page for reviewing **why attempts failed**, which the text form
 cannot show usefully. It carries the per-attempt records from `runs.jsonl`: failure reasons ranked
 by frequency, filters by outcome / model / free text, and per attempt the expected-versus-actual
-outcome, the score breakdown, the executor's stderr, and the tool arguments the model actually
-produced. Reasons are grouped with digits generalised to `N`, so one defect appearing with different
-numbers counts as one row rather than eighty singletons.
+outcome, the score breakdown, the executor's stderr, the **exact LLM prompt** (system + user + the
+`ak_create` tool schema with affinity/expression/motivation enums), and the tool arguments the model
+actually produced. Expand an attempt and use **Re-prompt on local Ollama** to pick a model on the
+Mac's Ollama and re-run that same chat body. Prefer `--serve` for that — it opens the page over
+`http://127.0.0.1` and proxies `/ollama/*` so browser CORS cannot block the call; the Finder
+launcher still opens the static file (use `--serve` from a terminal for HITL replay). Reasons are
+grouped with digits generalised to `N`, so one defect appearing with different numbers counts as one
+row rather than eighty singletons.
+
+New content-gen attempts record `llmRequest` (messages + sampling knobs + tools schema hash). Older
+runs without that field are reconstructed from the catalog and labelled `reconstructed`.
 
 When no run is in flight the page shows the most recent finished run, badged `finished run` and
 never rendered as though it were current.

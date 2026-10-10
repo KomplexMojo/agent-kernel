@@ -164,12 +164,24 @@ const AK_CREATE_TOOL = {
         },
         floorTile: {
           type: 'array',
-          description: 'Floor tile groups.',
+          description:
+            'Walkable-tile budget for carving (not terrain flavor). Sum of count across entries '
+            + 'must cover the room set — e.g. two medium rooms need at least 6 tiles. id is an '
+            + 'opaque billing/identity label only (default floor_tile_N); inventing thematic ids '
+            + 'like stone_decay does nothing.',
           items: {
             type: 'object',
             properties: {
-              count: { type: 'integer', minimum: 1 },
-              id: { type: 'string' }
+              count: {
+                type: 'integer',
+                minimum: 1,
+                examples: [6, 12],
+                description: 'Walkable tiles in this budget group (load-bearing).',
+              },
+              id: {
+                type: 'string',
+                description: 'Opaque identity for billing; not a material or texture enum.',
+              },
             },
             required: ['count']
           }
@@ -195,22 +207,26 @@ const AK_CREATE_TOOL = {
               // naming the other type beside the field tripled its use and flipped its spelling to
               // integers: 25% of hazards carried mana and 100% of those were well-formed before,
               // against 77% carrying it and most malformed after. Do not reintroduce the contrast.
+              //
+              // Required with durability: charter + core treat a hazard without a positive mana
+              // pool as inert (no active danger field) and zero durability as removed. Regen rate
+              // is optional spending (regen:...:...:0 or omit regen by using a plain amount).
               mana: {
                 type: ['integer', 'string'],
-                minimum: 0,
-                pattern: '^([0-9]+|one-time:[0-9]+|regen:[0-9]+:[0-9]+:[0-9]+)$',
+                minimum: 1,
+                pattern: '^([1-9][0-9]*|one-time:[1-9][0-9]*|regen:[0-9]+:[1-9][0-9]*:[0-9]+)$',
                 examples: [10, 'regen:4:4:1'],
-                description: 'Optional mana vital. A plain amount grants it once, e.g. 10. Use "regen:<current>:<max>:<regen>" for a refilling pool, e.g. "regen:4:4:1".'
+                description: 'Required mana pool that powers the hazard. A plain amount (>=1) grants it once, e.g. 10. Use "regen:<current>:<max>:<regen>" for a refilling pool (max >= 1; regen may be 0), e.g. "regen:4:4:1".'
               },
               durability: {
                 type: ['integer', 'string'],
-                minimum: 0,
-                pattern: '^([0-9]+|one-time:[0-9]+|regen:[0-9]+:[0-9]+:[0-9]+)$',
+                minimum: 1,
+                pattern: '^([1-9][0-9]*|one-time:[1-9][0-9]*|regen:[0-9]+:[1-9][0-9]*:[0-9]+)$',
                 examples: [6, 'regen:6:6:0'],
-                description: 'Optional durability vital, same forms as mana'
+                description: 'Required durability pool. Same forms as mana (amount/max >= 1). Zero durability removes the hazard in core.'
               }
             },
-            required: ['affinity', 'expression', 'proximityRadius']
+            required: ['affinity', 'expression', 'proximityRadius', 'mana', 'durability']
           }
         },
         resource: {

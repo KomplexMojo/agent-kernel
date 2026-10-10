@@ -72,7 +72,7 @@ describe("affinity expressions (hazard)", () => {
   for (const expression of GAME_AFFINITY_EXPRESSIONS) {
     test(`expression=${expression} round-trips onto a hazard`, () => {
       const run = runCreate([
-        "--hazard", `affinity=fire;expression=${expression};proximityRadius=2;mana=regen:4:4:1`,
+        "--hazard", `affinity=fire;expression=${expression};proximityRadius=2;mana=regen:4:4:1;durability=5`,
       ]);
       expect(run.json.ok, JSON.stringify(run.json.errors || run.json.error)).toBe(true);
       const spec = run.read("spec.json");

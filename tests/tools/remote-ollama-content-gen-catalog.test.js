@@ -19,8 +19,8 @@ const {
 } = require("../../tools/remote-ollama-control/scripts/lib/benchmark-pipeline");
 const { loadExecutionCatalog } = require("../../tools/remote-ollama-control/scripts/lib/execution-catalog");
 
-const PRIOR_CATALOG_HASH = "fa63f68c2adb2f9be01f2e5634230fee217f3753d199f20c3169980686308272";
-const EXPECTED_HASH = "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001";
+const PRIOR_CATALOG_HASH = "ed0e336066e2706d33c9b23fa82208328db4da89a09343d3d8d455bbbf5303bf";
+const EXPECTED_HASH = "ddfcdbadef489cb12fbb42df3b9e6cc9f8d119b0b3fb747883863d95e694507b";
 const TIERS = ["simple", "affinity", "complex", "constrained"];
 const ROOT = resolve(__dirname, "../..");
 const REMOTE_CONTROL_ROOT = resolve(__dirname, "../../tools/remote-ollama-control");
@@ -234,7 +234,7 @@ test("content authoring preserves blocking hazards and V3 affinity resources thr
   const result = spawnSync(process.execPath, [
     resolve(__dirname, "../../packages/adapters-cli/src/cli/ak.mjs"), "create",
     "--room", "size=medium;count=1",
-    "--hazard", "affinity=earth;expression=emit;proximityRadius=1;blocking=true",
+    "--hazard", "affinity=earth;expression=emit;proximityRadius=1;blocking=true;mana=10;durability=5",
     "--resource", "affinity=fire;expression=push;stacks=2;mana=12;manaRegen=0",
     "--out-dir", outDir,
     "--run-id", "content_route_affinity_resource",

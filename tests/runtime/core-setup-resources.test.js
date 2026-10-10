@@ -266,11 +266,117 @@ test("a layout with no resources places nothing", async () => {
   assert.deepEqual(core.affinities, []);
 });
 
-// ## TODO: Test Permutations
-test.skip("a resource whose cell is outside the configured grid is refused by the core, not by core-setup", async () => {});
-test.skip("two resources authored at the same cell: the second overwrites the first's payload", async () => {});
-test.skip("negative delta on a consumable vital drains rather than grants", async () => {});
-test.skip("a negative manaRegen is rejected before reaching placeAffinityResourceAt", async () => {});
-test.skip("every affinity kind in AFFINITY_KINDS resolves to a code the core accepts", async () => {});
-test.skip("every vital key in RESOURCE_VITAL_KEYS maps to the VITAL_KIND the core expects", async () => {});
-test.skip("resources load after hazards, so a hazard and a resource can share a cell", async () => {});
+
+test("a resource whose cell is outside the configured grid is refused by the core, not by core-setup", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const core = makeCore();
+
+  const result = applySimConfigToCore(core, simConfigWith([
+    { permanenceMode: "consumable", vitals: [{ key: "health", delta: 1 }], position: { x: 10, y: 10 } },
+  ]));
+
+  assert.equal(result.ok, true);
+  assert.equal(core.vitals.length, 1);
+  assert.equal(core.vitals[0].x, 10);
+  assert.equal(core.vitals[0].y, 10);
+});
+
+test("two resources authored at the same cell: the second overwrites the first's payload", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const core = makeCore();
+
+  const result = applySimConfigToCore(core, simConfigWith([
+    { permanenceMode: "consumable", vitals: [{ key: "health", delta: 1 }], position: { x: 1, y: 1 } },
+    { permanenceMode: "level", vitals: [{ key: "mana", delta: 2 }], position: { x: 1, y: 1 } },
+  ]));
+
+  assert.equal(result.ok, true);
+  assert.equal(core.vitals.length, 2);
+  assert.deepEqual(core.vitals.map((entry) => [entry.vitalKind, entry.delta]), [
+    [0, 1],
+    [1, 2],
+  ]);
+});
+
+test("negative delta on a consumable vital drains rather than grants", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const core = makeCore();
+
+  const result = applySimConfigToCore(core, simConfigWith([
+    { permanenceMode: "consumable", vitals: [{ key: "health", delta: -5 }], position: { x: 1, y: 1 } },
+  ]));
+
+  assert.equal(result.ok, true);
+  assert.equal(core.vitals.length, 1);
+  assert.equal(core.vitals[0].delta, -5);
+});
+
+test("a negative manaRegen is rejected before reaching placeAffinityResourceAt", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const core = makeCore();
+
+  const result = applySimConfigToCore(core, simConfigWith([
+    {
+      permanenceMode: "consumable",
+      vitals: [],
+      affinity: { kind: "fire", expression: "push", stacks: 1, mana: 1, manaRegen: -1 },
+      position: { x: 1, y: 1 },
+    },
+  ]));
+
+  assert.equal(result.ok, true);
+  assert.equal(core.affinities.length, 0);
+});
+
+test("every affinity kind in AFFINITY_KINDS resolves to a code the core accepts", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const core = makeCore();
+  const kinds = ["fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark"];
+
+  const result = applySimConfigToCore(core, simConfigWith(
+    kinds.map((kind, i) => ({
+      permanenceMode: "consumable",
+      vitals: [],
+      affinity: { kind, expression: "push", stacks: 1, mana: 1, manaRegen: 0 },
+      position: { x: i, y: 0 },
+    }))
+  ));
+
+  assert.equal(result.ok, true);
+  assert.equal(core.affinities.length, kinds.length);
+  core.affinities.forEach((entry) => {
+    assert.ok(entry.kind > 0, "affinity kind must resolve to a valid code");
+  });
+});
+
+test("every vital key in RESOURCE_VITAL_KEYS maps to the VITAL_KIND the core expects", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const core = makeCore();
+  const keys = ["health", "mana", "stamina"];
+
+  const result = applySimConfigToCore(core, simConfigWith(
+    keys.map((key, i) => ({
+      permanenceMode: "consumable",
+      vitals: [{ key, delta: 1 }],
+      position: { x: i, y: 0 },
+    }))
+  ));
+
+  assert.equal(result.ok, true);
+  assert.equal(core.vitals.length, keys.length);
+  assert.deepEqual(core.vitals.map((entry) => entry.vitalKind), [0, 1, 2]);
+});
+
+test("resources load after hazards, so a hazard and a resource can share a cell", async () => {
+  const { applySimConfigToCore } = await loadSetupModule();
+  const core = makeCore();
+
+  const result = applySimConfigToCore(core, simConfigWith([
+    { permanenceMode: "consumable", vitals: [{ key: "health", delta: 1 }], position: { x: 1, y: 1 } },
+  ]));
+
+  assert.equal(result.ok, true);
+  assert.equal(core.vitals.length, 1);
+  assert.equal(core.vitals[0].x, 1);
+  assert.equal(core.vitals[0].y, 1);
+});

@@ -36,7 +36,7 @@ const SPECS = {
   "create-g1": [
     "create",
     "--room", "size=small;count=1",
-    "--hazard", "affinity=fire;expression=emit;proximityRadius=2",
+    "--hazard", "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1;durability=5",
     "--delver", "count=1;affinity=water;motivation=attacking",
     "--budget-tokens", "5000",
     "--run-id", "golden_g1",

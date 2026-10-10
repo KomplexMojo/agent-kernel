@@ -161,6 +161,30 @@ function normalizeToolArgs(toolArgs) {
   return out;
 }
 
+// Replay-only compensation, never called from runScenario/live authoring. #180 made hazard
+// mana/durability required on `ak create`, after most of tests/fixtures/benchmark-failures was
+// harvested (that README: "recorded model output, not hand-written" -- fixtures are never edited
+// to add fields the model didn't produce). Without this, replaying that older toolArgs now fails
+// at CLI parsing instead of reaching whatever the fixture actually recorded (an Allocator denial,
+// a placement refusal, etc.), masking the very outcome the replay exists to guard. Backfilling
+// inside normalizeEntitySpec would apply this to live runs too, silently hiding a real #180
+// violation from an actual model attempt -- so this stays a separate, explicitly-opt-in step the
+// corpus replay calls before normalizeToolArgs. The minimum valid amount (1) satisfies the new
+// requirement without adding a hazard vital pool the original model call never asked for.
+function backfillPreRequiredHazardVitals(toolArgs) {
+  const out = { ...toolArgs };
+  if (out.hazard != null) {
+    out.hazard = toArray(out.hazard).map((spec) => {
+      if (typeof spec !== 'object' || spec === null || Array.isArray(spec)) return spec;
+      const filled = { ...spec };
+      if (filled.mana == null) filled.mana = 1;
+      if (filled.durability == null) filled.durability = 1;
+      return filled;
+    });
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 
 function classifyExecutionOutcome(runResult) {
@@ -168,6 +192,11 @@ function classifyExecutionOutcome(runResult) {
   if (!runResult?.toolCallProduced) return 'model_failure';
   if (runResult.execResult?.succeeded) return 'success';
   const message = `${runResult.execResult?.stdout || ''}\n${runResult.execResult?.stderr || ''}`;
+  // Walkable-tile undercount uses code floor_tile_budget_insufficient — that is layout feasibility,
+  // not Allocator budget denial. Match it before the generic /budget…insufficient/ regex (#184).
+  if (/floor_tile_budget_insufficient/i.test(message)) {
+    return 'execution_failed';
+  }
   if (/budget[^\n]*(denied|exceeded|insufficient)|requested[^\n]*available/i.test(message)) {
     return 'budget_denied';
   }
@@ -198,7 +227,57 @@ const AUTHORING_INSTRUCTIONS_TAIL =
   'Always set emitIntermediates '
   + 'to true. Rooms are generic containers — affinity pressure belongs in hazards. '
   + 'Hazards are placed by proximityRadius, never by coordinates. '
+  + 'floorTile.count is the walkable-tile carving budget (not texture); size it to cover the rooms. '
   + 'For delver goals use only: max_mana, mana_regen, or maximize_spend. Wardens have no goals.';
+
+/**
+ * The exact chat/completions body sent for one content-gen attempt — minus the live endpoint.
+ * Status-page HITL replay and attempt records both consume this so "what was run" cannot disagree
+ * with "what you are about to re-run".
+ */
+function buildAuthoringChatBody(model, scenario, settings = {}) {
+  const constrained = scenario.budgetMode === 'constrained' && Number.isInteger(scenario.budget);
+  const budgetInstruction = constrained
+    ? `Set budgetTokens to ${scenario.budget}. `
+    : 'Omit budgetTokens — the budget is unconstrained. ';
+  const systemPrompt = `${AUTHORING_INSTRUCTIONS_HEAD}${budgetInstruction}${AUTHORING_INSTRUCTIONS_TAIL}`
+    + (AUTHORING_PRICE_BRIEF ? `\n\n${AUTHORING_PRICE_BRIEF}` : '');
+
+  const chatBody = {
+    model,
+    think: false,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: scenario.prompt }
+    ],
+    tools: [AK_CREATE_TOOL],
+    tool_choice: 'required',
+    stream: false,
+    temperature: 0.1,
+    max_tokens: settings.outputTokens || (constrained ? 4096 : 8192)
+  };
+  if (settings.contextTokens) chatBody.options = { num_ctx: settings.contextTokens };
+  return chatBody;
+}
+
+function toolsSchemaSha256(tools = [AK_CREATE_TOOL]) {
+  return crypto.createHash('sha256').update(JSON.stringify(tools)).digest('hex');
+}
+
+/** Compact, replayable record of what the model was asked — tools live once at page/catalog level. */
+function llmRequestFromChatBody(chatBody, { provenance = 'recorded' } = {}) {
+  return {
+    provenance,
+    model: chatBody.model,
+    think: chatBody.think === true,
+    messages: chatBody.messages,
+    tool_choice: chatBody.tool_choice,
+    temperature: chatBody.temperature,
+    max_tokens: chatBody.max_tokens,
+    options: chatBody.options || null,
+    toolsSchemaSha256: toolsSchemaSha256(chatBody.tools)
+  };
+}
 
 /**
  * What the model was told, as identity.
@@ -259,32 +338,9 @@ function authoringPolicy() {
 async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutMs = 600000, settings = {}) {
   const { buildArgv, authoringSpec } = await getMcpBuildTools();
 
-  const constrained = scenario.budgetMode === 'constrained' && Number.isInteger(scenario.budget);
-  const budgetInstruction = constrained
-    ? `Set budgetTokens to ${scenario.budget}. `
-    : 'Omit budgetTokens — the budget is unconstrained. ';
   // Prices are deliberately NOT appended -- see AUTHORING_PRICE_BRIEF above for the measurement.
-  // The trailing separator is conditional so an empty brief leaves no dangling blank lines, and so
-  // restoring the brief needs no change here.
-  const systemPrompt = `${AUTHORING_INSTRUCTIONS_HEAD}${budgetInstruction}${AUTHORING_INSTRUCTIONS_TAIL}`
-    + (AUTHORING_PRICE_BRIEF ? `\n\n${AUTHORING_PRICE_BRIEF}` : '');
-
-  const chatBody = {
-    model,
-    think: false,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: scenario.prompt }
-    ],
-    tools: [AK_CREATE_TOOL],
-    tool_choice: 'required',
-    stream: false,
-    temperature: 0.1,
-    // Output-length cap for the LLM call — unrelated to the authoring budget.
-    // Constrained scenarios are minimal specs; unconstrained ones can get large.
-    max_tokens: settings.outputTokens || (constrained ? 4096 : 8192)
-  };
-  if (settings.contextTokens) chatBody.options = { num_ctx: settings.contextTokens };
+  const chatBody = buildAuthoringChatBody(model, scenario, settings);
+  const llmRequest = llmRequestFromChatBody(chatBody, { provenance: 'recorded' });
 
   const llmStarted = Date.now();
   let chatResponse;
@@ -342,7 +398,7 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   if (!toolCallProduced || !toolArgs) {
     return {
       toolCallProduced, toolArgs: null, llmMs, llmError, llmErrorIsTransport, llmRetries,
-      execResult: null, outDir: null,
+      llmRequest, execResult: null, outDir: null,
     };
   }
 
@@ -352,6 +408,8 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
   // Normalize Ollama quirks, then build argv via the shared MCP translation layer.
   // The scenario definition decides the budget, not the model: constrained scenarios
   // enforce their budgetTokens, unconstrained ones run with no budget at all.
+  // (Budget flag for the chat body lives in buildAuthoringChatBody; recompute here for argv.)
+  const constrained = scenario.budgetMode === 'constrained' && Number.isInteger(scenario.budget);
   const normalizedArgs = normalizeToolArgs({
     ...toolArgs,
     budgetTokens: constrained ? scenario.budget : undefined,
@@ -379,6 +437,7 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
     llmError: null,
     llmErrorIsTransport: false,
     llmRetries,
+    llmRequest,
     execResult: {
       succeeded: result.status === 0,
       exitCode: result.status,
@@ -392,5 +451,18 @@ async function runScenario(endpoint, model, scenario, runOutDir, runId, timeoutM
 }
 
 module.exports = {
-  authoringPolicy, classifyExecutionOutcome, classifyFailureClass, normalizeToolArgs, runScenario,
-  AK_CLI, REPO_ROOT };
+  authoringPolicy,
+  buildAuthoringChatBody,
+  classifyExecutionOutcome,
+  classifyFailureClass,
+  llmRequestFromChatBody,
+  normalizeToolArgs,
+  backfillPreRequiredHazardVitals,
+  runScenario,
+  toolsSchemaSha256,
+  AK_CLI,
+  REPO_ROOT,
+  AUTHORING_INSTRUCTIONS_HEAD,
+  AUTHORING_INSTRUCTIONS_TAIL,
+  AUTHORING_PRICE_BRIEF,
+};

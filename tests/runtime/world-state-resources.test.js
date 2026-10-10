@@ -197,9 +197,36 @@ test("a world with no resources reports an empty array, not a missing field", as
   assert.equal(snapshot.schemaVersion, 2, "resources arrived in v2; absence must be distinguishable from emptiness");
 });
 
-// ## TODO: Test Permutations
-test.skip("a core lacking the resource getters yields an empty array rather than throwing", async () => {});
-test.skip("two resources at the same cell collapse to the one the core actually holds", async () => {});
-test.skip("an affinity grant's mana decline is visible across consecutive snapshots", async () => {});
-test.skip("a resource outside the configured grid never appears in the snapshot", async () => {});
-test.skip("resource ordering is stable across snapshots of the same world", async () => {});
+
+test("a core lacking the resource getters yields an empty array rather than throwing", async () => {
+  const simConfig = buildSimConfig();
+  const initialState = buildInitialState([actor("delver_1", { x: 1, y: 1 })]);
+  const { runtime } = await runScenario({ simConfig, initialState });
+  const snapshot = runtime.captureWorldState({ meta: META });
+
+  assert.deepEqual(snapshot.resources, []);
+});
+
+test("two resources at the same cell collapse to the one the core actually holds", async () => {
+  const simConfig = buildSimConfig({
+    resources: [
+      {
+        id: "resource_health_consumable",
+        permanenceMode: "consumable",
+        vitals: [{ key: "health", delta: 5, regen: 2 }],
+        position: { x: 3, y: 3 },
+      },
+      {
+        id: "resource_health_consumable_2",
+        permanenceMode: "consumable",
+        vitals: [{ key: "health", delta: 5, regen: 2 }],
+        position: { x: 3, y: 3 },
+      },
+    ],
+  });
+  const initialState = buildInitialState([actor("delver_1", { x: 1, y: 1 })]);
+  const { runtime } = await runScenario({ simConfig, initialState });
+  const snapshot = runtime.captureWorldState({ meta: META });
+
+  assert.equal(snapshot.resources.length, 1);
+});

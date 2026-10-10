@@ -36,9 +36,9 @@ test("a single room with too few floor tiles for its hazards refuses with the ac
     room: [{ size: "medium" }],
     floorTile: [{ count: 1, id: "stone_floor" }],
     hazard: [
-      { affinity: "fire", expression: "emit", proximityRadius: 2 },
-      { affinity: "water", expression: "pull", proximityRadius: 2 },
-      { affinity: "earth", expression: "push", proximityRadius: 2 },
+      { affinity: "fire", expression: "emit", proximityRadius: 2, mana: 10, durability: 5 },
+      { affinity: "water", expression: "pull", proximityRadius: 2, mana: 10, durability: 5 },
+      { affinity: "earth", expression: "push", proximityRadius: 2, mana: 10, durability: 5 },
     ],
   });
 
@@ -54,9 +54,9 @@ test("the same request succeeds once floorTile.count covers the request", async 
     room: [{ size: "medium" }],
     floorTile: [{ count: 20, id: "stone_floor" }],
     hazard: [
-      { affinity: "fire", expression: "emit", proximityRadius: 2 },
-      { affinity: "water", expression: "pull", proximityRadius: 2 },
-      { affinity: "earth", expression: "push", proximityRadius: 2 },
+      { affinity: "fire", expression: "emit", proximityRadius: 2, mana: 10, durability: 5 },
+      { affinity: "water", expression: "pull", proximityRadius: 2, mana: 10, durability: 5 },
+      { affinity: "earth", expression: "push", proximityRadius: 2, mana: 10, durability: 5 },
     ],
   });
   assert.equal(status, 0, "the only change is floorTile.count -- the placer itself is not the limit");

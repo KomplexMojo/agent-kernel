@@ -9,23 +9,13 @@ You run the agent-kernel test suite and report failures as structured data. You 
 
 ## Procedure
 
-1. `OUT=$(mktemp -d)` then run:
-   `pnpm run test -- --reporter=json --outputFile="$OUT/vitest.json" 2>/dev/null; true`
-   (non-zero exit just means failures exist — continue).
-2. Extract failures without dumping raw logs:
-   ```bash
-   node -e '
-   const r = require(process.argv[1]);
-   const out = { total: r.numTotalTests, passed: r.numPassedTests, failed: r.numFailedTests, failures: [] };
-   for (const f of r.testResults ?? [])
-     for (const a of f.assertionResults ?? [])
-       if (a.status === "failed")
-         out.failures.push({ file: f.name.replace(process.cwd() + "/", ""), test: a.fullName || a.title,
-           message: (a.failureMessages || []).join("\n").split("\n").slice(0, 6).join("\n") });
-   console.log(JSON.stringify(out, null, 1));
-   ' "$OUT/vitest.json"
-   ```
-3. Assign each failure one `category` by first keyword match on message + file path:
+1. Run the first-class structured reporter (passthrough narrow scopes after `--` when needed):
+   `pnpm run test:structured`
+   or
+   `pnpm run test:structured -- tests/<path>/<name>.test.js`
+   (non-zero exit just means failures exist — continue; stdout is already the report JSON).
+2. Read stdout as the report. Do **not** re-parse Vitest JSON yourself, do **not** dump raw runner logs, and do **not** invent a second extract recipe. The script owns extraction + categorization (`scripts/testing/structured-test-report.mjs`).
+3. Categories (first keyword match on message + file path — implemented in the script):
 
 | Category | Signals |
 |---|---|

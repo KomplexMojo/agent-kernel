@@ -342,7 +342,7 @@ test("mcp create defaults full scenario outputs into a writable temp folder and 
       room: ["size=medium;count=1"],
       floorTile: ["count=12"],
       hazard: ["x=2;y=2;affinity=dark;expression=emit;stacks=2;blocking=false"],
-      hazard: ["affinity=dark;expression=emit;proximityRadius=1;mana=one-time:1"],
+      hazard: ["affinity=dark;expression=emit;proximityRadius=1;mana=one-time:1;durability=5"],
       resource: ["permanenceMode=consumable;vital=health;delta=2"],
       delver: ["count=1;affinity=fire;motivation=attacking"],
       warden: ["count=1;affinity=dark;motivation=defending"],
@@ -488,7 +488,7 @@ test("mcp hazard-plan and resource-plan tools produce cardSet entries the Design
 
     const hazardOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-hazard-plan-"));
     const hazardPlanResult = await harness.callTool("ak_hazard_plan", {
-      hazard: ["affinity=fire;expression=push;proximityRadius=2"],
+      hazard: ["affinity=fire;expression=push;proximityRadius=2;mana=10;durability=5"],
       runId: "run_mcp_hazard_plan_preview",
       createdAt: "2026-04-10T00:00:00.000Z",
       outDir: hazardOutDir,

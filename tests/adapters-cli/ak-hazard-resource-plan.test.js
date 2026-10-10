@@ -36,7 +36,7 @@ test("cli hazard-plan authors hazards directly from hazard flags", () => {
   const result = runCliOk([
     "hazard-plan",
     "--hazard",
-    "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1;durability=5",
     "--run-id",
     "run_hazard_plan_basic",
     "--created-at",
@@ -59,7 +59,7 @@ test("cli hazard-plan authors hazards directly from hazard flags", () => {
   assert.equal(hazards[0].affinity, "fire");
   assert.equal(hazards[0].expression, "emit");
   assert.equal(hazards[0].vitals.mana.regen, 1);
-  assert.equal(hazards[0].vitals.durability.kind, "one-time");
+  assert.deepEqual(hazards[0].vitals.durability, { kind: "one-time", amount: 5 });
   assert.deepEqual(spec.intent.hints.poolWeights, [{ id: "hazards", weight: 1 }]);
 
   const artifact = readJson(join(outDir, "hazard-1.json"));
@@ -74,7 +74,7 @@ test("cli hazard-plan writes hazard-only budget receipt categories", () => {
   runCliOk([
     "hazard-plan",
     "--hazard",
-    "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1;durability=5",
     "--budget-tokens",
     "200",
     "--run-id",
@@ -100,7 +100,7 @@ test("cli hazard-plan rejects insufficient hard budget", () => {
   const result = runCli([
     "hazard-plan",
     "--hazard",
-    "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1;durability=5",
     "--budget-tokens",
     "4",
     "--run-id",

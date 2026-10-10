@@ -9,7 +9,7 @@ Two dedicated subagents in `.claude/agents/` do the work; this skill is the orch
 
 ## Flow
 
-1. **Detect** — spawn `fast-pass` (Haiku): runs `pnpm run test -- --reporter=json`, returns `{total, passed, failed, failures:[{test, file, category, message}]}`. If `failed: 0`, report the counts and stop.
+1. **Detect** — spawn `fast-pass` (Haiku): runs `pnpm run test:structured`, returns `{total, passed, failed, failures:[{test, file, category, message}]}`. If `failed: 0`, report the counts and stop.
 2. **Fix** — spawn `fix-pass` (Opus) with the failure list verbatim. It works category-by-category, queries Serena for callers/implementers on Dependency Inversion and Effect Routing failures, applies minimal fixes, and re-runs narrowly.
 3. **Verify** — spawn `fast-pass` again for a clean structured before/after.
 4. **Report** — before/after counts, per-failure outcome (fixed / escalated / blocked), files touched.
@@ -18,7 +18,7 @@ Relay escalations from fix-pass to the maintainer verbatim and wait; do not appr
 
 ## Categories (7, fixed)
 
-Dependency Inversion · Effect Routing · Persona FSM Violation · Schema Mismatch · Serialization · Determinism · Fixture Corruption. Keyword rules live in `fast-pass.md`.
+Dependency Inversion · Effect Routing · Persona FSM Violation · Schema Mismatch · Serialization · Determinism · Fixture Corruption. Keyword rules live in `scripts/testing/structured-test-report.mjs` (documented in `fast-pass.md`).
 
 ## Ground truth
 

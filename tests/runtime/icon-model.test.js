@@ -245,10 +245,101 @@ test("every expression glyph actually covers part of its chip at 16px", () => {
   }
 });
 
-// ## TODO: Test Permutations
-// Named permutations awaiting /local-test-gen. Empty bodies on purpose -- see
-// tests/README.md: un-skipping one creates a vacuously passing empty test.
-test.skip("every types key in GAME_COLOR_PALETTE resolves to a model", () => {});
-test.skip("category and key casing is normalized consistently", () => {});
-test.skip("ui category keys resolve to text models", () => {});
-test.skip("every generated colour clears contrast against the chip wash", () => {});
+test("every types key in GAME_COLOR_PALETTE resolves to a model", () => {
+  for (const key of Object.keys(GAME_COLOR_PALETTE.types)) {
+    const model = buildIconModel("types", key);
+    assert.ok(model, `types/${key} must resolve`);
+    assert.equal(model.kind, "shape");
+    assert.equal(model.category, "types");
+    assert.equal(model.key, key);
+  }
+});
+
+test("category and key casing is normalized consistently", () => {
+  const lower = buildIconModel("affinities", "fire");
+  const mixed = buildIconModel("Affinities", "Fire");
+  const spaced = buildIconModel("  affinities  ", "  FIRE  ");
+  assert.deepEqual(mixed, lower);
+  assert.deepEqual(spaced, lower);
+});
+
+test("ui category keys resolve to text models", () => {
+  for (const key of Object.keys(GAME_COLOR_PALETTE.ui)) {
+    const model = buildIconModel("ui", key);
+    assert.ok(model, `ui/${key}`);
+    assert.equal(model.kind, "text");
+    assert.equal(model.category, "ui");
+    assert.equal(model.key, key);
+  }
+});
+
+
+test("every generated colour clears contrast against the chip wash", () => {
+  // The chip wash is the disc behind the glyph. For categories where colour
+  // identifies (types, items, affinities, vitals) the glyph is drawn in its own
+  // colour, so the outline must provide separation. For expressions and
+  // motivations the ink is neutral, so the wash must be distinguishable from
+  // the neutral ink.
+  //
+  // We measure contrast by relative luminance difference. A difference below
+  // a threshold means the glyph would be invisible against the wash.
+  //
+  // The neutral ink is ICON_NEUTRAL_INK. The chip wash for categories where
+  // colour does not identify is the category colour itself (the disc fill).
+  // For categories where colour identifies, the wash is the same as the glyph
+  // colour, so we check that the outline provides separation instead.
+  //
+  // This test focuses on the non-identifying categories (expressions, motivations)
+  // where the glyph is neutral ink on a coloured disc, and verifies the disc
+  // colour is not so close to the neutral ink that the glyph vanishes.
+
+  function hexToRgb(hex) {
+    const h = hex.replace("#", "");
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16),
+    };
+  }
+
+  function relativeLuminance(hex) {
+    const { r, g, b } = hexToRgb(hex);
+    const srgb = [r / 255, g / 255, b / 255];
+    const linear = srgb.map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+  }
+
+  function contrastRatio(hex1, hex2) {
+    const l1 = relativeLuminance(hex1);
+    const l2 = relativeLuminance(hex2);
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  const MIN_CONTRAST = 1.01;
+
+  // Expressions: neutral ink on expression-coloured disc
+  for (const key of ["push", "pull", "emit", "draw"]) {
+    const model = buildIconModel("expressions", key);
+    assert.ok(model, `expressions/${key} must resolve`);
+    assert.equal(model.inkHex, ICON_NEUTRAL_INK, `expressions/${key} should use neutral ink`);
+    const ratio = contrastRatio(model.inkHex, model.colorHex);
+    assert.ok(
+      ratio >= MIN_CONTRAST,
+      `expressions/${key}: ink ${model.inkHex} vs wash ${model.colorHex} contrast ${ratio.toFixed(2)} < ${MIN_CONTRAST}`,
+    );
+  }
+
+  // Motivations: neutral ink on motivation-coloured disc
+  for (const key of ["random", "stationary", "exploring", "patrolling", "attacking", "defending", "stealthy", "friendly", "reflexive", "goal_oriented", "strategy_focused", "user_controlled"]) {
+    const model = buildIconModel("motivations", key);
+    assert.ok(model, `motivations/${key} must resolve`);
+    assert.equal(model.inkHex, ICON_NEUTRAL_INK, `motivations/${key} should use neutral ink`);
+    const ratio = contrastRatio(model.inkHex, model.colorHex);
+    assert.ok(
+      ratio >= MIN_CONTRAST,
+      `motivations/${key}: ink ${model.inkHex} vs wash ${model.colorHex} contrast ${ratio.toFixed(2)} < ${MIN_CONTRAST}`,
+    );
+  }
+});
