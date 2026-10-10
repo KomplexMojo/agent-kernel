@@ -25,6 +25,7 @@ import {
   ValidationError,
 } from "../../../core-ts/src/index.ts";
 import {
+  computeVisibleCells,
   scopeObservation,
   SIGHT_AFFINITY_KINDS,
 } from "../../../core-ts/src/state/visibility.ts";
@@ -957,6 +958,30 @@ export function createFsmRuntime({
       core.getVisibilityRadiusForActorIndex(selfIndex),
       { darkStacksByCell },
     );
+  }
+
+  // The map half of fog of war, for one actor, right now. Same division of labour as
+  // scopeObservationForActor: glue reads core's numbers (the actor's radius, the
+  // surviving dark field) and CORE decides which cells are seen (computeVisibleCells).
+  // Remembering explored cells across ticks is the caller's session state.
+  function readVisibleCellsForActor(actorId) {
+    const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, [], sortedTrackedActorIds(), initialState);
+    const kinds = observation?.tiles?.kinds;
+    if (!Array.isArray(kinds) || !Array.isArray(observation?.actors)) return [];
+    if (typeof core?.getVisibilityRadiusForActorIndex !== "function") return [];
+    const selfIndex = observation.actors.findIndex((entry) => entry?.id === actorId);
+    const position = observation.actors[selfIndex]?.position;
+    if (!position) return [];
+    const darkStacksByCell = {};
+    if (typeof core?.getAffinityFieldStacksAt === "function") {
+      for (let y = 0; y < kinds.length; y += 1) {
+        for (let x = 0; x < kinds[y].length; x += 1) {
+          const stacks = core.getAffinityFieldStacksAt(x, y, SIGHT_AFFINITY_KINDS.DARK);
+          if (Number.isFinite(stacks) && stacks > 0) darkStacksByCell[`${x},${y}`] = stacks;
+        }
+      }
+    }
+    return computeVisibleCells(kinds, position, core.getVisibilityRadiusForActorIndex(selfIndex), { darkStacksByCell });
   }
 
   // Core owns the exit rule; this only maps an actor id to core's index and reads the verdict.
@@ -2050,6 +2075,14 @@ export function createFsmRuntime({
     readObservation() {
       const layoutHazards = simConfig?.layout?.data?.hazards || [];
       return resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutHazards, sortedTrackedActorIds(), initialState);
+    },
+
+    /**
+     * Which cells `actorId` can see right now: a grid the map's shape, 1 visible / 0 not.
+     * Core's rule (`computeVisibleCells`); `[]` when the actor is not on the map.
+     */
+    readVisibleCells(actorId) {
+      return readVisibleCellsForActor(actorId);
     },
 
     /** Core's verdict on whether `actorId` has left the level. */

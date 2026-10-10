@@ -247,7 +247,59 @@ test("any configured actor can be the player, not only the primary", async () =>
   assert.deepEqual(session.view().player.position, { x: 4, y: 1 });
 });
 
+// ---------------------------------------------------------------------------
+// Fog of war: core decides what is visible; the session remembers what was seen.
+// ---------------------------------------------------------------------------
+
+const { PLAY_SIGHT } = require("../../packages/runtime/src/runner/play-session.js");
+
+test("with fog, an unlit player sees only adjacent cells; the rest is unknown fog", async () => {
+  const session = await createPlaySession({ simConfig, initialState, fog: true });
+  const view = session.view();
+  // Player at (2,1): sight 1 covers x 1..3, y 0..2.
+  assert.equal(view.sight[1], "uvvvuuuuu");
+  assert.equal(view.rows[1], "?.@.?????");
+  assert.equal(view.legend.fog, "?");
+  assert.ok(view.rows[8].split("").every((c) => c === "?"), "far rows are fog");
+});
+
+test("cells seen once stay explored: base tile shown, marked remembered", async () => {
+  const session = await createPlaySession({ simConfig, initialState, fog: true });
+  await session.act(move("east"));
+  await session.act(move("south"));
+  const view = session.view();
+  // (1,1) was seen from the start seat; now out of sight but remembered.
+  assert.equal(view.sight[1][1], PLAY_SIGHT.REMEMBERED);
+  assert.equal(view.rows[1][1], ".");
+  assert.equal(view.sight[0][3], PLAY_SIGHT.REMEMBERED, "the wall above (3,1), seen on the way");
+  assert.equal(view.rows[0][3], "#");
+});
+
+test("with fog, actors out of sight are not reported", async () => {
+  const session = await createPlaySession({ ...buildArenaLevel(), playerActorId: "delver_1", fog: true });
+  assert.deepEqual(session.view().actors, [], "the warden at (5,1) is four tiles away in an unlit level");
+  const full = await createPlaySession({ ...buildArenaLevel(), playerActorId: "delver_1" });
+  assert.equal(full.view().actors.length, 1, "without fog the warden is reported");
+});
+
+test("with fog, traps out of sight are not reported", async () => {
+  const hazards = [
+    { id: "near", affinity: "water", expression: "emit", position: { x: 3, y: 1 } },
+    { id: "far", affinity: "fire", expression: "emit", position: { x: 5, y: 5 } },
+  ];
+  const withHazards = { ...simConfig, layout: { ...simConfig.layout, data: { ...simConfig.layout.data, hazards } } };
+  const session = await createPlaySession({ simConfig: withHazards, initialState, fog: true });
+  assert.deepEqual(session.view().hazards.map((h) => h.id), ["near"]);
+});
+
+test("without fog, every cell is visible and rows are core's frame", async () => {
+  const view = (await newSession()).view();
+  assert.ok(view.sight.every((row) => /^v+$/.test(row)));
+});
+
 // ## TODO: Test Permutations
+// - an actor that emits light sees one more tile per stack
+// - a dark cell is unknown from beyond one tile
 // - each of the eight directions from an open floor cell (accepted, position delta)
 // - diagonal moves that cut a wall corner (core's answer, whatever it is, is reported verbatim)
 // - a warden attack lowers the player's health in view()

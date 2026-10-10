@@ -25,6 +25,11 @@
  *   - **Traps are the level's.** Core arms the layout's static hazards at load
  *     and applies them when an actor steps in, but its frame buffer does not
  *     draw them, so `view().hazards` reports them from the SimConfig layout.
+ *   - **Sight is core's** (`computeVisibleCells`, read through the runtime).
+ *     This session only REMEMBERS: a cell the player has seen once stays
+ *     explored. view() then applies fog: a never-seen cell is the fog glyph, an
+ *     explored cell out of sight shows its base tile (no actors), and `sight`
+ *     tells the UI which cells to dim.
  */
 import { ValidationError } from "../../../core-ts/src/index.ts";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
@@ -33,6 +38,13 @@ import { buildActorHudModel } from "../render/actor-hud-model.js";
 import { createPlaybackRuntime, createRuntimeCore, renderCoreFrame } from "./core-facade.js";
 
 export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
+
+/** Per-cell sight in `view().sight`: seen now, seen before, never seen. */
+export const PLAY_SIGHT = Object.freeze({ VISIBLE: "v", REMEMBERED: "r", UNKNOWN: "u" });
+
+// The fog tile's board character; `render/resource-bundle.js` already maps "?" to the
+// `fog` tile (palette `tiles.fog`).
+const FOG_GLYPH = "?";
 
 export const PLAY_DIRECTIONS = Object.freeze(EIGHT_WAY_DELTAS.map((delta) => delta.direction));
 
@@ -64,6 +76,8 @@ function toPlayRejection({ action, reason }) {
  * @param {string} [args.playerActorId] any configured actor; defaults to the primary (id-sorted first)
  * @param {object} [args.core]         a core to drive; a fresh one by default
  * @param {Function} [args.clock]      injected clock for the runtime
+ * @param {boolean}  [args.fog]        apply fog of war to view(); off by default so a
+ *                                     caller opts in when it draws `sight`
  */
 export async function createPlaySession({
   simConfig,
@@ -72,6 +86,7 @@ export async function createPlaySession({
   core = createRuntimeCore(),
   clock,
   adapters = {},
+  fog = false,
 } = {}) {
   if (!simConfig || !initialState) {
     throw new Error("createPlaySession: simConfig and initialState are required");
@@ -100,9 +115,27 @@ export async function createPlaySession({
       position: { x: hazard.position?.x ?? hazard.x, y: hazard.position?.y ?? hazard.y },
     }))
     .filter((hazard) => Number.isInteger(hazard.position.x) && Number.isInteger(hazard.position.y));
+  // Explored memory: a cell stays explored once the player has seen it.
+  let explored = null;
+
+  function readVisible() {
+    const grid = runtime.readVisibleCells(playerId);
+    return Array.isArray(grid) && grid.length > 0 ? grid : null;
+  }
+
+  function rememberVisible() {
+    const visible = readVisible();
+    if (!visible) return;
+    if (!explored) explored = visible.map((row) => row.map(() => 0));
+    visible.forEach((row, y) => row.forEach((cell, x) => {
+      if (cell) explored[y][x] = 1;
+    }));
+  }
 
   const sourceById = new Map((initialState.actors || []).filter((actor) => actor?.id).map((actor) => [actor.id, actor]));
   const playerSource = sourceById.get(playerId) || {};
+
+  rememberVisible();
 
   function readActors() {
     return runtime.readObservation()?.actors || [];
@@ -127,6 +160,7 @@ export async function createPlaySession({
       return { tick: core.getCurrentTick(), accepted: [], rejected: [{ ...action, reason: "exited" }], status: status() };
     }
     await runtime.step({ actorCommands: { [playerId]: normalized } });
+    if (!runtime.hasActorExited(playerId)) rememberVisible();
     const applyFrame = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "apply").at(-1) || {};
     const accepted = (applyFrame.acceptedActions || [])
       .filter((action) => action?.actorId === playerId && isGameplayAction(action))
@@ -137,16 +171,50 @@ export async function createPlaySession({
     return { tick: core.getCurrentTick(), accepted, rejected, status: status() };
   }
 
+  // Fog over core's frame. Without a sight grid (the player has left the map, or a core
+  // without the sight reader) nothing is hidden.
+  function applyFog(frame) {
+    const visible = !fog || runtime.hasActorExited(playerId) ? null : readVisible();
+    if (!visible || !explored) {
+      return { rows: frame.buffer.slice(), sight: frame.buffer.map((row) => PLAY_SIGHT.VISIBLE.repeat(row.length)), visible: null };
+    }
+    const rows = [];
+    const sight = [];
+    frame.buffer.forEach((bufferRow, y) => {
+      let row = "";
+      let sightRow = "";
+      for (let x = 0; x < bufferRow.length; x += 1) {
+        if (visible[y]?.[x]) {
+          row += bufferRow[x];
+          sightRow += PLAY_SIGHT.VISIBLE;
+        } else if (explored[y]?.[x]) {
+          row += frame.baseTiles?.[y]?.[x] ?? bufferRow[x];
+          sightRow += PLAY_SIGHT.REMEMBERED;
+        } else {
+          row += FOG_GLYPH;
+          sightRow += PLAY_SIGHT.UNKNOWN;
+        }
+      }
+      rows.push(row);
+      sight.push(sightRow);
+    });
+    return { rows, sight, visible };
+  }
+
   function view() {
     const frame = renderCoreFrame(core, { actorIdLabel: playerId });
     const actors = readActors();
     const player = actors.find((actor) => actor?.id === playerId) || null;
+    const fog = applyFog(frame);
+    const inSight = (actor) => !fog.visible || Boolean(fog.visible[actor.position?.y]?.[actor.position?.x]);
     return {
       tick: frame.tick,
-      rows: frame.buffer.slice(),
-      legend: frame.legend,
+      rows: fog.rows,
+      sight: fog.sight,
+      legend: { ...frame.legend, fog: FOG_GLYPH },
       status: status(),
-      hazards: structuredClone(hazards),
+      // With fog, only traps in sight right now.
+      hazards: structuredClone(hazards.filter((hazard) => inSight(hazard))),
       player: player
         ? {
           // Core's observation reports `affinities: []` unless it is handed the
@@ -160,11 +228,12 @@ export async function createPlaySession({
           position: { ...player.position },
         }
         : null,
-      // Every OTHER tracked actor (id, role, position, vitals, affinities), for the UI
+      // Every OTHER visible actor (id, role, position, vitals, affinities), for the UI
       // to draw; core's frame shows only the primary actor. Affinities follow the
       // player's rule: core's observed list, else the authored one.
+      // Only actors the player can see right now: fog hides the rest.
       actors: actors
-        .filter((actor) => actor?.id !== playerId)
+        .filter((actor) => actor?.id !== playerId && actor?.position && inSight(actor))
         .map((actor) => ({
           id: actor.id,
           role: actor.role ?? null,
