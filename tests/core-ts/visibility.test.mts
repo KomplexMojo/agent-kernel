@@ -1,9 +1,11 @@
 /**
  * DS.3 — visibility is an affinity interaction, computed in core.
  *
- * Maintainer ruling (2026-08-20): an actor with no affinities, in a room with no
- * hazards, sees 3 tiles in each direction. Affinity interactions determine
- * visibility at runtime — emitted dark reduces sight, emitted light extends it.
+ * Maintainer ruling (2026-10-10, superseding the 3-tile baseline of 2026-08-20):
+ * levels are UNLIT. An actor that does not itself emit light sees only what is
+ * adjacent. Its own emitted light extends sight; dark wears that light down
+ * through the affinity field's light/dark cancellation, and where dark survives
+ * at a cell, that cell cannot be seen into from beyond one tile.
  *
  * WHY THE NUMBERS ARE NOT NEW. Three constants encoding exactly this design
  * already existed in `runtime/src/contracts/domain-constants.js` —
@@ -14,11 +16,9 @@
  * CONSUMES them. They move to core-ts because that is where the mechanism lives
  * and core must never import from runtime.
  *
- * ⚠️ **A deliberate, accepted gameplay consequence.** Default rooms emit dark at
- * 2 stacks, and the obscure threshold is 2 — so a default room obscures sight to
- * a single tile out of the box. That was surfaced before the rule was chosen and
- * accepted; the test at the bottom of this file pins it so it stays visible
- * rather than being rediscovered as a bug.
+ * Default rooms emit dark at 2 stacks, exactly the obscure threshold. Under the
+ * unlit rule that no longer shrinks an unlit actor's sight (it is already one
+ * tile); it is what a light-bearer's emission has to push back against.
  *
  * DS.4 wired radius scoping into real ticks. DS6.1 extends the same core-owned
  * transform with deterministic occlusion, target concealment, and hazard
@@ -29,6 +29,7 @@ import { describe, expect, test } from "vitest";
 import { createCore } from "../../packages/core-ts/src/index.ts";
 import {
   BASELINE_SIGHT_RADIUS,
+  computeVisibleCells,
   DARKNESS_OBSCURE_RADIUS,
   DARKNESS_OBSCURE_STACK_THRESHOLD,
   LIGHT_SIGHT_BONUS_PER_STACK,
@@ -57,21 +58,21 @@ function setAllFloors(core: ReturnType<typeof createCore>, w: number, h: number)
 // ---------------------------------------------------------------------------
 
 describe("resolveVisibilityRadius", () => {
-  test("an actor with no light and no dark sees the baseline 3 tiles", () => {
+  test("an unlit observer sees only what is adjacent", () => {
     expect(resolveVisibilityRadius({ lightStacks: 0, darkStacks: 0 })).toBe(BASELINE_SIGHT_RADIUS);
-    expect(BASELINE_SIGHT_RADIUS).toBe(3);
+    expect(BASELINE_SIGHT_RADIUS).toBe(1);
   });
 
   test("dark at or above the obscure threshold collapses sight to the obscured radius", () => {
     expect(resolveVisibilityRadius({ lightStacks: 0, darkStacks: DARKNESS_OBSCURE_STACK_THRESHOLD }))
       .toBe(DARKNESS_OBSCURE_RADIUS);
-    expect(resolveVisibilityRadius({ lightStacks: 0, darkStacks: 9 }))
+    expect(resolveVisibilityRadius({ lightStacks: 3, darkStacks: 9 }))
       .toBe(DARKNESS_OBSCURE_RADIUS);
   });
 
   test("dark BELOW the threshold has no effect — the threshold is the rule, not a slope", () => {
-    expect(resolveVisibilityRadius({ lightStacks: 0, darkStacks: DARKNESS_OBSCURE_STACK_THRESHOLD - 1 }))
-      .toBe(BASELINE_SIGHT_RADIUS);
+    expect(resolveVisibilityRadius({ lightStacks: 2, darkStacks: DARKNESS_OBSCURE_STACK_THRESHOLD - 1 }))
+      .toBe(BASELINE_SIGHT_RADIUS + 2 * LIGHT_SIGHT_BONUS_PER_STACK);
   });
 
   test("light extends sight, one tile per stack, from the minimum stack up", () => {
@@ -82,9 +83,9 @@ describe("resolveVisibilityRadius", () => {
   });
 
   test("sight never drops below one tile — an actor always perceives what is adjacent", () => {
-    // The floor clamp, ruled 2026-08-20. A radius of 0 would leave an actor unable
-    // to see an adjacent attacker, collapsing every hostile-dependent proposal to
-    // wait and turning a dark room into a dead zone rather than a dangerous one.
+    // The floor clamp, ruled 2026-08-20 and kept on 2026-10-10. A radius of 0
+    // would leave an actor unable to see an adjacent attacker, collapsing every
+    // hostile-dependent proposal to wait.
     for (const darkStacks of [2, 5, 50]) {
       expect(resolveVisibilityRadius({ lightStacks: 0, darkStacks })).toBeGreaterThanOrEqual(1);
     }
@@ -289,65 +290,87 @@ describe("scopeObservation", () => {
 // Against a real core: the field the runtime already computes per tick
 // ---------------------------------------------------------------------------
 
-describe("getVisibilityRadiusAt", () => {
+describe("getVisibilityRadiusForActorIndex", () => {
   const DARK = 10;
   const LIGHT = 9;
+  const FIRE = 1;
+  const PUSH = 1;
   const EMIT = 3;
 
-  test("an actor emitting dark obscures its own tile", () => {
+  function coreWithActorAt(x: number, y: number, size = 12) {
     const core = createCore();
-    call(core.configureGrid, 12, 12);
-    setAllFloors(core, 12, 12);
+    call(core.configureGrid, size, size);
+    setAllFloors(core, size, size);
     call(core.clearActorPlacements);
-    call(core.addActorPlacement, 10, 5, 5);
+    call(core.addActorPlacement, 10, x, y);
     call(core.applyActorPlacements);
-    call(core.setMotivatedActorAffinity, 0, DARK, EMIT, DARKNESS_OBSCURE_STACK_THRESHOLD);
+    return core;
+  }
+
+  test("an actor with no affinity in an empty level sees only what is adjacent", () => {
+    const core = coreWithActorAt(5, 5);
     call(core.computeAffinityField);
 
-    expect(call(core.getVisibilityRadiusAt, 5, 5)).toBe(DARKNESS_OBSCURE_RADIUS);
+    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(1);
   });
 
-  test("an actor emitting light sees further than baseline from its own tile", () => {
-    const core = createCore();
-    call(core.configureGrid, 12, 12);
-    setAllFloors(core, 12, 12);
-    call(core.clearActorPlacements);
-    call(core.addActorPlacement, 10, 5, 5);
-    call(core.applyActorPlacements);
+  test("an actor emitting light sees one extra tile per stack", () => {
+    const core = coreWithActorAt(5, 5);
     call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 2);
     call(core.computeAffinityField);
 
-    expect(call(core.getVisibilityRadiusAt, 5, 5)).toBeGreaterThan(BASELINE_SIGHT_RADIUS);
+    expect(call(core.getVisibilityRadiusForActorIndex, 0))
+      .toBe(BASELINE_SIGHT_RADIUS + 2 * LIGHT_SIGHT_BONUS_PER_STACK);
   });
 
-  test("an empty board gives every tile the baseline radius", () => {
-    const core = createCore();
-    call(core.configureGrid, 12, 12);
-    setAllFloors(core, 12, 12);
+  test("light the actor pushes rather than emits does not light its way", () => {
+    const core = coreWithActorAt(5, 5);
+    call(core.setMotivatedActorAffinity, 0, LIGHT, PUSH, 3);
     call(core.computeAffinityField);
 
-    expect(call(core.getVisibilityRadiusAt, 5, 5)).toBe(BASELINE_SIGHT_RADIUS);
+    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(BASELINE_SIGHT_RADIUS);
   });
 
-  test("DELIBERATE, ACCEPTED: a default room's dark emission obscures sight to one tile", () => {
-    // Default rooms emit dark at 2 stacks (DEFAULT_ROOM_AFFINITY_STACKS in the
-    // runtime vocabulary) and the obscure threshold is 2, so a default room
-    // clamps sight to a single tile. This was surfaced to the maintainer before
-    // the stack-threshold rule was chosen and was accepted knowingly.
-    //
-    // Pinned here so it stays a DECISION rather than becoming a bug report: if
-    // this ever needs to change, it is the threshold or the room default that
-    // moves, and this test is the place that says so out loud.
-    const core = createCore();
-    call(core.configureGrid, 12, 12);
-    setAllFloors(core, 12, 12);
-    call(core.clearActorPlacements);
-    call(core.addActorPlacement, 10, 5, 5);
-    call(core.applyActorPlacements);
-    call(core.setMotivatedActorAffinity, 0, DARK, EMIT, 2);
+  test("standing in someone else's light does not extend sight", () => {
+    const core = coreWithActorAt(5, 5);
+    call(core.armStaticHazardAt, 5, 7, LIGHT, EMIT, 3, 5);
     call(core.computeAffinityField);
 
-    expect(call(core.getVisibilityRadiusAt, 5, 5)).toBe(1);
+    expect(call(core.getAffinityFieldStacksAt, 5, 5, LIGHT)).toBeGreaterThan(0);
+    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(BASELINE_SIGHT_RADIUS);
+  });
+
+  test("a non-light affinity on emit leaves the actor unlit", () => {
+    const core = coreWithActorAt(5, 5);
+    call(core.setMotivatedActorAffinity, 0, FIRE, EMIT, 3);
+    call(core.computeAffinityField);
+
+    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(BASELINE_SIGHT_RADIUS);
+  });
+
+  test("a dark hazard under the actor cancels its light", () => {
+    const core = coreWithActorAt(5, 5);
+    call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 2);
+    call(core.armStaticHazardAt, 5, 5, DARK, EMIT, 3, 5);
+    call(core.computeAffinityField);
+
+    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(BASELINE_SIGHT_RADIUS);
+  });
+
+  test("an actor emitting dark obscures its own tile", () => {
+    const core = coreWithActorAt(5, 5);
+    call(core.setMotivatedActorAffinity, 0, DARK, EMIT, DARKNESS_OBSCURE_STACK_THRESHOLD);
+    call(core.computeAffinityField);
+
+    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(DARKNESS_OBSCURE_RADIUS);
+  });
+
+  test("an unknown actor index gets the unlit baseline rather than throwing", () => {
+    const core = coreWithActorAt(5, 5);
+    call(core.computeAffinityField);
+
+    expect(call(core.getVisibilityRadiusForActorIndex, 7)).toBe(BASELINE_SIGHT_RADIUS);
+    expect(call(core.getVisibilityRadiusForActorIndex, -1)).toBe(BASELINE_SIGHT_RADIUS);
   });
 
   test("canceled target dark does not conceal an otherwise visible actor", () => {
@@ -373,6 +396,60 @@ describe("getVisibilityRadiusAt", () => {
     });
 
     expect(scoped.actors.map((entry) => entry.id)).toEqual(["self", "target"]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The per-tile visible set: what the player's map shows
+// ---------------------------------------------------------------------------
+
+describe("computeVisibleCells", () => {
+  const open5 = () => Array.from({ length: 5 }, () => Array(5).fill(0));
+
+  function visibleKeys(grid: number[][]): string[] {
+    const keys: string[] = [];
+    grid.forEach((row, y) => row.forEach((cell, x) => { if (cell) keys.push(`${x},${y}`); }));
+    return keys;
+  }
+
+  test("an unlit observer sees its own tile and the eight around it", () => {
+    const grid = computeVisibleCells(open5(), { x: 2, y: 2 }, 1);
+    expect(visibleKeys(grid)).toHaveLength(9);
+    expect(grid[2][2]).toBe(1);
+    expect(grid[0][0]).toBe(0);
+  });
+
+  test("the grid matches the tile grid's shape", () => {
+    const grid = computeVisibleCells(open5(), { x: 0, y: 0 }, 1);
+    expect(grid).toHaveLength(5);
+    expect(grid.every((row) => row.length === 5)).toBe(true);
+  });
+
+  test("a wall is visible but what is behind it is not", () => {
+    const kinds = open5();
+    kinds[2][3] = 1;
+    const grid = computeVisibleCells(kinds, { x: 1, y: 2 }, 4);
+    expect(grid[2][3]).toBe(1);
+    expect(grid[2][4]).toBe(0);
+  });
+
+  test("surviving dark hides a cell beyond one tile but not an adjacent one", () => {
+    const grid = computeVisibleCells(open5(), { x: 0, y: 2 }, 4, {
+      darkStacksByCell: { "1,2": DARKNESS_OBSCURE_STACK_THRESHOLD, "3,2": DARKNESS_OBSCURE_STACK_THRESHOLD },
+    });
+    expect(grid[2][1]).toBe(1);
+    expect(grid[2][3]).toBe(0);
+    expect(grid[2][4]).toBe(1);
+  });
+
+  test("an observer outside the grid sees nothing rather than throwing", () => {
+    const grid = computeVisibleCells(open5(), { x: 9, y: 9 }, 2);
+    expect(visibleKeys(grid)).toEqual([]);
+  });
+
+  test("malformed geometry yields an empty grid", () => {
+    expect(computeVisibleCells([] as never, { x: 0, y: 0 }, 1)).toEqual([]);
+    expect(computeVisibleCells([[0, 0], [0]] as never, { x: 0, y: 0 }, 1)).toEqual([]);
   });
 });
 

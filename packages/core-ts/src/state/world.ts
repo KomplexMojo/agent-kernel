@@ -10,7 +10,12 @@ import {
   MAX_AFFINITY_GRANTS_PER_ACTOR,
 } from "./affinity.ts";
 import { computeAffinityRadius, computeAffinityIntensity } from "./affinity-spatial.ts";
-import { SIGHT_AFFINITY_KINDS, resolveVisibilityRadius } from "./visibility.ts";
+import {
+  resolveOwnSightLight,
+  resolveVisibilityRadius,
+  SIGHT_AFFINITY_KINDS,
+  SIGHT_LIGHT_EXPRESSION,
+} from "./visibility.ts";
 import { VitalKind } from "./vitals.ts";
 
 // ── Tile codes ──
@@ -1775,23 +1780,33 @@ export function createWorldState() {
     },
 
     /**
-     * DS.3 — how far an actor standing on this tile can see.
+     * DS.3 — how far one actor can see, under the unlit-level rule.
      *
      * READS the affinity field; never recomputes it. The field is rebuilt once
      * per tick under the Moderator's `planTickClose`, and its opposite-kind
-     * cancellation has already run, so at most one of {Light, Dark} survives
-     * here. The policy itself lives in `state/visibility.ts` — this method only
-     * supplies the two numbers it needs.
+     * cancellation has already run, so at most one of {Light, Dark} survives at
+     * the actor's tile. The policy lives in `state/visibility.ts`; this method
+     * only supplies the actor's own light-emit stacks and the field there.
+     * Only the primary affinity counts as emitted light, because it is the only
+     * one `computeActorAffinityField` projects into the world.
      */
-    getVisibilityRadiusAt(x: number, y: number): number {
+    getVisibilityRadiusForActorIndex(index: number): number {
       // Reads the closure arrays directly rather than via `this`, so the method
       // survives being detached onto the `core.*` surface without a bind — the
       // same reason every other accessor here is written this way.
+      if (!isValidMotivatedActorIndex(index)) return resolveVisibilityRadius({});
+      const x = motivatedActorXArr[index];
+      const y = motivatedActorYArr[index];
       const readStacks = (kind: number): number => (
         isValidFieldArgs(x, y, kind) ? affinityFieldStacks[fieldIndexFor(x, y, kind)] : 0
       );
+      const emitsLight = motivatedActorAffinityKindArr[index] === SIGHT_AFFINITY_KINDS.LIGHT
+        && motivatedActorAffinityExpressionArr[index] === SIGHT_LIGHT_EXPRESSION;
       return resolveVisibilityRadius({
-        lightStacks: readStacks(SIGHT_AFFINITY_KINDS.LIGHT),
+        lightStacks: resolveOwnSightLight(
+          emitsLight ? motivatedActorAffinityStacksArr[index] : 0,
+          readStacks(SIGHT_AFFINITY_KINDS.LIGHT),
+        ),
         darkStacks: readStacks(SIGHT_AFFINITY_KINDS.DARK),
       });
     },

@@ -26,9 +26,9 @@ export const DEFAULT_ROOM_AFFINITY_STACKS = 2;
 // — a re-export here would leave two places to edit and one of them wrong.
 //
 // `DEFAULT_ROOM_AFFINITY_STACKS` above stays, and now interacts with them: a
-// default room emits dark at exactly the obscure threshold, so it obscures sight
-// to one tile. That is a deliberate, accepted consequence, pinned by a test in
-// `tests/core-ts/visibility.test.mts`.
+// default room emits dark at exactly the obscure threshold. Levels are unlit
+// (ruled 2026-10-10), so that dark is what an actor's own emitted light has to
+// cancel before it can see further; see `tests/core-ts/visibility.test.mts`.
 export const DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION = Object.freeze({
   push: "enemy",
   pull: "self",

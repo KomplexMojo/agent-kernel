@@ -1,9 +1,13 @@
 /**
  * DS.3/DS6.1 — how far an actor can see and what occlusion/concealment hides.
  *
- * THE RULE (maintainer, 2026-08-20). An actor with no affinities, in a room with
- * no hazards, sees 3 tiles in each direction. Affinity interactions decide the
- * rest at runtime: emitted dark obscures, emitted light extends.
+ * THE RULE (maintainer, 2026-10-10; supersedes the 3-tile baseline of
+ * 2026-08-20). Levels are UNLIT. An actor that does not itself emit light sees
+ * only what is adjacent. Light the actor emits extends its sight; light from
+ * anyone or anything else does not. Dark interacts through the affinity field:
+ * opposite-kind cancellation wears the actor's light down at its own tile, and
+ * any cell where dark survives at the obscure threshold cannot be seen into from
+ * beyond one tile.
  *
  * WHY THE NUMBERS ARE NOT NEW — AND WHY THEY MOVED HERE.
  * `DARKNESS_OBSCURE_STACK_THRESHOLD`, `DARKNESS_OBSCURE_RADIUS` and
@@ -31,10 +35,13 @@
  * reads a cell, at most one of {Light, Dark} survives there — the stronger has
  * already consumed the weaker. Re-deriving that here would double-count it.
  */
-import { AffinityKind } from "./affinity.ts";
+import { AffinityExpression, AffinityKind } from "./affinity.ts";
 
-/** Sight for an actor with no light or dark in play: 3 tiles in each direction. */
-export const BASELINE_SIGHT_RADIUS = 3;
+/**
+ * Sight for an actor that emits no light: what is adjacent. Was 3 until the
+ * unlit-level ruling of 2026-10-10.
+ */
+export const BASELINE_SIGHT_RADIUS = 1;
 
 /** At or above this many surviving dark stacks, sight collapses. Was dead in runtime. */
 export const DARKNESS_OBSCURE_STACK_THRESHOLD = 2;
@@ -76,7 +83,9 @@ function asStackCount(value: unknown): number {
 }
 
 export interface VisibilityStacks {
+  /** Light the OBSERVER emits that survives cancellation at its own tile. */
   lightStacks?: number;
+  /** Dark surviving at the observer's tile. */
   darkStacks?: number;
 }
 
@@ -113,6 +122,22 @@ export const SIGHT_AFFINITY_KINDS = Object.freeze({
   LIGHT: AffinityKind.Light,
   DARK: AffinityKind.Dark,
 });
+
+/** Only light the observer EMITS lights its way; push and pull do not. */
+export const SIGHT_LIGHT_EXPRESSION = AffinityExpression.Emit;
+
+/**
+ * The light an observer contributes to its own sight.
+ *
+ * Its own emitted stacks, capped by what survives at its tile after the field's
+ * light/dark cancellation. The cap is the dark interaction: a dark source strong
+ * enough to win at the actor's tile leaves nothing. The cap also stops light
+ * from another source standing in for the actor's own, because an actor that
+ * emits nothing contributes zero whatever the field holds.
+ */
+export function resolveOwnSightLight(ownEmittedStacks: number, survivingLightStacks: number): number {
+  return Math.min(asStackCount(ownEmittedStacks), asStackCount(survivingLightStacks));
+}
 
 export interface VisibilityObservationActor {
   id?: string;
@@ -312,4 +337,55 @@ export function scopeObservation<T extends VisibilityObservation>(
     ...(Array.isArray(observation.hazards) ? { hazards } : {}),
     ...(Array.isArray(observation.affinityFields) ? { affinityFields } : {}),
   } as T;
+}
+
+export interface VisibleCellsOptions {
+  /** Surviving dark stacks keyed as `x,y`, read from core's affinity field. */
+  darkStacksByCell?: Readonly<Record<string, number>>;
+}
+
+/**
+ * Which tiles one observer can see: the map half of fog of war.
+ *
+ * Returns a grid the shape of `tileKinds`, 1 where visible and 0 where not. A
+ * tile uses the same rule as an actor or hazard standing on it: radius, line of
+ * sight, and dark concealment. Concealment applies to tiles (unlike field cells
+ * in `scopeObservation`) because a cell the dark has won is exactly what the
+ * player should not be able to see into.
+ *
+ * Remembering explored tiles is NOT done here. That is session state across
+ * ticks, and this function is a pure reading of one moment.
+ *
+ * Malformed geometry yields `[]`; an observer off the grid sees nothing.
+ */
+export function computeVisibleCells(
+  tileKinds: number[][],
+  origin: { x: number; y: number },
+  radius: number,
+  options: VisibleCellsOptions = {},
+): number[][] {
+  const kinds = resolveTileKinds({ tiles: { kinds: tileKinds } });
+  if (!kinds) return [];
+  const height = kinds.length;
+  const width = kinds[0].length;
+  const grid = kinds.map((row) => row.map(() => 0));
+  if (!isGridPosition(origin) || origin.x < 0 || origin.y < 0 || origin.x >= width || origin.y >= height) {
+    return grid;
+  }
+  const effectiveRadius = Math.max(
+    MIN_SIGHT_RADIUS,
+    typeof radius === "number" && Number.isFinite(radius) ? Math.trunc(radius) : BASELINE_SIGHT_RADIUS,
+  );
+  const darkStacksByCell = options.darkStacksByCell ?? {};
+  const minY = Math.max(0, origin.y - effectiveRadius);
+  const maxY = Math.min(height - 1, origin.y + effectiveRadius);
+  const minX = Math.max(0, origin.x - effectiveRadius);
+  const maxX = Math.min(width - 1, origin.x + effectiveRadius);
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      if (isPerceived(origin, { x, y }, effectiveRadius, kinds, darkStacksByCell)) grid[y][x] = 1;
+    }
+  }
+  grid[origin.y][origin.x] = 1;
+  return grid;
 }
