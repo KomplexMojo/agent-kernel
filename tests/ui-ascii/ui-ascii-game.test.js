@@ -18,7 +18,8 @@ const {
   loadLevelFromRunDir,
 } = require("../../packages/ui-ascii/src/levels.js");
 const { createGame } = require("../../packages/ui-ascii/src/game.js");
-const { renderScreen } = require("../../packages/ui-ascii/src/screen.js");
+const { overlayActors, renderScreen } = require("../../packages/ui-ascii/src/screen.js");
+const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
 const { parseArgs, resolveLevels, runScripted } = require("../../packages/ui-ascii/src/cli.mjs");
 const { createPlaySession } = require("../../packages/runtime/src/runner/play-session.js");
 
@@ -177,6 +178,24 @@ test("the cli plays a scripted game end to end", () => {
   const noTty = spawnSync(process.execPath, [CLI], { encoding: "utf8", input: "" });
   assert.equal(noTty.status, 1);
   assert.match(noTty.stderr, /interactive terminal/);
+});
+
+test("other actors are drawn over core's rows with the snapshot's letters, never over the player", () => {
+  const rows = ["#####", "#@..#", "#####"];
+  const actors = [
+    { id: "warden-1", role: "warden", position: { x: 3, y: 1 } },
+    { id: "delver-2", role: "delver", position: { x: 2, y: 1 } },
+    { id: "ghost", role: "warden", position: { x: 1, y: 1 } },
+    { id: "lost", role: "warden", position: { x: 9, y: 9 } },
+  ];
+  assert.deepEqual(overlayActors(rows, actors, { x: 1, y: 1 }), ["#####", `#@${ASCII_ENTITY_GLYPHS.delver}${ASCII_ENTITY_GLYPHS.warden}#`, "#####"]);
+  assert.equal(overlayActors(rows, undefined, null), rows, "no actors: core's rows as-is");
+});
+
+test("the screen draws view.actors when the session reports them", async () => {
+  const session = await createPlaySession(loadBundledLevel("first-steps"));
+  const view = { ...session.view(), actors: [{ id: "warden-1", role: "warden", position: { x: 3, y: 1 } }] };
+  assert.match(renderScreen({ view, levelName: "first-steps" }), /^ {2}S@\.W#\.\.\.#$/m);
 });
 
 // ## TODO: Test Permutations

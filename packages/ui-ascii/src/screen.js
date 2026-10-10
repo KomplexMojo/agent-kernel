@@ -4,8 +4,11 @@
  *
  * Nothing here decides meaning. Board glyphs come from core's frame buffer;
  * vital labels, order and colours come from runtime's HUD model
- * (`render/actor-hud-model.js`). This module only lays them out.
+ * (`render/actor-hud-model.js`); other actors' letters come from the ASCII
+ * snapshot vocabulary (`render/visualization-snapshot.js`). This module only
+ * lays them out.
  */
+import { asciiGlyphForRole } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
 
 const BAR_WIDTH = 10;
@@ -28,6 +31,23 @@ function vitalBar(vital, color) {
   const filled = Math.round(Math.max(0, Math.min(1, vital.fraction)) * BAR_WIDTH);
   const bar = "█".repeat(filled) + "░".repeat(BAR_WIDTH - filled);
   return `${vital.label} ${paint(bar, vital.colorHex, color)} ${vital.current}/${vital.max}`;
+}
+
+/**
+ * Core's frame buffer draws only the player, so other actors (`view.actors`,
+ * present once NPCs take turns) are drawn over it. The player's own cell is
+ * never overwritten.
+ */
+export function overlayActors(rows, actors, playerPosition) {
+  if (!Array.isArray(actors) || actors.length === 0) return rows;
+  const grid = rows.map((row) => row.split(""));
+  for (const actor of actors) {
+    const { x, y } = actor?.position || {};
+    if (!grid[y] || grid[y][x] === undefined) continue;
+    if (playerPosition && playerPosition.x === x && playerPosition.y === y) continue;
+    grid[y][x] = asciiGlyphForRole(actor.role);
+  }
+  return grid.map((cells) => cells.join(""));
 }
 
 /** Vitals the actor actually has: a 0/0 pool is absent, not empty. */
@@ -66,7 +86,7 @@ export function renderScreen({
   const lines = [];
   lines.push(`agent-kernel maze — ${levelName} (${levelIndex + 1}/${levelCount})`);
   lines.push("");
-  for (const row of view.rows) lines.push(`  ${row}`);
+  for (const row of overlayActors(view.rows, view.actors, view.player?.position)) lines.push(`  ${row}`);
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (vitals.length > 0) lines.push(vitals.join("   "));

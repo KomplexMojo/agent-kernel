@@ -37,8 +37,8 @@ Reaching the exit's approach tile puts you **at the exit**; waiting one more tic
 
 The simulation side is `packages/runtime/src/runner/play-session.js`: `await createPlaySession(...)`, then `await act({ kind: "move", params: { direction } })` or `act({ kind: "wait" })`, `view()` and `status()`. One command, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, and when it leaves.
 
-## Not yet
+## Other actors
 
-Only the player acts. Wardens, hazards and resources that take turns need a player-action seam in the Actor persona (see its README); until then a level with other actors loads, but core's frame buffer draws only the player, so the others are invisible obstacles that never move. Bundled levels have no other actors.
+Core's frame buffer draws only the player. When the play session reports other actors (`view().actors`), the screen draws them on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden. Whether they move is the play session's business, not this package's.
 
 Add a level by dropping a new artifact pair into `levels/`; file names sort into play order, and `tests/ui-ascii/ui-ascii-game.test.js` checks that every bundled level is winnable.
