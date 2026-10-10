@@ -10,6 +10,8 @@ pnpm run play:ascii -- --sim-config <p> --initial-state <p>
 pnpm run play:ascii -- --keys "ddss" --no-color     # scripted: apply keys, print, exit
 ```
 
+Colour is on by default in a terminal and uses the application's approved palette (`GAME_COLOR_PALETTE`, via `runtime/src/render/ascii-cell-style.js`): tiles are flat fills like the Phaser board, the player is the user-controlled colour, wardens and delvers wear their role colours. Output that is not a terminal, `NO_COLOR`, or `--no-color` gives plain text; `--color` forces colour.
+
 | Key | Does |
 |---|---|
 | arrows · WASD · `h j k l` | move |
@@ -31,7 +33,7 @@ Reaching the exit's approach tile puts you **at the exit**; waiting one more tic
 | `src/cli.mjs` | The terminal: arguments, raw-mode keypresses, redraws |
 | `src/keymap.js` | Key → intent (`move`, `wait`, `restart`, …). No legality |
 | `src/game.js` | Intent → play-session call; level index, move count, last message |
-| `src/screen.js` | Lays out the view as text. Glyphs come from core's frame buffer; vital labels and colours from runtime's HUD model |
+| `src/screen.js` | Lays out the view as text and turns palette hex into ANSI escapes. Glyphs come from core's frame buffer; board colours from `render/ascii-cell-style.js`; vital labels and colours from runtime's HUD model |
 | `src/levels.js` | Finds and parses SimConfig + InitialState artifact pairs |
 | `levels/` | Bundled levels, as `<name>.sim-config.json` + `<name>.initial-state.json` |
 
@@ -39,6 +41,6 @@ The simulation side is `packages/runtime/src/runner/play-session.js`: `await cre
 
 ## Other actors
 
-Core's frame buffer draws only the player. When the play session reports other actors (`view().actors`), the screen draws them on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden. Whether they move is the play session's business, not this package's. `warden-hall` is the bundled level with wardens in it (two, patrolling).
+Core's frame buffer draws only the player. When the play session reports other actors (`view().actors`), the screen draws them on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden. Whether they move is the play session's business, not this package's. `warden-hall` is the bundled level with wardens in it (two, wandering at random).
 
 Add a level by dropping a new artifact pair into `levels/`; file names sort into play order, and `tests/ui-ascii/ui-ascii-game.test.js` checks that every bundled level is winnable.

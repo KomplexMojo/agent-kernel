@@ -48,7 +48,9 @@
       "id": "warden-1",
       "kind": "ambulatory",
       "role": "warden",
-      "motivation": "patrolling",
+      "motivation": {
+        "kind": "random"
+      },
       "position": {
         "x": 6,
         "y": 5
@@ -80,7 +82,9 @@
       "id": "warden-2",
       "kind": "ambulatory",
       "role": "warden",
-      "motivation": "patrolling",
+      "motivation": {
+        "kind": "random"
+      },
       "position": {
         "x": 12,
         "y": 3

@@ -24,7 +24,8 @@ const USAGE = `Usage: ak-maze [options]
   --initial-state <path>  ...with this InitialState artifact
   --keys <keys>           non-interactive: apply these keys, print the final screen, exit
   --list                  list bundled levels
-  --no-color              plain text output
+  --color                 colour even when output is not a terminal
+  --no-color              plain text output (also: NO_COLOR set in the environment)
   -h, --help              show this help
 
 ${HELP_LINES.join("\n")}`;
@@ -49,12 +50,24 @@ export function parseArgs(argv) {
       case "--keys": options.keys = next(); break;
       case "--list": options.list = true; break;
       case "--no-color": options.color = false; break;
+      case "--color": options.color = "always"; break;
       case "-h":
       case "--help": options.help = true; break;
       default: throw new Error(`Unknown option: ${arg}`);
     }
   }
   return options;
+}
+
+/**
+ * Colour by default on a terminal; never when NO_COLOR is set (no-color.org)
+ * or --no-color is passed; --color forces it, e.g. for a piped --keys demo.
+ */
+export function shouldUseColor(options, { isTTY = false, env = {} } = {}) {
+  if (options.color === false) return false;
+  if (options.color === "always") return true;
+  if (env.NO_COLOR !== undefined && env.NO_COLOR !== "") return false;
+  return Boolean(isTTY);
 }
 
 export function resolveLevels(options) {
@@ -128,14 +141,14 @@ export async function main(argv = process.argv.slice(2)) {
     return 1;
   }
   if (options.keys !== undefined) {
-    console.log(await runScripted(game, options.keys, { color: options.color && process.stdout.isTTY }));
+    console.log(await runScripted(game, options.keys, { color: shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env }) }));
     return 0;
   }
   if (!process.stdin.isTTY) {
     console.error("ak-maze needs an interactive terminal (or pass --keys).");
     return 1;
   }
-  runInteractive(game, { color: options.color && process.stdout.isTTY });
+  runInteractive(game, { color: shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env }) });
   return null; // keeps running until the player quits
 }
 

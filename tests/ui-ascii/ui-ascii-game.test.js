@@ -18,9 +18,10 @@ const {
   loadLevelFromRunDir,
 } = require("../../packages/ui-ascii/src/levels.js");
 const { createGame } = require("../../packages/ui-ascii/src/game.js");
-const { overlayActors, renderScreen } = require("../../packages/ui-ascii/src/screen.js");
+const { overlayActors, paintBoardRow, renderScreen } = require("../../packages/ui-ascii/src/screen.js");
+const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/game-elements.js");
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
-const { parseArgs, resolveLevels, runScripted } = require("../../packages/ui-ascii/src/cli.mjs");
+const { parseArgs, resolveLevels, runScripted, shouldUseColor } = require("../../packages/ui-ascii/src/cli.mjs");
 const { createPlaySession } = require("../../packages/runtime/src/runner/play-session.js");
 
 const CLI = resolve(__dirname, "../../packages/ui-ascii/src/cli.mjs");
@@ -207,6 +208,53 @@ test("the screen draws view.actors when the session reports them", async () => {
   const session = await createPlaySession(loadBundledLevel("first-steps"));
   const view = { ...session.view(), actors: [{ id: "warden-1", role: "warden", position: { x: 3, y: 1 } }] };
   assert.match(renderScreen({ view, levelName: "first-steps" }), /^ {2}S@\.W#\.\.\.#$/m);
+});
+
+const ansi = (hex, layer) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  return `\u001b[${layer};2;${r};${g};${b}m`;
+};
+
+test("in colour, board cells take the palette's tile fills and role colours", async () => {
+  const session = await createPlaySession(loadBundledLevel("first-steps"));
+  const screen = renderScreen({ view: session.view(), levelName: "first-steps", color: true });
+  assert.ok(screen.includes(ansi(GAME_COLOR_PALETTE.tiles.wall, 48)), "wall fill");
+  assert.ok(screen.includes(ansi(GAME_COLOR_PALETTE.tiles.floor, 48)), "floor fill");
+  assert.ok(screen.includes(`${ansi(GAME_COLOR_PALETTE.motivations.user_controlled, 38)}@`), "player colour");
+  // Stripping the escapes leaves exactly the plain screen.
+  const plain = renderScreen({ view: session.view(), levelName: "first-steps" });
+  assert.equal(screen.replace(/\u001b\[[0-9;]*m/g, ""), plain);
+});
+
+test("a row is painted in runs and unstyled characters stay plain", () => {
+  const styles = { "#": { fg: "#cccccc", bg: "#3b3237" } };
+  assert.equal(paintBoardRow("##?", styles), `${ansi("#3b3237", 48)}${ansi("#cccccc", 38)}##\u001b[0m?`);
+  assert.equal(paintBoardRow("??", styles), "??");
+});
+
+test("colour: on for a terminal, off for pipes, NO_COLOR and --no-color; --color forces it", () => {
+  assert.equal(shouldUseColor({ color: true }, { isTTY: true, env: {} }), true);
+  assert.equal(shouldUseColor({ color: true }, { isTTY: false, env: {} }), false);
+  assert.equal(shouldUseColor({ color: true }, { isTTY: true, env: { NO_COLOR: "1" } }), false);
+  assert.equal(shouldUseColor({ color: true }, { isTTY: true, env: { NO_COLOR: "" } }), true);
+  assert.equal(shouldUseColor({ color: false }, { isTTY: true, env: {} }), false);
+  assert.equal(shouldUseColor({ color: "always" }, { isTTY: false, env: { NO_COLOR: "1" } }), true);
+  assert.equal(parseArgs(["--color"]).color, "always");
+});
+
+test("warden-hall's wardens wander once the play session runs their turns", async (context) => {
+  const session = await createPlaySession(loadBundledLevel("warden-hall"));
+  const start = session.view().actors;
+  // Other actors only act (and are only reported) with the persona-routed play
+  // session from the enemy-turns PR; until it lands this level is solo.
+  if (!Array.isArray(start)) return context.skip();
+  const startById = new Map(start.map((actor) => [actor.id, actor.position]));
+  for (let turn = 0; turn < 6; turn += 1) await session.act({ kind: "wait" });
+  const moved = session.view().actors.filter((actor) => {
+    const from = startById.get(actor.id);
+    return from && (from.x !== actor.position.x || from.y !== actor.position.y);
+  });
+  assert.ok(moved.length > 0, "at least one warden left its starting cell");
 });
 
 // ## TODO: Test Permutations

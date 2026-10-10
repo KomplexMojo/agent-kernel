@@ -565,6 +565,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - `packages/runtime/src/runner/play-session.js` is the runtime seam it drives: `await createPlaySession({ simConfig, initialState, playerActorId })`, `await act({ kind, params })` → `{ tick, accepted, rejected, status }`, `view()`, `status()`. It is glue: it closes its own tick after every command (the driver advances the tick), and a rejected move still costs the turn.
 - Core is the authority on everything the game reports: move legality (the ValidationError code, reported verbatim), arriving at the exit (core's LimitReached), leaving it (core's exit dwell), and the board glyphs (`renderCoreFrame`). HUD labels and colours come from `render/actor-hud-model.js`.
 - `ui-ascii` owns terminal IO only: key → intent mapping, screen layout, level-file loading. It must not import `core-ts`, decide legality, or restate glyph or colour meaning.
+- Terminal colour follows the same single origin as every other surface: `packages/runtime/src/render/ascii-cell-style.js` maps board characters to `GAME_COLOR_PALETTE` entries (tile fills as backgrounds, role colours for what stands on them, `motivations.user_controlled` for the player). `ui-ascii` only converts the returned hex to ANSI escapes.
 - Until the player-command seam lands (`runtime.step({ actorCommands })` with an Actor-owned command branch), the play session drives core directly and only the player acts. When it lands, `act` becomes that step, and `ui-ascii` does not change.
 
 ## Sandbox Bridge (MCP → CLI → UI)

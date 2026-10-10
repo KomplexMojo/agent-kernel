@@ -5,26 +5,46 @@
  * Nothing here decides meaning. Board glyphs come from core's frame buffer;
  * vital labels, order and colours come from runtime's HUD model
  * (`render/actor-hud-model.js`); other actors' letters come from the ASCII
- * snapshot vocabulary (`render/visualization-snapshot.js`). This module only
- * lays them out.
+ * snapshot vocabulary (`render/visualization-snapshot.js`); every board colour
+ * comes from `render/ascii-cell-style.js`, which reads the approved palette.
+ * This module only lays them out and turns hex into terminal escape codes.
  */
+import { buildAsciiCellStyles } from "../../runtime/src/render/ascii-cell-style.js";
 import { asciiGlyphForRole } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
 
 const BAR_WIDTH = 10;
 const RESET = "\u001b[0m";
 
-function ansiForHex(hex) {
+/** 24-bit ANSI for a palette hex; layer 38 is foreground, 48 background. */
+function ansiForHex(hex, layer = 38) {
   const match = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || ""));
   if (!match) return "";
   const [r, g, b] = match.slice(1).map((part) => parseInt(part, 16));
-  return `\u001b[38;2;${r};${g};${b}m`;
+  return `\u001b[${layer};2;${r};${g};${b}m`;
 }
 
 function paint(text, hex, color) {
   if (!color) return text;
   const code = ansiForHex(hex);
   return code ? `${code}${text}${RESET}` : text;
+}
+
+/** Colour one board row cell by cell; characters with no style stay plain. */
+export function paintBoardRow(row, styles) {
+  let out = "";
+  let open = null;
+  for (const char of row) {
+    const style = styles[char] || null;
+    const code = style ? `${ansiForHex(style.bg, 48)}${ansiForHex(style.fg, 38)}` : "";
+    if (code !== open) {
+      out += open ? RESET : "";
+      out += code;
+      open = code || null;
+    }
+    out += char;
+  }
+  return open ? `${out}${RESET}` : out;
 }
 
 function vitalBar(vital, color) {
@@ -86,7 +106,10 @@ export function renderScreen({
   const lines = [];
   lines.push(`agent-kernel maze — ${levelName} (${levelIndex + 1}/${levelCount})`);
   lines.push("");
-  for (const row of overlayActors(view.rows, view.actors, view.player?.position)) lines.push(`  ${row}`);
+  const styles = color ? buildAsciiCellStyles(view.legend) : null;
+  for (const row of overlayActors(view.rows, view.actors, view.player?.position)) {
+    lines.push(`  ${styles ? paintBoardRow(row, styles) : row}`);
+  }
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (vitals.length > 0) lines.push(vitals.join("   "));
