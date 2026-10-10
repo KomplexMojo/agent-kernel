@@ -568,7 +568,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - `ui-ascii` owns terminal IO only: key → intent mapping, screen layout, level-file loading. It must not import `core-ts`, decide legality, or restate glyph or colour meaning.
 - The `ak` CLI and MCP server reach it as a separate program: `ak play` (MCP `ak_play_ascii`) launches `ui-ascii`'s CLI as a child process, interactively or with scripted keys returning JSON. `adapters-cli` never imports `ui-ascii`, and `ui-ascii` never imports `adapters-cli`; its bundled levels are `ak create` output checked in from `levels/recipes.json`.
 - Terminal colour follows the same single origin as every other surface: `packages/runtime/src/render/ascii-cell-style.js` maps board characters to `GAME_COLOR_PALETTE` entries (tile fills as backgrounds, role colours for what stands on them, `motivations.user_controlled` for the player). `ui-ascii` only converts the returned hex to ANSI escapes.
-- Until the player-command seam lands (`runtime.step({ actorCommands })` with an Actor-owned command branch), the play session drives core directly and only the player acts. When it lands, `act` becomes that step, and `ui-ascii` does not change.
+- Every other actor takes its turn: `act` is one `runtime.step({ actorCommands: { [playerActorId]: command } })`. The Actor persona owns the command vocabulary and turns the command into the player's proposal; the runner only routes it to that actor. Because the runtime now flushes core's effects, `atExit` reads "standing on core's exit-approach seat" (the cell core's exit dwell counts) instead of LimitReached.
 
 ## Sandbox Bridge (MCP → CLI → UI)
 
