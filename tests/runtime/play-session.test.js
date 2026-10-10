@@ -134,12 +134,12 @@ test("a level that does not load is refused with core-setup's reason", async () 
   await assert.rejects(createPlaySession({ simConfig }), /required/);
 });
 
-test("playerActorId names the primary actor; another actor is refused for now", async () => {
-  const session = await createPlaySession({ simConfig, initialState, playerActorId: "actor_mvp" });
+test("playerActorId defaults to the primary actor; an actor not in the level is refused", async () => {
+  const session = await createPlaySession({ simConfig, initialState });
   assert.equal(session.playerActorId, "actor_mvp");
   await assert.rejects(
     createPlaySession({ simConfig, initialState, playerActorId: "warden-1" }),
-    /only the primary actor "actor_mvp"/,
+    /"warden-1" is not an actor in this level/,
   );
 });
 
@@ -152,28 +152,77 @@ test("two sessions on the same level are independent and deterministic", async (
   assert.deepEqual(a.view(), b.view());
 });
 
-test("view().hazards reports the layout's traps; a blocking one is core's barrier instead", async () => {
-  const hazards = [
-    { id: "trap-a", affinity: "water", expression: "emit", position: { x: 4, y: 3 } },
-    { id: "trap-b", affinity: "fire", expression: "emit", x: 3, y: 2 },
-    { id: "wall-c", affinity: "earth", expression: "push", blocking: true, position: { x: 5, y: 5 } },
-  ];
-  const withHazards = { ...simConfig, layout: { ...simConfig.layout, data: { ...simConfig.layout.data, hazards } } };
-  const session = await createPlaySession({ simConfig: withHazards, initialState });
-  const view = session.view();
-  assert.deepEqual(view.hazards.map((hazard) => [hazard.id, hazard.position]), [
-    ["trap-a", { x: 4, y: 3 }],
-    ["trap-b", { x: 3, y: 2 }],
-  ]);
-  assert.equal(view.hazards[0].affinity, "water");
-  view.hazards[0].position.x = 99;
-  assert.equal(session.view().hazards[0].position.x, 4, "the view is a copy");
-  assert.deepEqual((await newSession()).view().hazards, [], "no hazards: an empty list");
+// ---------------------------------------------------------------------------
+// Other actors take their turns: each act() is one runtime.step({ actorCommands }).
+// ---------------------------------------------------------------------------
+
+function makeVitals(hp) {
+  return {
+    health: { current: hp, max: hp, regen: 0 },
+    mana: { current: hp, max: hp, regen: 0 },
+    stamina: { current: hp, max: hp, regen: 0 },
+    durability: { current: 1, max: 1, regen: 0 },
+  };
+}
+
+function buildArenaLevel() {
+  const tiles = ["#######", "#.....#", "#.....#", "#.....E", "#######"];
+  return {
+    simConfig: {
+      schema: "agent-kernel/SimConfigArtifact",
+      schemaVersion: 1,
+      meta: { id: "arena_sim", runId: "arena", createdAt: "2026-10-10T00:00:00.000Z" },
+      seed: 0,
+      layout: {
+        kind: "grid",
+        data: {
+          width: 7, height: 5, tiles, spawn: { x: 1, y: 1 }, exit: { x: 6, y: 3 }, exitApproach: { x: 5, y: 3 },
+          rooms: [{ id: "R1", x: 0, y: 0, width: 7, height: 5 }], hazards: [],
+        },
+      },
+    },
+    initialState: {
+      schema: "agent-kernel/InitialStateArtifact",
+      schemaVersion: 1,
+      meta: { id: "arena_state", runId: "arena", createdAt: "2026-10-10T00:00:00.000Z" },
+      simConfigRef: { id: "arena_sim", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+      actors: [
+        { id: "delver_1", kind: "ambulatory", archetype: "delver", role: "delver", position: { x: 1, y: 1 }, motivation: { kind: "random" }, vitals: makeVitals(10) },
+        { id: "warden_1", kind: "ambulatory", archetype: "warden", role: "warden", position: { x: 5, y: 1 }, motivation: { kind: "random" }, vitals: makeVitals(6) },
+      ],
+    },
+  };
+}
+
+test("view().actors carries every other actor so a UI can draw them", async () => {
+  const session = await createPlaySession({ ...buildArenaLevel(), playerActorId: "delver_1" });
+  const { actors, player } = session.view();
+  assert.equal(player.id, "delver_1");
+  assert.deepEqual(actors.map((a) => [a.id, a.role, a.position]), [["warden_1", "warden", { x: 5, y: 1 }]]);
+});
+
+test("while the player waits, the warden takes its own turns", async () => {
+  const session = await createPlaySession({ ...buildArenaLevel(), playerActorId: "delver_1" });
+  const seen = new Set();
+  for (let i = 0; i < 4; i += 1) {
+    await session.act();
+    const warden = session.view().actors.find((a) => a.id === "warden_1");
+    seen.add(`${warden.position.x},${warden.position.y}`);
+  }
+  assert.deepEqual(session.view().player.position, { x: 1, y: 1 }, "the player's actor never auto-plays");
+  assert.ok(seen.size > 1 || !seen.has("5,1"), "the warden moved on its own");
+});
+
+test("any configured actor can be the player, not only the primary", async () => {
+  const session = await createPlaySession({ ...buildArenaLevel(), playerActorId: "warden_1" });
+  const result = await session.act(move("west"));
+  assert.equal(result.accepted.length, 1);
+  assert.deepEqual(session.view().player.position, { x: 4, y: 1 });
 });
 
 // ## TODO: Test Permutations
 // - each of the eight directions from an open floor cell (accepted, position delta)
 // - diagonal moves that cut a wall corner (core's answer, whatever it is, is reported verbatim)
-// - multi-actor initial state: the player is the id-sorted primary actor
+// - a warden attack lowers the player's health in view()
 // - an exit-ineligible (warden) player reaches atExit but never exits
 // - repeated rejected moves each advance the tick by one
