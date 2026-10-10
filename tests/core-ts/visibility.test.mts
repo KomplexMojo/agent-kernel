@@ -30,6 +30,7 @@ import { createCore } from "../../packages/core-ts/src/index.ts";
 import { computeAffinityRadius } from "../../packages/core-ts/src/state/affinity-spatial.ts";
 import {
   BASELINE_SIGHT_RADIUS,
+  resolvePoweredLightStacks,
   computeVisibleCells,
   DARKNESS_OBSCURE_RADIUS,
   DARKNESS_OBSCURE_STACK_THRESHOLD,
@@ -292,6 +293,7 @@ describe("scopeObservation", () => {
 // ---------------------------------------------------------------------------
 
 describe("getVisibilityRadiusForActorIndex", () => {
+  const MANA = 1;
   const DARK = 10;
   const LIGHT = 9;
   const FIRE = 1;
@@ -305,6 +307,8 @@ describe("getVisibilityRadiusForActorIndex", () => {
     call(core.clearActorPlacements);
     call(core.addActorPlacement, 10, x, y);
     call(core.applyActorPlacements);
+    // Light is powered by mana: a full pool emits at full strength.
+    call(core.setMotivatedActorVital, 0, MANA, 10, 10, 1);
     return core;
   }
 
@@ -364,6 +368,18 @@ describe("getVisibilityRadiusForActorIndex", () => {
     call(core.computeAffinityField);
 
     expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(DARKNESS_OBSCURE_RADIUS);
+  });
+
+  test("own light dims as the actor's mana drains, and goes out at zero", () => {
+    const core = coreWithActorAt(5, 5);
+    call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 4);
+    call(core.setMotivatedActorVital, 0, MANA, 5, 10, 1);
+    call(core.computeAffinityField);
+    expect(call(core.getVisibilityRadiusForActorIndex, 0))
+      .toBe(BASELINE_SIGHT_RADIUS + 2 * LIGHT_SIGHT_BONUS_PER_STACK);
+
+    call(core.setMotivatedActorVital, 0, MANA, 0, 10, 1);
+    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(BASELINE_SIGHT_RADIUS);
   });
 
   test("an unknown actor index gets the unlit baseline rather than throwing", () => {
@@ -498,6 +514,23 @@ describe("lit cells", () => {
   });
 });
 
+describe("resolvePoweredLightStacks", () => {
+  test("a full pool powers every stack; part of a pool powers its share, rounded up", () => {
+    expect(resolvePoweredLightStacks(4, 10, 10)).toBe(4);
+    expect(resolvePoweredLightStacks(4, 5, 10)).toBe(2);
+    expect(resolvePoweredLightStacks(4, 1, 10)).toBe(1);
+  });
+
+  test("no mana, or no pool at all, powers nothing", () => {
+    expect(resolvePoweredLightStacks(4, 0, 10)).toBe(0);
+    expect(resolvePoweredLightStacks(4, 5, 0)).toBe(0);
+  });
+
+  test("mana above the max never powers more than the stacks", () => {
+    expect(resolvePoweredLightStacks(3, 50, 10)).toBe(3);
+  });
+});
+
 describe("readLightLevels", () => {
   const LIGHT = 9;
   const DARK = 10;
@@ -542,8 +575,39 @@ describe("readLightLevels", () => {
     call(core.addActorPlacement, 10, 4, 1);
     call(core.applyActorPlacements);
     call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 2);
+    call(core.setMotivatedActorVital, 0, 1, 10, 10, 1);
     const levels = call(core.readLightLevels) as number[];
     expect(levelAt(levels, 9, 4, 1)).toBe(2);
+  });
+
+  test("a hazard's light is proportional to its mana: half a pool, half the stacks and a shorter reach", () => {
+    const core = floorCore(15, 3);
+    // stacks 4, mana 4 of 8: powered stacks ceil(4 * 4 / 8) = 2, reach 1 + 2 = 3.
+    call(core.armStaticHazardAt, 2, 1, LIGHT, EMIT, 4, 4, 0, 0, 0, 8, 1);
+    const levels = call(core.readLightLevels) as number[];
+    expect(levelAt(levels, 15, 2, 1)).toBe(2);
+    expect(levelAt(levels, 15, 2 + computeAffinityRadius(EMIT, 2), 1)).toBe(2);
+    expect(levelAt(levels, 15, 3 + computeAffinityRadius(EMIT, 2), 1)).toBe(0);
+  });
+
+  test("a drained hazard goes dark, then relights as its mana regenerates", () => {
+    const core = floorCore(9, 3);
+    // Armed with an empty pool of 6 that regenerates 2 a tick.
+    call(core.armStaticHazardAt, 4, 1, LIGHT, EMIT, 2, 0, 0, 0, 0, 6, 2);
+    expect((call(core.readLightLevels) as number[]).every((level) => level === 0)).toBe(true);
+
+    call(core.advanceTick);
+    // Regen 2 of a 6 pool: powered stacks ceil(2 * 2 / 6) = 1.
+    expect(levelAt(call(core.readLightLevels) as number[], 9, 4, 1)).toBe(1);
+  });
+
+  test("an actor with no mana pool cannot power its light", () => {
+    const core = floorCore(9, 3);
+    call(core.clearActorPlacements);
+    call(core.addActorPlacement, 10, 4, 1);
+    call(core.applyActorPlacements);
+    call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 2);
+    expect((call(core.readLightLevels) as number[]).every((level) => level === 0)).toBe(true);
   });
 
   test("the strongest light reaching a cell wins", () => {

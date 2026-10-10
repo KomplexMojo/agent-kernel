@@ -12,6 +12,7 @@ import {
 import { computeAffinityRadius, computeAffinityIntensity } from "./affinity-spatial.ts";
 import {
   resolveOwnSightLight,
+  resolvePoweredLightStacks,
   resolveVisibilityRadius,
   SIGHT_AFFINITY_KINDS,
   SIGHT_LIGHT_EXPRESSION,
@@ -1802,9 +1803,17 @@ export function createWorldState() {
       );
       const emitsLight = motivatedActorAffinityKindArr[index] === SIGHT_AFFINITY_KINDS.LIGHT
         && motivatedActorAffinityExpressionArr[index] === SIGHT_LIGHT_EXPRESSION;
+      const manaOffset = vitalIndexFor(index, VitalKind.Mana);
+      const poweredStacks = emitsLight
+        ? resolvePoweredLightStacks(
+          motivatedActorAffinityStacksArr[index],
+          motivatedActorVitalCurrent[manaOffset],
+          motivatedActorVitalMax[manaOffset],
+        )
+        : 0;
       return resolveVisibilityRadius({
         lightStacks: resolveOwnSightLight(
-          emitsLight ? motivatedActorAffinityStacksArr[index] : 0,
+          poweredStacks,
           readStacks(SIGHT_AFFINITY_KINDS.LIGHT),
         ),
         darkStacks: readStacks(SIGHT_AFFINITY_KINDS.DARK),
@@ -1825,9 +1834,12 @@ export function createWorldState() {
      * Fog of war: how much emitted light reaches each cell, row-major
      * (`y * width + x`), as the strongest emitting source's stacks.
      *
-     * Sources are light on EMIT only: static hazards that still have mana, and
-     * actors whose primary affinity is light on emit. Reach is the emit radius
-     * (`computeAffinityRadius`), Manhattan like the field projection, but
+     * Sources are light on EMIT only: static hazards, and actors whose primary
+     * affinity is light on emit. Each shines with its mana-powered stacks
+     * (`resolvePoweredLightStacks`: stacks scaled by how full its mana pool is),
+     * so a drained source is dark and regen relights it. Reach is the emit
+     * radius of those powered stacks (`computeAffinityRadius`, 1 + stacks for
+     * emit), Manhattan like the field projection, but
      * without the emit dead zone next to the source: that buffer shapes field
      * intensity, and a lamp that leaves a dark ring around itself is not light.
      * Dark is NOT applied here; the visibility rule weighs it per cell.
@@ -1847,15 +1859,23 @@ export function createWorldState() {
       for (let ci = 0; ci < cellCount; ci++) {
         if (staticHazardAffinityByCell[ci] !== SIGHT_AFFINITY_KINDS.LIGHT) continue;
         if (staticHazardExpressionByCell[ci] !== SIGHT_LIGHT_EXPRESSION) continue;
-        if (staticHazardManaReserveByCell[ci] <= 0) continue;
-        const stacks = staticHazardStacksByCell[ci];
+        const stacks = resolvePoweredLightStacks(
+          staticHazardStacksByCell[ci],
+          staticHazardManaReserveByCell[ci],
+          staticHazardManaMaxByCell[ci],
+        );
         if (stacks <= 0) continue;
         lightUp(ci % width, Math.trunc(ci / width), stacks);
       }
       for (let i = 0; i < motivatedActorCount; i++) {
         if (motivatedActorAffinityKindArr[i] !== SIGHT_AFFINITY_KINDS.LIGHT) continue;
         if (motivatedActorAffinityExpressionArr[i] !== SIGHT_LIGHT_EXPRESSION) continue;
-        const stacks = motivatedActorAffinityStacksArr[i];
+        const manaOffset = vitalIndexFor(i, VitalKind.Mana);
+        const stacks = resolvePoweredLightStacks(
+          motivatedActorAffinityStacksArr[i],
+          motivatedActorVitalCurrent[manaOffset],
+          motivatedActorVitalMax[manaOffset],
+        );
         if (stacks <= 0) continue;
         lightUp(motivatedActorXArr[i], motivatedActorYArr[i], stacks);
       }

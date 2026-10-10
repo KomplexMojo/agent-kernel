@@ -32,6 +32,10 @@
  * consequence is deliberate and is pinned by a test: the rule is a step
  * function, so the edge of a dark aura obscures exactly as much as its heart.
  *
+ * MANA. Every light source is powered by its mana pool
+ * (`resolvePoweredLightStacks`): the stacks that shine scale with how full the
+ * pool is, so a drained lamp or actor goes dark and regen brings it back.
+ *
  * WHAT THIS MODULE DOES NOT DO. It reads the affinity field; it never recomputes
  * it and never re-derives light/dark opposition. `computeAffinityField()` runs
  * `applyOppositeAffinityFieldCancellation()` internally, so by the time anything
@@ -125,6 +129,25 @@ export const SIGHT_AFFINITY_KINDS = Object.freeze({
   LIGHT: AffinityKind.Light,
   DARK: AffinityKind.Dark,
 });
+
+/**
+ * Light is powered by mana (ruled 2026-10-10: "hazard lights are powered by
+ * mana"). A source shines with its stacks in proportion to how full its mana
+ * pool is, rounded up so any mana at all gives a glimmer:
+ *
+ *   powered = ceil(stacks × min(mana, manaMax) / manaMax), and 0 when mana or
+ *   manaMax is 0.
+ *
+ * Mana regen relights a drained source tick by tick, because regen refills the
+ * pool this reads. Nothing here spends mana; draining is whatever already does.
+ */
+export function resolvePoweredLightStacks(stacks: number, mana: number, manaMax: number): number {
+  const s = asStackCount(stacks);
+  const max = asStackCount(manaMax);
+  const current = Math.min(asStackCount(mana), max);
+  if (s === 0 || max === 0 || current === 0) return 0;
+  return Math.ceil((s * current) / max);
+}
 
 /** Only light the observer EMITS lights its way; push and pull do not. */
 export const SIGHT_LIGHT_EXPRESSION = AffinityExpression.Emit;
