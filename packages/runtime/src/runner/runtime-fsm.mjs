@@ -886,9 +886,11 @@ export function createFsmRuntime({
   /**
    * DS.4/DS6.1 — narrow one observation to what a single actor can perceive.
    *
-   * Glue holds no opinion about perception: it looks up a position it already
-   * has, asks CORE how far that tile can see (`getVisibilityRadiusAt`, which
-   * reads the affinity field the Moderator already recomputes each tick), and
+   * Glue holds no opinion about perception: it looks up the actor's core index
+   * (observation actors are listed in core index order), asks CORE how far that
+   * actor can see (`getVisibilityRadiusForActorIndex`, which reads the actor's
+   * own light emission and the affinity field the Moderator already recomputes
+   * each tick), and
    * asks CORE to do the narrowing (`scopeObservation`). DS6.1 also reads the
    * surviving target-dark field for positioned actors/hazards and passes it as
    * plain data. Radius, occlusion, and concealment policy all remain in
@@ -903,11 +905,11 @@ export function createFsmRuntime({
    */
   function scopeObservationForActor(observation, observingActorId) {
     if (!observation || !observingActorId) return observation;
-    if (typeof core?.getVisibilityRadiusAt !== "function") return observation;
+    if (typeof core?.getVisibilityRadiusForActorIndex !== "function") return observation;
     if (!Array.isArray(observation.actors)) return observation;
 
-    const self = observation.actors.find((entry) => entry?.id === observingActorId);
-    const position = self?.position;
+    const selfIndex = observation.actors.findIndex((entry) => entry?.id === observingActorId);
+    const position = observation.actors[selfIndex]?.position;
     if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) {
       return observation;
     }
@@ -935,7 +937,7 @@ export function createFsmRuntime({
     return scopeObservation(
       observation,
       observingActorId,
-      core.getVisibilityRadiusAt(position.x, position.y),
+      core.getVisibilityRadiusForActorIndex(selfIndex),
       { darkStacksByCell },
     );
   }
@@ -1620,6 +1622,13 @@ export function createFsmRuntime({
         if (!actorResult.ok) {
           throw new Error(`Failed to apply initial state: ${actorResult.reason || "unknown"}`);
         }
+      }
+      // The field otherwise first exists at the first tick close, so tick 0's
+      // perception would ignore every light and dark source — an actor's own
+      // light would not reach its first decision. Same call, same position, as
+      // `initializeCoreFromArtifacts`.
+      if (typeof core?.computeAffinityField === "function") {
+        core.computeAffinityField();
       }
 
       baseTiles = resolveBaseTiles(simConfig, core);

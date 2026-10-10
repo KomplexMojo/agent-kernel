@@ -102,8 +102,9 @@ The Actor persona follows a simple loop:
 
 How motivations are resolved (priority, scoring, veto, etc.) is an implementation detail of the Actor persona and may evolve over time.
 
-Each actor receives its own perception-scoped observation. Core starts with the actor's light/dark-adjusted
-sight radius, then applies deterministic line of sight: walls and barriers block actors and hazards behind
+Each actor receives its own perception-scoped observation. Levels are unlit: core starts with a sight radius
+of one tile, extended only by light the actor itself emits and reduced by dark that survives at its tile, then
+applies deterministic line of sight: walls and barriers block actors and hazards behind
 them, including diagonal corner peeking. Surviving dark at a target conceals that target beyond one tile;
 light affects concealment only through core's existing light/dark cancellation. The shared world snapshot is
 never mutated, and resources remain absent because actor observations do not currently expose them.
