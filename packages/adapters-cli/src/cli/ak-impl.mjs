@@ -260,7 +260,7 @@ Options:
   --level         play: a bundled ui-ascii level (default: all bundled levels, in order)
   --keys          play: apply these keys without a terminal and print the final screen (e.g. "ddss.")
   --json          play: print { ok, level, turns, status, screen, launch } instead of the screen
-  --no-fog        play: show the whole map (fog of war is on by default)
+  --no-fog        play: debug view of the whole map (play is always under fog of war)
   --help          Show this help
 
 Schema discovery:

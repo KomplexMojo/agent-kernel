@@ -27,7 +27,7 @@ const USAGE = `Usage: ak-maze [options]
   --list                  list bundled levels
   --color                 colour even when output is not a terminal
   --no-color              plain text output (also: NO_COLOR set in the environment)
-  --no-fog                show the whole map (fog of war is on by default)
+  --no-fog                debug: show the whole map (play is always under fog of war)
   -h, --help              show this help
 
 ${HELP_LINES.join("\n")}`;

@@ -1712,7 +1712,7 @@ Shows a level in the terminal UI (`packages/ui-ascii`) through `ak play --json`.
   "launch": "node packages/adapters-cli/src/cli/ak.mjs play --sim-config ... --initial-state ..." }
 ```
 
-Show `screen` verbatim; `launch` opens the interactive, coloured game in a terminal. `keys` plays moves before the screen is taken, replayed from the start on every call. `color: true` keeps the ANSI escapes in `screen`. Fog of war is on, so a fresh board is mostly `?`; `fog: false` shows the whole level (every actor and trap), which is what to show after `ak_create`.
+Show `screen` verbatim; `launch` opens the interactive, coloured game in a terminal. `keys` plays moves before the screen is taken, replayed from the start on every call. `color: true` keeps the ANSI escapes in `screen`. Fog of war is on, so a fresh board is mostly `?`; the player sees only what `@` sees. `fog: false` is a debug view of the whole level (every actor and trap), not a way to play.
 
 #### `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`
 

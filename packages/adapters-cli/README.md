@@ -297,7 +297,7 @@ Inputs/outputs:
 - With no `--keys` and no `--json` the UI takes the terminal until the player quits (it needs a TTY).
 - `--keys` applies keys without a terminal and prints the final screen; `--json` prints the structured
   result instead, `launch` being the command to play that level interactively. `--color`/`--no-color`
-  pass through. Fog of war is on; `--no-fog` shows the whole map. MCP: `ak_play_ascii`.
+  pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map. MCP: `ak_play_ascii`.
 
 ### `create` / `configure`
 Generic additive agent-facing authoring commands that normalize freeform text plus
