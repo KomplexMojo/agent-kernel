@@ -4,7 +4,7 @@ import * as effects from "../ports/effects.js";
 import { createSolverPort } from "../ports/solver.js";
 import { createTickOrchestrator } from "../personas/_shared/tick-orchestrator.mts";
 import { TickPhases } from "../personas/_shared/tick-state-machine.mts";
-import { createActorPersona } from "../personas/actor/persona.js";
+import { createActorPersona, normalizeActorCommand } from "../personas/actor/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createAnnotatorPersona } from "../personas/annotator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
@@ -25,6 +25,7 @@ import {
   ValidationError,
 } from "../../../core-ts/src/index.ts";
 import {
+  computeVisibleCells,
   scopeObservation,
   SIGHT_AFFINITY_KINDS,
 } from "../../../core-ts/src/state/visibility.ts";
@@ -140,6 +141,23 @@ function ensureRecord(value, label) {
 
 function normalizePersonaPayloadsMap(raw) {
   return ensureRecord(raw, "personaPayloads");
+}
+
+// Player turns — `actorCommands` is keyed by actor id so a command reaches exactly one
+// actor's DECIDE payload. `personaPayloads.actor` cannot do this: it is spread into every
+// actor's payload. The runner only routes: what a command MEANS (its kinds, directions)
+// is the Actor's vocabulary, so validation is the Actor's own normalizeActorCommand, called
+// here only so a malformed command is refused before the tick starts, not mid-DECIDE.
+function normalizeActorCommands(raw, isTrackedActor) {
+  const commands = ensureRecord(raw, "actorCommands");
+  const normalized = {};
+  for (const [actorId, command] of Object.entries(commands)) {
+    if (!isTrackedActor(actorId)) {
+      throw new Error(`actorCommands names an actor the runtime does not track: ${actorId}`);
+    }
+    normalized[actorId] = normalizeActorCommand(command);
+  }
+  return normalized;
 }
 
 function normalizePersonaEventsMap(raw) {
@@ -942,7 +960,44 @@ export function createFsmRuntime({
     );
   }
 
-  function buildPersonaPayloads({ phase, observation, phaseInputs = {}, actions = [], emittedEffects = [], fulfilledEffects = [], actorId, reservedTargets } = {}) {
+  // The map half of fog of war, for one actor, right now. Same division of labour as
+  // scopeObservationForActor: glue reads core's numbers (the actor's radius, the
+  // surviving dark field) and CORE decides which cells are seen (computeVisibleCells).
+  // Remembering explored cells across ticks is the caller's session state.
+  function readVisibleCellsForActor(actorId) {
+    const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, [], sortedTrackedActorIds(), initialState);
+    const kinds = observation?.tiles?.kinds;
+    if (!Array.isArray(kinds) || !Array.isArray(observation?.actors)) return [];
+    if (typeof core?.getVisibilityRadiusForActorIndex !== "function") return [];
+    const selfIndex = observation.actors.findIndex((entry) => entry?.id === actorId);
+    const position = observation.actors[selfIndex]?.position;
+    if (!position) return [];
+    const darkStacksByCell = {};
+    if (typeof core?.getAffinityFieldStacksAt === "function") {
+      for (let y = 0; y < kinds.length; y += 1) {
+        for (let x = 0; x < kinds[y].length; x += 1) {
+          const stacks = core.getAffinityFieldStacksAt(x, y, SIGHT_AFFINITY_KINDS.DARK);
+          if (Number.isFinite(stacks) && stacks > 0) darkStacksByCell[`${x},${y}`] = stacks;
+        }
+      }
+    }
+    return computeVisibleCells(kinds, position, core.getVisibilityRadiusForActorIndex(selfIndex), { darkStacksByCell });
+  }
+
+  // Core owns the exit rule; this only maps an actor id to core's index and reads the verdict.
+  function hasExited(id) {
+    if (typeof core.isMotivatedActorExitedByIndex !== "function") return false;
+    const oneBased = actorIdMap.get(id);
+    return Number.isInteger(oneBased) && core.isMotivatedActorExitedByIndex(oneBased - 1) === true;
+  }
+
+  function sortedTrackedActorIds() {
+    return actorIdMap.size > 0
+      ? Array.from(actorIdMap.entries()).sort((a, b) => a[1] - b[1]).map(([id]) => id)
+      : [];
+  }
+
+  function buildPersonaPayloads({ phase, observation, phaseInputs = {}, actions = [], emittedEffects = [], fulfilledEffects = [], actorId, reservedTargets, command } = {}) {
     const overrides = normalizePersonaPayloadsMap(phaseInputs.personaPayloads || phaseInputs.inputs);
     const actorOverrides = overrides.actor || {};
     const annotatorOverrides = overrides.annotator || {};
@@ -997,6 +1052,7 @@ export function createFsmRuntime({
       observation: scopeObservationForActor(observation, observingActorId),
       baseTiles,
       ...(Array.isArray(reservedTargets) && reservedTargets.length > 0 ? { reservedTargets } : {}),
+      ...(command !== undefined ? { command } : {}),
       ...actorOverrides,
     };
 
@@ -1687,13 +1743,12 @@ export function createFsmRuntime({
         return core.getCounter ? core.getCounter() : null;
       }
 
+      const actorCommands = normalizeActorCommands(stepOptions.actorCommands, (id) => actorIdMap.has(id));
       const currentPhase = orchestrator.view().phase;
       const layoutHazards = simConfig?.layout?.data?.hazards || [];
       // Build sorted actor ID list so readObservation labels all actors by their original IDs.
       // actorIdMap maps id → 1-based numeric index; sort by index to get core ordering.
-      const sortedActorIds = actorIdMap.size > 0
-        ? Array.from(actorIdMap.entries()).sort((a, b) => a[1] - b[1]).map(([id]) => id)
-        : [];
+      const sortedActorIds = sortedTrackedActorIds();
       // Deterministic decide-phase iteration order: initialState.actors array
       // order (filtered to actors the core actually tracks), not the
       // alphabetically-sorted numeric-index order used for core observation
@@ -1703,11 +1758,6 @@ export function createFsmRuntime({
       // 2026-09-05). Core owns the rule — two ticks ended on the exit tile — and the
       // runner only reads the verdict; recomputing "has it exited?" here would be a
       // second authority on a core state transition.
-      const hasExited = (id) => {
-        if (typeof core.isMotivatedActorExitedByIndex !== "function") return false;
-        const oneBased = actorIdMap.get(id);
-        return Number.isInteger(oneBased) && core.isMotivatedActorExitedByIndex(oneBased - 1) === true;
-      };
       const decideActorIds = Array.isArray(initialState?.actors)
         ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id) && !hasExited(id))
         : sortedActorIds.filter((id) => !hasExited(id));
@@ -1781,6 +1831,7 @@ export function createFsmRuntime({
           phaseInputs: stepOptions,
           actorId,
           reservedTargets,
+          command: actorCommands[actorId],
         });
         const decideInputs = {
           personaTick: tick,
@@ -2014,6 +2065,29 @@ export function createFsmRuntime({
 
     getTickFrames() {
       return tickFrames.slice();
+    },
+
+    /**
+     * The current, UNSCOPED world observation with every tracked actor labelled by its
+     * configured id and role — what a UI draws between ticks. Read-only; the same reader
+     * the tick uses, so a UI never re-derives core's id-to-index mapping.
+     */
+    readObservation() {
+      const layoutHazards = simConfig?.layout?.data?.hazards || [];
+      return resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutHazards, sortedTrackedActorIds(), initialState);
+    },
+
+    /**
+     * Which cells `actorId` can see right now: a grid the map's shape, 1 visible / 0 not.
+     * Core's rule (`computeVisibleCells`); `[]` when the actor is not on the map.
+     */
+    readVisibleCells(actorId) {
+      return readVisibleCellsForActor(actorId);
+    },
+
+    /** Core's verdict on whether `actorId` has left the level. */
+    hasActorExited(actorId) {
+      return hasExited(actorId);
     },
 
     /**

@@ -134,22 +134,13 @@ test("a level that does not load is refused with core-setup's reason", async () 
   await assert.rejects(createPlaySession({ simConfig }), /required/);
 });
 
-test("playerActorId names the primary actor; another actor is refused for now", async () => {
-  const session = await createPlaySession({ simConfig, initialState, playerActorId: "actor_mvp" });
+test("playerActorId defaults to the primary actor; an actor not in the level is refused", async () => {
+  const session = await createPlaySession({ simConfig, initialState });
   assert.equal(session.playerActorId, "actor_mvp");
   await assert.rejects(
     createPlaySession({ simConfig, initialState, playerActorId: "warden-1" }),
-    /only the primary actor "actor_mvp"/,
+    /"warden-1" is not an actor in this level/,
   );
-});
-
-test("two sessions on the same level are independent and deterministic", async () => {
-  const a = await newSession();
-  const b = await newSession();
-  await a.act(move("east"));
-  assert.deepEqual(b.view().player.position, { x: 2, y: 1 });
-  await b.act(move("east"));
-  assert.deepEqual(a.view(), b.view());
 });
 
 test("view().hazards reports the layout's traps; a blocking one is core's barrier instead", async () => {
@@ -171,9 +162,146 @@ test("view().hazards reports the layout's traps; a blocking one is core's barrie
   assert.deepEqual((await newSession()).view().hazards, [], "no hazards: an empty list");
 });
 
+test("two sessions on the same level are independent and deterministic", async () => {
+  const a = await newSession();
+  const b = await newSession();
+  await a.act(move("east"));
+  assert.deepEqual(b.view().player.position, { x: 2, y: 1 });
+  await b.act(move("east"));
+  assert.deepEqual(a.view(), b.view());
+});
+
+// ---------------------------------------------------------------------------
+// Other actors take their turns: each act() is one runtime.step({ actorCommands }).
+// ---------------------------------------------------------------------------
+
+function makeVitals(hp) {
+  return {
+    health: { current: hp, max: hp, regen: 0 },
+    mana: { current: hp, max: hp, regen: 0 },
+    stamina: { current: hp, max: hp, regen: 0 },
+    durability: { current: 1, max: 1, regen: 0 },
+  };
+}
+
+function buildArenaLevel() {
+  const tiles = ["#######", "#.....#", "#.....#", "#.....E", "#######"];
+  return {
+    simConfig: {
+      schema: "agent-kernel/SimConfigArtifact",
+      schemaVersion: 1,
+      meta: { id: "arena_sim", runId: "arena", createdAt: "2026-10-10T00:00:00.000Z" },
+      seed: 0,
+      layout: {
+        kind: "grid",
+        data: {
+          width: 7, height: 5, tiles, spawn: { x: 1, y: 1 }, exit: { x: 6, y: 3 }, exitApproach: { x: 5, y: 3 },
+          rooms: [{ id: "R1", x: 0, y: 0, width: 7, height: 5 }], hazards: [],
+        },
+      },
+    },
+    initialState: {
+      schema: "agent-kernel/InitialStateArtifact",
+      schemaVersion: 1,
+      meta: { id: "arena_state", runId: "arena", createdAt: "2026-10-10T00:00:00.000Z" },
+      simConfigRef: { id: "arena_sim", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+      actors: [
+        { id: "delver_1", kind: "ambulatory", archetype: "delver", role: "delver", position: { x: 1, y: 1 }, motivation: { kind: "random" }, vitals: makeVitals(10) },
+        { id: "warden_1", kind: "ambulatory", archetype: "warden", role: "warden", position: { x: 5, y: 1 }, motivation: { kind: "random" }, vitals: makeVitals(6) },
+      ],
+    },
+  };
+}
+
+test("view().actors carries every other actor so a UI can draw them", async () => {
+  const session = await createPlaySession({ ...buildArenaLevel(), playerActorId: "delver_1" });
+  const { actors, player } = session.view();
+  assert.equal(player.id, "delver_1");
+  assert.deepEqual(actors.map((a) => [a.id, a.role, a.position]), [["warden_1", "warden", { x: 5, y: 1 }]]);
+});
+
+test("view().actors carries each actor's authored affinities when core's observation reports none", async () => {
+  const level = buildArenaLevel();
+  level.initialState.actors[1].affinities = [{ kind: "fire", expression: "push", stacks: 1 }];
+  const session = await createPlaySession({ ...level, playerActorId: "delver_1" });
+  const warden = session.view().actors.find((a) => a.id === "warden_1");
+  assert.deepEqual(warden.affinities.map((a) => a.kind), ["fire"]);
+});
+
+test("while the player waits, the warden takes its own turns", async () => {
+  const session = await createPlaySession({ ...buildArenaLevel(), playerActorId: "delver_1" });
+  const seen = new Set();
+  for (let i = 0; i < 4; i += 1) {
+    await session.act();
+    const warden = session.view().actors.find((a) => a.id === "warden_1");
+    seen.add(`${warden.position.x},${warden.position.y}`);
+  }
+  assert.deepEqual(session.view().player.position, { x: 1, y: 1 }, "the player's actor never auto-plays");
+  assert.ok(seen.size > 1 || !seen.has("5,1"), "the warden moved on its own");
+});
+
+test("any configured actor can be the player, not only the primary", async () => {
+  const session = await createPlaySession({ ...buildArenaLevel(), playerActorId: "warden_1" });
+  const result = await session.act(move("west"));
+  assert.equal(result.accepted.length, 1);
+  assert.deepEqual(session.view().player.position, { x: 4, y: 1 });
+});
+
+// ---------------------------------------------------------------------------
+// Fog of war: core decides what is visible; the session remembers what was seen.
+// ---------------------------------------------------------------------------
+
+const { PLAY_SIGHT } = require("../../packages/runtime/src/runner/play-session.js");
+
+test("with fog, an unlit player sees only adjacent cells; the rest is unknown fog", async () => {
+  const session = await createPlaySession({ simConfig, initialState, fog: true });
+  const view = session.view();
+  // Player at (2,1): sight 1 covers x 1..3, y 0..2.
+  assert.equal(view.sight[1], "uvvvuuuuu");
+  assert.equal(view.rows[1], "?.@.?????");
+  assert.equal(view.legend.fog, "?");
+  assert.ok(view.rows[8].split("").every((c) => c === "?"), "far rows are fog");
+});
+
+test("cells seen once stay explored: base tile shown, marked remembered", async () => {
+  const session = await createPlaySession({ simConfig, initialState, fog: true });
+  await session.act(move("east"));
+  await session.act(move("south"));
+  const view = session.view();
+  // (1,1) was seen from the start seat; now out of sight but remembered.
+  assert.equal(view.sight[1][1], PLAY_SIGHT.REMEMBERED);
+  assert.equal(view.rows[1][1], ".");
+  assert.equal(view.sight[0][3], PLAY_SIGHT.REMEMBERED, "the wall above (3,1), seen on the way");
+  assert.equal(view.rows[0][3], "#");
+});
+
+test("with fog, actors out of sight are not reported", async () => {
+  const session = await createPlaySession({ ...buildArenaLevel(), playerActorId: "delver_1", fog: true });
+  assert.deepEqual(session.view().actors, [], "the warden at (5,1) is four tiles away in an unlit level");
+  const full = await createPlaySession({ ...buildArenaLevel(), playerActorId: "delver_1" });
+  assert.equal(full.view().actors.length, 1, "without fog the warden is reported");
+});
+
+test("with fog, traps out of sight are not reported", async () => {
+  const hazards = [
+    { id: "near", affinity: "water", expression: "emit", position: { x: 3, y: 1 } },
+    { id: "far", affinity: "fire", expression: "emit", position: { x: 5, y: 5 } },
+  ];
+  const withHazards = { ...simConfig, layout: { ...simConfig.layout, data: { ...simConfig.layout.data, hazards } } };
+  const session = await createPlaySession({ simConfig: withHazards, initialState, fog: true });
+  assert.deepEqual(session.view().hazards.map((h) => h.id), ["near"]);
+});
+
+test("without fog, every cell is visible and rows are core's frame", async () => {
+  const view = (await newSession()).view();
+  assert.ok(view.sight.every((row) => /^v+$/.test(row)));
+});
+
 // ## TODO: Test Permutations
+// - an actor that emits light sees one more tile per stack
+// - a dark cell is unknown from beyond one tile
 // - each of the eight directions from an open floor cell (accepted, position delta)
 // - diagonal moves that cut a wall corner (core's answer, whatever it is, is reported verbatim)
-// - multi-actor initial state: the player is the id-sorted primary actor
+// - a warden attack lowers the player's health in view()
 // - an exit-ineligible (warden) player reaches atExit but never exits
 // - repeated rejected moves each advance the tick by one

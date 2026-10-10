@@ -1570,6 +1570,48 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
   return buildMoveProposal({ observation, payload, simConfig });
 }
 
+export const ACTOR_COMMAND_KINDS = Object.freeze(["move", "wait"]);
+
+/**
+ * The command vocabulary is the Actor's: `{ kind: "move", params: { direction } }` (an
+ * EIGHT_WAY direction name) or `{ kind: "wait" }`. Exported so the runner can refuse a
+ * malformed command BEFORE a tick starts rather than half-way through DECIDE. Throws
+ * rather than letting a controlled actor fall back to autonomous play.
+ */
+export function normalizeActorCommand(command) {
+  if (!command || typeof command !== "object" || Array.isArray(command)) {
+    throw new Error("Actor command must be an object { kind, params }.");
+  }
+  if (!ACTOR_COMMAND_KINDS.includes(command.kind)) {
+    throw new Error(`Actor command: unknown command kind ${JSON.stringify(command.kind)} (expected ${ACTOR_COMMAND_KINDS.join(", ")}).`);
+  }
+  if (command.kind === "wait") return { kind: "wait" };
+  const direction = command.params?.direction;
+  if (!DEFAULT_DELTAS.some((entry) => entry.direction === direction)) {
+    throw new Error(`Actor command: unknown direction ${JSON.stringify(direction)} (expected ${DEFAULT_DELTAS.map((e) => e.direction).join(", ")}).`);
+  }
+  return { kind: "move", params: { direction } };
+}
+
+/**
+ * Translate a command into the actor's proposal. A move is proposed even into a wall:
+ * core rejects it.
+ */
+function buildCommandProposals({ command, observationView, observation, actorId }) {
+  const normalized = normalizeActorCommand(command);
+  if (normalized.kind === "wait") {
+    return [{ kind: "wait", params: { reason: "command" } }];
+  }
+  const { direction } = normalized.params;
+  const delta = DEFAULT_DELTAS.find((entry) => entry.direction === direction);
+  const from = resolveActor(observationView, actorId, observation)?.position;
+  if (!from) return [];
+  return [{
+    kind: "move",
+    params: { direction, from: { x: from.x, y: from.y }, to: { x: from.x + delta.dx, y: from.y + delta.dy } },
+  }];
+}
+
 function buildCombatProposals({
   observation,
   payload,
@@ -1663,14 +1705,23 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     const baseTiles = resolveBaseTiles(payload, observationView, simConfig);
 
     const shouldEmitActions = event === "propose";
-    const derivedProposals = shouldEmitActions ? buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed }) : [];
+    // A COMMANDED actor (a player's turn) proposes exactly the command: motivations are
+    // not consulted and the actor is not posed to the solver, because the decision has
+    // already been made by whoever issued it. Legality stays with core.
+    const commandProposals = shouldEmitActions && payload.command !== undefined
+      ? buildCommandProposals({ command: payload.command, observationView, observation, actorId: payload.actorId })
+      : null;
+    const derivedProposals = !shouldEmitActions
+      ? []
+      : commandProposals || buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed });
     // CR.6 — the Actor derives CANDIDATE proposals. Budget admissibility used to
     // be decided here by a local filterBudgetedProposals; the policy now lives in
     // personas/allocator/proposal-admissibility.js and reaches the Actor only as
     // the Allocator's own injected judge, wired by the runner.
-    const candidates = shouldEmitActions
-      ? (Array.isArray(payload.proposals) && payload.proposals.length > 0 ? payload.proposals : derivedProposals)
-      : [];
+    const candidates = !shouldEmitActions
+      ? []
+      : commandProposals
+        || (Array.isArray(payload.proposals) && payload.proposals.length > 0 ? payload.proposals : derivedProposals);
     const budgetReceipt = payload.budgetReceipt || payload.budget?.receipt || payload.budget?.receiptArtifact || null;
     const budgetAllocation = payload.budgetAllocation || payload.budget?.allocation || null;
     const hasBudget = Boolean(budgetReceipt || budgetAllocation);
@@ -1694,7 +1745,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     const exit = isWarden(actorRecordForExit)
       ? null
       : resolveExit(payload, observationView, baseTiles, simConfig);
-    const runtimeDecisionEffect = shouldEmitActions
+    const runtimeDecisionEffect = shouldEmitActions && !commandProposals
       ? buildRuntimeDecisionEffect({
           payload: {
             ...payload,
