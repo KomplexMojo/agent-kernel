@@ -89,7 +89,8 @@ export async function createPlaySession({
     throw new Error(`createPlaySession: level did not load (${error?.message || "unknown"})`);
   }
 
-  const playerSource = (initialState.actors || []).find((actor) => actor?.id === playerId) || {};
+  const sourceById = new Map((initialState.actors || []).filter((actor) => actor?.id).map((actor) => [actor.id, actor]));
+  const playerSource = sourceById.get(playerId) || {};
 
   function readActors() {
     return runtime.readObservation()?.actors || [];
@@ -146,11 +147,18 @@ export async function createPlaySession({
           position: { ...player.position },
         }
         : null,
-      // Every OTHER tracked actor (id, role, position, vitals), for the UI to draw;
-      // core's frame shows only the primary actor.
+      // Every OTHER tracked actor (id, role, position, vitals, affinities), for the UI
+      // to draw; core's frame shows only the primary actor. Affinities follow the
+      // player's rule: core's observed list, else the authored one.
       actors: actors
         .filter((actor) => actor?.id !== playerId)
-        .map((actor) => ({ id: actor.id, role: actor.role ?? null, position: { ...actor.position }, vitals: actor.vitals })),
+        .map((actor) => ({
+          id: actor.id,
+          role: actor.role ?? null,
+          position: { ...actor.position },
+          vitals: actor.vitals,
+          affinities: actor.affinities?.length ? actor.affinities : (sourceById.get(actor.id)?.affinities ?? []),
+        })),
     };
   }
 

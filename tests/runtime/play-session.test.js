@@ -201,6 +201,14 @@ test("view().actors carries every other actor so a UI can draw them", async () =
   assert.deepEqual(actors.map((a) => [a.id, a.role, a.position]), [["warden_1", "warden", { x: 5, y: 1 }]]);
 });
 
+test("view().actors carries each actor's authored affinities when core's observation reports none", async () => {
+  const level = buildArenaLevel();
+  level.initialState.actors[1].affinities = [{ kind: "fire", expression: "push", stacks: 1 }];
+  const session = await createPlaySession({ ...level, playerActorId: "delver_1" });
+  const warden = session.view().actors.find((a) => a.id === "warden_1");
+  assert.deepEqual(warden.affinities.map((a) => a.kind), ["fire"]);
+});
+
 test("while the player waits, the warden takes its own turns", async () => {
   const session = await createPlaySession({ ...buildArenaLevel(), playerActorId: "delver_1" });
   const seen = new Set();
