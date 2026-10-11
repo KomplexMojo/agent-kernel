@@ -545,10 +545,18 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick, actorRegistr
       return { ok: true, action: { ...action, tick: actionTick }, kind: ACTION_KIND.DeferRequest, value: seq };
     }
     case "move": {
-      const from = params.from;
-      const to = params.to;
-      const direction = resolveMoveDirection({ direction: params.direction, from, to });
-      if (!from || !to || direction === null) {
+      const targetX = toInt(params.target?.x);
+      const targetY = toInt(params.target?.y);
+      const fromX = typeof core?.getActorX === "function" ? core.getActorX() : undefined;
+      const fromY = typeof core?.getActorY === "function" ? core.getActorY() : undefined;
+      if (!Number.isFinite(targetX) || !Number.isFinite(targetY)
+        || !Number.isFinite(fromX) || !Number.isFinite(fromY)) {
+        return { ok: false, reason: "missing_move_params" };
+      }
+      const from = { x: fromX, y: fromY };
+      const to = { x: targetX, y: targetY };
+      const direction = resolveMoveDirection({ from, to });
+      if (direction === null) {
         return { ok: false, reason: "missing_move_params" };
       }
       const actorNumeric = resolveActorIdNumeric({ actorId: action.actorId, actorIdMap, core });

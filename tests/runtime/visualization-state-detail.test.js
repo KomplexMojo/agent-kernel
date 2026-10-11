@@ -78,7 +78,7 @@ const TICK_FRAME = {
   phase: "summarize",
   acceptedActions: [
     { schema: "agent-kernel/Action", schemaVersion: 1, actorId: "actor_delver_1", tick: 1, kind: "move",
-      params: { direction: "east", from: { x: 1, y: 1 }, to: { x: 2, y: 1 } } },
+      params: { target: { x: 2, y: 1 } } },
     { schema: "agent-kernel/Action", schemaVersion: 1, actorId: "actor_warden_1", tick: 1, kind: "wait",
       params: { reason: "stationary" } },
   ],
@@ -321,7 +321,7 @@ function applyAndSummarizeFrames(tick, moves) {
 }
 
 function moveAction(actorId, tick, to) {
-  return { schema: "agent-kernel/Action", schemaVersion: 1, actorId, tick, kind: "move", params: { to } };
+  return { schema: "agent-kernel/Action", schemaVersion: 1, actorId, tick, kind: "move", params: { target: to } };
 }
 
 test("createVisualizationSnapshot accumulates moves across apply-phase frames from multiple ticks (regression #147)", async () => {

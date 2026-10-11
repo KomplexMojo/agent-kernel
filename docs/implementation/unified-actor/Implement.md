@@ -1,6 +1,56 @@
 # Implementation runbook
 Run commands from the existing isolated unified-actor worktree root. Read Handoff.md and Plan.md for current status; cloud startup notes are retained for portability.
 
+October 11: adaptActionToCore packs moves from the core actor position and
+params.target. Restoring from/to applied nothing.
+Validation: `pnpm run test:vitest -- tests/runtime/runtime-fsm-loop.test.js`.
+
+October 11: runMvpMovement records params.target. Shared mvp-to-exit stores
+that shape. Replay derives the packed step. adaptActionToCore still reads
+from/to. Wiring stays 36 vs 13.
+Validation:
+`pnpm run test:vitest -- tests/runtime/mvp-movement.test.js tests/runtime/replay-mvp.test.js tests/bindings/movement.test.js tests/fixtures/basic-mvp-actor-movement.test.js tests/runtime/actor-proposal-replay.test.js tests/adapters-cli/ak-actor-determinism.test.js`.
+
+Accepted decision 1: attacking selections without an actor type are delvers;
+explicit pool lists that omit wardens drop warden actors. llm-plan 14 passed.
+Next: measured delver budgets. DropRate, benchmark host, bf-036, and wiring
+stay red.
+Validation:
+`pnpm run test:vitest -- tests/personas/director/director-build-spec-card-set-roundtrip.test.js tests/adapters-cli/ak-llm-plan.test.js`.
+
+Suite recount 4206/4003/22/181. Remaining failures are the leave-red list.
+The 10-minute loop stopped. Row 9 later reviewer.
+Validation: `pnpm run test`.
+
+Runtime-decision and solver move fixtures record params.target. Leave
+invent-required reds. Shared mvp-to-exit and adaptActionToCore stay leftover.
+Row 9 later reviewer.
+Validation:
+`pnpm run test:vitest -- tests/runtime/runtime-decision-contract.test.js tests/personas/tick-orchestrator.test.js tests/runtime/z3-decision-objective.test.js tests/runtime/run-helpers-runtime-decision.test.js tests/runtime/command-kernel-inspect-runtime-decision.test.js tests/architecture/dependency-direction.test.js`.
+
+Tick-session replay reads params.target only. Leave invent-required reds.
+Row 9 later reviewer.
+Validation:
+`pnpm run test:vitest -- tests/adapters-cli/tick-session-move-target.test.js tests/runtime/tick-rewind-parity.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js tests/architecture/ports-and-adapters-boundary.test.js` and `pnpm run typecheck`.
+
+Visualization replay reads params.target only. Leave invent-required reds.
+Row 9 later reviewer.
+Validation:
+`pnpm run test:vitest -- tests/runtime/visualization-state-detail.test.js tests/architecture/dependency-direction.test.js`.
+
+E2e pool trace loads the unified registry; tick playback, sandbox move, and
+manual move record `{ target }` only. Leave invent-required pool denials
+red. Row 9 later reviewer.
+Validation:
+`pnpm run test:vitest -- tests/integration/e2e-llm-pool-runtime.test.js tests/ui-web/gameplay-view-tick-navigation.test.mjs tests/ui-web/gameplay-flow.test.mjs tests/ui-web/gameplay-discard.test.mjs tests/ui-web/gameplay-selection.test.mjs tests/ui-web/gameplay-selection-playback-state.test.mjs tests/integration/mcp/sandbox-movement.test.js tests/runtime/manual-movement.test.js tests/architecture/dependency-direction.test.js tests/architecture/ports-and-adapters-boundary.test.js`.
+
+Leftover MCP run/replay/narrate Configurator artifacts; preview Actors 3;
+motivations/presentation oracles; sandbox planRef schema constant; ak_create
+drift lines; stationary stamina denials. Leave invent-required pool denials
+red. Row 9 later reviewer.
+Validation:
+`pnpm run test:vitest -- tests/integration/mcp/mcp-tools.test.js tests/integration/mcp/mcp-server.test.js tests/integration/mcp/sandbox-movement.test.js tests/integration/mcp-cli-ui-random-scenario.test.js tests/integration/cli-run-multi-actor-movement.test.js tests/integration/agent-authoring-ui-flow.test.js tests/architecture/schema-declaration-origin.test.js tests/architecture/ak-create-error-message-drift.test.js tests/architecture/adapters-cli-no-actor-authoring.test.js` and `pnpm run typecheck`.
+
 Leftover demo-cli Configurator artifacts; resource-plan denial budget 5;
 catalog unified resource oracle. Leave invent-required pool denials red. Row 9
 later reviewer.

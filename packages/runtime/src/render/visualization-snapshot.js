@@ -53,7 +53,7 @@ function computeActorPositions(initialState, frames, tick) {
     if (Number.isFinite(frame?.tick) && frame.tick > limit) break;
     for (const action of frame?.acceptedActions || []) {
       if (action?.kind !== "move") continue;
-      const to = action.params?.target || action.params?.to;
+      const to = action.params?.target;
       if (!Number.isFinite(to?.x) || !Number.isFinite(to?.y)) continue;
       positions.set(action.actorId, { x: to.x, y: to.y });
     }

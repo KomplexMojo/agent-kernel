@@ -350,7 +350,7 @@ test("mixed-object create bundle survives the CLI -> Diagnostics -> injected Pre
   assert.equal(elements["#preview-render-canvas"].hidden, false);
   assert.equal(elements["#preview-frame-buffer"].hidden, true);
   assert.match(elements["#preview-summary"].textContent, /Map /);
-  assert.match(elements["#preview-summary"].textContent, /Actors 2/);
+  assert.match(elements["#preview-summary"].textContent, /Actors 3/);
   assert.match(elements["#preview-actor-list"].textContent, /ember_delver/);
   assert.match(elements["#preview-actor-list"].textContent, /ember_warden/);
   assert.equal(elements["#preview-status"].textContent, "Preview loaded from file.");

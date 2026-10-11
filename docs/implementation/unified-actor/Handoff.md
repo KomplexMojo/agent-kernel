@@ -2,6 +2,95 @@
 
 ## Start here
 
+LATEST October 11: merging to main at maintainer request with 8 known
+failures. Each one has a GitHub issue. Suite 4208 tests: 4016 passed and
+11 failed before the three session regressions were fixed. The three
+fixes: an explicit category is kept, the spawn reserve applies only when
+the maximizer tunes vitals, and the allowlist line moved. Typecheck 0.
+Further work happens on main, from the issues.
+
+LATEST October 11: bf-036 is a harness-defect. Replay approves at
+770/1600. The 2026-08-28 resource-pool denial does not reproduce.
+The scenario's own expected outcome is success. No commit/push/PR.
+
+LATEST October 11: DECIDE. The lossless leftover queue is exhausted.
+adaptActionToCore and the shared maze log both use params.target.
+What remains is the leave-red list: V1 dropRate, scenario 91's catalog
+hash, wiring 36 vs 13, the benchmark host, bf-036, occupancy,
+proximityRadius, and delver-warden melee. The 10-minute loop stopped.
+No commit/push/PR.
+
+LATEST October 11: adaptActionToCore packs a move from the core actor
+position and params.target. A from/to proposal applies nothing. Restoring
+that reader left applied.length at 0; restored. Wiring stays 36 vs 13.
+No commit/push/PR.
+
+LATEST October 11: runMvpMovement records params.target. The shared
+mvp-to-exit log no longer stores from/to/direction. Replay derives the
+packed step from the actor position and that target. Restoring from/to
+failed the golden action oracle; restored. adaptActionToCore still
+reads from/to. Wiring stays 36 vs 13. No commit/push/PR.
+
+LATEST October 10: DECIDE on decision 3. Every catalog V1 resource
+string includes dropRate (16/16). The only spec without it is the
+negative oracle that expects rejection. No lossless grant exists.
+Leave those red. The 15-minute loop stopped. No commit/push/PR.
+
+LATEST October 10: the maximizer reserves actor_spawn before it fills a
+delver, so a 200-token hard budget receipts at 200 (configuration 195 plus
+spawn 5). Mana max is 104. Prices unchanged. Dropping the reserve denied
+205/200. Scenario 91 and decision 3 stay open. No commit/push/PR.
+
+RESOLVED October 10 — the maximizer now reserves actor_spawn, so the hard
+budget is the receipt cap. Scenario 91's measured minimum is still 102, and
+writing that changes the catalog hash pinned by every bf fixture. Leave the
+catalog at 92/91. Decision 3 (V1 grants only) has not started.
+
+LATEST October 10: accepted decision 1. An attacking selection with no
+actor type is a delver. A warden is omitted when the explicit pool list
+leaves wardens unfunded. llm-plan 14 passed. Next is the four measured
+delver budgets. DropRate, benchmark host, bf-036, and wiring stay red.
+No commit/push/PR.
+
+LATEST October 10: suite recount 4206 tests, 4003 passed, 22 failed, 181
+pending. Every failure is on the leave-red list (pool shorts, wiring 36 vs
+13, V1 resources, benchmark host, bf-036). The 10-minute loop stopped.
+Shared mvp-to-exit and adaptActionToCore stay leftover. Row 9 later
+reviewer. No commit/push/PR.
+
+LATEST October 10: runtime-decision and solver move fixtures record
+params.target. The envelope passes that shape through. Perturb restoring
+params.to failed the contract oracle; restored. Shared mvp-to-exit and
+adaptActionToCore stay leftover. Leave the leave-red list red. Row 9 later
+reviewer. No commit/push/PR.
+
+LATEST October 10: tick-session replay reads params.target only. A leftover
+params.to frame leaves the actor in place. Perturb restoring the fallback
+moved the glyph; restored. Leave the leave-red list red. Row 9 later
+reviewer. No commit/push/PR.
+
+LATEST October 10: visualization replay reads params.target only. The
+params.to fallback is gone. Perturb restoring params.to froze the actor;
+restored. tick-session still falls back to params.to. Leave the leave-red
+list red. Row 9 later reviewer. No commit/push/PR.
+
+LATEST October 10: e2e pool trace loads the unified registry (no stub core);
+tick playback, sandbox move, and manual move record params.target only.
+Perturbs restored (params.to, two-arg loader, from/to/direction). Wiring
+still 36 vs 13. Leave llm-plan/scenario/authoring pool shorts, occupancy,
+proximityRadius, V1, tools/benchmark env, loadMvpScenario, and
+delver-warden-battle melee red. Row 9 later reviewer. No commit/push/PR.
+
+LATEST October 10: leftover MCP replay/narrate/run write Configurator
+artifacts; preview counts the hazard actor (Actors 3); motivations and
+presentation.category replace leftover motivation.kind/archetype; sandbox
+planRef imports PLAN_ARTIFACT_SCHEMA; ak_create drift allowlist follows
+shifted lines; stationary stamina denials stay denials (exploring floor
+refills). Perturbs restored. Typecheck 0. Wiring 36 vs 13. Leave
+llm-plan/scenario/authoring pool shorts, occupancy, proximityRadius, V1,
+tools/benchmark env, loadMvpScenario, and delver-warden-battle melee red.
+Row 9 later reviewer. No commit/push/PR.
+
 LATEST September 22: leftover demo-cli writes Configurator boxed terrain plus
 delver artifacts (basic stationary fixtures stay off the run path). resource-plan
 low-budget denial uses budget 5 (totalCost 6). content-gen catalog oracle reads

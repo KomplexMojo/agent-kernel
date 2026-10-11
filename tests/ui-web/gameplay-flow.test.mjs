@@ -439,8 +439,8 @@ test("tileVisuals persists across stepForward and stepBack renders", async () =>
       { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "actor-1", position: { x: 0, y: 0 } }] },
     ],
     tickFrames: [
-      { tick: 0, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { to: { x: 1, y: 0 } } }] },
-      { tick: 1, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { to: { x: 1, y: 1 } } }] },
+      { tick: 0, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { target: { x: 1, y: 0 } } }] },
+      { tick: 1, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { target: { x: 1, y: 1 } } }] },
     ],
   });
   view.stepForward();

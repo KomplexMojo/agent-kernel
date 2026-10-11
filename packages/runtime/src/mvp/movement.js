@@ -181,9 +181,7 @@ export function runMvpMovement({
       tick,
       kind: "move",
       params: {
-        direction: directionFromDelta({ dx: to.x - from.x, dy: to.y - from.y }),
-        from,
-        to,
+        target: to,
       },
     };
     actions.push(action);

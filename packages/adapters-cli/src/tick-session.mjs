@@ -253,7 +253,7 @@ function resolveActorPositionsAtTick(initialState, frames, tick) {
     if (Number.isFinite(frame?.tick) && frame.tick > limit) break;
     for (const action of Array.isArray(frame?.acceptedActions) ? frame.acceptedActions : []) {
       if (action?.kind !== "move") continue;
-      const to = action.params?.target || action.params?.to;
+      const to = action.params?.target;
       const id = String(action.actorId || "");
       if (!id || !Number.isFinite(to?.x) || !Number.isFinite(to?.y)) continue;
       positions.set(id, { x: to.x, y: to.y });

@@ -35,6 +35,7 @@ import {
   ACTION_SEQUENCE_SCHEMA,
   BUDGET_ARTIFACT_SCHEMA,
   BUDGET_RECEIPT_ARTIFACT_SCHEMA,
+  PLAN_ARTIFACT_SCHEMA,
 } from "../../../../runtime/src/contracts/artifacts.ts";
 import { createConfiguratorPersona } from "../../../../runtime/src/personas/configurator/persona.js";
 
@@ -374,7 +375,7 @@ function rebuildSandboxArtifacts({
     },
     planRef: existingSimConfig?.planRef ?? {
       id: `plan-${runId}`,
-      schema: "agent-kernel/PlanArtifact",
+      schema: PLAN_ARTIFACT_SCHEMA,
       schemaVersion: 1,
     },
     layout: { width, height, terrain },
@@ -927,11 +928,7 @@ export async function executeSandboxMove({
     actorId,
     tick,
     kind: "move",
-    params: {
-      direction: dirInfo.value,
-      from,
-      to,
-    },
+    params: { target: to },
   };
 
   // Build the updated ActionSequence

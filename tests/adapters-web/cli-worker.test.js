@@ -259,8 +259,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
     controllableActorIds: ["actor_1"],
   });
   assert.equal(manualMoveResult.ok, true);
-  assert.equal(manualMoveResult.action.params.direction, "northeast");
-  assert.deepEqual(manualMoveResult.action.params.to, { x: 4, y: 3 });
+  assert.deepEqual(manualMoveResult.action.params, { target: { x: 4, y: 3 } });
 
   const blockedManualMove = await adapter.manualMove({
     action: "right",

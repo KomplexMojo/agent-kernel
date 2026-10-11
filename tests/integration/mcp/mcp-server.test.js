@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
-const { existsSync, mkdtempSync, readFileSync } = require("node:fs");
+const { existsSync, mkdtempSync, readFileSync, writeFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
 const { createServer: createNetServer } = require("node:net");
@@ -12,8 +12,33 @@ const SERVER = resolve(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
 
 const E2E_SCENARIO = resolve(ROOT, "tests/fixtures/e2e/e2e-scenario-v1-basic.json");
 const LLM_FIXTURE = resolve(ROOT, "tests/fixtures/adapters/llm-generate-summary.json");
-const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json");
-const INITIAL_STATE = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json");
+
+async function writeUnifiedRunArtifacts(dir) {
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../../fixtures/personas/unified-actor-runtime.mjs");
+  const width = 3;
+  const height = 3;
+  const terrain = boxedTerrain(width, height);
+  terrain[width + 1] = "floor";
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width,
+    height,
+    terrain,
+    runId: "run_mcp_server",
+    clock: "2026-04-10T00:00:00.000Z",
+    actors: [{
+      id: "actor_1",
+      category: "delver",
+      position: { x: 1, y: 1 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
+  const simConfigPath = join(dir, "sim-config.json");
+  const initialStatePath = join(dir, "initial-state.json");
+  writeFileSync(simConfigPath, `${JSON.stringify(simConfig, null, 2)}\n`);
+  writeFileSync(initialStatePath, `${JSON.stringify(initialState, null, 2)}\n`);
+  return { simConfigPath, initialStatePath };
+}
 
 class McpServerHarness {
   constructor(env = {}) {
@@ -446,9 +471,10 @@ test("mcp server run and inspect tool calls round-trip over stdio", async () => 
     await harness.initialize();
 
     const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-mcp-run-"));
+    const artifacts = await writeUnifiedRunArtifacts(runOutDir);
     const runResult = await harness.callTool("ak_run", {
-      simConfig: SIM_CONFIG,
-      initialState: INITIAL_STATE,
+      simConfig: artifacts.simConfigPath,
+      initialState: artifacts.initialStatePath,
       ticks: 1,
       outDir: runOutDir,
     });

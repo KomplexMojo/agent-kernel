@@ -9,12 +9,7 @@
       "tick": 1,
       "kind": "move",
       "params": {
-        "direction": "east",
-        "from": {
-          "x": 1,
-          "y": 1
-        },
-        "to": {
+        "target": {
           "x": 2,
           "y": 1
         }
@@ -27,12 +22,7 @@
       "tick": 2,
       "kind": "move",
       "params": {
-        "direction": "southeast",
-        "from": {
-          "x": 2,
-          "y": 1
-        },
-        "to": {
+        "target": {
           "x": 3,
           "y": 2
         }
@@ -45,12 +35,7 @@
       "tick": 3,
       "kind": "move",
       "params": {
-        "direction": "south",
-        "from": {
-          "x": 3,
-          "y": 2
-        },
-        "to": {
+        "target": {
           "x": 3,
           "y": 3
         }
@@ -63,12 +48,7 @@
       "tick": 4,
       "kind": "move",
       "params": {
-        "direction": "east",
-        "from": {
-          "x": 3,
-          "y": 3
-        },
-        "to": {
+        "target": {
           "x": 4,
           "y": 3
         }
@@ -81,12 +61,7 @@
       "tick": 5,
       "kind": "move",
       "params": {
-        "direction": "east",
-        "from": {
-          "x": 4,
-          "y": 3
-        },
-        "to": {
+        "target": {
           "x": 5,
           "y": 3
         }
@@ -99,12 +74,7 @@
       "tick": 6,
       "kind": "move",
       "params": {
-        "direction": "south",
-        "from": {
-          "x": 5,
-          "y": 3
-        },
-        "to": {
+        "target": {
           "x": 5,
           "y": 4
         }
@@ -117,12 +87,7 @@
       "tick": 7,
       "kind": "move",
       "params": {
-        "direction": "south",
-        "from": {
-          "x": 5,
-          "y": 4
-        },
-        "to": {
+        "target": {
           "x": 5,
           "y": 5
         }
@@ -135,12 +100,7 @@
       "tick": 8,
       "kind": "move",
       "params": {
-        "direction": "south",
-        "from": {
-          "x": 5,
-          "y": 5
-        },
-        "to": {
+        "target": {
           "x": 5,
           "y": 6
         }
@@ -153,12 +113,7 @@
       "tick": 9,
       "kind": "move",
       "params": {
-        "direction": "south",
-        "from": {
-          "x": 5,
-          "y": 6
-        },
-        "to": {
+        "target": {
           "x": 5,
           "y": 7
         }
@@ -171,12 +126,7 @@
       "tick": 10,
       "kind": "move",
       "params": {
-        "direction": "east",
-        "from": {
-          "x": 5,
-          "y": 7
-        },
-        "to": {
+        "target": {
           "x": 6,
           "y": 7
         }
@@ -189,12 +139,7 @@
       "tick": 11,
       "kind": "move",
       "params": {
-        "direction": "east",
-        "from": {
-          "x": 6,
-          "y": 7
-        },
-        "to": {
+        "target": {
           "x": 7,
           "y": 7
         }

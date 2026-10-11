@@ -4,7 +4,7 @@ import { wireGameplayView } from "../../packages/ui-web/src/views/gameplay-view.
 // A bundle whose tickFrames drive 4 accepted "move" ticks for delver_1, producing
 // 5 frames total (frame 0 = initial state, frames 1-4 = post-tick snapshots).
 // Mirrors the shape wireGameplayView expects from buildTickBoardStates:
-// each tickFrame carries { tick, acceptedActions: [{ kind: "move", actorId, params: { to } }] }.
+// each tickFrame carries { tick, acceptedActions: [{ kind: "move", actorId, params: { target } }] }.
 const SIM_CONFIG_SCHEMA = "agent-kernel/SimConfigArtifact";
 const INITIAL_STATE_SCHEMA = "agent-kernel/InitialStateArtifact";
 
@@ -36,7 +36,7 @@ function buildMultiTickBundle() {
   const tickFrames = [1, 2, 3, 4].map((tick) => ({
     tick,
     acceptedActions: [
-      { kind: "move", actorId: "delver_1", params: { to: { x: tick, y: 0 } } },
+      { kind: "move", actorId: "delver_1", params: { target: { x: tick, y: 0 } } },
     ],
   }));
   return {

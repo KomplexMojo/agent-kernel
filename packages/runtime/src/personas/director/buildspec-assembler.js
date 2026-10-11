@@ -283,6 +283,31 @@ export function deriveLevelGenFromSummary(summary, roomGeometry) {
   });
 }
 
+function motivationBag(inst) {
+  const listed = Array.isArray(inst?.motivations)
+    ? inst.motivations
+    : (inst?.motivation ? [inst.motivation] : []);
+  return listed
+    .map((entry) => (typeof entry === "string" ? entry : entry?.kind))
+    .filter((entry) => typeof entry === "string" && entry.trim())
+    .join(" ")
+    .toLowerCase();
+}
+
+function resolveActorCategory(inst) {
+  if (Object.hasOwn(inst, "category")) return inst.category;
+  if (inst?.actorType === "delver" || inst?.actorType === "warden") return inst.actorType;
+  const bag = motivationBag(inst);
+  if (bag.includes("attack") || bag.includes("delver")) return "delver";
+  return "warden";
+}
+
+function explicitPoolOmitsWardens(summary) {
+  const weights = summary?.poolWeights;
+  if (!Array.isArray(weights) || weights.length === 0) return false;
+  return !weights.some((entry) => entry?.id === "wardens" && Number(entry.weight) > 0);
+}
+
 function buildActorsAndGroups(selections) {
   const actors = [];
   const groupCounts = new Map();
@@ -296,7 +321,7 @@ function buildActorsAndGroups(selections) {
         // authored actor properties; Configurator owns preset defaults and validation.
         const entry = {
           id: inst.id,
-          category: Object.hasOwn(inst, "category") ? inst.category : (inst.actorType ?? "warden"),
+          category: resolveActorCategory(inst),
           position: structuredClone(Object.hasOwn(inst, "position") ? inst.position : { x: actorIndex, y: 0 }),
           motivations: structuredClone(Object.hasOwn(inst, "motivations") ? inst.motivations : (inst.motivation ? [inst.motivation] : [])),
         };
@@ -347,7 +372,17 @@ export function buildBuildSpecFromSummary({
 
   const rooms = mapped.selections.filter((sel) => sel.kind === "room");
   const roomCount = rooms.reduce((sum, sel) => sum + (sel.instances?.length || 0), 0);
-  const { actors, actorGroups } = buildActorsAndGroups(mapped.selections);
+  const builtActors = buildActorsAndGroups(mapped.selections);
+  const actors = explicitPoolOmitsWardens(resolvedSummary)
+    ? builtActors.actors.filter((actor) => actor.category !== "warden")
+    : builtActors.actors;
+  const actorGroups = explicitPoolOmitsWardens(resolvedSummary)
+    ? Array.from(actors.reduce((counts, actor) => {
+      const key = actor.motivations?.[0] || "unknown";
+      counts.set(key, (counts.get(key) || 0) + 1);
+      return counts;
+    }, new Map()).entries()).map(([role, count]) => ({ role, count }))
+    : builtActors.actorGroups;
   const layout = resolvedSummary?.layout && typeof resolvedSummary.layout === "object"
     ? resolvedSummary.layout
     : null;

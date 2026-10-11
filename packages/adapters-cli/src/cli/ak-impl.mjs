@@ -1280,9 +1280,7 @@ function parseResourceSpec(value, resourceIndex) {
   }
 
   if (!isV3) {
-    throw new Error(
-      `resource[${resourceIndex}] requires V3 permanenceMode or affinity payload; leftover tier/stat/dropRate is not supported.`,
-    );
+    throw new Error(`resource[${resourceIndex}] requires V3 permanenceMode or affinity payload; leftover tier/stat/dropRate is not supported.`);
   }
 }
 

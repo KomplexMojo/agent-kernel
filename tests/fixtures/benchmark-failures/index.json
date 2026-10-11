@@ -290,7 +290,7 @@
       "expectedOutcome": "success",
       "observedOutcome": "budget_denied",
       "occurrences": 1,
-      "disposition": "model-error"
+      "disposition": "harness-defect"
     },
     {
       "id": "bf-037",

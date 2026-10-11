@@ -93,7 +93,7 @@ test("runtime maps actor proposals to core actions and replays deterministically
     actorId: action.actorId,
     tick: action.tick,
     kind: action.kind,
-    params: { target: action.params.to },
+    params: { target: action.params.target },
   }));
   const normalized = actions.map(({ personaRef, ...rest }) => rest);
   assert.deepEqual(normalized, expected);

@@ -77,8 +77,8 @@ function buildBundle() {
   };
   const initialState = buildInitialState();
   const tickFrames = [
-    { tick: 1, acceptedActions: [{ kind: "move", actorId: ACTOR_ID, params: { to: { x: 3, y: 3 } } }] },
-    { tick: 2, acceptedActions: [{ kind: "move", actorId: ACTOR_ID, params: { to: { x: 2, y: 2 } } }] },
+    { tick: 1, acceptedActions: [{ kind: "move", actorId: ACTOR_ID, params: { target: { x: 3, y: 3 } } }] },
+    { tick: 2, acceptedActions: [{ kind: "move", actorId: ACTOR_ID, params: { target: { x: 2, y: 2 } } }] },
   ];
   return {
     schema: "agent-kernel/GameplayBundle",

@@ -17,7 +17,7 @@ test("buildRuntimeDecisionEnvelope normalizes actor context and candidate action
     candidateActions: [
       {
         id: "move_north",
-        action: { kind: "move", params: { to: { x: 1, y: 1 } } },
+        action: { kind: "move", params: { target: { x: 1, y: 1 } } },
       },
       {
         kind: "wait",
@@ -32,6 +32,7 @@ test("buildRuntimeDecisionEnvelope normalizes actor context and candidate action
   assert.equal(envelope.candidateActions.length, 2);
   assert.equal(envelope.candidateActions[0].action.schema, "agent-kernel/Action");
   assert.equal(envelope.candidateActions[0].action.actorId, "actor_1");
+  assert.deepEqual(envelope.candidateActions[0].action.params, { target: { x: 1, y: 1 } });
   assert.equal(envelope.candidateActions[0].action.tick, 3);
   assert.equal(envelope.candidateActions[1].id, "candidate_2");
   assert.equal(envelope.providerPolicy.preferred, "solver");

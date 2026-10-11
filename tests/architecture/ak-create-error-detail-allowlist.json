@@ -1,27 +1,27 @@
 [
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 229,
+    "line": 231,
     "reason": "orchestrateBuild top-level `!spec` guard -- spec is an internal BuildSpec artifact, not raw model input; nothing else to say when it is simply absent. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 284,
+    "line": 286,
     "reason": "levelGen actors-presence guard (SM2 fix) -- concatenated template literal reports the received kind. The classifier cannot parse the concatenated template as one interpolated message. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 520,
+    "line": 523,
     "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier cannot inspect it. formatBudgetReceiptDenial() already reports status/remaining/deniedLines/deniedPools/per-pool shortfall. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 524,
+    "line": 527,
     "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 519. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary."
   },
   {
     "file": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
-    "line": 434,
+    "line": 442,
     "reason": "assertJudgementBudget -- already reports judged/cap/ceiling. Internal backstop (\"must never fire\"), not reachable from model input."
   },
   {

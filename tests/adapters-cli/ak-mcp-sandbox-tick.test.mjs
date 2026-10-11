@@ -964,7 +964,7 @@ test("INT-01: sandbox session → place entities → navigate 5 ticks forward th
         actorId: "delver_fire",
         tick: i + 1,
         kind: "move",
-        params: { direction: 2, from: { x: 1 + i, y: 1 }, to: { x: 2 + i, y: 1 } },
+        params: { target: { x: 2 + i, y: 1 } },
       },
     ],
   }));

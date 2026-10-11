@@ -129,7 +129,7 @@ test("requestDesignTransition clears tick position back to initial state on next
     // tick 1, not 0: real ak_run output always opens tick-frames.json with a
     // tick:0 bookkeeping "init" record (empty acceptedActions) before the
     // first tick that can carry a real move — see gameplay-view-tick-navigation.test.mjs.
-    tickFrames: [{ tick: 1, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { to: { x: 1, y: 0 } } }] }],
+    tickFrames: [{ tick: 1, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { target: { x: 1, y: 0 } } }] }],
   };
   const renderedFrames = [];
   const view = wireGameplayView({

@@ -70,6 +70,59 @@ Stop (write Decide into Handoff, do not guess): ownership spans two personas wit
 Assigned executor for rows 1–8: a local Cursor agent in this worktree, following
 `.cursor/skills/<owner>/SKILL.md`. Not a cloud agent. Not a second worktree.
 
+Status October 11: DECIDE. Lossless leftovers are done. Leave-red list
+is the remaining queue. The 10-minute loop stopped.
+
+Status October 11: adaptActionToCore packs moves from the actor position
+and params.target. Wiring 36 vs 13.
+
+Status October 11: runMvpMovement emits params.target. Shared mvp-to-exit
+stores that shape. adaptActionToCore still packs from/to. Wiring 36 vs 13.
+
+Status October 10: DECIDE on decision 3. Catalog V1 resources are
+16/16 dropRate. The lone spec without dropRate is a rejection oracle.
+Skip the V1 row. Leave-red list is the remaining queue. Loop stopped.
+
+Status October 10: the maximizer reserves actor_spawn, so a 200-token
+budget receipts at 200. Scenario 91 stays at 92 because of the bf catalog
+hash. Decision 3 has not started.
+
+Status October 10: DECIDE on decision 2. Budget-only create is 103 and
+passes. Maximize spend is budget+5 at both 200 and 205. Scenario 91's
+minimum is 102, and writing it rewrites the catalog hash pinned by the bf
+corpus. Loop stopped. Decision 3 has not started.
+
+Status October 10: accepted decision 1. Attacking selections without an
+actor type are delvers. Explicit pool lists that omit wardens drop warden
+actors. llm-plan 14 passed. Next: measured delver budgets 103/205/205/102.
+
+Status October 10: suite recount 4206/4003/22/181. Remaining failures
+are the leave-red list only. The 10-minute loop stopped. Row 9 later
+reviewer.
+
+Status October 10: runtime-decision and solver move fixtures record
+params.target. Shared mvp-to-exit and adaptActionToCore stay leftover.
+Leave invent-required reds. Row 9 later reviewer.
+
+Status October 10: tick-session replay reads params.target only. A
+leftover params.to frame does not move the glyph. Leave invent-required
+reds. Row 9 later reviewer.
+
+Status October 10: visualization replay reads params.target only.
+tick-session still falls back to params.to. Leave invent-required reds.
+Row 9 later reviewer.
+
+Status October 10: e2e pool trace uses initializeCoreFromArtifacts registry;
+tick playback, sandbox move, and manual move write params.target.
+Leave invent-required pool denials, occupancy, proximityRadius, V1,
+tools/benchmark env red. Row 9 later reviewer.
+
+Status October 10: leftover MCP run/replay/narrate uses Configurator
+artifacts; preview Actors 3; motivations/presentation oracles; sandbox
+planRef schema constant; ak_create drift lines; stationary stamina denials.
+Leave invent-required pool denials, occupancy, proximityRadius, V1,
+tools/benchmark env red. Row 9 later reviewer.
+
 Status September 22: leftover demo-cli Configurator artifacts; resource-plan
 denial budget 5; catalog unified resource oracle. Leave invent-required pool
 denials, occupancy, proximityRadius, V1, tools/benchmark env red. Row 9 later
@@ -1054,6 +1107,98 @@ Validation: actor-proposal-replay, delver/warden advanced affinities,
 configurator, dependency-direction, typecheck. Perturb by restoring from/to
 expect; restore. Leave delver-plan maximize pool short 5 and invent-required
 reds. Row 9 later reviewer.
+
+### October 10 — unfunded wardens (S)
+
+Owner persona-director. Accepted decision 1. buildActorsAndGroups was
+stamping a missing actor type as warden, then the receipt billed that actor
+against a pool list that had classified the same attacking actor as a
+delver (wardens 96/0). Attacking motivations resolve to delver. An explicit
+pool list that omits wardens drops a real warden. Do not change Allocator
+prices. Do not raise the wiring baseline.
+
+Failing oracle: an attacking selection with no actor type is a delver when
+wardens are unfunded. Validation: director-build-spec-card-set-roundtrip,
+ak-llm-plan. Perturb by restoring the warden default for a missing type;
+restore. Next decision: the four measured delver budgets.
+
+### October 10 — runtime-decision move target (S)
+
+Owner architecture-dependency-direction. Targets the runtime-decision
+contract, tick orchestrator, Z3 objective fixtures, run-helper frames, and
+inspect frames that still stored move params.to. The envelope copies the
+action through. Do not retarget the shared mvp-to-exit fixture. Do not
+change adaptActionToCore in this slice. Do not invent pools.
+
+Failing oracle: the contract test expects params.target while the candidate
+still stores params.to. Validation: runtime-decision-contract,
+tick-orchestrator, z3-decision-objective, run-helpers-runtime-decision,
+command-kernel-inspect-runtime-decision, dependency-direction. Perturb by
+restoring params.to on the contract candidate; restore. Leave
+invent-required reds. Row 9 later reviewer.
+
+### October 10 — tick-session replay target (S)
+
+Owner architecture-dependency-direction. Target tick-session
+resolveActorPositionsAtTick, the tick-session move oracle, and the
+sandbox-tick and tick-rewind fixtures that still stored from/to. Do not
+invent pools. Do not retarget the shared mvp-to-exit movement fixture.
+
+Failing oracle: a params.to frame moves the glyph when the fallback is
+present. Validation: tick-session-move-target, tick-rewind-parity,
+adapters-cli-no-actor-authoring, ports-and-adapters-boundary, typecheck.
+Perturb by restoring the fallback; restore. Leave invent-required reds.
+Row 9 later reviewer.
+
+### October 10 — visualization replay target (S)
+
+Owner architecture-dependency-direction. Target visualization-snapshot
+computeActorPositions and visualization-state-detail fixtures. The reader
+still accepted leftover params.to. Do not retarget tick-session in this
+slice. Do not invent pools.
+
+Failing oracle: accumulating apply-phase moves stay at the spawn cell when
+the reader uses params.to. Validation: visualization-state-detail,
+dependency-direction. Perturb by reading params.to; restore. Leave
+invent-required reds. Row 9 later reviewer.
+
+### October 10 — loader call, playback target, sandbox move params (S)
+
+Owner architecture-dependency-direction for the e2e loader call and ui-web
+playback, then architecture-adapter-io for sandbox move records. Targets
+e2e-llm-pool-runtime, gameplay-view buildTickBoardStates, ui-web tick
+fixtures, sandbox.mjs action params, sandbox-movement oracles, and these
+records. The e2e failure was a leftover two-arg loader call, not a pool
+denial. Playback still read params.to. Sandbox still stored direction/from/to.
+Do not invent pools. Manual move uses the same `{ target }` shape.
+
+Failing oracle: invalid artifact envelope; tick-1 position stuck when the
+reader uses params.to; action file still has from/to/direction.
+Validation: e2e-llm-pool-runtime, gameplay-view-tick-navigation,
+gameplay-flow, gameplay-discard, gameplay-selection,
+gameplay-selection-playback-state, sandbox-movement,
+dependency-direction, ports-and-adapters-boundary. Perturb by restoring
+params.to, the two-arg loader, and from/to/direction; restore. Leave
+invent-required reds. Row 9 later reviewer.
+
+### October 10 — leftover MCP artifacts, motivation oracles, schema literal (S)
+
+Owner architecture-adapter-io, with ui-web preview count and the ak_create
+drift allowlist. Targets mcp-tools, mcp-server, sandbox-movement,
+mcp-cli-ui-random-scenario, cli-run-multi-actor-movement,
+agent-authoring-ui-flow, sandbox.mjs planRef, ak-impl V1 throw line,
+ak-create-error-detail-allowlist.json, and these records. Replay/run still
+paired leftover hazard tiles with an affinity initial state (simConfigRef
+mismatch). Preview still expected 2 actors after hazards became actors.
+Motivation oracles still read motivation.kind/archetype. Sandbox planRef
+retyped PlanArtifact. Exploring stamina 0 is refilled by the movement floor;
+denial oracles use stationary. Do not invent pools or loot keys.
+
+Failing oracle: simConfigRef mismatch; Actors 2; archetype/motivation.kind;
+inline PlanArtifact; drift line mismatch; exploring stamina 0 accepts the move.
+Validation: those files, schema-declaration-origin, ak-create-error-message-drift,
+adapters-cli-no-actor-authoring, typecheck. Perturb each restored. Wiring
+36 vs 13. Leave invent-required reds. Row 9 later reviewer.
 
 ### September 22 — leftover demo-cli / resource-plan / catalog oracles (S)
 

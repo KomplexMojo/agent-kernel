@@ -113,6 +113,8 @@ test("fsm runtime infers diagonal move direction from coordinates when direction
       effects.push({ kind, value });
     },
     getCurrentTick() { return 0; },
+    getActorX() { return 1; },
+    getActorY() { return 1; },
     getEffectCount() { return effects.length; },
     getEffectKind(index) { return effects[index]?.kind ?? 0; },
     getEffectValue(index) { return effects[index]?.value ?? 0; },
@@ -145,8 +147,7 @@ test("fsm runtime infers diagonal move direction from coordinates when direction
               tick,
               kind: "move",
               params: {
-                from: { x: 1, y: 1 },
-                to: { x: 2, y: 0 },
+                target: { x: 2, y: 0 },
               },
             },
           ],

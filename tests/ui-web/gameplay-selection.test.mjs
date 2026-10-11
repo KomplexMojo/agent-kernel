@@ -734,8 +734,8 @@ const MOVING_ACTOR_BUNDLE = {
   ],
   tickFrames: [
     { tick: 0, acceptedActions: [] },
-    { tick: 1, acceptedActions: [{ kind: "move", actorId: "delver-1", params: { to: { x: 3, y: 3 } } }] },
-    { tick: 2, acceptedActions: [{ kind: "move", actorId: "delver-1", params: { to: { x: 4, y: 3 } } }] },
+    { tick: 1, acceptedActions: [{ kind: "move", actorId: "delver-1", params: { target: { x: 3, y: 3 } } }] },
+    { tick: 2, acceptedActions: [{ kind: "move", actorId: "delver-1", params: { target: { x: 4, y: 3 } } }] },
   ],
 };
 

@@ -38,7 +38,7 @@ function makeTickFrame(tick, runId) {
         kind: tick % 2 === 0 ? "wait" : "move",
         params: tick % 2 === 0
           ? { reason: "idle" }
-          : { direction: "east", from: { x: tick, y: 1 }, to: { x: tick + 1, y: 1 } },
+          : { target: { x: tick + 1, y: 1 } },
       },
     ],
   };

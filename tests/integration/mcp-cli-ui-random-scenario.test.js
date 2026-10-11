@@ -205,8 +205,9 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
 
     // Exactly 1 delver + 10 wardens (count expansion works correctly today).
     const actors = Array.isArray(initialState.actors) ? initialState.actors : [];
-    const delvers = actors.filter((a) => a.archetype === "delver");
-    const wardens = actors.filter((a) => a.archetype === "warden");
+    const presentation = initialState.presentation || {};
+    const delvers = actors.filter((actor) => presentation[actor.id]?.category === "delver");
+    const wardens = actors.filter((actor) => presentation[actor.id]?.category === "warden");
 
     assert.equal(delvers.length, 1, `expected exactly 1 delver, got ${delvers.length}`);
     assert.equal(wardens.length, 10, `expected exactly 10 wardens, got ${wardens.length}`);
@@ -231,13 +232,12 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
     // behavior itself is already implemented and working (M3, verified below
     // via direct runtime execution in the next test).
     for (const actor of [...delvers, ...wardens]) {
-      assert.equal(
-        actor.motivation?.kind,
-        "random",
-        `actor ${actor.id} must have motivation.kind "random" in InitialStateArtifact, ` +
-          `got ${JSON.stringify(actor.motivation)} (full actor: ${JSON.stringify(actor)}) — ` +
-          "ak_create's authoring pipeline does not thread the --delver/--warden motivation= " +
-          "field through to the actor record it writes; it is consumed only for cost calc",
+      const kinds = (Array.isArray(actor.motivations) ? actor.motivations : [])
+        .map((entry) => (typeof entry === "string" ? entry : entry?.kind))
+        .filter(Boolean);
+      assert.ok(
+        kinds.includes("random"),
+        `actor ${actor.id} must carry motivations including "random", got ${JSON.stringify(actor.motivations)}`,
       );
     }
   });

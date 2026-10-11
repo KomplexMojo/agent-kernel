@@ -43,8 +43,33 @@ const BLOCKCHAIN_BALANCE = resolve(ROOT, "tests/fixtures/adapters/blockchain-bal
 const BLOCKCHAIN_MINT = resolve(ROOT, "tests/fixtures/adapters/blockchain-mint.json");
 const BLOCKCHAIN_LOAD = resolve(ROOT, "tests/fixtures/adapters/blockchain-load.json");
 const CARD_CONFIG = resolve(ROOT, "tests/fixtures/adapters/card-config-delver.json");
-const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json");
-const INITIAL_STATE = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json");
+
+async function writeUnifiedRunArtifacts(dir) {
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../../fixtures/personas/unified-actor-runtime.mjs");
+  const width = 3;
+  const height = 3;
+  const terrain = boxedTerrain(width, height);
+  terrain[width + 1] = "floor";
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width,
+    height,
+    terrain,
+    runId: "run_mcp_tools",
+    clock: "2026-04-10T00:00:00.000Z",
+    actors: [{
+      id: "actor_1",
+      category: "delver",
+      position: { x: 1, y: 1 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
+  const simConfigPath = join(dir, "sim-config.json");
+  const initialStatePath = join(dir, "initial-state.json");
+  writeFileSync(simConfigPath, `${JSON.stringify(simConfig, null, 2)}\n`);
+  writeFileSync(initialStatePath, `${JSON.stringify(initialState, null, 2)}\n`);
+  return { simConfigPath, initialStatePath };
+}
 
 class McpServerHarness {
   constructor(env = {}) {
@@ -621,11 +646,13 @@ test("mcp ak_replay re-executes tick frames deterministically", async () => {
   try {
     await harness.initialize();
 
-    // Produce tick-frames from a run first
+    // Produce tick-frames from a run first. Leftover hazard/affinity fixtures
+    // disagree on simConfigRef and still store category tiles.
     const runOutDir = makeTempDir("agent-kernel-mcp-replay-run-");
+    const artifacts = await writeUnifiedRunArtifacts(runOutDir);
     const runResult = await harness.callTool("ak_run", {
-      simConfig: SIM_CONFIG,
-      initialState: INITIAL_STATE,
+      simConfig: artifacts.simConfigPath,
+      initialState: artifacts.initialStatePath,
       ticks: 1,      outDir: runOutDir,
     });
     const tickFramesPath = join(runOutDir, "tick-frames.json");
@@ -633,8 +660,8 @@ test("mcp ak_replay re-executes tick frames deterministically", async () => {
 
     const replayOutDir = makeTempDir("agent-kernel-mcp-replay-");
     const replayResult = await harness.callTool("ak_replay", {
-      simConfig: SIM_CONFIG,
-      initialState: INITIAL_STATE,
+      simConfig: artifacts.simConfigPath,
+      initialState: artifacts.initialStatePath,
       tickFrames: tickFramesPath,      outDir: replayOutDir,
     });
     assert.equal(replayResult.command, "replay");
@@ -657,11 +684,12 @@ test("mcp ak_narrate produces a narrative artifact from tick-frames and initial-
   try {
     await harness.initialize();
 
-    // Produce tick-frames from a run first
+    // Produce tick-frames from a run first. Same leftover-fixture refusal as replay.
     const runOutDir = makeTempDir("agent-kernel-mcp-narrate-run-");
+    const artifacts = await writeUnifiedRunArtifacts(runOutDir);
     await harness.callTool("ak_run", {
-      simConfig: SIM_CONFIG,
-      initialState: INITIAL_STATE,
+      simConfig: artifacts.simConfigPath,
+      initialState: artifacts.initialStatePath,
       ticks: 1,      outDir: runOutDir,
     });
     const tickFramesPath = join(runOutDir, "tick-frames.json");
@@ -670,7 +698,7 @@ test("mcp ak_narrate produces a narrative artifact from tick-frames and initial-
     const narrateOutDir = makeTempDir("agent-kernel-mcp-narrate-");
     const narrateResult = await harness.callTool("ak_narrate", {
       tickFrames: tickFramesPath,
-      initialState: INITIAL_STATE,
+      initialState: artifacts.initialStatePath,
       outDir: narrateOutDir,
     });
     assert.equal(narrateResult.command, "narrate");

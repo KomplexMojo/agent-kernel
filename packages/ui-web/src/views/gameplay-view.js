@@ -168,7 +168,7 @@ function buildTickBoardStates(baseFrame, tickFrames) {
     for (const tf of tfGroup) {
       for (const action of tf.acceptedActions || []) {
         if (action?.kind !== "move") continue;
-        const to = action.params?.to;
+        const to = action.params?.target;
         if (!to) continue;
         const actor = actorPositions.find((a) => a.id === action.actorId);
         if (actor) actor.position = { ...to };

@@ -1,5 +1,125 @@
 # Historical milestone evidence
 
+## October 11 — lossless queue exhausted
+
+adaptActionToCore and runMvpMovement both record params.target. The
+shared maze log matches. No further producer converts without inventing
+loot, rewriting the catalog hash, or raising the wiring baseline. The
+10-minute loop stopped.
+
+## October 11 — adaptActionToCore reads params.target
+
+The non-registry move path packs from the core actor position and
+params.target. Direction is the step between those cells. The FSM loop
+oracle proposes only target {2,0} from actor position {1,1} and records
+a northeast step. Restoring the from/to reader applied nothing; restored.
+
+## October 11 — MVP movement records params.target
+
+runMvpMovement still packs the core step from the actor position and the
+next cell, and the action it records is params.target only. The shared
+mvp-to-exit sequence stores those targets. Replay and the bindings
+movement oracle derive from and direction when they pack. Restoring
+from/to/direction failed the golden action compare; restored.
+adaptActionToCore still requires from and to on the non-registry path.
+
+## October 10 — decision 3 closed
+
+Counted `tier=` resource strings in the content-gen catalogs: 16, and
+each includes `dropRate`. The only `tier=` spec without `dropRate` is
+`ak-create-hazard-resource` "rejects missing dropRate", which expects
+failure. Mapping those strings onto V3 holdings would drop loot or
+invent a quantity. Row 1 stays skipped. The 15-minute loop stopped.
+
+## October 10 — maximizer reserves actor spawn
+
+The maximizer filled the configuration to the whole budget, and the receipt
+then added actor_spawn at 5. Reserving that price before the fill makes the
+receipt land on the cap: configuration 195, spawn 5, total 200, mana max 104.
+Prices were not changed. Dropping the reserve denied 205/200; restored.
+Scenario 91 stays at its catalog budget of 92.
+
+## October 10 — decision 2 split
+
+Budget-only create now uses 103, the measured cost, and that test passes.
+The maximize create and delver-plan paths denied at 205/200. Raising the
+budget to 205 denied at 210/205. The short stays 5 tokens above whatever
+budget is set, so it is the maximizer overshooting the cap. Scenario 91's
+exact minimum run succeeds only at 102, and scenarios 90/91 were edited to
+that pair and then restored: the new catalog hash would have to be written
+through generated routes, the abstract-plan pin, and every bf fixture.
+Those stay at 92/91.
+
+## October 10 — unfunded wardens
+
+Accepted decision 1. A selection with motivation attacking and no actor type
+is a delver. A warden selection is omitted when summary.poolWeights is
+explicit and has no positive wardens weight. Restoring the warden default
+failed the attacking oracle; restored. llm-plan 14 passed, including the
+canonical handoff that was short 96 on the warden pool. Allocator prices
+were not changed. Next is the four measured delver budgets.
+
+## October 10 — suite recount, loop stop
+
+Full suite: 4206 tests, 4003 passed, 22 failed, 181 pending. The 22 failures
+are pool shorts (warden-pool 0, delver shorts), wiring 36 vs 13, V1
+tier/stat/dropRate, unset LLM_INTERNAL_HOST, and bf-036's recorded denial
+that now succeeds. No further lossless S remains outside that list. The
+10-minute loop stopped. Shared mvp-to-exit and adaptActionToCore stay
+leftover. Row 9 later reviewer.
+
+## October 10 — runtime-decision move target
+
+Runtime-decision candidates, tick-orchestrator selections, Z3 move fixtures,
+and inspect/run-helper frames now store params.target. The envelope copies
+the action through, so the contract oracle fails when the candidate still
+uses params.to. Restored after that perturb. The attack candidate in the Z3
+conformance fixture was left as-is. Shared mvp-to-exit and adaptActionToCore
+stay leftover. Leave invent-required reds. Row 9 later reviewer.
+
+## October 10 — tick-session replay target
+
+resolveActorPositionsAtTick reads params.target only. A frame whose move
+stores only params.to leaves the actor on its starting cell. Restoring the
+fallback moved the glyph onto that leftover cell; restored. Sandbox-tick and
+tick-rewind fixtures now store target. The shared mvp-to-exit movement
+fixture stays leftover. Leave invent-required reds. Row 9 later reviewer.
+
+## October 10 — visualization replay target
+
+computeActorPositions reads params.target only. The visualization fixtures
+that supplied params.to now supply params.target. Restoring a params.to
+reader left the actor at spawn on the #147 accumulation oracle; restored.
+tick-session still falls back to params.to. Leave invent-required reds.
+Row 9 later reviewer.
+
+## October 10 — loader call, playback target, sandbox move params
+
+The e2e pool trace called initializeCoreFromArtifacts with a stub core and
+expected layout.ok. The loader takes `{ simConfig, initialState }` and
+returns a registry. Tick playback now reads params.target. Sandbox move and
+manual move record `{ target }`; the sandbox command result still returns
+direction/from/to. Restoring params.to left the actor at tick 0; the two-arg
+loader threw an invalid envelope; from/to/direction failed the action-file
+and manual-move oracles; restored. Leave invent-required pool denials,
+occupancy, proximityRadius, V1, tools/benchmark env, loadMvpScenario, and
+delver-warden-battle melee red. Row 9 later reviewer.
+
+## October 10 — leftover MCP artifacts and motivation oracles
+
+MCP replay/narrate/run write Configurator boxed terrain plus a delver instead
+of pairing leftover hazard tiles with the affinity initial state. Preview
+summary counts the hazard actor (Actors 3). Mixed-motivation and random-scenario
+oracles read motivations and presentation.category. Sandbox planRef imports
+PLAN_ARTIFACT_SCHEMA. The V1 resource rejection is one interpolated throw;
+drift allowlist lines follow orchestrate-build. Stationary explicit stamina
+still denies; exploring is refilled by the existing movement floor, so the
+free-move oracle expects that diagonal spend. Restoring Actors 2, the schema
+literal, motivation.kind, the old allowlist line, and exploring stamina 0
+failed; restored. Typecheck 0. Wiring 36 vs 13. Leave invent-required pool
+denials, occupancy, proximityRadius, V1, tools/benchmark env,
+loadMvpScenario, and delver-warden-battle melee red. Row 9 later reviewer.
+
 ## September 22 — leftover demo-cli / resource-plan / catalog oracles
 
 demo-cli writes Configurator boxed terrain plus delver artifacts instead of

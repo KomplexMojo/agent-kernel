@@ -50,11 +50,11 @@ test("action sequence walks the MVP maze to the exit in deterministic ticks", ()
     assert.equal(action.tick, index + 1);
   });
   assert.deepEqual(
-    actions.map((a) => a.params.direction),
-    ["east", "southeast", "south", "east", "east", "south", "south", "south", "south", "east", "east"]
+    actions.map((a) => Object.keys(a.params)),
+    actions.map(() => ["target"]),
   );
-  coordsEqual(actions[0].params.from, data.spawnApproach);
-  coordsEqual(actions.at(-1).params.to, data.exitApproach);
+  coordsEqual(actions[0].params.target, { x: 2, y: 1 });
+  coordsEqual(actions.at(-1).params.target, data.exitApproach);
 });
 
 test("frame buffers mirror the action path and keep map metadata in sync", () => {
@@ -65,7 +65,7 @@ test("frame buffers mirror the action path and keep map metadata in sync", () =>
 
   const expectedPositions = [
     data.spawnApproach,
-    ...actionSequence.actions.map((a) => a.params.to),
+    ...actionSequence.actions.map((a) => a.params.target),
   ];
 
   frameBufferLog.frames.forEach((frame, index) => {
