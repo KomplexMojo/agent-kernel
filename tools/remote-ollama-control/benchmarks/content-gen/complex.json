@@ -877,9 +877,9 @@
           "id=room_1_field_2;affinity=fortify;expression=emit;proximityRadius=2;mana=regen:3:3:1"
         ],
         "resource": [
-          "tier=permanent;stat=vitalMax;delta=8;dropRate=5",
-          "tier=level;stat=vitalRegen;delta=1;dropRate=15",
-          "tier=level;stat=affinityStack;delta=1;dropRate=20"
+          "permanenceMode=permanent;vital=health;delta=8",
+          "permanenceMode=level;vital=health;regen=1",
+          "affinity=life;expression=pull;stacks=1;mana=10"
         ],
         "delver": [
           "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1",
@@ -1001,8 +1001,8 @@
           "affinity=decay;expression=emit;proximityRadius=2;mana=regen:4:4:1"
         ],
         "resource": [
-          "tier=permanent;stat=vitalMax;delta=6;dropRate=5",
-          "tier=level;stat=affinityStack;delta=1;dropRate=20"
+          "permanenceMode=permanent;vital=health;delta=6",
+          "affinity=fire;expression=push;stacks=1;mana=10"
         ],
         "delver": [
           "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:2;vitals=health:10:1,stamina:7:1,mana:6:1",
@@ -1060,7 +1060,7 @@
           "size=large;count=1"
         ],
         "resource": [
-          "tier=level;stat=vitalMax;delta=3;dropRate=20"
+          "permanenceMode=level;vital=health;delta=3"
         ],
         "delver": [
           "count=1;affinity=wind;motivation=exploring",
@@ -1159,8 +1159,8 @@
           "size=large;count=1"
         ],
         "resource": [
-          "tier=permanent;stat=vitalRegen;delta=1;dropRate=10",
-          "tier=level;stat=affinityStack;delta=1;dropRate=20"
+          "permanenceMode=permanent;vital=health;regen=1",
+          "affinity=corrode;expression=push;stacks=1;mana=10"
         ],
         "delver": [
           "count=1;affinity=corrode;motivation=stealthy"
@@ -1261,8 +1261,8 @@
           "x=5;y=5;affinity=dark;expression=pull;stacks=2;blocking=false"
         ],
         "resource": [
-          "tier=level;stat=vitalMax;delta=2;dropRate=20",
-          "tier=permanent;stat=vitalRegen;delta=1;dropRate=10"
+          "permanenceMode=level;vital=health;delta=2",
+          "permanenceMode=permanent;vital=health;regen=1"
         ],
         "delver": [
           "count=1;affinity=water;motivation=exploring",

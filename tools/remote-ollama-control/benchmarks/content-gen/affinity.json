@@ -224,7 +224,7 @@
           "id=room_1_field_1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"
         ],
         "resource": [
-          "tier=permanent;stat=vitalRegen;delta=1;dropRate=10"
+          "permanenceMode=permanent;vital=health;regen=1"
         ],
         "delver": [
           "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
@@ -1166,7 +1166,7 @@
           "size=medium;count=1"
         ],
         "resource": [
-          "tier=permanent;stat=vitalRegen;delta=1;dropRate=10"
+          "permanenceMode=permanent;vital=health;regen=1"
         ],
         "delver": [
           "count=1;affinity=life;motivation=friendly;affinities=life:pull:2"
