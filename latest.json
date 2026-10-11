@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-09-13T15-31-52-558Z-7a8888f4ff55-6537db194815",
-    "key": "6537db1948153430bbddac5bca3f789b8c3f97477d719a9fbb4f6cdc207b18fe",
+    "id": "2026-10-10T18-12-52-572Z-e450886cb45c-868a9c959a8b",
+    "key": "868a9c959a8b796cc450fa817db9ea47c48093c0e3be1f19d95821a3fcb98679",
     "status": "completed",
-    "startedAt": "2026-09-13T15:31:52.558Z",
-    "completedAt": "2026-09-13T15:33:55.964Z",
-    "durationMs": 123406,
+    "startedAt": "2026-10-10T18:12:52.572Z",
+    "completedAt": "2026-10-11T08:57:32.059Z",
+    "durationMs": 53079487,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "7a8888f4ff5580b9beb08273f341bcc03f8e2116",
-    "tree": "5f1d4588294229d3a8e1eb85ae50e808fe418a47"
+    "commit": "e450886cb45cfccb32df1ec85f13dd91dcae6773",
+    "tree": "d60ad21b5ffd9e17b50f79fcf38cae65f44516e0"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -22,33 +22,35 @@
     "label": null
   },
   "trigger": {
-    "previousEvaluatedCommit": "d2efba4b10d577f71aa78076c19f76e120c6584f",
+    "previousEvaluatedCommit": "41478e4e7a85e760769c49a0a21ea0c3b353b209",
     "reasons": [
       "relevant_source"
     ],
     "relevantPaths": [
+      "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "packages/adapters-cli/src/cli/play-ascii.mjs",
+      "packages/adapters-cli/src/mcp/README.md",
+      "packages/adapters-cli/src/mcp/server.mjs",
+      "packages/adapters-cli/src/mcp/tools/play.mjs",
       "packages/core-ts/src/index.ts",
+      "packages/core-ts/src/state/visibility.ts",
       "packages/core-ts/src/state/world.ts",
-      "packages/runtime/src/contracts/game-elements.js",
-      "packages/runtime/src/mvp/movement.js",
+      "packages/runtime/src/contracts/domain-constants.js",
+      "packages/runtime/src/personas/actor/README.md",
       "packages/runtime/src/personas/actor/controller.js",
-      "packages/runtime/src/personas/actor/proposal-helpers.js",
-      "packages/runtime/src/personas/allocator/spend-proposal.js",
-      "packages/runtime/src/personas/configurator/README.md",
-      "packages/runtime/src/personas/configurator/actor-placement.js",
-      "packages/runtime/src/personas/configurator/artifact-builders.js",
-      "packages/runtime/src/personas/configurator/feasibility.js",
-      "packages/runtime/src/personas/configurator/guidance-level-builder.js",
-      "packages/runtime/src/personas/configurator/level-layout.js",
-      "packages/runtime/src/personas/configurator/object-placement.js",
-      "packages/runtime/src/render/resource-bundle.js",
-      "packages/runtime/src/runner/core-setup.mjs"
+      "packages/runtime/src/render/README.md",
+      "packages/runtime/src/render/ascii-cell-style.js",
+      "packages/runtime/src/render/entity-sprite-composer.js",
+      "packages/runtime/src/render/visualization-snapshot.js",
+      "packages/runtime/src/runner/play-session.js",
+      "packages/runtime/src/runner/runtime-fsm.mjs"
     ],
     "pathClasses": [
+      "authoring",
       "runtimeExecution"
     ],
     "modes": {
-      "authoring": false,
+      "authoring": true,
       "runtimeExecution": true,
       "generatedExecution": true
     },
@@ -125,16 +127,16 @@
         "contract": "agent-kernel-content-gen-aggregate/v1",
         "scorerVersion": "ak-compare-v1",
         "execOk": {
-          "pass": 62,
+          "pass": 63,
           "total": 100,
-          "rate": 0.62
+          "rate": 0.63
         },
         "toolCallOk": {
           "pass": 100,
           "total": 100,
           "rate": 1
         },
-        "avgScore": 65,
+        "avgScore": 64.9,
         "scoreScale": {
           "min": 0,
           "max": 100
@@ -144,30 +146,30 @@
         "incomparabilityReasons": []
       },
       "scenarioVerdict": {
-        "pass": 68,
+        "pass": 67,
         "total": 100,
-        "rate": 0.68
+        "rate": 0.67
       },
       "perTier": {
         "simple": {
           "attempts": 25,
-          "scenarioVerdictRate": 0.84,
-          "averageScore": 66.6
+          "scenarioVerdictRate": 0.8,
+          "averageScore": 65
         },
         "affinity": {
           "attempts": 25,
           "scenarioVerdictRate": 0.72,
-          "averageScore": 68.2
+          "averageScore": 68.4
         },
         "complex": {
           "attempts": 25,
-          "scenarioVerdictRate": 0.64,
-          "averageScore": 58.1
+          "scenarioVerdictRate": 0.72,
+          "averageScore": 59.8
         },
         "constrained": {
           "attempts": 25,
-          "scenarioVerdictRate": 0.52,
-          "averageScore": 67.2
+          "scenarioVerdictRate": 0.44,
+          "averageScore": 66.4
         }
       },
       "perScenario": [
@@ -185,7 +187,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 90
         },
         {
           "i": 3,
@@ -201,7 +203,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 60
+          "avgScore": 70
         },
         {
           "i": 5,
@@ -225,15 +227,15 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 44
+          "avgScore": 33
         },
         {
           "i": 8,
           "tier": "simple",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 40
         },
         {
           "i": 9,
@@ -241,7 +243,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 80
         },
         {
           "i": 10,
@@ -311,9 +313,9 @@
           "i": 18,
           "tier": "affinity",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 80
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 42
         },
         {
           "i": 19,
@@ -345,7 +347,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 80
         },
         {
           "i": 23,
@@ -361,7 +363,7 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 34
+          "avgScore": 36
         },
         {
           "i": 25,
@@ -375,41 +377,41 @@
           "i": 26,
           "tier": "affinity",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 50
         },
         {
           "i": 27,
           "tier": "affinity",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 48
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 83
         },
         {
           "i": 28,
           "tier": "affinity",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 49
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 80
         },
         {
           "i": 29,
           "tier": "affinity",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 39
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 44
         },
         {
           "i": 30,
           "tier": "affinity",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 75
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 47
         },
         {
           "i": 31,
@@ -423,9 +425,9 @@
           "i": 32,
           "tier": "complex",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 73
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 34
         },
         {
           "i": 33,
@@ -441,7 +443,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 73
         },
         {
           "i": 35,
@@ -457,7 +459,7 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 41
+          "avgScore": 33
         },
         {
           "i": 37,
@@ -471,9 +473,9 @@
           "i": 38,
           "tier": "complex",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 33
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 70
         },
         {
           "i": 39,
@@ -481,7 +483,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 56
+          "avgScore": 66
         },
         {
           "i": 40,
@@ -489,7 +491,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 80
         },
         {
           "i": 41,
@@ -497,15 +499,15 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 50
+          "avgScore": 70
         },
         {
           "i": 42,
           "tier": "complex",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 27
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 50
         },
         {
           "i": 43,
@@ -521,7 +523,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 60
         },
         {
           "i": 45,
@@ -553,15 +555,15 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 28
+          "avgScore": 31
         },
         {
           "i": 49,
           "tier": "complex",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 54
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 32
         },
         {
           "i": 50,
@@ -569,7 +571,7 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 33
+          "avgScore": 35
         },
         {
           "i": 51,
@@ -577,7 +579,7 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 40
+          "avgScore": 44
         },
         {
           "i": 52,
@@ -593,7 +595,7 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 45
+          "avgScore": 41
         },
         {
           "i": 54,
@@ -601,7 +603,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 63
+          "avgScore": 56
         },
         {
           "i": 55,
@@ -639,9 +641,9 @@
           "i": 59,
           "tier": "constrained",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 96
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 60
         },
         {
           "i": 60,
@@ -649,15 +651,15 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 56
+          "avgScore": 70
         },
         {
           "i": 61,
           "tier": "constrained",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 60
         },
         {
           "i": 62,
@@ -671,9 +673,9 @@
           "i": 63,
           "tier": "constrained",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 57
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 85
         },
         {
           "i": 64,
@@ -681,7 +683,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 77
+          "avgScore": 70
         },
         {
           "i": 65,
@@ -689,7 +691,7 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 47
+          "avgScore": 56
         },
         {
           "i": 66,
@@ -697,7 +699,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 50
         },
         {
           "i": 67,
@@ -705,15 +707,15 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 40
+          "avgScore": 36
         },
         {
           "i": 68,
           "tier": "simple",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 28
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 63
         },
         {
           "i": 69,
@@ -783,9 +785,9 @@
           "i": 77,
           "tier": "simple",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 33
         },
         {
           "i": 78,
@@ -815,28 +817,12 @@
           "i": 81,
           "tier": "affinity",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 75
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 60
         },
         {
           "i": 82,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 47
-        },
-        {
-          "i": 83,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 45
-        },
-        {
-          "i": 84,
           "tier": "affinity",
           "n": 1,
           "pass": 1,
@@ -844,12 +830,28 @@
           "avgScore": 90
         },
         {
-          "i": 85,
-          "tier": "complex",
+          "i": 83,
+          "tier": "affinity",
+          "n": 1,
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 84,
+          "tier": "affinity",
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 50
+          "avgScore": 47
+        },
+        {
+          "i": 85,
+          "tier": "complex",
+          "n": 1,
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 63
         },
         {
           "i": 86,
@@ -865,7 +867,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 75
+          "avgScore": 70
         },
         {
           "i": 88,
@@ -873,15 +875,15 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 37
+          "avgScore": 42
         },
         {
           "i": 89,
           "tier": "complex",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 46
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 85
         },
         {
           "i": 90,
@@ -889,7 +891,7 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 80
+          "avgScore": 44
         },
         {
           "i": 91,
@@ -903,9 +905,9 @@
           "i": 92,
           "tier": "constrained",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 60
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 94
         },
         {
           "i": 93,
@@ -921,15 +923,15 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 57
+          "avgScore": 70
         },
         {
           "i": 95,
           "tier": "constrained",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 73
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 70
         },
         {
           "i": 96,
@@ -959,9 +961,9 @@
           "i": 99,
           "tier": "constrained",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 80
         },
         {
           "i": 100,
@@ -1040,16 +1042,16 @@
         "contract": "agent-kernel-content-gen-aggregate/v1",
         "scorerVersion": "ak-compare-v1",
         "execOk": {
-          "pass": 72,
+          "pass": 76,
           "total": 100,
-          "rate": 0.72
+          "rate": 0.76
         },
         "toolCallOk": {
-          "pass": 97,
+          "pass": 99,
           "total": 100,
-          "rate": 0.97
+          "rate": 0.99
         },
-        "avgScore": 65.6,
+        "avgScore": 68.8,
         "scoreScale": {
           "min": 0,
           "max": 100
@@ -1059,30 +1061,30 @@
         "incomparabilityReasons": []
       },
       "scenarioVerdict": {
-        "pass": 76,
+        "pass": 81,
         "total": 100,
-        "rate": 0.76
+        "rate": 0.81
       },
       "perTier": {
         "simple": {
           "attempts": 25,
-          "scenarioVerdictRate": 0.84,
-          "averageScore": 67.4
+          "scenarioVerdictRate": 0.96,
+          "averageScore": 72
         },
         "affinity": {
           "attempts": 25,
-          "scenarioVerdictRate": 0.88,
-          "averageScore": 69.8
+          "scenarioVerdictRate": 0.92,
+          "averageScore": 72
         },
         "complex": {
           "attempts": 25,
           "scenarioVerdictRate": 0.8,
-          "averageScore": 59.1
+          "averageScore": 62.3
         },
         "constrained": {
           "attempts": 25,
-          "scenarioVerdictRate": 0.52,
-          "averageScore": 66.3
+          "scenarioVerdictRate": 0.56,
+          "averageScore": 68.8
         }
       },
       "perScenario": [
@@ -1116,7 +1118,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 50
+          "avgScore": 70
         },
         {
           "i": 5,
@@ -1156,7 +1158,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 80
         },
         {
           "i": 10,
@@ -1172,7 +1174,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 70
         },
         {
           "i": 12,
@@ -1212,7 +1214,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 66
+          "avgScore": 56
         },
         {
           "i": 17,
@@ -1268,7 +1270,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 90
         },
         {
           "i": 24,
@@ -1300,7 +1302,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 63
         },
         {
           "i": 28,
@@ -1308,7 +1310,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 55
+          "avgScore": 66
         },
         {
           "i": 29,
@@ -1354,17 +1356,17 @@
           "i": 34,
           "tier": "complex",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 54
         },
         {
           "i": 35,
           "tier": "complex",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 39
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 54
         },
         {
           "i": 36,
@@ -1436,7 +1438,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 60
+          "avgScore": 90
         },
         {
           "i": 45,
@@ -1444,15 +1446,15 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 67
+          "avgScore": 80
         },
         {
           "i": 46,
           "tier": "complex",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 20
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 60
         },
         {
           "i": 47,
@@ -1468,15 +1470,15 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 30
+          "avgScore": 40
         },
         {
           "i": 49,
           "tier": "complex",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 20
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 47
         },
         {
           "i": 50,
@@ -1484,15 +1486,15 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 57
+          "avgScore": 64
         },
         {
           "i": 51,
           "tier": "constrained",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 75
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 53
         },
         {
           "i": 52,
@@ -1500,15 +1502,15 @@
           "n": 1,
           "pass": 0,
           "rate": 0,
-          "avgScore": 44
+          "avgScore": 0
         },
         {
           "i": 53,
           "tier": "constrained",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 49
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 89
         },
         {
           "i": 54,
@@ -1516,15 +1518,15 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 58
+          "avgScore": 63
         },
         {
           "i": 55,
           "tier": "constrained",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 74
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 60
         },
         {
           "i": 56,
@@ -1538,9 +1540,9 @@
           "i": 57,
           "tier": "constrained",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 84
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 70
         },
         {
           "i": 58,
@@ -1562,17 +1564,17 @@
           "i": 60,
           "tier": "constrained",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 83
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 70
         },
         {
           "i": 61,
           "tier": "constrained",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 20
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 70
         },
         {
           "i": 62,
@@ -1596,15 +1598,15 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 50
         },
         {
           "i": 65,
           "tier": "simple",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 0
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 50
         },
         {
           "i": 66,
@@ -1612,23 +1614,23 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 70
         },
         {
           "i": 67,
           "tier": "simple",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 47
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 70
         },
         {
           "i": 68,
           "tier": "simple",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 43
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 70
         },
         {
           "i": 69,
@@ -1636,7 +1638,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 50
         },
         {
           "i": 70,
@@ -1644,7 +1646,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 50
         },
         {
           "i": 71,
@@ -1706,17 +1708,17 @@
           "i": 78,
           "tier": "simple",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 0
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 90
         },
         {
           "i": 79,
           "tier": "simple",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 46
         },
         {
           "i": 80,
@@ -1730,9 +1732,9 @@
           "i": 81,
           "tier": "affinity",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 0
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 75
         },
         {
           "i": 82,
@@ -1748,7 +1750,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 76
         },
         {
           "i": 84,
@@ -1762,9 +1764,9 @@
           "i": 85,
           "tier": "complex",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 63
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 60
         },
         {
           "i": 86,
@@ -1778,9 +1780,9 @@
           "i": 87,
           "tier": "complex",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 63
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 44
         },
         {
           "i": 88,
@@ -1796,15 +1798,15 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 75
+          "avgScore": 72
         },
         {
           "i": 90,
           "tier": "constrained",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 95
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 44
         },
         {
           "i": 91,
@@ -1834,25 +1836,25 @@
           "i": 94,
           "tier": "constrained",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 57
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 85
         },
         {
           "i": 95,
           "tier": "constrained",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 70
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 80
         },
         {
           "i": 96,
           "tier": "constrained",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 56
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 97
         },
         {
           "i": 97,
@@ -1876,15 +1878,15 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 66
+          "avgScore": 90
         },
         {
           "i": 100,
           "tier": "constrained",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 56
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 97
         }
       ],
       "verdict": {
@@ -1899,7 +1901,6 @@
         "qualifies": false,
         "failedGates": [
           "matrix_incomplete",
-          "tool_call_rate",
           "scenario_verdict_rate",
           "average_score"
         ]
@@ -1956,9 +1957,9 @@
         "contract": "agent-kernel-content-gen-aggregate/v1",
         "scorerVersion": "ak-compare-v1",
         "execOk": {
-          "pass": 172,
+          "pass": 171,
           "total": 200,
-          "rate": 0.86
+          "rate": 0.855
         },
         "toolCallOk": {
           "pass": 200,
@@ -1975,30 +1976,30 @@
         "incomparabilityReasons": []
       },
       "scenarioVerdict": {
-        "pass": 184,
+        "pass": 183,
         "total": 200,
-        "rate": 0.92
+        "rate": 0.915
       },
       "perTier": {
         "simple": {
           "attempts": 50,
-          "scenarioVerdictRate": 0.94,
-          "averageScore": 74.6
+          "scenarioVerdictRate": 1,
+          "averageScore": 76.2
         },
         "affinity": {
           "attempts": 50,
-          "scenarioVerdictRate": 0.96,
-          "averageScore": 79.1
+          "scenarioVerdictRate": 0.98,
+          "averageScore": 78.3
         },
         "complex": {
           "attempts": 50,
-          "scenarioVerdictRate": 0.92,
-          "averageScore": 68.6
+          "scenarioVerdictRate": 0.88,
+          "averageScore": 68
         },
         "constrained": {
           "attempts": 50,
-          "scenarioVerdictRate": 0.86,
-          "averageScore": 77.9
+          "scenarioVerdictRate": 0.8,
+          "averageScore": 78
         }
       },
       "perScenario": [
@@ -2016,7 +2017,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 90
         },
         {
           "i": 3,
@@ -2054,17 +2055,17 @@
           "i": 7,
           "tier": "simple",
           "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 50
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
         },
         {
           "i": 8,
           "tier": "simple",
           "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 55
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
         },
         {
           "i": 9,
@@ -2126,9 +2127,9 @@
           "i": 16,
           "tier": "affinity",
           "n": 2,
-          "pass": 2,
-          "rate": 1,
-          "avgScore": 70
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 55
         },
         {
           "i": 17,
@@ -2136,7 +2137,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 70
         },
         {
           "i": 18,
@@ -2168,7 +2169,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 53
+          "avgScore": 46.5
         },
         {
           "i": 22,
@@ -2198,9 +2199,9 @@
           "i": 25,
           "tier": "affinity",
           "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 44
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 54
         },
         {
           "i": 26,
@@ -2208,7 +2209,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 86.5
         },
         {
           "i": 27,
@@ -2216,15 +2217,15 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 70
         },
         {
           "i": 28,
           "tier": "affinity",
           "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 64.5
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 80
         },
         {
           "i": 29,
@@ -2264,7 +2265,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 76.5
+          "avgScore": 80
         },
         {
           "i": 34,
@@ -2288,7 +2289,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 64.5
+          "avgScore": 73
         },
         {
           "i": 37,
@@ -2296,7 +2297,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 50
+          "avgScore": 70
         },
         {
           "i": 38,
@@ -2344,7 +2345,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 70
         },
         {
           "i": 44,
@@ -2352,7 +2353,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 65
         },
         {
           "i": 45,
@@ -2384,15 +2385,15 @@
           "n": 2,
           "pass": 0,
           "rate": 0,
-          "avgScore": 29.5
+          "avgScore": 32
         },
         {
           "i": 49,
           "tier": "complex",
           "n": 2,
-          "pass": 2,
-          "rate": 1,
-          "avgScore": 60
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 48
         },
         {
           "i": 50,
@@ -2400,7 +2401,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 62
+          "avgScore": 60.5
         },
         {
           "i": 51,
@@ -2408,15 +2409,15 @@
           "n": 2,
           "pass": 0,
           "rate": 0,
-          "avgScore": 36.5
+          "avgScore": 42
         },
         {
           "i": 52,
           "tier": "constrained",
           "n": 2,
-          "pass": 2,
-          "rate": 1,
-          "avgScore": 68.5
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 55
         },
         {
           "i": 53,
@@ -2424,7 +2425,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 87
+          "avgScore": 87.5
         },
         {
           "i": 54,
@@ -2470,9 +2471,9 @@
           "i": 59,
           "tier": "constrained",
           "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 78
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 70
         },
         {
           "i": 60,
@@ -2488,7 +2489,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 76
+          "avgScore": 86
         },
         {
           "i": 62,
@@ -2512,7 +2513,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 77
+          "avgScore": 73.5
         },
         {
           "i": 65,
@@ -2528,7 +2529,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 80
         },
         {
           "i": 67,
@@ -2550,9 +2551,9 @@
           "i": 69,
           "tier": "simple",
           "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 55
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
         },
         {
           "i": 70,
@@ -2640,7 +2641,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 70
         },
         {
           "i": 81,
@@ -2702,9 +2703,9 @@
           "i": 88,
           "tier": "complex",
           "n": 2,
-          "pass": 2,
-          "rate": 1,
-          "avgScore": 70
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 58.5
         },
         {
           "i": 89,
@@ -2728,7 +2729,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 77.5
+          "avgScore": 100
         },
         {
           "i": 92,
@@ -2737,6 +2738,920 @@
           "pass": 2,
           "rate": 1,
           "avgScore": 94
+        },
+        {
+          "i": 93,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 100
+        },
+        {
+          "i": 94,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 78
+        },
+        {
+          "i": 95,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 80
+        },
+        {
+          "i": 96,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 97
+        },
+        {
+          "i": 97,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 66
+        },
+        {
+          "i": 98,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 56
+        },
+        {
+          "i": 99,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 78
+        },
+        {
+          "i": 100,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 97
+        }
+      ],
+      "verdict": {
+        "qualifies": false,
+        "failedGates": [
+          "authoring",
+          "runtime_execution",
+          "generated_execution"
+        ]
+      },
+      "authoring": {
+        "qualifies": false,
+        "failedGates": [
+          "matrix_incomplete",
+          "scenario_verdict_rate"
+        ]
+      },
+      "runtimeExecution": {
+        "qualifies": false,
+        "status": "failed",
+        "identity": {
+          "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
+          "evaluatorVersion": "execution-evaluator-v2",
+          "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
+          "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
+        }
+      },
+      "generatedExecution": {
+        "qualifies": false,
+        "status": "missing",
+        "identity": null
+      }
+    },
+    {
+      "configurationId": "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
+      "eligible": true,
+      "profile": {
+        "id": "dual",
+        "hardwareClass": "dual",
+        "gpuCount": 2,
+        "gpuVisibility": "0,1",
+        "capacityRank": 3
+      },
+      "model": {
+        "id": "qwen3.5:27b",
+        "family": "qwen3.5",
+        "parameterBillions": 27
+      },
+      "settings": {
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "resourceOrder": {
+        "gpuCount": 2,
+        "capacityRank": 3,
+        "modelSizeBillions": 27,
+        "contextTokens": 65536,
+        "outputTokens": 32768
+      },
+      "plannedAttempts": {
+        "minimum": 100,
+        "maximum": 300
+      },
+      "completedAttempts": 200,
+      "completedPasses": 2,
+      "historicalContentGen": {
+        "contract": "agent-kernel-content-gen-aggregate/v1",
+        "scorerVersion": "ak-compare-v1",
+        "execOk": {
+          "pass": 165,
+          "total": 200,
+          "rate": 0.825
+        },
+        "toolCallOk": {
+          "pass": 200,
+          "total": 200,
+          "rate": 1
+        },
+        "avgScore": 75.1,
+        "scoreScale": {
+          "min": 0,
+          "max": 100
+        },
+        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
+        "comparable": true,
+        "incomparabilityReasons": []
+      },
+      "scenarioVerdict": {
+        "pass": 176,
+        "total": 200,
+        "rate": 0.88
+      },
+      "perTier": {
+        "simple": {
+          "attempts": 50,
+          "scenarioVerdictRate": 1,
+          "averageScore": 77
+        },
+        "affinity": {
+          "attempts": 50,
+          "scenarioVerdictRate": 0.98,
+          "averageScore": 79.6
+        },
+        "complex": {
+          "attempts": 50,
+          "scenarioVerdictRate": 0.94,
+          "averageScore": 70
+        },
+        "constrained": {
+          "attempts": 50,
+          "scenarioVerdictRate": 0.6,
+          "averageScore": 73.8
+        }
+      },
+      "perScenario": [
+        {
+          "i": 1,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 2,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 3,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 4,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 5,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 6,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 55
+        },
+        {
+          "i": 7,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 8,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 9,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 80
+        },
+        {
+          "i": 10,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 11,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 12,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 13,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 14,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 66
+        },
+        {
+          "i": 15,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 16,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 75
+        },
+        {
+          "i": 17,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 65
+        },
+        {
+          "i": 18,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 19,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 20,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 64.5
+        },
+        {
+          "i": 21,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 43
+        },
+        {
+          "i": 22,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 23,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 85
+        },
+        {
+          "i": 24,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 68.5
+        },
+        {
+          "i": 25,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 72.5
+        },
+        {
+          "i": 26,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 27,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 28,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 80
+        },
+        {
+          "i": 29,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 75
+        },
+        {
+          "i": 30,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 31,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 32,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 80
+        },
+        {
+          "i": 33,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 76.5
+        },
+        {
+          "i": 34,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 76.5
+        },
+        {
+          "i": 35,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 54
+        },
+        {
+          "i": 36,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 49
+        },
+        {
+          "i": 37,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 50
+        },
+        {
+          "i": 38,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 85
+        },
+        {
+          "i": 39,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 66
+        },
+        {
+          "i": 40,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 41,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 42,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 43,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 44,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 45,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 80
+        },
+        {
+          "i": 46,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 60
+        },
+        {
+          "i": 47,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 83
+        },
+        {
+          "i": 48,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 59.5
+        },
+        {
+          "i": 49,
+          "tier": "complex",
+          "n": 2,
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 33
+        },
+        {
+          "i": 50,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 61.5
+        },
+        {
+          "i": 51,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 46.5
+        },
+        {
+          "i": 52,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 42
+        },
+        {
+          "i": 53,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 47
+        },
+        {
+          "i": 54,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 67
+        },
+        {
+          "i": 55,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 84
+        },
+        {
+          "i": 56,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 75
+        },
+        {
+          "i": 57,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 70
+        },
+        {
+          "i": 58,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 66.5
+        },
+        {
+          "i": 59,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 88
+        },
+        {
+          "i": 60,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 70
+        },
+        {
+          "i": 61,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 76
+        },
+        {
+          "i": 62,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 74
+        },
+        {
+          "i": 63,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 53.5
+        },
+        {
+          "i": 64,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 77
+        },
+        {
+          "i": 65,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 80
+        },
+        {
+          "i": 66,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 67,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 80
+        },
+        {
+          "i": 68,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 69,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 70,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 71,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 72,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 73,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 74,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 75,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 76,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 77,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 78,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 79,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 70
+        },
+        {
+          "i": 80,
+          "tier": "simple",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 81,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 75
+        },
+        {
+          "i": 82,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 83,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 84,
+          "tier": "affinity",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 85,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 68
+        },
+        {
+          "i": 86,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 90
+        },
+        {
+          "i": 87,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 75
+        },
+        {
+          "i": 88,
+          "tier": "complex",
+          "n": 2,
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 58.5
+        },
+        {
+          "i": 89,
+          "tier": "complex",
+          "n": 2,
+          "pass": 2,
+          "rate": 1,
+          "avgScore": 85
+        },
+        {
+          "i": 90,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 70
+        },
+        {
+          "i": 91,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 90
+        },
+        {
+          "i": 92,
+          "tier": "constrained",
+          "n": 2,
+          "pass": 1,
+          "rate": 0.5,
+          "avgScore": 77
         },
         {
           "i": 93,
@@ -2760,7 +3675,7 @@
           "n": 2,
           "pass": 2,
           "rate": 1,
-          "avgScore": 73.5
+          "avgScore": 80
         },
         {
           "i": 96,
@@ -2835,921 +3750,6 @@
       }
     },
     {
-      "configurationId": "cg-v1--qwen3.5_27b--dual--ctx65536--out32768",
-      "eligible": true,
-      "profile": {
-        "id": "dual",
-        "hardwareClass": "dual",
-        "gpuCount": 2,
-        "gpuVisibility": "0,1",
-        "capacityRank": 3
-      },
-      "model": {
-        "id": "qwen3.5:27b",
-        "family": "qwen3.5",
-        "parameterBillions": 27
-      },
-      "settings": {
-        "contextTokens": 65536,
-        "outputTokens": 32768
-      },
-      "resourceOrder": {
-        "gpuCount": 2,
-        "capacityRank": 3,
-        "modelSizeBillions": 27,
-        "contextTokens": 65536,
-        "outputTokens": 32768
-      },
-      "plannedAttempts": {
-        "minimum": 100,
-        "maximum": 300
-      },
-      "completedAttempts": 100,
-      "completedPasses": 1,
-      "historicalContentGen": {
-        "contract": "agent-kernel-content-gen-aggregate/v1",
-        "scorerVersion": "ak-compare-v1",
-        "execOk": {
-          "pass": 82,
-          "total": 100,
-          "rate": 0.82
-        },
-        "toolCallOk": {
-          "pass": 100,
-          "total": 100,
-          "rate": 1
-        },
-        "avgScore": 73.9,
-        "scoreScale": {
-          "min": 0,
-          "max": 100
-        },
-        "attemptInclusionPolicy": "recorded-content-gen-attempts-v1",
-        "comparable": true,
-        "incomparabilityReasons": []
-      },
-      "scenarioVerdict": {
-        "pass": 87,
-        "total": 100,
-        "rate": 0.87
-      },
-      "perTier": {
-        "simple": {
-          "attempts": 25,
-          "scenarioVerdictRate": 1,
-          "averageScore": 75.4
-        },
-        "affinity": {
-          "attempts": 25,
-          "scenarioVerdictRate": 1,
-          "averageScore": 78.8
-        },
-        "complex": {
-          "attempts": 25,
-          "scenarioVerdictRate": 0.92,
-          "averageScore": 69.4
-        },
-        "constrained": {
-          "attempts": 25,
-          "scenarioVerdictRate": 0.56,
-          "averageScore": 71.9
-        }
-      },
-      "perScenario": [
-        {
-          "i": 1,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 2,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 3,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 4,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 5,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 6,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 55
-        },
-        {
-          "i": 7,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 8,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 9,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 80
-        },
-        {
-          "i": 10,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 11,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 12,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 13,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 14,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 66
-        },
-        {
-          "i": 15,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 16,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 80
-        },
-        {
-          "i": 17,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 18,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 19,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 20,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 80
-        },
-        {
-          "i": 21,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 46
-        },
-        {
-          "i": 22,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 23,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 24,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 65
-        },
-        {
-          "i": 25,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 55
-        },
-        {
-          "i": 26,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 83
-        },
-        {
-          "i": 27,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 63
-        },
-        {
-          "i": 28,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 80
-        },
-        {
-          "i": 29,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 66
-        },
-        {
-          "i": 30,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 31,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 32,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 80
-        },
-        {
-          "i": 33,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 80
-        },
-        {
-          "i": 34,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 73
-        },
-        {
-          "i": 35,
-          "tier": "complex",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 46
-        },
-        {
-          "i": 36,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 56
-        },
-        {
-          "i": 37,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 50
-        },
-        {
-          "i": 38,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 39,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 66
-        },
-        {
-          "i": 40,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 41,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 50
-        },
-        {
-          "i": 42,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 43,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 44,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 45,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 80
-        },
-        {
-          "i": 46,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 60
-        },
-        {
-          "i": 47,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 83
-        },
-        {
-          "i": 48,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 53
-        },
-        {
-          "i": 49,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 56
-        },
-        {
-          "i": 50,
-          "tier": "complex",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 36
-        },
-        {
-          "i": 51,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 45
-        },
-        {
-          "i": 52,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 40
-        },
-        {
-          "i": 53,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 49
-        },
-        {
-          "i": 54,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 67
-        },
-        {
-          "i": 55,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 94
-        },
-        {
-          "i": 56,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 75
-        },
-        {
-          "i": 57,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 70
-        },
-        {
-          "i": 58,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 73
-        },
-        {
-          "i": 59,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 96
-        },
-        {
-          "i": 60,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 70
-        },
-        {
-          "i": 61,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 76
-        },
-        {
-          "i": 62,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 74
-        },
-        {
-          "i": 63,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 57
-        },
-        {
-          "i": 64,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 77
-        },
-        {
-          "i": 65,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 66,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 67,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 68,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 69,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 70,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 71,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 72,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 73,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 74,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 75,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 76,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 77,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 78,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 79,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 70
-        },
-        {
-          "i": 80,
-          "tier": "simple",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 81,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 75
-        },
-        {
-          "i": 82,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 80
-        },
-        {
-          "i": 83,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 84,
-          "tier": "affinity",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 85,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 63
-        },
-        {
-          "i": 86,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 90
-        },
-        {
-          "i": 87,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 75
-        },
-        {
-          "i": 88,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 80
-        },
-        {
-          "i": 89,
-          "tier": "complex",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 78
-        },
-        {
-          "i": 90,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 80
-        },
-        {
-          "i": 91,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 54
-        },
-        {
-          "i": 92,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 80
-        },
-        {
-          "i": 93,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 100
-        },
-        {
-          "i": 94,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 57
-        },
-        {
-          "i": 95,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 67
-        },
-        {
-          "i": 96,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 97
-        },
-        {
-          "i": 97,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 66
-        },
-        {
-          "i": 98,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 56
-        },
-        {
-          "i": 99,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 80
-        },
-        {
-          "i": 100,
-          "tier": "constrained",
-          "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 97
-        }
-      ],
-      "verdict": {
-        "qualifies": false,
-        "failedGates": [
-          "authoring",
-          "runtime_execution",
-          "generated_execution"
-        ]
-      },
-      "authoring": {
-        "qualifies": false,
-        "failedGates": [
-          "matrix_incomplete",
-          "scenario_verdict_rate",
-          "average_score"
-        ]
-      },
-      "runtimeExecution": {
-        "qualifies": false,
-        "status": "failed",
-        "identity": {
-          "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d",
-          "evaluatorVersion": "execution-evaluator-v2",
-          "seedSetHash": "ddab1b7ea22018c95c88d171c48e100afb89da5d8360fc7556323a83f4c0d842",
-          "tickProfileHash": "c0a89e5b5811314697eb985a06df917d10f30eea1d72ee9865afaf67f17cb847"
-        }
-      },
-      "generatedExecution": {
-        "qualifies": false,
-        "status": "missing",
-        "identity": null
-      }
-    },
-    {
       "configurationId": "cg-v1--qwen3.8_27b--dual--ctx65536--out32768",
       "eligible": true,
       "profile": {
@@ -3779,22 +3779,22 @@
         "minimum": 100,
         "maximum": 300
       },
-      "completedAttempts": 200,
-      "completedPasses": 2,
+      "completedAttempts": 300,
+      "completedPasses": 3,
       "historicalContentGen": {
         "contract": "agent-kernel-content-gen-aggregate/v1",
         "scorerVersion": "ak-compare-v1",
         "execOk": {
-          "pass": 173,
-          "total": 200,
-          "rate": 0.865
+          "pass": 261,
+          "total": 300,
+          "rate": 0.87
         },
         "toolCallOk": {
-          "pass": 200,
-          "total": 200,
+          "pass": 300,
+          "total": 300,
           "rate": 1
         },
-        "avgScore": 74.5,
+        "avgScore": 75.4,
         "scoreScale": {
           "min": 0,
           "max": 100
@@ -3804,493 +3804,493 @@
         "incomparabilityReasons": []
       },
       "scenarioVerdict": {
-        "pass": 183,
-        "total": 200,
-        "rate": 0.915
+        "pass": 279,
+        "total": 300,
+        "rate": 0.93
       },
       "perTier": {
         "simple": {
-          "attempts": 50,
-          "scenarioVerdictRate": 0.98,
-          "averageScore": 74.9
+          "attempts": 75,
+          "scenarioVerdictRate": 0.9733333333333334,
+          "averageScore": 75
         },
         "affinity": {
-          "attempts": 50,
-          "scenarioVerdictRate": 0.96,
-          "averageScore": 78
+          "attempts": 75,
+          "scenarioVerdictRate": 1,
+          "averageScore": 79.1
         },
         "complex": {
-          "attempts": 50,
-          "scenarioVerdictRate": 0.88,
-          "averageScore": 66.8
+          "attempts": 75,
+          "scenarioVerdictRate": 0.9066666666666666,
+          "averageScore": 68.1
         },
         "constrained": {
-          "attempts": 50,
+          "attempts": 75,
           "scenarioVerdictRate": 0.84,
-          "averageScore": 78.3
+          "averageScore": 79.2
         }
       },
       "perScenario": [
         {
           "i": 1,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 83.3
         },
         {
           "i": 2,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 3,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 4,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 5,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 6,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 50
+          "avgScore": 51.7
         },
         {
           "i": 7,
           "tier": "simple",
-          "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 50
+          "n": 3,
+          "pass": 2,
+          "rate": 0.6666666666666666,
+          "avgScore": 57.7
         },
         {
           "i": 8,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 70
         },
         {
           "i": 9,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 80
         },
         {
           "i": 10,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 11,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 80
         },
         {
           "i": 12,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 82
         },
         {
           "i": 13,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 14,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 66
         },
         {
           "i": 15,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 16,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 17,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 73.3
         },
         {
           "i": 18,
           "tier": "affinity",
-          "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 64
+          "n": 3,
+          "pass": 3,
+          "rate": 1,
+          "avgScore": 90
         },
         {
           "i": 19,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 20,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 83.3
         },
         {
           "i": 21,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 40
         },
         {
           "i": 22,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 23,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 83.3
         },
         {
           "i": 24,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 64
+          "avgScore": 65
         },
         {
           "i": 25,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 54
+          "avgScore": 53
         },
         {
           "i": 26,
           "tier": "affinity",
-          "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 60.5
+          "n": 3,
+          "pass": 3,
+          "rate": 1,
+          "avgScore": 83.3
         },
         {
           "i": 27,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 76.7
         },
         {
           "i": 28,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 80
         },
         {
           "i": 29,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 30,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 31,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 63
+          "avgScore": 70
         },
         {
           "i": 32,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 80
         },
         {
           "i": 33,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 80
         },
         {
           "i": 34,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 80
         },
         {
           "i": 35,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 78
+          "avgScore": 83
         },
         {
           "i": 36,
           "tier": "complex",
-          "n": 2,
+          "n": 3,
           "pass": 2,
-          "rate": 1,
-          "avgScore": 73
+          "rate": 0.6666666666666666,
+          "avgScore": 56.7
         },
         {
           "i": 37,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 50
         },
         {
           "i": 38,
           "tier": "complex",
-          "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 47
+          "n": 3,
+          "pass": 3,
+          "rate": 1,
+          "avgScore": 80
         },
         {
           "i": 39,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 56
+          "avgScore": 59.3
         },
         {
           "i": 40,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 41,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 40
+          "avgScore": 50
         },
         {
           "i": 42,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 50
         },
         {
           "i": 43,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 80
+          "avgScore": 83.3
         },
         {
           "i": 44,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 45,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 80
         },
         {
           "i": 46,
           "tier": "complex",
-          "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 47.5
+          "n": 3,
+          "pass": 3,
+          "rate": 1,
+          "avgScore": 60
         },
         {
           "i": 47,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 83
         },
         {
           "i": 48,
           "tier": "complex",
-          "n": 2,
+          "n": 3,
           "pass": 0,
           "rate": 0,
-          "avgScore": 29.5
+          "avgScore": 31
         },
         {
           "i": 49,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 58.5
+          "avgScore": 58.7
         },
         {
           "i": 50,
           "tier": "complex",
-          "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 50
+          "n": 3,
+          "pass": 3,
+          "rate": 1,
+          "avgScore": 63.7
         },
         {
           "i": 51,
           "tier": "constrained",
-          "n": 2,
+          "n": 3,
           "pass": 1,
-          "rate": 0.5,
-          "avgScore": 61
+          "rate": 0.3333333333333333,
+          "avgScore": 55
         },
         {
           "i": 52,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 70.5
+          "avgScore": 68
         },
         {
           "i": 53,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 87.5
+          "avgScore": 85
         },
         {
           "i": 54,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 55,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 74
         },
         {
           "i": 56,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 75
         },
         {
           "i": 57,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 84
         },
         {
           "i": 58,
           "tier": "constrained",
-          "n": 2,
+          "n": 3,
           "pass": 0,
           "rate": 0,
           "avgScore": 60
@@ -4298,319 +4298,319 @@
         {
           "i": 59,
           "tier": "constrained",
-          "n": 2,
+          "n": 3,
           "pass": 2,
-          "rate": 1,
-          "avgScore": 86
+          "rate": 0.6666666666666666,
+          "avgScore": 77.3
         },
         {
           "i": 60,
           "tier": "constrained",
-          "n": 2,
+          "n": 3,
           "pass": 2,
-          "rate": 1,
-          "avgScore": 83
+          "rate": 0.6666666666666666,
+          "avgScore": 74.3
         },
         {
           "i": 61,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 76
+          "avgScore": 89.3
         },
         {
           "i": 62,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 74
         },
         {
           "i": 63,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 75
+          "avgScore": 78.3
         },
         {
           "i": 64,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 73.5
+          "avgScore": 77
         },
         {
           "i": 65,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
-          "rate": 1,
-          "avgScore": 80
-        },
-        {
-          "i": 66,
-          "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
+          "i": 66,
+          "tier": "simple",
+          "n": 3,
+          "pass": 3,
+          "rate": 1,
+          "avgScore": 76.7
+        },
+        {
           "i": 67,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 68,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 63
+          "avgScore": 70
         },
         {
           "i": 69,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 70,
           "tier": "simple",
-          "n": 2,
+          "n": 3,
           "pass": 2,
-          "rate": 1,
-          "avgScore": 80
+          "rate": 0.6666666666666666,
+          "avgScore": 69
         },
         {
           "i": 71,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 72,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 73,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 74,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 75,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 70
         },
         {
           "i": 76,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 76.7
         },
         {
           "i": 77,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 76.7
         },
         {
           "i": 78,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 79,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 80,
           "tier": "simple",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 90
+          "avgScore": 83.3
         },
         {
           "i": 81,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 75
         },
         {
           "i": 82,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 83,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 86.5
+          "avgScore": 87.7
         },
         {
           "i": 84,
           "tier": "affinity",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 85,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 75
         },
         {
           "i": 86,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 87,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 65.5
+          "avgScore": 64.7
         },
         {
           "i": 88,
           "tier": "complex",
-          "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 58.5
+          "n": 3,
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 37
         },
         {
           "i": 89,
           "tier": "complex",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 75
+          "avgScore": 78.3
         },
         {
           "i": 90,
           "tier": "constrained",
-          "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 87.5
+          "n": 3,
+          "pass": 2,
+          "rate": 0.6666666666666666,
+          "avgScore": 90
         },
         {
           "i": 91,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
-          "avgScore": 77.5
+          "avgScore": 100
         },
         {
           "i": 92,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 94
         },
         {
           "i": 93,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 100
         },
         {
           "i": 94,
           "tier": "constrained",
-          "n": 2,
+          "n": 3,
           "pass": 2,
-          "rate": 1,
-          "avgScore": 85
+          "rate": 0.6666666666666666,
+          "avgScore": 68
         },
         {
           "i": 95,
           "tier": "constrained",
-          "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 78
+          "n": 3,
+          "pass": 3,
+          "rate": 1,
+          "avgScore": 80
         },
         {
           "i": 96,
           "tier": "constrained",
-          "n": 2,
-          "pass": 1,
-          "rate": 0.5,
-          "avgScore": 76.5
+          "n": 3,
+          "pass": 3,
+          "rate": 1,
+          "avgScore": 97
         },
         {
           "i": 97,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 66
         },
         {
           "i": 98,
           "tier": "constrained",
-          "n": 2,
+          "n": 3,
           "pass": 0,
           "rate": 0,
           "avgScore": 56
@@ -4618,16 +4618,16 @@
         {
           "i": 99,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 90
         },
         {
           "i": 100,
           "tier": "constrained",
-          "n": 2,
-          "pass": 2,
+          "n": 3,
+          "pass": 3,
           "rate": 1,
           "avgScore": 97
         }
@@ -4643,9 +4643,7 @@
       "authoring": {
         "qualifies": false,
         "failedGates": [
-          "matrix_incomplete",
-          "scenario_verdict_rate",
-          "average_score"
+          "scenario_verdict_rate"
         ]
       },
       "runtimeExecution": {
@@ -4700,16 +4698,16 @@
         "contract": "agent-kernel-content-gen-aggregate/v1",
         "scorerVersion": "ak-compare-v1",
         "execOk": {
-          "pass": 81,
+          "pass": 82,
           "total": 100,
-          "rate": 0.81
+          "rate": 0.82
         },
         "toolCallOk": {
           "pass": 100,
           "total": 100,
           "rate": 1
         },
-        "avgScore": 71.6,
+        "avgScore": 72.4,
         "scoreScale": {
           "min": 0,
           "max": 100
@@ -4719,15 +4717,15 @@
         "incomparabilityReasons": []
       },
       "scenarioVerdict": {
-        "pass": 85,
+        "pass": 86,
         "total": 100,
-        "rate": 0.85
+        "rate": 0.86
       },
       "perTier": {
         "simple": {
           "attempts": 25,
           "scenarioVerdictRate": 1,
-          "averageScore": 73
+          "averageScore": 72.2
         },
         "affinity": {
           "attempts": 25,
@@ -4736,13 +4734,13 @@
         },
         "complex": {
           "attempts": 25,
-          "scenarioVerdictRate": 1,
-          "averageScore": 69
+          "scenarioVerdictRate": 0.96,
+          "averageScore": 68.6
         },
         "constrained": {
           "attempts": 25,
-          "scenarioVerdictRate": 0.44,
-          "averageScore": 70.3
+          "scenarioVerdictRate": 0.52,
+          "averageScore": 74.4
         }
       },
       "perScenario": [
@@ -4872,7 +4870,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 66
+          "avgScore": 80
         },
         {
           "i": 17,
@@ -4960,7 +4958,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 56
         },
         {
           "i": 28,
@@ -5128,7 +5126,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 55
+          "avgScore": 63
         },
         {
           "i": 49,
@@ -5238,9 +5236,9 @@
           "i": 62,
           "tier": "constrained",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 46
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 74
         },
         {
           "i": 63,
@@ -5280,7 +5278,7 @@
           "n": 1,
           "pass": 1,
           "rate": 1,
-          "avgScore": 70
+          "avgScore": 50
         },
         {
           "i": 68,
@@ -5438,9 +5436,9 @@
           "i": 87,
           "tier": "complex",
           "n": 1,
-          "pass": 1,
-          "rate": 1,
-          "avgScore": 63
+          "pass": 0,
+          "rate": 0,
+          "avgScore": 47
         },
         {
           "i": 88,
@@ -5462,9 +5460,9 @@
           "i": 90,
           "tier": "constrained",
           "n": 1,
-          "pass": 0,
-          "rate": 0,
-          "avgScore": 20
+          "pass": 1,
+          "rate": 1,
+          "avgScore": 95
         },
         {
           "i": 91,
@@ -5743,7 +5741,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "runs/6537db1948153430bbddac5bca3f789b8c3f97477d719a9fbb4f6cdc207b18fe"
+    "retentionId": "runs/868a9c959a8b796cc450fa817db9ea47c48093c0e3be1f19d95821a3fcb98679"
   },
   "qualifies": false
 }
