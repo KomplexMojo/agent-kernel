@@ -240,7 +240,7 @@ test("a move core rejects is recorded in preCoreRejections with its reason, not 
     "the refused moves must be recorded as rejections, not silently dropped",
   );
   assert.ok(
-    rejectedMoves.every((r) => r.reason === "actor_action_rejected_by_core"),
+    rejectedMoves.every((r) => r.reason === "actor_action_rejected_by_core:InsufficientStamina"),
     "each rejection must carry core's own reason name, so the cause is readable "
       + `without re-deriving it — saw: ${[...new Set(rejectedMoves.map((r) => r.reason))].join(", ")}`,
   );

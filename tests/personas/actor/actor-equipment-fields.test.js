@@ -86,7 +86,10 @@ function focusedSetup(scenario = 'ready') {
   const self = snapshot.actors.find(actor => actor.id === 'self');
   const source = snapshot.actors.find(actor => actor.id === 'source');
   self.motivations = ['attacking'];
-  source.affinities = []; source.activeAffinityKey = null; source.position.x = 2;
+  // #218: an armed actor sees adjacent tiles plus lit cells, so the target two
+  // tiles away carries a 1-stack lamp that lights its own cell and the observer's.
+  source.affinities = [{ kind: 'light', expression: 'emit', stacks: 1 }]; source.activeAffinityKey = 'light:emit';
+  source.position.x = 2;
   if (scenario === 'equal_reach') self.affinities[0].stacks = 3;
   if (scenario === 'cannot_cast') self.capabilities.canCast = false;
   if (scenario === 'allied') source.alignment = self.alignment;

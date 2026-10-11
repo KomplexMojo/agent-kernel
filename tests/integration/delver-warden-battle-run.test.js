@@ -37,6 +37,10 @@ async function battleArtifacts() {
         category: "warden",
         position: { x: 3, y: 2 },
         motivations: ["defending"],
+        // #218: armed actors see adjacent tiles plus lit cells. The warden's lamp
+        // lights the gap so the delver, two tiles away, can see it to approach.
+        affinities: [{ kind: "light", expression: "emit", stacks: 1 }],
+        activeAffinityKey: "light:emit",
         vitals: {
           health: { current: 6, max: 6, regen: 0 },
           mana: { current: 6, max: 6, regen: 0 },

@@ -193,14 +193,17 @@ test("orchestrateBuild places delvers at entry and wardens inside rooms", async 
     return values.join(" ").toLowerCase().includes("attack");
   };
 
+  assert.equal(Array.isArray(data.terrain), true);
+  assert.equal(data.terrain.length, data.width * data.height);
   const positionKeys = new Set();
   actors.forEach((actor) => {
     const key = `${actor.position.x},${actor.position.y}`;
     assert.equal(positionKeys.has(key), false);
     positionKeys.add(key);
-    const row = String(data.tiles[actor.position.y] ?? "");
-    const cell = row[actor.position.x];
-    assert.ok(cell && cell !== "#" && cell !== "B");
+    // Unified layouts carry terrain (#210); barriers are actors, so the
+    // distinct-position check above already keeps actors off them.
+    const cell = data.terrain[actor.position.y * data.width + actor.position.x];
+    assert.ok(cell && cell !== "wall", `${actor.id} must stand on walkable terrain, got ${cell}`);
     if (isDelver(actor.id)) {
       assert.equal(inRoom(actor.position, entryRoom), true, `delver ${actor.id} should be in entry room`);
     } else {

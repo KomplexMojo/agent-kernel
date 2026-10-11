@@ -9,6 +9,10 @@ import { validateActorInventory, equipActorAffinity } from './actor-inventory.ts
 import { validateActorHoldings, exposeDefeatHoldings, takeActorHolding } from './actor-holdings.ts';
 
 const TERRAIN = new Set<TerrainKind>(['wall', 'floor', 'spawn', 'exit']);
+
+/** ValidationError names a refused move reports (`validate/inputs.ts`). */
+export type ActorMoveRejection = 'WrongActor' | 'InvalidCapability' | 'OutOfBounds' | 'NotAdjacent'
+  | 'BlockedByWall' | 'ActorCollision';
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
   'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'affinityExhausted',
@@ -99,14 +103,24 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     return terrainBlocks(point) || (occupancy.get(index(point)) ?? [])
       .some(actor => actor.lifecycle === 'alive' && actor.capabilities[capability]);
   }
+  /** Why a one-step move would be refused, as a ValidationError name; null when it is legal. */
+  function explainMove(id: string, target: ActorPosition): ActorMoveRejection | null {
+    const actor = actors.get(id);
+    if (!actor || actor.lifecycle !== 'alive') return 'WrongActor';
+    if (!actor.capabilities.canMove) return 'InvalidCapability';
+    if (!withinBounds(target)) return 'OutOfBounds';
+    if (Math.max(Math.abs(actor.position.x - target.x), Math.abs(actor.position.y - target.y)) !== 1) return 'NotAdjacent';
+    if (terrainBlocks(target)) return 'BlockedByWall';
+    if (actor.capabilities.blocksMovement && (occupancy.get(index(target)) ?? []).some(other => other.lifecycle === 'alive'
+      && other.capabilities.blocksMovement)) return 'ActorCollision';
+    return null;
+  }
   return {
+    explainMove,
     moveActor(id: string, target: ActorPosition): boolean {
-      const actor = actors.get(id);
-      if (!actor || actor.lifecycle !== 'alive' || !actor.capabilities.canMove || terrainBlocks(target)
-        || Math.max(Math.abs(actor.position.x - target.x), Math.abs(actor.position.y - target.y)) !== 1) return false;
+      if (explainMove(id, target) !== null) return false;
+      const actor = actors.get(id)!;
       const destination = occupancy.get(index(target)) ?? [];
-      if (actor.capabilities.blocksMovement && destination.some(other => other.lifecycle === 'alive'
-        && other.capabilities.blocksMovement)) return false;
       const origin = index(actor.position);
       occupancy.set(origin, (occupancy.get(origin) ?? []).filter(other => other.id !== id));
       actor.position = { x: target.x, y: target.y };

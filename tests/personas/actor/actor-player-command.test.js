@@ -33,13 +33,13 @@ async function proposeOnce({ actor, command, payload = {}, tick = 0 } = {}) {
 
 const DELVER = { id: "delver_1", role: "delver", position: { x: 2, y: 2 }, motivation: { kind: "random" } };
 
-test("a move command becomes the actor's only gameplay action, with from/to filled from its observed position", async () => {
+test("a move command becomes the actor's only gameplay action, targeting the cell next to its observed position", async () => {
   const result = await proposeOnce({ actor: DELVER, command: { kind: "move", params: { direction: "east" } } });
   const gameplay = result.actions.filter((a) => a.kind !== "emit_log" && a.kind !== "emit_telemetry");
   assert.equal(gameplay.length, 1);
   assert.equal(gameplay[0].kind, "move");
   assert.equal(gameplay[0].actorId, "delver_1");
-  assert.deepEqual(gameplay[0].params, { direction: "east", from: { x: 2, y: 2 }, to: { x: 3, y: 2 } });
+  assert.deepEqual(gameplay[0].params, { target: { x: 3, y: 2 } });
 });
 
 test("a commanded actor is not posed to the solver even when runtime decisioning is enabled", async () => {
@@ -50,7 +50,7 @@ test("a commanded actor is not posed to the solver even when runtime decisioning
   });
   assert.deepEqual(result.effects, [], "no solver_request may be emitted for a commanded actor");
   const move = result.actions.find((a) => a.kind === "move");
-  assert.deepEqual(move?.params?.to, { x: 2, y: 1 });
+  assert.deepEqual(move?.params?.target, { x: 2, y: 1 });
 });
 
 test("control check: the same actor without a command IS posed to the solver", async () => {
@@ -62,14 +62,14 @@ test("a wait command proposes wait", async () => {
   const result = await proposeOnce({ actor: DELVER, command: { kind: "wait" } });
   const gameplay = result.actions.filter((a) => a.kind !== "emit_log" && a.kind !== "emit_telemetry");
   assert.deepEqual(gameplay.map((a) => a.kind), ["wait"]);
-  assert.equal(gameplay[0].params.reason, "command");
+  assert.equal(gameplay[0].params, undefined, "a unified wait carries no params");
 });
 
 test("a move into a wall is still proposed: legality belongs to core, not the Actor", async () => {
   const actor = { ...DELVER, position: { x: 1, y: 1 } };
   const result = await proposeOnce({ actor, command: { kind: "move", params: { direction: "west" } } });
   const move = result.actions.find((a) => a.kind === "move");
-  assert.deepEqual(move?.params?.to, { x: 0, y: 1 });
+  assert.deepEqual(move?.params?.target, { x: 0, y: 1 });
 });
 
 test("the commanded actor still surfaces an intention so the Moderator can order it", async () => {
@@ -86,7 +86,7 @@ test("malformed commands throw instead of silently falling back to autonomous pl
 });
 
 // ## TODO: Test Permutations
-// - every one of the eight directions maps to the matching to-cell
+// - every one of the eight directions maps to the matching target cell
 // - a command for a stationary-kind actor proposes nothing
 // - a command with a budget still goes through the Allocator's admissibility judge
 // - command on an actor whose position is absent from the observation

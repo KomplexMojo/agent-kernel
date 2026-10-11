@@ -19,11 +19,28 @@ export const ASCII_ENTITY_GLYPHS = Object.freeze({
 });
 
 /**
- * An actor's glyph, read the way this snapshot reads it (`inferKind`): role,
- * kind or id naming a warden makes a warden; anything else is a delver.
- * Generated levels leave `role` null and say it in the id (`card_warden_1-1`).
+ * The ASCII glyph for each terrain kind of a unified layout (`layout.data.terrain`).
+ * A level's own `layout.data.render` legend, when present, uses the same keys.
+ * Destructible barriers are actors, drawn with the `barrier` glyph.
+ */
+export const ASCII_TERRAIN_GLYPHS = Object.freeze({
+  wall: "#",
+  floor: ".",
+  spawn: "S",
+  exit: "E",
+  barrier: "B",
+});
+
+/**
+ * An actor's glyph, read the way this snapshot reads it (`inferKind`): a role
+ * naming a hazard or resource takes that glyph; a role, kind or id naming a
+ * warden makes a warden; anything else is a delver. Generated levels leave
+ * `role` null and say it in the id (`card_warden_1-1`).
  */
 export function asciiGlyphForActor(actor) {
+  const role = String(actor?.role || "").toLowerCase();
+  if (role === "hazard" || role === "resource") return ASCII_ENTITY_GLYPHS[role];
+  if (role === "barrier") return ASCII_TERRAIN_GLYPHS.barrier;
   return inferKind(actor || {}) === "warden" ? ASCII_ENTITY_GLYPHS.warden : ASCII_ENTITY_GLYPHS.delver;
 }
 
@@ -129,7 +146,7 @@ function buildActorDetails(initialState, actorPositions) {
 
 function layoutRowsFromConfig(data) {
   if (Array.isArray(data?.terrain) && Number.isFinite(data.width) && Number.isFinite(data.height)) {
-    const glyphs = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+    const glyphs = ASCII_TERRAIN_GLYPHS;
     const rows = [];
     for (let y = 0; y < data.height; y += 1) {
       let row = "";

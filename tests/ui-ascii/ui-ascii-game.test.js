@@ -32,34 +32,49 @@ const GENERATE_LEVELS = resolve(ROOT, "scripts/ui-ascii/generate-levels.mjs");
 const FIXTURE_LEVELS_DIR = resolve(ROOT, "tests/fixtures/ui-ascii/levels");
 const fixtureLevel = (name) => loadBundledLevel(name, FIXTURE_LEVELS_DIR);
 const fixtureLevels = () => loadBundledLevels(FIXTURE_LEVELS_DIR);
-// first-steps fixture: from the spawn approach (1,1) to the exit approach (7,7), then step through.
-const FIRST_STEPS_SOLUTION = "ddssddssssdd.";
+// first-steps fixture: from the spawn approach (1,1) onto the exit (8,7), then wait out the dwell.
+const FIRST_STEPS_SOLUTION = "ddssddssssddd.";
 
-function solve(level, { othersAreWalls = true } = {}) {
-  // Breadth-first over the level's tiles, then replayed through the real
+/** The actor the play session seats as the player: its `user_controlled` delver. */
+function playerOf(level) {
+  return level.initialState.actors.find((actor) => actor.motivations.includes("user_controlled"))
+    ?? level.initialState.actors.find((actor) => level.initialState.presentation[actor.id].category === "delver");
+}
+
+function solve(level, { othersAreWalls = true, target } = {}) {
+  // Breadth-first over the level's terrain, then replayed through the real
   // session: this proves each bundled level is winnable under core's rules, not
-  // under the search's.
-  const { tiles, exitApproach } = level.simConfig.layout.data;
-  const start = level.initialState.actors[0].position;
+  // under the search's. The goal is the exit terrain unless a target is given.
+  const { width, height, terrain } = level.simConfig.layout.data;
+  const at = (p) => (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height ? "wall" : terrain[p.y * width + p.x]);
+  const player = playerOf(level);
+  const start = player.position;
+  let goal = target;
+  if (!goal) {
+    const index = terrain.indexOf("exit");
+    goal = { x: index % width, y: Math.trunc(index / width) };
+  }
   const occupied = new Set(othersAreWalls
-    ? level.initialState.actors.slice(1).map((actor) => `${actor.position.x},${actor.position.y}`)
+    ? level.initialState.actors
+      .filter((actor) => actor.id !== player.id && actor.capabilities.blocksMovement)
+      .map((actor) => `${actor.position.x},${actor.position.y}`)
     : []);
   const steps = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
   const key = (p) => `${p.x},${p.y}`;
   const prev = new Map([[key(start), null]]);
   const queue = [start];
   while (queue.length) {
-    const at = queue.shift();
-    if (at.x === exitApproach.x && at.y === exitApproach.y) break;
+    const here = queue.shift();
+    if (here.x === goal.x && here.y === goal.y) break;
     for (const [direction, [dx, dy]] of Object.entries(steps)) {
-      const next = { x: at.x + dx, y: at.y + dy };
-      if (tiles[next.y]?.[next.x] !== "." || prev.has(key(next)) || occupied.has(key(next))) continue;
-      prev.set(key(next), { at, direction });
+      const next = { x: here.x + dx, y: here.y + dy };
+      if (!["floor", "exit"].includes(at(next)) || prev.has(key(next)) || occupied.has(key(next))) continue;
+      prev.set(key(next), { at: here, direction });
       queue.push(next);
     }
   }
   const path = [];
-  for (let link = prev.get(key(exitApproach)); link; link = prev.get(key(link.at))) path.unshift(link.direction);
+  for (let link = prev.get(key(goal)); link; link = prev.get(key(link.at))) path.unshift(link.direction);
   return { level, path };
 }
 
@@ -85,10 +100,10 @@ test("bundled levels list in play order and every one loads and is winnable", as
   for (const name of listBundledLevels()) {
     const level = loadBundledLevel(name);
     // With other actors taking turns the replay is no longer a fixed script,
-    // so only solo levels are replayed move for move. The Configurator posts
-    // the first warden on the exit approach; the level is winnable once it
-    // moves off, so the search ignores other actors here.
-    if (level.initialState.actors.length > 1) {
+    // so only levels where nothing else moves are replayed move for move. The
+    // Configurator posts the first warden on the exit approach; the level is
+    // winnable once it moves off, so the search ignores other actors here.
+    if (level.initialState.actors.some((actor) => actor.id !== playerOf(level).id && actor.capabilities.canMove)) {
       assert.ok(solve(level, { othersAreWalls: false }).path.length > 0, `${name} has a path to its exit`);
       assert.match((await createPlaySession(level)).playerActorId, /delver/, `${name} plays the delver`);
       continue;
@@ -121,10 +136,12 @@ test("bundled and fixture levels are versioned artifacts", () => {
 // The Configurator floors every authored actor to ACTOR_VIABILITY_FLOOR
 // (applyActorViabilityFloor). Fixture levels are hand-written artifacts that
 // never pass through it, so they must already sit at or above the floor too.
+// The floor is for the characters that walk the level (delvers, wardens);
+// traps and other fixed actors carry only the vitals their preset gives them.
 test("every actor in a bundled or fixture level meets the actor viability floor", () => {
   const { ACTOR_VIABILITY_FLOOR } = require("../../packages/runtime/src/contracts/domain-constants.js");
   for (const { name, initialState } of [...loadBundledLevels(), ...fixtureLevels()]) {
-    for (const actor of initialState.actors) {
+    for (const actor of initialState.actors.filter((entry) => entry.capabilities.canMove)) {
       for (const [key, floor] of Object.entries(ACTOR_VIABILITY_FLOOR)) {
         const vital = actor.vitals[key];
         assert.ok(vital.max >= floor.max, `${name}/${actor.id} ${key}.max ${vital.max} < ${floor.max}`);
@@ -246,7 +263,7 @@ test("the cli plays a scripted game end to end, as text or JSON", () => {
   assert.match(noTty.stderr, /interactive terminal/);
 });
 
-test("other actors are drawn over core's rows with the snapshot's letters, never over the player", () => {
+test("other actors are drawn over the board rows with the snapshot's letters, never over the player", () => {
   const rows = ["#####", "#@..#", "#####"];
   const actors = [
     { id: "warden-1", role: "warden", position: { x: 3, y: 1 } },
@@ -255,7 +272,7 @@ test("other actors are drawn over core's rows with the snapshot's letters, never
     { id: "lost", role: "warden", position: { x: 9, y: 9 } },
   ];
   assert.deepEqual(overlayActors(rows, actors, { x: 1, y: 1 }), ["#####", `#@${ASCII_ENTITY_GLYPHS.delver}${ASCII_ENTITY_GLYPHS.warden}#`, "#####"]);
-  assert.equal(overlayActors(rows, undefined, null), rows, "no actors: core's rows as-is");
+  assert.equal(overlayActors(rows, undefined, null), rows, "no actors: the rows as-is");
 });
 
 test("the screen draws view.actors when the session reports them", async () => {
@@ -353,7 +370,7 @@ test("water-traps draws its traps as H in the water fill, and a trap costs healt
 
   // Walk onto the first trap along a breadth-first path and let core apply it.
   const trap = view.hazards[0].position;
-  const { path } = solve({ ...level, simConfig: { ...level.simConfig, layout: { ...level.simConfig.layout, data: { ...level.simConfig.layout.data, exitApproach: trap } } } });
+  const { path } = solve(level, { target: trap });
   const healthBefore = view.player.vitals.find((vital) => vital.key === "health").current;
   for (const direction of path) await session.act({ kind: "move", params: { direction } });
   const after = session.view();

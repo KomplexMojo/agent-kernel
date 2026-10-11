@@ -208,8 +208,8 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
   assert.ok(solveResult.artifacts["solver-result.json"]);
 
   const runResult = await adapter.run({
-    simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json",
-    initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json",
+    simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-unified-run.json",
+    initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-unified-run.json",
     ticks: 0,
     outDir: "/artifacts/browser/run",
     runId: "run_browser_runtime",
