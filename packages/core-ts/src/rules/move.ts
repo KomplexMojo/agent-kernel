@@ -62,6 +62,8 @@ export interface MoveWorld {
   getStaticHazardAffinityAt(x: number, y: number): number;
   getStaticHazardExpressionAt(x: number, y: number): number;
   getStaticHazardManaReserveAt(x: number, y: number): number;
+  /** Optional so minimal test worlds without upkeep keep working; absent means always on. */
+  isStaticHazardActiveAt?(x: number, y: number): boolean;
   getStaticHazardStacksAt(x: number, y: number): number;
   getActorX(): number;
   getActorY(): number;
@@ -131,6 +133,8 @@ export function createMoveRules(world: MoveWorld) {
     const affinityKind = world.getStaticHazardAffinityAt(x, y);
     const targetVital = resolveHazardTargetVital(affinityKind);
     if (targetVital < 0) return;
+    // An exhausted hazard's affinity is off until its mana is full again.
+    if (world.isStaticHazardActiveAt && !world.isStaticHazardActiveAt(x, y)) return;
 
     const stacks = world.getStaticHazardStacksAt(x, y);
     const manaReserve = world.getStaticHazardManaReserveAt(x, y);
