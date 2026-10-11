@@ -75,7 +75,7 @@ const configuratorAffinityManaCost = configuratorPersonaSurface.resolveAffinityM
  * (`computeInternalManaUpkeep`, 2 + stacks). Core charges it from this table,
  * indexed by stacks; the last entry covers anything higher.
  */
-const PERSISTENT_UPKEEP_TABLE_STACKS = 10;
+const PERSISTENT_UPKEEP_TABLE_STACKS = 100;
 const persistentAffinityUpkeepTable = Object.freeze(
   Array.from({ length: PERSISTENT_UPKEEP_TABLE_STACKS + 1 }, (_, stacks) => (
     stacks === 0 ? 0 : configuratorPersonaSurface.computeInternalManaUpkeep(stacks)
