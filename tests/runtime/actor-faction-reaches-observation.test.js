@@ -75,7 +75,10 @@ async function buildArtifacts() {
   const actors = [
     combatant("delver_a", "delver", { x: 1, y: 1 }),
     combatant("delver_b", "delver", { x: 2, y: 1 }),
-    combatant("warden_1", "warden", { x: 4, y: 1 }),
+    // #218: armed actors see adjacent tiles plus lit cells, so the warden two
+    // tiles from delver_b carries a lamp that lights the gap between them.
+    { ...combatant("warden_1", "warden", { x: 4, y: 1 }),
+      affinities: [{ kind: "light", expression: "emit", stacks: 1 }], activeAffinityKey: "light:emit" },
   ];
   const simConfig = configurator.buildSimConfigArtifact({
     meta: { id: "ds1_faction_sim", runId: "ds1_faction", createdAt: CLOCK, producedBy: "test" },
