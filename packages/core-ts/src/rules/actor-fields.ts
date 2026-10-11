@@ -9,6 +9,7 @@ import { computeAffinityIntensity, computeAffinityRadius, cancelAffinityOverlap,
 import { evaluateActorAffinityReceiver, getActorAffinityEffect, type ActorVitalChange } from './actor-affinity.ts';
 import { changeActorVital } from '../state/actor-vitals.ts';
 import { resolveActorExposures, type ActorExposureSource } from './actor-exposure.ts';
+import { isActorAffinityLit } from './actor-upkeep.ts';
 
 const KIND_CODES = Object.fromEntries(Object.entries(AFFINITY_KIND_BY_CODE).map(([code, name]) => [name, Number(code)]));
 const EXPRESSION_CODES = Object.fromEntries(Object.entries(AFFINITY_EXPRESSION_BY_CODE).map(([code, name]) => [name, Number(code)]));
@@ -76,7 +77,7 @@ function activeFieldSources(actors: readonly ActorRecord[]): FieldSource[] {
   return [...actors].sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
     .flatMap(actor => {
       const pair = activeActorAffinity(actor);
-      return actor.capabilities.canCast && pair && ['emit', 'draw'].includes(pair.expression) ? [{ actor, pair }] : [];
+      return pair && isActorAffinityLit(actor) ? [{ actor, pair }] : [];
     });
 }
 

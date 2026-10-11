@@ -2,6 +2,7 @@ import { advanceActorExit, EXIT_DWELL_TICKS } from "../rules/actor-exit.ts";
 import type { ActorPosition, ActorRecord, ActorRegistrySnapshot, ActorVitalKind, ActorAffinityKey, TerrainKind, AffinityKind, AffinityExpression, ActorVitalRecord } from './actor-types.ts';
 
 import { validateActorRecordVitals, changeActorVital, regenerateActor } from './actor-vitals.ts';
+import { chargeActorAffinityUpkeep, recoverActorAffinity } from '../rules/actor-upkeep.ts';
 
 import { validateActorInventory, equipActorAffinity } from './actor-inventory.ts';
 
@@ -10,7 +11,7 @@ import { validateActorHoldings, exposeDefeatHoldings, takeActorHolding } from '.
 const TERRAIN = new Set<TerrainKind>(['wall', 'floor', 'spawn', 'exit']);
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
-  'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell',
+  'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'affinityExhausted',
 ]);
 
 /** Reject values JSON cannot faithfully represent before taking ownership. */
@@ -66,6 +67,9 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     if (record.exitDwell !== undefined && (!Number.isSafeInteger(record.exitDwell)
       || record.exitDwell < 0 || record.exitDwell > EXIT_DWELL_TICKS
       || record.lifecycle === 'alive' && record.exitDwell === EXIT_DWELL_TICKS)) throw new Error('invalid exit dwell');
+    if (record.affinityExhausted !== undefined && record.affinityExhausted !== true) {
+      throw new Error('invalid affinity exhaustion');
+    }
     const actor = copy(record);
     validateActorRecordVitals(actor);
     validateActorInventory(actor);
@@ -121,7 +125,13 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       if (actor) exposeDefeatHoldings(actor);
       return actual;
     },
-    regenerate(): void { for (const actor of ordered) regenerateActor(actor); },
+    /** Lasting affinities pay their per-turn upkeep; call before regenerate(). */
+    chargeAffinityUpkeep(upkeepByStacks: readonly number[]): void {
+      for (const actor of ordered) chargeActorAffinityUpkeep(actor, upkeepByStacks);
+    },
+    regenerate(): void {
+      for (const actor of ordered) { regenerateActor(actor); recoverActorAffinity(actor); }
+    },
     advanceExitDwell(): string[] {
       const exited: string[] = [];
       for (const actor of ordered) {

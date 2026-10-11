@@ -15,7 +15,12 @@ export interface ActorTurnSnapshot {
   exitsResolved: boolean;
   suppressions: ActorEffectSuppression[];
 }
-export interface ActorTurnCosts { castMana: ActorCastManaCosts; movementStamina: Record<string, number> }
+export interface ActorTurnCosts {
+  castMana: ActorCastManaCosts;
+  movementStamina: Record<string, number>;
+  /** Per-turn mana upkeep of a lasting affinity, indexed by stacks; absent means none. */
+  persistentUpkeep?: number[];
+}
 function copy<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function hasParams(action: ActorAction, keys: string[]): boolean {
   return !!action.params && typeof action.params === 'object' && !Array.isArray(action.params)
@@ -30,7 +35,9 @@ export function createActorTurn(
   if (!Number.isSafeInteger(tick) || tick < 0) throw new Error('invalid turn tick');
   if (Object.values(costs.movementStamina).some(cost => !Number.isSafeInteger(cost) || cost < 0)
     || Object.values(costs.castMana).some(prices => !Array.isArray(prices) || prices.length !== 5
-      || [...prices].some(price => !Number.isSafeInteger(price) || price < 0))) throw new Error('invalid action costs');
+      || [...prices].some(price => !Number.isSafeInteger(price) || price < 0))
+    || costs.persistentUpkeep !== undefined && (!Array.isArray(costs.persistentUpkeep)
+      || costs.persistentUpkeep.some(cost => !Number.isSafeInteger(cost) || cost < 0))) throw new Error('invalid action costs');
   const prices = copy(costs);
   const state = saved ? copy(saved) : { tick, acceptedActorIds: [], closed: false, fieldsResolved: false, regenerated: false, exitsResolved: false, suppressions: [] };
   if (state.tick !== tick || typeof state.closed !== 'boolean'
@@ -108,6 +115,7 @@ export function createActorTurn(
     },
     regenerate(): boolean {
       if (!state.fieldsResolved || state.regenerated) return false;
+      if (prices.persistentUpkeep) registry.chargeAffinityUpkeep(prices.persistentUpkeep);
       registry.regenerate(); state.regenerated = true; return true;
     },
     resolveExits(): string[] | null {

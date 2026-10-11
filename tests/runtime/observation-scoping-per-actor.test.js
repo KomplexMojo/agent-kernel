@@ -98,6 +98,8 @@ async function buildArtifacts(otherX, { lit = true } = {}) {
     {
       ...health("observer", "delver", { x: OBSERVER_X, y: 1 }, ["attacking"]),
       ...(lit ? {
+        // Light is powered by mana and pays 2 + stacks a turn (#200); regen covers it.
+        vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 20, max: 20, regen: 2 + LIT_STACKS } },
         affinities: [{ kind: "light", expression: "emit", stacks: LIT_STACKS }],
         activeAffinityKey: "light:emit",
       } : {}),
