@@ -210,6 +210,16 @@ export function applyActorOverrides(initialState, simConfig, { actorSpecs = [], 
     });
     initialState.actors = rebuilt.actors;
     initialState.presentation = rebuilt.presentation;
+    // An added mover needs its authored move cost, or core setup refuses the run (#211).
+    if (simConfig.actionCosts?.movementStamina) {
+      simConfig.actionCosts = {
+        ...simConfig.actionCosts,
+        movementStamina: configurator.assembleMovementStamina({
+          actors: authored,
+          movementStamina: simConfig.actionCosts.movementStamina,
+        }),
+      };
+    }
     actors.length = 0;
     byId.clear();
     rebuilt.actors.forEach((actor, index) => {
