@@ -41,10 +41,10 @@ export function launchCommand(source = {}, { cwd = process.cwd() } = {}) {
  * Run the UI with `keys` and return its result:
  * `{ ok, level, turns, status, screen }`, or `{ ok: false, error }`.
  */
-export function playAsciiScripted({ source, keys = "", color = false }) {
+export function playAsciiScripted({ source, keys = "", color = false, fog = true }) {
   const result = spawnSync(
     process.execPath,
-    [UI_ASCII_CLI, ...levelArgs(source), "--json", ...(color ? ["--color"] : []), "--keys", keys],
+    [UI_ASCII_CLI, ...levelArgs(source), "--json", ...(color ? ["--color"] : []), ...(fog ? [] : ["--no-fog"]), "--keys", keys],
     { encoding: "utf8" },
   );
   if (result.status !== 0) {
@@ -54,8 +54,11 @@ export function playAsciiScripted({ source, keys = "", color = false }) {
 }
 
 /** Hand the terminal to the UI; resolves with its exit code. */
-export function playAsciiInteractive({ source, color }) {
-  const colorArgs = color === false ? ["--no-color"] : color === true ? ["--color"] : [];
+export function playAsciiInteractive({ source, color, fog = true }) {
+  const colorArgs = [
+    ...(color === false ? ["--no-color"] : color === true ? ["--color"] : []),
+    ...(fog ? [] : ["--no-fog"]),
+  ];
   return new Promise((resolveExit, reject) => {
     const child = spawn(process.execPath, [UI_ASCII_CLI, ...levelArgs(source), ...colorArgs], { stdio: "inherit" });
     child.on("error", reject);

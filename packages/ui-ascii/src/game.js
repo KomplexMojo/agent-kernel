@@ -25,8 +25,9 @@ function rejectionMessage(reason) {
  * @param {Array<{name: string, simConfig: object, initialState: object}>} args.levels
  * @param {number} [args.startIndex]
  * @param {Function} [args.createSession] injectable for tests
+ * @param {boolean} [args.fog] fog of war: you see only what is in sight (default on)
  */
-export async function createGame({ levels, startIndex = 0, createSession = createPlaySession } = {}) {
+export async function createGame({ levels, startIndex = 0, createSession = createPlaySession, fog = true } = {}) {
   if (!Array.isArray(levels) || levels.length === 0) {
     throw new Error("createGame: at least one level is required");
   }
@@ -40,7 +41,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   async function startLevel(index) {
     levelIndex = index;
     const level = levels[levelIndex];
-    session = await createSession({ simConfig: level.simConfig, initialState: level.initialState });
+    session = await createSession({ simConfig: level.simConfig, initialState: level.initialState, fog });
     turns = 0;
     message = "";
   }
