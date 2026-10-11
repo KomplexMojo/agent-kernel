@@ -66,8 +66,21 @@ const VITAL_MANA = 1;
  * applies when a run supplies no artifact of its own, which is a documented
  * default table rather than a silent fallback to a second price model.
  */
-const configuratorAffinityManaCost = createConfiguratorPersona({ clock: UNUSED_CLOCK })
-  .resolveAffinityManaCost;
+const configuratorPersonaSurface = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+const configuratorAffinityManaCost = configuratorPersonaSurface.resolveAffinityManaCost;
+
+/**
+ * Every affinity has a mana cost (maintainer, 2026-10-11). Persistent
+ * expressions (emit, draw) pay a per-tick upkeep, authored by the Configurator
+ * (`computeInternalManaUpkeep`, 2 + stacks). Core charges it from this table,
+ * indexed by stacks; the last entry covers anything higher.
+ */
+const PERSISTENT_UPKEEP_TABLE_STACKS = 10;
+const persistentAffinityUpkeepTable = Object.freeze(
+  Array.from({ length: PERSISTENT_UPKEEP_TABLE_STACKS + 1 }, (_, stacks) => (
+    stacks === 0 ? 0 : configuratorPersonaSurface.computeInternalManaUpkeep(stacks)
+  )),
+);
 
 function resolveCastManaCost({ kind, expression, stacks }) {
   return configuratorAffinityManaCost({ rules: null, kind, expression, stacks });
@@ -1704,6 +1717,9 @@ export function createFsmRuntime({
       // `initializeCoreFromArtifacts`.
       if (typeof core?.computeAffinityField === "function") {
         core.computeAffinityField();
+      }
+      if (typeof core?.setPersistentAffinityUpkeepTable === "function") {
+        core.setPersistentAffinityUpkeepTable([...persistentAffinityUpkeepTable]);
       }
 
       baseTiles = resolveBaseTiles(simConfig, core);

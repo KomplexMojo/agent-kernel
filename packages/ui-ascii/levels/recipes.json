@@ -30,9 +30,9 @@
       "args": [
         "--room", "size=small;count=3",
         "--delver", "count=1;affinity=wind;motivation=exploring",
-        "--hazard", "affinity=water;expression=emit;proximityRadius=1;mana=one-time:30",
-        "--hazard", "affinity=water;expression=emit;proximityRadius=1;mana=one-time:30",
-        "--hazard", "affinity=water;expression=emit;proximityRadius=1;mana=one-time:30"
+        "--hazard", "affinity=water;expression=emit;proximityRadius=1;mana=regen:30:30:3",
+        "--hazard", "affinity=water;expression=emit;proximityRadius=1;mana=regen:30:30:3",
+        "--hazard", "affinity=water;expression=emit;proximityRadius=1;mana=regen:30:30:3"
       ]
     }
   ]

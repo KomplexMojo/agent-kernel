@@ -234,8 +234,11 @@ export const CORE_API_KEYS = [
   "grantMotivatedActorAffinity",
   "hasResourceAt",
   "init",
+  "isMotivatedActorAffinityExhaustedByIndex",
   "isMotivatedActorExitEligible",
   "isMotivatedActorExitedByIndex",
+  "isStaticHazardActiveAt",
+  "isStaticHazardExhaustedAt",
   "isWalkablePosition",
   "loadMvpBarrierScenario",
   "loadMvpScenario",
@@ -273,6 +276,7 @@ export const CORE_API_KEYS = [
   "setMotivatedActorMovementCost",
   "setMotivatedActorVital",
   "setMoveAction",
+  "setPersistentAffinityUpkeepTable",
   "setSpawnApproachPosition",
   "setSpawnPosition",
   "setTileAt",
@@ -644,6 +648,10 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getAffinityFieldStacksAt = world.getAffinityFieldStacksAt as CoreFunction;
   core.getVisibilityRadiusForActorIndex = world.getVisibilityRadiusForActorIndex as CoreFunction;
   core.readLightLevels = world.readLightLevels as CoreFunction;
+  core.setPersistentAffinityUpkeepTable = world.setPersistentAffinityUpkeepTable as CoreFunction;
+  core.isStaticHazardExhaustedAt = world.isStaticHazardExhaustedAt as CoreFunction;
+  core.isStaticHazardActiveAt = world.isStaticHazardActiveAt as CoreFunction;
+  core.isMotivatedActorAffinityExhaustedByIndex = world.isMotivatedActorAffinityExhaustedByIndex as CoreFunction;
   core.getAffinityFieldExpressionAt = world.getAffinityFieldExpressionAt as CoreFunction;
   core.getAffinityFieldContributionCountAt = world.getAffinityFieldContributionCountAt as CoreFunction;
   core.computeStaticHazardAffinityField = world.computeStaticHazardAffinityField as CoreFunction;

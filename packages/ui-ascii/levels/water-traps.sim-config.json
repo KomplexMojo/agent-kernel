@@ -661,8 +661,10 @@
           ],
           "vitals": {
             "mana": {
-              "kind": "one-time",
-              "amount": 30
+              "kind": "regen",
+              "current": 30,
+              "max": 30,
+              "regen": 3
             },
             "durability": {
               "kind": "one-time",
@@ -692,8 +694,10 @@
           ],
           "vitals": {
             "mana": {
-              "kind": "one-time",
-              "amount": 30
+              "kind": "regen",
+              "current": 30,
+              "max": 30,
+              "regen": 3
             },
             "durability": {
               "kind": "one-time",
@@ -723,8 +727,10 @@
           ],
           "vitals": {
             "mana": {
-              "kind": "one-time",
-              "amount": 30
+              "kind": "regen",
+              "current": 30,
+              "max": 30,
+              "regen": 3
             },
             "durability": {
               "kind": "one-time",

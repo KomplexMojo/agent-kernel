@@ -315,6 +315,28 @@ test("with fog, a light-emitting trap lights its cells, which the player sees fr
   assert.deepEqual(unlit.hazards, []);
 });
 
+test("with fog, a lamp that cannot pay its mana upkeep goes dark", async () => {
+  // Every affinity costs mana (2026-10-11). Light on emit at 2 stacks costs 2 + 2 = 4
+  // a turn. The lamp's default pool is 3 per stack = 6 with no regen: it pays once
+  // (6 -> 2), then cannot pay and goes dark until its mana is full, which is never.
+  const withLamp = {
+    ...simConfig,
+    layout: {
+      ...simConfig.layout,
+      data: {
+        ...simConfig.layout.data,
+        hazards: [{ id: "lamp", affinity: "light", expression: "emit", stacks: 2, position: { x: 3, y: 3 } }],
+      },
+    },
+  };
+  const session = await createPlaySession({ simConfig: withLamp, initialState, fog: true });
+  assert.equal(session.view().sight[3][3], PLAY_SIGHT.VISIBLE, "lit at the start");
+  await session.act({ kind: "wait" });
+  assert.equal(session.view().sight[3][3], PLAY_SIGHT.VISIBLE, "paid its first upkeep");
+  await session.act({ kind: "wait" });
+  assert.notEqual(session.view().sight[3][3], PLAY_SIGHT.VISIBLE, "drained: dark");
+});
+
 test("without fog, every cell is visible and rows are core's frame", async () => {
   const view = (await newSession()).view();
   assert.ok(view.sight.every((row) => /^v+$/.test(row)));

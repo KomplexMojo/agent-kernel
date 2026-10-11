@@ -4,6 +4,7 @@
 
 import { ValidationError } from "../validate/inputs.ts";
 import {
+  AffinityExpression,
   getOppositeAffinityKind,
   isValidAffinityKind,
   isValidAffinityExpression,
@@ -98,6 +99,14 @@ export function createWorldState() {
   let staticHazardManaReserveByCell = new Int32Array(0);
   let staticHazardManaMaxByCell = new Int32Array(0);
   let staticHazardManaRegenByCell = new Int32Array(0);
+  // Every affinity has a mana cost (maintainer, 2026-10-11). A persistent source
+  // (emit, draw) that cannot pay its per-tick upkeep is EXHAUSTED: off until its
+  // mana has regenerated to full. 1/0 per hazard cell and per motivated actor.
+  let staticHazardExhaustedByCell = new Uint8Array(0);
+  let motivatedActorAffinityExhaustedArr = new Uint8Array(0);
+  // Upkeep per tick indexed by stacks, supplied as data (the amount is
+  // Configurator tuning, not core's to invent). Empty means no upkeep.
+  let persistentAffinityUpkeepByStacks: number[] = [];
   let staticHazardDurabilityCurrentByCell = new Int32Array(0);
   let staticHazardDurabilityMaxByCell = new Int32Array(0);
   let staticHazardDurabilityRegenByCell = new Int32Array(0);
@@ -235,6 +244,7 @@ export function createWorldState() {
     staticHazardManaReserveByCell = new Int32Array(cellCount);
     staticHazardManaMaxByCell = new Int32Array(cellCount);
     staticHazardManaRegenByCell = new Int32Array(cellCount);
+    staticHazardExhaustedByCell = new Uint8Array(cellCount);
     staticHazardDurabilityCurrentByCell = new Int32Array(cellCount);
     staticHazardDurabilityMaxByCell = new Int32Array(cellCount);
     staticHazardDurabilityRegenByCell = new Int32Array(cellCount);
@@ -260,6 +270,7 @@ export function createWorldState() {
     motivatedActorExitDwellArr = new Int32Array(maxMotivatedActors);
     motivatedActorExitedArr = new Int32Array(maxMotivatedActors);
     motivatedActorExitEligibleArr = new Int32Array(maxMotivatedActors);
+    motivatedActorAffinityExhaustedArr = new Uint8Array(maxMotivatedActors);
     motivatedActorMovementCostArr = new Int32Array(maxMotivatedActors);
     motivatedActorActionCostManaArr = new Int32Array(maxMotivatedActors);
     motivatedActorActionCostStaminaArr = new Int32Array(maxMotivatedActors);
@@ -376,6 +387,7 @@ export function createWorldState() {
     staticHazardManaReserveByCell[index] = 0;
     staticHazardManaMaxByCell[index] = 0;
     staticHazardManaRegenByCell[index] = 0;
+    staticHazardExhaustedByCell[index] = 0;
     staticHazardDurabilityCurrentByCell[index] = 0;
     staticHazardDurabilityMaxByCell[index] = 0;
     staticHazardDurabilityRegenByCell[index] = 0;
@@ -389,6 +401,7 @@ export function createWorldState() {
     staticHazardManaReserveByCell.fill(0);
     staticHazardManaMaxByCell.fill(0);
     staticHazardManaRegenByCell.fill(0);
+    staticHazardExhaustedByCell.fill(0);
     staticHazardDurabilityCurrentByCell.fill(0);
     staticHazardDurabilityMaxByCell.fill(0);
     staticHazardDurabilityRegenByCell.fill(0);
@@ -508,6 +521,7 @@ export function createWorldState() {
   }
 
   function clearActorAffinities(): void {
+    motivatedActorAffinityExhaustedArr.fill(0);
     motivatedActorAffinityKindArr.fill(0);
     motivatedActorAffinityExpressionArr.fill(0);
     motivatedActorAffinityStacksArr.fill(0);
@@ -850,6 +864,83 @@ export function createWorldState() {
         }
       } else {
         motivatedActorExitDwellArr[i] = 0;
+      }
+    }
+  }
+
+  // ── Affinity upkeep ──
+
+  function isPersistentExpression(expression: number): boolean {
+    return expression === AffinityExpression.Emit || expression === AffinityExpression.Draw;
+  }
+
+  function upkeepForStacks(stacks: number): number {
+    const table = persistentAffinityUpkeepByStacks;
+    if (table.length < 2 || stacks <= 0) return 0;
+    const cost = table[Math.min(stacks, table.length - 1)];
+    return Number.isFinite(cost) && cost > 0 ? Math.trunc(cost) : 0;
+  }
+
+  /** A hazard's affinity is on: it has mana and is not waiting out an exhaustion. */
+  function isStaticHazardActiveAtIndex(idx: number): boolean {
+    return staticHazardManaReserveByCell[idx] > 0 && staticHazardExhaustedByCell[idx] === 0;
+  }
+
+  /**
+   * Charge every persistent source its upkeep, BEFORE regen. A source that
+   * cannot pay is exhausted and pays nothing while it waits. Push and pull are
+   * charged per use (casts), never here.
+   */
+  function applyAffinityUpkeep(): void {
+    if (persistentAffinityUpkeepByStacks.length < 2) return;
+    if (staticHazardCount > 0) {
+      for (let idx = 0; idx < cellCount; idx++) {
+        if (staticHazardAffinityByCell[idx] === STATIC_HAZARD_NONE) continue;
+        if (staticHazardExhaustedByCell[idx] !== 0) continue;
+        if (!isPersistentExpression(staticHazardExpressionByCell[idx])) continue;
+        const cost = upkeepForStacks(staticHazardStacksByCell[idx]);
+        if (cost <= 0) continue;
+        if (staticHazardManaReserveByCell[idx] >= cost) {
+          staticHazardManaReserveByCell[idx] -= cost;
+        } else {
+          staticHazardExhaustedByCell[idx] = 1;
+        }
+      }
+    }
+    for (let i = 0; i < motivatedActorCount; i++) {
+      if (motivatedActorAffinityKindArr[i] === 0) continue;
+      if (motivatedActorAffinityExhaustedArr[i] !== 0) continue;
+      if (!isPersistentExpression(motivatedActorAffinityExpressionArr[i])) continue;
+      const cost = upkeepForStacks(motivatedActorAffinityStacksArr[i]);
+      if (cost <= 0) continue;
+      const offset = vitalIndexFor(i, VitalKind.Mana);
+      const current = motivatedActorVitalCurrent[offset];
+      if (current >= cost) {
+        motivatedActorVitalCurrent[offset] = current - cost;
+        if (i === normalizedActiveMotivatedActorIndex()) {
+          actorVitalCurrent[VitalKind.Mana] = current - cost;
+        }
+      } else {
+        motivatedActorAffinityExhaustedArr[i] = 1;
+      }
+    }
+  }
+
+  /** After regen: an exhausted source whose mana is full again switches back on. */
+  function recoverExhaustedAffinities(): void {
+    if (staticHazardCount > 0) {
+      for (let idx = 0; idx < cellCount; idx++) {
+        if (staticHazardExhaustedByCell[idx] === 0) continue;
+        if (staticHazardManaReserveByCell[idx] >= staticHazardManaMaxByCell[idx]) {
+          staticHazardExhaustedByCell[idx] = 0;
+        }
+      }
+    }
+    for (let i = 0; i < motivatedActorCount; i++) {
+      if (motivatedActorAffinityExhaustedArr[i] === 0) continue;
+      const offset = vitalIndexFor(i, VitalKind.Mana);
+      if (motivatedActorVitalCurrent[offset] >= motivatedActorVitalMax[offset]) {
+        motivatedActorAffinityExhaustedArr[i] = 0;
       }
     }
   }
@@ -1433,7 +1524,9 @@ export function createWorldState() {
     // ── Tick ──
 
     advanceTick(): void {
+      applyAffinityUpkeep();
       applyTickRegen();
+      recoverExhaustedAffinities();
       applyExitDwell();
       currentTick++;
     },
@@ -1528,6 +1621,7 @@ export function createWorldState() {
       staticHazardManaReserveByCell[idx] = Math.min(Math.max(0, manaReserve), manaMax);
       staticHazardManaMaxByCell[idx] = manaMax;
       staticHazardManaRegenByCell[idx] = Math.max(0, manaRegenOpt);
+      staticHazardExhaustedByCell[idx] = 0;
       staticHazardDurabilityCurrentByCell[idx] = Math.max(0, durabilityCurrentOpt);
       staticHazardDurabilityMaxByCell[idx] = Math.max(0, durabilityMaxOpt);
       staticHazardDurabilityRegenByCell[idx] = Math.max(0, durabilityRegenOpt);
@@ -1557,6 +1651,34 @@ export function createWorldState() {
     getStaticHazardStacksAt(x: number, y: number): number {
       if (!withinBounds(x, y)) return 0;
       return staticHazardStacksByCell[indexFor(x, y)];
+    },
+
+    /** Persistent-affinity upkeep per tick, indexed by stacks (index 0 unused; the last entry covers higher stacks). */
+    setPersistentAffinityUpkeepTable(costs: number[]): number {
+      if (!Array.isArray(costs)) return 0;
+      persistentAffinityUpkeepByStacks = costs.map((cost) => (
+        Number.isFinite(cost) && cost > 0 ? Math.trunc(cost) : 0
+      ));
+      return 1;
+    },
+
+    /** 1 while the hazard here waits out an exhaustion (its affinity is off), else 0. */
+    isStaticHazardExhaustedAt(x: number, y: number): number {
+      if (!withinBounds(x, y)) return 0;
+      return staticHazardExhaustedByCell[indexFor(x, y)];
+    },
+
+    /** Whether the hazard here is on: armed, with mana, not exhausted. */
+    isStaticHazardActiveAt(x: number, y: number): boolean {
+      if (!withinBounds(x, y)) return false;
+      const idx = indexFor(x, y);
+      return hasStaticHazardAtIndex(idx) && isStaticHazardActiveAtIndex(idx);
+    },
+
+    /** 1 while the actor's affinity waits out an exhaustion, else 0. */
+    isMotivatedActorAffinityExhaustedByIndex(index: number): number {
+      if (!isValidMotivatedActorIndex(index)) return 0;
+      return motivatedActorAffinityExhaustedArr[index];
     },
 
     getStaticHazardManaReserveAt(x: number, y: number): number {
@@ -1802,7 +1924,8 @@ export function createWorldState() {
         isValidFieldArgs(x, y, kind) ? affinityFieldStacks[fieldIndexFor(x, y, kind)] : 0
       );
       const emitsLight = motivatedActorAffinityKindArr[index] === SIGHT_AFFINITY_KINDS.LIGHT
-        && motivatedActorAffinityExpressionArr[index] === SIGHT_LIGHT_EXPRESSION;
+        && motivatedActorAffinityExpressionArr[index] === SIGHT_LIGHT_EXPRESSION
+        && motivatedActorAffinityExhaustedArr[index] === 0;
       const manaOffset = vitalIndexFor(index, VitalKind.Mana);
       const poweredStacks = emitsLight
         ? resolvePoweredLightStacks(
@@ -1859,6 +1982,7 @@ export function createWorldState() {
       for (let ci = 0; ci < cellCount; ci++) {
         if (staticHazardAffinityByCell[ci] !== SIGHT_AFFINITY_KINDS.LIGHT) continue;
         if (staticHazardExpressionByCell[ci] !== SIGHT_LIGHT_EXPRESSION) continue;
+        if (staticHazardExhaustedByCell[ci] !== 0) continue;
         const stacks = resolvePoweredLightStacks(
           staticHazardStacksByCell[ci],
           staticHazardManaReserveByCell[ci],
@@ -1870,6 +1994,7 @@ export function createWorldState() {
       for (let i = 0; i < motivatedActorCount; i++) {
         if (motivatedActorAffinityKindArr[i] !== SIGHT_AFFINITY_KINDS.LIGHT) continue;
         if (motivatedActorAffinityExpressionArr[i] !== SIGHT_LIGHT_EXPRESSION) continue;
+        if (motivatedActorAffinityExhaustedArr[i] !== 0) continue;
         const manaOffset = vitalIndexFor(i, VitalKind.Mana);
         const stacks = resolvePoweredLightStacks(
           motivatedActorAffinityStacksArr[i],
@@ -1888,7 +2013,7 @@ export function createWorldState() {
       for (let ci = 0; ci < cellCount; ci++) {
         const kind = staticHazardAffinityByCell[ci];
         if (kind === STATIC_HAZARD_NONE) continue;
-        if (staticHazardManaReserveByCell[ci] <= 0) continue;
+        if (!isStaticHazardActiveAtIndex(ci)) continue;
         const expression = staticHazardExpressionByCell[ci];
         const stacks = staticHazardStacksByCell[ci];
         if (!isValidAffinityExpression(expression) || stacks <= 0) continue;
@@ -1906,6 +2031,7 @@ export function createWorldState() {
       for (let i = 0; i < motivatedActorCount; i++) {
         const kind = motivatedActorAffinityKindArr[i];
         if (kind === 0) continue;
+        if (motivatedActorAffinityExhaustedArr[i] !== 0) continue;
         const expression = motivatedActorAffinityExpressionArr[i];
         const stacks = motivatedActorAffinityStacksArr[i];
         if (!isValidAffinityExpression(expression) || stacks <= 0) continue;
@@ -1928,7 +2054,7 @@ export function createWorldState() {
       for (let ci = 0; ci < cellCount; ci++) {
         const kind = staticHazardAffinityByCell[ci];
         if (kind === STATIC_HAZARD_NONE) continue;
-        if (staticHazardManaReserveByCell[ci] <= 0) continue;
+        if (!isStaticHazardActiveAtIndex(ci)) continue;
         const expression = staticHazardExpressionByCell[ci];
         const stacks = staticHazardStacksByCell[ci];
         if (!isValidAffinityExpression(expression) || stacks <= 0) continue;
@@ -1956,6 +2082,7 @@ export function createWorldState() {
       motivatedActorAffinityKindArr[index] = kind;
       motivatedActorAffinityExpressionArr[index] = expression;
       motivatedActorAffinityStacksArr[index] = stacks;
+      motivatedActorAffinityExhaustedArr[index] = 0;
       return 1;
     },
 
@@ -1964,6 +2091,7 @@ export function createWorldState() {
       motivatedActorAffinityKindArr[index] = 0;
       motivatedActorAffinityExpressionArr[index] = 0;
       motivatedActorAffinityStacksArr[index] = 0;
+      motivatedActorAffinityExhaustedArr[index] = 0;
       return 1;
     },
 
