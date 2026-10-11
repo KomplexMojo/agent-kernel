@@ -78,8 +78,8 @@
           "x=4;y=2;affinity=earth;expression=emit;stacks=1;blocking=false"
         ],
         "resource": [
-          "tier=level;stat=vitalMax;delta=10;dropRate=50",
-          "tier=permanent;stat=affinityStack;delta=1;dropRate=20"
+          "permanenceMode=level;vital=health;delta=10",
+          "affinity=fire;expression=push;stacks=1;mana=10;manaRegen=1"
         ],
         "delver": [
           "count=1;affinity=fire;motivation=attacking"
@@ -132,7 +132,7 @@
           "x=3;y=1;affinity=fire;expression=emit;stacks=3;blocking=false"
         ],
         "resource": [
-          "tier=level;stat=vitalMax;delta=10;dropRate=50"
+          "permanenceMode=level;vital=health;delta=10"
         ],
         "delver": [
           "count=1;affinity=fire;motivation=exploring"
@@ -650,11 +650,11 @@
       "runId": "ak_prompt_90_constrained_exact_single_delver",
       "tier": "constrained",
       "budgetMode": "constrained",
-      "budget": 92,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver at its minimum passing budget. Use a 92 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "budget": 102,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver at its minimum passing budget. Use a 102 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver at its minimum passing budget. Use a 92 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 92,
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver at its minimum passing budget. Use a 102 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 102,
         "runId": "ak_prompt_90_constrained_exact_single_delver",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
@@ -686,11 +686,11 @@
       "runId": "ak_prompt_91_constrained_under_single_delver",
       "tier": "constrained",
       "budgetMode": "constrained",
-      "budget": 91,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver one token below its minimum passing budget. Use a 91 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "budget": 101,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver one token below its minimum passing budget. Use a 101 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver one token below its minimum passing budget. Use a 91 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 91,
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create one exploring fire Delver one token below its minimum passing budget. Use a 101 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 101,
         "runId": "ak_prompt_91_constrained_under_single_delver",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
@@ -794,11 +794,11 @@
       "runId": "ak_prompt_94_constrained_exact_duel",
       "tier": "constrained",
       "budgetMode": "constrained",
-      "budget": 287,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden at the minimum passing budget. Use a 287 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "budget": 316,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden at the minimum passing budget. Use a 316 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden at the minimum passing budget. Use a 287 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 287,
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden at the minimum passing budget. Use a 316 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 316,
         "runId": "ak_prompt_94_constrained_exact_duel",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
@@ -841,11 +841,11 @@
       "runId": "ak_prompt_95_constrained_under_duel",
       "tier": "constrained",
       "budgetMode": "constrained",
-      "budget": 286,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden one token below the minimum passing budget. Use a 286 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "budget": 315,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden one token below the minimum passing budget. Use a 315 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden one token below the minimum passing budget. Use a 286 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 286,
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one attacking Delver and one defending Warden one token below the minimum passing budget. Use a 315 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 315,
         "runId": "ak_prompt_95_constrained_under_duel",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
@@ -888,11 +888,11 @@
       "runId": "ak_prompt_96_constrained_exact_two_room_route",
       "tier": "constrained",
       "budgetMode": "constrained",
-      "budget": 198,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create two small rooms with one exploring water Delver at the minimum passing budget. Use a 198 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "budget": 220,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create two small rooms with one exploring water Delver at the minimum passing budget. Use a 220 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two small rooms with one exploring water Delver at the minimum passing budget. Use a 198 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 198,
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create two small rooms with one exploring water Delver at the minimum passing budget. Use a 220 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 220,
         "runId": "ak_prompt_96_constrained_exact_two_room_route",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
@@ -928,11 +928,11 @@
       "runId": "ak_prompt_97_constrained_under_hazard_route",
       "tier": "constrained",
       "budgetMode": "constrained",
-      "budget": 252,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one fire hazard and one water Delver one token below the minimum passing budget. Use a 252 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "budget": 280,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one fire hazard and one water Delver one token below the minimum passing budget. Use a 280 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one fire hazard and one water Delver one token below the minimum passing budget. Use a 252 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 252,
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one fire hazard and one water Delver one token below the minimum passing budget. Use a 280 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 280,
         "runId": "ak_prompt_97_constrained_under_hazard_route",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
@@ -971,11 +971,11 @@
       "runId": "ak_prompt_98_constrained_near_fit_resource_route",
       "tier": "constrained",
       "budgetMode": "constrained",
-      "budget": 230,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly life Delver five tokens above the minimum passing budget. Use a 230 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "budget": 255,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly life Delver five tokens above the minimum passing budget. Use a 255 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly life Delver five tokens above the minimum passing budget. Use a 230 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 230,
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly life Delver five tokens above the minimum passing budget. Use a 255 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 255,
         "runId": "ak_prompt_98_constrained_near_fit_resource_route",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
@@ -984,7 +984,7 @@
           "size=medium;count=1"
         ],
         "resource": [
-          "tier=level;stat=vitalMax;delta=2;dropRate=25"
+          "permanenceMode=level;vital=health;delta=2"
         ],
         "delver": [
           "count=1;affinity=life;motivation=friendly"
@@ -1014,11 +1014,11 @@
       "runId": "ak_prompt_99_constrained_truncation_boundary",
       "tier": "constrained",
       "budgetMode": "constrained",
-      "budget": 396,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with two exploring water Delvers one token below the minimum passing budget. Use a 396 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "budget": 439,
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with two exploring water Delvers one token below the minimum passing budget. Use a 439 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with two exploring water Delvers one token below the minimum passing budget. Use a 396 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
-        "budgetTokens": 396,
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with two exploring water Delvers one token below the minimum passing budget. Use a 439 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "budgetTokens": 439,
         "runId": "ak_prompt_99_constrained_truncation_boundary",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
