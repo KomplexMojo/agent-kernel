@@ -17,7 +17,11 @@ import {
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
 import { createActorTurn } from "../../../core-ts/src/rules/actor-turn.ts";
-import { readActorRegistryObservation, scopeActorRegistryObservation } from "../../../core-ts/src/rules/actor-observation.ts";
+import {
+  readActorRegistryObservation,
+  readActorRegistryVisibleCells,
+  scopeActorRegistryObservation,
+} from "../../../core-ts/src/rules/actor-observation.ts";
 import {
   applyMoveAction,
   getValidationErrorName,
@@ -995,6 +999,7 @@ export function createFsmRuntime({
   // surviving dark field) and CORE decides which cells are seen (computeVisibleCells).
   // Remembering explored cells across ticks is the caller's session state.
   function readVisibleCellsForActor(actorId) {
+    if (actorRegistry) return readActorRegistryVisibleCells(readActorRegistryObservation(actorRegistry, tick), actorId);
     const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, sortedTrackedActorIds(), initialState);
     const kinds = observation?.tiles?.kinds;
     if (!Array.isArray(kinds) || !Array.isArray(observation?.actors)) return [];
@@ -1462,7 +1467,7 @@ export function createFsmRuntime({
     const outcomes = [];
     const defaultTick = tick;
     const actorTurn = actorRegistry && actorCosts
-      ? createActorTurn(actorRegistry, defaultTick, actorCosts)
+      ? createActorTurn(actorRegistry, defaultTick, { ...actorCosts, persistentUpkeep: [...persistentAffinityUpkeepTable] })
       : null;
 
     function recordOutcome(action, outcome, reason, appliedAction = action) {

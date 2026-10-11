@@ -64,6 +64,12 @@ export interface ActorRecordBase {
   lifecycle: ActorLifecycle;
   /** Consecutive completed ticks on exit terrain; omitted means zero. */
   exitDwell?: number;
+  /**
+   * True while the actor's lasting affinity (emit, draw) is off because it could
+   * not pay its per-turn mana upkeep; it comes back on when mana is full again.
+   * Omitted means false.
+   */
+  affinityExhausted?: boolean;
   capabilities: ActorCapabilities;
   motivations: string[];
   affinities: ActorAffinityEntry[];
