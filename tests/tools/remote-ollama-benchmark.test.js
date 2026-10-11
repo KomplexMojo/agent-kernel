@@ -288,6 +288,9 @@ test("hardware benchmark dry run advertises profile reset by default", () => {
   ], {
     cwd: ROOT,
     encoding: "utf8",
+    // A dry run plans and never connects, but the route still needs an address. A
+    // documentation-range host keeps it from depending on the untracked llm-host.env (#209).
+    env: { ...process.env, LLM_INTERNAL_HOST: "192.0.2.10" },
   });
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -402,6 +405,9 @@ test("hardware benchmark dry run honors no-reset flag", () => {
   ], {
     cwd: ROOT,
     encoding: "utf8",
+    // A dry run plans and never connects, but the route still needs an address. A
+    // documentation-range host keeps it from depending on the untracked llm-host.env (#209).
+    env: { ...process.env, LLM_INTERNAL_HOST: "192.0.2.10" },
   });
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
