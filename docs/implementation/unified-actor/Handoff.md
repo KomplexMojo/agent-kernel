@@ -3,9 +3,9 @@
 ## Start here
 
 LATEST October 11: origin/main was merged in: the ASCII game, player turns,
-unlit levels, and fog (#195–#199). The registry sight now counts only the
-observer's own emitted light. The suite has 4295 tests and 62 failures: the
-8 known, 50 from the ASCII game (#217), and 4 from armed actors seeing one
+unlit levels, fog (#195–#199), and mana-powered light (#200). The registry
+sight counts only the observer's own emitted light. The suite has 4321 tests
+and 64 failures: the 8 known, 52 from the ASCII game (#217), and 4 from armed actors seeing one
 tile (#218, a design question). The maintainer chose to merge red.
 Typecheck 0.
 

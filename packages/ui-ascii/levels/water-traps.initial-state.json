@@ -80,7 +80,7 @@
         "mana": {
           "current": 30,
           "max": 30,
-          "regen": 0
+          "regen": 3
         },
         "durability": {
           "current": 1,
@@ -121,7 +121,7 @@
         "mana": {
           "current": 30,
           "max": 30,
-          "regen": 0
+          "regen": 3
         },
         "durability": {
           "current": 1,
@@ -162,7 +162,7 @@
         "mana": {
           "current": 30,
           "max": 30,
-          "regen": 0
+          "regen": 3
         },
         "durability": {
           "current": 1,

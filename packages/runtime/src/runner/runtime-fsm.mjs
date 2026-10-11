@@ -69,8 +69,21 @@ const VITAL_MANA = 1;
  * applies when a run supplies no artifact of its own, which is a documented
  * default table rather than a silent fallback to a second price model.
  */
-const configuratorAffinityManaCost = createConfiguratorPersona({ clock: UNUSED_CLOCK })
-  .resolveAffinityManaCost;
+const configuratorPersonaSurface = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+const configuratorAffinityManaCost = configuratorPersonaSurface.resolveAffinityManaCost;
+
+/**
+ * Every affinity has a mana cost (maintainer, 2026-10-11). Persistent
+ * expressions (emit, draw) pay a per-tick upkeep, authored by the Configurator
+ * (`computeInternalManaUpkeep`, 2 + stacks). Core charges it from this table,
+ * indexed by stacks; the last entry covers anything higher.
+ */
+const PERSISTENT_UPKEEP_TABLE_STACKS = 100;
+const persistentAffinityUpkeepTable = Object.freeze(
+  Array.from({ length: PERSISTENT_UPKEEP_TABLE_STACKS + 1 }, (_, stacks) => (
+    stacks === 0 ? 0 : configuratorPersonaSurface.computeInternalManaUpkeep(stacks)
+  )),
+);
 
 function resolveCastManaCost({ kind, expression, stacks }) {
   return configuratorAffinityManaCost({ rules: null, kind, expression, stacks });
@@ -924,6 +937,22 @@ export function createFsmRuntime({
    * purpose: an emptied observation silently blinds an actor, and a blinded
    * actor still acts, it just acts on nothing.
    */
+  // Core's light levels (`readLightLevels`, row-major) re-keyed as `x,y` for the
+  // visibility rule. Plain data in, plain data out; which cells count as lit is
+  // core's call, not this function's.
+  function readLightByCell(width) {
+    const lightByCell = {};
+    if (typeof core?.readLightLevels !== "function" || !Number.isInteger(width) || width <= 0) {
+      return lightByCell;
+    }
+    const levels = core.readLightLevels();
+    if (!Array.isArray(levels)) return lightByCell;
+    for (let index = 0; index < levels.length; index += 1) {
+      if (levels[index] > 0) lightByCell[`${index % width},${Math.trunc(index / width)}`] = levels[index];
+    }
+    return lightByCell;
+  }
+
   function scopeObservationForActor(observation, observingActorId) {
     if (!observation || !observingActorId) return observation;
     if (actorRegistry) return scopeActorRegistryObservation(observation, observingActorId);
@@ -957,7 +986,7 @@ export function createFsmRuntime({
       observation,
       observingActorId,
       core.getVisibilityRadiusForActorIndex(selfIndex),
-      { darkStacksByCell },
+      { darkStacksByCell, lightByCell: readLightByCell(observation.tiles?.kinds?.[0]?.length) },
     );
   }
 
@@ -982,7 +1011,10 @@ export function createFsmRuntime({
         }
       }
     }
-    return computeVisibleCells(kinds, position, core.getVisibilityRadiusForActorIndex(selfIndex), { darkStacksByCell });
+    return computeVisibleCells(kinds, position, core.getVisibilityRadiusForActorIndex(selfIndex), {
+      darkStacksByCell,
+      lightByCell: readLightByCell(kinds[0]?.length),
+    });
   }
 
   // Core owns the exit rule; this only maps an actor id to core's index and reads the verdict.
@@ -1702,6 +1734,9 @@ export function createFsmRuntime({
       // `initializeCoreFromArtifacts`.
       if (typeof core?.computeAffinityField === "function") {
         core.computeAffinityField();
+      }
+      if (typeof core?.setPersistentAffinityUpkeepTable === "function") {
+        core.setPersistentAffinityUpkeepTable([...persistentAffinityUpkeepTable]);
       }
 
       baseTiles = resolveBaseTiles(simConfig, core);

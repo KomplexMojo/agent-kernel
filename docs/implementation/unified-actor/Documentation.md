@@ -13,10 +13,12 @@ perturbation check confirmed it: with the cap removed, the own-light test
 fails. The bundled ASCII levels were regenerated. Unlit fixtures were fixed in
 the observation, scoping, and hazard-vitals tests.
 
-The suite, run unsandboxed, has 4295 tests and 62 failures:
+#200 (mana-powered light) then landed too. The lit-cell visibility test now
+models the lamp as an actor. The suite, run unsandboxed, has 4321 tests and
+64 failures:
 
 - 8 known: #206, #208, #209, #210, #211
-- 50 from the ASCII game: #217
+- 52 from the ASCII game, including the #200 lit-cell and upkeep port: #217
 - 4 from armed actors seeing one tile: #218
 
 ## October 11 — lossless queue exhausted
