@@ -64,6 +64,17 @@
       }
     },
     {
+      "id": "motivation_user_controlled",
+      "kind": "motivation",
+      "quantity": 1,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
       "id": "vital_durability_point",
       "kind": "vital",
       "quantity": 10,
@@ -163,13 +174,24 @@
       }
     },
     {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
       "id": "affinity_base",
       "kind": "affinity",
       "quantity": 1,
       "category": "hazards",
       "subjectRef": {
         "id": "hazard_1",
-        "schema": "agent-kernel/HazardArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -180,7 +202,7 @@
       "category": "hazards",
       "subjectRef": {
         "id": "hazard_1",
-        "schema": "agent-kernel/HazardArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -191,18 +213,7 @@
       "category": "hazards",
       "subjectRef": {
         "id": "hazard_1",
-        "schema": "agent-kernel/HazardArtifact",
-        "schemaVersion": 1
-      }
-    },
-    {
-      "id": "hazard_basic",
-      "kind": "hazard",
-      "quantity": 1,
-      "category": "hazards",
-      "subjectRef": {
-        "id": "hazard_1",
-        "schema": "agent-kernel/HazardArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -213,7 +224,7 @@
       "category": "hazards",
       "subjectRef": {
         "id": "hazard_1",
-        "schema": "agent-kernel/HazardArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     }

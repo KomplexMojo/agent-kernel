@@ -82,23 +82,43 @@ test("bindings expose MVP movement helpers and stable shapes", async () => {
   ]);
   assert.deepEqual(renderBaseTiles(core), frameFixture.baseTiles);
 
+  function directionBetween(from, to) {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const map = {
+      "0,-1": "north",
+      "1,-1": "northeast",
+      "1,0": "east",
+      "1,1": "southeast",
+      "0,1": "south",
+      "-1,1": "southwest",
+      "-1,0": "west",
+      "-1,-1": "northwest",
+    };
+    return map[`${dx},${dy}`];
+  }
+
   // Frame rendering and move packing mirror fixtures.
   const frame0 = renderFrameBuffer(core);
   assert.deepEqual(frame0.baseTiles, frameFixture.baseTiles);
   assert.deepEqual(frame0.legend, expectedLegend);
   const frames = [frame0.buffer];
+  let from = { x: core.getActorX(), y: core.getActorY() };
   for (const action of actionFixture.actions) {
+    const to = action.params.target;
+    const direction = directionBetween(from, to);
     const packed = packMoveAction({
       actorId: action.actorId === "actor_mvp" ? 1 : 0,
-      from: action.params.from,
-      to: action.params.to,
-      direction: action.params.direction,
+      from,
+      to,
+      direction,
       tick: action.tick,
     });
     const decoded = unpackMoveAction(packed);
-    assert.equal(decoded.direction, action.params.direction);
-    assert.deepEqual(decoded.from, action.params.from);
-    assert.deepEqual(decoded.to, action.params.to);
+    assert.equal(decoded.direction, direction);
+    assert.deepEqual(decoded.from, from);
+    assert.deepEqual(decoded.to, to);
+    from = to;
     assert.equal(decoded.tick, action.tick);
     applyMoveAction(core, packed);
     // AM.3 — the tick is no longer advanced as a side effect of a successful

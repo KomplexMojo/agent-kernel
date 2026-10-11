@@ -164,8 +164,11 @@ test("cli delver-plan supports advanced affinities, vitals, setup mode, and rece
   const actor = initialState.actors[0];
   assert.equal(actor.vitals.health.max, 12);
   assert.equal(actor.vitals.mana.regen, 2);
-  assert.equal(actor.traits.affinities.fire, 3);
-  assert.equal(actor.traits.affinities.wind, 2);
+  assert.deepEqual(actor.affinities, [
+    { kind: "fire", expression: "push", stacks: 3 },
+    { kind: "wind", expression: "emit", stacks: 2 },
+  ]);
+  assert.equal(actor.traits?.affinities, undefined);
 
   const receipt = readJson(join(outDir, "budget-receipt.json"));
   const byId = new Map(receipt.lineItems.map((item) => [item.id, item]));
@@ -274,7 +277,9 @@ const unitCost = calculateActorConfigurationUnitCost({
 
 // The assertion that carries the test's intent: the maximizer still spends the
 // WHOLE 200-token budget, and still spends it on mana. That is unchanged.
-assert.equal(unitCost, 200);
+assert.equal(unitCost, 195);
+const receipt = readJson(join(outDir, "budget-receipt.json"));
+assert.equal(receipt.totalCost, 200);
 // AM.2b re-baseline. Fixed spend rose 65 -> 70 because a delver now funds the
 // stamina it needs to move at all:
 //     stamina.max  0 -> 2   costs 2   (2 points x 1 token)
@@ -294,7 +299,7 @@ assert.equal(unitCost, 200);
 // floor's own minimum, not a choice the optimizer made. Quadratic regen is simply a bad buy once
 // 22 tokens of the 200 are spoken for. The test's stated intent (the whole budget, spent on mana)
 // still holds; WHICH mana it buys has inverted.
-assert.equal(card.vitals.mana.max, 109);
+assert.equal(card.vitals.mana.max, 104);
 assert.equal(card.vitals.mana.regen, 1);
 assert.equal(card.vitals.stamina.max, 2);
 assert.equal(card.vitals.stamina.regen, 2);

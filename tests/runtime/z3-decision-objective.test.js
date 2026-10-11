@@ -100,7 +100,7 @@ const CAST = {
 };
 const MOVE = {
   id: "move_east",
-  action: { kind: "move", params: { to: { x: 1, y: 0 } } },
+  action: { kind: "move", params: { target: { x: 1, y: 0 } } },
 };
 const WAIT = { id: "wait_here", action: { kind: "wait", params: {} } };
 

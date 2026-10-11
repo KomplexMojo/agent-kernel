@@ -13,6 +13,10 @@ async function actorDecision({ self, proposals, affinityFields }) {
     import("../../../packages/runtime/src/personas/actor/persona.js"),
     import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts"),
   ]);
+  self = {
+    lifecycle: "alive", defeatVital: "health", affinities: [], activeAffinityKey: null,
+    vitals: { health: { current: 10, max: 10, regen: 0 } }, ...self,
+  };
   const observation = {
     actors: [self],
     tiles: { baseTiles: BASE_TILES, kinds: BASE_TILES.map((line) => Array.from(line, (tile) => tile === "#" ? 1 : 0)) },
@@ -38,7 +42,7 @@ test("CLI selects the safer Actor-authored v2 move without interpreting field da
   const self = {
     id: "delver_1",
     kind: 2,
-    role: "delver",
+    alignment: "external",
     position: { x: 2, y: 2 },
     motivation: { kind: "random" },
     vitals: { health: { current: 5, max: 10, regen: 0 } },
@@ -46,12 +50,12 @@ test("CLI selects the safer Actor-authored v2 move without interpreting field da
   const data = await actorDecision({
     self,
     proposals: [
-      { kind: "move", params: { direction: "east", from: self.position, to: { x: 3, y: 2 } } },
-      { kind: "move", params: { direction: "south", from: self.position, to: { x: 2, y: 3 } } },
+      { kind: "move", params: { target: { x: 3, y: 2 } } },
+      { kind: "move", params: { target: { x: 2, y: 3 } } },
     ],
     affinityFields: [{
-      position: { x: 3, y: 2 }, kind: 1, expression: 3, stacks: 2, intensity: 2, contributionCount: 1,
-      vitalEffects: [{ vital: 0, effect: -4 }],
+      position: { x: 3, y: 2 }, kind: "fire", expression: "emit",
+      sourceId: "field_source", stacks: 4, intensity: 1,
     }],
   });
   const { createRealZ3SolverAdapter } = await import(
@@ -69,17 +73,17 @@ test("CLI cannot let field benefit outrank the Actor's primary intent", async ()
   const self = {
     id: "delver_1",
     kind: 2,
-    role: "delver",
+    alignment: "external",
     position: { x: 2, y: 2 },
     motivation: { kind: "stationary" },
-    vitals: { health: { current: 0, max: 10, regen: 0 } },
+    vitals: { health: { current: 1, max: 10, regen: 0 } },
   };
   const data = await actorDecision({
     self,
     proposals: [],
     affinityFields: [{
-      position: { x: 3, y: 2 }, kind: 5, expression: 3, stacks: 10, intensity: 10, contributionCount: 1,
-      vitalEffects: [{ vital: 0, effect: 10 }],
+      position: { x: 3, y: 2 }, kind: "life", expression: "emit",
+      sourceId: "field_source", stacks: 10, intensity: 1,
     }],
   });
   const { createRealZ3SolverAdapter } = await import(

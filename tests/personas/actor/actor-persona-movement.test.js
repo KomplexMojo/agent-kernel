@@ -85,10 +85,8 @@ fixture.cases.forEach((entry) => {
     const action = result.actions[0];
     assert.equal(action.kind, "move");
     assert.equal(action.actorId, entry.actorId);
-    assert.equal(action.params.direction, direction);
-    assert.deepEqual(action.params.from, position);
-    assert.deepEqual(action.params.to, applyDirection(position, direction));
-    position = action.params.to;
+    assert.deepEqual(action.params, { target: applyDirection(position, direction) });
+    position = action.params.target;
     persona.advance({
       phase: TickPhases.DECIDE,
       event: "cooldown",
@@ -185,7 +183,7 @@ test.skip("actor persona with patrolling route proposes route movement instead o
     },
     baseTiles: ["#####", "#...E", "#...#", "#...#", "#####"],
   });
-  assert.equal(result.actions[0].params.direction, "south");
+  assert.deepEqual(result.actions[0].params, { target: { x: 1, y: 3 } });
 });
 
 test("actor persona with attacking motivation moves toward a visible opponent before the exit", async () => {
@@ -201,8 +199,7 @@ test("actor persona with attacking motivation moves toward a visible opponent be
 
   assert.equal(result.actions.length, 1);
   assert.equal(result.actions[0].kind, "move");
-  assert.equal(result.actions[0].params.direction, "north");
-  assert.deepEqual(result.actions[0].params.to, { x: 1, y: 1 });
+  assert.deepEqual(result.actions[0].params, { target: { x: 1, y: 1 } });
 });
 
 test.skip("actor persona with defending hold point proposes wait at hold point", async () => {
@@ -250,7 +247,7 @@ test("actor persona with absent motivation defaults to exploring toward exit", a
 
   assert.equal(result.actions.length, 1);
   assert.equal(result.actions[0].kind, "move");
-  assert.equal(result.actions[0].params.direction, "east");
+  assert.deepEqual(result.actions[0].params, { target: { x: 2, y: 1 } });
 });
 
 test.skip("actor persona with exploring motivation and unreachable exit proposes wait", async () => {

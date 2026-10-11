@@ -311,7 +311,7 @@ test("mcp ak_sandbox_place places a resource entity", async () => {
     const result = await harness.callTool("ak_sandbox_place", {
       session: sessionPath,
       entityType: "resource",
-      spec: "id=res_1;x=3;y=3;tier=level;stat=affinityStack;delta=1;dropRate=1",
+      spec: "id=res_1;x=3;y=3;permanenceMode=level;vital=stamina;delta=1",
     });
 
     assert.equal(result.entityType, "resource");
@@ -675,19 +675,331 @@ test("mcp sandbox_create -> sandbox_place -> ak_run -> ak_push_to_ui: a sandbox-
   }
 });
 
-test.skip("mcp ak_sandbox_place allows boundary corner position 0,0", () => {});
-test.skip("mcp ak_sandbox_place allows max valid position 9,9 in 10x10", () => {});
-test.skip("mcp ak_sandbox_place rejects x=10 in 10x10 as out of bounds", () => {});
-test.skip("mcp ak_sandbox_place replaces existing actor by id with new position", () => {});
-test.skip("mcp ak_sandbox_place rejects spec missing x or y", () => {});
-test.skip("mcp ak_sandbox_place rejects non-integer x or y", () => {});
-test.skip("mcp ak_sandbox_place handles missing id deterministically", () => {});
-test.skip("mcp ak_sandbox_place rejects unsupported entityType with structured error", () => {});
-test.skip("mcp ak_sandbox_place rejects missing session path with structured error", () => {});
-test.skip("mcp ak_sandbox_place rejects non-existent session file with structured error", () => {});
-test.skip("mcp ak_sandbox_place supports non-default room dimensions 20x15", () => {});
-test.skip("mcp ak_sandbox_place writes InitialState actor archetype matching entityType", () => {});
-test.skip("mcp ak_sandbox_place writes SimConfig dimensions from session room", () => {});
-test.skip("mcp ak_sandbox_place writes valid grid with walls on border", () => {});
-test.skip("mcp ak_sandbox_place writes ResourceBundle schemaVersion 2", () => {});
-test.skip("mcp ak_sandbox_place handles malformed spec string deterministically", () => {});
+test("mcp ak_sandbox_place rejects leftover wall-rim occupancy at 0,0", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-corner-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callToolRaw("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "delver",
+      spec: "id=delver_corner;x=0;y=0;affinity=water;motivation=exploring",
+    });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /invalid actor position/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place replaces existing actor by id", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-replace-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const sessionPath = join(createResult.outDir, "sandbox-session.json");
+    await harness.callTool("ak_sandbox_place", {
+      session: sessionPath,
+      entityType: "delver",
+      spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
+    });
+    await harness.callTool("ak_sandbox_place", {
+      session: sessionPath,
+      entityType: "delver",
+      spec: "id=delver_1;x=2;y=2;affinity=water;motivation=exploring",
+    });
+    const initialState = JSON.parse(readFileSync(join(outDir, "initial-state.json"), "utf8"));
+    const matches = initialState.actors.filter((actor) => actor.id === "delver_1");
+    assert.equal(matches.length, 1);
+    assert.deepEqual(matches[0].position, { x: 2, y: 2 });
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place writes presentation category matching entityType", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-category-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callTool("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "hazard",
+      spec: "id=hazard_1;x=3;y=3;affinity=fire;expression=emit;stacks=1",
+    });
+    const initialState = JSON.parse(readFileSync(result.initialStatePath, "utf8"));
+    assert.equal(initialState.presentation?.hazard_1?.category, "hazard");
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place writes SimConfig terrain walls on the border", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-terrain-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callTool("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "delver",
+      spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
+    });
+    const simConfig = JSON.parse(readFileSync(result.simConfigPath, "utf8"));
+    const { width, height, terrain } = simConfig.layout.data;
+    assert.equal(terrain[0], "wall");
+    assert.equal(terrain[width - 1], "wall");
+    assert.equal(terrain[(height - 1) * width], "wall");
+    assert.equal(simConfig.layout.data.tiles, undefined);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place writes ResourceBundle schemaVersion 2", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-bundle-ver-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callTool("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "delver",
+      spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
+    });
+    const bundle = JSON.parse(readFileSync(result.resourceBundlePath, "utf8"));
+    assert.equal(bundle.schemaVersion, 2);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place rejects wall-rim occupancy at 9,9 in 10x10", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-max-rim-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callToolRaw("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "delver",
+      spec: "id=delver_rim;x=9;y=9;affinity=water;motivation=exploring",
+    });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /invalid actor position/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place rejects x=10 in 10x10 as out of bounds", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-x10-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callToolRaw("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "delver",
+      spec: "id=delver_oob;x=10;y=1;affinity=water;motivation=exploring",
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.outOfBounds, true);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place rejects spec missing x or y", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-missing-xy-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callToolRaw("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "delver",
+      spec: "id=delver_1;y=1;affinity=water;motivation=exploring",
+    });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /integer x and y/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place rejects non-integer x or y", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-nonint-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callToolRaw("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "delver",
+      spec: "id=delver_1;x=1.5;y=2;affinity=water;motivation=exploring",
+    });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /integer x and y/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place handles missing id deterministically", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-noid-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callTool("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "delver",
+      spec: "x=1;y=1;affinity=water;motivation=exploring",
+    });
+    const initialState = JSON.parse(readFileSync(result.initialStatePath, "utf8"));
+    assert.equal(initialState.actors.some((actor) => actor.id === "delver_1"), true);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place rejects unsupported entityType with structured error", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-bad-type-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callToolRaw("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "ambulatory",
+      spec: "id=actor_1;x=1;y=1;affinity=water;motivation=exploring",
+    });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /entityType must be one of/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place rejects missing session path with structured error", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const result = await harness.callToolRaw("ak_sandbox_place", {
+      session: "",
+      entityType: "delver",
+      spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
+    });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /requires session path/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place rejects non-existent session file with structured error", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const result = await harness.callToolRaw("ak_sandbox_place", {
+      session: join(os.tmpdir(), "agent-kernel-missing-sandbox-session.json"),
+      entityType: "delver",
+      spec: "id=delver_1;x=1;y=1;affinity=water;motivation=exploring",
+    });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /Cannot read session file/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place supports non-default room dimensions 20x15", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-wide-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+      width: 20,
+      height: 15,
+    });
+    const result = await harness.callTool("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "delver",
+      spec: "id=delver_wide;x=10;y=7;affinity=water;motivation=exploring",
+    });
+    const simConfig = JSON.parse(readFileSync(result.simConfigPath, "utf8"));
+    const { width, height, terrain } = simConfig.layout.data;
+    assert.equal(width, 20);
+    assert.equal(height, 15);
+    assert.equal(terrain.length, 300);
+    assert.equal(terrain[0], "wall");
+    assert.equal(terrain[10 + 7 * 20], "floor");
+    const initialState = JSON.parse(readFileSync(result.initialStatePath, "utf8"));
+    assert.deepEqual(
+      initialState.actors.find((actor) => actor.id === "delver_wide")?.position,
+      { x: 10, y: 7 },
+    );
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_sandbox_place handles malformed spec string deterministically", async () => {
+  const harness = new McpServerHarness();
+  try {
+    await harness.initialize();
+    const outDir = makeTempDir("agent-kernel-sandbox-place-malformed-");
+    const createResult = await harness.callTool("ak_sandbox_create", {
+      budgetReceipt: BUDGET_RECEIPT_APPROVED,
+      outDir,
+    });
+    const result = await harness.callToolRaw("ak_sandbox_place", {
+      session: join(createResult.outDir, "sandbox-session.json"),
+      entityType: "delver",
+      spec: "not-a-spec",
+    });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /integer x and y/);
+  } finally {
+    await harness.close();
+  }
+});

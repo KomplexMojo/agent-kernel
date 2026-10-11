@@ -28,67 +28,40 @@ function readJson(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
 
-function createGridArtifacts(dir) {
-  const planRef = {
-    id: "plan_test",
-    schema: "agent-kernel/PlanArtifact",
-    schemaVersion: 1,
-  };
-  const simConfig = {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "sim_config",
-      runId: "run_test",
-      createdAt: "2025-01-01T00:00:00.000Z",
-      producedBy: "test",
-    },
-    planRef,
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width: 3,
-        height: 3,
-        tiles: [
-          "...",
-          "...",
-          "...",
-        ],
-        legend: {
-          ".": { tile: "floor" },
-          "#": { tile: "wall" },
-          "S": { tile: "spawn" },
-          "E": { tile: "exit" },
-        },
-        render: {
-          wall: "#",
-          floor: ".",
-          spawn: "S",
-          exit: "E",
-          actor: "@",
-        },
-        spawn: { x: 0, y: 0 },
-        exit: { x: 2, y: 2 },
+async function createGridArtifacts(dir) {
+  const { buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const terrain = [
+    "wall", "floor", "floor",
+    "floor", "floor", "floor",
+    "floor", "floor", "exit",
+  ];
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 3,
+    height: 3,
+    terrain,
+    actors: [
+      {
+        id: "actor_1",
+        category: "delver",
+        position: { x: 0, y: 1 },
+        motivations: ["exploring"],
+        vitals: { health: { current: 10, max: 10, regen: 0 } },
       },
-    },
-  };
-  const initialState = {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "initial_state",
-      runId: "run_test",
-      createdAt: "2025-01-01T00:00:00.000Z",
-      producedBy: "test",
-    },
-    simConfigRef: {
-      id: simConfig.meta.id,
-      schema: simConfig.schema,
-      schemaVersion: simConfig.schemaVersion,
-    },
-    actors: [{ id: "actor_1", kind: "stationary" }],
-  };
+      {
+        id: "actor_mvp",
+        category: "delver",
+        position: { x: 1, y: 1 },
+        motivations: ["exploring"],
+        vitals: { health: { current: 5, max: 9, regen: 1 } },
+      },
+      {
+        id: "barrier_10",
+        category: "barrier",
+        position: { x: 1, y: 0 },
+        vitals: { durability: { current: 1, max: 1, regen: 0 } },
+      },
+    ],
+  });
   const simConfigPath = join(dir, "sim-config.json");
   const initialStatePath = join(dir, "initial-state.json");
   writeJson(simConfigPath, simConfig);
@@ -96,9 +69,9 @@ function createGridArtifacts(dir) {
   return { simConfigPath, initialStatePath };
 }
 
-test("cli run applies actor/vital/tile overrides and emits resolved artifacts", (t) => {
+test("cli run preserves Configurator-authored wall, barrier, and actor vitals", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-actors-"));
-  const { simConfigPath, initialStatePath } = createGridArtifacts(workDir);
+  const { simConfigPath, initialStatePath } = await createGridArtifacts(workDir);
   const outDir = join(workDir, "out");
 
   runCli([
@@ -108,34 +81,23 @@ test("cli run applies actor/vital/tile overrides and emits resolved artifacts", 
     "--initial-state",
     initialStatePath,
     "--ticks",
-    "0",    "--out-dir",
+    "0",
+    "--out-dir",
     outDir,
-    "--actor",
-    "actor_mvp,1,1,motivated",
-    "--vital",
-    "actor_mvp,health,5,9,1",
-    "--vital-default",
-    "stamina,2,2,0",
-    "--tile-wall",
-    "0,0",
-    "--tile-barrier",
-    "1,0",
-    "--tile-floor",
-    "2,0",
   ]);
 
-  const resolvedSim = readJson(join(outDir, "resolved-sim-config.json"));
-  const resolvedState = readJson(join(outDir, "resolved-initial-state.json"));
-  assert.deepEqual(resolvedSim.layout.data.tiles[0], "#B.");
-  assert.equal(resolvedSim.layout.data.legend["B"].tile, "barrier");
-  assert.equal(resolvedSim.layout.data.render.barrier, "B");
+  const simConfig = readJson(simConfigPath);
+  const authored = readJson(initialStatePath);
+  const world = readJson(join(outDir, "world-state.json"));
+  assert.equal(simConfig.layout.data.terrain[0], "wall");
+  const barrier = world.actors.find((entry) => entry.id === "barrier_10");
+  assert.ok(barrier);
+  assert.deepEqual(barrier.position, { x: 1, y: 0 });
 
-  const actor = resolvedState.actors.find((entry) => entry.id === "actor_mvp");
+  const actor = world.actors.find((entry) => entry.id === "actor_mvp");
   assert.ok(actor);
-  assert.equal(actor.kind, "ambulatory");
+  assert.equal(authored.presentation.actor_mvp.category, "delver");
+  assert.equal(actor.capabilities.canMove, true);
   assert.deepEqual(actor.position, { x: 1, y: 1 });
   assert.deepEqual(actor.vitals.health, { current: 5, max: 9, regen: 1 });
-  assert.deepEqual(actor.vitals.stamina, { current: 2, max: 2, regen: 0 });
-  assert.deepEqual(actor.vitals.mana, { current: 0, max: 0, regen: 0 });
-  assert.deepEqual(actor.vitals.durability, { current: 0, max: 0, regen: 0 });
 });

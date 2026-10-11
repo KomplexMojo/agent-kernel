@@ -43,49 +43,33 @@
 const assert = require("node:assert/strict");
 
 const TICK_COUNT = 3;
-
-function makeFloorGrid(w, h) {
-  return Array.from({ length: h }, (_, y) =>
-    Array.from({ length: w }, (_, x) =>
-      x === 0 || x === w - 1 || y === 0 || y === h - 1 ? "#" : "."
-    ).join("")
-  );
-}
-
-function makeVitals(hp) {
-  return {
-    health: { current: hp, max: hp, regen: 0 },
-    mana: { current: hp, max: hp, regen: 0 },
-    stamina: { current: hp, max: hp, regen: 4 },
-    durability: { current: 1, max: 1, regen: 0 },
-  };
-}
-
 const WIDTH = 15;
 const HEIGHT = 3;
+const OBSERVER_X = 5;
+const CLOCK = "2026-08-20T00:00:00.000Z";
 
-function buildSimConfig() {
+function corridorTerrain() {
+  const terrain = Array(WIDTH * HEIGHT).fill("floor");
+  for (let y = 0; y < HEIGHT; y += 1) {
+    for (let x = 0; x < WIDTH; x += 1) {
+      if (x === 0 || x === WIDTH - 1 || y === 0 || y === HEIGHT - 1) terrain[y * WIDTH + x] = "wall";
+    }
+  }
+  // Exit sits WEST of the observer; the far actor sits EAST. That is what
+  // makes the assertion directional and unambiguous: an actor that can see
+  // the distant one walks east toward it, an actor that cannot walks west
+  // toward the exit.
+  terrain[1 * WIDTH + 1] = "exit";
+  return terrain;
+}
+
+function health(id, category, position, motivations) {
   return {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: { id: "ds4_scoping_sim", runId: "ds4_scoping", createdAt: "2026-08-20T00:00:00.000Z" },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width: WIDTH,
-        height: HEIGHT,
-        tiles: makeFloorGrid(WIDTH, HEIGHT),
-        spawn: { x: 5, y: 1 },
-        // Exit sits WEST of the observer; the far actor sits EAST. That is what
-        // makes the assertion directional and unambiguous: an actor that can see
-        // the distant one walks east toward it, an actor that cannot walks west
-        // toward the exit.
-        exit: { x: 1, y: 1 },
-        rooms: [{ id: "R1", x: 0, y: 0, width: WIDTH, height: HEIGHT }],
-        hazards: [],
-      },
-    },
+    id,
+    category,
+    position,
+    motivations,
+    vitals: { health: { current: 10, max: 10, regen: 0 } },
   };
 }
 
@@ -102,38 +86,38 @@ const LIT_RADIUS = 3;
  *   actors[0] at x=5, so `otherX` decides whether it is within sight.
  * @param {{ lit?: boolean }} [options] whether the observer emits LIT_STACKS of light.
  */
-function buildInitialState(otherX, { lit = true } = {}) {
-  return {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: { id: "ds4_scoping_state", runId: "ds4_scoping", createdAt: "2026-08-20T00:00:00.000Z" },
-    simConfigRef: {
-      id: "ds4_scoping_sim",
-      schema: "agent-kernel/SimConfigArtifact",
-      schemaVersion: 1,
+async function buildArtifacts(otherX, { lit = true } = {}) {
+  const { createConfiguratorPersona } = await import(
+    "../../packages/runtime/src/personas/configurator/controller.js"
+  );
+  const configurator = createConfiguratorPersona({ clock: () => CLOCK });
+  const terrain = corridorTerrain();
+  const actors = [
+    // INDEX 0 ON PURPOSE — the actor that observes in the OBSERVE phase and
+    // is therefore missed by a DECIDE-only fix. See the header.
+    {
+      ...health("observer", "delver", { x: OBSERVER_X, y: 1 }, ["attacking"]),
+      ...(lit ? {
+        affinities: [{ kind: "light", expression: "emit", stacks: LIT_STACKS }],
+        activeAffinityKey: "light:emit",
+      } : {}),
     },
-    actors: [
-      {
-        // INDEX 0 ON PURPOSE — the actor that observes in the OBSERVE phase and
-        // is therefore missed by a DECIDE-only fix. See the header.
-        id: "observer",
-        kind: "ambulatory",
-        archetype: "delver",
-        position: { x: 5, y: 1 },
-        motivation: { kind: "attacking" },
-        ...(lit ? { affinities: [{ kind: "light", expression: "emit", stacks: LIT_STACKS }] } : {}),
-        vitals: makeVitals(10),
-      },
-      {
-        id: "other",
-        kind: "ambulatory",
-        archetype: "warden",
-        position: { x: otherX, y: 1 },
-        motivation: { kind: "stationary" },
-        vitals: makeVitals(10),
-      },
-    ],
-  };
+    health("other", "warden", { x: otherX, y: 1 }, ["stationary"]),
+  ];
+  const simConfig = configurator.buildSimConfigArtifact({
+    meta: { id: "ds4_scoping_sim", runId: "ds4_scoping", createdAt: CLOCK, producedBy: "test" },
+    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    layout: { width: WIDTH, height: HEIGHT, terrain, exitApproach: { x: 1, y: 1 } },
+    movementStamina: { observer: 0, other: 0 },
+  });
+  const initialState = configurator.buildInitialStateArtifact({
+    meta: { id: "ds4_scoping_state", runId: "ds4_scoping", createdAt: CLOCK, producedBy: "test" },
+    simConfigRef: { id: simConfig.meta.id, schema: simConfig.schema, schemaVersion: 1 },
+    dimensions: { width: WIDTH, height: HEIGHT },
+    terrain,
+    actors,
+  });
+  return { simConfig, initialState };
 }
 
 async function runScenario(otherX, options) {
@@ -141,9 +125,9 @@ async function runScenario(otherX, options) {
     import("../../packages/runtime/src/runner/runtime.js"),
     import("../../packages/core-ts/src/index.ts"),
   ]);
-  const core = createCore();
-  const runtime = createRuntime({ core, adapters: {} });
-  await runtime.init({ seed: 0, simConfig: buildSimConfig(), initialState: buildInitialState(otherX, options) });
+  const { simConfig, initialState } = await buildArtifacts(otherX, options);
+  const runtime = createRuntime({ core: createCore(), adapters: {} });
+  await runtime.init({ seed: 0, simConfig, initialState });
   for (let t = 0; t < TICK_COUNT; t += 1) {
     await runtime.step();
   }
@@ -157,10 +141,9 @@ function firstObserverMoveDx(frames) {
     for (const action of accepted) {
       if (action?.actorId !== "observer") continue;
       if (action.kind !== "move") continue;
-      const from = action.params?.from;
-      const to = action.params?.to;
-      if (!from || !to) continue;
-      return to.x - from.x;
+      const target = action.params?.target;
+      if (!target || !Number.isInteger(target.x)) continue;
+      return target.x - OBSERVER_X;
     }
   }
   return null;

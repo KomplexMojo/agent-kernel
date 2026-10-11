@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "card_delver_1-1",
-      "kind": "ambulatory",
       "position": {
         "x": 4,
         "y": 2
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -42,12 +44,19 @@
           "regen": 1
         }
       },
-      "archetype": "delver",
-      "traits": {
-        "affinities": {
-          "wind": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
+      "motivations": [
+        "exploring",
+        "user_controlled"
+      ],
       "affinities": [
         {
           "kind": "wind",
@@ -55,12 +64,13 @@
           "stacks": 1
         }
       ],
-      "motivation": {
-        "kind": "exploring"
-      },
-      "motivations": [
-        "exploring"
-      ]
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "card_delver_1-1": {
+      "category": "delver"
+    }
+  }
 }

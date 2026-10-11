@@ -174,12 +174,13 @@ test("cli resource-plan writes resource-only receipt categories and rejects low 
   assert.equal(resourcePool.spentTokens, receipt.totalCost);
 
   const failDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-resource-plan-budget-fail-"));
+  // Permanent V3 resource bills actor_spawn + durability (totalCost 6); budget must be below that.
   const result = runCli([
     "resource-plan",
     "--resource",
     "permanenceMode=permanent;vital=mana;delta=6",
     "--budget-tokens",
-    "10",
+    "5",
     "--run-id",
     "run_resource_plan_budget_fail",
     "--created-at",

@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 93,
+      "runTotalTokens": 103,
       "budgetTokens": 2000,
       "receiptRef": {
         "id": "golden_g3_budget_receipt",
@@ -107,16 +107,15 @@
       "actors": [
         {
           "id": "card_delver_1-1",
-          "kind": "ambulatory",
-          "affinity": "water",
-          "motivations": [
-            "attacking"
-          ],
+          "category": "delver",
           "position": {
             "x": 0,
             "y": 0
           },
-          "tokenCost": 1,
+          "motivations": [
+            "attacking",
+            "user_controlled"
+          ],
           "vitals": {
             "health": {
               "current": 1,
@@ -139,20 +138,13 @@
               "regen": 0
             }
           },
-          "archetype": "delver",
-          "setupMode": "auto",
           "affinities": [
             {
               "kind": "water",
               "expression": "push",
               "stacks": 1
             }
-          ],
-          "traits": {
-            "affinities": {
-              "water": 1
-            }
-          }
+          ]
         }
       ],
       "actorGroups": [
@@ -1918,16 +1910,15 @@
       "actors": [
         {
           "id": "card_delver_1-1",
-          "kind": "ambulatory",
-          "affinity": "water",
-          "motivations": [
-            "attacking"
-          ],
+          "category": "delver",
           "position": {
             "x": 4,
             "y": 2
           },
-          "tokenCost": 1,
+          "motivations": [
+            "attacking",
+            "user_controlled"
+          ],
           "vitals": {
             "health": {
               "current": 10,
@@ -1950,20 +1941,13 @@
               "regen": 1
             }
           },
-          "archetype": "delver",
-          "setupMode": "auto",
           "affinities": [
             {
               "kind": "water",
               "expression": "push",
               "stacks": 1
             }
-          ],
-          "traits": {
-            "affinities": {
-              "water": 1
-            }
-          }
+          ]
         }
       ]
     }

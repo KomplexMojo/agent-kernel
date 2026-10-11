@@ -8,10 +8,6 @@ import {
 } from "./summary-selections.js";
 import { validateBuildSpec } from "../../contracts/build-spec.js";
 import {
-  DEFAULT_VITALS,
-  normalizeVitals as normalizeDomainVitals,
-} from "../../contracts/domain-constants.js";
-import {
   BUDGET_ARTIFACT_SCHEMA,
   BUILD_SPEC_SCHEMA,
 } from "../../contracts/artifacts.ts";
@@ -287,24 +283,29 @@ export function deriveLevelGenFromSummary(summary, roomGeometry) {
   });
 }
 
-function normalizeActorVitals(vitals) {
-  return normalizeDomainVitals(vitals, DEFAULT_VITALS);
+function motivationBag(inst) {
+  const listed = Array.isArray(inst?.motivations)
+    ? inst.motivations
+    : (inst?.motivation ? [inst.motivation] : []);
+  return listed
+    .map((entry) => (typeof entry === "string" ? entry : entry?.kind))
+    .filter((entry) => typeof entry === "string" && entry.trim())
+    .join(" ")
+    .toLowerCase();
 }
 
-function normalizeAffinityTraits(affinities, fallbackAffinity) {
-  const traits = {};
-  if (Array.isArray(affinities)) {
-    affinities.forEach((entry) => {
-      const kind = typeof entry?.kind === "string" && entry.kind.trim() ? entry.kind.trim() : "";
-      if (!kind) return;
-      const stacks = Number.isFinite(entry?.stacks) ? Math.max(1, Math.floor(entry.stacks)) : 1;
-      traits[kind] = Math.max(stacks, traits[kind] || 0);
-    });
-  }
-  if (Object.keys(traits).length === 0 && fallbackAffinity) {
-    traits[fallbackAffinity] = 1;
-  }
-  return Object.keys(traits).length > 0 ? traits : null;
+function resolveActorCategory(inst) {
+  if (Object.hasOwn(inst, "category")) return inst.category;
+  if (inst?.actorType === "delver" || inst?.actorType === "warden") return inst.actorType;
+  const bag = motivationBag(inst);
+  if (bag.includes("attack") || bag.includes("delver")) return "delver";
+  return "warden";
+}
+
+function explicitPoolOmitsWardens(summary) {
+  const weights = summary?.poolWeights;
+  if (!Array.isArray(weights) || weights.length === 0) return false;
+  return !weights.some((entry) => entry?.id === "wardens" && Number(entry.weight) > 0);
 }
 
 function buildActorsAndGroups(selections) {
@@ -316,42 +317,19 @@ function buildActorsAndGroups(selections) {
     .filter((sel) => sel.kind === "actor" && sel.instances && sel.instances.length > 0)
     .forEach((sel) => {
       sel.instances.forEach((inst) => {
-        const vitals = normalizeActorVitals(inst?.vitals);
-        const affinityEntries = Array.isArray(inst?.affinities)
-          ? inst.affinities
-            .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry))
-            .map((entry) => ({
-              kind: entry.kind,
-              expression: entry.expression,
-              stacks: Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1,
-            }))
-          : [];
-        const affinityTraits = normalizeAffinityTraits(inst?.affinities, inst?.affinity);
+        // Selections retain planning prices. The configuration request contains only
+        // authored actor properties; Configurator owns preset defaults and validation.
         const entry = {
           id: inst.id,
-          kind: sel.applied?.subType === "static" ? "static" : "ambulatory",
-          affinity: inst.affinity,
-          motivations: [inst.motivation],
-          position: { x: actorIndex, y: 0 },
-          tokenCost: Number.isInteger(inst?.cost) && inst.cost > 0 ? inst.cost : undefined,
-          vitals,
+          category: resolveActorCategory(inst),
+          position: structuredClone(Object.hasOwn(inst, "position") ? inst.position : { x: actorIndex, y: 0 }),
+          motivations: structuredClone(Object.hasOwn(inst, "motivations") ? inst.motivations : (inst.motivation ? [inst.motivation] : [])),
         };
+        for (const key of ["alignment", "lifecycle", "defeatVital", "vitals", "capabilities",
+          "affinities", "activeAffinityKey", "holdings"]) {
+          if (Object.hasOwn(inst, key)) entry[key] = structuredClone(inst[key]);
+        }
         actorIndex += 1;
-        if (inst.actorType === "delver" || inst.actorType === "warden") {
-          entry.archetype = inst.actorType;
-        }
-        if (typeof inst?.setupMode === "string" && inst.setupMode.trim()) {
-          entry.setupMode = inst.setupMode.trim();
-        }
-        if (affinityEntries.length > 0) {
-          entry.affinities = affinityEntries;
-        }
-        if (affinityTraits) {
-          const baseTraits = inst?.traits && typeof inst.traits === "object" && !Array.isArray(inst.traits)
-            ? { ...inst.traits }
-            : {};
-          entry.traits = { ...baseTraits, affinities: affinityTraits };
-        }
         actors.push(entry);
       });
       const key = sel.applied?.motivation || "unknown";
@@ -394,7 +372,17 @@ export function buildBuildSpecFromSummary({
 
   const rooms = mapped.selections.filter((sel) => sel.kind === "room");
   const roomCount = rooms.reduce((sum, sel) => sum + (sel.instances?.length || 0), 0);
-  const { actors, actorGroups } = buildActorsAndGroups(mapped.selections);
+  const builtActors = buildActorsAndGroups(mapped.selections);
+  const actors = explicitPoolOmitsWardens(resolvedSummary)
+    ? builtActors.actors.filter((actor) => actor.category !== "warden")
+    : builtActors.actors;
+  const actorGroups = explicitPoolOmitsWardens(resolvedSummary)
+    ? Array.from(actors.reduce((counts, actor) => {
+      const key = actor.motivations?.[0] || "unknown";
+      counts.set(key, (counts.get(key) || 0) + 1);
+      return counts;
+    }, new Map()).entries()).map(([role, count]) => ({ role, count }))
+    : builtActors.actorGroups;
   const layout = resolvedSummary?.layout && typeof resolvedSummary.layout === "object"
     ? resolvedSummary.layout
     : null;

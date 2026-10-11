@@ -15,7 +15,9 @@ import {
   orderActorsByIntention,
 } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
-import { applyInitialStateToCore, applySimConfigToCore } from "./core-setup.mjs";
+import { initializeCoreFromArtifacts } from "./core-setup.mjs";
+import { createActorTurn } from "../../../core-ts/src/rules/actor-turn.ts";
+import { readActorRegistryObservation, scopeActorRegistryObservation } from "../../../core-ts/src/rules/actor-observation.ts";
 import {
   applyMoveAction,
   getValidationErrorName,
@@ -38,6 +40,7 @@ import {
 import { computeAuraMap, serializeAuraMap } from "../render/affinity-aura.js";
 import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../contracts/affinity-spatial-rules.js";
 import {
+  ACTION_SCHEMA,
   EFFECT_SCHEMA,
   PLAN_ARTIFACT_SCHEMA,
   TICK_FRAME_SCHEMA,
@@ -257,6 +260,15 @@ function canReadObservation(core) {
 }
 
 function resolveBaseTiles(simConfig, core) {
+  const terrain = simConfig?.layout?.data?.terrain;
+  const width = simConfig?.layout?.data?.width;
+  const height = simConfig?.layout?.data?.height;
+  if (Array.isArray(terrain) && Number.isSafeInteger(width) && width > 0
+    && Number.isSafeInteger(height) && height > 0 && terrain.length === width * height) {
+    const glyph = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+    return Array.from({ length: height }, (_, y) => terrain
+      .slice(y * width, (y + 1) * width).map(kind => glyph[kind] || "#").join(""));
+  }
   const tiles = simConfig?.layout?.data?.tiles;
   if (Array.isArray(tiles)) return tiles;
   if (core && canRenderBaseTiles(core)) {
@@ -269,7 +281,7 @@ function resolveBaseTiles(simConfig, core) {
   return null;
 }
 
-function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layoutHazards = [], actorIds = [], initialState = null) {
+function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, actorIds = [], initialState = null) {
   if (!core || !canReadObservation(core)) return null;
   try {
     const observation = readObservation(core, { actorIdLabel, affinityEffects, actorIds });
@@ -283,9 +295,8 @@ function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layo
     // DS.2's unknown-role fail-safe, and delvers keep attacking delvers while
     // the persona suite stays green.
     //
-    // Same shape as the hazard-vitals enrichment directly below: config data the
-    // observation needs and core does not hold. An existing role is never
-    // overwritten, so a hand-built observation stays authoritative over config.
+    // An existing role is never overwritten, so a hand-built observation stays
+    // authoritative over config.
     if (observation && Array.isArray(observation.actors) && Array.isArray(initialState?.actors)) {
       const factionById = new Map();
       initialState.actors.forEach((configActor) => {
@@ -302,42 +313,10 @@ function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, layo
       }
     }
 
-    // Enrich observation hazards with full vitals from layout
-    if (observation && Array.isArray(observation.hazards) && Array.isArray(layoutHazards)) {
-      const hazardVitalsByPosition = new Map();
-      layoutHazards.forEach((layoutHazard) => {
-        if (layoutHazard?.position?.x != null && layoutHazard?.position?.y != null) {
-          const key = `${layoutHazard.position.x},${layoutHazard.position.y}`;
-          hazardVitalsByPosition.set(key, layoutHazard.vitals);
-        } else if (layoutHazard?.x != null && layoutHazard?.y != null) {
-          const key = `${layoutHazard.x},${layoutHazard.y}`;
-          hazardVitalsByPosition.set(key, layoutHazard.vitals);
-        }
-      });
-
-      observation.hazards = observation.hazards.map((hazard) => {
-        const key = `${hazard.position?.x ?? 0},${hazard.position?.y ?? 0}`;
-        const vitals = hazardVitalsByPosition.get(key);
-        return vitals ? { ...hazard, vitals } : hazard;
-      });
-    }
-
     // Compatibility only: existing renderers/tests still consume observation.auras.
     // New tile visuals should come from core affinity field records.
-    if (observation && baseTiles && (Array.isArray(observation.actors) || Array.isArray(observation.hazards))) {
-      const actors = Array.isArray(observation.actors) ? observation.actors : [];
-      const hazards = Array.isArray(observation.hazards) ? observation.hazards : [];
-
-      // Convert hazards to pseudo-actors for the compatibility aura projection.
-      const hazardActors = hazards.map((hazard, index) => ({
-        id: `hazard_${index}`,
-        x: hazard.position?.x ?? 0,
-        y: hazard.position?.y ?? 0,
-        affinities: hazard.affinities || [],
-      }));
-
-      const allActors = [...actors, ...hazardActors];
-      const auraMap = computeAuraMap(allActors, baseTiles, {
+    if (observation && baseTiles && Array.isArray(observation.actors)) {
+      const auraMap = computeAuraMap(observation.actors, baseTiles, {
         affinityOpposites: AFFINITY_OPPOSITES,
         weights: SPATIAL_WEIGHTS,
       });
@@ -525,7 +504,38 @@ function resolveActorIdNumeric({ actorId, actorIdMap, core }) {
   return 1;
 }
 
-function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
+const UNIFIED_ACTOR_ACTIONS = new Set(["move", "cast_affinity", "equip_affinity", "take", "wait"]);
+
+function normalizeUnifiedActorAction(action, defaultTick) {
+  const kind = resolveActionKind(action);
+  if (!UNIFIED_ACTOR_ACTIONS.has(kind)) return null;
+  if (typeof action?.actorId !== "string" || !action.actorId.trim()) return null;
+  const tick = Number.isSafeInteger(action.tick) && action.tick >= 0 ? action.tick : defaultTick;
+  const envelope = { schema: ACTION_SCHEMA, schemaVersion: 1, actorId: action.actorId, tick };
+  const params = resolveActionParams(action);
+  if (kind === "wait") {
+    if (action.params !== undefined && Object.keys(params).length > 0) return null;
+    return { ...envelope, kind: "wait" };
+  }
+  if (kind === "move") {
+    if (Object.keys(params).length !== 1 || !params.target) return null;
+    return { ...envelope, kind: "move", params: { target: { ...params.target } } };
+  }
+  if (kind === "cast_affinity") {
+    if (Object.keys(params).length !== 1 || typeof params.targetId !== "string") return null;
+    return { ...envelope, kind: "cast_affinity", params: { targetId: params.targetId } };
+  }
+  if (kind === "equip_affinity") {
+    if (Object.keys(params).length !== 1 || typeof params.affinityKey !== "string") return null;
+    return { ...envelope, kind: "equip_affinity", params: { affinityKey: params.affinityKey } };
+  }
+  if (Object.keys(params).length !== 2 || typeof params.targetId !== "string"
+    || typeof params.holdingId !== "string") return null;
+  return { ...envelope, kind: "take",
+    params: { targetId: params.targetId, holdingId: params.holdingId } };
+}
+
+function adaptActionToCore({ action, core, actorIdMap, defaultTick, actorRegistry }) {
   const kind = resolveActionKind(action);
   const params = resolveActionParams(action);
   const actionTick = Number.isFinite(action?.tick) ? action.tick : defaultTick;
@@ -566,10 +576,18 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
       return { ok: true, action: { ...action, tick: actionTick }, kind: ACTION_KIND.DeferRequest, value: seq };
     }
     case "move": {
-      const from = params.from;
-      const to = params.to;
-      const direction = resolveMoveDirection({ direction: params.direction, from, to });
-      if (!from || !to || direction === null) {
+      const targetX = toInt(params.target?.x);
+      const targetY = toInt(params.target?.y);
+      const fromX = typeof core?.getActorX === "function" ? core.getActorX() : undefined;
+      const fromY = typeof core?.getActorY === "function" ? core.getActorY() : undefined;
+      if (!Number.isFinite(targetX) || !Number.isFinite(targetY)
+        || !Number.isFinite(fromX) || !Number.isFinite(fromY)) {
+        return { ok: false, reason: "missing_move_params" };
+      }
+      const from = { x: fromX, y: fromY };
+      const to = { x: targetX, y: targetY };
+      const direction = resolveMoveDirection({ from, to });
+      if (direction === null) {
         return { ok: false, reason: "missing_move_params" };
       }
       const actorNumeric = resolveActorIdNumeric({ actorId: action.actorId, actorIdMap, core });
@@ -582,28 +600,6 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
         tick: coreTick,
       });
       return { ok: true, action: { ...action, tick: coreTick }, kind: ACTION_KIND.Move, value: packed };
-    }
-    case "attack": {
-      // M5: simple motivation combat dispatch.
-      // Resolves attacker/defender by actor ID, passes to core.applyAttack via direct directive.
-      const targetId = params.targetId;
-      if (!targetId) {
-        return { ok: false, reason: "missing_target_id" };
-      }
-      const attackerNumeric = resolveActorIdNumeric({ actorId: action.actorId, actorIdMap, core });
-      const defenderNumeric = resolveActorIdNumeric({ actorId: targetId, actorIdMap, core });
-      const damage = typeof params.damage === "number" && params.damage > 0 ? params.damage : 2;
-      return {
-        ok: true,
-        action: { ...action, tick: actionTick },
-        direct: {
-          kind: "apply_attack",
-          attackerNumeric,
-          defenderNumeric,
-          damage,
-          targetId,
-        },
-      };
     }
     case "destroy_barrier": {
       const x = toInt(params.x);
@@ -653,7 +649,7 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
       if (!Number.isFinite(stacks) || stacks <= 0 || !Number.isFinite(manaReserve) || manaReserve <= 0) {
         return { ok: false, reason: "invalid_static_hazard_costs" };
       }
-      if (typeof core?.armStaticHazardAt !== "function") {
+      if (!actorRegistry && typeof core?.armStaticHazardAt !== "function") {
         return { ok: false, reason: "missing_armStaticHazardAt" };
       }
       return {
@@ -667,6 +663,8 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick }) {
           affinityExpression,
           stacks,
           manaReserve,
+          kindName: kind,
+          expressionName: expression,
         },
       };
     }
@@ -797,6 +795,9 @@ export function createFsmRuntime({
   let planArtifact = null;
   let actorIdMap = new Map();
   let primaryActorId = "actor";
+  let actorRegistry = null;
+  let actorCosts = null;
+  let actorPresentation = null;
   let baseTiles = null;
   let lastEffects = [];
   let lastFulfilled = [];
@@ -832,6 +833,7 @@ export function createFsmRuntime({
     telemetry = null,
     solverResults = null,
     solverFulfilled = null,
+    emittedSnapshot = null,
   } = {}) {
     const frame = {
       schema: TICK_FRAME_SCHEMA,
@@ -860,6 +862,7 @@ export function createFsmRuntime({
     if (telemetry) frame.telemetry = telemetry;
     if (solverResults) frame.solverResults = solverResults;
     if (solverFulfilled) frame.solverFulfilled = solverFulfilled;
+    if (emittedSnapshot) frame.emittedSnapshot = emittedSnapshot;
     tickFrames.push(frame);
   }
 
@@ -952,6 +955,7 @@ export function createFsmRuntime({
 
   function scopeObservationForActor(observation, observingActorId) {
     if (!observation || !observingActorId) return observation;
+    if (actorRegistry) return scopeActorRegistryObservation(observation, observingActorId);
     if (typeof core?.getVisibilityRadiusForActorIndex !== "function") return observation;
     if (!Array.isArray(observation.actors)) return observation;
 
@@ -963,10 +967,7 @@ export function createFsmRuntime({
 
     const darkStacksByCell = {};
     if (typeof core?.getAffinityFieldStacksAt === "function") {
-      const positionedEntities = [
-        ...observation.actors,
-        ...(Array.isArray(observation.hazards) ? observation.hazards : []),
-      ];
+      const positionedEntities = [...observation.actors];
       for (const entity of positionedEntities) {
         const target = entity?.position;
         if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.y)) continue;
@@ -994,7 +995,7 @@ export function createFsmRuntime({
   // surviving dark field) and CORE decides which cells are seen (computeVisibleCells).
   // Remembering explored cells across ticks is the caller's session state.
   function readVisibleCellsForActor(actorId) {
-    const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, [], sortedTrackedActorIds(), initialState);
+    const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, sortedTrackedActorIds(), initialState);
     const kinds = observation?.tiles?.kinds;
     if (!Array.isArray(kinds) || !Array.isArray(observation?.actors)) return [];
     if (typeof core?.getVisibilityRadiusForActorIndex !== "function") return [];
@@ -1018,6 +1019,7 @@ export function createFsmRuntime({
 
   // Core owns the exit rule; this only maps an actor id to core's index and reads the verdict.
   function hasExited(id) {
+    if (actorRegistry) return actorRegistry.getActor(id)?.lifecycle === "exited";
     if (typeof core.isMotivatedActorExitedByIndex !== "function") return false;
     const oneBased = actorIdMap.get(id);
     return Number.isInteger(oneBased) && core.isMotivatedActorExitedByIndex(oneBased - 1) === true;
@@ -1459,6 +1461,9 @@ export function createFsmRuntime({
     const preCoreRejections = [];
     const outcomes = [];
     const defaultTick = tick;
+    const actorTurn = actorRegistry && actorCosts
+      ? createActorTurn(actorRegistry, defaultTick, actorCosts)
+      : null;
 
     function recordOutcome(action, outcome, reason, appliedAction = action) {
       outcomes.push({
@@ -1479,7 +1484,20 @@ export function createFsmRuntime({
     }
 
     for (const action of actions) {
-      const adaptation = adaptActionToCore({ action, core, actorIdMap, defaultTick });
+      if (actorTurn && UNIFIED_ACTOR_ACTIONS.has(resolveActionKind(action))) {
+        const normalized = normalizeUnifiedActorAction(action, defaultTick);
+        if (!normalized) {
+          reject(action, "unsupported_action_kind");
+          continue;
+        }
+        if (!actorTurn.apply(normalized)) {
+          reject(action, "actor_action_rejected_by_core");
+          continue;
+        }
+        accept(action, normalized);
+        continue;
+      }
+      const adaptation = adaptActionToCore({ action, core, actorIdMap, defaultTick, actorRegistry });
       if (!adaptation.ok) {
         reject(action, adaptation.reason || "invalid_action");
         continue;
@@ -1509,15 +1527,25 @@ export function createFsmRuntime({
           continue;
         }
         if (directive.kind === "arm_static_hazard") {
-          const armed = core.armStaticHazardAt(
-            directive.x,
-            directive.y,
-            directive.affinityKind,
-            directive.affinityExpression,
-            directive.stacks,
-            directive.manaReserve,
-          );
-          if (Number.isFinite(armed) && armed === 0) {
+          const armed = actorRegistry
+            ? actorRegistry.persistOrSpawnHazardAt(
+              { x: directive.x, y: directive.y },
+              {
+                kind: directive.kindName,
+                expression: directive.expressionName,
+                stacks: directive.stacks,
+                manaReserve: directive.manaReserve,
+              },
+            )
+            : core.armStaticHazardAt(
+              directive.x,
+              directive.y,
+              directive.affinityKind,
+              directive.affinityExpression,
+              directive.stacks,
+              directive.manaReserve,
+            );
+          if (armed === false || (Number.isFinite(armed) && armed === 0)) {
             reject(action, "arm_static_hazard_rejected");
             continue;
           }
@@ -1604,25 +1632,6 @@ export function createFsmRuntime({
           accept(action, adaptation.action);
           continue;
         }
-        if (directive.kind === "apply_attack") {
-          if (typeof core?.applyAttack !== "function") {
-            reject(action, "missing_applyAttack_export");
-            continue;
-          }
-          // resolveActorIdNumeric returns 1-based IDs from actorIdMap; core.applyAttack
-          // expects 0-based motivated actor indices. Convert here.
-          const result = core.applyAttack(
-            directive.attackerNumeric - 1,
-            directive.defenderNumeric - 1,
-            directive.damage,
-          );
-          if (result === 0) {
-            reject(action, "attack_rejected_by_core");
-            continue;
-          }
-          accept(action, adaptation.action);
-          continue;
-        }
         reject(action, "unsupported_directive");
         continue;
       }
@@ -1662,7 +1671,20 @@ export function createFsmRuntime({
       accept(action, adaptation.action);
     }
 
-    return { acceptedActions, preCoreRejections, outcomes };
+    let actorFields = null;
+    let exitedActorIds = [];
+    let actorTurnSnapshot = null;
+    let actorSnapshot = null;
+    if (actorTurn) {
+      actorTurn.closeActions();
+      actorFields = actorTurn.resolveFields();
+      actorTurn.regenerate();
+      exitedActorIds = actorTurn.resolveExits() || [];
+      actorTurnSnapshot = actorTurn.snapshot();
+      actorSnapshot = actorRegistry.snapshot();
+    }
+    return { acceptedActions, preCoreRejections, outcomes,
+      actorFields, exitedActorIds, actorTurn: actorTurnSnapshot, actorSnapshot };
   }
 
   return {
@@ -1691,25 +1713,20 @@ export function createFsmRuntime({
       const mapping = buildActorIdMap(initialState);
       actorIdMap = mapping.map;
       primaryActorId = mapping.primaryActorId;
+      actorRegistry = null;
+      actorCosts = null;
+      actorPresentation = null;
       baseTiles = null;
 
       core.init(seed);
-      if (simConfig?.layout) {
-        const layoutResult = applySimConfigToCore(core, simConfig);
-        if (!layoutResult.ok) {
-          throw new Error(`Failed to apply sim config layout: ${layoutResult.reason || "unknown"}`);
-        }
-        if (initialState) {
-          const actorResult = applyInitialStateToCore(core, initialState, { spawn: layoutResult.spawn });
-          if (!actorResult.ok) {
-            throw new Error(`Failed to apply initial state: ${actorResult.reason || "unknown"}`);
-          }
-        }
-      } else if (initialState) {
-        const actorResult = applyInitialStateToCore(core, initialState);
-        if (!actorResult.ok) {
-          throw new Error(`Failed to apply initial state: ${actorResult.reason || "unknown"}`);
-        }
+      if (initialState && !simConfig) {
+        throw new Error("Runtime requires the simulation config referenced by the initial state.");
+      }
+      if (simConfig && initialState) {
+        const loaded = initializeCoreFromArtifacts({ simConfig, initialState });
+        actorRegistry = loaded.registry;
+        actorCosts = loaded.costs;
+        actorPresentation = loaded.presentation;
       }
       // The field otherwise first exists at the first tick close, so tick 0's
       // perception would ignore every light and dark source — an actor's own
@@ -1780,7 +1797,6 @@ export function createFsmRuntime({
 
       const actorCommands = normalizeActorCommands(stepOptions.actorCommands, (id) => actorIdMap.has(id));
       const currentPhase = orchestrator.view().phase;
-      const layoutHazards = simConfig?.layout?.data?.hazards || [];
       // Build sorted actor ID list so readObservation labels all actors by their original IDs.
       // actorIdMap maps id → 1-based numeric index; sort by index to get core ordering.
       const sortedActorIds = sortedTrackedActorIds();
@@ -1794,9 +1810,12 @@ export function createFsmRuntime({
       // runner only reads the verdict; recomputing "has it exited?" here would be a
       // second authority on a core state transition.
       const decideActorIds = Array.isArray(initialState?.actors)
-        ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id) && !hasExited(id))
+        ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id)
+          && !hasExited(id) && (!actorRegistry || actorRegistry.getActor(id)?.lifecycle === "alive"))
         : sortedActorIds.filter((id) => !hasExited(id));
-      const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutHazards, sortedActorIds, initialState);
+      const observation = actorRegistry
+        ? readActorRegistryObservation(actorRegistry, tick)
+        : resolveObservation(core, primaryActorId, baseTiles, affinityEffects, sortedActorIds, initialState);
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
         observation,
@@ -1858,8 +1877,8 @@ export function createFsmRuntime({
         // tick, so two actors can't both propose a move onto the same
         // currently-unoccupied tile before core state updates at APPLY time.
         const reservedTargets = actions
-          .filter((a) => a?.kind === "move" && a.params?.to)
-          .map((a) => ({ x: a.params.to.x, y: a.params.to.y }));
+          .filter((a) => a?.kind === "move" && a.params?.target)
+          .map((a) => ({ ...a.params.target }));
         decidePersonaPayloads = buildPersonaPayloads({
           phase: TickPhases.DECIDE,
           observation,
@@ -1964,7 +1983,7 @@ export function createFsmRuntime({
       // AM.8 — resolve the affinity fields that are in CONTACT, after the tick's
       // actions have moved everyone. The Moderator decides which pairs meet;
       // core's 48-cell matrix decides what happens between them.
-      const affinityInteractions = resolveAffinityInteractionsForTick();
+      const affinityInteractions = actorRegistry ? [] : resolveAffinityInteractionsForTick();
 
       applyPersonaArtifacts(applyRecord);
       recordTickFrame({
@@ -1979,6 +1998,20 @@ export function createFsmRuntime({
         telemetry: applyRecord.telemetry,
         solverResults: applyRecord.solverResults,
         solverFulfilled: applyRecord.solverFulfilled,
+        emittedSnapshot: applied.actorSnapshot ? {
+          tick,
+          simConfigRef: simConfig?.meta ? {
+            id: simConfig.meta.id,
+            schema: simConfig.schema,
+            schemaVersion: simConfig.schemaVersion,
+          } : undefined,
+          view: {
+            registry: applied.actorSnapshot,
+            turn: applied.actorTurn,
+            fields: applied.actorFields,
+            exitedActorIds: applied.exitedActorIds,
+          },
+        } : null,
       });
 
       const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog, moderator });
@@ -2078,10 +2111,10 @@ export function createFsmRuntime({
         );
       }
 
-      if (tickClose.advanceTick && typeof core.advanceTick === "function") {
+      if (!actorRegistry && tickClose.advanceTick && typeof core.advanceTick === "function") {
         core.advanceTick();
       }
-      if (tickClose.recomputeAffinityField && typeof core.computeAffinityField === "function") {
+      if (!actorRegistry && tickClose.recomputeAffinityField && typeof core.computeAffinityField === "function") {
         // Actors have moved; their auras must move with them. Without this the
         // field is a snapshot of the starting positions for the whole run.
         core.computeAffinityField();
@@ -2092,6 +2125,14 @@ export function createFsmRuntime({
 
     getState() {
       return { counter: core.getCounter ? core.getCounter() : 0 };
+    },
+
+    getActorSnapshot() {
+      return actorRegistry ? actorRegistry.snapshot() : null;
+    },
+
+    getActorPresentation() {
+      return actorPresentation ? structuredClone(actorPresentation) : null;
     },
 
     getEffectLog() {
@@ -2108,8 +2149,9 @@ export function createFsmRuntime({
      * the tick uses, so a UI never re-derives core's id-to-index mapping.
      */
     readObservation() {
-      const layoutHazards = simConfig?.layout?.data?.hazards || [];
-      return resolveObservation(core, primaryActorId, baseTiles, affinityEffects, layoutHazards, sortedTrackedActorIds(), initialState);
+      return actorRegistry
+        ? readActorRegistryObservation(actorRegistry, tick)
+        : resolveObservation(core, primaryActorId, baseTiles, affinityEffects, sortedTrackedActorIds(), initialState);
     },
 
     /**
@@ -2210,7 +2252,17 @@ export function createFsmRuntime({
         error.code = "annotator_did_not_observe";
         throw error;
       }
-      return annotator.captureWorldState({ ...args, core, actorIdMap });
+      return annotator.captureWorldState({
+        ...args,
+        registry: actorRegistry,
+        presentation: actorPresentation,
+        tick,
+        simConfigRef: args.simConfigRef ?? (simConfig?.meta ? {
+          id: simConfig.meta.id,
+          schema: simConfig.schema,
+          schemaVersion: simConfig.schemaVersion,
+        } : null),
+      });
     },
 
     /**

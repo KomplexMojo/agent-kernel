@@ -203,7 +203,7 @@ test("buildBuildSpecFromSummary: actor card instances keep role and unique posit
   const { spec } = buildBuildSpecFromSummary({ summary, clock: CLOCK });
   const actors = spec.configurator.inputs.actors;
   assert.equal(actors.length, 5);
-  assert.deepEqual(actors.map((actor) => actor.archetype), [
+  assert.deepEqual(actors.map((actor) => actor.category), [
     "delver",
     "delver",
     "warden",
@@ -297,6 +297,40 @@ test("buildBuildSpecFromSummary omits resources key when no resources are presen
   });
   assert.equal(Object.prototype.hasOwnProperty.call(spec.plan.hints, "resources"), true);
   assert.equal(spec.plan.hints.resources, undefined);
+});
+
+test("an attacking selection with no actor type is a delver when wardens are unfunded", async () => {
+  const { buildBuildSpecFromSummary } = await loadAssembler();
+  const { spec } = buildBuildSpecFromSummary({
+    clock: CLOCK,
+    selections: [{
+      kind: "actor",
+      requested: { motivation: "attacking", count: 1 },
+      applied: { motivation: "attacking" },
+      instances: [{ id: "actor_attacking_1", motivation: "attacking" }],
+    }],
+    summary: {
+      poolWeights: [{ id: "rooms", weight: 0.5 }, { id: "delver", weight: 0.5 }],
+    },
+  });
+  assert.deepEqual(spec.configurator.inputs.actors.map((actor) => actor.category), ["delver"]);
+});
+
+test("a warden selection is omitted when the explicit pool list leaves wardens unfunded", async () => {
+  const { buildBuildSpecFromSummary } = await loadAssembler();
+  const { spec } = buildBuildSpecFromSummary({
+    clock: CLOCK,
+    selections: [{
+      kind: "actor",
+      requested: { motivation: "defending", actorType: "warden", count: 1 },
+      applied: { motivation: "defending" },
+      instances: [{ id: "actor_warden_1", motivation: "defending", actorType: "warden" }],
+    }],
+    summary: {
+      poolWeights: [{ id: "rooms", weight: 0.5 }, { id: "delver", weight: 0.5 }],
+    },
+  });
+  assert.deepEqual(spec.configurator.inputs.actors, []);
 });
 
 test.skip("empty cardSet produces empty resources and hazards arrays in resolved summary", async () => {

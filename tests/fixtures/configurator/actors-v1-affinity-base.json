@@ -2,7 +2,7 @@
   "actors": [
     {
       "id": "actor_mvp",
-      "kind": "ambulatory",
+      "category": "delver",
       "position": { "x": 2, "y": 1 },
       "vitals": {
         "health": { "current": 10, "max": 10, "regen": 0 },
@@ -13,7 +13,7 @@
     },
     {
       "id": "actor_rival",
-      "kind": "ambulatory",
+      "category": "warden",
       "position": { "x": 3, "y": 2 },
       "vitals": {
         "health": { "current": 6, "max": 6, "regen": 0 },

@@ -1,3 +1,4 @@
+import { terrainPositions, terrainMarker } from "./terrain-layout.js";
 import { generateGridLayoutFromInput } from "./level-layout.js";
 import {
   LAYOUT_TILE_FIELDS,
@@ -35,45 +36,9 @@ function positionKey(pos) {
 
 function collectWalkablePositions(layout) {
   const data = layout?.data || layout;
-  if (!data) return [];
-
-  const walkable = [];
-  const hazards = Array.isArray(data.hazards) ? data.hazards : [];
-  const blockingHazards = new Set(
-    hazards
-      .filter((hazard) => hazard && hazard.blocking === true)
-      .map((hazard) => `${hazard.x},${hazard.y}`),
-  );
-
-  if (Array.isArray(data.kinds)) {
-    for (let y = 0; y < data.kinds.length; y += 1) {
-      const row = data.kinds[y] || [];
-      for (let x = 0; x < row.length; x += 1) {
-        const kind = row[x];
-        if (kind === 1) continue;
-        if (kind === 2 && blockingHazards.has(`${x},${y}`)) continue;
-        walkable.push({ x, y });
-      }
-    }
-    return walkable;
-  }
-
-  if (Array.isArray(data.tiles)) {
-    const legend = data.legend || {};
-    for (let y = 0; y < data.tiles.length; y += 1) {
-      const row = String(data.tiles[y] ?? "");
-      for (let x = 0; x < row.length; x += 1) {
-        const char = row[x];
-        const entry = legend[char];
-        const tileType = entry?.tile;
-        if (tileType === "wall" || tileType === "barrier" || tileType === "spawn" || tileType === "exit") continue;
-        if (char === "#" || char === "B" || char === "S" || char === "E") continue;
-        walkable.push({ x, y });
-      }
-    }
-  }
-
-  return walkable;
+  const blocked = new Set((data?.hazards || []).filter(actor => actor.blocking === true)
+    .map(actor => `${actor.x},${actor.y}`));
+  return terrainPositions(layout).filter(point => !blocked.has(positionKey(point)));
 }
 
 function normalizeLayoutCount(value, field, errors) {
@@ -133,45 +98,8 @@ function deriveLevelGenFromCounts(counts, minSide) {
 
 function collectFloorPositions(layout) {
   const data = layout?.data || layout;
-  if (!data) return [];
-
-  const floors = [];
-  const hazards = Array.isArray(data.hazards) ? data.hazards : [];
-  const blockingHazards = new Set(
-    hazards
-      .filter((hazard) => hazard && hazard.blocking === true)
-      .map((hazard) => `${hazard.x},${hazard.y}`),
-  );
-
-  if (Array.isArray(data.kinds)) {
-    for (let y = 0; y < data.kinds.length; y += 1) {
-      const row = data.kinds[y] || [];
-      for (let x = 0; x < row.length; x += 1) {
-        const kind = row[x];
-        if (kind !== 0) continue;
-        if (blockingHazards.has(`${x},${y}`)) continue;
-        floors.push({ x, y });
-      }
-    }
-    return floors;
-  }
-
-  if (Array.isArray(data.tiles)) {
-    const legend = data.legend || {};
-    for (let y = 0; y < data.tiles.length; y += 1) {
-      const row = String(data.tiles[y] ?? "");
-      for (let x = 0; x < row.length; x += 1) {
-        const char = row[x];
-        const entry = legend[char];
-        const tileType = entry?.tile;
-        if (tileType === "floor") {
-          floors.push({ x, y });
-        }
-      }
-    }
-  }
-
-  return floors;
+  const occupied = new Set((data?.hazards || []).map(actor => `${actor.x},${actor.y}`));
+  return terrainPositions(layout).filter(point => !occupied.has(positionKey(point)));
 }
 
 /**

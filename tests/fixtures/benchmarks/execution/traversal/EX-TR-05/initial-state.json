@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "delver_explorer",
-      "kind": "ambulatory",
       "position": {
         "x": 3,
         "y": 4
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -42,26 +44,31 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "motivation": {
-        "kind": "exploring"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "exploring",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "exploring"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "delver_random",
-      "kind": "ambulatory",
       "position": {
         "x": 13,
         "y": 4
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -84,26 +91,31 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "motivation": {
-        "kind": "random"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "random",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_patrol",
-      "kind": "ambulatory",
       "position": {
         "x": 8,
         "y": 5
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -126,26 +138,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "motivation": {
-        "kind": "patrolling"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "patrolling",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "patrolling"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_stationary",
-      "kind": "stationary",
       "position": {
         "x": 9,
         "y": 5
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -168,18 +185,35 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "motivation": {
-        "kind": "stationary"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "stationary",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "stationary"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "delver_explorer": {
+      "category": "delver"
+    },
+    "delver_random": {
+      "category": "delver"
+    },
+    "warden_patrol": {
+      "category": "warden"
+    },
+    "warden_stationary": {
+      "category": "warden"
+    }
+  }
 }

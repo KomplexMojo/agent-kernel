@@ -1,3 +1,5 @@
+import { mapHazards, mapResources } from "./input-preparation.js";
+import { terrainPositions, terrainMarker } from "./terrain-layout.js";
 /**
  * Z9.1 — Configurator-owned object-placement search.
  *
@@ -33,65 +35,14 @@ function roomContains(room, point) {
 }
 
 function collectWalkablePositions(layout) {
-  const data = dataOf(layout);
-  if (!data) return [];
-  const result = [];
-  if (Array.isArray(data.kinds)) {
-    for (let y = 0; y < data.kinds.length; y += 1) {
-      for (let x = 0; x < (data.kinds[y] || []).length; x += 1) {
-        if (data.kinds[y][x] !== 1) result.push({ x, y });
-      }
-    }
-    return result.sort(comparePoints);
-  }
-  if (Array.isArray(data.tiles)) {
-    const legend = data.legend || {};
-    for (let y = 0; y < data.tiles.length; y += 1) {
-      const row = String(data.tiles[y] ?? "");
-      for (let x = 0; x < row.length; x += 1) {
-        const tile = legend[row[x]]?.tile;
-        if (row[x] === "#" || row[x] === "B" || row[x] === "S" || row[x] === "E" || tile === "wall" || tile === "barrier" || tile === "spawn" || tile === "exit") continue;
-        result.push({ x, y });
-      }
-    }
-  }
-  return result.sort(comparePoints);
+  return terrainPositions(layout);
 }
 
-// Byte-compatible candidate collection for the characterized fallback. Search treats the
-// fixture shorthand `#`/`B` as walls; the former build helper relied only on `kinds`/legend.
 function collectLegacyWalkablePositions(layout) {
   const data = dataOf(layout);
-  if (!data) return [];
-  const result = [];
-  const blockingHazards = new Set(
-    (Array.isArray(data.hazards) ? data.hazards : [])
-      .filter((hazard) => hazard?.blocking === true)
-      .map(normalizePoint)
-      .filter(Boolean)
-      .map(pointKey),
-  );
-  if (Array.isArray(data.kinds)) {
-    for (let y = 0; y < data.kinds.length; y += 1) {
-      for (let x = 0; x < (data.kinds[y] || []).length; x += 1) {
-        const kind = data.kinds[y][x];
-        if (kind === 1 || (kind === 2 && blockingHazards.has(`${x},${y}`))) continue;
-        result.push({ x, y });
-      }
-    }
-    return result;
-  }
-  if (Array.isArray(data.tiles)) {
-    const legend = data.legend || {};
-    for (let y = 0; y < data.tiles.length; y += 1) {
-      const row = String(data.tiles[y] ?? "");
-      for (let x = 0; x < row.length; x += 1) {
-        const tile = legend[row[x]]?.tile;
-        if (tile !== "wall" && tile !== "barrier") result.push({ x, y });
-      }
-    }
-  }
-  return result;
+  const blocked = new Set((data?.hazards || []).filter(actor => actor.blocking === true)
+    .map(normalizePoint).filter(Boolean).map(pointKey));
+  return terrainPositions(layout).filter(point => !blocked.has(pointKey(point)));
 }
 
 function collectObjects(hazards = [], resources = []) {
@@ -119,8 +70,8 @@ function existingPlacementState(layout, actors = []) {
     occupied.add(pointKey(point));
     if (blocks) blocking.add(pointKey(point));
   };
-  add(data.spawn || layout?.spawn);
-  add(data.exit || layout?.exit);
+  add(data.spawnApproach || terrainMarker(data, "spawn"));
+  add(data.exitApproach || terrainMarker(data, "exit"));
   actors.forEach((actor) => add(actor));
   (Array.isArray(data.hazards) ? data.hazards : []).forEach((hazard) => add(hazard, hazard?.blocking === true));
   (Array.isArray(data.resources) ? data.resources : []).forEach((resource) => add(resource));
@@ -225,10 +176,10 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
   }
   // Path endpoints are approach floors; wall portals themselves are non-walkable.
   const spawn = normalizePoint(
-    data?.spawnApproach || layout.spawnApproach || data?.spawn || layout.spawn,
+    data?.spawnApproach || terrainMarker(data, "spawn"),
   );
   const exit = normalizePoint(
-    data?.exitApproach || layout.exitApproach || data?.exit || layout.exit,
+    data?.exitApproach || terrainMarker(data, "exit"),
   );
   if (!pathExists(cells, spawn, exit, blocking)) {
     return { status: "unsat", reason: "path_obstruction" };
@@ -360,6 +311,17 @@ export function prepareObjectPlacement({ clock = UNUSED_CLOCK, meta, ...args } =
   };
 }
 
+function resourceActors(placed) {
+  return mapResources(placed.map(({ kind, roomId, blocking, x, y, ...request }) => request));
+}
+
+function hazardActors(placed) {
+  return mapHazards(placed.map(({ kind, roomId, source, templateId, templateInstanceId,
+    x, y, ...request }) => ({ ...request,
+    position: request.position ?? { x, y },
+  })));
+}
+
 function applyPlacements(prepared, solved, source) {
   const output = clone(prepared.layout);
   const data = dataOf(output);
@@ -369,9 +331,10 @@ function applyPlacements(prepared, solved, source) {
   });
   const hazards = placed.filter((_entry, index) => prepared.objects[index].kind === "hazard");
   const resources = placed.filter((_entry, index) => prepared.objects[index].kind === "resource");
-  if (hazards.length > 0) data.hazards = [...(Array.isArray(data.hazards) ? data.hazards : []), ...hazards];
-  if (resources.length > 0) data.resources = resources;
-  return { ok: true, source, layout: output };
+  const allHazards = [...(Array.isArray(data.hazards) ? data.hazards : []), ...hazards];
+  delete data.hazards;
+  return { ok: true, source, layout: output,
+    actors: [...hazardActors(allHazards), ...resourceActors(resources)] };
 }
 
 /** Re-check every hard constraint before accepting an adapter model. */
@@ -427,8 +390,8 @@ function placeObjectsLegacy({ layout, hazards = [], resources = [] } = {}) {
     const point = normalizePoint(value);
     if (point) occupied.add(pointKey(point));
   };
-  reserve(data.spawn || output.spawn);
-  reserve(data.exit || output.exit);
+  reserve(data.spawnApproach || terrainMarker(data, "spawn"));
+  reserve(data.exitApproach || terrainMarker(data, "exit"));
   (Array.isArray(data.hazards) ? data.hazards : []).forEach(reserve);
   const place = (values, kind) => {
     const walkable = collectLegacyWalkablePositions(output);
@@ -457,9 +420,10 @@ function placeObjectsLegacy({ layout, hazards = [], resources = [] } = {}) {
   };
   const placedHazards = place(Array.isArray(hazards) ? hazards : [], "hazard");
   const placedResources = place(Array.isArray(resources) ? resources : [], "resource");
-  if (placedHazards.length > 0) data.hazards = [...(Array.isArray(data.hazards) ? data.hazards : []), ...placedHazards];
-  if (placedResources.length > 0) data.resources = placedResources;
-  return { ok: true, source: "fallback", layout: output };
+  const allHazards = [...(Array.isArray(data.hazards) ? data.hazards : []), ...placedHazards];
+  delete data.hazards;
+  return { ok: true, source: "fallback", layout: output,
+    actors: [...hazardActors(allHazards), ...resourceActors(placedResources)] };
 }
 
 /** Consume host output; deferred/error/capability absence keeps the characterized fallback. */

@@ -252,6 +252,10 @@ published reject reason with no producer, one layer down.
 `tests/personas/allocator/allocator-tile-charging.test.js` holds the census that fails if a
 tile price becomes unchargeable again.
 
+Unified layouts bill `terrain === "floor"` cells. Leftover `tiles` glyphs remain only when
+terrain is absent. Width × height is not a leftover-tiles substitute and must not bill walls,
+spawn, or exit as floors.
+
 ### EVERYTHING COSTS SOMETHING — the rule, and why it is a rule
 
 **Maintainer rule, 2026-08-05: everything in the game has a cost, even if only the 1-token
@@ -637,12 +641,17 @@ Allocator's runtime-action pricing surface is the only source of these values:
 | Runtime outcome | Units |
 |---|---:|
 | accepted `wait` | 1 |
-| accepted `attack` | 1 |
+| accepted `equip_affinity` | default action rate (1) |
+| accepted `take` | default action rate (1) |
 | accepted `cast_affinity` | 1 |
 | accepted `request_solver` | 2 |
 | accepted `move` | 0 |
 | any other accepted runtime action | 1 |
 | any rejected action | 0 |
+
+Equip and take reference `action_default`, so changing that rate changes both;
+there is no independent attack price or named attack schedule entry. This schedule
+change does not remove the pending legacy combat executor.
 
 The cast price is flat runtime accounting, not the cast's mana payment and not an authoring-price-list
 lookup. Move remains exempt because stamina is its gameplay cost. The existing core category ledger

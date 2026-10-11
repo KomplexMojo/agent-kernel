@@ -24,22 +24,13 @@
  * means. That is why the overspend arithmetic is asserted, not just its presence.
  */
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { resolve } = require("node:path");
 
-const ROOT = resolve(__dirname, "../../..");
 const MODULES = "../../../packages/runtime/src/personas/";
 const CLOCK = () => "2026-08-13T00:00:00.000Z";
 
-function fixture(name) {
-  return JSON.parse(readFileSync(resolve(ROOT, `tests/fixtures/artifacts/${name}`), "utf8"));
-}
-
 /**
- * The shared movement fixture, plus one `effects` cap set low enough that a three-tick
- * run passes it. The cap is added here rather than committed to the fixture because the
- * fixture is the actor-movement baseline several other tests share, and giving it a
- * budget would change what THEY are measuring.
+ * Configurator artifacts plus one `effects` cap set low enough that a three-tick
+ * run passes it. Leftover mvp-grid tiles stay on the shared movement fixture.
  *
  * ⚠️ **The cap is on `effects`, NOT `movement`, and that is not a stylistic choice.**
  * `core.applyAction` returns for `ActionKind.Move` BEFORE `chargeBudgetForAction`
@@ -50,17 +41,43 @@ function fixture(name) {
  * category production actually charges, because that ruling doesn't change what a
  * `movement` cap would measure here: nothing.
  */
-const simConfig = {
-  ...fixture("sim-config-artifact-v1-mvp-grid.json"),
-  constraints: {
-    categoryCaps: {
-      caps: {
-        effects: 1,
+async function artifacts() {
+  const { boxedTerrain, buildUnifiedArtifacts } = await import(
+    "../../fixtures/personas/unified-actor-runtime.mjs"
+  );
+  const width = 9;
+  const height = 9;
+  const terrain = boxedTerrain(width, height);
+  terrain[width + 1] = "spawn";
+  terrain[7 * width + 7] = "exit";
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width,
+    height,
+    terrain,
+    runId: "run_g1_allocator_reconciliation",
+    clock: CLOCK(),
+    actors: [{
+      id: "actor_mvp",
+      category: "delver",
+      position: { x: 2, y: 1 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
+  return {
+    simConfig: {
+      ...simConfig,
+      constraints: {
+        categoryCaps: {
+          caps: {
+            effects: 1,
+          },
+        },
       },
     },
-  },
-};
-const initialState = fixture("initial-state-artifact-v1-mvp-actor.json");
+    initialState,
+  };
+}
 
 /**
  * The tick-plane registry, with the Allocator as the one variable. Built the same way
@@ -82,6 +99,7 @@ async function buildRegistry(allocator) {
 async function runTicks(allocator) {
   const { createRuntime } = await import("../../../packages/runtime/src/runner/runtime.js");
   const { createCore } = await import("../../../packages/core-ts/src/index.ts");
+  const { simConfig, initialState } = await artifacts();
 
   const runtime = createRuntime({
     core: createCore(),

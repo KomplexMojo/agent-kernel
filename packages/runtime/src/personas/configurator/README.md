@@ -303,8 +303,8 @@ The Configurator is therefore a **bridge between planning and execution**, respo
   profiles cyclically. Each emitted affinity gets one deterministic unoccupied cell in its assigned
   room. Generated hazard ids include affinity plus room index; mana upkeep is `2 + stacks`, the pool
   is three upkeep ticks, regen equals upkeep, and durability is `5 * stacks`.
-- Actor role inference scans id, archetype/type, motivations, and role for the current delver/warden
-  keywords. Delvers prefer the entry room; wardens prefer a matching affinity room, then the exit room,
+- Actor placement uses explicit alignment, with category supplying its authoring default. External actors
+  prefer the entry room; dungeon actors prefer a matching affinity room, then the exit room,
   then any room. Spawn, exit, hazards, and resources are occupied. The resolved build output preserves
   authored actor order and identity; `InitialStateArtifact` separately canonicalizes actors by id.
 - Capacity failure identifies the delver or warden that exhausted placement and reports the available
@@ -337,14 +337,15 @@ total. Actor role/group/placement policy remains outside this capability until R
 
 ### RB2.2 actor-placement capability (2026-08-31)
 
-`placeActors({ actors, layout, delverCount })` is the single public Configurator capability for actor
-power fallback, legacy leader/support grouping and distant anchors, role inference, room-aware
+`placeActors({ actors, layout, reservedActors })` is the single public Configurator capability for actor
+power fallback, legacy leader/support grouping and distant anchors, alignment-aware room
 placement, affinity-room preference, and occupancy. It is stateless and pure: it never mutates the
 caller-owned actor list or layout and returns `{ actors, changed }` in authored actor order.
 
 The strategic path reserves spawn/exit **wall portals**, hazards, and resources. Delvers seat on
-the spawn approach (entry doorway floor), then prefer the entry room; the first warden seats on the
-exit approach, then wardens prefer affinity-matching rooms, then the exit room, then any room.
+the spawn approach (entry doorway floor), then prefer the entry room; the first dungeon-aligned
+actor seats on the exit approach, then dungeon-aligned actors prefer affinity-matching rooms, the
+exit room, and finally any room.
 Spawn and exit tiles themselves are non-walkable perimeter portals — not seating cells. Layouts without a
 viable room context retain the existing deterministic power-group/anchor fallback. `orchestrateBuild`
 passes only actors, layout, and the delver-count hint through the public persona surface and consumes
@@ -354,7 +355,8 @@ the result; it owns no actor role, ranking, grouping, or placement decision.
 
 `prepareObjectPlacement({ layout, hazards, resources, actors })` authors the Configurator's
 `configurator_satisfiability` problem with `problemKind: "object_placement"`.
-`completeObjectPlacement(...)` validates the model and publishes a new layout. Fixed coordinates,
+`completeObjectPlacement(...)` validates the model and publishes a canonical layout plus placed
+hazard/resource actors. Fixed coordinates,
 room containment, unique walkable cells, spawn/exit/actor reservations, and a surviving
 spawn-to-exit path are hard constraints.
 
@@ -366,10 +368,86 @@ adapters to compile it through their generic linear solver without learning Conf
 When the domain is unavailable, deferred, or errors, completion uses the characterized
 hazards-first row-major fallback. A solver `unsat` is final and reports one actionable family:
 `capacity`, `containment`, `collision`, or `path_obstruction`. Both surfaces are stateless and pure;
-neither mutates caller-owned layout or object data.
+neither mutates caller-owned layout or object data. Hazard affinities become owned equipment with
+the authored pair active; category-specific hazard/resource collections do not enter SimConfig.
 
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
 - Table-driven persona tests (phase/transition fixtures) are the safety net; turn off `TS_NODE_TRANSPILE_ONLY` in CI to catch signature drift.
 - Entry points are `.js`. There is no `.mts` twin (no `ts-node/esm` required).
+
+
+## Unified actor normalization (rewrite in progress)
+
+`normalizeActorDefinition(input)` is a pure authoring method on the public
+Configurator controller. It accepts one of the five `category` presets plus
+stable `id`, `position`, explicit `vitals`, and mechanical overrides. It returns
+`{ actor, presentation: { category } }`. Labels are excluded from actor state.
+Alignment, defeat vital and capabilities default from the preset; explicit
+properties override them. Vital quantities and prices are never invented here.
+All motivations and owned affinity/expression pairs are preserved. Core-owned
+validators enforce common vital/inventory/holding shapes. Explicit null values
+are rejected where the property requires a value; only omitted values default.
+
+The existing artifact builders now use this normalized authoring seam. Director
+and transport producers still need migration to the new input shape; this does
+not yet establish CLI/MCP/UI equivalence or a working production runner.
+
+`resolveActorTurnCosts({ rules?, movementStamina })` assembles the unified turn
+window's vital costs. It reads all five authored mana tiers for all forty pairs,
+including equipment acquired later. Omitted rules use the existing default rules;
+invalid supplied rules fail. Movement stamina costs are explicit nonnegative safe
+integers keyed by actor ID. Returned tables are detached. This does not price
+Allocator tokens. `assembleMovementStamina({ actors, movementStamina? })` builds
+that ID map from the placed roster: explicit entries win, then nonnegative
+`capabilities.movementCost`, then the Configurator cardinal default for mobile
+actors (category preset, `canMove`, or unmigrated `type: delver|warden`). Immobile
+actors are omitted. Glue must call this helper rather than inventing costs.
+
+`normalizeActorRoster({ actors, dimensions, terrain })` assembles normalized
+`{ actors, presentation }` for artifact assembly. Entries use the single-actor
+preset definition above. Core validates the whole roster against terrain and
+capabilities, rejects duplicate IDs and blocking overlaps, and resolves initial
+zero-vital defeat before occupancy. Results are detached and sorted by ordinal
+actor ID; labels remain in the separate presentation map. No placement or defeat
+rule is duplicated in Configurator. buildInitialStateArtifact uses this collection
+method; its legacy authoring callers still require migration.
+
+
+Production artifact assembly (unified cutover): `buildSimConfigArtifact` requires
+`layout: {width,height,terrain}` and a valid `movementStamina` map; optional
+`affinityRules` supply authored tuning. Production create assembles that map
+through `assembleMovementStamina` from the placed roster when CLI input omits it. It emits `actionCosts` and normalized grid
+data. Entity lists, numeric kinds and ASCII tiles are no longer accepted there.
+`budgetScaffold` stays a levelGen/pricing flag on the working layout for
+Allocator spend; locked SimConfig layout data drops it and still rejects other
+extras. `buildInitialStateArtifact` requires `actors` as preset definitions, `dimensions`,
+`terrain`, `meta` and `simConfigRef`. It emits one actor list and presentation map.
+The resolved-effects/traits merge has been removed. Envelope versions stay fixed
+by the approved clean-break decision. Current legacy producers fail until migrated.
+
+Generated layouts now contain a row-major `terrain` array (`floor`, `wall`,
+`spawn`, `exit`). Numeric kinds, glyph tile rows, legends and duplicate marker
+coordinates are removed from the generated artifact data. Rendering hints remain
+presentation metadata. Actor placement reads walkable cells and marker positions
+from this terrain while retaining the existing strategic room placement policy.
+Object placement and feasibility also read canonical terrain; previews project
+that terrain to glyphs only at the rendering boundary. Generated hazard/resource
+planning entries still await the common actor authoring migration. No historical layout reader is provided.
+Room-affinity composition also derives reserved spawn/exit positions from canonical
+terrain, preserving those cells when choosing emitter locations.
+
+`mapResources` now authors resource presets through `normalizeActorDefinition`.
+Requests require a stable ID and common vital records; rewards are explicit
+`holdings` and owned affinity pairs. Capability/alignment/equipment overrides are
+preserved. An omitted position stays omitted until placement. CLI V3
+`permanenceMode` plus grant `vitals` becomes one unclaimed vital holding; source
+durability uses the Configurator default rather than synthesizing loot from the
+source pool. Version-specific `tier`/`stat` shapes are still rejected.
+`mapHazards` uses the same mechanical boundary: authored regen vitals keep their
+quantities and drop the authoring `kind` field; one-time `{amount}` becomes
+`{current:amount, max:amount, regen:0}`. Incomplete records are skipped so
+computed expression defaults remain. CLI string `affinity` plus `expression` or
+`affinityStacks[0]` is accepted; extra authoring fields are not spread into the
+mechanical record.

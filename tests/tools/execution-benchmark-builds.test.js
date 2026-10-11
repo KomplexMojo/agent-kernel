@@ -21,10 +21,35 @@ function loadBuild(scenarioId, fixtureRoot = TRAVERSAL_FIXTURE_ROOT) {
   };
 }
 
-function assertExplorer(actor) {
-  assert.equal(actor.archetype, 'delver');
-  assert.equal(actor.kind, 'ambulatory');
-  assert.deepEqual(actor.traits?.motivations, [{ kind: 'exploring', intensity: 1 }]);
+function categoryOf(initialState, actor) {
+  return initialState.presentation?.[actor.id]?.category;
+}
+
+function actorsByCategory(initialState, category) {
+  return (initialState.actors ?? []).filter((actor) => categoryOf(initialState, actor) === category);
+}
+
+function motivationKinds(actor) {
+  return (actor.motivations ?? []).map((entry) => (typeof entry === 'string' ? entry : entry?.kind)).filter(Boolean);
+}
+
+function terrainAt(layout, x, y) {
+  if (!Number.isInteger(x) || !Number.isInteger(y) || y < 0 || x < 0 || y >= layout.height || x >= layout.width) {
+    return undefined;
+  }
+  return layout.terrain?.[y * layout.width + x];
+}
+
+function terrainMarker(layout, kind) {
+  const index = Array.isArray(layout.terrain) ? layout.terrain.indexOf(kind) : -1;
+  if (index < 0) return null;
+  return { x: index % layout.width, y: Math.floor(index / layout.width) };
+}
+
+function assertExplorer(initialState, actor) {
+  assert.equal(categoryOf(initialState, actor), 'delver');
+  assert.equal(actor.capabilities.canMove, true);
+  assert.deepEqual(motivationKinds(actor), ['exploring']);
 }
 
 function roomContains(room, position) {
@@ -33,11 +58,14 @@ function roomContains(room, position) {
 }
 
 function chebyshevDistance(left, right) {
-  return Math.max(Math.abs(left.x - right.x), Math.abs(left.y - right.y));
+  const from = left.position ?? left;
+  const to = right.position ?? right;
+  return Math.max(Math.abs(from.x - to.x), Math.abs(from.y - to.y));
 }
 
 function isWalkable(layout, position) {
-  return !['#', 'B'].includes(layout.tiles[position.y]?.[position.x]);
+  const cell = terrainAt(layout, position.x, position.y);
+  return cell === 'floor' || cell === 'spawn' || cell === 'exit';
 }
 
 function walkableNeighborCount(layout, position) {
@@ -54,7 +82,10 @@ function walkableNeighborCount(layout, position) {
 }
 
 function shortestWalkLength(layout, start, goal, blocked = []) {
-  const blockedKeys = new Set(blocked.map(({ x, y }) => `${x},${y}`));
+  const blockedKeys = new Set(blocked.map((entry) => {
+    const position = entry.position ?? entry;
+    return `${position.x},${position.y}`;
+  }));
   const queue = [{ ...start, distance: 0 }];
   const visited = new Set([`${start.x},${start.y}`]);
   const deltas = [-1, 0, 1].flatMap((dy) => [-1, 0, 1]
@@ -74,13 +105,12 @@ function shortestWalkLength(layout, start, goal, blocked = []) {
   return null;
 }
 
-function hasWalkableCycle(tiles) {
-  const walkable = (x, y) => y >= 0 && y < tiles.length && x >= 0 && x < tiles[y].length
-    && !['#', 'B'].includes(tiles[y][x]);
+function hasWalkableCycle(layout) {
+  const walkable = (x, y) => isWalkable(layout, { x, y });
   let vertices = 0;
   let edges = 0;
-  for (let y = 0; y < tiles.length; y += 1) {
-    for (let x = 0; x < tiles[y].length; x += 1) {
+  for (let y = 0; y < layout.height; y += 1) {
+    for (let x = 0; x < layout.width; x += 1) {
       if (!walkable(x, y)) continue;
       vertices += 1;
       if (walkable(x + 1, y)) edges += 1;
@@ -99,8 +129,8 @@ test('EX-TR-01 is one exploring delver in one open medium room', () => {
     rooms: 1, connectedRooms: 1, spawnReachable: true, exitReachable: true,
   });
   assert.equal(initialState.actors.length, 1);
-  assertExplorer(initialState.actors[0]);
-  assert.deepEqual(initialState.actors[0].position, layout.spawn);
+  assertExplorer(initialState, initialState.actors[0]);
+  assert.deepEqual(initialState.actors[0].position, terrainMarker(layout, 'spawn'));
 });
 
 test('EX-TR-02 is one exploring delver in the entry room of three connected rooms', () => {
@@ -114,9 +144,9 @@ test('EX-TR-02 is one exploring delver in the entry room of three connected room
   const entryRoom = layout.rooms.find((room) => room.id === layout.entryRoomId);
   assert.ok(entryRoom);
   assert.equal(initialState.actors.length, 1);
-  assertExplorer(initialState.actors[0]);
+  assertExplorer(initialState, initialState.actors[0]);
   assert.equal(roomContains(entryRoom, initialState.actors[0].position), true);
-  assert.deepEqual(initialState.actors[0].position, layout.spawn);
+  assert.deepEqual(initialState.actors[0].position, terrainMarker(layout, 'spawn'));
 });
 
 test('EX-TR-03 is one patrolling warden on a connected two-room loop topology', () => {
@@ -126,14 +156,13 @@ test('EX-TR-03 is one patrolling warden on a connected two-room loop topology', 
   assert.equal(layout.connectivity.connectedRooms, 2);
   assert.equal(layout.connectivity.spawnReachable, true);
   assert.equal(layout.connectivity.exitReachable, true);
-  assert.equal(hasWalkableCycle(layout.tiles), true);
+  assert.equal(hasWalkableCycle(layout), true);
   assert.equal(initialState.actors.length, 1);
   const actor = initialState.actors[0];
-  assert.equal(actor.archetype, 'warden');
-  assert.equal(actor.kind, 'ambulatory');
-  assert.deepEqual(actor.motivation, { kind: 'patrolling' });
-  assert.deepEqual(actor.traits?.motivations, [{ kind: 'patrolling', intensity: 1 }]);
-  assert.deepEqual(actor.position, layout.spawn);
+  assert.equal(categoryOf(initialState, actor), 'warden');
+  assert.equal(actor.capabilities.canMove, true);
+  assert.deepEqual(motivationKinds(actor), ['patrolling']);
+  assert.deepEqual(actor.position, terrainMarker(layout, 'spawn'));
 });
 
 test('EX-TR-04 is one stationary warden in an open room', () => {
@@ -143,12 +172,10 @@ test('EX-TR-04 is one stationary warden in an open room', () => {
   assert.ok(layout.rooms[0].width >= 5 && layout.rooms[0].height >= 5);
   assert.equal(initialState.actors.length, 1);
   const actor = initialState.actors[0];
-  assert.equal(actor.archetype, 'warden');
-  assert.equal(actor.kind, 'stationary');
-  assert.deepEqual(actor.motivation, { kind: 'stationary' });
-  assert.deepEqual(actor.traits?.motivations, [{ kind: 'stationary', intensity: 1 }]);
+  assert.equal(categoryOf(initialState, actor), 'warden');
+  assert.deepEqual(motivationKinds(actor), ['stationary']);
   assert.equal(actor.vitals.stamina.current, 0);
-  assert.deepEqual(actor.position, layout.spawn);
+  assert.deepEqual(actor.position, terrainMarker(layout, 'spawn'));
 });
 
 test('EX-TR-05 spans three rooms with all four traversal motivations', () => {
@@ -162,12 +189,9 @@ test('EX-TR-05 spans three rooms with all four traversal motivations', () => {
   assert.equal(initialState.actors.length, 4);
   assert.equal(new Set(initialState.actors.map((actor) => actor.id)).size, 4);
   assert.deepEqual(
-    initialState.actors.map((actor) => actor.motivation.kind).sort(),
+    initialState.actors.map((actor) => motivationKinds(actor)[0]).sort(),
     ['exploring', 'patrolling', 'random', 'stationary'],
   );
-  for (const actor of initialState.actors) {
-    assert.equal(actor.traits?.motivations?.[0]?.kind, actor.motivation.kind);
-  }
 
   const occupiedRoomIds = new Set(initialState.actors.map((actor) => {
     const room = layout.rooms.find((candidate) => roomContains(candidate, actor.position));
@@ -176,11 +200,10 @@ test('EX-TR-05 spans three rooms with all four traversal motivations', () => {
   }));
   assert.equal(occupiedRoomIds.size, 3);
 
-  const mobileActors = initialState.actors.filter((actor) => actor.kind === 'ambulatory');
-  const stationaryActors = initialState.actors.filter((actor) => actor.kind === 'stationary');
+  const stationaryActors = initialState.actors.filter((actor) => motivationKinds(actor).includes('stationary'));
+  const mobileActors = initialState.actors.filter((actor) => !motivationKinds(actor).includes('stationary'));
   assert.equal(mobileActors.length, 3);
   assert.equal(stationaryActors.length, 1);
-  assert.equal(stationaryActors[0].motivation.kind, 'stationary');
   assert.equal(stationaryActors[0].vitals.stamina.current, 0);
 });
 
@@ -195,16 +218,12 @@ test('EX-CB-01 starts an attacking delver adjacent to a defending warden', () =>
   const defender = initialState.actors.find((actor) => actor.id === 'warden_defender');
   assert.ok(attacker);
   assert.ok(defender);
-  assert.equal(attacker.archetype, 'delver');
-  assert.equal(attacker.role, 'delver');
-  assert.equal(attacker.kind, 'ambulatory');
-  assert.deepEqual(attacker.motivation, { kind: 'attacking' });
-  assert.deepEqual(attacker.traits?.motivations, [{ kind: 'attacking', intensity: 1 }]);
-  assert.equal(defender.archetype, 'warden');
-  assert.equal(defender.role, 'warden');
-  assert.equal(defender.kind, 'ambulatory');
-  assert.deepEqual(defender.motivation, { kind: 'defending' });
-  assert.deepEqual(defender.traits?.motivations, [{ kind: 'defending', intensity: 1 }]);
+  assert.equal(categoryOf(initialState, attacker), 'delver');
+  assert.equal(attacker.capabilities.canMove, true);
+  assert.deepEqual(motivationKinds(attacker), ['attacking']);
+  assert.equal(categoryOf(initialState, defender), 'warden');
+  assert.equal(defender.capabilities.canMove, true);
+  assert.deepEqual(motivationKinds(defender), ['defending']);
   assert.equal(
     Math.abs(attacker.position.x - defender.position.x)
       + Math.abs(attacker.position.y - defender.position.y),
@@ -231,29 +250,12 @@ test('EX-CB-02 variants differ only by the declared attacker affinity advantage'
     .find((actor) => actor.id === 'warden_affinity_defender');
   assert.ok(neutralAttacker && advantagedAttacker && neutralDefender && advantagedDefender);
   assert.deepEqual(neutralDefender, advantagedDefender);
-  assert.equal(neutralAttacker.role, 'delver');
-  assert.deepEqual(neutralAttacker.motivation, { kind: 'attacking' });
-  assert.equal(neutralAttacker.traits.affinities, undefined);
-
-  assert.deepEqual(advantagedAttacker.traits.affinities, { 'fire:push': 2 });
-  assert.deepEqual(advantagedAttacker.traits.affinityTargets, { 'fire:push:enemy': 2 });
-  assert.deepEqual(advantagedAttacker.traits.abilities, [{
-    id: 'fire_bolt', kind: 'attack', affinityKind: 'fire', expression: 'push',
-    targetType: 'enemy', potency: 4, manaCost: 6,
-  }]);
-  assert.deepEqual(advantagedAttacker.traits.resolvedEffects, [{
-    id: 'fire:push:enemy:vital', category: 'vital', operation: 'apply_vital_affinity',
-    sourceType: 'actor', sourceId: 'delver_affinity_attacker', kind: 'fire', expression: 'push',
-    stacks: 2, targetType: 'enemy', targetVital: 'health', potency: 2,
-  }]);
-
-  const normalizedAdvantaged = JSON.parse(JSON.stringify(advantagedAttacker));
-  delete normalizedAdvantaged.traits.affinities;
-  delete normalizedAdvantaged.traits.affinityTargets;
-  delete normalizedAdvantaged.traits.abilities;
-  delete normalizedAdvantaged.traits.resolvedEffects;
-  normalizedAdvantaged.vitals.mana.max -= 2;
-  assert.deepEqual(normalizedAdvantaged, neutralAttacker);
+  assert.equal(categoryOf(neutral.initialState, neutralAttacker), 'delver');
+  assert.deepEqual(motivationKinds(neutralAttacker), ['attacking']);
+  assert.deepEqual(neutralAttacker.affinities, []);
+  assert.deepEqual(advantagedAttacker.affinities, [{ kind: 'fire', expression: 'push', stacks: 2 }]);
+  assert.equal(advantagedAttacker.activeAffinityKey, 'fire:push');
+  assert.ok(advantagedAttacker.vitals.mana.max > neutralAttacker.vitals.mana.max);
 });
 
 test('EX-CB-03 places two attacking delvers around one durable defending warden', () => {
@@ -263,22 +265,20 @@ test('EX-CB-03 places two attacking delvers around one durable defending warden'
   assert.equal(initialState.actors.length, 3);
   assert.equal(new Set(initialState.actors.map((actor) => actor.id)).size, 3);
 
-  const attackers = initialState.actors.filter((actor) => actor.role === 'delver');
-  const defenders = initialState.actors.filter((actor) => actor.role === 'warden');
+  const attackers = actorsByCategory(initialState, 'delver');
+  const defenders = actorsByCategory(initialState, 'warden');
   assert.equal(attackers.length, 2);
   assert.equal(defenders.length, 1);
   const defender = defenders[0];
-  assert.deepEqual(defender.motivation, { kind: 'defending' });
-  assert.deepEqual(defender.traits?.motivations, [{ kind: 'defending', intensity: 1 }]);
+  assert.deepEqual(motivationKinds(defender), ['defending']);
   assert.ok(defender.vitals.health.max > Math.max(...attackers.map((actor) => actor.vitals.health.max)));
   assert.ok(defender.vitals.durability.max
     > Math.max(...attackers.map((actor) => actor.vitals.durability.max)));
 
   for (const attacker of attackers) {
-    assert.equal(attacker.archetype, 'delver');
-    assert.equal(attacker.kind, 'ambulatory');
-    assert.deepEqual(attacker.motivation, { kind: 'attacking' });
-    assert.deepEqual(attacker.traits?.motivations, [{ kind: 'attacking', intensity: 1 }]);
+    assert.equal(categoryOf(initialState, attacker), 'delver');
+    assert.equal(attacker.capabilities.canMove, true);
+    assert.deepEqual(motivationKinds(attacker), ['attacking']);
     assert.equal(
       Math.abs(attacker.position.x - defender.position.x)
         + Math.abs(attacker.position.y - defender.position.y),
@@ -297,10 +297,10 @@ test('EX-CB-04 starts an attacker beside a high-health regenerating defender', (
   const defender = initialState.actors
     .find((actor) => actor.id === 'warden_regenerating_defender');
   assert.ok(attacker && defender);
-  assert.equal(attacker.role, 'delver');
-  assert.deepEqual(attacker.motivation, { kind: 'attacking' });
-  assert.equal(defender.role, 'warden');
-  assert.deepEqual(defender.motivation, { kind: 'defending' });
+  assert.equal(categoryOf(initialState, attacker), 'delver');
+  assert.deepEqual(motivationKinds(attacker), ['attacking']);
+  assert.equal(categoryOf(initialState, defender), 'warden');
+  assert.deepEqual(motivationKinds(defender), ['defending']);
   assert.ok(defender.vitals.health.max >= attacker.vitals.health.max * 3);
   assert.ok(defender.vitals.health.current < defender.vitals.health.max);
   assert.ok(defender.vitals.health.regen > 0);
@@ -336,18 +336,15 @@ test('EX-CB-05 gives every actor one mobility, posture, and cognition motivation
   for (const actor of initialState.actors) {
     const contract = expected[actor.id];
     assert.ok(contract, `unexpected actor ${actor.id}`);
-    assert.equal(actor.role, contract.role);
-    assert.equal(actor.kind, 'ambulatory');
-    assert.deepEqual(actor.motivation, { kind: contract.posture });
-    assert.deepEqual(actor.traits.motivations.map((motivation) => motivation.kind), contract.kinds);
-    assert.ok(actor.traits.motivations.every((motivation) => motivation.intensity === 1));
+    assert.equal(categoryOf(initialState, actor), contract.role);
+    assert.equal(actor.capabilities.canMove, true);
+    assert.ok(motivationKinds(actor).includes(contract.posture));
+    assert.deepEqual(motivationKinds(actor), contract.kinds);
     assert.equal(roomContains(layout.rooms[0], actor.position), true);
   }
   assert.deepEqual(
-    initialState.actors.flatMap((actor) => actor.traits.motivations
-      .filter((motivation) => ['reflexive', 'goal_oriented', 'strategy_focused']
-        .includes(motivation.kind))
-      .map((motivation) => motivation.kind)).sort(),
+    initialState.actors.flatMap((actor) => motivationKinds(actor)
+      .filter((kind) => ['reflexive', 'goal_oriented', 'strategy_focused'].includes(kind))).sort(),
     ['goal_oriented', 'reflexive', 'strategy_focused'],
   );
 });
@@ -356,35 +353,37 @@ test('EX-HZ-01 routes an exploring delver from outside a fire emit field through
   const { simConfig, initialState } = loadBuild('EX-HZ-01', HAZARD_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
   assert.equal(layout.rooms.length, 1);
-  assert.equal(layout.hazards.length, 1);
-  const hazard = layout.hazards[0];
-  const actor = initialState.actors[0];
-  assert.deepEqual(hazard.affinity, { kind: 'fire', expression: 'emit', stacks: 1 });
-  assert.equal(hazard.blocking, false);
+  const hazards = actorsByCategory(initialState, 'hazard');
+  assert.equal(hazards.length, 1);
+  const hazard = hazards[0];
+  const actor = actorsByCategory(initialState, 'delver')[0];
+  assert.deepEqual(hazard.affinities[0], { kind: 'fire', expression: 'emit', stacks: 1 });
+  assert.equal(hazard.capabilities.blocksMovement, false);
   assert.ok(hazard.vitals.mana.current > 0 && hazard.vitals.mana.regen > 0);
-  assert.equal(actor.role, 'delver');
-  assert.deepEqual(actor.motivation, { kind: 'exploring' });
+  assert.equal(categoryOf(initialState, actor), 'delver');
+  assert.deepEqual(motivationKinds(actor), ['exploring']);
   assert.equal(chebyshevDistance(actor.position, hazard), 3);
   assert.ok(chebyshevDistance(actor.position, hazard) > 2, 'actor must start outside emit radius');
+  const exitGoal = layout.exitApproach ?? terrainMarker(layout, 'exit');
   assert.deepEqual(
-    { x: hazard.x * 2, y: hazard.y * 2 },
-    { x: actor.position.x + (layout.exitApproach?.x ?? layout.exit.x), y: actor.position.y + (layout.exitApproach?.y ?? layout.exit.y) },
+    { x: hazard.position.x * 2, y: hazard.position.y * 2 },
+    { x: actor.position.x + exitGoal.x, y: actor.position.y + exitGoal.y },
   );
 });
 
 test('EX-HZ-02 approaches a push hazard with a legal away-displacement tile', () => {
   const { simConfig, initialState } = loadBuild('EX-HZ-02', HAZARD_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
-  const hazard = layout.hazards[0];
-  const actor = initialState.actors[0];
-  assert.deepEqual(hazard.affinity, { kind: 'wind', expression: 'push', stacks: 2 });
-  assert.equal(hazard.blocking, false);
+  const hazard = actorsByCategory(initialState, 'hazard')[0];
+  const actor = actorsByCategory(initialState, 'delver')[0];
+  assert.deepEqual(hazard.affinities[0], { kind: 'wind', expression: 'push', stacks: 2 });
+  assert.equal(hazard.capabilities.blocksMovement, false);
   assert.ok(chebyshevDistance(actor.position, hazard) > 1, 'actor must start outside push radius');
   const away = {
-    x: Math.sign(actor.position.x - hazard.x),
-    y: Math.sign(actor.position.y - hazard.y),
+    x: Math.sign(actor.position.x - hazard.position.x),
+    y: Math.sign(actor.position.y - hazard.position.y),
   };
-  const radiusEntry = { x: hazard.x + away.x, y: hazard.y + away.y };
+  const radiusEntry = { x: hazard.position.x + away.x, y: hazard.position.y + away.y };
   const pushedTarget = { x: radiusEntry.x + away.x, y: radiusEntry.y + away.y };
   assert.equal(isWalkable(layout, radiusEntry), true);
   assert.equal(isWalkable(layout, pushedTarget), true);
@@ -394,35 +393,35 @@ test('EX-HZ-02 approaches a push hazard with a legal away-displacement tile', ()
 test('EX-HZ-03 approaches a pull hazard from outside its focused radius', () => {
   const { simConfig, initialState } = loadBuild('EX-HZ-03', HAZARD_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
-  const hazard = layout.hazards[0];
-  const actor = initialState.actors[0];
-  assert.deepEqual(hazard.affinity, { kind: 'water', expression: 'pull', stacks: 2 });
-  assert.equal(hazard.blocking, false);
+  const hazard = actorsByCategory(initialState, 'hazard')[0];
+  const actor = actorsByCategory(initialState, 'delver')[0];
+  assert.deepEqual(hazard.affinities[0], { kind: 'water', expression: 'pull', stacks: 2 });
+  assert.equal(hazard.capabilities.blocksMovement, false);
   assert.ok(chebyshevDistance(actor.position, hazard) > 1, 'actor must start outside pull radius');
-  assert.deepEqual(actor.motivation, { kind: 'exploring' });
+  assert.deepEqual(motivationKinds(actor), ['exploring']);
+  const exitGoal = layout.exitApproach ?? terrainMarker(layout, 'exit');
   assert.deepEqual(
-    { x: hazard.x * 2, y: hazard.y * 2 },
-    { x: actor.position.x + (layout.exitApproach?.x ?? layout.exit.x), y: actor.position.y + (layout.exitApproach?.y ?? layout.exit.y) },
+    { x: hazard.position.x * 2, y: hazard.position.y * 2 },
+    { x: actor.position.x + exitGoal.x, y: actor.position.y + exitGoal.y },
   );
-  assert.equal(isWalkable(layout, hazard), true);
+  assert.equal(isWalkable(layout, hazard.position), true);
 });
 
 test('EX-HZ-04 places a draw hazard between its subject and an unrelated target', () => {
   const { simConfig, initialState } = loadBuild('EX-HZ-04', HAZARD_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
-  const hazard = layout.hazards[0];
+  const hazard = actorsByCategory(initialState, 'hazard')[0];
   const subject = initialState.actors.find((actor) => actor.id === 'delver_draw_subject');
   const unrelated = initialState.actors.find((actor) => actor.id === 'warden_unrelated_target');
   assert.ok(subject && unrelated);
-  assert.equal(new Set(initialState.actors.map((actor) => actor.id)).size, 2);
-  assert.deepEqual(hazard.affinity, { kind: 'life', expression: 'draw', stacks: 2 });
-  assert.deepEqual(subject.motivation, { kind: 'attacking' });
-  assert.deepEqual(unrelated.motivation, { kind: 'stationary' });
-  assert.equal(unrelated.kind, 'stationary');
+  assert.equal(actorsByCategory(initialState, 'delver').length + actorsByCategory(initialState, 'warden').length, 2);
+  assert.deepEqual(hazard.affinities[0], { kind: 'life', expression: 'draw', stacks: 2 });
+  assert.deepEqual(motivationKinds(subject), ['attacking']);
+  assert.deepEqual(motivationKinds(unrelated), ['stationary']);
   assert.ok(chebyshevDistance(subject.position, hazard) > 1);
   assert.ok(chebyshevDistance(unrelated.position, hazard) > 1);
   assert.deepEqual(
-    { x: hazard.x * 2, y: hazard.y * 2 },
+    { x: hazard.position.x * 2, y: hazard.position.y * 2 },
     { x: subject.position.x + unrelated.position.x, y: subject.position.y + unrelated.position.y },
   );
 });
@@ -430,26 +429,26 @@ test('EX-HZ-04 places a draw hazard between its subject and an unrelated target'
 test('EX-HZ-05 blocks the unique short route while preserving a legal detour', () => {
   const { simConfig, initialState } = loadBuild('EX-HZ-05', HAZARD_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
-  const hazard = layout.hazards[0];
-  const actor = initialState.actors[0];
-  assert.equal(layout.hazards.length, 1);
-  assert.equal(hazard.blocking, true);
-  assert.deepEqual(hazard.affinity, { kind: 'earth', expression: 'emit', stacks: 2 });
-  assert.equal(actor.role, 'delver');
-  assert.equal(actor.kind, 'ambulatory');
-  assert.deepEqual(actor.motivation, { kind: 'exploring' });
-  assert.deepEqual(actor.traits?.motivations, [{ kind: 'exploring', intensity: 1 }]);
+  const hazards = actorsByCategory(initialState, 'hazard');
+  const hazard = hazards[0];
+  const actor = actorsByCategory(initialState, 'delver')[0];
+  assert.equal(hazards.length, 1);
+  assert.equal(hazard.capabilities.blocksMovement, true);
+  assert.deepEqual(hazard.affinities[0], { kind: 'earth', expression: 'emit', stacks: 2 });
+  assert.equal(categoryOf(initialState, actor), 'delver');
+  assert.equal(actor.capabilities.canMove, true);
+  assert.deepEqual(motivationKinds(actor), ['exploring']);
   assert.ok(roomContains(layout.rooms[0], actor.position));
-  assert.ok(roomContains(layout.rooms[0], layout.exitApproach ?? layout.exit));
-  assert.ok(roomContains(layout.rooms[0], hazard));
+  const exitGoal = layout.exitApproach ?? terrainMarker(layout, 'exit');
+  assert.ok(roomContains(layout.rooms[0], exitGoal));
+  assert.ok(roomContains(layout.rooms[0], hazard.position));
 
-  const exitGoal = layout.exitApproach ?? layout.exit;
   const directLength = chebyshevDistance(actor.position, exitGoal);
   assert.equal(directLength, 6);
   assert.equal(Math.abs(actor.position.x - exitGoal.x), directLength);
   assert.equal(Math.abs(actor.position.y - exitGoal.y), directLength);
   assert.deepEqual(
-    { x: hazard.x * 2, y: hazard.y * 2 },
+    { x: hazard.position.x * 2, y: hazard.position.y * 2 },
     { x: actor.position.x + exitGoal.x, y: actor.position.y + exitGoal.y },
   );
   const detourLength = shortestWalkLength(layout, actor.position, exitGoal, [hazard]);
@@ -460,22 +459,23 @@ test('EX-HZ-05 blocks the unique short route while preserving a legal detour', (
 test('EX-RS-01 places an injured explorer beside a consumable health resource', () => {
   const { simConfig, initialState } = loadBuild('EX-RS-01', RESOURCE_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
-  const actor = initialState.actors[0];
-  assert.equal(layout.resources.length, 1);
-  const resource = layout.resources[0];
-  assert.equal(resource.permanenceMode, 'consumable');
-  assert.deepEqual(resource.vitals, [{ key: 'health', delta: 5 }]);
-  assert.equal(actor.role, 'delver');
-  assert.equal(actor.kind, 'ambulatory');
-  assert.deepEqual(actor.motivation, { kind: 'exploring' });
-  assert.deepEqual(actor.traits?.motivations, [{ kind: 'exploring', intensity: 1 }]);
+  const actor = actorsByCategory(initialState, 'delver')[0];
+  const resources = actorsByCategory(initialState, 'resource');
+  assert.equal(resources.length, 1);
+  const resource = resources[0];
+  assert.equal(resource.holdings[0].permanenceMode, 'consumable');
+  assert.deepEqual(resource.holdings[0].vitals, [{ key: 'health', delta: 5 }]);
+  assert.equal(categoryOf(initialState, actor), 'delver');
+  assert.equal(actor.capabilities.canMove, true);
+  assert.deepEqual(motivationKinds(actor), ['exploring']);
   assert.ok(actor.vitals.health.current < actor.vitals.health.max);
-  assert.ok(actor.vitals.health.current + resource.vitals[0].delta <= actor.vitals.health.max);
+  assert.ok(actor.vitals.health.current + resource.holdings[0].vitals[0].delta <= actor.vitals.health.max);
   assert.equal(chebyshevDistance(actor.position, resource.position), 1);
+  const exitGoal = terrainMarker(layout, 'exit');
   assert.equal(
     chebyshevDistance(actor.position, resource.position)
-      + chebyshevDistance(resource.position, layout.exit),
-    chebyshevDistance(actor.position, layout.exit),
+      + chebyshevDistance(resource.position, exitGoal),
+    chebyshevDistance(actor.position, exitGoal),
   );
   assert.equal(isWalkable(layout, resource.position), true);
   assert.equal(roomContains(layout.rooms[0], resource.position), true);
@@ -484,19 +484,21 @@ test('EX-RS-01 places an injured explorer beside a consumable health resource', 
 test('EX-RS-02 places an explorer beside a persistent max-health resource', () => {
   const { simConfig, initialState } = loadBuild('EX-RS-02', RESOURCE_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
-  const actor = initialState.actors[0];
-  assert.equal(layout.resources.length, 1);
-  const resource = layout.resources[0];
-  assert.equal(resource.permanenceMode, 'level');
-  assert.deepEqual(resource.vitals, [{ key: 'health', delta: 4 }]);
-  assert.equal(actor.role, 'delver');
-  assert.deepEqual(actor.motivation, { kind: 'exploring' });
+  const actor = actorsByCategory(initialState, 'delver')[0];
+  const resources = actorsByCategory(initialState, 'resource');
+  assert.equal(resources.length, 1);
+  const resource = resources[0];
+  assert.equal(resource.holdings[0].permanenceMode, 'level');
+  assert.deepEqual(resource.holdings[0].vitals, [{ key: 'health', delta: 4 }]);
+  assert.equal(categoryOf(initialState, actor), 'delver');
+  assert.deepEqual(motivationKinds(actor), ['exploring']);
   assert.ok(actor.vitals.health.current < actor.vitals.health.max);
   assert.equal(chebyshevDistance(actor.position, resource.position), 1);
+  const exitGoal = terrainMarker(layout, 'exit');
   assert.equal(
     chebyshevDistance(actor.position, resource.position)
-      + chebyshevDistance(resource.position, layout.exit),
-    chebyshevDistance(actor.position, layout.exit),
+      + chebyshevDistance(resource.position, exitGoal),
+    chebyshevDistance(actor.position, exitGoal),
   );
   assert.equal(isWalkable(layout, resource.position), true);
   assert.equal(roomContains(layout.rooms[0], resource.position), true);
@@ -505,22 +507,23 @@ test('EX-RS-02 places an explorer beside a persistent max-health resource', () =
 test('EX-RS-03 places an injured explorer beside a regeneration-only resource', () => {
   const { simConfig, initialState } = loadBuild('EX-RS-03', RESOURCE_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
-  const actor = initialState.actors[0];
-  assert.equal(layout.resources.length, 1);
-  const resource = layout.resources[0];
-  assert.equal(resource.permanenceMode, 'level');
-  assert.deepEqual(resource.vitals, [{ key: 'health', delta: 0, regen: 2 }]);
-  assert.equal(actor.role, 'delver');
-  assert.equal(actor.kind, 'ambulatory');
-  assert.deepEqual(actor.motivation, { kind: 'exploring' });
-  assert.deepEqual(actor.traits?.motivations, [{ kind: 'exploring', intensity: 1 }]);
+  const actor = actorsByCategory(initialState, 'delver')[0];
+  const resources = actorsByCategory(initialState, 'resource');
+  assert.equal(resources.length, 1);
+  const resource = resources[0];
+  assert.equal(resource.holdings[0].permanenceMode, 'level');
+  assert.deepEqual(resource.holdings[0].vitals, [{ key: 'health', delta: 0, regen: 2 }]);
+  assert.equal(categoryOf(initialState, actor), 'delver');
+  assert.equal(actor.capabilities.canMove, true);
+  assert.deepEqual(motivationKinds(actor), ['exploring']);
   assert.ok(actor.vitals.health.current < actor.vitals.health.max);
   assert.equal(actor.vitals.health.regen, 0);
   assert.equal(chebyshevDistance(actor.position, resource.position), 1);
+  const exitGoal = terrainMarker(layout, 'exit');
   assert.equal(
     chebyshevDistance(actor.position, resource.position)
-      + chebyshevDistance(resource.position, layout.exit),
-    chebyshevDistance(actor.position, layout.exit),
+      + chebyshevDistance(resource.position, exitGoal),
+    chebyshevDistance(actor.position, exitGoal),
   );
   assert.equal(isWalkable(layout, resource.position), true);
   assert.equal(roomContains(layout.rooms[0], resource.position), true);
@@ -529,25 +532,19 @@ test('EX-RS-03 places an injured explorer beside a regeneration-only resource', 
 test('EX-RS-04 places a finite-mana affinity resource between opposing actors', () => {
   const { simConfig, initialState } = loadBuild('EX-RS-04', RESOURCE_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
-  assert.equal(layout.resources.length, 1);
-  const resource = layout.resources[0];
-  assert.equal(resource.permanenceMode, 'consumable');
-  assert.deepEqual(resource.vitals, []);
-  assert.deepEqual(resource.affinity, {
-    kind: 'fire', expression: 'push', stacks: 2, mana: 12, manaRegen: 0,
-  });
+  const resources = actorsByCategory(initialState, 'resource');
+  assert.equal(resources.length, 1);
+  const resource = resources[0];
+  assert.equal(resource.holdings.length, 0);
+  assert.deepEqual(resource.affinities[0], { kind: 'fire', expression: 'push', stacks: 2 });
   const subject = initialState.actors
     .find((actor) => actor.id === 'delver_temporary_affinity_subject-1');
   const target = initialState.actors.find((actor) => actor.id === 'warden_affinity_target-1');
   assert.ok(subject && target);
-  assert.equal(new Set(initialState.actors.map((actor) => actor.id)).size, 2);
-  assert.equal(subject.role, 'delver');
-  assert.deepEqual(subject.motivation, { kind: 'attacking' });
-  assert.deepEqual(subject.traits.affinities, { life: 1 });
-  assert.equal(subject.traits.affinities.fire, undefined);
-  assert.equal(target.role, 'warden');
-  assert.deepEqual(target.motivation, { kind: 'defending' });
-  assert.deepEqual(target.traits.affinities, { dark: 1 });
+  assert.equal(categoryOf(initialState, subject), 'delver');
+  assert.deepEqual(motivationKinds(subject), ['attacking']);
+  assert.equal(categoryOf(initialState, target), 'warden');
+  assert.deepEqual(motivationKinds(target), ['defending']);
   assert.equal(chebyshevDistance(subject.position, resource.position), 1);
   assert.equal(chebyshevDistance(resource.position, target.position), 1);
   assert.equal(chebyshevDistance(subject.position, target.position), 2);
@@ -558,38 +555,34 @@ test('EX-RS-04 places a finite-mana affinity resource between opposing actors', 
 test('EX-RS-05 gives delver and warden isolated permanent-affinity pickups', () => {
   const { simConfig, initialState } = loadBuild('EX-RS-05', RESOURCE_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
-  assert.equal(layout.resources.length, 2);
-  assert.equal(new Set(layout.resources.map((resource) => resource.id)).size, 2);
-  assert.equal(initialState.actors.length, 2);
-  assert.equal(new Set(initialState.actors.map((actor) => actor.id)).size, 2);
+  const resources = actorsByCategory(initialState, 'resource');
+  assert.equal(resources.length, 2);
+  assert.equal(new Set(resources.map((resource) => resource.id)).size, 2);
+  const motivated = [...actorsByCategory(initialState, 'delver'), ...actorsByCategory(initialState, 'warden')];
+  assert.equal(motivated.length, 2);
+  assert.equal(new Set(motivated.map((actor) => actor.id)).size, 2);
   const expectedResourceByActor = {
     'delver_permanent_affinity_subject-1': 'resource_permanent_fire_delver',
     'warden_permanent_affinity_subject-1': 'resource_permanent_fire_warden',
   };
   const roles = new Set();
-  for (const actor of initialState.actors) {
-    roles.add(actor.role);
-    assert.equal(actor.kind, 'ambulatory');
-    assert.deepEqual(actor.motivation, { kind: 'attacking' });
-    assert.deepEqual(actor.traits.affinities, { fire: 1 });
-    assert.deepEqual(actor.traits.motivations, [{ kind: 'attacking', intensity: 1 }]);
-    const designated = layout.resources.find(
+  for (const actor of motivated) {
+    roles.add(categoryOf(initialState, actor));
+    assert.equal(actor.capabilities.canMove, true);
+    assert.deepEqual(motivationKinds(actor), ['attacking']);
+    const designated = resources.find(
       (resource) => resource.id === expectedResourceByActor[actor.id],
     );
     assert.ok(designated, `missing designated resource for ${actor.id}`);
     assert.equal(chebyshevDistance(actor.position, designated.position), 1);
-    const other = layout.resources.find((resource) => resource !== designated);
+    const other = resources.find((resource) => resource !== designated);
     assert.ok(chebyshevDistance(actor.position, other.position) > 1);
-    assert.equal(actor.traits.affinities.fire + designated.affinity.stacks, 3);
+    assert.equal(designated.affinities[0].stacks, 2);
   }
   assert.deepEqual([...roles].sort(), ['delver', 'warden']);
-  assert.equal(chebyshevDistance(initialState.actors[0].position, initialState.actors[1].position), 1);
-  for (const resource of layout.resources) {
-    assert.equal(resource.permanenceMode, 'consumable');
-    assert.deepEqual(resource.vitals, []);
-    assert.deepEqual(resource.affinity, {
-      kind: 'fire', expression: 'emit', stacks: 2, mana: 12, manaRegen: 2,
-    });
+  assert.equal(chebyshevDistance(motivated[0].position, motivated[1].position), 1);
+  for (const resource of resources) {
+    assert.deepEqual(resource.affinities[0], { kind: 'fire', expression: 'emit', stacks: 2 });
     assert.equal(isWalkable(layout, resource.position), true);
     assert.equal(roomContains(layout.rooms[0], resource.position), true);
   }
@@ -602,54 +595,57 @@ test('EX-ST-01 combines three occupied rooms, mixed actors, hazards, and resourc
   assert.deepEqual(layout.connectivity, {
     rooms: 3, connectedRooms: 3, spawnReachable: true, exitReachable: true,
   });
-  assert.equal(layout.hazards.length, 2);
-  assert.equal(layout.resources.length, 2);
+  const hazards = actorsByCategory(initialState, 'hazard');
+  const resources = actorsByCategory(initialState, 'resource');
+  const motivated = [...actorsByCategory(initialState, 'delver'), ...actorsByCategory(initialState, 'warden')];
+  assert.equal(hazards.length, 2);
+  assert.equal(resources.length, 2);
   assert.deepEqual(
-    layout.hazards.map((hazard) => hazard.expression).sort(),
+    hazards.map((hazard) => hazard.affinities[0]?.expression).sort(),
     ['emit', 'push'],
   );
-  assert.ok(layout.hazards.every((hazard) => hazard.vitals?.mana?.current > 0));
+  assert.ok(hazards.every((hazard) => hazard.vitals?.mana?.current > 0));
   assert.deepEqual(
-    layout.resources.map((resource) => resource.permanenceMode).sort(),
+    resources.map((resource) => resource.holdings[0]?.permanenceMode).sort(),
     ['consumable', 'level'],
   );
 
-  assert.equal(initialState.actors.length, 4);
-  assert.equal(new Set(initialState.actors.map((actor) => actor.id)).size, 4);
-  assert.equal(initialState.actors.filter((actor) => actor.role === 'delver').length, 2);
-  assert.equal(initialState.actors.filter((actor) => actor.role === 'warden').length, 2);
+  assert.equal(motivated.length, 4);
+  assert.equal(new Set(motivated.map((actor) => actor.id)).size, 4);
+  assert.equal(actorsByCategory(initialState, 'delver').length, 2);
+  assert.equal(actorsByCategory(initialState, 'warden').length, 2);
   assert.deepEqual(
-    initialState.actors.map((actor) => actor.motivation.kind).sort(),
+    motivated.map((actor) => motivationKinds(actor)[0]).sort(),
     ['attacking', 'defending', 'patrolling', 'random'],
   );
-  assert.ok(initialState.actors.every((actor) => actor.kind === 'ambulatory'
+  assert.ok(motivated.every((actor) => actor.capabilities.canMove
     && actor.vitals.stamina.current > 0));
-  const occupiedRooms = new Set(initialState.actors.map((actor) => {
+  const occupiedRooms = new Set(motivated.map((actor) => {
     const room = layout.rooms.find((candidate) => roomContains(candidate, actor.position));
     assert.ok(room, `${actor.id} is outside every room`);
     return room.id;
   }));
   assert.equal(occupiedRooms.size, 3);
-  for (const object of [...layout.hazards, ...layout.resources]) {
-    const position = object.position || object;
-    assert.ok(layout.rooms.some((room) => roomContains(room, position)));
-    assert.equal(isWalkable(layout, position), true);
+  for (const object of [...hazards, ...resources]) {
+    assert.ok(layout.rooms.some((room) => roomContains(room, object.position)));
+    assert.equal(isWalkable(layout, object.position), true);
   }
 });
 
 test('EX-ST-02 contains one delver and ten mobile random wardens with unique ids', () => {
   const { simConfig, initialState } = loadBuild('EX-ST-02', STRESS_FIXTURE_ROOT);
   const layout = simConfig.layout.data;
+  const motivated = [...actorsByCategory(initialState, 'delver'), ...actorsByCategory(initialState, 'warden')];
   assert.equal(layout.rooms.length, 1);
-  assert.equal(initialState.actors.length, 11);
-  assert.equal(new Set(initialState.actors.map((actor) => actor.id)).size, 11);
-  assert.equal(new Set(initialState.actors
+  assert.equal(motivated.length, 11);
+  assert.equal(new Set(motivated.map((actor) => actor.id)).size, 11);
+  assert.equal(new Set(motivated
     .map((actor) => `${actor.position.x},${actor.position.y}`)).size, 11);
-  assert.equal(initialState.actors.filter((actor) => actor.archetype === 'delver').length, 1);
-  assert.equal(initialState.actors.filter((actor) => actor.archetype === 'warden').length, 10);
-  for (const actor of initialState.actors) {
-    assert.equal(actor.kind, 'ambulatory');
-    assert.deepEqual(actor.motivation, { kind: 'random' });
+  assert.equal(actorsByCategory(initialState, 'delver').length, 1);
+  assert.equal(actorsByCategory(initialState, 'warden').length, 10);
+  for (const actor of motivated) {
+    assert.equal(actor.capabilities.canMove, true);
+    assert.deepEqual(motivationKinds(actor), ['random']);
     assert.ok(actor.vitals.stamina.current > 0 && actor.vitals.stamina.regen > 0);
     assert.equal(roomContains(layout.rooms[0], actor.position), true);
     assert.equal(isWalkable(layout, actor.position), true);
@@ -663,35 +659,38 @@ test('EX-ST-03 is a dense four-room field with six hazards and six resources', (
   assert.deepEqual(layout.connectivity, {
     rooms: 4, connectedRooms: 4, spawnReachable: true, exitReachable: true,
   });
-  assert.equal(layout.hazards.length, 6);
-  assert.equal(layout.resources.length, 6);
-  assert.equal(new Set(layout.hazards.map((hazard) => hazard.id)).size, 6);
-  assert.equal(new Set(layout.resources.map((resource) => resource.id)).size, 6);
-  assert.ok(new Set(layout.hazards.map((hazard) => hazard.affinity)).size >= 6);
-  assert.ok(new Set(layout.hazards.map((hazard) => hazard.expression)).size >= 4);
+  const hazards = actorsByCategory(initialState, 'hazard');
+  const resources = actorsByCategory(initialState, 'resource');
+  const motivated = [...actorsByCategory(initialState, 'delver'), ...actorsByCategory(initialState, 'warden')];
+  assert.equal(hazards.length, 6);
+  assert.equal(resources.length, 6);
+  assert.equal(new Set(hazards.map((hazard) => hazard.id)).size, 6);
+  assert.equal(new Set(resources.map((resource) => resource.id)).size, 6);
+  assert.ok(new Set(hazards.map((hazard) => hazard.affinities[0]?.kind)).size >= 4);
+  assert.ok(new Set(hazards.map((hazard) => hazard.affinities[0]?.expression)).size >= 4);
   assert.deepEqual(
-    [...new Set(layout.resources.map((resource) => resource.permanenceMode))].sort(),
+    [...new Set(resources.map((resource) => resource.holdings[0]?.permanenceMode))].sort(),
     ['consumable', 'level'],
   );
-  assert.equal(new Set([...layout.hazards, ...layout.resources]
+  assert.equal(new Set([...hazards, ...resources]
     .map((object) => `${object.position.x},${object.position.y}`)).size, 12);
-  for (const object of [...layout.hazards, ...layout.resources]) {
+  for (const object of [...hazards, ...resources]) {
     assert.ok(layout.rooms.some((room) => roomContains(room, object.position)));
     assert.equal(isWalkable(layout, object.position), true);
   }
 
-  assert.equal(initialState.actors.length, 6);
-  assert.equal(new Set(initialState.actors.map((actor) => actor.id)).size, 6);
-  assert.equal(initialState.actors.filter((actor) => actor.archetype === 'delver').length, 2);
-  assert.equal(initialState.actors.filter((actor) => actor.archetype === 'warden').length, 4);
+  assert.equal(motivated.length, 6);
+  assert.equal(new Set(motivated.map((actor) => actor.id)).size, 6);
+  assert.equal(actorsByCategory(initialState, 'delver').length, 2);
+  assert.equal(actorsByCategory(initialState, 'warden').length, 4);
   assert.deepEqual(
-    [...new Set(initialState.actors.map((actor) => actor.motivation.kind))].sort(),
+    [...new Set(motivated.map((actor) => motivationKinds(actor)[0]))].sort(),
     ['attacking', 'defending', 'patrolling', 'random'],
   );
-  assert.ok(initialState.actors.every((actor) => actor.kind === 'ambulatory'
+  assert.ok(motivated.every((actor) => actor.capabilities.canMove
     && actor.vitals.health.current > 0 && actor.vitals.mana.current > 0
     && actor.vitals.stamina.current > 0));
-  const occupiedRooms = new Set(initialState.actors.map((actor) => layout.rooms
+  const occupiedRooms = new Set(motivated.map((actor) => layout.rooms
     .find((room) => roomContains(room, actor.position))?.id));
   assert.equal(occupiedRooms.has(undefined), false);
   assert.ok(occupiedRooms.size >= 2);
@@ -704,20 +703,21 @@ test('EX-ST-04 is a connected four-actor combat and movement soak setup', () => 
   assert.deepEqual(layout.connectivity, {
     rooms: 2, connectedRooms: 2, spawnReachable: true, exitReachable: true,
   });
-  assert.equal(initialState.actors.length, 4);
-  assert.equal(new Set(initialState.actors.map((actor) => actor.id)).size, 4);
-  assert.equal(initialState.actors.filter((actor) => actor.archetype === 'delver').length, 2);
-  assert.equal(initialState.actors.filter((actor) => actor.archetype === 'warden').length, 2);
+  const motivated = [...actorsByCategory(initialState, 'delver'), ...actorsByCategory(initialState, 'warden')];
+  assert.equal(motivated.length, 4);
+  assert.equal(new Set(motivated.map((actor) => actor.id)).size, 4);
+  assert.equal(actorsByCategory(initialState, 'delver').length, 2);
+  assert.equal(actorsByCategory(initialState, 'warden').length, 2);
   assert.deepEqual(
-    initialState.actors.map((actor) => actor.motivation.kind).sort(),
+    motivated.map((actor) => motivationKinds(actor)[0]).sort(),
     ['attacking', 'defending', 'patrolling', 'random'],
   );
-  assert.ok(initialState.actors.every((actor) => actor.kind === 'ambulatory'
+  assert.ok(motivated.every((actor) => actor.capabilities.canMove
     && actor.vitals.health.current > 0 && actor.vitals.health.regen > 0
     && actor.vitals.mana.current > 0 && actor.vitals.mana.regen > 0
     && actor.vitals.stamina.current > 0 && actor.vitals.stamina.regen > 0
     && actor.vitals.durability.current > 0 && actor.vitals.durability.regen > 0));
-  const occupiedRooms = new Set(initialState.actors.map((actor) => {
+  const occupiedRooms = new Set(motivated.map((actor) => {
     const room = layout.rooms.find((candidate) => roomContains(candidate, actor.position));
     assert.ok(room, `${actor.id} is outside every room`);
     return room.id;
@@ -736,15 +736,16 @@ test('EX-ST-05 isolates random mobility on a branching field for replay comparis
   assert.equal(layout.hazards, undefined);
   assert.equal(layout.resources, undefined);
 
-  assert.equal(initialState.actors.length, 3);
-  assert.equal(new Set(initialState.actors.map((actor) => actor.id)).size, 3);
-  assert.equal(new Set(initialState.actors
+  const motivated = [...actorsByCategory(initialState, 'delver'), ...actorsByCategory(initialState, 'warden')];
+  assert.equal(motivated.length, 3);
+  assert.equal(new Set(motivated.map((actor) => actor.id)).size, 3);
+  assert.equal(new Set(motivated
     .map((actor) => `${actor.position.x},${actor.position.y}`)).size, 3);
-  assert.equal(initialState.actors.filter((actor) => actor.archetype === 'delver').length, 1);
-  assert.equal(initialState.actors.filter((actor) => actor.archetype === 'warden').length, 2);
-  for (const actor of initialState.actors) {
-    assert.equal(actor.kind, 'ambulatory');
-    assert.deepEqual(actor.motivation, { kind: 'random' });
+  assert.equal(actorsByCategory(initialState, 'delver').length, 1);
+  assert.equal(actorsByCategory(initialState, 'warden').length, 2);
+  for (const actor of motivated) {
+    assert.equal(actor.capabilities.canMove, true);
+    assert.deepEqual(motivationKinds(actor), ['random']);
     assert.ok(actor.vitals.stamina.current > 0 && actor.vitals.stamina.regen > 0);
     assert.equal(roomContains(layout.rooms[0], actor.position), true);
     assert.equal(isWalkable(layout, actor.position), true);

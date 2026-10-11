@@ -1,133 +1,71 @@
-/**
- * AM.7 — the affinity field follows its source (closes F7).
- *
- * `computeAffinityField()` was called exactly once, during setup
- * (runner/core-setup.mjs). Actors then moved for the rest of the run while their
- * auras stayed at the starting positions — a field that never follows its source
- * is decoration, and every consumer of it (tile visuals, the aura bridge, the
- * gameplay renderer) was reading a snapshot of tick 0.
- *
- * #158 — this is the runtime/core-ts integration counterpart to AM.3b (the
- * MODERATOR's `plan_tick_close` decision to recompute the field, which used to
- * live in this same file): that half calls the persona directly with no runtime
- * involved and moved to tests/personas/moderator/moderator-plan-tick-close.test.js.
- * This test stays here because it drives a real runtime through real ticks and
- * reads core-ts state directly — orchestration, not persona-alone behavior.
- */
 "use strict";
 
 const assert = require("node:assert/strict");
 
-function makeFloorGrid(w, h) {
-  return Array.from({ length: h }, (_, y) =>
-    Array.from({ length: w }, (_, x) =>
-      x === 0 || x === w - 1 || y === 0 || y === h - 1 ? "#" : "."
-    ).join("")
-  );
-}
-
-function buildSimConfig({ width = 11, height = 11 } = {}) {
-  return {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: { id: "field_sim", runId: "field", createdAt: "2026-08-14T00:00:00.000Z" },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width,
-        height,
-        tiles: makeFloorGrid(width, height),
-        spawn: { x: 1, y: 1 },
-        exit: { x: width - 2, y: height - 2 },
-        rooms: [{ id: "R1", x: 0, y: 0, width, height }],
-        hazards: [],
-      },
-    },
-  };
-}
-
-function buildInitialState(actors) {
-  return {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: { id: "field", runId: "field", createdAt: "2026-08-14T00:00:00.000Z" },
-    simConfigRef: { id: "field_sim", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
+async function artifacts(actors, { width = 11, height = 11, runId = "field" } = {}) {
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const terrain = boxedTerrain(width, height);
+  terrain[width + 1] = "spawn";
+  terrain[(height - 2) * width + (width - 2)] = "exit";
+  return buildUnifiedArtifacts({
+    width,
+    height,
+    terrain,
+    runId,
+    clock: "2026-08-14T00:00:00.000Z",
     actors,
-  };
+  });
 }
 
-function actor(id, position, motivation = "random") {
+function actor(id, position, motivation = "exploring") {
   return {
     id,
-    kind: "ambulatory",
-    archetype: "delver",
-    role: "delver",
+    category: "delver",
     position,
-    motivation: { kind: motivation },
-    // core seeds an actor's affinity from THIS array (runner/core-setup.mjs),
-    // not from `traits.affinities` — the field is computed from core state, so
-    // an actor with only a trait entry emits nothing.
+    motivations: [motivation],
     affinities: [{ kind: "fire", expression: "emit", stacks: 3 }],
-    traits: { affinities: { fire: 1 } },
+    activeAffinityKey: "fire:emit",
     vitals: {
       health: { current: 20, max: 20, regen: 0 },
       mana: { current: 20, max: 20, regen: 0 },
       stamina: { current: 8, max: 8, regen: 4 },
-      durability: { current: 1, max: 1, regen: 0 },
     },
   };
 }
 
-async function startRuntime({ simConfig, initialState, affinityEffects = null }) {
+async function startRuntime({ simConfig, initialState }) {
   const [{ createRuntime }, { createCore }] = await Promise.all([
     import("../../packages/runtime/src/runner/runtime.js"),
     import("../../packages/core-ts/src/index.ts"),
   ]);
-  const core = createCore();
-  const runtime = createRuntime({ core, adapters: {} });
-  await runtime.init({ seed: 0, simConfig, initialState, affinityEffects });
-  return { core, runtime };
+  const runtime = createRuntime({ core: createCore(), adapters: {} });
+  await runtime.init({ seed: 0, simConfig, initialState });
+  return runtime;
 }
 
-const FIRE = 1;
-
-/** A stable fingerprint of the whole fire field, so a shift anywhere shows up. */
-function fieldFingerprint(core, width, height) {
-  const cells = [];
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const intensity = core.getAffinityFieldIntensityAt?.(x, y, FIRE) ?? 0;
-      const stacks = core.getAffinityFieldStacksAt?.(x, y, FIRE) ?? 0;
-      if (intensity > 0 || stacks > 0) cells.push(`${x},${y}:${intensity}:${stacks}`);
-    }
-  }
-  return cells.join("|");
+async function fieldFingerprint(runtime) {
+  const { readActorRegistryObservation } = await import("../../packages/core-ts/src/rules/actor-observation.ts");
+  const observation = readActorRegistryObservation({ snapshot: () => runtime.getActorSnapshot() }, 0);
+  return observation.affinityFields
+    .filter((field) => field.intensity > 0 || field.stacks > 0)
+    .map((field) => `${field.position.x},${field.position.y}:${field.kind}:${field.intensity}:${field.stacks}`)
+    .sort()
+    .join("|");
 }
-
-// ---------------------------------------------------------------------------
-// The field must move with the actor
-// ---------------------------------------------------------------------------
 
 test("the affinity field changes across ticks as its source actor moves", async () => {
-  const simConfig = buildSimConfig();
-  const initialState = buildInitialState([actor("delver_1", { x: 5, y: 5 }, "random")]);
-  const affinityEffects = {
-    actors: [{ actorId: "delver_1", affinityStacks: { "fire:emit": 3 } }],
-  };
-
-  const { core, runtime } = await startRuntime({ simConfig, initialState, affinityEffects });
-  const { width, height } = { width: 11, height: 11 };
+  const { simConfig, initialState } = await artifacts([actor("delver_1", { x: 5, y: 5 }, "exploring")]);
+  const runtime = await startRuntime({ simConfig, initialState });
 
   await runtime.step();
-  const early = fieldFingerprint(core, width, height);
-  const earlyPos = `${core.getMotivatedActorXByIndex(0)},${core.getMotivatedActorYByIndex(0)}`;
+  const early = await fieldFingerprint(runtime);
+  const earlyPos = runtime.getActorSnapshot().actors.find((entry) => entry.id === "delver_1").position;
 
   for (let i = 0; i < 6; i += 1) await runtime.step();
-  const late = fieldFingerprint(core, width, height);
-  const latePos = `${core.getMotivatedActorXByIndex(0)},${core.getMotivatedActorYByIndex(0)}`;
+  const late = await fieldFingerprint(runtime);
+  const latePos = runtime.getActorSnapshot().actors.find((entry) => entry.id === "delver_1").position;
 
-  assert.notEqual(
+  assert.notDeepEqual(
     earlyPos,
     latePos,
     "precondition: the actor must actually have moved, or this test proves nothing",
@@ -137,7 +75,7 @@ test("the affinity field changes across ticks as its source actor moves", async 
     late,
     early,
     "the field must follow the actor. Identical fingerprints across a run in which the actor "
-      + `moved ${earlyPos} -> ${latePos} mean it is still the setup-time snapshot (F7).`,
+      + `moved ${earlyPos.x},${earlyPos.y} -> ${latePos.x},${latePos.y} mean it is still the setup-time snapshot (F7).`,
   );
 });
 

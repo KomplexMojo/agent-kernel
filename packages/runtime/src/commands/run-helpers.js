@@ -1,12 +1,6 @@
-import { VITAL_KEYS } from "../contracts/domain-constants.js";
+import { DEFAULT_VITALS, VITAL_KEYS } from "../contracts/domain-constants.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
-
-const DEFAULT_VITALS = Object.freeze({
-  health: Object.freeze({ current: 10, max: 10, regen: 0 }),
-  mana: Object.freeze({ current: 0, max: 0, regen: 0 }),
-  stamina: Object.freeze({ current: 0, max: 0, regen: 0 }),
-  durability: Object.freeze({ current: 0, max: 0, regen: 0 }),
-});
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 
 export function normalizeArgList(value) {
   if (value === undefined || value === null) {
@@ -40,10 +34,12 @@ function parseCoordinate(value, label) {
   return { x, y };
 }
 
+const UNIFIED_CATEGORIES = new Set(["delver", "warden", "hazard", "resource", "barrier"]);
+
 function parseActorSpec(value) {
   const parts = String(value).split(",");
-  if (parts.length < 3) {
-    throw new Error("--actor expects id,x,y[,kind]");
+  if (parts.length < 4) {
+    throw new Error("--actor expects id,x,y,category");
   }
   const id = parts[0];
   const x = Number(parts[1]);
@@ -54,18 +50,11 @@ function parseActorSpec(value) {
   if (!Number.isFinite(x) || !Number.isFinite(y)) {
     throw new Error("--actor expects numeric x,y");
   }
-  const rawKind = (parts[3] || "ambulatory").toLowerCase();
-  let kind;
-  if (rawKind === "motivated") {
-    kind = "ambulatory";
-  } else if (rawKind === "ambulatory") {
-    kind = "ambulatory";
-  } else if (rawKind === "stationary") {
-    kind = "stationary";
-  } else {
-    throw new Error(`--actor kind must be motivated/ambulatory/stationary, got ${rawKind}`);
+  const category = String(parts[3] || "").trim().toLowerCase();
+  if (!UNIFIED_CATEGORIES.has(category)) {
+    throw new Error(`--actor kind must be delver/warden/hazard/resource/barrier, got ${parts[3] || "missing"}`);
   }
-  return { id, position: { x, y }, kind };
+  return { id, position: { x, y }, category };
 }
 
 function parseVitalSpec(value, withActorId) {
@@ -123,46 +112,52 @@ export function applyTileOverrides(simConfig, { walls = [], barriers = [], floor
   if (!walls.length && !barriers.length && !floors.length) {
     return { simConfig, mutated: false };
   }
+  if (barriers.length) {
+    throw new Error("tile overrides require layout.data.tiles");
+  }
   const layout = simConfig?.layout;
   if (!layout || layout.kind !== "grid") {
     throw new Error("tile overrides require a grid layout");
   }
   const data = layout.data;
-  if (!Array.isArray(data?.tiles)) {
-    throw new Error("tile overrides require layout.data.tiles");
+  const terrain = data?.terrain;
+  const width = data?.width;
+  const height = data?.height;
+  if (!Array.isArray(terrain) || !Number.isInteger(width) || !Number.isInteger(height)
+    || terrain.length !== width * height) {
+    throw new Error("tile overrides require layout.data.terrain");
   }
-  const rows = data.tiles.map((row) => String(row).split(""));
-  const height = rows.length;
-  const width = rows.reduce((max, row) => Math.max(max, row.length), 0);
 
-  function setCell({ x, y }, char) {
-    if (y < 0 || y >= height || x < 0 || x >= rows[y].length) {
+  function setCell({ x, y }, kind) {
+    if (y < 0 || y >= height || x < 0 || x >= width) {
       throw new Error(`tile override out of bounds at ${x},${y}`);
     }
-    rows[y][x] = char;
+    terrain[y * width + x] = kind;
   }
 
-  walls.forEach((spec) => setCell(parseCoordinate(spec, "--tile-wall"), "#"));
-  barriers.forEach((spec) => setCell(parseCoordinate(spec, "--tile-barrier"), "B"));
-  floors.forEach((spec) => setCell(parseCoordinate(spec, "--tile-floor"), "."));
-
-  data.tiles = rows.map((row) => row.join(""));
-  data.width = data.width ?? width;
-  data.height = data.height ?? height;
-  data.legend = data.legend || {};
-  if (!data.legend["#"]) data.legend["#"] = { tile: "wall" };
-  if (!data.legend["."]) data.legend["."] = { tile: "floor" };
-  if (barriers.length && !data.legend.B) data.legend.B = { tile: "barrier" };
-  data.render = data.render || {};
-  if (barriers.length && !data.render.barrier) data.render.barrier = "B";
+  walls.forEach((spec) => setCell(parseCoordinate(spec, "--tile-wall"), "wall"));
+  floors.forEach((spec) => setCell(parseCoordinate(spec, "--tile-floor"), "floor"));
   return { simConfig, mutated: true };
+}
+
+export function barrierSpecsFromTileOverrides(barriers = []) {
+  return barriers.map((spec) => {
+    const { x, y } = parseCoordinate(spec, "--tile-barrier");
+    return `barrier_${x}_${y},${x},${y},barrier`;
+  });
 }
 
 export function applyActorOverrides(initialState, simConfig, { actorSpecs = [], vitalSpecs = [], vitalDefaults } = {}) {
   if (!actorSpecs.length && !vitalSpecs.length && !vitalDefaults) {
     return { initialState, mutated: false };
   }
-  const actors = Array.isArray(initialState.actors) ? initialState.actors.map((actor) => ({ ...actor })) : [];
+  const presentation = initialState.presentation ?? {};
+  const actors = Array.isArray(initialState.actors)
+    ? initialState.actors.map((actor) => {
+      const category = actor.category || presentation[actor.id]?.category;
+      return category ? { ...actor, category } : { ...actor };
+    })
+    : [];
   const byId = new Map();
   actors.forEach((actor, index) => {
     if (actor?.id) byId.set(actor.id, index);
@@ -192,22 +187,50 @@ export function applyActorOverrides(initialState, simConfig, { actorSpecs = [], 
     }
   });
 
-  const defaultVitals = vitalDefaults || cloneVitalRecords();
+  if (actorSpecs.length) {
+    const createdAt = initialState.meta?.createdAt || simConfig.meta?.createdAt || "1970-01-01T00:00:00.000Z";
+    const configurator = createConfiguratorPersona({ clock: () => createdAt });
+    const authored = actors.map((actor) => {
+      const request = configurator.prepareAuthoredActor(actor);
+      configurator.authorCandidates.applyViabilityDerivedVitalRequirements(request);
+      configurator.authorCandidates.applyMotivationDerivedVitalRequirements(request);
+      configurator.authorCandidates.applyAffinityDerivedVitalRequirements(request);
+      return request;
+    });
+    const rebuilt = configurator.buildInitialStateArtifact({
+      meta: initialState.meta,
+      simConfigRef: initialState.simConfigRef || {
+        id: simConfig.meta?.id,
+        schema: simConfig.schema,
+        schemaVersion: simConfig.schemaVersion,
+      },
+      dimensions: bounds,
+      terrain: simConfig.layout?.data?.terrain,
+      actors: authored,
+    });
+    initialState.actors = rebuilt.actors;
+    initialState.presentation = rebuilt.presentation;
+    actors.length = 0;
+    byId.clear();
+    rebuilt.actors.forEach((actor, index) => {
+      const category = rebuilt.presentation?.[actor.id]?.category;
+      actors.push(category ? { ...actor, category } : { ...actor });
+      if (actor?.id) byId.set(actor.id, index);
+    });
+  }
 
-  if (actorSpecs.length || vitalSpecs.length || vitalDefaults) {
+  if (vitalDefaults) {
     actors.forEach((actor) => {
-      const existingVitals = actor.vitals && typeof actor.vitals === "object" ? actor.vitals : {};
-      const vitals = {};
+      actor.vitals = actor.vitals && typeof actor.vitals === "object" ? { ...actor.vitals } : {};
       VITAL_KEYS.forEach((key) => {
-        const record = defaultVitals[key];
-        const existing = existingVitals[key] || {};
-        vitals[key] = {
-          current: Number.isFinite(existing.current) ? existing.current : record.current,
-          max: Number.isFinite(existing.max) ? existing.max : record.max,
-          regen: Number.isFinite(existing.regen) ? existing.regen : record.regen,
+        const record = vitalDefaults[key];
+        if (!record) return;
+        actor.vitals[key] = {
+          current: Number.isFinite(record.current) ? record.current : 0,
+          max: Number.isFinite(record.max) ? record.max : 0,
+          regen: Number.isFinite(record.regen) ? record.regen : 0,
         };
       });
-      actor.vitals = vitals;
     });
   }
 
@@ -217,7 +240,7 @@ export function applyActorOverrides(initialState, simConfig, { actorSpecs = [], 
       throw new Error(`--vital references unknown actor ${vital.actorId || "unknown"}`);
     }
     const actor = actors[byId.get(vital.actorId)];
-    actor.vitals = actor.vitals || cloneVitalRecords(defaultVitals);
+    actor.vitals = actor.vitals && typeof actor.vitals === "object" ? { ...actor.vitals } : {};
     actor.vitals[vital.vital] = { current: vital.current, max: vital.max, regen: vital.regen };
   });
 
@@ -229,7 +252,11 @@ export function applyActorOverrides(initialState, simConfig, { actorSpecs = [], 
     }
     return left < right ? -1 : 1;
   });
-  initialState.actors = actors;
+  initialState.actors = actors.map((actor) => {
+    const next = { ...actor };
+    delete next.category;
+    return next;
+  });
   return { initialState, mutated: true };
 }
 

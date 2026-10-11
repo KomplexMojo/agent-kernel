@@ -171,7 +171,11 @@ async function buildPngDataUri(simConfig, initialState, frames, tick, runDir) {
   const { renderBoardWithResourceBundle, encodeRgbaToPng } = await import(
     "../../runtime/src/render/resource-bundle.js"
   );
-  const tiles = simConfig.layout?.data?.tiles;
+  const { initializeCoreFromArtifacts } = await import(
+    "../../runtime/src/runner/core-setup.mjs"
+  );
+  const snapshot = initializeCoreFromArtifacts({ simConfig, initialState }).registry.snapshot();
+  const tiles = terrainRows(snapshot);
   if (!Array.isArray(tiles) || tiles.length === 0) return null;
 
   // Load the saved resource bundle if one exists — assets with dataUri are used directly;
@@ -197,7 +201,9 @@ async function buildPngDataUri(simConfig, initialState, frames, tick, runDir) {
   const result = await renderBoardWithResourceBundle({
     tiles,
     actors: renderActors,
-    floorAffinityHazards: simConfig.hazards || simConfig.layout?.data?.hazards || [],
+    floorAffinityHazards: snapshot.actors.filter((actor) => !actor.capabilities.canMove
+      && actor.capabilities.canCast
+      && actor.lifecycle === "alive"),
     resourceBundle,
   });
   if (!result.ok) return null;
@@ -206,6 +212,20 @@ async function buildPngDataUri(simConfig, initialState, frames, tick, runDir) {
 }
 
 const ACTOR_GLYPH = "@";
+const TERRAIN_GLYPH = Object.freeze({ wall: "#", floor: ".", spawn: "S", exit: "E" });
+
+function terrainRows(snapshot) {
+  const { width, height } = snapshot.dimensions;
+  const rows = [];
+  for (let y = 0; y < height; y += 1) {
+    let row = "";
+    for (let x = 0; x < width; x += 1) {
+      row += TERRAIN_GLYPH[snapshot.terrain[y * width + x]] || ".";
+    }
+    rows.push(row);
+  }
+  return rows;
+}
 
 /**
  * AM.0b — actor positions as of `tick`, replayed from the run's own record.
@@ -233,7 +253,7 @@ function resolveActorPositionsAtTick(initialState, frames, tick) {
     if (Number.isFinite(frame?.tick) && frame.tick > limit) break;
     for (const action of Array.isArray(frame?.acceptedActions) ? frame.acceptedActions : []) {
       if (action?.kind !== "move") continue;
-      const to = action.params?.to;
+      const to = action.params?.target;
       const id = String(action.actorId || "");
       if (!id || !Number.isFinite(to?.x) || !Number.isFinite(to?.y)) continue;
       positions.set(id, { x: to.x, y: to.y });
@@ -262,21 +282,15 @@ export async function renderAscii(runDir, tick = null) {
       readFile(initialStatePath, "utf8").then(JSON.parse),
     ]);
 
-    const { applySimConfigToCore, applyInitialStateToCore } = await import(
+    const { initializeCoreFromArtifacts } = await import(
       "../../runtime/src/runner/core-setup.mjs"
     );
-    const { createCore, renderBaseTiles } = await import("../../core-ts/src/index.ts");
 
-    const core = createCore();
-    const layoutResult = applySimConfigToCore(core, simConfig);
-    if (!layoutResult.ok) return "";
-
-    const actorResult = applyInitialStateToCore(core, initialState, {
-      spawn: layoutResult.spawn,
-    });
-    if (!actorResult.ok) return "";
-
-    const rows = renderBaseTiles(core).map((row) => row.split(""));
+    const snapshot = initializeCoreFromArtifacts({ simConfig, initialState }).registry.snapshot();
+    const rows = terrainRows(snapshot).map((row) => row.split(""));
+    const mobile = new Set(snapshot.actors
+      .filter((actor) => actor.capabilities.canMove)
+      .map((actor) => actor.id));
 
     const framesPath = join(runDir, "run", "tick-frames.json");
     let frames = null;
@@ -290,7 +304,8 @@ export async function renderAscii(runDir, tick = null) {
     }
 
     const positions = resolveActorPositionsAtTick(initialState, frames, tick);
-    for (const { x, y } of positions.values()) {
+    for (const [id, { x, y }] of positions) {
+      if (!mobile.has(id)) continue;
       if (y >= 0 && y < rows.length && x >= 0 && x < rows[y].length) {
         rows[y][x] = ACTOR_GLYPH;
       }

@@ -1,17 +1,35 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import { test } from "vitest";
-import { compileScenarioToBundle } from "../../packages/ui-web/src/scenario-loader.js";
 // M6 target module — does not exist yet. These tests are the implementation contract.
 import {
   createPhaserSurfaceIngestion,
   classifyIngestionPayload,
 } from "../../packages/ui-web/src/phaser-surface-ingestion.js";
 
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
-const SCENARIO_PATH = resolve(__dirname, "../fixtures/scenarios/delver-warden-battle-v1-basic.json");
+async function buildUnifiedRunBundle() {
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const width = 3;
+  const height = 3;
+  const terrain = boxedTerrain(width, height);
+  terrain[1 * width + 1] = "floor";
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width,
+    height,
+    terrain,
+    actors: [{
+      id: "delver_1",
+      category: "delver",
+      position: { x: 1, y: 1 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
+  return {
+    schema: "agent-kernel/GameplayBundle",
+    artifacts: [simConfig, initialState],
+    tickFrames: [],
+  };
+}
 
 function createFakeSurfaces() {
   const calls = { cardBuilder: [], gameplay: [] };
@@ -73,8 +91,7 @@ test("ingestion routes an existing run bundle to the gameplay surface", async ()
   const { cardBuilder, gameplay, calls } = createFakeSurfaces();
   const ingestion = createPhaserSurfaceIngestion({ cardBuilder, gameplay });
 
-  const scenario = JSON.parse(await readFile(SCENARIO_PATH, "utf8"));
-  const bundle = await compileScenarioToBundle(scenario);
+  const bundle = await buildUnifiedRunBundle();
   const result = await ingestion.ingest(bundle);
 
   assert.equal(result.ok, true);
@@ -87,8 +104,7 @@ test("ingestion accepts the existing gameplay artifacts without schema changes",
   const { cardBuilder, gameplay, calls } = createFakeSurfaces();
   const ingestion = createPhaserSurfaceIngestion({ cardBuilder, gameplay });
 
-  const scenario = JSON.parse(await readFile(SCENARIO_PATH, "utf8"));
-  const bundle = await compileScenarioToBundle(scenario);
+  const bundle = await buildUnifiedRunBundle();
 
   const schemas = bundle.artifacts.map((a) => a.schema);
   assert.ok(schemas.includes("agent-kernel/SimConfigArtifact"));

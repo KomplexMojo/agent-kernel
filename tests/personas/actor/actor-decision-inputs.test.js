@@ -94,8 +94,8 @@ test("CR.6 characterization: two Actors fed the same full payloads agree, step f
 test("CR.6 characterization: a full-payload run produces a stable action stream", async () => {
   const { createRuntime } = await import("../../../packages/runtime/src/runner/runtime.js");
   const { createCore } = await import("../../../packages/core-ts/src/index.ts");
-  const simConfig = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"), "utf8"));
-  const initialState = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-mvp-actor.json"), "utf8"));
+  const { unifiedActorRuntimeArtifacts } = await import('../../fixtures/personas/unified-actor-runtime.mjs');
+  const { simConfig, initialState } = unifiedActorRuntimeArtifacts();
 
   const runOnce = async () => {
     const rt = createRuntime({ core: createCore(), adapters: {} });

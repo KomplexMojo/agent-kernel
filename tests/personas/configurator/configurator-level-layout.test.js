@@ -1,5 +1,17 @@
 const assert = require("node:assert/strict");
 
+// Projection for the existing geometry oracles, never a production artifact reader.
+function rows(layout) {
+  const glyphs = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+  return Array.from({ length: layout.height }, (_, y) => layout.terrain
+    .slice(y * layout.width, (y + 1) * layout.width).map(kind => glyphs[kind]).join(""));
+}
+function point(layout, kind) {
+  const index = layout.terrain.indexOf(kind);
+  assert.ok(index >= 0);
+  return { x: index % layout.width, y: Math.floor(index / layout.width) };
+}
+
 
 test("level layout generator is deterministic for rooms-and-hallways inputs", async () => {const { normalizeLevelGenInput } = await import("../../../packages/runtime/src/personas/configurator/level-gen.js");
 const { generateGridLayout } = await import("../../../packages/runtime/src/personas/configurator/level-layout.js");
@@ -50,13 +62,13 @@ const explicit = generateGridLayoutFromInput({
 
 assert.equal(implicit.ok, true);
 assert.equal(explicit.ok, true);
-assert.deepEqual(implicit.value.tiles, explicit.value.tiles);
+assert.deepEqual(rows(implicit.value), rows(explicit.value));
 assert.deepEqual(implicit.value.rooms, explicit.value.rooms);
 
 let blockedInsideRooms = 0;
 (implicit.value.rooms || []).forEach((room) => {
   for (let y = room.y; y < room.y + room.height; y += 1) {
-    const row = String(implicit.value.tiles[y] || "");
+    const row = String(rows(implicit.value)[y] || "");
     for (let x = room.x; x < room.x + room.width; x += 1) {
       if (row[x] === "#") blockedInsideRooms += 1;
     }
@@ -80,7 +92,7 @@ const result = generateGridLayoutFromInput({
 });
 assert.equal(result.ok, true);
 
-const walkable = result.value.tiles.reduce((sum, row) => {
+const walkable = rows(result.value).reduce((sum, row) => {
   const text = String(row ?? "");
   for (let i = 0; i < text.length; i += 1) {
     if (text[i] !== "#" && text[i] !== "S" && text[i] !== "E") sum += 1;
@@ -105,12 +117,12 @@ const result = generateGridLayoutFromInput({
 assert.equal(result.ok, true);
 const layout = result.value;
 
-const height = layout.tiles.length;
-const width = layout.tiles[0]?.length || 0;
-const isWalkable = (x, y) => x >= 0 && y >= 0 && x < width && y < height && layout.tiles[y][x] !== "#" && layout.tiles[y][x] !== "S" && layout.tiles[y][x] !== "E";
+const height = rows(layout).length;
+const width = rows(layout)[0]?.length || 0;
+const isWalkable = (x, y) => x >= 0 && y >= 0 && x < width && y < height && rows(layout)[y][x] === ".";
 const visited = Array.from({ length: height }, () => Array(width).fill(false));
-const start = layout.spawnApproach || layout.spawn;
-const goal = layout.exitApproach || layout.exit;
+const start = layout.spawnApproach;
+const goal = layout.exitApproach;
 const queue = [{ x: start.x, y: start.y }];
 visited[start.y][start.x] = true;
 let head = 0;
@@ -163,7 +175,7 @@ const countWalkable = (tiles) => tiles.reduce((sum, row) => {
   return sum;
 }, 0);
 
-assert.ok(countWalkable(wide.value.tiles) >= countWalkable(narrow.value.tiles));
+assert.ok(countWalkable(rows(wide.value)) >= countWalkable(rows(narrow.value)));
 });
 
 test("high-scale walkable room layouts complete in practical time", async () => {const { normalizeLevelGenInput } = await import("../../../packages/runtime/src/personas/configurator/level-gen.js");
@@ -186,7 +198,7 @@ const layoutResult = generateGridLayoutFromInput(normalized.value);
 const elapsedMs = performance.now() - startedAt;
 assert.equal(layoutResult.ok, true);
 
-const walkable = layoutResult.value.tiles.reduce((sum, row) => {
+const walkable = rows(layoutResult.value).reduce((sum, row) => {
   const text = String(row || "");
   for (let i = 0; i < text.length; i += 1) {
     if (text[i] !== "#" && text[i] !== "S" && text[i] !== "E") sum += 1;
@@ -200,8 +212,8 @@ assert.ok(elapsedMs < 10000, `expected large room layout under 10s, got ${elapse
 test("grid overlay carves internal room barriers while preserving movement gaps", async () => {const { generateGridLayoutFromInput } = await import("../../../packages/runtime/src/personas/configurator/level-layout.js");
 
 function buildRoomIndex(layout) {
-  const height = layout.tiles.length;
-  const width = layout.tiles[0]?.length || 0;
+  const height = rows(layout).length;
+  const width = rows(layout)[0]?.length || 0;
   const index = Array.from({ length: height }, () => Array(width).fill(-1));
   (layout.rooms || []).forEach((room, roomId) => {
     for (let y = room.y; y < room.y + room.height; y += 1) {
@@ -222,7 +234,7 @@ function countInternalBlocked(layout) {
     let roomBlocked = 0;
     let roomWalkable = 0;
     for (let y = room.y; y < room.y + room.height; y += 1) {
-      const row = String(layout.tiles[y] || "");
+      const row = String(rows(layout)[y] || "");
       for (let x = room.x; x < room.x + room.width; x += 1) {
         if (roomIndex[y]?.[x] !== roomId) continue;
         const char = row[x];
@@ -243,18 +255,18 @@ function countInternalBlocked(layout) {
 
 function hasGapAroundInternalBarrier(layout) {
   const roomIndex = buildRoomIndex(layout);
-  const height = layout.tiles.length;
-  const width = layout.tiles[0]?.length || 0;
+  const height = rows(layout).length;
+  const width = rows(layout)[0]?.length || 0;
   for (let y = 1; y < height - 1; y += 1) {
-    const row = String(layout.tiles[y] || "");
+    const row = String(rows(layout)[y] || "");
     for (let x = 1; x < width - 1; x += 1) {
       if (roomIndex[y]?.[x] < 0) continue;
       if (row[x] !== "#") continue;
       const neighbors = [
-        layout.tiles[y - 1][x],
-        layout.tiles[y + 1][x],
-        layout.tiles[y][x - 1],
-        layout.tiles[y][x + 1],
+        rows(layout)[y - 1][x],
+        rows(layout)[y + 1][x],
+        rows(layout)[y][x - 1],
+        rows(layout)[y][x + 1],
       ];
       const walkableNeighbors = neighbors.filter((cell) => cell !== "#").length;
       if (walkableNeighbors >= 2) {
@@ -296,8 +308,8 @@ assert.equal(gridResult.value.connectivity.exitReachable, true);
 test("diagonal and concentric hallway overlays carve patterned internal barriers", async () => {const { generateGridLayoutFromInput } = await import("../../../packages/runtime/src/personas/configurator/level-layout.js");
 
 function buildRoomIndex(layout) {
-  const height = layout.tiles.length;
-  const width = layout.tiles[0]?.length || 0;
+  const height = rows(layout).length;
+  const width = rows(layout)[0]?.length || 0;
   const index = Array.from({ length: height }, () => Array(width).fill(-1));
   (layout.rooms || []).forEach((room, roomId) => {
     for (let y = room.y; y < room.y + room.height; y += 1) {
@@ -315,7 +327,7 @@ function countInternalBlocked(layout) {
   let blocked = 0;
   (layout.rooms || []).forEach((room, roomId) => {
     for (let y = room.y; y < room.y + room.height; y += 1) {
-      const row = String(layout.tiles[y] || "");
+      const row = String(rows(layout)[y] || "");
       for (let x = room.x; x < room.x + room.width; x += 1) {
         if (roomIndex[y]?.[x] !== roomId) continue;
         if (row[x] === "#") blocked += 1;
@@ -326,7 +338,7 @@ function countInternalBlocked(layout) {
 }
 
 function countWalkable(layout) {
-  return layout.tiles.reduce((sum, row) => {
+  return rows(layout).reduce((sum, row) => {
     const text = String(row || "");
     for (let i = 0; i < text.length; i += 1) {
       if (text[i] !== "#" && text[i] !== "S" && text[i] !== "E") sum += 1;
@@ -372,8 +384,8 @@ assert.equal(concentric.value.connectivity.exitReachable, true);
 test("higher hallway infill produces denser in-room overlay carving", async () => {const { generateGridLayoutFromInput } = await import("../../../packages/runtime/src/personas/configurator/level-layout.js");
 
 function buildRoomIndex(layout) {
-  const height = layout.tiles.length;
-  const width = layout.tiles[0]?.length || 0;
+  const height = rows(layout).length;
+  const width = rows(layout)[0]?.length || 0;
   const index = Array.from({ length: height }, () => Array(width).fill(-1));
   (layout.rooms || []).forEach((room, roomId) => {
     for (let y = room.y; y < room.y + room.height; y += 1) {
@@ -389,8 +401,8 @@ function buildRoomIndex(layout) {
 function countInternalBlocked(layout) {
   const roomIndex = buildRoomIndex(layout);
   let blocked = 0;
-  for (let y = 0; y < layout.tiles.length; y += 1) {
-    const row = String(layout.tiles[y] || "");
+  for (let y = 0; y < rows(layout).length; y += 1) {
+    const row = String(rows(layout)[y] || "");
     for (let x = 0; x < row.length; x += 1) {
       if (roomIndex[y]?.[x] < 0) continue;
       if (row[x] === "#") blocked += 1;
@@ -452,9 +464,9 @@ function roomPerimeterCells(room) {
 function assertPerimeterPreserved(baseLayout, patternedLayout) {
   (baseLayout.rooms || []).forEach((room) => {
     roomPerimeterCells(room).forEach(({ x, y }) => {
-      const baseChar = String(baseLayout.tiles[y] || "")[x];
+      const baseChar = String(rows(baseLayout)[y] || "")[x];
       if (baseChar === "#") return;
-      const patternedChar = String(patternedLayout.tiles[y] || "")[x];
+      const patternedChar = String(rows(patternedLayout)[y] || "")[x];
       assert.notEqual(patternedChar, "#", `perimeter blocked at ${x},${y}`);
     });
   });

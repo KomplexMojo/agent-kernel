@@ -777,3 +777,33 @@ export function resolveAffinityManaCost({ rules, kind, expression, stacks = 1 } 
 // — plus `manaCost` as authored tuning data. Applying an interaction at tick
 // time is Moderator authority (charter §29/§81) and runs through core's matrix;
 // pricing in tokens is Allocator authority and runs through its price list.
+
+/** Assemble authored vital costs for core; token pricing remains Allocator-owned. */
+export function resolveActorTurnCosts({ rules, movementStamina } = {}) {
+  if (!movementStamina || typeof movementStamina !== 'object' || Array.isArray(movementStamina)
+    || ![Object.prototype, null].includes(Object.getPrototypeOf(movementStamina))) {
+    throw new Error(`invalid movement stamina costs: expected ID-keyed plain object, received ${Object.prototype.toString.call(movementStamina)}`);
+  }
+  const invalidMovement = Object.entries(movementStamina).find(([id, cost]) => !id.trim()
+    || !Number.isSafeInteger(cost) || cost < 0);
+  if (invalidMovement) {
+    throw new Error(`invalid movement stamina cost for actor ${JSON.stringify(invalidMovement[0])}: ${String(invalidMovement[1])}; expected a nonnegative safe integer`);
+  }
+  const normalized = rules === undefined
+    ? { ok: true, value: DEFAULT_AFFINITY_RULES }
+    : normalizeAffinityRulesArtifact(rules);
+  if (!normalized.ok) throw new Error(`invalid authored affinity rules: ${JSON.stringify(normalized.errors)}`);
+  const entries = [];
+  for (const kind of AFFINITY_KINDS) {
+    for (const expression of AFFINITY_EXPRESSIONS) {
+      const rule = normalized.value.affinities.find(entry => entry.kind === kind)
+        ?.expressions.find(entry => entry.verb === expression);
+      const prices = ALLOWED_TIERS.map(tier => rule?.stackTiers.find(entry => entry.tier === tier)?.manaCost);
+      if (prices.some(price => !Number.isSafeInteger(price) || price < 0)) {
+        throw new Error(`missing authored mana costs: ${kind}:${expression}`);
+      }
+      entries.push([`${kind}:${expression}`, prices]);
+    }
+  }
+  return { castMana: Object.fromEntries(entries), movementStamina: structuredClone(movementStamina) };
+}

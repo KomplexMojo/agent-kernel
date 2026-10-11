@@ -304,3 +304,10 @@ export function getAffinityVitalEffect(
   const base = getAffinityVitalEffectBase(kind, expression, vital);
   return scaleAffinityVitalEffect(base, stacks);
 }
+
+/** Unsigned balance baseline; outcome routing is independent of legacy polarity. */
+export function getAffinityExpressionBaseMagnitude(expression: number): number {
+  if (!isValidAffinityExpression(expression)) return 0;
+  return expression === AffinityExpression.Push || expression === AffinityExpression.Pull
+    ? BASE_MAGNITUDE_PUSH_PULL : BASE_MAGNITUDE_EMIT_DRAW;
+}

@@ -1,3 +1,4 @@
+import { normalizeActorDefinition, normalizeActorRoster, assembleMovementStamina, prepareAuthoredActor, leftoverCategory } from './unified-actors.js';
 /**
  * Configurator service surface — the synchronous API behind the controller.
  *
@@ -77,7 +78,7 @@ import { authorDelverCandidate } from "./actor-authoring.js";
 import { generateGridLayoutFromInput } from "./level-layout.js";
 import { buildSimConfigArtifact, buildInitialStateArtifact } from "./artifact-builders.js";
 import { resolveAffinityEffects } from "./affinity-effects.js";
-import { normalizeAffinityRulesArtifact, resolveAffinityRules, resolveAffinityManaCost } from "./affinity-rules.js";
+import { normalizeAffinityRulesArtifact, resolveAffinityRules, resolveAffinityManaCost, resolveActorTurnCosts } from "./affinity-rules.js";
 import { buildAmbientAffinityPressure } from "./affinity-pressure.js";
 import { computeInternalManaUpkeep } from "./cost-model.js";
 import { composeMixedRooms } from "./mixed-room-composition.js";
@@ -418,6 +419,11 @@ export function attachConfiguratorServices({ fsm } = {}) {
      * owning a second copy of the exclusive-group rules.
      */
     normalizeMotivations,
+    normalizeActorDefinition,
+    normalizeActorRoster,
+    prepareAuthoredActor,
+    leftoverCategory,
+    assembleMovementStamina,
     // CR.7 / WP-5 — the build-plane helpers; see the import block for why they are ungated.
     generateGridLayoutFromInput,
     buildSimConfigArtifact,
@@ -428,6 +434,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
     // AM.5 — the authored per-cast mana cost. Published because the tick plane needs it:
     // core-ts charges 0 mana for push and pull, so the kernel cannot answer this.
     resolveAffinityManaCost,
+    resolveActorTurnCosts,
     buildAmbientAffinityPressure,
     computeInternalManaUpkeep,
     composeMixedRooms,

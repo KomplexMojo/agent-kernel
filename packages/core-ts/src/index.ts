@@ -12,7 +12,6 @@ import {
 } from "./state/affinity.ts";
 import { createEffectsPort, EffectKind } from "./ports/effects.ts";
 import { createAffinityDamageRules } from "./rules/affinity-damage.ts";
-import { createCombatRules } from "./rules/combat.ts";
 import { createMoveRules } from "./rules/move.ts";
 import {
   computeAffinityIntensity,
@@ -92,7 +91,6 @@ export const CORE_API_KEYS = [
   "applyAffinityDamage",
   "applyAffinityDamageToHazard",
   "applyAffinityPullFromHazard",
-  "applyAttack",
   "armStaticHazardAt",
   "clearActorPlacements",
   "clearAffinityField",
@@ -327,7 +325,6 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   });
   const motivation = createMotivationState();
   const move = createMoveRules(world);
-  const combat = createCombatRules(world);
   const affinityDamage = createAffinityDamageRules(world);
 
   function emitBudgetEffects(category: number, spent: number): void {
@@ -707,7 +704,6 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   }) as CoreFunction;
   core.step = (() => { applyAction(ActionKind.IncrementCounter, 1); }) as CoreFunction;
   core.applyAction = applyAction as CoreFunction;
-  core.applyAttack = combat.applyAttack as CoreFunction;
   core.applyAffinityDamage = affinityDamage.applyAffinityDamage as CoreFunction;
   core.applyAffinityDamageToHazard = affinityDamage.applyAffinityDamageToHazard as CoreFunction;
   core.applyAffinityPullFromHazard = affinityDamage.applyAffinityPullFromHazard as CoreFunction;

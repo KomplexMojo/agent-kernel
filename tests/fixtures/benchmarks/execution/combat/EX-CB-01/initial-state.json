@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "delver_attacker",
-      "kind": "ambulatory",
       "position": {
         "x": 3,
         "y": 3
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -42,27 +44,31 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "role": "delver",
-      "motivation": {
-        "kind": "attacking"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "attacking",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "attacking"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_defender",
-      "kind": "ambulatory",
       "position": {
         "x": 4,
         "y": 3
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 8,
@@ -85,19 +91,29 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "role": "warden",
-      "motivation": {
-        "kind": "defending"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "defending",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "defending"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "delver_attacker": {
+      "category": "delver"
+    },
+    "warden_defender": {
+      "category": "warden"
+    }
+  }
 }

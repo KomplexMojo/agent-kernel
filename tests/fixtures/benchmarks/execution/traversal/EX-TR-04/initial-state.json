@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "warden_stationary",
-      "kind": "stationary",
       "position": {
         "x": 3,
         "y": 3
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -42,18 +44,26 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "motivation": {
-        "kind": "stationary"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "stationary",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "stationary"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "warden_stationary": {
+      "category": "warden"
+    }
+  }
 }

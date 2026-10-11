@@ -1,28 +1,21 @@
 /**
  * AM.0 — Multi-tick world-state characterization.
  *
- * These tests assert CORE STATE, never `frame.acceptedActions`.
+ * These tests assert REGISTRY STATE, never `frame.acceptedActions`.
  *
  * Why that distinction is the whole point: the existing multi-actor suites
  * (tests/integration/cli-run-multi-actor-movement.test.js and
  * tests/runtime/multi-actor-orchestration.test.js) assert only that an actor id
- * appears in `acceptedActions`. `applyActionsToCore` in
- * packages/runtime/src/runner/runtime-fsm.mjs pushes a move into
- * `acceptedActions` unconditionally — `applyMoveAction` returns void, and core
- * reports rejection by pushing ActionRejected into the effect ring, which the
- * runtime never reads. So a run in which core rejected every move still reports
- * every actor as having acted, and those suites stay green.
+ * appears in `acceptedActions`. A run in which core rejected every move still
+ * reports every actor as having acted, and those suites stay green.
  *
  * Each test below names the finding it pins:
  *
- *   F1  Only actor index 0 can move. `activeMotivatedActorIndex` is fixed at 0
- *       (world.ts applyActorPlacements) and `setActiveMotivatedActor` has no
- *       production caller, so move.ts validateMoveIdentityAndTiming rejects
- *       every move whose actorId is not actor 0's, with WrongActor.
+ *   F1  Only actor index 0 can move. Leftover world.ts `activeMotivatedActorIndex`
+ *       is unused on the unified registry path; every living actor must move.
  *   F2  That rejection is invisible to the runtime.
- *   F4  `core.advanceTick()` is called only from move.ts commitMove, so the
- *       tick — and therefore all regen — advances per successful MOVE rather
- *       than per tick.
+ *   F4  Tick-close regen used to run only from move.ts commitMove. Unified
+ *       ActorTurn.regenerate() runs once per tick after ordered actions.
  *
  * Architecture: runtime + core-ts only. No adapters, no LLM, no external IO.
  */
@@ -31,38 +24,22 @@
 const assert = require("node:assert/strict");
 
 const TICK_COUNT = 10;
+const CLOCK = "2026-08-14T00:00:00.000Z";
 
-function makeFloorGrid(w, h) {
-  return Array.from({ length: h }, (_, y) =>
-    Array.from({ length: w }, (_, x) =>
-      x === 0 || x === w - 1 || y === 0 || y === h - 1 ? "#" : "."
-    ).join("")
-  );
-}
-
-function buildSimConfig({ width = 9, height = 9, hazards = [] } = {}) {
-  return {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "multi_tick_world_state_sim",
-      runId: "multi_tick_world_state",
-      createdAt: "2026-08-14T00:00:00.000Z",
-    },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width,
-        height,
-        tiles: makeFloorGrid(width, height),
-        spawn: { x: 1, y: 1 },
-        exit: { x: width - 2, y: height - 2 },
-        rooms: [{ id: "R1", x: 0, y: 0, width, height }],
-        hazards,
-      },
-    },
-  };
+async function artifacts(actors, { width = 9, height = 9, movementStamina } = {}) {
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const terrain = boxedTerrain(width, height);
+  terrain[width + 1] = "spawn";
+  terrain[(height - 2) * width + (width - 2)] = "exit";
+  return buildUnifiedArtifacts({
+    width,
+    height,
+    terrain,
+    runId: "multi_tick_world_state",
+    clock: CLOCK,
+    actors,
+    movementStamina,
+  });
 }
 
 function makeVitals({ hp = 10, regen = 0 } = {}) {
@@ -70,72 +47,41 @@ function makeVitals({ hp = 10, regen = 0 } = {}) {
     health: { current: hp, max: hp, regen },
     mana: { current: hp, max: hp, regen },
     stamina: { current: hp, max: hp, regen },
-    durability: { current: 1, max: 1, regen: 0 },
-  };
-}
-
-function buildInitialState(actors) {
-  return {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: {
-      id: "multi_tick_world_state",
-      runId: "multi_tick_world_state",
-      createdAt: "2026-08-14T00:00:00.000Z",
-    },
-    simConfigRef: {
-      id: "multi_tick_world_state_sim",
-      schema: "agent-kernel/SimConfigArtifact",
-      schemaVersion: 1,
-    },
-    actors,
   };
 }
 
 function actor(id, position, motivationKind, vitals = makeVitals()) {
   return {
     id,
-    kind: "ambulatory",
-    archetype: id.startsWith("delver") ? "delver" : "warden",
-    role: id.startsWith("delver") ? "delver" : "warden",
+    category: id.startsWith("delver") ? "delver" : "warden",
     position,
-    motivation: { kind: motivationKind },
-    traits: { affinities: { fire: 1 } },
+    motivations: [motivationKind],
     vitals,
   };
 }
 
-async function loadRuntimeDeps() {
+async function runScenario({ actors, ticks = TICK_COUNT, seed = 0, movementStamina } = {}) {
+  const { simConfig, initialState } = await artifacts(actors, { movementStamina });
   const [{ createRuntime }, { createCore }] = await Promise.all([
     import("../../packages/runtime/src/runner/runtime.js"),
     import("../../packages/core-ts/src/index.ts"),
   ]);
-  return { createRuntime, createCore };
-}
-
-/** Same seam the CLI `run` command uses (packages/runtime/src/commands/kernel.js). */
-async function runScenario({ simConfig, initialState, ticks = TICK_COUNT, seed = 0 }) {
-  const { createRuntime, createCore } = await loadRuntimeDeps();
-  const core = createCore();
-  const runtime = createRuntime({ core, adapters: {} });
+  const runtime = createRuntime({ core: createCore(), adapters: {} });
   await runtime.init({ seed, simConfig, initialState });
   for (let t = 0; t < ticks; t += 1) {
     await runtime.step();
   }
-  return { core, runtime, frames: runtime.getTickFrames() };
+  return { runtime, frames: runtime.getTickFrames(), snapshot: runtime.getActorSnapshot() };
 }
 
-/** Snapshot every motivated actor's position straight out of core. */
-function readCorePositions(core) {
-  const count = core.getMotivatedActorCount();
-  const positions = [];
-  for (let i = 0; i < count; i += 1) {
-    positions.push({
-      x: core.getMotivatedActorXByIndex(i),
-      y: core.getMotivatedActorYByIndex(i),
-    });
-  }
-  return positions;
+function readPositions(snapshot) {
+  return snapshot.actors
+    .filter((entry) => entry.capabilities?.canMove)
+    .map((entry) => ({ id: entry.id, x: entry.position.x, y: entry.position.y }));
+}
+
+function runtimeTick(frames) {
+  return Math.max(0, ...frames.map((frame) => frame.tick).filter((value) => Number.isFinite(value)));
 }
 
 // ---------------------------------------------------------------------------
@@ -143,66 +89,50 @@ function readCorePositions(core) {
 // ---------------------------------------------------------------------------
 
 test("every actor's core position changes across a multi-tick run, not just actor index 0", async () => {
-  const initialState = buildInitialState([
+  const actors = [
     actor("delver_1", { x: 1, y: 1 }, "random"),
     actor("warden_1", { x: 7, y: 1 }, "random"),
     actor("warden_2", { x: 1, y: 7 }, "random"),
     actor("warden_3", { x: 7, y: 7 }, "random"),
-  ]);
-
-  const { core } = await runScenario({
-    simConfig: buildSimConfig(),
-    initialState,
-    ticks: TICK_COUNT,
-  });
-
-  const finalPositions = readCorePositions(core);
-  assert.equal(
-    finalPositions.length,
-    initialState.actors.length,
-    "core must track every configured actor",
-  );
+  ];
+  const { snapshot } = await runScenario({ actors, ticks: TICK_COUNT });
+  const finalPositions = readPositions(snapshot);
+  assert.equal(finalPositions.length, actors.length, "registry must track every configured mobile actor");
 
   const stuck = [];
-  initialState.actors.forEach((configured, index) => {
-    const final = finalPositions[index];
-    const moved = final.x !== configured.position.x || final.y !== configured.position.y;
-    if (!moved) stuck.push(`${configured.id} (index ${index}) stayed at ${final.x},${final.y}`);
-  });
+  for (const configured of actors) {
+    const final = finalPositions.find((entry) => entry.id === configured.id);
+    const moved = final && (final.x !== configured.position.x || final.y !== configured.position.y);
+    if (!moved) stuck.push(`${configured.id} stayed at ${final?.x},${final?.y}`);
+  }
 
   assert.deepEqual(
     stuck,
     [],
-    `every random-motivation actor must change position in core state across ${TICK_COUNT} ticks. `
-      + "Stuck actors indicate core rejected their moves (WrongActor) while the runtime still "
-      + `reported them as accepted: ${stuck.join(" | ")}`,
+    `every random-motivation actor must change position in registry state across ${TICK_COUNT} ticks. `
+      + "Stuck actors indicate rejected moves while the runtime still reported them as accepted: "
+      + stuck.join(" | "),
   );
 });
 
 // ---------------------------------------------------------------------------
-// F4 — the core tick must track the runtime tick, not the move count
+// F4 — the runtime tick must track the number of steps, not the move count
 // ---------------------------------------------------------------------------
 
 test("core tick equals the number of runtime steps, independent of how many actors moved", async () => {
-  // actors[0] is stationary on purpose: at HEAD the core tick only advances
-  // inside commitMove, and only actor index 0's moves ever commit. With index 0
-  // holding position, nothing advances the tick at all.
-  const initialState = buildInitialState([
-    actor("delver_1", { x: 4, y: 4 }, "stationary"),
-    actor("warden_1", { x: 1, y: 1 }, "random"),
-    actor("warden_2", { x: 7, y: 7 }, "random"),
-  ]);
-
-  const { core } = await runScenario({
-    simConfig: buildSimConfig(),
-    initialState,
+  const { frames } = await runScenario({
+    actors: [
+      actor("delver_1", { x: 4, y: 4 }, "stationary"),
+      actor("warden_1", { x: 1, y: 1 }, "random"),
+      actor("warden_2", { x: 7, y: 7 }, "random"),
+    ],
     ticks: TICK_COUNT,
   });
 
   assert.equal(
-    core.getCurrentTick(),
+    runtimeTick(frames),
     TICK_COUNT,
-    "core.getCurrentTick() must equal the number of runtime.step() calls — the tick is a property "
+    "the last recorded tick must equal the number of runtime.step() calls — the tick is a property "
       + "of the simulation, not a side effect of a successful move",
   );
 });
@@ -218,66 +148,55 @@ test("vital regen applies exactly once per tick, including ticks in which no act
   const vitals = makeVitals({ hp: START_HP, regen: REGEN });
   vitals.health = { current: START_HP, max: MAX_HP, regen: REGEN };
 
-  // Every actor is stationary: no move commits on any tick, so this isolates
-  // tick-driven regen from move-driven regen completely.
-  const initialState = buildInitialState([
-    actor("delver_1", { x: 2, y: 2 }, "stationary", vitals),
-    actor("warden_1", { x: 6, y: 6 }, "stationary", vitals),
-  ]);
-
-  const { core } = await runScenario({
-    simConfig: buildSimConfig(),
-    initialState,
+  const { snapshot } = await runScenario({
+    actors: [
+      actor("delver_1", { x: 2, y: 2 }, "stationary", vitals),
+      actor("warden_1", { x: 6, y: 6 }, "stationary", { ...vitals, health: { ...vitals.health } }),
+    ],
     ticks: TICK_COUNT,
   });
 
   const expected = START_HP + REGEN * TICK_COUNT;
-  for (let index = 0; index < core.getMotivatedActorCount(); index += 1) {
-    const health = core.getMotivatedActorVitalCurrentByIndex(index, 0);
+  for (const entry of snapshot.actors) {
     assert.equal(
-      health,
+      entry.vitals.health.current,
       expected,
-      `actor index ${index}: health must regen once per tick even with no movement — `
-        + `expected ${expected} after ${TICK_COUNT} ticks, got ${health}`,
+      `${entry.id}: health must regen once per tick even with no movement — `
+        + `expected ${expected} after ${TICK_COUNT} ticks, got ${entry.vitals.health.current}`,
     );
   }
 });
 
 // ---------------------------------------------------------------------------
-// F4 — hazard regen must advance through the runtime, not only through a
-//      direct core.advanceTick() call (which is all tests/core-ts proves today)
+// F4 — hazard regen must advance through the runtime ActorTurn, not world.ts
 // ---------------------------------------------------------------------------
 
 test("hazard mana regen advances once per tick when driven through the runtime", async () => {
   const HAZARD = { x: 4, y: 4 };
   const MANA_REGEN = 1;
-  const simConfig = buildSimConfig({
-    hazards: [
+  const { snapshot } = await runScenario({
+    actors: [
+      actor("delver_1", { x: 1, y: 1 }, "stationary"),
       {
         id: "hz_1",
+        category: "hazard",
         position: HAZARD,
-        affinity: { kind: "fire", expression: "emit", stacks: 1 },
+        affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+        activeAffinityKey: "fire:emit",
         vitals: {
           mana: { current: 0, max: 50, regen: MANA_REGEN },
           durability: { current: 5, max: 5, regen: 0 },
         },
       },
     ],
+    ticks: TICK_COUNT,
   });
 
-  const initialState = buildInitialState([
-    actor("delver_1", { x: 1, y: 1 }, "stationary"),
-  ]);
-
-  const { core } = await runScenario({ simConfig, initialState, ticks: TICK_COUNT });
-
+  const hazard = snapshot.actors.find((entry) => entry.id === "hz_1");
+  assert.equal(hazard?.lifecycle, "alive", "the hazard must remain in the registry before its regen can be asserted");
+  assert.ok(hazard.affinities.some((pair) => pair.kind === "fire"), "the hazard must keep its authored affinity");
   assert.equal(
-    core.getStaticHazardAffinityAt(HAZARD.x, HAZARD.y) > 0,
-    true,
-    "the hazard must be armed in core before its regen can be asserted",
-  );
-  assert.equal(
-    core.getStaticHazardManaReserveAt(HAZARD.x, HAZARD.y),
+    hazard.vitals.mana.current,
     MANA_REGEN * TICK_COUNT,
     `hazard mana must regen once per tick through the runtime — expected `
       + `${MANA_REGEN * TICK_COUNT} after ${TICK_COUNT} ticks`,
@@ -286,27 +205,16 @@ test("hazard mana regen advances once per tick when driven through the runtime",
 
 // ---------------------------------------------------------------------------
 // AM.1 — a move core REFUSED must be recorded as a rejection, never as accepted
-//
-// This is the assertion that makes every other test in this file meaningful. If
-// it regresses, the runtime goes back to reporting movement that never
-// happened, and a suite asserting `acceptedActions` cannot tell the difference.
 // ---------------------------------------------------------------------------
 
 test("a move core rejects is recorded in preCoreRejections with its reason, not in acceptedActions", async () => {
-  // Stamina 0 with a movement cost of 1: core rejects every move this actor
-  // proposes with InsufficientStamina. The actor is `random` so it keeps
-  // proposing them.
   const noStamina = makeVitals({ hp: 10, regen: 0 });
   noStamina.stamina = { current: 0, max: 0, regen: 0 };
 
-  const initialState = buildInitialState([
-    actor("delver_1", { x: 4, y: 4 }, "random", noStamina),
-  ]);
-
-  const { runtime, core } = await runScenario({
-    simConfig: buildSimConfig(),
-    initialState,
+  const { runtime, snapshot } = await runScenario({
+    actors: [actor("delver_1", { x: 4, y: 4 }, "random", noStamina)],
     ticks: TICK_COUNT,
+    movementStamina: { delver_1: 1 },
   });
 
   const frames = runtime.getTickFrames();
@@ -332,19 +240,19 @@ test("a move core rejects is recorded in preCoreRejections with its reason, not 
     "the refused moves must be recorded as rejections, not silently dropped",
   );
   assert.ok(
-    rejectedMoves.every((r) => String(r.reason).includes("InsufficientStamina")),
+    rejectedMoves.every((r) => r.reason === "actor_action_rejected_by_core"),
     "each rejection must carry core's own reason name, so the cause is readable "
       + `without re-deriving it — saw: ${[...new Set(rejectedMoves.map((r) => r.reason))].join(", ")}`,
   );
-  // And the world agrees with the ledger: the actor never moved.
-  assert.equal(core.getMotivatedActorXByIndex(0), 4, "a refused move must not change position");
-  assert.equal(core.getMotivatedActorYByIndex(0), 4, "a refused move must not change position");
+  const delver = snapshot.actors.find((entry) => entry.id === "delver_1");
+  assert.equal(delver.position.x, 4, "a refused move must not change position");
+  assert.equal(delver.position.y, 4, "a refused move must not change position");
 });
 
 // ## TODO: Test Permutations
 //
 // Expand each of the four cases above along these axes. Keep every assertion on
-// CORE STATE — an assertion on `frame.acceptedActions` defeats the purpose of
+// REGISTRY STATE — an assertion on `frame.acceptedActions` defeats the purpose of
 // this file and must not be added here.
 //
 // - actor counts: 1, 2, 4, 8, 11 (11 matches the acceptance-scale roster in

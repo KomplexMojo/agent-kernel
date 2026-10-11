@@ -61,7 +61,7 @@ async function walk(pattern, steps) {
     const self = {
       id: "warden_1",
       kind: 2,
-      role: "warden",
+      alignment: "dungeon",
       position: at,
       motivation: { kind: "patrolling", pattern },
       motivations: [{ kind: "patrolling", pattern }],
@@ -75,7 +75,7 @@ async function walk(pattern, steps) {
       initialState: {
         actors: [{
           id: self.id,
-          role: "warden",
+          alignment: "dungeon",
           kind: "motivated",
           motivation: { kind: "patrolling", pattern },
           motivations: [{ kind: "patrolling", pattern }],
@@ -87,7 +87,7 @@ async function walk(pattern, steps) {
     const result = persona.advance({ phase: TickPhases.DECIDE, event: "propose", payload, tick });
     const move = (result.actions || []).find((a) => a.kind === "move");
     if (!move) break;
-    at = { x: move.params.to.x, y: move.params.to.y };
+    at = { x: move.params.target.x, y: move.params.target.y };
     path.push({ ...at });
   }
   return path;

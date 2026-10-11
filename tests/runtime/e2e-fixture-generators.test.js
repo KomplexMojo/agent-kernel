@@ -1,6 +1,12 @@
 const assert = require("node:assert/strict");
 const { generateTierActors, generateTierLayout, resolveTierSpec } = require("../helpers/tier-generators");
 
+function terrainMarker(layout, kind) {
+  const index = Array.isArray(layout.terrain) ? layout.terrain.indexOf(kind) : -1;
+  assert.ok(index >= 0, `generated terrain must include a ${kind} cell`);
+  return { x: index % layout.width, y: Math.floor(index / layout.width) };
+}
+
 test("tier generators produce deterministic actors and layouts", async () => {
   const tier = 6;
   const spec = resolveTierSpec(tier);
@@ -50,10 +56,20 @@ test("tier generators produce deterministic actors and layouts", async () => {
   const layout = layoutResult.value;
   assert.equal(layout.width, 40);
   assert.equal(layout.height, 40);
-  assert.equal(layout.tiles.length, 40);
-  assert.equal(layout.tiles[0].length, 40);
-  assert.ok(layout.spawn.x >= 0 && layout.spawn.x < 40);
-  assert.ok(layout.spawn.y >= 0 && layout.spawn.y < 40);
-  assert.ok(layout.exit.x >= 0 && layout.exit.x < 40);
-  assert.ok(layout.exit.y >= 0 && layout.exit.y < 40);
+  assert.equal(Array.isArray(layout.terrain), true);
+  assert.equal(layout.terrain.length, 40 * 40);
+  for (const obsolete of ["tiles", "kinds", "legend", "spawn", "exit"]) {
+    assert.equal(Object.hasOwn(layout, obsolete), false, `leftover ${obsolete} must stay off generated layouts`);
+  }
+  const spawn = terrainMarker(layout, "spawn");
+  const exitCell = terrainMarker(layout, "exit");
+  assert.ok(spawn.x >= 0 && spawn.x < 40);
+  assert.ok(spawn.y >= 0 && spawn.y < 40);
+  assert.ok(exitCell.x >= 0 && exitCell.x < 40);
+  assert.ok(exitCell.y >= 0 && exitCell.y < 40);
+  assert.ok(Number.isInteger(layout.spawnApproach?.x) && Number.isInteger(layout.spawnApproach?.y));
+  assert.ok(Number.isInteger(layout.exitApproach?.x) && Number.isInteger(layout.exitApproach?.y));
 });
+// ## TODO: Test Permutations
+// - generateTierLayout of a wall-only seed still rejects instead of restoring leftover tiles
+// - generateTierActors still refuses overlapping IDs after leftover kind/role stripping

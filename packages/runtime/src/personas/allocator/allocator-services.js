@@ -179,7 +179,8 @@ export function attachAllocatorServices({
       source: RUNTIME_BUDGET_PRICE_SOURCE,
       default: BASE_COSTS.actionBudget.action_default,
       wait: BASE_COSTS.actionBudget.action_wait,
-      attack: BASE_COSTS.actionBudget.action_attack,
+      equipAffinity: BASE_COSTS.actionBudget.action_default,
+      take: BASE_COSTS.actionBudget.action_default,
       castAffinity: BASE_COSTS.actionBudget.action_cast_affinity,
       requestSolver: BASE_COSTS.actionBudget.action_request_solver,
       move: BASE_COSTS.actionBudget.action_move,
@@ -424,7 +425,8 @@ export function attachAllocatorServices({
     const costs = pricing.runtimeActionCosts();
     const unitsForAcceptedAction = (actionKind) => {
       if (actionKind === "wait") return costs.wait;
-      if (actionKind === "attack") return costs.attack;
+      if (actionKind === "equip_affinity") return costs.equipAffinity;
+      if (actionKind === "take") return costs.take;
       if (actionKind === "cast_affinity") return costs.castAffinity;
       if (actionKind === "request_solver") return costs.requestSolver;
       if (actionKind === "move") return costs.move;

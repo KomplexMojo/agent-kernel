@@ -31,7 +31,7 @@ test("serialized runtime aura data is consumed by preview focus bounds", () => {
   const bounds = computePreviewFocusBounds({
     boardWidth: 7,
     boardHeight: 7,
-    observation: { actors: [], hazards: [], auras },
+    observation: { actors: [], auras },
   });
 
   assert.ok(bounds);

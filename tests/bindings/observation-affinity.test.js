@@ -26,13 +26,7 @@ test("bindings observation includes affinity metadata when provided", async () =
     { kind: "life", expression: "pull", targetType: "self", stacks: 1 },
   ]);
   assert.deepEqual(obs.actors[0].abilities, fixture.expected.actors[0].abilities);
-  assert.equal(obs.hazards.length, 1);
-  assert.deepEqual(obs.hazards[0].position, fixture.expected.hazards[0].position);
-  assert.deepEqual(obs.hazards[0].affinities, [
-    { kind: "fire", expression: "push", targetType: "floor", stacks: 2 },
-  ]);
-  assert.deepEqual(obs.hazards[0].abilities, fixture.expected.hazards[0].abilities);
-  assert.deepEqual(obs.hazards[0].vitals, fixture.expected.hazards[0].vitals);
+  assert.equal(Object.hasOwn(obs, "hazards"), false);
 });
 
 test("bindings observation includes the actor's live affinity grant pools", async () => {

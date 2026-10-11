@@ -73,14 +73,18 @@ function computeActorPositions(initialState, frames, tick) {
   for (const frame of frames) {
     if (Number.isFinite(frame?.tick) && frame.tick > limit) break;
     for (const action of frame?.acceptedActions || []) {
-      if (action?.kind !== "move" || !action.params?.to) continue;
-      positions.set(action.actorId, { x: action.params.to.x, y: action.params.to.y });
+      if (action?.kind !== "move") continue;
+      const to = action.params?.target;
+      if (!Number.isFinite(to?.x) || !Number.isFinite(to?.y)) continue;
+      positions.set(action.actorId, { x: to.x, y: to.y });
     }
   }
   return positions;
 }
 
-function inferKind(actor) {
+function inferKind(actor, presentation) {
+  const category = presentation?.[actor.id]?.category;
+  if (category) return category;
   const raw = `${actor.role || ""} ${actor.kind || ""} ${actor.id || ""}`.toLowerCase();
   return raw.includes("warden") ? "warden" : "delver";
 }
@@ -108,17 +112,40 @@ function collectAffinities(actor) {
 }
 
 function buildActorDetails(initialState, actorPositions) {
+  const presentation = initialState.presentation || {};
   return initialState.actors.map((actor) => {
     const pos = actorPositions.get(actor.id) || actor.position;
+    const motivations = Array.isArray(actor.motivations) ? actor.motivations : [];
     return {
       id: actor.id,
-      kind: inferKind(actor),
+      kind: inferKind(actor, presentation),
       position: { x: pos.x, y: pos.y },
       affinities: collectAffinities(actor),
       vitals: normalizeVitals(actor.vitals),
-      motivation: actor.motivation || actor.traits?.motivation || "unknown",
+      motivation: motivations[0] || actor.motivation || actor.traits?.motivation || "unknown",
     };
   });
+}
+
+function layoutRowsFromConfig(data) {
+  if (Array.isArray(data?.terrain) && Number.isFinite(data.width) && Number.isFinite(data.height)) {
+    const glyphs = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+    const rows = [];
+    for (let y = 0; y < data.height; y += 1) {
+      let row = "";
+      for (let x = 0; x < data.width; x += 1) {
+        row += glyphs[data.terrain[y * data.width + x]] || ".";
+      }
+      rows.push(row);
+    }
+    return { width: data.width, height: data.height, layoutRows: rows };
+  }
+  const tiles = [];
+  return {
+    width: Number(data?.width) || tiles[0]?.length || 0,
+    height: Number(data?.height) || tiles.length,
+    layoutRows: tiles,
+  };
 }
 
 export async function createVisualizationSnapshot({
@@ -167,39 +194,21 @@ export async function createVisualizationSnapshot({
   }
 
   // ASCII mode
-  const { width, height, tiles } = simConfig.layout.data;
-
-  const layoutRows = tiles.map((row) => String(row));
+  const { width, height, layoutRows } = layoutRowsFromConfig(simConfig.layout.data);
 
   const hazardRows = buildBlankGrid(width, height);
   const resourceRows = buildBlankGrid(width, height);
   const delverRows = buildBlankGrid(width, height);
   const wardenRows = buildBlankGrid(width, height);
+  const presentation = initialState.presentation || {};
 
-  // #153 — a real ak_create sim-config never populates the top-level simConfig.hazards/
-  // .resources; the actual data lives at simConfig.layout.data.hazards/.resources (confirmed:
-  // a real 2-hazard, 2-resource level had hazards: null, resources: null at the top level and
-  // both arrays, length 2 each, under layout.data). So the `|| []` fallback always fired and
-  // these loops never ran. buildPngDataUri() (tick-session.mjs, the image path) already has the
-  // correct fallback -- this brings the ascii path in line with it.
-  const hazards = simConfig.hazards ?? simConfig.layout?.data?.hazards ?? [];
-  const resources = simConfig.resources ?? simConfig.layout?.data?.resources ?? [];
-
-  for (const hazard of hazards) {
-    markPosition(hazardRows, hazard.x, hazard.y, ASCII_ENTITY_GLYPHS.hazard);
-  }
-
-  for (const resource of resources) {
-    markPosition(resourceRows, resource.x, resource.y, ASCII_ENTITY_GLYPHS.resource);
-  }
-
-  for (const actor of initialState.actors) {
+  for (const actor of initialState.actors || []) {
     const pos = actorPositions.get(actor.id) || actor.position;
-    if (inferKind(actor) === "delver") {
-      markPosition(delverRows, pos.x, pos.y, ASCII_ENTITY_GLYPHS.delver);
-    } else {
-      markPosition(wardenRows, pos.x, pos.y, ASCII_ENTITY_GLYPHS.warden);
-    }
+    const category = inferKind(actor, presentation);
+    if (category === "hazard") markPosition(hazardRows, pos.x, pos.y, ASCII_ENTITY_GLYPHS.hazard);
+    else if (category === "resource") markPosition(resourceRows, pos.x, pos.y, ASCII_ENTITY_GLYPHS.resource);
+    else if (category === "warden") markPosition(wardenRows, pos.x, pos.y, ASCII_ENTITY_GLYPHS.warden);
+    else if (category === "delver") markPosition(delverRows, pos.x, pos.y, ASCII_ENTITY_GLYPHS.delver);
   }
 
   const asciiRows = layoutRows.map((layoutRow, y) => {

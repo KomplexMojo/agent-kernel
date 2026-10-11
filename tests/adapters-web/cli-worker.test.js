@@ -216,7 +216,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
     affinityPresetsPath: "/tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json",
     affinityLoadoutsPath: "/tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json",
     affinitySummary: true,
-    actor: "actor_probe,1,1,motivated",
+    actor: "actor_probe,1,1,delver",
     vitalDefault: "stamina,2,2,0",
     tileBarrier: "1,0",
   });
@@ -259,8 +259,7 @@ test("cli worker adapter supports in-process build execution and worker lifecycl
     controllableActorIds: ["actor_1"],
   });
   assert.equal(manualMoveResult.ok, true);
-  assert.equal(manualMoveResult.action.params.direction, "northeast");
-  assert.deepEqual(manualMoveResult.action.params.to, { x: 4, y: 3 });
+  assert.deepEqual(manualMoveResult.action.params, { target: { x: 4, y: 3 } });
 
   const blockedManualMove = await adapter.manualMove({
     action: "right",

@@ -54,7 +54,7 @@ test("attaches aura data to observation after readObservation call", async () =>
   }
 });
 
-test("computes auras from hazards with affinities", async () => {
+test("computes auras from hazard actors with affinities", async () => {
   const [bindings, auraMod, spatialMod, domainMod] = await Promise.all([
     import("../../packages/core-ts/src/index.ts"),
     import("../../packages/runtime/src/render/affinity-aura.js"),
@@ -74,10 +74,11 @@ test("computes auras from hazards with affinities", async () => {
   const baseTiles = renderBaseTiles(core);
   const observation = {
     tick: 0,
-    actors: [],
-    hazards: [
+    actors: [
       {
-        position: { x: 5, y: 5 },
+        id: "hazard_0",
+        x: 5,
+        y: 5,
         affinities: [
           {
             kind: "dark",
@@ -90,16 +91,7 @@ test("computes auras from hazards with affinities", async () => {
   };
 
   const actors = Array.isArray(observation.actors) ? observation.actors : [];
-  const hazards = Array.isArray(observation.hazards) ? observation.hazards : [];
-  const hazardActors = hazards.map((hazard, index) => ({
-    id: `hazard_${index}`,
-    x: hazard.position?.x ?? 0,
-    y: hazard.position?.y ?? 0,
-    affinities: hazard.affinities || [],
-  }));
-
-  const allActors = [...actors, ...hazardActors];
-  const auraMap = computeAuraMap(allActors, baseTiles, {
+  const auraMap = computeAuraMap(actors, baseTiles, {
     affinityOpposites: AFFINITY_OPPOSITES,
     weights: SPATIAL_WEIGHTS,
   });

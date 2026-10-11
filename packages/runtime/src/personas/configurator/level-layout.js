@@ -16,10 +16,6 @@ const TARGET_ROOM_WALKABLE_SHARE = 0.85;
 // interior rejection in generateGridLayoutFromInput).
 const MIN_VIABLE_ROOM_INTERIOR_TILES = 3;
 
-const KIND_STATIONARY = 0;
-const KIND_BARRIER = 1;
-const KIND_HAZARD = 2;
-
 const NEIGHBORS = Object.freeze([
   { dx: 0, dy: -1 },
   { dx: 1, dy: 0 },
@@ -2461,56 +2457,13 @@ function computeConnectivity(mask, rooms, spawn, exit) {
   };
 }
 
-function buildTiles(mask, spawn, exit, hazardIndex = null) {
-  const tiles = [];
-  for (let y = 0; y < mask.length; y += 1) {
-    let row = "";
-    for (let x = 0; x < mask[y].length; x += 1) {
-      if (spawn.x === x && spawn.y === y) {
-        row += "S";
-      } else if (exit.x === x && exit.y === y) {
-        row += "E";
-      } else if (mask[y][x] || isHazardCell(hazardIndex, x, y)) {
-        // A blocking hazard occupies floor — it blocks movement (see `kinds`/
-        // KIND_HAZARD and layout.hazards[].blocking), but the tile itself is not
-        // a wall. applyHazardBlocking() clears the mask cell for blocking hazards
-        // so movement code treats it as non-walkable; rendering must not
-        // reintroduce a wall there or hazard_on_wall validation trips on a
-        // hazard's own tile.
-        row += ".";
-      } else {
-        row += "#";
-      }
-    }
-    tiles.push(row);
-  }
-  return tiles;
-}
-
-function buildLegend() {
-  return {
-    "#": { tile: "wall" },
-    ".": { tile: "floor" },
-    S: { tile: "spawn" },
-    E: { tile: "exit" },
-    B: { tile: "barrier" },
-  };
-}
-
-function buildKinds(mask, hazardIndex) {
-  const kinds = [];
-  for (let y = 0; y < mask.length; y += 1) {
-    const row = [];
-    for (let x = 0; x < mask[y].length; x += 1) {
-      let kind = mask[y][x] ? KIND_STATIONARY : KIND_BARRIER;
-      if (isHazardCell(hazardIndex, x, y)) {
-        kind = KIND_HAZARD;
-      }
-      row.push(kind);
-    }
-    kinds.push(row);
-  }
-  return kinds;
+function buildTerrain(mask, spawn, exit, hazardIndex) {
+  return mask.flatMap((row, y) => row.map((walkable, x) => {
+    if (spawn.x === x && spawn.y === y) return "spawn";
+    if (exit.x === x && exit.y === y) return "exit";
+    // Blocking occupants stand on floor. Their capability supplies obstruction.
+    return walkable || isHazardCell(hazardIndex, x, y) ? "floor" : "wall";
+  }));
 }
 
 function generateMask(levelGen, rng) {
@@ -2658,12 +2611,8 @@ export function generateGridLayout(levelGen) {
   const layout = {
     width: levelGen.width,
     height: levelGen.height,
-    tiles: buildTiles(mask, spawn, exit, hazardIndex),
-    kinds: buildKinds(mask, hazardIndex),
-    legend: buildLegend(),
+    terrain: buildTerrain(mask, spawn, exit, hazardIndex),
     render: { ...DEFAULT_RENDER },
-    spawn,
-    exit,
     spawnApproach,
     exitApproach,
     bounds: "walls_block_movement",
@@ -2709,22 +2658,11 @@ export function generateGridLayout(levelGen) {
 }
 
 function countLayoutWalkableTiles(layout) {
-  if (!Array.isArray(layout?.tiles)) return 0;
-  // Blocking hazards render as floor glyphs (buildTiles) but their mask cell is
-  // cleared by applyHazardBlocking — they are not movement-walkable and must not
-  // count toward the walkableTilesTarget floor budget.
-  const blockedHazardCells = new Set();
-  for (const hazard of Array.isArray(layout.hazards) ? layout.hazards : []) {
-    if (hazard?.blocking) blockedHazardCells.add(`${hazard.x},${hazard.y}`);
-  }
-  let count = 0;
-  for (let y = 0; y < layout.tiles.length; y += 1) {
-    const row = String(layout.tiles[y] || "");
-    for (let x = 0; x < row.length; x += 1) {
-      if (row[x] !== "#" && row[x] !== "S" && row[x] !== "E" && !blockedHazardCells.has(`${x},${y}`)) count += 1;
-    }
-  }
-  return count;
+  // Preserve the authored floor-budget exclusion for blocking occupants.
+  const blocked = new Set((layout.hazards || []).filter(actor => actor.blocking)
+    .map(actor => actor.y * layout.width + actor.x));
+  return layout.terrain.reduce((count, terrain, index) =>
+    count + (terrain === "floor" && !blocked.has(index) ? 1 : 0), 0);
 }
 
 export function generateGridLayoutFromInput(input) {
@@ -2742,11 +2680,10 @@ export function generateGridLayoutFromInput(input) {
     return { ok: false, errors: layout._floorBudgetErrors, warnings: normalized.warnings, value: null };
   }
 
-  if (Array.isArray(layout.hazards) && layout.hazards.length > 0 && Array.isArray(layout.tiles)) {
+  if (Array.isArray(layout.hazards) && layout.hazards.length > 0 && Array.isArray(layout.terrain)) {
     const wallHazardErrors = [];
     layout.hazards.forEach((hazard, idx) => {
-      const row = layout.tiles[hazard.y];
-      if (typeof row === "string" && row[hazard.x] === "#") {
+      if (layout.terrain[hazard.y * layout.width + hazard.x] === "wall") {
         wallHazardErrors.push({
           field: `hazards[${idx}].position`,
           code: "hazard_on_wall",
@@ -2762,7 +2699,7 @@ export function generateGridLayoutFromInput(input) {
   // Universal placement invariant: every positioned element must sit on a walkable
   // tile — except spawn/exit wall portals, which must sit on a wall with a valid
   // interior approach. Hazards are covered above with their dedicated code.
-  if (Array.isArray(layout.tiles)) {
+  if (Array.isArray(layout.terrain)) {
     const wallElementErrors = [];
     for (const kind of ["hazards", "resources"]) {
       const elements = Array.isArray(layout[kind]) ? layout[kind] : [];
@@ -2770,8 +2707,7 @@ export function generateGridLayoutFromInput(input) {
         const x = element?.position?.x ?? element?.x;
         const y = element?.position?.y ?? element?.y;
         if (!Number.isInteger(x) || !Number.isInteger(y)) return;
-        const row = layout.tiles[y];
-        if (typeof row === "string" && row[x] === "#") {
+        if (layout.terrain[y * layout.width + x] === "wall") {
           wallElementErrors.push({
             field: `${kind}[${idx}].position`,
             code: "element_on_wall",

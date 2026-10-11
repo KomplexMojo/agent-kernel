@@ -51,7 +51,7 @@ const expectedFrames = [
           actorId: "boss_1",
           tick: 4,
           kind: "move",
-          params: { direction: "east", to: { x: 2, y: 1 } },
+          params: { target: { x: 2, y: 1 } },
         },
       },
     ],

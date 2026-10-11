@@ -3,8 +3,9 @@
  *
  * A positive receipt.remaining is the total-budget remainder. It does not
  * override a category pool cap: one token below scenario 59's passing
- * boundary spends 132 tokens from a 131-token warden pool while leaving
- * 311 tokens unspent overall.
+ * boundary spends 186 tokens from a 176-token warden pool while leftover
+ * tiles-grid billing used to leave 132 tokens unspent overall. Terrain floor
+ * billing leaves 188. The warden pool denial is unchanged.
  */
 const assert = require("node:assert/strict");
 const { readFileSync, rmSync, mkdtempSync } = require("node:fs");
@@ -28,7 +29,8 @@ test("allocator denies one token below a warden pool boundary while total budget
   // split (warden 16% -> 23%). It is no longer: the minimum for this payload measured 400 against a
   // catalog budget of 469, so `budgetTokens - 1` now SUCCEEDS and characterises nothing. Pinned to
   // the measured boundary instead. The property under test is unchanged and still holds -- the
-  // allocator denies on the WARDEN POOL while 188 tokens of total budget remain.
+  // allocator denies on the WARDEN POOL while leftover tiles-grid remaining
+  // was 132 and terrain floor remaining is 188. The warden shortfall is unchanged.
   const boundaryBudget = 399;
   const boundaryText = scenario.payload.text.replace(
     /Use a \d+ token hard budget/,

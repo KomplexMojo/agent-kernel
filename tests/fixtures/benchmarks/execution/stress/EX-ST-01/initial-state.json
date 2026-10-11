@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "delver_mixed_attacker-1",
-      "kind": "ambulatory",
       "position": {
         "x": 5,
         "y": 15
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -42,30 +44,31 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "role": "delver",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        },
-        "motivations": [
-          {
-            "kind": "attacking",
-            "intensity": 1
-          }
-        ]
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "attacking"
-      }
+      "motivations": [
+        "attacking"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "delver_mixed_random-1",
-      "kind": "ambulatory",
       "position": {
         "x": 4,
         "y": 16
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -88,30 +91,200 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "role": "delver",
-      "traits": {
-        "affinities": {
-          "water": 1
-        },
-        "motivations": [
-          {
-            "kind": "random",
-            "intensity": 1
-          }
-        ]
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
+    },
+    {
+      "id": "hazard_1",
+      "position": {
+        "x": 14,
+        "y": 4
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "emit",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": "fire:emit",
+      "holdings": []
+    },
+    {
+      "id": "hazard_2",
+      "position": {
+        "x": 15,
+        "y": 4
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": "wind:push",
+      "holdings": []
+    },
+    {
+      "id": "resource_mixed_health",
+      "position": {
+        "x": 16,
+        "y": 4
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": [
+        {
+          "id": "resource_mixed_health",
+          "kind": "vital",
+          "permanenceMode": "consumable",
+          "claimedBy": null,
+          "vitals": [
+            {
+              "key": "health",
+              "delta": 4
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resource_mixed_stamina_regen",
+      "position": {
+        "x": 17,
+        "y": 4
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "durability": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": [
+        {
+          "id": "resource_mixed_stamina_regen",
+          "kind": "vital",
+          "permanenceMode": "level",
+          "claimedBy": null,
+          "vitals": [
+            {
+              "key": "stamina",
+              "delta": 0,
+              "regen": 1
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "warden_mixed_defender-1",
-      "kind": "ambulatory",
       "position": {
         "x": 18,
         "y": 5
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 20,
@@ -134,30 +307,31 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "role": "warden",
-      "traits": {
-        "affinities": {
-          "dark": 1
-        },
-        "motivations": [
-          {
-            "kind": "defending",
-            "intensity": 1
-          }
-        ]
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "defending"
-      }
+      "motivations": [
+        "defending"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_mixed_patrol-1",
-      "kind": "ambulatory",
       "position": {
         "x": 17,
         "y": 17
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 16,
@@ -180,22 +354,47 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "role": "warden",
-      "traits": {
-        "affinities": {
-          "earth": 1
-        },
-        "motivations": [
-          {
-            "kind": "patrolling",
-            "intensity": 1
-          }
-        ]
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "patrolling"
-      }
+      "motivations": [
+        "patrolling"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "delver_mixed_attacker-1": {
+      "category": "delver"
+    },
+    "delver_mixed_random-1": {
+      "category": "delver"
+    },
+    "hazard_1": {
+      "category": "hazard"
+    },
+    "hazard_2": {
+      "category": "hazard"
+    },
+    "resource_mixed_health": {
+      "category": "resource"
+    },
+    "resource_mixed_stamina_regen": {
+      "category": "resource"
+    },
+    "warden_mixed_defender-1": {
+      "category": "warden"
+    },
+    "warden_mixed_patrol-1": {
+      "category": "warden"
+    }
+  }
 }

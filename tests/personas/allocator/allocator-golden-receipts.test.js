@@ -107,26 +107,28 @@ test("golden receipts charge: g1/g3/g4 spend nonzero and remaining reconciles", 
   }
 });
 
-test("create and resource-plan charge the identical affinity resource 538", () => {
+test("create and resource-plan charge the identical affinity resource", () => {
   const g2 = readJson(join(GOLDENS, "create-g2", "budget-receipt.json"));
   const g2AffinityLines = g2.lineItems.filter((l) => l.subjectRef?.id === "resource_1");
-  assert.equal(g2AffinityLines.length, 5, "create charges every affinity component");
+  assert.equal(g2AffinityLines.length, 7, "create charges every affinity component");
   assert.equal(
     g2AffinityLines.reduce((sum, line) => sum + line.totalCost, 0),
-    538,
+    120,
     "create affinity resource total",
   );
-  assert.equal(g2.totalCost, 670, "affinity and permanent vital resources are charged");
+  assert.equal(g2.totalCost, 126, "affinity and permanent vital resources are charged");
 
   const g4 = readJson(join(GOLDENS, "resource-plan-g4", "budget-receipt.json"));
-  assert.equal(g4.totalCost, 538, "resource-plan charges the same payload fully");
+  assert.equal(g4.totalCost, 120, "resource-plan charges the same payload fully");
   const g4Ids = g4.lineItems.map((l) => l.id).sort();
   assert.deepEqual(g4Ids, [
-    "resource_affinity_base",
-    "resource_affinity_expression_localized",
-    "resource_affinity_stack",
-    "resource_vital_mana_point",
-    "resource_vital_mana_regen_tick",
+    "actor_spawn",
+    "affinity_base",
+    "affinity_expression_localized",
+    "affinity_stack",
+    "vital_durability_point",
+    "vital_mana_point",
+    "vital_mana_regen_tick",
   ]);
 });
 

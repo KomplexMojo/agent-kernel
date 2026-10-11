@@ -67,9 +67,7 @@ export function buildManualMoveAction({
       actorId: selectedActorId,
       tick: Number(observation?.tick ?? 0) + 1,
       params: {
-        from: { x: fromX, y: fromY },
-        to: { x: fromX + move.dx, y: fromY + move.dy },
-        direction: move.direction,
+        target: { x: fromX + move.dx, y: fromY + move.dy },
       },
     },
   };

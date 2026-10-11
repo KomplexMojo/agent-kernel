@@ -102,7 +102,7 @@ const persona = {
                   id: "move_east",
                   action: {
                     kind: "move",
-                    params: { to: { x: 5, y: 6 } },
+                    params: { target: { x: 5, y: 6 } },
                   },
                 },
                 {
@@ -153,7 +153,7 @@ const result = await orchestrator.stepPhase("decide", {});
 
 assert.equal(result.actions.length, 1);
 assert.equal(result.actions[0].kind, "move");
-assert.deepEqual(result.actions[0].params.to, { x: 5, y: 6 });
+assert.deepEqual(result.actions[0].params, { target: { x: 5, y: 6 } });
 assert.equal(result.actions[0].actorId, "actor_runtime");
 assert.equal(result.actions[0].tick, 7);
 assert.equal(appliedActions.length, 1);
@@ -295,7 +295,7 @@ const persona = {
                 allowLlmFallback: true,
               },
               candidateActions: [
-                { id: "move_east", action: { kind: "move", params: { to: { x: 2, y: 1 } } } },
+                { id: "move_east", action: { kind: "move", params: { target: { x: 2, y: 1 } } } },
               ],
             }),
           },

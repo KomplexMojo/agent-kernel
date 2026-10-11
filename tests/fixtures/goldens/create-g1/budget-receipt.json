@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 160,
-  "remaining": 4840,
+  "totalCost": 170,
+  "remaining": 4830,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -93,6 +93,20 @@
       "quantity": 1,
       "unitCost": 3,
       "totalCost": 3,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "motivation_user_controlled",
+      "kind": "motivation",
+      "quantity": 1,
+      "unitCost": 10,
+      "totalCost": 10,
       "status": "approved",
       "category": "delvers",
       "subjectRef": {
@@ -228,6 +242,20 @@
       }
     },
     {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "unitCost": 5,
+      "totalCost": 5,
+      "status": "approved",
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
       "id": "affinity_base",
       "kind": "affinity",
       "quantity": 1,
@@ -237,7 +265,7 @@
       "category": "hazards",
       "subjectRef": {
         "id": "hazard_1",
-        "schema": "agent-kernel/HazardArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -251,7 +279,7 @@
       "category": "hazards",
       "subjectRef": {
         "id": "hazard_1",
-        "schema": "agent-kernel/HazardArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -265,21 +293,7 @@
       "category": "hazards",
       "subjectRef": {
         "id": "hazard_1",
-        "schema": "agent-kernel/HazardArtifact",
-        "schemaVersion": 1
-      }
-    },
-    {
-      "id": "hazard_basic",
-      "kind": "hazard",
-      "quantity": 1,
-      "unitCost": 5,
-      "totalCost": 5,
-      "status": "approved",
-      "category": "hazards",
-      "subjectRef": {
-        "id": "hazard_1",
-        "schema": "agent-kernel/HazardArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
@@ -293,7 +307,7 @@
       "category": "hazards",
       "subjectRef": {
         "id": "hazard_1",
-        "schema": "agent-kernel/HazardArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     }
@@ -330,15 +344,15 @@
     {
       "id": "delver",
       "capTokens": 1812,
-      "spentTokens": 93,
-      "remainingTokens": 1719,
+      "spentTokens": 103,
+      "remainingTokens": 1709,
       "status": "approved"
     }
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 160,
-    "remainingBudget": 4840,
+    "totalSpend": 170,
+    "remainingBudget": 4830,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -362,9 +376,9 @@
         "usagePercent": 0
       },
       "delvers": {
-        "actual": 93,
+        "actual": 103,
         "target": 1812,
-        "usagePercent": 5
+        "usagePercent": 6
       },
       "wardens": {
         "actual": 0,

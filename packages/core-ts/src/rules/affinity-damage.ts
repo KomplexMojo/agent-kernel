@@ -4,7 +4,7 @@
  * Pure deterministic primitive that routes (affinity, expression, stacks)
  * through the M2 matrix to the correct vital(s) on a target actor.
  *
- * No IO, no clock, no runtime imports. Pattern mirrors rules/combat.ts.
+ * No IO, no clock, no runtime imports.
  *
  * Contract:
  *   applyAffinityDamage(attackerIndex, targetIndex, affinityKind, expression, stacks) -> 0 | 1

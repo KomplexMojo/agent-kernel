@@ -38,41 +38,31 @@ function makeTickFrame(tick, runId) {
         kind: tick % 2 === 0 ? "wait" : "move",
         params: tick % 2 === 0
           ? { reason: "idle" }
-          : { direction: "east", from: { x: tick, y: 1 }, to: { x: tick + 1, y: 1 } },
+          : { target: { x: tick + 1, y: 1 } },
       },
     ],
   };
 }
 
-function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
+async function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
   const buildDir = join(workDir, "artifacts", "runs", runId, "build");
   const runDir = join(workDir, "artifacts", "runs", runId, "run");
-
-  writeJson(join(buildDir, "sim-config.json"), {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: makeMeta("sim_config", runId),
-    layout: {
-      kind: "grid",
-      width: 7,
-      height: 3,
-      data: {
-        width: 7,
-        height: 3,
-        tiles: ["#######", "#.....#", "#######"],
-        legend: { "#": { tile: "wall" }, ".": { tile: "floor" } },
-      },
-    },
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 7,
+    height: 3,
+    terrain: boxedTerrain(7, 3),
+    runId,
+    actors: [{
+      id: "actor_delver",
+      category: "delver",
+      position: { x: 1, y: 1 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
   });
-
-  writeJson(join(buildDir, "initial-state.json"), {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: makeMeta("initial_state", runId),
-    actors: [
-      { id: "actor_delver", kind: "motivated", position: { x: 1, y: 1 } },
-    ],
-  });
+  writeJson(join(buildDir, "sim-config.json"), simConfig);
+  writeJson(join(buildDir, "initial-state.json"), initialState);
 
   const frames = Array.from({ length: maxTick }, (_, i) => makeTickFrame(i + 1, runId));
   writeJson(join(runDir, "tick-frames.json"), frames);
@@ -90,10 +80,10 @@ function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
 // Cursor invariants
 // ---------------------------------------------------------------------------
 
-test("cursor schema and meta fields are complete after tick forward", () => {
+test("cursor schema and meta fields are complete after tick forward", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-schema-"));
   const runId = "run_rp_schema";
-  scaffoldRun(workDir, runId, { maxTick: 5 });
+  await scaffoldRun(workDir, runId, { maxTick: 5 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
 
@@ -111,10 +101,10 @@ test("cursor schema and meta fields are complete after tick forward", () => {
   assert.equal(cursor.maxTick, 5);
 });
 
-test("cursor maxTick is unchanged by rewind", () => {
+test("cursor maxTick is unchanged by rewind", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-maxtick-"));
   const runId = "run_rp_maxtick";
-  scaffoldRun(workDir, runId, { maxTick: 5 });
+  await scaffoldRun(workDir, runId, { maxTick: 5 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   runCli(["tick", "forward", "--run-id", runId], workDir);
@@ -126,11 +116,11 @@ test("cursor maxTick is unchanged by rewind", () => {
   assert.equal(cursor.maxTick, 5, "maxTick must be unchanged by rewind");
 });
 
-test("forward after rewind lands at the same tick as direct forward", () => {
+test("forward after rewind lands at the same tick as direct forward", async () => {
   // Path A: forward×3, backward×1, forward×1 → tick 3
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-path-"));
   const runId = "run_rp_path";
-  scaffoldRun(workDir, runId, { maxTick: 5 });
+  await scaffoldRun(workDir, runId, { maxTick: 5 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   runCli(["tick", "forward", "--run-id", runId], workDir);
@@ -141,7 +131,7 @@ test("forward after rewind lands at the same tick as direct forward", () => {
   // Path B: direct forward×3 in a fresh run → tick 3
   const workDir2 = mkdtempSync(join(os.tmpdir(), "ak-rp-path2-"));
   const runId2 = "run_rp_path2";
-  scaffoldRun(workDir2, runId2, { maxTick: 5 });
+  await scaffoldRun(workDir2, runId2, { maxTick: 5 });
   runCli(["tick", "forward", "--run-id", runId2], workDir2);
   runCli(["tick", "forward", "--run-id", runId2], workDir2);
   const pathB = JSON.parse(runCli(["tick", "forward", "--run-id", runId2], workDir2).stdout);
@@ -158,10 +148,10 @@ test("forward after rewind lands at the same tick as direct forward", () => {
 // FAILING: tick state currently returns { ok, command, action, runId, tick, maxTick, ascii }.
 // M4 will add tickFrame: <the TickFrame at cursor tick> so agents can read accepted actions,
 // actor positions, and events at any tick without parsing tick-frames.json directly.
-test("tick state response includes tickFrame data at cursor tick", () => {
+test("tick state response includes tickFrame data at cursor tick", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-frame-"));
   const runId = "run_rp_frame";
-  scaffoldRun(workDir, runId, { maxTick: 5 });
+  await scaffoldRun(workDir, runId, { maxTick: 5 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
 
@@ -182,11 +172,11 @@ test("tick state response includes tickFrame data at cursor tick", () => {
 // Permutation: consecutive rewinds from maxTick to tick 0
 // ---------------------------------------------------------------------------
 
-test("consecutive rewinds from maxTick to tick 0 each succeed and decrement cursor", () => {
+test("consecutive rewinds from maxTick to tick 0 each succeed and decrement cursor", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-consec-bwd-"));
   const runId = "run_rp_consec";
   const maxTick = 3;
-  scaffoldRun(workDir, runId, { maxTick });
+  await scaffoldRun(workDir, runId, { maxTick });
 
   // Advance to maxTick first
   for (let i = 0; i < maxTick; i++) {
@@ -207,10 +197,10 @@ test("consecutive rewinds from maxTick to tick 0 each succeed and decrement curs
 // Permutation: tickFrame at tick 0 (no forward yet) returns null
 // ---------------------------------------------------------------------------
 
-test("tick state at tick 0 before any forward has null tickFrame", () => {
+test("tick state at tick 0 before any forward has null tickFrame", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-tick0-frame-"));
   const runId = "run_rp_zero";
-  scaffoldRun(workDir, runId, { maxTick: 5 });
+  await scaffoldRun(workDir, runId, { maxTick: 5 });
 
   const result = runCli(["tick", "state", "--run-id", runId], workDir);
   assert.equal(result.status, 0, result.stderr);
@@ -224,10 +214,10 @@ test("tick state at tick 0 before any forward has null tickFrame", () => {
 // Permutation: tickFrame.acceptedActions match scaffold fixture at tick 2 (even → wait)
 // ---------------------------------------------------------------------------
 
-test("tickFrame.acceptedActions match scaffold fixture data at tick 2", () => {
+test("tickFrame.acceptedActions match scaffold fixture data at tick 2", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-actions-"));
   const runId = "run_rp_tick2";
-  scaffoldRun(workDir, runId, { maxTick: 5 });
+  await scaffoldRun(workDir, runId, { maxTick: 5 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   runCli(["tick", "forward", "--run-id", runId], workDir);
@@ -247,11 +237,11 @@ test("tickFrame.acceptedActions match scaffold fixture data at tick 2", () => {
 // Permutation: tickFrame at maxTick is present and within bounds
 // ---------------------------------------------------------------------------
 
-test("tickFrame at maxTick is present and tickFrame.tick equals maxTick", () => {
+test("tickFrame at maxTick is present and tickFrame.tick equals maxTick", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-maxtick-bound-"));
   const runId = "run_rp_max";
   const maxTick = 4;
-  scaffoldRun(workDir, runId, { maxTick });
+  await scaffoldRun(workDir, runId, { maxTick });
 
   for (let i = 0; i < maxTick; i++) {
     runCli(["tick", "forward", "--run-id", runId], workDir);
@@ -271,25 +261,29 @@ test("tickFrame at maxTick is present and tickFrame.tick equals maxTick", () => 
 // Permutation: tick state with missing tick-frames.json returns gracefully
 // ---------------------------------------------------------------------------
 
-test("tick state with missing tick-frames.json but run-summary.json present returns ok with null tickFrame", () => {
+test("tick state with missing tick-frames.json but run-summary.json present returns ok with null tickFrame", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-rp-missing-tf-"));
   const runId = "run_rp_missing";
   const buildDir = join(workDir, "artifacts", "runs", runId, "build");
   const runDir = join(workDir, "artifacts", "runs", runId, "run");
 
   // Build artifacts present; run-summary.json present so maxTick is known; tick-frames.json absent
-  writeJson(join(buildDir, "sim-config.json"), {
-    schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1,
-    meta: makeMeta("sim_config", runId),
-    layout: { kind: "grid", width: 7, height: 3,
-      data: { width: 7, height: 3, tiles: ["#######", "#.....#", "#######"],
-        legend: { "#": { tile: "wall" }, ".": { tile: "floor" } } } },
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 7,
+    height: 3,
+    terrain: boxedTerrain(7, 3),
+    runId,
+    actors: [{
+      id: "actor_delver",
+      category: "delver",
+      position: { x: 1, y: 1 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
   });
-  writeJson(join(buildDir, "initial-state.json"), {
-    schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1,
-    meta: makeMeta("initial_state", runId),
-    actors: [{ id: "actor_delver", kind: "motivated", position: { x: 1, y: 1 } }],
-  });
+  writeJson(join(buildDir, "sim-config.json"), simConfig);
+  writeJson(join(buildDir, "initial-state.json"), initialState);
   writeJson(join(runDir, "run-summary.json"), {
     schema: "agent-kernel/RunSummary", schemaVersion: 1,
     meta: makeMeta("run_summary", runId),

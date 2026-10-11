@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { mkdtempSync, readFileSync, existsSync } = require("node:fs");
+const { mkdtempSync, readFileSync, existsSync, writeFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
 
@@ -25,18 +25,70 @@ function runCli(args, options = {}) {
   return result;
 }
 
-test("cli run writes affinity summary", (t) => {
+async function writeUnifiedAffinityArtifacts(dir) {
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const width = 5;
+  const height = 5;
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width,
+    height,
+    terrain: boxedTerrain(width, height),
+    runId: "run_configurator_hazard",
+    actors: [
+      {
+        id: "actor_mvp",
+        category: "delver",
+        position: { x: 1, y: 1 },
+        motivations: ["attacking"],
+        affinities: [
+          { kind: "fire", expression: "push", stacks: 2 },
+          { kind: "life", expression: "pull", stacks: 1 },
+        ],
+        activeAffinityKey: "fire:push",
+        vitals: {
+          health: { current: 10, max: 10, regen: 0 },
+          mana: { current: 0, max: 0, regen: 0 },
+          stamina: { current: 0, max: 0, regen: 0 },
+          durability: { current: 0, max: 0, regen: 0 },
+        },
+      },
+      {
+        id: "actor_rival",
+        category: "warden",
+        position: { x: 2, y: 1 },
+        motivations: ["defending"],
+        affinities: [{ kind: "decay", expression: "emit", stacks: 1 }],
+        activeAffinityKey: "decay:emit",
+        vitals: {
+          health: { current: 6, max: 6, regen: 0 },
+          mana: { current: 1, max: 1, regen: 0 },
+          stamina: { current: 0, max: 0, regen: 0 },
+          durability: { current: 0, max: 0, regen: 0 },
+        },
+      },
+    ],
+  });
+  const simConfigPath = join(dir, "sim-config.json");
+  const initialStatePath = join(dir, "initial-state.json");
+  writeFileSync(simConfigPath, `${JSON.stringify(simConfig, null, 2)}\n`);
+  writeFileSync(initialStatePath, `${JSON.stringify(initialState, null, 2)}\n`);
+  return { simConfigPath, initialStatePath };
+}
+
+test("cli run writes affinity summary", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-affinity-"));
   const outDir = join(workDir, "out");
+  const { simConfigPath, initialStatePath } = await writeUnifiedAffinityArtifacts(workDir);
 
   runCli([
     "run",
     "--sim-config",
-    SIM_CONFIG,
+    simConfigPath,
     "--initial-state",
-    INITIAL_STATE,
+    initialStatePath,
     "--ticks",
-    "0",    "--out-dir",
+    "0",
+    "--out-dir",
     outDir,
     "--affinity-presets",
     PRESETS,
@@ -52,21 +104,7 @@ test("cli run writes affinity summary", (t) => {
   assert.equal(summary.schema, "agent-kernel/AffinitySummary");
   assert.equal(summary.schemaVersion, 1);
   assert.deepEqual(summary.actors, expected.actors);
-
-  // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
-  // The regenerated sim-config fixture stores the MAPPED absolute hazard position (room R1 at (1,1) +
-  // authored (2,2) = (3,3)); `run` reports that stored position as-is. The shared affinity fixture's
-  // literal (2,2) stays untouched for its direct-resolution consumers, so translate here.
-  const simHazard = JSON.parse(readFileSync(SIM_CONFIG, "utf8")).layout.data.hazards[0];
-  const expectedHazards = expected.hazards.map((hazard) => ({
-    ...hazard,
-    position: { x: simHazard.x, y: simHazard.y },
-    resolvedEffects: hazard.resolvedEffects.map((effect) => ({
-      ...effect,
-      sourceId: `${simHazard.x},${simHazard.y}`,
-    })),
-  }));
-  assert.deepEqual(summary.hazards, expectedHazards);
+  assert.deepEqual(summary.hazards, []);
 });
 
 test("cli run rejects affinity summary without presets or loadouts", (t) => {
@@ -97,14 +135,15 @@ test("cli run rejects affinity summary without presets or loadouts", (t) => {
 // action-log/run-summary/world-state. Two runs of byte-identical input must produce a
 // byte-identical meta stamp; asserting on the run's own seeded id/timestamp (not a hardcoded
 // literal) keeps this from silently passing if the clock seed itself ever changes.
-test("cli run stamps affinity-summary.json meta from the seeded clock, not the wall clock", (t) => {
-  const runOnce = () => {
+test("cli run stamps affinity-summary.json meta from the seeded clock, not the wall clock", async () => {
+  const runOnce = async () => {
     const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-cli-affinity-determinism-"));
     const outDir = join(workDir, "out");
+    const { simConfigPath, initialStatePath } = await writeUnifiedAffinityArtifacts(workDir);
     runCli([
       "run",
-      "--sim-config", SIM_CONFIG,
-      "--initial-state", INITIAL_STATE,
+      "--sim-config", simConfigPath,
+      "--initial-state", initialStatePath,
       "--ticks", "0",
       "--out-dir", outDir,
       "--affinity-presets", PRESETS,
@@ -114,7 +153,7 @@ test("cli run stamps affinity-summary.json meta from the seeded clock, not the w
     return JSON.parse(readFileSync(join(outDir, "affinity-summary.json"), "utf8")).meta;
   };
 
-  const first = runOnce();
-  const second = runOnce();
+  const first = await runOnce();
+  const second = await runOnce();
   assert.deepEqual(second, first);
 });

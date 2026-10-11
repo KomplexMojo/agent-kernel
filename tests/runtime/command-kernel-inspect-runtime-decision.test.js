@@ -97,7 +97,7 @@ test("command kernel inspect surfaces runtime decisions and decision-driven acti
             actorId: "boss_1",
             tick: 4,
             kind: "move",
-            params: { direction: "east", to: { x: 2, y: 1 } },
+            params: { target: { x: 2, y: 1 } },
           },
         },
       ],

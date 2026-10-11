@@ -13,56 +13,62 @@ const assert = require("node:assert/strict");
 // Shared fixture — minimal sim-config + initial-state + tick-frame for testing
 // ---------------------------------------------------------------------------
 
-const SIM_CONFIG = {
-  schema: "agent-kernel/SimConfigArtifact",
-  schemaVersion: 1,
-  meta: { id: "sc1", runId: "run_viz", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
-  layout: {
-    kind: "grid",
+let SIM_CONFIG;
+let INITIAL_STATE;
+
+beforeAll(async () => {
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  ({ simConfig: SIM_CONFIG, initialState: INITIAL_STATE } = buildUnifiedArtifacts({
     width: 7,
     height: 3,
-    data: {
-      width: 7,
-      height: 3,
-      tiles: ["#######", "#.....#", "#######"],
-      legend: { "#": { tile: "wall" }, ".": { tile: "floor" } },
-    },
-  },
-  hazards: [
-    { id: "hazard_1", x: 2, y: 1, affinity: "fire", expression: "emit", stacks: 3, blocking: false },
-  ],
-  resources: [
-    { id: "resource_1", x: 4, y: 1, tier: "level", stat: "vitalMax", delta: 10, dropRate: 50 },
-  ],
-};
+    terrain: boxedTerrain(7, 3),
+    runId: "run_viz",
+    clock: "2026-01-01T00:00:00.000Z",
+    producedBy: "fixture",
+    actors: [
+      {
+        id: "actor_delver_1",
+        category: "delver",
+        position: { x: 1, y: 1 },
+        motivations: ["exploring"],
+        affinities: [{ kind: "fire", expression: "emit", stacks: 2 }],
+        vitals: { health: { current: 10, max: 10, regen: 1 }, stamina: { current: 7, max: 7, regen: 1 } },
+      },
+      {
+        id: "actor_warden_1",
+        category: "warden",
+        position: { x: 5, y: 1 },
+        motivations: ["stationary"],
+        affinities: [{ kind: "dark", expression: "emit", stacks: 1 }],
+        vitals: { health: { current: 15, max: 15, regen: 0 }, stamina: { current: 5, max: 5, regen: 0 } },
+      },
+      {
+        id: "hazard_1",
+        category: "hazard",
+        position: { x: 2, y: 1 },
+        affinities: [{ kind: "fire", expression: "emit", stacks: 3 }],
+        vitals: { durability: { current: 3, max: 3, regen: 0 } },
+      },
+      {
+        id: "resource_1",
+        category: "resource",
+        position: { x: 4, y: 1 },
+        vitals: { durability: { current: 1, max: 1, regen: 0 } },
+      },
+    ],
+  }));
+});
 
-const INITIAL_STATE = {
-  schema: "agent-kernel/InitialStateArtifact",
-  schemaVersion: 1,
-  meta: { id: "is1", runId: "run_viz", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
-  actors: [
-    {
-      id: "actor_delver_1",
-      kind: "motivated",
-      role: "delver",
-      position: { x: 1, y: 1 },
-      affinity: "fire",
-      motivation: "exploring",
-      affinities: [{ name: "fire", stacks: 2, expression: "emit" }],
-      vitals: { health: { current: 10, max: 10, regen: 1 }, stamina: { current: 7, max: 7, regen: 1 } },
-    },
-    {
-      id: "actor_warden_1",
-      kind: "motivated",
-      role: "warden",
-      position: { x: 5, y: 1 },
-      affinity: "dark",
-      motivation: "stationary",
-      affinities: [{ name: "dark", stacks: 1, expression: "emit" }],
-      vitals: { health: { current: 15, max: 15, regen: 0 }, stamina: { current: 5, max: 5, regen: 0 } },
-    },
-  ],
-};
+function withoutPresentationCategory(state, category) {
+  const drop = new Set(Object.entries(state.presentation || {})
+    .filter(([, presentation]) => presentation.category === category)
+    .map(([id]) => id));
+  return {
+    ...state,
+    actors: state.actors.filter((actor) => !drop.has(actor.id)),
+    presentation: Object.fromEntries(Object.entries(state.presentation || {}).filter(([id]) => !drop.has(id))),
+  };
+}
 
 const TICK_FRAME = {
   schema: "agent-kernel/TickFrame",
@@ -72,7 +78,7 @@ const TICK_FRAME = {
   phase: "summarize",
   acceptedActions: [
     { schema: "agent-kernel/Action", schemaVersion: 1, actorId: "actor_delver_1", tick: 1, kind: "move",
-      params: { direction: "east", from: { x: 1, y: 1 }, to: { x: 2, y: 1 } } },
+      params: { target: { x: 2, y: 1 } } },
     { schema: "agent-kernel/Action", schemaVersion: 1, actorId: "actor_warden_1", tick: 1, kind: "wait",
       params: { reason: "stationary" } },
   ],
@@ -157,44 +163,20 @@ test("ascii detail renderer marks resource position in resources layer", async (
   assert.notEqual(resourceRow[4], " ", "resources layer must mark resource position at x=4");
 });
 
-// #153 regression: a real ak_create sim-config never populates the top-level simConfig.hazards/
-// .resources -- the actual data lives at simConfig.layout.data.hazards/.resources. The shared
-// SIM_CONFIG fixture above puts hazards/resources at the top level, which is NOT how ak_create
-// actually shapes them, so it never exercised this bug. This fixture reproduces the real shape
-// (hazards/resources nested under layout.data, absent at the top level) instead.
-const NESTED_ONLY_SIM_CONFIG = {
-  schema: "agent-kernel/SimConfigArtifact",
-  schemaVersion: 1,
-  meta: { id: "sc-nested", runId: "run_viz_nested", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" },
-  layout: {
-    kind: "grid",
-    width: 7,
-    height: 3,
-    data: {
-      width: 7,
-      height: 3,
-      tiles: ["#######", "#.....#", "#######"],
-      legend: { "#": { tile: "wall" }, ".": { tile: "floor" } },
-      hazards: [{ id: "hazard_1", x: 2, y: 1, affinity: { kind: "fire", expression: "emit", stacks: 3 }, blocking: false }],
-      resources: [{ id: "resource_1", x: 4, y: 1, permanenceMode: "consumable", affinity: { kind: "water", expression: "draw", stacks: 1, mana: 5 } }],
-    },
-  },
-};
-
-test("ascii hazards/resources layers populate from simConfig.layout.data, not just top-level fields (#153)", async () => {
+test("ascii hazards/resources layers populate from presentation-category actors", async () => {
   const { createVisualizationSnapshot } = await loadVisualizationModule();
   const snap = await createVisualizationSnapshot({
     mode: "ascii",
     tick: 1,
     runId: "run_viz_nested",
-    simConfig: NESTED_ONLY_SIM_CONFIG,
+    simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
     frames: [TICK_FRAME],
   });
   const hazardRow = snap.layers.hazards.split("\n")[1];
-  assert.notEqual(hazardRow[2], " ", "hazards layer must mark hazard position at x=2 even when hazards live only under layout.data");
+  assert.notEqual(hazardRow[2], " ", "hazards layer must mark hazard actors even when simConfig has no hazards collection");
   const resourceRow = snap.layers.resources.split("\n")[1];
-  assert.notEqual(resourceRow[4], " ", "resources layer must mark resource position at x=4 even when resources live only under layout.data");
+  assert.notEqual(resourceRow[4], " ", "resources layer must mark resource actors even when simConfig has no resources collection");
 });
 
 test("ascii detail renderer marks delver position in delvers layer", async () => {
@@ -238,7 +220,7 @@ test("actorDetails includes affinities, vitals, and motivation for each actor", 
     initialState: INITIAL_STATE,
     frames: [TICK_FRAME],
   });
-  assert.ok(Array.isArray(snap.actorDetails) && snap.actorDetails.length === 2,
+  assert.ok(Array.isArray(snap.actorDetails) && snap.actorDetails.length === INITIAL_STATE.actors.length,
     "actorDetails must contain all actors");
   const delver = snap.actorDetails.find((a) => a.id === "actor_delver_1");
   assert.ok(delver, "delver must be in actorDetails");
@@ -265,28 +247,28 @@ test("createVisualizationSnapshot at tick 0 returns ascii with initial positions
   assert.ok(typeof snap.ascii === "string", "ascii must be present even at tick 0");
 });
 
-test("createVisualizationSnapshot with no hazards produces empty hazards layer", async () => {
+test("createVisualizationSnapshot with no hazard actors produces empty hazards layer", async () => {
   const { createVisualizationSnapshot } = await loadVisualizationModule();
   const snap = await createVisualizationSnapshot({
     mode: "ascii",
     tick: 1,
     runId: "run_viz",
-    simConfig: { ...SIM_CONFIG, hazards: [] },
-    initialState: INITIAL_STATE,
+    simConfig: SIM_CONFIG,
+    initialState: withoutPresentationCategory(INITIAL_STATE, "hazard"),
     frames: [TICK_FRAME],
   });
   assert.doesNotMatch(snap.layers.hazards, /H/);
   assert.equal(snap.layers.hazards.replace(/\n/g, "").trim(), "");
 });
 
-test("createVisualizationSnapshot with no resources produces empty resources layer", async () => {
+test("createVisualizationSnapshot with no resource actors produces empty resources layer", async () => {
   const { createVisualizationSnapshot } = await loadVisualizationModule();
   const snap = await createVisualizationSnapshot({
     mode: "ascii",
     tick: 1,
     runId: "run_viz",
-    simConfig: { ...SIM_CONFIG, resources: [] },
-    initialState: INITIAL_STATE,
+    simConfig: SIM_CONFIG,
+    initialState: withoutPresentationCategory(INITIAL_STATE, "resource"),
     frames: [TICK_FRAME],
   });
   assert.doesNotMatch(snap.layers.resources, /R/);
@@ -339,7 +321,7 @@ function applyAndSummarizeFrames(tick, moves) {
 }
 
 function moveAction(actorId, tick, to) {
-  return { schema: "agent-kernel/Action", schemaVersion: 1, actorId, tick, kind: "move", params: { to } };
+  return { schema: "agent-kernel/Action", schemaVersion: 1, actorId, tick, kind: "move", params: { target: to } };
 }
 
 test("createVisualizationSnapshot accumulates moves across apply-phase frames from multiple ticks (regression #147)", async () => {
@@ -432,18 +414,17 @@ test("actorDetails vitals include stamina and mana when present", async () => {
   assert.ok(delver.vitals.mana, "mana vital must be present");
 });
 
-test("createVisualizationSnapshot tolerates missing hazards and resources fields", async () => {
+test("createVisualizationSnapshot still marks hazard actors when simConfig has no hazards collection", async () => {
   const { createVisualizationSnapshot } = await loadVisualizationModule();
-  const { hazards, resources, ...simConfig } = SIM_CONFIG;
   const snap = await createVisualizationSnapshot({
     mode: "ascii",
     tick: 1,
     runId: "run_viz",
-    simConfig,
+    simConfig: SIM_CONFIG,
     initialState: INITIAL_STATE,
     frames: [TICK_FRAME],
   });
   assert.equal(snap.mode, "ascii");
-  assert.equal(snap.layers.hazards.replace(/\n/g, "").trim(), "");
-  assert.equal(snap.layers.resources.replace(/\n/g, "").trim(), "");
+  assert.match(snap.layers.hazards, /H/);
+  assert.match(snap.layers.resources, /R/);
 });

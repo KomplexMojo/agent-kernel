@@ -234,23 +234,22 @@ test("loadRun calls deriveTileAffinityVisuals and includes tileVisuals in board 
           data: {
             width: 4,
             height: 4,
-            tiles: ["....", "....", "....", "...."],
-            hazards: [
-              {
-                id: "h1",
-                entityType: "hazard",
-                position: { x: 2, y: 2 },
-                emitStrength: 2,
-                affinityStacks: [{ kind: "fire", stacks: 1, expression: "emit" }],
-              },
-            ],
           },
         },
       },
       {
         schema: "agent-kernel/InitialStateArtifact",
         schemaVersion: 1,
-        actors: [{ id: "delver-1", position: { x: 0, y: 0 } }],
+        actors: [
+          { id: "delver-1", position: { x: 0, y: 0 } },
+          {
+            id: "h1",
+            category: "hazard",
+            position: { x: 2, y: 2 },
+            affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+          },
+        ],
+        presentation: { h1: { category: "hazard" } },
       },
       {
         schema: "agent-kernel/ResourceBundleArtifact",
@@ -295,8 +294,6 @@ test("loadRun uses injected buildTileAffinityVisualsFromBundleFn when provided",
           data: {
             width: 6,
             height: 6,
-            tiles: ["......", "......", "......", "......", "......", "......"],
-            hazards: [{ id: "h1", position: { x: 2, y: 2 }, emitStrength: 2, affinityStacks: [{ kind: "fire", stacks: 1, expression: "emit" }] }],
           },
         },
       },
@@ -442,8 +439,8 @@ test("tileVisuals persists across stepForward and stepBack renders", async () =>
       { schema: "agent-kernel/InitialStateArtifact", actors: [{ id: "actor-1", position: { x: 0, y: 0 } }] },
     ],
     tickFrames: [
-      { tick: 0, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { to: { x: 1, y: 0 } } }] },
-      { tick: 1, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { to: { x: 1, y: 1 } } }] },
+      { tick: 0, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { target: { x: 1, y: 0 } } }] },
+      { tick: 1, acceptedActions: [{ kind: "move", actorId: "actor-1", params: { target: { x: 1, y: 1 } } }] },
     ],
   });
   view.stepForward();

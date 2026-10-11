@@ -28,60 +28,50 @@ function makeMeta(id, runId) {
   return { id, runId, createdAt: "2026-01-01T00:00:00.000Z", producedBy: "fixture" };
 }
 
-function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
+async function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
   const buildDir = join(workDir, "artifacts", "runs", runId, "build");
   const runDir  = join(workDir, "artifacts", "runs", runId, "run");
-
-  writeJson(join(buildDir, "sim-config.json"), {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: makeMeta("sim_config", runId),
-    layout: {
-      kind: "grid",
-      width: 7,
-      height: 3,
-      data: {
-        width: 7,
-        height: 3,
-        tiles: ["#######", "#.....#", "#######"],
-        legend: { "#": { tile: "wall" }, ".": { tile: "floor" } },
-      },
-    },
-    hazards: [
-      { id: "hazard_1", x: 2, y: 1, affinity: "fire", expression: "emit", stacks: 3, blocking: false },
-    ],
-    resources: [
-      { id: "resource_1", x: 4, y: 1, tier: "level", stat: "vitalMax", delta: 10, dropRate: 50 },
-    ],
-  });
-
-  writeJson(join(buildDir, "initial-state.json"), {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: makeMeta("initial_state", runId),
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const terrain = boxedTerrain(7, 3);
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 7,
+    height: 3,
+    terrain,
+    runId,
     actors: [
       {
         id: "actor_delver_1",
-        kind: "motivated",
-        role: "delver",
+        category: "delver",
         position: { x: 1, y: 1 },
-        affinity: "fire",
-        motivation: "exploring",
-        affinities: [{ name: "fire", stacks: 2, expression: "emit" }],
+        motivations: ["exploring"],
+        affinities: [{ kind: "fire", expression: "emit", stacks: 2 }],
         vitals: { health: { current: 10, max: 10, regen: 1 }, stamina: { current: 7, max: 7, regen: 1 } },
       },
       {
         id: "actor_warden_1",
-        kind: "motivated",
-        role: "warden",
+        category: "warden",
         position: { x: 5, y: 1 },
-        affinity: "dark",
-        motivation: "stationary",
-        affinities: [{ name: "dark", stacks: 1, expression: "emit" }],
+        motivations: ["patrolling"],
+        affinities: [{ kind: "dark", expression: "emit", stacks: 1 }],
         vitals: { health: { current: 15, max: 15, regen: 0 }, stamina: { current: 5, max: 5, regen: 0 } },
+      },
+      {
+        id: "hazard_1",
+        category: "hazard",
+        position: { x: 2, y: 1 },
+        affinities: [{ kind: "fire", expression: "emit", stacks: 3 }],
+        vitals: { durability: { current: 3, max: 3, regen: 0 } },
+      },
+      {
+        id: "resource_1",
+        category: "resource",
+        position: { x: 4, y: 1 },
+        vitals: { durability: { current: 1, max: 1, regen: 0 } },
       },
     ],
   });
+  writeJson(join(buildDir, "sim-config.json"), simConfig);
+  writeJson(join(buildDir, "initial-state.json"), initialState);
 
   const frames = Array.from({ length: maxTick }, (_, i) => ({
     schema: "agent-kernel/TickFrame",
@@ -114,10 +104,10 @@ function scaffoldRun(workDir, runId, { maxTick = 5 } = {}) {
 // Backward compat — PASSES immediately (no visualization flag, existing fields)
 // ---------------------------------------------------------------------------
 
-test("tick state without --visualization preserves existing ascii + tickFrame fields", () => {
+test("tick state without --visualization preserves existing ascii + tickFrame fields", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-compat-"));
   const runId = "run_viz_compat";
-  scaffoldRun(workDir, runId, { maxTick: 3 });
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   const result = runCli(["tick", "state", "--run-id", runId], workDir);
@@ -134,10 +124,10 @@ test("tick state without --visualization preserves existing ascii + tickFrame fi
 // FAILING: --visualization ascii not yet implemented (M3)
 // ---------------------------------------------------------------------------
 
-test("tick state --visualization ascii returns visualization object with ascii mode", () => {
+test("tick state --visualization ascii returns visualization object with ascii mode", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-ascii-"));
   const runId = "run_viz_ascii";
-  scaffoldRun(workDir, runId, { maxTick: 3 });
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "ascii"], workDir);
@@ -150,6 +140,7 @@ test("tick state --visualization ascii returns visualization object with ascii m
   assert.equal(typeof output.visualization.ascii, "string");
   assert.ok(output.visualization.layers, "layers must be present in ascii mode");
   assert.equal(typeof output.visualization.layers.layout, "string");
+  assert.ok(output.visualization.layers.layout.includes("#"), "unified terrain must render wall glyphs");
   assert.equal(typeof output.visualization.layers.hazards, "string");
   assert.equal(typeof output.visualization.layers.resources, "string");
   assert.equal(typeof output.visualization.layers.delvers, "string");
@@ -157,10 +148,10 @@ test("tick state --visualization ascii returns visualization object with ascii m
   assert.ok(Array.isArray(output.visualization.actorDetails));
 });
 
-test("tick state --visualization ascii actorDetails includes affinities vitals and motivation", () => {
+test("tick state --visualization ascii actorDetails includes affinities vitals and motivation", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-detail-"));
   const runId = "run_viz_detail";
-  scaffoldRun(workDir, runId, { maxTick: 3 });
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "ascii"], workDir);
@@ -176,10 +167,10 @@ test("tick state --visualization ascii actorDetails includes affinities vitals a
   assert.ok(delver.vitals?.health, "health vital must be present");
 });
 
-test("tick forward --visualization ascii includes visualization at the new tick", () => {
+test("tick forward --visualization ascii includes visualization at the new tick", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-fwd-"));
   const runId = "run_viz_fwd";
-  scaffoldRun(workDir, runId, { maxTick: 5 });
+  await scaffoldRun(workDir, runId, { maxTick: 5 });
 
   const result = runCli(["tick", "forward", "--run-id", runId, "--visualization", "ascii"], workDir);
   assert.equal(result.status, 0, result.stderr);
@@ -192,10 +183,10 @@ test("tick forward --visualization ascii includes visualization at the new tick"
   assert.equal(output.visualization.tick, 1, "visualization.tick must match the cursor tick after forward");
 });
 
-test("tick backward --visualization ascii includes visualization at the rewound tick", () => {
+test("tick backward --visualization ascii includes visualization at the rewound tick", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-bwd-"));
   const runId = "run_viz_bwd";
-  scaffoldRun(workDir, runId, { maxTick: 5 });
+  await scaffoldRun(workDir, runId, { maxTick: 5 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   runCli(["tick", "forward", "--run-id", runId], workDir);
@@ -213,14 +204,14 @@ test("tick backward --visualization ascii includes visualization at the rewound 
 // FAILING: --visualization image not yet implemented (M4)
 // ---------------------------------------------------------------------------
 
-test("tick state --visualization image writes a PNG file and returns its path (#144)", () => {
+test("tick state --visualization image writes a PNG file and returns its path (#144)", async () => {
   // #144 -- an inlined data URI reliably blows an MCP tool-result token budget (443,790
   // characters on a trivial one-room, one-actor real run). Image mode now writes the PNG to disk
   // and returns visualizationPath instead, the same convention every other artifact-producing
   // ak_* command already follows.
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-img-"));
   const runId = "run_viz_img";
-  scaffoldRun(workDir, runId, { maxTick: 3 });
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "image"], workDir);
@@ -239,10 +230,10 @@ test("tick state --visualization image writes a PNG file and returns its path (#
   assert.equal(bytes[3], 0x47, "PNG magic byte 3 must be 0x47 (G)");
 });
 
-test("tick state --visualization with invalid value returns ok:false with structured error", () => {
+test("tick state --visualization with invalid value returns ok:false with structured error", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-bad-"));
   const runId = "run_viz_bad";
-  scaffoldRun(workDir, runId, { maxTick: 3 });
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "video"], workDir);
@@ -253,10 +244,10 @@ test("tick state --visualization with invalid value returns ok:false with struct
     "error must name the valid visualization values");
 });
 
-test("tick state --visualization ascii at tick 0 returns ok:true with visualization", () => {
+test("tick state --visualization ascii at tick 0 returns ok:true with visualization", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-ascii-tick0-"));
   const runId = "run_viz_ascii_tick0";
-  scaffoldRun(workDir, runId, { maxTick: 3 });
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
 
   const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "ascii"], workDir);
   assert.equal(result.status, 0, result.stderr);
@@ -266,10 +257,10 @@ test("tick state --visualization ascii at tick 0 returns ok:true with visualizat
   assert.equal(output.visualization.mode, "ascii");
 });
 
-test("tick forward at maxTick boundary with --visualization ascii returns ok:false boundary error", () => {
+test("tick forward at maxTick boundary with --visualization ascii returns ok:false boundary error", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-forward-boundary-"));
   const runId = "run_viz_forward_boundary";
-  scaffoldRun(workDir, runId, { maxTick: 1 });
+  await scaffoldRun(workDir, runId, { maxTick: 1 });
 
   runCli(["tick", "forward", "--run-id", runId], workDir);
   const result = runCli(["tick", "forward", "--run-id", runId, "--visualization", "ascii"], workDir);
@@ -278,10 +269,10 @@ test("tick forward at maxTick boundary with --visualization ascii returns ok:fal
   assert.match(output.error, /max tick|cannot advance/i);
 });
 
-test("tick backward at tick 0 with --visualization ascii returns ok:false boundary error", () => {
+test("tick backward at tick 0 with --visualization ascii returns ok:false boundary error", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-backward-boundary-"));
   const runId = "run_viz_backward_boundary";
-  scaffoldRun(workDir, runId, { maxTick: 1 });
+  await scaffoldRun(workDir, runId, { maxTick: 1 });
 
   const result = runCli(["tick", "backward", "--run-id", runId, "--visualization", "ascii"], workDir);
   const output = JSON.parse(result.stdout);
@@ -289,10 +280,10 @@ test("tick backward at tick 0 with --visualization ascii returns ok:false bounda
   assert.match(output.error, /tick 0|cannot rewind|already at/i);
 });
 
-test("tick state --visualization image at tick 0 returns image mode gracefully", () => {
+test("tick state --visualization image at tick 0 returns image mode gracefully", async () => {
   const workDir = mkdtempSync(join(os.tmpdir(), "ak-viz-image-tick0-"));
   const runId = "run_viz_image_tick0";
-  scaffoldRun(workDir, runId, { maxTick: 3 });
+  await scaffoldRun(workDir, runId, { maxTick: 3 });
 
   const result = runCli(["tick", "state", "--run-id", runId, "--visualization", "image"], workDir);
   assert.equal(result.status, 0, result.stderr);

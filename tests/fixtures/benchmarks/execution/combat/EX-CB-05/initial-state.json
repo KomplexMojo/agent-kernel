@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "delver_reflexive_attacker",
-      "kind": "ambulatory",
       "position": {
         "x": 3,
         "y": 3
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -42,35 +44,33 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "role": "delver",
-      "motivation": {
-        "kind": "attacking"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "random",
-            "intensity": 1
-          },
-          {
-            "kind": "attacking",
-            "intensity": 1
-          },
-          {
-            "kind": "reflexive",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "random",
+        "attacking",
+        "reflexive"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_goal_attacker",
-      "kind": "ambulatory",
       "position": {
         "x": 4,
         "y": 3
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 14,
@@ -93,35 +93,33 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "role": "warden",
-      "motivation": {
-        "kind": "attacking"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "patrolling",
-            "intensity": 1
-          },
-          {
-            "kind": "attacking",
-            "intensity": 1
-          },
-          {
-            "kind": "goal_oriented",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "patrolling",
+        "attacking",
+        "goal_oriented"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_strategy_defender",
-      "kind": "ambulatory",
       "position": {
         "x": 3,
         "y": 4
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 18,
@@ -144,27 +142,34 @@
           "regen": 0
         }
       },
-      "archetype": "warden",
-      "role": "warden",
-      "motivation": {
-        "kind": "defending"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "exploring",
-            "intensity": 1
-          },
-          {
-            "kind": "defending",
-            "intensity": 1
-          },
-          {
-            "kind": "strategy_focused",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "exploring",
+        "defending",
+        "strategy_focused"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "delver_reflexive_attacker": {
+      "category": "delver"
+    },
+    "warden_goal_attacker": {
+      "category": "warden"
+    },
+    "warden_strategy_defender": {
+      "category": "warden"
+    }
+  }
 }

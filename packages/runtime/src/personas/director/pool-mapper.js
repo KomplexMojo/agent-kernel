@@ -117,6 +117,12 @@ export function mapSummaryToPool({ summary, catalog }) {
         affinity: applied.affinity,
         cost: applied.cost,
       };
+      if (kind === "actor") {
+        for (const key of ["motivations", "category", "position", "alignment", "lifecycle",
+          "defeatVital", "capabilities", "activeAffinityKey", "holdings"]) {
+          if (Object.hasOwn(pick, key)) instance[key] = structuredClone(pick[key]);
+        }
+      }
       if (affinities.length > 0) {
         instance.affinities = affinities.map((entry) => ({ ...entry }));
       }

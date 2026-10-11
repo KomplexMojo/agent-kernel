@@ -226,15 +226,21 @@ const BOARD_STATE = {
     actors: [
       { id: "delver-1", type: "delver", position: { x: 2, y: 2 } },
       { id: "warden-1", type: "warden", position: { x: 2, y: 3 } },
+      { id: "hazard-1", category: "hazard", position: { x: 1, y: 2 } },
+      { id: "resource-1", category: "resource", position: { x: 3, y: 2 } },
     ],
+    presentation: {
+      "hazard-1": { category: "hazard" },
+      "resource-1": { category: "resource" },
+    },
   },
   observation: {
     actors: [
       { id: "delver-1", type: "delver", position: { x: 2, y: 2 } },
       { id: "warden-1", type: "warden", position: { x: 2, y: 3 } },
+      { id: "hazard-1", category: "hazard", position: { x: 1, y: 2 } },
+      { id: "resource-1", category: "resource", position: { x: 3, y: 2 } },
     ],
-    hazards: [{ id: "hazard-1", position: { x: 1, y: 2 } }],
-    resources: [{ id: "resource-1", position: { x: 3, y: 2 } }],
   },
   resourceBundle: null,
 };

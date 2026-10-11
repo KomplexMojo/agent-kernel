@@ -82,6 +82,6 @@
   },
   "observedError": "Budget receipt denied: status=denied; remaining=538; deniedLines=resource:resource_affinity_base:resources,resource:resource_affinity_expression_internalize:resources,resource:resource_affinity_stack:resources,resource:resource_level:resources,resource:resource_vital_mana_point:resources; deniedPools=resources:374/128\n",
   "occurrences": 1,
-  "disposition": "model-error",
-  "dispositionNote": "unexpected but correct: allocator enforcing the resource-affinity pool cap (variant deniedLines)."
+  "disposition": "harness-defect",
+  "dispositionNote": "Unified resource pricing approves this shape at 770/1600. The 2026-08-28 resource-pool denial (374/128) does not reproduce. The scenario's own expected outcome is success."
 }

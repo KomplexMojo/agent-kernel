@@ -48,7 +48,9 @@ function buildSpec() {
             affinities: [{ kind: "water", expression: "emit", stacks: 1 }],
           },
         ],
-        actors: [{ id: "delver_seed", motivations: ["attacking"] }],
+        actors: [{ id: "delver_seed", category: "delver", motivations: ["exploring"],
+          vitals: { health: { current: 10, max: 10, regen: 0 } } }],
+        movementStamina: {},
       },
     },
   };
@@ -66,18 +68,11 @@ function projectRoomComposition(result) {
       templateId: room.templateId,
       templateInstanceId: room.templateInstanceId,
     })),
-    hazards: (data.hazards || [])
-      .filter((hazard) => hazard.source === "room_affinity_tile")
-      .map((hazard) => ({
-        id: hazard.id,
-        x: hazard.x,
-        y: hazard.y,
-        blocking: hazard.blocking,
-        source: hazard.source,
-        roomId: hazard.roomId,
-        affinity: hazard.affinity,
-        vitals: hazard.vitals,
-      })),
+    hazards: result.initialState.actors
+      .filter((actor) => result.initialState.presentation[actor.id]?.category === "hazard")
+      .map((actor) => ({ id: actor.id, position: actor.position,
+        blocksMovement: actor.capabilities.blocksMovement,
+        affinity: actor.affinities[0], vitals: actor.vitals })),
   };
 }
 
@@ -107,27 +102,24 @@ test("orchestrateBuild byte-characterizes seeded room profiles and generated emi
     ],
     hazards: [
       {
-        id: "fire_emit_1", x: 14, y: 10, blocking: false,
-        source: "room_affinity_tile", roomId: "R2",
-        affinity: { kind: "fire", expression: "emit", stacks: 2, targetType: "floor" },
+        id: "fire_emit_1", position: { x: 14, y: 10 }, blocksMovement: false,
+        affinity: { kind: "fire", expression: "emit", stacks: 2 },
         vitals: {
           mana: { current: 12, max: 12, regen: 4 },
           durability: { current: 10, max: 10, regen: 0 },
         },
       },
       {
-        id: "fire_emit_2", x: 3, y: 15, blocking: false,
-        source: "room_affinity_tile", roomId: "R3",
-        affinity: { kind: "fire", expression: "emit", stacks: 2, targetType: "floor" },
+        id: "fire_emit_2", position: { x: 3, y: 15 }, blocksMovement: false,
+        affinity: { kind: "fire", expression: "emit", stacks: 2 },
         vitals: {
           mana: { current: 12, max: 12, regen: 4 },
           durability: { current: 10, max: 10, regen: 0 },
         },
       },
       {
-        id: "water_emit_0", x: 3, y: 4, blocking: false,
-        source: "room_affinity_tile", roomId: "R1",
-        affinity: { kind: "water", expression: "emit", stacks: 1, targetType: "floor" },
+        id: "water_emit_0", position: { x: 3, y: 4 }, blocksMovement: false,
+        affinity: { kind: "water", expression: "emit", stacks: 1 },
         vitals: {
           mana: { current: 9, max: 9, regen: 3 },
           durability: { current: 5, max: 5, regen: 0 },

@@ -25,33 +25,22 @@ function runCli(args, options = {}) {
   return JSON.parse(result.stdout.trim());
 }
 
-function makeSimConfig() {
-  return {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: { id: "sim_runtime_budget", runId: "run_runtime_budget", createdAt: "2026-09-02T00:00:00.000Z" },
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width: 1,
-        height: 1,
-        tiles: ["S"],
-        spawn: { x: 0, y: 0 },
-        rooms: [{ id: "R1", x: 0, y: 0, width: 1, height: 1 }],
-      },
-    },
-  };
-}
-
-function makeInitialState() {
-  return {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: { id: "state_runtime_budget", runId: "run_runtime_budget", createdAt: "2026-09-02T00:00:00.000Z" },
-    simConfigRef: { id: "sim_runtime_budget", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
-    actors: [{ id: "delver", kind: "stationary" }],
-  };
+async function makeUnifiedRunArtifacts() {
+  const { buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  return buildUnifiedArtifacts({
+    width: 1,
+    height: 1,
+    terrain: ["spawn"],
+    runId: "run_runtime_budget",
+    clock: "2026-09-02T00:00:00.000Z",
+    actors: [{
+      id: "delver",
+      category: "delver",
+      position: { x: 0, y: 0 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
 }
 
 test("inspect displays provided runtimeBudgetUnits values without reconstructing totals", () => {
@@ -89,11 +78,10 @@ test("inspect displays provided runtimeBudgetUnits values without reconstructing
   assert.equal(output.artifactPaths.runtime_budget_receipt, join(runDir, "runtime-budget-receipt.json"));
 });
 
-test("post-run GameplayBundle carries the exact persisted runtime receipt", () => {
+test("post-run GameplayBundle carries the exact persisted runtime receipt", async () => {
   const createDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-runtime-budget-bundle-"));
   const runDir = join(createDir, "run");
-  const simConfig = makeSimConfig();
-  const initialState = makeInitialState();
+  const { simConfig, initialState } = await makeUnifiedRunArtifacts();
   writeJson(join(createDir, "sim-config.json"), simConfig);
   writeJson(join(createDir, "initial-state.json"), initialState);
   writeJson(join(createDir, "bundle.json"), { spec: { id: "preview" }, schemas: [], artifacts: [simConfig, initialState] });

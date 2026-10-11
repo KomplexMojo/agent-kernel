@@ -4,7 +4,8 @@ import {
   renderCoreBaseTiles,
   renderCoreFrame,
 } from "../../../runtime/src/runner/core-facade.js";
-import { applyInitialStateToCore, applySimConfigToCore } from "../../../runtime/src/runner/core-setup.mjs";
+import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
+import { readActorRegistryObservation } from "../../../core-ts/src/rules/actor-observation.ts";
 import { collectBuildSpecCardSet } from "../build-spec-ui.js";
 import {
   createCanvasPreviewRenderer,
@@ -45,6 +46,14 @@ function sortActors(actors = []) {
 function findArtifact(bundle, schema) {
   const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
   return artifacts.find((artifact) => artifact?.schema === schema) || null;
+}
+
+function hazardActorsFromState(initialState, observation) {
+  const presentation = initialState?.presentation ?? {};
+  const pool = Array.isArray(observation?.actors) && observation.actors.length
+    ? observation.actors
+    : Array.isArray(initialState?.actors) ? initialState.actors : [];
+  return pool.filter((actor) => presentation[actor?.id]?.category === "hazard");
 }
 
 function normalizeCardTypeName(type) {
@@ -119,6 +128,20 @@ function summarizeActor(actor) {
   return `${id} @(${x},${y}) ${summarizeVitals(actor?.vitals)}`;
 }
 
+function terrainRows(snapshot) {
+  const glyph = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+  const { width, height } = snapshot.dimensions;
+  const rows = [];
+  for (let y = 0; y < height; y += 1) {
+    let row = "";
+    for (let x = 0; x < width; x += 1) {
+      row += glyph[snapshot.terrain[y * width + x]] || ".";
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
 function summarizePreview(simConfig, initialState) {
   const width = Number.isFinite(simConfig?.layout?.data?.width) ? simConfig.layout.data.width : 0;
   const height = Number.isFinite(simConfig?.layout?.data?.height) ? simConfig.layout.data.height : 0;
@@ -140,8 +163,8 @@ function clearCanvas(canvas) {
 export function wirePreviewView({
   root = document,
   createCoreFn = createRuntimeCore,
-  applySimConfig = applySimConfigToCore,
-  applyInitialState = applyInitialStateToCore,
+  applySimConfig = null,
+  applyInitialState = null,
   renderFrame = renderCoreFrame,
   renderBase = renderCoreBaseTiles,
   readObservationFn = readCoreObservation,
@@ -342,38 +365,46 @@ export function wirePreviewView({
       const seed = Number.isFinite(simConfig?.seed) ? simConfig.seed : 0;
       runtimeCore.init?.(seed);
 
-      const layoutResult = applySimConfig(runtimeCore, simConfig);
-      if (!layoutResult?.ok) {
-        clearPreview(`Preview failed: invalid layout (${layoutResult?.reason || "unknown"}).`, "error");
-        return false;
-      }
-
       const sortedActors = sortActors(initialState?.actors);
       const hasActors = sortedActors.length > 0;
-      let actorResult = null;
       let actorIdLabel = "actor_preview";
       let actorIds = [];
-      if (hasActors) {
-        actorIds = sortedActors.map((actor) => actor.id).filter(Boolean);
-        actorIdLabel = actorIds[0] || actorIdLabel;
-        actorResult = applyInitialState(runtimeCore, initialState, { spawn: layoutResult.spawn });
-        if (!actorResult?.ok) {
-          clearPreview(`Preview failed: invalid actors (${actorResult?.reason || "unknown"}).`, "error");
+      let baseTiles;
+      let frame;
+      let observation;
+
+      if (typeof applySimConfig === "function") {
+        const layoutResult = applySimConfig(runtimeCore, simConfig);
+        if (!layoutResult?.ok) {
+          clearPreview(`Preview failed: invalid layout (${layoutResult?.reason || "unknown"}).`, "error");
           return false;
         }
+        if (hasActors) {
+          actorIds = sortedActors.map((actor) => actor.id).filter(Boolean);
+          actorIdLabel = actorIds[0] || actorIdLabel;
+          if (typeof applyInitialState === "function") {
+            const actorResult = applyInitialState(runtimeCore, initialState, { spawn: layoutResult.spawn });
+            if (!actorResult?.ok) {
+              clearPreview(`Preview failed: invalid actors (${actorResult?.reason || "unknown"}).`, "error");
+              return false;
+            }
+          }
+        }
+        baseTiles = renderBase(runtimeCore);
+        frame = hasActors
+          ? renderFrame(runtimeCore, { actorIdLabel })
+          : { tick: 0, baseTiles, buffer: baseTiles };
+        observation = hasActors
+          ? readObservationFn(runtimeCore, { actorIdLabel, actorIds })
+          : { actors: [] };
+      } else {
+        const loaded = initializeCoreFromArtifacts({ simConfig, initialState });
+        const snapshot = loaded.registry.snapshot();
+        baseTiles = terrainRows(snapshot);
+        observation = readActorRegistryObservation(loaded.registry, 0);
+        frame = { tick: 0, baseTiles, buffer: baseTiles };
       }
 
-      const baseTiles = renderBase(runtimeCore);
-      const frame = hasActors
-        ? renderFrame(runtimeCore, { actorIdLabel })
-        : {
-          tick: 0,
-          baseTiles,
-          buffer: baseTiles,
-        };
-      const observation = hasActors
-        ? readObservationFn(runtimeCore, { actorIdLabel, actorIds })
-        : { actors: [] };
       const previewTiles = Array.isArray(frame?.baseTiles) && frame.baseTiles.length > 0
         ? frame.baseTiles
         : baseTiles;
@@ -390,7 +421,7 @@ export function wirePreviewView({
         initialState,
         tiles: previewTiles,
         actors: sortActors(observation?.actors),
-        floorAffinityHazards: Array.isArray(simConfig?.layout?.data?.hazards) ? simConfig.layout.data.hazards : [],
+        floorAffinityHazards: hazardActorsFromState(initialState, observation),
         observation,
         boardWidth: previewTiles.reduce((max, row) => Math.max(max, String(row || "").length), 0),
         boardHeight: previewTiles.length,

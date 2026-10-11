@@ -41,41 +41,35 @@ function createMeta(overrides = {}) {
   };
 }
 
-function createSimArtifacts(dir) {
-  const planRef = {
-    id: "plan_test",
-    schema: "agent-kernel/PlanArtifact",
-    schemaVersion: 1,
-  };
-  const simConfig = {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
+async function createSimArtifacts(dir) {
+  const { createConfiguratorPersona } = await import(
+    "../../packages/runtime/src/personas/configurator/controller.js"
+  );
+  const configurator = createConfiguratorPersona({ clock: () => "2026-01-01T00:00:00.000Z" });
+  const layout = { width: 2, height: 1, terrain: ["floor", "exit"] };
+  const simConfig = configurator.buildSimConfigArtifact({
     meta: createMeta({ id: "sim_config" }),
-    planRef,
-    seed: 0,
-    layout: {
-      kind: "grid",
-      data: {
-        width: 1,
-        height: 1,
-        tiles: ["S"],
-        spawn: { x: 0, y: 0 },
-      },
-    },
-  };
-  const initialState = {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
+    planRef: { id: "plan_test", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    layout,
+    movementStamina: { actor_1: 0 },
+  });
+  const initialState = configurator.buildInitialStateArtifact({
     meta: createMeta({ id: "initial_state" }),
     simConfigRef: {
       id: simConfig.meta.id,
       schema: simConfig.schema,
       schemaVersion: simConfig.schemaVersion,
     },
-    actors: [
-      { id: "actor_1", kind: "stationary" },
-    ],
-  };
+    dimensions: { width: 2, height: 1 },
+    terrain: layout.terrain,
+    actors: [{
+      id: "actor_1",
+      category: "delver",
+      position: { x: 0, y: 0 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
   const simConfigPath = join(dir, "sim-config.json");
   const initialStatePath = join(dir, "initial-state.json");
   writeJson(simConfigPath, simConfig);
@@ -100,9 +94,9 @@ test("cli solve writes solver artifacts", () => {
   assert.equal(result.schemaVersion, 1);
 });
 
-test("cli run writes tick frames and logs", (t) => {
+test("cli run writes tick frames and logs", async () => {
   const workDir = makeTempDir("agent-kernel-run-");
-  const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
+  const { simConfigPath, initialStatePath } = await createSimArtifacts(workDir);
   const outDir = join(workDir, "out");
 
   runCli([
@@ -133,9 +127,9 @@ test("cli run writes tick frames and logs", (t) => {
   assert.equal(frames[0].schema, "agent-kernel/TickFrame");
 });
 
-test("cli run --progress emits JSON lines to stderr without polluting stdout", (t) => {
+test("cli run --progress emits JSON lines to stderr without polluting stdout", async () => {
   const workDir = makeTempDir("agent-kernel-run-progress-");
-  const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
+  const { simConfigPath, initialStatePath } = await createSimArtifacts(workDir);
   const outDir = join(workDir, "out");
 
   const result = runCli([
@@ -172,14 +166,14 @@ test("cli run --progress emits JSON lines to stderr without polluting stdout", (
   assert.equal(stderrLines[2].totalTicks, 2);
 });
 
-test("cli run resolves sim artifacts from --from-run", (t) => {
+test("cli run resolves sim artifacts from --from-run", async () => {
   const workspaceDir = makeTempDir("agent-kernel-run-from-run-");
   const sourceRunId = "run_source_fixture";
   const sourceDir = join(workspaceDir, "artifacts", "runs", sourceRunId, "build");
   const outDir = join(workspaceDir, "artifacts", "runs", "run_from_source", "run");
 
   mkdirSync(sourceDir, { recursive: true });
-  createSimArtifacts(sourceDir);
+  await createSimArtifacts(sourceDir);
 
   runCli(
     [
@@ -200,9 +194,9 @@ test("cli run resolves sim artifacts from --from-run", (t) => {
   assert.ok(existsSync(join(outDir, "run-summary.json")));
 });
 
-test("cli run dry-run validates sim artifacts without executing runtime outputs", () => {
+test("cli run dry-run validates sim artifacts without executing runtime outputs", async () => {
   const workDir = makeTempDir("agent-kernel-run-dry-run-");
-  const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
+  const { simConfigPath, initialStatePath } = await createSimArtifacts(workDir);
   const outDir = join(workDir, "out");
 
   const result = runCli([
@@ -230,9 +224,9 @@ test("cli run dry-run validates sim artifacts without executing runtime outputs"
   assert.equal(existsSync(join(outDir, "run-summary.json")), false);
 });
 
-test("cli replay writes replay summary", (t) => {
+test("cli replay writes replay summary", async () => {
   const workDir = makeTempDir("agent-kernel-replay-");
-  const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
+  const { simConfigPath, initialStatePath } = await createSimArtifacts(workDir);
   const runOutDir = join(workDir, "run-out");
 
   runCli([
@@ -271,9 +265,9 @@ test("cli replay writes replay summary", (t) => {
   assert.equal(typeof summary.runtimeDecisions.match, "boolean");
 });
 
-test("cli inspect writes summary", (t) => {
+test("cli inspect writes summary", async () => {
   const workDir = makeTempDir("agent-kernel-inspect-");
-  const { simConfigPath, initialStatePath } = createSimArtifacts(workDir);
+  const { simConfigPath, initialStatePath } = await createSimArtifacts(workDir);
   const runOutDir = join(workDir, "run-out");
 
   runCli([

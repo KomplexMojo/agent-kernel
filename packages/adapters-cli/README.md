@@ -683,7 +683,7 @@ UI-to-CLI parity recipes (Room/Hazard/Resource/Delver/Warden, AD1):
 ```
 # 1) Room parity recipe (RP1-RP4): author rooms, costs, then smoke-run with one actor override.
 node packages/adapters-cli/src/cli/ak.mjs room-plan --room "size=small;count=2;affinities=dark:emit:2,fire:push:1" --room "size=large;count=1;affinities=water:pull:1" --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --run-id run_room_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/room/sim-config.json --initial-state artifacts/parity-recipes/room/initial-state.json --actor room_probe,1,1,motivated --ticks 0 --run-id run_room_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room-run
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config artifacts/parity-recipes/room/sim-config.json --initial-state artifacts/parity-recipes/room/initial-state.json --actor room_probe,1,1,delver --ticks 0 --run-id run_room_parity_recipe_playback --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/room-run
 
 # 2) Hazard parity recipe: direct hazard authoring + sidecar artifact.
 node packages/adapters-cli/src/cli/ak.mjs hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:4:4:1" --budget-tokens 200 --run-id run_hazard_parity_recipe --created-at 2026-03-08T00:00:00Z --out-dir artifacts/parity-recipes/hazard
@@ -830,10 +830,11 @@ Expected outputs (defaults when `--out-dir` is set):
   `vitals=<vital>:<max>:<regen>,...` or `<vital>:<current>:<max>:<regen>,...`.
   Use `--budget` + `--price-list` together to emit `budget-receipt.json` from the same run.
 - Actor overrides (run):
-  - `--actor id,x,y,kind` (kind: motivated/ambulatory/stationary)
+  - `--actor id,x,y,category` (category: delver/warden/hazard/resource/barrier)
   - `--vital actorId,vital,current,max,regen`
   - `--vital-default vital,current,max,regen`
-  - `--tile-wall x,y`, `--tile-barrier x,y`, `--tile-floor x,y` (repeatable)
+  - `--tile-wall x,y`, `--tile-floor x,y` (repeatable terrain cells)
+  - `--tile-barrier x,y` (repeatable barrier actors)
 
 When overrides are provided, `run` writes `resolved-sim-config.json` and
 `resolved-initial-state.json` to the output directory for inspection.

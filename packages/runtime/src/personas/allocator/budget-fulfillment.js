@@ -62,7 +62,7 @@ import {
   rejectSpend,
 } from "../../contracts/spend-protocol.js";
 import { calculateActorConfigurationUnitCost, calculateRoomCardUnitCost } from "./spend-proposal.js";
-import { normalizePriceItems } from "./validate-spend.js";
+import { calculatePriceTotal, normalizePriceItems } from "./validate-spend.js";
 import { buildDefaultPriceList } from "./default-price-list.js";
 
 /**
@@ -131,6 +131,14 @@ const allocatorPriceItems = (priceListArtifact) =>
 
 function cardCount(card) {
   return Number.isInteger(card?.count) && card.count > 0 ? card.count : 1;
+}
+
+function actorSpawnReserve(priceMap, count) {
+  const item = priceMap?.get?.("actor:actor_spawn");
+  if (!item || !Number.isFinite(item.unitCost) || item.unitCost < 0) {
+    throw new Error(`actor_spawn has no price list entry (expected actor:actor_spawn) to reserve ${count} spawn(s)`);
+  }
+  return calculatePriceTotal(item, count);
 }
 
 /**
@@ -610,7 +618,10 @@ export function applyBudgetCappedFulfillment({
     const currentCardCost = calculateDelverCardUnitCost(entry.value, priceMap, { authoring, normalizeMotivations })
       * (entry?.value?.count || 1);
     const otherCost = calculateCurrentTotal() - currentCardCost;
-    const availableTokens = Math.max(0, budgetTokens - otherCost);
+    const spawnReserve = entry?.vitalsFlexible === true
+      ? nextDelvers.reduce((sum, other) => sum + actorSpawnReserve(priceMap, cardCount(other.value)), 0)
+      : 0;
+    const availableTokens = Math.max(0, budgetTokens - otherCost - spawnReserve);
     nextDelvers[delverIndex].value = maximizeBudgetCappedDelverCard(entry.value, {
       availableTokens,
       priceListArtifact,

@@ -38,6 +38,9 @@ test("actor persona emits runtime-decision solver requests from live observation
       },
       { id: "def_1", kind: 2, role: "defender", position: { x: 2, y: 1 } },
       { id: "def_2", kind: 2, role: "defender", position: { x: 1, y: 2 } },
+      { id: "stationary_source", alignment: "dungeon", position: { x: 0, y: 1 },
+        lifecycle: "alive", defeatVital: "durability", motivations: [], holdings: [],
+        affinities: [{ kind: "fire", expression: "emit", stacks: 1 }], activeAffinityKey: "fire:emit" },
     ],
     tiles: {
       kinds: [
@@ -92,17 +95,13 @@ test("actor persona emits runtime-decision solver requests from live observation
   assert.equal(envelope.contract, "runtime-decision-v1");
   assert.equal(envelope.actor.id, actorId);
   assert.equal(envelope.providerPolicy.preferred, "solver");
-  assert.equal(envelope.visibleActors.length, 2);
-  assert.equal(envelope.hazards.length, 2);
-  assert.deepEqual(envelope.hazards.map((entry) => entry.kind), ["hazard", "hazard"]);
-  assert.ok(envelope.hazards.every((entry) => entry.kind === "hazard"));
-  assert.deepEqual(envelope.hazards.find((entry) => entry.id === "hazard_1_secondary"), {
-    id: "hazard_1_secondary",
-    kind: "hazard",
-    position: { x: 2, y: 2 },
-    expression: "emit",
-    affinity: "water",
-    stacks: 2,
+  assert.equal(envelope.visibleActors.length, 3);
+  assert.equal(Object.hasOwn(envelope, "hazards"), false);
+  assert.deepEqual(envelope.visibleActors.find(entry => entry.id === "stationary_source"), {
+    id: "stationary_source", alignment: "dungeon", position: { x: 0, y: 1 },
+    lifecycle: "alive", defeatVital: "durability", motivations: [], holdings: [],
+    affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+    activeAffinityKey: "fire:emit", hostile: true,
   });
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "move_east"));
   assert.ok(envelope.candidateActions.some((entry) => entry.id === "move_northeast"));

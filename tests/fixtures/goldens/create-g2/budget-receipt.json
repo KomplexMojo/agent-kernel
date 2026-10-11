@@ -28,104 +28,132 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 670,
-  "remaining": 4330,
+  "totalCost": 126,
+  "remaining": 4874,
   "lineItems": [
     {
-      "id": "resource_affinity_base",
-      "kind": "resource",
-      "quantity": 2,
-      "unitCost": 15,
-      "totalCost": 30,
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "unitCost": 5,
+      "totalCost": 5,
       "status": "approved",
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
-        "schema": "agent-kernel/ResourceArtifact",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "resource_affinity_expression_localized",
-      "kind": "resource",
-      "quantity": 2,
-      "unitCost": 38,
-      "totalCost": 76,
-      "status": "approved",
-      "category": "resources",
-      "subjectRef": {
-        "id": "resource_1",
-        "schema": "agent-kernel/ResourceArtifact",
-        "schemaVersion": 1
-      }
-    },
-    {
-      "id": "resource_affinity_stack",
-      "kind": "resource",
-      "quantity": 4,
-      "unitCost": 2,
-      "totalCost": 32,
-      "status": "approved",
-      "category": "resources",
-      "subjectRef": {
-        "id": "resource_1",
-        "schema": "agent-kernel/ResourceArtifact",
-        "schemaVersion": 1
-      }
-    },
-    {
-      "id": "resource_vital_mana_point",
-      "kind": "resource",
-      "quantity": 100,
-      "unitCost": 2,
-      "totalCost": 200,
-      "status": "approved",
-      "category": "resources",
-      "subjectRef": {
-        "id": "resource_1",
-        "schema": "agent-kernel/ResourceArtifact",
-        "schemaVersion": 1
-      }
-    },
-    {
-      "id": "resource_vital_mana_regen_tick",
-      "kind": "resource",
-      "quantity": 10,
-      "unitCost": 2,
-      "totalCost": 200,
-      "status": "approved",
-      "category": "resources",
-      "subjectRef": {
-        "id": "resource_1",
-        "schema": "agent-kernel/ResourceArtifact",
-        "schemaVersion": 1
-      }
-    },
-    {
-      "id": "resource_permanent",
-      "kind": "resource",
-      "quantity": 10,
+      "id": "affinity_base",
+      "kind": "affinity",
+      "quantity": 1,
       "unitCost": 10,
-      "totalCost": 100,
+      "totalCost": 10,
       "status": "approved",
       "category": "resources",
       "subjectRef": {
-        "id": "resource_2",
-        "schema": "agent-kernel/ResourceArtifact",
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     },
     {
-      "id": "resource_vital_health_regen_tick",
-      "kind": "resource",
-      "quantity": 4,
-      "unitCost": 2,
-      "totalCost": 32,
+      "id": "affinity_expression_localized",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 25,
+      "totalCost": 25,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "affinity_stack",
+      "kind": "affinity",
+      "quantity": 2,
+      "unitCost": 1,
+      "totalCost": 4,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_mana_point",
+      "kind": "vital",
+      "quantity": 50,
+      "unitCost": 1,
+      "totalCost": 50,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_mana_regen_tick",
+      "kind": "vital",
+      "quantity": 5,
+      "unitCost": 1,
+      "totalCost": 25,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "actor_spawn",
+      "kind": "actor",
+      "quantity": 1,
+      "unitCost": 5,
+      "totalCost": 5,
       "status": "approved",
       "category": "resources",
       "subjectRef": {
         "id": "resource_2",
-        "schema": "agent-kernel/ResourceArtifact",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "vital_durability_point",
+      "kind": "vital",
+      "quantity": 1,
+      "unitCost": 1,
+      "totalCost": 1,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_2",
+        "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
       }
     }
@@ -155,8 +183,8 @@
     {
       "id": "resources",
       "capTokens": 5000,
-      "spentTokens": 670,
-      "remainingTokens": 4330,
+      "spentTokens": 126,
+      "remainingTokens": 4874,
       "status": "approved"
     },
     {
@@ -169,8 +197,8 @@
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 670,
-    "remainingBudget": 4330,
+    "totalSpend": 126,
+    "remainingBudget": 4874,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -189,9 +217,9 @@
         "usagePercent": 0
       },
       "resources": {
-        "actual": 670,
+        "actual": 126,
         "target": 5000,
-        "usagePercent": 13
+        "usagePercent": 3
       },
       "delvers": {
         "actual": 0,
@@ -209,7 +237,7 @@
         "usagePercent": 0
       }
     },
-    "totalBudgetUsagePercent": 13,
+    "totalBudgetUsagePercent": 3,
     "incentive": {
       "actualRatio": 0,
       "targetRatio": 0.8,

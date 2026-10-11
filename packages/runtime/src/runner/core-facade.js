@@ -17,6 +17,7 @@ import {
 import { GAMEPLAY_BUNDLE_SCHEMA } from "../contracts/artifacts.ts";
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
 import { createRuntime } from "./runtime.js";
+import { readActorRegistryObservation } from "../../../core-ts/src/rules/actor-observation.ts";
 
 const ALL_AFFINITY_KIND_CODES = Object.freeze(Object.keys(AFFINITY_KIND_BY_CODE).map(Number));
 
@@ -84,16 +85,26 @@ export function readCoreAffinityFieldRecords(core, { width = 0, height = 0 } = {
 }
 
 export function readCoreAffinityFieldRecordsFromArtifacts(core, { simConfig, initialState } = {}) {
-  const result = initializeCoreFromArtifacts(core, { simConfig, initialState });
-  const width = result.layout?.dimensions?.width || 0;
-  const height = result.layout?.dimensions?.height || 0;
-  const fieldRecords = result.layout?.ok && width > 0 && height > 0
-    ? readCoreAffinityFieldRecords(core, { width, height })
-    : [];
+  const { registry } = initializeCoreFromArtifacts({ simConfig, initialState });
+  const snapshot = registry.snapshot();
+  const observation = readActorRegistryObservation(registry, 0);
+  const source = (observation.affinityContributions && observation.affinityContributions.length > 0)
+    ? observation.affinityContributions
+    : (observation.affinityFields || []);
+  const fieldRecords = source.map((field) => ({
+    x: field.position.x,
+    y: field.position.y,
+    kind: field.kind,
+    intensity: field.intensity,
+    stacks: field.stacks,
+    expression: field.expression,
+    expressionName: field.expression,
+    contributionCount: 1,
+  }));
   return {
-    ok: Boolean(result.layout?.ok),
-    layout: result.layout,
-    dimensions: { width, height },
+    ok: fieldRecords.length >= 0,
+    layout: { ok: true, dimensions: snapshot.dimensions },
+    dimensions: snapshot.dimensions,
     fieldRecords,
   };
 }

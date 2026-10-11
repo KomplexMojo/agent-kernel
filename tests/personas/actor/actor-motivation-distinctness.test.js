@@ -65,11 +65,15 @@ const vitals = () => ({
   mana: { current: 10, max: 10, regen: 1 },
 });
 
-async function propose({ kind, position = { x: 4, y: 3 }, hostileAt = null, role = "delver" }) {
+async function propose({ kind, position = { x: 4, y: 3 }, hostileAt = null, alignment = "external" }) {
   const [{ createActorPersona }, { TickPhases }] = await loadModules();
-  const self = { id: "a1", kind: 2, role, position, motivation: { kind }, vitals: vitals() };
+  const self = {
+    id: "a1", alignment, position, motivations: [kind], vitals: vitals(),
+    capabilities: { canMove: true, canCast: true, canEquip: true, canTake: true, canExit: true },
+    affinities: [{ kind: "fire", expression: "push", stacks: 2 }], activeAffinityKey: "fire:push",
+  };
   const others = hostileAt
-    ? [{ id: "d1", kind: 2, role: role === "delver" ? "warden" : "delver", position: hostileAt, vitals: vitals() }]
+    ? [{ id: "d1", alignment: alignment === "external" ? "dungeon" : "external", position: hostileAt, vitals: vitals() }]
     : [];
   const payload = {
     actorId: self.id,
@@ -78,8 +82,8 @@ async function propose({ kind, position = { x: 4, y: 3 }, hostileAt = null, role
     simConfig: simConfig(),
     initialState: {
       actors: [
-        { id: self.id, role, kind: "motivated" },
-        ...others.map((o) => ({ id: o.id, role: o.role, kind: "motivated" })),
+        self,
+        ...others,
       ],
     },
   };
@@ -115,7 +119,7 @@ test("a defending actor still strikes what comes to it", async () => {
   // already made once — three tests said so.
   const actions = await propose({ kind: "defending", hostileAt: { x: 5, y: 3 } });
   assert.ok(
-    actions.some((a) => a.kind === "attack" || a.kind === "cast_affinity"),
+    actions.some((a) => a.kind === "cast_affinity"),
     `a defending actor must fight an adjacent hostile: ${JSON.stringify(actions)}`,
   );
 });
@@ -126,7 +130,7 @@ test("attacking still closes on a distant hostile", async () => {
   const actions = await propose({ kind: "attacking", hostileAt: { x: 7, y: 3 } });
   const move = actions.find((a) => a.kind === "move");
   assert.ok(move, `an attacking actor must pursue: ${JSON.stringify(actions)}`);
-  assert.ok(move.params.to.x > 4, `pursuit should close the gap: ${JSON.stringify(move.params.to)}`);
+  assert.ok(move.params.target.x > 4, `pursuit should close the gap: ${JSON.stringify(move.params.target)}`);
 });
 
 test("every mobility-0 motivation holds position", async () => {

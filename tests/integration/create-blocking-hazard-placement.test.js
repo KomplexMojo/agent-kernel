@@ -83,8 +83,12 @@ function readJson(filePath) {
 }
 
 function floorAt(layoutData, x, y) {
-  const ch = layoutData.tiles?.[y]?.[x];
-  return ch !== undefined && layoutData.legend?.[ch]?.tile !== "wall";
+  return layoutData.terrain?.[y * layoutData.width + x] === "floor";
+}
+
+function hazardActorsFrom(dir) {
+  const initial = readJson(join(dir, "initial-state.json"));
+  return initial.actors.filter((actor) => initial.presentation?.[actor.id]?.category === "hazard");
 }
 
 const HAZARD_COORD = { x: 3, y: 2 };
@@ -129,14 +133,12 @@ describe("create blocking hazard placement (I2: blocking=true always hazard_on_w
     assert.equal(result.ok, true, `non-blocking hazard create must succeed: ${result.error}`);
 
     const layoutData = JSON.parse(readFileSync(join(dir, "sim-config.json"), "utf8")).layout.data;
-    // Updated 2026-07-11 (Codex adversarial review): pin the MAPPED hazard
-    // coordinate from layout.data.hazards, not the authored room-relative one —
-    // under the room-relative contract the stored x/y are absolute grid coords.
-    const storedHazard = layoutData.hazards?.[0];
-    assert.ok(storedHazard, "sim-config layout.data.hazards must contain the authored hazard");
+    const storedHazard = hazardActorsFrom(dir)[0];
+    assert.ok(storedHazard, "initial-state must contain the authored hazard actor");
+    assert.equal(Object.hasOwn(layoutData, "hazards"), false);
     assert.ok(
-      floorAt(layoutData, storedHazard.x, storedHazard.y),
-      `mapped hazard coordinate (${storedHazard.x},${storedHazard.y}) must be a floor tile in the generated grid`,
+      floorAt(layoutData, storedHazard.position.x, storedHazard.position.y),
+      `mapped hazard coordinate (${storedHazard.position.x},${storedHazard.position.y}) must be a floor tile in the generated grid`,
     );
   });
 
@@ -218,12 +220,12 @@ test("i2 blocking hazard on an actual wall coordinate is remapped into the room 
 
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   const room = layoutData.rooms?.[0];
-  const storedHazard = layoutData.hazards?.[0];
+  const storedHazard = hazardActorsFrom(dir)[0];
   assert.ok(room, "sim-config layout must declare a room");
-  assert.ok(storedHazard, "blocking hazard should be present in layout.data.hazards");
-  assert.equal(storedHazard.x, room.x, "wall-authored blocking hazard should map to the room's interior origin x");
-  assert.equal(storedHazard.y, room.y, "wall-authored blocking hazard should map to the room's interior origin y");
-  assert.ok(floorAt(layoutData, storedHazard.x, storedHazard.y), "mapped blocking hazard must land on a floor tile");
+  assert.ok(storedHazard, "blocking hazard should be present as an initial-state actor");
+  assert.equal(storedHazard.position.x, room.x, "wall-authored blocking hazard should map to the room's interior origin x");
+  assert.equal(storedHazard.position.y, room.y, "wall-authored blocking hazard should map to the room's interior origin y");
+  assert.ok(floorAt(layoutData, storedHazard.position.x, storedHazard.position.y), "mapped blocking hazard must land on a floor tile");
 });
 
 test("i2 blocking and non-blocking hazards coexist on adjacent floor tiles", async () => {
@@ -248,13 +250,14 @@ test("i2 blocking and non-blocking hazards coexist on adjacent floor tiles", asy
   assert.equal(result.ok, true, `adjacent blocking/non-blocking hazards must succeed: ${result.error}`);
 
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
-  assert.equal(layoutData.hazards?.length, 2, "both hazards should be preserved");
-  for (const hazard of layoutData.hazards) {
-    assert.ok(floorAt(layoutData, hazard.x, hazard.y), `hazard at (${hazard.x},${hazard.y}) must sit on a floor tile`);
+  const hazards = hazardActorsFrom(dir);
+  assert.equal(hazards.length, 2, "both hazards should be preserved");
+  for (const hazard of hazards) {
+    assert.ok(floorAt(layoutData, hazard.position.x, hazard.position.y), `hazard at (${hazard.position.x},${hazard.position.y}) must sit on a floor tile`);
   }
   assert.notDeepEqual(
-    layoutData.hazards[0],
-    layoutData.hazards[1],
+    hazards[0].position,
+    hazards[1].position,
     "adjacent authored hazards should remain distinct after mapping into the room",
   );
 });
@@ -291,12 +294,10 @@ test("i2 blocking hazard accepted in small and large rooms at interior coordinat
   assert.equal(smallResult.ok, true, `small blocking hazard must succeed: ${smallResult.error}`);
   assert.equal(largeResult.ok, true, `large blocking hazard must succeed: ${largeResult.error}`);
 
-  const smallHazard = readJson(join(smallDir, "sim-config.json")).layout.data.hazards?.[0];
-  const largeHazard = readJson(join(largeDir, "sim-config.json")).layout.data.hazards?.[0];
-  assert.equal(smallHazard.blocking, true, "small blocking hazard must preserve blocking=true");
-  assert.equal(largeHazard.blocking, true, "large blocking hazard must preserve blocking=true");
-  assert.equal(smallHazard.affinity?.targetType, "floor", "small blocking hazard should target floor tiles");
-  assert.equal(largeHazard.affinity?.targetType, "floor", "large blocking hazard should target floor tiles");
+  const smallHazard = hazardActorsFrom(smallDir)[0];
+  const largeHazard = hazardActorsFrom(largeDir)[0];
+  assert.equal(smallHazard.capabilities.blocksMovement, true, "small blocking hazard must preserve blocking");
+  assert.equal(largeHazard.capabilities.blocksMovement, true, "large blocking hazard must preserve blocking");
 });
 
 test("i2 two blocking hazards at distinct floor tiles are both accepted", async () => {
@@ -321,10 +322,11 @@ test("i2 two blocking hazards at distinct floor tiles are both accepted", async 
   assert.equal(result.ok, true, `two blocking hazards on distinct floor tiles must succeed: ${result.error}`);
 
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
-  assert.equal(layoutData.hazards?.length, 2, "both blocking hazards should remain in the final layout");
-  for (const hazard of layoutData.hazards) {
-    assert.ok(floorAt(layoutData, hazard.x, hazard.y), `blocking hazard at (${hazard.x},${hazard.y}) must sit on floor`);
-    assert.equal(hazard.blocking, true, "both hazards should preserve blocking=true");
+  const hazards = hazardActorsFrom(dir);
+  assert.equal(hazards.length, 2, "both blocking hazards should remain in the initial state");
+  for (const hazard of hazards) {
+    assert.ok(floorAt(layoutData, hazard.position.x, hazard.position.y), `blocking hazard at (${hazard.position.x},${hazard.position.y}) must sit on floor`);
+    assert.equal(hazard.capabilities.blocksMovement, true, "both hazards should preserve blocking");
   }
 });
 
@@ -351,9 +353,8 @@ test("i2 accepted blocking hazards keep the floor target metadata used by downst
   assert.equal(result.ok, true, `blocking hazard + floorTile budget must succeed: ${result.error}`);
 
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
-  const hazard = layoutData.hazards?.[0];
-  assert.ok(hazard, "blocking hazard should be present in the final layout");
-  assert.equal(hazard.blocking, true, "blocking hazard metadata must persist as blocking=true");
-  assert.equal(hazard.affinity?.targetType, "floor", "blocking hazard should continue to target floor tiles");
-  assert.ok(floorAt(layoutData, hazard.x, hazard.y), "persisted blocking hazard should land on a floor tile");
+  const hazard = hazardActorsFrom(dir)[0];
+  assert.ok(hazard, "blocking hazard should be present in the initial state");
+  assert.equal(hazard.capabilities.blocksMovement, true, "blocking hazard metadata must persist as blocking");
+  assert.ok(floorAt(layoutData, hazard.position.x, hazard.position.y), "persisted blocking hazard should land on a floor tile");
 });

@@ -104,7 +104,7 @@ test("selects the highest Actor tuple without interpreting action kinds", async 
     },
     {
       id: "move_away",
-      action: { kind: "move", actorId: "actor_1", tick: 3, params: { to: { x: 4, y: 5 } } },
+      action: { kind: "move", actorId: "actor_1", tick: 3, params: { target: { x: 4, y: 5 } } },
     },
     { id: "wait_here", action: { kind: "wait", actorId: "actor_1", tick: 3, params: {} } },
   ];

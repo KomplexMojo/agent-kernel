@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 
-test("readObservation includes static hazards exposed directly by core", async () => {
+test("readObservation does not emit a separate static-hazards collection", async () => {
   const { readObservation } = await import(
     "../../packages/core-ts/src/index.ts"
   );
@@ -21,14 +21,12 @@ test("readObservation includes static hazards exposed directly by core", async (
     getStaticHazardExpressionAt() { return 3; },
     getStaticHazardStacksAt() { return 2; },
     getStaticHazardManaReserveAt() { return 5; },
+    armStaticHazardAt() { return 1; },
+    placeResourceAt() { return 1; },
   };
 
   const obs = readObservation(core, { actorIdLabel: "actor_mvp" });
-  assert.ok(Array.isArray(obs.hazards));
-  assert.equal(obs.hazards.length, 1);
-  assert.deepEqual(obs.hazards[0].position, { x: 1, y: 1 });
-  assert.equal(obs.hazards[0].manaReserve, 5);
-  assert.deepEqual(obs.hazards[0].affinities, [
-    { kind: "fire", expression: "emit", stacks: 2, targetType: "floor" },
-  ]);
+  assert.equal(Object.hasOwn(obs, "hazards"), false);
+  assert.equal(typeof core.armStaticHazardAt, "function");
+  assert.equal(typeof core.placeResourceAt, "function");
 });

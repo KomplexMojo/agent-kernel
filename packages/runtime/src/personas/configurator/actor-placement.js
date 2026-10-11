@@ -1,3 +1,6 @@
+import { leftoverCategory } from "./unified-actors.js";
+import { terrainPositions, terrainMarker } from "./terrain-layout.js";
+
 /**
  * Configurator-owned actor grouping and placement.
  *
@@ -131,54 +134,24 @@ function sortPositionsByAnchorDistance(positions, anchor) {
 
 function collectWalkablePositions(layout) {
   const data = layout?.data || layout;
-  if (!data) return [];
-  const walkable = [];
-  const hazards = Array.isArray(data.hazards) ? data.hazards : [];
-  const blockingHazards = new Set(
-    hazards
-      .filter((hazard) => hazard && hazard.blocking === true)
-      .map((hazard) => `${hazard.x},${hazard.y}`),
-  );
-
-  if (Array.isArray(data.kinds)) {
-    for (let y = 0; y < data.kinds.length; y += 1) {
-      const row = data.kinds[y] || [];
-      for (let x = 0; x < row.length; x += 1) {
-        const kind = row[x];
-        if (kind === 1) continue;
-        if (kind === 2 && blockingHazards.has(`${x},${y}`)) continue;
-        walkable.push({ x, y });
-      }
-    }
-    return walkable;
-  }
-
-  if (Array.isArray(data.tiles)) {
-    const legend = data.legend || {};
-    for (let y = 0; y < data.tiles.length; y += 1) {
-      const row = String(data.tiles[y] ?? "");
-      for (let x = 0; x < row.length; x += 1) {
-        const entry = legend[row[x]];
-        if (entry?.tile === "wall" || entry?.tile === "barrier" || entry?.tile === "spawn" || entry?.tile === "exit") continue;
-        walkable.push({ x, y });
-      }
-    }
-  }
-  return walkable;
+  const blocked = new Set((data?.hazards || []).filter(actor => actor.blocking === true)
+    .map(actor => `${actor.x},${actor.y}`));
+  return terrainPositions(layout).filter(point => !blocked.has(positionKey(point)));
 }
 
-function collectReservedPlacementKeys(layout) {
+function collectReservedPlacementKeys(layout, reservedActors = []) {
   const data = layout?.data || layout || {};
   const reserved = new Set();
   const addPoint = (point) => {
     const normalized = normalizePoint(point);
     if (normalized) reserved.add(positionKey(normalized));
   };
-  addPoint(data.spawn || layout?.spawn);
-  addPoint(data.exit || layout?.exit);
-  // Approaches are seating targets — do not reserve them before placement.
+  addPoint(terrainMarker(data, "spawn"));
+  addPoint(terrainMarker(data, "exit"));
+  // Approaches are seating targets, so they remain available until assigned.
   if (Array.isArray(data.hazards)) data.hazards.forEach(addPoint);
   if (Array.isArray(data.resources)) data.resources.forEach(addPoint);
+  if (Array.isArray(reservedActors)) reservedActors.forEach(addPoint);
   return reserved;
 }
 
@@ -340,12 +313,12 @@ function deriveRoomPlacementContext({ data, walkable } = {}) {
   let entryRoomIndex = typeof data?.entryRoomId === "string" && data.entryRoomId.trim()
     ? rooms.findIndex((room, index) => resolveRoomId(room, index) === data.entryRoomId.trim())
     : -1;
-  if (entryRoomIndex < 0) entryRoomIndex = findRoomIndexForPoint(rooms, data?.spawn);
+  if (entryRoomIndex < 0) entryRoomIndex = findRoomIndexForPoint(rooms, terrainMarker(data, "spawn"));
 
   let exitRoomIndex = typeof data?.exitRoomId === "string" && data.exitRoomId.trim()
     ? rooms.findIndex((room, index) => resolveRoomId(room, index) === data.exitRoomId.trim())
     : -1;
-  if (exitRoomIndex < 0) exitRoomIndex = findRoomIndexForPoint(rooms, data?.exit);
+  if (exitRoomIndex < 0) exitRoomIndex = findRoomIndexForPoint(rooms, terrainMarker(data, "exit"));
 
   if (
     entryRoomIndex < 0
@@ -390,62 +363,23 @@ function deriveRoomPlacementContext({ data, walkable } = {}) {
   };
 }
 
-const DELVER_KEYWORDS = Object.freeze([
-  "delver", "attack", "attacking", "player", "assault", "intruder", "raider", "runner",
-]);
-const WARDEN_KEYWORDS = Object.freeze([
-  "warden", "defend", "defending", "stationary", "guard", "patrol", "patrolling", "sentry",
-]);
-
-function actorTextBag(actor) {
-  const values = [];
-  if (typeof actor?.id === "string") values.push(actor.id);
-  if (typeof actor?.archetype === "string") values.push(actor.archetype);
-  if (typeof actor?.actorType === "string") values.push(actor.actorType);
-  if (typeof actor?.type === "string") values.push(actor.type);
-  if (Array.isArray(actor?.motivations)) {
-    actor.motivations.forEach((entry) => {
-      if (typeof entry === "string") values.push(entry);
-      if (entry && typeof entry === "object" && typeof entry.kind === "string") values.push(entry.kind);
-    });
-  }
-  if (typeof actor?.motivation === "string") values.push(actor.motivation);
-  if (typeof actor?.role === "string") values.push(actor.role);
-  return values.join(" ").toLowerCase();
+function authoredAlignment(actor) {
+  if (actor?.alignment === "external" || actor?.alignment === "dungeon") return actor.alignment;
+  const category = leftoverCategory(actor);
+  if (category === "delver") return "external";
+  if (category) return "dungeon";
+  throw new Error(`configurator inputs require actor alignment or category for "${actor?.id || "unknown"}".`);
 }
 
-function inferActorRole(actor) {
-  const bag = actorTextBag(actor);
-  if (!bag) return null;
-  if (DELVER_KEYWORDS.some((token) => bag.includes(token))) return "delver";
-  if (WARDEN_KEYWORDS.some((token) => bag.includes(token))) return "warden";
-  return null;
-}
-
-function partitionActorsByRole(actors, { delverCountHint = 1 } = {}) {
+function partitionActorsByAlignment(actors) {
   const sorted = actors.slice().sort(compareActorIdsAsc);
-  const explicitDelvers = [];
-  const explicitWardens = [];
-  const unknown = [];
+  const delvers = [];
+  const wardens = [];
   sorted.forEach((actor) => {
-    const role = inferActorRole(actor);
-    if (role === "delver") explicitDelvers.push(actor);
-    else if (role === "warden") explicitWardens.push(actor);
-    else unknown.push(actor);
+    if (authoredAlignment(actor) === "external") delvers.push(actor);
+    else wardens.push(actor);
   });
-
-  const delvers = explicitDelvers.slice();
-  const wardens = explicitWardens.slice();
-  const targetDelvers = Math.min(sorted.length, Math.max(1, normalizePositiveInt(delverCountHint, 1)));
-  while (delvers.length < targetDelvers && unknown.length > 0) delvers.push(unknown.shift());
-  while (delvers.length < targetDelvers && wardens.length > 0) delvers.push(wardens.shift());
-  const delverIds = new Set(delvers.map((actor) => actor.id));
-  const finalWardens = sorted.filter((actor) => !delverIds.has(actor.id));
-  if (delvers.length === 0 && sorted.length > 0) {
-    delvers.push(sorted[0]);
-    return { delvers, wardens: sorted.slice(1) };
-  }
-  return { delvers, wardens: finalWardens };
+  return { delvers, wardens };
 }
 
 function pickPreferredPosition({ candidateSets = [], used, anchor } = {}) {
@@ -461,7 +395,7 @@ function pickPreferredPosition({ candidateSets = [], used, anchor } = {}) {
   return null;
 }
 
-function placeActorsLegacy(actors, layout) {
+function placeActorsLegacy(actors, layout, reservedActors = []) {
   const data = layout?.data || layout;
   const walkable = collectWalkablePositions(layout);
   if (!data || walkable.length === 0) {
@@ -471,7 +405,7 @@ function placeActorsLegacy(actors, layout) {
     );
   }
   const walkableSet = new Set(walkable.map(positionKey));
-  const spawn = data.spawn || layout?.spawn || null;
+  const spawn = terrainMarker(data, "spawn");
   const spawnApproach = data.spawnApproach || layout?.spawnApproach || null;
   const seatingSpawn = spawnApproach || spawn;
   const spawnKey = seatingSpawn ? positionKey(seatingSpawn) : null;
@@ -493,7 +427,7 @@ function placeActorsLegacy(actors, layout) {
       + `(${groups.length} group${groups.length === 1 ? "" : "s"}, ${walkable.length} walkable tiles).`,
     );
   }
-  const used = collectReservedPlacementKeys(layout);
+  const used = collectReservedPlacementKeys(layout, reservedActors);
   const assignedById = new Map();
   groups.forEach((group, groupIndex) => {
     const anchor = anchors[Math.min(groupIndex, anchors.length - 1)];
@@ -512,12 +446,12 @@ function placeActorsLegacy(actors, layout) {
     });
   });
 
-  if (spawn && !used.has(positionKey(spawn))) {
+  if (seatingSpawn && !used.has(positionKey(seatingSpawn))) {
     const primaryActor = actors.slice().sort(compareActorIdsAsc)[0];
     const primaryId = primaryActor?.id;
     if (primaryId && assignedById.has(primaryId)) {
       const primaryPosition = assignedById.get(primaryId);
-      const spawnPosition = { x: spawn.x, y: spawn.y };
+      const spawnPosition = { x: seatingSpawn.x, y: seatingSpawn.y };
       if (primaryPosition.x !== spawnPosition.x || primaryPosition.y !== spawnPosition.y) {
         let spawnActorId = null;
         for (const actor of actors) {
@@ -551,7 +485,7 @@ function buildPlacementResult(actors, assignedById, unresolvedReason) {
   return { actors: normalized, changed };
 }
 
-export function placeActors({ actors, layout, delverCount = 1 } = {}) {
+export function placeActors({ actors, layout, reservedActors = [], delverCount = 1 } = {}) {
   if (!Array.isArray(actors) || actors.length === 0) return { actors, changed: false };
   const data = layout?.data || layout;
   const walkable = collectWalkablePositions(layout);
@@ -562,8 +496,8 @@ export function placeActors({ actors, layout, delverCount = 1 } = {}) {
     );
   }
   const walkableSet = new Set(walkable.map(positionKey));
-  const spawn = data.spawn || layout?.spawn || null;
-  const exit = data.exit || layout?.exit || null;
+  const spawn = terrainMarker(data, "spawn");
+  const exit = terrainMarker(data, "exit");
   const spawnApproach = data.spawnApproach || layout?.spawnApproach || null;
   const exitApproach = data.exitApproach || layout?.exitApproach || null;
   // Spawn/exit are wall portals (non-walkable). Seating uses approach floors.
@@ -579,9 +513,9 @@ export function placeActors({ actors, layout, delverCount = 1 } = {}) {
   }
 
   const context = deriveRoomPlacementContext({ data, walkable });
-  if (!context) return placeActorsLegacy(actors, layout);
-  const { delvers, wardens } = partitionActorsByRole(actors, { delverCountHint: delverCount });
-  const used = collectReservedPlacementKeys(layout);
+  if (!context) return placeActorsLegacy(actors, layout, reservedActors);
+  const { delvers, wardens } = partitionActorsByAlignment(actors);
+  const used = collectReservedPlacementKeys(layout, reservedActors);
   const assignedById = new Map();
   const entryAnchor = spawnApproach && walkableSet.has(positionKey(spawnApproach))
     ? { x: spawnApproach.x, y: spawnApproach.y }

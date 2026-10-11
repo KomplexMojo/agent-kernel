@@ -19,6 +19,22 @@ async function createCore() {
   return coreModule.createCore();
 }
 
+function directionBetween(from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const map = {
+    "0,-1": "north",
+    "1,-1": "northeast",
+    "1,0": "east",
+    "1,1": "southeast",
+    "0,1": "south",
+    "-1,1": "southwest",
+    "-1,0": "west",
+    "-1,-1": "northwest",
+  };
+  return map[`${dx},${dy}`] || null;
+}
+
 function applyMove(core, { actorId, from, to, direction, tick }) {
   core.setMoveAction(actorId, from.x, from.y, to.x, to.y, DIRECTION[direction], tick);
   core.applyAction(ACTION_KIND_MOVE, 0);
@@ -51,15 +67,18 @@ test("replay produces golden frames for MVP action log", async () => {
   core.init(1337);
   core.loadMvpScenario();
   const frames = [renderFrame(core)];
+  let from = { x: core.getActorX(), y: core.getActorY() };
 
   for (const action of actions) {
+    const to = action.params.target;
     applyMove(core, {
       actorId: 1,
-      from: action.params.from,
-      to: action.params.to,
-      direction: action.params.direction,
+      from,
+      to,
+      direction: directionBetween(from, to),
       tick: action.tick,
     });
+    from = to;
     core.clearEffects();
     frames.push(renderFrame(core));
   }
@@ -71,20 +90,22 @@ test("replay mismatch is detected when actions diverge", async () => {
   const core = await createCore();
   const actions = readFixture("action-sequence-v1-mvp-to-exit.json").actions.map((a) => JSON.parse(JSON.stringify(a)));
 
-  actions[actions.length - 1].params.to = { x: 2, y: 2 };
-  actions[actions.length - 1].params.direction = "west";
+  actions[actions.length - 1].params.target = { x: 6, y: 6 };
 
   core.init(1337);
   core.loadMvpScenario();
   const frames = [renderFrame(core)];
+  let from = { x: core.getActorX(), y: core.getActorY() };
   for (const action of actions) {
+    const to = action.params.target;
     applyMove(core, {
       actorId: 1,
-      from: action.params.from,
-      to: action.params.to,
-      direction: action.params.direction,
+      from,
+      to,
+      direction: directionBetween(from, to),
       tick: action.tick,
     });
+    from = to;
     core.clearEffects();
     frames.push(renderFrame(core));
   }

@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "delver_pull_approach",
-      "kind": "ambulatory",
       "position": {
         "x": 7,
         "y": 1
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 12,
@@ -42,19 +44,70 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "role": "delver",
-      "motivation": {
-        "kind": "exploring"
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "traits": {
-        "motivations": [
-          {
-            "kind": "exploring",
-            "intensity": 1
-          }
-        ]
-      }
+      "motivations": [
+        "exploring"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
+    },
+    {
+      "id": "hazard_water_pull",
+      "position": {
+        "x": 4,
+        "y": 4
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "durability",
+      "vitals": {
+        "mana": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 12,
+          "max": 12,
+          "regen": 0
+        }
+      },
+      "capabilities": {
+        "canMove": false,
+        "canCast": true,
+        "canEquip": false,
+        "canTake": false,
+        "canExit": false,
+        "blocksMovement": false,
+        "blocksSight": false
+      },
+      "motivations": [],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "pull",
+          "stacks": 2
+        }
+      ],
+      "activeAffinityKey": "water:pull",
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "delver_pull_approach": {
+      "category": "delver"
+    },
+    "hazard_water_pull": {
+      "category": "hazard"
+    }
+  }
 }

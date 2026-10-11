@@ -238,8 +238,11 @@ describe("CLI create+run multi-actor permutations", () => {
       ],
       ticks: 24,
     });
-    const stationary = initialState.actors.find((a) => a?.motivation?.kind === "stationary");
-    const randoms = initialState.actors.filter((a) => a?.motivation?.kind === "random");
+    const motivationKinds = (actor) => (Array.isArray(actor?.motivations) ? actor.motivations : [])
+      .map((entry) => (typeof entry === "string" ? entry : entry?.kind))
+      .filter(Boolean);
+    const stationary = initialState.actors.find((actor) => motivationKinds(actor).includes("stationary"));
+    const randoms = initialState.actors.filter((actor) => motivationKinds(actor).includes("random"));
     assert.ok(stationary, "roster must include the stationary warden");
     assert.equal(randoms.length, 2, "roster must include both random actors");
 

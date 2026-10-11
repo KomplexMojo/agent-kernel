@@ -115,16 +115,21 @@ test("prepareLevelGen never shrinks an existing larger grid, and passes unplaced
 // mapResources — schema mapping
 // ---------------------------------------------------------------------------
 
-test("mapResources maps schemaVersion 3 and legacy resource values", async () => {
+test("mapResources rejects superseded resource schemas", async () => {
   const { mapResources } = await import(PREP);
-  const mapped = mapResources([
-    { _schemaVersion: 3, id: "r3", permanenceMode: "permanent", vitals: { health: 5 }, extra: "dropme" },
-    { id: "r1", tier: "common", stat: "health", delta: 10, dropRate: 0.5, extra: "dropme" },
-  ]);
-  assert.deepEqual(mapped, [
-    { id: "r3", permanenceMode: "permanent", vitals: { health: 5 } },
+  assert.throws(() => mapResources([
+    { _schemaVersion: 3, id: "r3", permanenceMode: "permanent", vitals: { health: 5 } },
+  ]));
+  assert.throws(() => mapResources([
     { id: "r1", tier: "common", stat: "health", delta: 10, dropRate: 0.5 },
-  ]);
+  ]));
+});
+
+test("mapResources rejects unknown fields on otherwise valid actor requests", async () => {
+  const { mapResources } = await import(PREP);
+  const resource = { id: 'resource', vitals: { durability: { current: 1, max: 1, regen: 0 } } };
+  assert.equal(mapResources([resource])[0].id, 'resource');
+  assert.throws(() => mapResources([{ ...resource, misspelledCapability: true }]));
 });
 
 // ---------------------------------------------------------------------------
@@ -149,9 +154,12 @@ test("provideConfig opens the round; prepare/map work in pending_config and conf
 
   const levelGen = c.prepareLevelGen({ rooms: [{ value: { size: "medium", count: 1 } }], floorTiles: [], hazards: [] });
   assert.equal(levelGen.width, 9);
-  assert.deepEqual(c.mapResources([{ id: "r1", tier: "common", stat: "health", delta: 1, dropRate: 1 }]), [
-    { id: "r1", tier: "common", stat: "health", delta: 1, dropRate: 1 },
-  ]);
+  const mapped = c.mapResources([{ id: "r1",
+    vitals: { durability: { current: 3, max: 3, regen: 0 } }, holdings: [],
+  }]);
+  assert.equal(mapped[0].category, "resource");
+  assert.equal(mapped[0].defeatVital, "durability");
+  assert.deepEqual(mapped[0].holdings, []);
 
   assert.equal(c.validate().state, "configured");
   // Assembly still permitted while configured (before lock).

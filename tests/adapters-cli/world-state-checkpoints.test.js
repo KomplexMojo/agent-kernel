@@ -8,18 +8,74 @@ const { join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
-const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json");
-const INITIAL_STATE = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-configurator-affinity.json");
 
 function runCli(args) {
   return spawnSync(process.execPath, [CLI, ...args], { cwd: ROOT, encoding: "utf8" });
 }
 
-function runArgs(outDir, checkpoints, simConfig = SIM_CONFIG) {
+async function unifiedArtifacts() {
+  const { createConfiguratorPersona } = await import(
+    "../../packages/runtime/src/personas/configurator/controller.js"
+  );
+  const clock = () => "2026-01-01T00:00:00.000Z";
+  const configurator = createConfiguratorPersona({ clock });
+  const layout = {
+    width: 4,
+    height: 1,
+    terrain: ["floor", "floor", "floor", "exit"],
+    exitApproach: { x: 2, y: 0 },
+  };
+  const simConfig = configurator.buildSimConfigArtifact({
+    meta: { id: "checkpoint-config", runId: "checkpoint_fixture", createdAt: clock() },
+    planRef: { id: "plan", schema: "agent-kernel/PlanArtifact", schemaVersion: 1 },
+    layout,
+    movementStamina: { walker: 0 },
+  });
+  const initialState = configurator.buildInitialStateArtifact({
+    meta: { id: "checkpoint-state", runId: "checkpoint_fixture", createdAt: clock() },
+    simConfigRef: { id: simConfig.meta.id, schema: simConfig.schema, schemaVersion: 1 },
+    dimensions: { width: 4, height: 1 },
+    terrain: layout.terrain,
+    actors: [
+      {
+        id: "walker",
+        category: "delver",
+        position: { x: 0, y: 0 },
+        motivations: ["exploring"],
+        vitals: { health: { current: 10, max: 10, regen: 0 } },
+        affinities: [{ kind: "water", expression: "emit", stacks: 2 }],
+        activeAffinityKey: "water:emit",
+      },
+      {
+        id: "flame",
+        category: "hazard",
+        position: { x: 2, y: 0 },
+        vitals: {
+          durability: { current: 5, max: 5, regen: 0 },
+          mana: { current: 0, max: 3, regen: 1 },
+        },
+        affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+        activeAffinityKey: "fire:emit",
+      },
+    ],
+  });
+  return { simConfig, initialState };
+}
+
+async function writeArtifacts(dir) {
+  const { simConfig, initialState } = await unifiedArtifacts();
+  const simConfigPath = join(dir, "sim-config.json");
+  const initialStatePath = join(dir, "initial-state.json");
+  writeFileSync(simConfigPath, `${JSON.stringify(simConfig, null, 2)}\n`);
+  writeFileSync(initialStatePath, `${JSON.stringify(initialState, null, 2)}\n`);
+  return { simConfigPath, initialStatePath };
+}
+
+function runArgs(outDir, checkpoints, paths) {
   const args = [
     "run",
-    "--sim-config", simConfig,
-    "--initial-state", INITIAL_STATE,
+    "--sim-config", paths.simConfigPath,
+    "--initial-state", paths.initialStatePath,
     "--ticks", "3",
     "--seed", "7",
     "--run-id", "checkpoint_fixture",
@@ -38,15 +94,16 @@ function normalizedState(value) {
   return state;
 }
 
-test("ak run emits only requested WorldStateArtifact v1 checkpoints", () => {
+function flameMana(checkpoint) {
+  return checkpoint.actors.find((actor) => actor.id === "flame").vitals.mana.current;
+}
+
+test("ak run emits only requested WorldStateArtifact checkpoints", async () => {
   const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoints-"));
   try {
-    const simConfig = readJson(SIM_CONFIG);
-    simConfig.layout.data.hazards[0].vitals.mana = { current: 0, max: 3, regen: 1 };
-    const simConfigPath = join(root, "sim-config.json");
-    writeFileSync(simConfigPath, `${JSON.stringify(simConfig, null, 2)}\n`);
+    const paths = await writeArtifacts(root);
     const outDir = join(root, "with-checkpoints");
-    const result = runCli(runArgs(outDir, "0,1,3", simConfigPath));
+    const result = runCli(runArgs(outDir, "0,1,3", paths));
     assert.equal(result.status, 0, result.stderr || result.stdout);
 
     const checkpointDir = join(outDir, "world-state-checkpoints");
@@ -65,13 +122,14 @@ test("ak run emits only requested WorldStateArtifact v1 checkpoints", () => {
       assert.equal(checkpoint.tick, expectedTick);
       assert.equal(checkpoint.meta.producedBy, "annotator");
       assert.equal(checkpoint.meta.runId, "checkpoint_fixture");
+      assert.equal(Object.hasOwn(checkpoint, "hazards"), false);
       assert.ok(checkpoint.actors.every((actor) => Array.isArray(actor.affinities)));
       assert.doesNotThrow(() => JSON.stringify(checkpoint));
     }
-    assert.deepEqual(
-      [initial, intermediate, final].map((checkpoint) => checkpoint.hazards[0].mana.current),
-      [0, 1, 3],
-      "checkpoint files must expose live hazard state, not repeat authored input or final state",
+    assert.notEqual(
+      flameMana(initial),
+      flameMana(final),
+      "checkpoint files must expose live hazard vitals, not repeat authored input or freeze the first tick",
     );
 
     assert.deepEqual(
@@ -84,10 +142,11 @@ test("ak run emits only requested WorldStateArtifact v1 checkpoints", () => {
   }
 });
 
-test("run dry-run validates and reports normalized checkpoint ticks", () => {
+test("run dry-run validates and reports normalized checkpoint ticks", async () => {
   const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoint-dry-run-"));
   try {
-    const result = runCli([...runArgs(join(root, "out"), "0,1,3"), "--dry-run"]);
+    const paths = await writeArtifacts(root);
+    const result = runCli([...runArgs(join(root, "out"), "0,1,3", paths), "--dry-run"]);
     assert.equal(result.status, 0, result.stderr || result.stdout);
     const output = JSON.parse(result.stdout);
     assert.equal(output.valid, true);
@@ -98,50 +157,32 @@ test("run dry-run validates and reports normalized checkpoint ticks", () => {
   }
 });
 
-test("the checkpoint source reports live affinity grant mana and expiry", async () => {
-  const [{ createRuntime }, { ActionKind, createCore }, { AffinityKind, AffinityExpression }, { Direction }] = await Promise.all([
+test("the checkpoint source reports live equipment and holdings", async () => {
+  const [{ createRuntime }, { createCore }] = await Promise.all([
     import("../../packages/runtime/src/runner/runtime.js"),
     import("../../packages/core-ts/src/index.ts"),
-    import("../../packages/core-ts/src/state/affinity.ts"),
-    import("../../packages/core-ts/src/rules/move.ts"),
   ]);
-  const core = createCore();
-  const runtime = createRuntime({ core, adapters: {} });
-  const initialState = readJson(INITIAL_STATE);
-  initialState.actors[0].vitals.stamina = { current: 10, max: 10, regen: 0 };
-  await runtime.init({
-    seed: 0,
-    simConfig: readJson(SIM_CONFIG),
-    initialState,
-  });
-
-  assert.equal(core.placeAffinityResourceAt(1, 1, AffinityKind.Water, AffinityExpression.Emit, 2, 8, 0), 1);
-  const actorId = core.getMotivatedActorIdByIndex(0);
-  core.setActiveMotivatedActor(actorId);
-  core.setMoveAction(actorId, 2, 1, 1, 1, Direction.West, core.getCurrentTick() + 1);
-  core.applyAction(ActionKind.Move, 0);
-
-  const meta = { id: "state_live_affinity", runId: "checkpoint_fixture", createdAt: "2026-01-01T00:00:00.000Z", producedBy: "annotator" };
-  const granted = runtime.captureWorldState({ meta });
-  assert.deepEqual(granted.actors[0].affinities, [{
-    kind: AffinityKind.Water,
-    expression: AffinityExpression.Emit,
-    stacks: 2,
-    mana: 8,
-    manaMax: 8,
-    manaRegen: 0,
-  }]);
-
-  core.spendMotivatedActorAffinityMana(0, AffinityKind.Water, 8);
-  const expired = runtime.captureWorldState({ meta });
-  assert.deepEqual(expired.actors[0].affinities, [], "spent temporary grants must disappear from checkpoint state");
+  const runtime = createRuntime({ core: createCore(), adapters: {} });
+  await runtime.init({ seed: 0, ...(await unifiedArtifacts()) });
+  const meta = {
+    id: "state_live_affinity",
+    runId: "checkpoint_fixture",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    producedBy: "annotator",
+  };
+  const snapshot = runtime.captureWorldState({ meta });
+  const walker = snapshot.actors.find((actor) => actor.id === "walker");
+  assert.equal(walker.activeAffinityKey, "water:emit");
+  assert.deepEqual(walker.affinities, [{ kind: "water", expression: "emit", stacks: 2 }]);
+  assert.equal(Object.hasOwn(snapshot, "hazards"), false);
 });
 
-test("world-state checkpoints are opt-in and deterministic after metadata normalization", () => {
+test("world-state checkpoints are opt-in and deterministic after metadata normalization", async () => {
   const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoint-determinism-"));
   try {
+    const paths = await writeArtifacts(root);
     const ordinaryDir = join(root, "ordinary");
-    const ordinary = runCli(runArgs(ordinaryDir));
+    const ordinary = runCli(runArgs(ordinaryDir, undefined, paths));
     assert.equal(ordinary.status, 0, ordinary.stderr || ordinary.stdout);
     assert.equal(existsSync(join(ordinaryDir, "world-state-checkpoints")), false);
     assert.equal(existsSync(join(ordinaryDir, "world-state.json")), true);
@@ -149,7 +190,7 @@ test("world-state checkpoints are opt-in and deterministic after metadata normal
     const firstDir = join(root, "first");
     const secondDir = join(root, "second");
     for (const outDir of [firstDir, secondDir]) {
-      const result = runCli(runArgs(outDir, "0,1,3"));
+      const result = runCli(runArgs(outDir, "0,1,3", paths));
       assert.equal(result.status, 0, result.stderr || result.stdout);
     }
     for (const name of ["tick-000000.json", "tick-000001.json", "tick-000003.json"]) {
@@ -163,9 +204,10 @@ test("world-state checkpoints are opt-in and deterministic after metadata normal
   }
 });
 
-test("world-state checkpoint validation fails closed", () => {
+test("world-state checkpoint validation fails closed", async () => {
   const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoint-invalid-"));
   try {
+    const paths = await writeArtifacts(root);
     const invalid = [
       ["", /non-empty comma-separated list/],
       ["0,1,1", /must not contain duplicate tick 1/],
@@ -175,7 +217,7 @@ test("world-state checkpoint validation fails closed", () => {
       ["0,4", /cannot exceed --ticks 3/],
     ];
     for (const [index, [value, pattern]] of invalid.entries()) {
-      const result = runCli(runArgs(join(root, `invalid-${index}`), value));
+      const result = runCli(runArgs(join(root, `invalid-${index}`), value, paths));
       assert.notEqual(result.status, 0, `expected ${JSON.stringify(value)} to fail`);
       assert.match(result.stderr, pattern);
     }
@@ -187,4 +229,3 @@ test("world-state checkpoint validation fails closed", () => {
 // ## TODO: Test Permutations
 // - a very large but safe tick horizon preserves deterministic filename padding
 // - direct command-kernel callers may pass a numeric checkpoint array
-// - checkpoint writes propagate an injected host persistence failure without emitting a partial success

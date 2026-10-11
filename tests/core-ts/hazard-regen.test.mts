@@ -446,32 +446,7 @@ describe("advanceTick: actor vital regen unaffected by hazard regen changes", ()
 // PR #42 regression
 // ---------------------------------------------------------------------------
 
-describe("M3d: applyAttack non-regression", () => {
-  test("applyAttack still works and is unaffected by hazard regen tick changes", () => {
-    const core = buildWorld();
-    call(core.addActorPlacement, 2, 2, 1);
-    // Can't addActorPlacement after applyActorPlacements — rebuild with 2 actors
-    const core2 = createCore();
-    call(core2.configureGrid, 7, 7);
-    for (let y = 1; y <= 5; y++) {
-      for (let x = 1; x <= 5; x++) {
-        call(core2.setTileAt, x, y, 1);
-      }
-    }
-    call(core2.addActorPlacement, 1, 1, 1);
-    call(core2.addActorPlacement, 2, 2, 1);
-    call(core2.applyActorPlacements);
-    call(core2.setMotivatedActorVital, 0, VitalKind.Health, 10, 10, 0);
-    call(core2.setMotivatedActorVital, 1, VitalKind.Health, 10, 10, 0);
-    call(core2.armStaticHazardAt, 3, 1,
-      AffinityKind.Fire, AffinityExpression.Emit, 1, 5,
-      0, 0, 0, 5, 1,
-    );
-    const result = call((core2 as Record<string, unknown>).applyAttack, 0, 1, 3);
-    expect(result).not.toBe(0);
-    expect(call(core2.getMotivatedActorVitalCurrentByIndex, 1, VitalKind.Health)).toBe(7);
-  });
-});
+
 
 // ---------------------------------------------------------------------------
 // Permutations: all 10 AffinityKind hazards with manaRegen=1 reach manaMax

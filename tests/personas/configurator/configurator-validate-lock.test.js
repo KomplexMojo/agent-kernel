@@ -41,7 +41,7 @@ function validConfig() {
       shape: { roomCount: 1, roomMinSize: 5, roomMaxSize: 5, corridorWidth: 1 },
     },
     levelAffinity: "fire",
-    actors: [],
+      actors: [], movementStamina: {},
     actorGroups: [],
   };
 }
@@ -303,8 +303,8 @@ test("provideConfig takes its own copy — the Configurator is not aliased to ca
  * workaround. `levelGen` cannot be malformed at validate() time on the authoring
  * path: prepareLevelGen() REGENERATES it through ensureAuthoringLevelGenCapacity,
  * so whatever the caller supplied is replaced by a well-formed grid. `resources`
- * is the honest vehicle — mapResources() carries authored fields through without
- * synthesizing missing ones, so a resource with no id reaches validate() intact.
+ * is validated by mapResources through the common actor normalizer before the
+ * config can be locked. Missing identity must fail at that authoring boundary.
  */
 test("runAuthoringBuild refuses a config the Configurator rejects — the persona is on the path", async () => {
   const { runAuthoringBuild } = await import("../../../packages/runtime/src/build/authoring-build.js");
@@ -313,13 +313,12 @@ test("runAuthoringBuild refuses a config the Configurator rejects — the person
     commandName: "create",
     runId: "run_cr2",
     createdAt: "2026-07-29T00:00:00.000Z",
-    // An authored resource with no id: mapResources() passes `id: undefined`
-    // straight through, so the assembled config is genuinely invalid.
-    resources: [{ tier: "common", stat: "health", delta: 1, dropRate: 1 }],
+    // Common actor authoring requires an explicit stable identity.
+    resources: [{ vitals: { durability: { current: 1, max: 1, regen: 0 } } }],
   };
   await assert.rejects(
     () => runAuthoringBuild(input),
-    (e) => e.code === "configurator_invalid" && /resources\[0\]\.id/.test(e.errors.join(";")),
+    (e) => /invalid actor identity/.test(e.message),
     "a config the Configurator would reject must fail the build rather than reaching orchestrateBuild",
   );
 });
@@ -331,7 +330,8 @@ test("runAuthoringBuild completes when the Configurator approves, and the lock i
     commandName: "create",
     runId: "run_cr2_ok",
     createdAt: "2026-07-29T00:00:00.000Z",
-    resources: [{ id: "resource_1", tier: "common", stat: "health", delta: 1, dropRate: 1 }],
+    movementStamina: {},
+    resources: [{ id: "resource_1", vitals: { durability: { current: 1, max: 1, regen: 0 } }, holdings: [] }],
   });
   assert.ok(result.buildResult, "a valid config still builds");
 });

@@ -20,8 +20,8 @@
     "--delver", "count=2;affinity=water;motivation=exploring;affinities=water:pull:2",
     "--warden", "count=3;affinity=corrode;motivation=defending;affinities=corrode:emit:2",
     "--warden", "count=2;affinity=earth;motivation=patrolling",
-    "--resource", "tier=permanent;stat=vitalMax;delta=10;dropRate=5",
-    "--resource", "tier=level;stat=vitalRegen;delta=2;dropRate=15",
+    "--resource", "permanenceMode=permanent;vital=health;delta=10",
+    "--resource", "permanenceMode=level;vital=mana;delta=2",
     "--budget-tokens", "6000"
   ],
   "expect": { "ok": true, "runnable": true, "minActors": 10, "minHazards": 10, "minResources": 2 }

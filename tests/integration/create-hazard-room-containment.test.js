@@ -95,8 +95,33 @@ function readJson(filePath) {
 }
 
 function floorAt(layoutData, x, y) {
-  const ch = layoutData.tiles?.[y]?.[x];
-  return ch !== undefined && layoutData.legend?.[ch]?.tile !== "wall";
+  const terrain = layoutData.terrain;
+  if (!Array.isArray(terrain) || !Number.isInteger(layoutData.width)) return false;
+  const kind = terrain[y * layoutData.width + x];
+  return kind !== undefined && kind !== "wall";
+}
+
+function presentationHazards(dir) {
+  const state = readJson(join(dir, "initial-state.json"));
+  const presentation = state.presentation ?? {};
+  return (state.actors ?? []).filter((actor) => {
+    const category = presentation[actor.id]?.category ?? actor.category;
+    return category === "hazard" || category === "hazards";
+  });
+}
+
+function hazardPos(hazard) {
+  const x = hazard.position?.x ?? hazard.x;
+  const y = hazard.position?.y ?? hazard.y;
+  return Number.isInteger(x) && Number.isInteger(y) ? { x, y } : null;
+}
+
+function terrainSpawn(layoutData) {
+  const terrain = layoutData.terrain;
+  if (!Array.isArray(terrain) || !Number.isInteger(layoutData.width)) return null;
+  const index = terrain.findIndex((kind) => kind === "spawn");
+  if (index < 0) return null;
+  return { x: index % layoutData.width, y: Math.floor(index / layoutData.width) };
 }
 
 function inAnyRoom(rooms, x, y) {
@@ -166,29 +191,28 @@ describe("create hazard room containment (I3: explicit hazard coords escape the 
 
     const layoutData = JSON.parse(readFileSync(join(dir, "sim-config.json"), "utf8")).layout.data;
     const rooms = layoutData.rooms ?? [];
-    const hazards = layoutData.hazards ?? [];
-    assert.equal(hazards.length, 2, `expected 2 hazards in sim-config, got ${hazards.length}`);
+    const hazards = presentationHazards(dir);
+    assert.equal(hazards.length, 2, `expected 2 hazards in initial-state, got ${hazards.length}`);
     assert.ok(rooms.length >= 1, "expected declared rooms in layout.data.rooms");
 
-    const spawn = layoutData.spawn;
-    assert.ok(Number.isInteger(spawn?.x), `layout must declare an integer spawn, got ${JSON.stringify(spawn)}`);
+    const spawn = terrainSpawn(layoutData);
+    assert.ok(Number.isInteger(spawn?.x), `terrain must include a spawn cell, got ${JSON.stringify(spawn)}`);
     const reachable = reachableFrom(layoutData, spawn);
 
     for (const [i, hazard] of hazards.entries()) {
+      const pos = hazardPos(hazard);
+      assert.ok(pos, `hazard[${i}] must carry an integer position`);
       assert.ok(
-        floorAt(layoutData, hazard.x, hazard.y),
-        `hazard[${i}] @(${hazard.x},${hazard.y}) must be on a floor tile of the final grid`,
+        floorAt(layoutData, pos.x, pos.y),
+        `hazard[${i}] @(${pos.x},${pos.y}) must be on a floor tile of the final grid`,
       );
       assert.ok(
-        inAnyRoom(rooms, hazard.x, hazard.y),
-        `hazard[${i}] @(${hazard.x},${hazard.y}) must lie inside a declared room — today raw authored ` +
-          `coordinates are stamped onto the grid unmapped (rooms: ${JSON.stringify(rooms.map((r) => ({ id: r.id, x: r.x, y: r.y, w: r.width, h: r.height })))}), ` +
-          "carving stray floor in the void (benchmark scenarios 24/45/46/47)",
+        inAnyRoom(rooms, pos.x, pos.y),
+        `hazard[${i}] @(${pos.x},${pos.y}) must lie inside a declared room`,
       );
       assert.ok(
-        reachable.has(`${hazard.x},${hazard.y}`),
-        `hazard[${i}] @(${hazard.x},${hazard.y}) must be reachable from spawn (${spawn.x},${spawn.y}) — ` +
-          "an unreachable hazard can never trigger and violates the authored intent",
+        reachable.has(`${pos.x},${pos.y}`),
+        `hazard[${i}] @(${pos.x},${pos.y}) must be reachable from spawn (${spawn.x},${spawn.y})`,
       );
     }
   });
@@ -268,13 +292,14 @@ test("i3 single-room level maps hazard coords into the carved interior", async (
 
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   const room = layoutData.rooms?.[0];
-  const hazard = layoutData.hazards?.[0];
+  const hazard = presentationHazards(dir)[0];
+  const pos = hazardPos(hazard);
   assert.ok(room, "expected one declared room");
-  assert.ok(hazard, "expected one mapped hazard");
-  assert.ok(floorAt(layoutData, hazard.x, hazard.y), "mapped hazard should land on a floor tile");
+  assert.ok(pos, "expected one mapped hazard");
+  assert.ok(floorAt(layoutData, pos.x, pos.y), "mapped hazard should land on a floor tile");
   assert.ok(
-    inAnyRoom([room], hazard.x, hazard.y),
-    `mapped hazard should land inside the declared room, got (${hazard.x},${hazard.y}) in ${JSON.stringify(room)}`,
+    inAnyRoom([room], pos.x, pos.y),
+    `mapped hazard should land inside the declared room, got (${pos.x},${pos.y}) in ${JSON.stringify(room)}`,
   );
 });
 
@@ -326,13 +351,11 @@ test("i3 positioned and auto-placed hazards obey the same room-containment contr
 
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   const rooms = layoutData.rooms ?? [];
-  for (const hazard of layoutData.hazards ?? []) {
-    assert.ok(floorAt(layoutData, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must sit on floor`);
-    assert.ok(inAnyRoom(rooms, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must stay inside a declared room`);
-  }
-  for (const hazard of layoutData.hazards ?? []) {
-    assert.ok(floorAt(layoutData, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must sit on floor`);
-    assert.ok(inAnyRoom(rooms, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must stay inside a declared room`);
+  for (const hazard of presentationHazards(dir)) {
+    const pos = hazardPos(hazard);
+    assert.ok(pos, "mixed hazard must carry an integer position");
+    assert.ok(floorAt(layoutData, pos.x, pos.y), `hazard @(${pos.x},${pos.y}) must sit on floor`);
+    assert.ok(inAnyRoom(rooms, pos.x, pos.y), `hazard @(${pos.x},${pos.y}) must stay inside a declared room`);
   }
 });
 
@@ -372,8 +395,10 @@ test("i3 push_to_ui bundle renders every hazard inside a room outline", async ()
 
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   const rooms = layoutData.rooms ?? [];
-  for (const hazard of layoutData.hazards ?? []) {
-    assert.ok(floorAt(layoutData, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must remain on floor in the bundle payload`);
-    assert.ok(inAnyRoom(rooms, hazard.x, hazard.y), `hazard @(${hazard.x},${hazard.y}) must remain inside a room outline`);
+  for (const hazard of presentationHazards(dir)) {
+    const pos = hazardPos(hazard);
+    assert.ok(pos, "bundle hazard must carry an integer position");
+    assert.ok(floorAt(layoutData, pos.x, pos.y), `hazard @(${pos.x},${pos.y}) must remain on floor in the bundle payload`);
+    assert.ok(inAnyRoom(rooms, pos.x, pos.y), `hazard @(${pos.x},${pos.y}) must remain inside a room outline`);
   }
 });

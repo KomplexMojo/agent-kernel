@@ -35,6 +35,58 @@ function findArtifact(bundle, schema) {
   return artifacts.find((a) => a?.schema === schema) || null;
 }
 
+function presentationCategory(actor, presentation) {
+  const fromActor = actor?.category ?? actor?.presentation?.category;
+  if (typeof fromActor === "string" && fromActor.trim()) return fromActor.trim().toLowerCase();
+  const id = typeof actor?.id === "string" ? actor.id : "";
+  const fromMap = id ? presentation?.[id]?.category : "";
+  if (typeof fromMap === "string" && fromMap.trim()) return fromMap.trim().toLowerCase();
+  return "";
+}
+
+function hazardVisualsFromState(initialState) {
+  const presentation = initialState?.presentation ?? {};
+  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
+  return actors
+    .filter((actor) => {
+      const category = presentationCategory(actor, presentation);
+      return category === "hazard" || category === "hazards";
+    })
+    .map((actor) => {
+      const stacks = Array.isArray(actor.affinities) ? actor.affinities : [];
+      return {
+        ...actor,
+        entityType: "hazard",
+        position: actor.position,
+        affinityStacks: stacks,
+        emitStrength: stacks[0]?.stacks ?? 0,
+      };
+    });
+}
+
+function tilesFromLayout(layoutData) {
+  const width = layoutData?.width;
+  const height = layoutData?.height;
+  const terrain = layoutData?.terrain;
+  if (Array.isArray(terrain) && Number.isInteger(width) && Number.isInteger(height)
+    && width > 0 && height > 0 && terrain.length === width * height) {
+    const glyphs = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+    const rows = [];
+    for (let y = 0; y < height; y += 1) {
+      let row = "";
+      for (let x = 0; x < width; x += 1) {
+        row += glyphs[terrain[y * width + x]] || ".";
+      }
+      rows.push(row);
+    }
+    return rows;
+  }
+  if (Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0) {
+    return Array.from({ length: height }, () => ".".repeat(width));
+  }
+  return [];
+}
+
 /**
  * Build tile affinity visuals from a bundle using the core field pipeline.
  *
@@ -51,8 +103,8 @@ export async function buildTileAffinityVisualsFromBundle(bundle) {
   const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA);
   const resourceBundle = findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA);
   const layoutData = simConfig?.layout?.data || {};
-  const tiles = Array.isArray(layoutData.tiles) ? layoutData.tiles : [];
-  const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+  const tiles = tilesFromLayout(layoutData);
+  const hazards = hazardVisualsFromState(initialState);
 
   const core = getCore();
   if (core && simConfig && initialState) {
@@ -90,8 +142,8 @@ export async function buildTileAffinityVisualsFromSandboxBundle({
   resourceBundle = null,
 } = {}) {
   const layoutData = simConfig?.layout?.data || {};
-  const tiles   = Array.isArray(layoutData.tiles)   ? layoutData.tiles   : [];
-  const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+  const tiles = tilesFromLayout(layoutData);
+  const hazards = hazardVisualsFromState(initialState);
 
   const core = getCore();
   if (core && simConfig && initialState) {
@@ -134,8 +186,8 @@ export function createAffinityFieldBridge() {
     const initialState = findArtifact(bundle, INITIAL_STATE_SCHEMA);
     const resourceBundle = findArtifact(bundle, RESOURCE_BUNDLE_SCHEMA);
     const layoutData = simConfig?.layout?.data || {};
-    const tiles = Array.isArray(layoutData.tiles) ? layoutData.tiles : [];
-    const hazards = Array.isArray(layoutData.hazards) ? layoutData.hazards : [];
+    const tiles = tilesFromLayout(layoutData);
+    const hazards = hazardVisualsFromState(initialState);
 
     cachedVisuals = deriveTileAffinityVisuals({ tiles, hazards, resourceBundle });
     const core = getCore();

@@ -157,6 +157,18 @@ describe("scopeObservation", () => {
     expect(scoped.actors.length).toBe(observation.actors.length);
   });
 
+  test("scopeObservation omits a hazards collection even when one is injected", () => {
+    const scoped = scopeObservation({
+      actors: [
+        { id: "self", position: { x: 1, y: 1 } },
+        { id: "near", position: { x: 2, y: 1 } },
+      ],
+      hazards: [{ id: "hz", position: { x: 2, y: 1 } }],
+    }, "self", 3);
+    expect(scoped.actors.map((entry) => entry.id)).toEqual(["self", "near"]);
+    expect(Object.hasOwn(scoped, "hazards")).toBe(false);
+  });
+
   test("the wall-or-barrier observation kind blocks actors and hazards behind it", () => {
     const observationWithBarrier = {
       actors: [
@@ -177,7 +189,7 @@ describe("scopeObservation", () => {
 
     const scoped = scopeObservation(observationWithBarrier, "self", 4);
     expect(scoped.actors.map((entry) => entry.id)).toEqual(["self"]);
-    expect(scoped.hazards).toEqual([]);
+    expect(Object.hasOwn(scoped, "hazards")).toBe(false);
   });
 
   test("unobstructed cardinal and diagonal rays retain their targets", () => {
@@ -230,7 +242,7 @@ describe("scopeObservation", () => {
     });
 
     expect(scoped.actors.map((entry) => entry.id)).toEqual(["self", "adjacent_dark"]);
-    expect(scoped.hazards).toEqual([]);
+    expect(Object.hasOwn(scoped, "hazards")).toBe(false);
   });
 
   test("field cells use radius and line of sight but are not hidden by target darkness", () => {
@@ -504,13 +516,13 @@ describe("lit cells", () => {
         { id: "self", position: { x: 0, y: 1 } },
         { id: "lit", position: { x: 6, y: 1 } },
         { id: "dark", position: { x: 7, y: 1 } },
+        // A hazard is an actor in the unified model.
+        { id: "lamp", position: { x: 6, y: 2 } },
       ],
-      hazards: [{ id: "lamp", position: { x: 6, y: 1 } }],
       tiles: { kinds: open(9, 3) },
     };
-    const scoped = scopeObservation(observation, "self", 1, { lightByCell: { "6,1": 2 } });
-    expect(scoped.actors.map((entry: { id: string }) => entry.id)).toEqual(["self", "lit"]);
-    expect(scoped.hazards).toEqual([{ id: "lamp", position: { x: 6, y: 1 } }]);
+    const scoped = scopeObservation(observation, "self", 1, { lightByCell: { "6,1": 2, "6,2": 2 } });
+    expect(scoped.actors.map((entry: { id: string }) => entry.id)).toEqual(["self", "lit", "lamp"]);
   });
 });
 

@@ -52,6 +52,7 @@ import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/per
 import {
   applyActorOverrides,
   applyTileOverrides,
+  barrierSpecsFromTileOverrides,
   normalizeArgList,
   resolveVitalDefaults,
   summarizeFrame,
@@ -191,12 +192,12 @@ Options:
   --world-state-checkpoints  Comma-separated ticks to persist as WorldStateArtifact v2 files (run only)
   --seed          Seed for init (default: 0)
   --solver-fixture Fixture path for solve command (no network)
-  --actor         Actor spec: id,x,y,kind (kind: motivated/ambulatory/stationary)
+  --actor         Actor spec: id,x,y,category (delver/warden/hazard/resource/barrier)
   --vital         Vital spec: actorId,vital,current,max,regen
   --vital-default Vital default: vital,current,max,regen
-  --tile-wall     Tile wall coordinate: x,y (repeatable)
-  --tile-barrier  Tile barrier coordinate: x,y (repeatable)
-  --tile-floor    Tile floor override: x,y (repeatable)
+  --tile-wall     Terrain wall coordinate: x,y (repeatable)
+  --tile-barrier  Barrier actor coordinate: x,y (repeatable)
+  --tile-floor    Terrain floor coordinate: x,y (repeatable)
   --actions       Action log (ActionSequence) path for deterministic replay
   --from-run      Resolve sim-config.json and initial-state.json from artifacts/runs/<runId>/*
   --affinity-presets  Affinity preset artifact path (AffinityPresetArtifact)
@@ -1126,10 +1127,6 @@ function parseAuthoringHazardSpec(value, hazardIndex) {
     : parseHazardSpec(raw, hazardIndex);
 }
 
-const RESOURCE_ALLOWED_TIERS = new Set(["level", "permanent"]);
-const RESOURCE_ALLOWED_STATS = new Set([
-  "vitalMax", "vitalRegen", "affinity", "affinityStack", "pushExpression",
-]);
 const RESOURCE_ALLOWED_PERMANENCE_MODES = new Set(["consumable", "level", "permanent"]);
 const RESOURCE_ALLOWED_VITAL_KEYS = new Set(["health", "mana", "stamina"]);
 const RESOURCE_ALLOWED_AFFINITY_KINDS = new Set([
@@ -1289,51 +1286,9 @@ function parseResourceSpec(value, resourceIndex) {
     return parsed;
   }
 
-  // V1 (backward compat): tier + stat + delta + dropRate
-  const allowedFields = new Set(["id", "tier", "stat", "delta", "dropRate"]);
-  segments.forEach((segment) => {
-    if (!segment.includes("=")) {
-      throw new Error(`resource[${resourceIndex}] segment "${segment}" is invalid; expected key=value.`);
-    }
-    const eqIdx = segment.indexOf("=");
-    const key = segment.slice(0, eqIdx).trim();
-    const val = segment.slice(eqIdx + 1).trim();
-    if (!allowedFields.has(key)) {
-      throw new Error(`resource[${resourceIndex}] field "${key}" is not supported.`);
-    }
-    if (!val) {
-      throw new Error(`resource[${resourceIndex}] field "${key}" requires a value.`);
-    }
-    fields.set(key, val);
-  });
-  if (!fields.has("tier") || !RESOURCE_ALLOWED_TIERS.has(fields.get("tier"))) {
-    throw new Error(`resource[${resourceIndex}] tier must be one of: ${[...RESOURCE_ALLOWED_TIERS].join(", ")}.`);
+  if (!isV3) {
+    throw new Error(`resource[${resourceIndex}] requires V3 permanenceMode or affinity payload; leftover tier/stat/dropRate is not supported.`);
   }
-  if (!fields.has("stat") || !RESOURCE_ALLOWED_STATS.has(fields.get("stat"))) {
-    throw new Error(`resource[${resourceIndex}] stat must be one of: ${[...RESOURCE_ALLOWED_STATS].join(", ")}.`);
-  }
-  if (!fields.has("delta")) {
-    throw new Error(`resource[${resourceIndex}] delta is required.`);
-  }
-  if (!fields.has("dropRate")) {
-    throw new Error(`resource[${resourceIndex}] dropRate is required.`);
-  }
-  const delta = Number(fields.get("delta"));
-  if (!Number.isFinite(delta)) {
-    throw new Error(`resource[${resourceIndex}] delta must be a number.`);
-  }
-  const dropRate = parseInt(fields.get("dropRate"), 10);
-  if (!Number.isInteger(dropRate) || dropRate <= 0) {
-    throw new Error(`resource[${resourceIndex}] dropRate must be a positive integer.`);
-  }
-  return {
-    id: fields.has("id") ? fields.get("id") : `resource_${resourceIndex}`,
-    tier: fields.get("tier"),
-    stat: fields.get("stat"),
-    delta,
-    dropRate,
-    _schemaVersion: 1,
-  };
 }
 
 function parseResourceSpecs(rawResources) {
@@ -4100,16 +4055,16 @@ async function validateRunDryRun(args) {
   const tileBarriers = normalizeArgList(args["tile-barrier"]);
   const tileFloors = normalizeArgList(args["tile-floor"]);
   const vitalDefaults = resolveVitalDefaults(vitalDefaultSpecs);
+  const barrierSpecs = barrierSpecsFromTileOverrides(tileBarriers);
 
   const resolvedSimConfig = JSON.parse(JSON.stringify(simConfig));
   const resolvedInitialState = JSON.parse(JSON.stringify(initialState));
   applyTileOverrides(resolvedSimConfig, {
     walls: tileWalls,
-    barriers: tileBarriers,
     floors: tileFloors,
   });
   applyActorOverrides(resolvedInitialState, resolvedSimConfig, {
-    actorSpecs,
+    actorSpecs: [...actorSpecs, ...barrierSpecs],
     vitalSpecs,
     vitalDefaults,
   });

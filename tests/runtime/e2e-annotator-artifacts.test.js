@@ -19,9 +19,8 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
   // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
   // Build input hazards come from the affinity fixture's authored room-relative coords — the sim-config
   // fixture now stores the MAPPED absolute coords, so reusing its hazards as build input would
-  // double-shift them out of the room. The expected summary position/sourceId are derived below by
-  // the mapping arithmetic (rooms[0] origin + authored offset) instead of the fixture's literal
-  // (2,2), which remains correct for the direct-resolution consumers of the shared fixture.
+  // double-shift them out of the room. Expected AffinitySummary.hazards is [] under unified-actor
+  // (hazards map to actors); actor vitals include the orchestrateBuild viability floor.
   const presets = readJson(resolve(ROOT, "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json"));
   const loadouts = readJson(resolve(ROOT, "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json"));
   const simConfig = readJson(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json"));
@@ -54,7 +53,13 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
           seed: simConfig.seed,
           hazards: affinityFixture.input.hazards,
         },
-        actors: initialState.actors,
+        // Stamp lossless categories — fixture ambulatory actors lack attacking/defending cues
+        // for leftoverCategory; do not invent leftoverCategory rules for bare ambulatory.
+        actors: initialState.actors.map((actor, index) => ({
+          ...actor,
+          category: index === 0 ? "delver" : "warden",
+          motivations: index === 0 ? ["exploring"] : ["defending"],
+        })),
         affinityPresets: presets,
         affinityLoadouts: loadouts,
       },
@@ -82,6 +87,7 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
       health: { current: 11, max: 12, regen: 1 },
       mana: { current: 10, max: 12, regen: 1 },
       durability: { current: 10, max: 10, regen: 1 },
+      stamina: { current: 2, max: 2, regen: 2 },
     },
   }));
   floored[1].vitals = {
@@ -89,23 +95,12 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
     health: { current: 9, max: 10, regen: 1 },
     mana: { current: 10, max: 10, regen: 1 },
     durability: { current: 10, max: 10, regen: 1 },
+    // Hazard-mapped actor keeps fixture stamina; viability floor only hits authored actors.
+    stamina: { current: 0, max: 0, regen: 0 },
   };
   assert.deepEqual(summary.actors, floored);
 
-  // Room-relative mapping arithmetic: the authored hazard offset lands at rooms[0] origin + offset.
-  const room = buildResult.simConfig.layout.data.rooms[0];
-  assert.ok(room, "build layout must declare rooms for hazard mapping");
-  const expectedHazards = expected.hazards.map((hazard, index) => {
-    const authored = affinityFixture.input.hazards[index];
-    const mapped = { x: room.x + authored.x, y: room.y + authored.y };
-    return {
-      ...hazard,
-      position: mapped,
-      resolvedEffects: hazard.resolvedEffects.map((effect) => ({
-        ...effect,
-        sourceId: `${mapped.x},${mapped.y}`,
-      })),
-    };
-  });
-  assert.deepEqual(summary.hazards, expectedHazards);
+  // Unified-actor: authored layout hazards are mapped into actors before affinity resolution, so
+  // AffinitySummary.hazards stays empty; hazard effects show up on summary.actors (verified above).
+  assert.deepEqual(summary.hazards, []);
 });

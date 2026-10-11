@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "card_delver_1-1",
-      "kind": "ambulatory",
       "position": {
         "x": 12,
         "y": 12
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -42,12 +44,19 @@
           "regen": 1
         }
       },
-      "archetype": "delver",
-      "traits": {
-        "affinities": {
-          "wind": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
+      "motivations": [
+        "exploring",
+        "user_controlled"
+      ],
       "affinities": [
         {
           "kind": "wind",
@@ -55,20 +64,18 @@
           "stacks": 1
         }
       ],
-      "motivation": {
-        "kind": "exploring"
-      },
-      "motivations": [
-        "exploring"
-      ]
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "card_warden_1-1",
-      "kind": "ambulatory",
       "position": {
         "x": 27,
         "y": 15
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -91,12 +98,18 @@
           "regen": 1
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
+      "motivations": [
+        "random"
+      ],
       "affinities": [
         {
           "kind": "fire",
@@ -104,20 +117,18 @@
           "stacks": 1
         }
       ],
-      "motivation": {
-        "kind": "random"
-      },
-      "motivations": [
-        "random"
-      ]
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "card_warden_2-1",
-      "kind": "ambulatory",
       "position": {
         "x": 26,
         "y": 15
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -140,12 +151,18 @@
           "regen": 1
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "water": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
+      "motivations": [
+        "random"
+      ],
       "affinities": [
         {
           "kind": "water",
@@ -153,12 +170,19 @@
           "stacks": 1
         }
       ],
-      "motivation": {
-        "kind": "random"
-      },
-      "motivations": [
-        "random"
-      ]
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "card_delver_1-1": {
+      "category": "delver"
+    },
+    "card_warden_1-1": {
+      "category": "warden"
+    },
+    "card_warden_2-1": {
+      "category": "warden"
+    }
+  }
 }

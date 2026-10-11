@@ -55,10 +55,10 @@ async function runTicks(registry) {
   const { createCore } = await import("../../../packages/core-ts/src/index.ts");
 
   const runtime = createRuntime({ core: createCore(), adapters: {}, personas: registry });
+  const { unifiedActorRuntimeArtifacts } = await import('../../fixtures/personas/unified-actor-runtime.mjs');
   await runtime.init({
     seed: 0,
-    simConfig: fixture("sim-config-artifact-v1-mvp-grid.json"),
-    initialState: fixture("initial-state-artifact-v1-mvp-actor.json"),
+    ...unifiedActorRuntimeArtifacts(),
     runId: "run_g1_actor_ablation",
   });
   for (let i = 0; i < 3; i += 1) await runtime.step();

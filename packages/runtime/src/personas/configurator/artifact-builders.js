@@ -1,179 +1,46 @@
-import {
-  INITIAL_STATE_SCHEMA,
-  SIM_CONFIG_SCHEMA,
-} from "../../contracts/artifacts.ts";
+import { INITIAL_STATE_SCHEMA, SIM_CONFIG_SCHEMA } from '../../contracts/artifacts.ts';
+import { normalizeActorRoster } from './unified-actors.js';
+import { resolveActorTurnCosts } from './affinity-rules.js';
 
-function isPlainObject(value) {
-  return value && typeof value === "object" && !Array.isArray(value);
-}
-
+const LAYOUT_FIELDS = new Set(['width', 'height', 'terrain', 'rooms', 'connectivity',
+  'bounds', 'entryRoomId', 'exitRoomId', 'spawnApproach', 'exitApproach', 'render']);
+const LEFTOVER_LAYOUT_FIELDS = new Set(['hazards', 'resources', 'tiles', 'kinds', 'actors',
+  'spawn', 'exit', 'legend']);
 function cloneLayoutData(layout) {
-  if (!isPlainObject(layout)) return {};
-  const {
-    width,
-    height,
-    tiles,
-    kinds,
-    legend,
-    render,
-    spawn,
-    exit,
-    spawnApproach,
-    exitApproach,
-    entryRoomId,
-    exitRoomId,
-    bounds,
-    rooms,
-    connectivity,
-    hazards,
-    resources,
-  } = layout;
-  const data = {
-    width,
-    height,
-    tiles,
-    kinds,
-    legend,
-    render,
-    spawn,
-    exit,
-    bounds,
-  };
-  if (spawnApproach !== undefined) {
-    data.spawnApproach = spawnApproach;
+  if (!layout || typeof layout !== 'object' || Array.isArray(layout)) {
+    throw new Error(`invalid normalized layout: expected object, received ${typeof layout}`);
   }
-  if (exitApproach !== undefined) {
-    data.exitApproach = exitApproach;
-  }
-  if (entryRoomId !== undefined) {
-    data.entryRoomId = entryRoomId;
-  }
-  if (exitRoomId !== undefined) {
-    data.exitRoomId = exitRoomId;
-  }
-  if (Array.isArray(rooms) && rooms.length > 0) {
-    data.rooms = rooms.map((room) => ({ ...room }));
-  }
-  if (connectivity && typeof connectivity === "object") {
-    data.connectivity = { ...connectivity };
-  }
-  if (Array.isArray(hazards) && hazards.length > 0) {
-    data.hazards = hazards.map((hazard) => ({ ...hazard }));
-  }
-  if (Array.isArray(resources) && resources.length > 0) {
-    data.resources = resources.map((resource) => ({ ...resource }));
-  }
-  return data;
-}
-
-function sortedById(list) {
-  if (!Array.isArray(list)) return [];
-  return list.slice().sort((a, b) => String(a?.id || "").localeCompare(String(b?.id || "")));
-}
-
-function assertUniqueActorIds(actors) {
-  const seenIds = new Set();
-  actors.forEach((actor) => {
-    const id = String(actor?.id || "");
-    if (seenIds.has(id)) {
-      const reason = id === "" ? "missing_actor_id" : "duplicate_actor_id";
-      throw new Error(id === "" ? reason : `${reason}: ${id}`);
-    }
-    seenIds.add(id);
-  });
-}
-
-function buildResolvedTraits(actorTraits, resolved) {
-  const traits = { ...(actorTraits || {}) };
-  if (resolved?.affinityStacks) {
-    traits.affinities = { ...resolved.affinityStacks };
-  }
-  if (resolved?.affinityTargets) {
-    traits.affinityTargets = { ...resolved.affinityTargets };
-  }
-  if (Array.isArray(resolved?.abilities)) {
-    traits.abilities = resolved.abilities.map((ability) => ({ ...ability }));
-  }
-  if (Array.isArray(resolved?.resolvedEffects)) {
-    traits.resolvedEffects = resolved.resolvedEffects.map((effect) => ({ ...effect }));
-  }
-  return Object.keys(traits).length > 0 ? traits : undefined;
+  const geometry = { ...layout };
+  delete geometry.budgetScaffold;
+  for (const key of LEFTOVER_LAYOUT_FIELDS) delete geometry[key];
+  const unknown = Object.keys(geometry).filter(key => !LAYOUT_FIELDS.has(key));
+  if (unknown.length) throw new Error(`unsupported normalized layout fields: ${unknown.join(', ')}`);
+  normalizeActorRoster({ actors: [], dimensions: { width: geometry.width, height: geometry.height }, terrain: geometry.terrain });
+  return structuredClone(geometry);
 }
 
 export function buildSimConfigArtifact({
-  meta,
-  planRef,
-  budgetReceiptRef,
-  seed = 0,
-  layout,
-  flags,
-  executionPolicy,
-  constraints,
+  meta, planRef, budgetReceiptRef, seed = 0, layout, flags, executionPolicy,
+  constraints, affinityRules, movementStamina,
 } = {}) {
   const artifact = {
-    schema: SIM_CONFIG_SCHEMA,
-    schemaVersion: 1,
-    meta,
-    planRef,
-    seed,
-    layout: {
-      kind: "grid",
-      data: cloneLayoutData(layout),
-    },
+    schema: SIM_CONFIG_SCHEMA, schemaVersion: 1, meta, planRef, seed,
+    layout: { kind: 'grid', data: cloneLayoutData(layout) },
+    actionCosts: resolveActorTurnCosts({ rules: affinityRules, movementStamina }),
   };
   if (budgetReceiptRef) artifact.budgetReceiptRef = budgetReceiptRef;
   if (executionPolicy) artifact.executionPolicy = executionPolicy;
   if (flags) artifact.flags = flags;
   if (constraints) artifact.constraints = constraints;
-  return artifact;
+  return structuredClone(artifact);
 }
 
-export function buildInitialStateArtifact({ meta, simConfigRef, actors = [], resolvedEffects = {} } = {}) {
-  assertUniqueActorIds(Array.isArray(actors) ? actors : []);
-  const resolvedByActor = new Map();
-  if (Array.isArray(resolvedEffects.actors)) {
-    resolvedEffects.actors.forEach((entry) => {
-      if (entry?.actorId) {
-        resolvedByActor.set(entry.actorId, entry);
-      }
-    });
-  }
-
-  const normalizedActors = sortedById(actors).map((actor) => {
-    const resolved = resolvedByActor.get(actor.id);
-    const vitals = resolved?.vitals || actor.vitals;
-    const traits = buildResolvedTraits(actor.traits, resolved);
-    const entry = {
-      id: actor.id,
-      kind: actor.kind,
-      position: actor.position,
-    };
-    if (vitals) entry.vitals = vitals;
-    if (actor.archetype) entry.archetype = actor.archetype;
-    if (actor.capabilities) entry.capabilities = actor.capabilities;
-    if (traits) entry.traits = traits;
-    // AM.5/F13 — carry the AFFINITIES ARRAY through, not just `traits.affinities`.
-    //
-    // The authored actor arrives here with `affinities: [{kind, expression,
-    // stacks}]` and this builder dropped it, emitting only the trait map
-    // (`{water: 1}`). But `runner/core-setup.mjs` seeds an actor's core affinity
-    // from the ARRAY, and the observation's affinity list is built from the same
-    // shape — so every CLI-authored actor reached the simulation holding no
-    // affinity at all. `--delver affinity=water` was recorded and never applied:
-    // no field contribution, nothing to express, nothing to interact with.
-    //
-    // The trait map stays: it is what the renderers and card surfaces read.
-    if (Array.isArray(actor.affinities) && actor.affinities.length > 0) {
-      entry.affinities = actor.affinities.map((affinity) => ({ ...affinity }));
-    }
-    return entry;
-  });
-
-  return {
-    schema: INITIAL_STATE_SCHEMA,
-    schemaVersion: 1,
-    meta,
-    simConfigRef,
-    actors: normalizedActors,
-  };
+export function buildInitialStateArtifact({
+  meta, simConfigRef, actors, dimensions, terrain, ...unsupported
+} = {}) {
+  const keys = Object.keys(unsupported);
+  if (keys.length) throw new Error(`unsupported initial-state inputs: ${keys.join(', ')}`);
+  const roster = normalizeActorRoster({ actors, dimensions, terrain });
+  return structuredClone({ schema: INITIAL_STATE_SCHEMA, schemaVersion: 1,
+    meta, simConfigRef, actors: roster.actors, presentation: roster.presentation });
 }

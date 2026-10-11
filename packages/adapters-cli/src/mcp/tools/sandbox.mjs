@@ -35,10 +35,9 @@ import {
   ACTION_SEQUENCE_SCHEMA,
   BUDGET_ARTIFACT_SCHEMA,
   BUDGET_RECEIPT_ARTIFACT_SCHEMA,
-  INITIAL_STATE_SCHEMA,
   PLAN_ARTIFACT_SCHEMA,
-  SIM_CONFIG_SCHEMA,
 } from "../../../../runtime/src/contracts/artifacts.ts";
+import { createConfiguratorPersona } from "../../../../runtime/src/personas/configurator/persona.js";
 
 // ---------------------------------------------------------------------------
 // Local I/O helpers (self-contained — no dependency on ak-impl.mjs)
@@ -268,8 +267,134 @@ export async function executeSandboxCreate({
 // Entity placement helpers (M3)
 // ---------------------------------------------------------------------------
 
-const AMBULATORY_ENTITY_TYPES = new Set(["delver", "warden"]);
 const ALLOWED_ENTITY_TYPES = new Set(["delver", "warden", "hazard", "resource"]);
+
+function boxedTerrain(width, height) {
+  const terrain = [];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      terrain.push(x === 0 || y === 0 || x === width - 1 || y === height - 1 ? "wall" : "floor");
+    }
+  }
+  return terrain;
+}
+
+function sandboxConfigurator(createdAt) {
+  return createConfiguratorPersona({ clock: () => createdAt });
+}
+
+function seedAuthoredActor(configurator, actor) {
+  const request = configurator.prepareAuthoredActor(actor);
+  configurator.authorCandidates.applyViabilityDerivedVitalRequirements(request);
+  configurator.authorCandidates.applyMotivationDerivedVitalRequirements(request);
+  configurator.authorCandidates.applyAffinityDerivedVitalRequirements(request);
+  return request;
+}
+
+function authoredActorsFromState(configurator, initialState) {
+  const presentation = initialState?.presentation ?? {};
+  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
+  return actors.map((actor) => {
+    const category = actor.category || presentation[actor.id]?.category;
+    return seedAuthoredActor(configurator, category ? { ...actor, category } : actor);
+  });
+}
+
+function buildSandboxActorRequest(configurator, entityType, spec, position) {
+  if (spec.tier !== undefined || spec.stat !== undefined || spec.dropRate !== undefined) {
+    throw new Error("invalid unified actor definition");
+  }
+  const request = {
+    category: entityType,
+    id: isNonEmptyString(spec.id) ? spec.id : `${entityType}_1`,
+    position,
+  };
+  if (isNonEmptyString(spec.motivation)) request.motivations = [spec.motivation];
+  if (isNonEmptyString(spec.affinity) && isNonEmptyString(spec.expression)) {
+    const stacks = Number.isFinite(Number(spec.stacks)) ? Number(spec.stacks) : 1;
+    request.affinities = [{ kind: spec.affinity, expression: spec.expression, stacks }];
+    request.activeAffinityKey = `${spec.affinity}:${spec.expression}`;
+  }
+  const capabilities = {};
+  if (spec.blocking === "true" || spec.blocking === "1") capabilities.blocksMovement = true;
+  if (spec.blocking === "false" || spec.blocking === "0") capabilities.blocksMovement = false;
+  if (Object.keys(capabilities).length > 0) request.capabilities = capabilities;
+  if (isNonEmptyString(spec.permanenceMode) && isNonEmptyString(spec.vital)) {
+    request.holdings = [
+      {
+        id: request.id,
+        kind: "vital",
+        permanenceMode: spec.permanenceMode,
+        claimedBy: null,
+        vitals: [{ key: spec.vital, delta: Number(spec.delta) || 0 }],
+      },
+    ];
+  }
+  const seeded = seedAuthoredActor(configurator, request);
+  const hasStamina =
+    spec.staminaCurrent !== undefined || spec.staminaMax !== undefined || spec.staminaRegen !== undefined;
+  if (hasStamina) {
+    const current = Number.isFinite(Number(spec.staminaCurrent))
+      ? Number(spec.staminaCurrent)
+      : seeded.vitals?.stamina?.current ?? 0;
+    const max =
+      spec.staminaMax !== undefined
+        ? Number(spec.staminaMax)
+        : Number.isFinite(Number(spec.staminaCurrent))
+          ? Number(spec.staminaCurrent)
+          : seeded.vitals?.stamina?.max ?? current;
+    const regen = Number.isFinite(Number(spec.staminaRegen))
+      ? Number(spec.staminaRegen)
+      : seeded.vitals?.stamina?.regen ?? 0;
+    seeded.vitals = {
+      ...seeded.vitals,
+      stamina: { current, max, regen },
+    };
+  }
+  return seeded;
+}
+
+function rebuildSandboxArtifacts({
+  configurator,
+  runId,
+  createdAt,
+  width,
+  height,
+  actors,
+  existingSimConfig,
+  existingInitialState,
+  movementStamina,
+}) {
+  const terrain = boxedTerrain(width, height);
+  const simConfig = configurator.buildSimConfigArtifact({
+    meta: existingSimConfig?.meta ?? {
+      id: `sim-config-${runId}`,
+      runId,
+      createdAt,
+      producedBy: "sandbox-place",
+    },
+    planRef: existingSimConfig?.planRef ?? {
+      id: `plan-${runId}`,
+      schema: PLAN_ARTIFACT_SCHEMA,
+      schemaVersion: 1,
+    },
+    layout: { width, height, terrain },
+    movementStamina: configurator.assembleMovementStamina({ actors, movementStamina }),
+  });
+  const initialState = configurator.buildInitialStateArtifact({
+    meta: existingInitialState?.meta ?? {
+      id: `initial-state-${runId}`,
+      runId,
+      createdAt,
+      producedBy: "sandbox-place",
+    },
+    simConfigRef: toRef(simConfig),
+    dimensions: { width, height },
+    terrain,
+    actors,
+  });
+  return { simConfig, initialState };
+}
 
 /**
  * Parse a semicolon-delimited spec string into a key-value object.
@@ -285,67 +410,6 @@ function parseEntitySpec(specString) {
     if (key) spec[key] = val;
   }
   return spec;
-}
-
-/**
- * Build a minimal SimConfigArtifact for a sandbox room.
- * Grid layout: walls on the border, floor tiles inside.
- */
-function buildMinimalSimConfig({ runId, createdAt, width, height }) {
-  const tiles = [];
-  for (let y = 0; y < height; y++) {
-    let row = "";
-    for (let x = 0; x < width; x++) {
-      row += y === 0 || y === height - 1 || x === 0 || x === width - 1 ? "#" : ".";
-    }
-    tiles.push(row);
-  }
-  return {
-    schema: SIM_CONFIG_SCHEMA,
-    schemaVersion: 1,
-    meta: {
-      id: `sim-config-${runId}`,
-      runId,
-      createdAt,
-      producedBy: "sandbox-place",
-    },
-    planRef: {
-      id: `plan-${runId}`,
-      schema: PLAN_ARTIFACT_SCHEMA,
-      schemaVersion: 1,
-    },
-    seed: 1,
-    layout: {
-      kind: "grid",
-      data: {
-        width,
-        height,
-        tiles,
-        legend: {
-          "#": { tile: "wall" },
-          ".": { tile: "floor" },
-        },
-      },
-    },
-  };
-}
-
-/**
- * Build a minimal InitialStateArtifact.
- */
-function buildMinimalInitialState({ runId, createdAt, simConfigRef, actors = [] }) {
-  return {
-    schema: INITIAL_STATE_SCHEMA,
-    schemaVersion: 1,
-    meta: {
-      id: `initial-state-${runId}`,
-      runId,
-      createdAt,
-      producedBy: "sandbox-place",
-    },
-    simConfigRef,
-    actors,
-  };
 }
 
 /**
@@ -365,71 +429,6 @@ function buildVisualResourceBundle({ runId, createdAt }) {
     producedBy: "sandbox-place",
     emitVisualAssets: true,
   });
-}
-
-/**
- * Build an actor record for InitialState from an entity type and parsed spec.
- * Stores entity-specific attributes in `traits` for downstream consumers.
- */
-function buildActorFromEntitySpec(entityType, spec, position) {
-  const actorKind = AMBULATORY_ENTITY_TYPES.has(entityType) ? "ambulatory" : "stationary";
-  const actor = {
-    id: spec.id || `${entityType}_${Date.now()}`,
-    kind: actorKind,
-    position,
-    archetype: entityType,
-  };
-
-  const traits = {};
-  // Shared attributes
-  if (spec.affinity) traits.affinity = spec.affinity;
-  if (spec.expression) traits.expression = spec.expression;
-  // Ambulatory-specific
-  if (spec.motivation) traits.motivation = spec.motivation;
-  // Hazard / hazard
-  if (spec.stacks !== undefined) traits.stacks = Number(spec.stacks);
-  if (spec.proximityRadius !== undefined) traits.proximityRadius = Number(spec.proximityRadius);
-  if (spec.blocking !== undefined) traits.blocking = spec.blocking === "true" || spec.blocking === "1";
-  // Resource
-  if (spec.tier) traits.tier = spec.tier;
-  if (spec.stat) traits.stat = spec.stat;
-  if (spec.delta !== undefined) traits.delta = Number(spec.delta);
-  if (spec.dropRate !== undefined) traits.dropRate = Number(spec.dropRate);
-
-  if (Object.keys(traits).length > 0) {
-    actor.traits = traits;
-  }
-
-  // Vitals — stamina fields (staminaCurrent, staminaMax, staminaRegen).
-  // Other vitals (health, mana, durability) follow the same pattern but are
-  // omitted here until a use-case requires them. When any stamina field is
-  // present the full vitals block is written so downstream consumers always
-  // find a well-formed record.
-  const hasStamina =
-    spec.staminaCurrent !== undefined ||
-    spec.staminaMax !== undefined ||
-    spec.staminaRegen !== undefined;
-  if (hasStamina) {
-    const sc = Number.isFinite(Number(spec.staminaCurrent)) ? Number(spec.staminaCurrent) : 0;
-    // If staminaMax is absent, fall back to staminaCurrent so a one-field
-    // spec like staminaCurrent=10 produces a sensible full record.
-    const sm = spec.staminaMax !== undefined ? Number(spec.staminaMax) : sc;
-    const sr = Number.isFinite(Number(spec.staminaRegen)) ? Number(spec.staminaRegen) : 0;
-    actor.vitals = {
-      health: { current: 0, max: 0, regen: 0 },
-      mana: { current: 0, max: 0, regen: 0 },
-      stamina: { current: sc, max: sm, regen: sr },
-      durability: { current: 0, max: 0, regen: 0 },
-    };
-  }
-
-  // Capabilities — movementCost drives stamina consumption on each move step.
-  // Omitting movementCost (or leaving it at 0) means free movement.
-  if (spec.movementCost !== undefined) {
-    actor.capabilities = { movementCost: Number(spec.movementCost) };
-  }
-
-  return actor;
 }
 
 // ---------------------------------------------------------------------------
@@ -517,40 +516,25 @@ export async function executeSandboxPlace({ session: sessionPath, entityType, sp
   const runId = session.meta?.runId || makeId("sandbox_run");
   const createdAt = new Date().toISOString();
 
-  // Load or create SimConfig
+  // Load existing artifacts for meta/roster reuse, then rebuild through Configurator.
   const simConfigPath = join(sessionDir, "sim-config.json");
-  let simConfig;
+  let existingSimConfig = null;
   if (existsSync(simConfigPath)) {
     try {
-      simConfig = await readJson(simConfigPath);
+      existingSimConfig = await readJson(simConfigPath);
     } catch {
-      simConfig = buildMinimalSimConfig({ runId, createdAt, width: room.width, height: room.height });
+      existingSimConfig = null;
     }
-  } else {
-    simConfig = buildMinimalSimConfig({ runId, createdAt, width: room.width, height: room.height });
   }
 
-  // Load or create InitialState
   const initialStatePath = join(sessionDir, "initial-state.json");
-  let initialState;
+  let existingInitialState = null;
   if (existsSync(initialStatePath)) {
     try {
-      initialState = await readJson(initialStatePath);
+      existingInitialState = await readJson(initialStatePath);
     } catch {
-      initialState = buildMinimalInitialState({
-        runId,
-        createdAt,
-        simConfigRef: toRef(simConfig),
-        actors: [],
-      });
+      existingInitialState = null;
     }
-  } else {
-    initialState = buildMinimalInitialState({
-      runId,
-      createdAt,
-      simConfigRef: toRef(simConfig),
-      actors: [],
-    });
   }
 
   // Load or create ResourceBundle. Upgrade minimal bundles (no icon mappings) to visual bundles
@@ -570,14 +554,44 @@ export async function executeSandboxPlace({ session: sessionPath, entityType, sp
     resourceBundle = buildVisualResourceBundle({ runId, createdAt });
   }
 
-  // Build the actor and add/replace in InitialState
   const position = { x, y };
-  const actor = buildActorFromEntitySpec(entityType, parsedSpec, position);
-  const actors = Array.isArray(initialState.actors)
-    ? initialState.actors.filter((a) => a.id !== actor.id)
-    : [];
-  actors.push(actor);
-  initialState.actors = actors;
+  const configurator = sandboxConfigurator(createdAt);
+  let actor;
+  let simConfig;
+  let initialState;
+  try {
+    const prior = authoredActorsFromState(configurator, existingInitialState);
+    actor = buildSandboxActorRequest(configurator, entityType, parsedSpec, position);
+    const actors = prior.filter((entry) => entry.id !== actor.id);
+    actors.push(actor);
+    const movementStamina = {
+      ...(existingSimConfig?.actionCosts?.movementStamina ?? {}),
+    };
+    if (parsedSpec.movementCost !== undefined) {
+      const cost = Number(parsedSpec.movementCost);
+      if (!Number.isSafeInteger(cost) || cost < 0) {
+        throw new Error("invalid capabilities");
+      }
+      movementStamina[actor.id] = cost;
+    }
+    ({ simConfig, initialState } = rebuildSandboxArtifacts({
+      configurator,
+      runId,
+      createdAt,
+      width: room.width,
+      height: room.height,
+      actors,
+      existingSimConfig,
+      existingInitialState,
+      movementStamina,
+    }));
+  } catch (err) {
+    return {
+      ok: false,
+      command: "sandbox-place",
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
 
   // Build and validate the updated session BEFORE writing any artifact files.
   // Writing artifacts first then failing validation leaves orphaned files on disk
@@ -825,13 +839,13 @@ export async function executeSandboxMove({
     };
   }
 
-  // Wall check — target tile must not be a wall
-  const tiles = simConfig.layout?.data?.tiles;
-  if (Array.isArray(tiles) && typeof tiles[to.y] === "string") {
-    const char = tiles[to.y][to.x];
-    const legend = simConfig.layout?.data?.legend || {};
-    const tileInfo = legend[char];
-    if (tileInfo?.tile === "wall") {
+  // Wall check — target terrain cell must not be a wall
+  const layout = simConfig.layout?.data;
+  const terrain = layout?.terrain;
+  const layoutWidth = layout?.width;
+  if (Array.isArray(terrain) && Number.isInteger(layoutWidth) && layoutWidth > 0) {
+    const kind = terrain[to.y * layoutWidth + to.x];
+    if (kind === "wall") {
       return {
         ok: false,
         command: "sandbox-move",
@@ -848,9 +862,9 @@ export async function executeSandboxMove({
   // un-configured sandbox entities always work out of the box.
   // ------------------------------------------------------------------
   const cardinalCost =
-    typeof actor.capabilities?.movementCost === "number" &&
-    Number.isFinite(actor.capabilities.movementCost)
-      ? actor.capabilities.movementCost
+    typeof simConfig.actionCosts?.movementStamina?.[actorId] === "number" &&
+    Number.isFinite(simConfig.actionCosts.movementStamina[actorId])
+      ? simConfig.actionCosts.movementStamina[actorId]
       : 0;
 
   let staminaDeducted = null; // null → no stamina tracking on this actor
@@ -914,11 +928,7 @@ export async function executeSandboxMove({
     actorId,
     tick,
     kind: "move",
-    params: {
-      direction: dirInfo.value,
-      from,
-      to,
-    },
+    params: { target: to },
   };
 
   // Build the updated ActionSequence
@@ -1263,8 +1273,8 @@ export const sandboxTools = [
             "Semicolon-delimited entity spec (e.g. id=delver_1;x=1;y=1;affinity=water;motivation=exploring). " +
             "Required fields: id, x, y. Entity-type-specific fields: " +
             "delver/warden — affinity, motivation; " +
-            "hazard — affinity, expression, stacks, [proximityRadius], [blocking]; " +
-            "resource — tier, stat, delta, dropRate.",
+            "hazard — affinity, expression, stacks, [blocking]; " +
+            "resource — permanenceMode, vital, delta.",
         },
       },
     },

@@ -264,13 +264,13 @@ test("G1 configurator/validate-lock@build: production and the standalone persona
     "../../packages/runtime/src/personas/configurator/persona.js"
   );
 
-  // Resources are the honest vehicle: mapResources carries authored fields through
-  // without synthesizing missing ones, so a bad entry survives to validate().
-  // (levelGen cannot be — prepareLevelGen regenerates it before validation sees it.)
+  // Resource requests exercise Configurator normalization as well as locking.
+  // Invalid actor definitions can be refused during mapping, before validate().
+  const vitals = { durability: { current: 1, max: 1, regen: 0 } };
   const cases = [
-    { name: "valid resource", resources: [{ id: "resource_1", tier: "common", stat: "health", delta: 1, dropRate: 1 }] },
-    { name: "id-less resource", resources: [{ tier: "common", stat: "health", delta: 1, dropRate: 1 }] },
-    { name: "blank id", resources: [{ id: "   ", tier: "common", stat: "health", delta: 1, dropRate: 1 }] },
+    { name: "valid resource", resources: [{ id: "resource_1", vitals }] },
+    { name: "id-less resource", resources: [{ vitals }] },
+    { name: "blank id", resources: [{ id: "   ", vitals }] },
     { name: "no resources at all", resources: [] },
   ];
 
@@ -278,12 +278,14 @@ test("G1 configurator/validate-lock@build: production and the standalone persona
     // The persona's own verdict, reached standalone through its service surface.
     const standalone = createConfiguratorPersona({ clock: () => "2026-07-29T00:00:00.000Z" });
     standalone.provideConfig({});
-    if (testCase.resources.length > 0) standalone.mapResources(testCase.resources);
     let personaAccepts = true;
+    let personaError;
     try {
+      if (testCase.resources.length > 0) standalone.mapResources(testCase.resources);
       standalone.validate();
+      standalone.lock();
     } catch (error) {
-      assert.equal(error.code, "configurator_invalid", `${testCase.name}: unexpected refusal kind`);
+      personaError = error;
       personaAccepts = false;
     }
 
@@ -297,6 +299,7 @@ test("G1 configurator/validate-lock@build: production and the standalone persona
         runId: `run_g1_${testCase.name.replace(/\W+/g, "_")}`,
         createdAt: "2026-07-29T00:00:00.000Z",
         resources: testCase.resources,
+        movementStamina: {},
       });
     } catch (error) {
       productionAccepts = false;
@@ -311,10 +314,11 @@ test("G1 configurator/validate-lock@build: production and the standalone persona
         + "than the owning persona, which is a second implementation of a chartered decision",
     );
     if (!personaAccepts) {
+      assert.equal(productionError.message, personaError.message);
       assert.equal(
         productionError.code,
-        "configurator_invalid",
-        `${testCase.name}: production must fail with the PERSONA's error, not its own`,
+        personaError.code,
+        `${testCase.name}: production must preserve the persona error code`,
       );
     }
   }
@@ -336,7 +340,7 @@ test("G1 director/plan-artifact: the persisted plan is the one the Director draf
 
   // Production's persisted lineage.
   const { buildResult } = await runAuthoringBuild({
-    summary, commandName: "create", runId, createdAt,
+    summary, commandName: "create", runId, createdAt, movementStamina: {},
   });
 
   // The same round, standalone. If production's plan is a post-hoc reconstruction
@@ -398,7 +402,8 @@ test("G1 configurator/validate-lock@build: neutering the persona's verdict break
       commandName: "create",
       runId: "run_g1_ablation",
       createdAt: "2026-07-29T00:00:00.000Z",
-      resources: [{ tier: "common", stat: "health", delta: 1, dropRate: 1 }],
+      floorTiles: [{ value: { count: 0.5 } }],
+      movementStamina: {},
     }),
     (error) => error.code === "configurator_invalid",
   );
@@ -536,10 +541,8 @@ test("G1 actor/no-budget-policy: production admits exactly what the Allocator ad
   const { createAllocatorPersona } = await import(
     "../../packages/runtime/src/personas/allocator/persona.js"
   );
-  const { readFileSync } = require("node:fs");
-
-  const simConfig = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"), "utf8"));
-  const initialState = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-mvp-actor.json"), "utf8"));
+  const { unifiedActorRuntimeArtifacts } = await import('../fixtures/personas/unified-actor-runtime.mjs');
+  const { simConfig, initialState } = unifiedActorRuntimeArtifacts();
 
   // A receipt that denies movement outright. Without it the tick plane carries no
   // budget at all, so admission would be vacuous — this is what makes production
@@ -550,13 +553,14 @@ test("G1 actor/no-budget-policy: production admits exactly what the Allocator ad
     lineItems: [{ kind: "motivation", id: "motivation_reflexive", status: "denied", quantity: 0 }],
   };
   const proposals = [
-    { actorId: "actor_mvp", kind: "motivation", tier: "reflexive", params: { label: "reflexive" } },
-    { actorId: "actor_mvp", kind: "custom_action", params: { label: "free" } },
+    { actorId: "actor_1", kind: "move", costKind: "motivation", costId: "motivation_reflexive", params: { dx: 1, dy: 0 } },
+    { actorId: "actor_1", kind: "wait" },
   ];
 
   // The persona's own verdict, standalone.
   const standalone = createAllocatorPersona({ clock: () => "2026-07-31T00:00:00.000Z" });
   const admitted = standalone.admitProposals(proposals, { budgetReceipt: denyingReceipt });
+  assert.deepEqual(admitted.map(proposal => proposal.kind), ['wait']);
 
   // Production's verdict on the same proposals + receipt, through the real runtime.
   const runtime = createRuntime({ core: createCore(), adapters: {} });
@@ -577,7 +581,7 @@ test("G1 actor/no-budget-policy: production admits exactly what the Allocator ad
       + "has a second implementation",
   );
   assert.ok(
-    !producedKinds.includes("motivation"),
+    !producedKinds.includes("move"),
     "precondition: the denying receipt must actually deny something, or this is vacuous",
   );
 });
@@ -656,10 +660,8 @@ test("G1 actor/serializable-decision: the Actor carries nothing outside view()",
 test("G1 annotator/run-summary-provenance: the summary comes from the instance that observed the run", async () => {
   const { createRuntime } = await import("../../packages/runtime/src/runner/runtime.js");
   const { createCore } = await import("../../packages/core-ts/src/index.ts");
-  const { readFileSync } = require("node:fs");
-
-  const simConfig = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-mvp-grid.json"), "utf8"));
-  const initialState = JSON.parse(readFileSync(resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-mvp-actor.json"), "utf8"));
+  const { unifiedActorRuntimeArtifacts } = await import('../fixtures/personas/unified-actor-runtime.mjs');
+  const { simConfig, initialState } = unifiedActorRuntimeArtifacts();
 
   const runtime = createRuntime({ core: createCore(), adapters: {} });
   await runtime.init({ seed: 0, simConfig, initialState, runId: "run_g1_cr8" });

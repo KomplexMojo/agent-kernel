@@ -36,22 +36,23 @@ const contains = (room, point) => (
   && point.y >= room.y && point.y < room.y + room.height
 );
 
+function marker(layout, kind) {
+  const index = layout.terrain.indexOf(kind);
+  assert.ok(index >= 0);
+  return { x: index % layout.width, y: Math.floor(index / layout.width) };
+}
 function walkable(layout) {
-  const cells = [];
-  for (let y = 0; y < layout.tiles.length; y += 1) {
-    const row = layout.tiles[y];
-    for (let x = 0; x < row.length; x += 1) {
-      if (row[x] !== "#" && row[x] !== "B") cells.push({ x, y });
-    }
-  }
-  return cells.sort((left, right) => left.y - right.y || left.x - right.x);
+  return layout.terrain.flatMap((kind, index) => kind !== "floor" ? [] :
+    [{ x: index % layout.width, y: Math.floor(index / layout.width) }]);
 }
 
 function pathExists(layout, blocking) {
   const allowed = new Set(walkable(layout).map(pointKey));
-  const start = pointKey(layout.spawn);
-  const target = pointKey(layout.exit);
-  const queue = [layout.spawn];
+  const spawn = layout.spawnApproach || marker(layout, "spawn");
+  const exit = layout.exitApproach || marker(layout, "exit");
+  const start = pointKey(spawn);
+  const target = pointKey(exit);
+  const queue = [spawn];
   const seen = new Set([start]);
   while (queue.length > 0) {
     const current = queue.shift();
@@ -71,7 +72,10 @@ function pathExists(layout, blocking) {
 function placementContext(board) {
   const cells = walkable(board.layout);
   const cellKeys = new Set(cells.map(pointKey));
-  const occupied = new Set([pointKey(board.layout.spawn), pointKey(board.layout.exit)]);
+  const occupied = new Set([
+    pointKey(board.layout.spawnApproach || marker(board.layout, "spawn")),
+    pointKey(board.layout.exitApproach || marker(board.layout, "exit")),
+  ]);
   (board.actors || []).forEach(({ position }) => occupied.add(pointKey(position)));
   const placements = new Map();
   const blocking = new Set();
@@ -172,20 +176,23 @@ test("current build placement remains hazards-first and row-major", async () => 
     plan: {},
     configurator: { inputs: {
       levelGen: { width: 7, height: 7, walkableTilesTarget: 20, seed: 9, hazards: [
-        { id: "hazard_first", affinity: "fire" },
-        { id: "hazard_second", affinity: "water" },
+        { id: "hazard_first", affinity: { kind: "fire", expression: "emit", stacks: 1 } },
+        { id: "hazard_second", affinity: { kind: "water", expression: "emit", stacks: 1 } },
       ] },
-      resources: [{ id: "resource_first", tier: "level", stat: "vitalMax", delta: 1 }],
-      actors: [],
+      resources: [{ id: "resource_first", category: "resource", vitals: { durability: { current: 1, max: 1, regen: 0 } }, holdings: [] }],
+      actors: [], movementStamina: {},
     } },
   };
   const result = await orchestrateBuild({ spec, producedBy: "runtime-test" });
   const data = result.simConfig.layout.data;
   const project = (entry) => ({ id: entry.id, position: entry.position });
-  assert.deepEqual([...data.hazards, ...data.resources].map(project), [
+  assert.equal(Object.hasOwn(data, "hazards"), false);
+  assert.deepEqual(result.initialState.actors.filter((actor) => actor.id.startsWith("hazard_")).map(project), [
     { id: "hazard_first", position: { x: 1, y: 1 } },
-    { id: "hazard_second", position: { x: 2, y: 1 } },
-    { id: "resource_first", position: { x: 3, y: 1 } },
+    { id: "hazard_second", position: { x: 3, y: 1 } },
+  ]);
+  assert.deepEqual(result.initialState.actors.filter((actor) => actor.id === "resource_first").map(project), [
+    { id: "resource_first", position: { x: 4, y: 1 } },
   ]);
 });
 
@@ -202,7 +209,7 @@ test("complete search preserves fixed coordinates and finds the first lexicograp
 test("the four actionable unsat reason families remain distinct", () => {
   const base = readPlacementFixture();
   const collision = clone(base);
-  collision.objects[0].position = clone(collision.layout.spawn);
+  collision.objects[0].position = clone(collision.layout.spawnApproach);
   assert.deepEqual(solve(collision), { status: "unsat", reason: "collision" });
 
   const containment = clone(base);
@@ -210,17 +217,22 @@ test("the four actionable unsat reason families remain distinct", () => {
   assert.deepEqual(solve(containment), { status: "unsat", reason: "containment" });
 
   const capacity = clone(base);
-  capacity.layout.tiles = ["#####", "#...#", "#####"];
-  capacity.layout.spawn = { x: 1, y: 1 };
-  capacity.layout.exit = { x: 3, y: 1 };
+  Object.assign(capacity.layout, {
+    width: 5, height: 3,
+    spawnApproach: { x: 1, y: 1 }, exitApproach: { x: 3, y: 1 },
+    terrain: ["wall", "spawn", "wall", "exit", "wall", "wall", "floor", "floor", "floor", "wall", "wall", "wall", "wall", "wall", "wall"],
+  });
   capacity.layout.rooms = [];
   capacity.actors = [];
   capacity.objects = [{ id: "one" }, { id: "two" }];
   assert.deepEqual(solve(capacity), { status: "unsat", reason: "capacity" });
 
   const blocked = clone(capacity);
-  blocked.layout.tiles = ["######", "#....#", "#.####", "######"];
-  blocked.layout.exit = { x: 4, y: 1 };
+  Object.assign(blocked.layout, {
+    width: 6, height: 4,
+    spawnApproach: { x: 1, y: 1 }, exitApproach: { x: 4, y: 1 },
+    terrain: ["wall", "spawn", "wall", "wall", "exit", "wall", "wall", "floor", "floor", "floor", "floor", "wall", "wall", "floor", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall", "wall"],
+  });
   blocked.layout.rooms = [{ id: "choke", x: 2, y: 1, width: 1, height: 1 }];
   blocked.objects = [{ id: "blocker", roomId: "choke", blocking: true }];
   assert.deepEqual(solve(blocked), { status: "unsat", reason: "path_obstruction" });
@@ -281,7 +293,7 @@ test("the Configurator authors a linear object-placement problem and consumes ge
   assert.equal(result.source, "solver");
   assert.deepEqual(replay, result, "the same authored problem must replay to the same model");
   const placedById = new Map(
-    [...result.layout.hazards, ...result.layout.resources].map((entry) => [entry.id, entry]),
+    result.actors.map((entry) => [entry.id, entry]),
   );
   assert.deepEqual(fixture.expected.assignment.map(({ id }) => ({
     id,
@@ -303,7 +315,7 @@ test("solver unsat is final and distinguishes collision, containment, capacity, 
   const baseArgs = { layout: base.layout, actors: base.actors, ...splitFixtureObjects(base) };
 
   const collision = clone(baseArgs);
-  collision.resources[0].position = clone(collision.layout.spawn);
+  collision.resources[0].position = clone(collision.layout.spawnApproach);
   assert.deepEqual(await placeObjects(collision), {
     ok: false,
     status: "unsat",
@@ -319,9 +331,9 @@ test("solver unsat is final and distinguishes collision, containment, capacity, 
   });
 
   const corridor = {
-    tiles: ["######", "#....#", "######"],
-    spawn: { x: 1, y: 1 },
-    exit: { x: 4, y: 1 },
+    width: 6, height: 3,
+    spawnApproach: { x: 1, y: 1 }, exitApproach: { x: 4, y: 1 },
+    terrain: ["wall", "spawn", "wall", "wall", "exit", "wall", "wall", "floor", "floor", "floor", "floor", "wall", "wall", "wall", "wall", "wall", "wall", "wall"],
     rooms: [{ id: "choke", x: 2, y: 1, width: 1, height: 1 }],
   };
   assert.deepEqual(await placeObjects({
@@ -354,12 +366,11 @@ test("deferred and capability-absent solvers retain the exact hazards-first row-
   const configurator = createConfiguratorPersona({ clock: () => "2026-09-01T00:00:00.000Z" });
   const args = {
     layout: {
-      tiles: ["#####", "#...#", "#####"],
-      legend: { "#": { tile: "wall" }, ".": { tile: "floor" } },
-      spawn: { x: 1, y: 1 },
-      exit: { x: 3, y: 1 },
+      width: 5, height: 3,
+      spawnApproach: { x: 1, y: 1 }, exitApproach: { x: 3, y: 1 },
+      terrain: ["wall", "spawn", "wall", "exit", "wall", "wall", "floor", "floor", "floor", "wall", "wall", "wall", "wall", "wall", "wall"],
     },
-    hazards: [{ id: "hazard_first" }],
+    hazards: [{ id: "hazard_first", affinity: { kind: "fire", expression: "emit", stacks: 1 } }],
     resources: [],
     actors: [],
   };
@@ -376,9 +387,20 @@ test("deferred and capability-absent solvers retain the exact hazards-first row-
   const expected = {
     ok: true,
     source: "fallback",
+    actors: [{
+      id: "hazard_first", position: { x: 2, y: 1 }, alignment: "dungeon",
+      lifecycle: "alive", defeatVital: "durability",
+      vitals: {
+        mana: { current: 9, max: 9, regen: 3 },
+        durability: { current: 5, max: 5, regen: 0 },
+      },
+      capabilities: { canMove: false, canCast: true, canEquip: false, canTake: false,
+        canExit: false, blocksMovement: false, blocksSight: false },
+      motivations: [], affinities: [{ kind: "fire", expression: "emit", stacks: 1 }],
+      activeAffinityKey: "fire:emit", holdings: [], category: "hazard",
+    }],
     layout: {
       ...args.layout,
-      hazards: [{ id: "hazard_first", position: { x: 2, y: 1 }, x: 2, y: 1 }],
     },
   };
 

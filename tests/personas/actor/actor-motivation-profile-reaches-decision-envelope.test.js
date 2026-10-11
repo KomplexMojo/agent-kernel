@@ -22,11 +22,11 @@ async function solverEnvelope() {
       {
         id: "delver_1",
         kind: 2,
-        role: "delver",
+        alignment: "external",
         position: { x: 1, y: 1 },
         motivation: { kind: "attacking" },
       },
-      { id: "warden_1", kind: 2, role: "warden", position: { x: 3, y: 1 } },
+      { id: "warden_1", kind: 2, alignment: "dungeon", position: { x: 3, y: 1 } },
     ],
     tiles: { baseTiles: BASE_TILES },
     exit: { x: 3, y: 1 },

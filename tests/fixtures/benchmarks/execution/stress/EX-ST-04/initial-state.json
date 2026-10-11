@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "delver_soak_attacker-1",
-      "kind": "ambulatory",
       "position": {
         "x": 6,
         "y": 7
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 40,
@@ -42,23 +44,31 @@
           "regen": 1
         }
       },
-      "archetype": "delver",
-      "traits": {
-        "affinities": {
-          "fire": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "attacking"
-      }
+      "motivations": [
+        "attacking"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "delver_soak_mover-1",
-      "kind": "ambulatory",
       "position": {
         "x": 5,
         "y": 8
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 36,
@@ -81,23 +91,31 @@
           "regen": 1
         }
       },
-      "archetype": "delver",
-      "traits": {
-        "affinities": {
-          "water": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "random"
-      }
+      "motivations": [
+        "random"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_soak_defender-1",
-      "kind": "ambulatory",
       "position": {
         "x": 19,
         "y": 14
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 50,
@@ -120,23 +138,31 @@
           "regen": 1
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "earth": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "defending"
-      }
+      "motivations": [
+        "defending"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden_soak_patrol-1",
-      "kind": "ambulatory",
       "position": {
         "x": 18,
         "y": 15
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 42,
@@ -159,15 +185,35 @@
           "regen": 1
         }
       },
-      "archetype": "warden",
-      "traits": {
-        "affinities": {
-          "wind": 1
-        }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
       },
-      "motivation": {
-        "kind": "patrolling"
-      }
+      "motivations": [
+        "patrolling"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "delver_soak_attacker-1": {
+      "category": "delver"
+    },
+    "delver_soak_mover-1": {
+      "category": "delver"
+    },
+    "warden_soak_defender-1": {
+      "category": "warden"
+    },
+    "warden_soak_patrol-1": {
+      "category": "warden"
+    }
+  }
 }

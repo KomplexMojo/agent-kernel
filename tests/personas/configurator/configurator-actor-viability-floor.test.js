@@ -72,8 +72,13 @@ test("the glue-facing form reports whether it changed anything", () => {
     "a second application must be a no-op, or the glue would report drift on every rebuild");
 });
 
-test("it tolerates an actor with no vitals rather than throwing", () => {
-  assert.equal(applyViabilityDerivedVitalRequirements({}), false);
+test("omitted vitals receive Configurator defaults then the viability floor", () => {
+  const actor = {};
+  assert.equal(applyViabilityDerivedVitalRequirements(actor), true);
+  assert.equal(actor.vitals.health.max, ACTOR_VIABILITY_FLOOR.health.max);
+  assert.equal(actor.vitals.mana.max, ACTOR_VIABILITY_FLOOR.mana.max);
+  assert.equal(actor.vitals.durability.max, ACTOR_VIABILITY_FLOOR.durability.max);
+  assert.deepEqual(actor.vitals.stamina, DEFAULT_VITALS.stamina);
   assert.equal(applyActorViabilityFloor(null), null);
 });
 

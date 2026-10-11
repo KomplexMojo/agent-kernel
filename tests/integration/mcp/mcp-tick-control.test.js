@@ -50,35 +50,25 @@ function makeTickFrame(tick, runId) {
   };
 }
 
-function scaffoldRun(workDir, runId, { maxTick = 10 } = {}) {
+async function scaffoldRun(workDir, runId, { maxTick = 10 } = {}) {
   const buildDir = join(workDir, "artifacts", "runs", runId, "build");
   const runDir = join(workDir, "artifacts", "runs", runId, "run");
-
-  writeJson(join(buildDir, "sim-config.json"), {
-    schema: "agent-kernel/SimConfigArtifact",
-    schemaVersion: 1,
-    meta: makeMeta("sim_config", runId),
-    layout: {
-      kind: "grid",
-      width: 5,
-      height: 5,
-      data: {
-        width: 5,
-        height: 5,
-        tiles: ["#####", "#...#", "#...#", "#...#", "#####"],
-        legend: { "#": { tile: "wall" }, ".": { tile: "floor" } },
-      },
-    },
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../../fixtures/personas/unified-actor-runtime.mjs");
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 5,
+    height: 5,
+    terrain: boxedTerrain(5, 5),
+    runId,
+    actors: [{
+      id: "actor_delver",
+      category: "delver",
+      position: { x: 1, y: 1 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
   });
-
-  writeJson(join(buildDir, "initial-state.json"), {
-    schema: "agent-kernel/InitialStateArtifact",
-    schemaVersion: 1,
-    meta: makeMeta("initial_state", runId),
-    actors: [
-      { id: "actor_delver", kind: "motivated", position: { x: 1, y: 1 } },
-    ],
-  });
+  writeJson(join(buildDir, "sim-config.json"), simConfig);
+  writeJson(join(buildDir, "initial-state.json"), initialState);
 
   const frames = Array.from({ length: maxTick }, (_, i) => makeTickFrame(i + 1, runId));
   writeJson(join(runDir, "tick-frames.json"), frames);
@@ -226,7 +216,7 @@ function makeTempDir(prefix) {
 test("mcp ak_tick_forward initializes cursor and advances from tick 0 to tick 1", async () => {
   const workDir = makeTempDir("mcp-tick-fwd-");
   const runId = "run_mcp_tick_fwd";
-  scaffoldRun(workDir, runId, { maxTick: 10 });
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
 
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
   try {
@@ -247,7 +237,7 @@ test("mcp ak_tick_forward initializes cursor and advances from tick 0 to tick 1"
 test("mcp ak_tick_forward sequential calls advance tick by one each time", async () => {
   const workDir = makeTempDir("mcp-tick-fwd-seq-");
   const runId = "run_mcp_tick_fwd_seq";
-  scaffoldRun(workDir, runId, { maxTick: 10 });
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
 
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
   try {
@@ -265,7 +255,7 @@ test("mcp ak_tick_forward sequential calls advance tick by one each time", async
 test("mcp ak_tick_forward at maxTick returns ok false", async () => {
   const workDir = makeTempDir("mcp-tick-fwd-max-");
   const runId = "run_mcp_tick_fwd_max";
-  scaffoldRun(workDir, runId, { maxTick: 2 });
+  await scaffoldRun(workDir, runId, { maxTick: 2 });
 
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
   try {
@@ -290,7 +280,7 @@ test("mcp ak_tick_forward at maxTick returns ok false", async () => {
 test("mcp ak_tick_backward rewinds cursor from tick 2 to tick 1", async () => {
   const workDir = makeTempDir("mcp-tick-bwd-");
   const runId = "run_mcp_tick_bwd";
-  scaffoldRun(workDir, runId, { maxTick: 10 });
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
 
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
   try {
@@ -312,7 +302,7 @@ test("mcp ak_tick_backward rewinds cursor from tick 2 to tick 1", async () => {
 test("mcp ak_tick_backward at tick 0 returns ok false", async () => {
   const workDir = makeTempDir("mcp-tick-bwd-zero-");
   const runId = "run_mcp_tick_bwd_zero";
-  scaffoldRun(workDir, runId, { maxTick: 10 });
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
 
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
   try {
@@ -334,7 +324,7 @@ test("mcp ak_tick_backward at tick 0 returns ok false", async () => {
 test("mcp ak_show_state returns runId, tick, maxTick, and ascii field", async () => {
   const workDir = makeTempDir("mcp-tick-state-");
   const runId = "run_mcp_tick_state";
-  scaffoldRun(workDir, runId, { maxTick: 10 });
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
 
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
   try {
@@ -356,7 +346,7 @@ test("mcp ak_show_state returns runId, tick, maxTick, and ascii field", async ()
 test("mcp ak_show_state ascii is a non-empty grid string", async () => {
   const workDir = makeTempDir("mcp-tick-state-core-");
   const runId = "run_mcp_tick_state_core";
-  scaffoldRun(workDir, runId, { maxTick: 10 });
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
 
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
   try {
@@ -375,7 +365,7 @@ test("mcp ak_show_state ascii is a non-empty grid string", async () => {
 test("mcp ak_show_state at tick 0 returns the initial dungeon layout", async () => {
   const workDir = makeTempDir("mcp-tick-state-t0-");
   const runId = "run_mcp_tick_state_t0";
-  scaffoldRun(workDir, runId, { maxTick: 10 });
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
 
   const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
   try {
@@ -398,11 +388,11 @@ test("mcp ak_show_state at tick 0 returns the initial dungeon layout", async () 
 test("mcp ak_show_state ascii at tick 2 after rewind matches direct forward replay", async () => {
   const workDir = makeTempDir("mcp-tick-parity-");
   const runId = "run_mcp_parity";
-  scaffoldRun(workDir, runId, { maxTick: 10 });
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
 
   const workDir2 = makeTempDir("mcp-tick-parity2-");
   const runId2 = "run_mcp_parity2";
-  scaffoldRun(workDir2, runId2, { maxTick: 10 });
+  await scaffoldRun(workDir2, runId2, { maxTick: 10 });
 
   const harnessA = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
   const harnessB = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir2, "artifacts") });
@@ -431,11 +421,96 @@ test("mcp ak_show_state ascii at tick 2 after rewind matches direct forward repl
   }
 });
 
+test("mcp ak_tick_forward on unknown runId returns ok:false with not found error", async () => {
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(makeTempDir("mcp-tick-unknown-"), "artifacts") });
+  try {
+    await harness.initialize();
+    const result = await harness.callToolRaw("ak_tick_forward", { runId: "run_missing_tick_session" });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /not found/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_tick_backward on unknown runId returns ok:false with not found error", async () => {
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(makeTempDir("mcp-tick-bwd-unknown-"), "artifacts") });
+  try {
+    await harness.initialize();
+    const result = await harness.callToolRaw("ak_tick_backward", { runId: "run_missing_tick_session" });
+    assert.equal(result.ok, false);
+    assert.match(String(result.error || ""), /not found/);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_show_state before any forward returns tick 0 ok:true", async () => {
+  const workDir = makeTempDir("mcp-tick-state-zero-");
+  const runId = "run_mcp_tick_state_zero";
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
+  try {
+    await harness.initialize();
+    const result = await harness.callTool("ak_show_state", { runId });
+    assert.equal(result.ok, true);
+    assert.equal(result.tick, 0);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_tick_forward on maxTick 1 succeeds once then returns ok:false", async () => {
+  const workDir = makeTempDir("mcp-tick-max1-");
+  const runId = "run_mcp_tick_max1";
+  await scaffoldRun(workDir, runId, { maxTick: 1 });
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
+  try {
+    await harness.initialize();
+    const first = await harness.callTool("ak_tick_forward", { runId });
+    assert.equal(first.tick, 1);
+    const second = await harness.callToolRaw("ak_tick_forward", { runId });
+    assert.equal(second.ok, false);
+    assert.match(String(second.error || ""), /max tick|cannot advance/i);
+  } finally {
+    await harness.close();
+  }
+});
+
 test.skip("mcp ak_tick_forward with missing runId returns structured error without server crash", () => {});
-test.skip("mcp ak_tick_forward on unknown runId returns ok:false with not found error", () => {});
-test.skip("mcp ak_tick_backward on unknown runId returns ok:false with not found error", () => {});
 test.skip("mcp ak_show_state with missing cursor defaults valid run to tick 0", () => {});
-test.skip("mcp ak_tick_forward on maxTick 1 succeeds once then returns ok:false", () => {});
-test.skip("mcp ak_show_state before any forward returns tick 0 ok:true", () => {});
-test.skip("mcp interleaved forward backward sequence preserves final cursor", () => {});
-test.skip("mcp ak_show_state after backward to tick 0 matches initial ascii layout", () => {});
+test("mcp interleaved forward backward sequence preserves final cursor", async () => {
+  const workDir = makeTempDir("mcp-tick-interleave-");
+  const runId = "run_mcp_tick_interleave";
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
+  try {
+    await harness.initialize();
+    await harness.callTool("ak_tick_forward", { runId });
+    await harness.callTool("ak_tick_forward", { runId });
+    await harness.callTool("ak_tick_backward", { runId });
+    const result = await harness.callTool("ak_tick_forward", { runId });
+    assert.equal(result.tick, 2);
+    assert.equal(result.previousTick, 1);
+  } finally {
+    await harness.close();
+  }
+});
+
+test("mcp ak_show_state after backward to tick 0 matches initial ascii layout", async () => {
+  const workDir = makeTempDir("mcp-tick-ascii0-");
+  const runId = "run_mcp_tick_ascii0";
+  await scaffoldRun(workDir, runId, { maxTick: 10 });
+  const harness = new McpServerHarness({ AK_ARTIFACTS_DIR: join(workDir, "artifacts") });
+  try {
+    await harness.initialize();
+    const initial = await harness.callTool("ak_show_state", { runId });
+    await harness.callTool("ak_tick_forward", { runId });
+    await harness.callTool("ak_tick_backward", { runId });
+    const restored = await harness.callTool("ak_show_state", { runId });
+    assert.equal(restored.tick, 0);
+    assert.equal(restored.ascii, initial.ascii);
+  } finally {
+    await harness.close();
+  }
+});

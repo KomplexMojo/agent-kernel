@@ -53,19 +53,25 @@ async function proposeActions(position, {
   motivation = { kind: "patrolling" },
   motivations = null,
   others = [],
-  role = "warden",
+  alignment = "dungeon",
+  canMove = true,
+  proposals,
+  fullResult = false,
 } = {}) {
   const [{ createActorPersona }, { TickPhases }] = await loadModules();
   const persona = createActorPersona({ clock: () => "fixed" });
   const self = {
     id: "actor_1",
-    kind: 2,
-    role,
+    alignment,
     position,
     motivation,
+    capabilities: { canMove, canCast: true, canEquip: true, canTake: true, canExit: false },
+    affinities: [{ kind: "fire", expression: "push", stacks: 2 }],
+    activeAffinityKey: "fire:push",
     ...(motivations ? { motivations } : {}),
   };
   const payload = {
+    ...(proposals ? { proposals } : {}),
     actorId: self.id,
     observation: { tick: 0, actors: [self, ...others], exit: { x: 0, y: 3 } },
     baseTiles: BASE_TILES,
@@ -73,8 +79,10 @@ async function proposeActions(position, {
     initialState: {
       actors: [{
         id: self.id,
-        role,
-        kind: "motivated",
+        alignment,
+        capabilities: self.capabilities,
+        affinities: self.affinities,
+        activeAffinityKey: self.activeAffinityKey,
         motivation,
         ...(motivations ? { motivations } : {}),
       }],
@@ -83,7 +91,7 @@ async function proposeActions(position, {
   persona.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick: 0 });
   persona.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick: 0 });
   const result = persona.advance({ phase: TickPhases.DECIDE, event: "propose", payload, tick: 0 });
-  return result.actions || [];
+  return fullResult ? result : result.actions || [];
 }
 
 test("single-kind patrolling is unchanged under the plural list", async () => {
@@ -102,65 +110,29 @@ test("attacking+patrolling with no hostile nearby patrols", async () => {
     {
       motivation: { kind: "attacking" },
       motivations: ["attacking", "patrolling"],
-      role: "warden",
+      alignment: "dungeon",
     },
   );
   assert.ok(actions.some((a) => a.kind === "move"), "must still patrol when no hostile is present");
-  assert.ok(actions.every((a) => a.kind !== "attack"), "no attack without a hostile");
+  assert.ok(actions.every((a) => a.kind !== "cast_affinity"), "no cast without a hostile");
   const move = actions.find((a) => a.kind === "move");
   // Stay in-room: not exit-seeking west to (0,3).
-  assert.ok(move.params.to.x >= 1, `patrol left the room: ${JSON.stringify(move.params.to)}`);
+  assert.ok(move.params.target.x >= 1, `patrol left the room: ${JSON.stringify(move.params.target)}`);
 });
 
-test("attacking+patrolling with an adjacent hostile attacks — intentClass, not ordering", async () => {
-  const { classifyActorIntent } = await import(
-    "../../../packages/runtime/src/personas/actor/controller.js"
-  );
-  const position = { x: 2, y: 2 };
-  const hostile = { id: "delver_1", kind: 2, role: "delver", position: { x: 3, y: 2 }, hostile: true };
-  const actions = await proposeActions(
-    position,
-    {
-      motivation: { kind: "attacking" },
-      motivations: ["attacking", "patrolling"],
-      role: "warden",
-      others: [hostile],
-    },
-  );
-  const attack = actions.find((a) => a.kind === "attack");
-  const move = actions.find((a) => a.kind === "move");
-  // Composition must surface BOTH candidates — the existing intentClass tuple is what
-  // picks between them. Asserting actions[0] would test emit order, which is not the
-  // arbitration mechanism and which this milestone is forbidden to invent.
-  assert.ok(attack, `expected an attack candidate among ${JSON.stringify(actions.map((a) => a.kind))}`);
-  assert.ok(move, "expected a patrol move candidate alongside the attack");
-  assert.equal(attack.params.targetId, "delver_1");
-
-  const profile = { combatTier: 1, mobilityTier: 1 };
-  const visible = [hostile];
-  const exit = { x: 0, y: 3 };
-  const attackRank = classifyActorIntent({
-    action: attack,
-    actorPosition: position,
-    motivationProfile: profile,
-    visibleActors: visible,
-    exit,
-  });
-  const moveRank = classifyActorIntent({
-    action: move,
-    actorPosition: position,
-    motivationProfile: profile,
-    visibleActors: visible,
-    exit,
-  });
-  assert.equal(attackRank.intentClass, 500, `attack should be in-range combat, got ${JSON.stringify(attackRank)}`);
-  assert.ok(
-    attackRank.intentClass > moveRank.intentClass,
-    `intentClass must prefer attack (${attackRank.intentClass}) over move (${moveRank.intentClass})`,
-  );
+test("attacking+patrolling with an adjacent hostile casts — intentClass, not ordering", async () => {
+  for (const motivations of [["attacking", "patrolling"], ["patrolling", "attacking"]]) {
+    const actions = await proposeActions({ x: 2, y: 2 }, {
+      motivations,
+      others: [{ id: "delver_1", alignment: "external", position: { x: 3, y: 2 } }],
+    });
+    assert.equal(actions.length, 1, "one action must win the composed ranking");
+    assert.equal(actions[0].kind, "cast_affinity");
+    assert.equal(actions[0].params.targetId, "delver_1");
+  }
 });
 
-test("stationary+patrolling proposes no move — gating beats composition", async () => {
+test("stationary motivation does not veto a mobile patrol motivation", async () => {
   const actions = await proposeActions(
     { x: 1, y: 1 },
     {
@@ -169,9 +141,63 @@ test("stationary+patrolling proposes no move — gating beats composition", asyn
     },
   );
   assert.ok(
-    actions.every((a) => a.kind !== "move"),
-    `stationary must suppress patrol movement: ${JSON.stringify(actions)}`,
+    actions.some((a) => a.kind === "move"),
+    `patrol candidates must survive composition: ${JSON.stringify(actions)}`,
   );
+});
+
+test("reported intention uses the winning motivation rather than the first", async () => {
+  const result = await proposeActions({ x: 2, y: 2 }, {
+    motivations: ["stationary", "patrolling", "attacking"],
+    others: [{ id: "enemy", alignment: "external", position: { x: 3, y: 2 } }],
+    fullResult: true,
+  });
+  assert.equal(result.actions.length, 1);
+  assert.equal(result.actions[0].kind, "cast_affinity");
+  assert.equal(result.intentions.length, 1);
+  assert.equal(result.intentions[0].intentClass, 500);
+});
+
+test("equal candidate evaluations retain input order deterministically", async () => {
+  const left = { kind: "move", params: { target: { x: 2, y: 3 } } };
+  const right = { kind: "move", params: { target: { x: 4, y: 3 } } };
+  for (const proposals of [[left, right, left], [right, left, right]]) {
+    const first = await proposeActions({ x: 3, y: 3 }, { proposals });
+    const replay = await proposeActions({ x: 3, y: 3 }, { proposals });
+    assert.equal(first.length, 1);
+    assert.deepEqual(first[0].params, proposals[0].params);
+    assert.deepEqual(replay, first);
+  }
+});
+
+test("movement capability restricts the whole motivation union", async () => {
+  const actions = await proposeActions({ x: 1, y: 1 }, {
+    motivations: ['attacking', 'patrolling'], canMove: false,
+    others: [{ id: 'enemy', alignment: 'external', position: { x: 6, y: 1 } }],
+  });
+  assert.equal(actions.some(action => action.kind === 'move'), false);
+});
+
+test("selection and intention remain separate for each actor", async () => {
+  const result = await proposeActions({ x: 2, y: 2 }, {
+    motivations: ["attacking"],
+    others: [{
+      id: "enemy", alignment: "external", position: { x: 3, y: 2 },
+      motivations: [{ kind: "stationary" }],
+    }],
+    proposals: [
+      { kind: "wait", params: {} },
+      { kind: "wait", actorId: "enemy", params: {} },
+      { kind: "cast_affinity", params: { targetId: "enemy" } },
+    ],
+    fullResult: true,
+  });
+  assert.deepEqual(result.actions.map(({ actorId, kind }) => ({ actorId, kind })), [
+    { actorId: "actor_1", kind: "cast_affinity" },
+    { actorId: "enemy", kind: "wait" },
+  ]);
+  assert.equal(result.intentions.find((entry) => entry.actorId === "actor_1").intentClass, 500);
+  assert.equal(result.intentions.find((entry) => entry.actorId === "enemy").intentClass, 100);
 });
 
 test("duplicate proposals from two motivations appear once", async () => {
@@ -182,7 +208,7 @@ test("duplicate proposals from two motivations appear once", async () => {
     {
       motivation: { kind: "exploring" },
       motivations: ["exploring", "stealthy"],
-      role: "delver",
+      alignment: "external",
     },
   );
   const moves = actions.filter((a) => a.kind === "move");

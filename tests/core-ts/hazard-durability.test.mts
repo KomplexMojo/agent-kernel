@@ -539,15 +539,7 @@ describe("applyAffinityDamageToHazard: rejection cases", () => {
 // ---------------------------------------------------------------------------
 
 describe("M3c: prior milestone non-regression", () => {
-  test("applyAttack still works and is unaffected by hazard durability changes", () => {
-    const core = buildTwoActorHazardWorld([1, 1], [2, 1], [3, 1]);
-    const result = call(
-      (core as Record<string, unknown>).applyAttack,
-      0, 1, 3,
-    );
-    expect(result).not.toBe(0);
-    expect(call(core.getMotivatedActorVitalCurrentByIndex, 1, VitalKind.Health)).toBe(7);
-  });
+
 
   test("applyAffinityDamage (actor target) still passes all existing matrix routing", () => {
     const core = buildTwoActorHazardWorld([1, 1], [2, 1], [3, 1]);

@@ -16,7 +16,7 @@ import {
 import { getMotivationMobilityTier } from "../../../../core-ts/src/index.ts";
 import { validateAffinityPrereqs } from "./cost-model.js";
 
-const DEFAULT_MOVEMENT_COST = 1;
+export const DEFAULT_MOVEMENT_COST = 1;
 
 export const CONFIGURED_AFFINITY_SLOT_LIMIT = AFFINITY_KINDS.length;
 

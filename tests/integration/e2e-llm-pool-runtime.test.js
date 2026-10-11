@@ -8,40 +8,6 @@ function readJson(relativePath) {
   return JSON.parse(readFileSync(resolve(ROOT, relativePath), "utf8"));
 }
 
-function createStubCore() {
-  const state = {
-    width: 0,
-    height: 0,
-    grid: [],
-    actor: { x: 0, y: 0, vitals: [] },
-  };
-
-  return {
-    configureGrid(width, height) {
-      state.width = width;
-      state.height = height;
-      state.grid = Array.from({ length: height }, () => Array.from({ length: width }, () => 1));
-      return 0;
-    },
-    setTileAt(x, y, value) {
-      if (state.grid[y]) state.grid[y][x] = value;
-    },
-    spawnActorAt(x, y) {
-      state.actor.x = x;
-      state.actor.y = y;
-    },
-    setActorVital(index, current, max, regen) {
-      state.actor.vitals[index] = { current, max, regen };
-    },
-    getMapWidth() {
-      return state.width;
-    },
-    getMapHeight() {
-      return state.height;
-    },
-  };
-}
-
 test("e2e trace wires prompt -> summary -> build -> runtime", async () => {
   const scenario = readJson("tests/fixtures/e2e/e2e-scenario-v1-basic.json");
   const catalog = readJson(scenario.catalogPath);
@@ -102,13 +68,11 @@ test("e2e trace wires prompt -> summary -> build -> runtime", async () => {
   assert.ok(buildResult.simConfig);
   assert.ok(buildResult.initialState);
 
-  const core = createStubCore();
-  const runtimeLoad = initializeCoreFromArtifacts(core, {
+  const loaded = initializeCoreFromArtifacts({
     simConfig: buildResult.simConfig,
     initialState: buildResult.initialState,
   });
-  assert.equal(runtimeLoad.layout.ok, true);
-  assert.equal(runtimeLoad.actor.ok, true);
+  const snapshot = loaded.registry.snapshot();
 
   const trace = {
     budgetTokens: scenario.budgetTokens,
@@ -119,12 +83,12 @@ test("e2e trace wires prompt -> summary -> build -> runtime", async () => {
       simConfig: buildResult.simConfig,
       initialState: buildResult.initialState,
     },
-    runtimeReady: runtimeLoad.layout.ok && runtimeLoad.actor.ok,
+    runtimeReady: snapshot.dimensions.width > 0 && snapshot.actors.length > 0,
   };
 
   assert.equal(trace.runtimeReady, true);
-  assert.equal(core.getMapWidth(), runtimeLoad.layout.dimensions.width);
-  assert.equal(core.getMapHeight(), runtimeLoad.layout.dimensions.height);
+  assert.equal(snapshot.dimensions.width, buildResult.simConfig.layout.data.width);
+  assert.equal(snapshot.dimensions.height, buildResult.simConfig.layout.data.height);
 });
 
 test("e2e trace exercises room layouts for tiered scenario", async () => {

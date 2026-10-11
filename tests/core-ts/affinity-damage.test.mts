@@ -11,7 +11,6 @@
  *   - Treat emit/draw as per-target diffuse applications (no range constraint
  *     at this primitive level; area iteration is deferred per M3 plan)
  *   - Be PURE: no IO, no clocks, no runtime imports
- *   - Leave PR #42's `applyAttack` entry point untouched
  *
  * Tests MUST FAIL until M3 implements `packages/core-ts/src/rules/affinity-damage.ts`
  * and wires `core.applyAffinityDamage` from `createCore()` with the alphabetically-sorted
@@ -106,10 +105,7 @@ describe("applyAffinityDamage: API surface", () => {
     expect(typeof (core as Record<string, unknown>).applyAffinityDamage).toBe("function");
   });
 
-  test("applyAttack from PR #42 is still exported and unchanged", () => {
-    const core = createCore();
-    expect(typeof (core as Record<string, unknown>).applyAttack).toBe("function");
-  });
+
 });
 
 // ---------------------------------------------------------------------------
@@ -483,30 +479,10 @@ describe("applyAffinityDamage: rejection cases", () => {
 });
 
 // ---------------------------------------------------------------------------
-// PR #42 regression — applyAttack must still work and be untouched
+// Conventional combat was removed by the unified actor rewrite.
 // ---------------------------------------------------------------------------
 
-describe("applyAffinityDamage: PR #42 applyAttack non-regression", () => {
-  test("applyAttack still reduces target Health by the given damage (adjacency check intact)", () => {
-    const core = buildTwoActorWorld([1, 1], [2, 1]);
-    const result = call(
-      (core as Record<string, unknown>).applyAttack,
-      0, 1, 3,
-    );
-    expect(result).not.toBe(0);
-    expect(vitalOf(core, 1, VitalKind.Health)).toBe(10 - 3);
-  });
 
-  test("applyAttack still rejects non-adjacent attacks (Chebyshev > 1)", () => {
-    const core = buildTwoActorWorld([1, 1], [3, 1]);
-    const result = call(
-      (core as Record<string, unknown>).applyAttack,
-      0, 1, 3,
-    );
-    expect(result).toBe(0);
-    expect(vitalOf(core, 1, VitalKind.Health)).toBe(10);
-  });
-});
 
 // ---------------------------------------------------------------------------
 // Permutations: all 40 (kind × expression) pairs route to the correct primary vital

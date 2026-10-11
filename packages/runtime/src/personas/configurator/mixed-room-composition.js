@@ -1,3 +1,4 @@
+import { terrainMarker } from "./terrain-layout.js";
 import { ROOM_AFFINITY_EMIT_PERCENT_PER_STACK } from "../../contracts/domain-constants.js";
 import { resolveAffinityRules } from "./affinity-rules.js";
 import { computeInternalManaUpkeep } from "./cost-model.js";
@@ -324,12 +325,10 @@ export function composeMixedRooms({ layout, cardSet, seed = 0, affinityRules = n
       .filter((hazard) => Number.isFinite(hazard?.x) && Number.isFinite(hazard?.y))
       .map((hazard) => `${hazard.x},${hazard.y}`),
   );
-  const spawnKey = Number.isFinite(layout?.spawn?.x) && Number.isFinite(layout?.spawn?.y)
-    ? `${layout.spawn.x},${layout.spawn.y}`
-    : "";
-  const exitKey = Number.isFinite(layout?.exit?.x) && Number.isFinite(layout?.exit?.y)
-    ? `${layout.exit.x},${layout.exit.y}`
-    : "";
+  const spawn = terrainMarker(layout, "spawn");
+  const exit = terrainMarker(layout, "exit");
+  const spawnKey = spawn ? `${spawn.x},${spawn.y}` : "";
+  const exitKey = exit ? `${exit.x},${exit.y}` : "";
   const generatedHazards = [];
 
   roomOrder.forEach((roomIndex, orderIndex) => {

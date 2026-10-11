@@ -52,8 +52,8 @@ async function runOneProposeCycle({ observation, payload, extraPayload = {} }) {
 test("actor with runtimeDecisioning emits SolverRequest effect containing candidate actions", async () => {
   const observation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -82,11 +82,11 @@ test("actor with runtimeDecisioning emits SolverRequest effect containing candid
   assert.ok(envelope.candidateActions?.length > 0, "envelope must include candidate actions from simple motivation");
 });
 
-test("solver request envelope wraps the simple-motivation attack proposal when actor is adjacent to hostile", async () => {
+test("solver request envelope wraps the simple-motivation cast_affinity proposal when actor is adjacent to hostile", async () => {
   const observation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -99,9 +99,9 @@ test("solver request envelope wraps the simple-motivation attack proposal when a
   const result = await runOneProposeCycle({ observation, payload });
   const envelope = result.effects[0].request.problem.data;
 
-  // M5's simple motivation produces an attack proposal; M8 must include it in the envelope's candidates.
-  const attackCandidate = envelope.candidateActions.find((c) => c.action?.kind === "attack");
-  assert.ok(attackCandidate, "envelope must contain the simple-motivation attack proposal as a candidate");
+  // M5's simple motivation produces an cast_affinity proposal; M8 must include it in the envelope's candidates.
+  const attackCandidate = envelope.candidateActions.find((c) => c.action?.kind === "cast_affinity");
+  assert.ok(attackCandidate, "envelope must contain the simple-motivation cast_affinity proposal as a candidate");
   assert.equal(attackCandidate.action.params.targetId, WARDEN_ID);
 });
 
@@ -112,8 +112,8 @@ test("solver request envelope wraps the simple-motivation attack proposal when a
 test("Z3 adapter via solver port resolves the envelope to a fulfilled action", async () => {
   const observation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -144,8 +144,8 @@ test("Z3 adapter via solver port resolves the envelope to a fulfilled action", a
   // Round-trip: convert solver result back to a concrete Action
   const resolved = resolveActionFromSolverResult({ solverRequest, solverResult });
   assert.equal(resolved.ok, true, `resolveActionFromSolverResult should succeed; errors: ${JSON.stringify(resolved.errors)}`);
-  // Z3 prefers attack candidates first — when adjacent to hostile, action.kind = "attack"
-  assert.equal(resolved.action.kind, "attack", "Z3 should select attack candidate when adjacent to hostile");
+  // Z3 prefers cast_affinity candidates first — when adjacent to hostile, action.kind = "cast_affinity"
+  assert.equal(resolved.action.kind, "cast_affinity", "Z3 should select cast_affinity candidate when adjacent to hostile");
   assert.equal(resolved.action.params?.targetId, WARDEN_ID);
 });
 
@@ -156,8 +156,8 @@ test("Z3 adapter via solver port resolves the envelope to a fulfilled action", a
 test("solver deferred response is recorded without throwing or executing IO", async () => {
   const observation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -192,8 +192,8 @@ test("solver deferred response is recorded without throwing or executing IO", as
 test("solver error response is recorded without throwing", async () => {
   const observation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -227,8 +227,8 @@ test("solver error response is recorded without throwing", async () => {
 test("actor without runtimeDecisioning still uses simple motivation path (M5), no solver request", async () => {
   const observation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -237,17 +237,17 @@ test("actor without runtimeDecisioning still uses simple motivation path (M5), n
 
   const result = await runOneProposeCycle({ observation, payload });
 
-  // M5 path: a concrete attack action is produced directly, no solver effects
+  // M5 path: a concrete cast_affinity action is produced directly, no solver effects
   const solverEffects = (result.effects || []).filter((e) => e?.kind === "solver_request");
   assert.equal(solverEffects.length, 0, "simple motivation path must not emit solver effects");
   assert.ok(result.actions.length > 0, "simple motivation must produce direct actions");
-  assert.equal(result.actions[0].kind, "attack");
+  assert.equal(result.actions[0].kind, "cast_affinity");
 });
 
 test("complex actor with no hostile present lets the Actor-authored tuple select its move proposal", async () => {
   const observation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -275,8 +275,8 @@ test("complex actor with no hostile present lets the Actor-authored tuple select
 test("complex actor with hostile far away lets the Actor-authored tuple select move_east", async () => {
   const observation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 3, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 3, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -299,8 +299,8 @@ test("complex actor with hostile far away lets the Actor-authored tuple select m
 test("solver unsat result resolves to ok=false with status unsat", async () => {
   const observation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -327,8 +327,8 @@ test("solver unsat result resolves to ok=false with status unsat", async () => {
 test("solver model referencing a missing candidate id fails resolution", async () => {
   const observation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -358,15 +358,15 @@ test("solver model referencing a missing candidate id fails resolution", async (
   assert.deepEqual(resolved.errors, ["selected_action_missing_from_candidates"]);
 });
 
-test("two consecutive complex actor ticks reflect post-attack state in the new envelope", async () => {
+test("two consecutive complex actor ticks reflect post-cast_affinity state in the new envelope", async () => {
   const payload = {
     actorId: ACTOR_ID,
     runtimeDecisioning: { enabled: true, mode: "solver", preferred: "solver", targetAdapter: "z3" },
   };
   const beforeAttack = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" }, vitals: { health: { current: 10, max: 10, regen: 0 } } },
-      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, role: "warden", vitals: { health: { current: 6, max: 6, regen: 0 } } },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" }, vitals: { health: { current: 10, max: 10, regen: 0 } } },
+      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon", vitals: { health: { current: 6, max: 6, regen: 0 } } },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -386,7 +386,7 @@ test("two consecutive complex actor ticks reflect post-attack state in the new e
 
   assert.equal(firstEnvelope.visibleActors[0].vitals.health.current, 6);
   assert.equal(secondEnvelope.visibleActors[0].vitals.health.current, 4);
-  assert.equal(secondEnvelope.candidateActions.find((c) => c.action?.kind === "attack").action.params.targetId, WARDEN_ID);
+  assert.equal(secondEnvelope.candidateActions.find((c) => c.action?.kind === "cast_affinity").action.params.targetId, WARDEN_ID);
 });
 
 test("complex actor motivation flip between attacking and defending yields context-matching solver selections", async () => {
@@ -396,16 +396,16 @@ test("complex actor motivation flip between attacking and defending yields conte
   };
   const attackingObservation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "attacking" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 3, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "attacking" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 3, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
   };
   const defendingObservation = {
     actors: [
-      { id: ACTOR_ID, kind: 2, position: { x: 1, y: 1 }, role: "delver", motivation: { kind: "defending" } },
-      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, role: "warden" },
+      { id: ACTOR_ID, kind: 2, affinities: [{ kind: "fire", expression: "push", stacks: 1 }], activeAffinityKey: "fire:push", position: { x: 1, y: 1 }, alignment: "external", motivation: { kind: "defending" } },
+      { id: WARDEN_ID, kind: 2, position: { x: 2, y: 1 }, alignment: "dungeon" },
     ],
     tiles: { baseTiles: makeBaseTiles() },
     exit: { x: 3, y: 1 },
@@ -431,6 +431,6 @@ test("complex actor motivation flip between attacking and defending yields conte
   assert.ok(attackingResult.model.rationaleTags.includes("actor_proposal"),
     `expected the proposal tag among ${JSON.stringify(attackingResult.model.rationaleTags)}`);
   assert.equal(defendingResolved.ok, true);
-  assert.equal(defendingResolved.action.kind, "attack");
+  assert.equal(defendingResolved.action.kind, "cast_affinity");
   assert.equal(defendingResolved.action.params.targetId, WARDEN_ID);
 });

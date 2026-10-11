@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { existsSync, mkdtempSync, readFileSync, readdirSync } = require("node:fs");
+const { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const { pathToFileURL } = require("node:url");
 const os = require("node:os");
@@ -191,6 +191,30 @@ async function createBrowserAdapter() {
     env: { AK_LLM_LIVE: "1" },
     nowIso: () => "2026-03-11T00:00:00.000Z",
   });
+}
+
+async function writeUnifiedRunArtifacts(dir, runId = "run_equivalence") {
+  const { boxedTerrain, buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
+  const width = 5;
+  const height = 5;
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width,
+    height,
+    terrain: boxedTerrain(width, height),
+    runId,
+    actors: [{
+      id: "actor_1",
+      category: "delver",
+      position: { x: 1, y: 1 },
+      motivations: ["exploring"],
+      vitals: { health: { current: 10, max: 10, regen: 0 } },
+    }],
+  });
+  const simConfigPath = join(dir, "sim-config.json");
+  const initialStatePath = join(dir, "initial-state.json");
+  writeFileSync(simConfigPath, `${JSON.stringify(simConfig, null, 2)}\n`);
+  writeFileSync(initialStatePath, `${JSON.stringify(initialState, null, 2)}\n`);
+  return { simConfigPath, initialStatePath, simConfig, initialState };
 }
 
 test("browser host build artifacts are equivalent to Node CLI output", async () => {
@@ -555,44 +579,31 @@ test("browser host llm artifacts are equivalent to Node CLI output", async () =>
 
 test("browser host run artifacts are equivalent to Node CLI output", async () => {
 
+  const artifactDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-run-artifacts-"));
+  const { simConfigPath, initialStatePath, simConfig, initialState } = await writeUnifiedRunArtifacts(
+    artifactDir,
+    "run_equivalence_run",
+  );
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-run-"));
   runCli([
     "run",
     "--sim-config",
-    "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json",
+    simConfigPath,
     "--initial-state",
-    "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json",
+    initialStatePath,
     "--ticks",
-    "0",    "--out-dir",
+    "0",
+    "--out-dir",
     outDir,
-    "--affinity-presets",
-    "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json",
-    "--affinity-loadouts",
-    "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json",
-    "--affinity-summary",
-    "--actions",
-    "tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json",
-    "--actor",
-    "actor_probe,1,1,motivated",
-    "--vital-default",
-    "stamina,2,2,0",
-    "--tile-barrier",
-    "1,0",
   ]);
 
   const cliArtifacts = collectJsonArtifacts(outDir);
   const adapter = await createBrowserAdapter();
   const browserResult = await adapter.run({
-    simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json",
-    initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json",
-    ticks: 0,    outDir: "/artifacts/equivalence/run",
-    affinityPresetsPath: "/tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json",
-    affinityLoadoutsPath: "/tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json",
-    affinitySummary: true,
-    actionsPath: "/tests/fixtures/artifacts/action-sequence-v1-mvp-to-exit.json",
-    actor: "actor_probe,1,1,motivated",
-    vitalDefault: "stamina,2,2,0",
-    tileBarrier: "1,0",
+    simConfigJson: simConfig,
+    initialStateJson: initialState,
+    ticks: 0,
+    outDir: "/artifacts/equivalence/run",
   });
 
   assert.deepEqual(
@@ -603,15 +614,21 @@ test("browser host run artifacts are equivalent to Node CLI output", async () =>
 
 test("browser host replay artifacts are equivalent to Node CLI output", async () => {
 
+  const artifactDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-replay-artifacts-"));
+  const { simConfigPath, initialStatePath, simConfig, initialState } = await writeUnifiedRunArtifacts(
+    artifactDir,
+    "run_equivalence_replay",
+  );
   const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-replay-run-"));
   runCli([
     "run",
     "--sim-config",
-    "tests/fixtures/artifacts/sim-config-artifact-v1-basic.json",
+    simConfigPath,
     "--initial-state",
-    "tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
+    initialStatePath,
     "--ticks",
-    "1",    "--out-dir",
+    "1",
+    "--out-dir",
     runOutDir,
   ]);
 
@@ -619,28 +636,31 @@ test("browser host replay artifacts are equivalent to Node CLI output", async ()
   runCli([
     "replay",
     "--sim-config",
-    "tests/fixtures/artifacts/sim-config-artifact-v1-basic.json",
+    simConfigPath,
     "--initial-state",
-    "tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
+    initialStatePath,
     "--tick-frames",
     join(runOutDir, "tick-frames.json"),
     "--ticks",
-    "1",    "--out-dir",
+    "1",
+    "--out-dir",
     replayOutDir,
   ]);
 
   const cliArtifacts = collectJsonArtifacts(replayOutDir);
   const adapter = await createBrowserAdapter();
   const browserRun = await adapter.run({
-    simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-basic.json",
-    initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
-    ticks: 1,    outDir: "/artifacts/equivalence/replay-run",
+    simConfigJson: simConfig,
+    initialStateJson: initialState,
+    ticks: 1,
+    outDir: "/artifacts/equivalence/replay-run",
   });
   const browserResult = await adapter.replay({
-    simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-basic.json",
-    initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
+    simConfigJson: simConfig,
+    initialStateJson: initialState,
     tickFramesJson: browserRun.tickFrames,
-    ticks: 1,    outDir: "/artifacts/equivalence/replay",
+    ticks: 1,
+    outDir: "/artifacts/equivalence/replay",
   });
 
   assert.deepEqual(
@@ -651,15 +671,21 @@ test("browser host replay artifacts are equivalent to Node CLI output", async ()
 
 test("browser host inspect artifacts are equivalent to Node CLI output", async () => {
 
+  const artifactDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-inspect-artifacts-"));
+  const { simConfigPath, initialStatePath, simConfig, initialState } = await writeUnifiedRunArtifacts(
+    artifactDir,
+    "run_equivalence_inspect",
+  );
   const runOutDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-equivalence-inspect-run-"));
   runCli([
     "run",
     "--sim-config",
-    "tests/fixtures/artifacts/sim-config-artifact-v1-basic.json",
+    simConfigPath,
     "--initial-state",
-    "tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
+    initialStatePath,
     "--ticks",
-    "1",    "--out-dir",
+    "1",
+    "--out-dir",
     runOutDir,
   ]);
 
@@ -677,9 +703,10 @@ test("browser host inspect artifacts are equivalent to Node CLI output", async (
   const cliArtifacts = collectJsonArtifacts(inspectOutDir);
   const adapter = await createBrowserAdapter();
   const browserRun = await adapter.run({
-    simConfigPath: "/tests/fixtures/artifacts/sim-config-artifact-v1-basic.json",
-    initialStatePath: "/tests/fixtures/artifacts/initial-state-artifact-v1-basic.json",
-    ticks: 1,    outDir: "/artifacts/equivalence/inspect-run",
+    simConfigJson: simConfig,
+    initialStateJson: initialState,
+    ticks: 1,
+    outDir: "/artifacts/equivalence/inspect-run",
   });
   const browserResult = await adapter.inspect({
     tickFramesJson: browserRun.tickFrames,

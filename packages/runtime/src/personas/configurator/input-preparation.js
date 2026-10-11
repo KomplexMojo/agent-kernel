@@ -1,3 +1,7 @@
+import { normalizeActorDefinition, INPUT_KEYS } from "./unified-actors.js";
+import { computeHazardVitals } from "./affinity-effects.js";
+import { DEFAULT_VITALS } from "../../contracts/domain-constants.js";
+
 /**
  * Configurator input preparation — the pure grid-sizing / hazard / resource
  * logic that turns authored entities (rooms, floor tiles, hazards, resources)
@@ -12,7 +16,7 @@
  * tests/personas/configurator/configurator-input-prep.test.js. P2.3.1 threads
  * the CLI through the configurator service surface and deletes the inline copy.
  *
- * Pure: no IO, no clock, no imports — safe under the runtime persona layer.
+ * Pure: no IO or clock — safe under the runtime persona layer.
  */
 
 // Minimum room dimensions when placedHazards/hazards occupy floor tiles alongside entrance + exit.
@@ -169,23 +173,169 @@ export function prepareLevelGen({ existingLevelGen = {}, rooms = [], floorTiles 
   return levelGen;
 }
 
-/**
- * Map authored resource values onto the configurator resource-input shape.
- * Takes UNWRAPPED resource values (the CLI passes `parsedResources.map(e => e.value)`).
- * Mirrors ak-impl's inline mapping byte-for-byte.
- */
+const RESOURCE_AUTHORING_KEYS = new Set(["permanenceMode", "_schemaVersion", "affinity", "permanent"]);
+const RESOURCE_REQUEST_KEYS = Object.freeze([
+  "alignment", "lifecycle", "defeatVital", "capabilities", "motivations", "affinities", "activeAffinityKey",
+]);
+
+function authoredResourceAffinity(entry) {
+  const affinity = entry?.affinity;
+  if (!affinity || typeof affinity !== "object" || Array.isArray(affinity)
+    || typeof affinity.kind !== "string" || !affinity.kind.trim()
+    || typeof affinity.expression !== "string" || !affinity.expression.trim()
+    || !Number.isSafeInteger(affinity.stacks) || affinity.stacks < 1
+    || !Number.isFinite(affinity.mana) || affinity.mana < 0) return null;
+  const manaRegen = affinity.manaRegen === undefined ? 0 : affinity.manaRegen;
+  if (!Number.isFinite(manaRegen) || manaRegen < 0) return null;
+  return {
+    kind: affinity.kind,
+    expression: affinity.expression,
+    stacks: affinity.stacks,
+    mana: affinity.mana,
+    manaRegen,
+  };
+}
+
+function grantVitals(value) {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  const grants = [];
+  for (const grant of value) {
+    if (!grant || typeof grant !== "object" || Array.isArray(grant)
+      || !["health", "mana", "stamina"].includes(grant.key)
+      || !Number.isFinite(grant.delta)
+      || Object.keys(grant).some((key) => !["key", "delta", "regen"].includes(key))) {
+      return null;
+    }
+    const next = { key: grant.key, delta: grant.delta };
+    if (grant.regen !== undefined) {
+      if (!Number.isFinite(grant.regen) || grant.regen < 0) return null;
+      next.regen = grant.regen;
+    }
+    grants.push(next);
+  }
+  return grants;
+}
+
+function hasMechanicalVitals(vitals) {
+  return Boolean(vitals) && typeof vitals === "object" && !Array.isArray(vitals)
+    && Object.values(vitals).some((vital) => vital && [vital.current, vital.max, vital.regen].every(Number.isFinite));
+}
+
+/** Author resource presets through the same mechanical normalization as every actor. */
 export function mapResources(resources = []) {
   return resources.map((entry) => {
-    if (entry._schemaVersion === 3) {
-      return {
-        id: entry.id,
-        permanenceMode: entry.permanenceMode,
-        vitals: entry.vitals,
-        ...(entry.affinity && typeof entry.affinity === "object"
-          ? { affinity: { ...entry.affinity } }
-          : {}),
-      };
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new Error("invalid unified actor definition");
     }
-    return { id: entry.id, tier: entry.tier, stat: entry.stat, delta: entry.delta, dropRate: entry.dropRate };
+    const authored = Object.fromEntries(Object.entries(entry).filter(([, value]) => value !== undefined));
+    if (Object.hasOwn(authored, "tier") || Object.hasOwn(authored, "stat")
+      || Object.keys(authored).some((key) => !INPUT_KEYS.has(key) && !RESOURCE_AUTHORING_KEYS.has(key))) {
+      throw new Error("invalid unified actor definition");
+    }
+    const positioned = Object.hasOwn(authored, "position");
+    const affinity = authoredResourceAffinity(authored);
+    if (Object.hasOwn(authored, "affinity") && !affinity) throw new Error("invalid unified actor definition");
+    const grants = grantVitals(authored.vitals);
+    const holdings = Array.isArray(authored.holdings)
+      ? authored.holdings
+      : (["consumable", "level", "permanent"].includes(authored.permanenceMode) && grants
+        ? [{
+          id: authored.id, kind: "vital", permanenceMode: authored.permanenceMode, claimedBy: null, vitals: grants,
+        }]
+        : undefined);
+    const mechanical = hasMechanicalVitals(authored.vitals)
+      ? mechanicalVitals(authored.vitals)
+      : (holdings && grants ? { durability: { ...DEFAULT_VITALS.durability } } : null);
+    const vitals = affinity
+      ? {
+        durability: { ...DEFAULT_VITALS.durability },
+        ...(mechanical || {}),
+        mana: { current: affinity.mana, max: affinity.mana, regen: affinity.manaRegen },
+      }
+      : (mechanical || authored.vitals);
+    const request = {
+      category: "resource",
+      id: authored.id,
+      position: positioned ? authored.position : { x: 0, y: 0 },
+      vitals,
+    };
+    for (const key of RESOURCE_REQUEST_KEYS) {
+      if (Object.hasOwn(authored, key)) request[key] = authored[key];
+    }
+    if (holdings) request.holdings = holdings;
+    if (affinity && !Object.hasOwn(authored, "affinities")) {
+      request.affinities = [{ kind: affinity.kind, expression: affinity.expression, stacks: affinity.stacks }];
+      if (!Object.hasOwn(authored, "activeAffinityKey")) {
+        request.activeAffinityKey = `${affinity.kind}:${affinity.expression}`;
+      }
+    }
+    const { actor, presentation } = normalizeActorDefinition(request);
+    const mapped = { ...actor, category: presentation.category };
+    if (!positioned) delete mapped.position;
+    return mapped;
+  });
+}
+
+/** Authoring hazard vitals may still carry `kind`; mechanical records keep current/max/regen. */
+function mechanicalVitals(vitals = {}) {
+  if (!vitals || typeof vitals !== "object" || Array.isArray(vitals)) return {};
+  const next = {};
+  for (const [key, vital] of Object.entries(vitals)) {
+    if (!vital || typeof vital !== "object" || Array.isArray(vital)) continue;
+    if ([vital.current, vital.max, vital.regen].every((value) => Number.isFinite(value))) {
+      next[key] = { current: vital.current, max: vital.max, regen: vital.regen };
+      continue;
+    }
+    if (vital.kind === "one-time" && Number.isFinite(vital.amount) && vital.amount >= 0) {
+      next[key] = { current: vital.amount, max: vital.amount, regen: 0 };
+    }
+  }
+  return next;
+}
+
+function authoredAffinity(entry) {
+  const stack = Array.isArray(entry?.affinityStacks) ? entry.affinityStacks[0] : null;
+  if (stack && typeof stack === "object" && !Array.isArray(stack)
+    && typeof stack.kind === "string" && stack.kind.trim()
+    && typeof stack.expression === "string" && stack.expression.trim()) {
+    return { kind: stack.kind, expression: stack.expression, stacks: stack.stacks };
+  }
+  if (entry?.affinity && typeof entry.affinity === "object" && !Array.isArray(entry.affinity)) {
+    return entry.affinity;
+  }
+  if (typeof entry?.affinity === "string" && entry.affinity.trim()
+    && typeof entry.expression === "string" && entry.expression.trim()) {
+    return { kind: entry.affinity, expression: entry.expression, stacks: entry.stacks };
+  }
+  return null;
+}
+
+/** Translate the hazard authoring preset into the common mechanical actor shape. */
+export function mapHazards(hazards = []) {
+  return hazards.map((entry, index) => {
+    const affinity = authoredAffinity(entry);
+    if (!entry || typeof entry !== "object" || Array.isArray(entry) || !affinity) {
+      throw new Error("invalid hazard actor request");
+    }
+    const id = typeof entry.id === "string" && entry.id.trim() ? entry.id.trim() : `hazard_${index + 1}`;
+    const position = entry.position ?? (
+      Number.isSafeInteger(entry.x) && Number.isSafeInteger(entry.y)
+        ? { x: entry.x, y: entry.y }
+        : null
+    );
+    const { kind, expression, stacks } = affinity;
+    const defaults = computeHazardVitals(expression, stacks);
+    const { actor, presentation } = normalizeActorDefinition({
+      category: "hazard",
+      id,
+      position,
+      vitals: { ...defaults, ...mechanicalVitals(entry.vitals) },
+      capabilities: { blocksMovement: entry.blocking === true },
+      affinities: [{ kind, expression, stacks }],
+      activeAffinityKey: `${kind}:${expression}`,
+      motivations: Array.isArray(entry.motivations) ? entry.motivations : [],
+      holdings: Array.isArray(entry.holdings) ? entry.holdings : [],
+    });
+    return { ...actor, category: presentation.category };
   });
 }

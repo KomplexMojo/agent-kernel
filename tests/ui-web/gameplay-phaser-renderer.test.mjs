@@ -305,15 +305,23 @@ const BOARD_STATE = {
     actors: [
       { id: "delver-1", type: "delver", position: { x: 2, y: 2 } },
       { id: "warden-1", type: "warden", position: { x: 2, y: 3 } },
+      { id: "hazard-1", position: { x: 1, y: 2 } },
+      { id: "resource-1", position: { x: 3, y: 2 } },
     ],
+    presentation: {
+      "delver-1": { category: "delver" },
+      "warden-1": { category: "warden" },
+      "hazard-1": { category: "hazard" },
+      "resource-1": { category: "resource" },
+    },
   },
   observation: {
     actors: [
       { id: "delver-1", type: "delver", position: { x: 2, y: 2 } },
       { id: "warden-1", type: "warden", position: { x: 2, y: 3 } },
+      { id: "hazard-1", position: { x: 1, y: 2 } },
+      { id: "resource-1", position: { x: 3, y: 2 } },
     ],
-    hazards: [{ id: "hazard-1", position: { x: 1, y: 2 } }],
-    resources: [{ id: "resource-1", position: { x: 3, y: 2 } }],
   },
   resourceBundle: null,
 };
@@ -544,10 +552,21 @@ test("hazards and resources render composed sprites, not bundle art", async () =
     boardWidth: 3,
     boardHeight: 3,
     tiles: ["...", "...", "..."],
+    initialState: {
+      actors: [
+        { id: "h1", position: { x: 0, y: 0 } },
+        { id: "r1", position: { x: 2, y: 2 } },
+      ],
+      presentation: {
+        h1: { category: "hazard" },
+        r1: { category: "resource" },
+      },
+    },
     observation: {
-      actors: [],
-      hazards: [{ id: "h1", position: { x: 0, y: 0 }, affinity: { kind: "decay" } }],
-      resources: [{ id: "r1", position: { x: 2, y: 2 }, affinity: { kind: "life" } }],
+      actors: [
+        { id: "h1", position: { x: 0, y: 0 }, affinity: { kind: "decay" } },
+        { id: "r1", position: { x: 2, y: 2 }, affinity: { kind: "life" } },
+      ],
     },
     resourceBundle: V2_BUNDLE,
   });
@@ -627,6 +646,41 @@ test("gameplay phaser renderer draws hazard from observation", async () => {
 
   const totalShapes = records.circles.length + records.rectangles.length + records.texts.length;
   assert.ok(totalShapes > 0, "expected at least one shape for hazard");
+  renderer.dispose();
+});
+
+test("gameplay phaser renderer draws hazard actors without observation.hazards", async () => {
+  const records = {};
+  const container = makeContainer();
+  const renderer = createGameplayPhaserRenderer({
+    loadPhaser: async () => createFakePhaser(records),
+  });
+  renderer.mount(container);
+  await renderer.renderRun({
+    ...BOARD_STATE,
+    boardWidth: 3,
+    boardHeight: 3,
+    tiles: ["...", "...", "..."],
+    initialState: {
+      actors: [{ id: "trap-1", position: { x: 0, y: 0 } }],
+      presentation: { "trap-1": { category: "hazard" } },
+    },
+    observation: {
+      actors: [{
+        id: "trap-1",
+        position: { x: 0, y: 0 },
+        affinity: { kind: "decay" },
+      }],
+    },
+    resourceBundle: V2_BUNDLE,
+  });
+  const keys = records.createdTextures.map((t) => t.key);
+  assert.ok(keys.includes("ak-sprite:32:hazard:decay"), `hazard actor sprite missing, got ${JSON.stringify(keys)}`);
+  assert.equal(
+    keys.some((key) => String(key).includes(":delver:")),
+    false,
+    "hazard actors must not render as delvers",
+  );
   renderer.dispose();
 });
 
@@ -1134,7 +1188,7 @@ test("gameplay phaser renderer annotates the stage with world and actor counts",
   await renderer.renderRun(BOARD_STATE);
 
   assert.equal(container.stage.dataset.gameplayWorldTiles, "5x5");
-  assert.equal(container.stage.dataset.gameplayActors, "2");
+  assert.equal(container.stage.dataset.gameplayActors, "4");
   renderer.dispose();
 });
 

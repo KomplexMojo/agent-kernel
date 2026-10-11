@@ -15,11 +15,13 @@
   "actors": [
     {
       "id": "delver_explorer",
-      "kind": "ambulatory",
       "position": {
         "x": 3,
         "y": 3
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -42,15 +44,26 @@
           "regen": 0
         }
       },
-      "archetype": "delver",
-      "traits": {
-        "motivations": [
-          {
-            "kind": "exploring",
-            "intensity": 1
-          }
-        ]
-      }
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "exploring"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "delver_explorer": {
+      "category": "delver"
+    }
+  }
 }

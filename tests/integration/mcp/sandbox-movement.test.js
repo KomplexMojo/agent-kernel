@@ -268,10 +268,7 @@ test("mcp ak_sandbox_move action file contains schema Action with kind=move and 
     assert.equal(action.actorId, "delver_1");
     assert.equal(action.kind, "move");
     assert.equal(action.tick, 1);
-    assert.deepEqual(action.params.from, { x: 2, y: 2 });
-    assert.deepEqual(action.params.to, { x: 3, y: 2 });
-    // direction=2 is East in core-ts Direction enum
-    assert.equal(action.params.direction, 2);
+    assert.deepEqual(action.params, { target: { x: 3, y: 2 } });
   } finally {
     await harness.close();
   }
@@ -413,7 +410,7 @@ test("mcp ak_sandbox_move moves actor northeast and records direction enum value
 
     const seq = JSON.parse(readFileSync(actionsOut, "utf8"));
     // Direction enum value 1 = NorthEast in core-ts
-    assert.equal(seq.actions[0].params.direction, 1);
+    assert.deepEqual(seq.actions[0].params, { target: { x: 3, y: 1 } });
   } finally {
     await harness.close();
   }
@@ -711,7 +708,7 @@ test("mcp ak_sandbox_move cardinal move with insufficient stamina returns insuff
     await harness.callTool("ak_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
-      spec: "id=delver_1;x=2;y=2;affinity=water;motivation=exploring;movementCost=1;staminaCurrent=0;staminaMax=10",
+      spec: "id=delver_1;x=2;y=2;affinity=water;motivation=stationary;movementCost=1;staminaCurrent=0;staminaMax=10",
     });
 
     const actionsOut = join(outDir, "actions.json");
@@ -748,7 +745,7 @@ test("mcp ak_sandbox_move diagonal move rejected when stamina covers cardinal bu
     await harness.callTool("ak_sandbox_place", {
       session: sessionPath,
       entityType: "delver",
-      spec: "id=delver_1;x=2;y=2;affinity=water;motivation=exploring;movementCost=1;staminaCurrent=1;staminaMax=10",
+      spec: "id=delver_1;x=2;y=2;affinity=water;motivation=stationary;movementCost=1;staminaCurrent=1;staminaMax=10",
     });
 
     const actionsOut = join(outDir, "actions.json");
@@ -784,16 +781,20 @@ test("mcp ak_sandbox_move actor without movementCost gets free movement regardle
       actionsOut,
     });
 
+    const { DEFAULT_MOVEMENT_COST, resolveWorstCaseMoveCost } = await import(
+      "../../../packages/runtime/src/personas/configurator/logical-validation.js"
+    );
+    const diagonalCost = resolveWorstCaseMoveCost(DEFAULT_MOVEMENT_COST);
     assert.equal(result.ok, true);
     assert.equal(
-      result.staminaRemaining,
-      undefined,
-      "staminaRemaining must not appear when movementCost is unset (free movement)",
+      result.movementCost,
+      diagonalCost,
+      "mobile delver without an explicit cost uses the Configurator cardinal default plus diagonal extra",
     );
     assert.equal(
-      result.movementCost,
-      undefined,
-      "movementCost must not appear when capabilities are unset",
+      result.staminaRemaining,
+      0,
+      "the movement floor fills one worst-case step, so the diagonal spends it",
     );
   } finally {
     await harness.close();
@@ -946,7 +947,7 @@ test("mcp ak_sandbox_move covers the remaining walkable direction enum permutati
       assert.deepEqual(result.from, { x: 2, y: 2 });
       assert.deepEqual(result.to, entry.to);
       const sequence = JSON.parse(readFileSync(actionsOut, "utf8"));
-      assert.equal(sequence.actions[0].params.direction, entry.value);
+      assert.deepEqual(sequence.actions[0].params, { target: entry.to });
     }
   } finally {
     await harness.close();

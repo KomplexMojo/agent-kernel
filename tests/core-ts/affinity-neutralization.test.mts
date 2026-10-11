@@ -445,21 +445,7 @@ describe("applyAffinityDamage: neutralization rejection cases", () => {
 // PR #42 regression
 // ---------------------------------------------------------------------------
 
-describe("M3b: applyAttack PR #42 non-regression", () => {
-  test("applyAttack still reduces target Health and ignores affinity state", () => {
-    const core = buildTwoActorWorld();
-    call(core.setMotivatedActorAffinity, 1, AffinityKind.Fire, AffinityExpression.Emit, 2);
-    const result = call(
-      (core as Record<string, unknown>).applyAttack,
-      0, 1, 3,
-    );
-    expect(result).not.toBe(0);
-    expect(call(core.getMotivatedActorVitalCurrentByIndex, 1, VitalKind.Health)).toBe(7);
-    // mana unchanged — applyAttack does not touch affinity
-    expect(manaOf(core, 1)).toBe(10);
-    expect(affinityExprOf(core, 1)).toBe(AffinityExpression.Emit);
-  });
-});
+
 
 // ---------------------------------------------------------------------------
 // M3d regression — neutralised hazard regens mana and comes back online

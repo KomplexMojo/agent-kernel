@@ -1,3 +1,4 @@
+import { EXIT_DWELL_TICKS } from "../rules/actor-exit.ts";
 // World state — grid, tiles, actors, motivated actors, hazards, resources, affinity field.
 // Ported from packages/core-ts/src/state/world.ts (1618 lines).
 // No IO, no imports outside core-ts.
@@ -10,7 +11,7 @@ import {
   isValidAffinityExpression,
   MAX_AFFINITY_GRANTS_PER_ACTOR,
 } from "./affinity.ts";
-import { computeAffinityRadius, computeAffinityIntensity } from "./affinity-spatial.ts";
+import { computeAffinityRadius, computeAffinityIntensity, cancelAffinityOverlap } from "./affinity-spatial.ts";
 import {
   resolveOwnSightLight,
   resolvePoweredLightStacks,
@@ -31,7 +32,7 @@ import { VitalKind } from "./vitals.ts";
  * Exit/Spawn tiles themselves are wall portals (non-walkable); dwell is measured on the
  * single interior floor cell adjacent to the exit portal.
  */
-export const EXIT_DWELL_TICKS = 2;
+export { EXIT_DWELL_TICKS } from "../rules/actor-exit.ts";
 
 export const Tile = {
   Wall: 0,
@@ -660,27 +661,13 @@ export function createWorldState() {
         // Projected intensity already encodes distance falloff. Cancel it at
         // the overlap point rather than canceling whole source stacks, so a
         // nearby opposite field cannot erase a hazard at its own origin.
-        const netSourceIntensity = Math.max(0, sourceIntensity - targetIntensity);
-        const netTargetIntensity = Math.max(0, targetIntensity - sourceIntensity);
-        const sourceCanceled = netSourceIntensity === 0;
-        const targetCanceled = netTargetIntensity === 0;
-
-        affinityFieldIntensity[sourceIndex] = netSourceIntensity;
-        affinityFieldIntensity[targetIndex] = netTargetIntensity;
-        if (sourceCanceled) {
-          affinityFieldStacks[sourceIndex] = 0;
-          affinityFieldExpression[sourceIndex] = 0;
-        } else if (targetCanceled) {
-          affinityFieldStacks[sourceIndex] =
-            sourceStacks > targetStacks ? sourceStacks - targetStacks : sourceStacks;
-        }
-        if (targetCanceled) {
-          affinityFieldStacks[targetIndex] = 0;
-          affinityFieldExpression[targetIndex] = 0;
-        } else if (sourceCanceled) {
-          affinityFieldStacks[targetIndex] =
-            targetStacks > sourceStacks ? targetStacks - sourceStacks : targetStacks;
-        }
+        const net = cancelAffinityOverlap(sourceIntensity, sourceStacks, targetIntensity, targetStacks);
+        affinityFieldIntensity[sourceIndex] = net.sourceIntensity;
+        affinityFieldIntensity[targetIndex] = net.targetIntensity;
+        affinityFieldStacks[sourceIndex] = net.sourceStacks;
+        affinityFieldStacks[targetIndex] = net.targetStacks;
+        if (net.sourceIntensity === 0) affinityFieldExpression[sourceIndex] = 0;
+        if (net.targetIntensity === 0) affinityFieldExpression[targetIndex] = 0;
         canceledCells++;
       }
     }

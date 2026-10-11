@@ -472,7 +472,11 @@ export function buildLevelPreviewFromLevelGen(
       errors: Array.isArray(generated.errors) ? generated.errors : [],
     };
   }
-  const rendered = buildLevelRenderArtifactsFromTiles(generated.value?.tiles, {
+  const layout = generated.value;
+  const glyphs = { wall: "#", floor: ".", spawn: "S", exit: "E" };
+  const rows = Array.from({ length: layout.height }, (_, y) => layout.terrain
+    .slice(y * layout.width, (y + 1) * layout.width).map(kind => glyphs[kind]).join(""));
+  const rendered = buildLevelRenderArtifactsFromTiles(rows, {
     includeAscii,
     includeImage,
     palette,

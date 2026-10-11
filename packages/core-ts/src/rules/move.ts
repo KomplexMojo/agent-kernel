@@ -252,15 +252,8 @@ export function createMoveRules(world: MoveWorld) {
     return Math.min(staminaCurrent + staminaRegen, staminaMax);
   }
 
-  function isDiagonalMove(action: MoveAction): boolean {
-    return action.fromX !== action.toX && action.fromY !== action.toY;
-  }
-
   function computeMovementCost(action: MoveAction, cardinalCost: number): number {
-    if (!isDiagonalMove(action)) return cardinalCost;
-    if (cardinalCost <= 0) return cardinalCost;
-    const diagonalExtra = cardinalCost > 1 ? Math.max(1, Math.trunc(cardinalCost / 2)) : 1;
-    return cardinalCost + diagonalExtra;
+    return computeMovementStaminaCost(action.fromX !== action.toX && action.fromY !== action.toY, cardinalCost);
   }
 
   /**
@@ -371,4 +364,11 @@ export function createMoveRules(world: MoveWorld) {
     applyMove,
     reachedExitAfterMove,
   };
+}
+
+/** Shared existing cardinal/diagonal cost rule, independent of actor storage. */
+export function computeMovementStaminaCost(diagonal: boolean, cardinalCost: number): number {
+  if (!diagonal || cardinalCost <= 0) return cardinalCost;
+  const extra = cardinalCost > 1 ? Math.max(1, Math.trunc(cardinalCost / 2)) : 1;
+  return cardinalCost + extra;
 }
