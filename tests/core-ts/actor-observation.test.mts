@@ -11,13 +11,20 @@ function actor(id: string, x: number): ActorRecord {
       blocksMovement: false, blocksSight: false }, motivations: [], affinities: [], activeAffinityKey: null, holdings: [] };
 }
 
+/** Levels are unlit: an observer sees one tile unless it emits light (sight = 1 + stacks). */
+function lit(record: ActorRecord, stacks: number): ActorRecord {
+  record.affinities = [{ kind: 'light', expression: 'emit', stacks }];
+  record.activeAffinityKey = 'light:emit';
+  return record;
+}
+
 test('movement and sight capabilities stay independent in observations', () => {
   for (const blocksSight of [true, false]) {
     const barrier = actor('barrier', 1);
     barrier.capabilities.blocksSight = blocksSight;
     barrier.capabilities.blocksMovement = !blocksSight;
     const registry = createActorRegistry({ dimensions: { width: 4, height: 1 }, terrain: Array(4).fill('floor'),
-      actors: [actor('self', 0), barrier, actor('target', 2)] });
+      actors: [lit(actor('self', 0), 1), barrier, actor('target', 2)] });
     const observed = scopeActorRegistryObservation(readActorRegistryObservation(registry, 4), 'self');
     expect(observed.actors.some(entry => entry.id === 'target')).toBe(!blocksSight);
     expect(observed.tiles.kinds[0][1]).toBe(blocksSight ? 0 : 1);
@@ -31,7 +38,7 @@ test('observing projects active light without mutating state; defeated blockers 
   const barrier = actor('barrier', 1);
   barrier.capabilities.blocksSight = true;
   const registry = createActorRegistry({ dimensions: { width: 6, height: 1 }, terrain: Array(6).fill('floor'),
-    actors: [source, barrier, actor('far', 4)] });
+    actors: [source, barrier, actor('far', 3)] });
   registry.changeVital('barrier', 'health', -10);
   const before = registry.snapshot();
   const observation = readActorRegistryObservation(registry, 1);
@@ -49,11 +56,11 @@ test('defeated actors never block movement or sight and never project fields', (
   blocker.vitals.health!.current = 0;
   blocker.lifecycle = 'defeated';
   const registry = createActorRegistry({ dimensions: { width: 3, height: 1 }, terrain: Array(3).fill('floor'),
-    actors: [actor('self', 0), blocker, actor('far', 2)] });
+    actors: [lit(actor('self', 0), 1), blocker, actor('far', 2)] });
   expect(registry.isMovementBlocked({ x: 1, y: 0 })).toBe(false);
   expect(registry.isSightBlocked({ x: 1, y: 0 })).toBe(false);
   const observation = readActorRegistryObservation(registry, 0);
-  expect(observation.affinityFields).toEqual([]);
+  expect(observation.affinityFields.filter(field => field.sourceId === 'blocker')).toEqual([]);
   expect(scopeActorRegistryObservation(observation, 'self').actors.some(entry => entry.id === 'far')).toBe(true);
 });
 
@@ -75,3 +82,17 @@ test('visible contributions retain unseen emitters and reappear after switching 
     .some(field => field.sourceId === source.id && field.kind === 'fire')).toBe(true);
 });
 // - Surviving dark obscures a distant target after light/dark cancellation.
+
+test('only light the observer itself emits extends its sight', () => {
+  // Two tiles off, so the lamp's light field does reach self's cell.
+  const lamp = lit(actor('lamp', 2), 3);
+  lamp.alignment = 'external';
+  const registry = createActorRegistry({ dimensions: { width: 6, height: 1 }, terrain: Array(6).fill('floor'),
+    actors: [actor('self', 0), lamp, actor('far', 3)] });
+  expect(readActorRegistryObservation(registry, 0).affinityFields
+    .some(field => field.sourceId === 'lamp' && field.position.x === 0)).toBe(true);
+  const ids = (record: ActorRecord) => scopeActorRegistryObservation(
+    readActorRegistryObservation(registry, 0), record.id).actors.map(entry => entry.id);
+  expect(ids(registry.getActor('self')!)).not.toContain('far');
+  expect(ids(registry.getActor('lamp')!)).toContain('far');
+});

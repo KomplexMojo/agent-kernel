@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-label="agent-kernel: simulation engine for a future decentralized dungeon game">
+  <rect width="1600" height="520" fill="#1A1F2E"/>
+
+  <!-- Mark: hex kernel with grid cell and delver triangle -->
+  <g transform="translate(200,260)">
+    <circle r="150" fill="#12161F" stroke="#E8DFC8" stroke-width="6"/>
+    <circle r="128" fill="none" stroke="#C4A35A" stroke-width="10"/>
+    <polygon points="0,-78 68,-39 68,39 0,78 -68,39 -68,-39" fill="none" stroke="#E8DFC8" stroke-width="5"/>
+    <rect x="-28" y="-28" width="56" height="56" fill="none" stroke="#C4A35A" stroke-width="4"/>
+    <polygon points="0,-18 16,12 -16,12" fill="#C4A35A"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="420" y="180" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="72" font-weight="700" letter-spacing="-1.5">
+    <tspan fill="#FFFFFF">agent</tspan><tspan fill="#C4A35A">-kernel</tspan>
+  </text>
+
+  <text x="420" y="235" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="500" fill="#E8DFC8">
+    Simulation engine for a future dungeon game.
+  </text>
+
+  <text x="420" y="285" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="22" fill="#9AA3B5">
+    Deterministic core. CLI. MCP for AI harnesses. Enforced token economics.
+  </text>
+
+  <!-- Status chip -->
+  <rect x="420" y="325" width="520" height="42" rx="8" fill="#2A3142" stroke="#C4A35A" stroke-width="2"/>
+  <circle cx="448" cy="346" r="7" fill="#E8A54B"/>
+  <text x="468" y="353" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="18" font-weight="600" fill="#E8DFC8">
+    Large multi-year project · Under active development
+  </text>
+
+  <text x="420" y="420" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="20" fill="#C4A35A">
+    Decentralized · Distributed · Provably fair
+  </text>
+</svg>

@@ -1,6 +1,8 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import { projectActorFields } from './actor-fields.ts';
-import { resolveVisibilityRadius, scopeObservation } from '../state/visibility.ts';
+import { resolveOwnSightLight, resolveVisibilityRadius, scopeObservation, SIGHT_LIGHT_EXPRESSION } from '../state/visibility.ts';
+import { activeActorAffinity } from '../state/actor-inventory.ts';
+import { AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 
 /** Detached facts; reading an observation never applies exposure or advances time. */
 export function readActorRegistryObservation(registry: Pick<ReturnType<typeof createActorRegistry>, 'snapshot'>, tick: number) {
@@ -35,6 +37,10 @@ export function scopeActorRegistryObservation(observation: ReturnType<typeof rea
     if (field.kind === 'light') lightStacks = field.stacks;
     if (field.kind === 'dark') darkStacks = field.stacks;
   }
+  const own = activeActorAffinity(self);
+  const ownEmitted = own?.kind === 'light' && own.expression === AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]
+    ? own.stacks : 0;
+  lightStacks = resolveOwnSightLight(ownEmitted, lightStacks);
   const scoped = scopeObservation({ ...observation, tiles: { kinds: observation.sightKinds } }, actorId,
     resolveVisibilityRadius({ lightStacks, darkStacks }), { darkStacksByCell });
   const contributions = scopeObservation({ ...observation, affinityFields: observation.affinityContributions,

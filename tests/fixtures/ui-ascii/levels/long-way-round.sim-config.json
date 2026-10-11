@@ -1,0 +1,60 @@
+{
+  "schema": "agent-kernel/SimConfigArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "sim_config_long-way-round",
+    "runId": "ui_ascii_long-way-round",
+    "createdAt": "2026-10-10T00:00:00.000Z",
+    "producedBy": "ui-ascii"
+  },
+  "seed": 0,
+  "layout": {
+    "kind": "grid",
+    "data": {
+      "width": 21,
+      "height": 11,
+      "spawn": {
+        "x": 0,
+        "y": 1
+      },
+      "exit": {
+        "x": 20,
+        "y": 9
+      },
+      "spawnApproach": {
+        "x": 1,
+        "y": 1
+      },
+      "exitApproach": {
+        "x": 19,
+        "y": 9
+      },
+      "tiles": [
+        "#####################",
+        "S.....#.......#.....#",
+        "#.###.#.#####.#.###.#",
+        "#.#...#.#...#...#...#",
+        "#.#.###.#.#.#####.###",
+        "#.#.....#.#.......#.#",
+        "#.#######.#######.#.#",
+        "#.......#.....#...#.#",
+        "#######.#####.#.###.#",
+        "#.............#.....E",
+        "#####################"
+      ],
+      "legend": {
+        "#": "wall",
+        ".": "floor",
+        "S": "spawn",
+        "E": "exit"
+      },
+      "render": {
+        "wall": "#",
+        "floor": ".",
+        "spawn": "S",
+        "exit": "E",
+        "actor": "@"
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="72" viewBox="0 0 720 72" role="img" aria-label="Overall progress 40 percent">
+  <rect width="720" height="72" fill="#1A1F2E" rx="8"/>
+  <text x="24" y="28" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#9AA3B5">
+    Overall progress
+  </text>
+  <text x="696" y="28" text-anchor="end" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#C4A35A">
+    40%
+  </text>
+  <rect x="24" y="40" width="672" height="18" rx="9" fill="#2A3142"/>
+  <rect x="24" y="40" width="269" height="18" rx="9" fill="#C4A35A"/>
+</svg>

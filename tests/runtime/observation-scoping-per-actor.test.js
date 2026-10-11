@@ -74,11 +74,19 @@ function health(id, category, position, motivations) {
 }
 
 /**
- * @param {number} otherX where the second actor stands. The observer is always
- *   actors[0] at x=5, so `otherX` alone decides whether it is within the
- *   baseline sight radius of 3.
+ * Levels are unlit (ruled 2026-10-10): an observer that emits no light sees one
+ * tile. LIT_STACKS of emitted light extend that to a radius of 3, which the
+ * distance tests below are written against.
  */
-async function buildArtifacts(otherX) {
+const LIT_STACKS = 2;
+const LIT_RADIUS = 3;
+
+/**
+ * @param {number} otherX where the second actor stands. The observer is always
+ *   actors[0] at x=5, so `otherX` decides whether it is within sight.
+ * @param {{ lit?: boolean }} [options] whether the observer emits LIT_STACKS of light.
+ */
+async function buildArtifacts(otherX, { lit = true } = {}) {
   const { createConfiguratorPersona } = await import(
     "../../packages/runtime/src/personas/configurator/controller.js"
   );
@@ -87,7 +95,13 @@ async function buildArtifacts(otherX) {
   const actors = [
     // INDEX 0 ON PURPOSE — the actor that observes in the OBSERVE phase and
     // is therefore missed by a DECIDE-only fix. See the header.
-    health("observer", "delver", { x: OBSERVER_X, y: 1 }, ["attacking"]),
+    {
+      ...health("observer", "delver", { x: OBSERVER_X, y: 1 }, ["attacking"]),
+      ...(lit ? {
+        affinities: [{ kind: "light", expression: "emit", stacks: LIT_STACKS }],
+        activeAffinityKey: "light:emit",
+      } : {}),
+    },
     health("other", "warden", { x: otherX, y: 1 }, ["stationary"]),
   ];
   const simConfig = configurator.buildSimConfigArtifact({
@@ -106,12 +120,12 @@ async function buildArtifacts(otherX) {
   return { simConfig, initialState };
 }
 
-async function runScenario(otherX) {
+async function runScenario(otherX, options) {
   const [{ createRuntime }, { createCore }] = await Promise.all([
     import("../../packages/runtime/src/runner/runtime.js"),
     import("../../packages/core-ts/src/index.ts"),
   ]);
-  const { simConfig, initialState } = await buildArtifacts(otherX);
+  const { simConfig, initialState } = await buildArtifacts(otherX, options);
   const runtime = createRuntime({ core: createCore(), adapters: {} });
   await runtime.init({ seed: 0, simConfig, initialState });
   for (let t = 0; t < TICK_COUNT; t += 1) {
@@ -138,7 +152,7 @@ function firstObserverMoveDx(frames) {
 // ---------------------------------------------------------------------------
 
 test("actor 0 does NOT pursue an actor standing beyond its sight radius", async () => {
-  // `other` is 7 tiles east — more than double the baseline radius of 3.
+  // `other` is 7 tiles east — more than double the lit radius of 3.
   const frames = await runScenario(12);
   const dx = firstObserverMoveDx(frames);
 
@@ -146,15 +160,15 @@ test("actor 0 does NOT pursue an actor standing beyond its sight radius", async 
   assert.ok(
     dx < 0,
     `the observer moved ${dx > 0 ? "EAST, toward an actor it cannot see" : "nowhere"}. At 7 tiles `
-      + "away, `other` is outside the baseline sight radius of 3, so the observer should be walking "
+      + `away, \`other\` is outside the lit sight radius of ${LIT_RADIUS}, so the observer should be walking `
       + "WEST toward the exit instead. Moving east means the observation reaching the Actor persona "
       + "still contains the whole board — scoping is not being applied where the actor payload is "
-      + "built, or the radius came back larger than the baseline.",
+      + "built, or the radius came back larger than the light allows.",
   );
 });
 
 test("NOT VACUOUS: actor 0 DOES pursue an actor standing inside its sight radius", async () => {
-  // `other` is 2 tiles east — comfortably within the baseline radius of 3.
+  // `other` is 2 tiles east — comfortably within the lit radius of 3.
   const frames = await runScenario(7);
   const dx = firstObserverMoveDx(frames);
 
@@ -180,13 +194,25 @@ test("the boundary is inclusive: an actor at exactly the sight radius is still s
   );
 });
 
+test("an observer that emits no light does NOT pursue an actor two tiles away", async () => {
+  // The same distance the lit observer pursues above. Unlit, sight is one tile.
+  const frames = await runScenario(7, { lit: false });
+  const dx = firstObserverMoveDx(frames);
+
+  assert.notEqual(dx, null, "the observer must move at all");
+  assert.ok(
+    dx < 0,
+    "an unlit observer pursued an actor two tiles away. Levels are unlit: without its own "
+      + "emitted light an actor sees only what is adjacent.",
+  );
+});
+
 // ## TODO: Test Permutations
 //
 // - the same three distances with the observer at index 1 instead of 0 (the
 //   DECIDE-loop path, which a naive fix DOES cover — proving both paths agree)
 // - an observer standing in dark at/above the obscure threshold: sight collapses
 //   to 1, and an actor 2 tiles away is no longer pursued
-// - an observer emitting light: pursues an actor beyond the baseline radius
 // - (deliberately NOT listed: "non-actor personas still get the full observation".
 //   Only `actorPayload` ever carries an `observation` at all — the annotator gets
 //   an `observations` array built from `observationLog`, which holds effects, not

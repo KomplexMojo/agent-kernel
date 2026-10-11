@@ -16,6 +16,7 @@ import { llmTools } from "./tools/llm.mjs";
 import { simulationTools } from "./tools/simulation.mjs";
 import { testingTools } from "./tools/testing.mjs";
 import { tickTools } from "./tools/tick.mjs";
+import { playTools } from "./tools/play.mjs";
 import { sandboxTools } from "./tools/sandbox.mjs";
 import { adaptiveWorkflowResources, adaptiveWorkflowTools, assertAdaptiveWorkflowArgs, readAdaptiveWorkflowResource } from "./adaptive-workflow-tools.mjs";
 import { startSandboxBridgeServer, stopSandboxBridgeServer } from "./bridge-server.mjs";
@@ -31,6 +32,7 @@ const TOOL_DEFINITIONS = [
   ...externalTools,
   ...testingTools,
   ...tickTools,
+  ...playTools,
   ...sandboxTools,
   ...adaptiveWorkflowTools,
 ];
@@ -182,6 +184,22 @@ async function maybeResolveRememberedInputs(tool, rawArgs) {
       args.simConfig = resolved.simConfigPath;
       args.initialState = resolved.initialStatePath;
       delete args.fromRun;
+    }
+  }
+  // ak_play_ascii with a runId from this session plays the level that run wrote.
+  if (
+    tool.command === "play"
+    && normalizeNonEmptyString(args.runId)
+    && !normalizeNonEmptyString(args.dir)
+    && !normalizeNonEmptyString(args.simConfig)
+    && !normalizeNonEmptyString(args.initialState)
+  ) {
+    const commandOutDirs = getCommandOutDirEntries(args.runId);
+    if (commandOutDirs.length > 0) {
+      const resolved = await resolveFromRunArtifactPathsFromCommandOutDirs({ runId: args.runId, commandOutDirs });
+      args.simConfig = resolved.simConfigPath;
+      args.initialState = resolved.initialStatePath;
+      delete args.runId;
     }
   }
   return args;

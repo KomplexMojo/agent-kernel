@@ -1,0 +1,58 @@
+{
+  "schema": "agent-kernel/SimConfigArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "sim_config_warden-hall",
+    "runId": "ui_ascii_warden-hall",
+    "createdAt": "2026-10-10T00:00:00.000Z",
+    "producedBy": "ui-ascii"
+  },
+  "seed": 0,
+  "layout": {
+    "kind": "grid",
+    "data": {
+      "width": 15,
+      "height": 9,
+      "spawn": {
+        "x": 0,
+        "y": 1
+      },
+      "exit": {
+        "x": 14,
+        "y": 7
+      },
+      "spawnApproach": {
+        "x": 1,
+        "y": 1
+      },
+      "exitApproach": {
+        "x": 13,
+        "y": 7
+      },
+      "tiles": [
+        "###############",
+        "S.....#.......#",
+        "#.###.#.#####.#",
+        "#.#.......#...#",
+        "#.#.#####.#.###",
+        "#...#...#.#...#",
+        "###.#.#.#.###.#",
+        "#.....#.......E",
+        "###############"
+      ],
+      "legend": {
+        "#": "wall",
+        ".": "floor",
+        "S": "spawn",
+        "E": "exit"
+      },
+      "render": {
+        "wall": "#",
+        "floor": ".",
+        "spawn": "S",
+        "exit": "E",
+        "actor": "@"
+      }
+    }
+  }
+}

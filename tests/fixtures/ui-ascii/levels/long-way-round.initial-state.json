@@ -1,0 +1,48 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "initial_state_long-way-round",
+    "runId": "ui_ascii_long-way-round",
+    "createdAt": "2026-10-10T00:00:00.000Z",
+    "producedBy": "ui-ascii"
+  },
+  "simConfigRef": {
+    "id": "sim_config_long-way-round",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "player",
+      "kind": "ambulatory",
+      "role": "delver",
+      "position": {
+        "x": 1,
+        "y": 1
+      },
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 12,
+          "max": 12,
+          "regen": 2
+        },
+        "durability": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      }
+    }
+  ]
+}

@@ -46,7 +46,8 @@ test("runtime observation carries hazard actor vitals without a hazards collecti
     {
       id: "tide",
       category: "hazard",
-      position: { x: 3, y: 2 },
+      // Adjacent to both flame (the primary, id-sorted first) and observer: levels are unlit.
+      position: { x: 2, y: 1 },
       affinities: [{ kind: "water", expression: "emit", stacks: 1 }],
       activeAffinityKey: "water:emit",
       vitals: {

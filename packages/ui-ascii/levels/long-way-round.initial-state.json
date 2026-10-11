@@ -1,0 +1,76 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "long-way-round_initial_state",
+    "runId": "long-way-round",
+    "createdAt": "2026-10-10T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "simConfigRef": {
+    "id": "long-way-round_sim_config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "card_delver_1-1",
+      "position": {
+        "x": 10,
+        "y": 23
+      },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 2,
+          "max": 2,
+          "regen": 2
+        },
+        "durability": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "exploring",
+        "user_controlled"
+      ],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": null,
+      "holdings": []
+    }
+  ],
+  "presentation": {
+    "card_delver_1-1": {
+      "category": "delver"
+    }
+  }
+}

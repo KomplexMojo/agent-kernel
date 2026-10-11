@@ -401,7 +401,10 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
 ```text
 adapters-* -> runtime -> core-ts
 ui-web     -> runtime -> core-ts
+ui-ascii   -> runtime -> core-ts
 ```
+
+`ui-ascii` is held to a stricter allowlist than `ui-web`: it may import only its own files, `runtime`, and `node:` built-ins (`tests/architecture/dependency-direction.test.js`). Runtime may import neither UI package.
 
 All external IO must be implemented behind adapters via narrow ports. Core APIs remain synchronous and deterministic.
 
@@ -411,9 +414,10 @@ All external IO must be implemented behind adapters via narrow ports. Core APIs 
 - Pure validation and deterministic rule enforcement.
 - Data-only effects with deterministic ids/requestIds and adapter hints.
 - Affinity system: 10-kind codebook, spatial formulas, interaction matrix, static hazard and actor field computation.
-- Visibility system: affinity-derived sight radius, deterministic wall/barrier supercover occlusion,
-  target-dark concealment, and pure per-observer scoping of actors and hazards. Runtime sequences the
-  live tile/field inputs; it does not reimplement perception policy.
+- Visibility system: unlit levels (one-tile baseline, extended only by the observer's own emitted
+  light), affinity-derived sight radius, deterministic wall/barrier supercover occlusion, target-dark
+  concealment, pure per-observer scoping of actors and hazards, and the per-tile visible set a fog-of-war
+  view draws from. Runtime sequences the live tile/field inputs; it does not reimplement perception policy.
 - Motivation system: 12-kind codebook, behavior flags, and profile derivation. (Motivation
   *pricing* is Allocator policy, not core; core enforces only invariant budget rules — caps and
   spend accounting — when provided by the Allocator.)
@@ -545,7 +549,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - A Z3 context is reused across a bounded run of solves and then replaced. One context per solve
   leaks ~10.45 MB unreclaimably; one context forever aborts the process with a WASM out-of-bounds
   once its ast_manager fills. Both bounds are measured, not assumed — see `createGenericZ3Solver`.
-- Z3 adapter code must not move into `runtime` or `core-ts`. The dependency direction remains `adapters-* / ui-web -> runtime -> core-ts`.
+- Z3 adapter code must not move into `runtime` or `core-ts`. The dependency direction remains `adapters-* / ui-web / ui-ascii -> runtime -> core-ts`.
 
 ## UI Sandbox Playback
 
@@ -555,6 +559,16 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - `packages/ui-web/src/views/gameplay-view.js` implements Step and `runToEnd()` by moving the current frame cursor over `tickFrames`; it does not call runtime step during playback.
 - `packages/runtime/src/runner/core-facade.js` is the runtime-owned browser facade for preview/playback helpers that need deterministic core setup, frame rendering, observation reads, and affinity field records.
 - Tick playback is keyboard-driven with a fixed binding policy: bare keys belong to the game surface, Cmd/Ctrl+arrows step tick playback, Cmd/Ctrl+`[`/`]` navigate screens back/forward, and Ctrl+digit jumps directly to a screen. Cmd+digit is reserved by browsers and never bound. The gameplay stage exposes the cursor as `data-gameplay-current-tick`.
+
+## Terminal UI (ui-ascii)
+
+- `packages/ui-ascii` is an interactive terminal game. It is live play, not playback: each keypress becomes one command and closes one tick.
+- `packages/runtime/src/runner/play-session.js` is the runtime seam it drives: `await createPlaySession({ simConfig, initialState, playerActorId })`, `await act({ kind, params })` → `{ tick, accepted, rejected, status }`, `view()`, `status()`. It is glue: it closes its own tick after every command (the driver advances the tick), and a rejected move still costs the turn.
+- Core is the authority on everything the game reports: move legality (the ValidationError code, reported verbatim), arriving at the exit (standing on core's exit-approach seat), leaving it (core's exit dwell), and the board glyphs (`renderCoreFrame`). HUD labels and colours come from `render/actor-hud-model.js`.
+- `ui-ascii` owns terminal IO only: key → intent mapping, screen layout, level-file loading. It must not import `core-ts`, decide legality, or restate glyph or colour meaning.
+- The `ak` CLI and MCP server reach it as a separate program: `ak play` (MCP `ak_play_ascii`) launches `ui-ascii`'s CLI as a child process, interactively or with scripted keys returning JSON. `adapters-cli` never imports `ui-ascii`, and `ui-ascii` never imports `adapters-cli`; its bundled levels are `ak create` output checked in from `levels/recipes.json`.
+- Terminal colour follows the same single origin as every other surface: `packages/runtime/src/render/ascii-cell-style.js` maps board characters to `GAME_COLOR_PALETTE` entries (tile fills as backgrounds, role colours for what stands on them, `motivations.user_controlled` for the player). `ui-ascii` only converts the returned hex to ANSI escapes.
+- Every other actor takes its turn: `act` is one `runtime.step({ actorCommands: { [playerActorId]: command } })`. The Actor persona owns the command vocabulary and turns the command into the player's proposal; the runner only routes it to that actor. Because the runtime now flushes core's effects, `atExit` reads "standing on core's exit-approach seat" (the cell core's exit dwell counts) instead of LimitReached.
 
 ## Sandbox Bridge (MCP → CLI → UI)
 

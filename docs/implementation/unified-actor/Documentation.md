@@ -1,5 +1,24 @@
 # Historical milestone evidence
 
+## October 11 — origin/main merged
+
+Five conflicted files were resolved, keeping both sides. Commanded player
+turns, own-light sight, and the shared glyphs come from main. The registry,
+params.target, and presentation categories come from the rewrite. Player
+command moves now emit params.target. `hasExited` was hoisted and reads the
+registry lifecycle. The two calls to `resolveObservation` that carried
+`layoutHazards` were dropped, and `readObservation` uses the registry.
+`scopeActorRegistryObservation` applies `resolveOwnSightLight`. A
+perturbation check confirmed it: with the cap removed, the own-light test
+fails. The bundled ASCII levels were regenerated. Unlit fixtures were fixed in
+the observation, scoping, and hazard-vitals tests.
+
+The suite, run unsandboxed, has 4295 tests and 62 failures:
+
+- 8 known: #206, #208, #209, #210, #211
+- 50 from the ASCII game: #217
+- 4 from armed actors seeing one tile: #218
+
 ## October 11 — lossless queue exhausted
 
 adaptActionToCore and runMvpMovement both record params.target. The

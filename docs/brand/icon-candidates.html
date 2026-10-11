@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Affinity icons — candidate preview (not published)</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      padding: 24px;
+    }
+    .chrome {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+      color: #8b949e;
+      font-size: 14px;
+    }
+    .pill {
+      border: 1px solid #30363d;
+      border-radius: 999px;
+      padding: 4px 10px;
+      color: #e8a54b;
+      font-weight: 600;
+    }
+    h1 { font-size: 20px; margin: 0 0 8px; }
+    p { color: #8b949e; max-width: 720px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 16px;
+      margin: 24px 0 40px;
+      max-width: 900px;
+    }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px 12px;
+      text-align: center;
+    }
+    .card img {
+      width: 64px;
+      height: 64px;
+      image-rendering: pixelated;
+      background: #000;
+      border-radius: 4px;
+    }
+    .card .name {
+      margin-top: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #c4a35a;
+    }
+    .sheet {
+      max-width: 640px;
+      width: 100%;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .sheet img { width: 100%; height: auto; image-rendering: pixelated; }
+  </style>
+</head>
+<body>
+  <div class="chrome">
+    <strong style="color:#e6edf3">Icon candidates</strong>
+    <span>Older illustrative affinities only</span>
+    <span class="pill">Not published — review only</span>
+  </div>
+
+  <h1>Proposed decorations (64px)</h1>
+  <p>
+    Illustrative archive icons — not the algorithmic/symbolic glyphs.
+    Copied under <code>docs/brand/affinities/</code> for this preview.
+  </p>
+
+  <div class="grid">
+    <div class="card"><img src="affinities/icon-affinity-fire.png" alt="fire"><div class="name">fire</div></div>
+    <div class="card"><img src="affinities/icon-affinity-water.png" alt="water"><div class="name">water</div></div>
+    <div class="card"><img src="affinities/icon-affinity-earth.png" alt="earth"><div class="name">earth</div></div>
+    <div class="card"><img src="affinities/icon-affinity-wind.png" alt="wind"><div class="name">wind</div></div>
+    <div class="card"><img src="affinities/icon-affinity-life.png" alt="life"><div class="name">life</div></div>
+    <div class="card"><img src="affinities/icon-affinity-decay.png" alt="decay"><div class="name">decay</div></div>
+    <div class="card"><img src="affinities/icon-affinity-corrode.png" alt="corrode"><div class="name">corrode</div></div>
+    <div class="card"><img src="affinities/icon-affinity-fortify.png" alt="fortify"><div class="name">fortify</div></div>
+    <div class="card"><img src="affinities/icon-affinity-light.png" alt="light"><div class="name">light</div></div>
+    <div class="card"><img src="affinities/icon-affinity-dark.png" alt="dark"><div class="name">dark</div></div>
+  </div>
+
+  <h1>Approved sprite sheet (same art)</h1>
+  <div class="sheet">
+    <img src="affinities/approved-affinity-sprite-sheet.png" alt="Approved affinity sprite sheet">
+  </div>
+</body>
+</html>

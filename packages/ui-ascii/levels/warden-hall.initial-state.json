@@ -1,0 +1,188 @@
+{
+  "schema": "agent-kernel/InitialStateArtifact",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "warden-hall_initial_state",
+    "runId": "warden-hall",
+    "createdAt": "2026-10-10T00:00:00.000Z",
+    "producedBy": "cli-create"
+  },
+  "simConfigRef": {
+    "id": "warden-hall_sim_config",
+    "schema": "agent-kernel/SimConfigArtifact",
+    "schemaVersion": 1
+  },
+  "actors": [
+    {
+      "id": "card_delver_1-1",
+      "position": {
+        "x": 12,
+        "y": 12
+      },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 2,
+          "max": 2,
+          "regen": 2
+        },
+        "durability": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "exploring",
+        "user_controlled"
+      ],
+      "affinities": [
+        {
+          "kind": "wind",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": null,
+      "holdings": []
+    },
+    {
+      "id": "card_warden_1-1",
+      "position": {
+        "x": 27,
+        "y": 15
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 2,
+          "max": 2,
+          "regen": 2
+        },
+        "durability": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "random"
+      ],
+      "affinities": [
+        {
+          "kind": "fire",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": null,
+      "holdings": []
+    },
+    {
+      "id": "card_warden_2-1",
+      "position": {
+        "x": 26,
+        "y": 15
+      },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
+      "vitals": {
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "mana": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        },
+        "stamina": {
+          "current": 2,
+          "max": 2,
+          "regen": 2
+        },
+        "durability": {
+          "current": 10,
+          "max": 10,
+          "regen": 1
+        }
+      },
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "random"
+      ],
+      "affinities": [
+        {
+          "kind": "water",
+          "expression": "push",
+          "stacks": 1
+        }
+      ],
+      "activeAffinityKey": null,
+      "holdings": []
+    }
+  ],
+  "presentation": {
+    "card_delver_1-1": {
+      "category": "delver"
+    },
+    "card_warden_1-1": {
+      "category": "warden"
+    },
+    "card_warden_2-1": {
+      "category": "warden"
+    }
+  }
+}

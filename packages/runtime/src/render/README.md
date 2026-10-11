@@ -57,6 +57,20 @@ two of them.
 
 Output is plain serializable data: no functions, no class instances.
 
+## ASCII board colours
+
+`ascii-cell-style.js` says which palette colour each ASCII board character takes,
+for terminal surfaces (`packages/ui-ascii`). It follows the Phaser board's rule:
+tiles are flat fills from `GAME_COLOR_PALETTE.tiles`, drawn as the cell
+background; whatever stands on a tile is the glyph in its role colour
+(`actors.*`, `items.*`). The player `@` is `motivations.user_controlled`.
+Characters come from core's frame legend and the `ASCII_ENTITY_GLYPHS` that
+`visualization-snapshot.js` exports, so neither glyphs nor colours are restated.
+`tests/runtime/ascii-cell-style.test.js` asserts every value is a palette entry.
+Under fog of war the play session's `?` takes `tiles.fog`, and
+`asciiRememberedCellStyle` fades a remembered cell's colours toward `tiles.fog`
+(`ASCII_REMEMBERED_FADE`), so a cell the player only remembers reads dimmed.
+
 ## UI icons
 
 `icon-model.js` decides what a UI chip icon means. It reuses the board's rules —

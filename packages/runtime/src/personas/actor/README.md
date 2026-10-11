@@ -55,7 +55,7 @@ An **actor** represents any entity that exists in the world. One concept, with c
 - **Dynamic actors** (dungeon-controlled interactors): anything the dungeon spawns that can act—monsters and hazards.
   - Monsters: may have all vitals, one or more affinities, and multiple motivations (including movement).
   - Hazards: durability + mana; may have motivations like `attacking`/`defending` but no movement motivations; `canMove=false`.
-- **Player-controlled dynamic actors** (introduced later): configured by the player and directly controlled. These will require streamed simulation playback—regenerating one step at a time based on user actions—to keep determinism and replay intact.
+- **Player-controlled dynamic actors**: directly controlled, one tick at a time. The runner routes a command to one actor with `runtime.step({ actorCommands: { [actorId]: command } })`; every other actor decides normally in the same tick. See *Commanded actors* below.
 
 This document focuses on the **Actor persona** as a decision-making and behavior construct. Detailed simulation rules and physics are documented separately in the `core-ts` README.
 
@@ -149,8 +149,9 @@ The Actor persona follows a simple loop:
 
 How motivations are resolved (priority, scoring, veto, etc.) is an implementation detail of the Actor persona and may evolve over time.
 
-Each actor receives its own perception-scoped observation. Core starts with the actor's light/dark-adjusted
-sight radius, then applies deterministic line of sight: walls and barriers block actors and hazards behind
+Each actor receives its own perception-scoped observation. Levels are unlit: core starts with a sight radius
+of one tile, extended only by light the actor itself emits and reduced by dark that survives at its tile, then
+applies deterministic line of sight: walls and barriers block actors and hazards behind
 them, including diagonal corner peeking. Surviving dark at a target conceals that target beyond one tile;
 light affects concealment only through core's existing light/dark cancellation. The shared world snapshot is
 never mutated, and resources remain absent because actor observations do not currently expose them.
@@ -246,6 +247,26 @@ That explicit manual mode now runs on the same `solver_request` transport:
 - the chosen action is normalized and enacted on the same runtime rail
 
 ---
+
+## Commanded actors
+
+A `propose` payload may carry `command`, the decision of whoever controls that actor (a player, a
+script). The command vocabulary is this persona's: `{ kind: "move", params: { direction } }` with an
+eight-way direction name, or `{ kind: "wait" }`. Anything else throws, so a controlled actor never
+falls back to autonomous play by accident.
+
+- The command becomes the actor's **only** proposal. Motivations are not consulted and the actor is
+  not posed to the solver, even with runtime decisioning enabled — the decision has already been made.
+  (`payload.proposals` is different: under runtime decisioning it only feeds the `actorProposal` tiebreak.)
+- A move's `from`/`to` are filled from the actor's observed position. The Actor does **not** check
+  legality: a move into a wall is proposed and core rejects it.
+- The actor still surfaces an intention, so the Moderator orders it among the others as usual.
+
+The runner only routes `actorCommands` to the named actor's payload (an unknown id throws); it does not
+interpret them; it does call this persona's exported `normalizeActorCommand` first, so a malformed command
+is refused before the tick starts. `runner/play-session.js` wraps this into `act` / `view` / `status` for a
+playable UI.
+Proof: `tests/personas/actor/actor-player-command.test.js`, `tests/runtime/runtime-actor-commands.test.js`.
 
 ## Determinism and Replay
 

@@ -2,6 +2,7 @@
 flowchart LR
   subgraph Interfaces["Interfaces"]
     UIWeb["ui-web (browser)"]
+    UIAscii["ui-ascii (terminal game)\nkeys -> intents; no core imports"]
     PhaserFrame["phaser-frame-view"]
     CardBuilderRenderer["card-builder-phaser-renderer"]
     CardBuilderController["card-builder-controller"]
@@ -19,6 +20,7 @@ flowchart LR
     RuntimePorts["runtime runner + ports\ncore-owned EffectKind; fail-loud mapping"]
     AdaptiveRunner["adaptive-workflow control plane\nrunAdaptiveWorkflow + injected ports"]
     CoreFacade["core-facade + core-setup\npreview/playback helpers"]
+    PlaySession["play-session\nact / view / status; one command = one tick"]
     TickOrch["tick orchestrator"]
     Personas["personas (7 FSMs — enforced boundary:\ncontroller-only imports; JSON view restoration)"]
     OrchestratorPersona["orchestrator persona\nLLM sessions + budget loops"]
@@ -75,6 +77,8 @@ flowchart LR
   GameplaySurface --> RuntimePorts
   ScenarioLoader --> CoreFacade
   UIWeb --> ScenarioLoader
+  UIAscii --> PlaySession
+  PlaySession --> CoreFacade
   CLI --> ACli
   MCP --> ACli
   ACli -- "ak workflow / ak_workflow_*\nmodel + store + exec ports" --> AdaptiveRunner

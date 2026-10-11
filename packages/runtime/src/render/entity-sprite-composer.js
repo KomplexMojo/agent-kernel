@@ -118,14 +118,19 @@ function inferRole(entity) {
 }
 
 /**
- * Pull the single active affinity. Single-equip is a domain decision (2026-09-02).
+ * Pull the single active (equipped) affinity, or null when the entity has none.
+ * Single-equip is a domain decision (2026-09-02).
  *
  * Observation objects carry affinity in several shapes and all of them are live:
  * actors use `affinities[]`, hazards use a singular `affinity` OBJECT or
  * `affinityStacks[]`, and cards use `traits.affinities`. Reading only the string
  * form silently rendered every hazard and resource as the default `fire`.
+ *
+ * Exported so the ASCII board (`ascii-cell-style.js`) reads affinity exactly as
+ * the sprite does; a sprite needs a fill, so `inferAffinity` defaults, while a
+ * terminal cell can simply stay uncoloured.
  */
-function inferAffinity(entity) {
+export function resolveEquippedAffinity(entity) {
   const explicit = normalizeToken(
     typeof entity?.affinity === "string" ? entity.affinity : entity?.affinity?.kind,
   );
@@ -149,7 +154,11 @@ function inferAffinity(entity) {
       if (AFFINITY_KINDS.includes(kind)) return kind;
     }
   }
-  return DEFAULT_AFFINITY;
+  return null;
+}
+
+function inferAffinity(entity) {
+  return resolveEquippedAffinity(entity) ?? DEFAULT_AFFINITY;
 }
 
 /**

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>agent-kernel — README preview (not published)</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --link: #2f81f7;
+      --code-bg: #1a1f2e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+    }
+    .chrome {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .chrome strong { color: var(--text); }
+    .chrome .pill {
+      background: #21262d;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      color: #e8a54b;
+      font-weight: 600;
+    }
+    main {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+    .readme {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 32px;
+    }
+    .readme img { max-width: 100%; height: auto; }
+    .center { text-align: center; }
+    .center img { display: inline-block; }
+    h2, h3 { border-bottom: 1px solid var(--border); padding-bottom: 0.3em; margin-top: 1.6em; }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.9em;
+    }
+    code {
+      background: rgba(110,118,129,0.2);
+      padding: 0.15em 0.4em;
+      border-radius: 6px;
+    }
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      overflow-x: auto;
+    }
+    pre code { background: none; padding: 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1em 0;
+      font-size: 0.95em;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      text-align: left;
+    }
+    th { background: #21262d; }
+    blockquote {
+      margin: 1.2em 0;
+      padding: 0.6em 1em;
+      border-left: 4px solid #c4a35a;
+      background: #21262d;
+      color: var(--text);
+    }
+    ul { padding-left: 1.4em; }
+    li { margin: 0.35em 0; }
+    details {
+      margin-top: 1.5em;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px;
+    }
+    summary { cursor: pointer; font-weight: 600; }
+    .nav { margin: 1em 0 0.5em; }
+    .affinity-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 1em 0 0.5em;
+    }
+    .affinity-row img {
+      width: 40px;
+      height: 40px;
+      image-rendering: pixelated;
+      background: #000;
+      border-radius: 4px;
+    }
+    .affinity-row.compact img {
+      width: 36px;
+      height: 36px;
+    }
+  </style>
+</head>
+<body>
+  <div class="chrome">
+    <strong>Local preview</strong>
+    <span>KomplexMojo / agent-kernel · README</span>
+    <span class="pill">Not published — review only</span>
+  </div>
+  <main>
+    <article class="readme">
+      <p class="center">
+        <img src="banner.png" alt="agent-kernel banner" width="100%">
+      </p>
+      <p class="center">
+        <img src="progress.svg" alt="Overall progress 40%" width="520">
+      </p>
+      <div class="affinity-row" aria-hidden="true">
+        <img src="affinities/icon-affinity-fire.png" alt="">
+        <img src="affinities/icon-affinity-water.png" alt="">
+        <img src="affinities/icon-affinity-earth.png" alt="">
+        <img src="affinities/icon-affinity-wind.png" alt="">
+        <img src="affinities/icon-affinity-life.png" alt="">
+        <img src="affinities/icon-affinity-decay.png" alt="">
+        <img src="affinities/icon-affinity-corrode.png" alt="">
+        <img src="affinities/icon-affinity-fortify.png" alt="">
+        <img src="affinities/icon-affinity-light.png" alt="">
+        <img src="affinities/icon-affinity-dark.png" alt="">
+      </div>
+      <p class="center nav">
+        <a href="#the-engine"><b>The engine</b></a>
+        &nbsp;·&nbsp;
+        <a href="#surfaces">Surfaces</a>
+        &nbsp;·&nbsp;
+        <a href="#design-constraints">Design constraints</a>
+        &nbsp;·&nbsp;
+        <a href="#status">Status</a>
+      </p>
+
+      <blockquote>
+        <b>Status.</b> This is a <b>large, multi-year project under active development</b>.
+        Progress is about <b>40%</b> of the intended scope. The simulation core, CLI, and MCP surfaces
+        are in active use; the game that will sit on top of them is still ahead.
+      </blockquote>
+
+      <h2 id="the-engine">The engine</h2>
+      <p>agent-kernel is the <b>underlying simulation engine</b> for a future dungeon game. It is not the game itself.</p>
+      <p>The core advances dungeon scenarios deterministically: rooms, actors, affinities, motivations, hazards, resources, combat. Runs are replayable. Given the same inputs, the engine produces the same outcomes — that is the basis for <b>provable fairness</b>.</p>
+      <p>Token spend is not advisory. <b>Token economics are enforced</b> in the Allocator: base costs, pricing formulas, spend validation, and receipts. Nothing else in the system invents a price.</p>
+      <p class="center">
+        <img src="gameplay-shot.png" alt="Gameplay board" width="420" style="border-radius:6px;border:1px solid #30363d;background:#000">
+        <br><span class="sub" style="color:#8b949e;font-size:13px">Gameplay board from a run: water delvers, fire wardens and hazards, mid-tick.</span>
+      </p>
+
+      <h2 id="surfaces">Surfaces</h2>
+      <ul>
+        <li><b>CLI</b> — author scenarios, configure runs, execute ticks, replay frames, inspect artifacts.</li>
+        <li><b>MCP</b> — the same operations exposed as tools so AI harnesses (Cursor, Claude Code, and others) can drive the engine without a custom integration.</li>
+      </ul>
+      <p>A browser UI exists for preview and playback of the same artifacts. Adapters for IPFS, chain anchoring, and related distributed storage are part of the intended stack; the core itself stays free of network and clock access.</p>
+
+      <h3>MCP through a harness</h3>
+      <p>With <code>pnpm run mcp:serve</code> connected to a harness (Cursor, Claude Code, Codex, and similar), authoring is ordinary language. The harness calls tools such as <code>ak_create</code>, <code>ak_configure</code>, <code>ak_run</code>, and <code>ak_inspect</code>; the Allocator still enforces the token budget.</p>
+      <p>Examples of prompts that drive scenario creation:</p>
+      <div class="affinity-row compact" aria-hidden="true">
+        <img src="affinities/icon-affinity-water.png" alt="">
+        <img src="affinities/icon-affinity-fire.png" alt="">
+        <img src="affinities/icon-affinity-dark.png" alt="">
+      </div>
+      <blockquote>Create a new large dungeon using a 50K token budget. Delver affinities should focus on water. Warden and trap affinities should focus on fire.</blockquote>
+      <blockquote>Build a small three-room dungeon under 5,000 tokens. One water delver with an attacking motivation, one fire warden defending the exit, and a single fire hazard in the middle room.</blockquote>
+      <blockquote>Author a constrained arena: dungeon-side budget 8,000 tokens, delver-side budget 2,000. Dark wardens and dark hazards only. Two fire delvers. Then run 40 ticks and show the outcome.</blockquote>
+      <blockquote>Take the last created run, raise the total budget to 20,000 tokens, add a second water delver, and reconfigure without changing the room layout.</blockquote>
+      <p>The harness turns those requests into structured <code>ak_create</code> / <code>ak_configure</code> calls (<code>budgetTokens</code>, <code>delver</code>, <code>warden</code>, <code>hazard</code>, and related fields). Spend that cannot clear a receipt fails; the engine does not soft-override the budget.</p>
+
+      <h2 id="design-constraints">Design constraints</h2>
+      <ul>
+        <li><b>Decentralized / distributed.</b> Simulation state and artifacts are designed to move through adapters (IPFS, chain) rather than a privileged server owning the truth.</li>
+        <li><b>Provably fair.</b> Deterministic rules, replayable ticks, versioned artifacts. Fairness is a property of the engine, not a claim about a hosted service.</li>
+        <li><b>Enforced token economics.</b> Pricing has one owner. Spend that cannot clear a receipt does not proceed.</li>
+        <li><b>Local LLMs for construction and benchmarks.</b> Scenario construction and benchmarking drive local LLM calls (Ollama and similar), not a dependency on a hosted model API.</li>
+        <li><b>Z3 instead of rule cages.</b> Constraint and decision work goes through Z3 solvers rather than sprawling hand-written rule cages.</li>
+      </ul>
+
+      <h2 id="status">Status</h2>
+      <p>Early relative to the full multi-year scope. The engine, offline authoring path, and harness integration are the working middle. The public game layer, wider distribution path, and product polish are still open.</p>
+      <p>Private repository while under development. Licence: ISC (see <code>package.json</code>).</p>
+
+      <details open>
+        <summary>For developers</summary>
+
+        <h3>Quick start</h3>
+        <pre><code>pnpm install
+pnpm run test
+pnpm run serve:ui
+pnpm run mcp:serve</code></pre>
+
+        <h3>Architecture</h3>
+        <pre><code>adapters / ui-web  →  runtime (personas)  →  core-ts</code></pre>
+
+        <h3>Persona model</h3>
+        <table>
+          <thead><tr><th>Persona</th><th>Owns</th></tr></thead>
+          <tbody>
+            <tr><td><b>Orchestrator</b></td><td>External interaction: LLM sessions, budget loops, workflow coordination</td></tr>
+            <tr><td><b>Director</b></td><td>Intent → PlanArtifact → BuildSpec</td></tr>
+            <tr><td><b>Configurator</b></td><td>SimConfig assembly, validation, locking</td></tr>
+            <tr><td><b>Allocator</b></td><td>All pricing, base costs, spend validation, receipts</td></tr>
+            <tr><td><b>Actor</b></td><td>Action proposals from observation and motivation</td></tr>
+            <tr><td><b>Moderator</b></td><td>Tick ordering, affinity resolution, effect fulfillment, pause gating</td></tr>
+            <tr><td><b>Annotator</b></td><td>Telemetry records and end-of-run summaries</td></tr>
+          </tbody>
+        </table>
+      </details>
+    </article>
+  </main>
+</body>
+</html>
