@@ -1496,7 +1496,10 @@ export function createFsmRuntime({
           continue;
         }
         if (!actorTurn.apply(normalized)) {
-          reject(action, "actor_action_rejected_by_core");
+          // Core names the reason when it can (BlockedByWall, ActorCollision, ...),
+          // in the same `prefix:Name` form as the old engine's move rejections.
+          const why = actorTurn.lastRejection();
+          reject(action, why ? `actor_action_rejected_by_core:${why}` : "actor_action_rejected_by_core");
           continue;
         }
         accept(action, normalized);

@@ -139,6 +139,10 @@ export function resolveEquippedAffinity(entity) {
   const equipped = normalizeToken(entity?.equippedAffinity?.kind ?? entity?.equippedAffinity);
   if (AFFINITY_KINDS.includes(equipped)) return equipped;
 
+  // A unified actor names its one active pair as `kind:expression`.
+  const active = normalizeToken(typeof entity?.activeAffinityKey === "string" ? entity.activeAffinityKey.split(":")[0] : "");
+  if (AFFINITY_KINDS.includes(active)) return active;
+
   for (const source of [entity?.affinities, entity?.affinityStacks]) {
     if (!Array.isArray(source)) continue;
     for (const entry of source) {

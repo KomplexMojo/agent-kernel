@@ -49,7 +49,7 @@ Reaching the exit's approach tile puts you **at the exit**; waiting one more tic
 | `src/cli.mjs` | The terminal: arguments, raw-mode keypresses, redraws |
 | `src/keymap.js` | Key → intent (`move`, `wait`, `restart`, …). No legality |
 | `src/game.js` | Intent → play-session call; level index, move count, last message |
-| `src/screen.js` | Lays out the view as text and turns palette hex into ANSI escapes. Glyphs come from core's frame buffer; board colours from `render/ascii-cell-style.js`; vital labels and colours from runtime's HUD model |
+| `src/screen.js` | Lays out the view as text and turns palette hex into ANSI escapes. Board glyphs come from the play session's rows (the registry's terrain in the level's render legend); board colours from `render/ascii-cell-style.js`; vital labels and colours from runtime's HUD model |
 | `src/levels.js` | Finds and parses SimConfig + InitialState artifact pairs |
 | `levels/` | Bundled levels, as `<name>.sim-config.json` + `<name>.initial-state.json`, generated from `levels/recipes.json` |
 
@@ -57,7 +57,7 @@ The simulation side is `packages/runtime/src/runner/play-session.js`: `await cre
 
 ## Other actors and traps
 
-Core's frame buffer draws only the player. When the play session reports other actors (`view().actors`), the screen draws them on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden (read from the role, or the id when a generated level leaves the role unset). Traps are the level's static hazards (`view().hazards`), drawn as `H` under any actor. Core applies a trap when you step on it, so an `emit` trap costs the vital its affinity targets (water: health). Whether actors move is the play session's business, not this package's.
+The play session's rows draw the terrain, barriers (`B`) and the player (`@`). Other actors (`view().actors`) are drawn on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden (read from the role, or the id when a generated level leaves the role unset). Traps are the level's hazard actors (`view().hazards`), drawn as `H` under any actor. A trap's field hurts whoever stands in it each turn, so an `emit` trap costs the vital its affinity targets (water: health), and it pays `2 + stacks` mana a turn to stay on. Whether actors move is the play session's business, not this package's.
 
 ## Bundled levels
 

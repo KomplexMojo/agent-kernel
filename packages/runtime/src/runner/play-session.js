@@ -11,31 +11,32 @@
  * does the command and every other actor takes its own Actor-persona turn in the
  * same tick. A rejected move still costs the turn (maintainer ruling, 2026-10-10).
  *
- * It is glue, not rules:
+ * The level is a unified-actor level: terrain plus one actor list, where traps
+ * are hazard actors and barriers are barrier actors. It is glue, not rules:
  *   - **What a command means is the Actor's** (`normalizeActorCommand`); the
  *     Actor turns it into the player's proposal.
- *   - **Legality is core's.** Rejections are reported with core's
- *     ValidationError name and code, never second-guessed.
- *   - **Leaving the level is core's** exit-dwell rule, read back through the
- *     runtime; `atExit` is "standing on core's exit-approach seat", the cell that
- *     rule counts.
- *   - **Glyphs are core's.** The board is `renderCoreFrame`'s buffer as-is; it
- *     draws the primary actor only, so `view().actors` carries everyone else.
+ *   - **Legality is core's.** Rejections carry core's ValidationError name
+ *     (`BlockedByWall`, `ActorCollision`, ...), never second-guessed.
+ *   - **Leaving the level is core's** exit-dwell rule (two ends of tick on exit
+ *     terrain), read back through the runtime; `atExit` is "standing on exit
+ *     terrain and not yet gone".
+ *   - **The board is the registry's terrain** drawn with the level's own render
+ *     legend (`ASCII_TERRAIN_GLYPHS` by default), barriers as `B` and the player
+ *     as `@`; `view().actors` and `view().hazards` carry everyone else.
+ *   - **Which actors are traps is presentation**, the level's `presentation`
+ *     category, read through the runtime; core never dispatches on it.
  *   - **HUD semantics are runtime render's** (`render/actor-hud-model.js`).
- *   - **Traps are the level's.** Core arms the layout's static hazards at load
- *     and applies them when an actor steps in, but its frame buffer does not
- *     draw them, so `view().hazards` reports them from the SimConfig layout.
- *   - **Sight is core's** (`computeVisibleCells`, read through the runtime).
- *     This session only REMEMBERS: a cell the player has seen once stays
- *     explored. view() then applies fog: a never-seen cell is the fog glyph, an
- *     explored cell out of sight shows its base tile (no actors), and `sight`
- *     tells the UI which cells to dim.
+ *   - **Sight is core's** (`readActorRegistryVisibleCells`, read through the
+ *     runtime). This session only REMEMBERS: a cell the player has seen once
+ *     stays explored. view() then applies fog: a never-seen cell is the fog
+ *     glyph, an explored cell out of sight shows its base tile (no actors), and
+ *     `sight` tells the UI which cells to dim.
  */
-import { ValidationError } from "../../../core-ts/src/index.ts";
-import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { ACTOR_COMMAND_KINDS, normalizeActorCommand } from "../personas/actor/persona.js";
+import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
-import { createPlaybackRuntime, createRuntimeCore, renderCoreFrame } from "./core-facade.js";
+import { ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
+import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 
 export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
 
@@ -61,19 +62,22 @@ function toPlayAction(action) {
   return { actorId: action.actorId, tick: action.tick, kind: action.kind, params: { ...action.params } };
 }
 
-// runtime-fsm prefixes core's ValidationError name ("move_rejected_by_core:BlockedByWall").
+// runtime-fsm prefixes core's ValidationError name ("actor_action_rejected_by_core:BlockedByWall").
 function toPlayRejection({ action, reason }) {
   const text = String(reason || "");
-  const name = text.slice(text.lastIndexOf(":") + 1) || text;
-  const code = Object.prototype.hasOwnProperty.call(ValidationError, name) ? ValidationError[name] : null;
-  return { ...toPlayAction(action), code, reason: name };
+  return { ...toPlayAction(action), reason: text.slice(text.lastIndexOf(":") + 1) || text };
 }
+
+const HAZARD_CATEGORY = "hazard";
+const BARRIER_CATEGORY = "barrier";
+const PLAYER_MOTIVATION = "user_controlled";
 
 /**
  * @param {object} args
- * @param {object} args.simConfig      agent-kernel/SimConfigArtifact
- * @param {object} args.initialState   agent-kernel/InitialStateArtifact
- * @param {string} [args.playerActorId] any configured actor; defaults to the primary (id-sorted first)
+ * @param {object} args.simConfig      agent-kernel/SimConfigArtifact (unified terrain)
+ * @param {object} args.initialState   agent-kernel/InitialStateArtifact (unified actors)
+ * @param {string} [args.playerActorId] any configured actor; defaults to the first (by id)
+ *                                     `user_controlled` actor, else the first delver, else the first actor
  * @param {object} [args.core]         a core to drive; a fresh one by default
  * @param {Function} [args.clock]      injected clock for the runtime
  * @param {boolean}  [args.fog]        apply fog of war to view(); off by default so a
@@ -91,11 +95,15 @@ export async function createPlaySession({
   if (!simConfig || !initialState) {
     throw new Error("createPlaySession: simConfig and initialState are required");
   }
-  const configuredIds = (Array.isArray(initialState.actors) ? initialState.actors : [])
-    .map((actor) => actor?.id)
-    .filter((id) => typeof id === "string" && id);
-  const primaryId = configuredIds.slice().sort((a, b) => a.localeCompare(b))[0];
-  const playerId = playerActorId ?? primaryId;
+  const sourceActors = (Array.isArray(initialState.actors) ? initialState.actors : [])
+    .filter((actor) => typeof actor?.id === "string" && actor.id);
+  const configuredIds = sourceActors.map((actor) => actor.id);
+  const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  const categoryOf = (id) => initialState.presentation?.[id]?.category ?? null;
+  const defaultPlayer = sourceActors.filter((actor) => actor.motivations?.includes?.(PLAYER_MOTIVATION)).sort(byId)[0]
+    ?? sourceActors.filter((actor) => categoryOf(actor.id) === "delver").sort(byId)[0]
+    ?? sourceActors.slice().sort(byId)[0];
+  const playerId = playerActorId ?? defaultPlayer?.id;
   if (playerId !== undefined && !configuredIds.includes(playerId)) {
     throw new Error(`createPlaySession: playerActorId "${playerId}" is not an actor in this level`);
   }
@@ -106,15 +114,12 @@ export async function createPlaySession({
   } catch (error) {
     throw new Error(`createPlaySession: level did not load (${error?.message || "unknown"})`);
   }
+  if (!runtime.getActorSnapshot()) {
+    throw new Error("createPlaySession: level did not load (no unified actors)");
+  }
+  const presentation = runtime.getActorPresentation() || {};
+  const legend = { ...ASCII_TERRAIN_GLYPHS, ...(simConfig.layout?.data?.render || {}), actor: "@" };
 
-  // A blocking hazard is already a barrier in core's buffer.
-  const hazards = (simConfig.layout?.data?.hazards || [])
-    .filter((hazard) => hazard && typeof hazard === "object" && hazard.blocking !== true)
-    .map((hazard) => ({
-      ...structuredClone(hazard),
-      position: { x: hazard.position?.x ?? hazard.x, y: hazard.position?.y ?? hazard.y },
-    }))
-    .filter((hazard) => Number.isInteger(hazard.position.x) && Number.isInteger(hazard.position.y));
   // Explored memory: a cell stays explored once the player has seen it.
   let explored = null;
 
@@ -132,32 +137,34 @@ export async function createPlaySession({
     }));
   }
 
-  const sourceById = new Map((initialState.actors || []).filter((actor) => actor?.id).map((actor) => [actor.id, actor]));
-  const playerSource = sourceById.get(playerId) || {};
-
   rememberVisible();
 
-  function readActors() {
-    return runtime.readObservation()?.actors || [];
+  function readSnapshot() {
+    return runtime.getActorSnapshot();
   }
 
-  function readPlayer() {
-    return readActors().find((actor) => actor?.id === playerId) || null;
+  function currentTick() {
+    return runtime.readObservation()?.tick ?? 0;
+  }
+
+  function terrainAt(snapshot, position) {
+    const { width } = snapshot.dimensions;
+    return snapshot.terrain[position.y * width + position.x];
   }
 
   function status() {
+    const snapshot = readSnapshot();
     const exited = runtime.hasActorExited(playerId);
-    const seat = typeof core.getExitApproachPosition === "function" ? core.getExitApproachPosition() : null;
-    const position = exited ? null : readPlayer()?.position;
-    const atExit = Boolean(position && seat && position.x === seat.x && position.y === seat.y);
-    return { tick: core.getCurrentTick(), exited, atExit };
+    const player = exited ? null : snapshot.actors.find((actor) => actor.id === playerId);
+    const atExit = Boolean(player && player.lifecycle === "alive" && terrainAt(snapshot, player.position) === "exit");
+    return { tick: currentTick(), exited, atExit };
   }
 
   async function act(command) {
     const normalized = normalizePlayCommand(command);
     if (status().exited) {
-      const action = { actorId: playerId, tick: core.getCurrentTick() + 1, kind: normalized.kind, params: { ...normalized.params } };
-      return { tick: core.getCurrentTick(), accepted: [], rejected: [{ ...action, reason: "exited" }], status: status() };
+      const action = { actorId: playerId, tick: currentTick() + 1, kind: normalized.kind, params: { ...normalized.params } };
+      return { tick: currentTick(), accepted: [], rejected: [{ ...action, reason: "exited" }], status: status() };
     }
     await runtime.step({ actorCommands: { [playerId]: normalized } });
     if (!runtime.hasActorExited(playerId)) rememberVisible();
@@ -168,11 +175,30 @@ export async function createPlaySession({
     const rejected = (applyFrame.preCoreRejections || [])
       .filter((entry) => entry?.action?.actorId === playerId && isGameplayAction(entry.action))
       .map(toPlayRejection);
-    return { tick: core.getCurrentTick(), accepted, rejected, status: status() };
+    return { tick: currentTick(), accepted, rejected, status: status() };
   }
 
-  // Fog over core's frame. Without a sight grid (the player has left the map, or a core
-  // without the sight reader) nothing is hidden.
+  // The registry's terrain in the level's legend: base tiles, then the frame with
+  // living barriers and the player drawn in.
+  function renderBoard(snapshot) {
+    const { width, height } = snapshot.dimensions;
+    const baseTiles = [];
+    for (let y = 0; y < height; y += 1) {
+      let row = "";
+      for (let x = 0; x < width; x += 1) row += legend[snapshot.terrain[y * width + x]] ?? legend.floor;
+      baseTiles.push(row);
+    }
+    const grid = baseTiles.map((row) => row.split(""));
+    for (const actor of snapshot.actors) {
+      if (actor.lifecycle !== "alive") continue;
+      if (presentation[actor.id]?.category === BARRIER_CATEGORY) grid[actor.position.y][actor.position.x] = legend.barrier;
+    }
+    const player = snapshot.actors.find((actor) => actor.id === playerId && actor.lifecycle !== "exited");
+    if (player) grid[player.position.y][player.position.x] = legend.actor;
+    return { baseTiles, buffer: grid.map((cells) => cells.join("")) };
+  }
+
+  // Fog over the board. Without a sight grid (the player has left the map) nothing is hidden.
   function applyFog(frame) {
     const visible = !fog || runtime.hasActorExited(playerId) ? null : readVisible();
     if (!visible || !explored) {
@@ -188,7 +214,7 @@ export async function createPlaySession({
           row += bufferRow[x];
           sightRow += PLAY_SIGHT.VISIBLE;
         } else if (explored[y]?.[x]) {
-          row += frame.baseTiles?.[y]?.[x] ?? bufferRow[x];
+          row += frame.baseTiles[y][x];
           sightRow += PLAY_SIGHT.REMEMBERED;
         } else {
           row += FOG_GLYPH;
@@ -201,46 +227,46 @@ export async function createPlaySession({
     return { rows, sight, visible };
   }
 
-  function view() {
-    const frame = renderCoreFrame(core, { actorIdLabel: playerId });
-    const actors = readActors();
-    const player = actors.find((actor) => actor?.id === playerId) || null;
-    const fog = applyFog(frame);
-    const inSight = (actor) => !fog.visible || Boolean(fog.visible[actor.position?.y]?.[actor.position?.x]);
+  // One actor as the UI sees it: plain data, vitals as records, the active pair named.
+  function toViewActor(actor) {
+    const category = presentation[actor.id]?.category ?? null;
     return {
-      tick: frame.tick,
-      rows: fog.rows,
-      sight: fog.sight,
-      legend: { ...frame.legend, fog: FOG_GLYPH },
+      id: actor.id,
+      role: category,
+      position: { ...actor.position },
+      vitals: structuredClone(actor.vitals),
+      affinities: actor.affinities.map((pair) => ({ ...pair })),
+      activeAffinityKey: actor.activeAffinityKey,
+      ...(actor.affinityExhausted ? { affinityExhausted: true } : {}),
+    };
+  }
+
+  function view() {
+    const snapshot = readSnapshot();
+    const frame = renderBoard(snapshot);
+    const fogged = applyFog(frame);
+    const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
+    const player = snapshot.actors.find((actor) => actor.id === playerId && actor.lifecycle !== "exited") || null;
+    const others = snapshot.actors.filter((actor) => actor.id !== playerId && actor.lifecycle === "alive"
+      && presentation[actor.id]?.category !== BARRIER_CATEGORY && inSight(actor));
+    return {
+      tick: currentTick(),
+      rows: fogged.rows,
+      sight: fogged.sight,
+      legend: { ...legend, fog: FOG_GLYPH },
       status: status(),
       // With fog, only traps in sight right now.
-      hazards: structuredClone(hazards.filter((hazard) => inSight(hazard))),
+      hazards: others.filter((actor) => presentation[actor.id]?.category === HAZARD_CATEGORY).map(toViewActor),
       player: player
         ? {
-          // Core's observation reports `affinities: []` unless it is handed the
-          // affinity metadata, which would hide the authored equipped affinity.
-          ...buildActorHudModel({
-            ...playerSource,
-            ...player,
-            affinities: player.affinities?.length ? player.affinities : playerSource.affinities,
-            id: playerId,
-          }),
+          ...buildActorHudModel({ ...toViewActor(player), role: presentation[player.id]?.category ?? null }),
+          activeAffinityKey: player.activeAffinityKey,
           position: { ...player.position },
         }
         : null,
-      // Every OTHER visible actor (id, role, position, vitals, affinities), for the UI
-      // to draw; core's frame shows only the primary actor. Affinities follow the
-      // player's rule: core's observed list, else the authored one.
-      // Only actors the player can see right now: fog hides the rest.
-      actors: actors
-        .filter((actor) => actor?.id !== playerId && actor?.position && inSight(actor))
-        .map((actor) => ({
-          id: actor.id,
-          role: actor.role ?? null,
-          position: { ...actor.position },
-          vitals: actor.vitals,
-          affinities: actor.affinities?.length ? actor.affinities : (sourceById.get(actor.id)?.affinities ?? []),
-        })),
+      // Every OTHER living actor in sight (id, role, position, vitals, affinities), for the
+      // UI to draw over the board. Traps are reported in `hazards` instead.
+      actors: others.filter((actor) => presentation[actor.id]?.category !== HAZARD_CATEGORY).map(toViewActor),
     };
   }
 

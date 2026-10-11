@@ -5,24 +5,44 @@
  * reports core's answers rather than inventing its own.
  */
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { resolve } = require("node:path");
 
 const {
   createPlaySession,
   normalizePlayCommand,
   PLAY_DIRECTIONS,
 } = require("../../packages/runtime/src/runner/play-session.js");
+const { buildUnifiedLevel, viableVitals } = require("../fixtures/ui-ascii/unified-level.mjs");
 
-const FIXTURES = resolve(__dirname, "../fixtures/artifacts");
-const readFixture = (name) => JSON.parse(readFileSync(resolve(FIXTURES, name), "utf8"));
-const simConfig = readFixture("sim-config-artifact-v1-mvp-grid.json");
-const initialState = readFixture("initial-state-artifact-v1-mvp-actor.json");
+// The MVP maze as a unified-actor level: the player's delver seated at (2,1),
+// the exit terrain at (8,7).
+const MAZE = [
+  "#########",
+  "S...#...#",
+  "#...#.#.#",
+  "#.#...#.#",
+  "#.###.#.#",
+  "#...#...#",
+  "#.#.#.###",
+  "#...#...E",
+  "#########",
+];
+const PLAYER = { category: "delver", id: "actor_mvp", position: { x: 2, y: 1 }, vitals: viableVitals(), motivations: ["user_controlled"] };
+const mazeLevel = (extra = []) => buildUnifiedLevel({ id: "mvp_maze", tiles: MAZE, actors: [PLAYER, ...extra] });
+const { simConfig, initialState } = mazeLevel();
 
-// From the fixture actor's seat (2,1) to the exit approach (7,7).
+/** A trap: a hazard actor with one active affinity and the mana to power it. */
+function trap(id, kind, position, { expression = "emit", stacks = 1, mana = 30, regen = 3 } = {}) {
+  return {
+    category: "hazard", id, position,
+    vitals: { durability: { current: 10, max: 10, regen: 1 }, mana: { current: mana, max: mana, regen } },
+    affinities: [{ kind, expression, stacks }], activeAffinityKey: `${kind}:${expression}`,
+  };
+}
+
+// From the player's seat (2,1) onto the exit terrain (8,7).
 const PATH_TO_EXIT = [
   "east", "south", "south", "east", "east",
-  "south", "south", "south", "south", "east", "east",
+  "south", "south", "south", "south", "east", "east", "east",
 ];
 
 const move = (direction) => ({ kind: "move", params: { direction } });
@@ -37,7 +57,7 @@ async function walkToExit(session) {
   return last;
 }
 
-test("the first view is core's frame at tick 0 with the player at its seat", async () => {
+test("the first view is the level's board at tick 0 with the player at its seat", async () => {
   const view = (await newSession()).view();
   assert.equal(view.tick, 0);
   assert.deepEqual(view.status, { tick: 0, exited: false, atExit: false });
@@ -64,7 +84,7 @@ test("an accepted move moves the player and closes exactly one tick", async () =
     actorId: "actor_mvp",
     tick: 1,
     kind: "move",
-    params: { direction: "east", from: { x: 2, y: 1 }, to: { x: 3, y: 1 } },
+    params: { target: { x: 3, y: 1 } },
   }]);
   const view = session.view();
   assert.deepEqual(view.player.position, { x: 3, y: 1 });
@@ -89,17 +109,17 @@ test("wait, and an absent command, close a tick without moving", async () => {
   assert.deepEqual(session.view().player.position, { x: 2, y: 1 });
 });
 
-test("reaching the exit approach is atExit; core's exit dwell then exits", async () => {
+test("standing on the exit is atExit; core's exit dwell then exits", async () => {
   const session = await newSession();
   const last = await walkToExit(session);
   assert.equal(last.status.atExit, true);
   assert.equal(last.status.exited, false);
-  assert.deepEqual(session.view().player.position, { x: 7, y: 7 });
+  assert.deepEqual(session.view().player.position, { x: 8, y: 7 });
   const stepped = await session.act({ kind: "wait" });
   assert.deepEqual(stepped.status, { tick: stepped.tick, exited: true, atExit: false });
 });
 
-test("stepping off the exit approach clears atExit", async () => {
+test("stepping off the exit clears atExit", async () => {
   const session = await newSession();
   await walkToExit(session);
   assert.equal((await session.act(move("west"))).status.atExit, false);
@@ -130,7 +150,7 @@ test("directions are the shared eight-way set", () => {
 });
 
 test("a level that does not load is refused with core-setup's reason", async () => {
-  await assert.rejects(createPlaySession({ simConfig, initialState: { ...initialState, actors: [] } }), /missing_actors/);
+  await assert.rejects(createPlaySession({ simConfig, initialState: { ...initialState, actors: [] } }), /presentation must contain/);
   await assert.rejects(createPlaySession({ simConfig }), /required/);
 });
 
@@ -143,22 +163,23 @@ test("playerActorId defaults to the primary actor; an actor not in the level is 
   );
 });
 
-test("view().hazards reports the layout's traps; a blocking one is core's barrier instead", async () => {
-  const hazards = [
-    { id: "trap-a", affinity: "water", expression: "emit", position: { x: 4, y: 3 } },
-    { id: "trap-b", affinity: "fire", expression: "emit", x: 3, y: 2 },
-    { id: "wall-c", affinity: "earth", expression: "push", blocking: true, position: { x: 5, y: 5 } },
-  ];
-  const withHazards = { ...simConfig, layout: { ...simConfig.layout, data: { ...simConfig.layout.data, hazards } } };
-  const session = await createPlaySession({ simConfig: withHazards, initialState });
+test("view().hazards reports the level's hazard actors; a barrier is drawn on the board instead", async () => {
+  const barrier = {
+    category: "barrier", id: "wall-c", position: { x: 5, y: 5 },
+    vitals: { durability: { current: 10, max: 10, regen: 0 } },
+  };
+  const level = mazeLevel([trap("trap-a", "water", { x: 3, y: 3 }), trap("trap-b", "fire", { x: 3, y: 2 }), barrier]);
+  const session = await createPlaySession(level);
   const view = session.view();
   assert.deepEqual(view.hazards.map((hazard) => [hazard.id, hazard.position]), [
-    ["trap-a", { x: 4, y: 3 }],
+    ["trap-a", { x: 3, y: 3 }],
     ["trap-b", { x: 3, y: 2 }],
   ]);
-  assert.equal(view.hazards[0].affinity, "water");
+  assert.equal(view.hazards[0].activeAffinityKey, "water:emit");
+  assert.equal(view.rows[5][5], "B", "the barrier is on the board");
+  assert.ok(!view.actors.some((actor) => actor.id === "wall-c"));
   view.hazards[0].position.x = 99;
-  assert.equal(session.view().hazards[0].position.x, 4, "the view is a copy");
+  assert.equal(session.view().hazards[0].position.x, 3, "the view is a copy");
   assert.deepEqual((await newSession()).view().hazards, [], "no hazards: an empty list");
 });
 
@@ -175,42 +196,19 @@ test("two sessions on the same level are independent and deterministic", async (
 // Other actors take their turns: each act() is one runtime.step({ actorCommands }).
 // ---------------------------------------------------------------------------
 
-function makeVitals(hp) {
-  return {
-    health: { current: hp, max: hp, regen: 0 },
-    mana: { current: hp, max: hp, regen: 0 },
-    stamina: { current: hp, max: hp, regen: 0 },
-    durability: { current: 1, max: 1, regen: 0 },
-  };
-}
-
-function buildArenaLevel() {
+function buildArenaLevel({ wardenAffinities } = {}) {
   const tiles = ["#######", "#.....#", "#.....#", "#.....E", "#######"];
-  return {
-    simConfig: {
-      schema: "agent-kernel/SimConfigArtifact",
-      schemaVersion: 1,
-      meta: { id: "arena_sim", runId: "arena", createdAt: "2026-10-10T00:00:00.000Z" },
-      seed: 0,
-      layout: {
-        kind: "grid",
-        data: {
-          width: 7, height: 5, tiles, spawn: { x: 1, y: 1 }, exit: { x: 6, y: 3 }, exitApproach: { x: 5, y: 3 },
-          rooms: [{ id: "R1", x: 0, y: 0, width: 7, height: 5 }], hazards: [],
-        },
+  return buildUnifiedLevel({
+    id: "arena",
+    tiles,
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["random"], vitals: viableVitals() },
+      {
+        category: "warden", id: "warden_1", position: { x: 5, y: 1 }, motivations: ["random"], vitals: viableVitals(),
+        ...(wardenAffinities ? { affinities: wardenAffinities } : {}),
       },
-    },
-    initialState: {
-      schema: "agent-kernel/InitialStateArtifact",
-      schemaVersion: 1,
-      meta: { id: "arena_state", runId: "arena", createdAt: "2026-10-10T00:00:00.000Z" },
-      simConfigRef: { id: "arena_sim", schema: "agent-kernel/SimConfigArtifact", schemaVersion: 1 },
-      actors: [
-        { id: "delver_1", kind: "ambulatory", archetype: "delver", role: "delver", position: { x: 1, y: 1 }, motivation: { kind: "random" }, vitals: makeVitals(10) },
-        { id: "warden_1", kind: "ambulatory", archetype: "warden", role: "warden", position: { x: 5, y: 1 }, motivation: { kind: "random" }, vitals: makeVitals(6) },
-      ],
-    },
-  };
+    ],
+  });
 }
 
 test("view().actors carries every other actor so a UI can draw them", async () => {
@@ -220,9 +218,8 @@ test("view().actors carries every other actor so a UI can draw them", async () =
   assert.deepEqual(actors.map((a) => [a.id, a.role, a.position]), [["warden_1", "warden", { x: 5, y: 1 }]]);
 });
 
-test("view().actors carries each actor's authored affinities when core's observation reports none", async () => {
-  const level = buildArenaLevel();
-  level.initialState.actors[1].affinities = [{ kind: "fire", expression: "push", stacks: 1 }];
+test("view().actors carries each actor's affinities", async () => {
+  const level = buildArenaLevel({ wardenAffinities: [{ kind: "fire", expression: "push", stacks: 1 }] });
   const session = await createPlaySession({ ...level, playerActorId: "delver_1" });
   const warden = session.view().actors.find((a) => a.id === "warden_1");
   assert.deepEqual(warden.affinities.map((a) => a.kind), ["fire"]);
@@ -283,53 +280,31 @@ test("with fog, actors out of sight are not reported", async () => {
 });
 
 test("with fog, traps out of sight are not reported", async () => {
-  const hazards = [
-    { id: "near", affinity: "water", expression: "emit", position: { x: 3, y: 1 } },
-    { id: "far", affinity: "fire", expression: "emit", position: { x: 5, y: 5 } },
-  ];
-  const withHazards = { ...simConfig, layout: { ...simConfig.layout, data: { ...simConfig.layout.data, hazards } } };
-  const session = await createPlaySession({ simConfig: withHazards, initialState, fog: true });
+  const level = mazeLevel([trap("near", "water", { x: 3, y: 1 }), trap("far", "fire", { x: 5, y: 5 })]);
+  const session = await createPlaySession({ ...level, fog: true });
   assert.deepEqual(session.view().hazards.map((h) => h.id), ["near"]);
 });
 
 test("with fog, a light-emitting trap lights its cells, which the player sees from afar", async () => {
   // Player at (2,1), unlit, so its own sight is one tile. The lamp at (3,3) is two
   // tiles away in line of sight; its light makes it, and the cells it reaches, visible.
-  const withLamp = (affinity) => ({
-    ...simConfig,
-    layout: {
-      ...simConfig.layout,
-      data: {
-        ...simConfig.layout.data,
-        hazards: [{ id: "lamp", affinity, expression: "emit", stacks: 2, position: { x: 3, y: 3 } }],
-      },
-    },
-  });
-  const lit = (await createPlaySession({ simConfig: withLamp("light"), initialState, fog: true })).view();
+  const lamp = (kind) => mazeLevel([trap("lamp", kind, { x: 3, y: 3 }, { stacks: 2 })]);
+  const lit = (await createPlaySession({ ...lamp("light"), fog: true })).view();
   assert.equal(lit.sight[3][3], PLAY_SIGHT.VISIBLE, "the lamp's own cell");
   assert.equal(lit.sight[3][1], PLAY_SIGHT.VISIBLE, "a cell the lamp lights, in line of sight");
   assert.deepEqual(lit.hazards.map((h) => h.id), ["lamp"]);
 
-  const unlit = (await createPlaySession({ simConfig: withLamp("fire"), initialState, fog: true })).view();
+  const unlit = (await createPlaySession({ ...lamp("fire"), fog: true })).view();
   assert.notEqual(unlit.sight[3][3], PLAY_SIGHT.VISIBLE, "fire emits no light");
   assert.deepEqual(unlit.hazards, []);
 });
 
 test("with fog, a lamp that cannot pay its mana upkeep goes dark", async () => {
   // Every affinity costs mana (2026-10-11). Light on emit at 2 stacks costs 2 + 2 = 4
-  // a turn. The lamp's default pool is 3 per stack = 6 with no regen: it pays once
-  // (6 -> 2), then cannot pay and goes dark until its mana is full, which is never.
-  const withLamp = {
-    ...simConfig,
-    layout: {
-      ...simConfig.layout,
-      data: {
-        ...simConfig.layout.data,
-        hazards: [{ id: "lamp", affinity: "light", expression: "emit", stacks: 2, position: { x: 3, y: 3 } }],
-      },
-    },
-  };
-  const session = await createPlaySession({ simConfig: withLamp, initialState, fog: true });
+  // a turn. With 6 mana and no regen the lamp pays once (6 -> 2), then cannot pay and
+  // goes dark until its mana is full, which is never.
+  const level = mazeLevel([trap("lamp", "light", { x: 3, y: 3 }, { stacks: 2, mana: 6, regen: 0 })]);
+  const session = await createPlaySession({ ...level, fog: true });
   assert.equal(session.view().sight[3][3], PLAY_SIGHT.VISIBLE, "lit at the start");
   await session.act({ kind: "wait" });
   assert.equal(session.view().sight[3][3], PLAY_SIGHT.VISIBLE, "paid its first upkeep");
@@ -337,7 +312,7 @@ test("with fog, a lamp that cannot pay its mana upkeep goes dark", async () => {
   assert.notEqual(session.view().sight[3][3], PLAY_SIGHT.VISIBLE, "drained: dark");
 });
 
-test("without fog, every cell is visible and rows are core's frame", async () => {
+test("without fog, every cell is visible", async () => {
   const view = (await newSession()).view();
   assert.ok(view.sight.every((row) => /^v+$/.test(row)));
 });
@@ -347,6 +322,6 @@ test("without fog, every cell is visible and rows are core's frame", async () =>
 // - a dark cell is unknown from beyond one tile
 // - each of the eight directions from an open floor cell (accepted, position delta)
 // - diagonal moves that cut a wall corner (core's answer, whatever it is, is reported verbatim)
-// - a warden attack lowers the player's health in view()
+// - a warden's cast lowers the player's health in view()
 // - an exit-ineligible (warden) player reaches atExit but never exits
 // - repeated rejected moves each advance the tick by one

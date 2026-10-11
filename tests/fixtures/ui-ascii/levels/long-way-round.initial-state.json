@@ -15,12 +15,13 @@
   "actors": [
     {
       "id": "player",
-      "kind": "ambulatory",
-      "role": "delver",
       "position": {
         "x": 1,
         "y": 1
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -42,7 +43,27 @@
           "max": 10,
           "regen": 1
         }
-      }
+      },
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "user_controlled"
+      ],
+      "affinities": [],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "player": {
+      "category": "delver"
+    }
+  }
 }

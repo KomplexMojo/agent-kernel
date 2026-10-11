@@ -4,8 +4,6 @@
  * only converts them to escape codes.
  */
 const assert = require("node:assert/strict");
-const { readFileSync } = require("node:fs");
-const { resolve } = require("node:path");
 
 const {
   ASCII_REMEMBERED_FADE,
@@ -19,14 +17,14 @@ const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/gam
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
 const { createPlaySession } = require("../../packages/runtime/src/runner/play-session.js");
 
-const FIXTURES = resolve(__dirname, "../fixtures/artifacts");
-const readFixture = (name) => JSON.parse(readFileSync(resolve(FIXTURES, name), "utf8"));
+const { buildUnifiedLevel, viableVitals } = require("../fixtures/ui-ascii/unified-level.mjs");
 
 async function coreLegend() {
-  const session = await createPlaySession({
-    simConfig: readFixture("sim-config-artifact-v1-mvp-grid.json"),
-    initialState: readFixture("initial-state-artifact-v1-mvp-actor.json"),
-  });
+  const session = await createPlaySession(buildUnifiedLevel({
+    id: "legend",
+    tiles: ["#####", "S...E", "#####"],
+    actors: [{ category: "delver", id: "player", position: { x: 1, y: 1 }, vitals: viableVitals() }],
+  }));
   return session.view().legend;
 }
 
@@ -83,6 +81,7 @@ test("an actor's equipped affinity is its cell fill, with the sprite's outline a
 
 test("affinity is read the way the board sprite reads it, in every live shape", () => {
   const shapes = [
+    { activeAffinityKey: "water:emit", affinities: [{ kind: "fire", expression: "push", stacks: 1 }] },
     { affinity: "water" },
     { affinity: { kind: "water" } },
     { equippedAffinity: { kind: "water" } },

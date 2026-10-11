@@ -1430,7 +1430,7 @@ export function normalizeActorCommand(command) {
 function buildCommandProposals({ command, observationView, observation, actorId }) {
   const normalized = normalizeActorCommand(command);
   if (normalized.kind === "wait") {
-    return [{ kind: "wait", params: { reason: "command" } }];
+    return [{ kind: "wait" }];
   }
   const { direction } = normalized.params;
   const delta = DEFAULT_DELTAS.find((entry) => entry.direction === direction);

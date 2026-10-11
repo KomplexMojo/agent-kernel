@@ -61,11 +61,15 @@ export function createActorTurn(
     }
     state.suppressions = state.suppressions.filter(entry => entry.amount > 0);
   }
+  // Why the last apply() was refused, as a ValidationError name, when core can say.
+  let lastRejection: string | null = null;
   return {
     apply(action: ActorAction): boolean {
-      if (!action || action.tick !== tick || state.closed || state.acceptedActorIds.includes(action.actorId)) return false;
+      lastRejection = null;
+      if (!action || action.tick !== tick) { lastRejection = 'TickMismatch'; return false; }
+      if (state.closed || state.acceptedActorIds.includes(action.actorId)) return false;
       const actor = registry.getActor(action.actorId);
-      if (actor?.lifecycle !== 'alive') return false;
+      if (actor?.lifecycle !== 'alive') { lastRejection = 'WrongActor'; return false; }
       let accepted = false;
       switch (action.kind) {
         case 'wait': accepted = action.params === undefined; break;
@@ -84,8 +88,10 @@ export function createActorTurn(
           if (!Number.isSafeInteger(target.x) || !Number.isSafeInteger(target.y)) break;
           const cardinal = Object.hasOwn(prices.movementStamina, actor.id) ? prices.movementStamina[actor.id] : undefined;
           if (cardinal === undefined) break;
+          lastRejection = registry.explainMove(actor.id, target);
+          if (lastRejection) break;
           const cost = computeMovementStaminaCost(actor.position.x !== target.x && actor.position.y !== target.y, cardinal);
-          if ((actor.vitals.stamina?.current ?? 0) < cost) break;
+          if ((actor.vitals.stamina?.current ?? 0) < cost) { lastRejection = 'InsufficientStamina'; break; }
           accepted = registry.moveActor(actor.id, target);
           if (accepted && cost > 0) registry.changeVital(actor.id, 'stamina', -cost);
           break;
@@ -106,6 +112,8 @@ export function createActorTurn(
       if (accepted) state.acceptedActorIds.push(actor.id);
       return accepted;
     },
+    /** The ValidationError name for the last refused apply(), or null when core gave none. */
+    lastRejection(): string | null { return lastRejection; },
     closeActions(): boolean { if (state.closed) return false; state.closed = true; return true; },
     resolveFields() {
       if (!state.closed || state.fieldsResolved) return null;

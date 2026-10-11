@@ -15,12 +15,13 @@
   "actors": [
     {
       "id": "player",
-      "kind": "ambulatory",
-      "role": "delver",
       "position": {
         "x": 1,
         "y": 1
       },
+      "alignment": "external",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -43,25 +44,37 @@
           "regen": 1
         }
       },
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": true,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "user_controlled"
+      ],
       "affinities": [
         {
           "kind": "wind",
           "expression": "push",
           "stacks": 1
         }
-      ]
+      ],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden-1",
-      "kind": "ambulatory",
-      "role": "warden",
-      "motivation": {
-        "kind": "random"
-      },
       "position": {
         "x": 6,
         "y": 5
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -84,25 +97,37 @@
           "regen": 1
         }
       },
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "random"
+      ],
       "affinities": [
         {
           "kind": "fire",
           "expression": "push",
           "stacks": 1
         }
-      ]
+      ],
+      "activeAffinityKey": null,
+      "holdings": []
     },
     {
       "id": "warden-2",
-      "kind": "ambulatory",
-      "role": "warden",
-      "motivation": {
-        "kind": "random"
-      },
       "position": {
         "x": 12,
         "y": 3
       },
+      "alignment": "dungeon",
+      "lifecycle": "alive",
+      "defeatVital": "health",
       "vitals": {
         "health": {
           "current": 10,
@@ -125,13 +150,38 @@
           "regen": 1
         }
       },
+      "capabilities": {
+        "canMove": true,
+        "canCast": true,
+        "canEquip": true,
+        "canTake": true,
+        "canExit": false,
+        "blocksMovement": true,
+        "blocksSight": false
+      },
+      "motivations": [
+        "random"
+      ],
       "affinities": [
         {
           "kind": "water",
           "expression": "push",
           "stacks": 1
         }
-      ]
+      ],
+      "activeAffinityKey": null,
+      "holdings": []
     }
-  ]
+  ],
+  "presentation": {
+    "player": {
+      "category": "delver"
+    },
+    "warden-1": {
+      "category": "warden"
+    },
+    "warden-2": {
+      "category": "warden"
+    }
+  }
 }
