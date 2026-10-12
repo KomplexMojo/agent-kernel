@@ -36,9 +36,12 @@ Colour is on by default in a terminal and uses the application's approved palett
 | Enter | next level (after escaping) |
 | `r` | restart the level |
 | `?` | toggle help |
-| `q` · Esc · Ctrl-C | quit |
+| `q` · Esc · Ctrl-C | quit (in an open panel: close it) |
+| `i` | list your affinities; then `1`–`9` equips one |
+| `f` | aim at the nearest actor in sight; Tab picks the next, Enter (or `f`) casts the equipped push or pull, Esc cancels |
+| `g` | take loot from a defeated neighbour (with several items, `1`–`9` picks) |
 
-Reaching the exit's approach tile puts you **at the exit**; waiting one more tick steps you through. That is core's exit-dwell rule, not a UI rule. Every key that acts costs one turn, a blocked move included.
+Reaching the exit's approach tile puts you **at the exit**; waiting one more tick steps you through. That is core's exit-dwell rule, not a UI rule. Every key that acts costs one turn, a blocked move included: so do an equip, a cast and a take, accepted or refused. Opening, browsing and closing a panel is free. A refusal names core's reason (not enough mana, out of range, nothing equipped). Push and pull are cast; an equipped emit or draw works on its own every turn while its mana upkeep is paid, and the HUD says when it is off waiting for mana.
 
 ## Where it sits
 
@@ -47,13 +50,13 @@ Reaching the exit's approach tile puts you **at the exit**; waiting one more tic
 | File | Owns |
 |---|---|
 | `src/cli.mjs` | The terminal: arguments, raw-mode keypresses, redraws |
-| `src/keymap.js` | Key → intent (`move`, `wait`, `restart`, …). No legality |
-| `src/game.js` | Intent → play-session call; level index, move count, last message |
+| `src/keymap.js` | Key → intent (`move`, `wait`, `affinities`, `cast`, `take`, …). No legality |
+| `src/game.js` | Intent → play-session call; level index, move count, last message, the open panel (affinities, target, loot) |
 | `src/screen.js` | Lays out the view as text and turns palette hex into ANSI escapes. Board glyphs come from the play session's rows (the registry's terrain in the level's render legend); board colours from `render/ascii-cell-style.js`; vital labels and colours from runtime's HUD model |
 | `src/levels.js` | Finds and parses SimConfig + InitialState artifact pairs |
 | `levels/` | Bundled levels, as `<name>.sim-config.json` + `<name>.initial-state.json`, generated from `levels/recipes.json` |
 
-The simulation side is `packages/runtime/src/runner/play-session.js`: `await createPlaySession(...)`, then `await act({ kind: "move", params: { direction } })` or `act({ kind: "wait" })`, `view()` and `status()`. One command, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, and when it leaves.
+The simulation side is `packages/runtime/src/runner/play-session.js`: `await createPlaySession(...)`, then `await act({ kind: "move", params: { direction } })`, `act({ kind: "wait" })`, `act({ kind: "equip_affinity", params: { affinityKey } })`, `act({ kind: "cast_affinity", params: { targetId } })` or `act({ kind: "take", params: { targetId, holdingId } })`, then `view()` (including `player.affinities` and `loot`) and `status()`. One command, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, and when it leaves.
 
 ## Other actors and traps
 
