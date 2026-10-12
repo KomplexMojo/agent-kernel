@@ -149,6 +149,42 @@ export function resolvePoweredLightStacks(stacks: number, mana: number, manaMax:
   return Math.ceil((s * current) / max);
 }
 
+/**
+ * Dark against light, by stacks (maintainer, 2026-10-12, #203): "the dark
+ * affinity keeps a character and area dark based on the affinity stack as
+ * compared to countering affinity stacks like light." Per cell, the strongest
+ * powered dark reaching it is weighed against the strongest powered light:
+ * the difference is what survives. More dark leaves net dark, more light
+ * leaves net light, a tie leaves neither.
+ *
+ * One net dark stack darkens a cell (`NET_DARK_OBSCURE_STACK_THRESHOLD`), so
+ * every stack of light invested counters exactly one stack of dark. The
+ * 2-stack `DARKNESS_OBSCURE_STACK_THRESHOLD` remains for the legacy world
+ * path, which reads intensity-cancelled field stacks rather than this
+ * comparison.
+ */
+export const NET_DARK_OBSCURE_STACK_THRESHOLD = 1;
+
+export interface NetLightDark {
+  /** Light stacks left after the dark at the same cell is subtracted, keyed `x,y`. */
+  lightByCell: Record<string, number>;
+  /** Dark stacks left after the light at the same cell is subtracted, keyed `x,y`. */
+  darkStacksByCell: Record<string, number>;
+}
+
+export function resolveNetLightDark(
+  lightByCell: Readonly<Record<string, number>>,
+  darkByCell: Readonly<Record<string, number>>,
+): NetLightDark {
+  const net: NetLightDark = { lightByCell: {}, darkStacksByCell: {} };
+  for (const key of new Set([...Object.keys(lightByCell), ...Object.keys(darkByCell)])) {
+    const difference = asStackCount(lightByCell[key]) - asStackCount(darkByCell[key]);
+    if (difference > 0) net.lightByCell[key] = difference;
+    else if (difference < 0) net.darkStacksByCell[key] = -difference;
+  }
+  return net;
+}
+
 /** Only light the observer EMITS lights its way; push and pull do not. */
 export const SIGHT_LIGHT_EXPRESSION = AffinityExpression.Emit;
 
@@ -190,6 +226,8 @@ export interface VisibilityObservation {
 }
 
 export interface VisibilityScopeOptions {
+  /** Dark stacks at or above which a cell is obscured; `DARKNESS_OBSCURE_STACK_THRESHOLD` by default. */
+  darkObscureThreshold?: number;
   /** Surviving dark stacks keyed as `x,y`, read from core's affinity field. */
   darkStacksByCell?: Readonly<Record<string, number>>;
   /** Emitted light reaching each cell, keyed as `x,y`, from core's `readLightLevels`. */
@@ -219,6 +257,10 @@ function resolveTileKinds(observation: VisibilityObservation): number[][] | null
     return null;
   }
   return kinds as number[][];
+}
+
+function resolveDarkThreshold(value: unknown): number {
+  return asStackCount(value) || DARKNESS_OBSCURE_STACK_THRESHOLD;
 }
 
 function isOpaqueTile(kind: unknown): boolean {
@@ -279,8 +321,8 @@ function hasLineOfSight(
  * distance the observer has line of sight to (a lit room down a corridor is
  * seen), so the light's own reach (`readLightLevels`) is the only bound.
  */
-function isLitCell(lightLevel: number, darkStacks: number): boolean {
-  return lightLevel >= LIGHT_SIGHT_MIN_STACK && darkStacks < DARKNESS_OBSCURE_STACK_THRESHOLD;
+function isLitCell(lightLevel: number, darkStacks: number, darkThreshold: number): boolean {
+  return lightLevel >= LIGHT_SIGHT_MIN_STACK && darkStacks < darkThreshold;
 }
 
 function isPerceived(
@@ -290,13 +332,14 @@ function isPerceived(
   tileKinds: number[][] | null,
   darkStacksByCell: Readonly<Record<string, number>>,
   lightByCell: Readonly<Record<string, number>> = {},
+  darkThreshold: number = DARKNESS_OBSCURE_STACK_THRESHOLD,
 ): boolean {
   const key = `${position.x},${position.y}`;
   const distance = chebyshev(origin, position);
   const targetDark = asStackCount(darkStacksByCell[key]);
-  const lit = isLitCell(asStackCount(lightByCell[key]), targetDark);
+  const lit = isLitCell(asStackCount(lightByCell[key]), targetDark, darkThreshold);
   if (distance > radius && !lit) return false;
-  if (targetDark >= DARKNESS_OBSCURE_STACK_THRESHOLD && distance > DARKNESS_OBSCURE_RADIUS) {
+  if (targetDark >= darkThreshold && distance > DARKNESS_OBSCURE_RADIUS) {
     return false;
   }
   return tileKinds ? hasLineOfSight(tileKinds, origin, position) : true;
@@ -343,6 +386,7 @@ export function scopeObservation<T extends VisibilityObservation>(
   const tileKinds = resolveTileKinds(observation);
   const darkStacksByCell = options.darkStacksByCell ?? {};
   const lightByCell = options.lightByCell ?? {};
+  const darkThreshold = resolveDarkThreshold(options.darkObscureThreshold);
 
   const actors = observation.actors.filter((actor) => {
     if (actor?.id === observerId) return true;
@@ -350,7 +394,7 @@ export function scopeObservation<T extends VisibilityObservation>(
     // An actor with no position cannot be placed, so it cannot be ruled out of
     // sight either. Keep it: dropping it would hide it on a technicality.
     if (!isGridPosition(position)) return true;
-    return isPerceived(origin, position, effectiveRadius, tileKinds, darkStacksByCell, lightByCell);
+    return isPerceived(origin, position, effectiveRadius, tileKinds, darkStacksByCell, lightByCell, darkThreshold);
   });
 
   // Field cells are environmental facts, not target entities. They share the
@@ -361,7 +405,7 @@ export function scopeObservation<T extends VisibilityObservation>(
     ? observation.affinityFields.filter((field) => {
       const position = field?.position;
       if (!isGridPosition(position)) return false;
-      return isPerceived(origin, position, effectiveRadius, tileKinds, {}, lightByCell);
+      return isPerceived(origin, position, effectiveRadius, tileKinds, {}, lightByCell, darkThreshold);
     })
     : observation.affinityFields;
 
@@ -375,6 +419,8 @@ export function scopeObservation<T extends VisibilityObservation>(
 }
 
 export interface VisibleCellsOptions {
+  /** Dark stacks at or above which a cell is obscured; `DARKNESS_OBSCURE_STACK_THRESHOLD` by default. */
+  darkObscureThreshold?: number;
   /** Surviving dark stacks keyed as `x,y`, read from core's affinity field. */
   darkStacksByCell?: Readonly<Record<string, number>>;
   /** Emitted light reaching each cell, keyed as `x,y`, from core's `readLightLevels`. */
@@ -415,10 +461,11 @@ export function computeVisibleCells(
   );
   const darkStacksByCell = options.darkStacksByCell ?? {};
   const lightByCell = options.lightByCell ?? {};
+  const darkThreshold = resolveDarkThreshold(options.darkObscureThreshold);
   // The whole grid, not just the radius box: a lit cell is visible from afar.
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      if (isPerceived(origin, { x, y }, effectiveRadius, kinds, darkStacksByCell, lightByCell)) grid[y][x] = 1;
+      if (isPerceived(origin, { x, y }, effectiveRadius, kinds, darkStacksByCell, lightByCell, darkThreshold)) grid[y][x] = 1;
     }
   }
   grid[origin.y][origin.x] = 1;

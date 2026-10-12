@@ -27,8 +27,9 @@
  *     category, read through the runtime; core never dispatches on it.
  *   - **HUD semantics are runtime render's** (`render/actor-hud-model.js`).
  *   - **Sight is core's** (`readActorRegistryVisibleCells`, read through the
- *     runtime). This session only REMEMBERS: a cell the player has seen once
- *     stays explored. view() then applies fog: a never-seen cell is the fog
+ *     runtime). This session only REMEMBERS: a cell the player has seen stays
+ *     explored until dark covers it out of sight (core's `readDarkCells`), which
+ *     forgets it. view() then applies fog: a never-seen cell is the fog
  *     glyph, an explored cell out of sight shows its base tile (no actors), and
  *     `sight` tells the UI which cells to dim.
  */
@@ -128,12 +129,16 @@ export async function createPlaySession({
     return Array.isArray(grid) && grid.length > 0 ? grid : null;
   }
 
+  // Dark invalidates memory (#203): a remembered cell that dark covers and the
+  // player cannot see right now is forgotten, back to fog until seen again.
   function rememberVisible() {
     const visible = readVisible();
     if (!visible) return;
     if (!explored) explored = visible.map((row) => row.map(() => 0));
+    const dark = runtime.readDarkCells();
     visible.forEach((row, y) => row.forEach((cell, x) => {
       if (cell) explored[y][x] = 1;
+      else if (dark[y]?.[x]) explored[y][x] = 0;
     }));
   }
 
