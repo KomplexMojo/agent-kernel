@@ -330,6 +330,70 @@ test("without fog, every cell is visible", async () => {
   assert.ok(view.sight.every((row) => /^v+$/.test(row)));
 });
 
+// #202: the player uses affinities through the same Actor commands as a move.
+function buildDuelLevel({ playerAffinities = [{ kind: "water", expression: "push", stacks: 3 }, { kind: "light", expression: "emit", stacks: 1 }] } = {}) {
+  return buildUnifiedLevel({
+    id: "duel",
+    tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+        vitals: viableVitals({ mana: 40 }), affinities: playerAffinities },
+      { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["stationary"],
+        vitals: viableVitals(), affinities: [{ kind: "fire", expression: "push", stacks: 1 }] },
+    ],
+  });
+}
+const equip = (affinityKey) => ({ kind: "equip_affinity", params: { affinityKey } });
+const cast = (targetId) => ({ kind: "cast_affinity", params: { targetId } });
+
+test("view().player lists the affinities the player knows and which one is equipped", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  const { player } = session.view();
+  assert.deepEqual(player.affinities.map((a) => `${a.kind}:${a.expression}:${a.stacks}`), ["water:push:3", "light:emit:1"]);
+  assert.equal(player.activeAffinityKey, null);
+});
+
+test("equipping costs the turn and switches the active affinity", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  const result = await session.act(equip("water:push"));
+  assert.deepEqual(result.accepted.map((a) => a.kind), ["equip_affinity"]);
+  assert.equal(result.tick, 1);
+  assert.equal(session.view().player.activeAffinityKey, "water:push");
+});
+
+test("a cast spends the player's mana and hurts the target", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  await session.act(equip("water:push"));
+  const manaBefore = session.view().player.vitals.find((v) => v.key === "mana").current;
+  const result = await session.act(cast("warden_1"));
+  assert.deepEqual(result.accepted.map((a) => [a.kind, a.params]), [["cast_affinity", { targetId: "warden_1" }]]);
+  const view = session.view();
+  assert.ok(view.player.vitals.find((v) => v.key === "mana").current < manaBefore);
+  assert.ok(view.actors.find((a) => a.id === "warden_1").vitals.health.current < 10);
+});
+
+test("a refused cast reports core's reason and still costs the turn", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  const result = await session.act(cast("warden_1"));
+  assert.deepEqual(result.rejected.map((r) => r.reason), ["NoActiveAffinity"]);
+  assert.equal(result.tick, 1);
+});
+
+test("a defeated actor next to the player offers its affinities as loot, and take claims one", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  await session.act(equip("water:push"));
+  for (let i = 0; i < 6 && session.view().actors.some((a) => a.id === "warden_1"); i += 1) {
+    await session.act(cast("warden_1"));
+  }
+  const { loot } = session.view();
+  assert.deepEqual(loot, [{ targetId: "warden_1", holdingId: "affinity:fire:push", kind: "affinity",
+    affinity: "fire", expression: "push", position: { x: 2, y: 1 } }]);
+  const result = await session.act({ kind: "take", params: { targetId: "warden_1", holdingId: "affinity:fire:push" } });
+  assert.deepEqual(result.accepted.map((a) => a.kind), ["take"]);
+  assert.ok(session.view().player.affinities.some((a) => a.kind === "fire" && a.expression === "push"));
+  assert.deepEqual(session.view().loot, []);
+});
+
 // ## TODO: Test Permutations
 // - an actor that emits light sees one more tile per stack
 // - a dark cell is unknown from beyond one tile
@@ -338,3 +402,5 @@ test("without fog, every cell is visible", async () => {
 // - a warden's cast lowers the player's health in view()
 // - an exit-ineligible (warden) player reaches atExit but never exits
 // - repeated rejected moves each advance the tick by one
+// - loot from a defeated actor two tiles away is not offered
+// - an exhausted lasting affinity is reported as affinityExhausted on view().player

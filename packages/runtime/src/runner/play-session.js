@@ -246,6 +246,24 @@ export async function createPlaySession({
     };
   }
 
+  // Holdings are core's derived data (one per affinity of the defeated actor); this
+  // only lists them, by actor id, in the shape a take command needs.
+  function lootNextTo(snapshot, player) {
+    return snapshot.actors
+      .filter((actor) => actor.lifecycle === "defeated" && Array.isArray(actor.holdings)
+        && Math.max(Math.abs(actor.position.x - player.position.x), Math.abs(actor.position.y - player.position.y)) <= 1)
+      .sort(byId)
+      .flatMap((actor) => actor.holdings
+        .filter((holding) => holding.claimedBy === null)
+        .map((holding) => ({
+          targetId: actor.id,
+          holdingId: holding.id,
+          kind: holding.kind,
+          ...(holding.kind === "affinity" ? { affinity: holding.affinity, expression: holding.expression } : {}),
+          position: { ...actor.position },
+        })));
+  }
+
   function view() {
     const snapshot = readSnapshot();
     const frame = renderBoard(snapshot);
@@ -265,10 +283,15 @@ export async function createPlaySession({
       player: player
         ? {
           ...buildActorHudModel({ ...toViewActor(player), role: presentation[player.id]?.category ?? null }),
+          affinities: player.affinities.map((pair) => ({ ...pair })),
           activeAffinityKey: player.activeAffinityKey,
+          ...(player.affinityExhausted ? { affinityExhausted: true } : {}),
           position: { ...player.position },
         }
         : null,
+      // What the player could `take` this turn: unclaimed holdings of defeated actors
+      // next to it. Whether a take succeeds is still core's call.
+      loot: player && player.lifecycle === "alive" ? lootNextTo(snapshot, player) : [],
       // Every OTHER living actor in sight (id, role, position, vitals, affinities), for the
       // UI to draw over the board. Traps are reported in `hazards` instead.
       actors: others.filter((actor) => presentation[actor.id]?.category !== HAZARD_CATEGORY).map(toViewActor),

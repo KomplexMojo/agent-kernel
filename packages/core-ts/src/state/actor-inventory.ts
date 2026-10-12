@@ -28,10 +28,18 @@ export function activeActorAffinity(actor: ActorRecord): ActorAffinityEntry | un
   return actor.affinities.find(entry => affinityKey(entry) === actor.activeAffinityKey);
 }
 
+/** Why an equip is refused, as a ValidationError name; null when it is legal. */
+export function explainEquipActorAffinity(actor: ActorRecord | undefined, key: ActorAffinityKey): string | null {
+  if (!actor || actor.lifecycle !== 'alive') return 'WrongActor';
+  if (!actor.capabilities.canEquip) return 'InvalidCapability';
+  if (!actor.affinities.some(entry => affinityKey(entry) === key)) return 'UnknownAffinity';
+  if (actor.activeAffinityKey === key) return 'AffinityAlreadyEquipped';
+  return null;
+}
+
 /** Slot mutation only; the tick executor owns one-action scheduling. */
 export function equipActorAffinity(actor: ActorRecord | undefined, key: ActorAffinityKey): boolean {
-  if (!actor || actor.lifecycle !== 'alive' || !actor.capabilities.canEquip || actor.activeAffinityKey === key) return false;
-  if (!actor.affinities.some(entry => affinityKey(entry) === key)) return false;
-  actor.activeAffinityKey = key;
+  if (explainEquipActorAffinity(actor, key) !== null) return false;
+  actor!.activeAffinityKey = key;
   return true;
 }

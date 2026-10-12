@@ -1,7 +1,8 @@
 import { resolveActorFields } from './actor-fields.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey } from '../state/actor-types.ts';
-import { activeActorAffinity, affinityKey } from '../state/actor-inventory.ts';
+import { activeActorAffinity, affinityKey, explainEquipActorAffinity } from '../state/actor-inventory.ts';
+import { explainTakeActorHolding } from '../state/actor-holdings.ts';
 import { actorAffinityMagnitude } from './actor-affinity.ts';
 import { castFocusedActorAffinity, type ActorCastManaCosts, type ActorEffectSuppression } from './actor-cast.ts';
 import { computeMovementStaminaCost } from './move.ts';
@@ -76,11 +77,18 @@ export function createActorTurn(
         case 'equip_affinity':
           if (hasParams(action, ['affinityKey']) && typeof action.params.affinityKey === 'string') {
             accepted = registry.equipAffinity(actor.id, action.params.affinityKey);
+            if (!accepted) lastRejection = explainEquipActorAffinity(actor, action.params.affinityKey);
           }
           break;
         case 'take':
           if (hasParams(action, ['targetId', 'holdingId']) && typeof action.params.targetId === 'string'
-            && typeof action.params.holdingId === 'string') accepted = registry.takeHolding(actor.id, action.params.targetId, action.params.holdingId);
+            && typeof action.params.holdingId === 'string') {
+            accepted = registry.takeHolding(actor.id, action.params.targetId, action.params.holdingId);
+            if (!accepted) {
+              lastRejection = explainTakeActorHolding(actor, registry.getActor(action.params.targetId) ?? undefined, action.params.holdingId)
+                ?? 'InvalidActionValue';
+            }
+          }
           break;
         case 'move': {
           if (!hasParams(action, ['target']) || !action.params.target) break;
@@ -98,10 +106,11 @@ export function createActorTurn(
         }
         case 'cast_affinity': {
           if (!hasParams(action, ['targetId']) || typeof action.params.targetId !== 'string') break;
-          const pair = activeActorAffinity(actor); if (!pair) break;
+          const pair = activeActorAffinity(actor); if (!pair) { lastRejection = 'NoActiveAffinity'; break; }
           const key = affinityKey(pair);
           const result = castFocusedActorAffinity(registry, actor.id, action.params.targetId, prices.castMana, suppressionFor(actor.id, key));
           accepted = result.accepted;
+          if (!accepted) lastRejection = result.rejection ?? null;
           if (accepted) {
             consumeSuppression(actor.id, key, actorAffinityMagnitude(pair.expression, pair.stacks));
             if (result.suppression && result.suppression.amount > 0) state.suppressions.push(result.suppression);

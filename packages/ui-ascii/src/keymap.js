@@ -12,6 +12,11 @@ export const INTENT = Object.freeze({
   NEXT_LEVEL: "next_level",
   HELP: "help",
   QUIT: "quit",
+  AFFINITIES: "affinities",
+  CAST: "cast",
+  TAKE: "take",
+  NEXT_TARGET: "next_target",
+  SELECT: "select",
 });
 
 const MOVE_KEYS = Object.freeze({
@@ -47,16 +52,21 @@ const OTHER_KEYS = Object.freeze({
   "\r": INTENT.NEXT_LEVEL,
   "\n": INTENT.NEXT_LEVEL,
   "?": INTENT.HELP,
+  i: INTENT.AFFINITIES,
+  f: INTENT.CAST,
+  g: INTENT.TAKE,
+  "\t": INTENT.NEXT_TARGET,
   q: INTENT.QUIT,
   "\u0003": INTENT.QUIT, // Ctrl-C
   "\u001b": INTENT.QUIT, // bare Esc
 });
 
-/** @returns {{type: string, direction?: string} | null} */
+/** @returns {{type: string, direction?: string, index?: number} | null} */
 export function intentForKey(key) {
   if (typeof key !== "string" || key.length === 0) return null;
   const direction = MOVE_KEYS[key] ?? MOVE_KEYS[key.toLowerCase()];
   if (direction) return { type: INTENT.MOVE, direction };
+  if (/^[1-9]$/.test(key)) return { type: INTENT.SELECT, index: Number(key) - 1 };
   const type = OTHER_KEYS[key] ?? OTHER_KEYS[key.toLowerCase()];
   return type ? { type } : null;
 }
@@ -82,4 +92,6 @@ export function splitKeys(chunk) {
 export const HELP_LINES = Object.freeze([
   "Move: arrows / WASD / hjkl   Diagonals: y u b n",
   "Wait: . or space   Restart: r   Next level: Enter   Quit: q",
+  "Affinities: i, then 1-9 to equip   Take: g",
+  "Cast: f, then Tab for the next target, Enter to cast, Esc to cancel",
 ]);

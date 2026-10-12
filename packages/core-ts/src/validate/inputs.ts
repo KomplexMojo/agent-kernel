@@ -31,6 +31,14 @@ export const ValidationError = {
   TooManyActors: 18,
   InsufficientStamina: 19,
   InvalidCapability: 20,
+  InsufficientMana: 21,
+  NoActiveAffinity: 22,
+  AffinityNotCastable: 23,
+  TargetOutOfRange: 24,
+  InvalidTarget: 25,
+  UnknownAffinity: 26,
+  AffinityAlreadyEquipped: 27,
+  NothingToTake: 28,
 } as const;
 
 /**

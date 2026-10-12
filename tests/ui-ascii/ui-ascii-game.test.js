@@ -23,6 +23,7 @@ const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/gam
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
 const { parseArgs, resolveLevels, runScripted, shouldUseColor } = require("../../packages/ui-ascii/src/cli.mjs");
 const { createPlaySession } = require("../../packages/runtime/src/runner/play-session.js");
+const { buildUnifiedLevel, viableVitals } = require("../fixtures/ui-ascii/unified-level.mjs");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/ui-ascii/src/cli.mjs");
@@ -414,9 +415,95 @@ test("in colour, remembered cells are dimmed and unseen cells take the fog fill"
   assert.equal(paintBoardRow("..", styles, null, "rv"), `${ansi(dim.bg, 48)}${ansi(dim.fg, 38)}.\u001b[0m${ansi(styles["."].bg, 48)}${ansi(styles["."].fg, 38)}.\u001b[0m`);
 });
 
+// #202: affinities from the keyboard. `i` lists them, a digit equips, `f` aims and casts, `g` takes.
+function duelLevels({ wardenAt = { x: 2, y: 1 } } = {}) {
+  const level = buildUnifiedLevel({
+    id: "duel",
+    tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+        vitals: viableVitals({ mana: 40 }), affinities: [
+          { kind: "water", expression: "push", stacks: 3 }, { kind: "light", expression: "emit", stacks: 1 }] },
+      ...(wardenAt ? [{ category: "warden", id: "warden_1", position: wardenAt, motivations: ["stationary"],
+        vitals: viableVitals(), affinities: [{ kind: "fire", expression: "push", stacks: 1 }] }] : []),
+    ],
+  });
+  return [{ name: "duel", ...level }];
+}
+const press = async (game, keys) => { for (const key of splitKeys(keys)) await game.handle(intentForKey(key)); };
+
+test("affinity keys map to intents: i, f, g, Tab and the digits", () => {
+  assert.deepEqual(intentForKey("i"), { type: INTENT.AFFINITIES });
+  assert.deepEqual(intentForKey("f"), { type: INTENT.CAST });
+  assert.deepEqual(intentForKey("g"), { type: INTENT.TAKE });
+  assert.deepEqual(intentForKey("\t"), { type: INTENT.NEXT_TARGET });
+  assert.deepEqual(intentForKey("1"), { type: INTENT.SELECT, index: 0 });
+  assert.deepEqual(intentForKey("9"), { type: INTENT.SELECT, index: 8 });
+});
+
+test("i lists the known affinities for free; a digit equips one and costs the turn", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "i");
+  assert.equal(game.state().turns, 0);
+  assert.match(game.screen(), /1\) water push ×3/);
+  assert.match(game.screen(), /2\) light emit ×1/);
+  await press(game, "1");
+  assert.equal(game.state().turns, 1);
+  assert.doesNotMatch(game.screen(), /1\) water push/, "the panel closes after a choice");
+  assert.match(game.screen(), /Affinity: water push ×3/);
+});
+
+test("Esc closes a panel instead of quitting", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "i");
+  assert.deepEqual(await game.handle(intentForKey("\u001b")), { quit: false });
+  assert.doesNotMatch(game.screen(), /1\) water push/);
+  assert.equal(game.state().turns, 0);
+});
+
+test("f aims at the nearest actor in sight and Enter casts at it", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "i1f");
+  assert.match(game.screen(), /Target: warden_1/);
+  assert.equal(game.state().turns, 1, "aiming is free");
+  await press(game, "\r");
+  assert.equal(game.state().turns, 2);
+  assert.match(game.screen(), /You cast water push at warden_1\./);
+});
+
+test("a cast core refuses says why and costs the turn", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "f\r");
+  assert.equal(game.state().turns, 1);
+  assert.match(game.screen(), /Nothing is equipped\. Press i to equip an affinity\./);
+});
+
+test("f with nobody in sight, and g with nothing to take, say so without spending a turn", async () => {
+  const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: false });
+  await press(game, "f");
+  assert.match(game.screen(), /Nothing in sight to cast at\./);
+  await press(game, "g");
+  assert.match(game.screen(), /Nothing here to take\./);
+  assert.equal(game.state().turns, 0);
+});
+
+test("g takes the loot of a defeated neighbour", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "i1");
+  for (let i = 0; i < 6 && /Target: warden_1/.test((await press(game, "f"), game.screen())); i += 1) await press(game, "\r");
+  await press(game, "\u001b");
+  await press(game, "g");
+  assert.match(game.screen(), /You take fire push from warden_1\./);
+  await press(game, "i");
+  assert.match(game.screen(), /fire push ×1/);
+});
+
 // ## TODO: Test Permutations
 // - every key in the keymap, upper and lower case
 // - --run with each of the build/create/configurator subdirectories
 // - --sim-config/--initial-state with one path missing
 // - NEXT_LEVEL from each bundled level in turn
 // - help toggle hides and restores the help lines
+// - Tab cycles through every actor in sight, nearest first, and wraps
+// - with two loot items g opens a numbered list
+// - casting an emit says it works while equipped
