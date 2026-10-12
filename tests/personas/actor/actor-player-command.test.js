@@ -85,8 +85,35 @@ test("malformed commands throw instead of silently falling back to autonomous pl
   await assert.rejects(proposeOnce({ actor: DELVER, command: { kind: "teleport" } }), /kind/);
 });
 
+test("an equip command proposes equipping that affinity (#202)", async () => {
+  const result = await proposeOnce({ actor: DELVER, command: { kind: "equip_affinity", params: { affinityKey: "light:emit" } } });
+  const gameplay = result.actions.filter((a) => a.kind !== "emit_log" && a.kind !== "emit_telemetry");
+  assert.deepEqual(gameplay.map((a) => [a.kind, a.params]), [["equip_affinity", { affinityKey: "light:emit" }]]);
+});
+
+test("a cast command proposes casting at that target; range and mana are core's to judge", async () => {
+  const result = await proposeOnce({ actor: DELVER, command: { kind: "cast_affinity", params: { targetId: "warden_far_away" } } });
+  const gameplay = result.actions.filter((a) => a.kind !== "emit_log" && a.kind !== "emit_telemetry");
+  assert.deepEqual(gameplay.map((a) => [a.kind, a.params]), [["cast_affinity", { targetId: "warden_far_away" }]]);
+});
+
+test("a take command proposes taking that holding", async () => {
+  const command = { kind: "take", params: { targetId: "warden_1", holdingId: "affinity:fire:push" } };
+  const result = await proposeOnce({ actor: DELVER, command });
+  const gameplay = result.actions.filter((a) => a.kind !== "emit_log" && a.kind !== "emit_telemetry");
+  assert.deepEqual(gameplay.map((a) => [a.kind, a.params]), [["take", command.params]]);
+});
+
+test("affinity commands with malformed params throw", async () => {
+  await assert.rejects(proposeOnce({ actor: DELVER, command: { kind: "equip_affinity", params: { affinityKey: "fire" } } }), /affinityKey/);
+  await assert.rejects(proposeOnce({ actor: DELVER, command: { kind: "cast_affinity", params: {} } }), /targetId/);
+  await assert.rejects(proposeOnce({ actor: DELVER, command: { kind: "take", params: { targetId: "w" } } }), /holdingId/);
+});
+
 // ## TODO: Test Permutations
 // - every one of the eight directions maps to the matching target cell
 // - a command for a stationary-kind actor proposes nothing
 // - a command with a budget still goes through the Allocator's admissibility judge
 // - command on an actor whose position is absent from the observation
+// - an equip command for a key the actor does not hold is still proposed (core refuses it)
+// - extra params on any affinity command throw

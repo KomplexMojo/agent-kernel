@@ -253,15 +253,24 @@ That explicit manual mode now runs on the same `solver_request` transport:
 ## Commanded actors
 
 A `propose` payload may carry `command`, the decision of whoever controls that actor (a player, a
-script). The command vocabulary is this persona's: `{ kind: "move", params: { direction } }` with an
-eight-way direction name, or `{ kind: "wait" }`. Anything else throws, so a controlled actor never
-falls back to autonomous play by accident.
+script). The command vocabulary is this persona's (`ACTOR_COMMAND_KINDS`):
+
+- `{ kind: "move", params: { direction } }` with an eight-way direction name
+- `{ kind: "wait" }`
+- `{ kind: "equip_affinity", params: { affinityKey } }` with a `"<kind>:<expression>"` key
+- `{ kind: "cast_affinity", params: { targetId } }`
+- `{ kind: "take", params: { targetId, holdingId } }`
+
+Only the shape is checked. Anything else throws, so a controlled actor never falls back to autonomous
+play by accident.
 
 - The command becomes the actor's **only** proposal. Motivations are not consulted and the actor is
   not posed to the solver, even with runtime decisioning enabled — the decision has already been made.
   (`payload.proposals` is different: under runtime decisioning it only feeds the `actorProposal` tiebreak.)
 - A move's `from`/`to` are filled from the actor's observed position. The Actor does **not** check
-  legality: a move into a wall is proposed and core rejects it.
+  legality: a move into a wall is proposed and core rejects it. Likewise an equip of an unknown
+  affinity, a cast out of range or without mana, or a take with nothing to claim is proposed, and core
+  rejects it with a ValidationError name the play session reports.
 - The actor still surfaces an intention, so the Moderator orders it among the others as usual.
 
 The runner only routes `actorCommands` to the named actor's payload (an unknown id throws); it does not

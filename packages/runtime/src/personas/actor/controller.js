@@ -1400,13 +1400,31 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
   return buildMoveProposal({ observation, payload, simConfig });
 }
 
-export const ACTOR_COMMAND_KINDS = Object.freeze(["move", "wait"]);
+export const ACTOR_COMMAND_KINDS = Object.freeze(["move", "wait", "equip_affinity", "cast_affinity", "take"]);
+
+const AFFINITY_KEY_PATTERN = /^[a-z]+:[a-z]+$/;
+
+function commandParam(command, name, valid) {
+  const value = command.params?.[name];
+  if (!valid(value)) {
+    throw new Error(`Actor command: ${command.kind} needs params.${name} (received ${JSON.stringify(value)}).`);
+  }
+  return value;
+}
+
+const isId = (value) => typeof value === "string" && value.trim().length > 0;
 
 /**
- * The command vocabulary is the Actor's: `{ kind: "move", params: { direction } }` (an
- * EIGHT_WAY direction name) or `{ kind: "wait" }`. Exported so the runner can refuse a
- * malformed command BEFORE a tick starts rather than half-way through DECIDE. Throws
- * rather than letting a controlled actor fall back to autonomous play.
+ * The command vocabulary is the Actor's:
+ *   - `{ kind: "move", params: { direction } }` (an EIGHT_WAY direction name)
+ *   - `{ kind: "wait" }`
+ *   - `{ kind: "equip_affinity", params: { affinityKey } }` ("<kind>:<expression>")
+ *   - `{ kind: "cast_affinity", params: { targetId } }`
+ *   - `{ kind: "take", params: { targetId, holdingId } }`
+ * Only the SHAPE is checked here; whether the actor knows that affinity, can reach that
+ * target or afford the cast is core's call. Exported so the runner can refuse a malformed
+ * command BEFORE a tick starts rather than half-way through DECIDE. Throws rather than
+ * letting a controlled actor fall back to autonomous play.
  */
 export function normalizeActorCommand(command) {
   if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -1415,22 +1433,40 @@ export function normalizeActorCommand(command) {
   if (!ACTOR_COMMAND_KINDS.includes(command.kind)) {
     throw new Error(`Actor command: unknown command kind ${JSON.stringify(command.kind)} (expected ${ACTOR_COMMAND_KINDS.join(", ")}).`);
   }
-  if (command.kind === "wait") return { kind: "wait" };
-  const direction = command.params?.direction;
-  if (!DEFAULT_DELTAS.some((entry) => entry.direction === direction)) {
-    throw new Error(`Actor command: unknown direction ${JSON.stringify(direction)} (expected ${DEFAULT_DELTAS.map((e) => e.direction).join(", ")}).`);
+  switch (command.kind) {
+    case "wait":
+      return { kind: "wait" };
+    case "equip_affinity":
+      return { kind: "equip_affinity",
+        params: { affinityKey: commandParam(command, "affinityKey", (value) => typeof value === "string" && AFFINITY_KEY_PATTERN.test(value)) } };
+    case "cast_affinity":
+      return { kind: "cast_affinity", params: { targetId: commandParam(command, "targetId", isId) } };
+    case "take":
+      return { kind: "take", params: {
+        targetId: commandParam(command, "targetId", isId),
+        holdingId: commandParam(command, "holdingId", isId),
+      } };
+    default: {
+      const direction = command.params?.direction;
+      if (!DEFAULT_DELTAS.some((entry) => entry.direction === direction)) {
+        throw new Error(`Actor command: unknown direction ${JSON.stringify(direction)} (expected ${DEFAULT_DELTAS.map((e) => e.direction).join(", ")}).`);
+      }
+      return { kind: "move", params: { direction } };
+    }
   }
-  return { kind: "move", params: { direction } };
 }
 
 /**
- * Translate a command into the actor's proposal. A move is proposed even into a wall:
- * core rejects it.
+ * Translate a command into the actor's proposal. A move is proposed even into a wall,
+ * and an affinity command even when it cannot succeed: core rejects it.
  */
 function buildCommandProposals({ command, observationView, observation, actorId }) {
   const normalized = normalizeActorCommand(command);
   if (normalized.kind === "wait") {
     return [{ kind: "wait" }];
+  }
+  if (normalized.kind !== "move") {
+    return [{ kind: normalized.kind, params: { ...normalized.params } }];
   }
   const { direction } = normalized.params;
   const delta = DEFAULT_DELTAS.find((entry) => entry.direction === direction);

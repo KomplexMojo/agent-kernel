@@ -124,6 +124,16 @@ export function statusLine(status, message, { traps = false } = {}) {
   return traps ? `Find the exit (E). Mind the traps (${ASCII_ENTITY_GLYPHS.hazard}).` : "Find the exit (E).";
 }
 
+/** The player's equipped affinity, or a hint to equip one. */
+export function affinityLine(player) {
+  if (!player) return null;
+  const known = Array.isArray(player.affinities) ? player.affinities : [];
+  const active = known.find((pair) => `${pair.kind}:${pair.expression}` === player.activeAffinityKey);
+  if (!active) return known.length > 0 ? "Affinity: none (press i to equip)" : "Affinity: none";
+  const off = player.affinityExhausted ? "  (off until mana is full)" : "";
+  return `Affinity: ${active.kind} ${active.expression} ×${active.stacks}${off}`;
+}
+
 /**
  * @param {object} args
  * @param {object} args.view        createPlaySession().view()
@@ -134,6 +144,7 @@ export function statusLine(status, message, { traps = false } = {}) {
  * @param {string} [args.message]   overrides the default status line
  * @param {boolean} [args.showHelp]
  * @param {boolean} [args.color]    emit ANSI colour
+ * @param {string[]} [args.panel]   lines of an open panel (affinities, target, loot)
  */
 export function renderScreen({
   view,
@@ -144,6 +155,7 @@ export function renderScreen({
   message = "",
   showHelp = true,
   color = false,
+  panel = null,
 }) {
   const lines = [];
   lines.push(`agent-kernel maze — ${levelName} (${levelIndex + 1}/${levelCount})`);
@@ -157,8 +169,14 @@ export function renderScreen({
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (vitals.length > 0) lines.push(vitals.join("   "));
+  const affinity = affinityLine(view.player);
+  if (affinity) lines.push(affinity);
   lines.push(`Tick ${view.tick}   Turns ${turns}`);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
+  if (Array.isArray(panel) && panel.length > 0) {
+    lines.push("");
+    lines.push(...panel);
+  }
   if (showHelp) {
     lines.push("");
     lines.push(...HELP_LINES);

@@ -56,13 +56,24 @@ function grantVitals(draft: ActorRecord, holding: ActorVitalHolding): boolean {
   return true;
 }
 
+/** Why a take is refused before any grant is evaluated, as a ValidationError name; null when it may proceed. */
+export function explainTakeActorHolding(receiver: ActorRecord | undefined, source: ActorRecord | undefined, holdingId: string): string | null {
+  if (!receiver || receiver.lifecycle !== 'alive') return 'WrongActor';
+  if (!receiver.capabilities.canTake) return 'InvalidCapability';
+  if (!source || source.lifecycle !== 'defeated') return 'InvalidTarget';
+  if (Math.max(Math.abs(receiver.position.x - source.position.x),
+    Math.abs(receiver.position.y - source.position.y)) > 1) return 'NotAdjacent';
+  const holding = source.holdings.find(entry => entry.id === holdingId);
+  if (!holding || holding.claimedBy !== null) return 'NothingToTake';
+  return null;
+}
+
 /** Evaluate on a draft so malformed/overflowing grants cannot leave partial claims. */
 export function takeActorHolding(receiver: ActorRecord | undefined, source: ActorRecord | undefined, holdingId: string): boolean {
-  if (!receiver || !source || receiver.lifecycle !== 'alive' || !receiver.capabilities.canTake
-    || source.lifecycle !== 'defeated' || Math.max(Math.abs(receiver.position.x - source.position.x),
-      Math.abs(receiver.position.y - source.position.y)) > 1) return false;
+  if (explainTakeActorHolding(receiver, source, holdingId) !== null) return false;
+  if (!receiver || !source) return false;
   const holding: ActorHolding | undefined = source.holdings.find(entry => entry.id === holdingId);
-  if (!holding || holding.claimedBy !== null) return false;
+  if (!holding) return false;
   const draft = JSON.parse(JSON.stringify(receiver)) as ActorRecord;
   if (holding.kind === 'affinity') {
     const entry = draft.affinities.find(entry => entry.kind === holding.affinity && entry.expression === holding.expression);
