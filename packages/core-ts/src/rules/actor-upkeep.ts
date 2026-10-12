@@ -1,5 +1,5 @@
-import type { ActorRecord } from '../state/actor-types.ts';
-import { activeActorAffinity } from '../state/actor-inventory.ts';
+import type { ActorRecord, ActorAffinityEntry } from '../state/actor-types.ts';
+import { affinityKey, equippedActorAffinities, exhaustedActorAffinityKeys, setExhaustedActorAffinityKeys } from '../state/actor-inventory.ts';
 
 /**
  * Every affinity has a mana cost (maintainer, 2026-10-11). Push and pull pay per
@@ -17,30 +17,40 @@ export function affinityUpkeepForStacks(upkeepByStacks: readonly number[], stack
   return Number.isSafeInteger(cost) && cost > 0 ? cost : 0;
 }
 
-/** True when the actor's active pair is a lasting affinity that is switched on. */
+/** The equipped lasting affinities that are switched on, in equip order. */
+export function litActorAffinities(actor: ActorRecord): ActorAffinityEntry[] {
+  if (!actor.capabilities.canCast) return [];
+  const off = exhaustedActorAffinityKeys(actor);
+  return equippedActorAffinities(actor)
+    .filter(pair => isLastingAffinityExpression(pair.expression) && !off.includes(affinityKey(pair)));
+}
+
+/** True when any equipped lasting affinity is switched on. */
 export function isActorAffinityLit(actor: ActorRecord): boolean {
-  const pair = activeActorAffinity(actor);
-  return !!pair && actor.capabilities.canCast && isLastingAffinityExpression(pair.expression)
-    && actor.affinityExhausted !== true;
+  return litActorAffinities(actor).length > 0;
 }
 
 /**
- * Pay the active lasting affinity's upkeep from the one mana pool. A source that
- * cannot pay (including one with no mana pool) is exhausted and pays nothing
- * while it waits.
+ * Each lit slot pays its own upkeep from the one mana pool, in equip order. A
+ * slot that cannot pay (including on an actor with no mana pool) goes off on its
+ * own and pays nothing while it waits; the others keep paying.
  */
 export function chargeActorAffinityUpkeep(actor: ActorRecord, upkeepByStacks: readonly number[]): void {
-  if (!isActorAffinityLit(actor)) return;
-  const cost = affinityUpkeepForStacks(upkeepByStacks, activeActorAffinity(actor)!.stacks);
-  if (cost <= 0) return;
-  const mana = actor.vitals.mana;
-  if (mana && mana.current >= cost) mana.current -= cost;
-  else actor.affinityExhausted = true;
+  const off = exhaustedActorAffinityKeys(actor);
+  let changed = false;
+  for (const pair of litActorAffinities(actor)) {
+    const cost = affinityUpkeepForStacks(upkeepByStacks, pair.stacks);
+    if (cost <= 0) continue;
+    const mana = actor.vitals.mana;
+    if (mana && mana.current >= cost) mana.current -= cost;
+    else { off.push(affinityKey(pair)); changed = true; }
+  }
+  if (changed) setExhaustedActorAffinityKeys(actor, off);
 }
 
-/** After regeneration: an exhausted source whose mana is full again switches back on. */
+/** After regeneration: every exhausted slot comes back on once mana is full again. */
 export function recoverActorAffinity(actor: ActorRecord): void {
   if (actor.affinityExhausted !== true || actor.lifecycle !== 'alive') return;
   const mana = actor.vitals.mana;
-  if (mana && mana.max > 0 && mana.current >= mana.max) delete actor.affinityExhausted;
+  if (mana && mana.max > 0 && mana.current >= mana.max) setExhaustedActorAffinityKeys(actor, []);
 }

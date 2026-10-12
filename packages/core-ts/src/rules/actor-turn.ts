@@ -1,10 +1,10 @@
 import { resolveActorFields } from './actor-fields.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey } from '../state/actor-types.ts';
-import { activeActorAffinity, affinityKey, explainEquipActorAffinity } from '../state/actor-inventory.ts';
+import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
 import { actorAffinityMagnitude } from './actor-affinity.ts';
-import { castFocusedActorAffinity, type ActorCastManaCosts, type ActorEffectSuppression } from './actor-cast.ts';
+import { castFocusedActorAffinity, selectActorCastAffinity, type ActorCastManaCosts, type ActorEffectSuppression } from './actor-cast.ts';
 import { computeMovementStaminaCost } from './move.ts';
 
 export interface ActorTurnSnapshot {
@@ -23,10 +23,13 @@ export interface ActorTurnCosts {
   persistentUpkeep?: number[];
 }
 function copy<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
-function hasParams(action: ActorAction, keys: string[]): boolean {
-  return !!action.params && typeof action.params === 'object' && !Array.isArray(action.params)
-    && Object.keys(action.params).length === keys.length && keys.every(key => Object.hasOwn(action.params!, key));
+function hasParams(action: ActorAction, keys: string[], optional: string[] = []): boolean {
+  if (!action.params || typeof action.params !== 'object' || Array.isArray(action.params)) return false;
+  const present = Object.keys(action.params);
+  return keys.every(key => Object.hasOwn(action.params!, key))
+    && present.every(key => keys.includes(key) || optional.includes(key));
 }
+const isKey = (value: unknown): value is ActorAffinityKey => typeof value === 'string';
 
 /** Core action legality/exclusivity; Moderator supplies the ordered actions and tick. */
 export function createActorTurn(
@@ -74,10 +77,18 @@ export function createActorTurn(
       let accepted = false;
       switch (action.kind) {
         case 'wait': accepted = action.params === undefined; break;
-        case 'equip_affinity':
-          if (hasParams(action, ['affinityKey']) && typeof action.params.affinityKey === 'string') {
-            accepted = registry.equipAffinity(actor.id, action.params.affinityKey);
-            if (!accepted) lastRejection = explainEquipActorAffinity(actor, action.params.affinityKey);
+        case 'equip_affinity': {
+          if (!hasParams(action, ['affinityKey'], ['replaceKey']) || !isKey(action.params.affinityKey)) break;
+          const { affinityKey: key, replaceKey } = action.params;
+          if (replaceKey !== undefined && !isKey(replaceKey)) break;
+          accepted = registry.equipAffinity(actor.id, key, replaceKey);
+          if (!accepted) lastRejection = explainEquipActorAffinity(actor, key, replaceKey);
+          break;
+        }
+        case 'unequip_affinity':
+          if (hasParams(action, ['affinityKey']) && isKey(action.params.affinityKey)) {
+            accepted = registry.unequipAffinity(actor.id, action.params.affinityKey);
+            if (!accepted) lastRejection = explainUnequipActorAffinity(actor, action.params.affinityKey);
           }
           break;
         case 'take':
@@ -105,10 +116,14 @@ export function createActorTurn(
           break;
         }
         case 'cast_affinity': {
-          if (!hasParams(action, ['targetId']) || typeof action.params.targetId !== 'string') break;
-          const pair = activeActorAffinity(actor); if (!pair) { lastRejection = 'NoActiveAffinity'; break; }
+          if (!hasParams(action, ['targetId'], ['affinityKey']) || typeof action.params.targetId !== 'string') break;
+          const named = action.params.affinityKey;
+          if (named !== undefined && !isKey(named)) break;
+          const pair = selectActorCastAffinity(actor, named);
+          if (typeof pair === 'string') { lastRejection = pair; break; }
           const key = affinityKey(pair);
-          const result = castFocusedActorAffinity(registry, actor.id, action.params.targetId, prices.castMana, suppressionFor(actor.id, key));
+          const result = castFocusedActorAffinity(registry, actor.id, action.params.targetId, prices.castMana,
+            suppressionFor(actor.id, key), key);
           accepted = result.accepted;
           if (!accepted) lastRejection = result.rejection ?? null;
           if (accepted) {

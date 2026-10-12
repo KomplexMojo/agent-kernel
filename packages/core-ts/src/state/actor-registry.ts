@@ -4,7 +4,7 @@ import type { ActorPosition, ActorRecord, ActorRegistrySnapshot, ActorVitalKind,
 import { validateActorRecordVitals, changeActorVital, regenerateActor } from './actor-vitals.ts';
 import { chargeActorAffinityUpkeep, recoverActorAffinity } from '../rules/actor-upkeep.ts';
 
-import { validateActorInventory, equipActorAffinity } from './actor-inventory.ts';
+import { validateActorInventory, equipActorAffinity, unequipActorAffinity } from './actor-inventory.ts';
 
 import { validateActorHoldings, exposeDefeatHoldings, takeActorHolding } from './actor-holdings.ts';
 
@@ -16,6 +16,7 @@ export type ActorMoveRejection = 'WrongActor' | 'InvalidCapability' | 'OutOfBoun
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
   'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'affinityExhausted',
+  'affinitySlots', 'equippedAffinityKeys', 'exhaustedAffinityKeys',
 ]);
 
 /** Reject values JSON cannot faithfully represent before taking ownership. */
@@ -132,7 +133,10 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     takeHolding(receiverId: string, sourceId: string, holdingId: string): boolean {
       return takeActorHolding(actors.get(receiverId), actors.get(sourceId), holdingId);
     },
-    equipAffinity(id: string, key: ActorAffinityKey): boolean { return equipActorAffinity(actors.get(id), key); },
+    equipAffinity(id: string, key: ActorAffinityKey, replaceKey?: ActorAffinityKey): boolean {
+      return equipActorAffinity(actors.get(id), key, replaceKey);
+    },
+    unequipAffinity(id: string, key: ActorAffinityKey): boolean { return unequipActorAffinity(actors.get(id), key); },
     changeVital(id: string, key: ActorVitalKind, delta: number): number {
       const actor = actors.get(id);
       const actual = changeActorVital(actor, key, delta);
@@ -177,6 +181,7 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       if (existing) {
         existing.affinities = [pair];
         existing.activeAffinityKey = `${pair.kind}:${pair.expression}`;
+        delete existing.equippedAffinityKeys; delete existing.exhaustedAffinityKeys;
         existing.vitals.mana = { ...mana };
         validateActorRecordVitals(existing);
         validateActorInventory(existing);

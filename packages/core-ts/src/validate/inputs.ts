@@ -39,6 +39,7 @@ export const ValidationError = {
   UnknownAffinity: 26,
   AffinityAlreadyEquipped: 27,
   NothingToTake: 28,
+  AffinityNotEquipped: 29,
 } as const;
 
 /**

@@ -1,6 +1,6 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import type { ActorAffinityKey } from '../state/actor-types.ts';
-import { activeActorAffinity, affinityKey } from '../state/actor-inventory.ts';
+import type { ActorAffinityEntry, ActorAffinityKey, ActorRecord } from '../state/actor-types.ts';
+import { affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { actorAffinityMagnitude, getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
 
 /** Configurator-authored tier prices; these are mana costs, not Allocator token prices. */
@@ -14,10 +14,32 @@ export interface ActorCastResult {
   rejection?: string;
 }
 
+/**
+ * The equipped slot a cast uses: the one it names, else the first equipped push
+ * or pull. A ValidationError name when there is none to use.
+ */
+export function selectActorCastAffinity(actor: ActorRecord, key?: ActorAffinityKey): ActorAffinityEntry | string {
+  const equipped = equippedActorAffinities(actor);
+  if (key !== undefined) {
+    const named = equipped.find(pair => affinityKey(pair) === key);
+    if (!named) return 'AffinityNotEquipped';
+    return named.expression === 'push' || named.expression === 'pull' ? named : 'AffinityNotCastable';
+  }
+  if (!equipped.length) return 'NoActiveAffinity';
+  return equipped.find(pair => pair.expression === 'push' || pair.expression === 'pull') ?? 'AffinityNotCastable';
+}
+
+/** The target's slot a neutralizing cast of `kind` suppresses: its first push or emit of that kind. */
+function suppressedSlot(target: ActorRecord, kind: string): ActorAffinityEntry | undefined {
+  return equippedActorAffinities(target).find(pair => pair.kind === kind
+    && (pair.expression === 'push' || pair.expression === 'emit'));
+}
+
 /** Focused effect primitive. The turn executor consumes its pending suppression record. */
 export function castFocusedActorAffinity(
   registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital'>,
   sourceId: string, targetId: string, manaCosts: ActorCastManaCosts, suppressedAmount = 0,
+  castKey?: ActorAffinityKey,
 ): ActorCastResult {
   if (!Number.isFinite(suppressedAmount) || suppressedAmount < 0) throw new Error('invalid suppressed amount');
   for (const prices of Object.values(manaCosts)) {
@@ -28,9 +50,8 @@ export function castFocusedActorAffinity(
   const source = registry.getActor(sourceId); const target = registry.getActor(targetId);
   if (source?.lifecycle !== 'alive') return reject('WrongActor');
   if (!source.capabilities.canCast) return reject('InvalidCapability');
-  const pair = activeActorAffinity(source);
-  if (!pair) return reject('NoActiveAffinity');
-  if (!['push', 'pull'].includes(pair.expression)) return reject('AffinityNotCastable');
+  const pair = selectActorCastAffinity(source, castKey);
+  if (typeof pair === 'string') return reject(pair);
   if (target?.lifecycle !== 'alive') return reject('InvalidTarget');
   if (Math.max(Math.abs(source.position.x - target.position.x),
     Math.abs(source.position.y - target.position.y)) > pair.stacks) return reject('TargetOutOfRange');
@@ -43,9 +64,8 @@ export function castFocusedActorAffinity(
   const changes: ActorVitalChange[] = [];
   if (cost > 0) changes.push({ actorId: sourceId, vital: 'mana', delta: registry.changeVital(sourceId, 'mana', -cost) });
   const amount = Math.max(0, actorAffinityMagnitude(pair.expression, pair.stacks) - suppressedAmount);
-  const targetPair = activeActorAffinity(target);
-  if (effect.operation === 'neutralize' && targetPair?.kind === pair.kind && target.capabilities.canCast
-    && ['push', 'emit'].includes(targetPair.expression) && sourceId !== targetId) {
+  const targetPair = suppressedSlot(target, pair.kind);
+  if (effect.operation === 'neutralize' && targetPair && target.capabilities.canCast && sourceId !== targetId) {
     return { accepted: true, changes, suppression: { sourceId, targetId, affinityKey: affinityKey(targetPair),
       amount: Math.min(amount, actorAffinityMagnitude(targetPair.expression, targetPair.stacks)) } };
   }
