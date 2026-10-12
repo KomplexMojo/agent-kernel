@@ -16,7 +16,6 @@ flowchart LR
 ```bash
 pnpm run test
 pnpm run test:coverage:core-ts
-pnpm run benchmark:core-ts-affinity
 pnpm run serve:ui
 ```
 
