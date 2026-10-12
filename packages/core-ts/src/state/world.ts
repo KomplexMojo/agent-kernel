@@ -692,17 +692,6 @@ export function createWorldState() {
     }
   }
 
-  function setRowFromString(y: number, row: string): void {
-    for (let x = 0; x < row.length && x < width; x++) {
-      const code = row.charCodeAt(x);
-      if (code === 35) setTile(x, y, Tile.Wall);       // '#'
-      else if (code === 46) setTile(x, y, Tile.Floor);  // '.'
-      else if (code === 83) setTile(x, y, Tile.Spawn);  // 'S'
-      else if (code === 69) setTile(x, y, Tile.Exit);   // 'E'
-      else if (code === 66) setTile(x, y, Tile.Barrier); // 'B'
-    }
-  }
-
   // ── World reset ──
 
   function resetWorldState(): void {
@@ -1107,7 +1096,7 @@ export function createWorldState() {
       // direction is motivated -> mirror, and it was only ever run at placement.
       // Now that a move repoints the mirror to its own actor, an unseeded array
       // would overwrite live vitals with zeros (callers set vitals BEFORE
-      // spawning: see loadMvpScenario). Seeding here keeps the two
+      // spawning). Seeding here keeps the two
       // representations equal at the one point where one becomes the other.
       for (let kind = 0; kind < VITAL_COUNT; kind++) {
         const offset = vitalIndexFor(0, kind);
@@ -1118,56 +1107,6 @@ export function createWorldState() {
       applyDefaultCapabilitiesToMotivatedActors(1);
       motivatedActorExitEligibleArr[0] = 1;
       seedMotivatedOccupancyFromActor();
-    },
-
-    // ── MVP scenarios ──
-
-    loadMvpScenario(): void {
-      this.configureGrid(9, 9);
-      // S/E sit on the perimeter wall; approaches are the adjacent interior floors.
-      setRowFromString(0, "#########");
-      setRowFromString(1, "S...#...#");
-      setRowFromString(2, "#...#.#.#");
-      setRowFromString(3, "#.#...#.#");
-      setRowFromString(4, "#.###.#.#");
-      setRowFromString(5, "#...#...#");
-      setRowFromString(6, "#.#.#.###");
-      setRowFromString(7, "#...#...E");
-      setRowFromString(8, "#########");
-      this.setSpawnApproachPosition(1, 1);
-      this.setExitApproachPosition(7, 7);
-      actorId = 1;
-      actorKind = ActorKind.Motivated;
-      this.setActorVital(VitalKind.Health, 10, 10, 0);
-      this.setActorVital(VitalKind.Mana, 0, 0, 0);
-      this.setActorVital(VitalKind.Stamina, 12, 12, 0);
-      this.setActorVital(VitalKind.Durability, 0, 0, 0);
-      // Seat on spawn approach (portal itself is non-walkable).
-      this.spawnActorAt(1, 1);
-      currentTick = 0;
-    },
-
-    loadMvpBarrierScenario(): void {
-      this.configureGrid(9, 9);
-      setRowFromString(0, "#########");
-      setRowFromString(1, "S.B.#...#");
-      setRowFromString(2, "#...#.#.#");
-      setRowFromString(3, "#.#...#.#");
-      setRowFromString(4, "#.###.#.#");
-      setRowFromString(5, "#...#...#");
-      setRowFromString(6, "#.#.#.###");
-      setRowFromString(7, "#...#...E");
-      setRowFromString(8, "#########");
-      this.setSpawnApproachPosition(1, 1);
-      this.setExitApproachPosition(7, 7);
-      actorId = 1;
-      actorKind = ActorKind.Motivated;
-      this.setActorVital(VitalKind.Health, 10, 10, 0);
-      this.setActorVital(VitalKind.Mana, 0, 0, 0);
-      this.setActorVital(VitalKind.Stamina, 12, 12, 0);
-      this.setActorVital(VitalKind.Durability, 0, 0, 0);
-      this.spawnActorAt(1, 1);
-      currentTick = 0;
     },
 
     // ── Bounds and queries ──

@@ -21,7 +21,6 @@ General rules:
 - initial-state-artifact-v1-mvp-actor.json: one ambulatory actor at spawn with vitals stub (hp/maxHp 10) and speed 1.
 - action-sequence-v1-mvp-to-exit.json: ordered move actions (east, east, south) walking the actor from spawn to the exit.
 - frame-buffer-log-v1-mvp.json: ASCII frame buffers per tick mirroring the action path, keyed by actor id and sharing the same run/config refs.
-- frame-buffer-log-v1-mvp-barrier.json: ASCII frame buffer for barrier grid with base tiles and actor overlay at spawn.
 
 ## Intent + Planning
 - intent-envelope-v1-basic.json: intake boundary request; used to test intent parsing.
