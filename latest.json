@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-12T17-27-36-018Z-898c363c5a77-6cf6b1bf7c05",
-    "key": "6cf6b1bf7c05c6c98e775475e46df07e8fcf2069ef3212e89b4350eb08d97606",
+    "id": "2026-10-12T17-45-37-623Z-d4177f4bf4b1-2594903d2697",
+    "key": "2594903d2697e3802b5125ba8912f56d06b27cb619191a516233f99909c8b206",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-12T17:27:36.018Z",
-    "completedAt": "2026-10-12T17:27:58.766Z",
-    "durationMs": 22748,
+    "startedAt": "2026-10-12T17:45:37.623Z",
+    "completedAt": "2026-10-12T17:46:00.133Z",
+    "durationMs": 22510,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "898c363c5a77a7915ea85683946cfc50e69a7a72",
-    "tree": "3dab726fac1eba37d85e757eb34bfd060a293532"
+    "commit": "d4177f4bf4b1992e3565fcc825e49be53e444ae4",
+    "tree": "a3a6ecc5bb3dbe0d019fa28e967b43619cc3895a"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -58,6 +58,7 @@
       "packages/runtime/src/commands/run-helpers.js",
       "packages/runtime/src/contracts/README.md",
       "packages/runtime/src/contracts/artifacts.ts",
+      "packages/runtime/src/index.js",
       "packages/runtime/src/mvp/movement.js",
       "packages/runtime/src/personas/_shared/persona-helpers.mts",
       "packages/runtime/src/personas/_shared/runtime-decision.mts",
@@ -154,7 +155,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/6cf6b1bf7c05c6c98e775475e46df07e8fcf2069ef3212e89b4350eb08d97606"
+    "retentionId": "preflights/2594903d2697e3802b5125ba8912f56d06b27cb619191a516233f99909c8b206"
   },
   "qualifies": false
 }
