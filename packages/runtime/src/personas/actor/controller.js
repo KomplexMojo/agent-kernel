@@ -1400,9 +1400,12 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
   return buildMoveProposal({ observation, payload, simConfig });
 }
 
-export const ACTOR_COMMAND_KINDS = Object.freeze(["move", "wait", "equip_affinity", "cast_affinity", "take"]);
+export const ACTOR_COMMAND_KINDS = Object.freeze([
+  "move", "wait", "equip_affinity", "unequip_affinity", "cast_affinity", "take",
+]);
 
 const AFFINITY_KEY_PATTERN = /^[a-z]+:[a-z]+$/;
+const isAffinityKey = (value) => typeof value === "string" && AFFINITY_KEY_PATTERN.test(value);
 
 function commandParam(command, name, valid) {
   const value = command.params?.[name];
@@ -1412,19 +1415,30 @@ function commandParam(command, name, valid) {
   return value;
 }
 
+/** Optional param: absent is fine; present must pass `valid`. */
+function optionalCommandParam(command, name, valid) {
+  if (command.params?.[name] === undefined) return undefined;
+  return commandParam(command, name, valid);
+}
+
 const isId = (value) => typeof value === "string" && value.trim().length > 0;
 
 /**
  * The command vocabulary is the Actor's:
  *   - `{ kind: "move", params: { direction } }` (an EIGHT_WAY direction name)
  *   - `{ kind: "wait" }`
- *   - `{ kind: "equip_affinity", params: { affinityKey } }` ("<kind>:<expression>")
- *   - `{ kind: "cast_affinity", params: { targetId } }`
+ *   - `{ kind: "equip_affinity", params: { affinityKey, replaceKey? } }` ("<kind>:<expression>")
+ *   - `{ kind: "unequip_affinity", params: { affinityKey } }`
+ *   - `{ kind: "cast_affinity", params: { targetId, affinityKey? } }`
  *   - `{ kind: "take", params: { targetId, holdingId } }`
  * Only the SHAPE is checked here; whether the actor knows that affinity, can reach that
  * target or afford the cast is core's call. Exported so the runner can refuse a malformed
  * command BEFORE a tick starts rather than half-way through DECIDE. Throws rather than
  * letting a controlled actor fall back to autonomous play.
+ *
+ * Slot fields (`replaceKey`, cast `affinityKey`, `unequip_affinity`) match core's
+ * multi-slot equip rules (slots M1): optional keys stay omitted when unused so
+ * single-slot callers keep their old shape.
  */
 export function normalizeActorCommand(command) {
   if (!command || typeof command !== "object" || Array.isArray(command)) {
@@ -1436,11 +1450,23 @@ export function normalizeActorCommand(command) {
   switch (command.kind) {
     case "wait":
       return { kind: "wait" };
-    case "equip_affinity":
-      return { kind: "equip_affinity",
-        params: { affinityKey: commandParam(command, "affinityKey", (value) => typeof value === "string" && AFFINITY_KEY_PATTERN.test(value)) } };
-    case "cast_affinity":
-      return { kind: "cast_affinity", params: { targetId: commandParam(command, "targetId", isId) } };
+    case "equip_affinity": {
+      const params = {
+        affinityKey: commandParam(command, "affinityKey", isAffinityKey),
+      };
+      const replaceKey = optionalCommandParam(command, "replaceKey", isAffinityKey);
+      if (replaceKey !== undefined) params.replaceKey = replaceKey;
+      return { kind: "equip_affinity", params };
+    }
+    case "unequip_affinity":
+      return { kind: "unequip_affinity",
+        params: { affinityKey: commandParam(command, "affinityKey", isAffinityKey) } };
+    case "cast_affinity": {
+      const params = { targetId: commandParam(command, "targetId", isId) };
+      const affinityKey = optionalCommandParam(command, "affinityKey", isAffinityKey);
+      if (affinityKey !== undefined) params.affinityKey = affinityKey;
+      return { kind: "cast_affinity", params };
+    }
     case "take":
       return { kind: "take", params: {
         targetId: commandParam(command, "targetId", isId),

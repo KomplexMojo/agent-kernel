@@ -91,10 +91,38 @@ test("an equip command proposes equipping that affinity (#202)", async () => {
   assert.deepEqual(gameplay.map((a) => [a.kind, a.params]), [["equip_affinity", { affinityKey: "light:emit" }]]);
 });
 
+test("equip with replaceKey and unequip propose the slot commands core accepts (slots M3)", async () => {
+  const equip = await proposeOnce({
+    actor: DELVER,
+    command: { kind: "equip_affinity", params: { affinityKey: "water:push", replaceKey: "light:emit" } },
+  });
+  assert.deepEqual(
+    equip.actions.filter((a) => a.kind !== "emit_log" && a.kind !== "emit_telemetry").map((a) => [a.kind, a.params]),
+    [["equip_affinity", { affinityKey: "water:push", replaceKey: "light:emit" }]],
+  );
+  const unequip = await proposeOnce({
+    actor: DELVER,
+    command: { kind: "unequip_affinity", params: { affinityKey: "light:emit" } },
+  });
+  assert.deepEqual(
+    unequip.actions.filter((a) => a.kind !== "emit_log" && a.kind !== "emit_telemetry").map((a) => [a.kind, a.params]),
+    [["unequip_affinity", { affinityKey: "light:emit" }]],
+  );
+});
+
 test("a cast command proposes casting at that target; range and mana are core's to judge", async () => {
   const result = await proposeOnce({ actor: DELVER, command: { kind: "cast_affinity", params: { targetId: "warden_far_away" } } });
   const gameplay = result.actions.filter((a) => a.kind !== "emit_log" && a.kind !== "emit_telemetry");
   assert.deepEqual(gameplay.map((a) => [a.kind, a.params]), [["cast_affinity", { targetId: "warden_far_away" }]]);
+});
+
+test("a cast command may name which equipped affinity to fire", async () => {
+  const result = await proposeOnce({
+    actor: DELVER,
+    command: { kind: "cast_affinity", params: { targetId: "warden_1", affinityKey: "water:push" } },
+  });
+  const gameplay = result.actions.filter((a) => a.kind !== "emit_log" && a.kind !== "emit_telemetry");
+  assert.deepEqual(gameplay.map((a) => [a.kind, a.params]), [["cast_affinity", { targetId: "warden_1", affinityKey: "water:push" }]]);
 });
 
 test("a take command proposes taking that holding", async () => {
@@ -106,7 +134,10 @@ test("a take command proposes taking that holding", async () => {
 
 test("affinity commands with malformed params throw", async () => {
   await assert.rejects(proposeOnce({ actor: DELVER, command: { kind: "equip_affinity", params: { affinityKey: "fire" } } }), /affinityKey/);
+  await assert.rejects(proposeOnce({ actor: DELVER, command: { kind: "equip_affinity", params: { affinityKey: "fire:push", replaceKey: "x" } } }), /replaceKey/);
+  await assert.rejects(proposeOnce({ actor: DELVER, command: { kind: "unequip_affinity", params: {} } }), /affinityKey/);
   await assert.rejects(proposeOnce({ actor: DELVER, command: { kind: "cast_affinity", params: {} } }), /targetId/);
+  await assert.rejects(proposeOnce({ actor: DELVER, command: { kind: "cast_affinity", params: { targetId: "w", affinityKey: "fire" } } }), /affinityKey/);
   await assert.rejects(proposeOnce({ actor: DELVER, command: { kind: "take", params: { targetId: "w" } } }), /holdingId/);
 });
 
@@ -117,3 +148,5 @@ test("affinity commands with malformed params throw", async () => {
 // - command on an actor whose position is absent from the observation
 // - an equip command for a key the actor does not hold is still proposed (core refuses it)
 // - extra params on any affinity command throw
+// - equip without replaceKey omits the field (single-slot callers keep their shape)
+// - cast without affinityKey omits the field

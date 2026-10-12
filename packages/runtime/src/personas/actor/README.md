@@ -257,12 +257,15 @@ script). The command vocabulary is this persona's (`ACTOR_COMMAND_KINDS`):
 
 - `{ kind: "move", params: { direction } }` with an eight-way direction name
 - `{ kind: "wait" }`
-- `{ kind: "equip_affinity", params: { affinityKey } }` with a `"<kind>:<expression>"` key
-- `{ kind: "cast_affinity", params: { targetId } }`
+- `{ kind: "equip_affinity", params: { affinityKey, replaceKey? } }` with `"<kind>:<expression>"` keys
+- `{ kind: "unequip_affinity", params: { affinityKey } }`
+- `{ kind: "cast_affinity", params: { targetId, affinityKey? } }`
 - `{ kind: "take", params: { targetId, holdingId } }`
 
-Only the shape is checked. Anything else throws, so a controlled actor never falls back to autonomous
-play by accident.
+`replaceKey` names which equipped slot to overwrite when slots are full; without it core frees the
+oldest slot. Cast `affinityKey` picks which equipped push/pull to fire; without it core uses the
+first equipped castable. Only the shape is checked. Anything else throws, so a controlled actor
+never falls back to autonomous play by accident.
 
 - The command becomes the actor's **only** proposal. Motivations are not consulted and the actor is
   not posed to the solver, even with runtime decisioning enabled — the decision has already been made.
