@@ -155,7 +155,8 @@
             }
           ],
           "activeAffinityKey": "fire:draw",
-          "holdings": []
+          "holdings": [],
+          "affinitySlots": 3
         }
       ],
       "presentation": {

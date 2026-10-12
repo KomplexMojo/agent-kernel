@@ -65,7 +65,8 @@
         }
       ],
       "activeAffinityKey": null,
-      "holdings": []
+      "holdings": [],
+      "affinitySlots": 3
     },
     {
       "id": "hazard_1",

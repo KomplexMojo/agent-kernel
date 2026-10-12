@@ -65,7 +65,8 @@
         }
       ],
       "activeAffinityKey": null,
-      "holdings": []
+      "holdings": [],
+      "affinitySlots": 3
     },
     {
       "id": "card_warden_1-1",
@@ -118,7 +119,8 @@
         }
       ],
       "activeAffinityKey": null,
-      "holdings": []
+      "holdings": [],
+      "affinitySlots": 2
     },
     {
       "id": "card_warden_2-1",
@@ -171,7 +173,8 @@
         }
       ],
       "activeAffinityKey": null,
-      "holdings": []
+      "holdings": [],
+      "affinitySlots": 2
     }
   ],
   "presentation": {

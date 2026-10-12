@@ -31,6 +31,8 @@ function artifacts() {
           { kind: 'fire', expression: 'push', stacks: 2 },
         ],
         activeAffinityKey: 'fire:pull',
+        // One slot, so the tick-1 equip swaps rather than adding a second slot.
+        affinitySlots: 1,
       },
       {
         id: 'source', category: 'resource', position: { x: 1, y: 0 },

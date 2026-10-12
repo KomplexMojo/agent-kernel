@@ -384,8 +384,11 @@ the authored pair active; category-specific hazard/resource collections do not e
 Configurator controller. It accepts one of the five `category` presets plus
 stable `id`, `position`, explicit `vitals`, and mechanical overrides. It returns
 `{ actor, presentation: { category } }`. Labels are excluded from actor state.
-Alignment, defeat vital and capabilities default from the preset; explicit
-properties override them. Vital quantities and prices are never invented here.
+Alignment, defeat vital, capabilities and affinity slots default from the
+preset; explicit properties override them. Slots (how many affinities an actor
+can equip at once) are delver 3, warden 2, hazard/resource/barrier 1; one slot
+is core's default, so a one-slot record carries no `affinitySlots` field. An
+authored `equippedAffinityKeys` is kept and checked by core. Vital quantities and prices are never invented here.
 All motivations and owned affinity/expression pairs are preserved. Core-owned
 validators enforce common vital/inventory/holding shapes. Explicit null values
 are rejected where the property requires a value; only omitted values default.
