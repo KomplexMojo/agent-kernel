@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-12T21-16-49-840Z-d4177f4bf4b1-2594903d2697",
-    "key": "2594903d2697e3802b5125ba8912f56d06b27cb619191a516233f99909c8b206",
+    "id": "2026-10-12T21-34-50-036Z-1b6a150091dc-49222d5ce51f",
+    "key": "49222d5ce51fb1211c8552387e9e2a4c8d4ba5969c5458f772a06576ed0f0198",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-12T21:16:49.840Z",
-    "completedAt": "2026-10-12T21:17:12.551Z",
-    "durationMs": 22711,
+    "startedAt": "2026-10-12T21:34:50.036Z",
+    "completedAt": "2026-10-12T21:35:12.661Z",
+    "durationMs": 22625,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "d4177f4bf4b1992e3565fcc825e49be53e444ae4",
-    "tree": "a3a6ecc5bb3dbe0d019fa28e967b43619cc3895a"
+    "commit": "1b6a150091dc22214a3fe6171b273a192a2ff796",
+    "tree": "8832464b99777c467c99cc0c7f4448f9458f6730"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -51,6 +51,7 @@
       "packages/core-ts/src/state/affinity.ts",
       "packages/core-ts/src/state/visibility.ts",
       "packages/core-ts/src/state/world.ts",
+      "packages/core-ts/src/validate/inputs.ts",
       "packages/runtime/src/build/authoring-build.js",
       "packages/runtime/src/build/orchestrate-build.js",
       "packages/runtime/src/commands/kernel.js",
@@ -155,7 +156,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/2594903d2697e3802b5125ba8912f56d06b27cb619191a516233f99909c8b206"
+    "retentionId": "preflights/49222d5ce51fb1211c8552387e9e2a4c8d4ba5969c5458f772a06576ed0f0198"
   },
   "qualifies": false
 }
