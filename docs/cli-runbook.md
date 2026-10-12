@@ -34,5 +34,4 @@ node packages/adapters-cli/src/cli/ak.mjs llm --model fixture --prompt "hello" -
 ```bash
 pnpm run test
 pnpm run test:coverage:core-ts
-pnpm run benchmark:core-ts-affinity
 ```

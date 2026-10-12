@@ -80,19 +80,16 @@ export * from "./motivation-readers.ts";
 export * from "./mvp-movement.ts";
 
 export const CORE_API_KEYS = [
-  "addActorPlacement",
   "addMotivationEvaluationEntry",
   "advanceTick",
   "affinityExpressionAllowsEnvironmentMutation",
   "affinityExpressionAllowsHazardArming",
   "affinityExpressionIsPersistentField",
   "applyAction",
-  "applyActorPlacements",
   "applyAffinityDamage",
   "applyAffinityDamageToHazard",
   "applyAffinityPullFromHazard",
   "armStaticHazardAt",
-  "clearActorPlacements",
   "clearAffinityField",
   "clearEffects",
   "clearMotivatedActorAffinity",
@@ -103,7 +100,6 @@ export const CORE_API_KEYS = [
   "computeAffinityPotency",
   "computeAffinityRadius",
   "computeStaticHazardAffinityField",
-  "configureGrid",
   "destroyBarrierAt",
   "disarmStaticHazardAt",
   "evaluateMotivations",
@@ -240,13 +236,9 @@ export const CORE_API_KEYS = [
   "isWalkablePosition",
   "loadMvpBarrierScenario",
   "loadMvpScenario",
-  "loadTilesFromBuffer",
   "memory",
   "motivationKindsConflict",
   "normalizeMotivationIntensity",
-  "placeAffinityResourceAt",
-  "placeResourceAt",
-  "prepareTileBuffer",
   "raiseBarrierAt",
   "readLightLevels",
   "removeResourceAt",
@@ -260,29 +252,14 @@ export const CORE_API_KEYS = [
   "resolveMotivatedActorAffinityInteraction",
   "setActionBudgetCost",
   "setActiveMotivatedActor",
-  "setActorActionCostMana",
-  "setActorActionCostStamina",
-  "setActorMovementCost",
-  "setActorVital",
   "setBudget",
-  "setExitApproachPosition",
-  "setExitPosition",
-  "setMotivatedActorActionCostMana",
-  "setMotivatedActorActionCostStamina",
   "setMotivatedActorAffinity",
-  "setMotivatedActorExitEligible",
-  "setMotivatedActorMovementCost",
   "setMotivatedActorVital",
   "setMoveAction",
   "setPersistentAffinityUpkeepTable",
-  "setSpawnApproachPosition",
-  "setSpawnPosition",
   "setTileAt",
-  "spawnActorAt",
   "spendMotivatedActorAffinityMana",
   "step",
-  "validateActorCapabilities",
-  "validateActorPlacement",
   "validateActorVitals",
   "version",
 ] as const;
@@ -554,24 +531,15 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getLastMotivationReasoningClass = motivation.getLastMotivationReasoningClass as CoreFunction;
 
   // World state (per-instance)
-  core.configureGrid = world.configureGrid as CoreFunction;
   core.getMapWidth = world.getMapWidth as CoreFunction;
   core.getMapHeight = world.getMapHeight as CoreFunction;
-  core.prepareTileBuffer = world.prepareTileBuffer as CoreFunction;
-  core.loadTilesFromBuffer = world.loadTilesFromBuffer as CoreFunction;
   core.setTileAt = world.setTileAt as CoreFunction;
-  core.setSpawnPosition = world.setSpawnPosition as CoreFunction;
-  core.setExitPosition = world.setExitPosition as CoreFunction;
-  core.setSpawnApproachPosition = world.setSpawnApproachPosition as CoreFunction;
-  core.setExitApproachPosition = world.setExitApproachPosition as CoreFunction;
   core.getSpawnApproachPosition = world.getSpawnApproachPosition as CoreFunction;
   core.getExitApproachPosition = world.getExitApproachPosition as CoreFunction;
   core.getMotivatedActorExitDwellByIndex = world.getMotivatedActorExitDwellByIndex as CoreFunction;
   core.isMotivatedActorExitedByIndex = world.isMotivatedActorExitedByIndex as CoreFunction;
-  core.setMotivatedActorExitEligible = world.setMotivatedActorExitEligible as CoreFunction;
   core.isMotivatedActorExitEligible = world.isMotivatedActorExitEligible as CoreFunction;
   core.isWalkablePosition = world.isWalkablePosition as CoreFunction;
-  core.spawnActorAt = world.spawnActorAt as CoreFunction;
   core.loadMvpScenario = world.loadMvpScenario.bind(world) as CoreFunction;
   core.loadMvpBarrierScenario = world.loadMvpBarrierScenario.bind(world) as CoreFunction;
   core.renderBaseCellChar = world.renderBaseCellChar as CoreFunction;
@@ -588,21 +556,9 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getActorVitalCurrent = world.getActorVitalCurrent as CoreFunction;
   core.getActorVitalMax = world.getActorVitalMax as CoreFunction;
   core.getActorVitalRegen = world.getActorVitalRegen as CoreFunction;
-  core.setActorVital = world.setActorVital as CoreFunction;
-  core.setActorMovementCost = world.setActorMovementCost as CoreFunction;
-  core.setActorActionCostMana = world.setActorActionCostMana as CoreFunction;
-  core.setActorActionCostStamina = world.setActorActionCostStamina as CoreFunction;
   core.setMotivatedActorVital = world.setMotivatedActorVital as CoreFunction;
-  core.setMotivatedActorMovementCost = world.setMotivatedActorMovementCost as CoreFunction;
-  core.setMotivatedActorActionCostMana = world.setMotivatedActorActionCostMana as CoreFunction;
-  core.setMotivatedActorActionCostStamina = world.setMotivatedActorActionCostStamina as CoreFunction;
   core.validateActorVitals = world.validateActorVitals as CoreFunction;
-  core.validateActorCapabilities = world.validateActorCapabilities as CoreFunction;
-  core.clearActorPlacements = world.clearActorPlacements as CoreFunction;
-  core.addActorPlacement = world.addActorPlacement as CoreFunction;
   core.getActorPlacementCount = world.getActorPlacementCount as CoreFunction;
-  core.validateActorPlacement = world.validateActorPlacement as CoreFunction;
-  core.applyActorPlacements = world.applyActorPlacements.bind(world) as CoreFunction;
   core.getMotivatedActorCount = world.getMotivatedActorCount as CoreFunction;
   core.getMotivatedActorIdByIndex = world.getMotivatedActorIdByIndex as CoreFunction;
   core.getMotivatedActorXByIndex = world.getMotivatedActorXByIndex as CoreFunction;
@@ -677,8 +633,6 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getMotivatedActorAffinityGrantManaRegenAt = world.getMotivatedActorAffinityGrantManaRegenAt as CoreFunction;
 
   core.hasResourceAt = world.hasResourceAt.bind(world) as CoreFunction;
-  core.placeResourceAt = world.placeResourceAt.bind(world) as CoreFunction;
-  core.placeAffinityResourceAt = world.placeAffinityResourceAt.bind(world) as CoreFunction;
   core.removeResourceAt = world.removeResourceAt.bind(world) as CoreFunction;
   core.getResourceVitalKindAt = world.getResourceVitalKindAt as CoreFunction;
   core.getResourceDeltaAt = world.getResourceDeltaAt as CoreFunction;
