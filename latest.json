@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-12T21-34-50-036Z-1b6a150091dc-49222d5ce51f",
-    "key": "49222d5ce51fb1211c8552387e9e2a4c8d4ba5969c5458f772a06576ed0f0198",
+    "id": "2026-10-12T21-52-52-134Z-0e5c91988b53-c25ff0f6be71",
+    "key": "c25ff0f6be7131e7784205380a3aa1b753396e0a25923449609706212cceabce",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-12T21:34:50.036Z",
-    "completedAt": "2026-10-12T21:35:12.661Z",
-    "durationMs": 22625,
+    "startedAt": "2026-10-12T21:52:52.134Z",
+    "completedAt": "2026-10-12T21:53:14.708Z",
+    "durationMs": 22574,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "1b6a150091dc22214a3fe6171b273a192a2ff796",
-    "tree": "8832464b99777c467c99cc0c7f4448f9458f6730"
+    "commit": "0e5c91988b5392cf834a0fefa6206a9b32859c03",
+    "tree": "ade68979e290cf3daebfb7a8089086c4bf18fb95"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -58,7 +58,9 @@
       "packages/runtime/src/commands/manual-movement.js",
       "packages/runtime/src/commands/run-helpers.js",
       "packages/runtime/src/contracts/README.md",
+      "packages/runtime/src/contracts/affinity-spatial-rules.js",
       "packages/runtime/src/contracts/artifacts.ts",
+      "packages/runtime/src/contracts/domain-constants.js",
       "packages/runtime/src/index.js",
       "packages/runtime/src/mvp/movement.js",
       "packages/runtime/src/personas/_shared/persona-helpers.mts",
@@ -156,7 +158,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/49222d5ce51fb1211c8552387e9e2a4c8d4ba5969c5458f772a06576ed0f0198"
+    "retentionId": "preflights/c25ff0f6be7131e7784205380a3aa1b753396e0a25923449609706212cceabce"
   },
   "qualifies": false
 }
