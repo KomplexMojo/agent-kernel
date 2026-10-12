@@ -234,8 +234,6 @@ export const CORE_API_KEYS = [
   "isStaticHazardActiveAt",
   "isStaticHazardExhaustedAt",
   "isWalkablePosition",
-  "loadMvpBarrierScenario",
-  "loadMvpScenario",
   "memory",
   "motivationKindsConflict",
   "normalizeMotivationIntensity",
@@ -540,8 +538,6 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.isMotivatedActorExitedByIndex = world.isMotivatedActorExitedByIndex as CoreFunction;
   core.isMotivatedActorExitEligible = world.isMotivatedActorExitEligible as CoreFunction;
   core.isWalkablePosition = world.isWalkablePosition as CoreFunction;
-  core.loadMvpScenario = world.loadMvpScenario.bind(world) as CoreFunction;
-  core.loadMvpBarrierScenario = world.loadMvpBarrierScenario.bind(world) as CoreFunction;
   core.renderBaseCellChar = world.renderBaseCellChar as CoreFunction;
   core.renderCellChar = world.renderCellChar.bind(world) as CoreFunction;
   core.getActorId = world.getActorId as CoreFunction;
