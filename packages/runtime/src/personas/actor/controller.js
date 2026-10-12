@@ -24,6 +24,7 @@ import {
   getMotivationReasoningClass,
 } from "../../../../core-ts/src/index.ts";
 import { projectActorEquipmentFields, previewActorFieldChanges } from "../../../../core-ts/src/rules/actor-fields.ts";
+import { equipActorAffinity, equippedActorAffinityKeys } from "../../../../core-ts/src/state/actor-inventory.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 import {
   DEFAULT_DELTAS,
@@ -594,14 +595,42 @@ function actionCanReachTarget(action, origin, target, actorRecord) {
   const distance = chebyshevDistance(origin, target?.position);
   if (!Number.isFinite(distance)) return false;
   if (action?.kind !== "cast_affinity") return false;
-  const pair = actorRecord?.affinities?.find(entry => `${entry.kind}:${entry.expression}` === actorRecord.activeAffinityKey);
+  const named = action.params?.affinityKey;
+  const pair = named === undefined ? castableSlots(actorRecord)[0]
+    : equippedSlots(actorRecord).find(entry => `${entry.kind}:${entry.expression}` === named);
   return actorRecord?.capabilities?.canCast !== false
     && Boolean(pair && ["push", "pull"].includes(pair.expression) && distance <= pair.stacks);
 }
 
+/** The record's equipped affinity entries, in equip order (the first is the active key). */
+function equippedSlots(actorRecord) {
+  const affinities = Array.isArray(actorRecord?.affinities) ? actorRecord.affinities : [];
+  return equippedActorAffinityKeys(actorRecord).flatMap((key) => {
+    const wanted = String(key).trim().toLowerCase();
+    const entry = affinities.find((pair) =>
+      `${String(pair?.kind).trim().toLowerCase()}:${String(pair?.expression).trim().toLowerCase()}` === wanted);
+    return entry ? [entry] : [];
+  });
+}
+
+/** Equipped push/pull slots in equip order; core casts the first unless a cast names one. */
+function castableSlots(actorRecord) {
+  return equippedSlots(actorRecord).filter((entry) =>
+    ["push", "pull"].includes(String(entry.expression).trim().toLowerCase()));
+}
+
+/** The record as core's equip would leave it: a free slot, the named one, or the oldest replaced. */
+function recordAfterEquip(actorRecord, params) {
+  const next = structuredClone(actorRecord);
+  if (!equipActorAffinity(next, params.affinityKey, params.replaceKey)) {
+    return { ...actorRecord, activeAffinityKey: params.affinityKey };
+  }
+  return next;
+}
+
 function fieldUtilityRanks({ endPosition, affinityFields, affinityContributions, actorRecord, action }) {
-  const receiver = action?.kind === "equip_affinity"
-    ? { ...actorRecord, activeAffinityKey: action.params.affinityKey } : actorRecord;
+  const receiver = action?.kind === "equip_affinity" && actorRecord
+    ? recordAfterEquip(actorRecord, action.params) : actorRecord;
   const fields = Array.isArray(affinityContributions) && receiver
     ? projectActorEquipmentFields({ ...receiver, position: endPosition }, endPosition, affinityContributions)
     : (Array.isArray(affinityFields) ? affinityFields : []).filter(field =>
@@ -1261,12 +1290,8 @@ function motivationHasCombatRole(motivationKind) {
 
 function buildAffinityCastProposal({ actor, actorRecord, hostile }) {
   if (actorRecord?.capabilities?.canCast === false) return null;
-  const rawAffinities = actorRecord?.affinities;
-  const affinities = Array.isArray(rawAffinities) ? rawAffinities : [];
-  const activeKey = typeof actorRecord?.activeAffinityKey === "string"
-    ? actorRecord.activeAffinityKey.trim().toLowerCase()
-    : "";
-  if (affinities.length === 0 || !activeKey) return null;
+  const slots = castableSlots(actorRecord);
+  if (slots.length === 0) return null;
 
   const distance = Number.isFinite(hostile?.distance)
     ? hostile.distance
@@ -1275,13 +1300,12 @@ function buildAffinityCastProposal({ actor, actorRecord, hostile }) {
       Math.abs((hostile?.actor?.position?.y ?? 0) - actor.position.y),
     );
 
-  const active = affinities.find((entry) => `${String(entry?.kind).trim().toLowerCase()}:${String(entry?.expression).trim().toLowerCase()}` === activeKey);
-  if (!active) return null;
-  const expression = String(active.expression).trim().toLowerCase();
-  const stacks = Number.isInteger(active.stacks) && active.stacks > 0 ? active.stacks : 1;
-  const focused = expression === "push" || expression === "pull";
-  if (!focused || distance > stacks) return null;
-  return { kind: "cast_affinity", params: { targetId: hostile.actor.id } };
+  // The first equipped push/pull that reaches; named only when core would not pick it.
+  const reaching = slots.find((entry) => distance <= (Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1));
+  if (!reaching) return null;
+  if (reaching === slots[0]) return { kind: "cast_affinity", params: { targetId: hostile.actor.id } };
+  return { kind: "cast_affinity", params: { targetId: hostile.actor.id,
+    affinityKey: `${String(reaching.kind).trim().toLowerCase()}:${String(reaching.expression).trim().toLowerCase()}` } };
 }
 
 
@@ -1317,12 +1341,15 @@ function buildEquipmentProposals(actorRecord, observation, view, payload) {
   // members that can differ across equipment. The equip itself still takes a turn.
   const currentField = fieldUtilityRanks(evaluation);
   const current = [readiness(actorRecord), currentField.safety, currentField.benefit];
+  // A free slot is filled; with full slots the oldest makes way, so the
+  // comparison against the current loadout already prices what would be lost.
+  const equipped = equippedActorAffinityKeys(actorRecord);
   return actorRecord.affinities.flatMap(pair => {
     const affinityKey = `${pair.kind}:${pair.expression}`;
-    if (affinityKey === actorRecord.activeAffinityKey) return [];
+    if (equipped.includes(affinityKey)) return [];
     const action = { kind: "equip_affinity", params: { affinityKey } };
     const alternative = fieldUtilityRanks({ ...evaluation, action });
-    return compareDecisionRanks([readiness({ ...actorRecord, activeAffinityKey: affinityKey }), alternative.safety, alternative.benefit], current) > 0
+    return compareDecisionRanks([readiness(recordAfterEquip(actorRecord, action.params)), alternative.safety, alternative.benefit], current) > 0
       ? [action] : [];
   });
 }
@@ -1400,7 +1427,7 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
   return buildMoveProposal({ observation, payload, simConfig });
 }
 
-export const ACTOR_COMMAND_KINDS = Object.freeze(["move", "wait", "equip_affinity", "cast_affinity", "take"]);
+export const ACTOR_COMMAND_KINDS = Object.freeze(["move", "wait", "equip_affinity", "unequip_affinity", "cast_affinity", "take"]);
 
 const AFFINITY_KEY_PATTERN = /^[a-z]+:[a-z]+$/;
 
@@ -1413,13 +1440,17 @@ function commandParam(command, name, valid) {
 }
 
 const isId = (value) => typeof value === "string" && value.trim().length > 0;
+const isAffinityKey = (value) => typeof value === "string" && AFFINITY_KEY_PATTERN.test(value);
 
 /**
  * The command vocabulary is the Actor's:
  *   - `{ kind: "move", params: { direction } }` (an EIGHT_WAY direction name)
  *   - `{ kind: "wait" }`
- *   - `{ kind: "equip_affinity", params: { affinityKey } }` ("<kind>:<expression>")
- *   - `{ kind: "cast_affinity", params: { targetId } }`
+ *   - `{ kind: "equip_affinity", params: { affinityKey, replaceKey? } }` ("<kind>:<expression>";
+ *     `replaceKey` names the equipped slot to swap out, else core fills a free slot or the oldest)
+ *   - `{ kind: "unequip_affinity", params: { affinityKey } }`
+ *   - `{ kind: "cast_affinity", params: { targetId, affinityKey? } }` (`affinityKey` names the
+ *     equipped slot; without it core casts the first equipped push or pull)
  *   - `{ kind: "take", params: { targetId, holdingId } }`
  * Only the SHAPE is checked here; whether the actor knows that affinity, can reach that
  * target or afford the cast is core's call. Exported so the runner can refuse a malformed
@@ -1436,11 +1467,18 @@ export function normalizeActorCommand(command) {
   switch (command.kind) {
     case "wait":
       return { kind: "wait" };
-    case "equip_affinity":
-      return { kind: "equip_affinity",
-        params: { affinityKey: commandParam(command, "affinityKey", (value) => typeof value === "string" && AFFINITY_KEY_PATTERN.test(value)) } };
-    case "cast_affinity":
-      return { kind: "cast_affinity", params: { targetId: commandParam(command, "targetId", isId) } };
+    case "equip_affinity": {
+      const params = { affinityKey: commandParam(command, "affinityKey", isAffinityKey) };
+      if (command.params?.replaceKey !== undefined) params.replaceKey = commandParam(command, "replaceKey", isAffinityKey);
+      return { kind: "equip_affinity", params };
+    }
+    case "unequip_affinity":
+      return { kind: "unequip_affinity", params: { affinityKey: commandParam(command, "affinityKey", isAffinityKey) } };
+    case "cast_affinity": {
+      const params = { targetId: commandParam(command, "targetId", isId) };
+      if (command.params?.affinityKey !== undefined) params.affinityKey = commandParam(command, "affinityKey", isAffinityKey);
+      return { kind: "cast_affinity", params };
+    }
     case "take":
       return { kind: "take", params: {
         targetId: commandParam(command, "targetId", isId),

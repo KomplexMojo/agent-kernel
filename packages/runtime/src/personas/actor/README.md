@@ -257,8 +257,11 @@ script). The command vocabulary is this persona's (`ACTOR_COMMAND_KINDS`):
 
 - `{ kind: "move", params: { direction } }` with an eight-way direction name
 - `{ kind: "wait" }`
-- `{ kind: "equip_affinity", params: { affinityKey } }` with a `"<kind>:<expression>"` key
-- `{ kind: "cast_affinity", params: { targetId } }`
+- `{ kind: "equip_affinity", params: { affinityKey, replaceKey? } }` with `"<kind>:<expression>"` keys;
+  `replaceKey` names the equipped slot to swap out, otherwise core fills a free slot or replaces the oldest
+- `{ kind: "unequip_affinity", params: { affinityKey } }`
+- `{ kind: "cast_affinity", params: { targetId, affinityKey? } }`; `affinityKey` names the equipped slot,
+  otherwise core casts the first equipped push or pull
 - `{ kind: "take", params: { targetId, holdingId } }`
 
 Only the shape is checked. Anything else throws, so a controlled actor never falls back to autonomous
