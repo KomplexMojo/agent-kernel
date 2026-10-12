@@ -1,12 +1,12 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-12T04-46-55-144Z-bea98de3cb28-5d1f81b5360c",
+    "id": "2026-10-12T05-04-54-798Z-bea98de3cb28-5d1f81b5360c",
     "key": "5d1f81b5360c54c068664fb8732e67ed8fff39474349e3be7a68b8ff49cfe833",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-12T04:46:55.144Z",
-    "completedAt": "2026-10-12T04:48:26.110Z",
-    "durationMs": 90966,
+    "startedAt": "2026-10-12T05:04:54.798Z",
+    "completedAt": "2026-10-12T05:06:25.147Z",
+    "durationMs": 90349,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
