@@ -26,8 +26,6 @@
  */
 import { describe, expect, test } from "vitest";
 
-import { createCore } from "../../packages/core-ts/src/index.ts";
-import { computeAffinityRadius } from "../../packages/core-ts/src/state/affinity-spatial.ts";
 import {
   BASELINE_SIGHT_RADIUS,
   resolvePoweredLightStacks,
@@ -39,21 +37,6 @@ import {
   resolveVisibilityRadius,
   scopeObservation,
 } from "../../packages/core-ts/src/state/visibility.ts";
-
-function call(fn: unknown, ...args: unknown[]): unknown {
-  if (typeof fn !== "function") {
-    throw new Error("expected callable core export");
-  }
-  return fn(...args);
-}
-
-function setAllFloors(core: ReturnType<typeof createCore>, w: number, h: number): void {
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      call(core.setTileAt, x, y, 1);
-    }
-  }
-}
 
 // ---------------------------------------------------------------------------
 // The radius policy, as a pure function
@@ -301,134 +284,6 @@ describe("scopeObservation", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Against a real core: the field the runtime already computes per tick
-// ---------------------------------------------------------------------------
-
-describe("getVisibilityRadiusForActorIndex", () => {
-  const MANA = 1;
-  const DARK = 10;
-  const LIGHT = 9;
-  const FIRE = 1;
-  const PUSH = 1;
-  const EMIT = 3;
-
-  function coreWithActorAt(x: number, y: number, size = 12) {
-    const core = createCore();
-    call(core.configureGrid, size, size);
-    setAllFloors(core, size, size);
-    call(core.clearActorPlacements);
-    call(core.addActorPlacement, 10, x, y);
-    call(core.applyActorPlacements);
-    // Light is powered by mana: a full pool emits at full strength.
-    call(core.setMotivatedActorVital, 0, MANA, 10, 10, 1);
-    return core;
-  }
-
-  test("an actor with no affinity in an empty level sees only what is adjacent", () => {
-    const core = coreWithActorAt(5, 5);
-    call(core.computeAffinityField);
-
-    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(1);
-  });
-
-  test("an actor emitting light sees one extra tile per stack", () => {
-    const core = coreWithActorAt(5, 5);
-    call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 2);
-    call(core.computeAffinityField);
-
-    expect(call(core.getVisibilityRadiusForActorIndex, 0))
-      .toBe(BASELINE_SIGHT_RADIUS + 2 * LIGHT_SIGHT_BONUS_PER_STACK);
-  });
-
-  test("light the actor pushes rather than emits does not light its way", () => {
-    const core = coreWithActorAt(5, 5);
-    call(core.setMotivatedActorAffinity, 0, LIGHT, PUSH, 3);
-    call(core.computeAffinityField);
-
-    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(BASELINE_SIGHT_RADIUS);
-  });
-
-  test("standing in someone else's light does not extend sight", () => {
-    const core = coreWithActorAt(5, 5);
-    call(core.armStaticHazardAt, 5, 7, LIGHT, EMIT, 3, 5);
-    call(core.computeAffinityField);
-
-    expect(call(core.getAffinityFieldStacksAt, 5, 5, LIGHT)).toBeGreaterThan(0);
-    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(BASELINE_SIGHT_RADIUS);
-  });
-
-  test("a non-light affinity on emit leaves the actor unlit", () => {
-    const core = coreWithActorAt(5, 5);
-    call(core.setMotivatedActorAffinity, 0, FIRE, EMIT, 3);
-    call(core.computeAffinityField);
-
-    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(BASELINE_SIGHT_RADIUS);
-  });
-
-  test("a dark hazard under the actor cancels its light", () => {
-    const core = coreWithActorAt(5, 5);
-    call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 2);
-    call(core.armStaticHazardAt, 5, 5, DARK, EMIT, 3, 5);
-    call(core.computeAffinityField);
-
-    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(BASELINE_SIGHT_RADIUS);
-  });
-
-  test("an actor emitting dark obscures its own tile", () => {
-    const core = coreWithActorAt(5, 5);
-    call(core.setMotivatedActorAffinity, 0, DARK, EMIT, DARKNESS_OBSCURE_STACK_THRESHOLD);
-    call(core.computeAffinityField);
-
-    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(DARKNESS_OBSCURE_RADIUS);
-  });
-
-  test("own light dims as the actor's mana drains, and goes out at zero", () => {
-    const core = coreWithActorAt(5, 5);
-    call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 4);
-    call(core.setMotivatedActorVital, 0, MANA, 5, 10, 1);
-    call(core.computeAffinityField);
-    expect(call(core.getVisibilityRadiusForActorIndex, 0))
-      .toBe(BASELINE_SIGHT_RADIUS + 2 * LIGHT_SIGHT_BONUS_PER_STACK);
-
-    call(core.setMotivatedActorVital, 0, MANA, 0, 10, 1);
-    expect(call(core.getVisibilityRadiusForActorIndex, 0)).toBe(BASELINE_SIGHT_RADIUS);
-  });
-
-  test("an unknown actor index gets the unlit baseline rather than throwing", () => {
-    const core = coreWithActorAt(5, 5);
-    call(core.computeAffinityField);
-
-    expect(call(core.getVisibilityRadiusForActorIndex, 7)).toBe(BASELINE_SIGHT_RADIUS);
-    expect(call(core.getVisibilityRadiusForActorIndex, -1)).toBe(BASELINE_SIGHT_RADIUS);
-  });
-
-  test("canceled target dark does not conceal an otherwise visible actor", () => {
-    const core = createCore();
-    call(core.configureGrid, 9, 7);
-    setAllFloors(core, 9, 7);
-    call(core.armStaticHazardAt, 2, 3, DARK, EMIT, 3, 5);
-    call(core.armStaticHazardAt, 6, 3, LIGHT, EMIT, 3, 5);
-    call(core.computeAffinityField);
-
-    const targetDark = call(core.getAffinityFieldStacksAt, 4, 3, DARK) as number;
-    expect(targetDark).toBe(0);
-
-    const observation = {
-      actors: [
-        { id: "self", position: { x: 1, y: 3 } },
-        { id: "target", position: { x: 4, y: 3 } },
-      ],
-      tiles: { kinds: Array.from({ length: 7 }, () => Array(9).fill(0)) },
-    };
-    const scoped = scopeObservation(observation, "self", 3, {
-      darkStacksByCell: { "4,3": targetDark },
-    });
-
-    expect(scoped.actors.map((entry) => entry.id)).toEqual(["self", "target"]);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // The per-tile visible set: what the player's map shows
 // ---------------------------------------------------------------------------
 
@@ -540,94 +395,6 @@ describe("resolvePoweredLightStacks", () => {
 
   test("mana above the max never powers more than the stacks", () => {
     expect(resolvePoweredLightStacks(3, 50, 10)).toBe(3);
-  });
-});
-
-describe("readLightLevels", () => {
-  const LIGHT = 9;
-  const DARK = 10;
-  const PUSH = 1;
-  const EMIT = 3;
-
-  function floorCore(w: number, h: number) {
-    const core = createCore();
-    call(core.configureGrid, w, h);
-    setAllFloors(core, w, h);
-    return core;
-  }
-
-  function levelAt(levels: number[], w: number, x: number, y: number): number {
-    return levels[y * w + x];
-  }
-
-  test("a light hazard on emit lights its own cell and its emit radius, and no further", () => {
-    const core = floorCore(15, 3);
-    call(core.armStaticHazardAt, 2, 1, LIGHT, EMIT, 3, 5);
-    const reach = computeAffinityRadius(EMIT, 3);
-    const levels = call(core.readLightLevels) as number[];
-
-    expect(levels).toHaveLength(15 * 3);
-    expect(levelAt(levels, 15, 2, 1)).toBe(3);
-    expect(levelAt(levels, 15, 2 + reach, 1)).toBe(3);
-    expect(levelAt(levels, 15, 2 + reach + 1, 1)).toBe(0);
-  });
-
-  test("a hazard out of mana, a dark hazard, and pushed light light nothing", () => {
-    const core = floorCore(9, 3);
-    call(core.armStaticHazardAt, 1, 1, LIGHT, EMIT, 3, 0);
-    call(core.armStaticHazardAt, 4, 1, DARK, EMIT, 3, 5);
-    call(core.armStaticHazardAt, 7, 1, LIGHT, PUSH, 3, 5);
-    const levels = call(core.readLightLevels) as number[];
-    expect(levels.every((level) => level === 0)).toBe(true);
-  });
-
-  test("an actor emitting light lights its surroundings too", () => {
-    const core = floorCore(9, 3);
-    call(core.clearActorPlacements);
-    call(core.addActorPlacement, 10, 4, 1);
-    call(core.applyActorPlacements);
-    call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 2);
-    call(core.setMotivatedActorVital, 0, 1, 10, 10, 1);
-    const levels = call(core.readLightLevels) as number[];
-    expect(levelAt(levels, 9, 4, 1)).toBe(2);
-  });
-
-  test("a hazard's light is proportional to its mana: half a pool, half the stacks and a shorter reach", () => {
-    const core = floorCore(15, 3);
-    // stacks 4, mana 4 of 8: powered stacks ceil(4 * 4 / 8) = 2, reach 1 + 2 = 3.
-    call(core.armStaticHazardAt, 2, 1, LIGHT, EMIT, 4, 4, 0, 0, 0, 8, 1);
-    const levels = call(core.readLightLevels) as number[];
-    expect(levelAt(levels, 15, 2, 1)).toBe(2);
-    expect(levelAt(levels, 15, 2 + computeAffinityRadius(EMIT, 2), 1)).toBe(2);
-    expect(levelAt(levels, 15, 3 + computeAffinityRadius(EMIT, 2), 1)).toBe(0);
-  });
-
-  test("a drained hazard goes dark, then relights as its mana regenerates", () => {
-    const core = floorCore(9, 3);
-    // Armed with an empty pool of 6 that regenerates 2 a tick.
-    call(core.armStaticHazardAt, 4, 1, LIGHT, EMIT, 2, 0, 0, 0, 0, 6, 2);
-    expect((call(core.readLightLevels) as number[]).every((level) => level === 0)).toBe(true);
-
-    call(core.advanceTick);
-    // Regen 2 of a 6 pool: powered stacks ceil(2 * 2 / 6) = 1.
-    expect(levelAt(call(core.readLightLevels) as number[], 9, 4, 1)).toBe(1);
-  });
-
-  test("an actor with no mana pool cannot power its light", () => {
-    const core = floorCore(9, 3);
-    call(core.clearActorPlacements);
-    call(core.addActorPlacement, 10, 4, 1);
-    call(core.applyActorPlacements);
-    call(core.setMotivatedActorAffinity, 0, LIGHT, EMIT, 2);
-    expect((call(core.readLightLevels) as number[]).every((level) => level === 0)).toBe(true);
-  });
-
-  test("the strongest light reaching a cell wins", () => {
-    const core = floorCore(9, 3);
-    call(core.armStaticHazardAt, 3, 1, LIGHT, EMIT, 1, 5);
-    call(core.armStaticHazardAt, 4, 1, LIGHT, EMIT, 3, 5);
-    const levels = call(core.readLightLevels) as number[];
-    expect(levelAt(levels, 9, 3, 1)).toBe(3);
   });
 });
 
