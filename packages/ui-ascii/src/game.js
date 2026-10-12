@@ -25,6 +25,7 @@ const REJECTION_MESSAGES = Object.freeze({
   NotAdjacent: "Too far away to take that.",
   InvalidCapability: "You cannot do that.",
   AffinityNotEquipped: "That affinity is not equipped.",
+  AffinitySlotsFull: "You already have every affinity slot (6).",
 });
 
 function rejectionMessage(reason) {
@@ -45,6 +46,12 @@ const isCastable = (key) => /:(push|pull)$/.test(String(key));
 function equippedKeys(player) {
   if (Array.isArray(player?.equippedAffinityKeys)) return player.equippedAffinityKeys;
   return player?.activeAffinityKey ? [player.activeAffinityKey] : [];
+}
+
+function lootLabel(item) {
+  if (item.kind === "affinity") return `${item.affinity} ${item.expression}`;
+  if (item.kind === "slot") return item.slots === 1 ? "a new affinity slot" : `${item.slots} new affinity slots`;
+  return "a vital boost";
 }
 
 const chebyshev = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
@@ -160,7 +167,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   async function take(item) {
     panel = null;
     await act({ kind: "take", params: { targetId: item.targetId, holdingId: item.holdingId } },
-      () => `You take ${item.kind === "affinity" ? `${item.affinity} ${item.expression}` : "a vital boost"} from ${item.targetId}.`);
+      () => `You take ${lootLabel(item)} from ${item.targetId}.`);
   }
 
   async function openLoot() {
@@ -269,7 +276,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     }
     if (panel.type === "loot") {
       return ["Take (a number picks, Esc closes):",
-        ...panel.items.map((item, i) => `  ${i + 1}) ${item.kind === "affinity" ? `${item.affinity} ${item.expression}` : item.holdingId} from ${item.targetId}`)];
+        ...panel.items.map((item, i) => `  ${i + 1}) ${item.kind === "vital" ? item.holdingId : lootLabel(item)} from ${item.targetId}`)];
     }
     const target = panel.items[panel.index];
     return [`Target: ${target.id}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${target.distance} ${target.distance === 1 ? "tile" : "tiles"} away)   Tab next, Enter cast, Esc cancel`];

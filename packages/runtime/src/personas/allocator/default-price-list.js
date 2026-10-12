@@ -76,6 +76,7 @@ const DESCRIPTIONS = {
   "resource_base": "Consumable resource — costs same as its vital grant value",
   "resource_level": "Level-scoped resource — 5× vital grant value",
   "resource_permanent": "Permanent resource — 10× vital grant value",
+  "resource_affinity_slot": "Slot-unlock loot — opens one more affinity slot; the most valuable loot",
 };
 
 function itemFrom(id, unitCost, description) {

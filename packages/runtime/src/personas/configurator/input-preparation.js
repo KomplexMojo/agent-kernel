@@ -173,7 +173,7 @@ export function prepareLevelGen({ existingLevelGen = {}, rooms = [], floorTiles 
   return levelGen;
 }
 
-const RESOURCE_AUTHORING_KEYS = new Set(["permanenceMode", "_schemaVersion", "affinity", "permanent"]);
+const RESOURCE_AUTHORING_KEYS = new Set(["permanenceMode", "_schemaVersion", "affinity", "permanent", "slotGrant"]);
 const RESOURCE_REQUEST_KEYS = Object.freeze([
   "alignment", "lifecycle", "defeatVital", "capabilities", "motivations", "affinities", "activeAffinityKey",
   "affinitySlots", "equippedAffinityKeys",
@@ -237,16 +237,24 @@ export function mapResources(resources = []) {
     const affinity = authoredResourceAffinity(authored);
     if (Object.hasOwn(authored, "affinity") && !affinity) throw new Error("invalid unified actor definition");
     const grants = grantVitals(authored.vitals);
+    if (Object.hasOwn(authored, "slotGrant")
+      && (!Number.isSafeInteger(authored.slotGrant) || authored.slotGrant < 1)) {
+      throw new Error("invalid unified actor definition");
+    }
+    // Slot-unlock loot (maintainer, 2026-10-12) is floor loot: only a resource
+    // carries it, as its own holding beside any vital grant.
+    const authoredHoldings = [
+      ...(["consumable", "level", "permanent"].includes(authored.permanenceMode) && grants
+        ? [{ id: authored.id, kind: "vital", permanenceMode: authored.permanenceMode, claimedBy: null, vitals: grants }]
+        : []),
+      ...(authored.slotGrant ? [{ id: `slot:${authored.id}`, kind: "slot", slots: authored.slotGrant, claimedBy: null }] : []),
+    ];
     const holdings = Array.isArray(authored.holdings)
       ? authored.holdings
-      : (["consumable", "level", "permanent"].includes(authored.permanenceMode) && grants
-        ? [{
-          id: authored.id, kind: "vital", permanenceMode: authored.permanenceMode, claimedBy: null, vitals: grants,
-        }]
-        : undefined);
+      : (authoredHoldings.length > 0 ? authoredHoldings : undefined);
     const mechanical = hasMechanicalVitals(authored.vitals)
       ? mechanicalVitals(authored.vitals)
-      : (holdings && grants ? { durability: { ...DEFAULT_VITALS.durability } } : null);
+      : (holdings && (grants || authored.slotGrant) ? { durability: { ...DEFAULT_VITALS.durability } } : null);
     const vitals = affinity
       ? {
         durability: { ...DEFAULT_VITALS.durability },

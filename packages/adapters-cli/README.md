@@ -334,9 +334,13 @@ Inputs/outputs:
   rejected instead of leaving declared rooms uncarved.
 - `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
   Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
-- `--resource` format: a resource carries a **vital payload**, an **affinity payload**, or both.
+- `--resource` format: a resource carries a **vital payload**, an **affinity payload**, a **slots payload**, or a combination.
   - Vital payload: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]`
   - Affinity payload: `affinity=<fire|water|earth|wind|life|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]`
+  - Slots payload: `slots=<n>[;id=<id>]` is slot-unlock loot: taking it opens `n` more equipped-affinity
+    slots, up to the cap of 6 (at 6 the take is refused and the loot stays). It is the most valuable loot,
+    priced per slot (`resource_affinity_slot`), and only resources carry it: defeated delvers and wardens
+    never drop slots. The artifact records it as `slotGrant`.
   - Legacy: `tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]`
 
   Produces a `ResourceArtifact` written to `resource-<n>.json` in the output directory.

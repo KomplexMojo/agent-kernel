@@ -232,6 +232,8 @@ Options:
                   Both payloads may be combined in one spec. manaRegen defaults to 0, which grants the
                   affinity temporarily until its mana is spent; manaRegen>0 refills the pool, making the
                   granted affinity permanent (and costing 5*manaRegen^2 more tokens to author).
+                  Slots payload: slots=<n>[;id=<id>] is slot-unlock loot: taking it opens n more affinity
+                  slots (an actor is capped at 6). The most valuable loot, priced per slot.
                   Legacy: tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
   --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
@@ -1193,7 +1195,7 @@ function parseResourceSpec(value, resourceIndex) {
   // Detect schema version from first key seen
   const isV3 = segments.some((seg) => {
     const key = seg.split("=")[0].trim();
-    return key === "permanenceMode" || key === "vital" || key === "affinity";
+    return key === "permanenceMode" || key === "vital" || key === "affinity" || key === "slots";
   });
 
   if (isV3) {
@@ -1201,7 +1203,7 @@ function parseResourceSpec(value, resourceIndex) {
     // (affinity + expression + stacks + mana [+ manaRegen]), or both.
     const allowedFields = new Set([
       "id", "permanenceMode", "vital", "delta", "regen",
-      "affinity", "expression", "stacks", "mana", "manaRegen",
+      "affinity", "expression", "stacks", "mana", "manaRegen", "slots",
     ]);
     segments.forEach((segment) => {
       if (!segment.includes("=")) {
@@ -1222,8 +1224,9 @@ function parseResourceSpec(value, resourceIndex) {
     const hasVitalPayload = fields.has("permanenceMode") || fields.has("vital")
       || fields.has("delta") || fields.has("regen");
     const hasAffinityPayload = fields.has("affinity");
-    if (!hasVitalPayload && !hasAffinityPayload) {
-      throw new Error(`resource[${resourceIndex}] requires a vital payload, an affinity payload, or both.`);
+    const hasSlotPayload = fields.has("slots");
+    if (!hasVitalPayload && !hasAffinityPayload && !hasSlotPayload) {
+      throw new Error(`resource[${resourceIndex}] requires a vital payload, an affinity payload, a slots payload, or a combination.`);
     }
 
     let vitals = [];
@@ -1282,6 +1285,10 @@ function parseResourceSpec(value, resourceIndex) {
 
     if (hasAffinityPayload) {
       parsed.affinity = parseResourceAffinityPayload(fields, resourceIndex);
+    }
+    if (hasSlotPayload) {
+      // Slot-unlock loot: opens this many more affinity slots (core caps an actor at 6).
+      parsed.slotGrant = readResourceInt(fields, "slots", resourceIndex, { min: 1 });
     }
     return parsed;
   }
@@ -3898,6 +3905,7 @@ async function writeResourceArtifactFiles({ parsedResources = [], outDir, runId,
         permanenceMode: r.permanenceMode,
       };
       if (r.affinity) resourceArtifact.affinity = r.affinity;
+      if (r.slotGrant) resourceArtifact.slotGrant = r.slotGrant;
     } else {
       resourceArtifact = {
         schema: RESOURCE_ARTIFACT_SCHEMA,

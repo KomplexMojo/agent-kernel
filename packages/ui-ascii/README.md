@@ -40,7 +40,7 @@ Colour is on by default in a terminal and uses the application's approved palett
 | `i` | list your affinities; then `1`–`9` equips one into a free slot (or in place of the oldest when every slot is full), or unequips it if it is equipped |
 | `f` | aim at the nearest actor in sight; Tab picks the next, Enter (or `f`) casts your first equipped push or pull, Esc cancels |
 | `1`–`9` | aim with that slot's push or pull (then Tab/Enter as for `f`); an emit or draw slot needs no cast |
-| `g` | take loot from a defeated neighbour (with several items, `1`–`9` picks) |
+| `g` | take loot from a defeated neighbour (with several items, `1`–`9` picks); slot loot opens one more affinity slot |
 
 Reaching the exit's approach tile puts you **at the exit**; waiting one more tick steps you through. That is core's exit-dwell rule, not a UI rule. Every key that acts costs one turn, a blocked move included: so do an equip, a cast and a take, accepted or refused. Opening, browsing and closing a panel is free. A refusal names core's reason (not enough mana, out of range, nothing equipped). Push and pull are cast; an equipped emit or draw works on its own every turn while its mana upkeep is paid, and the HUD says when it is off waiting for mana. The HUD shows one row per affinity slot (delvers start with 3, wardens with 2); each slot pays its own upkeep and goes off on its own.
 

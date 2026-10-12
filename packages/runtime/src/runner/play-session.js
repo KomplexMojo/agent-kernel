@@ -261,6 +261,7 @@ export async function createPlaySession({
           holdingId: holding.id,
           kind: holding.kind,
           ...(holding.kind === "affinity" ? { affinity: holding.affinity, expression: holding.expression } : {}),
+          ...(holding.kind === "slot" ? { slots: holding.slots } : {}),
           position: { ...actor.position },
         })));
   }

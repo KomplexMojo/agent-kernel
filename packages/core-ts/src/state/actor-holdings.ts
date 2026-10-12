@@ -1,5 +1,5 @@
 import type { ActorRecord, ActorHolding, ActorVitalHolding } from './actor-types.ts';
-import { affinityKey } from './actor-inventory.ts';
+import { affinityKey, MAX_AFFINITY_SLOTS } from './actor-inventory.ts';
 import { getActorAffinityEffect } from '../rules/actor-affinity.ts';
 
 export function validateActorHoldings(actor: ActorRecord): void {
@@ -26,6 +26,9 @@ export function validateActorHoldings(actor: ActorRecord): void {
           || !['health', 'mana', 'stamina'].includes(grant.key) || !Number.isFinite(grant.delta)
           || grant.regen !== undefined && (!Number.isFinite(grant.regen) || grant.regen < 0)) throw new Error('invalid vital grant');
       }
+    } else if (holding.kind === 'slot') {
+      if (Object.keys(holding).length !== 4 || holding.id.startsWith('affinity:')
+        || !Number.isSafeInteger(holding.slots) || holding.slots < 1) throw new Error('invalid slot holding');
     } else throw new Error('invalid holding kind');
   }
 }
@@ -65,6 +68,7 @@ export function explainTakeActorHolding(receiver: ActorRecord | undefined, sourc
     Math.abs(receiver.position.y - source.position.y)) > 1) return 'NotAdjacent';
   const holding = source.holdings.find(entry => entry.id === holdingId);
   if (!holding || holding.claimedBy !== null) return 'NothingToTake';
+  if (holding.kind === 'slot' && (receiver.affinitySlots ?? 1) >= MAX_AFFINITY_SLOTS) return 'AffinitySlotsFull';
   return null;
 }
 
@@ -81,7 +85,10 @@ export function takeActorHolding(receiver: ActorRecord | undefined, source: Acto
       if (!Number.isSafeInteger(entry.stacks + 1)) return false;
       entry.stacks += 1;
     } else draft.affinities.push({ kind: holding.affinity, expression: holding.expression, stacks: 1 });
+  } else if (holding.kind === 'slot') {
+    draft.affinitySlots = Math.min(MAX_AFFINITY_SLOTS, (draft.affinitySlots ?? 1) + holding.slots);
   } else if (!grantVitals(draft, holding)) return false;
+  if (draft.affinitySlots !== undefined) receiver.affinitySlots = draft.affinitySlots;
   receiver.vitals = draft.vitals;
   receiver.affinities = draft.affinities;
   receiver.lifecycle = draft.lifecycle;
