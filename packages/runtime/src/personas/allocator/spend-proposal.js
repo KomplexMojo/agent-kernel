@@ -349,6 +349,12 @@ const RESOURCE_AFFINITY_EXPRESSION_IDS = Object.freeze({
 function extractResourceGrantPriceEntries(resource) {
   const entries = [];
 
+  // Slot-unlock loot (maintainer, 2026-10-12): the most valuable loot in the
+  // game, priced per slot it opens.
+  if (Number.isSafeInteger(resource?.slotGrant) && resource.slotGrant > 0) {
+    entries.push({ priceId: "resource_affinity_slot", quantity: resource.slotGrant });
+  }
+
   const affinity = resource?.affinity;
   if (affinity && typeof affinity === "object") {
     const stacks = Number.isInteger(affinity.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
@@ -639,6 +645,13 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
           accumulateItem(counts, expressionId, "affinity", 1, { category, subjectRef });
         });
       }
+
+      // Slot-unlock loot carried as a holding (a placed floor resource): priced per
+      // slot it opens, as on the resource-spec path above.
+      (Array.isArray(actor?.holdings) ? actor.holdings : []).forEach((holding) => {
+        if (holding?.kind !== "slot" || !Number.isSafeInteger(holding.slots) || holding.slots < 1) return;
+        accumulateItem(counts, "resource_affinity_slot", "resource", holding.slots, { category, subjectRef });
+      });
 
       const motivations = extractMotivations(actor, normalizeMotivations);
       motivations.forEach((entry) => {

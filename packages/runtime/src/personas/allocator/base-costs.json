@@ -48,7 +48,8 @@
   "resource": {
     "resource_base": 1,
     "resource_level": 5,
-    "resource_permanent": 10
+    "resource_permanent": 10,
+    "resource_affinity_slot": 600
   },
   "_actionBudgetNote": "Runtime action costs are Allocator-owned runtimeBudgetUnits, separate from authoring tokens and provider telemetry. core-ts receives only action_default/action_request_solver for its existing aggregate ledger; the receipt surface uses the complete named schedule. action_move is deliberately zero because stamina is movement's gameplay cost.",
   "actionBudget": {

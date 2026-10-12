@@ -447,7 +447,9 @@ Requests require a stable ID and common vital records; rewards are explicit
 preserved. An omitted position stays omitted until placement. CLI V3
 `permanenceMode` plus grant `vitals` becomes one unclaimed vital holding; source
 durability uses the Configurator default rather than synthesizing loot from the
-source pool. Version-specific `tier`/`stat` shapes are still rejected.
+source pool. A `slotGrant` becomes one unclaimed `slot` holding (slot-unlock loot);
+only the resource preset may carry a slot holding, so it is floor loot and no
+defeated delver or warden drops one. Version-specific `tier`/`stat` shapes are still rejected.
 `mapHazards` uses the same mechanical boundary: authored regen vitals keep their
 quantities and drop the authoring `kind` field; one-time `{amount}` becomes
 `{current:amount, max:amount, regen:0}`. Incomplete records are skipped so

@@ -2487,6 +2487,11 @@ export interface ResourceArtifactV3 {
   permanenceMode: ResourcePermanenceMode;
   /** Optional affinity payload — additive, so V3 readers are unaffected. */
   affinity?: ResourceAffinityGrant;
+  /**
+   * Optional slot-unlock payload — additive: taking it opens this many more
+   * affinity slots (an actor is capped at 6). The most valuable loot.
+   */
+  slotGrant?: number;
 }
 
 export type ResourceArtifact = ResourceArtifactV1 | ResourceArtifactV2 | ResourceArtifactV3;
