@@ -18,6 +18,7 @@ import { createOrchestratorPersona, collectDeferredEffects } from "../personas/o
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
 import { createActorTurn } from "../../../core-ts/src/rules/actor-turn.ts";
 import {
+  readActorRegistryDarkCells,
   readActorRegistryObservation,
   readActorRegistryVisibleCells,
   scopeActorRegistryObservation,
@@ -2168,6 +2169,14 @@ export function createFsmRuntime({
      */
     readVisibleCells(actorId) {
       return readVisibleCellsForActor(actorId);
+    },
+
+    /**
+     * Where dark outweighs light right now: a grid the map's shape, 1 dark / 0 not.
+     * Core's rule (`readActorRegistryDarkCells`); `[]` without the actor registry.
+     */
+    readDarkCells() {
+      return actorRegistry ? readActorRegistryDarkCells(readActorRegistryObservation(actorRegistry, tick)) : [];
     },
 
     /** Core's verdict on whether `actorId` has left the level. */

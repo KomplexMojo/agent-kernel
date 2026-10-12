@@ -24,7 +24,7 @@ pnpm run play:ascii -- --keys "ddss" --json         # scripted, as { ok, level, 
 pnpm run play:ascii -- --no-fog                     # debug: see the whole map
 ```
 
-**Fog of war is on.** You see only what is in sight (levels are unlit, so that is close by). Cells you have never seen are `?`, cells you saw before are drawn dimmed with no actors on them, and other actors and traps appear only while in sight. What counts as in sight is core's and the play session's (`createPlaySession({ fog: true })`, `view().sight`); this package only draws it. `--no-fog` (also on `ak play`, and `fog: false` on `ak_play_ascii`) is a debug view of the whole level for tests and level checks, not a way to play.
+**Fog of war is on.** You see only what is in sight (levels are unlit, so that is close by). Cells you have never seen are `?`, cells you saw before are drawn dimmed with no actors on them (until dark covers them out of sight, which makes you forget them), and other actors and traps appear only while in sight. What counts as in sight is core's and the play session's (`createPlaySession({ fog: true })`, `view().sight`); this package only draws it. `--no-fog` (also on `ak play`, and `fog: false` on `ak_play_ascii`) is a debug view of the whole level for tests and level checks, not a way to play.
 
 Colour is on by default in a terminal and uses the application's approved palette (`GAME_COLOR_PALETTE`, via `runtime/src/render/ascii-cell-style.js`): tiles are flat fills like the Phaser board, the player is the user-controlled colour, wardens and delvers wear their role colours, and an actor or trap with an affinity is filled with that affinity's colour. Output that is not a terminal, `NO_COLOR`, or `--no-color` gives plain text; `--color` forces colour.
 
