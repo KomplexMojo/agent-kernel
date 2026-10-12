@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-12T23-40-59-079Z-3f2f782610e9-8b7a45fa5170",
-    "key": "8b7a45fa5170df56185dc6aef398ffafb1110bd7050c8bebd81cd9f90ebca120",
+    "id": "2026-10-12T23-58-58-218Z-9412096ac0c6-c8689f36dacb",
+    "key": "c8689f36dacbc2669f1557b2b6905cd271d106b93e0df9737c306eb6f84aef1a",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-12T23:40:59.079Z",
-    "completedAt": "2026-10-12T23:41:21.712Z",
-    "durationMs": 22633,
+    "startedAt": "2026-10-12T23:58:58.218Z",
+    "completedAt": "2026-10-12T23:59:21.153Z",
+    "durationMs": 22935,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "3f2f782610e9fcbe479448c7045e884a0844e33e",
-    "tree": "28a6549199dfc6b397e1b778ad3a4e2b45ea5960"
+    "commit": "9412096ac0c606bf0fcbe0846884f9b62189ad90",
+    "tree": "37ec2e72f9bde7858df90307d16bb102f6aab84b"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -73,6 +73,7 @@
       "packages/runtime/src/personas/allocator/base-costs.json",
       "packages/runtime/src/personas/allocator/budget-fulfillment.js",
       "packages/runtime/src/personas/allocator/contracts.ts",
+      "packages/runtime/src/personas/allocator/default-price-list.js",
       "packages/runtime/src/personas/allocator/spend-proposal.js",
       "packages/runtime/src/personas/annotator/README.md",
       "packages/runtime/src/personas/annotator/world-state.js",
@@ -158,7 +159,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/8b7a45fa5170df56185dc6aef398ffafb1110bd7050c8bebd81cd9f90ebca120"
+    "retentionId": "preflights/c8689f36dacbc2669f1557b2b6905cd271d106b93e0df9737c306eb6f84aef1a"
   },
   "qualifies": false
 }
