@@ -61,6 +61,15 @@ describe("core-ts affinity spatial formulas", () => {
     expect(call(core.computeAffinityIntensity, 3, 4, AffinityExpression.Push)).toBe(0);
   });
 
+  test("an emit is strongest on the tile next to its source: there is no dead zone (maintainer, 2026-10-12)", () => {
+    const core = createCore();
+    const at = (d: number) => Number(call(core.computeAffinityIntensity, d, 3, AffinityExpression.Emit));
+    expect(at(1)).toBeGreaterThan(0);
+    expect(at(1)).toBeGreaterThan(at(2));
+    expect(at(2)).toBeGreaterThan(at(4));
+    expect(at(5)).toBe(0);
+  });
+
   test("computes potency by expression", () => {
     const core = createCore();
 

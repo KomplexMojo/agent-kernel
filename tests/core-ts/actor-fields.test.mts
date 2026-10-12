@@ -135,9 +135,9 @@ test('only active area pairs project; focused alternatives, movement and defeat 
   source.affinities.push({ kind: 'water', expression: 'push', stacks: 8 });
   const state = registry([source]);
   const fields = projectActorFields(state).fields;
-  expect(fields.map(cell => [cell.position.x, cell.kind, cell.intensity])).toEqual([[0, 'fire', 1], [2, 'fire', 0.5]]);
+  expect(fields.map(cell => [cell.position.x, cell.kind, cell.intensity])).toEqual([[0, 'fire', 1], [1, 'fire', 0.5]]);
   state.moveActor('source', { x: 1, y: 0 });
-  expect(projectActorFields(state).fields[0].position.x).toBe(1);
+  expect(projectActorFields(state).fields.find(cell => cell.intensity === 1)!.position.x).toBe(1);
   state.equipAffinity('source', 'water:push');
   expect(projectActorFields(state).fields).toEqual([]);
   state.equipAffinity('source', 'fire:emit'); state.changeVital('source', 'health', -10);

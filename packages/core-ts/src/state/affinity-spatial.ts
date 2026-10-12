@@ -29,7 +29,7 @@ const RADIUS_EXPONENT = Object.freeze([1.0, 1.0, 1.0, 1.0]);
 
 const INTENSITY_PEAK = Object.freeze([1.0, 1.0, 1.0, 1.0]);
 const INTENSITY_STACK_EXP = Object.freeze([0.5, 0.5, 0.3, 0.0]);
-const INTENSITY_BUFFER = Object.freeze([0, 0, 1, 0]);
+const INTENSITY_BUFFER = Object.freeze([0, 0, 0, 0]);
 const INTENSITY_FALLOFF = Object.freeze([2.0, 2.0, 1.0, 0.0]);
 
 const POTENCY_BASE = Object.freeze([0.0, 0.0, 0.0, 0.0]);
