@@ -1,10 +1,13 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import { activeActorAffinity } from '../state/actor-inventory.ts';
+import type { ActorAffinityKey, ActorRecord } from '../state/actor-types.ts';
+import { activeActorAffinity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
 
 /** Core-projected exposure; never accepted as an authored action magnitude. */
 export interface ActorExposureSource {
   sourceId: string;
+  /** The equipped slot this field comes from; omitted means the active (first) one. */
+  affinityKey?: ActorAffinityKey;
   budget: number;
   targets: { targetId: string; amount: number }[];
 }
@@ -23,8 +26,9 @@ export function resolveActorExposures(
   sources: ActorExposureSource[],
 ): ActorExposureResult {
   const remaining = new Map<string, number>();
+  const slotOf = (source: ActorExposureSource) => `${source.sourceId}|${source.affinityKey ?? ''}`;
   for (const source of sources) {
-    if (typeof source.sourceId !== 'string' || !source.sourceId.trim() || remaining.has(source.sourceId)
+    if (typeof source.sourceId !== 'string' || !source.sourceId.trim() || remaining.has(slotOf(source))
       || !Number.isFinite(source.budget) || source.budget < 0 || !Array.isArray(source.targets)) throw new Error('invalid exposure source');
     const ids = new Set<string>();
     for (const target of source.targets) {
@@ -32,7 +36,15 @@ export function resolveActorExposures(
         || !Number.isFinite(target.amount) || target.amount < 0) throw new Error('invalid exposure target');
       ids.add(target.targetId);
     }
-    remaining.set(source.sourceId, source.budget);
+    remaining.set(slotOf(source), source.budget);
+  }
+  /** The slot of `receiver` an incoming effect of `kind` meets, by expression. */
+  function receivingSlot(receiver: ActorRecord, kind: string, expressions: string[]) {
+    return equippedActorAffinities(receiver).find(pair => pair.kind === kind && expressions.includes(pair.expression));
+  }
+  function slotBudgetKey(actorId: string, pair: { kind: string; expression: string }): string {
+    const keyed = `${actorId}|${pair.kind}:${pair.expression}`;
+    return remaining.has(keyed) ? keyed : `${actorId}|`;
   }
   const result: ActorExposureResult = { changes: [], absorptions: [], suppressions: [] };
   function spend(id: string, amount: number): void { remaining.set(id, remaining.get(id)! - amount); }
@@ -43,8 +55,10 @@ export function resolveActorExposures(
   }
   for (const source of sources) {
     const actor = registry.getActor(source.sourceId);
-    const pair = actor && activeActorAffinity(actor);
+    const pair = actor && (source.affinityKey === undefined ? activeActorAffinity(actor)
+      : equippedActorAffinities(actor).find(entry => affinityKey(entry) === source.affinityKey));
     if (!pair || !actor?.capabilities.canCast) continue;
+    const own = slotOf(source);
     const effect = getActorAffinityEffect(pair.kind, pair.expression);
     const targets = [...source.targets].sort((a, b) => a.targetId < b.targetId ? -1 : a.targetId > b.targetId ? 1 : 0);
     for (const target of targets) {
@@ -52,21 +66,24 @@ export function resolveActorExposures(
       const receiver = registry.getActor(target.targetId);
       if (!receiver || receiver.lifecycle !== 'alive') continue;
       if (effect.operation === 'drain' && source.sourceId === target.targetId) continue;
-      const amount = Math.min(remaining.get(source.sourceId)!, target.amount);
+      const amount = Math.min(remaining.get(own)!, target.amount);
       if (amount <= 0) continue;
-      const receivingPair = activeActorAffinity(receiver);
       if (effect.operation === 'neutralize') {
-        if (source.sourceId === target.targetId || !receiver.capabilities.canCast || receivingPair?.kind !== pair.kind
-          || !['push', 'emit'].includes(receivingPair.expression)) continue;
-        const suppressed = Math.min(amount, remaining.get(target.targetId) ?? 0);
+        // Only a slot with a pending field has exposure left to suppress.
+        const matching = equippedActorAffinities(receiver).filter(entry => entry.kind === pair.kind
+          && (entry.expression === 'push' || entry.expression === 'emit'));
+        if (source.sourceId === target.targetId || !receiver.capabilities.canCast || !matching.length) continue;
+        const theirs = matching.map(entry => slotBudgetKey(target.targetId, entry))
+          .find(key => (remaining.get(key) ?? 0) > 0) ?? slotBudgetKey(target.targetId, matching[0]);
+        const suppressed = Math.min(amount, remaining.get(theirs) ?? 0);
         if (suppressed <= 0) continue;
-        spend(source.sourceId, suppressed); spend(target.targetId, suppressed);
+        spend(own, suppressed); spend(theirs, suppressed);
         result.suppressions.push({ sourceId: source.sourceId, targetId: target.targetId, amount: suppressed });
         if (pair.expression === 'draw') absorb(target.targetId, source.sourceId, suppressed);
         continue;
       }
-      spend(source.sourceId, amount);
-      if (receivingPair?.kind === pair.kind && receivingPair.expression === 'draw'
+      spend(own, amount);
+      if (receivingSlot(receiver, pair.kind, ['draw'])
         && ['push', 'emit'].includes(pair.expression) && source.sourceId !== target.targetId) {
         absorb(source.sourceId, target.targetId, amount);
       } else {

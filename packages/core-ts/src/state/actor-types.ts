@@ -70,11 +70,23 @@ export interface ActorRecordBase {
    * Omitted means false.
    */
   affinityExhausted?: boolean;
+  /**
+   * The lasting affinities that are off, when only some equipped slots are. Omitted
+   * while `affinityExhausted` is true means every equipped slot is off.
+   */
+  exhaustedAffinityKeys?: ActorAffinityKey[];
+  /** How many affinities the actor can equip at once, 1..6; omitted means 1. */
+  affinitySlots?: number;
   capabilities: ActorCapabilities;
   motivations: string[];
   affinities: ActorAffinityEntry[];
-  /** Null means unequipped; an entry must exist for a non-null key. */
+  /** Null means unequipped; an entry must exist for a non-null key. Always the first equipped key. */
   activeAffinityKey: ActorAffinityKey | null;
+  /**
+   * Every equipped key in equip order, written only when more than one is equipped;
+   * omitted means `[activeAffinityKey]`, or nothing when that is null.
+   */
+  equippedAffinityKeys?: ActorAffinityKey[];
   holdings: ActorHolding[];
 }
 
@@ -101,7 +113,8 @@ export interface ActorRegistrySnapshot {
 export type ActorAction = { actorId: string; tick: number } & (
   | { kind: "wait"; params?: never }
   | { kind: "move"; params: { target: ActorPosition } }
-  | { kind: "cast_affinity"; params: { targetId: string } }
-  | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey } }
+  | { kind: "cast_affinity"; params: { targetId: string; affinityKey?: ActorAffinityKey } }
+  | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey; replaceKey?: ActorAffinityKey } }
+  | { kind: "unequip_affinity"; params: { affinityKey: ActorAffinityKey } }
   | { kind: "take"; params: { targetId: string; holdingId: string } }
 );

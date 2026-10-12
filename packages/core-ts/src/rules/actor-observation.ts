@@ -4,8 +4,7 @@ import { computeVisibleCells, NET_DARK_OBSCURE_STACK_THRESHOLD, resolveNetLightD
   resolveVisibilityRadius, scopeObservation, SIGHT_LIGHT_EXPRESSION } from '../state/visibility.ts';
 import { computeAffinityRadius } from '../state/affinity-spatial.ts';
 import type { ActorRecord, ActorRegistrySnapshot } from '../state/actor-types.ts';
-import { isActorAffinityLit } from './actor-upkeep.ts';
-import { activeActorAffinity } from '../state/actor-inventory.ts';
+import { litActorAffinities } from './actor-upkeep.ts';
 import { AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 
 /** Detached facts; reading an observation never applies exposure or advances time. */
@@ -71,13 +70,14 @@ function readEmittedStacksByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensio
   return reached;
 }
 
-/** The stacks an actor emits of `kind` right now; 0 unless that is its active emit affinity, on and alive. */
+/** The stacks an actor emits of `kind` right now: its strongest lit emit slot of that kind, 0 if none. */
 function poweredEmitStacks(actor: ActorRecord, kind: 'light' | 'dark'): number {
   if (actor.lifecycle !== 'alive') return 0;
-  const own = activeActorAffinity(actor);
-  if (!own || own.kind !== kind || own.expression !== AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]
-    || !isActorAffinityLit(actor)) return 0;
-  return resolvePoweredLightStacks(own.stacks, actor.vitals.mana?.current ?? 0, actor.vitals.mana?.max ?? 0);
+  const own = litActorAffinities(actor).filter(pair => pair.kind === kind
+    && pair.expression === AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]);
+  if (!own.length) return 0;
+  const stacks = Math.max(...own.map(pair => pair.stacks));
+  return resolvePoweredLightStacks(stacks, actor.vitals.mana?.current ?? 0, actor.vitals.mana?.max ?? 0);
 }
 
 /** Per-cell light against dark, stack for stack: what survives at each cell. */
