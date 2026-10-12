@@ -124,14 +124,29 @@ export function statusLine(status, message, { traps = false } = {}) {
   return traps ? `Find the exit (E). Mind the traps (${ASCII_ENTITY_GLYPHS.hazard}).` : "Find the exit (E).";
 }
 
-/** The player's equipped affinity, or a hint to equip one. */
-export function affinityLine(player) {
-  if (!player) return null;
+/**
+ * One HUD row per equipped slot, in equip order, then the free ones; a lasting
+ * affinity that ran out of mana says it is off. A hint when nothing is equipped.
+ */
+export function affinityLines(player) {
+  if (!player) return [];
   const known = Array.isArray(player.affinities) ? player.affinities : [];
-  const active = known.find((pair) => `${pair.kind}:${pair.expression}` === player.activeAffinityKey);
-  if (!active) return known.length > 0 ? "Affinity: none (press i to equip)" : "Affinity: none";
-  const off = player.affinityExhausted ? "  (off until mana is full)" : "";
-  return `Affinity: ${active.kind} ${active.expression} ×${active.stacks}${off}`;
+  const equipped = Array.isArray(player.equippedAffinityKeys) ? player.equippedAffinityKeys
+    : (player.activeAffinityKey ? [player.activeAffinityKey] : []);
+  const slots = Math.max(player.affinitySlots ?? 1, equipped.length);
+  if (equipped.length === 0) {
+    if (known.length === 0) return ["Affinity: none"];
+    return [slots === 1 ? "Slot 1: empty (press i to equip)" : `Slots: all ${slots} empty (press i to equip)`];
+  }
+  const off = Array.isArray(player.exhaustedAffinityKeys) ? player.exhaustedAffinityKeys
+    : (player.affinityExhausted ? equipped : []);
+  return Array.from({ length: slots }, (_, i) => {
+    const key = equipped[i];
+    const pair = key && known.find((entry) => `${entry.kind}:${entry.expression}` === key);
+    if (!pair) return `Slot ${i + 1}: empty`;
+    const note = off.includes(key) ? "  (off until mana is full)" : "";
+    return `Slot ${i + 1}: ${pair.kind} ${pair.expression} ×${pair.stacks}${note}`;
+  });
 }
 
 /**
@@ -169,8 +184,7 @@ export function renderScreen({
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (vitals.length > 0) lines.push(vitals.join("   "));
-  const affinity = affinityLine(view.player);
-  if (affinity) lines.push(affinity);
+  lines.push(...affinityLines(view.player));
   lines.push(`Tick ${view.tick}   Turns ${turns}`);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
   if (Array.isArray(panel) && panel.length > 0) {

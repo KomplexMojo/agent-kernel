@@ -394,6 +394,20 @@ test("a defeated actor next to the player offers its affinities as loot, and tak
   assert.deepEqual(session.view().loot, []);
 });
 
+test("view().player reports its slots: how many, what is equipped in order, and which are off", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  assert.equal(session.view().player.affinitySlots, 3, "a delver starts with three slots");
+  assert.deepEqual(session.view().player.equippedAffinityKeys, []);
+  await session.act(equip("water:push"));
+  await session.act(equip("light:emit"));
+  const { player } = session.view();
+  assert.deepEqual(player.equippedAffinityKeys, ["water:push", "light:emit"]);
+  assert.deepEqual(player.exhaustedAffinityKeys, []);
+  const result = await session.act({ kind: "unequip_affinity", params: { affinityKey: "water:push" } });
+  assert.deepEqual(result.accepted.map((a) => a.kind), ["unequip_affinity"]);
+  assert.deepEqual(session.view().player.equippedAffinityKeys, ["light:emit"]);
+});
+
 // ## TODO: Test Permutations
 // - an actor that emits light sees one more tile per stack
 // - a dark cell is unknown from beyond one tile

@@ -37,11 +37,12 @@ Colour is on by default in a terminal and uses the application's approved palett
 | `r` | restart the level |
 | `?` | toggle help |
 | `q` · Esc · Ctrl-C | quit (in an open panel: close it) |
-| `i` | list your affinities; then `1`–`9` equips one |
-| `f` | aim at the nearest actor in sight; Tab picks the next, Enter (or `f`) casts the equipped push or pull, Esc cancels |
+| `i` | list your affinities; then `1`–`9` equips one into a free slot (or in place of the oldest when every slot is full), or unequips it if it is equipped |
+| `f` | aim at the nearest actor in sight; Tab picks the next, Enter (or `f`) casts your first equipped push or pull, Esc cancels |
+| `1`–`9` | aim with that slot's push or pull (then Tab/Enter as for `f`); an emit or draw slot needs no cast |
 | `g` | take loot from a defeated neighbour (with several items, `1`–`9` picks) |
 
-Reaching the exit's approach tile puts you **at the exit**; waiting one more tick steps you through. That is core's exit-dwell rule, not a UI rule. Every key that acts costs one turn, a blocked move included: so do an equip, a cast and a take, accepted or refused. Opening, browsing and closing a panel is free. A refusal names core's reason (not enough mana, out of range, nothing equipped). Push and pull are cast; an equipped emit or draw works on its own every turn while its mana upkeep is paid, and the HUD says when it is off waiting for mana.
+Reaching the exit's approach tile puts you **at the exit**; waiting one more tick steps you through. That is core's exit-dwell rule, not a UI rule. Every key that acts costs one turn, a blocked move included: so do an equip, a cast and a take, accepted or refused. Opening, browsing and closing a panel is free. A refusal names core's reason (not enough mana, out of range, nothing equipped). Push and pull are cast; an equipped emit or draw works on its own every turn while its mana upkeep is paid, and the HUD says when it is off waiting for mana. The HUD shows one row per affinity slot (delvers start with 3, wardens with 2); each slot pays its own upkeep and goes off on its own.
 
 ## Where it sits
 
@@ -56,7 +57,7 @@ Reaching the exit's approach tile puts you **at the exit**; waiting one more tic
 | `src/levels.js` | Finds and parses SimConfig + InitialState artifact pairs |
 | `levels/` | Bundled levels, as `<name>.sim-config.json` + `<name>.initial-state.json`, generated from `levels/recipes.json` |
 
-The simulation side is `packages/runtime/src/runner/play-session.js`: `await createPlaySession(...)`, then `await act({ kind: "move", params: { direction } })`, `act({ kind: "wait" })`, `act({ kind: "equip_affinity", params: { affinityKey } })`, `act({ kind: "cast_affinity", params: { targetId } })` or `act({ kind: "take", params: { targetId, holdingId } })`, then `view()` (including `player.affinities` and `loot`) and `status()`. One command, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, and when it leaves.
+The simulation side is `packages/runtime/src/runner/play-session.js`: `await createPlaySession(...)`, then `await act({ kind: "move", params: { direction } })`, `act({ kind: "wait" })`, `act({ kind: "equip_affinity", params: { affinityKey, replaceKey? } })`, `act({ kind: "unequip_affinity", params: { affinityKey } })`, `act({ kind: "cast_affinity", params: { targetId, affinityKey? } })` or `act({ kind: "take", params: { targetId, holdingId } })`, then `view()` (including `player.affinities`, `player.affinitySlots`, `player.equippedAffinityKeys`, `player.exhaustedAffinityKeys` and `loot`) and `status()`. One command, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, and when it leaves.
 
 ## Other actors and traps
 

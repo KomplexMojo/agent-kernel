@@ -38,6 +38,7 @@ import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
 import { ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
+import { equippedActorAffinityKeys, exhaustedActorAffinityKeys } from "../../../core-ts/src/state/actor-inventory.ts";
 
 export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
 
@@ -286,6 +287,11 @@ export async function createPlaySession({
           affinities: player.affinities.map((pair) => ({ ...pair })),
           activeAffinityKey: player.activeAffinityKey,
           ...(player.affinityExhausted ? { affinityExhausted: true } : {}),
+          // Equipped slots, read through core's helpers: the count (1 when unset), the
+          // equipped keys in equip order, and the lasting ones off until mana is full.
+          affinitySlots: player.affinitySlots ?? 1,
+          equippedAffinityKeys: equippedActorAffinityKeys(player),
+          exhaustedAffinityKeys: exhaustedActorAffinityKeys(player),
           position: { ...player.position },
         }
         : null,
