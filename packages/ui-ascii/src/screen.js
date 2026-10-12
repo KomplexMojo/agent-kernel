@@ -124,14 +124,33 @@ export function statusLine(status, message, { traps = false } = {}) {
   return traps ? `Find the exit (E). Mind the traps (${ASCII_ENTITY_GLYPHS.hazard}).` : "Find the exit (E).";
 }
 
-/** The player's equipped affinity, or a hint to equip one. */
+/** The player's equipped affinity slots, or a hint to equip one. */
 export function affinityLine(player) {
   if (!player) return null;
   const known = Array.isArray(player.affinities) ? player.affinities : [];
-  const active = known.find((pair) => `${pair.kind}:${pair.expression}` === player.activeAffinityKey);
-  if (!active) return known.length > 0 ? "Affinity: none (press i to equip)" : "Affinity: none";
-  const off = player.affinityExhausted ? "  (off until mana is full)" : "";
-  return `Affinity: ${active.kind} ${active.expression} ×${active.stacks}${off}`;
+  const byKey = new Map(known.map((pair) => [`${pair.kind}:${pair.expression}`, pair]));
+  const equipped = Array.isArray(player.equippedAffinityKeys) && player.equippedAffinityKeys.length > 0
+    ? player.equippedAffinityKeys
+    : (player.activeAffinityKey ? [player.activeAffinityKey] : []);
+  const slots = player.affinitySlots ?? 1;
+  if (equipped.length === 0) {
+    return known.length > 0
+      ? `Slots 0/${slots}: none (press i to equip)`
+      : `Slots 0/${slots}: none`;
+  }
+  const exhausted = new Set(
+    player.affinityExhausted
+      ? (Array.isArray(player.exhaustedAffinityKeys) && player.exhaustedAffinityKeys.length > 0
+        ? player.exhaustedAffinityKeys
+        : equipped)
+      : [],
+  );
+  const parts = equipped.map((key) => {
+    const pair = byKey.get(key);
+    const label = pair ? `${pair.kind} ${pair.expression} ×${pair.stacks}` : key.replace(":", " ");
+    return exhausted.has(key) ? `${label} (off)` : label;
+  });
+  return `Slots ${equipped.length}/${slots}: ${parts.join(" · ")}`;
 }
 
 /**

@@ -432,10 +432,11 @@ function duelLevels({ wardenAt = { x: 2, y: 1 } } = {}) {
 }
 const press = async (game, keys) => { for (const key of splitKeys(keys)) await game.handle(intentForKey(key)); };
 
-test("affinity keys map to intents: i, f, g, Tab and the digits", () => {
+test("affinity keys map to intents: i, f, g, x, Tab and the digits", () => {
   assert.deepEqual(intentForKey("i"), { type: INTENT.AFFINITIES });
   assert.deepEqual(intentForKey("f"), { type: INTENT.CAST });
   assert.deepEqual(intentForKey("g"), { type: INTENT.TAKE });
+  assert.deepEqual(intentForKey("x"), { type: INTENT.UNEQUIP });
   assert.deepEqual(intentForKey("\t"), { type: INTENT.NEXT_TARGET });
   assert.deepEqual(intentForKey("1"), { type: INTENT.SELECT, index: 0 });
   assert.deepEqual(intentForKey("9"), { type: INTENT.SELECT, index: 8 });
@@ -450,7 +451,27 @@ test("i lists the known affinities for free; a digit equips one and costs the tu
   await press(game, "1");
   assert.equal(game.state().turns, 1);
   assert.doesNotMatch(game.screen(), /1\) water push/, "the panel closes after a choice");
-  assert.match(game.screen(), /Affinity: water push ×3/);
+  assert.match(game.screen(), /Slots 1\/3: water push ×3/);
+});
+
+test("several affinities equip into free slots; a digit on an equipped one unequips it", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "i1i2");
+  assert.equal(game.state().turns, 2);
+  assert.match(game.screen(), /Slots 2\/3: water push ×3 · light emit ×1/);
+  await press(game, "i1");
+  assert.equal(game.state().turns, 3);
+  assert.match(game.screen(), /Unequipped water push/);
+  assert.match(game.screen(), /Slots 1\/3: light emit ×1/);
+});
+
+test("x lists equipped affinities and a digit unequips one", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "i1x");
+  assert.match(game.screen(), /1\) water push/);
+  await press(game, "1");
+  assert.match(game.screen(), /Unequipped water push/);
+  assert.match(game.screen(), /Slots 0\/3: none/);
 });
 
 test("Esc closes a panel instead of quitting", async () => {
@@ -465,10 +486,60 @@ test("f aims at the nearest actor in sight and Enter casts at it", async () => {
   const game = await createGame({ levels: duelLevels(), fog: false });
   await press(game, "i1f");
   assert.match(game.screen(), /Target: warden_1/);
+  assert.match(game.screen(), /with water push/);
   assert.equal(game.state().turns, 1, "aiming is free");
   await press(game, "\r");
   assert.equal(game.state().turns, 2);
   assert.match(game.screen(), /You cast water push at warden_1\./);
+});
+
+test("when several push/pull are equipped, f asks which to cast", async () => {
+  const level = buildUnifiedLevel({
+    id: "multi_cast",
+    tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+        vitals: viableVitals({ mana: 40 }), affinities: [
+          { kind: "water", expression: "push", stacks: 1 },
+          { kind: "fire", expression: "pull", stacks: 1 },
+          { kind: "light", expression: "emit", stacks: 1 },
+        ] },
+      { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["stationary"],
+        vitals: viableVitals(), affinities: [{ kind: "earth", expression: "push", stacks: 1 }] },
+    ],
+  });
+  const game = await createGame({ levels: [{ name: "multi_cast", ...level }], fog: false });
+  await press(game, "i1i2f");
+  assert.match(game.screen(), /Cast which affinity/);
+  assert.match(game.screen(), /1\) water push/);
+  assert.match(game.screen(), /2\) fire pull/);
+  await press(game, "2");
+  assert.match(game.screen(), /Target: warden_1 \(.*\) with fire pull/);
+  await press(game, "\r");
+  assert.match(game.screen(), /You cast fire pull at warden_1\./);
+});
+
+test("equipping into a full set of slots asks which equipped affinity to replace", async () => {
+  const level = buildUnifiedLevel({
+    id: "full_slots",
+    tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+        affinitySlots: 2,
+        vitals: viableVitals({ mana: 40 }), affinities: [
+          { kind: "water", expression: "push", stacks: 1 },
+          { kind: "fire", expression: "emit", stacks: 1 },
+          { kind: "light", expression: "emit", stacks: 1 },
+        ] },
+    ],
+  });
+  const game = await createGame({ levels: [{ name: "full_slots", ...level }], fog: false });
+  await press(game, "i1i2i3");
+  assert.match(game.screen(), /Slots full — replace which for light emit/);
+  await press(game, "1");
+  assert.match(game.screen(), /Equipped light emit ×1 \(replaced water push\)/);
+  // replaceKey swaps in place, so light takes water's slot and fire stays second.
+  assert.match(game.screen(), /Slots 2\/2: light emit ×1 · fire emit ×1/);
 });
 
 test("a cast core refuses says why and costs the turn", async () => {

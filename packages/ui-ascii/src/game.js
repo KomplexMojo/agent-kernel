@@ -21,10 +21,13 @@ const REJECTION_MESSAGES = Object.freeze({
   InvalidTarget: "That cannot be targeted.",
   UnknownAffinity: "You do not know that affinity.",
   AffinityAlreadyEquipped: "That affinity is already equipped.",
+  AffinityNotEquipped: "That affinity is not equipped.",
   NothingToTake: "Nothing left to take there.",
   NotAdjacent: "Too far away to take that.",
   InvalidCapability: "You cannot do that.",
 });
+
+const CASTABLE_EXPRESSIONS = new Set(["push", "pull"]);
 
 function rejectionMessage(reason) {
   return REJECTION_MESSAGES[reason] || `Rejected (${reason}).`;
@@ -38,6 +41,10 @@ function keyLabel(affinityKey) {
   return String(affinityKey || "").replace(":", " ");
 }
 
+function pairKey(pair) {
+  return `${pair.kind}:${pair.expression}`;
+}
+
 const chebyshev = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
 /** Everyone in sight the player could aim at, nearest first. Range is core's to judge. */
@@ -47,6 +54,19 @@ function targetsInSight(view) {
   return [...(view.actors || []), ...(view.hazards || [])]
     .map((actor) => ({ id: actor.id, distance: chebyshev(from, actor.position) }))
     .sort((a, b) => a.distance - b.distance || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+/** Equipped push/pull pairs the player can name in a cast, in equip order. */
+function castableEquipped(view) {
+  const player = view.player;
+  if (!player) return [];
+  const known = new Map((player.affinities || []).map((pair) => [pairKey(pair), pair]));
+  return (player.equippedAffinityKeys || [])
+    .map((key) => {
+      const pair = known.get(key);
+      return pair && CASTABLE_EXPRESSIONS.has(pair.expression) ? { key, ...pair } : null;
+    })
+    .filter(Boolean);
 }
 
 /**
@@ -66,8 +86,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   let message = "";
   let showHelp = true;
   let finished = false;
-  // An open panel: the affinity list, the target picker or the loot list. Opening,
-  // browsing and closing one is free; only the command it sends takes a turn.
+  // An open panel: affinities, replace-slot, cast affinity pick, target picker, loot.
+  // Opening, browsing and closing one is free; only the command it sends takes a turn.
   let panel = null;
 
   async function startLevel(index) {
@@ -100,20 +120,41 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     panel = { type: "affinities", items: affinities };
   }
 
-  function openTargets() {
+  function openUnequip() {
+    const equipped = session.view().player?.equippedAffinityKeys || [];
+    if (equipped.length === 0) {
+      message = "Nothing is equipped.";
+      return;
+    }
+    panel = { type: "unequip", items: equipped };
+  }
+
+  function openTargets(affinityKey = null) {
     const targets = targetsInSight(session.view());
     if (targets.length === 0) {
       message = "Nothing in sight to cast at.";
       return;
     }
-    panel = { type: "target", items: targets, index: 0 };
+    panel = { type: "target", items: targets, index: 0, affinityKey };
+  }
+
+  function openCast() {
+    const castables = castableEquipped(session.view());
+    if (castables.length > 1) {
+      panel = { type: "cast_pick", items: castables };
+      return;
+    }
+    openTargets(castables[0]?.key ?? null);
   }
 
   async function castAtTarget() {
     const target = panel.items[panel.index];
+    const affinityKey = panel.affinityKey;
     panel = null;
-    const active = session.view().player?.activeAffinityKey;
-    await act({ kind: "cast_affinity", params: { targetId: target.id } },
+    const params = { targetId: target.id };
+    if (affinityKey) params.affinityKey = affinityKey;
+    const active = affinityKey || session.view().player?.activeAffinityKey;
+    await act({ kind: "cast_affinity", params },
       () => `You cast ${keyLabel(active)} at ${target.id}.`);
   }
 
@@ -136,6 +177,41 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     panel = { type: "loot", items: loot };
   }
 
+  async function equipAffinity(pair, replaceKey = undefined) {
+    const affinityKey = pairKey(pair);
+    const params = { affinityKey };
+    if (replaceKey) params.replaceKey = replaceKey;
+    panel = null;
+    await act({ kind: "equip_affinity", params },
+      () => replaceKey
+        ? `Equipped ${affinityLabel(pair)} (replaced ${keyLabel(replaceKey)}).`
+        : `Equipped ${affinityLabel(pair)}.`);
+  }
+
+  async function unequipKey(affinityKey) {
+    panel = null;
+    await act({ kind: "unequip_affinity", params: { affinityKey } },
+      () => `Unequipped ${keyLabel(affinityKey)}.`);
+  }
+
+  async function selectFromAffinities(index) {
+    const pair = panel.items[index];
+    if (!pair) return;
+    const key = pairKey(pair);
+    const player = session.view().player;
+    const equipped = player?.equippedAffinityKeys || [];
+    if (equipped.includes(key)) {
+      await unequipKey(key);
+      return;
+    }
+    const slots = player?.affinitySlots ?? 1;
+    if (equipped.length >= slots) {
+      panel = { type: "replace", items: equipped, pending: pair };
+      return;
+    }
+    await equipAffinity(pair);
+  }
+
   // A panel answers its own keys; Esc (or q) closes it; any other key closes it and
   // then does what it always does.
   async function handlePanel(intent) {
@@ -152,6 +228,25 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         await castAtTarget();
         return true;
       }
+    } else if (panel.type === "cast_pick") {
+      if (intent.type === INTENT.SELECT) {
+        const item = panel.items[intent.index];
+        if (!item) return true;
+        panel = null;
+        openTargets(item.key);
+        return true;
+      }
+      if (intent.type === INTENT.CAST) {
+        panel = null;
+        return true;
+      }
+    } else if (panel.type === "replace") {
+      if (intent.type === INTENT.SELECT) {
+        const replaceKey = panel.items[intent.index];
+        if (!replaceKey) return true;
+        await equipAffinity(panel.pending, replaceKey);
+        return true;
+      }
     } else if (intent.type === INTENT.SELECT) {
       const item = panel.items[intent.index];
       if (!item) return true;
@@ -159,11 +254,18 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         await take(item);
         return true;
       }
-      panel = null;
-      await act({ kind: "equip_affinity", params: { affinityKey: `${item.kind}:${item.expression}` } },
-        () => `Equipped ${affinityLabel(item)}.`);
-      return true;
+      if (panel.type === "unequip") {
+        await unequipKey(item);
+        return true;
+      }
+      if (panel.type === "affinities") {
+        await selectFromAffinities(intent.index);
+        return true;
+      }
     } else if (panel.type === "affinities" && intent.type === INTENT.AFFINITIES) {
+      panel = null;
+      return true;
+    } else if (panel.type === "unequip" && intent.type === INTENT.UNEQUIP) {
       panel = null;
       return true;
     }
@@ -203,8 +305,11 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       case INTENT.AFFINITIES:
         openAffinities();
         break;
+      case INTENT.UNEQUIP:
+        openUnequip();
+        break;
       case INTENT.CAST:
-        openTargets();
+        openCast();
         break;
       case INTENT.TAKE:
         await openLoot();
@@ -218,16 +323,43 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   function panelLines() {
     if (!panel) return null;
     if (panel.type === "affinities") {
-      const active = session.view().player?.activeAffinityKey;
-      return ["Affinities (a number equips, Esc closes):",
-        ...panel.items.map((pair, i) => `  ${i + 1}) ${affinityLabel(pair)}${`${pair.kind}:${pair.expression}` === active ? "  [equipped]" : ""}`)];
+      const player = session.view().player;
+      const equipped = new Set(player?.equippedAffinityKeys || []);
+      const slots = player?.affinitySlots ?? 1;
+      return [
+        `Affinities ${equipped.size}/${slots} equipped (a number equips or unequips, Esc closes):`,
+        ...panel.items.map((pair, i) => {
+          const key = pairKey(pair);
+          const mark = equipped.has(key) ? "  [equipped]" : "";
+          return `  ${i + 1}) ${affinityLabel(pair)}${mark}`;
+        }),
+      ];
+    }
+    if (panel.type === "replace") {
+      return [
+        `Slots full — replace which for ${affinityLabel(panel.pending)}?`,
+        ...panel.items.map((key, i) => `  ${i + 1}) ${keyLabel(key)}`),
+      ];
+    }
+    if (panel.type === "unequip") {
+      return [
+        "Unequip (a number picks, Esc closes):",
+        ...panel.items.map((key, i) => `  ${i + 1}) ${keyLabel(key)}`),
+      ];
+    }
+    if (panel.type === "cast_pick") {
+      return [
+        "Cast which affinity? (a number picks, Esc cancels):",
+        ...panel.items.map((item, i) => `  ${i + 1}) ${affinityLabel(item)}`),
+      ];
     }
     if (panel.type === "loot") {
       return ["Take (a number picks, Esc closes):",
         ...panel.items.map((item, i) => `  ${i + 1}) ${item.kind === "affinity" ? `${item.affinity} ${item.expression}` : item.holdingId} from ${item.targetId}`)];
     }
     const target = panel.items[panel.index];
-    return [`Target: ${target.id} (${target.distance} ${target.distance === 1 ? "tile" : "tiles"} away)   Tab next, Enter cast, Esc cancel`];
+    const affinity = panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : "";
+    return [`Target: ${target.id} (${target.distance} ${target.distance === 1 ? "tile" : "tiles"} away)${affinity}   Tab next, Enter cast, Esc cancel`];
   }
 
   function screen({ color = false } = {}) {

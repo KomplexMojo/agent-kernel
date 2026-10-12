@@ -15,6 +15,7 @@ export const INTENT = Object.freeze({
   AFFINITIES: "affinities",
   CAST: "cast",
   TAKE: "take",
+  UNEQUIP: "unequip",
   NEXT_TARGET: "next_target",
   SELECT: "select",
 });
@@ -55,6 +56,7 @@ const OTHER_KEYS = Object.freeze({
   i: INTENT.AFFINITIES,
   f: INTENT.CAST,
   g: INTENT.TAKE,
+  x: INTENT.UNEQUIP,
   "\t": INTENT.NEXT_TARGET,
   q: INTENT.QUIT,
   "\u0003": INTENT.QUIT, // Ctrl-C
@@ -92,6 +94,6 @@ export function splitKeys(chunk) {
 export const HELP_LINES = Object.freeze([
   "Move: arrows / WASD / hjkl   Diagonals: y u b n",
   "Wait: . or space   Restart: r   Next level: Enter   Quit: q",
-  "Affinities: i, then 1-9 to equip   Take: g",
-  "Cast: f, then Tab for the next target, Enter to cast, Esc to cancel",
+  "Affinities: i (1-9 equip; again unequips)   Unequip list: x   Take: g",
+  "Cast: f (pick affinity if several), Tab next target, Enter cast, Esc cancel",
 ]);

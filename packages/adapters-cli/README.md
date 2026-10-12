@@ -299,8 +299,10 @@ Inputs/outputs:
   result instead, `launch` being the command to play that level interactively. `--color`/`--no-color`
   pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map. MCP: `ak_play_ascii`.
 - `--keys` takes the game's own keys (see `packages/ui-ascii/README.md`), including the affinity keys:
-  `i` then a digit equips, `f` then Tab/Enter casts, `g` takes loot. For example `--keys "i1ff"` equips
-  the first affinity and casts it at the nearest actor in sight.
+  `i` then a digit equips (or unequips if already equipped; when slots are full the next pick asks
+  which to replace), `x` then a digit unequips, `f` then Tab/Enter casts (picking which equipped
+  push/pull when several are equipped), `g` takes loot. For example `--keys "i1ff"` equips the
+  first affinity and casts it at the nearest actor in sight.
 
 ### `create` / `configure`
 Generic additive agent-facing authoring commands that normalize freeform text plus
