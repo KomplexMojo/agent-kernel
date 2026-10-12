@@ -509,7 +509,9 @@ function resolveActorIdNumeric({ actorId, actorIdMap, core }) {
   return 1;
 }
 
-const UNIFIED_ACTOR_ACTIONS = new Set(["move", "cast_affinity", "equip_affinity", "take", "wait"]);
+const UNIFIED_ACTOR_ACTIONS = new Set(["move", "cast_affinity", "equip_affinity", "unequip_affinity", "take", "wait"]);
+const onlyParams = (params, required, optional = []) => required.every((key) => Object.hasOwn(params, key))
+  && Object.keys(params).every((key) => required.includes(key) || optional.includes(key));
 
 function normalizeUnifiedActorAction(action, defaultTick) {
   const kind = resolveActionKind(action);
@@ -527,12 +529,20 @@ function normalizeUnifiedActorAction(action, defaultTick) {
     return { ...envelope, kind: "move", params: { target: { ...params.target } } };
   }
   if (kind === "cast_affinity") {
-    if (Object.keys(params).length !== 1 || typeof params.targetId !== "string") return null;
-    return { ...envelope, kind: "cast_affinity", params: { targetId: params.targetId } };
+    if (!onlyParams(params, ["targetId"], ["affinityKey"]) || typeof params.targetId !== "string"
+      || (params.affinityKey !== undefined && typeof params.affinityKey !== "string")) return null;
+    return { ...envelope, kind: "cast_affinity", params: { targetId: params.targetId,
+      ...(params.affinityKey !== undefined ? { affinityKey: params.affinityKey } : {}) } };
   }
   if (kind === "equip_affinity") {
-    if (Object.keys(params).length !== 1 || typeof params.affinityKey !== "string") return null;
-    return { ...envelope, kind: "equip_affinity", params: { affinityKey: params.affinityKey } };
+    if (!onlyParams(params, ["affinityKey"], ["replaceKey"]) || typeof params.affinityKey !== "string"
+      || (params.replaceKey !== undefined && typeof params.replaceKey !== "string")) return null;
+    return { ...envelope, kind: "equip_affinity", params: { affinityKey: params.affinityKey,
+      ...(params.replaceKey !== undefined ? { replaceKey: params.replaceKey } : {}) } };
+  }
+  if (kind === "unequip_affinity") {
+    if (!onlyParams(params, ["affinityKey"]) || typeof params.affinityKey !== "string") return null;
+    return { ...envelope, kind: "unequip_affinity", params: { affinityKey: params.affinityKey } };
   }
   if (Object.keys(params).length !== 2 || typeof params.targetId !== "string"
     || typeof params.holdingId !== "string") return null;

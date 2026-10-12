@@ -26,6 +26,7 @@ type RuntimeDecisionProviderPolicy = {
 const RUNTIME_DECISION_ACTOR_KEYS = Object.freeze([
   "id", "alignment", "position", "lifecycle", "defeatVital", "vitals",
   "capabilities", "motivations", "affinities", "activeAffinityKey", "holdings",
+  "affinitySlots", "equippedAffinityKeys", "exhaustedAffinityKeys", "affinityExhausted",
 ]);
 const RUNTIME_DECISION_SELF_EXTRA_KEYS = Object.freeze(["motivationProfile"]);
 const RUNTIME_DECISION_VISIBLE_EXTRA_KEYS = Object.freeze(["hostile"]);
