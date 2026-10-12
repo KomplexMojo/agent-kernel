@@ -509,7 +509,12 @@ function resolveActorIdNumeric({ actorId, actorIdMap, core }) {
   return 1;
 }
 
-const UNIFIED_ACTOR_ACTIONS = new Set(["move", "cast_affinity", "equip_affinity", "take", "wait"]);
+const UNIFIED_ACTOR_ACTIONS = new Set([
+  "move", "cast_affinity", "equip_affinity", "unequip_affinity", "take", "wait",
+]);
+
+const AFFINITY_KEY_PATTERN = /^[a-z]+:[a-z]+$/;
+const isAffinityKey = (value) => typeof value === "string" && AFFINITY_KEY_PATTERN.test(value);
 
 function normalizeUnifiedActorAction(action, defaultTick) {
   const kind = resolveActionKind(action);
@@ -527,12 +532,32 @@ function normalizeUnifiedActorAction(action, defaultTick) {
     return { ...envelope, kind: "move", params: { target: { ...params.target } } };
   }
   if (kind === "cast_affinity") {
-    if (Object.keys(params).length !== 1 || typeof params.targetId !== "string") return null;
-    return { ...envelope, kind: "cast_affinity", params: { targetId: params.targetId } };
+    const keys = Object.keys(params);
+    if (typeof params.targetId !== "string") return null;
+    if (keys.length === 1) {
+      return { ...envelope, kind: "cast_affinity", params: { targetId: params.targetId } };
+    }
+    if (keys.length === 2 && isAffinityKey(params.affinityKey)) {
+      return { ...envelope, kind: "cast_affinity",
+        params: { targetId: params.targetId, affinityKey: params.affinityKey } };
+    }
+    return null;
   }
   if (kind === "equip_affinity") {
-    if (Object.keys(params).length !== 1 || typeof params.affinityKey !== "string") return null;
-    return { ...envelope, kind: "equip_affinity", params: { affinityKey: params.affinityKey } };
+    const keys = Object.keys(params);
+    if (!isAffinityKey(params.affinityKey)) return null;
+    if (keys.length === 1) {
+      return { ...envelope, kind: "equip_affinity", params: { affinityKey: params.affinityKey } };
+    }
+    if (keys.length === 2 && isAffinityKey(params.replaceKey)) {
+      return { ...envelope, kind: "equip_affinity",
+        params: { affinityKey: params.affinityKey, replaceKey: params.replaceKey } };
+    }
+    return null;
+  }
+  if (kind === "unequip_affinity") {
+    if (Object.keys(params).length !== 1 || !isAffinityKey(params.affinityKey)) return null;
+    return { ...envelope, kind: "unequip_affinity", params: { affinityKey: params.affinityKey } };
   }
   if (Object.keys(params).length !== 2 || typeof params.targetId !== "string"
     || typeof params.holdingId !== "string") return null;

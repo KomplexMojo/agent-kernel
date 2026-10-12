@@ -232,17 +232,33 @@ export async function createPlaySession({
     return { rows, sight, visible };
   }
 
-  // One actor as the UI sees it: plain data, vitals as records, the active pair named.
+  // Equipped keys in equip order; activeAffinityKey is always the first when any are equipped.
+  function equippedKeys(actor) {
+    if (Array.isArray(actor.equippedAffinityKeys) && actor.equippedAffinityKeys.length > 0) {
+      return [...actor.equippedAffinityKeys];
+    }
+    return actor.activeAffinityKey ? [actor.activeAffinityKey] : [];
+  }
+
+  // One actor as the UI sees it: plain data, vitals as records, equipped slots named.
   function toViewActor(actor) {
     const category = presentation[actor.id]?.category ?? null;
+    const equipped = equippedKeys(actor);
+    const exhausted = actor.affinityExhausted === true
+      ? (Array.isArray(actor.exhaustedAffinityKeys) && actor.exhaustedAffinityKeys.length > 0
+        ? [...actor.exhaustedAffinityKeys]
+        : equipped)
+      : [];
     return {
       id: actor.id,
       role: category,
       position: { ...actor.position },
       vitals: structuredClone(actor.vitals),
       affinities: actor.affinities.map((pair) => ({ ...pair })),
+      affinitySlots: actor.affinitySlots ?? 1,
+      equippedAffinityKeys: equipped,
       activeAffinityKey: actor.activeAffinityKey,
-      ...(actor.affinityExhausted ? { affinityExhausted: true } : {}),
+      ...(exhausted.length > 0 ? { exhaustedAffinityKeys: exhausted, affinityExhausted: true } : {}),
     };
   }
 
@@ -281,13 +297,20 @@ export async function createPlaySession({
       // With fog, only traps in sight right now.
       hazards: others.filter((actor) => presentation[actor.id]?.category === HAZARD_CATEGORY).map(toViewActor),
       player: player
-        ? {
-          ...buildActorHudModel({ ...toViewActor(player), role: presentation[player.id]?.category ?? null }),
-          affinities: player.affinities.map((pair) => ({ ...pair })),
-          activeAffinityKey: player.activeAffinityKey,
-          ...(player.affinityExhausted ? { affinityExhausted: true } : {}),
-          position: { ...player.position },
-        }
+        ? (() => {
+          const viewActor = toViewActor(player);
+          return {
+            ...buildActorHudModel({ ...viewActor, role: presentation[player.id]?.category ?? null }),
+            affinities: viewActor.affinities,
+            affinitySlots: viewActor.affinitySlots,
+            equippedAffinityKeys: viewActor.equippedAffinityKeys,
+            activeAffinityKey: viewActor.activeAffinityKey,
+            ...(viewActor.exhaustedAffinityKeys
+              ? { exhaustedAffinityKeys: viewActor.exhaustedAffinityKeys, affinityExhausted: true }
+              : {}),
+            position: { ...player.position },
+          };
+        })()
         : null,
       // What the player could `take` this turn: unclaimed holdings of defeated actors
       // next to it. Whether a take succeeds is still core's call.

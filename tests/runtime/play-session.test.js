@@ -351,6 +351,8 @@ test("view().player lists the affinities the player knows and which one is equip
   const { player } = session.view();
   assert.deepEqual(player.affinities.map((a) => `${a.kind}:${a.expression}:${a.stacks}`), ["water:push:3", "light:emit:1"]);
   assert.equal(player.activeAffinityKey, null);
+  assert.equal(player.affinitySlots, 3);
+  assert.deepEqual(player.equippedAffinityKeys, []);
 });
 
 test("equipping costs the turn and switches the active affinity", async () => {
@@ -359,6 +361,32 @@ test("equipping costs the turn and switches the active affinity", async () => {
   assert.deepEqual(result.accepted.map((a) => a.kind), ["equip_affinity"]);
   assert.equal(result.tick, 1);
   assert.equal(session.view().player.activeAffinityKey, "water:push");
+  assert.deepEqual(session.view().player.equippedAffinityKeys, ["water:push"]);
+});
+
+test("several affinities equip into free slots; unequip and replaceKey use the Actor command shape", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  await session.act(equip("water:push"));
+  await session.act(equip("light:emit"));
+  assert.deepEqual(session.view().player.equippedAffinityKeys, ["water:push", "light:emit"]);
+  const unequip = await session.act({ kind: "unequip_affinity", params: { affinityKey: "water:push" } });
+  assert.deepEqual(unequip.accepted.map((a) => a.kind), ["unequip_affinity"]);
+  assert.deepEqual(session.view().player.equippedAffinityKeys, ["light:emit"]);
+  const replaced = await session.act({
+    kind: "equip_affinity",
+    params: { affinityKey: "water:push", replaceKey: "light:emit" },
+  });
+  assert.deepEqual(replaced.accepted.map((a) => a.kind), ["equip_affinity"]);
+  assert.deepEqual(session.view().player.equippedAffinityKeys, ["water:push"]);
+  assert.equal(session.view().player.activeAffinityKey, "water:push");
+});
+
+test("cast may name which equipped affinity to fire", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  await session.act(equip("water:push"));
+  const result = await session.act({ kind: "cast_affinity", params: { targetId: "warden_1", affinityKey: "water:push" } });
+  assert.deepEqual(result.accepted.map((a) => [a.kind, a.params]),
+    [["cast_affinity", { targetId: "warden_1", affinityKey: "water:push" }]]);
 });
 
 test("a cast spends the player's mana and hurts the target", async () => {
