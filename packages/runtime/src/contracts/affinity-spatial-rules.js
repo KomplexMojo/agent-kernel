@@ -47,7 +47,7 @@ const RADIUS_WEIGHTS = Object.freeze({
 const INTENSITY_WEIGHTS = Object.freeze({
   push: Object.freeze({ peakIntensity: 1.0, stackExponent: 0.5, buffer: 0, falloffCurve: 2.0 }),
   pull: Object.freeze({ peakIntensity: 1.0, stackExponent: 0.5, buffer: 0, falloffCurve: 2.0 }),
-  emit: Object.freeze({ peakIntensity: 1.0, stackExponent: 0.3, buffer: 1, falloffCurve: 1.0 }),
+  emit: Object.freeze({ peakIntensity: 1.0, stackExponent: 0.3, buffer: 0, falloffCurve: 1.0 }),
   draw: Object.freeze({ peakIntensity: 1.0, stackExponent: 0.0, buffer: 0, falloffCurve: 0.0 }),
 });
 

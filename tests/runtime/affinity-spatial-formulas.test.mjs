@@ -77,22 +77,18 @@ describe("computeRadius", () => {
 // ---------------------------------------------------------------------------
 
 describe("computeIntensity", () => {
-  describe("emit buffer zone", () => {
-    it("d=1 is always 0 (buffer)", () => {
+  describe("emit has no dead zone (maintainer, 2026-10-12)", () => {
+    it("d=1 is non-zero and the strongest tile for every stack count", () => {
       for (let s = 1; s <= 5; s += 1) {
-        assert.equal(computeIntensity(1, s, "emit", W), 0,
-          `emit stacks=${s} d=1 should be 0`);
+        const atD1 = computeIntensity(1, s, "emit", W);
+        assert.ok(atD1 > 0, `emit stacks=${s} d=1 should be > 0`);
+        assert.ok(atD1 >= computeIntensity(2, s, "emit", W), `emit stacks=${s}: d=1 should be >= d=2`);
       }
-    });
-
-    it("d=2 is non-zero for stacks >= 1", () => {
-      assert.ok(computeIntensity(2, 1, "emit", W) > 0);
-      assert.ok(computeIntensity(2, 3, "emit", W) > 0);
     });
   });
 
-  describe("emit falloff at d=2 is full peak at each stack level", () => {
-    it("d=2 is highest intensity for emit", () => {
+  describe("emit keeps falling off with distance at each stack level", () => {
+    it("d=2 is at least as strong as d=3 for emit", () => {
       for (let s = 2; s <= 5; s += 1) {
         const atD2 = computeIntensity(2, s, "emit", W);
         const atD3 = computeIntensity(3, s, "emit", W);
@@ -362,8 +358,8 @@ describe("computeStackAlphaMultiplier", () => {
 // ---------------------------------------------------------------------------
 
 describe("computeTileAlpha", () => {
-  it("emit buffer zone (d=1) → alpha 0", () => {
-    assert.equal(computeTileAlpha(1, 2, "emit", W), 0);
+  it("emit d=1 → non-zero alpha (no dead zone)", () => {
+    assert.ok(computeTileAlpha(1, 2, "emit", W) > 0);
   });
 
   it("emit d=2 stacks=2 → non-zero alpha", () => {

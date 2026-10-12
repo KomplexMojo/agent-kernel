@@ -85,13 +85,13 @@ test('visible contributions retain unseen emitters and reappear after switching 
 // - Surviving dark obscures a distant target after light/dark cancellation.
 
 test("another source's light lights cells but never extends the observer's own radius", () => {
-  // The lamp at x=5 (1 stack) lights x=3..7, which includes self's cell.
+  // The lamp at x=5 (1 stack) lights x=4..6 (no dead zone next to it), which includes self's cell.
   const lamp = lit(actor('lamp', 5), 1);
   lamp.alignment = 'external';
   const registry = createActorRegistry({ dimensions: { width: 12, height: 1 }, terrain: Array(12).fill('floor'),
-    actors: [actor('self', 3), lamp, actor('dark', 1), actor('lit', 7)] });
+    actors: [actor('self', 4), lamp, actor('dark', 2), actor('lit', 6)] });
   expect(readActorRegistryObservation(registry, 0).affinityFields
-    .some(field => field.sourceId === 'lamp' && field.position.x === 3)).toBe(true);
+    .some(field => field.sourceId === 'lamp' && field.position.x === 4)).toBe(true);
   const ids = scopeActorRegistryObservation(readActorRegistryObservation(registry, 0), 'self').actors.map(entry => entry.id);
   // Two tiles off in the dark: only self's own light could reach it.
   expect(ids).not.toContain('dark');
