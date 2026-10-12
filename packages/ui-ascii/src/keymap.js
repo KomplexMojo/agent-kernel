@@ -92,6 +92,6 @@ export function splitKeys(chunk) {
 export const HELP_LINES = Object.freeze([
   "Move: arrows / WASD / hjkl   Diagonals: y u b n",
   "Wait: . or space   Restart: r   Next level: Enter   Quit: q",
-  "Affinities: i, then 1-9 to equip   Take: g",
-  "Cast: f, then Tab for the next target, Enter to cast, Esc to cancel",
+  "Affinities: i, then 1-9 to equip or unequip   Take: g",
+  "Cast: f (or a slot's number), then Tab for the next target, Enter to cast, Esc to cancel",
 ]);

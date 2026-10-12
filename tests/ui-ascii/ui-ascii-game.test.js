@@ -450,7 +450,36 @@ test("i lists the known affinities for free; a digit equips one and costs the tu
   await press(game, "1");
   assert.equal(game.state().turns, 1);
   assert.doesNotMatch(game.screen(), /1\) water push/, "the panel closes after a choice");
-  assert.match(game.screen(), /Affinity: water push ×3/);
+  assert.match(game.screen(), /Slot 1: water push ×3/);
+  assert.match(game.screen(), /Slot 2: empty/);
+});
+
+test("the HUD shows a row per slot; in the panel a digit equips into a free slot or unequips", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  assert.match(game.screen(), /Slots: all 3 empty \(press i to equip\)/);
+  await press(game, "i1i2");
+  assert.match(game.screen(), /Slot 1: water push ×3\n.*Slot 2: light emit ×1\n.*Slot 3: empty/);
+  await press(game, "i");
+  assert.match(game.screen(), /1\) water push ×3  \[slot 1\]/);
+  await press(game, "1");
+  assert.equal(game.state().turns, 3);
+  assert.match(game.screen(), /Unequipped water push\./);
+  assert.match(game.screen(), /Slot 1: light emit ×1/);
+});
+
+test("outside a panel, a slot's digit aims that slot; Enter casts it", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "i2i1");
+  await press(game, "1");
+  assert.match(game.screen(), /light emit works on its own while equipped\./);
+  assert.equal(game.state().turns, 2);
+  await press(game, "3");
+  assert.match(game.screen(), /Slot 3 is empty\./);
+  await press(game, "2");
+  assert.match(game.screen(), /Target: warden_1/);
+  await press(game, "\r");
+  assert.equal(game.state().turns, 3);
+  assert.match(game.screen(), /You cast water push at warden_1\./);
 });
 
 test("Esc closes a panel instead of quitting", async () => {
@@ -507,3 +536,5 @@ test("g takes the loot of a defeated neighbour", async () => {
 // - Tab cycles through every actor in sight, nearest first, and wraps
 // - with two loot items g opens a numbered list
 // - casting an emit says it works while equipped
+// - equipping into full slots names the affinity it replaced
+// - an exhausted slot's HUD row says it is off until mana is full
