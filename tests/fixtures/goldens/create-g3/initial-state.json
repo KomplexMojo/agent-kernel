@@ -79,7 +79,8 @@
         }
       ],
       "activeAffinityKey": null,
-      "holdings": []
+      "holdings": [],
+      "affinitySlots": 3
     }
   ],
   "presentation": {

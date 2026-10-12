@@ -4,15 +4,18 @@ import { validateActorInventory } from '../../../../core-ts/src/state/actor-inve
 import { validateActorHoldings } from '../../../../core-ts/src/state/actor-holdings.ts';
 import { DEFAULT_MOVEMENT_COST } from './logical-validation.js';
 
+// affinitySlots: how many affinities each preset can equip at once (maintainer,
+// 2026-10-12). Every type has the same affinity capabilities; only this differs.
 const PRESETS = Object.freeze({
-  delver: { alignment: 'external', defeatVital: 'health', canMove: true, blocksMovement: true },
-  warden: { alignment: 'dungeon', defeatVital: 'health', canMove: true, blocksMovement: true },
-  hazard: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: false },
-  resource: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: false },
-  barrier: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: true },
+  delver: { alignment: 'external', defeatVital: 'health', canMove: true, blocksMovement: true, affinitySlots: 3 },
+  warden: { alignment: 'dungeon', defeatVital: 'health', canMove: true, blocksMovement: true, affinitySlots: 2 },
+  hazard: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: false, affinitySlots: 1 },
+  resource: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: false, affinitySlots: 1 },
+  barrier: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: true, affinitySlots: 1 },
 });
 export const INPUT_KEYS = new Set(['category', 'id', 'position', 'alignment', 'lifecycle', 'defeatVital',
-  'vitals', 'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings']);
+  'vitals', 'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings',
+  'affinitySlots', 'equippedAffinityKeys']);
 const CATEGORIES = new Set(Object.keys(PRESETS));
 
 function leftoverMotivations(actor) {
@@ -82,6 +85,10 @@ export function normalizeActorDefinition(input) {
     motivations: value('motivations', []), affinities: value('affinities', []),
     activeAffinityKey: value('activeAffinityKey', null), holdings: value('holdings', []),
   };
+  // One slot is core's default, so a one-slot record carries no slot field.
+  const slots = value('affinitySlots', preset.affinitySlots);
+  if (slots !== 1) actor.affinitySlots = slots;
+  if (Object.hasOwn(request, 'equippedAffinityKeys')) actor.equippedAffinityKeys = request.equippedAffinityKeys;
   validateActorRecordVitals(actor);
   validateActorInventory(actor);
   validateActorHoldings(actor);

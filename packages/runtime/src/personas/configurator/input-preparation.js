@@ -176,6 +176,7 @@ export function prepareLevelGen({ existingLevelGen = {}, rooms = [], floorTiles 
 const RESOURCE_AUTHORING_KEYS = new Set(["permanenceMode", "_schemaVersion", "affinity", "permanent"]);
 const RESOURCE_REQUEST_KEYS = Object.freeze([
   "alignment", "lifecycle", "defeatVital", "capabilities", "motivations", "affinities", "activeAffinityKey",
+  "affinitySlots", "equippedAffinityKeys",
 ]);
 
 function authoredResourceAffinity(entry) {
