@@ -2,10 +2,10 @@
  * play-session.js — a single-player, step-at-a-time driver an interactive UI uses.
  *
  * Every other driver in the repo runs to completion and hands back recorded
- * frames (`createPlaybackRuntime`, `runMvpMovement`); a UI then scrubs them. An
- * interactive surface needs the opposite: one player command, one tick, one
- * fresh frame. This module is that seam, so a UI (`packages/ui-ascii`) never has
- * to reach into `core-ts` itself — the charter keeps UI code on runtime helpers.
+ * frames (`createPlaybackRuntime`); a UI then scrubs them. An interactive
+ * surface needs the opposite: one player command, one tick, one fresh frame.
+ * This module is that seam, so a UI (`packages/ui-ascii`) never has to reach
+ * into `core-ts` itself — the charter keeps UI code on runtime helpers.
  *
  * Each `act(command)` is one `runtime.step({ actorCommands })`: the player's actor
  * does the command and every other actor takes its own Actor-persona turn in the

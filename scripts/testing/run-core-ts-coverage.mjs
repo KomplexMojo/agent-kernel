@@ -33,8 +33,6 @@ const args = [
   "--coverage.enabled",
   "tests/core-ts/",
   "tests/bindings/",
-  "tests/runtime/mvp-movement.test.js",
-  "tests/runtime/actor-proposal-replay.test.js",
   "tests/runtime/affinity-aura-lifecycle.test.js",
   "tests/ui-web/preview-view.test.mjs",
 ];
