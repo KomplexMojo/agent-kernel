@@ -14,9 +14,9 @@ const effects = resolveAffinityTargetEffectsForList(
 
 const ids = effects.map((entry) => entry.id);
 assert.ok(ids.includes("earth:pull:floor:vital"));
-assert.ok(ids.includes("earth:pull:floor:raise_barrier"));
 assert.ok(ids.includes("earth:pull:floor:arm_static_hazard"));
-assert.ok(ids.includes("water:emit:area:destroy_barrier"));
+// #227 — barrier effects were dropped with the old engine (#206).
+assert.ok(!ids.some((id) => id.endsWith("_barrier")));
 assert.ok(ids.includes("life:pull:self:vital"));
 
 const vital = effects.find((entry) => entry.id === "earth:pull:floor:vital");
@@ -24,7 +24,7 @@ assert.equal(vital.targetVital, "stamina");
 assert.equal(vital.potency, 3);
 });
 
-test("moderator planner derives deterministic barrier and hazard actions", async () => {const { planModeratorAffinityActions } = await import("../../../packages/runtime/src/personas/moderator/affinity-target-effects.js");
+test("moderator planner derives deterministic hazard actions and plans no barrier action", async () => {const { planModeratorAffinityActions } = await import("../../../packages/runtime/src/personas/moderator/affinity-target-effects.js");
 
 const observation = {
   actors: [{ id: "A-2RB89Z", position: { x: 1, y: 1 } }],
@@ -71,13 +71,12 @@ const affinityEffects = {
 };
 
 const actions = planModeratorAffinityActions({ observation, affinityEffects, tick: 5, maxActions: 4 });
-assert.equal(actions.length, 2);
-assert.equal(actions[0].kind, "destroy_barrier");
-assert.deepEqual(actions[0].params, { x: 1, y: 0 });
-assert.equal(actions[1].kind, "arm_static_hazard");
-assert.equal(actions[1].params.x, 1);
-assert.equal(actions[1].params.y, 1);
-assert.equal(actions[1].params.kind, "water");
-assert.equal(actions[1].params.expression, "emit");
-assert.equal(actions[1].params.manaReserve, 2);
+// A stale destroy_barrier effect plans nothing: only the hazard is armed.
+assert.equal(actions.length, 1);
+assert.equal(actions[0].kind, "arm_static_hazard");
+assert.equal(actions[0].params.x, 1);
+assert.equal(actions[0].params.y, 1);
+assert.equal(actions[0].params.kind, "water");
+assert.equal(actions[0].params.expression, "emit");
+assert.equal(actions[0].params.manaReserve, 2);
 });

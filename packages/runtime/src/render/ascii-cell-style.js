@@ -58,7 +58,7 @@ const ENTITY_COLOR = Object.freeze({
 /**
  * Characters come from core's frame legend, so this restates no glyph.
  *
- * @param {Record<string, string>} legend tile kind -> character, as `renderCoreFrame(...).legend`
+ * @param {Record<string, string>} legend tile kind -> character, as a play-session `view().legend`
  * @returns {Record<string, {fg: string, bg: string}>}
  */
 export function buildAsciiCellStyles(legend) {

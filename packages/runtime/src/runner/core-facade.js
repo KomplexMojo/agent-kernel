@@ -4,22 +4,11 @@
 // default and nothing objected. UNUSED_CLOCK is the repo's deterministic marker: a
 // caller that forgets to inject now gets a reproducible value, not wall-clock time.
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
-import {
-  AFFINITY_KIND_BY_CODE,
-  applyMoveAction,
-  createCore,
-  packMoveAction,
-  readAffinityFieldAt,
-  readObservation,
-  renderBaseTiles,
-  renderFrameBuffer,
-} from "../../../core-ts/src/index.ts";
+import { createCore } from "../../../core-ts/src/index.ts";
 import { GAMEPLAY_BUNDLE_SCHEMA } from "../contracts/artifacts.ts";
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
 import { createRuntime } from "./runtime.js";
 import { readActorRegistryObservation } from "../../../core-ts/src/rules/actor-observation.ts";
-
-const ALL_AFFINITY_KIND_CODES = Object.freeze(Object.keys(AFFINITY_KIND_BY_CODE).map(Number));
 
 export function createRuntimeCore() {
   return createCore();
@@ -29,59 +18,6 @@ export function createPlaybackRuntime(options = {}) {
   const core = options.core || createRuntimeCore();
   const adapters = options.adapters || {};
   return createRuntime({ ...options, core, adapters });
-}
-
-export function renderCoreFrame(core, options = {}) {
-  return renderFrameBuffer(core, options);
-}
-
-export function renderCoreBaseTiles(core) {
-  return renderBaseTiles(core);
-}
-
-export function readCoreObservation(core, options = {}) {
-  return readObservation(core, options);
-}
-
-export function applyCoreMove(core, action = {}) {
-  const packed = packMoveAction({
-    actorId: action.actorId,
-    from: action.from,
-    to: action.to,
-    direction: action.direction,
-    tick: action.tick,
-  });
-  return applyMoveAction(core, packed);
-}
-
-export function readCoreAffinityFieldRecords(core, { width = 0, height = 0 } = {}) {
-  const records = [];
-  const maxX = Number.isFinite(width) ? Math.max(0, Math.trunc(width)) : 0;
-  const maxY = Number.isFinite(height) ? Math.max(0, Math.trunc(height)) : 0;
-  for (let y = 0; y < maxY; y += 1) {
-    for (let x = 0; x < maxX; x += 1) {
-      for (const kindCode of ALL_AFFINITY_KIND_CODES) {
-        const field = readAffinityFieldAt(core, x, y, kindCode);
-        // A fully cancelled cell has zero net intensity but still carries
-        // contributions. Preserve those records so the presentation layer can
-        // expose the cancellation zone instead of treating it as untouched.
-        if (field.intensity > 0 || field.contributionCount > 0) {
-          records.push({
-            x,
-            y,
-            kind: AFFINITY_KIND_BY_CODE[kindCode] || "unknown",
-            kindCode,
-            intensity: field.intensity,
-            stacks: field.stacks,
-            expression: field.expression,
-            expressionName: field.expressionName,
-            contributionCount: field.contributionCount,
-          });
-        }
-      }
-    }
-  }
-  return records;
 }
 
 export function readCoreAffinityFieldRecordsFromArtifacts(core, { simConfig, initialState } = {}) {

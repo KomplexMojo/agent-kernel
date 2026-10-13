@@ -63,17 +63,6 @@ export const AFFINITY_VISUAL_STATE_BY_CODE: Readonly<Record<number, string>> =
     21: "emit_field",
   });
 
-export interface AffinityFieldReaderCore {
-  getAffinityFieldIntensityAt(x: number, y: number, kind: number): number;
-  getAffinityFieldStacksAt(x: number, y: number, kind: number): number;
-  getAffinityFieldExpressionAt(x: number, y: number, kind: number): number;
-  getAffinityFieldContributionCountAt(
-    x: number,
-    y: number,
-    kind: number,
-  ): number;
-}
-
 export interface AffinityInteractionReaderCore {
   getLastInteractionSourceEffect(): number;
   getLastInteractionTargetEffect(): number;
@@ -82,20 +71,6 @@ export interface AffinityInteractionReaderCore {
   getLastInteractionNetSourceStacks(): number;
   getLastInteractionNetTargetStacks(): number;
   getLastInteractionCanceledStacks(): number;
-}
-
-export interface ActorAffinityReaderCore {
-  getMotivatedActorAffinityKindByIndex(index: number): number;
-  getMotivatedActorAffinityExpressionByIndex(index: number): number;
-  getMotivatedActorAffinityStacksByIndex(index: number): number;
-}
-
-export interface AffinityFieldRead {
-  intensity: number;
-  stacks: number;
-  expression: number;
-  expressionName: string;
-  contributionCount: number;
 }
 
 export interface AffinityInteractionResultRead {
@@ -110,37 +85,6 @@ export interface AffinityInteractionResultRead {
   netSourceStacks: number;
   netTargetStacks: number;
   canceledStacks: number;
-}
-
-export interface ActorAffinityRead {
-  kind: number;
-  kindName: string;
-  expression: number;
-  expressionName: string;
-  stacks: number;
-}
-
-export function readAffinityFieldAt(
-  core: AffinityFieldReaderCore,
-  x: number,
-  y: number,
-  kind: number,
-): AffinityFieldRead {
-  const intensity = core.getAffinityFieldIntensityAt(x, y, kind);
-  const stacks = core.getAffinityFieldStacksAt(x, y, kind);
-  const expression = core.getAffinityFieldExpressionAt(x, y, kind);
-  const contributionCount = core.getAffinityFieldContributionCountAt(
-    x,
-    y,
-    kind,
-  );
-  return {
-    intensity,
-    stacks,
-    expression,
-    expressionName: AFFINITY_EXPRESSION_BY_CODE[expression] ?? "unknown",
-    contributionCount,
-  };
 }
 
 export function readAffinityInteractionResult(
@@ -164,21 +108,3 @@ export function readAffinityInteractionResult(
     canceledStacks: core.getLastInteractionCanceledStacks(),
   };
 }
-
-export function readActorAffinity(
-  core: ActorAffinityReaderCore,
-  index: number,
-): ActorAffinityRead | null {
-  const kind = core.getMotivatedActorAffinityKindByIndex(index);
-  if (kind === 0) return null;
-  const expression = core.getMotivatedActorAffinityExpressionByIndex(index);
-  const stacks = core.getMotivatedActorAffinityStacksByIndex(index);
-  return {
-    kind,
-    kindName: AFFINITY_KIND_BY_CODE[kind] ?? "unknown",
-    expression,
-    expressionName: AFFINITY_EXPRESSION_BY_CODE[expression] ?? "unknown",
-    stacks,
-  };
-}
-

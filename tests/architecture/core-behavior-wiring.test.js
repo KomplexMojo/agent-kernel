@@ -136,13 +136,16 @@ function findUnwiredBehaviors() {
  *
  * KNOWN CONSERVATIVE BIAS: a behavior reached only through another core-ts
  * function is reported as unwired, because core-internal call chains are not
- * traced — `setActiveMotivatedActor` is in the list below even though AM.2 wired
- * it, since its caller is `rules/move.ts`. The bias is deliberate and one-way:
+ * traced — `setActiveMotivatedActor` was reported even though AM.2 wired it,
+ * since its caller was `rules/move.ts` (both removed in #227, with the old core
+ * world's actor state). The bias is deliberate and one-way:
  * it over-reports, so the guard can never quietly hide a real gap. If it ever
  * under-reported, the count would be reassuring and wrong, which is the failure
  * mode this whole file exists to end.
  */
-const BASELINE_UNWIRED_BEHAVIOR_COUNT = 13;
+// #227 — 13 -> 6: the old core world's actor, hazard and resource behaviors were
+// removed rather than wired, because nothing can seat an actor in that world.
+const BASELINE_UNWIRED_BEHAVIOR_COUNT = 6;
 
 test("no core-ts BEHAVIOR is added that production cannot reach", () => {
   const unwired = findUnwiredBehaviors();

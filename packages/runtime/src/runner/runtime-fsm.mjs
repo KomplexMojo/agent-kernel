@@ -24,26 +24,13 @@ import {
   scopeActorRegistryObservation,
 } from "../../../core-ts/src/rules/actor-observation.ts";
 import {
-  applyMoveAction,
   getValidationErrorName,
-  packMoveAction,
-  readObservation,
-  renderBaseTiles,
   ValidationError,
 } from "../../../core-ts/src/index.ts";
 import {
-  computeVisibleCells,
-  scopeObservation,
-  SIGHT_AFFINITY_KINDS,
-} from "../../../core-ts/src/state/visibility.ts";
-import {
   AFFINITY_EXPRESSIONS,
   AFFINITY_KINDS,
-  AFFINITY_OPPOSITES,
-  resolveActorFaction,
 } from "../contracts/domain-constants.js";
-import { computeAuraMap, serializeAuraMap } from "../render/affinity-aura.js";
-import { SPATIAL_WEIGHTS, INTERACTION_MATRIX } from "../contracts/affinity-spatial-rules.js";
 import {
   ACTION_SCHEMA,
   EFFECT_SCHEMA,
@@ -59,23 +46,9 @@ const ACTION_KIND = Object.freeze({
   RequestSolver: 5,
   FulfillRequest: 6,
   DeferRequest: 7,
-  Move: 8,
 });
-const TILE_CODES = Object.freeze({
-  floor: 1,
-  barrier: 4,
-});
-/** Vital index for mana, matching core's VitalKind ordering. */
-const VITAL_MANA = 1;
 
-/**
- * AM.5 — the authored per-cast mana price, read off the Configurator's public
- * surface. The rules artifact is the authority (AM.4); its published default
- * applies when a run supplies no artifact of its own, which is a documented
- * default table rather than a silent fallback to a second price model.
- */
 const configuratorPersonaSurface = createConfiguratorPersona({ clock: UNUSED_CLOCK });
-const configuratorAffinityManaCost = configuratorPersonaSurface.resolveAffinityManaCost;
 
 /**
  * Every affinity has a mana cost (maintainer, 2026-10-11). Persistent
@@ -89,10 +62,6 @@ const persistentAffinityUpkeepTable = Object.freeze(
     stacks === 0 ? 0 : configuratorPersonaSurface.computeInternalManaUpkeep(stacks)
   )),
 );
-
-function resolveCastManaCost({ kind, expression, stacks }) {
-  return configuratorAffinityManaCost({ rules: null, kind, expression, stacks });
-}
 
 const AFFINITY_KIND_CODES = Object.freeze(
   AFFINITY_KINDS.reduce((acc, kind, index) => {
@@ -216,22 +185,6 @@ function findPlanArtifact(artifacts) {
   return null;
 }
 
-function resolveMoveDirection({ direction, from, to }) {
-  if (direction !== undefined && direction !== null) return direction;
-  if (!from || !to) return null;
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  if (dx === 1 && dy === -1) return "northeast";
-  if (dx === 1 && dy === 0) return "east";
-  if (dx === 1 && dy === 1) return "southeast";
-  if (dx === -1 && dy === 1) return "southwest";
-  if (dx === -1 && dy === 0) return "west";
-  if (dx === -1 && dy === -1) return "northwest";
-  if (dx === 0 && dy === -1) return "north";
-  if (dx === 0 && dy === 1) return "south";
-  return null;
-}
-
 function buildActorIdMap(initialState) {
   const map = new Map();
   const actors = Array.isArray(initialState?.actors)
@@ -245,26 +198,7 @@ function buildActorIdMap(initialState) {
   return { map, primaryActorId: actors[0]?.id || "actor" };
 }
 
-function canRenderBaseTiles(core) {
-  return typeof core?.getMapWidth === "function"
-    && typeof core?.getMapHeight === "function"
-    && typeof core?.renderBaseCellChar === "function";
-}
-
-function canReadObservation(core) {
-  return typeof core?.getMapWidth === "function"
-    && typeof core?.getMapHeight === "function"
-    && typeof core?.getActorX === "function"
-    && typeof core?.getActorY === "function"
-    && typeof core?.getActorKind === "function"
-    && typeof core?.getActorVitalCurrent === "function"
-    && typeof core?.getActorVitalMax === "function"
-    && typeof core?.getActorVitalRegen === "function"
-    && typeof core?.getTileActorKind === "function"
-    && typeof core?.getCurrentTick === "function";
-}
-
-function resolveBaseTiles(simConfig, core) {
+function resolveBaseTiles(simConfig) {
   const terrain = simConfig?.layout?.data?.terrain;
   const width = simConfig?.layout?.data?.width;
   const height = simConfig?.layout?.data?.height;
@@ -276,62 +210,7 @@ function resolveBaseTiles(simConfig, core) {
   }
   const tiles = simConfig?.layout?.data?.tiles;
   if (Array.isArray(tiles)) return tiles;
-  if (core && canRenderBaseTiles(core)) {
-    try {
-      return renderBaseTiles(core);
-    } catch {
-      return null;
-    }
-  }
   return null;
-}
-
-function resolveObservation(core, actorIdLabel, baseTiles, affinityEffects, actorIds = [], initialState = null) {
-  if (!core || !canReadObservation(core)) return null;
-  try {
-    const observation = readObservation(core, { actorIdLabel, affinityEffects, actorIds });
-
-    // DS.1 — attach each actor's faction, which core cannot supply.
-    //
-    // `core-ts` has no concept of role (no `getMotivatedActorRole`, nothing);
-    // faction is a config-level idea, so the snapshot core builds carries none.
-    // The Actor's hostility rule reads `role`, so without this enrichment every
-    // actor's role is `undefined` in a real run, every pair falls through to
-    // DS.2's unknown-role fail-safe, and delvers keep attacking delvers while
-    // the persona suite stays green.
-    //
-    // An existing role is never overwritten, so a hand-built observation stays
-    // authoritative over config.
-    if (observation && Array.isArray(observation.actors) && Array.isArray(initialState?.actors)) {
-      const factionById = new Map();
-      initialState.actors.forEach((configActor) => {
-        if (!configActor?.id) return;
-        const faction = resolveActorFaction(configActor);
-        if (faction) factionById.set(configActor.id, faction);
-      });
-      if (factionById.size > 0) {
-        observation.actors = observation.actors.map((actor) => {
-          if (!actor?.id || actor.role) return actor;
-          const faction = factionById.get(actor.id);
-          return faction ? { ...actor, role: faction } : actor;
-        });
-      }
-    }
-
-    // Compatibility only: existing renderers/tests still consume observation.auras.
-    // New tile visuals should come from core affinity field records.
-    if (observation && baseTiles && Array.isArray(observation.actors)) {
-      const auraMap = computeAuraMap(observation.actors, baseTiles, {
-        affinityOpposites: AFFINITY_OPPOSITES,
-        weights: SPATIAL_WEIGHTS,
-      });
-      observation.auras = serializeAuraMap(auraMap, INTERACTION_MATRIX, SPATIAL_WEIGHTS);
-    }
-
-    return observation;
-  } catch {
-    return null;
-  }
 }
 
 function buildEffectRecordFactory({ core, effectFactory, tick }) {
@@ -500,15 +379,6 @@ function resolveActionKind(action) {
   return null;
 }
 
-function resolveActorIdNumeric({ actorId, actorIdMap, core }) {
-  if (Number.isFinite(actorId)) return Math.trunc(actorId);
-  const numeric = toInt(actorId);
-  if (Number.isFinite(numeric)) return numeric;
-  if (actorIdMap?.has(actorId)) return actorIdMap.get(actorId);
-  if (typeof core?.getActorId === "function") return core.getActorId();
-  return 1;
-}
-
 const UNIFIED_ACTOR_ACTIONS = new Set(["move", "cast_affinity", "equip_affinity", "unequip_affinity", "take", "wait"]);
 const onlyParams = (params, required, optional = []) => required.every((key) => Object.hasOwn(params, key))
   && Object.keys(params).every((key) => required.includes(key) || optional.includes(key));
@@ -552,7 +422,7 @@ function normalizeUnifiedActorAction(action, defaultTick) {
     params: { targetId: params.targetId, holdingId: params.holdingId } };
 }
 
-function adaptActionToCore({ action, core, actorIdMap, defaultTick, actorRegistry }) {
+function adaptActionToCore({ action, defaultTick, actorRegistry }) {
   const kind = resolveActionKind(action);
   const params = resolveActionParams(action);
   const actionTick = Number.isFinite(action?.tick) ? action.tick : defaultTick;
@@ -592,62 +462,6 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick, actorRegistr
       }
       return { ok: true, action: { ...action, tick: actionTick }, kind: ACTION_KIND.DeferRequest, value: seq };
     }
-    case "move": {
-      const targetX = toInt(params.target?.x);
-      const targetY = toInt(params.target?.y);
-      const fromX = typeof core?.getActorX === "function" ? core.getActorX() : undefined;
-      const fromY = typeof core?.getActorY === "function" ? core.getActorY() : undefined;
-      if (!Number.isFinite(targetX) || !Number.isFinite(targetY)
-        || !Number.isFinite(fromX) || !Number.isFinite(fromY)) {
-        return { ok: false, reason: "missing_move_params" };
-      }
-      const from = { x: fromX, y: fromY };
-      const to = { x: targetX, y: targetY };
-      const direction = resolveMoveDirection({ from, to });
-      if (direction === null) {
-        return { ok: false, reason: "missing_move_params" };
-      }
-      const actorNumeric = resolveActorIdNumeric({ actorId: action.actorId, actorIdMap, core });
-      const coreTick = typeof core?.getCurrentTick === "function" ? core.getCurrentTick() + 1 : actionTick;
-      const packed = packMoveAction({
-        actorId: actorNumeric,
-        from,
-        to,
-        direction,
-        tick: coreTick,
-      });
-      return { ok: true, action: { ...action, tick: coreTick }, kind: ACTION_KIND.Move, value: packed };
-    }
-    case "destroy_barrier": {
-      const x = toInt(params.x);
-      const y = toInt(params.y);
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        return { ok: false, reason: "missing_target_position" };
-      }
-      if (typeof core?.destroyBarrierAt !== "function" && typeof core?.setTileAt !== "function") {
-        return { ok: false, reason: "missing_destroyBarrierAt" };
-      }
-      return {
-        ok: true,
-        action: { ...action, tick: actionTick },
-        direct: { kind: "destroy_barrier", x, y },
-      };
-    }
-    case "raise_barrier": {
-      const x = toInt(params.x);
-      const y = toInt(params.y);
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        return { ok: false, reason: "missing_target_position" };
-      }
-      if (typeof core?.raiseBarrierAt !== "function" && typeof core?.setTileAt !== "function") {
-        return { ok: false, reason: "missing_raiseBarrierAt" };
-      }
-      return {
-        ok: true,
-        action: { ...action, tick: actionTick },
-        direct: { kind: "raise_barrier", x, y },
-      };
-    }
     case "arm_static_hazard": {
       const x = toInt(params.x);
       const y = toInt(params.y);
@@ -666,8 +480,9 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick, actorRegistr
       if (!Number.isFinite(stacks) || stacks <= 0 || !Number.isFinite(manaReserve) || manaReserve <= 0) {
         return { ok: false, reason: "invalid_static_hazard_costs" };
       }
-      if (!actorRegistry && typeof core?.armStaticHazardAt !== "function") {
-        return { ok: false, reason: "missing_armStaticHazardAt" };
+      // Hazards live in the actor registry; a run with no artifacts has none to arm.
+      if (!actorRegistry) {
+        return { ok: false, reason: "missing_actor_registry" };
       }
       return {
         ok: true,
@@ -676,91 +491,11 @@ function adaptActionToCore({ action, core, actorIdMap, defaultTick, actorRegistr
           kind: "arm_static_hazard",
           x,
           y,
-          affinityKind,
-          affinityExpression,
           stacks,
           manaReserve,
           kindName: kind,
           expressionName: expression,
         },
-      };
-    }
-    case "cast_affinity": {
-      // AM.5 — an actor expressing an affinity at a target.
-      //
-      // Routed by TARGET CLASS to the three core entry points that already
-      // existed and had no production caller (F5). Nothing about the effect is
-      // decided here: core owns the matrix, the vital routing and the range
-      // rule. This resolves ids to indices and hands over.
-      const affinityKind = AFFINITY_KIND_CODES[String(params.kind || "").toLowerCase()];
-      const affinityExpression = AFFINITY_EXPRESSION_CODES[String(params.expression || "").toLowerCase()];
-      const stacks = toInt(params.stacks);
-      if (!Number.isFinite(affinityKind) || !Number.isFinite(affinityExpression)) {
-        return { ok: false, reason: "invalid_affinity_spec" };
-      }
-      if (!Number.isFinite(stacks) || stacks <= 0) {
-        return { ok: false, reason: "invalid_affinity_stacks" };
-      }
-      const casterNumeric = resolveActorIdNumeric({ actorId: action.actorId, actorIdMap, core });
-      if (!Number.isFinite(casterNumeric)) {
-        return { ok: false, reason: "unknown_caster" };
-      }
-
-      const targetX = toInt(params.target?.x);
-      const targetY = toInt(params.target?.y);
-      const hasCell = Number.isFinite(targetX) && Number.isFinite(targetY);
-      if (params.targetId) {
-        const targetNumeric = resolveActorIdNumeric({ actorId: params.targetId, actorIdMap, core });
-        if (!Number.isFinite(targetNumeric)) {
-          return { ok: false, reason: "unknown_cast_target" };
-        }
-        return {
-          ok: true,
-          action: { ...action, tick: actionTick },
-          direct: {
-            kind: "cast_affinity_actor",
-            casterNumeric,
-            targetNumeric,
-            affinityKind,
-            affinityExpression,
-            stacks,
-            expressionName: String(params.expression || "").toLowerCase(),
-            kindName: String(params.kind || "").toLowerCase(),
-          },
-        };
-      }
-      if (!hasCell) {
-        return { ok: false, reason: "missing_cast_target" };
-      }
-      return {
-        ok: true,
-        action: { ...action, tick: actionTick },
-        direct: {
-          kind: "cast_affinity_cell",
-          casterNumeric,
-          x: targetX,
-          y: targetY,
-          affinityKind,
-          affinityExpression,
-          stacks,
-          expressionName: String(params.expression || "").toLowerCase(),
-          kindName: String(params.kind || "").toLowerCase(),
-        },
-      };
-    }
-    case "disarm_static_hazard": {
-      const x = toInt(params.x);
-      const y = toInt(params.y);
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        return { ok: false, reason: "missing_target_position" };
-      }
-      if (typeof core?.disarmStaticHazardAt !== "function") {
-        return { ok: false, reason: "missing_disarmStaticHazardAt" };
-      }
-      return {
-        ok: true,
-        action: { ...action, tick: actionTick },
-        direct: { kind: "disarm_static_hazard", x, y },
       };
     }
     default:
@@ -842,7 +577,6 @@ export function createFsmRuntime({
     fulfilledEffects = [],
     acceptedActions = [],
     preCoreRejections = [],
-    affinityInteractions = [],
     personaViews = null,
     personaActions = null,
     personaEffects = null,
@@ -866,11 +600,6 @@ export function createFsmRuntime({
     };
     if (preCoreRejections.length) {
       frame.preCoreRejections = preCoreRejections;
-    }
-    // AM.8 — only when something actually met, so a frame with no contact stays
-    // the same shape it always was.
-    if (affinityInteractions.length) {
-      frame.affinityInteractions = affinityInteractions;
     }
     if (personaViews) frame.personaViews = personaViews;
     if (personaActions) frame.personaActions = personaActions;
@@ -937,116 +666,27 @@ export function createFsmRuntime({
   /**
    * DS.4/DS6.1 — narrow one observation to what a single actor can perceive.
    *
-   * Glue holds no opinion about perception: it looks up the actor's core index
-   * (observation actors are listed in core index order), asks CORE how far that
-   * actor can see (`getVisibilityRadiusForActorIndex`, which reads the actor's
-   * own light emission and the affinity field the Moderator already recomputes
-   * each tick), and
-   * asks CORE to do the narrowing (`scopeObservation`). DS6.1 also reads the
-   * surviving target-dark field for positioned actors/hazards and passes it as
-   * plain data. Radius, occlusion, and concealment policy all remain in
-   * `core-ts/src/state/visibility.ts`; this function only sequences them, which
-   * is the line the enforcement checklist draws.
-   *
-   * Returns the observation UNCHANGED when the actor cannot be located or the
-   * core predates the capability — the same shape of capability check
-   * `canReadObservation` already makes. Unchanged rather than emptied on
-   * purpose: an emptied observation silently blinds an actor, and a blinded
-   * actor still acts, it just acts on nothing.
+   * Core's rule (`scopeActorRegistryObservation`): radius, occlusion and
+   * concealment all stay in core-ts; glue only sequences. A run with no actor
+   * registry has no actors and no observation, so it passes through unchanged.
    */
-  // Core's light levels (`readLightLevels`, row-major) re-keyed as `x,y` for the
-  // visibility rule. Plain data in, plain data out; which cells count as lit is
-  // core's call, not this function's.
-  function readLightByCell(width) {
-    const lightByCell = {};
-    if (typeof core?.readLightLevels !== "function" || !Number.isInteger(width) || width <= 0) {
-      return lightByCell;
-    }
-    const levels = core.readLightLevels();
-    if (!Array.isArray(levels)) return lightByCell;
-    for (let index = 0; index < levels.length; index += 1) {
-      if (levels[index] > 0) lightByCell[`${index % width},${Math.trunc(index / width)}`] = levels[index];
-    }
-    return lightByCell;
-  }
-
   function scopeObservationForActor(observation, observingActorId) {
     if (!observation || !observingActorId) return observation;
     if (actorRegistry) return scopeActorRegistryObservation(observation, observingActorId);
-    if (typeof core?.getVisibilityRadiusForActorIndex !== "function") return observation;
-    if (!Array.isArray(observation.actors)) return observation;
-
-    const selfIndex = observation.actors.findIndex((entry) => entry?.id === observingActorId);
-    const position = observation.actors[selfIndex]?.position;
-    if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) {
-      return observation;
-    }
-
-    const darkStacksByCell = {};
-    if (typeof core?.getAffinityFieldStacksAt === "function") {
-      const positionedEntities = [...observation.actors];
-      for (const entity of positionedEntities) {
-        const target = entity?.position;
-        if (!target || !Number.isFinite(target.x) || !Number.isFinite(target.y)) continue;
-        const stacks = core.getAffinityFieldStacksAt(
-          target.x,
-          target.y,
-          SIGHT_AFFINITY_KINDS.DARK,
-        );
-        if (Number.isFinite(stacks) && stacks > 0) {
-          darkStacksByCell[`${target.x},${target.y}`] = stacks;
-        }
-      }
-    }
-
-    return scopeObservation(
-      observation,
-      observingActorId,
-      core.getVisibilityRadiusForActorIndex(selfIndex),
-      { darkStacksByCell, lightByCell: readLightByCell(observation.tiles?.kinds?.[0]?.length) },
-    );
+    return observation;
   }
 
-  // The map half of fog of war, for one actor, right now. Same division of labour as
-  // scopeObservationForActor: glue reads core's numbers (the actor's radius, the
-  // surviving dark field) and CORE decides which cells are seen (computeVisibleCells).
-  // Remembering explored cells across ticks is the caller's session state.
+  // The map half of fog of war, for one actor, right now. CORE decides which
+  // cells are seen; remembering explored cells across ticks is the caller's
+  // session state.
   function readVisibleCellsForActor(actorId) {
-    if (actorRegistry) return readActorRegistryVisibleCells(readActorRegistryObservation(actorRegistry, tick), actorId);
-    const observation = resolveObservation(core, primaryActorId, baseTiles, affinityEffects, sortedTrackedActorIds(), initialState);
-    const kinds = observation?.tiles?.kinds;
-    if (!Array.isArray(kinds) || !Array.isArray(observation?.actors)) return [];
-    if (typeof core?.getVisibilityRadiusForActorIndex !== "function") return [];
-    const selfIndex = observation.actors.findIndex((entry) => entry?.id === actorId);
-    const position = observation.actors[selfIndex]?.position;
-    if (!position) return [];
-    const darkStacksByCell = {};
-    if (typeof core?.getAffinityFieldStacksAt === "function") {
-      for (let y = 0; y < kinds.length; y += 1) {
-        for (let x = 0; x < kinds[y].length; x += 1) {
-          const stacks = core.getAffinityFieldStacksAt(x, y, SIGHT_AFFINITY_KINDS.DARK);
-          if (Number.isFinite(stacks) && stacks > 0) darkStacksByCell[`${x},${y}`] = stacks;
-        }
-      }
-    }
-    return computeVisibleCells(kinds, position, core.getVisibilityRadiusForActorIndex(selfIndex), {
-      darkStacksByCell,
-      lightByCell: readLightByCell(kinds[0]?.length),
-    });
+    if (!actorRegistry) return [];
+    return readActorRegistryVisibleCells(readActorRegistryObservation(actorRegistry, tick), actorId);
   }
 
-  // Core owns the exit rule; this only maps an actor id to core's index and reads the verdict.
+  // Core owns the exit rule; this only reads the actor's lifecycle verdict.
   function hasExited(id) {
-    if (actorRegistry) return actorRegistry.getActor(id)?.lifecycle === "exited";
-    if (typeof core.isMotivatedActorExitedByIndex !== "function") return false;
-    const oneBased = actorIdMap.get(id);
-    return Number.isInteger(oneBased) && core.isMotivatedActorExitedByIndex(oneBased - 1) === true;
-  }
-
-  function sortedTrackedActorIds() {
-    return actorIdMap.size > 0
-      ? Array.from(actorIdMap.entries()).sort((a, b) => a[1] - b[1]).map(([id]) => id)
-      : [];
+    return actorRegistry ? actorRegistry.getActor(id)?.lifecycle === "exited" : false;
   }
 
   function buildPersonaPayloads({ phase, observation, phaseInputs = {}, actions = [], emittedEffects = [], fulfilledEffects = [], actorId, reservedTargets, command } = {}) {
@@ -1345,107 +985,6 @@ export function createFsmRuntime({
   }
 
   /**
-   * AM.8 — resolve every affinity pair in contact this tick (closes F6).
-   *
-   * core's `resolveMotivatedActorAffinityInteraction` has existed and been
-   * unit-tested throughout; its only consumer was the Configurator, at DESIGN
-   * time. During play, two actors could stand inside each other's fields for a
-   * whole run and nothing was ever resolved between them.
-   *
-   * What is APPLIED here is stack cancellation, and only that. The matrix yields
-   * an effect CODE per side (Damage, ManaGain, AmplifiedDamage, ...) but no
-   * magnitude for those codes, and inventing numbers for them would be authoring
-   * game design rather than wiring what exists. Canceled stacks are different:
-   * core computes the net figure itself, so writing it back is applying a value
-   * the kernel defined. Every other outcome is RECORDED in the tick frame, so it
-   * is observable and can be given semantics deliberately later.
-   */
-  function resolveAffinityInteractionsForTick() {
-    if (typeof core.resolveMotivatedActorAffinityInteraction !== "function") return [];
-    if (typeof core.getMotivatedActorCount !== "function") return [];
-
-    const count = core.getMotivatedActorCount();
-    if (count < 2) return [];
-
-    const actorsForPlanning = [];
-    for (let index = 0; index < count; index += 1) {
-      actorsForPlanning.push({
-        index,
-        x: core.getMotivatedActorXByIndex(index),
-        y: core.getMotivatedActorYByIndex(index),
-        kind: core.getMotivatedActorAffinityKindByIndex?.(index) ?? 0,
-        expression: core.getMotivatedActorAffinityExpressionByIndex?.(index) ?? 0,
-        stacks: core.getMotivatedActorAffinityStacksByIndex?.(index) ?? 0,
-      });
-    }
-
-    const pairs = moderator.advance({
-      phase: TickPhases.APPLY,
-      event: "plan_affinity_interactions",
-      payload: {
-        actors: actorsForPlanning,
-        // core's own radius curve, injected — the runner does not decide where a
-        // field ends, and a copy of the formula here would be a second authority.
-        computeRadius: (expression, stacks) => core.computeAffinityRadius(expression, stacks),
-      },
-      tick,
-    })?.affinityInteractions;
-    if (!Array.isArray(pairs) || pairs.length === 0) return [];
-
-    const resolved = [];
-    for (const pair of pairs) {
-      const ok = core.resolveMotivatedActorAffinityInteraction(pair.sourceIndex, pair.targetIndex);
-      if (!ok) continue;
-
-      const canceled = core.getLastInteractionCanceledStacks?.() ?? 0;
-      const netSource = core.getLastInteractionNetSourceStacks?.() ?? 0;
-      const netTarget = core.getLastInteractionNetTargetStacks?.() ?? 0;
-      const record = {
-        sourceIndex: pair.sourceIndex,
-        targetIndex: pair.targetIndex,
-        distance: pair.distance,
-        relationship: core.getLastInteractionRelationship?.() ?? -1,
-        sourceEffect: core.getLastInteractionSourceEffect?.() ?? 0,
-        targetEffect: core.getLastInteractionTargetEffect?.() ?? 0,
-        visualState: core.getLastInteractionVisualState?.() ?? 0,
-        canceledStacks: canceled,
-        netSourceStacks: netSource,
-        netTargetStacks: netTarget,
-      };
-
-      // Cancellation is the one outcome with a magnitude core defines, so it is
-      // the one that reaches the world. An affinity cancelled to zero stacks is
-      // cleared outright rather than left at zero — a zero-stack affinity would
-      // still read as "held" everywhere that checks for a kind.
-      if (canceled > 0 && typeof core.setMotivatedActorAffinity === "function") {
-        const source = actorsForPlanning[pair.sourceIndex];
-        const target = actorsForPlanning[pair.targetIndex];
-        // No `typeof` guard on the clear. An earlier draft had one, and because
-        // `clearMotivatedActorAffinity` was missing from the core surface at the
-        // time, an affinity cancelled to ZERO stacks silently kept its stacks —
-        // the interaction reported netTarget 0 while core still read 2. A
-        // capability this depends on is a requirement, not an option.
-        if (netSource > 0) {
-          core.setMotivatedActorAffinity(pair.sourceIndex, source.kind, source.expression, netSource);
-        } else {
-          core.clearMotivatedActorAffinity(pair.sourceIndex);
-        }
-        if (netTarget > 0) {
-          core.setMotivatedActorAffinity(pair.targetIndex, target.kind, target.expression, netTarget);
-        } else {
-          core.clearMotivatedActorAffinity(pair.targetIndex);
-        }
-        record.applied = "stack_cancellation";
-      } else {
-        // Recorded, not applied: the matrix gives a code without a magnitude.
-        record.applied = "recorded_only";
-      }
-      resolved.push(record);
-    }
-    return resolved;
-  }
-
-  /**
    * Put this tick's actions into the order the MODERATOR ruled, before core resolves them.
    *
    * This is the binding that makes the ordering real. Until it existed, actors resolved in
@@ -1518,136 +1057,25 @@ export function createFsmRuntime({
         accept(action, normalized);
         continue;
       }
-      const adaptation = adaptActionToCore({ action, core, actorIdMap, defaultTick, actorRegistry });
+      const adaptation = adaptActionToCore({ action, defaultTick, actorRegistry });
       if (!adaptation.ok) {
         reject(action, adaptation.reason || "invalid_action");
         continue;
       }
       if (adaptation.direct) {
         const directive = adaptation.direct;
-        if (directive.kind === "destroy_barrier") {
-          const applied = typeof core.destroyBarrierAt === "function"
-            ? core.destroyBarrierAt(directive.x, directive.y)
-            : (core.setTileAt(directive.x, directive.y, TILE_CODES.floor), 1);
-          if (Number.isFinite(applied) && applied === 0) {
-            reject(action, "destroy_barrier_rejected");
-            continue;
-          }
-          accept(action, adaptation.action);
-          continue;
-        }
-        if (directive.kind === "raise_barrier") {
-          const applied = typeof core.raiseBarrierAt === "function"
-            ? core.raiseBarrierAt(directive.x, directive.y)
-            : (core.setTileAt(directive.x, directive.y, TILE_CODES.barrier), 1);
-          if (Number.isFinite(applied) && applied === 0) {
-            reject(action, "raise_barrier_rejected");
-            continue;
-          }
-          accept(action, adaptation.action);
-          continue;
-        }
         if (directive.kind === "arm_static_hazard") {
-          const armed = actorRegistry
-            ? actorRegistry.persistOrSpawnHazardAt(
-              { x: directive.x, y: directive.y },
-              {
-                kind: directive.kindName,
-                expression: directive.expressionName,
-                stacks: directive.stacks,
-                manaReserve: directive.manaReserve,
-              },
-            )
-            : core.armStaticHazardAt(
-              directive.x,
-              directive.y,
-              directive.affinityKind,
-              directive.affinityExpression,
-              directive.stacks,
-              directive.manaReserve,
-            );
-          if (armed === false || (Number.isFinite(armed) && armed === 0)) {
+          const armed = actorRegistry.persistOrSpawnHazardAt(
+            { x: directive.x, y: directive.y },
+            {
+              kind: directive.kindName,
+              expression: directive.expressionName,
+              stacks: directive.stacks,
+              manaReserve: directive.manaReserve,
+            },
+          );
+          if (armed === false) {
             reject(action, "arm_static_hazard_rejected");
-            continue;
-          }
-          accept(action, adaptation.action);
-          continue;
-        }
-        if (directive.kind === "disarm_static_hazard") {
-          core.disarmStaticHazardAt(directive.x, directive.y);
-          accept(action, adaptation.action);
-          continue;
-        }
-        if (directive.kind === "cast_affinity_actor" || directive.kind === "cast_affinity_cell") {
-          // AM.5 — the caster pays FIRST, then the effect applies.
-          //
-          // Order is deliberate: a cast whose mana cannot be paid must not reach
-          // the world at all. The price is the authored one from the affinity
-          // rules artifact (AM.4) — core cannot supply it, since its own formula
-          // charges 0 for push and pull, and a free cast is an unpriced resource.
-          const manaCost = resolveCastManaCost({
-            kind: directive.kindName,
-            expression: directive.expressionName,
-            stacks: directive.stacks,
-          });
-          if (manaCost === null) {
-            reject(action, "affinity_rules_have_no_price_for_cast");
-            continue;
-          }
-          const casterIndex = directive.casterNumeric - 1;
-          if (manaCost > 0) {
-            const spent = typeof core.spendMotivatedActorAffinityMana === "function"
-              ? core.spendMotivatedActorAffinityMana(casterIndex, directive.affinityKind, manaCost)
-              : 0;
-            if (spent < manaCost) {
-              // Grants could not cover it. Fall back to the actor's mana VITAL,
-              // which is the pool a cast without a pooled grant draws on.
-              const remaining = manaCost - spent;
-              const current = core.getMotivatedActorVitalCurrentByIndex(casterIndex, VITAL_MANA);
-              if (current < remaining) {
-                reject(action, "insufficient_affinity_mana");
-                continue;
-              }
-              core.setMotivatedActorVital(
-                casterIndex,
-                VITAL_MANA,
-                current - remaining,
-                core.getMotivatedActorVitalMaxByIndex(casterIndex, VITAL_MANA),
-                core.getMotivatedActorVitalRegenByIndex(casterIndex, VITAL_MANA),
-              );
-            }
-          }
-
-          let applied = 0;
-          if (directive.kind === "cast_affinity_actor") {
-            applied = core.applyAffinityDamage(
-              casterIndex,
-              directive.targetNumeric - 1,
-              directive.affinityKind,
-              directive.affinityExpression,
-              directive.stacks,
-            );
-          } else if (directive.expressionName === "pull") {
-            // A pull at an armed hazard neutralizes it and banks its mana.
-            applied = core.applyAffinityPullFromHazard(
-              casterIndex,
-              directive.x,
-              directive.y,
-              directive.affinityKind,
-              directive.stacks,
-            );
-          } else {
-            applied = core.applyAffinityDamageToHazard(
-              casterIndex,
-              directive.x,
-              directive.y,
-              directive.affinityKind,
-              directive.affinityExpression,
-              directive.stacks,
-            );
-          }
-          if (!applied) {
-            reject(action, "cast_rejected_by_core");
             continue;
           }
           accept(action, adaptation.action);
@@ -1656,28 +1084,7 @@ export function createFsmRuntime({
         reject(action, "unsupported_directive");
         continue;
       }
-      if (adaptation.kind === ACTION_KIND.Move) {
-        if (typeof core?.setMoveAction !== "function" || typeof core?.applyAction !== "function") {
-          reject(action, "missing_move_exports");
-          continue;
-        }
-        // AM.1 — a move core REFUSED is not an accepted action. Before this,
-        // applyMoveAction returned void and only a thrown error was caught, so
-        // a rejection (WrongActor, BlockedByWall, TickMismatch, ...) was
-        // recorded as acceptance and the run reported movement that never
-        // happened. The reason name comes from core-ts, not a local table.
-        let moveResult;
-        try {
-          moveResult = applyMoveAction(core, adaptation.value);
-        } catch (err) {
-          reject(action, err?.message || "move_failed");
-          continue;
-        }
-        if (moveResult !== ValidationError.None) {
-          reject(action, `move_rejected_by_core:${getValidationErrorName(moveResult)}`);
-          continue;
-        }
-      } else if (typeof core?.applyAction === "function") {
+      if (typeof core?.applyAction === "function") {
         const actionResult = core.applyAction(adaptation.kind, adaptation.value);
         if (Number.isFinite(actionResult) && actionResult !== ValidationError.None) {
           reject(action, `action_rejected_by_core:${getValidationErrorName(actionResult)}`);
@@ -1749,18 +1156,7 @@ export function createFsmRuntime({
         actorCosts = loaded.costs;
         actorPresentation = loaded.presentation;
       }
-      // The field otherwise first exists at the first tick close, so tick 0's
-      // perception would ignore every light and dark source — an actor's own
-      // light would not reach its first decision. Same call, same position, as
-      // `initializeCoreFromArtifacts`.
-      if (typeof core?.computeAffinityField === "function") {
-        core.computeAffinityField();
-      }
-      if (typeof core?.setPersistentAffinityUpkeepTable === "function") {
-        core.setPersistentAffinityUpkeepTable([...persistentAffinityUpkeepTable]);
-      }
-
-      baseTiles = resolveBaseTiles(simConfig, core);
+      baseTiles = resolveBaseTiles(simConfig);
       // P5.5 — the applied caps are RETAINED now, because they are the "issued"
       // half of the Allocator's reconciliation. Previously this return value was
       // dropped, which is a small part of why nothing could compare issued spend
@@ -1818,13 +1214,9 @@ export function createFsmRuntime({
 
       const actorCommands = normalizeActorCommands(stepOptions.actorCommands, (id) => actorIdMap.has(id));
       const currentPhase = orchestrator.view().phase;
-      // Build sorted actor ID list so readObservation labels all actors by their original IDs.
-      // actorIdMap maps id → 1-based numeric index; sort by index to get core ordering.
-      const sortedActorIds = sortedTrackedActorIds();
       // Deterministic decide-phase iteration order: initialState.actors array
-      // order (filtered to actors the core actually tracks), not the
-      // alphabetically-sorted numeric-index order used for core observation
-      // labeling above. Every tracked actor must get a chance to propose an
+      // order (filtered to actors the core actually tracks). Every tracked actor
+      // must get a chance to propose an
       // action each tick — see tests/runtime/multi-actor-orchestration.test.js.
       // An actor that has LEFT THE LEVEL is not asked to decide (maintainer ruling,
       // 2026-09-05). Core owns the rule — two ticks ended on the exit tile — and the
@@ -1833,10 +1225,9 @@ export function createFsmRuntime({
       const decideActorIds = Array.isArray(initialState?.actors)
         ? initialState.actors.map((a) => a?.id).filter((id) => id && actorIdMap.has(id)
           && !hasExited(id) && (!actorRegistry || actorRegistry.getActor(id)?.lifecycle === "alive"))
-        : sortedActorIds.filter((id) => !hasExited(id));
-      const observation = actorRegistry
-        ? readActorRegistryObservation(actorRegistry, tick)
-        : resolveObservation(core, primaryActorId, baseTiles, affinityEffects, sortedActorIds, initialState);
+        : [];
+      // A run with no artifacts has no actor registry, so no actors and nothing to observe.
+      const observation = actorRegistry ? readActorRegistryObservation(actorRegistry, tick) : null;
       const observePersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.OBSERVE,
         observation,
@@ -2001,17 +1392,11 @@ export function createFsmRuntime({
       const applied = applyActionsToCore(resolutionOrdered.concat(applyActions));
       runtimeBudgetOutcomes.push(...applied.outcomes);
 
-      // AM.8 — resolve the affinity fields that are in CONTACT, after the tick's
-      // actions have moved everyone. The Moderator decides which pairs meet;
-      // core's 48-cell matrix decides what happens between them.
-      const affinityInteractions = actorRegistry ? [] : resolveAffinityInteractionsForTick();
-
       applyPersonaArtifacts(applyRecord);
       recordTickFrame({
         phaseDetail: TickPhases.APPLY,
         acceptedActions: applied.acceptedActions,
         preCoreRejections: applied.preCoreRejections,
-        affinityInteractions,
         personaViews: applyRecord.personaViews,
         personaActions: applyRecord.actions,
         personaEffects: applyRecord.effects,
@@ -2100,47 +1485,6 @@ export function createFsmRuntime({
         solverFulfilled: summarizeRecord.solverFulfilled,
       });
 
-      // AM.3 / AM.3b / AM.7 — the tick closes HERE, once, and the MODERATOR
-      // decides what closing means.
-      //
-      // core.advanceTick() applies per-tick regen (actor vitals, hazard mana and
-      // durability) and increments the tick; it used to be reachable only from
-      // move.ts commitMove, which made all of that a function of how many actors
-      // happened to move. computeAffinityField() ran only during setup, so auras
-      // stayed where actors had started (F7).
-      //
-      // Both describe the same instant, so both belong to one decision. Glue asks
-      // and executes; it does not decide. Placed after SUMMARIZE so actions
-      // applied during this step belong to the tick they were proposed for —
-      // `action.tick === getCurrentTick() + 1` still holds during APPLY, and every
-      // actor acting in the same step shares one tick number.
-      // Asked of the Moderator DIRECTLY, the same way tick ordering and effect
-      // fulfilment are (plan_persona_order / plan_effect_fulfillment). A planning
-      // event answers a question as data; routing it through the shared phase FSM
-      // would ask every persona to make a transition none of them has.
-      const tickClose = moderator.advance({
-        phase: TickPhases.SUMMARIZE,
-        event: "plan_tick_close",
-        payload: {},
-        tick,
-      })?.tickClose;
-      if (!tickClose || typeof tickClose.advanceTick !== "boolean") {
-        throw new Error(
-          "Moderator did not return a tick-close plan: advancing the tick and recomputing the "
-          + "affinity field are Moderator policy (charter §29/§81), so the runner has no decision "
-          + "of its own to fall back on.",
-        );
-      }
-
-      if (!actorRegistry && tickClose.advanceTick && typeof core.advanceTick === "function") {
-        core.advanceTick();
-      }
-      if (!actorRegistry && tickClose.recomputeAffinityField && typeof core.computeAffinityField === "function") {
-        // Actors have moved; their auras must move with them. Without this the
-        // field is a snapshot of the starting positions for the whole run.
-        core.computeAffinityField();
-      }
-
       return core.getCounter ? core.getCounter() : null;
     },
 
@@ -2170,9 +1514,7 @@ export function createFsmRuntime({
      * the tick uses, so a UI never re-derives core's id-to-index mapping.
      */
     readObservation() {
-      return actorRegistry
-        ? readActorRegistryObservation(actorRegistry, tick)
-        : resolveObservation(core, primaryActorId, baseTiles, affinityEffects, sortedTrackedActorIds(), initialState);
+      return actorRegistry ? readActorRegistryObservation(actorRegistry, tick) : null;
     },
 
     /**

@@ -56,8 +56,8 @@ the persona's FSM running for that call, which is what **A2** forbids.
 **Affinity target resolution closed on 2026-08-13, and how it closed is worth knowing.** Its only
 test used to drive `resolveAffinityTargetEffectsForList` **directly** — proof the function works,
 silence on whether production consults the persona. It now has both an **ablation** (a Moderator
-that plans no affinity actions leaves the core untouched, against a control that sets one tile and
-arms one hazard) and a **differential** (what production applied equals what a fresh standalone
+that plans no affinity actions leaves the world untouched, against a control that arms one hazard
+in the actor registry) and a **differential** (what production applied equals what a fresh standalone
 Moderator plans from the payload production actually sent, captured through a proxy).
 
 ⚠️ **Only the ablation has teeth against the defect that matters, and this was measured.** Perturb
@@ -212,6 +212,13 @@ have exactly one origin each, and `runtime-fsm.mjs` asks for a plan and executes
 | Persona execution order | `tick-ordering.js` | `plan_persona_order` (INIT phase) |
 | Effect fulfilment + emission order | `effect-fulfillment.js` | `plan_effect_fulfillment` (EMIT phase) |
 | Affinity target resolution | `affinity-target-effects.js` | `resolve_affinity` (APPLY phase) |
+
+`plan_tick_close` (`tick-close.js`) and `plan_affinity_interactions` (`affinity-interactions.js`)
+still answer, but since #227 no runner asks either: both planned work on the old core world
+(advancing its tick and recomputing its affinity field; resolving contact between its actors), and
+the actor registry closes its own tick in `core-ts/src/rules/actor-turn.ts`. Affinity target
+resolution plans `arm_static_hazard` only; `raise_barrier` and `destroy_barrier` were dropped with
+the old engine (#206), since they only wrote the old core world's tiles.
 
 These are **planning** events: they answer a question as data and deliberately do not transition the
 FSM, because deciding an order or a disposition is not a lifecycle change. The persona decides; the
