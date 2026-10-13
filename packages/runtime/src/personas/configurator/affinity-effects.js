@@ -232,14 +232,15 @@ function selectPresetForHazard(hazard, presets) {
   return matches.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))[0];
 }
 
-function resolveHazardEffects(hazard, presets) {
+function resolveHazardEffects(hazard, presets, affinityRules) {
   // Start with provided vitals, or compute defaults based on expression + stacks
   let baseVitals;
   if (hazard.vitals && (hazard.vitals.mana || hazard.vitals.durability || hazard.vitals.health || hazard.vitals.stamina)) {
     baseVitals = ensureVitals(hazard.vitals);
   } else {
     // No vitals provided: compute defaults from expression and stacks
-    const computed = computeHazardVitals(hazard.affinity.expression, hazard.affinity.stacks, hazard.affinity.kind);
+    const computed = computeHazardVitals(hazard.affinity.expression, hazard.affinity.stacks, hazard.affinity.kind,
+      affinityRules ?? undefined);
     baseVitals = ensureVitals(computed);
   }
 
@@ -296,7 +297,9 @@ function resolveHazardEffects(hazard, presets) {
   };
 }
 
-export function resolveAffinityEffects({ presets = [], loadouts = [], baseVitalsByActorId = {}, hazards = [] } = {}) {
+export function resolveAffinityEffects({
+  presets = [], loadouts = [], baseVitalsByActorId = {}, hazards = [], affinityRules,
+} = {}) {
   const presetIndex = new Map();
   presets.forEach((preset) => {
     if (preset && preset.id) {
@@ -320,7 +323,7 @@ export function resolveAffinityEffects({ presets = [], loadouts = [], baseVitals
     .sort((a, b) => String(a.actorId).localeCompare(String(b.actorId)));
 
   const hazardResults = (Array.isArray(hazards) ? hazards : [])
-    .map((hazard) => resolveHazardEffects(hazard, presets))
+    .map((hazard) => resolveHazardEffects(hazard, presets, affinityRules))
     .sort((a, b) => (a.position.y - b.position.y) || (a.position.x - b.position.x));
 
   return { actors, hazards: hazardResults };

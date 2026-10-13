@@ -244,3 +244,61 @@ test("a push/pull trap holds exactly two casts at the price core charges", async
     }
   }
 });
+
+// #247: a build that authors its own affinity rules sizes its traps from those rules, the same
+// ones core's castManaBase is built from, not from the defaults.
+async function doubledCastRules() {
+  const { DEFAULT_AFFINITY_RULES_ARTIFACT, resolveActorTurnCosts } = await import(
+    "../../../packages/runtime/src/personas/configurator/affinity-rules.js"
+  );
+  const rules = JSON.parse(JSON.stringify(DEFAULT_AFFINITY_RULES_ARTIFACT));
+  rules.affinities.forEach((affinity) => affinity.expressions.forEach((expression) => {
+    expression.stackTiers.forEach((tier) => { tier.manaCost *= 2; });
+  }));
+  const { castManaBase } = resolveActorTurnCosts({ rules, movementStamina: {} });
+  return { rules, castManaBase };
+}
+
+const AUTHORED_KINDS = ["fire", "dark", "life"];
+
+test("mapHazards sizes push/pull traps from authored affinity rules", async () => {
+  const { mapHazards } = await import("../../../packages/runtime/src/personas/configurator/input-preparation.js");
+  const { actorCastManaPrice } = await import("../../../packages/core-ts/src/rules/actor-cast.ts");
+  const { rules, castManaBase } = await doubledCastRules();
+  for (const kind of AUTHORED_KINDS) {
+    for (const expression of ["push", "pull"]) {
+      const [hazard] = mapHazards([{ id: "trap", x: 1, y: 1, affinity: kind, expression, stacks: 3 }],
+        { affinityRules: rules });
+      const price = actorCastManaPrice(castManaBase[`${kind}:${expression}`], 3);
+      assert.equal(hazard.vitals.mana.max, 2 * price, `${kind}:${expression}`);
+    }
+  }
+});
+
+test("resolveAffinityEffects sizes push/pull traps from the authored rules it is given", async () => {
+  const { resolveAffinityEffects } = await import(
+    "../../../packages/runtime/src/personas/configurator/affinity-effects.js"
+  );
+  const { actorCastManaPrice } = await import("../../../packages/core-ts/src/rules/actor-cast.ts");
+  const { rules, castManaBase } = await doubledCastRules();
+  const result = resolveAffinityEffects({
+    presets: [],
+    hazards: [{ x: 1, y: 1, blocking: false, affinity: { kind: "dark", expression: "pull", stacks: 2 } }],
+    affinityRules: rules,
+  });
+  assert.equal(result.hazards[0].vitals.mana.max, 2 * actorCastManaPrice(castManaBase["dark:pull"], 2));
+});
+
+test("object placement carries authored affinity rules into the trap actors it places", async () => {
+  const { completeObjectPlacement } = await import(
+    "../../../packages/runtime/src/personas/configurator/object-placement.js"
+  );
+  const { actorCastManaPrice } = await import("../../../packages/core-ts/src/rules/actor-cast.ts");
+  const { rules, castManaBase } = await doubledCastRules();
+  const layout = { width: 5, height: 1, terrain: ["spawn", "floor", "floor", "floor", "exit"] };
+  const hazards = [{ id: "trap", affinity: "life", expression: "push", stacks: 2 }];
+  const expected = 2 * actorCastManaPrice(castManaBase["life:push"], 2);
+  const fallback = completeObjectPlacement({ layout, hazards, resources: [], actors: [], affinityRules: rules });
+  assert.equal(fallback.ok, true);
+  assert.equal(fallback.actors[0].vitals.mana.max, expected);
+});

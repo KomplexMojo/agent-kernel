@@ -328,8 +328,12 @@ function authoredAffinity(entry) {
   return null;
 }
 
-/** Translate the hazard authoring preset into the common mechanical actor shape. */
-export function mapHazards(hazards = []) {
+/**
+ * Translate the hazard authoring preset into the common mechanical actor shape.
+ * Trap pools are sized from `affinityRules` when a build authors them (#247), the
+ * same rules core's cast prices are built from; the default rules otherwise.
+ */
+export function mapHazards(hazards = [], { affinityRules } = {}) {
   return hazards.map((entry, index) => {
     const affinity = authoredAffinity(entry);
     if (!entry || typeof entry !== "object" || Array.isArray(entry) || !affinity) {
@@ -342,7 +346,7 @@ export function mapHazards(hazards = []) {
         : null
     );
     const { kind, expression, stacks } = affinity;
-    const defaults = computeHazardVitals(expression, stacks, kind);
+    const defaults = computeHazardVitals(expression, stacks, kind, affinityRules);
     const { actor, presentation } = normalizeActorDefinition({
       category: "hazard",
       id,
