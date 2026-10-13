@@ -3,12 +3,10 @@ import type { ActorAffinityEntry, ActorAffinityKey, ActorRecord } from '../state
 import { affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { actorAffinityMagnitude, getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
 
-/** Configurator-authored tier prices; these are mana costs, not Allocator token prices. */
-export type ActorCastManaCosts = Partial<Record<ActorAffinityKey, readonly number[]>>;
 /** Configurator-authored per-kind base prices for the escalating cast curve (#232). */
 export type ActorCastManaBases = Partial<Record<ActorAffinityKey, number>>;
-/** Either the legacy five-tier tables, or the bases of the escalating curve. */
-export type ActorCastPrices = ActorCastManaCosts | { castManaBase: ActorCastManaBases };
+/** The cast prices a turn carries: the bases of the escalating curve, never a tier table. */
+export type ActorCastPrices = { castManaBase: ActorCastManaBases };
 
 /**
  * The mana a push or pull costs at `stacks` (maintainer, 2026-10-13, #232): the kind's
@@ -21,26 +19,18 @@ export function actorCastManaPrice(base: number, stacks: number): number {
 
 const isPrice = (value: unknown): boolean => Number.isSafeInteger(value) && (value as number) >= 0;
 
-/** Throws unless `prices` is a valid tier map or base map. */
+/** Throws unless `prices` is a valid base map. */
 export function assertActorCastPrices(prices: ActorCastPrices): void {
-  if ('castManaBase' in prices) {
-    if (!prices.castManaBase || typeof prices.castManaBase !== 'object'
-      || !Object.values(prices.castManaBase).every(isPrice)) throw new Error('invalid authored cast prices');
-    return;
-  }
-  for (const tiers of Object.values(prices)) {
-    if (!Array.isArray(tiers) || tiers.length !== 5 || ![...tiers].every(isPrice)) throw new Error('invalid authored cast prices');
+  if (!prices || typeof prices !== 'object' || !prices.castManaBase || typeof prices.castManaBase !== 'object'
+    || Array.isArray(prices.castManaBase) || !Object.values(prices.castManaBase).every(isPrice)) {
+    throw new Error('invalid authored cast prices');
   }
 }
 
 /** The authored price of one cast; undefined when the key has no price. */
 function castManaCost(prices: ActorCastPrices, key: ActorAffinityKey, stacks: number): number | undefined {
-  if ('castManaBase' in prices) {
-    const base = prices.castManaBase[key];
-    return base === undefined ? undefined : actorCastManaPrice(base, stacks);
-  }
-  const tiers = (prices as ActorCastManaCosts)[key];
-  return tiers ? tiers[Math.min(5, stacks) - 1] : undefined;
+  const base = prices.castManaBase[key];
+  return base === undefined ? undefined : actorCastManaPrice(base, stacks);
 }
 export interface ActorEffectSuppression { sourceId: string; targetId: string; affinityKey: ActorAffinityKey; amount: number }
 export interface ActorCastResult {

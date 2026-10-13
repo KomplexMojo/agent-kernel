@@ -53,7 +53,7 @@ test('with a free slot, the actor equips the useful draw alongside what it holds
   expect(actions).toHaveLength(1);
   expect(actions[0]).toMatchObject({ kind: 'equip_affinity', params: { affinityKey: 'fire:draw' } });
   expect(actions[0].params).not.toHaveProperty('replaceKey');
-  const turn = createActorTurn(registry, 0, { castMana: {}, movementStamina: {} });
+  const turn = createActorTurn(registry, 0, { castManaBase: {}, movementStamina: {} });
   expect(turn.apply(actions[0])).toBe(true);
   expect(equippedActorAffinityKeys(registry.getActor('self'))).toEqual(['corrode:push', 'fire:draw']);
 });

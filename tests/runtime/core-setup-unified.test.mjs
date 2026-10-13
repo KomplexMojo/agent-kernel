@@ -77,14 +77,13 @@ test('the production loader consumes the file-backed valid and invalid actor art
 // ## TODO: Test Permutations
 // - Exercise the migrated startup through Moderator, CLI/MCP sessions and browser facade.
 
-// Runs authored before #232 carry five-tier tables; they still load and charge their tier.
-test('a legacy artifact with five-tier castMana still loads and casts', () => {
+// Runs authored before #232 carry five-tier tables; they load on the one curve, with the
+// tier-1 price as its base, so core keeps a single cast price model.
+test('a legacy artifact with five-tier castMana loads on the curve', () => {
   const input = artifacts(); const { castManaBase, ...rest } = input.simConfig.actionCosts;
   input.simConfig.actionCosts = { ...rest, castMana: Object.fromEntries(Object.entries(castManaBase)
     .map(([key, base]) => [key, [1, 2, 3, 4, 5].map(tier => base * tier)])) };
-  input.initialState.actors[0].vitals.mana = { current: 6, max: 6, regen: 0 };
-  const { registry, costs } = initializeCoreFromArtifacts(input);
-  const turn = createActorTurn(registry, 1, costs);
-  expect(turn.apply({ actorId: 'caster', tick: 1, kind: 'cast_affinity', params: { targetId: 'reward' } })).toBe(true);
-  expect(registry.getActor('caster').vitals.mana.current).toBe(0);
+  const { costs } = initializeCoreFromArtifacts(input);
+  expect(costs.castMana).toBeUndefined();
+  expect(costs.castManaBase).toEqual(castManaBase);
 });

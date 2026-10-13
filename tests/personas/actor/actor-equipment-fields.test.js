@@ -34,7 +34,7 @@ test('fire room selects owned draw and emits only an equip action without changi
   expect(result.actions).toHaveLength(1);
   expect(result.actions[0]).toMatchObject({ kind: 'equip_affinity', params: { affinityKey: 'fire:draw' } });
   expect(registry.snapshot()).toEqual(before);
-  const turn = createActorTurn(registry, 0, { castMana: {}, movementStamina: {} });
+  const turn = createActorTurn(registry, 0, { castManaBase: {}, movementStamina: {} });
   expect(turn.apply(result.actions[0])).toBe(true);
   expect(turn.apply({ actorId: 'self', tick: 0, kind: 'wait' })).toBe(false);
   expect(registry.getActor('self').vitals.mana.current).toBe(0);
@@ -103,7 +103,7 @@ test('focused readiness switches to an in-range pair and casts only on a later t
   const registry = focusedSetup();
   const action = decide(registry).actions[0];
   expect(action).toMatchObject({ kind: 'equip_affinity', params: { affinityKey: 'water:push' } });
-  const costs = { castMana: { 'water:push': [1, 1, 1, 1, 1] }, movementStamina: {} };
+  const costs = { castManaBase: { 'water:push': 1 }, movementStamina: {} };
   const turn = createActorTurn(registry, 0, costs);
   expect(turn.apply(action)).toBe(true);
   expect(registry.getActor('self').vitals.mana.current).toBe(10);

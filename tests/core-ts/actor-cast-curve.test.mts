@@ -34,10 +34,11 @@ test('a caster that cannot pay the curve price is refused and spends nothing', (
   expect(castAt(6, 62)).toEqual({ ok: false, spent: 0 });
 });
 
-test('a run carries legacy tiers or bases, never both', () => {
+test('a turn takes only curve bases: no tier tables, and not both', () => {
   const state = createActorRegistry({ dimensions: { width: 2, height: 1 }, terrain: ['floor', 'floor'],
     actors: [caster('a', 1), caster('b', 1, 1)] });
-  expect(() => createActorTurn(state, 1, { ...costs, castMana: { 'fire:push': [1, 2, 3, 4, 5] } })).toThrow();
+  expect(() => createActorTurn(state, 1, { ...costs, castMana: { 'fire:push': [1, 2, 3, 4, 5] } } as never)).toThrow();
+  expect(() => createActorTurn(state, 1, { movementStamina: { a: 1, b: 1 }, castMana: { 'fire:push': [1, 2, 3, 4, 5] } } as never)).toThrow();
   expect(() => createActorTurn(state, 1, { movementStamina: { a: 1, b: 1 } } as never)).toThrow();
   expect(() => createActorTurn(state, 1, { castManaBase: { 'fire:push': -1 }, movementStamina: { a: 1, b: 1 } })).toThrow();
 });

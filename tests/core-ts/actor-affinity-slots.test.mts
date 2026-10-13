@@ -30,7 +30,7 @@ function actor(id: string, x: number, overrides: Partial<ActorRecord> = {}): Act
 const corridor = (actors: ActorRecord[], width = 10) =>
   createActorRegistry({ dimensions: { width, height: 1 }, terrain: Array(width).fill('floor'), actors });
 const UPKEEP = Array.from({ length: 11 }, (_, stacks) => (stacks === 0 ? 0 : 2 + stacks));
-const costs = { castMana: { 'fire:push': [1, 2, 3, 4, 5], 'water:push': [1, 2, 3, 4, 5] }, movementStamina: {},
+const costs = { castManaBase: { 'fire:push': 1, 'water:push': 1 }, movementStamina: {},
   persistentUpkeep: UPKEEP };
 
 function act(registry: ReturnType<typeof corridor>, tick: number, action: object): { accepted: boolean; reason: string | null } {
@@ -143,7 +143,7 @@ test('a matching draw slot absorbs before an opposite slot can double the damage
       ...(equipped.length > 1 ? { equippedAffinityKeys: equipped as never } : {}) });
     receiver.vitals.mana = { current: 0, max: 20, regen: 0 };
     const registry = corridor([source, receiver]);
-    const turn = createActorTurn(registry, 1, { castMana: {}, movementStamina: {} });
+    const turn = createActorTurn(registry, 1, { castManaBase: {}, movementStamina: {} });
     turn.closeActions(); turn.resolveFields();
     return registry.getActor('a')!.vitals;
   };

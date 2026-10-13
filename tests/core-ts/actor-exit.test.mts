@@ -12,7 +12,7 @@ function actor(id = 'a'): ActorRecord {
 function world(actors = [actor()]) {
   return createActorRegistry({ dimensions: { width: 2, height: 1 }, terrain: ['exit', 'floor'], actors });
 }
-const costs = { castMana: {}, movementStamina: { a: 0 } };
+const costs = { castManaBase: {}, movementStamina: { a: 0 } };
 function end(state: ReturnType<typeof world>, tick: number) {
   const turn = createActorTurn(state, tick, costs);
   expect(turn.resolveExits()).toBeNull();

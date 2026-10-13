@@ -14,7 +14,7 @@ function actor(id: string, x = 0): ActorRecord {
 function registry(records = [actor('a'), actor('b', 1)]) {
   return createActorRegistry({ dimensions: { width: 3, height: 2 }, terrain: ['floor', 'floor', 'wall', 'floor', 'floor', 'floor'], actors: records });
 }
-const costs = { castMana: { 'fire:push': [1, 2, 3, 4, 5], 'water:push': [1, 2, 3, 4, 5], 'fire:pull': [1, 2, 3, 4, 5] },
+const costs = { castManaBase: { 'fire:push': 1, 'water:push': 1, 'fire:pull': 1 },
   movementStamina: { a: 1, b: 1 } };
 test('equip consumes exactly one action and preserves mana; other actors may act', () => {
   const state = registry(); const turn = createActorTurn(state, 1, costs);
@@ -62,7 +62,8 @@ test('focused neutralization suppresses a later matching cast without restoring 
   expect(turn.apply({ actorId: 'a', tick: 1, kind: 'cast_affinity', params: { targetId: 'b' } })).toBe(true);
   expect(turn.apply({ actorId: 'b', tick: 1, kind: 'cast_affinity', params: { targetId: 'a' } })).toBe(true);
   expect(state.getActor('a')!.vitals.health!.current).toBe(10);
-  expect(state.getActor('b')!.vitals.mana!.current).toBe(8);
+  // b still pays its own push: base 1 at 2 stacks is 1 × 2 × 3 / 2 = 3 (#232).
+  expect(state.getActor('b')!.vitals.mana!.current).toBe(7);
   expect(turn.snapshot().suppressions).toEqual([]);
 });
 

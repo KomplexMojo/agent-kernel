@@ -18,7 +18,7 @@ function actor(id: string, x = 0, overrides: Partial<ActorRecord> = {}): ActorRe
       { kind: 'fire', expression: 'push', stacks: 1 }, { kind: 'light', expression: 'emit', stacks: 1 }],
     activeAffinityKey: 'fire:push', holdings: [], ...overrides } as ActorRecord;
 }
-const costs = { castMana: { 'fire:push': [3, 6, 9, 12, 15] }, movementStamina: { a: 1, b: 1 } };
+const costs = { castManaBase: { 'fire:push': 3 }, movementStamina: { a: 1, b: 1 } };
 
 function refusal(records: ActorRecord[], action: object): string | null {
   const state = createActorRegistry({ dimensions: { width: 6, height: 1 }, terrain: Array(6).fill('floor'), actors: records });

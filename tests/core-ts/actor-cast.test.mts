@@ -11,14 +11,15 @@ function actor(id: string, x: number, pair?: ActorAffinityEntry): ActorRecord {
     activeAffinityKey: pair ? `${pair.kind}:${pair.expression}` : null, holdings: [] };
 }
 const pair = { kind: 'fire', expression: 'push', stacks: 3 } as const;
-const costs = { 'fire:push': [1, 2, 3, 4, 5], 'life:pull': [1, 2, 3, 4, 5], 'fire:pull': [1, 2, 3, 4, 5] };
+const costs = { castManaBase: { 'fire:push': 1, 'life:pull': 1, 'fire:pull': 1 } };
 function registry(source = actor('source', 0, pair), target = actor('target', 1)) {
   return createActorRegistry({ dimensions: { width: 10, height: 1 }, terrain: Array(10).fill('floor'), actors: [source, target] });
 }
 test('focused fire pays authored cost once and routes durability overflow', () => {
   const state = registry(); const result = castFocusedActorAffinity(state, 'source', 'target', costs);
   expect(result.accepted).toBe(true);
-  expect(state.getActor('source')!.vitals.mana!.current).toBe(7);
+  // base 1 at 3 stacks: 1 × 3 × 4 / 2 = 6
+  expect(state.getActor('source')!.vitals.mana!.current).toBe(4);
   expect(state.getActor('target')!.vitals.durability!.current).toBe(0);
   expect(state.getActor('target')!.vitals.health!.current).toBe(7);
 });
@@ -26,14 +27,16 @@ test('unaffordable, missing-price and invalid casts leave both actors unchanged'
   const source = actor('source', 0, pair); source.vitals.mana!.current = 2;
   const state = registry(source); const before = state.snapshot();
   expect(castFocusedActorAffinity(state, 'source', 'target', costs).accepted).toBe(false);
-  expect(castFocusedActorAffinity(state, 'source', 'target', {}).accepted).toBe(false);
+  expect(castFocusedActorAffinity(state, 'source', 'target', { castManaBase: {} }).accepted).toBe(false);
   expect(castFocusedActorAffinity(state, 'source', 'missing', costs).accepted).toBe(false);
   expect(state.snapshot()).toEqual(before);
 });
-test('authored tier lookup clamps at five without clamping strength', () => {
-  const state = registry(actor('source', 0, { ...pair, stacks: 8 }));
+test('the price keeps rising past five stacks, with strength', () => {
+  const source = actor('source', 0, { ...pair, stacks: 8 }); source.vitals.mana = { current: 40, max: 40, regen: 0 };
+  const state = registry(source);
   expect(castFocusedActorAffinity(state, 'source', 'target', costs).accepted).toBe(true);
-  expect(state.getActor('source')!.vitals.mana!.current).toBe(5);
+  // base 1 at 8 stacks: 1 × 8 × 9 / 2 = 36
+  expect(state.getActor('source')!.vitals.mana!.current).toBe(4);
   expect(state.getActor('target')!.lifecycle).toBe('defeated');
 });
 test('range, active expression, capability and lifecycle gate casts', () => {
@@ -68,9 +71,11 @@ test('neutralizing pull reports pending suppression without healing or removing 
 });
 test('malformed authored prices are rejected before any mutation', () => {
   const state = registry(); const before = state.snapshot();
-  for (const price of [[1], [1, 2, -1, 4, 5], [1, 2, NaN, 4, 5]]) {
-    expect(() => castFocusedActorAffinity(state, 'source', 'target', { 'fire:push': price })).toThrow();
+  for (const price of [-1, NaN, 1.5, [1, 2, 3, 4, 5]]) {
+    expect(() => castFocusedActorAffinity(state, 'source', 'target', { castManaBase: { 'fire:push': price } } as never)).toThrow();
   }
+  // A five-tier table is not a price model core accepts any more (#232).
+  expect(() => castFocusedActorAffinity(state, 'source', 'target', { 'fire:push': [1, 2, 3, 4, 5] } as never)).toThrow();
   expect(state.snapshot()).toEqual(before);
 });
 // ## TODO: Test Permutations
