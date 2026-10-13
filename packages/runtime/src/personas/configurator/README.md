@@ -108,6 +108,9 @@ At a high level, the Configurator:
 > `authorCandidates` on the persona surface, owns card assembly (`readCardVitals`,
 > `fillFlexibleDelverVitals`, `buildMinimumDelverCard`), structural validity (`assessDelverStructure`) and
 > candidate enumeration (`proposeDelverCandidates` / `proposeRoomCandidates` / `reviseDelverCandidate`).
+> It applies `ACTOR_VIABILITY_FLOOR` while authoring, and `reportActorViabilityFloor(initialState)` answers
+> the same question for a level loaded as written (the play session asks it): each delver or warden vital
+> below the floor, reported and never raised.
 > All of it previously lived in `allocator/budget-fulfillment.js`, where the budget maximizer built its own
 > cards and then priced them.
 >

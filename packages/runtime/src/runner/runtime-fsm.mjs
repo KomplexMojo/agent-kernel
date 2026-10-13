@@ -55,7 +55,11 @@ const configuratorPersonaSurface = createConfiguratorPersona({ clock: UNUSED_CLO
  * Every affinity has a mana cost (maintainer, 2026-10-11). Persistent
  * expressions (emit, draw) pay a per-tick upkeep, authored by the Configurator
  * (`computeInternalManaUpkeep`, 2 + stacks). Core charges it from this table,
- * indexed by stacks; the last entry covers anything higher.
+ * indexed by stacks; the last entry covers anything higher, so upkeep stops
+ * rising past 100 stacks. The rule has no such cap; the table stops there only
+ * because stack n costs n² budget tokens, so 100 stacks of one affinity cost
+ * over 330,000 tokens, far beyond any level's budget. Raise this if budgets
+ * ever reach it.
  */
 const PERSISTENT_UPKEEP_TABLE_STACKS = 100;
 const persistentAffinityUpkeepTable = Object.freeze(
