@@ -8,6 +8,8 @@ import {
 } from "../../packages/core-ts/src/state/affinity.ts";
 import {
   AffinityEffect,
+  computeAffinityIntensity,
+  computeAffinityRadius,
   deriveAffinityInteractionCell,
 } from "../../packages/core-ts/src/state/affinity-spatial.ts";
 
@@ -44,45 +46,33 @@ describe("core-ts affinity spatial formulas", () => {
   test("computes affinity radius by expression and stacks", () => {
     const core = createCore();
 
-    expect(call(core.computeAffinityRadius, AffinityExpression.Emit, 2)).toBe(3);
-    expect(call(core.computeAffinityRadius, AffinityExpression.Push, 1)).toBe(1);
-    expect(call(core.computeAffinityRadius, AffinityExpression.Draw, 8)).toBe(1);
+    expect(call(computeAffinityRadius, AffinityExpression.Emit, 2)).toBe(3);
+    expect(call(computeAffinityRadius, AffinityExpression.Push, 1)).toBe(1);
+    expect(call(computeAffinityRadius, AffinityExpression.Draw, 8)).toBe(1);
   });
 
   test("computes intensity falloff", () => {
     const core = createCore();
 
-    expect(call(core.computeAffinityIntensity, 1, 2, 0)).toBe(0);
+    expect(call(computeAffinityIntensity, 1, 2, 0)).toBe(0);
     expect(
-      Number(call(core.computeAffinityIntensity, 1, 4, AffinityExpression.Push)),
+      Number(call(computeAffinityIntensity, 1, 4, AffinityExpression.Push)),
     ).toBeGreaterThan(
-      Number(call(core.computeAffinityIntensity, 2, 4, AffinityExpression.Push)),
+      Number(call(computeAffinityIntensity, 2, 4, AffinityExpression.Push)),
     );
-    expect(call(core.computeAffinityIntensity, 3, 4, AffinityExpression.Push)).toBe(0);
+    expect(call(computeAffinityIntensity, 3, 4, AffinityExpression.Push)).toBe(0);
   });
 
   test("an emit is strongest on the tile next to its source: there is no dead zone (maintainer, 2026-10-12)", () => {
     const core = createCore();
-    const at = (d: number) => Number(call(core.computeAffinityIntensity, d, 3, AffinityExpression.Emit));
+    const at = (d: number) => Number(call(computeAffinityIntensity, d, 3, AffinityExpression.Emit));
     expect(at(1)).toBeGreaterThan(0);
     expect(at(1)).toBeGreaterThan(at(2));
     expect(at(2)).toBeGreaterThan(at(4));
     expect(at(5)).toBe(0);
   });
 
-  test("computes potency by expression", () => {
-    const core = createCore();
 
-    expect(call(core.computeAffinityPotency, 2, AffinityExpression.Push)).toBe(4);
-    expect(call(core.computeAffinityPotency, 3, AffinityExpression.Pull)).toBe(3);
-  });
-
-  test("computes mana costs", () => {
-    const core = createCore();
-
-    expect(call(core.computeAffinityManaCost, 2, AffinityExpression.Emit)).toBe(3);
-    expect(call(core.computeAffinityManaCost, 2, AffinityExpression.Push)).toBe(0);
-  });
 
   test("resolves stack cancellation with last-result getters", () => {
     const core = createCore();
@@ -93,12 +83,6 @@ describe("core-ts affinity spatial formulas", () => {
     expect(call(core.getLastAffinityNetTargetStacks)).toBe(0);
   });
 
-  test("merges stacks with cap", () => {
-    const core = createCore();
-
-    expect(call(core.resolveAffinityMergedStacks, 5, 5)).toBe(8);
-    expect(call(core.resolveAffinityMergedStacks, 2, 3)).toBe(5);
-  });
 
   test("looks up matrix cells", () => {
     const core = createCore();
@@ -226,14 +210,14 @@ function call(fn: unknown, ...args: unknown[]): unknown {
 describe("core-ts affinity spatial permutations", () => {
   test("computeAffinityIntensity handles negative distance gracefully", () => {
     const core = createCore();
-    const result = call(core.computeAffinityIntensity, -1, 1, 3);
+    const result = call(computeAffinityIntensity, -1, 1, 3);
     expect(typeof result).toBe("number");
   });
 
   test("computeAffinityIntensity with zero stacks still computes", () => {
     const core = createCore();
     // Zero stacks plugs into the formula — doesn't short-circuit to 0
-    const result = call(core.computeAffinityIntensity, 2, 0, 3) as number;
+    const result = call(computeAffinityIntensity, 2, 0, 3) as number;
     expect(typeof result).toBe("number");
     expect(result).toBeGreaterThanOrEqual(0);
   });
@@ -241,14 +225,14 @@ describe("core-ts affinity spatial permutations", () => {
   test("computeAffinityRadius for all 4 expressions", () => {
     const core = createCore();
     // Push: radius = floor(1.5 + 0.5 * stacks) — stacks=1→1
-    expect(call(core.computeAffinityRadius, AffinityExpression.Push, 1)).toBe(1);
+    expect(call(computeAffinityRadius, AffinityExpression.Push, 1)).toBe(1);
     // Pull: similar formula
-    expect(call(core.computeAffinityRadius, AffinityExpression.Pull, 1)).toBe(1);
+    expect(call(computeAffinityRadius, AffinityExpression.Pull, 1)).toBe(1);
     // Emit: radius = floor(1.0 + 1.0 * stacks) — stacks=1→2
-    expect(call(core.computeAffinityRadius, AffinityExpression.Emit, 1)).toBe(2);
-    expect(call(core.computeAffinityRadius, AffinityExpression.Emit, 2)).toBe(3);
+    expect(call(computeAffinityRadius, AffinityExpression.Emit, 1)).toBe(2);
+    expect(call(computeAffinityRadius, AffinityExpression.Emit, 2)).toBe(3);
     // Draw: radius = floor(0.5 + 0.5 * stacks) — stacks=1→1
-    expect(call(core.computeAffinityRadius, AffinityExpression.Draw, 1)).toBe(1);
+    expect(call(computeAffinityRadius, AffinityExpression.Draw, 1)).toBe(1);
   });
 
   test("stack cancellation: Fire vs Water (opposite) cancels stacks", () => {

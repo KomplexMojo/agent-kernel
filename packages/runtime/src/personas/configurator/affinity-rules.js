@@ -744,10 +744,8 @@ export function findExpressionRule(rules, kind, expression) {
  * decides no outcome, and spends nothing: applying an interaction is Moderator
  * work through core's matrix, and pricing in tokens is the Allocator's.
  *
- * It exists because core-ts cannot answer this question — `computeAffinityManaCost`
- * charges **0 mana for push and pull at every stack count** (F10c), so making the
- * kernel authoritative for cast cost would make both single-target expressions
- * free. Mana is campaign-tunable data, and this artifact is where it is authored.
+ * Core owns the curve (`actorCastManaPrice`, base × s(s+1)/2) but not the base:
+ * mana is campaign-tunable data, and this artifact is where it is authored.
  *
  * A push or pull costs the kind's tier-1 price times s(s+1)/2, with no cap
  * (maintainer, 2026-10-13, #232) — the same curve core charges from

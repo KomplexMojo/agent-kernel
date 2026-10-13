@@ -14,9 +14,9 @@
  * Changing a weight adjusts behavior without changing code.
  *
  * Formulas reference design sections:
- *   §1.1 Radius, §1.2 Intensity, §1.3 Potency, §1.4 Opposite cancellation,
- *   §1.5 Same-kind merge, §1.6 Effective potency, §1.7 Mana cost,
- *   §2.x Pixel masks
+ *   §1.1 Radius, §1.2 Intensity, §1.4 Opposite cancellation, §2.x Pixel masks.
+ *   Potency and mana cost are core's (`rules/actor-affinity.ts`, `rules/actor-cast.ts`)
+ *   and the Configurator's upkeep; this module no longer carries a second copy
  *
  * @module affinity-spatial-rules
  */
@@ -51,28 +51,6 @@ const INTENSITY_WEIGHTS = Object.freeze({
   draw: Object.freeze({ peakIntensity: 1.0, stackExponent: 0.0, buffer: 0, falloffCurve: 0.0 }),
 });
 
-/**
- * Potency weights per expression (§1.3).
- * potency(stacks) = basePotency + potencyGrowth * stacks^potencyExponent
- */
-const POTENCY_WEIGHTS = Object.freeze({
-  push: Object.freeze({ basePotency: 0, potencyGrowth: 1.0, potencyExponent: 2.0 }),
-  pull: Object.freeze({ basePotency: 0, potencyGrowth: 1.0, potencyExponent: 1.0 }),
-  emit: Object.freeze({ basePotency: 0, potencyGrowth: 1.0, potencyExponent: 1.0 }),
-  draw: Object.freeze({ basePotency: 0, potencyGrowth: 1.0, potencyExponent: 1.0 }),
-});
-
-/**
- * Mana cost weights per expression (§1.7).
- * manaCost(stacks) = ceil(baseMana + manaGrowth * stacks^manaExponent)
- */
-const MANA_COST_WEIGHTS = Object.freeze({
-  push: Object.freeze({ baseMana: 0, manaGrowth: 0, manaExponent: 0 }),
-  pull: Object.freeze({ baseMana: 0, manaGrowth: 0, manaExponent: 0 }),
-  emit: Object.freeze({ baseMana: 1, manaGrowth: 0.5, manaExponent: 2.0 }),
-  draw: Object.freeze({ baseMana: 0, manaGrowth: 0.25, manaExponent: 2.0 }),
-});
-
 // ---------------------------------------------------------------------------
 // Master weights object
 // ---------------------------------------------------------------------------
@@ -81,8 +59,6 @@ export const SPATIAL_WEIGHTS = Object.freeze({
   // Expression-keyed profiles
   radius: RADIUS_WEIGHTS,
   intensity: INTENSITY_WEIGHTS,
-  potency: POTENCY_WEIGHTS,
-  manaCost: MANA_COST_WEIGHTS,
 
   // Pixel mask weights (§2.x)
   alphaBase: 0.20,
@@ -101,7 +77,6 @@ export const SPATIAL_WEIGHTS = Object.freeze({
   drawFill: 0.3,
 
   // Interaction modifiers
-  maxMergedStacks: 8,
   oppositeVulnerability: 1.5,
   stealEfficiency: 0.8,
   absorbRate: 0.6,
@@ -227,7 +202,7 @@ const EMIT_ENCOUNTERS = Object.freeze({
   }),
   emit: Object.freeze({
     same: cell("none", "none", "reinforcement",
-      "§1.5: mergedStacks = min(sStacks + tStacks, W.maxMergedStacks)"),
+      "§1.5: same-kind emits reinforce each other"),
     opposite: cell("potency_reduced", "potency_reduced", "conflict-zone",
       "§1.4: canceled = min(s,t), winner keeps netStacks", { usesStackCancellation: true }),
     unrelated: cell("none", "none", "layered", "both coexist independently"),

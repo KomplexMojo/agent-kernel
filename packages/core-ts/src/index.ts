@@ -12,10 +12,6 @@ import {
 } from "./state/affinity.ts";
 import { createEffectsPort, EffectKind } from "./ports/effects.ts";
 import {
-  computeAffinityIntensity,
-  computeAffinityManaCost,
-  computeAffinityPotency,
-  computeAffinityRadius,
   createAffinitySpatialState,
   getAffinityEffectCount,
   getAffinityInteractionCellCount,
@@ -24,7 +20,6 @@ import {
   getAffinityMatrixUsesStackCancellation,
   getAffinityMatrixVisualState,
   getAffinityVisualStateCount,
-  resolveAffinityMergedStacks,
 } from "./state/affinity-spatial.ts";
 import { createBudgetState, BudgetCategory } from "./state/budget.ts";
 import { createCounterState } from "./state/counter.ts";
@@ -82,10 +77,6 @@ export const CORE_API_KEYS = [
   "affinityExpressionIsPersistentField",
   "applyAction",
   "clearEffects",
-  "computeAffinityIntensity",
-  "computeAffinityManaCost",
-  "computeAffinityPotency",
-  "computeAffinityRadius",
   "evaluateMotivations",
   "getAffinityEffectCount",
   "getAffinityExpressionCount",
@@ -141,7 +132,6 @@ export const CORE_API_KEYS = [
   "normalizeMotivationIntensity",
   "resetMotivationEvaluation",
   "resolveAffinityInteraction",
-  "resolveAffinityMergedStacks",
   "resolveAffinityRelationshipCode",
   "resolveAffinityStackCancellation",
   "setActionBudgetCost",
@@ -324,10 +314,6 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
     affinityExpressionAllowsHazardArming as CoreFunction;
   core.affinityExpressionIsPersistentField =
     affinityExpressionIsPersistentField as CoreFunction;
-  core.computeAffinityRadius = computeAffinityRadius as CoreFunction;
-  core.computeAffinityIntensity = computeAffinityIntensity as CoreFunction;
-  core.computeAffinityPotency = computeAffinityPotency as CoreFunction;
-  core.computeAffinityManaCost = computeAffinityManaCost as CoreFunction;
   core.resolveAffinityStackCancellation =
     affinitySpatial.resolveAffinityStackCancellation as CoreFunction;
   core.getLastAffinityCanceledStacks =
@@ -336,7 +322,6 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
     affinitySpatial.getLastAffinityNetSourceStacks as CoreFunction;
   core.getLastAffinityNetTargetStacks =
     affinitySpatial.getLastAffinityNetTargetStacks as CoreFunction;
-  core.resolveAffinityMergedStacks = resolveAffinityMergedStacks as CoreFunction;
   core.getAffinityInteractionCellCount =
     getAffinityInteractionCellCount as CoreFunction;
   core.getAffinityVisualStateCount = getAffinityVisualStateCount as CoreFunction;
