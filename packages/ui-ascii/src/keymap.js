@@ -101,3 +101,45 @@ export const HELP_LINES = Object.freeze([
   "In the affinity list: Tab picks a row, + / - run it at more or fewer stacks",
   "Cast: f (or a slot's number), then Tab for the next target, Enter to cast, Esc to cancel",
 ]);
+
+/** Watching a recorded run (`--watch`): keys step through its ticks. */
+export const WATCH_INTENT = Object.freeze({
+  NEXT: "next_tick",
+  PREVIOUS: "previous_tick",
+  FIRST: "first_tick",
+  LAST: "last_tick",
+  HELP: INTENT.HELP,
+  QUIT: INTENT.QUIT,
+});
+
+const WATCH_KEYS = Object.freeze({
+  "\u001b[C": WATCH_INTENT.NEXT,
+  "\u001bOC": WATCH_INTENT.NEXT,
+  l: WATCH_INTENT.NEXT,
+  d: WATCH_INTENT.NEXT,
+  ".": WATCH_INTENT.NEXT,
+  " ": WATCH_INTENT.NEXT,
+  "\u001b[D": WATCH_INTENT.PREVIOUS,
+  "\u001bOD": WATCH_INTENT.PREVIOUS,
+  h: WATCH_INTENT.PREVIOUS,
+  a: WATCH_INTENT.PREVIOUS,
+  ",": WATCH_INTENT.PREVIOUS,
+  "[": WATCH_INTENT.FIRST,
+  "]": WATCH_INTENT.LAST,
+  "?": WATCH_INTENT.HELP,
+  q: WATCH_INTENT.QUIT,
+  "\u0003": WATCH_INTENT.QUIT, // Ctrl-C
+  "\u001b": WATCH_INTENT.QUIT, // bare Esc
+});
+
+/** @returns {{type: string} | null} */
+export function watchIntentForKey(key) {
+  if (typeof key !== "string" || key.length === 0) return null;
+  const type = WATCH_KEYS[key] ?? WATCH_KEYS[key.toLowerCase()];
+  return type ? { type } : null;
+}
+
+export const WATCH_HELP_LINES = Object.freeze([
+  "Next tick: right / l / d / . / space   Previous tick: left / h / a / ,",
+  "First tick: [   Last tick: ]   Help: ?   Quit: q",
+]);

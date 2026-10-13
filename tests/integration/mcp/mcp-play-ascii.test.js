@@ -130,8 +130,67 @@ test("ak_play_ascii shows a bundled level, and refuses a directory with no level
   }
 });
 
+test("ak_play_ascii watches an ak_run run by runId, tick by tick, with every actor drawn", async () => {
+  const server = startServer();
+  try {
+    await server.initialize();
+    const created = await server.callTool("ak_create", {
+      room: ["size=small;count=2"],
+      delver: ["count=1;motivation=exploring"],
+      warden: ["count=1;affinity=light;motivation=random"],
+      runId: "watch-mcp",
+      createdAt: "2026-10-13T00:00:00.000Z",
+    });
+    assert.equal(created.ok, true, JSON.stringify(created));
+    const ran = await server.callTool("ak_run", { fromRun: "watch-mcp", runId: "watch-mcp-run", ticks: 4 });
+    assert.equal(ran.ok, true, JSON.stringify(ran));
+
+    const start = await server.callTool("ak_play_ascii", { runId: "watch-mcp-run", watch: true });
+    assert.equal(start.ok, true, JSON.stringify(start));
+    assert.equal(start.tick, 0);
+    assert.equal(start.maxTick, 4);
+    assert.match(start.screen, /agent-kernel run/);
+    assert.match(start.screen, /W/, "the warden is drawn: a watched run has no fog");
+    assert.doesNotMatch(start.screen, /\?{3}/);
+    assert.match(start.launch, /play --dir .* --watch --tick 0$/);
+
+    const later = await server.callTool("ak_play_ascii", { runId: "watch-mcp-run", watch: true, tick: 4 });
+    assert.equal(later.tick, 4);
+    assert.notEqual(later.screen, start.screen, "the run moved someone");
+    const stepped = await server.callTool("ak_play_ascii", { runId: "watch-mcp-run", watch: true, tick: 4, keys: ",,[" });
+    assert.equal(stepped.tick, 0);
+    assert.equal(stepped.screen, start.screen);
+  } finally {
+    await server.close();
+  }
+});
+
+// #204 over MCP: the same record/replay `ak play` has.
+test("ak_play_ascii records a game and replays it to the same result", async () => {
+  const { mkdtempSync, rmSync } = require("node:fs");
+  const { tmpdir } = require("node:os");
+  const { join } = require("node:path");
+  const dir = mkdtempSync(join(tmpdir(), "mcp-play-capture-"));
+  const server = startServer();
+  try {
+    await server.initialize();
+    const capture = join(dir, "game.json");
+    const played = await server.callTool("ak_play_ascii", { level: "first-steps", keys: "dds.", record: capture });
+    assert.equal(played.ok, true, JSON.stringify(played));
+    const replayed = await server.callTool("ak_play_ascii", { replay: capture });
+    assert.equal(replayed.ok, true, JSON.stringify(replayed));
+    assert.equal(replayed.level, played.level);
+    assert.equal(replayed.turns, played.turns);
+    assert.equal(replayed.screen, played.screen);
+  } finally {
+    await server.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ## TODO: Test Permutations
 // - ak_play_ascii with dir set to an ak_create outDir
 // - ak_play_ascii with simConfig/initialState paths, and with only one of them
 // - ak_play_ascii runId of an ak_run call (run directory layout)
 // - keys that reach the exit and step through (status.exited)
+// - watch with dir set to an ak_run outDir, and a tick past the run's last

@@ -115,7 +115,7 @@ describe("ak_show_state reflects the cursor tick", () => {
     const ascii = await renderAscii(runDir, 12);
     assert.ok(ascii.length > 0, "the run must render");
     assert.ok(
-      countGlyph(ascii, "@") > 0,
+      countGlyph(ascii, "@") > 0 && countGlyph(ascii, "W") > 0,
       "actors must appear on the map — renderBaseTiles alone draws terrain only, "
         + `so 'show me the state' returned a map with nobody in it:\n${ascii}`,
     );
@@ -138,13 +138,14 @@ describe("ak_show_state reflects the cursor tick", () => {
   test("tick 0 shows every actor at its authored spawn", async () => {
     const { renderAscii } = await import("../../packages/adapters-cli/src/tick-session.mjs");
     const initialState = JSON.parse(readFileSync(join(runDir, "create", "initial-state.json"), "utf8"));
-    const rows = (await renderAscii(runDir, 0)).split("\n");
+    // The terminal UI's screen: a title, a blank line, then the board rows indented by two.
+    const rows = (await renderAscii(runDir, 0)).split("\n").slice(2).map((line) => line.slice(2));
 
     initialState.actors.forEach((actor) => {
       const { x, y } = actor.position;
-      assert.equal(
-        rows[y]?.[x],
-        "@",
+      assert.match(
+        rows[y]?.[x] ?? "",
+        /^[@DW]$/,
         `${actor.id} must be drawn at its spawn ${x},${y} when the cursor is at tick 0`,
       );
     });

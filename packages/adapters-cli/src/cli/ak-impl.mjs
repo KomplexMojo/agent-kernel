@@ -3,7 +3,13 @@ import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { resolve, dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { launchCommand, playAsciiInteractive, playAsciiScripted } from "./play-ascii.mjs";
+import {
+  launchCommand,
+  playAsciiInteractive,
+  playAsciiScripted,
+  watchAsciiInteractive,
+  watchAsciiScripted,
+} from "./play-ascii.mjs";
 import { createIpfsAdapter } from "../adapters/ipfs/index.js";
 import { createBlockchainAdapter } from "../adapters/blockchain/index.js";
 import { createLlmAdapter } from "../adapters/llm/index.js";
@@ -184,6 +190,7 @@ function usage() {
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
   node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--record path] [--replay path]
+  node ${rel} play --watch (--dir dir | --from-run id) [--tick N] [--keys keys] [--json] [--color | --no-color]
 
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
@@ -266,6 +273,8 @@ Options:
   --no-fog        play: debug view of the whole map (play is always under fog of war)
   --record        play: save the played commands to this path (CapturedInputArtifact)
   --replay        play: re-run a saved game on its level, then continue
+  --watch         play: watch the run \`ak run\` recorded in --dir (or under artifacts/runs/<--from-run>), tick by tick
+  --tick          play --watch: open at this tick (default 0)
   --help          Show this help
 
 Schema discovery:
@@ -6202,9 +6211,14 @@ async function playCommand(argv) {
     console.log(usage());
     return;
   }
-  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay"]);
+  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick"]);
   const unknown = Object.keys(args).filter((key) => !allowed.has(key));
   if (unknown.length > 0) throw new Error(`play does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
+  if (args.watch) {
+    await watchRunCommand(args);
+    return;
+  }
+  if (args.tick !== undefined) throw new Error("play --tick needs --watch.");
   const named = ["dir", "from-run", "level"].filter((key) => args[key] !== undefined);
   if (args["sim-config"] !== undefined || args["initial-state"] !== undefined) named.push("sim-config");
   if (named.length > 1) throw new Error("play takes one level source: --dir, --from-run, --sim-config/--initial-state, or --level.");
@@ -6244,6 +6258,39 @@ async function playCommand(argv) {
   if (!result.ok) throw new Error(result.error);
   if (args.json) {
     emitJsonStdout({ ...result, command: "play", source, launch: launchCommand(source) });
+  } else {
+    console.log(result.screen);
+  }
+}
+
+/**
+ * `ak play --watch`: a recorded run in the terminal UI, tick by tick. The run is
+ * an `ak run` output directory (`--dir`) or a run id under artifacts/runs (`--from-run`).
+ */
+async function watchRunCommand(args) {
+  const extra = ["sim-config", "initial-state", "level", "no-fog", "record", "replay"].filter((key) => args[key] !== undefined);
+  if (extra.length > 0) {
+    throw new Error(`play --watch shows a recorded run as it happened; it does not take ${extra.map((key) => `--${key}`).join(", ")}.`);
+  }
+  if (isNonEmptyString(args.dir) === (args["from-run"] !== undefined)) {
+    throw new Error("play --watch takes one run: --dir <ak run output directory> or --from-run <runId>.");
+  }
+  const runDir = isNonEmptyString(args.dir) ? resolvePath(args.dir) : resolveTickRunDir(String(args["from-run"]));
+  let tick;
+  if (args.tick !== undefined) {
+    if (!/^\d+$/.test(String(args.tick))) throw new Error(`play --tick needs a whole number, got ${args.tick}`);
+    tick = Number(args.tick);
+  }
+  const color = args["no-color"] ? false : args.color ? true : undefined;
+  const keys = args.keys === true ? "" : args.keys;
+  if (keys === undefined && !args.json) {
+    process.exitCode = await watchAsciiInteractive({ runDir, tick, color });
+    return;
+  }
+  const result = watchAsciiScripted({ runDir, tick, keys: keys ?? "", color: color === true });
+  if (!result.ok) throw new Error(result.error);
+  if (args.json) {
+    emitJsonStdout({ ...result, command: "play", watch: true, runDir, launch: launchCommand({ dir: runDir }, { watch: true, tick: result.tick }) });
   } else {
     console.log(result.screen);
   }

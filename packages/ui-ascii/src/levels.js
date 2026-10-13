@@ -5,6 +5,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { INITIAL_STATE_SCHEMA, SIM_CONFIG_SCHEMA } from "../../runtime/src/contracts/artifacts.ts";
 
 export const BUNDLED_LEVELS_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "../levels");
 
@@ -64,4 +65,32 @@ export function loadLevelFromRunDir(runDir) {
     }
   }
   throw new Error(`No sim-config.json + initial-state.json in ${runDir} or its ${RUN_DIR_BUILD_SUBDIRS.filter(Boolean).join("/, ")}/ subdirectory`);
+}
+
+// A run's own bundle (`ak run` writes one) carries the level it ran and its frames.
+function levelFromBundle(bundle, name) {
+  const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
+  const simConfig = artifacts.find((artifact) => artifact?.schema === SIM_CONFIG_SCHEMA);
+  const initialState = artifacts.find((artifact) => artifact?.schema === INITIAL_STATE_SCHEMA);
+  return simConfig && initialState ? { name, simConfig, initialState } : null;
+}
+
+/**
+ * A recorded run for `--watch`: its level and its tick frames. `ak run --out-dir`
+ * writes `tick-frames.json` and `bundle.json` at the top level; a run directory
+ * under `artifacts/runs/<id>` keeps them under `run/`, beside the build in `create/`.
+ */
+export function loadRunFromDir(runDir) {
+  const name = basename(resolve(runDir));
+  for (const subdir of ["", "run"]) {
+    const framesPath = join(runDir, subdir, "tick-frames.json");
+    const bundlePath = join(runDir, subdir, "bundle.json");
+    const bundle = existsSync(bundlePath) ? readJson(bundlePath) : null;
+    const recorded = existsSync(framesPath) ? readJson(framesPath) : bundle?.tickFrames;
+    const frames = Array.isArray(recorded?.frames) ? recorded.frames : recorded;
+    if (!Array.isArray(frames)) continue;
+    const level = levelFromBundle(bundle, name) ?? loadLevelFromRunDir(runDir);
+    return { ...level, name, frames };
+  }
+  throw new Error(`No recorded run in ${runDir}: expected tick-frames.json there or under run/ (an \`ak run\` output directory)`);
 }
