@@ -42,7 +42,7 @@
 import { ACTOR_COMMAND_KINDS, normalizeActorCommand } from "../personas/actor/persona.js";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
-import { ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
+import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
@@ -52,10 +52,6 @@ export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
 
 /** Per-cell sight in `view().sight`: seen now, seen before, never seen. */
 export const PLAY_SIGHT = Object.freeze({ VISIBLE: "v", REMEMBERED: "r", UNKNOWN: "u" });
-
-// The fog tile's board character; `render/resource-bundle.js` already maps "?" to the
-// `fog` tile (palette `tiles.fog`).
-const FOG_GLYPH = "?";
 
 export const PLAY_DIRECTIONS = Object.freeze(EIGHT_WAY_DELTAS.map((delta) => delta.direction));
 
@@ -238,7 +234,7 @@ export async function createPlaySession({
           row += frame.baseTiles[y][x];
           sightRow += PLAY_SIGHT.REMEMBERED;
         } else {
-          row += FOG_GLYPH;
+          row += ASCII_FOG_GLYPH;
           sightRow += PLAY_SIGHT.UNKNOWN;
         }
       }
@@ -293,7 +289,7 @@ export async function createPlaySession({
       tick: currentTick(),
       rows: fogged.rows,
       sight: fogged.sight,
-      legend: { ...legend, fog: FOG_GLYPH },
+      legend: { ...legend, fog: ASCII_FOG_GLYPH },
       status: status(),
       // With fog, only traps in sight right now.
       hazards: others.filter((actor) => presentation[actor.id]?.category === HAZARD_CATEGORY).map(toViewActor),

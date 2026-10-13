@@ -16,6 +16,7 @@ import {
 } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
+import { ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
 import { createActorTurn } from "../../../core-ts/src/rules/actor-turn.ts";
 import {
   readActorRegistryDarkCells,
@@ -204,9 +205,8 @@ function resolveBaseTiles(simConfig) {
   const height = simConfig?.layout?.data?.height;
   if (Array.isArray(terrain) && Number.isSafeInteger(width) && width > 0
     && Number.isSafeInteger(height) && height > 0 && terrain.length === width * height) {
-    const glyph = { wall: "#", floor: ".", spawn: "S", exit: "E" };
     return Array.from({ length: height }, (_, y) => terrain
-      .slice(y * width, (y + 1) * width).map(kind => glyph[kind] || "#").join(""));
+      .slice(y * width, (y + 1) * width).map(kind => ASCII_TERRAIN_GLYPHS[kind] || ASCII_TERRAIN_GLYPHS.wall).join(""));
   }
   const tiles = simConfig?.layout?.data?.tiles;
   if (Array.isArray(tiles)) return tiles;

@@ -15,7 +15,7 @@ import {
   buildAsciiCellStyles,
 } from "../../runtime/src/render/ascii-cell-style.js";
 import { PLAY_SIGHT } from "../../runtime/src/runner/play-session.js";
-import { ASCII_ENTITY_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
+import { ASCII_ENTITY_GLYPHS, ASCII_TERRAIN_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
 
 const BAR_WIDTH = 10;
@@ -122,7 +122,8 @@ export function statusLine(status, message, { traps = false } = {}) {
   if (status?.exited) return "You escaped! Press Enter for the next level, r to replay, q to quit.";
   if (status?.defeated) return "You were defeated. Press r to try the level again, q to quit.";
   if (status?.atExit) return "You reached the exit. Press . to step through.";
-  return traps ? `Find the exit (E). Mind the traps (${ASCII_ENTITY_GLYPHS.hazard}).` : "Find the exit (E).";
+  const exit = `Find the exit (${ASCII_TERRAIN_GLYPHS.exit}).`;
+  return traps ? `${exit} Mind the traps (${ASCII_ENTITY_GLYPHS.hazard}).` : exit;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { EIGHT_WAY_DELTAS } from "../_shared/movement-directions.js";
+import { ASCII_TERRAIN_GLYPHS } from "../../render/visualization-snapshot.js";
 
 /**
  * Proposal geometry helpers for Actor motivation modules.
@@ -35,12 +36,11 @@ function terrainToTiles(layoutData) {
     || width <= 0 || height <= 0 || terrain.length !== width * height) {
     return null;
   }
-  const glyphs = { wall: "#", floor: ".", spawn: "S", exit: "E" };
   const rows = [];
   for (let y = 0; y < height; y += 1) {
     let row = "";
     for (let x = 0; x < width; x += 1) {
-      row += glyphs[terrain[y * width + x]] || ".";
+      row += ASCII_TERRAIN_GLYPHS[terrain[y * width + x]] || ASCII_TERRAIN_GLYPHS.floor;
     }
     rows.push(row);
   }
