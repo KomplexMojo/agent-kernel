@@ -97,6 +97,28 @@
       }
     },
     {
+      "id": "resource_permanent",
+      "kind": "resource",
+      "quantity": 5,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_2",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_vital_health_regen_tick",
+      "kind": "resource",
+      "quantity": 2,
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_2",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
       "id": "vital_durability_point",
       "kind": "vital",
       "quantity": 1,

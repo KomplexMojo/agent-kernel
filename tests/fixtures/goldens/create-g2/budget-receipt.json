@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 126,
-  "remaining": 4874,
+  "totalCost": 184,
+  "remaining": 4816,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -144,6 +144,34 @@
       }
     },
     {
+      "id": "resource_permanent",
+      "kind": "resource",
+      "quantity": 5,
+      "unitCost": 10,
+      "totalCost": 50,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_2",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
+      "id": "resource_vital_health_regen_tick",
+      "kind": "resource",
+      "quantity": 2,
+      "unitCost": 2,
+      "totalCost": 8,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_2",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      }
+    },
+    {
       "id": "vital_durability_point",
       "kind": "vital",
       "quantity": 1,
@@ -183,8 +211,8 @@
     {
       "id": "resources",
       "capTokens": 5000,
-      "spentTokens": 126,
-      "remainingTokens": 4874,
+      "spentTokens": 184,
+      "remainingTokens": 4816,
       "status": "approved"
     },
     {
@@ -197,8 +225,8 @@
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 126,
-    "remainingBudget": 4874,
+    "totalSpend": 184,
+    "remainingBudget": 4816,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -217,9 +245,9 @@
         "usagePercent": 0
       },
       "resources": {
-        "actual": 126,
+        "actual": 184,
         "target": 5000,
-        "usagePercent": 3
+        "usagePercent": 4
       },
       "delvers": {
         "actual": 0,
@@ -237,7 +265,7 @@
         "usagePercent": 0
       }
     },
-    "totalBudgetUsagePercent": 3,
+    "totalBudgetUsagePercent": 4,
     "incentive": {
       "actualRatio": 0,
       "targetRatio": 0.8,

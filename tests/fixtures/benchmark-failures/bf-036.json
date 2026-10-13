@@ -82,6 +82,6 @@
   },
   "observedError": "Budget receipt denied: status=denied; remaining=538; deniedLines=resource:resource_affinity_base:resources,resource:resource_affinity_expression_internalize:resources,resource:resource_affinity_stack:resources,resource:resource_level:resources,resource:resource_vital_mana_point:resources; deniedPools=resources:374/128\n",
   "occurrences": 1,
-  "disposition": "harness-defect",
-  "dispositionNote": "Unified resource pricing approves this shape at 770/1600. The 2026-08-28 resource-pool denial (374/128) does not reproduce. The scenario's own expected outcome is success."
+  "disposition": "model-error",
+  "dispositionNote": "Correct denial since #242 (2026-10-13): the level resource's +15 health grant is now charged, and the resource costs 147 against the 8% resources pool (128) of a 1600 budget. It passed at 770/1600 only while create charged grants nothing."
 }

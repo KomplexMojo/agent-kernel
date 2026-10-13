@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 126,
+      "runTotalTokens": 184,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g2_budget_receipt",
