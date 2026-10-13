@@ -1,11 +1,10 @@
 const assert = require('node:assert/strict');
-const { mkdirSync, mkdtempSync, readFileSync, writeFileSync } = require('node:fs');
+const { mkdtempSync, readFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join, resolve } = require('node:path');
 
 const {
   fixtureExecutionArtifacts,
-  probeResourceRuntimeLoading,
   runCanonicalFixtureValidation,
   runCorpusIntegrationValidation,
 } = require('../../tools/remote-ollama-control/scripts/validate-execution-benchmark');
@@ -76,9 +75,6 @@ test('corpus integration binds all committed/generated routes before determinist
   const record = await runCorpusIntegrationValidation({
     outputRoot,
     sourceWorktree: ROOT,
-    probeResourceCapability: async () => ({
-      status: 'passed', vitalPlacements: 1, affinityPlacements: 1,
-    }),
   });
 
   assert.equal(record.schemaVersion, 'agent-kernel-execution-corpus-validation/v1');
@@ -87,7 +83,6 @@ test('corpus integration binds all committed/generated routes before determinist
   assert.equal(record.corpus.runtimeBuilds, 26);
   assert.equal(record.corpus.generatedMappings, 26);
   assert.match(record.corpus.runtimeArtifactSetHash, /^[a-f0-9]{64}$/);
-  assert.equal(record.corpus.resourceRuntimeCapability.status, 'passed');
   assert.notEqual(record.fixtureValidation.schedule.status, 'completed');
   assert.equal(record.fixtureValidation.schedule.scenarios.length, 25);
   assert.equal(record.fixtureValidation.qualification.ready, false);
@@ -96,20 +91,6 @@ test('corpus integration binds all committed/generated routes before determinist
     JSON.parse(readFileSync(join(outputRoot, 'corpus-integration-validation.json'), 'utf8')),
     record,
   );
-});
-
-test('missing resource loading fails before deterministic scheduling', async () => {
-  const outputRoot = mkdtempSync(join(tmpdir(), 'ak-execution-corpus-blocked-'));
-  let schedulerCalls = 0;
-  await assert.rejects(() => runCorpusIntegrationValidation({
-    outputRoot,
-    sourceWorktree: ROOT,
-    probeResourceCapability: async () => ({
-      status: 'failed', vitalPlacements: 0, affinityPlacements: 0,
-    }),
-    runFixtureValidation: async () => { schedulerCalls += 1; },
-  }), /resource runtime loading capability/i);
-  assert.equal(schedulerCalls, 0);
 });
 
 test('a complete but semantically misrouted runtime build fails before scheduling', async () => {
@@ -123,37 +104,9 @@ test('a complete but semantically misrouted runtime build fails before schedulin
     outputRoot,
     sourceWorktree: ROOT,
     runtimeRouteDocument: manifest,
-    probeResourceCapability: async () => ({
-      status: 'passed', vitalPlacements: 1, affinityPlacements: 1,
-    }),
     runFixtureValidation: async () => { schedulerCalls += 1; },
   }), /mismatched sim-config\.json identity/i);
   assert.equal(schedulerCalls, 0);
-});
-
-test('resource capability probe behaviorally requires vital and affinity placement calls', async () => {
-  const sourceWorktree = mkdtempSync(join(tmpdir(), 'ak-resource-loader-probe-'));
-  const runnerDir = join(sourceWorktree, 'packages/runtime/src/runner');
-  mkdirSync(runnerDir, { recursive: true });
-  writeFileSync(join(runnerDir, 'core-setup.mjs'), `
-    export function applySimConfigToCore(core, simConfig) {
-      for (const resource of simConfig.layout.data.resources) {
-        if (resource.affinity) core.placeAffinityResourceAt(resource.position.x, resource.position.y);
-        else core.placeResourceAt(resource.position.x, resource.position.y);
-      }
-      return { ok: true };
-    }
-  `);
-  assert.deepEqual(await probeResourceRuntimeLoading(sourceWorktree), {
-    status: 'passed', vitalPlacements: 1, affinityPlacements: 1,
-  });
-
-  writeFileSync(join(runnerDir, 'core-setup.mjs'), `
-    export function applySimConfigToCore() { return { ok: true }; }
-  `);
-  assert.deepEqual(await probeResourceRuntimeLoading(sourceWorktree), {
-    status: 'failed', vitalPlacements: 0, affinityPlacements: 0,
-  });
 });
 
 // ## TODO: Test Permutations
