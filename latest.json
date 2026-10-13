@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-13T18-01-02-138Z-c38a29800ab2-5632f8272528",
-    "key": "5632f82725280511da0caf326b605c126609df15c0a79632225c9f9143f00522",
+    "id": "2026-10-13T18-20-02-506Z-6bddc4e501a8-2bba41f357b8",
+    "key": "2bba41f357b81b840b152d39bf4d9a39dfddce68191a7f653c292ae5b5c3b2b7",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-13T18:01:02.138Z",
-    "completedAt": "2026-10-13T18:01:24.866Z",
-    "durationMs": 22728,
+    "startedAt": "2026-10-13T18:20:02.506Z",
+    "completedAt": "2026-10-13T18:20:24.878Z",
+    "durationMs": 22372,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "c38a29800ab2289fc5b5885136dd8eda49596ac5",
-    "tree": "43d2a2cc2b62e7b0787c8974ba442d0da3d8be66"
+    "commit": "6bddc4e501a88cd243e54a383547aa41c2bd1ce1",
+    "tree": "cc419953ba687ddb17ad6be420197ffdb17d1587"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -103,7 +103,11 @@
       "packages/runtime/src/personas/director/pool-mapper.js",
       "packages/runtime/src/personas/director/summary-selections.js",
       "packages/runtime/src/personas/moderator/README.md",
+      "packages/runtime/src/personas/moderator/affinity-interactions.js",
       "packages/runtime/src/personas/moderator/affinity-target-effects.js",
+      "packages/runtime/src/personas/moderator/controller.js",
+      "packages/runtime/src/personas/moderator/tick-close.js",
+      "packages/runtime/src/render/README.md",
       "packages/runtime/src/render/affinity-aura.js",
       "packages/runtime/src/render/affinity-spatial-formulas.js",
       "packages/runtime/src/render/ascii-cell-style.js",
@@ -169,7 +173,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/5632f82725280511da0caf326b605c126609df15c0a79632225c9f9143f00522"
+    "retentionId": "preflights/2bba41f357b81b840b152d39bf4d9a39dfddce68191a7f653c292ae5b5c3b2b7"
   },
   "qualifies": false
 }
