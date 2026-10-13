@@ -60,7 +60,7 @@ async function walkToExit(session) {
 test("the first view is the level's board at tick 0 with the player at its seat", async () => {
   const view = (await newSession()).view();
   assert.equal(view.tick, 0);
-  assert.deepEqual(view.status, { tick: 0, exited: false, atExit: false });
+  assert.deepEqual(view.status, { tick: 0, exited: false, atExit: false, defeated: false });
   assert.deepEqual(view.player.position, { x: 2, y: 1 });
   assert.equal(view.player.id, "actor_mvp");
   assert.equal(view.rows[1], "S.@.#...#");
@@ -116,7 +116,7 @@ test("standing on the exit is atExit; core's exit dwell then exits", async () =>
   assert.equal(last.status.exited, false);
   assert.deepEqual(session.view().player.position, { x: 8, y: 7 });
   const stepped = await session.act({ kind: "wait" });
-  assert.deepEqual(stepped.status, { tick: stepped.tick, exited: true, atExit: false });
+  assert.deepEqual(stepped.status, { tick: stepped.tick, exited: true, atExit: false, defeated: false });
 });
 
 test("stepping off the exit clears atExit", async () => {
@@ -408,12 +408,33 @@ test("view().player reports its slots: how many, what is equipped in order, and 
   assert.deepEqual(session.view().player.equippedAffinityKeys, ["light:emit"]);
 });
 
+// #201: the game can be lost. Defeat is core's verdict (the player's lifecycle); once it
+// lands, status() says so and the session refuses further commands without ticking.
+test("a player worn down by a warden is defeated, and the session then refuses to act", async () => {
+  const warden = { category: "warden", id: "warden_1", position: { x: 3, y: 1 }, motivations: ["attacking"],
+    vitals: viableVitals({ mana: 60 }), affinities: [{ kind: "fire", expression: "push", stacks: 3 }],
+    activeAffinityKey: "fire:push" };
+  const level = buildUnifiedLevel({ id: "mvp_maze", tiles: MAZE,
+    actors: [{ ...PLAYER, vitals: viableVitals({ health: 10 }) }, warden] });
+  const session = await createPlaySession(level);
+  assert.equal(session.status().defeated, false);
+  let result;
+  for (let i = 0; i < 30 && !session.status().defeated; i += 1) result = await session.act({ kind: "wait" });
+  assert.equal(result.status.defeated, true, "the warden's casts defeat the player");
+  assert.equal(result.status.exited, false);
+  const tick = session.status().tick;
+  const after = await session.act({ kind: "wait" });
+  assert.deepEqual(after.rejected.map((entry) => entry.reason), ["defeated"]);
+  assert.equal(after.tick, tick, "no tick runs after defeat");
+});
+
 // ## TODO: Test Permutations
 // - an actor that emits light sees one more tile per stack
 // - a dark cell is unknown from beyond one tile
 // - each of the eight directions from an open floor cell (accepted, position delta)
 // - diagonal moves that cut a wall corner (core's answer, whatever it is, is reported verbatim)
 // - a warden's cast lowers the player's health in view()
+// - a player defeated on the exit tile is defeated, not atExit
 // - an exit-ineligible (warden) player reaches atExit but never exits
 // - repeated rejected moves each advance the tick by one
 // - loot from a defeated actor two tiles away is not offered

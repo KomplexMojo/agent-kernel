@@ -105,12 +105,14 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   await startLevel(levelIndex);
 
   async function act(command, describe = () => "") {
-    if (session.status().exited) return;
+    const before = session.status();
+    if (before.exited || before.defeated) return;
     const result = await session.act(command);
     turns += 1;
     const rejected = result.rejected[0];
-    // At the exit the status line already says how to step through.
-    if (rejected && !result.status.atExit) message = rejectionMessage(rejected.reason);
+    // At the exit, or once defeated, the status line already says what to do next.
+    if (result.status.defeated) message = "";
+    else if (rejected && !result.status.atExit) message = rejectionMessage(rejected.reason);
     else if (result.accepted.length > 0) message = describe();
   }
 

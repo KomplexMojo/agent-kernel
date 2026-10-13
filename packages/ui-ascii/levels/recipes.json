@@ -22,7 +22,7 @@
         "--room", "size=large;count=2",
         "--delver", "count=1;affinity=wind;motivation=exploring",
         "--warden", "count=1;affinity=fire;motivation=random",
-        "--warden", "count=1;affinity=water;motivation=random"
+        "--warden", "count=1;affinity=water;motivation=attacking"
       ]
     },
     {

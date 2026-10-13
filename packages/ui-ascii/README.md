@@ -42,7 +42,7 @@ Colour is on by default in a terminal and uses the application's approved palett
 | `1`–`9` | aim with that slot's push or pull (then Tab/Enter as for `f`); an emit or draw slot needs no cast |
 | `g` | take loot from a defeated neighbour (with several items, `1`–`9` picks); slot loot opens one more affinity slot |
 
-Reaching the exit's approach tile puts you **at the exit**; waiting one more tick steps you through. That is core's exit-dwell rule, not a UI rule. Every key that acts costs one turn, a blocked move included: so do an equip, a cast and a take, accepted or refused. Opening, browsing and closing a panel is free. A refusal names core's reason (not enough mana, out of range, nothing equipped). Push and pull are cast; an equipped emit or draw works on its own every turn while its mana upkeep is paid, and the HUD says when it is off waiting for mana. The HUD shows one row per affinity slot (delvers start with 3, wardens with 2); each slot pays its own upkeep and goes off on its own.
+Reaching the exit's approach tile puts you **at the exit**; waiting one more tick steps you through. That is core's exit-dwell rule, not a UI rule. If a warden's casts bring your health to 0 you are defeated: the status line says so, moves do nothing, and `r` restarts the level. Every key that acts costs one turn, a blocked move included: so do an equip, a cast and a take, accepted or refused. Opening, browsing and closing a panel is free. A refusal names core's reason (not enough mana, out of range, nothing equipped). Push and pull are cast; an equipped emit or draw works on its own every turn while its mana upkeep is paid, and the HUD says when it is off waiting for mana. The HUD shows one row per affinity slot (delvers start with 3, wardens with 2); each slot pays its own upkeep and goes off on its own.
 
 ## Where it sits
 
@@ -57,7 +57,7 @@ Reaching the exit's approach tile puts you **at the exit**; waiting one more tic
 | `src/levels.js` | Finds and parses SimConfig + InitialState artifact pairs |
 | `levels/` | Bundled levels, as `<name>.sim-config.json` + `<name>.initial-state.json`, generated from `levels/recipes.json` |
 
-The simulation side is `packages/runtime/src/runner/play-session.js`: `await createPlaySession(...)`, then `await act({ kind: "move", params: { direction } })`, `act({ kind: "wait" })`, `act({ kind: "equip_affinity", params: { affinityKey, replaceKey?, stacks? } })`, `act({ kind: "unequip_affinity", params: { affinityKey } })`, `act({ kind: "cast_affinity", params: { targetId, affinityKey? } })` or `act({ kind: "take", params: { targetId, holdingId } })`, then `view()` (including `player.affinities`, `player.affinitySlots`, `player.equippedAffinityKeys`, `player.exhaustedAffinityKeys`, `player.equippedAffinityStacks` and `loot`) and `status()`. One command, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, and when it leaves.
+The simulation side is `packages/runtime/src/runner/play-session.js`: `await createPlaySession(...)`, then `await act({ kind: "move", params: { direction } })`, `act({ kind: "wait" })`, `act({ kind: "equip_affinity", params: { affinityKey, replaceKey?, stacks? } })`, `act({ kind: "unequip_affinity", params: { affinityKey } })`, `act({ kind: "cast_affinity", params: { targetId, affinityKey? } })` or `act({ kind: "take", params: { targetId, holdingId } })`, then `view()` (including `player.affinities`, `player.affinitySlots`, `player.equippedAffinityKeys`, `player.exhaustedAffinityKeys`, `player.equippedAffinityStacks` and `loot`) and `status()`. One command, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, when it leaves, and whether it is defeated: `status()` is `{ tick, exited, atExit, defeated }`, and once the player is defeated the session refuses every command (reason `defeated`) and runs no more ticks.
 
 ## Other actors and traps
 
@@ -71,7 +71,7 @@ Every bundled level is `ak create` output: the Configurator lays out the rooms a
 |---|---|
 | `first-steps` | one small room |
 | `long-way-round` | three large rooms |
-| `warden-hall` | two large rooms, a fire and a water warden wandering at random. The Configurator posts the first warden on the exit's approach, so the exit opens once it moves |
+| `warden-hall` | two large rooms. The fire warden wanders at random; the Configurator posts it on the exit's approach, so the exit opens once it moves. The water warden attacks: it equips its push and casts at you whenever you are in reach, so you can lose here (r restarts the level) |
 | `water-traps` | three small rooms, three water `emit` traps |
 
 Tests that need an exact board shape use the hand-written levels in `tests/fixtures/ui-ascii/levels/`.

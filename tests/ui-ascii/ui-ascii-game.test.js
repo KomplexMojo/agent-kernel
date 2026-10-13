@@ -557,6 +557,29 @@ test("a cast at a lowered level reaches only that far", async () => {
   assert.match(game.screen(), /Out of range\./);
 });
 
+// #201: the game can be lost; the defeat screen says how to try again, and r restarts.
+test("a defeated player sees the defeat line; moves do nothing and r restarts the level", async () => {
+  const level = buildUnifiedLevel({
+    id: "ambush",
+    tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+        vitals: viableVitals(), affinities: [] },
+      { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["attacking"],
+        vitals: viableVitals({ mana: 60 }), affinities: [{ kind: "fire", expression: "push", stacks: 3 }],
+        activeAffinityKey: "fire:push" },
+    ],
+  });
+  const game = await createGame({ levels: [{ name: "ambush", ...level }], fog: false });
+  for (let i = 0; i < 30 && !/defeated/.test(game.screen()); i += 1) await press(game, ".");
+  assert.match(game.screen(), /You were defeated\. Press r to try the level again, q to quit\./);
+  const turns = game.state().turns;
+  await press(game, "d");
+  assert.equal(game.state().turns, turns, "a move after defeat is ignored");
+  await press(game, "r");
+  assert.doesNotMatch(game.screen(), /You were defeated/);
+});
+
 // ## TODO: Test Permutations
 // - every key in the keymap, upper and lower case
 // - --run with each of the build/create/configurator subdirectories

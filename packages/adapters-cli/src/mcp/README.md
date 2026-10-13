@@ -1707,7 +1707,7 @@ Shows a level in the terminal UI (`packages/ui-ascii`) through `ak play --json`.
 
 ```json
 { "ok": true, "command": "play", "level": "water-traps-mcp", "turns": 0,
-  "status": { "tick": 0, "exited": false, "atExit": false },
+  "status": { "tick": 0, "exited": false, "atExit": false, "defeated": false },
   "screen": "agent-kernel maze — ...\n  ####H.@..#\n...",
   "launch": "node packages/adapters-cli/src/cli/ak.mjs play --sim-config ... --initial-state ..." }
 ```
