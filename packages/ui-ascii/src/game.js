@@ -351,7 +351,14 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       finished,
       message,
       panel: panel?.type ?? null,
+      warnings: viabilityWarnings(),
     };
+  }
+
+  /** The Configurator's report on this level's actors below the viability floor, worded. */
+  function viabilityWarnings() {
+    return (session.viabilityReport || []).map(({ actorId, vital, field, value, floor }) =>
+      `${actorId} ${vital} ${field} is ${value}, below the viability floor of ${floor}.`);
   }
 
   /** This level's played commands as a player capture (#204), naming the level it was played on. */

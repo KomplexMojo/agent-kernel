@@ -46,6 +46,7 @@ import {
   applyMotivationDerivedVitalRequirements,
   applyViabilityDerivedVitalRequirements,
   assessDelverStructure,
+  reportActorViabilityFloor,
   buildBudgetEnvelope,
   buildMinimumDelverCard,
   cloneVitals,
@@ -371,6 +372,8 @@ export function attachConfiguratorServices({ fsm } = {}) {
      */
     applyMotivationDerivedVitalRequirements,
     applyViabilityDerivedVitalRequirements,
+    /** A loaded level's actors below the viability floor: reported, never raised. */
+    reportActorViabilityFloor,
     /** AM.5/F14 — an actor holding an affinity must be able to pay to express it. */
     applyAffinityDerivedVitalRequirements,
     /**

@@ -296,6 +296,26 @@ test("the cli plays a scripted game end to end, as text or JSON", () => {
   assert.match(noTty.stderr, /interactive terminal/);
 });
 
+test("the cli plays a level below the viability floor as written and warns about it", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ak-maze-floor-"));
+  try {
+    const vitals = viableVitals({ mana: 4 });
+    const level = buildUnifiedLevel({ id: "weak_floor", tiles: ["#####", "#S.E#", "#####"],
+      actors: [{ category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals }] });
+    const { writeFileSync } = require("node:fs");
+    writeFileSync(join(dir, "sim-config.json"), JSON.stringify(level.simConfig));
+    writeFileSync(join(dir, "initial-state.json"), JSON.stringify(level.initialState));
+    const files = ["--sim-config", join(dir, "sim-config.json"), "--initial-state", join(dir, "initial-state.json")];
+    const json = spawnSync(process.execPath, [CLI, ...files, "--json", "--keys", ""], { encoding: "utf8" });
+    assert.equal(json.status, 0, json.stderr);
+    const message = "delver_1 mana max is 4, below the viability floor of 10.";
+    assert.deepEqual(JSON.parse(json.stdout).warnings, [message]);
+    assert.match(json.stderr, new RegExp(`warning: ${message.replace(/\./g, "\\.")}`));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("other actors are drawn over the board rows with the snapshot's letters, never over the player", () => {
   const rows = ["#####", "#@..#", "#####"];
   const actors = [

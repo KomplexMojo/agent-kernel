@@ -421,6 +421,21 @@ test("view().player states core's cast rules as data: castable slots, their reac
   assert.deepEqual(session.view().player.castableAffinities, { "water:push": { range: 2 } }, "reach follows the running stacks");
 });
 
+test("a level below the viability floor still plays as written; the floor is only reported", async () => {
+  assert.deepEqual((await newSession()).viabilityReport, [], "a level that meets the floor reports nothing");
+  const vitals = viableVitals({ health: 5 });
+  const weak = { ...PLAYER, vitals: { ...vitals, health: { ...vitals.health, regen: 0 } } };
+  const level = buildUnifiedLevel({ id: "weak_maze", tiles: MAZE, actors: [weak] });
+  const session = await createPlaySession(level);
+  assert.deepEqual(session.viabilityReport, [
+    { actorId: "actor_mvp", vital: "health", field: "max", value: 5, floor: 10 },
+    { actorId: "actor_mvp", vital: "health", field: "regen", value: 0, floor: 1 },
+  ]);
+  assert.equal(session.view().player.vitals.find((v) => v.key === "health").max, 5, "not raised on load");
+  const result = await session.act(move("west"));
+  assert.equal(result.tick, 1);
+});
+
 // #201: the game can be lost. Defeat is core's verdict (the player's lifecycle); once it
 // lands, status() says so and the session refuses further commands without ticking.
 test("a player worn down by a warden is defeated, and the session then refuses to act", async () => {

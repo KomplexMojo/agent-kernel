@@ -262,7 +262,7 @@ Options:
   --dir           play: an \`ak create --out-dir\` or run directory holding sim-config.json + initial-state.json
   --level         play: a bundled ui-ascii level (default: all bundled levels, in order)
   --keys          play: apply these keys without a terminal and print the final screen (e.g. "ddss.")
-  --json          play: print { ok, level, turns, status, screen, launch } instead of the screen
+  --json          play: print { ok, level, turns, status, screen, launch, warnings? } instead of the screen
   --no-fog        play: debug view of the whole map (play is always under fog of war)
   --record        play: save the played commands to this path (CapturedInputArtifact)
   --replay        play: re-run a saved game on its level, then continue
@@ -6245,6 +6245,7 @@ async function playCommand(argv) {
   if (args.json) {
     emitJsonStdout({ ...result, command: "play", source, launch: launchCommand(source) });
   } else {
+    for (const warning of result.warnings || []) console.error(`warning: ${warning}`);
     console.log(result.screen);
   }
 }

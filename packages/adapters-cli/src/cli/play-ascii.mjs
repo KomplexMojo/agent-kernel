@@ -60,7 +60,7 @@ export function captureArgs({ recordPath, replayPath } = {}) {
 
 /**
  * Run the UI with `keys` and return its result:
- * `{ ok, level, turns, status, screen }`, or `{ ok: false, error }`.
+ * `{ ok, level, turns, status, screen, warnings? }`, or `{ ok: false, error }`.
  */
 export function playAsciiScripted({ source, keys = "", color = false, fog = true, recordPath, replayPath }) {
   const result = spawnSync(

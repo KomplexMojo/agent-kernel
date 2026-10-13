@@ -26,7 +26,7 @@ const USAGE = `Usage: ak-maze [options]
   --keys <keys>           non-interactive: apply these keys, print the final screen, exit
   --record <path>         on exit, write the played commands as a CapturedInputArtifact
   --replay <path>         first re-run a recorded game on its level, then continue
-  --json                  with --keys: print {ok, level, turns, status, screen} as JSON
+  --json                  with --keys: print {ok, level, turns, status, screen, warnings?} as JSON
   --list                  list bundled levels
   --color                 colour even when output is not a terminal
   --no-color              plain text output (also: NO_COLOR set in the environment)
@@ -169,13 +169,16 @@ export async function main(argv = process.argv.slice(2)) {
     console.error(error.message);
     return 1;
   }
+  // Reported, not fixed: the level is played as written.
+  const { warnings } = game.state();
+  for (const warning of warnings) console.error(`warning: ${warning}`);
   if (options.keys !== undefined || (options.replayPath && (options.json || !process.stdin.isTTY))) {
     const color = options.json ? options.color === "always" : shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env });
     const screen = await runScripted(game, options.keys ?? "", { color });
     if (options.recordPath) recordGame(game, options.recordPath);
     if (options.json) {
       const { levelName, turns, status } = game.state();
-      console.log(JSON.stringify({ ok: true, level: levelName, turns, status, screen }));
+      console.log(JSON.stringify({ ok: true, level: levelName, turns, status, screen, ...(warnings.length ? { warnings } : {}) }));
     } else {
       console.log(screen);
     }
