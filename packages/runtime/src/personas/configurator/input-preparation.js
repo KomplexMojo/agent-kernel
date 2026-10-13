@@ -333,7 +333,7 @@ export function mapHazards(hazards = []) {
         : null
     );
     const { kind, expression, stacks } = affinity;
-    const defaults = computeHazardVitals(expression, stacks);
+    const defaults = computeHazardVitals(expression, stacks, kind);
     const { actor, presentation } = normalizeActorDefinition({
       category: "hazard",
       id,

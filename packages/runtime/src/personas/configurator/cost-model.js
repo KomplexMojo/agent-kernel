@@ -24,8 +24,7 @@
  *   - **Normalizers** (`normalizeVitals`, `normalizeRegen`, `normalizeAffinityList`) and
  *     **prerequisites** (`validateAffinityPrereqs`) — configuration SHAPE, which is
  *     Configurator law.
- *   - **Runtime affinity math** (`computeExternalManaUse`, `computeInternalManaUpkeep`,
- *     `computeInternalRadius`, `computeDrawNet`,
+ *   - **Runtime affinity math** (`computeInternalManaUpkeep`, `computeInternalRadius`, `computeDrawNet`,
  *     `computeEmitStrength`) — what an affinity DOES during a tick, in mana and tiles, with
  *     its own literals. None of it is denominated in tokens, and none of it ever read the
  *     deleted constants.
@@ -33,15 +32,6 @@
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
 
 const REGEN_KEYS = Object.freeze([...VITAL_KEYS]);
-
-/**
- * External expression runtime mana cost for stack s (design §9.1).
- * Formula: 5 + 4·(s-1)²
- */
-export function computeExternalManaUse(s) {
-  if (!Number.isInteger(s) || s < 1) return 0;
-  return 5 + 4 * Math.pow(s - 1, 2);
-}
 
 /**
  * Internal expression upkeep per turn for stack s (design §9.2).
