@@ -132,7 +132,7 @@ function objectiveId(id, index) {
   return `place_${safe || index + 1}`;
 }
 
-function buildPlacementContext({ layout, hazards = [], resources = [], actors = [] } = {}) {
+function buildPlacementContext({ layout, hazards = [], resources = [], actors = [], affinityRules } = {}) {
   if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
     return { status: "error", reason: "invalid_layout" };
   }
@@ -184,7 +184,8 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
   if (!pathExists(cells, spawn, exit, blocking)) {
     return { status: "unsat", reason: "path_obstruction" };
   }
-  return { status: pending.length === 0 ? "bypass" : "ready", layout, objects, pending, fixed, cells, candidates, blocking, spawn, exit };
+  return { status: pending.length === 0 ? "bypass" : "ready", layout, objects, pending, fixed, cells, candidates, blocking, spawn, exit,
+    affinityRules };
 }
 
 /** Author the complete binary assignment and reachability problem. */
@@ -315,11 +316,11 @@ function resourceActors(placed) {
   return mapResources(placed.map(({ kind, roomId, blocking, x, y, ...request }) => request));
 }
 
-function hazardActors(placed) {
+function hazardActors(placed, affinityRules) {
   return mapHazards(placed.map(({ kind, roomId, source, templateId, templateInstanceId,
     x, y, ...request }) => ({ ...request,
     position: request.position ?? { x, y },
-  })));
+  })), { affinityRules });
 }
 
 function applyPlacements(prepared, solved, source) {
@@ -334,7 +335,7 @@ function applyPlacements(prepared, solved, source) {
   const allHazards = [...(Array.isArray(data.hazards) ? data.hazards : []), ...hazards];
   delete data.hazards;
   return { ok: true, source, layout: output,
-    actors: [...hazardActors(allHazards), ...resourceActors(resources)] };
+    actors: [...hazardActors(allHazards, prepared.affinityRules), ...resourceActors(resources)] };
 }
 
 /** Re-check every hard constraint before accepting an adapter model. */
@@ -382,7 +383,7 @@ export function consumeObjectPlacementResult({ prepared, rawResult } = {}) {
   return applyPlacements(prepared, solved, "solver");
 }
 
-function placeObjectsLegacy({ layout, hazards = [], resources = [] } = {}) {
+function placeObjectsLegacy({ layout, hazards = [], resources = [], affinityRules } = {}) {
   const output = clone(layout);
   const data = dataOf(output);
   const occupied = new Set();
@@ -423,7 +424,7 @@ function placeObjectsLegacy({ layout, hazards = [], resources = [] } = {}) {
   const allHazards = [...(Array.isArray(data.hazards) ? data.hazards : []), ...placedHazards];
   delete data.hazards;
   return { ok: true, source: "fallback", layout: output,
-    actors: [...hazardActors(allHazards), ...resourceActors(placedResources)] };
+    actors: [...hazardActors(allHazards, affinityRules), ...resourceActors(placedResources)] };
 }
 
 /** Consume host output; deferred/error/capability absence keeps the characterized fallback. */
