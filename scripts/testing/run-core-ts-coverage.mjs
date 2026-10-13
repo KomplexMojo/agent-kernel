@@ -33,7 +33,6 @@ const args = [
   "--coverage.enabled",
   "tests/core-ts/",
   "tests/bindings/",
-  "tests/runtime/affinity-aura-lifecycle.test.js",
   "tests/ui-web/preview-view.test.mjs",
 ];
 

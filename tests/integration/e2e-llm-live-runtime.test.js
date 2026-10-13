@@ -17,40 +17,6 @@ function appendJsonl(path, record) {
   appendFileSync(resolved, `${JSON.stringify(record)}\n`, "utf8");
 }
 
-function createStubCore() {
-  const state = {
-    width: 0,
-    height: 0,
-    grid: [],
-    actor: { x: 0, y: 0, vitals: [] },
-  };
-
-  return {
-    configureGrid(width, height) {
-      state.width = width;
-      state.height = height;
-      state.grid = Array.from({ length: height }, () => Array.from({ length: width }, () => 1));
-      return 0;
-    },
-    setTileAt(x, y, value) {
-      if (state.grid[y]) state.grid[y][x] = value;
-    },
-    spawnActorAt(x, y) {
-      state.actor.x = x;
-      state.actor.y = y;
-    },
-    setActorVital(index, current, max, regen) {
-      state.actor.vitals[index] = { current, max, regen };
-    },
-    getMapWidth() {
-      return state.width;
-    },
-    getMapHeight() {
-      return state.height;
-    },
-  };
-}
-
 function unwrapCodeFence(text) {
   if (!text) return text;
   const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
@@ -416,19 +382,13 @@ test("live llm prompt flows into build + runtime", async (t) => {
   assert.ok(buildResult.initialState);
   assert.equal(buildResult.capturedInputs?.length, 1);
 
-  const { createCore } = await import("../../packages/core-ts/src/index.ts");
-  let core = createCore();
-
-  ["configureGrid", "setTileAt", "spawnActorAt", "setActorVital"].forEach((method) => {
-    assert.equal(typeof core[method], "function", `core.${method} must be a function`);
-  });
-  const runtimeLoad = initializeCoreFromArtifacts(core, {
+  const { registry } = initializeCoreFromArtifacts({
     simConfig: buildResult.simConfig,
     initialState: buildResult.initialState,
   });
+  const snapshot = registry.snapshot();
 
-  assert.equal(runtimeLoad.layout.ok, true);
-  assert.equal(runtimeLoad.actor.ok, true);
-  assert.equal(core.getMapWidth(), runtimeLoad.layout.dimensions.width);
-  assert.equal(core.getMapHeight(), runtimeLoad.layout.dimensions.height);
+  assert.equal(snapshot.dimensions.width, buildResult.simConfig.layout.data.width);
+  assert.equal(snapshot.dimensions.height, buildResult.simConfig.layout.data.height);
+  assert.equal(snapshot.actors.length, buildResult.initialState.actors.length);
 });

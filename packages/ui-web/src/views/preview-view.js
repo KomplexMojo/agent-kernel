@@ -1,4 +1,3 @@
-import { createRuntimeCore } from "../../../runtime/src/runner/core-facade.js";
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
 import { readActorRegistryObservation } from "../../../core-ts/src/rules/actor-observation.ts";
 import { collectBuildSpecCardSet } from "../build-spec-ui.js";
@@ -157,13 +156,6 @@ function clearCanvas(canvas) {
 
 export function wirePreviewView({
   root = document,
-  createCoreFn = createRuntimeCore,
-  applySimConfig = null,
-  applyInitialState = null,
-  // Injected together with `applySimConfig`; the default path reads the actor registry.
-  renderFrame = null,
-  renderBase = null,
-  readObservationFn = null,
   renderBundleBoard = renderBundleBoardToCanvas,
   actorInspector = null,
   onBuildAndLoadGame,
@@ -181,8 +173,6 @@ export function wirePreviewView({
   const actorsEl = root.querySelector("#preview-actor-list");
   const rendererButtons = Array.from(root.querySelectorAll?.("[data-preview-renderer]") || []);
 
-  let core = null;
-  let loadingCore = null;
   let lastBundle = null;
   let buildingGame = false;
   let lastPreviewState = null;
@@ -259,22 +249,6 @@ export function wirePreviewView({
       showAsciiFrame();
       return false;
     }
-  }
-
-  async function ensureCore() {
-    if (core) return core;
-    if (!loadingCore) {
-      setStatus(statusEl, "Loading preview engine...");
-      loadingCore = Promise.resolve(createCoreFn())
-        .then((loaded) => {
-          core = loaded;
-          return loaded;
-        })
-        .finally(() => {
-          loadingCore = null;
-        });
-    }
-    return loadingCore;
   }
 
   function clearPreview(
@@ -357,49 +331,12 @@ export function wirePreviewView({
     lastBundle = bundle;
 
     try {
-      const runtimeCore = await ensureCore();
-      const seed = Number.isFinite(simConfig?.seed) ? simConfig.seed : 0;
-      runtimeCore.init?.(seed);
-
-      const sortedActors = sortActors(initialState?.actors);
-      const hasActors = sortedActors.length > 0;
-      let actorIdLabel = "actor_preview";
-      let actorIds = [];
-      let baseTiles;
-      let frame;
-      let observation;
-
-      if (typeof applySimConfig === "function") {
-        const layoutResult = applySimConfig(runtimeCore, simConfig);
-        if (!layoutResult?.ok) {
-          clearPreview(`Preview failed: invalid layout (${layoutResult?.reason || "unknown"}).`, "error");
-          return false;
-        }
-        if (hasActors) {
-          actorIds = sortedActors.map((actor) => actor.id).filter(Boolean);
-          actorIdLabel = actorIds[0] || actorIdLabel;
-          if (typeof applyInitialState === "function") {
-            const actorResult = applyInitialState(runtimeCore, initialState, { spawn: layoutResult.spawn });
-            if (!actorResult?.ok) {
-              clearPreview(`Preview failed: invalid actors (${actorResult?.reason || "unknown"}).`, "error");
-              return false;
-            }
-          }
-        }
-        baseTiles = renderBase(runtimeCore);
-        frame = hasActors
-          ? renderFrame(runtimeCore, { actorIdLabel })
-          : { tick: 0, baseTiles, buffer: baseTiles };
-        observation = hasActors
-          ? readObservationFn(runtimeCore, { actorIdLabel, actorIds })
-          : { actors: [] };
-      } else {
-        const loaded = initializeCoreFromArtifacts({ simConfig, initialState });
-        const snapshot = loaded.registry.snapshot();
-        baseTiles = terrainRows(snapshot);
-        observation = readActorRegistryObservation(loaded.registry, 0);
-        frame = { tick: 0, baseTiles, buffer: baseTiles };
-      }
+      const hasActors = sortActors(initialState?.actors).length > 0;
+      const loaded = initializeCoreFromArtifacts({ simConfig, initialState });
+      const snapshot = loaded.registry.snapshot();
+      const baseTiles = terrainRows(snapshot);
+      const observation = readActorRegistryObservation(loaded.registry, 0);
+      const frame = { tick: 0, baseTiles, buffer: baseTiles };
 
       const previewTiles = Array.isArray(frame?.baseTiles) && frame.baseTiles.length > 0
         ? frame.baseTiles

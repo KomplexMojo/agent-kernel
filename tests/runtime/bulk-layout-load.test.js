@@ -1,5 +1,5 @@
 /**
- * Bulk layout load now goes through one registry snapshot, not per-cell setTileAt.
+ * Bulk layout load goes through one actor-registry snapshot; core keeps no tile grid of its own.
  */
 const assert = require("node:assert/strict");
 

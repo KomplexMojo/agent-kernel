@@ -143,7 +143,6 @@ guard confirm it. Do not hand-edit a value.
 |---|---|
 | `resource-bundle.js` | Assembling the versioned `ResourceBundleArtifact`, including inlined asset data URIs. |
 | `affinity-palette.js` | Affinity colour re-export and stack-intensity tiers. |
-| `affinity-aura.js` | Legacy JS aura output, retained for compatibility only — new surfaces must use `core-ts` field records. |
 | `affinity-tile-mask.js`, `affinity-spatial-formulas.js` | Tile-level affinity geometry. |
 | `visualization-snapshot.js` | ASCII/state snapshot assembly. |
 | `actor-medallion-composer.js` | **Retired for the board.** Still used by `resource-bundle.js` to emit medallion component assets. Do not use it for new surfaces. |

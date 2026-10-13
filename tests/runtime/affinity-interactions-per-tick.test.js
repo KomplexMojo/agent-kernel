@@ -132,37 +132,6 @@ test("a cancelling cell reduces both actors' stacks in core", async () => {
   assert.equal(stacksOf(runtime, "warden_1"), 2, "target stacks stay authored; cancellation is a field net");
 });
 
-test("the Moderator plans pairs deterministically, lower index first", async () => {
-  const { planAffinityInteractions } = await import(
-    "../../packages/runtime/src/personas/moderator/affinity-interactions.js"
-  );
-  const computeRadius = () => 2;
-  const actors = [
-    { index: 2, x: 5, y: 5, kind: 1, expression: 3, stacks: 2 },
-    { index: 0, x: 6, y: 5, kind: 2, expression: 3, stacks: 2 },
-    { index: 1, x: 20, y: 20, kind: 1, expression: 3, stacks: 2 },
-  ];
-
-  const pairs = planAffinityInteractions({ actors, computeRadius });
-  assert.equal(pairs.length, 1, "only the two in contact may pair; the distant actor must not");
-  assert.equal(pairs[0].sourceIndex, 0, "lower index is the source regardless of input order");
-  assert.equal(pairs[0].targetIndex, 2);
-});
-
-test("an actor with no affinity is never paired", async () => {
-  const { planAffinityInteractions } = await import(
-    "../../packages/runtime/src/personas/moderator/affinity-interactions.js"
-  );
-  const pairs = planAffinityInteractions({
-    actors: [
-      { index: 0, x: 5, y: 5, kind: 0, expression: 0, stacks: 0 },
-      { index: 1, x: 5, y: 6, kind: 1, expression: 3, stacks: 2 },
-    ],
-    computeRadius: () => 3,
-  });
-  assert.deepEqual(pairs, [], "nothing to resolve against an actor that holds no affinity");
-});
-
 test("SAME-kind fields resolve but do NOT cancel", async () => {
   const runtime = await startRuntime([
     actor("delver_1", { x: 5, y: 5 }, { kind: "fire", expression: "emit", stacks: 3 }),
@@ -236,70 +205,17 @@ test("EQUAL opposite stacks cancel to nothing, and BOTH sides are cleared", asyn
   assert.equal(stacksOf(runtime, "warden_1"), 2);
 });
 
-test("the Moderator plans every overlapping pair, but resolution consumes what it cancels", async () => {
-  const { planAffinityInteractions } = await import(
-    "../../packages/runtime/src/personas/moderator/affinity-interactions.js"
-  );
+test("with three actors in contact, the first pair shares cells and the third actor keeps its stacks", async () => {
   const runtime = await startRuntime([
     actor("delver_1", { x: 5, y: 5 }, { kind: "fire", expression: "emit", stacks: 2 }),
     actor("warden_1", { x: 6, y: 5 }, { kind: "water", expression: "emit", stacks: 2 }),
     actor("warden_2", { x: 5, y: 6 }, { kind: "earth", expression: "emit", stacks: 2 }),
   ]);
 
-  const planned = planAffinityInteractions({
-    actors: [
-      { index: 0, x: 5, y: 5, kind: 1, expression: 3, stacks: 2 },
-      { index: 1, x: 6, y: 5, kind: 2, expression: 3, stacks: 2 },
-      { index: 2, x: 5, y: 6, kind: 3, expression: 3, stacks: 2 },
-    ],
-    computeRadius: () => 2,
-  });
-  assert.equal(planned.length, 3, "all three pairs are in contact");
-
   await runtime.step();
   const observation = await observe(runtime);
   assert.ok(sharedCells(observation.affinityContributions, "delver_1", "warden_1").length > 0);
   assert.equal(stacksOf(runtime, "warden_2"), 2, "the third actor is untouched");
-});
-
-test("the tie-break is stable under input reordering, so replay is safe", async () => {
-  const { planAffinityInteractions } = await import(
-    "../../packages/runtime/src/personas/moderator/affinity-interactions.js"
-  );
-  const computeRadius = () => 3;
-  const forward = [
-    { index: 0, x: 5, y: 5, kind: 1, expression: 3, stacks: 2 },
-    { index: 1, x: 6, y: 5, kind: 2, expression: 3, stacks: 2 },
-    { index: 2, x: 5, y: 6, kind: 3, expression: 3, stacks: 2 },
-  ];
-  const shuffled = [forward[2], forward[0], forward[1]];
-
-  assert.deepEqual(
-    planAffinityInteractions({ actors: shuffled, computeRadius }),
-    planAffinityInteractions({ actors: forward, computeRadius }),
-    "the plan must depend on actor INDEX, not on the order the caller happened to hand them over. "
-      + "If it did not, two runs of the same scenario could resolve different pairs and `ak replay` "
-      + "would mismatch.",
-  );
-});
-
-test("a zero radius means no contact, even on adjacent tiles", async () => {
-  const { planAffinityInteractions } = await import(
-    "../../packages/runtime/src/personas/moderator/affinity-interactions.js"
-  );
-  const pairs = planAffinityInteractions({
-    actors: [
-      { index: 0, x: 5, y: 5, kind: 1, expression: 3, stacks: 2 },
-      { index: 1, x: 5, y: 6, kind: 2, expression: 3, stacks: 2 },
-    ],
-    computeRadius: () => 0,
-  });
-  assert.deepEqual(
-    pairs,
-    [],
-    "reach comes from core's radius curve, not from adjacency. Two actors on touching tiles whose "
-      + "fields have no extent are not in contact.",
-  );
 });
 
 // ## TODO: Test Permutations

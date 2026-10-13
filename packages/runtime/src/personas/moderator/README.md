@@ -213,10 +213,10 @@ have exactly one origin each, and `runtime-fsm.mjs` asks for a plan and executes
 | Effect fulfilment + emission order | `effect-fulfillment.js` | `plan_effect_fulfillment` (EMIT phase) |
 | Affinity target resolution | `affinity-target-effects.js` | `resolve_affinity` (APPLY phase) |
 
-`plan_tick_close` (`tick-close.js`) and `plan_affinity_interactions` (`affinity-interactions.js`)
-still answer, but since #227 no runner asks either: both planned work on the old core world
-(advancing its tick and recomputing its affinity field; resolving contact between its actors), and
-the actor registry closes its own tick in `core-ts/src/rules/actor-turn.ts`. Affinity target
+The Moderator no longer plans tick close or affinity contact: both events planned work on the old
+core world (advancing its tick and recomputing its affinity field; resolving contact between its
+actors), no runner asked for either after #227, and #258 removed them. The actor registry closes its
+own tick and resolves overlapping fields in `core-ts/src/rules/actor-turn.ts`. Affinity target
 resolution plans `arm_static_hazard` only; `raise_barrier` and `destroy_barrier` were dropped with
 the old engine (#206), since they only wrote the old core world's tiles.
 

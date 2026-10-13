@@ -119,8 +119,8 @@ describe("core-ts API surface permutations", () => {
       callableCount++;
     }
 
-    // At least 78 callable functions (#227 removed the old core world's actor,
-    // hazard, resource and tile-actor surface)
-    expect(callableCount).toBeGreaterThanOrEqual(78);
+    // At least 71 callable functions (#227 removed the old core world's actor,
+    // hazard, resource and tile-actor surface; #258 removed its tile grid)
+    expect(callableCount).toBeGreaterThanOrEqual(71);
   });
 });
