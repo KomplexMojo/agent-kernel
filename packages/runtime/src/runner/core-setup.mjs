@@ -41,7 +41,10 @@ export function initializeCoreFromArtifacts({ simConfig, initialState } = {}) {
     throw new Error('presentation must contain exactly one valid category per actor ID');
   }
   const costs = simConfig.actionCosts;
-  if (!plain(costs) || !plain(costs.castMana) || !plain(costs.movementStamina)) {
+  // Cast prices are either the escalating curve's bases (castManaBase, #232) or a legacy
+  // run's five-tier tables (castMana); core validates which.
+  const castPrices = plain(costs) ? (costs.castManaBase ?? costs.castMana) : undefined;
+  if (!plain(costs) || !plain(castPrices) || !plain(costs.movementStamina)) {
     throw new Error('missing normalized action costs');
   }
   // Validate authored cost values with core without resolving any action/field phase.
@@ -52,7 +55,7 @@ export function initializeCoreFromArtifacts({ simConfig, initialState } = {}) {
     }
     for (const pair of actor.affinities) {
       const key = `${pair.kind}:${pair.expression}`;
-      if (!Object.hasOwn(costs.castMana, key)) throw new Error(`missing authored cast costs for ${key}`);
+      if (!Object.hasOwn(castPrices, key)) throw new Error(`missing authored cast costs for ${key}`);
     }
   }
   return { registry, costs: structuredClone(costs), presentation: structuredClone(presentation) };

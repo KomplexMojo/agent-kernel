@@ -138,287 +138,47 @@
     }
   },
   "actionCosts": {
-    "castMana": {
-      "fire:push": [
-        3,
-        6,
-        9,
-        12,
-        15
-      ],
-      "fire:pull": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "fire:emit": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "fire:draw": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "water:push": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "water:pull": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "water:emit": [
-        2,
-        3,
-        5,
-        7,
-        9
-      ],
-      "water:draw": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "earth:push": [
-        3,
-        5,
-        7,
-        9,
-        11
-      ],
-      "earth:pull": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "earth:emit": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "earth:draw": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "wind:push": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "wind:pull": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "wind:emit": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "wind:draw": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "life:push": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "life:pull": [
-        0,
-        1,
-        2,
-        3,
-        4
-      ],
-      "life:emit": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "life:draw": [
-        0,
-        1,
-        2,
-        3,
-        4
-      ],
-      "decay:push": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "decay:pull": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "decay:emit": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "decay:draw": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "corrode:push": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "corrode:pull": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "corrode:emit": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "corrode:draw": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "fortify:push": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "fortify:pull": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "fortify:emit": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "fortify:draw": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "light:push": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "light:pull": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "light:emit": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "light:draw": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "dark:push": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "dark:pull": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ],
-      "dark:emit": [
-        2,
-        4,
-        6,
-        8,
-        10
-      ],
-      "dark:draw": [
-        1,
-        2,
-        3,
-        4,
-        5
-      ]
+    "castManaBase": {
+      "fire:push": 3,
+      "fire:pull": 1,
+      "fire:emit": 2,
+      "fire:draw": 1,
+      "water:push": 2,
+      "water:pull": 1,
+      "water:emit": 2,
+      "water:draw": 1,
+      "earth:push": 3,
+      "earth:pull": 1,
+      "earth:emit": 2,
+      "earth:draw": 1,
+      "wind:push": 2,
+      "wind:pull": 1,
+      "wind:emit": 2,
+      "wind:draw": 1,
+      "life:push": 2,
+      "life:pull": 1,
+      "life:emit": 2,
+      "life:draw": 0,
+      "decay:push": 2,
+      "decay:pull": 1,
+      "decay:emit": 2,
+      "decay:draw": 1,
+      "corrode:push": 2,
+      "corrode:pull": 1,
+      "corrode:emit": 2,
+      "corrode:draw": 1,
+      "fortify:push": 2,
+      "fortify:pull": 1,
+      "fortify:emit": 2,
+      "fortify:draw": 1,
+      "light:push": 2,
+      "light:pull": 1,
+      "light:emit": 2,
+      "light:draw": 1,
+      "dark:push": 2,
+      "dark:pull": 1,
+      "dark:emit": 2,
+      "dark:draw": 1
     },
     "movementStamina": {
       "card_delver_1-1": 1

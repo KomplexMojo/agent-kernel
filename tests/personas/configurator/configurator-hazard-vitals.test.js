@@ -39,10 +39,10 @@ test("resolveAffinityEffects computes hazard vitals from expression and stacks w
       ],
     });
 
-    // Two casts at water push tier 2 (4 mana each), the price core charges (#233).
+    // Two casts of water push at 2 stacks (2 × 3 = 6 mana each), the price core charges (#232, #233).
     const hazard = result.hazards[0];
-    assert.equal(hazard.vitals.mana.current, 8);
-    assert.equal(hazard.vitals.mana.max, 8);
+    assert.equal(hazard.vitals.mana.current, 12);
+    assert.equal(hazard.vitals.mana.max, 12);
     assert.equal(hazard.vitals.mana.regen, 0);
     assert.equal(hazard.vitals.durability.current, 6);
     assert.equal(hazard.vitals.durability.max, 6);
@@ -231,13 +231,15 @@ test("mapHazards assigns hazard_N when generated layout occupants omit id", asyn
 test("a push/pull trap holds exactly two casts at the price core charges", async () => {
   const { mapHazards } = await import("../../../packages/runtime/src/personas/configurator/input-preparation.js");
   const { resolveActorTurnCosts } = await import("../../../packages/runtime/src/personas/configurator/affinity-rules.js");
-  const { castMana } = resolveActorTurnCosts({ movementStamina: {} });
-  for (const [key, prices] of Object.entries(castMana)) {
+  const { actorCastManaPrice } = await import("../../../packages/core-ts/src/rules/actor-cast.ts");
+  const { castManaBase } = resolveActorTurnCosts({ movementStamina: {} });
+  for (const [key, base] of Object.entries(castManaBase)) {
     const [kind, expression] = key.split(":");
     if (!["push", "pull"].includes(expression)) continue;
-    for (const stacks of [1, 3, 5]) {
+    for (const stacks of [1, 3, 5, 7]) {
       const [hazard] = mapHazards([{ id: "trap", x: 1, y: 1, affinity: kind, expression, stacks }]);
-      assert.deepEqual(hazard.vitals.mana, { current: 2 * prices[stacks - 1], max: 2 * prices[stacks - 1], regen: 0 },
+      const price = actorCastManaPrice(base, stacks);
+      assert.deepEqual(hazard.vitals.mana, { current: 2 * price, max: 2 * price, regen: 0 },
         `${key} at ${stacks} stacks`);
     }
   }

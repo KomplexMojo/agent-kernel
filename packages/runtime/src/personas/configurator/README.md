@@ -303,8 +303,12 @@ The Configurator is therefore a **bridge between planning and execution**, respo
   profiles cyclically. Each emitted affinity gets one deterministic unoccupied cell in its assigned
   room. Generated hazard ids include affinity plus room index; mana upkeep is `2 + stacks`, the pool
   is three upkeep ticks, regen equals upkeep, and durability is `5 * stacks`. A push or pull hazard's
-  pool is exactly two casts at the price core charges for that kind and tier (the rules artifact's
-  stack tiers), with no regen and durability `3 * stacks`.
+  pool is exactly two casts at the price core charges for that kind and stack count, with no regen
+  and durability `3 * stacks`.
+- Cast prices (#232): a push or pull costs the kind's base times `s(s+1)/2`, with no cap. The base is
+  the rules artifact's tier-1 `manaCost`; `resolveActorTurnCosts` sends it to core as
+  `actionCosts.castManaBase`, and `resolveAffinityManaCost` returns the same curve. Push/pull tiers
+  2-5 are no longer read. Every default push and pull costs at least 1.
 - Actor placement uses explicit alignment, with category supplying its authoring default. External actors
   prefer the entry room; dungeon actors prefer a matching affinity room, then the exit room,
   then any room. Spawn, exit, hazards, and resources are occupied. The resolved build output preserves

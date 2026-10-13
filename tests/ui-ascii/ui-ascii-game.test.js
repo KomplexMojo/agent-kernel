@@ -566,7 +566,7 @@ test("a defeated player sees the defeat line; moves do nothing and r restarts th
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
         vitals: viableVitals(), affinities: [] },
       { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["attacking"],
-        vitals: viableVitals({ mana: 60 }), affinities: [{ kind: "fire", expression: "push", stacks: 3 }],
+        vitals: viableVitals({ mana: 200 }), affinities: [{ kind: "fire", expression: "push", stacks: 3 }],
         activeAffinityKey: "fire:push" },
     ],
   });

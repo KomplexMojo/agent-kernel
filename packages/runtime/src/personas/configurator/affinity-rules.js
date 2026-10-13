@@ -11,6 +11,7 @@ import {
 // two independently retyped strings 80 lines apart, either of which could have drifted.
 import { AFFINITY_RULES_ARTIFACT_SCHEMA } from "../../contracts/artifacts.ts";
 import { BEHAVIOR_COMPLEXITY_CLASSES } from "./motivation-rules.js";
+import { actorCastManaPrice } from "../../../../core-ts/src/rules/actor-cast.ts";
 
 const OUTCOME_TYPES = Object.freeze([
   "cancel",
@@ -607,7 +608,7 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
         dark: "shadow_siphon",
       }[kind];
       const pushCosts = kind === "earth" ? [3, 5, 7, 9, 11] : [2, 4, 6, 8, 10];
-      const pullCosts = kind === "life" ? [0, 1, 2, 3, 4] : [1, 2, 3, 4, 5];
+      const pullCosts = [1, 2, 3, 4, 5];
       const emitCosts = [2, 4, 6, 8, 10];
       const drawCosts = kind === "life" ? [0, 1, 2, 3, 4] : [1, 2, 3, 4, 5];
       const potencyByTier = kind === "life" ? [1, 2, 3, 4, 5] : null;
@@ -748,15 +749,21 @@ export function findExpressionRule(rules, kind, expression) {
  * kernel authoritative for cast cost would make both single-target expressions
  * free. Mana is campaign-tunable data, and this artifact is where it is authored.
  *
- * Tiers are 1..5 and clamp; a kind or expression the rules do not describe
- * returns null so the caller can refuse rather than invent a price.
+ * A push or pull costs the kind's tier-1 price times s(s+1)/2, with no cap
+ * (maintainer, 2026-10-13, #232) — the same curve core charges from
+ * `castManaBase`. Emit and draw read their tier (1..5, clamped); their per-turn
+ * upkeep is `computeInternalManaUpkeep`. A kind or expression the rules do not
+ * describe returns null so the caller can refuse rather than invent a price.
  */
 export function resolveAffinityManaCost({ rules, kind, expression, stacks = 1 } = {}) {
   const expressionRule = findExpressionRule(resolveAffinityRules(rules), kind, expression);
   if (!expressionRule || !Array.isArray(expressionRule.stackTiers)) return null;
-  const tier = Math.max(1, Math.min(5, Number.isInteger(stacks) ? stacks : 1));
+  const count = Math.max(1, Number.isInteger(stacks) ? stacks : 1);
+  const cast = expression === 'push' || expression === 'pull';
+  const tier = cast ? 1 : Math.min(5, count);
   const tierRule = expressionRule.stackTiers.find((entry) => entry.tier === tier);
-  return Number.isInteger(tierRule?.manaCost) ? tierRule.manaCost : null;
+  if (!Number.isInteger(tierRule?.manaCost)) return null;
+  return cast ? actorCastManaPrice(tierRule.manaCost, count) : tierRule.manaCost;
 }
 
 // ── AM.4 — the parallel cast/interaction EVALUATOR was deleted here ─────────
@@ -793,17 +800,18 @@ export function resolveActorTurnCosts({ rules, movementStamina } = {}) {
     ? { ok: true, value: DEFAULT_AFFINITY_RULES }
     : normalizeAffinityRulesArtifact(rules);
   if (!normalized.ok) throw new Error(`invalid authored affinity rules: ${JSON.stringify(normalized.errors)}`);
+  // Core prices each cast as base × s(s+1)/2 (#232); the base is the authored tier-1 price.
   const entries = [];
   for (const kind of AFFINITY_KINDS) {
     for (const expression of AFFINITY_EXPRESSIONS) {
       const rule = normalized.value.affinities.find(entry => entry.kind === kind)
         ?.expressions.find(entry => entry.verb === expression);
-      const prices = ALLOWED_TIERS.map(tier => rule?.stackTiers.find(entry => entry.tier === tier)?.manaCost);
-      if (prices.some(price => !Number.isSafeInteger(price) || price < 0)) {
+      const base = rule?.stackTiers.find(entry => entry.tier === 1)?.manaCost;
+      if (!Number.isSafeInteger(base) || base < 0) {
         throw new Error(`missing authored mana costs: ${kind}:${expression}`);
       }
-      entries.push([`${kind}:${expression}`, prices]);
+      entries.push([`${kind}:${expression}`, base]);
     }
   }
-  return { castMana: Object.fromEntries(entries), movementStamina: structuredClone(movementStamina) };
+  return { castManaBase: Object.fromEntries(entries), movementStamina: structuredClone(movementStamina) };
 }

@@ -5,6 +5,43 @@ import { actorAffinityMagnitude, getActorAffinityEffect, resolveActorAffinity, t
 
 /** Configurator-authored tier prices; these are mana costs, not Allocator token prices. */
 export type ActorCastManaCosts = Partial<Record<ActorAffinityKey, readonly number[]>>;
+/** Configurator-authored per-kind base prices for the escalating cast curve (#232). */
+export type ActorCastManaBases = Partial<Record<ActorAffinityKey, number>>;
+/** Either the legacy five-tier tables, or the bases of the escalating curve. */
+export type ActorCastPrices = ActorCastManaCosts | { castManaBase: ActorCastManaBases };
+
+/**
+ * The mana a push or pull costs at `stacks` (maintainer, 2026-10-13, #232): the kind's
+ * base times the triangular number s(s+1)/2, with no cap, so every stack costs more
+ * than the last. The curve is the rule; the base is the Configurator's tuning.
+ */
+export function actorCastManaPrice(base: number, stacks: number): number {
+  return base * stacks * (stacks + 1) / 2;
+}
+
+const isPrice = (value: unknown): boolean => Number.isSafeInteger(value) && (value as number) >= 0;
+
+/** Throws unless `prices` is a valid tier map or base map. */
+export function assertActorCastPrices(prices: ActorCastPrices): void {
+  if ('castManaBase' in prices) {
+    if (!prices.castManaBase || typeof prices.castManaBase !== 'object'
+      || !Object.values(prices.castManaBase).every(isPrice)) throw new Error('invalid authored cast prices');
+    return;
+  }
+  for (const tiers of Object.values(prices)) {
+    if (!Array.isArray(tiers) || tiers.length !== 5 || ![...tiers].every(isPrice)) throw new Error('invalid authored cast prices');
+  }
+}
+
+/** The authored price of one cast; undefined when the key has no price. */
+function castManaCost(prices: ActorCastPrices, key: ActorAffinityKey, stacks: number): number | undefined {
+  if ('castManaBase' in prices) {
+    const base = prices.castManaBase[key];
+    return base === undefined ? undefined : actorCastManaPrice(base, stacks);
+  }
+  const tiers = (prices as ActorCastManaCosts)[key];
+  return tiers ? tiers[Math.min(5, stacks) - 1] : undefined;
+}
 export interface ActorEffectSuppression { sourceId: string; targetId: string; affinityKey: ActorAffinityKey; amount: number }
 export interface ActorCastResult {
   accepted: boolean;
@@ -38,14 +75,11 @@ function suppressedSlot(target: ActorRecord, kind: string): ActorAffinityEntry |
 /** Focused effect primitive. The turn executor consumes its pending suppression record. */
 export function castFocusedActorAffinity(
   registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital'>,
-  sourceId: string, targetId: string, manaCosts: ActorCastManaCosts, suppressedAmount = 0,
+  sourceId: string, targetId: string, manaCosts: ActorCastPrices, suppressedAmount = 0,
   castKey?: ActorAffinityKey,
 ): ActorCastResult {
   if (!Number.isFinite(suppressedAmount) || suppressedAmount < 0) throw new Error('invalid suppressed amount');
-  for (const prices of Object.values(manaCosts)) {
-    if (!Array.isArray(prices) || prices.length !== 5
-      || ![...prices].every(price => Number.isSafeInteger(price) && price >= 0)) throw new Error('invalid authored cast prices');
-  }
+  assertActorCastPrices(manaCosts);
   const reject = (rejection: string): ActorCastResult => ({ accepted: false, changes: [], rejection });
   const source = registry.getActor(sourceId); const target = registry.getActor(targetId);
   if (source?.lifecycle !== 'alive') return reject('WrongActor');
@@ -57,9 +91,8 @@ export function castFocusedActorAffinity(
     Math.abs(source.position.y - target.position.y)) > pair.stacks) return reject('TargetOutOfRange');
   const effect = getActorAffinityEffect(pair.kind, pair.expression);
   if (effect.operation === 'drain' && sourceId === targetId) return reject('InvalidTarget');
-  const prices = manaCosts[affinityKey(pair)];
-  if (!prices) return reject('InvalidActionValue');
-  const cost = prices[Math.min(5, pair.stacks) - 1];
+  const cost = castManaCost(manaCosts, affinityKey(pair), pair.stacks);
+  if (cost === undefined) return reject('InvalidActionValue');
   if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');
   const changes: ActorVitalChange[] = [];
   if (cost > 0) changes.push({ actorId: sourceId, vital: 'mana', delta: registry.changeVital(sourceId, 'mana', -cost) });
