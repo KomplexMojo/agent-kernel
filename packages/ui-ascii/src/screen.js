@@ -120,6 +120,7 @@ function presentVitals(player) {
 export function statusLine(status, message, { traps = false } = {}) {
   if (message) return message;
   if (status?.exited) return "You escaped! Press Enter for the next level, r to replay, q to quit.";
+  if (status?.defeated) return "You were defeated. Press r to try the level again, q to quit.";
   if (status?.atExit) return "You reached the exit. Press . to step through.";
   return traps ? `Find the exit (E). Mind the traps (${ASCII_ENTITY_GLYPHS.hazard}).` : "Find the exit (E).";
 }

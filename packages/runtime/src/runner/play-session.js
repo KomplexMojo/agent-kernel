@@ -163,14 +163,18 @@ export async function createPlaySession({
     const exited = runtime.hasActorExited(playerId);
     const player = exited ? null : snapshot.actors.find((actor) => actor.id === playerId);
     const atExit = Boolean(player && player.lifecycle === "alive" && terrainAt(snapshot, player.position) === "exit");
-    return { tick: currentTick(), exited, atExit };
+    // Defeat is core's verdict (the player's lifecycle), read here, never recomputed.
+    const defeated = Boolean(player && player.lifecycle === "defeated");
+    return { tick: currentTick(), exited, atExit, defeated };
   }
 
   async function act(command) {
     const normalized = normalizePlayCommand(command);
-    if (status().exited) {
+    // The game is over once the player has left the level or been defeated: no more ticks.
+    const before = status();
+    if (before.exited || before.defeated) {
       const action = { actorId: playerId, tick: currentTick() + 1, kind: normalized.kind, params: { ...normalized.params } };
-      return { tick: currentTick(), accepted: [], rejected: [{ ...action, reason: "exited" }], status: status() };
+      return { tick: currentTick(), accepted: [], rejected: [{ ...action, reason: before.exited ? "exited" : "defeated" }], status: before };
     }
     await runtime.step({ actorCommands: { [playerId]: normalized } });
     if (!runtime.hasActorExited(playerId)) rememberVisible();
