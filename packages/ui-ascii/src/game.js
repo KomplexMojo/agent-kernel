@@ -26,6 +26,7 @@ const REJECTION_MESSAGES = Object.freeze({
   InvalidCapability: "You cannot do that.",
   AffinityNotEquipped: "That affinity is not equipped.",
   AffinitySlotsFull: "You already have every affinity slot (6).",
+  InvalidAffinityStacks: "You cannot run it at that many stacks.",
 });
 
 function rejectionMessage(reason) {
@@ -34,6 +35,12 @@ function rejectionMessage(reason) {
 
 export function affinityLabel(pair) {
   return `${pair.kind} ${pair.expression} ×${pair.stacks}`;
+}
+
+/** The stacks an equipped affinity runs at: what is held unless run lower (#230). */
+function runningStacks(player, pair) {
+  const running = player?.equippedAffinityStacks?.[`${pair.kind}:${pair.expression}`];
+  return Number.isInteger(running) ? running : pair.stacks;
 }
 
 function keyLabel(affinityKey) {
@@ -113,7 +120,29 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       message = "You know no affinities yet.";
       return;
     }
-    panel = { type: "affinities", items: affinities };
+    panel = { type: "affinities", items: affinities, index: 0 };
+  }
+
+  // + / - in the panel: run the highlighted equipped affinity one stack higher or
+  // lower (#230). Re-equipping at a new level costs the turn; the panel stays open.
+  async function relevel(step) {
+    const pair = panel.items[panel.index];
+    const player = session.view().player;
+    if (!equippedKeys(player).includes(`${pair.kind}:${pair.expression}`)) {
+      message = "Equip it first (press its number).";
+      return;
+    }
+    const stacks = runningStacks(player, pair) + step;
+    if (stacks < 1) {
+      message = "It already runs at its lowest, 1 stack.";
+      return;
+    }
+    if (stacks > pair.stacks) {
+      message = `It already runs at all ${pair.stacks} stacks you hold.`;
+      return;
+    }
+    await act({ kind: "equip_affinity", params: { affinityKey: `${pair.kind}:${pair.expression}`, stacks } },
+      () => `${keyLabel(`${pair.kind}:${pair.expression}`)} now runs at ${stacks} of ${pair.stacks} stacks.`);
   }
 
   // Without a slot, core casts the first equipped push or pull.
@@ -199,6 +228,12 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         await castAtTarget();
         return true;
       }
+    } else if (panel.type === "affinities" && intent.type === INTENT.NEXT_TARGET) {
+      panel.index = (panel.index + 1) % panel.items.length;
+      return true;
+    } else if (panel.type === "affinities" && (intent.type === INTENT.LEVEL_UP || intent.type === INTENT.LEVEL_DOWN)) {
+      await relevel(intent.type === INTENT.LEVEL_UP ? 1 : -1);
+      return true;
     } else if (intent.type === INTENT.SELECT) {
       const item = panel.items[intent.index];
       if (!item) return true;
@@ -267,11 +302,14 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   function panelLines() {
     if (!panel) return null;
     if (panel.type === "affinities") {
-      const equipped = equippedKeys(session.view().player);
-      return ["Affinities (a number equips or unequips, Esc closes):",
+      const player = session.view().player;
+      const equipped = equippedKeys(player);
+      return ["Affinities (a number equips or unequips; Tab picks, + / - change stacks; Esc closes):",
         ...panel.items.map((pair, i) => {
           const slot = equipped.indexOf(`${pair.kind}:${pair.expression}`);
-          return `  ${i + 1}) ${affinityLabel(pair)}${slot >= 0 ? `  [slot ${slot + 1}]` : ""}`;
+          const running = runningStacks(player, pair);
+          const at = slot >= 0 && running < pair.stacks ? `, running ${running}` : "";
+          return `${i === panel.index ? ">" : " "} ${i + 1}) ${affinityLabel(pair)}${slot >= 0 ? `  [slot ${slot + 1}${at}]` : ""}`;
         })];
     }
     if (panel.type === "loot") {

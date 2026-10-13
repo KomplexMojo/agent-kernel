@@ -527,6 +527,36 @@ test("g takes the loot of a defeated neighbour", async () => {
   assert.match(game.screen(), /fire push ×1/);
 });
 
+// #230: in the affinity list, Tab picks a row and + / - run it at fewer or more stacks.
+test("+ and - re-level the highlighted equipped affinity, a turn each; the HUD shows running/held", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  assert.deepEqual(intentForKey("-"), { type: INTENT.LEVEL_DOWN });
+  assert.deepEqual(intentForKey("+"), { type: INTENT.LEVEL_UP });
+  await press(game, "i1i");
+  assert.match(game.screen(), /> 1\) water push ×3  \[slot 1\]/);
+  await press(game, "--");
+  assert.equal(game.state().turns, 3);
+  assert.match(game.screen(), /water push now runs at 1 of 3 stacks\./);
+  assert.match(game.screen(), /> 1\) water push ×3  \[slot 1, running 1\]/, "the panel stays open");
+  await press(game, "-");
+  assert.match(game.screen(), /already runs at its lowest, 1 stack\./);
+  assert.equal(game.state().turns, 3, "a refused step is free");
+  await press(game, "\u001b");
+  assert.match(game.screen(), /Slot 1: water push ×1\/3/);
+  await press(game, "i+");
+  assert.match(game.screen(), /Slot 1: water push ×2\/3/);
+  await press(game, "\t+");
+  assert.match(game.screen(), /> 2\) light emit ×1/);
+  assert.match(game.screen(), /Equip it first \(press its number\)\./);
+});
+
+test("a cast at a lowered level reaches only that far", async () => {
+  const game = await createGame({ levels: duelLevels({ wardenAt: { x: 3, y: 1 } }), fog: false });
+  await press(game, "i1i--\u001b");
+  await press(game, "f\r");
+  assert.match(game.screen(), /Out of range\./);
+});
+
 // ## TODO: Test Permutations
 // - every key in the keymap, upper and lower case
 // - --run with each of the build/create/configurator subdirectories
@@ -538,3 +568,5 @@ test("g takes the loot of a defeated neighbour", async () => {
 // - casting an emit says it works while equipped
 // - equipping into full slots names the affinity it replaced
 // - an exhausted slot's HUD row says it is off until mana is full
+// - Tab in the affinity list wraps from the last row to the first
+// - + at full stacks says it already runs at all held stacks

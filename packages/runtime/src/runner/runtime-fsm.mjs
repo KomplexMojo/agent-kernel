@@ -535,10 +535,12 @@ function normalizeUnifiedActorAction(action, defaultTick) {
       ...(params.affinityKey !== undefined ? { affinityKey: params.affinityKey } : {}) } };
   }
   if (kind === "equip_affinity") {
-    if (!onlyParams(params, ["affinityKey"], ["replaceKey"]) || typeof params.affinityKey !== "string"
-      || (params.replaceKey !== undefined && typeof params.replaceKey !== "string")) return null;
+    if (!onlyParams(params, ["affinityKey"], ["replaceKey", "stacks"]) || typeof params.affinityKey !== "string"
+      || (params.replaceKey !== undefined && typeof params.replaceKey !== "string")
+      || (params.stacks !== undefined && typeof params.stacks !== "number")) return null;
     return { ...envelope, kind: "equip_affinity", params: { affinityKey: params.affinityKey,
-      ...(params.replaceKey !== undefined ? { replaceKey: params.replaceKey } : {}) } };
+      ...(params.replaceKey !== undefined ? { replaceKey: params.replaceKey } : {}),
+      ...(params.stacks !== undefined ? { stacks: params.stacks } : {}) } };
   }
   if (kind === "unequip_affinity") {
     if (!onlyParams(params, ["affinityKey"]) || typeof params.affinityKey !== "string") return null;

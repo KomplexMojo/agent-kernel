@@ -41,6 +41,7 @@ export const ValidationError = {
   NothingToTake: 28,
   AffinityNotEquipped: 29,
   AffinitySlotsFull: 30,
+  InvalidAffinityStacks: 31,
 } as const;
 
 /**

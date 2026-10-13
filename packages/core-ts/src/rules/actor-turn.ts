@@ -78,11 +78,12 @@ export function createActorTurn(
       switch (action.kind) {
         case 'wait': accepted = action.params === undefined; break;
         case 'equip_affinity': {
-          if (!hasParams(action, ['affinityKey'], ['replaceKey']) || !isKey(action.params.affinityKey)) break;
-          const { affinityKey: key, replaceKey } = action.params;
+          if (!hasParams(action, ['affinityKey'], ['replaceKey', 'stacks']) || !isKey(action.params.affinityKey)) break;
+          const { affinityKey: key, replaceKey, stacks } = action.params;
           if (replaceKey !== undefined && !isKey(replaceKey)) break;
-          accepted = registry.equipAffinity(actor.id, key, replaceKey);
-          if (!accepted) lastRejection = explainEquipActorAffinity(actor, key, replaceKey);
+          if (stacks !== undefined && typeof stacks !== 'number') break;
+          accepted = registry.equipAffinity(actor.id, key, replaceKey, stacks);
+          if (!accepted) lastRejection = explainEquipActorAffinity(actor, key, replaceKey, stacks);
           break;
         }
         case 'unequip_affinity':

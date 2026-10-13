@@ -602,14 +602,19 @@ function actionCanReachTarget(action, origin, target, actorRecord) {
     && Boolean(pair && ["push", "pull"].includes(pair.expression) && distance <= pair.stacks);
 }
 
-/** The record's equipped affinity entries, in equip order (the first is the active key). */
+/**
+ * The record's equipped affinity entries, in equip order (the first is the active key), at
+ * the stacks they run at: a slot run below what is held reaches and costs that level (#230).
+ */
 function equippedSlots(actorRecord) {
   const affinities = Array.isArray(actorRecord?.affinities) ? actorRecord.affinities : [];
+  const running = actorRecord?.equippedAffinityStacks ?? {};
   return equippedActorAffinityKeys(actorRecord).flatMap((key) => {
     const wanted = String(key).trim().toLowerCase();
     const entry = affinities.find((pair) =>
       `${String(pair?.kind).trim().toLowerCase()}:${String(pair?.expression).trim().toLowerCase()}` === wanted);
-    return entry ? [entry] : [];
+    if (!entry) return [];
+    return [Number.isInteger(running[key]) ? { ...entry, stacks: running[key] } : entry];
   });
 }
 
@@ -622,7 +627,7 @@ function castableSlots(actorRecord) {
 /** The record as core's equip would leave it: a free slot, the named one, or the oldest replaced. */
 function recordAfterEquip(actorRecord, params) {
   const next = structuredClone(actorRecord);
-  if (!equipActorAffinity(next, params.affinityKey, params.replaceKey)) {
+  if (!equipActorAffinity(next, params.affinityKey, params.replaceKey, params.stacks)) {
     return { ...actorRecord, activeAffinityKey: params.affinityKey };
   }
   return next;
@@ -1440,14 +1445,16 @@ function commandParam(command, name, valid) {
 }
 
 const isId = (value) => typeof value === "string" && value.trim().length > 0;
+const isPositiveInteger = (value) => Number.isInteger(value) && value > 0;
 const isAffinityKey = (value) => typeof value === "string" && AFFINITY_KEY_PATTERN.test(value);
 
 /**
  * The command vocabulary is the Actor's:
  *   - `{ kind: "move", params: { direction } }` (an EIGHT_WAY direction name)
  *   - `{ kind: "wait" }`
- *   - `{ kind: "equip_affinity", params: { affinityKey, replaceKey? } }` ("<kind>:<expression>";
- *     `replaceKey` names the equipped slot to swap out, else core fills a free slot or the oldest)
+ *   - `{ kind: "equip_affinity", params: { affinityKey, replaceKey?, stacks? } }` ("<kind>:<expression>";
+ *     `replaceKey` names the equipped slot to swap out, else core fills a free slot or the oldest;
+ *     `stacks` runs it below what is held, and re-equipping an equipped key re-levels it)
  *   - `{ kind: "unequip_affinity", params: { affinityKey } }`
  *   - `{ kind: "cast_affinity", params: { targetId, affinityKey? } }` (`affinityKey` names the
  *     equipped slot; without it core casts the first equipped push or pull)
@@ -1470,6 +1477,7 @@ export function normalizeActorCommand(command) {
     case "equip_affinity": {
       const params = { affinityKey: commandParam(command, "affinityKey", isAffinityKey) };
       if (command.params?.replaceKey !== undefined) params.replaceKey = commandParam(command, "replaceKey", isAffinityKey);
+      if (command.params?.stacks !== undefined) params.stacks = commandParam(command, "stacks", isPositiveInteger);
       return { kind: "equip_affinity", params };
     }
     case "unequip_affinity":
