@@ -1216,14 +1216,15 @@ function resolveNearestHostile(view, actorId) {
 }
 
 /**
- * Motivation-aware proposal builder. Routes to attack or hostile pursuit
- * before falling back to the existing exit pathfinding.
+ * Motivation-aware proposal builder. Routes to an affinity cast or hostile
+ * pursuit before falling back to the existing exit pathfinding. There is no
+ * conventional attack: harm is an equipped push or pull (range = stacks).
  *
  * Rules (from M1 contract):
- *   attacking  + adjacent hostile  → attack
- *   attacking  + non-adjacent      → move toward hostile
- *   defending  + adjacent hostile  → attack
- *   defending  + non-adjacent      → wait (no action)
+ *   attacking  + hostile in cast range  → cast_affinity
+ *   attacking  + out of range           → move toward hostile
+ *   defending  + hostile in cast range  → cast_affinity
+ *   defending  + out of range           → wait (no action)
  *   stationary                     → wait (no action)
  *   any        + no hostile        → existing exit pathfinding
  */

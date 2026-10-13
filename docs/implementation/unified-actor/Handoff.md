@@ -1,5 +1,9 @@
 # Unified actor rewrite — local continuation
 
+> **Historical record (2026-10-13).** The rewrite is merged and the old core engine is retired
+> (#216, #226, #228, #257, #259, #261). The entries below describe the in-progress state at the
+> time and are not a handoff to continue; current work lives in the GitHub issues.
+
 ## Start here
 
 LATEST October 11: origin/main was merged in: the ASCII game, player turns,
