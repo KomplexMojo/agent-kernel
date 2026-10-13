@@ -73,6 +73,25 @@ test('an attacker casts from whichever equipped slot reaches, naming it when it 
   expect(casts).toEqual([expect.objectContaining({ params: { targetId: 'w', affinityKey: 'fire:push' } })]);
 });
 
+// #230: a slot run below what is held reaches only that far, and a command may set the level.
+test('a running level counts: the stacks command param, and a lowered slot no longer reaches', () => {
+  expect(normalizeActorCommand({ kind: 'equip_affinity', params: { affinityKey: 'fire:push', stacks: 1 } }))
+    .toEqual({ kind: 'equip_affinity', params: { affinityKey: 'fire:push', stacks: 1 } });
+  for (const stacks of [0, 1.5, '2']) {
+    expect(() => normalizeActorCommand({ kind: 'equip_affinity', params: { affinityKey: 'fire:push', stacks } }))
+      .toThrow(/stacks/);
+  }
+  const hostile = actor('w', 2, { alignment: 'dungeon', motivations: ['stationary'],
+    affinities: [{ kind: 'light', expression: 'emit', stacks: 2 }], activeAffinityKey: 'light:emit',
+    vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 10, max: 10, regen: 0 } } });
+  const self = actor('self', 0, { motivations: ['attacking'], activeAffinityKey: 'fire:push',
+    equippedAffinityStacks: { 'fire:push': 1 }, vitals: { health: { current: 10, max: 10, regen: 0 },
+      mana: { current: 10, max: 10, regen: 0 } }, affinities: [{ kind: 'fire', expression: 'push', stacks: 2 }] });
+  const registry = createActorRegistry({ dimensions: { width: 3, height: 1 }, terrain: ['floor', 'floor', 'floor'],
+    actors: [self, hostile] });
+  expect(decide(registry).filter(action => action.kind === 'cast_affinity')).toEqual([]);
+});
+
 // ## TODO: Test Permutations
 // - a full-slot actor whose equipped affinities are all still useful proposes no swap
 // - a one-slot actor still swaps exactly as before (equip without replaceKey)

@@ -15,7 +15,7 @@ const PRESETS = Object.freeze({
 });
 export const INPUT_KEYS = new Set(['category', 'id', 'position', 'alignment', 'lifecycle', 'defeatVital',
   'vitals', 'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings',
-  'affinitySlots', 'equippedAffinityKeys']);
+  'affinitySlots', 'equippedAffinityKeys', 'equippedAffinityStacks']);
 const CATEGORIES = new Set(Object.keys(PRESETS));
 
 function leftoverMotivations(actor) {
@@ -89,6 +89,7 @@ export function normalizeActorDefinition(input) {
   const slots = value('affinitySlots', preset.affinitySlots);
   if (slots !== 1) actor.affinitySlots = slots;
   if (Object.hasOwn(request, 'equippedAffinityKeys')) actor.equippedAffinityKeys = request.equippedAffinityKeys;
+  if (Object.hasOwn(request, 'equippedAffinityStacks')) actor.equippedAffinityStacks = { ...request.equippedAffinityStacks };
   // Slot loot is floor loot only: no delver, warden or other preset drops it.
   if (request.category !== 'resource' && Array.isArray(actor.holdings)
     && actor.holdings.some(holding => holding?.kind === 'slot')) throw new Error('slot loot is floor loot: resources only');

@@ -98,6 +98,11 @@ export interface ActorRecordBase {
    * omitted means `[activeAffinityKey]`, or nothing when that is null.
    */
   equippedAffinityKeys?: ActorAffinityKey[];
+  /**
+   * #230: equipped affinities run below the stacks held, by key. Each value is
+   * 1..held-1; an equipped key without an entry runs at everything held.
+   */
+  equippedAffinityStacks?: Partial<Record<ActorAffinityKey, number>>;
   holdings: ActorHolding[];
 }
 
@@ -125,7 +130,7 @@ export type ActorAction = { actorId: string; tick: number } & (
   | { kind: "wait"; params?: never }
   | { kind: "move"; params: { target: ActorPosition } }
   | { kind: "cast_affinity"; params: { targetId: string; affinityKey?: ActorAffinityKey } }
-  | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey; replaceKey?: ActorAffinityKey } }
+  | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey; replaceKey?: ActorAffinityKey; stacks?: number } }
   | { kind: "unequip_affinity"; params: { affinityKey: ActorAffinityKey } }
   | { kind: "take"; params: { targetId: string; holdingId: string } }
 );

@@ -257,8 +257,10 @@ script). The command vocabulary is this persona's (`ACTOR_COMMAND_KINDS`):
 
 - `{ kind: "move", params: { direction } }` with an eight-way direction name
 - `{ kind: "wait" }`
-- `{ kind: "equip_affinity", params: { affinityKey, replaceKey? } }` with `"<kind>:<expression>"` keys;
-  `replaceKey` names the equipped slot to swap out, otherwise core fills a free slot or replaces the oldest
+- `{ kind: "equip_affinity", params: { affinityKey, replaceKey?, stacks? } }` with `"<kind>:<expression>"` keys;
+  `replaceKey` names the equipped slot to swap out, otherwise core fills a free slot or replaces the oldest;
+  `stacks` (a positive integer) runs it below what is held, and re-equipping an equipped key re-levels it.
+  The Actor reads a slot's running level (`equippedAffinityStacks`) when it judges cast reach
 - `{ kind: "unequip_affinity", params: { affinityKey } }`
 - `{ kind: "cast_affinity", params: { targetId, affinityKey? } }`; `affinityKey` names the equipped slot,
   otherwise core casts the first equipped push or pull

@@ -29,6 +29,13 @@ test('an authored slot count and equipped list are kept and checked by core', ()
     equippedAffinityKeys: ['light:emit', 'fire:push'] }))).toThrow();
 });
 
+test('an authored running level is kept and checked by core (#230)', () => {
+  const held = input('warden', { affinities: [{ kind: 'fire', expression: 'push', stacks: 3 }] });
+  expect(configurator.normalizeActorDefinition({ ...held, equippedAffinityStacks: { 'fire:push': 1 } }).actor
+    .equippedAffinityStacks).toEqual({ 'fire:push': 1 });
+  expect(() => configurator.normalizeActorDefinition({ ...held, equippedAffinityStacks: { 'fire:push': 3 } })).toThrow();
+});
+
 test('a placed roster keeps each actor its preset slots', () => {
   const roster = configurator.normalizeActorRoster({ dimensions: { width: 3, height: 1 }, terrain: ['floor', 'floor', 'floor'],
     actors: [{ ...input('delver'), id: 'd', position: { x: 0, y: 0 } }, { ...input('warden'), id: 'w', position: { x: 2, y: 0 } }] });

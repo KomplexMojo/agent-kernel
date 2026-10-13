@@ -85,6 +85,25 @@ test('runtime passes unequip and a named cast slot through to core (equipped slo
   expect(accepted.map(action => action.kind)).toEqual(['unequip_affinity', 'equip_affinity', 'cast_affinity']);
 });
 
+test('runtime passes an equip stacks level through to core (#230)', async () => {
+  const actionFor = (actorId, tick) => {
+    if (actorId === 'source') return { actorId, tick, kind: 'wait' };
+    if (tick === 1) return { actorId, tick, kind: 'equip_affinity', params: { affinityKey: 'fire:pull', stacks: 1 } };
+    if (tick === 2) return { actorId, tick, kind: 'equip_affinity', params: { affinityKey: 'fire:pull', stacks: 'one' } };
+    return null;
+  };
+  const runtime = createRuntime({ core: createCore(), adapters: {}, personas: { actor: scriptedActor(actionFor) } });
+  await runtime.init({ seed: 0, ...artifacts() });
+  const caster = () => runtime.getActorSnapshot().actors.find(actor => actor.id === 'caster');
+  await runtime.step();
+  expect(caster().equippedAffinityStacks).toEqual({ 'fire:pull': 1 });
+  await runtime.step();
+  const rejected = runtime.getTickFrames().filter(frame => frame.phaseDetail === 'apply')
+    .flatMap(frame => frame.preCoreRejections ?? []).filter(entry => entry.action.actorId === 'caster');
+  expect(rejected.map(entry => entry.reason)).toEqual(['unsupported_action_kind']);
+  expect(caster().equippedAffinityStacks).toEqual({ 'fire:pull': 1 });
+});
+
 // ## TODO: Test Permutations
 // - a cast naming an unequipped slot is refused by core and recorded as AffinityNotEquipped
 // - an unequip with extra params is refused before core as unsupported

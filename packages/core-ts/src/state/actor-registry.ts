@@ -16,7 +16,7 @@ export type ActorMoveRejection = 'WrongActor' | 'InvalidCapability' | 'OutOfBoun
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
   'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'affinityExhausted',
-  'affinitySlots', 'equippedAffinityKeys', 'exhaustedAffinityKeys',
+  'affinitySlots', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks',
 ]);
 
 /** Reject values JSON cannot faithfully represent before taking ownership. */
@@ -133,8 +133,8 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     takeHolding(receiverId: string, sourceId: string, holdingId: string): boolean {
       return takeActorHolding(actors.get(receiverId), actors.get(sourceId), holdingId);
     },
-    equipAffinity(id: string, key: ActorAffinityKey, replaceKey?: ActorAffinityKey): boolean {
-      return equipActorAffinity(actors.get(id), key, replaceKey);
+    equipAffinity(id: string, key: ActorAffinityKey, replaceKey?: ActorAffinityKey, stacks?: number): boolean {
+      return equipActorAffinity(actors.get(id), key, replaceKey, stacks);
     },
     unequipAffinity(id: string, key: ActorAffinityKey): boolean { return unequipActorAffinity(actors.get(id), key); },
     changeVital(id: string, key: ActorVitalKind, delta: number): number {
@@ -182,6 +182,7 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
         existing.affinities = [pair];
         existing.activeAffinityKey = `${pair.kind}:${pair.expression}`;
         delete existing.equippedAffinityKeys; delete existing.exhaustedAffinityKeys;
+        delete existing.equippedAffinityStacks;
         existing.vitals.mana = { ...mana };
         validateActorRecordVitals(existing);
         validateActorInventory(existing);

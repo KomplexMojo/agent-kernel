@@ -289,10 +289,12 @@ export async function createPlaySession({
           activeAffinityKey: player.activeAffinityKey,
           ...(player.affinityExhausted ? { affinityExhausted: true } : {}),
           // Equipped slots, read through core's helpers: the count (1 when unset), the
-          // equipped keys in equip order, and the lasting ones off until mana is full.
+          // equipped keys in equip order, the lasting ones off until mana is full, and
+          // the levels of slots run below what is held (#230; full when a key is absent).
           affinitySlots: player.affinitySlots ?? 1,
           equippedAffinityKeys: equippedActorAffinityKeys(player),
           exhaustedAffinityKeys: exhaustedActorAffinityKeys(player),
+          equippedAffinityStacks: { ...(player.equippedAffinityStacks ?? {}) },
           position: { ...player.position },
         }
         : null,

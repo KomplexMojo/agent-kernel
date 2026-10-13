@@ -17,6 +17,8 @@ export const INTENT = Object.freeze({
   TAKE: "take",
   NEXT_TARGET: "next_target",
   SELECT: "select",
+  LEVEL_UP: "level_up",
+  LEVEL_DOWN: "level_down",
 });
 
 const MOVE_KEYS = Object.freeze({
@@ -56,6 +58,9 @@ const OTHER_KEYS = Object.freeze({
   f: INTENT.CAST,
   g: INTENT.TAKE,
   "\t": INTENT.NEXT_TARGET,
+  "+": INTENT.LEVEL_UP,
+  "=": INTENT.LEVEL_UP,
+  "-": INTENT.LEVEL_DOWN,
   q: INTENT.QUIT,
   "\u0003": INTENT.QUIT, // Ctrl-C
   "\u001b": INTENT.QUIT, // bare Esc
@@ -93,5 +98,6 @@ export const HELP_LINES = Object.freeze([
   "Move: arrows / WASD / hjkl   Diagonals: y u b n",
   "Wait: . or space   Restart: r   Next level: Enter   Quit: q",
   "Affinities: i, then 1-9 to equip or unequip   Take: g",
+  "In the affinity list: Tab picks a row, + / - run it at more or fewer stacks",
   "Cast: f (or a slot's number), then Tab for the next target, Enter to cast, Esc to cancel",
 ]);
