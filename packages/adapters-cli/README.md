@@ -306,6 +306,23 @@ Inputs/outputs:
   `i` then a digit equips (or unequips), Tab and `+`/`-` there run an equipped affinity at fewer stacks, `f` or a slot's digit then Tab/Enter casts, `g` takes loot.
   For example `--keys "i1ff"` equips the first affinity and casts it at the nearest actor in sight.
 
+**Watching a run.** `--watch` shows a run `ak run` recorded instead of playing a level, in the same UI, tick by tick:
+
+```bash
+node packages/adapters-cli/src/cli/ak.mjs play --watch --dir <run-out-dir>              # interactive: left/right step, [ ] jump, q quits
+node packages/adapters-cli/src/cli/ak.mjs play --watch --from-run <runId> --tick 5 --json # { ok, tick, maxTick, level, status, screen, launch }
+```
+
+- The run is `--dir` (an `ak run --out-dir`, or an `artifacts/runs/<runId>` directory) or `--from-run <runId>`
+  (under `artifacts/runs`). `--tick` opens at that tick (default 0); `--keys` takes the watch keys
+  (`.`/`l` next tick, `,`/`h` previous, `[`/`]` first/last).
+- Every actor and trap is drawn where the run recorded it at that tick (no fog), with the HUD following the
+  actor the game would seat as the player (`@`). The board is the runtime run viewer's (`runner/run-viewer.js`),
+  read from the run's recorded registry snapshots; nothing is re-simulated.
+- `ak tick state|forward|backward` and the MCP tick tools (`ak_show_state`, `ak_tick_forward`,
+  `ak_tick_backward`) draw their `ascii` field this way: it is this screen at the cursor tick, without the key help.
+  MCP: `ak_play_ascii` with `watch: true`.
+
 ### `create` / `configure`
 Generic additive agent-facing authoring commands that normalize freeform text plus
 structured object flags into an inline `AgentCommandRequestArtifact`, compile that

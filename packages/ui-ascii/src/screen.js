@@ -130,14 +130,15 @@ export function statusLine(status, message, { traps = false } = {}) {
  * One HUD row per equipped slot, in equip order, then the free ones; a lasting
  * affinity that ran out of mana says it is off. A hint when nothing is equipped.
  */
-export function affinityLines(player) {
+export function affinityLines(player, { hints = true } = {}) {
   if (!player) return [];
   const known = Array.isArray(player.affinities) ? player.affinities : [];
   const equipped = player.equippedAffinityKeys || [];
   const slots = Math.max(player.affinitySlots ?? 1, equipped.length);
   if (equipped.length === 0) {
     if (known.length === 0) return ["Affinity: none"];
-    return [slots === 1 ? "Slot 1: empty (press i to equip)" : `Slots: all ${slots} empty (press i to equip)`];
+    const hint = hints ? " (press i to equip)" : "";
+    return [slots === 1 ? `Slot 1: empty${hint}` : `Slots: all ${slots} empty${hint}`];
   }
   const off = Array.isArray(player.exhaustedAffinityKeys) ? player.exhaustedAffinityKeys
     : (player.affinityExhausted ? equipped : []);
@@ -164,6 +165,10 @@ export function affinityLines(player) {
  * @param {boolean} [args.showHelp]
  * @param {boolean} [args.color]    emit ANSI colour
  * @param {string[]} [args.panel]   lines of an open panel (affinities, target, loot)
+ * @param {string} [args.title]      replaces the game's title line (the run viewer's)
+ * @param {string} [args.tickLine]   replaces the "Tick n   Turns n" line
+ * @param {string[]} [args.helpLines] replaces the game's key help
+ * @param {boolean} [args.hints]     the HUD's "press i" hints (off when watching a run)
  */
 export function renderScreen({
   view,
@@ -175,9 +180,13 @@ export function renderScreen({
   showHelp = true,
   color = false,
   panel = null,
+  title = `agent-kernel maze — ${levelName} (${levelIndex + 1}/${levelCount})`,
+  tickLine = `Tick ${view.tick}   Turns ${turns}`,
+  helpLines = HELP_LINES,
+  hints = true,
 }) {
   const lines = [];
-  lines.push(`agent-kernel maze — ${levelName} (${levelIndex + 1}/${levelCount})`);
+  lines.push(title);
   lines.push("");
   const styles = color ? buildAsciiCellStyles(view.legend) : null;
   const actorCells = color ? actorCellStyles(view) : null;
@@ -188,8 +197,8 @@ export function renderScreen({
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (vitals.length > 0) lines.push(vitals.join("   "));
-  lines.push(...affinityLines(view.player));
-  lines.push(`Tick ${view.tick}   Turns ${turns}`);
+  lines.push(...affinityLines(view.player, { hints }));
+  lines.push(tickLine);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
   if (Array.isArray(panel) && panel.length > 0) {
     lines.push("");
@@ -197,7 +206,7 @@ export function renderScreen({
   }
   if (showHelp) {
     lines.push("");
-    lines.push(...HELP_LINES);
+    lines.push(...helpLines);
   }
   return lines.join("\n");
 }

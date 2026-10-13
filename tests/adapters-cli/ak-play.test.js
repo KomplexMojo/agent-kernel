@@ -84,3 +84,50 @@ test("ak play with no keys hands the terminal to the UI, which needs one", () =>
 // - --sim-config/--initial-state with relative paths
 // - --color and --no-color passed through in scripted mode
 // - --level with an unknown name
+
+// The terminal UI also shows a run `ak run` recorded: `ak play --watch`. This is how
+// `ak tick` and the MCP tick tools draw a run too.
+test("ak play --watch shows a recorded run tick by tick, as text or JSON", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ak-play-watch-"));
+  try {
+    const created = ak([
+      "create", "--room", "size=small;count=2",
+      "--delver", "count=1;motivation=exploring",
+      "--warden", "count=1;affinity=dark;motivation=random",
+      "--out-dir", join(dir, "create"), "--run-id", "ak-play-watch", "--created-at", "2026-10-13T00:00:00.000Z",
+    ]);
+    assert.equal(created.status, 0, created.stderr);
+    const ran = ak([
+      "run", "--sim-config", join(dir, "create", "sim-config.json"), "--initial-state", join(dir, "create", "initial-state.json"),
+      "--ticks", "5", "--out-dir", join(dir, "run"),
+    ]);
+    assert.equal(ran.status, 0, ran.stderr);
+
+    const first = JSON.parse(ak(["play", "--watch", "--dir", join(dir, "run"), "--json"]).stdout);
+    assert.equal(first.ok, true);
+    assert.equal(first.watch, true);
+    assert.deepEqual([first.tick, first.maxTick], [0, 5]);
+    assert.match(first.screen, /Tick 0 of 5/);
+    assert.match(first.screen, /W/, "the warden is on the board");
+    assert.match(first.screen, /@/, "and so is the delver the HUD follows");
+
+    const last = ak(["play", "--watch", "--dir", join(dir, "run"), "--tick", "5", "--keys", ""]);
+    assert.equal(last.status, 0, last.stderr);
+    assert.match(last.stdout, /Tick 5 of 5/);
+    assert.match(last.stdout, /End of the recorded run/);
+
+    // The run's parent works too: ui-ascii finds the frames under run/ and the level under create/.
+    const parent = JSON.parse(ak(["play", "--watch", "--dir", dir, "--tick", "5", "--json"]).stdout);
+    assert.equal(parent.screen.split("\n").slice(1).join("\n"), JSON.parse(ak(["play", "--watch", "--dir", join(dir, "run"), "--tick", "5", "--json"]).stdout).screen.split("\n").slice(1).join("\n"));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("ak play --watch refuses a level source, a bad tick, and --tick without --watch", () => {
+  assert.match(ak(["play", "--watch", "--level", "first-steps"]).stderr, /does not take --level/);
+  assert.match(ak(["play", "--watch"]).stderr, /takes one run/);
+  assert.match(ak(["play", "--watch", "--dir", "x", "--tick", "soon"]).stderr, /whole number/);
+  assert.match(ak(["play", "--level", "first-steps", "--tick", "2"]).stderr, /needs --watch/);
+  assert.match(ak(["play", "--watch", "--dir", resolve(ROOT, "no-such-run"), "--json"]).stderr, /No recorded run/);
+});

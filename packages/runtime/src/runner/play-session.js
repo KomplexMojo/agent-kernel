@@ -33,6 +33,9 @@
  *     glyph, an explored cell out of sight shows its base tile (no actors), and
  *     `sight` tells the UI which cells to dim.
  *
+ * The view is built by `buildPlayView`, a pure function of one registry snapshot,
+ * so `runner/run-viewer.js` draws a recorded run's ticks in the same shape.
+ *
  * **Replay (#204).** Every command that runs a tick is logged as
  * `{ tick, actorId, command }`; `captureInput({ meta })` returns the log as a
  * CapturedInputArtifact (`source.adapter: "player"`), and `replayPlaySession`
@@ -110,12 +113,7 @@ export async function createPlaySession({
   const sourceActors = (Array.isArray(initialState.actors) ? initialState.actors : [])
     .filter((actor) => typeof actor?.id === "string" && actor.id);
   const configuredIds = sourceActors.map((actor) => actor.id);
-  const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-  const categoryOf = (id) => initialState.presentation?.[id]?.category ?? null;
-  const defaultPlayer = sourceActors.filter((actor) => actor.motivations?.includes?.(PLAYER_MOTIVATION)).sort(byId)[0]
-    ?? sourceActors.filter((actor) => categoryOf(actor.id) === "delver").sort(byId)[0]
-    ?? sourceActors.slice().sort(byId)[0];
-  const playerId = playerActorId ?? defaultPlayer?.id;
+  const playerId = playerActorId ?? defaultPlayerActorId(initialState);
   if (playerId !== undefined && !configuredIds.includes(playerId)) {
     throw new Error(`createPlaySession: playerActorId "${playerId}" is not an actor in this level`);
   }
@@ -132,7 +130,7 @@ export async function createPlaySession({
   const presentation = runtime.getActorPresentation() || {};
   // A hand-written level is played as written; actors below the floor are only reported.
   const viabilityReport = Object.freeze(reportActorViabilityFloor(initialState).map((finding) => Object.freeze(finding)));
-  const legend = { ...ASCII_TERRAIN_GLYPHS, ...(simConfig.layout?.data?.render || {}), actor: "@" };
+  const legend = playLegend(simConfig);
 
   // Explored memory: a cell stays explored once the player has seen it.
   let explored = null;
@@ -167,19 +165,8 @@ export async function createPlaySession({
     return runtime.readObservation()?.tick ?? 0;
   }
 
-  function terrainAt(snapshot, position) {
-    const { width } = snapshot.dimensions;
-    return snapshot.terrain[position.y * width + position.x];
-  }
-
   function status() {
-    const snapshot = readSnapshot();
-    const exited = runtime.hasActorExited(playerId);
-    const player = exited ? null : snapshot.actors.find((actor) => actor.id === playerId);
-    const atExit = Boolean(player && player.lifecycle === "alive" && terrainAt(snapshot, player.position) === "exit");
-    // Defeat is core's verdict (the player's lifecycle), read here, never recomputed.
-    const defeated = Boolean(player && player.lifecycle === "defeated");
-    return { tick: currentTick(), exited, atExit, defeated };
+    return playStatus({ snapshot: readSnapshot(), playerId, exited: runtime.hasActorExited(playerId), tick: currentTick() });
   }
 
   async function act(command) {
@@ -203,131 +190,18 @@ export async function createPlaySession({
     return { tick: currentTick(), accepted, rejected, status: status() };
   }
 
-  // The registry's terrain in the level's legend: base tiles, then the frame with
-  // living barriers and the player drawn in.
-  function renderBoard(snapshot) {
-    const { width, height } = snapshot.dimensions;
-    const baseTiles = [];
-    for (let y = 0; y < height; y += 1) {
-      let row = "";
-      for (let x = 0; x < width; x += 1) row += legend[snapshot.terrain[y * width + x]] ?? legend.floor;
-      baseTiles.push(row);
-    }
-    const grid = baseTiles.map((row) => row.split(""));
-    for (const actor of snapshot.actors) {
-      if (actor.lifecycle !== "alive") continue;
-      if (presentation[actor.id]?.category === BARRIER_CATEGORY) grid[actor.position.y][actor.position.x] = legend.barrier;
-    }
-    const player = snapshot.actors.find((actor) => actor.id === playerId && actor.lifecycle !== "exited");
-    if (player) grid[player.position.y][player.position.x] = legend.actor;
-    return { baseTiles, buffer: grid.map((cells) => cells.join("")) };
-  }
-
-  // Fog over the board. Without a sight grid (the player has left the map) nothing is hidden.
-  function applyFog(frame) {
-    const visible = !fog || runtime.hasActorExited(playerId) ? null : readVisible();
-    if (!visible || !explored) {
-      return { rows: frame.buffer.slice(), sight: frame.buffer.map((row) => PLAY_SIGHT.VISIBLE.repeat(row.length)), visible: null };
-    }
-    const rows = [];
-    const sight = [];
-    frame.buffer.forEach((bufferRow, y) => {
-      let row = "";
-      let sightRow = "";
-      for (let x = 0; x < bufferRow.length; x += 1) {
-        if (visible[y]?.[x]) {
-          row += bufferRow[x];
-          sightRow += PLAY_SIGHT.VISIBLE;
-        } else if (explored[y]?.[x]) {
-          row += frame.baseTiles[y][x];
-          sightRow += PLAY_SIGHT.REMEMBERED;
-        } else {
-          row += ASCII_FOG_GLYPH;
-          sightRow += PLAY_SIGHT.UNKNOWN;
-        }
-      }
-      rows.push(row);
-      sight.push(sightRow);
-    });
-    return { rows, sight, visible };
-  }
-
-  // One actor as the UI sees it: plain data, vitals as records, the active pair named.
-  function toViewActor(actor) {
-    const category = presentation[actor.id]?.category ?? null;
-    return {
-      id: actor.id,
-      role: category,
-      position: { ...actor.position },
-      vitals: structuredClone(actor.vitals),
-      affinities: actor.affinities.map((pair) => ({ ...pair })),
-      activeAffinityKey: actor.activeAffinityKey,
-      ...(actor.affinityExhausted ? { affinityExhausted: true } : {}),
-    };
-  }
-
-  // Holdings are core's derived data (one per affinity of the defeated actor); this
-  // only lists them, by actor id, in the shape a take command needs.
-  function lootNextTo(snapshot, player) {
-    return snapshot.actors
-      .filter((actor) => actor.lifecycle === "defeated" && Array.isArray(actor.holdings)
-        && Math.max(Math.abs(actor.position.x - player.position.x), Math.abs(actor.position.y - player.position.y)) <= 1)
-      .sort(byId)
-      .flatMap((actor) => actor.holdings
-        .filter((holding) => holding.claimedBy === null)
-        .map((holding) => ({
-          targetId: actor.id,
-          holdingId: holding.id,
-          kind: holding.kind,
-          ...(holding.kind === "affinity" ? { affinity: holding.affinity, expression: holding.expression } : {}),
-          ...(holding.kind === "slot" ? { slots: holding.slots } : {}),
-          position: { ...actor.position },
-        })));
-  }
-
   function view() {
-    const snapshot = readSnapshot();
-    const frame = renderBoard(snapshot);
-    const fogged = applyFog(frame);
-    const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
-    const player = snapshot.actors.find((actor) => actor.id === playerId && actor.lifecycle !== "exited") || null;
-    const others = snapshot.actors.filter((actor) => actor.id !== playerId && actor.lifecycle === "alive"
-      && presentation[actor.id]?.category !== BARRIER_CATEGORY && inSight(actor));
-    return {
+    const fogOn = fog && !runtime.hasActorExited(playerId);
+    return buildPlayView({
+      snapshot: readSnapshot(),
+      presentation,
+      legend,
+      playerId,
       tick: currentTick(),
-      rows: fogged.rows,
-      sight: fogged.sight,
-      legend: { ...legend, fog: ASCII_FOG_GLYPH },
       status: status(),
-      // With fog, only traps in sight right now.
-      hazards: others.filter((actor) => presentation[actor.id]?.category === HAZARD_CATEGORY).map(toViewActor),
-      player: player
-        ? {
-          ...buildActorHudModel({ ...toViewActor(player), role: presentation[player.id]?.category ?? null }),
-          affinities: player.affinities.map((pair) => ({ ...pair })),
-          activeAffinityKey: player.activeAffinityKey,
-          ...(player.affinityExhausted ? { affinityExhausted: true } : {}),
-          // Equipped slots, read through core's helpers: the count (1 when unset), the
-          // equipped keys in equip order, the lasting ones off until mana is full, and
-          // the levels of slots run below what is held (#230; full when a key is absent).
-          affinitySlots: player.affinitySlots ?? 1,
-          equippedAffinityKeys: equippedActorAffinityKeys(player),
-          exhaustedAffinityKeys: exhaustedActorAffinityKeys(player),
-          equippedAffinityStacks: { ...(player.equippedAffinityStacks ?? {}) },
-          // Core's rules, stated as data so the UI never restates them: which equipped
-          // slots can be cast and how far each reaches, and the most slots anyone holds.
-          castableAffinities: actorCastableAffinities(player),
-          maxAffinitySlots: MAX_AFFINITY_SLOTS,
-          position: { ...player.position },
-        }
-        : null,
-      // What the player could `take` this turn: unclaimed holdings of defeated actors
-      // next to it. Whether a take succeeds is still core's call.
-      loot: player && player.lifecycle === "alive" ? lootNextTo(snapshot, player) : [],
-      // Every OTHER living actor in sight (id, role, position, vitals, affinities), for the
-      // UI to draw over the board. Traps are reported in `hazards` instead.
-      actors: others.filter((actor) => presentation[actor.id]?.category !== HAZARD_CATEGORY).map(toViewActor),
-    };
+      visible: fogOn ? readVisible() : null,
+      explored: fogOn ? explored : null,
+    });
   }
 
   /** The played commands as a CapturedInputArtifact; `meta` comes from the caller (no clock here). */
@@ -346,6 +220,184 @@ export async function createPlaySession({
   }
 
   return { act, view, status, captureInput, playerActorId: playerId, viabilityReport };
+}
+
+
+// The registry's terrain in the level's legend: base tiles, then the frame with
+// living barriers and the player drawn in.
+function renderBoard(snapshot, { presentation, legend, playerId }) {
+  const { width, height } = snapshot.dimensions;
+  const baseTiles = [];
+  for (let y = 0; y < height; y += 1) {
+    let row = "";
+    for (let x = 0; x < width; x += 1) row += legend[snapshot.terrain[y * width + x]] ?? legend.floor;
+    baseTiles.push(row);
+  }
+  const grid = baseTiles.map((row) => row.split(""));
+  for (const actor of snapshot.actors) {
+    if (actor.lifecycle !== "alive") continue;
+    if (presentation[actor.id]?.category === BARRIER_CATEGORY) grid[actor.position.y][actor.position.x] = legend.barrier;
+  }
+  const player = snapshot.actors.find((actor) => actor.id === playerId && actor.lifecycle !== "exited");
+  if (player) grid[player.position.y][player.position.x] = legend.actor;
+  return { baseTiles, buffer: grid.map((cells) => cells.join("")) };
+}
+
+// Fog over the board. Without a sight grid (no fog, or the player has left the map) nothing is hidden.
+function applyFog(frame, visible, explored) {
+  if (!visible || !explored) {
+    return { rows: frame.buffer.slice(), sight: frame.buffer.map((row) => PLAY_SIGHT.VISIBLE.repeat(row.length)), visible: null };
+  }
+  const rows = [];
+  const sight = [];
+  frame.buffer.forEach((bufferRow, y) => {
+    let row = "";
+    let sightRow = "";
+    for (let x = 0; x < bufferRow.length; x += 1) {
+      if (visible[y]?.[x]) {
+        row += bufferRow[x];
+        sightRow += PLAY_SIGHT.VISIBLE;
+      } else if (explored[y]?.[x]) {
+        row += frame.baseTiles[y][x];
+        sightRow += PLAY_SIGHT.REMEMBERED;
+      } else {
+        row += ASCII_FOG_GLYPH;
+        sightRow += PLAY_SIGHT.UNKNOWN;
+      }
+    }
+    rows.push(row);
+    sight.push(sightRow);
+  });
+  return { rows, sight, visible };
+}
+
+// One actor as the UI sees it: plain data, vitals as records, the active pair named.
+function toViewActor(actor, presentation) {
+  const category = presentation[actor.id]?.category ?? null;
+  return {
+    id: actor.id,
+    role: category,
+    position: { ...actor.position },
+    vitals: structuredClone(actor.vitals),
+    affinities: actor.affinities.map((pair) => ({ ...pair })),
+    activeAffinityKey: actor.activeAffinityKey,
+    ...(actor.affinityExhausted ? { affinityExhausted: true } : {}),
+  };
+}
+
+// Holdings are core's derived data (one per affinity of the defeated actor); this
+// only lists them, by actor id, in the shape a take command needs.
+function lootNextTo(snapshot, player) {
+  const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  return snapshot.actors
+    .filter((actor) => actor.lifecycle === "defeated" && Array.isArray(actor.holdings)
+      && Math.max(Math.abs(actor.position.x - player.position.x), Math.abs(actor.position.y - player.position.y)) <= 1)
+    .sort(byId)
+    .flatMap((actor) => actor.holdings
+      .filter((holding) => holding.claimedBy === null)
+      .map((holding) => ({
+        targetId: actor.id,
+        holdingId: holding.id,
+        kind: holding.kind,
+        ...(holding.kind === "affinity" ? { affinity: holding.affinity, expression: holding.expression } : {}),
+        ...(holding.kind === "slot" ? { slots: holding.slots } : {}),
+        position: { ...actor.position },
+      })));
+}
+
+/**
+ * The board and HUD data a UI draws, from one actor-registry snapshot. Pure, so
+ * a live session (`createPlaySession().view()`) and a recorded run
+ * (`runner/run-viewer.js`) give the UI the same shape. `visible` and `explored`
+ * are the fog grids; pass neither for a view with nothing hidden.
+ *
+ * @param {object} args
+ * @param {object} args.snapshot      an actor-registry snapshot (dimensions, terrain, actors)
+ * @param {object} args.presentation  actor id -> { category }
+ * @param {object} args.legend        terrain kind -> glyph, plus `actor` (the player) and `barrier`
+ * @param {string} args.playerId      the actor drawn as the player
+ * @param {number} args.tick
+ * @param {object} args.status        { tick, exited, atExit, defeated }
+ */
+export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null }) {
+  const frame = renderBoard(snapshot, { presentation, legend, playerId });
+  const fogged = applyFog(frame, visible, explored);
+  const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
+  const player = snapshot.actors.find((actor) => actor.id === playerId && actor.lifecycle !== "exited") || null;
+  const others = snapshot.actors.filter((actor) => actor.id !== playerId && actor.lifecycle === "alive"
+    && presentation[actor.id]?.category !== BARRIER_CATEGORY && inSight(actor));
+  return {
+    tick,
+    rows: fogged.rows,
+    sight: fogged.sight,
+    legend: { ...legend, fog: ASCII_FOG_GLYPH },
+    status,
+    // With fog, only traps in sight right now.
+    hazards: others.filter((actor) => presentation[actor.id]?.category === HAZARD_CATEGORY)
+      .map((actor) => toViewActor(actor, presentation)),
+    player: player
+      ? {
+        ...buildActorHudModel({ ...toViewActor(player, presentation), role: presentation[player.id]?.category ?? null }),
+        affinities: player.affinities.map((pair) => ({ ...pair })),
+        activeAffinityKey: player.activeAffinityKey,
+        ...(player.affinityExhausted ? { affinityExhausted: true } : {}),
+        // Equipped slots, read through core's helpers: the count (1 when unset), the
+        // equipped keys in equip order, the lasting ones off until mana is full, and
+        // the levels of slots run below what is held (#230; full when a key is absent).
+        affinitySlots: player.affinitySlots ?? 1,
+        equippedAffinityKeys: equippedActorAffinityKeys(player),
+        exhaustedAffinityKeys: exhaustedActorAffinityKeys(player),
+        equippedAffinityStacks: { ...(player.equippedAffinityStacks ?? {}) },
+        // Core's rules, stated as data so the UI never restates them: which equipped
+        // slots can be cast and how far each reaches, and the most slots anyone holds.
+        castableAffinities: actorCastableAffinities(player),
+        maxAffinitySlots: MAX_AFFINITY_SLOTS,
+        position: { ...player.position },
+      }
+      : null,
+    // What the player could `take` this turn: unclaimed holdings of defeated actors
+    // next to it. Whether a take succeeds is still core's call.
+    loot: player && player.lifecycle === "alive" ? lootNextTo(snapshot, player) : [],
+    // Every OTHER living actor in sight (id, role, position, vitals, affinities), for the
+    // UI to draw over the board. Traps are reported in `hazards` instead.
+    actors: others.filter((actor) => presentation[actor.id]?.category !== HAZARD_CATEGORY)
+      .map((actor) => toViewActor(actor, presentation)),
+  };
+}
+
+/**
+ * Where the player stands, read from a snapshot: gone (`exited`, core's exit-dwell
+ * rule), standing on exit terrain (`atExit`), or `defeated` (core's lifecycle verdict,
+ * read here, never recomputed).
+ */
+export function playStatus({ snapshot, playerId, exited, tick }) {
+  const player = exited ? null : snapshot.actors.find((actor) => actor.id === playerId);
+  const terrain = player ? snapshot.terrain[player.position.y * snapshot.dimensions.width + player.position.x] : null;
+  const atExit = Boolean(player && player.lifecycle === "alive" && terrain === "exit");
+  const defeated = Boolean(player && player.lifecycle === "defeated");
+  return { tick, exited: Boolean(exited), atExit, defeated };
+}
+
+/**
+ * The legend a level's board is drawn with: the render vocabulary, the level's
+ * own `layout.data.render` overrides, and `@` for the player.
+ */
+export function playLegend(simConfig) {
+  return { ...ASCII_TERRAIN_GLYPHS, ...(simConfig?.layout?.data?.render || {}), actor: "@" };
+}
+
+/**
+ * The actor a play view centres on when the caller names none: the first (by id)
+ * `user_controlled` actor, else the first delver, else the first actor.
+ */
+export function defaultPlayerActorId(initialState) {
+  const sourceActors = (Array.isArray(initialState?.actors) ? initialState.actors : [])
+    .filter((actor) => typeof actor?.id === "string" && actor.id);
+  const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  const categoryOf = (id) => initialState.presentation?.[id]?.category ?? null;
+  return (sourceActors.filter((actor) => actor.motivations?.includes?.(PLAYER_MOTIVATION)).sort(byId)[0]
+    ?? sourceActors.filter((actor) => categoryOf(actor.id) === "delver").sort(byId)[0]
+    ?? sourceActors.slice().sort(byId)[0])?.id;
 }
 
 export const PLAYER_CAPTURE_ADAPTER = "player";

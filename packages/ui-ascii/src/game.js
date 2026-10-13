@@ -76,8 +76,9 @@ function targetsInSight(view) {
  * @param {number} [args.startIndex]
  * @param {Function} [args.createSession] injectable for tests
  * @param {boolean} [args.fog] fog of war: you see only what is in sight (default on)
+ * @param {boolean} [args.showHelp] start with the key help shown (default)
  */
-export async function createGame({ levels, startIndex = 0, createSession = createPlaySession, fog = true } = {}) {
+export async function createGame({ levels, startIndex = 0, createSession = createPlaySession, fog = true, showHelp: initialHelp = true } = {}) {
   if (!Array.isArray(levels) || levels.length === 0) {
     throw new Error("createGame: at least one level is required");
   }
@@ -85,7 +86,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   let session = null;
   let turns = 0;
   let message = "";
-  let showHelp = true;
+  let showHelp = initialHelp;
   let finished = false;
   // An open panel: the affinity list, the target picker or the loot list. Opening,
   // browsing and closing one is free; only the command it sends takes a turn.

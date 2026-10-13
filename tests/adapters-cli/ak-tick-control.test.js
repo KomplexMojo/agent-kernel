@@ -292,8 +292,9 @@ test("cli tick state at tick 2 after rewind matches state reached by forward-onl
   // Both must report tick 2
   assert.equal(afterRewind.tick, 2);
   assert.equal(directForward.tick, 2);
-  // ASCII grids must be identical (same world state at same tick)
-  assert.equal(afterRewind.ascii, directForward.ascii);
+  // Same world state at the same tick. The title line names each run, so compare below it.
+  const belowTitle = (ascii) => ascii.split("\n").slice(1).join("\n");
+  assert.equal(belowTitle(afterRewind.ascii), belowTitle(directForward.ascii));
 });
 
 // ---------------------------------------------------------------------------

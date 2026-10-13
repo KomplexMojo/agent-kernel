@@ -8,14 +8,16 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { createGame } from "./game.js";
-import { HELP_LINES, intentForKey, splitKeys } from "./keymap.js";
+import { HELP_LINES, WATCH_HELP_LINES, intentForKey, splitKeys, watchIntentForKey } from "./keymap.js";
 import {
   listBundledLevels,
   loadBundledLevel,
   loadBundledLevels,
   loadLevelFromFiles,
   loadLevelFromRunDir,
+  loadRunFromDir,
 } from "./levels.js";
+import { createWatch } from "./watch.js";
 
 const USAGE = `Usage: ak-maze [options]
 
@@ -31,9 +33,15 @@ const USAGE = `Usage: ak-maze [options]
   --color                 colour even when output is not a terminal
   --no-color              plain text output (also: NO_COLOR set in the environment)
   --no-fog                debug: show the whole map (play is always under fog of war)
+  --watch                 with --run: watch the run \`ak run\` recorded there, tick by tick
+  --tick <n>              with --watch: open at this tick (default 0)
+  --no-help               start with the key help hidden (? shows it)
   -h, --help              show this help
 
-${HELP_LINES.join("\n")}`;
+${HELP_LINES.join("\n")}
+
+Watching a run:
+${WATCH_HELP_LINES.join("\n")}`;
 
 export function parseArgs(argv) {
   const options = { color: true, fog: true };
@@ -59,6 +67,14 @@ export function parseArgs(argv) {
       case "--json": options.json = true; break;
       case "--no-color": options.color = false; break;
       case "--no-fog": options.fog = false; break;
+      case "--watch": options.watch = true; break;
+      case "--no-help": options.showHelp = false; break;
+      case "--tick": {
+        const value = next();
+        if (!/^\d+$/.test(value)) throw new Error(`--tick needs a whole number, got ${value}`);
+        options.tick = Number(value);
+        break;
+      }
       case "--color": options.color = "always"; break;
       case "-h":
       case "--help": options.help = true; break;
@@ -104,14 +120,14 @@ export function readCapture(path) {
 }
 
 /** Feed a key string through the game without a terminal; returns the final screen. */
-export async function runScripted(game, keys, { color = false } = {}) {
+export async function runScripted(game, keys, { color = false, keyIntent = intentForKey } = {}) {
   for (const key of splitKeys(keys)) {
-    if ((await game.handle(intentForKey(key))).quit) break;
+    if ((await game.handle(keyIntent(key))).quit) break;
   }
   return game.screen({ color });
 }
 
-function runInteractive(game, { color, recordPath }) {
+function runInteractive(game, { color, recordPath, keyIntent = intentForKey }) {
   const { stdin, stdout } = process;
   const draw = () => stdout.write(`\u001b[2J\u001b[H${game.screen({ color })}\n`);
   const restore = () => {
@@ -128,7 +144,7 @@ function runInteractive(game, { color, recordPath }) {
   stdin.on("data", (chunk) => {
     pending = pending.then(async () => {
       for (const key of splitKeys(chunk)) {
-        if ((await game.handle(intentForKey(key))).quit) {
+        if ((await game.handle(keyIntent(key))).quit) {
           if (recordPath) recordGame(game, recordPath);
           restore();
           stdout.write("\nBye.\n");
@@ -156,6 +172,11 @@ export async function main(argv = process.argv.slice(2)) {
     console.log(listBundledLevels().join("\n"));
     return 0;
   }
+  if (options.watch) return watch(options);
+  if (options.tick !== undefined) {
+    console.error(`--tick needs --watch.\n\n${USAGE}`);
+    return 2;
+  }
   let game;
   try {
     const recorded = options.replayPath ? readCapture(options.replayPath) : null;
@@ -163,7 +184,7 @@ export async function main(argv = process.argv.slice(2)) {
     const levelOptions = recorded?.level && !options.level && !options.runDir && !options.simConfigPath
       ? { ...options, level: recorded.level }
       : options;
-    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog });
+    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, showHelp: options.showHelp !== false });
     if (recorded) await game.replay(recorded.capture);
   } catch (error) {
     console.error(error.message);
@@ -194,6 +215,38 @@ export async function main(argv = process.argv.slice(2)) {
   }
   runInteractive(game, { color: shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env }), recordPath: options.recordPath });
   return null; // keeps running until the player quits
+}
+
+/** `--watch`: a recorded run, drawn with the game's screen; keys step through its ticks. */
+async function watch(options) {
+  if (!options.runDir) {
+    console.error(`--watch needs --run <dir> (an \`ak run\` output directory).\n\n${USAGE}`);
+    return 2;
+  }
+  const unsupported = ["level", "simConfigPath", "initialStatePath", "recordPath", "replayPath"].filter((key) => options[key] !== undefined);
+  if (unsupported.length > 0 || options.fog === false) {
+    console.error("--watch shows a recorded run as it happened: it takes --run, --tick, --keys, --json and the colour options only.");
+    return 2;
+  }
+  let viewer;
+  try {
+    viewer = createWatch({ run: loadRunFromDir(options.runDir), tick: options.tick ?? 0, showHelp: options.showHelp !== false });
+  } catch (error) {
+    console.error(error.message);
+    return 1;
+  }
+  if (options.keys !== undefined || options.json || !process.stdin.isTTY) {
+    const color = options.json ? options.color === "always" : shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env });
+    const screen = await runScripted(viewer, options.keys ?? "", { color, keyIntent: watchIntentForKey });
+    if (options.json) {
+      console.log(JSON.stringify({ ok: true, ...viewer.state(), screen }));
+    } else {
+      console.log(screen);
+    }
+    return 0;
+  }
+  runInteractive(viewer, { color: shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env }), keyIntent: watchIntentForKey });
+  return null;
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
