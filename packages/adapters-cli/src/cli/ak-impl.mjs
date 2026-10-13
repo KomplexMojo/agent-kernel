@@ -4936,10 +4936,10 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .filter(Boolean)
     .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
 
-  // No size=small precheck for placed hazards: size=small generates the identical
-  // grid/room geometry size=medium does (the Configurator's input preparation bumps
-  // roomMinSize to MIN_ROOM_SIZE_WITH_ITEMS when placedHazards are present), so rejecting
-  // small rooms contradicts the geometry the generator actually produces. Hazard
+  // No size=small precheck for placed hazards: the Configurator's input preparation
+  // bumps roomMinSize to MIN_ROOM_SIZE_WITH_ITEMS when placedHazards are present, so a
+  // small room still fits them and rejecting it would contradict the geometry the
+  // generator actually produces. Hazard
   // placement is validated against the real generated room: room-relative
   // coordinates that exceed the room's interior are rejected with a structured
   // hazard_outside_room error by the level-gen layer (level-layout.js).

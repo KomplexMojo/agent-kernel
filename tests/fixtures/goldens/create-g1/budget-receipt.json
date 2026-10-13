@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 170,
-  "remaining": 4830,
+  "totalCost": 185,
+  "remaining": 4815,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -230,9 +230,9 @@
     {
       "id": "tile_floor",
       "kind": "tile",
-      "quantity": 25,
+      "quantity": 40,
       "unitCost": 1,
-      "totalCost": 25,
+      "totalCost": 40,
       "status": "approved",
       "category": "floor_tiles",
       "subjectRef": {
@@ -316,8 +316,8 @@
     {
       "id": "rooms",
       "capTokens": 2101,
-      "spentTokens": 25,
-      "remainingTokens": 2076,
+      "spentTokens": 40,
+      "remainingTokens": 2061,
       "status": "approved"
     },
     {
@@ -351,19 +351,19 @@
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 170,
-    "remainingBudget": 4830,
+    "totalSpend": 185,
+    "remainingBudget": 4815,
     "overBudget": false,
     "categories": {
       "rooms": {
-        "actual": 25,
+        "actual": 40,
         "target": 2101,
-        "usagePercent": 1
+        "usagePercent": 2
       },
       "floor_tiles": {
-        "actual": 25,
+        "actual": 40,
         "target": 2101,
-        "usagePercent": 1
+        "usagePercent": 2
       },
       "hazards": {
         "actual": 42,
@@ -391,7 +391,7 @@
         "usagePercent": 0
       }
     },
-    "totalBudgetUsagePercent": 3,
+    "totalBudgetUsagePercent": 4,
     "incentive": {
       "actualRatio": 0,
       "targetRatio": 0.8,

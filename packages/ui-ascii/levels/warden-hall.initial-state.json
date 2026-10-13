@@ -16,8 +16,8 @@
     {
       "id": "card_delver_1-1",
       "position": {
-        "x": 12,
-        "y": 12
+        "x": 11,
+        "y": 16
       },
       "alignment": "external",
       "lifecycle": "alive",
@@ -72,7 +72,7 @@
       "id": "card_warden_1-1",
       "position": {
         "x": 27,
-        "y": 15
+        "y": 8
       },
       "alignment": "dungeon",
       "lifecycle": "alive",
@@ -126,7 +126,7 @@
       "id": "card_warden_2-1",
       "position": {
         "x": 26,
-        "y": 15
+        "y": 8
       },
       "alignment": "dungeon",
       "lifecycle": "alive",

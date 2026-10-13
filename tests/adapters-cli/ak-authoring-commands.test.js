@@ -157,10 +157,12 @@ test("cli create emits a complete playable artifact bundle for agent requests", 
   const presentation = initialState.presentation ?? {};
   const hazards = (initialState.actors ?? []).filter((entry) => presentation[entry.id]?.category === "hazard");
   // Updated 2026-07-10: hazard coordinates adjudicated as room-relative (M3); formerly pinned grid-absolute semantics.
-  // Authored (2,2) maps into room R1 at (1,1): absolute = (1+2, 1+2) = (3,3).
+  // Authored (2,2) maps into the first room: absolute = room origin + (2,2). The origin itself
+  // moves with room sizing (#198), so it is read from the layout rather than pinned.
+  const [room] = readJson(join(outDir, "sim-config.json")).layout.data.rooms;
   assert.ok(hazards.some((entry) => (
-    entry.position?.x === 3
-    && entry.position?.y === 3
+    entry.position?.x === room.x + 2
+    && entry.position?.y === room.y + 2
     && entry.affinities?.some((affinity) => (
       affinity.kind === "fire"
       && affinity.expression === "push"

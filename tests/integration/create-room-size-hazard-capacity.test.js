@@ -6,6 +6,10 @@
  *   packages/adapters-cli/src/mcp/tools/authoring.mjs ak_create buildArgs
  *   -> packages/adapters-cli/src/cli/ak-impl.mjs executeCommand("create", argv)
  *
+ * #198 (2026-10-13): empty small and medium rooms are no longer identical; each size has
+ * its own range. A small room that holds hazards is still sized as medium, so the
+ * acceptance contract below holds. The ground truth that follows is historical.
+ *
  * GROUND TRUTH (confirmed by direct invocation during test authoring):
  *   - `--room "size=small;count=1"` and `--room "size=medium;count=1"` generate
  *     byte-identical layouts: 9x9 grid, one 5x5 room (25 interior tiles).
@@ -130,7 +134,7 @@ afterAll(() => {
   rmSync(permutationOutDir, { recursive: true, force: true });
 });
 
-describe("create room-size hazard capacity (I1: small rejects hazards on medium-identical geometry)", () => {
+describe("create room-size hazard capacity (I1: a small room holding hazards behaves like medium)", () => {
   let outDir;
 
   beforeAll(() => {
@@ -141,7 +145,9 @@ describe("create room-size hazard capacity (I1: small rejects hazards on medium-
     rmSync(outDir, { recursive: true, force: true });
   });
 
-  test("small and medium rooms generate identical layout geometry (contract pin — passes today)", async () => {
+  // #198 (maintainer, 2026-10-13, "Real sizes"): empty small and medium rooms used to be
+  // identical 5x5 squares. Each size now spans its own range: small 3-5, medium 5-8.
+  test("small and medium rooms with nothing in them get their own sizes", async () => {
     const { ak_impl, authoringToolsModule } = await loadModules();
     const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
@@ -161,11 +167,11 @@ describe("create room-size hazard capacity (I1: small rejects hazards on medium-
       assert.equal(result.ok, true, `create --room size=${size} alone must succeed: ${result.error}`);
       layouts[size] = JSON.parse(readFileSync(join(dir, "sim-config.json"), "utf8")).layout.data;
     }
-    assert.deepEqual(
-      { width: layouts.small.width, height: layouts.small.height, tiles: layouts.small.tiles },
-      { width: layouts.medium.width, height: layouts.medium.height, tiles: layouts.medium.tiles },
-      "size=small and size=medium must produce identical grids (code-is-law pin from the element coverage suite)",
-    );
+    const sides = (layout) => layout.rooms.flatMap((room) => [room.width, room.height]);
+    assert.ok(sides(layouts.small).every((side) => side >= 3 && side <= 5), `small: ${sides(layouts.small)}`);
+    assert.ok(sides(layouts.medium).every((side) => side >= 5 && side <= 8), `medium: ${sides(layouts.medium)}`);
+    assert.ok(Math.max(...sides(layouts.medium)) > Math.max(...sides(layouts.small)),
+      "a medium room is bigger than a small one");
   });
 
   test("size=small room accepts one hazard exactly like size=medium does (FAILS today)", async () => {
@@ -342,11 +348,7 @@ test("i1 capacity rule counts entrance/exit tiles consistently across sizes", as
     mediumReceipt.lineItems[0].quantity,
     "small and medium should bill the same floor quantity on identical geometry",
   );
-  assert.deepEqual(
-    readJson(join(smallDir, "sim-config.json")).layout.data.rooms,
-    readJson(join(mediumDir, "sim-config.json")).layout.data.rooms,
-    "small and medium room geometry should remain identical when the floorTile budget changes",
-  );
+  // The rooms themselves differ by size since #198; the billed floor count does not.
 });
 
 test("i1 large room accepts hazard counts proportional to its larger interior", async () => {
