@@ -407,10 +407,8 @@ Inputs/outputs:
 
 ### Scenario authoring example
 
-The canonical motivation-sandbox fixture is
-`tests/fixtures/scenarios/delver-warden-battle-v1-basic.json`. Its `cliEquivalent`
-documents the matching `create` invocation and the motivation kinds currently used by
-the sandbox path: `attacking`, `defending`, and `stationary`. Authored actors also
+Author scenarios with `create` and play them with `play`. Actor motivations used by the
+sandbox path are `attacking`, `defending`, and `stationary`. Authored actors also
 accept `motivation=random` (deterministic seed-derived movement), which `create`
 persists into the emitted initial state.
 
