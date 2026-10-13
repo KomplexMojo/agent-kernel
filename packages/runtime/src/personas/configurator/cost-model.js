@@ -25,7 +25,7 @@
  *     **prerequisites** (`validateAffinityPrereqs`) — configuration SHAPE, which is
  *     Configurator law.
  *   - **Runtime affinity math** (`computeExternalManaUse`, `computeInternalManaUpkeep`,
- *     `computeExternalRange`, `computeInternalRadius`, `computeDrawNet`,
+ *     `computeInternalRadius`, `computeDrawNet`,
  *     `computeEmitStrength`) — what an affinity DOES during a tick, in mana and tiles, with
  *     its own literals. None of it is denominated in tokens, and none of it ever read the
  *     deleted constants.
@@ -50,15 +50,6 @@ export function computeExternalManaUse(s) {
 export function computeInternalManaUpkeep(s) {
   if (!Number.isInteger(s) || s < 1) return 0;
   return 2 + s;
-}
-
-/**
- * External expression range for stack s (design §10.1).
- * Formula: 1 + s
- */
-export function computeExternalRange(s) {
-  if (!Number.isInteger(s) || s < 1) return 0;
-  return 1 + s;
 }
 
 /**

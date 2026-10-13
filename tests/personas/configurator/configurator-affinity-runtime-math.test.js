@@ -45,11 +45,11 @@ assert.equal(computeInternalManaUpkeep(4), 6);
 assert.equal(computeInternalManaUpkeep(5), 7);
 });
 
-test("external range: 1 + s (design §10.1)", async () => {
-  const { computeExternalRange } = await import("../../../packages/runtime/src/personas/configurator/cost-model.js");
-
-assert.equal(computeExternalRange(1), 2);
-assert.equal(computeExternalRange(3), 4);
+// Push/pull range is core's: a cast reaches `stacks` tiles (actor-cast.ts; maintainer, 2026-10-13,
+// #231). The Configurator keeps no range formula of its own, so none can drift from core.
+test("the Configurator has no push/pull range formula of its own", async () => {
+  const costModel = await import("../../../packages/runtime/src/personas/configurator/cost-model.js");
+  assert.equal(costModel.computeExternalRange, undefined);
 });
 
 test("internal radius: 1 + s (design §10.2)", async () => {
