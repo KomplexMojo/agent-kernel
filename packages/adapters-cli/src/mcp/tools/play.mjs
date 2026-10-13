@@ -1,3 +1,4 @@
+import { bundledLevelNames } from "../../cli/play-ascii.mjs";
 import { booleanSchema, buildArgv, createTool, pathSchema, stringSchema } from "./shared.mjs";
 
 const playSpec = [
@@ -8,6 +9,8 @@ const playSpec = [
   { key: "level" },
   { key: "keys" },
   { key: "color", boolean: true },
+  { key: "record" },
+  { key: "replay" },
 ];
 
 // Fog is on unless the caller says `fog: false`, so the flag is the negation.
@@ -32,10 +35,12 @@ export const playTools = [
         dir: pathSchema("A directory holding sim-config.json and initial-state.json, such as an ak_create outDir."),
         simConfig: pathSchema("SimConfig artifact path (with initialState)."),
         initialState: pathSchema("InitialState artifact path (with simConfig)."),
-        level: stringSchema("A bundled ui-ascii level by name: first-steps, long-way-round, warden-hall, water-traps."),
+        level: stringSchema(`A bundled ui-ascii level by name: ${bundledLevelNames().join(", ")}.`),
         keys: stringSchema("Keys to play before returning the screen, e.g. \"ddss.\". Omit for the starting board."),
         color: booleanSchema("Include 24-bit ANSI colour in `screen` (only useful where escape codes render)."),
         fog: booleanSchema("Fog of war (default true): the player sees only what @ sees. false is a debug view of the whole level."),
+        record: pathSchema("Save the played commands to this path as a CapturedInputArtifact (same as `ak play --record`)."),
+        replay: pathSchema("Re-run a saved game (a `record` file) on its level, then apply `keys` (same as `ak play --replay`)."),
       },
     },
     buildArgs: (args) => [...buildArgv(args, playSpec), ...fogArgs(args), "--json"],

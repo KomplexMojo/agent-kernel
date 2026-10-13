@@ -8,11 +8,27 @@
  * without, it hands the terminal to the UI until the player quits.
  */
 import { spawn, spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const UI_ASCII_CLI = resolve(dirname(fileURLToPath(import.meta.url)), "../../../ui-ascii/src/cli.mjs");
 const AK_CLI = resolve(dirname(fileURLToPath(import.meta.url)), "ak.mjs");
+const UI_ASCII_RECIPES = resolve(dirname(UI_ASCII_CLI), "../levels/recipes.json");
+
+/**
+ * The bundled level names, in play order, read from ui-ascii's `levels/recipes.json`
+ * (data, not code: this adapter still never imports ui-ascii). Read from the file so a
+ * tool description cannot go stale when a level is added or renamed.
+ */
+export function bundledLevelNames() {
+  try {
+    const recipes = JSON.parse(readFileSync(UI_ASCII_RECIPES, "utf8"));
+    return (recipes.levels || []).map((level) => level.name).filter(Boolean).sort();
+  } catch {
+    return [];
+  }
+}
 
 /** ui-ascii arguments naming the level; `source` is exactly one of its keys. */
 export function levelArgs(source = {}) {

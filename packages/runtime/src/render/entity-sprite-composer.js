@@ -36,6 +36,7 @@
 
 import { AFFINITY_COLOR_HEX, hexToRgba } from "./affinity-palette.js";
 import { AFFINITY_KINDS } from "../contracts/domain-constants.js";
+import { GAME_COLOR_PALETTE } from "../contracts/game-elements.js";
 
 /** Canonical composition size. Callers may request any size; this is the reference. */
 export const ENTITY_SPRITE_CANONICAL_SIZE = 32;
@@ -44,7 +45,18 @@ export const ENTITY_SPRITE_CANONICAL_SIZE = 32;
 export const ENTITY_SPRITE_ROLES = Object.freeze(["delver", "warden", "hazard", "resource"]);
 
 const DEFAULT_ROLE = "delver";
-const DEFAULT_AFFINITY = "fire";
+
+/**
+ * The fill of an entity with no affinity: its role's own palette colour. No affinity
+ * is a default for another (maintainer, 2026-10-13: every affinity is a peer); this
+ * used to be `fire`, which drew every unaffiliated actor as a fire actor.
+ */
+const ROLE_FILL_HEX = Object.freeze({
+  delver: GAME_COLOR_PALETTE.actors.delver,
+  warden: GAME_COLOR_PALETTE.actors.warden,
+  hazard: GAME_COLOR_PALETTE.items.hazard,
+  resource: GAME_COLOR_PALETTE.items.resource,
+});
 
 /**
  * Outline colours.
@@ -93,7 +105,7 @@ const MIN_SIZE = 6;
 /**
  * @typedef {object} EntitySpriteState
  * @property {string} role     One of ENTITY_SPRITE_ROLES.
- * @property {string} affinity One of AFFINITY_KINDS.
+ * @property {string|null} affinity One of AFFINITY_KINDS, or null when it has none.
  */
 
 function normalizeToken(value) {
@@ -162,7 +174,7 @@ export function resolveEquippedAffinity(entity) {
 }
 
 function inferAffinity(entity) {
-  return resolveEquippedAffinity(entity) ?? DEFAULT_AFFINITY;
+  return resolveEquippedAffinity(entity);
 }
 
 /**
@@ -234,7 +246,7 @@ export function composeEntitySprite({ state, entity, size } = {}) {
     ? normalizeEntitySpriteState(state)
     : normalizeEntitySpriteState(entity);
   const dim = clampSize(size);
-  const fillHex = AFFINITY_COLOR_HEX[resolved.affinity] || AFFINITY_COLOR_HEX[DEFAULT_AFFINITY];
+  const fillHex = (resolved.affinity && AFFINITY_COLOR_HEX[resolved.affinity]) || ROLE_FILL_HEX[resolved.role];
   const fill = hexToRgba(fillHex, 255);
   const outline = hexToRgba(outlineForFill(fillHex), 255);
   const pixels = new Uint8ClampedArray(dim * dim * 4);

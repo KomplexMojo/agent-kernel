@@ -6,7 +6,9 @@
 
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
-const { resolve } = require("node:path");
+const { existsSync, mkdtempSync, rmSync } = require("node:fs");
+const { tmpdir } = require("node:os");
+const { join, resolve } = require("node:path");
 
 const ROOT = resolve(__dirname, "../../..");
 const SERVER = resolve(ROOT, "packages/adapters-cli/src/mcp/server.mjs");
@@ -118,15 +120,37 @@ test("ak_play_ascii shows a bundled level, and refuses a directory with no level
   const server = startServer();
   try {
     await server.initialize();
-    const bundled = await server.callTool("ak_play_ascii", { level: "water-traps" });
+    const bundled = await server.callTool("ak_play_ascii", { level: "trap-rooms" });
     assert.equal(bundled.ok, true, JSON.stringify(bundled));
-    assert.equal(bundled.level, "water-traps");
+    assert.equal(bundled.level, "trap-rooms");
+    const { tools } = await server.request("tools/list", {});
+    const level = tools.find((entry) => entry.name === "ak_play_ascii").inputSchema.properties.level;
+    assert.match(level.description, /first-steps, long-way-round, trap-rooms, warden-hall/);
     await assert.rejects(
       server.callTool("ak_play_ascii", { dir: resolve(ROOT, "no-such-run-dir") }),
       /No sim-config\.json/,
     );
   } finally {
     await server.close();
+  }
+});
+
+test("ak_play_ascii records a game and replays it, like ak play --record/--replay", async () => {
+  const server = startServer();
+  const dir = mkdtempSync(join(tmpdir(), "ak-mcp-play-record-"));
+  const recordPath = join(dir, "game.json");
+  try {
+    await server.initialize();
+    const played = await server.callTool("ak_play_ascii", { level: "first-steps", keys: "d.", record: recordPath });
+    assert.equal(played.ok, true, JSON.stringify(played));
+    assert.ok(existsSync(recordPath), "the record file was written");
+    const replayed = await server.callTool("ak_play_ascii", { level: "first-steps", replay: recordPath });
+    assert.equal(replayed.ok, true, JSON.stringify(replayed));
+    assert.equal(replayed.status.tick, played.status.tick);
+    assert.equal(replayed.screen, played.screen);
+  } finally {
+    await server.close();
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 

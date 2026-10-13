@@ -423,6 +423,88 @@ export function normalizeAffinityRulesArtifact(input = {}) {
   };
 }
 
+/**
+ * The default rules, one row per kind. Every kind is built by the same function from
+ * the same shape of row (maintainer, 2026-10-13: every affinity is a peer); fire and
+ * water used to be written out by hand while the other eight came from a loop. The
+ * numbers are tuning data and are unchanged: per-expression tier mana costs, the tier
+ * potencies where a kind authors them, the expression ids, and any mana scaling.
+ */
+const LINEAR_TIERS = Object.freeze([1, 2, 3, 4, 5]);
+const DEFAULT_AFFINITY_ROWS = Object.freeze({
+  fire: {
+    ids: ["flame_surge", "ember_grasp", "pyre_field", "ember_siphon"],
+    manaCost: { push: [3, 6, 9, 12, 15], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
+    potency: { push: [1, 2, 4, 8, 16], pull: LINEAR_TIERS, emit: LINEAR_TIERS, draw: LINEAR_TIERS },
+    manaScaling: { emit: { persistentAreaSurcharge: 2, environmentMutationSurcharge: 1 } },
+  },
+  water: {
+    ids: ["tidal_ram", "current_draw", "tidal_veil", "tide_siphon"],
+    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 3, 5, 7, 9], draw: LINEAR_TIERS },
+    potency: { push: LINEAR_TIERS, pull: LINEAR_TIERS, emit: LINEAR_TIERS, draw: LINEAR_TIERS },
+    manaScaling: { emit: { persistentAreaSurcharge: 1 } },
+  },
+  earth: {
+    ids: ["stone_ram", "stone_draw", "stone_field", "bedrock_siphon"],
+    manaCost: { push: [3, 5, 7, 9, 11], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
+  },
+  wind: {
+    ids: ["gust_lance", "draft_pull", "storm_ring", "breeze_siphon"],
+    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
+  },
+  life: {
+    ids: ["bloom_strike", "vital_draw", "verdant_aura", "vitality_siphon"],
+    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: [0, 1, 2, 3, 4] },
+    potency: { pull: LINEAR_TIERS, draw: LINEAR_TIERS },
+  },
+  decay: {
+    ids: ["rot_strike", "wither_draw", "blight_mist", "wither_siphon"],
+    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
+  },
+  corrode: {
+    ids: ["rust_blow", "etch_draw", "acid_haze", "rust_siphon"],
+    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
+  },
+  fortify: {
+    ids: ["bulwark_drive", "anchor_draw", "bulwark_field", "bulwark_siphon"],
+    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
+  },
+  light: {
+    ids: ["prism_burst", "lumen_draw", "radiant_field", "radiance_siphon"],
+    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
+  },
+  dark: {
+    ids: ["shade_lash", "gloom_draw", "umbral_field", "shadow_siphon"],
+    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
+  },
+});
+const DEFAULT_TARGET_TYPE_BY_VERB = Object.freeze({ push: "enemy", pull: "self", emit: "area", draw: "self" });
+
+function defaultAffinityRule(kind) {
+  const row = DEFAULT_AFFINITY_ROWS[kind];
+  return Object.freeze({
+    kind,
+    opposite: AFFINITY_OPPOSITES[kind],
+    basePriority: 1,
+    expressions: Object.freeze(["push", "pull", "emit", "draw"].map((verb, index) => {
+      const potency = row.potency?.[verb];
+      const expression = {
+        id: row.ids[index],
+        verb,
+        defaultTargetType: DEFAULT_TARGET_TYPE_BY_VERB[verb],
+        stackTiers: Object.freeze(row.manaCost[verb].map((manaCost, tierIndex) => Object.freeze({
+          tier: tierIndex + 1,
+          manaCost,
+          ...(potency ? { potency: potency[tierIndex] } : {}),
+          complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[tierIndex + 1],
+        }))),
+      };
+      if (row.manaScaling?.[verb]) expression.manaScaling = Object.freeze({ ...row.manaScaling[verb] });
+      return Object.freeze(expression);
+    })),
+  });
+}
+
 export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
   schema: AFFINITY_RULES_ARTIFACT_SCHEMA,
   schemaVersion: 1,
@@ -447,234 +529,7 @@ export const DEFAULT_AFFINITY_RULES_ARTIFACT = Object.freeze({
       drainOnFail: 0,
     }),
   }),
-  affinities: Object.freeze([
-    Object.freeze({
-      kind: "fire",
-      opposite: "water",
-      basePriority: 1,
-      expressions: Object.freeze([
-        Object.freeze({
-          id: "flame_surge",
-          verb: "push",
-          defaultTargetType: "enemy",
-          stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 3, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 6, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 9, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 12, potency: 8, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 15, potency: 16, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
-          ]),
-        }),
-        Object.freeze({
-          id: "ember_grasp",
-          verb: "pull",
-          defaultTargetType: "self",
-          stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 1, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 2, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 3, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 4, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 5, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
-          ]),
-        }),
-        Object.freeze({
-          id: "pyre_field",
-          verb: "emit",
-          defaultTargetType: "area",
-          stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 2, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 4, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 6, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 8, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 10, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
-          ]),
-          manaScaling: Object.freeze({
-            persistentAreaSurcharge: 2,
-            environmentMutationSurcharge: 1,
-          }),
-        }),
-        Object.freeze({
-          id: "ember_siphon",
-          verb: "draw",
-          defaultTargetType: "self",
-          stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 1, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 2, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 3, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 4, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 5, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
-          ]),
-        }),
-      ]),
-    }),
-    Object.freeze({
-      kind: "water",
-      opposite: "fire",
-      basePriority: 1,
-      expressions: Object.freeze([
-        Object.freeze({
-          id: "tidal_ram",
-          verb: "push",
-          defaultTargetType: "enemy",
-          stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 2, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 4, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 6, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 8, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 10, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
-          ]),
-        }),
-        Object.freeze({
-          id: "current_draw",
-          verb: "pull",
-          defaultTargetType: "self",
-          stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 1, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 2, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 3, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 4, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 5, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
-          ]),
-        }),
-        Object.freeze({
-          id: "tidal_veil",
-          verb: "emit",
-          defaultTargetType: "area",
-          stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 2, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 3, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 5, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 7, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 9, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
-          ]),
-          manaScaling: Object.freeze({
-            persistentAreaSurcharge: 1,
-          }),
-        }),
-        Object.freeze({
-          id: "tide_siphon",
-          verb: "draw",
-          defaultTargetType: "self",
-          stackTiers: Object.freeze([
-            Object.freeze({ tier: 1, manaCost: 1, potency: 1, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[1] }),
-            Object.freeze({ tier: 2, manaCost: 2, potency: 2, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[2] }),
-            Object.freeze({ tier: 3, manaCost: 3, potency: 3, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[3] }),
-            Object.freeze({ tier: 4, manaCost: 4, potency: 4, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[4] }),
-            Object.freeze({ tier: 5, manaCost: 5, potency: 5, complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[5] }),
-          ]),
-        }),
-      ]),
-    }),
-    ...["earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark"].map((kind) => {
-      const opposite = AFFINITY_OPPOSITES[kind];
-      const pushId = {
-        earth: "stone_ram",
-        wind: "gust_lance",
-        life: "bloom_strike",
-        decay: "rot_strike",
-        corrode: "rust_blow",
-        fortify: "bulwark_drive",
-        light: "prism_burst",
-        dark: "shade_lash",
-      }[kind];
-      const pullId = {
-        earth: "stone_draw",
-        wind: "draft_pull",
-        life: "vital_draw",
-        decay: "wither_draw",
-        corrode: "etch_draw",
-        fortify: "anchor_draw",
-        light: "lumen_draw",
-        dark: "gloom_draw",
-      }[kind];
-      const emitId = {
-        earth: "stone_field",
-        wind: "storm_ring",
-        life: "verdant_aura",
-        decay: "blight_mist",
-        corrode: "acid_haze",
-        fortify: "bulwark_field",
-        light: "radiant_field",
-        dark: "umbral_field",
-      }[kind];
-      const drawId = {
-        earth: "bedrock_siphon",
-        wind: "breeze_siphon",
-        life: "vitality_siphon",
-        decay: "wither_siphon",
-        corrode: "rust_siphon",
-        fortify: "bulwark_siphon",
-        light: "radiance_siphon",
-        dark: "shadow_siphon",
-      }[kind];
-      const pushCosts = kind === "earth" ? [3, 5, 7, 9, 11] : [2, 4, 6, 8, 10];
-      const pullCosts = [1, 2, 3, 4, 5];
-      const emitCosts = [2, 4, 6, 8, 10];
-      const drawCosts = kind === "life" ? [0, 1, 2, 3, 4] : [1, 2, 3, 4, 5];
-      const potencyByTier = kind === "life" ? [1, 2, 3, 4, 5] : null;
-      return Object.freeze({
-        kind,
-        opposite,
-        basePriority: 1,
-        expressions: Object.freeze([
-          Object.freeze({
-            id: pushId,
-            verb: "push",
-            defaultTargetType: "enemy",
-            stackTiers: Object.freeze(pushCosts.map((manaCost, index) => Object.freeze({
-              tier: index + 1,
-              manaCost,
-              complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[index + 1],
-            }))),
-          }),
-          Object.freeze({
-            id: pullId,
-            verb: "pull",
-            defaultTargetType: "self",
-            stackTiers: Object.freeze(pullCosts.map((manaCost, index) => {
-              const tier = index + 1;
-              const base = {
-                tier,
-                manaCost,
-                complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[tier],
-              };
-              if (Array.isArray(potencyByTier)) {
-                base.potency = potencyByTier[index];
-              }
-              return Object.freeze(base);
-            })),
-          }),
-          Object.freeze({
-            id: emitId,
-            verb: "emit",
-            defaultTargetType: "area",
-            stackTiers: Object.freeze(emitCosts.map((manaCost, index) => Object.freeze({
-              tier: index + 1,
-              manaCost,
-              complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[index + 1],
-            }))),
-          }),
-          Object.freeze({
-            id: drawId,
-            verb: "draw",
-            defaultTargetType: "self",
-            stackTiers: Object.freeze(drawCosts.map((manaCost, index) => {
-              const tier = index + 1;
-              const base = {
-                tier,
-                manaCost,
-                complexityClass: DEFAULT_AFFINITY_COMPLEXITY_BY_TIER[tier],
-              };
-              if (Array.isArray(potencyByTier)) {
-                base.potency = potencyByTier[index];
-              }
-              return Object.freeze(base);
-            })),
-          }),
-        ]),
-      });
-    }),
-  ]),
+  affinities: Object.freeze(AFFINITY_KINDS.map((kind) => defaultAffinityRule(kind))),
   interactions: Object.freeze([
     Object.freeze({
       sourceKind: "fire",

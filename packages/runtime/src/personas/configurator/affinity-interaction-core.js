@@ -5,21 +5,23 @@
  * to the core engine, ensuring runtime matches core-ts exactly.
  */
 
+import { AFFINITY_EXPRESSIONS, AFFINITY_KINDS } from "../../contracts/domain-constants.js";
+
 // ── Reverse code maps (string → core i32 code) ──
+// Core's codes are the 1-based positions in the one kind and expression lists
+// (`contracts/game-elements.js`); no second hand-typed list of kinds lives here.
 
-export const AFFINITY_KIND_TO_CODE = Object.freeze({
-  fire: 1, water: 2, earth: 3, wind: 4, life: 5,
-  decay: 6, corrode: 7, fortify: 8, light: 9, dark: 10,
-});
+export const AFFINITY_KIND_TO_CODE = Object.freeze(
+  Object.fromEntries(AFFINITY_KINDS.map((kind, index) => [kind, index + 1])),
+);
 
-export const AFFINITY_EXPRESSION_TO_CODE = Object.freeze({
-  push: 1, pull: 2, emit: 3, draw: 4,
-});
+export const AFFINITY_EXPRESSION_TO_CODE = Object.freeze(
+  Object.fromEntries(AFFINITY_EXPRESSIONS.map((expression, index) => [expression, index + 1])),
+);
 
-const AFFINITY_CODE_TO_KIND = Object.freeze({
-  1: "fire", 2: "water", 3: "earth", 4: "wind", 5: "life",
-  6: "decay", 7: "corrode", 8: "fortify", 9: "light", 10: "dark",
-});
+const AFFINITY_CODE_TO_KIND = Object.freeze(
+  Object.fromEntries(AFFINITY_KINDS.map((kind, index) => [index + 1, kind])),
+);
 
 const RELATIONSHIP_NAMES = Object.freeze({
   0: "same", 1: "opposite", 2: "neutral",
@@ -93,10 +95,6 @@ export function resolveAffinityInteractionFromCore(core, source, target) {
 
 // ── Pressure resolution ──
 
-const AFFINITY_KINDS_ORDERED = [
-  "fire", "water", "earth", "wind", "life",
-  "decay", "corrode", "fortify", "light", "dark",
-];
 
 /**
  * Resolve net affinity pressure using core stack cancellation.
@@ -117,7 +115,7 @@ export function resolveNetPressureFromCore(core, baseByKind) {
   const cancellations = [];
   const visited = new Set();
 
-  for (const kind of AFFINITY_KINDS_ORDERED) {
+  for (const kind of AFFINITY_KINDS) {
     if (visited.has(kind)) continue;
 
     const kindCode = AFFINITY_KIND_TO_CODE[kind];

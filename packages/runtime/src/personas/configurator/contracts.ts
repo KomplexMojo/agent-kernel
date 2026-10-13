@@ -1,6 +1,8 @@
 // Local contracts for the Configurator persona state machine.
 // Cross-persona artifacts live in packages/runtime/src/contracts/artifacts.ts.
 
+import type { AffinityKind } from "../../../../core-ts/src/state/actor-types.ts";
+
 export type ConfiguratorState = "uninitialized" | "pending_config" | "configured" | "locked";
 
 export interface ConfiguratorContext {
@@ -32,7 +34,8 @@ export interface LevelGenConnectivityInput {
   requirePath?: boolean;
 }
 
-export type HazardAffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "fortify" | "light" | "dark";
+/** The one kind list (core's `AffinityKind`); no second copy is typed out here. */
+export type HazardAffinityKind = AffinityKind;
 export type HazardAffinityExpression = "push" | "pull" | "emit" | "draw";
 export type HazardAffinityTargetType = "self" | "ally" | "enemy" | "area" | "barrier" | "floor";
 

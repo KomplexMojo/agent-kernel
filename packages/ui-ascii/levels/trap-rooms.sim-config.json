@@ -2,13 +2,13 @@
   "schema": "agent-kernel/SimConfigArtifact",
   "schemaVersion": 1,
   "meta": {
-    "id": "water-traps_sim_config",
-    "runId": "water-traps",
+    "id": "trap-rooms_sim_config",
+    "runId": "trap-rooms",
     "createdAt": "2026-10-10T00:00:00.000Z",
     "producedBy": "cli-create"
   },
   "planRef": {
-    "id": "water-traps_plan",
+    "id": "trap-rooms_plan",
     "schema": "agent-kernel/PlanArtifact",
     "schemaVersion": 1
   },
