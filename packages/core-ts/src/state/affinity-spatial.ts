@@ -7,12 +7,6 @@ import {
 } from "./affinity.ts";
 import { VitalKind } from "./vitals.ts";
 
-export interface MotivatedActorAffinityReaders {
-  getMotivatedActorAffinityKindByIndex(index: number): number;
-  getMotivatedActorAffinityExpressionByIndex(index: number): number;
-  getMotivatedActorAffinityStacksByIndex(index: number): number;
-}
-
 export const AffinityEffect = {
   None: 0,
   Damage: 1,
@@ -469,9 +463,7 @@ export function getAffinityMatrixUsesStackCancellation(
   return deriveAffinityInteractionCell(srcExpr, tgtExpr, relationship)?.usesStackCancellation ?? -1;
 }
 
-export function createAffinitySpatialState(
-  readers: MotivatedActorAffinityReaders,
-) {
+export function createAffinitySpatialState() {
   let lastCanceled = 0;
   let lastNetSource = 0;
   let lastNetTarget = 0;
@@ -533,30 +525,12 @@ export function createAffinitySpatialState(
     return 1;
   }
 
-  function resolveMotivatedActorAffinityInteraction(
-    srcActorIndex: number,
-    tgtActorIndex: number,
-  ): number {
-    const srcKind = readers.getMotivatedActorAffinityKindByIndex(srcActorIndex);
-    const srcExpr = readers.getMotivatedActorAffinityExpressionByIndex(srcActorIndex);
-    const srcStacks = readers.getMotivatedActorAffinityStacksByIndex(srcActorIndex);
-    const tgtKind = readers.getMotivatedActorAffinityKindByIndex(tgtActorIndex);
-    const tgtExpr = readers.getMotivatedActorAffinityExpressionByIndex(tgtActorIndex);
-    const tgtStacks = readers.getMotivatedActorAffinityStacksByIndex(tgtActorIndex);
-
-    if (srcKind === 0 || tgtKind === 0) return 0;
-    if (srcExpr === 0 || tgtExpr === 0) return 0;
-    if (srcStacks < 1 || tgtStacks < 1) return 0;
-    return resolveAffinityInteraction(srcKind, srcExpr, srcStacks, tgtKind, tgtExpr, tgtStacks);
-  }
-
   return {
     resolveAffinityStackCancellation,
     getLastAffinityCanceledStacks: () => lastCanceled,
     getLastAffinityNetSourceStacks: () => lastNetSource,
     getLastAffinityNetTargetStacks: () => lastNetTarget,
     resolveAffinityInteraction,
-    resolveMotivatedActorAffinityInteraction,
     getLastInteractionSourceEffect: () => lastInteractionSourceEffect,
     getLastInteractionTargetEffect: () => lastInteractionTargetEffect,
     getLastInteractionVisualState: () => lastInteractionVisualState,

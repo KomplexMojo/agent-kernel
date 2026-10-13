@@ -6,7 +6,6 @@ import {
   AFFINITY_KIND_BY_CODE,
   AFFINITY_RELATIONSHIP_BY_CODE,
   AFFINITY_VISUAL_STATE_BY_CODE,
-  readAffinityFieldAt,
 } from "../../packages/core-ts/src/affinity-readers.ts";
 import { createCore } from "../../packages/core-ts/src/index.ts";
 import {
@@ -141,28 +140,6 @@ describe("core-ts affinity codebook", () => {
     );
     expect(AFFINITY_EFFECT_BY_CODE[6]).toBe("amplified_damage");
     expect(AFFINITY_VISUAL_STATE_BY_CODE[21]).toBe("emit_field");
-  });
-
-  test("reads affinity field data from a core-compatible object", () => {
-    const field = readAffinityFieldAt(
-      {
-        getAffinityFieldIntensityAt: (x, y, kind) => x + y + kind,
-        getAffinityFieldStacksAt: () => 3,
-        getAffinityFieldExpressionAt: () => AffinityExpression.Emit,
-        getAffinityFieldContributionCountAt: () => 2,
-      },
-      4,
-      5,
-      AffinityKind.Fire,
-    );
-
-    expect(field).toEqual({
-      intensity: 10,
-      stacks: 3,
-      expression: AffinityExpression.Emit,
-      expressionName: "emit",
-      contributionCount: 2,
-    });
   });
 });
 

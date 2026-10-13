@@ -2,8 +2,8 @@
  * Affinity Spatial Formulas — pure parametric functions.
  *
  * @deprecated These JS formulas are superseded by core-ts core-ts spatial
- * computation (AK-AFF-M2, AK-AFF-M3). Use core-ts readAffinityFieldAt
- * or the core-ts exports (computeAffinityRadius, computeAffinityIntensity,
+ * computation (AK-AFF-M2, AK-AFF-M3). Use the actor registry's affinity
+ * fields (core-ts rules/actor-fields.ts) or the core-ts exports (computeAffinityRadius, computeAffinityIntensity,
  * computeAffinityPotency, computeAffinityManaCost) for new code.
  * This module is retained for backward compatibility only.
  *

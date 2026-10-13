@@ -6,7 +6,6 @@ const ROOT = resolve(__dirname, "../..");
 
 const FILES = [
   "packages/core-ts/src/index.ts",
-  "packages/core-ts/src/mvp-movement.ts",
 ];
 
 test("core-ts entrypoints exist", () => {

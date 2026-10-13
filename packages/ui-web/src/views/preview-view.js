@@ -1,9 +1,4 @@
-import {
-  createRuntimeCore,
-  readCoreObservation,
-  renderCoreBaseTiles,
-  renderCoreFrame,
-} from "../../../runtime/src/runner/core-facade.js";
+import { createRuntimeCore } from "../../../runtime/src/runner/core-facade.js";
 import { initializeCoreFromArtifacts } from "../../../runtime/src/runner/core-setup.mjs";
 import { readActorRegistryObservation } from "../../../core-ts/src/rules/actor-observation.ts";
 import { collectBuildSpecCardSet } from "../build-spec-ui.js";
@@ -165,9 +160,10 @@ export function wirePreviewView({
   createCoreFn = createRuntimeCore,
   applySimConfig = null,
   applyInitialState = null,
-  renderFrame = renderCoreFrame,
-  renderBase = renderCoreBaseTiles,
-  readObservationFn = readCoreObservation,
+  // Injected together with `applySimConfig`; the default path reads the actor registry.
+  renderFrame = null,
+  renderBase = null,
+  readObservationFn = null,
   renderBundleBoard = renderBundleBoardToCanvas,
   actorInspector = null,
   onBuildAndLoadGame,

@@ -8,7 +8,6 @@ import {
 } from "../../contracts/domain-constants.js";
 import { ACTION_SCHEMA } from "../../contracts/artifacts.ts";
 
-const DEFAULT_ENVIRONMENT_THRESHOLD = 3;
 const DEFAULT_MAX_ACTIONS = 8;
 const CARDINAL_NEIGHBORS = Object.freeze([
   { x: 0, y: -1 },
@@ -111,42 +110,10 @@ function buildEnvironmentEffects({
   targetType,
   manaReserve,
   sourceId = null,
-  environmentThreshold = DEFAULT_ENVIRONMENT_THRESHOLD,
 } = {}) {
+  // #227 — raising and destroying barriers were dropped with the old engine
+  // (#206): they only ever wrote the old core world's tiles.
   const effects = [];
-  if (stacks >= environmentThreshold) {
-    if (kind === "earth") {
-      const operation = expression === "pull" ? "raise_barrier" : "destroy_barrier";
-      const environmentTarget = operation === "raise_barrier" ? "floor" : "barrier";
-      effects.push({
-        id: `${kind}:${expression}:${targetType}:${operation}`,
-        category: "environment",
-        operation,
-        sourceType,
-        sourceId,
-        kind,
-        expression,
-        stacks,
-        targetType: environmentTarget,
-        minimumStacks: environmentThreshold,
-      });
-    }
-    if (kind === "water" || kind === "wind") {
-      effects.push({
-        id: `${kind}:${expression}:${targetType}:destroy_barrier`,
-        category: "environment",
-        operation: "destroy_barrier",
-        sourceType,
-        sourceId,
-        kind,
-        expression,
-        stacks,
-        targetType: "barrier",
-        minimumStacks: environmentThreshold,
-      });
-    }
-  }
-
   if (targetType === "floor" && manaReserve > 0) {
     effects.push({
       id: `${kind}:${expression}:${targetType}:arm_static_hazard`,
@@ -168,7 +135,6 @@ export function resolveAffinityTargetEffectsForEntry(entry, {
   sourceType = "actor",
   sourceId = null,
   manaReserve = 0,
-  environmentThreshold = DEFAULT_ENVIRONMENT_THRESHOLD,
 } = {}) {
   const normalized = normalizeAffinityEntry(entry);
   if (!normalized) return [];
@@ -192,7 +158,6 @@ export function resolveAffinityTargetEffectsForEntry(entry, {
     stacks,
     targetType: normalized.targetType,
     manaReserve: normalizedManaReserve,
-    environmentThreshold,
   }));
   return effects;
 }
@@ -201,7 +166,6 @@ export function resolveAffinityTargetEffectsForList(affinities = [], {
   sourceType = "actor",
   sourceId = null,
   manaReserve = 0,
-  environmentThreshold = DEFAULT_ENVIRONMENT_THRESHOLD,
 } = {}) {
   if (!Array.isArray(affinities) || affinities.length === 0) {
     return [];
@@ -212,7 +176,6 @@ export function resolveAffinityTargetEffectsForList(affinities = [], {
       sourceType,
       sourceId,
       manaReserve,
-      environmentThreshold,
     }));
   });
   effects.sort((a, b) => String(a.id).localeCompare(String(b.id)));
@@ -264,10 +227,6 @@ function tileKindAt(observation, x, y) {
   return Number.isFinite(value) ? value : null;
 }
 
-function isBarrierTile(observation, x, y) {
-  return tileKindAt(observation, x, y) === 1;
-}
-
 function isFloorTile(observation, x, y) {
   return tileKindAt(observation, x, y) === 0;
 }
@@ -292,30 +251,6 @@ function resolveActorPosition(observation, actorId) {
 
 function buildActionFromEffect({ effect, actorId, position, observation, tick }) {
   if (!effect || !position) return null;
-  if (effect.operation === "destroy_barrier") {
-    const target = findAdjacent(position, (x, y) => isBarrierTile(observation, x, y));
-    if (!target) return null;
-    return {
-      schema: ACTION_SCHEMA,
-      schemaVersion: 1,
-      actorId,
-      tick,
-      kind: "destroy_barrier",
-      params: { ...target },
-    };
-  }
-  if (effect.operation === "raise_barrier") {
-    const target = findAdjacent(position, (x, y) => isFloorTile(observation, x, y));
-    if (!target) return null;
-    return {
-      schema: ACTION_SCHEMA,
-      schemaVersion: 1,
-      actorId,
-      tick,
-      kind: "raise_barrier",
-      params: { ...target },
-    };
-  }
   if (effect.operation === "arm_static_hazard") {
     const target = isFloorTile(observation, position.x, position.y)
       ? { x: position.x, y: position.y }
@@ -394,4 +329,3 @@ export function planModeratorAffinityActions({
 }
 
 export const AFFINITY_VITAL_TARGETS = VITAL_TARGET_BY_AFFINITY;
-export const MODERATOR_ENVIRONMENT_THRESHOLD = DEFAULT_ENVIRONMENT_THRESHOLD;

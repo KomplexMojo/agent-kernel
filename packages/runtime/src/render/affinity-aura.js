@@ -3,10 +3,10 @@
  *
  * @deprecated This JS aura computation is superseded by core-ts field
  * buffers (AK-AFF-M3, AK-AFF-M4) and the interaction resolution matrix
- * (AK-AFF-M5). Use deriveTileAffinityVisuals with fieldRecords from
- * computeAffinityField/readAffinityFieldAt for new code.
- * This module is retained only for compatibility observation.auras consumed by
- * existing runtime renderers and tests.
+ * (AK-AFF-M5). Use deriveTileAffinityVisuals with fieldRecords from the
+ * actor registry (core-facade readCoreAffinityFieldRecordsFromArtifacts) for
+ * new code. #227 removed its last runtime caller (the old core world's
+ * observation, which attached `observation.auras`); only its tests remain.
  *
  * Wave 2: Given actor positions and affinities, compute what each tile "sees" and resolve overlaps.
  *
