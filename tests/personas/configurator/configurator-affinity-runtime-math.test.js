@@ -25,14 +25,11 @@ assert.equal(errors.length, 0, "durability regen should not produce errors");
 assert.equal(result.durability, 2);
 });
 
-test("runtime external mana use: 5 + 4·(s-1)² (design §9.1)", async () => {
-  const { computeExternalManaUse } = await import("../../../packages/runtime/src/personas/configurator/cost-model.js");
-
-assert.equal(computeExternalManaUse(1), 5);
-assert.equal(computeExternalManaUse(2), 9);
-assert.equal(computeExternalManaUse(3), 21);
-assert.equal(computeExternalManaUse(4), 41);
-assert.equal(computeExternalManaUse(5), 69);
+// A push/pull costs what the rules artifact's stack tier says (resolveActorTurnCosts); the
+// Configurator keeps no second cast-mana formula (#233, maintainer 2026-10-13).
+test("the Configurator has no push/pull mana formula of its own", async () => {
+  const costModel = await import("../../../packages/runtime/src/personas/configurator/cost-model.js");
+  assert.equal(costModel.computeExternalManaUse, undefined);
 });
 
 test("runtime internal mana upkeep: 2 + s (design §9.2)", async () => {

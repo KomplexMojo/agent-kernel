@@ -9,10 +9,8 @@ import {
   normalizeAffinityTargetType,
   resolveAffinityTargetEffectsForEntry,
 } from "../moderator/persona.js";
-import {
-  computeInternalManaUpkeep,
-  computeExternalManaUse,
-} from "./cost-model.js";
+import { computeInternalManaUpkeep } from "./cost-model.js";
+import { resolveAffinityManaCost } from "./affinity-rules.js";
 
 function isNumber(value) {
   return typeof value === "number" && !Number.isNaN(value);
@@ -173,15 +171,18 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
  *   - Durability: 5 per stack (structural integrity)
  *
  * For instantaneous expressions (push/pull):
- *   - Mana pool: 2x mana use (allows 2 activations)
+ *   - Mana pool: 2x the cast price core charges at that tier (exactly 2 activations;
+ *     #233, maintainer 2026-10-13), read from the affinity rules artifact
  *   - Mana regen: 0 (one-shot or limited use)
  *   - Durability: 3 per stack
  *
  * @param {string} expression - "push"|"pull"|"emit"|"draw"
  * @param {number} stacks - stack count >= 1
+ * @param {string} [kind] - the affinity kind; required for push/pull, whose price is per kind
+ * @param {object} [rules] - an authored affinity rules artifact; the default rules otherwise
  * @returns {{ mana: { current: number, max: number, regen: number }, durability: { current: number, max: number, regen: number } }}
  */
-export function computeHazardVitals(expression, stacks) {
+export function computeHazardVitals(expression, stacks, kind, rules) {
   const s = Number.isInteger(stacks) && stacks >= 1 ? stacks : 1;
 
   if (expression === "emit" || expression === "draw") {
@@ -205,8 +206,9 @@ export function computeHazardVitals(expression, stacks) {
     };
   }
 
-  // Instantaneous expressions (push/pull): use external mana formula (5 + 4·(s-1)²)
-  const manaUse = computeExternalManaUse(s);
+  // Instantaneous expressions (push/pull): two casts at the price core charges.
+  const manaUse = resolveAffinityManaCost({ rules, kind, expression, stacks: s });
+  if (manaUse === null) throw new Error(`no cast price for hazard affinity ${kind}:${expression}`);
   const manaPool = manaUse * 2; // 2 activations worth
   const durability = s * 3;
 
@@ -237,7 +239,7 @@ function resolveHazardEffects(hazard, presets) {
     baseVitals = ensureVitals(hazard.vitals);
   } else {
     // No vitals provided: compute defaults from expression and stacks
-    const computed = computeHazardVitals(hazard.affinity.expression, hazard.affinity.stacks);
+    const computed = computeHazardVitals(hazard.affinity.expression, hazard.affinity.stacks, hazard.affinity.kind);
     baseVitals = ensureVitals(computed);
   }
 

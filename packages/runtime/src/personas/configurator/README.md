@@ -302,7 +302,9 @@ The Configurator is therefore a **bridge between planning and execution**, respo
 - Room cards expand in authored card/count order, then a seed-shuffled room order receives the
   profiles cyclically. Each emitted affinity gets one deterministic unoccupied cell in its assigned
   room. Generated hazard ids include affinity plus room index; mana upkeep is `2 + stacks`, the pool
-  is three upkeep ticks, regen equals upkeep, and durability is `5 * stacks`.
+  is three upkeep ticks, regen equals upkeep, and durability is `5 * stacks`. A push or pull hazard's
+  pool is exactly two casts at the price core charges for that kind and tier (the rules artifact's
+  stack tiers), with no regen and durability `3 * stacks`.
 - Actor placement uses explicit alignment, with category supplying its authoring default. External actors
   prefer the entry room; dungeon actors prefer a matching affinity room, then the exit room,
   then any room. Spawn, exit, hazards, and resources are occupied. The resolved build output preserves

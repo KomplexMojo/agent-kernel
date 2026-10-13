@@ -39,9 +39,10 @@ test("resolveAffinityEffects computes hazard vitals from expression and stacks w
       ],
     });
 
+    // Two casts at water push tier 2 (4 mana each), the price core charges (#233).
     const hazard = result.hazards[0];
-    assert.equal(hazard.vitals.mana.current, 18);
-    assert.equal(hazard.vitals.mana.max, 18);
+    assert.equal(hazard.vitals.mana.current, 8);
+    assert.equal(hazard.vitals.mana.max, 8);
     assert.equal(hazard.vitals.mana.regen, 0);
     assert.equal(hazard.vitals.durability.current, 6);
     assert.equal(hazard.vitals.durability.max, 6);
@@ -223,4 +224,21 @@ test("mapHazards assigns hazard_N when generated layout occupants omit id", asyn
     () => mapHazards([{ id: "no_affinity", x: 1, y: 1 }]),
     /invalid hazard actor request/,
   );
+});
+
+// #233 (maintainer, 2026-10-13): a push/pull trap's pool is exactly two casts at the price core
+// charges, for every kind and stack tier, so sizing and casting can never drift apart again.
+test("a push/pull trap holds exactly two casts at the price core charges", async () => {
+  const { mapHazards } = await import("../../../packages/runtime/src/personas/configurator/input-preparation.js");
+  const { resolveActorTurnCosts } = await import("../../../packages/runtime/src/personas/configurator/affinity-rules.js");
+  const { castMana } = resolveActorTurnCosts({ movementStamina: {} });
+  for (const [key, prices] of Object.entries(castMana)) {
+    const [kind, expression] = key.split(":");
+    if (!["push", "pull"].includes(expression)) continue;
+    for (const stacks of [1, 3, 5]) {
+      const [hazard] = mapHazards([{ id: "trap", x: 1, y: 1, affinity: kind, expression, stacks }]);
+      assert.deepEqual(hazard.vitals.mana, { current: 2 * prices[stacks - 1], max: 2 * prices[stacks - 1], regen: 0 },
+        `${key} at ${stacks} stacks`);
+    }
+  }
 });
