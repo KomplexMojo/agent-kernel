@@ -412,7 +412,7 @@ test("view().player reports its slots: how many, what is equipped in order, and 
 // lands, status() says so and the session refuses further commands without ticking.
 test("a player worn down by a warden is defeated, and the session then refuses to act", async () => {
   const warden = { category: "warden", id: "warden_1", position: { x: 3, y: 1 }, motivations: ["attacking"],
-    vitals: viableVitals({ mana: 60 }), affinities: [{ kind: "fire", expression: "push", stacks: 3 }],
+    vitals: viableVitals({ mana: 200 }), affinities: [{ kind: "fire", expression: "push", stacks: 3 }],
     activeAffinityKey: "fire:push" };
   const level = buildUnifiedLevel({ id: "mvp_maze", tiles: MAZE,
     actors: [{ ...PLAYER, vitals: viableVitals({ health: 10 }) }, warden] });

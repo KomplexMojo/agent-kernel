@@ -28,7 +28,9 @@ function finish(turn) {
   return fields;
 }
 test('authored costs compose with lethal combat, atomic competing claims, equipment and replay', () => {
+  // A 5-stack fire push costs 3 × 15 = 45 (#232), leaving 5 of 50.
   const actors = [actor('caster', 'delver', {
+    vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 50, max: 50, regen: 0 } },
     affinities: [{ kind: 'fire', expression: 'push', stacks: 5 }], activeAffinityKey: 'fire:push' }),
   actor('source', 'resource', { position: { x: 1, y: 0 },
     vitals: { health: { current: 4, max: 4, regen: 9 }, durability: { current: 3, max: 3, regen: 9 } },

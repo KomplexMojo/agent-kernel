@@ -13,7 +13,7 @@ function artifacts() {
     simConfigRef: { id: meta.id, schema: simConfig.schema, schemaVersion: simConfig.schemaVersion },
     dimensions: { width: 2, height: 1 }, terrain: layout.terrain, actors: [
       { id: 'caster', category: 'delver', position: { x: 0, y: 0 },
-        vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 6, max: 6, regen: 0 } },
+        vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 9, max: 9, regen: 0 } },
         motivations: ['attacking', 'seeking_resources'],
         affinities: [{ kind: 'fire', expression: 'push', stacks: 2 }], activeAffinityKey: 'fire:push' },
       { id: 'reward', category: 'resource', position: { x: 1, y: 0 },
@@ -42,7 +42,7 @@ test('loader rejects broken references, split entity state, incomplete presentat
     x => { x.simConfig.layout.data.hazards = []; },
     x => { delete x.initialState.presentation.reward; },
     x => { delete x.simConfig.actionCosts.movementStamina.caster; },
-    x => { delete x.simConfig.actionCosts.castMana['fire:push']; },
+    x => { delete x.simConfig.actionCosts.castManaBase['fire:push']; },
     x => { x.initialState.actors[0].kind = 'ambulatory'; },
     x => { x.initialState.actors[1].id = 'caster'; },
   ]) {
@@ -54,10 +54,10 @@ test('artifact loading does not pulse fields or share mutable input state', () =
   const input = artifacts(); const loaded = initializeCoreFromArtifacts(input);
   input.initialState.actors[0].vitals.health.current = 0;
   input.initialState.presentation.caster.category = 'hazard';
-  input.simConfig.actionCosts.castMana['fire:push'][1] = 0;
+  input.simConfig.actionCosts.castManaBase['fire:push'] = 0;
   expect(loaded.registry.getActor('caster').vitals.health.current).toBe(10);
   expect(loaded.presentation.caster.category).toBe('delver');
-  expect(loaded.costs.castMana['fire:push'][1]).toBe(6);
+  expect(loaded.costs.castManaBase['fire:push']).toBe(3);
 });
 test('the production loader consumes the file-backed valid and invalid actor artifacts', () => {
   const read = name => JSON.parse(readFileSync(new URL(`../fixtures/artifacts/${name}`, import.meta.url), 'utf8'));
@@ -76,3 +76,15 @@ test('the production loader consumes the file-backed valid and invalid actor art
 });
 // ## TODO: Test Permutations
 // - Exercise the migrated startup through Moderator, CLI/MCP sessions and browser facade.
+
+// Runs authored before #232 carry five-tier tables; they still load and charge their tier.
+test('a legacy artifact with five-tier castMana still loads and casts', () => {
+  const input = artifacts(); const { castManaBase, ...rest } = input.simConfig.actionCosts;
+  input.simConfig.actionCosts = { ...rest, castMana: Object.fromEntries(Object.entries(castManaBase)
+    .map(([key, base]) => [key, [1, 2, 3, 4, 5].map(tier => base * tier)])) };
+  input.initialState.actors[0].vitals.mana = { current: 6, max: 6, regen: 0 };
+  const { registry, costs } = initializeCoreFromArtifacts(input);
+  const turn = createActorTurn(registry, 1, costs);
+  expect(turn.apply({ actorId: 'caster', tick: 1, kind: 'cast_affinity', params: { targetId: 'reward' } })).toBe(true);
+  expect(registry.getActor('caster').vitals.mana.current).toBe(0);
+});

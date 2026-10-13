@@ -777,31 +777,31 @@
                 "stackTiers": [
                   {
                     "tier": 1,
-                    "manaCost": 0,
+                    "manaCost": 1,
                     "potency": 1,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
-                    "manaCost": 1,
+                    "manaCost": 2,
                     "potency": 2,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
-                    "manaCost": 2,
+                    "manaCost": 3,
                     "potency": 3,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
-                    "manaCost": 3,
+                    "manaCost": 4,
                     "potency": 4,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
-                    "manaCost": 4,
+                    "manaCost": 5,
                     "potency": 5,
                     "complexityClass": "strategic"
                   }

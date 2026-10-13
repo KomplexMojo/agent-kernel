@@ -80,9 +80,11 @@ pending-effect suppression. `actor-fields.ts` uses existing radius, intensity an
 local opposition arithmetic to project active living equipment. It retains
 light/dark field observations and re-observes defeat without another pulse.
 
-`castFocusedActorAffinity` checks focused range and authored five-tier mana prices
-before writes, spends one actor pool and returns suppression with caster
-provenance. Price tier clamps at five; effect strength retains normal stack scaling.
+`castFocusedActorAffinity` checks focused range and the authored mana price before
+writes, spends one actor pool and returns suppression with caster provenance. A run's
+`actionCosts` carries exactly one of `castManaBase` (per-kind base; a cast costs
+`base * s(s+1)/2`, uncapped, #232) or the legacy five-tier `castMana` tables, whose
+tier clamps at five so older artifacts replay unchanged.
 
 `createActorTurn` dispatches ordered common actions and permits one accepted action
 per actor. Its detached snapshot includes tick, accepted IDs, suppression and phase
