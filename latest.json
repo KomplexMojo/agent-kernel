@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-13T00-53-03-253Z-c025697fbb1a-09382807a846",
-    "key": "09382807a846385875794e6dc109d36ad2084e140eaa951bfbaeb877562d7d34",
+    "id": "2026-10-13T01-11-03-408Z-dc785a81b8ed-12c2fe7c7c5a",
+    "key": "12c2fe7c7c5a8940aee775d671561a296bd358cfd28102e1f7ffbcb923346d38",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-13T00:53:03.253Z",
-    "completedAt": "2026-10-13T00:53:26.198Z",
-    "durationMs": 22945,
+    "startedAt": "2026-10-13T01:11:03.408Z",
+    "completedAt": "2026-10-13T01:11:26.290Z",
+    "durationMs": 22882,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "c025697fbb1a87e1dea562d364005af8fc3edc71",
-    "tree": "b52ce7ad22c2345c1e59a0055e725d572d3f6c77"
+    "commit": "dc785a81b8ed557f7874c34306d749c61952972c",
+    "tree": "2e5090d53489e54365982eb3427e467c567b4220"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -85,6 +85,7 @@
       "packages/runtime/src/personas/configurator/candidate-authoring.js",
       "packages/runtime/src/personas/configurator/configurator-services.js",
       "packages/runtime/src/personas/configurator/controller.js",
+      "packages/runtime/src/personas/configurator/cost-model.js",
       "packages/runtime/src/personas/configurator/feasibility.js",
       "packages/runtime/src/personas/configurator/guidance-level-builder.js",
       "packages/runtime/src/personas/configurator/input-preparation.js",
@@ -159,7 +160,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/09382807a846385875794e6dc109d36ad2084e140eaa951bfbaeb877562d7d34"
+    "retentionId": "preflights/12c2fe7c7c5a8940aee775d671561a296bd358cfd28102e1f7ffbcb923346d38"
   },
   "qualifies": false
 }
