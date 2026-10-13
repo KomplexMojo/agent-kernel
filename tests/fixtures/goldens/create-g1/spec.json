@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 170,
+      "runTotalTokens": 185,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g1_budget_receipt",
@@ -119,12 +119,12 @@
   "configurator": {
     "inputs": {
       "levelGen": {
-        "width": 9,
-        "height": 9,
+        "width": 12,
+        "height": 12,
         "shape": {
           "roomCount": 1,
           "roomMinSize": 5,
-          "roomMaxSize": 5,
+          "roomMaxSize": 8,
           "corridorWidth": 1
         },
         "hazards": [
@@ -1977,8 +1977,8 @@
           "category": "delver",
           "id": "card_delver_1-1",
           "position": {
-            "x": 4,
-            "y": 2
+            "x": 7,
+            "y": 6
           },
           "vitals": {
             "health": {
@@ -2017,7 +2017,7 @@
         {
           "id": "hazard_1",
           "position": {
-            "x": 3,
+            "x": 4,
             "y": 2
           },
           "alignment": "dungeon",

@@ -31,10 +31,11 @@ export const ROOM_SIZE_PROFILES = {
 };
 
 // Pick the largest profile requested by any room in parsedRooms.
-// Falls back to medium when no rooms are present.
+// Falls back to medium when no rooms are present. The search starts below
+// small so a small-only request stays small (#198: it used to start at medium).
 export function resolveRoomSizeProfile(rooms) {
   const order = ["small", "medium", "large"];
-  let best = "medium";
+  let best = (rooms || []).length > 0 ? null : "medium";
   for (const entry of (rooms || [])) {
     const size = String(entry?.value?.size || entry?.value?.roomSize || "medium").toLowerCase();
     if (order.indexOf(size) > order.indexOf(best)) best = size;
@@ -42,7 +43,7 @@ export function resolveRoomSizeProfile(rooms) {
   return ROOM_SIZE_PROFILES[best] || ROOM_SIZE_PROFILES.medium;
 }
 
-export function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, placedHazards, rooms }) {
+export function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget, placedHazards, rooms, hazardCount = placedHazards.length }) {
   const blockingHazardCount = placedHazards.reduce((sum, hazard) => sum + (hazard.blocking === true ? 1 : 0), 0);
   const walkableTarget = Number.isInteger(walkableTilesTarget) && walkableTilesTarget > 0 ? walkableTilesTarget : 0;
   // Authored hazard x/y are room-relative (mapped into a room's interior by
@@ -59,12 +60,18 @@ export function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget,
   // Resolve the room-size profile early so we can size the grid to fit it.
   // level-layout.js clamps roomMinSize to (min(width,height) - 2), so the grid must be at
   // least (roomMinSize + 4) on each side for the profile to take effect.
-  const sizeProfile = resolveRoomSizeProfile(rooms);
+  // Hazards need at least a medium room: entrance, exit and hazards share it.
+  // So a small room with hazards is medium-sized (the I1 benchmark contract).
+  const requestedProfile = resolveRoomSizeProfile(rooms);
+  const sizeProfile = hazardCount > 0 && requestedProfile.roomMaxSize < ROOM_SIZE_PROFILES.medium.roomMaxSize
+    ? ROOM_SIZE_PROFILES.medium
+    : requestedProfile;
   const profileMinSize = placedHazards.length > 0
     ? Math.max(MIN_ROOM_SIZE_WITH_ITEMS, sizeProfile.roomMinSize)
     : sizeProfile.roomMinSize;
   // +4 = 2 walls + 2 padding so the clamp in readRoomSettings allows the full room size
-  const profileGridSide = profileMinSize + 4;
+  // Sized to the profile's max so one room can use its whole range (#198).
+  const profileGridSide = Math.max(profileMinSize, sizeProfile.roomMaxSize) + 4;
 
   // Grid capacity must also scale with the TOTAL requested room count, not just a single
   // room's size profile. level-layout.js's placeRooms() lays candidate rooms out in a
@@ -113,9 +120,10 @@ export function ensureAuthoringLevelGenCapacity(levelGen, { walkableTilesTarget,
   if (!Number.isInteger(shape.roomMinSize) || shape.roomMinSize < minRoomSize) {
     shape.roomMinSize = minRoomSize;
   }
-  const minRoomMax = placedHazards.length > 0
-    ? Math.max(shape.roomMinSize, sizeProfile.roomMaxSize)
-    : Math.max(shape.roomMinSize, 3);
+  // Rooms range up to the profile's max whether or not hazards are placed;
+  // capping hazard-free rooms at their min made every room its profile's
+  // smallest square (#198).
+  const minRoomMax = Math.max(shape.roomMinSize, sizeProfile.roomMaxSize);
   if (!Number.isInteger(shape.roomMaxSize) || shape.roomMaxSize < minRoomMax) {
     shape.roomMaxSize = minRoomMax;
   }
@@ -151,6 +159,7 @@ export function prepareLevelGen({ existingLevelGen = {}, rooms = [], floorTiles 
     walkableTilesTarget,
     placedHazards,
     rooms,
+    hazardCount: hazards.length,
   });
   if (walkableTilesTarget > 0) {
     levelGen.walkableTilesTarget = walkableTilesTarget;

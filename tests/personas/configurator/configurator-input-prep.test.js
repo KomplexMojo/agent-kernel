@@ -37,13 +37,14 @@ test("prepareLevelGen sizes a single medium room with no hazards/floor tiles", a
     floorTiles: [],
     hazards: [],
   });
-  // walkableSide 5, profileGridSide 5+4=9, roomCapacitySide 0 (single room) → 9.
-  assert.equal(levelGen.width, 9);
-  assert.equal(levelGen.height, 9);
+  // walkableSide 5, profileGridSide 8+4=12 (sized to the profile max, #198),
+  // roomCapacitySide 0 (single room) → 12. Medium rooms range 5-8.
+  assert.equal(levelGen.width, 12);
+  assert.equal(levelGen.height, 12);
   assert.deepEqual(levelGen.shape, {
     roomCount: 1,
     roomMinSize: 5,
-    roomMaxSize: 5,
+    roomMaxSize: 8,
     corridorWidth: 1,
   });
   assert.equal(levelGen.walkableTilesTarget, undefined);
@@ -82,13 +83,11 @@ test("prepareLevelGen enforces MIN_ROOM_SIZE_WITH_ITEMS and walkable target with
       },
     ],
   });
-  // requestedWalkable = 4 + 1 blocking = 5 → walkableSide 6. resolveRoomSizeProfile
-  // FLOORS at medium ("small" never downgrades below the medium default), so the
-  // profile is {min 5, max 8}; profileGridSide = 5+4 = 9 wins. With hazards present
-  // roomMinSize is held at MIN_ROOM_SIZE_WITH_ITEMS=5 and roomMaxSize at the
-  // profile's 8 (vs the no-hazard floor of 3).
-  assert.equal(levelGen.width, 9);
-  assert.equal(levelGen.height, 9);
+  // requestedWalkable = 4 + 1 blocking = 5 → walkableSide 6. A room holding hazards is
+  // at least medium (#198), so the profile is {min 5, max 8}; profileGridSide = 8+4 = 12
+  // wins. roomMinSize is held at MIN_ROOM_SIZE_WITH_ITEMS=5 and roomMaxSize at 8.
+  assert.equal(levelGen.width, 12);
+  assert.equal(levelGen.height, 12);
   assert.equal(levelGen.shape.roomMinSize, 5);
   assert.equal(levelGen.shape.roomMaxSize, 8);
   assert.equal(levelGen.walkableTilesTarget, 4);
@@ -153,7 +152,7 @@ test("provideConfig opens the round; prepare/map work in pending_config and conf
   assert.equal(state, "pending_config");
 
   const levelGen = c.prepareLevelGen({ rooms: [{ value: { size: "medium", count: 1 } }], floorTiles: [], hazards: [] });
-  assert.equal(levelGen.width, 9);
+  assert.equal(levelGen.width, 12);
   const mapped = c.mapResources([{ id: "r1",
     vitals: { durability: { current: 3, max: 3, regen: 0 } }, holdings: [],
   }]);
@@ -163,7 +162,7 @@ test("provideConfig opens the round; prepare/map work in pending_config and conf
 
   assert.equal(c.validate().state, "configured");
   // Assembly still permitted while configured (before lock).
-  assert.equal(c.prepareLevelGen({ rooms: [], floorTiles: [], hazards: [] }).width, 9);
+  assert.equal(c.prepareLevelGen({ rooms: [], floorTiles: [], hazards: [] }).width, 12);
   assert.equal(c.lock().state, "locked");
 });
 

@@ -212,7 +212,10 @@ test("i4 floorTile count below one room interior is rejected with a structured m
   assert.match(result.error, /need at least \d+ for 3 rooms/, "the actual deficit must appear in the rejection");
 });
 
-test("i4 floorTile count at the minimum viable three-room budget splits evenly across rooms", async () => {
+// #198 (2026-10-13): medium rooms now range 5-8, so they sit further apart and the
+// corridor between them costs more. Three medium rooms need 19 tiles, not 15, and
+// unequal room shapes split the budget unequally.
+test("i4 floorTile count at the minimum viable three-room budget carves every room", async () => {
   const { ak_impl, authoringToolsModule } = await loadModules();
   const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
@@ -222,7 +225,7 @@ test("i4 floorTile count at the minimum viable three-room budget splits evenly a
     createTool.command,
     createTool.buildArgs({
       room: ["count=3;size=medium"],
-      floorTile: ["count=15"],
+      floorTile: ["count=19"],
       budgetTokens: 5000,
       runId: "i4_three_room_minimum",
       outDir: dir,
@@ -233,8 +236,8 @@ test("i4 floorTile count at the minimum viable three-room budget splits evenly a
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   assert.deepEqual(
     layoutData.rooms.map((room) => carvedInRoom(layoutData, room)),
-    [3, 3, 3],
-    "current behavior splits the minimum viable three-room budget evenly across the declared rooms",
+    [5, 5, 3],
+    "the minimum viable three-room budget carves every declared room",
   );
 });
 
@@ -259,12 +262,12 @@ test("i4 floorTile count 20 still spreads carve budget across all declared rooms
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   assert.deepEqual(
     layoutData.rooms.map((room) => carvedInRoom(layoutData, room)),
-    [5, 5, 4],
-    "current carve distribution is 5/5/4 across the three rooms",
+    [6, 5, 3],
+    "current carve distribution is 6/5/3 across the three rooms",
   );
 });
 
-test("i4 floorTile count 24 keeps every room carved and balanced", async () => {
+test("i4 floorTile count 24 keeps every room carved", async () => {
   const { ak_impl, authoringToolsModule } = await loadModules();
   const createTool = findTool(authoringToolsModule.authoringTools, "ak_create");
 
@@ -285,8 +288,8 @@ test("i4 floorTile count 24 keeps every room carved and balanced", async () => {
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   assert.deepEqual(
     layoutData.rooms.map((room) => carvedInRoom(layoutData, room)),
-    [6, 6, 6],
-    "current behavior spreads a 24-tile floor budget evenly across all three rooms",
+    [7, 7, 4],
+    "a 24-tile floor budget reaches all three rooms",
   );
 });
 
@@ -311,7 +314,7 @@ test("i4 budget receipt bills the same carve total that the map actually contain
   const layoutData = readJson(join(dir, "sim-config.json")).layout.data;
   const receipt = readJson(join(dir, "budget-receipt.json"));
   const carvedByRoom = layoutData.rooms.map((room) => carvedInRoom(layoutData, room));
-  assert.deepEqual(carvedByRoom, [15, 15, 14], "current full-budget carve distribution should be preserved");
+  assert.deepEqual(carvedByRoom, [16, 15, 13], "current full-budget carve distribution should be preserved");
   assert.equal(receipt.lineItems.length, 1, "current receipt shape should stay a single floor-tile line item");
   assert.equal(receipt.lineItems[0].id, "tile_floor", "receipt should bill floor tiles as the only line item");
   assert.equal(receipt.lineItems[0].quantity, 50, "receipt should bill the same floor-tile total the request asked for");

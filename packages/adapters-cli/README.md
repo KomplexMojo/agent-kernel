@@ -432,6 +432,8 @@ Inputs/outputs:
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
 - `--room` format: `size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...`
+- Room sides by size: small 3-5, medium 5-8, large 8-12 (the default is medium). A room that
+  holds hazards is at least medium, so entrance, exit and hazards fit.
 - If `affinities` are omitted, defaults are applied: `dark:emit:2`.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from room-plan runs.

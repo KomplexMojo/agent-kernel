@@ -93,12 +93,12 @@
   "configurator": {
     "inputs": {
       "levelGen": {
-        "width": 9,
-        "height": 9,
+        "width": 12,
+        "height": 12,
         "shape": {
           "roomCount": 1,
           "roomMinSize": 5,
-          "roomMaxSize": 5,
+          "roomMaxSize": 8,
           "corridorWidth": 1
         },
         "budgetScaffold": true
@@ -1912,8 +1912,8 @@
           "category": "delver",
           "id": "card_delver_1-1",
           "position": {
-            "x": 4,
-            "y": 2
+            "x": 7,
+            "y": 6
           },
           "vitals": {
             "health": {

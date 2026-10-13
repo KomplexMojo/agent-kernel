@@ -16,8 +16,8 @@
     {
       "id": "card_delver_1-1",
       "position": {
-        "x": 10,
-        "y": 23
+        "x": 3,
+        "y": 22
       },
       "alignment": "external",
       "lifecycle": "alive",
