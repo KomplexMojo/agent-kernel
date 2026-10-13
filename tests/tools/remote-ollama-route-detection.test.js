@@ -128,30 +128,29 @@ test("auto falls back to external when only the external host answers", async ()
   }
 });
 
+// Observed through behaviour, not wall-clock time (#205): an unreachable host can
+// fail fast instead of burning its deadline, so timing proves nothing either way.
 test("auto caches its verdict so repeated calls probe once", async () => {
   clearRouteCache();
   const server = await listenOnLoopback();
   const { port } = server.address();
+  const config = configFor({
+    internalHost: UNREACHABLE_A,
+    externalHost: "127.0.0.1",
+    sshPort: port,
+  });
   try {
-    const config = configFor({
-      internalHost: UNREACHABLE_A,
-      externalHost: "127.0.0.1",
-      sshPort: port,
-    });
-
-    const cold = Date.now();
     assert.equal(resolveRoute(config, null), "external");
-    const coldMs = Date.now() - cold;
-
-    const warm = Date.now();
-    assert.equal(resolveRoute(config, null), "external");
-    const warmMs = Date.now() - warm;
-
-    // The cold call pays the unreachable internal probe; the warm one must not.
-    assert.ok(coldMs >= PROBE_MS, `cold resolve probed (${coldMs}ms)`);
-    assert.ok(warmMs < PROBE_MS, `warm resolve used the cache (${warmMs}ms)`);
   } finally {
     await closeServer(server);
+  }
+  try {
+    // Nothing answers now, so only a cached verdict can still say "external".
+    assert.equal(resolveRoute(config, null), "external", "warm resolve used the cache");
+    clearRouteCache();
+    assert.throws(() => resolveRoute(config, null), /Route auto-detection failed/,
+      "a cleared cache probes again");
+  } finally {
     clearRouteCache();
   }
 });
