@@ -1,6 +1,6 @@
 import { normalizeActorDefinition, INPUT_KEYS } from "./unified-actors.js";
 import { computeHazardVitals } from "./affinity-effects.js";
-import { DEFAULT_VITALS } from "../../contracts/domain-constants.js";
+import { ACTOR_EQUIPMENT_FIELDS, DEFAULT_VITALS } from "../../contracts/domain-constants.js";
 
 /**
  * Configurator input preparation — the pure grid-sizing / hazard / resource
@@ -184,8 +184,7 @@ export function prepareLevelGen({ existingLevelGen = {}, rooms = [], floorTiles 
 
 const RESOURCE_AUTHORING_KEYS = new Set(["permanenceMode", "_schemaVersion", "affinity", "permanent", "slotGrant"]);
 const RESOURCE_REQUEST_KEYS = Object.freeze([
-  "alignment", "lifecycle", "defeatVital", "capabilities", "motivations", "affinities", "activeAffinityKey",
-  "affinitySlots", "equippedAffinityKeys",
+  "alignment", "lifecycle", "defeatVital", "capabilities", "motivations", "affinities", ...ACTOR_EQUIPMENT_FIELDS,
 ]);
 
 function authoredResourceAffinity(entry) {

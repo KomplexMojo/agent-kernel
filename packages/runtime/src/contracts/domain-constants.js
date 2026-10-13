@@ -469,6 +469,18 @@ export const DEFAULT_VITALS = Object.freeze({
 });
 
 /**
+ * The authored equipment fields of a unified actor: which affinity slots it has and what is
+ * in them (maintainer, 2026-10-12; #230). Every layer that copies an actor request field by
+ * field -- the Director's planning routes and the Configurator's request builders -- spreads
+ * this list instead of naming the fields itself. Four hand-written copies of the list drifted:
+ * they carried `activeAffinityKey` and silently dropped the slot fields (drift review,
+ * 2026-10-13). Core keeps its own record-shape list; it may not import runtime.
+ */
+export const ACTOR_EQUIPMENT_FIELDS = Object.freeze([
+  "activeAffinityKey", "affinitySlots", "equippedAffinityKeys", "equippedAffinityStacks",
+]);
+
+/**
  * The least an actor can be and still be worth simulating.
  *
  * DEFAULT_VITALS above is a ZERO, not a floor: health 1 with regen 0 dies to a single point of

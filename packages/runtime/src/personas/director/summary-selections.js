@@ -28,7 +28,7 @@ import {
 // Director-side fallback would make it a second author of room geometry, and the
 // divergence would be invisible because a summary with the wrong tile count is still a
 // well-formed summary that prices and builds.
-import { coerceMotivationKinds } from "../../contracts/domain-constants.js";
+import { ACTOR_EQUIPMENT_FIELDS, coerceMotivationKinds } from "../../contracts/domain-constants.js";
 
 /**
  * Raised when a card set holding ROOM cards must be resolved with no Configurator geometry.
@@ -338,7 +338,7 @@ export function normalizeSummaryPick(
   }
   pick.motivations = motivations;
   for (const key of ["category", "position", "alignment", "lifecycle", "defeatVital",
-    "capabilities", "activeAffinityKey", "holdings"]) {
+    "capabilities", ...ACTOR_EQUIPMENT_FIELDS, "holdings"]) {
     if (Object.hasOwn(entry, key)) pick[key] = structuredClone(entry[key]);
   }
   pick.setupMode = setupMode;
@@ -805,7 +805,7 @@ function pickToSelection(pick, kind, index, dungeonAffinity) {
       }
       if (kind === "actor") {
         for (const key of ["motivations", "category", "position", "alignment", "lifecycle",
-          "defeatVital", "capabilities", "activeAffinityKey", "holdings"]) {
+          "defeatVital", "capabilities", ...ACTOR_EQUIPMENT_FIELDS, "holdings"]) {
           if (Object.hasOwn(normalizedPick, key)) instance[key] = structuredClone(normalizedPick[key]);
         }
       }

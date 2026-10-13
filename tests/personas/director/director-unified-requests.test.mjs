@@ -42,6 +42,25 @@ describe('Director unified actor requests', () => {
     expect(configured.actor.motivations).toEqual(properties.motivations);
   });
 
+
+  // Drift review (2026-10-13): every Director copy list carried `activeAffinityKey` but
+  // dropped the slot fields, so a planned actor lost its authored slots and equips.
+  it('relays affinity slots, equipped keys and running stacks on every route', () => {
+    const equipment = { affinitySlots: 2, equippedAffinityKeys: ['fire:draw', 'fire:emit'],
+      equippedAffinityStacks: { 'fire:emit': 3 }, activeAffinityKey: 'fire:draw' };
+    const direct = build({ selections: [{ kind: 'actor', applied: {}, instances: [
+      { id: 'subject', category: 'warden', ...structuredClone(properties), ...structuredClone(equipment) },
+    ] }] });
+    expect(direct.spec.configurator.inputs.actors[0]).toMatchObject(equipment);
+    const summary = build({ summary: { actors: [{ actorType: 'warden', motivation: 'defending',
+      motivations: properties.motivations, affinity: 'fire', count: 1, vitals: properties.vitals,
+      affinities: properties.affinities, capabilities: properties.capabilities, ...structuredClone(equipment) }] } });
+    expect(summary.ok).toBe(true);
+    const request = summary.spec.configurator.inputs.actors[0];
+    expect(request).toMatchObject(equipment);
+    const configured = createConfiguratorPersona({ clock: () => createdAt }).normalizeActorDefinition(request);
+    expect(configured.actor).toMatchObject(equipment);
+  });
   it('does not replace explicit invalid properties with preset defaults', () => {
     const result = build({ selections: [{ kind: 'actor', applied: {}, instances: [
       { id: 'invalid', category: null, position: null, motivations: null, vitals: properties.vitals },
