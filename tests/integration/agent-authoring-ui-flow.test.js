@@ -210,40 +210,6 @@ function createInjectedPreviewOptions() {
         };
       },
     },
-    createCoreFn: async () => ({
-      init() {},
-    }),
-    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
-    applyInitialState: () => ({ ok: true, actorId: "actor_alpha" }),
-    renderFrame: () => ({
-      baseTiles: ["#####", "#...#", "#...#", "#####"],
-      buffer: ["#####", "#@..#", "#..W#", "#####"],
-    }),
-    renderBase: () => ["#####", "#...#", "#...#", "#####"],
-    readObservationFn: () => ({
-      actors: [
-        {
-          id: "ember_delver",
-          position: { x: 1, y: 1 },
-          vitals: {
-            health: { current: 8, max: 10 },
-            mana: { current: 2, max: 4 },
-            stamina: { current: 3, max: 5 },
-            durability: { current: 6, max: 6 },
-          },
-        },
-        {
-          id: "ember_warden",
-          position: { x: 3, y: 2 },
-          vitals: {
-            health: { current: 12, max: 12 },
-            mana: { current: 4, max: 4 },
-            stamina: { current: 4, max: 4 },
-            durability: { current: 8, max: 8 },
-          },
-        },
-      ],
-    }),
   };
 }
 
@@ -281,8 +247,6 @@ test("preview load uses the synchronous TypeScript core without a binary prerequ
         };
       },
     },
-    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
-    renderBase: () => ["#####", "#...#", "#...#", "#####"],
   });
 
   const loaded = await preview.loadBundle(bundle, { source: "file" });
@@ -293,7 +257,7 @@ test("preview load uses the synchronous TypeScript core without a binary prerequ
   assert.equal(elements["#preview-status"].textContent, "Layout preview loaded from file.");
 }));
 
-test("mixed-object create bundle survives the CLI -> Diagnostics -> injected Preview -> run-gating flow", async () => withUiGlobals(async () => {
+test("mixed-object create bundle survives the CLI -> Diagnostics -> Preview -> run-gating flow", async () => withUiGlobals(async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-agent-flow-mixed-"));
   runCliOk([
     "create",
@@ -366,7 +330,7 @@ test("mixed-object create bundle survives the CLI -> Diagnostics -> injected Pre
   assert.equal(elements["#preview-status"].textContent, "Run loaded from Preview.");
 }));
 
-test("room-only create bundle still previews the generated room image and remains run-blocked with injected Preview helpers", async () => withUiGlobals(async () => {
+test("room-only create bundle still previews the generated room image and remains run-blocked", async () => withUiGlobals(async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-agent-flow-room-"));
   runCliOk([
     "create",

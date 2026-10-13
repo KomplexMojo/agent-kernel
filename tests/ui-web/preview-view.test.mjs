@@ -3,6 +3,7 @@ import {
   PREVIEW_RENDERER_STORAGE_KEY,
 } from "../../packages/ui-web/src/views/preview-renderers.js";
 import { validatePreviewLaunchBundle, wirePreviewView } from "../../packages/ui-web/src/views/preview-view.js";
+import { boxedTerrain, buildUnifiedArtifacts } from "../fixtures/personas/unified-actor-runtime.mjs";
 
 function makeElement() {
   const handlers = new Map();
@@ -130,14 +131,35 @@ function createRendererRecorder(name, calls) {
   });
 }
 
+const DEFAULT_ACTOR = {
+  id: "attacker_alpha",
+  category: "delver",
+  position: { x: 1, y: 1 },
+  motivations: ["exploring"],
+  vitals: {
+    health: { current: 8, max: 10, regen: 0 },
+    mana: { current: 2, max: 4, regen: 0 },
+    stamina: { current: 3, max: 5, regen: 0 },
+  },
+};
+
+// A real SimConfig + InitialState pair, so the preview reads the actor registry
+// exactly as the app does.
 function createBundle({
-  actors = [{ id: "attacker_alpha", position: { x: 1, y: 1 }, vitals: { health: { current: 8, max: 10 }, mana: { current: 2, max: 4 }, stamina: { current: 3, max: 5 }, durability: { current: 6, max: 6 } } }],
+  actors = [DEFAULT_ACTOR],
   cardSet = [
     { id: "room_alpha", type: "room", count: 1 },
     { id: "attacker_alpha", type: "delver", count: 1 },
     { id: "defender_alpha", type: "warden", count: 1 },
   ],
 } = {}) {
+  const { simConfig, initialState } = buildUnifiedArtifacts({
+    width: 5,
+    height: 4,
+    terrain: boxedTerrain(5, 4),
+    actors,
+    runId: "preview_test",
+  });
   return {
     spec: {
       plan: {
@@ -147,21 +169,8 @@ function createBundle({
       },
     },
     artifacts: [
-      {
-        schema: "agent-kernel/SimConfigArtifact",
-        seed: 7,
-        layout: {
-          data: {
-            width: 5,
-            height: 4,
-            rooms: [{ x: 0, y: 0, width: 5, height: 4 }],
-          },
-        },
-      },
-      {
-        schema: "agent-kernel/InitialStateArtifact",
-        actors,
-      },
+      simConfig,
+      initialState,
       {
         schema: "agent-kernel/ResourceBundleArtifact",
         schemaVersion: 2,
@@ -227,29 +236,6 @@ test("preview view renders bundle-backed frame and actor summaries", async () =>
       canvas.height = 4;
       return { ok: true, width: 5, height: 4 };
     },
-    createCoreFn: async () => ({
-      init(seed) {
-        this.seed = seed;
-      },
-    }),
-    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
-    applyInitialState: () => ({ ok: true, actorId: "attacker_alpha" }),
-    renderFrame: () => ({ buffer: ["#####", "#@..#", "#...#", "#####"] }),
-    renderBase: () => ["#####", "#...#", "#...#", "#####"],
-    readObservationFn: () => ({
-      actors: [
-        {
-          id: "attacker_alpha",
-          position: { x: 1, y: 1 },
-          vitals: {
-            health: { current: 8, max: 10 },
-            mana: { current: 2, max: 4 },
-            stamina: { current: 3, max: 5 },
-            durability: { current: 6, max: 6 },
-          },
-        },
-      ],
-    }),
   });
 
   const loaded = await view.loadBundle(createBundle(), { source: "design-build" });
@@ -258,9 +244,9 @@ test("preview view renders bundle-backed frame and actor summaries", async () =>
   assert.equal(elements["#preview-frame-buffer"].hidden, true);
   assert.equal(elements["#preview-render-canvas"].width, 5);
   assert.equal(elements["#preview-render-canvas"].height, 4);
-  assert.match(elements["#preview-frame-buffer"].textContent, /#@\.\.#/);
+  assert.match(elements["#preview-frame-buffer"].textContent, /#\.\.\.#/);
   assert.match(elements["#preview-summary"].textContent, /Map 5x4/);
-  assert.match(elements["#preview-summary"].textContent, /Rooms 1/);
+  assert.match(elements["#preview-summary"].textContent, /Actors 1/);
   assert.match(elements["#preview-actor-list"].textContent, /attacker_alpha/);
   assert.equal(elements["#preview-status"].textContent, "Preview loaded from design-build.");
   assert.equal(elements["#preview-status"].dataset.level, "info");
@@ -314,9 +300,6 @@ test("preview view falls back to layout-only rendering when the bundle has no ac
   const view = wirePreviewView({
     root,
     renderBundleBoard: async () => ({ ok: false, reason: "missing_canvas_context" }),
-    createCoreFn: async () => ({ init() {} }),
-    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
-    renderBase: () => ["#####", "#...#", "#...#", "#####"],
   });
 
   const loaded = await view.loadBundle(createBundle({ actors: [] }), { source: "snapshot" });
@@ -354,12 +337,6 @@ test("preview view syncs canvas selections into the shared actor inspector", asy
       canvas.height = 128;
       return { ok: true, width: 160, height: 128 };
     },
-    createCoreFn: async () => ({ init() {} }),
-    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
-    applyInitialState: () => ({ ok: true }),
-    renderFrame: () => ({ baseTiles: ["#####", "#...#", "#...#", "#####"], buffer: ["#####", "#@..#", "#...#", "#####"] }),
-    renderBase: () => ["#####", "#...#", "#...#", "#####"],
-    readObservationFn: () => ({ actors: [{ id: "attacker_alpha", position: { x: 1, y: 1 }, vitals: createBundle().artifacts[1].actors[0].vitals }] }),
   });
 
   await view.loadBundle(createBundle(), { source: "design-build" });
@@ -386,84 +363,6 @@ test("preview view clears when bundle data is removed", async () => {
   assert.equal(elements["#preview-status"].dataset.level, "info");
 });
 
-test("preview view computes and attaches auras to observation", async () => {
-  const { root, elements } = createRoot();
-  let observationWithAuras = null;
-
-  const view = wirePreviewView({
-    root,
-    createCoreFn: async () => ({
-      init(seed) {
-        this.seed = seed;
-      },
-    }),
-    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
-    applyInitialState: () => ({ ok: true, actorId: "actor_with_affinity" }),
-    renderFrame: (core, { actorIdLabel }) => {
-      const frame = {
-        baseTiles: ["...", "...", "..."],
-        buffer: ["...", "...", "..."],
-        tick: 0,
-      };
-      return frame;
-    },
-    renderBase: () => ["...", "...", "..."],
-    readObservationFn: (core, { actorIdLabel, actorIds }) => {
-      // Return an observation with an actor that has affinity traits
-      // The observation will be mutated by preview-view to add auras
-      return {
-        actors: [
-          {
-            id: "actor_with_affinity",
-            position: { x: 1, y: 1 },
-            traits: {
-              affinities: {
-                "fire:emit": 2,
-              },
-            },
-            vitals: {
-              health: { current: 10, max: 10 },
-              mana: { current: 5, max: 5 },
-              stamina: { current: 5, max: 5 },
-              durability: { current: 5, max: 5 },
-            },
-          },
-        ],
-      };
-    },
-  });
-
-  // Intercept setText to capture the rendered observation state
-  const originalSetText = view.loadBundle;
-
-  const loaded = await view.loadBundle(
-    createBundle({
-      actors: [
-        {
-          id: "actor_with_affinity",
-          position: { x: 1, y: 1 },
-          traits: {
-            affinities: {
-              "fire:emit": 2,
-            },
-          },
-          vitals: {
-            health: { current: 10, max: 10 },
-            mana: { current: 5, max: 5 },
-            stamina: { current: 5, max: 5 },
-            durability: { current: 5, max: 5 },
-          },
-        },
-      ],
-    }),
-    { source: "design-build" }
-  );
-
-  assert.equal(loaded, true);
-  // The test passes if preview loads successfully with actor affinities
-  // Actual aura rendering is tested in integration via the resource bundle tests
-});
-
 test("preview view restores the stored renderer choice and rerenders with the phaser adapter", async () => {
   const { root } = createRoot();
   const rendererCalls = [];
@@ -476,12 +375,6 @@ test("preview view restores the stored renderer choice and rerenders with the ph
     storage,
     createCanvasRenderer: createRendererRecorder("canvas", rendererCalls),
     createPhaserRenderer: createRendererRecorder("phaser", rendererCalls),
-    createCoreFn: async () => ({ init() {} }),
-    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
-    applyInitialState: () => ({ ok: true }),
-    renderFrame: () => ({ baseTiles: ["#####", "#@..#", "#...#", "#####"], buffer: ["#####", "#@..#", "#...#", "#####"] }),
-    renderBase: () => ["#####", "#...#", "#...#", "#####"],
-    readObservationFn: () => ({ actors: createBundle().artifacts[1].actors }),
   });
 
   await view.loadBundle(createBundle(), { source: "design-build" });
@@ -498,12 +391,6 @@ test("preview view rerenders the same preview state when switching between rende
     storage: createStorage(),
     createCanvasRenderer: createRendererRecorder("canvas", rendererCalls),
     createPhaserRenderer: createRendererRecorder("phaser", rendererCalls),
-    createCoreFn: async () => ({ init() {} }),
-    applySimConfig: () => ({ ok: true, spawn: { x: 1, y: 1 } }),
-    applyInitialState: () => ({ ok: true }),
-    renderFrame: () => ({ baseTiles: ["#####", "#@..#", "#...#", "#####"], buffer: ["#####", "#@..#", "#...#", "#####"] }),
-    renderBase: () => ["#####", "#...#", "#...#", "#####"],
-    readObservationFn: () => ({ actors: createBundle().artifacts[1].actors }),
   });
 
   await view.loadBundle(createBundle(), { source: "design-build" });

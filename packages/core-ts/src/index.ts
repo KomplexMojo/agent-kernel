@@ -43,7 +43,6 @@ import {
   motivationKindsConflict,
   normalizeMotivationIntensity,
 } from "./state/motivation.ts";
-import { createWorldState } from "./state/world.ts";
 import { ActionKind, validateAction, validateSeed, ValidationError } from "./validate/inputs.ts";
 
 export { BudgetCategory } from "./state/budget.ts";
@@ -112,7 +111,6 @@ export const CORE_API_KEYS = [
   "getEffectValue",
   "getEffectX",
   "getEffectY",
-  "getExitApproachPosition",
   "getLastAffinityCanceledStacks",
   "getLastAffinityNetSourceStacks",
   "getLastAffinityNetTargetStacks",
@@ -128,8 +126,6 @@ export const CORE_API_KEYS = [
   "getLastMotivationFlags",
   "getLastMotivationMobilityTier",
   "getLastMotivationReasoningClass",
-  "getMapHeight",
-  "getMapWidth",
   "getMotivationDefaultFlagMask",
   "getMotivationExclusiveGroup",
   "getMotivationFamily",
@@ -139,13 +135,10 @@ export const CORE_API_KEYS = [
   "getMotivationPatternCount",
   "getMotivationTier",
   "getOppositeAffinityKind",
-  "getSpawnApproachPosition",
   "init",
-  "isWalkablePosition",
   "memory",
   "motivationKindsConflict",
   "normalizeMotivationIntensity",
-  "renderBaseCellChar",
   "resetMotivationEvaluation",
   "resolveAffinityInteraction",
   "resolveAffinityMergedStacks",
@@ -153,7 +146,6 @@ export const CORE_API_KEYS = [
   "resolveAffinityStackCancellation",
   "setActionBudgetCost",
   "setBudget",
-  "setTileAt",
   "step",
   "version",
 ] as const;
@@ -185,7 +177,6 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   const counter = createCounterState();
   const effects = createEffectsPort();
   const effectState = createEffectState();
-  const world = createWorldState();
   const affinitySpatial = createAffinitySpatialState();
   const motivation = createMotivationState();
 
@@ -398,20 +389,10 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getLastMotivationCognitionTier = motivation.getLastMotivationCognitionTier as CoreFunction;
   core.getLastMotivationReasoningClass = motivation.getLastMotivationReasoningClass as CoreFunction;
 
-  // World state (per-instance)
-  core.getMapWidth = world.getMapWidth as CoreFunction;
-  core.getMapHeight = world.getMapHeight as CoreFunction;
-  core.setTileAt = world.setTileAt as CoreFunction;
-  core.getSpawnApproachPosition = world.getSpawnApproachPosition as CoreFunction;
-  core.getExitApproachPosition = world.getExitApproachPosition as CoreFunction;
-  core.isWalkablePosition = world.isWalkablePosition as CoreFunction;
-  core.renderBaseCellChar = world.renderBaseCellChar as CoreFunction;
-
   core.init = ((seed: number) => {
     effects.clearEffects();
     budget.resetBudgets();
     effectState.resetEffectState();
-    world.configureGrid(1, 1);
     const seedError = validateSeed(seed);
     if (seedError !== ValidationError.None) {
       effects.pushEffect(EffectKind.InitInvalid, seedError);

@@ -145,7 +145,8 @@ function findUnwiredBehaviors() {
  */
 // #227 — 13 -> 6: the old core world's actor, hazard and resource behaviors were
 // removed rather than wired, because nothing can seat an actor in that world.
-const BASELINE_UNWIRED_BEHAVIOR_COUNT = 6;
+// #258 — 6 -> 5: `setTileAt` went with the old core world's tile grid.
+const BASELINE_UNWIRED_BEHAVIOR_COUNT = 5;
 
 test("no core-ts BEHAVIOR is added that production cannot reach", () => {
   const unwired = findUnwiredBehaviors();
