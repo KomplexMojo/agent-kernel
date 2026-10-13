@@ -1870,8 +1870,12 @@ function distributeWalkableTilesAcrossRooms({
       }
     }
     if (foundIdx < 0) return null;
+    return pathTo(foundIdx);
+  };
+  // The path the last BFS recorded from its source to `idx`.
+  const pathTo = (idx) => {
     const path = [];
-    let cursor = foundIdx;
+    let cursor = idx;
     while (cursor >= 0) {
       const x = cursor % width;
       path.push({ x, y: (cursor - x) / width });
@@ -1879,6 +1883,37 @@ function distributeWalkableTilesAcrossRooms({
     }
     path.reverse();
     return path;
+  };
+  // One BFS from `source` until every target index is discovered (#207). A BFS
+  // from a fixed source sets each cell's parent the same way whatever it is
+  // searching for, so `pathTo` then gives exactly the path a single-target
+  // bfsPath would have — one search per room instead of one per piece.
+  const bfsReach = (source, targets) => {
+    stamp += 1;
+    const sourceIdx = toIndex(source.x, source.y);
+    visitedStamp[sourceIdx] = stamp;
+    parent[sourceIdx] = -1;
+    const pending = new Set(targets);
+    pending.delete(sourceIdx);
+    const queue = [sourceIdx];
+    for (let head = 0; head < queue.length && pending.size > 0; head += 1) {
+      const currentIdx = queue[head];
+      const cx = currentIdx % width;
+      const cy = (currentIdx - cx) / width;
+      for (const delta of NEIGHBORS) {
+        const nx = cx + delta.dx;
+        const ny = cy + delta.dy;
+        if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+        if (!isEligible(nx, ny)) continue;
+        const nIdx = toIndex(nx, ny);
+        if (visitedStamp[nIdx] === stamp) continue;
+        visitedStamp[nIdx] = stamp;
+        parent[nIdx] = currentIdx;
+        pending.delete(nIdx);
+        queue.push(nIdx);
+      }
+    }
+    return (idx) => visitedStamp[idx] === stamp;
   };
 
   // 1. Chain rooms in center order with door-to-door L-paths.
@@ -1938,8 +1973,8 @@ function distributeWalkableTilesAcrossRooms({
 
   // Link backbone pieces that landed in the same room (e.g. the doors of the
   // previous and next chain hop, or a hazard tether) with in-room paths so the
-  // backbone stays one connected component. Rooms are small, so these BFS
-  // runs are bounded by room area, not grid area.
+  // backbone stays one connected component. One BFS per room serves all of
+  // its pieces; it stops once every piece is reached.
   rooms.forEach((room) => {
     const pieces = [];
     const endY = Math.min(height, room.y + room.height);
@@ -1951,19 +1986,16 @@ function distributeWalkableTilesAcrossRooms({
     }
     if (pieces.length < 2) return;
     const hub = pieces[0];
-    for (let p = 1; p < pieces.length; p += 1) {
-      const piece = pieces[p];
-      if (Math.abs(piece.x - hub.x) + Math.abs(piece.y - hub.y) <= 1) continue;
-      // bfsPath prefers in-room routes (they are shortest) but may route
-      // around a blocked interior; either way every path cell joins the
-      // backbone so the pieces end up connected.
-      const path = bfsPath(
-        [hub],
-        (x, y) => x === piece.x && y === piece.y,
-      );
-      if (Array.isArray(path)) {
-        path.forEach((point) => addCell(point.x, point.y));
-      }
+    const far = pieces.slice(1)
+      .filter((piece) => Math.abs(piece.x - hub.x) + Math.abs(piece.y - hub.y) > 1);
+    if (far.length === 0 || !isEligible(hub.x, hub.y)) return;
+    // Shortest paths from the hub prefer in-room routes but may route around
+    // a blocked interior; either way every path cell joins the backbone so
+    // the pieces end up connected.
+    const reached = bfsReach(hub, far.map((piece) => toIndex(piece.x, piece.y)));
+    for (const piece of far) {
+      const idx = toIndex(piece.x, piece.y);
+      if (reached(idx)) pathTo(idx).forEach((point) => addCell(point.x, point.y));
     }
   });
 
