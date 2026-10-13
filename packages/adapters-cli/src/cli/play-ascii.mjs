@@ -37,14 +37,20 @@ export function launchCommand(source = {}, { cwd = process.cwd() } = {}) {
   return ["node", ak, "play", ...args].map(quote).join(" ");
 }
 
+/** ui-ascii arguments for recording or replaying a game (#204). */
+export function captureArgs({ recordPath, replayPath } = {}) {
+  return [...(recordPath ? ["--record", recordPath] : []), ...(replayPath ? ["--replay", replayPath] : [])];
+}
+
 /**
  * Run the UI with `keys` and return its result:
  * `{ ok, level, turns, status, screen }`, or `{ ok: false, error }`.
  */
-export function playAsciiScripted({ source, keys = "", color = false, fog = true }) {
+export function playAsciiScripted({ source, keys = "", color = false, fog = true, recordPath, replayPath }) {
   const result = spawnSync(
     process.execPath,
-    [UI_ASCII_CLI, ...levelArgs(source), "--json", ...(color ? ["--color"] : []), ...(fog ? [] : ["--no-fog"]), "--keys", keys],
+    [UI_ASCII_CLI, ...levelArgs(source), "--json", ...(color ? ["--color"] : []), ...(fog ? [] : ["--no-fog"]),
+      ...captureArgs({ recordPath, replayPath }), "--keys", keys],
     { encoding: "utf8" },
   );
   if (result.status !== 0) {
@@ -54,10 +60,11 @@ export function playAsciiScripted({ source, keys = "", color = false, fog = true
 }
 
 /** Hand the terminal to the UI; resolves with its exit code. */
-export function playAsciiInteractive({ source, color, fog = true }) {
+export function playAsciiInteractive({ source, color, fog = true, recordPath, replayPath }) {
   const colorArgs = [
     ...(color === false ? ["--no-color"] : color === true ? ["--color"] : []),
     ...(fog ? [] : ["--no-fog"]),
+    ...captureArgs({ recordPath, replayPath }),
   ];
   return new Promise((resolveExit, reject) => {
     const child = spawn(process.execPath, [UI_ASCII_CLI, ...levelArgs(source), ...colorArgs], { stdio: "inherit" });

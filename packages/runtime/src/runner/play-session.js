@@ -32,12 +32,19 @@
  *     forgets it. view() then applies fog: a never-seen cell is the fog
  *     glyph, an explored cell out of sight shows its base tile (no actors), and
  *     `sight` tells the UI which cells to dim.
+ *
+ * **Replay (#204).** Every command that runs a tick is logged as
+ * `{ tick, actorId, command }`; `captureInput({ meta })` returns the log as a
+ * CapturedInputArtifact (`source.adapter: "player"`), and `replayPlaySession`
+ * re-runs it on the same level. The simulation is deterministic, so a replay
+ * reaches the same state. Writing the artifact to disk is the caller's job.
  */
 import { ACTOR_COMMAND_KINDS, normalizeActorCommand } from "../personas/actor/persona.js";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
 import { ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
+import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 import { equippedActorAffinityKeys, exhaustedActorAffinityKeys } from "../../../core-ts/src/state/actor-inventory.ts";
 
 export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
@@ -124,6 +131,8 @@ export async function createPlaySession({
 
   // Explored memory: a cell stays explored once the player has seen it.
   let explored = null;
+  // Every command that ran a tick, in order (#204).
+  const commandLog = [];
 
   function readVisible() {
     const grid = runtime.readVisibleCells(playerId);
@@ -177,6 +186,7 @@ export async function createPlaySession({
       return { tick: currentTick(), accepted: [], rejected: [{ ...action, reason: before.exited ? "exited" : "defeated" }], status: before };
     }
     await runtime.step({ actorCommands: { [playerId]: normalized } });
+    commandLog.push({ tick: currentTick(), actorId: playerId, command: structuredClone(normalized) });
     if (!runtime.hasActorExited(playerId)) rememberVisible();
     const applyFrame = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "apply").at(-1) || {};
     const accepted = (applyFrame.acceptedActions || [])
@@ -311,5 +321,44 @@ export async function createPlaySession({
     };
   }
 
-  return { act, view, status, playerActorId: playerId };
+  /** The played commands as a CapturedInputArtifact; `meta` comes from the caller (no clock here). */
+  function captureInput({ meta } = {}) {
+    if (!meta || ["id", "runId", "createdAt"].some((key) => typeof meta[key] !== "string" || !meta[key])) {
+      throw new Error("captureInput: meta with id, runId and createdAt is required");
+    }
+    return {
+      schema: CAPTURED_INPUT_SCHEMA,
+      schemaVersion: 1,
+      meta: { producedBy: "play-session", ...meta },
+      source: { adapter: PLAYER_CAPTURE_ADAPTER },
+      contentType: "application/json",
+      payload: { playerActorId: playerId, commands: structuredClone(commandLog) },
+    };
+  }
+
+  return { act, view, status, captureInput, playerActorId: playerId };
+}
+
+export const PLAYER_CAPTURE_ADAPTER = "player";
+
+/**
+ * Re-run a captured game on its level: a fresh session that acts each logged
+ * command in order. Throws when the capture is not a player capture, or when a
+ * command lands on a different tick than it did when played, which means the
+ * level or the rules changed since.
+ */
+export async function replayPlaySession({ simConfig, initialState, capturedInput, ...options } = {}) {
+  if (capturedInput?.schema !== CAPTURED_INPUT_SCHEMA || capturedInput?.source?.adapter !== PLAYER_CAPTURE_ADAPTER) {
+    throw new Error("replayPlaySession: capturedInput is not a player capture");
+  }
+  const { playerActorId, commands } = capturedInput.payload ?? {};
+  if (!Array.isArray(commands)) throw new Error("replayPlaySession: capture has no commands");
+  const session = await createPlaySession({ simConfig, initialState, playerActorId, ...options });
+  for (const entry of commands) {
+    const result = await session.act(entry.command);
+    if (result.tick !== entry.tick) {
+      throw new Error(`replayPlaySession: command for tick ${entry.tick} ran at tick ${result.tick}; the level does not match this capture`);
+    }
+  }
+  return session;
 }

@@ -241,6 +241,38 @@ test("cli arguments parse, and bad ones are errors", () => {
   assert.throws(() => resolveLevels({ simConfigPath: "x.json" }), /required together/);
 });
 
+// #204: `--record` saves a played game; `--replay` re-runs it and play continues from there.
+test("the cli records a game and replays it to the same place", () => {
+  const files = [
+    "--sim-config", join(FIXTURE_LEVELS_DIR, "first-steps.sim-config.json"),
+    "--initial-state", join(FIXTURE_LEVELS_DIR, "first-steps.initial-state.json"),
+  ];
+  const dir = mkdtempSync(join(tmpdir(), "ak-maze-record-"));
+  try {
+    const half = FIRST_STEPS_SOLUTION.slice(0, 6);
+    const capturePath = join(dir, "capture.json");
+    const recorded = spawnSync(process.execPath, [CLI, ...files, "--json", "--keys", half, "--record", capturePath], { encoding: "utf8" });
+    assert.equal(recorded.status, 0, recorded.stderr);
+    const capture = JSON.parse(require("node:fs").readFileSync(capturePath, "utf8"));
+    assert.equal(capture.schema, "agent-kernel/CapturedInputArtifact");
+    assert.equal(capture.source.adapter, "player");
+    assert.equal(capture.payload.commands.length, half.length);
+
+    const replayed = spawnSync(process.execPath, [CLI, ...files, "--json", "--replay", capturePath], { encoding: "utf8" });
+    assert.equal(replayed.status, 0, replayed.stderr);
+    assert.deepEqual(JSON.parse(replayed.stdout), JSON.parse(recorded.stdout), "the replay ends where the recording did");
+
+    const finished = spawnSync(process.execPath, [CLI, ...files, "--json", "--replay", capturePath,
+      "--keys", FIRST_STEPS_SOLUTION.slice(6)], { encoding: "utf8" });
+    assert.equal(finished.status, 0, finished.stderr);
+    const payload = JSON.parse(finished.stdout);
+    assert.equal(payload.status.exited, true);
+    assert.equal(payload.turns, FIRST_STEPS_SOLUTION.length);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("the cli plays a scripted game end to end, as text or JSON", () => {
   const files = [
     "--sim-config", join(FIXTURE_LEVELS_DIR, "first-steps.sim-config.json"),

@@ -298,6 +298,8 @@ Inputs/outputs:
 - `--keys` applies keys without a terminal and prints the final screen; `--json` prints the structured
   result instead, `launch` being the command to play that level interactively. `--color`/`--no-color`
   pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map. MCP: `ak_play_ascii`.
+- `--record <path>` saves the played commands as a `CapturedInputArtifact`; `--replay <path>` re-runs a saved
+  game on its level, then play continues (both pass through to the UI; see `packages/ui-ascii/README.md`).
 - `--keys` takes the game's own keys (see `packages/ui-ascii/README.md`), including the affinity keys:
   `i` then a digit equips (or unequips), Tab and `+`/`-` there run an equipped affinity at fewer stacks, `f` or a slot's digit then Tab/Enter casts, `g` takes loot.
   For example `--keys "i1ff"` equips the first affinity and casts it at the nearest actor in sight.
