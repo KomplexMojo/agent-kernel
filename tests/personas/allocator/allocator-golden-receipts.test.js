@@ -116,7 +116,11 @@ test("create and resource-plan charge the identical affinity resource", () => {
     120,
     "create affinity resource total",
   );
-  assert.equal(g2.totalCost, 126, "affinity and permanent vital resources are charged");
+  // #242: resource_2's grant (+5 permanent health, +2 regen) is charged too: 5 x 10 + 2 x 2^2.
+  const g2VitalGrant = g2.lineItems.filter((l) => l.subjectRef?.id === "resource_2" && l.kind === "resource");
+  assert.deepEqual(g2VitalGrant.map((l) => [l.id, l.totalCost]).sort(),
+    [["resource_permanent", 50], ["resource_vital_health_regen_tick", 8]]);
+  assert.equal(g2.totalCost, 184, "affinity and permanent vital resources are charged");
 
   const g4 = readJson(join(GOLDENS, "resource-plan-g4", "budget-receipt.json"));
   assert.equal(g4.totalCost, 120, "resource-plan charges the same payload fully");

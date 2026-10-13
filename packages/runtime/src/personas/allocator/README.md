@@ -363,6 +363,12 @@ Resource items (`resource_*`) are **derived in code** from the ids they mirror a
 `round(freeFloatingPremium × base)`, inheriting the mirrored id's linear/quadratic shape — the
 premium changes price, never scaling. Hazards pay no premium: a hazard threatens, a resource grants.
 
+A resource placed by `ak create` reaches the Allocator as an actor, and its loot is a holding.
+The actor loop prices each holding through the same extractors as the resource-spec path, so no
+second formula exists. A `slot` holding is charged `resource_affinity_slot` per slot. A `vital`
+holding (#242) is charged its delta at the permanence tier and its regen as
+`resource_vital_<key>_regen_tick`.
+
 > **✅ CLOSED — the motivation fallback that silently overcharged is GONE.** It read: on a price-map
 > miss, `resolveMotivationUnitCost` fell back to `DEFAULT_MOTIVATION_COSTS`, which disagreed with
 > the list by up to 12× (list `exploring = 2`, fallback `25`) and charged it with no error and no

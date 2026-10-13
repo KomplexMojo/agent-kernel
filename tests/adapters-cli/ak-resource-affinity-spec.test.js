@@ -225,7 +225,8 @@ test("a budget too small for a permanent resource denies it — scarcity is emer
 test("the vital regen of a vital+regen resource reaches the budget", () => {
   const withRegen = 5000 - receiptFor("permanenceMode=consumable;vital=health;delta=5;regen=3").remaining;
   const without = 5000 - receiptFor("permanenceMode=consumable;vital=health;delta=5").remaining;
-  assert.equal(withRegen, without, `measured unified resource-plan charges ${withRegen} with or without leftover grant regen`);
+  // #242: the grant's regen is charged per tick, quadratically: 3 ticks x 2 x 3 = 18.
+  assert.equal(withRegen - without, 18, `regen 3 must add its tick price (charged ${withRegen} vs ${without})`);
 });
 
 test("help documents the affinity resource fields", () => {

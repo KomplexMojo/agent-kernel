@@ -646,9 +646,17 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
         });
       }
 
-      // Slot-unlock loot carried as a holding (a placed floor resource): priced per
-      // slot it opens, as on the resource-spec path above.
+      // Loot carried as a holding (a placed floor resource), priced as on the
+      // resource-spec path above: slot unlocks per slot they open; a vital grant's
+      // delta at its permanence tier and its regen per tick (#242).
       (Array.isArray(actor?.holdings) ? actor.holdings : []).forEach((holding) => {
+        if (holding?.kind === "vital") {
+          [...extractResourcePriceEntries(holding), ...extractResourceGrantPriceEntries(holding)]
+            .forEach(({ priceId, quantity }) => {
+              accumulateItem(counts, priceId, "resource", Math.floor(quantity), { category, subjectRef });
+            });
+          return;
+        }
         if (holding?.kind !== "slot" || !Number.isSafeInteger(holding.slots) || holding.slots < 1) return;
         accumulateItem(counts, "resource_affinity_slot", "resource", holding.slots, { category, subjectRef });
       });
