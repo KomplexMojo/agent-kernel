@@ -186,6 +186,14 @@ async function maybeResolveRememberedInputs(tool, rawArgs) {
       delete args.fromRun;
     }
   }
+  // ak_play_ascii watching a runId from this session watches the run that ak_run recorded.
+  if (tool.command === "play" && args.watch === true && normalizeNonEmptyString(args.runId) && !normalizeNonEmptyString(args.dir)) {
+    const runOutDir = REMEMBERED_RUNS.get(args.runId)?.commands.get("run");
+    if (runOutDir) {
+      args.dir = runOutDir;
+      delete args.runId;
+    }
+  }
   // ak_play_ascii with a runId from this session plays the level that run wrote.
   if (
     tool.command === "play"

@@ -1,8 +1,9 @@
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { createVisualizationSnapshot } from "../../runtime/src/render/visualization-snapshot.js";
+import { ASCII_TERRAIN_GLYPHS, createVisualizationSnapshot } from "../../runtime/src/render/visualization-snapshot.js";
 import { TICK_CURSOR_SCHEMA } from "../../runtime/src/contracts/artifacts.ts";
+import { watchAsciiScripted } from "./cli/play-ascii.mjs";
 
 const DEFAULT_ARTIFACTS_DIR = "artifacts";
 
@@ -119,8 +120,8 @@ function resolveBuildArtifact(runDir, filename) {
 // accepted moves live on that tick's earlier `apply` phase-frame, so the overlay never applied and
 // every actor rendered frozen at spawn for the whole run. Reads the full frame history instead, so
 // both the ascii/actorDetails path (createVisualizationSnapshot) and the image path
-// (buildPngDataUri, via resolveActorPositionsAtTick — the same cumulative replay renderAscii()
-// already used correctly) can accumulate every accepted move up to the requested tick.
+// (buildPngDataUri, via resolveActorPositionsAtTick) can accumulate every accepted move up to the
+// requested tick.
 export async function buildVisualizationSnapshot(runDir, runId, tick, mode) {
   const simConfigPath = resolveBuildArtifact(runDir, "sim-config.json");
   const initialStatePath = resolveBuildArtifact(runDir, "initial-state.json");
@@ -211,16 +212,14 @@ async function buildPngDataUri(simConfig, initialState, frames, tick, runDir) {
   return `data:image/png;base64,${Buffer.from(pngBytes).toString("base64")}`;
 }
 
-const ACTOR_GLYPH = "@";
-const TERRAIN_GLYPH = Object.freeze({ wall: "#", floor: ".", spawn: "S", exit: "E" });
-
+// The image path's tiles: the registry's terrain in the render vocabulary.
 function terrainRows(snapshot) {
   const { width, height } = snapshot.dimensions;
   const rows = [];
   for (let y = 0; y < height; y += 1) {
     let row = "";
     for (let x = 0; x < width; x += 1) {
-      row += TERRAIN_GLYPH[snapshot.terrain[y * width + x]] || ".";
+      row += ASCII_TERRAIN_GLYPHS[snapshot.terrain[y * width + x]] || ASCII_TERRAIN_GLYPHS.floor;
     }
     rows.push(row);
   }
@@ -263,56 +262,13 @@ function resolveActorPositionsAtTick(initialState, frames, tick) {
 }
 
 /**
- * Render the run's grid at `tick`.
- *
- * Two defects fixed here (F11): this took no tick at all and rebuilt core from
- * `initial-state.json`, so `ak_show_state` reported **tick 0 whatever the
- * session cursor said**; and it called `renderBaseTiles`, which draws terrain
- * only, so **actors were never on the map**. A caller asking "show me the state"
- * got the starting terrain, every time, and nothing in the output said so.
+ * The run at `tick`, as the terminal UI (`packages/ui-ascii`) draws it: the board
+ * with every actor and trap in place, then the followed actor's HUD. The UI is
+ * its own program, so this runs it (`--watch`) rather than importing it; it reads
+ * the run's recorded frames through the runtime run viewer. "" when the directory
+ * holds no recorded run.
  */
-export async function renderAscii(runDir, tick = null) {
-  const simConfigPath = resolveBuildArtifact(runDir, "sim-config.json");
-  const initialStatePath = resolveBuildArtifact(runDir, "initial-state.json");
-  if (!simConfigPath || !initialStatePath) return "";
-
-  try {
-    const [simConfig, initialState] = await Promise.all([
-      readFile(simConfigPath, "utf8").then(JSON.parse),
-      readFile(initialStatePath, "utf8").then(JSON.parse),
-    ]);
-
-    const { initializeCoreFromArtifacts } = await import(
-      "../../runtime/src/runner/core-setup.mjs"
-    );
-
-    const snapshot = initializeCoreFromArtifacts({ simConfig, initialState }).registry.snapshot();
-    const rows = terrainRows(snapshot).map((row) => row.split(""));
-    const mobile = new Set(snapshot.actors
-      .filter((actor) => actor.capabilities.canMove)
-      .map((actor) => actor.id));
-
-    const framesPath = join(runDir, "run", "tick-frames.json");
-    let frames = null;
-    if (existsSync(framesPath)) {
-      try {
-        const parsed = JSON.parse(await readFile(framesPath, "utf8"));
-        frames = Array.isArray(parsed?.frames) ? parsed.frames : parsed;
-      } catch {
-        frames = null;
-      }
-    }
-
-    const positions = resolveActorPositionsAtTick(initialState, frames, tick);
-    for (const [id, { x, y }] of positions) {
-      if (!mobile.has(id)) continue;
-      if (y >= 0 && y < rows.length && x >= 0 && x < rows[y].length) {
-        rows[y][x] = ACTOR_GLYPH;
-      }
-    }
-
-    return rows.map((row) => row.join("")).join("\n");
-  } catch {
-    return "";
-  }
+export async function renderAscii(runDir, tick = 0) {
+  const result = watchAsciiScripted({ runDir, tick: Number.isInteger(tick) ? tick : 0, help: false });
+  return result.ok ? result.screen : "";
 }

@@ -414,7 +414,9 @@ test("mcp ak_show_state ascii at tick 2 after rewind matches direct forward repl
 
     assert.equal(stateA.tick, 2);
     assert.equal(stateB.tick, 2);
-    assert.equal(stateA.ascii, stateB.ascii);
+    // The title line names each run, so compare below it.
+    const belowTitle = (ascii) => ascii.split("\n").slice(1).join("\n");
+    assert.equal(belowTitle(stateA.ascii), belowTitle(stateB.ascii));
   } finally {
     await harnessA.close();
     await harnessB.close();

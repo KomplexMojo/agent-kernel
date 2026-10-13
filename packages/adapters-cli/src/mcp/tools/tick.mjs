@@ -134,7 +134,7 @@ const tickBackwardTool = createHandlerTool({
 const showStateTool = createHandlerTool({
   name: "ak_show_state",
   description:
-    "Return the current dungeon state for the given run at the session cursor tick. Includes an ASCII grid rendered from core-ts when the binary is available.",
+    "Return the current dungeon state for the given run at the session cursor tick. `ascii` is the terminal UI's screen at that tick (packages/ui-ascii, as ak_play_ascii with watch: true shows it): the board with every actor and trap, then the followed actor's HUD.",
   inputSchema: {
     properties: {
       runId: stringSchema("Run ID to show the current state for."),
