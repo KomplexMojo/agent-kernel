@@ -45,7 +45,8 @@ import { buildActorHudModel } from "../render/actor-hud-model.js";
 import { ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
-import { equippedActorAffinityKeys, exhaustedActorAffinityKeys } from "../../../core-ts/src/state/actor-inventory.ts";
+import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
+import { actorCastableAffinities } from "../../../core-ts/src/rules/actor-cast.ts";
 
 export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
 
@@ -309,6 +310,10 @@ export async function createPlaySession({
           equippedAffinityKeys: equippedActorAffinityKeys(player),
           exhaustedAffinityKeys: exhaustedActorAffinityKeys(player),
           equippedAffinityStacks: { ...(player.equippedAffinityStacks ?? {}) },
+          // Core's rules, stated as data so the UI never restates them: which equipped
+          // slots can be cast and how far each reaches, and the most slots anyone holds.
+          castableAffinities: actorCastableAffinities(player),
+          maxAffinitySlots: MAX_AFFINITY_SLOTS,
           position: { ...player.position },
         }
         : null,

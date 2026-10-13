@@ -132,8 +132,7 @@ export function statusLine(status, message, { traps = false } = {}) {
 export function affinityLines(player) {
   if (!player) return [];
   const known = Array.isArray(player.affinities) ? player.affinities : [];
-  const equipped = Array.isArray(player.equippedAffinityKeys) ? player.equippedAffinityKeys
-    : (player.activeAffinityKey ? [player.activeAffinityKey] : []);
+  const equipped = player.equippedAffinityKeys || [];
   const slots = Math.max(player.affinitySlots ?? 1, equipped.length);
   if (equipped.length === 0) {
     if (known.length === 0) return ["Affinity: none"];

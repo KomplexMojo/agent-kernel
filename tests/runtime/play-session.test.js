@@ -409,6 +409,18 @@ test("view().player reports its slots: how many, what is equipped in order, and 
   assert.deepEqual(session.view().player.equippedAffinityKeys, ["light:emit"]);
 });
 
+test("view().player states core's cast rules as data: castable slots, their reach, the slot cap", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  assert.deepEqual(session.view().player.castableAffinities, {}, "nothing equipped, nothing to cast");
+  assert.equal(session.view().player.maxAffinitySlots, 6);
+  await session.act(equip("water:push"));
+  await session.act(equip("light:emit"));
+  // Emit works on its own, so only the push is castable; it reaches one tile per stack.
+  assert.deepEqual(session.view().player.castableAffinities, { "water:push": { range: 3 } });
+  await session.act({ kind: "equip_affinity", params: { affinityKey: "water:push", stacks: 2 } });
+  assert.deepEqual(session.view().player.castableAffinities, { "water:push": { range: 2 } }, "reach follows the running stacks");
+});
+
 // #201: the game can be lost. Defeat is core's verdict (the player's lifecycle); once it
 // lands, status() says so and the session refuses further commands without ticking.
 test("a player worn down by a warden is defeated, and the session then refuses to act", async () => {

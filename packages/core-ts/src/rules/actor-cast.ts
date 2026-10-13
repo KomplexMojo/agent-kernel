@@ -41,6 +41,23 @@ export interface ActorCastResult {
   rejection?: string;
 }
 
+/** Only push and pull are cast; emit and draw work on their own while equipped. */
+export function isCastableExpression(expression: string): boolean {
+  return expression === 'push' || expression === 'pull';
+}
+
+/** How far a cast reaches, in tiles (Chebyshev): one per stack it runs at (#231). */
+export function actorCastRange(pair: ActorAffinityEntry): number {
+  return pair.stacks;
+}
+
+/** The actor's equipped push and pull slots, keyed, with how far each reaches. */
+export function actorCastableAffinities(actor: ActorRecord): Partial<Record<ActorAffinityKey, { range: number }>> {
+  return Object.fromEntries(equippedActorAffinities(actor)
+    .filter(pair => isCastableExpression(pair.expression))
+    .map(pair => [affinityKey(pair), { range: actorCastRange(pair) }]));
+}
+
 /**
  * The equipped slot a cast uses: the one it names, else the first equipped push
  * or pull. A ValidationError name when there is none to use.
@@ -50,10 +67,10 @@ export function selectActorCastAffinity(actor: ActorRecord, key?: ActorAffinityK
   if (key !== undefined) {
     const named = equipped.find(pair => affinityKey(pair) === key);
     if (!named) return 'AffinityNotEquipped';
-    return named.expression === 'push' || named.expression === 'pull' ? named : 'AffinityNotCastable';
+    return isCastableExpression(named.expression) ? named : 'AffinityNotCastable';
   }
   if (!equipped.length) return 'NoActiveAffinity';
-  return equipped.find(pair => pair.expression === 'push' || pair.expression === 'pull') ?? 'AffinityNotCastable';
+  return equipped.find(pair => isCastableExpression(pair.expression)) ?? 'AffinityNotCastable';
 }
 
 /** The target's slot a neutralizing cast of `kind` suppresses: its first push or emit of that kind. */
@@ -78,7 +95,7 @@ export function castFocusedActorAffinity(
   if (typeof pair === 'string') return reject(pair);
   if (target?.lifecycle !== 'alive') return reject('InvalidTarget');
   if (Math.max(Math.abs(source.position.x - target.position.x),
-    Math.abs(source.position.y - target.position.y)) > pair.stacks) return reject('TargetOutOfRange');
+    Math.abs(source.position.y - target.position.y)) > actorCastRange(pair)) return reject('TargetOutOfRange');
   const effect = getActorAffinityEffect(pair.kind, pair.expression);
   if (effect.operation === 'drain' && sourceId === targetId) return reject('InvalidTarget');
   const cost = castManaCost(manaCosts, affinityKey(pair), pair.stacks);
