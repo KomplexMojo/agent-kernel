@@ -304,7 +304,8 @@ The Configurator is therefore a **bridge between planning and execution**, respo
   room. Generated hazard ids include affinity plus room index; mana upkeep is `2 + stacks`, the pool
   is three upkeep ticks, regen equals upkeep, and durability is `5 * stacks`. A push or pull hazard's
   pool is exactly two casts at the price core charges for that kind and stack count, with no regen
-  and durability `3 * stacks`.
+  and durability `3 * stacks`. The price comes from the build's authored affinity rules when it has
+  them (#247): `orchestrateBuild` passes them to object placement, which hands them to `mapHazards`.
 - Cast prices (#232): a push or pull costs the kind's base times `s(s+1)/2`, with no cap. The base is
   the rules artifact's tier-1 `manaCost`; `resolveActorTurnCosts` sends it to core as
   `actionCosts.castManaBase`, and `resolveAffinityManaCost` returns the same curve. Push/pull tiers

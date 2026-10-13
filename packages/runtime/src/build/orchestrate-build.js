@@ -394,6 +394,7 @@ export async function orchestrateBuild({
       hazards: unpositionedHazards,
       resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
       actors: actorsInput.actors,
+      affinityRules,
       meta: createBuildMeta(spec, producedBy, "object_placement"),
     });
     if (!objectPlacement?.ok) {
