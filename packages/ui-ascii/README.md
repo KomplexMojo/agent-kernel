@@ -71,7 +71,7 @@ Every bundled level is `ak create` output: the Configurator lays out the rooms a
 |---|---|
 | `first-steps` | one small room |
 | `long-way-round` | three large rooms |
-| `warden-hall` | two large rooms. The fire warden wanders at random; the Configurator posts it on the exit's approach, so the exit opens once it moves. The water warden attacks: it equips its push and casts at you whenever you are in reach, so you can lose here (r restarts the level) |
+| `warden-hall` | two large rooms. One warden wanders at random; the Configurator posts it on the exit's approach, so the exit opens once it moves. The other attacks: it equips its push and casts at you whenever you are in reach, so you can lose here (r restarts the level). Which affinity each warden holds is just this level's data; any affinity works the same way |
 | `water-traps` | three small rooms, three water `emit` traps |
 
 Tests that need an exact board shape use the hand-written levels in `tests/fixtures/ui-ascii/levels/`.
