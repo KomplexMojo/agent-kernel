@@ -22,7 +22,11 @@ pnpm run play:ascii -- --sim-config <p> --initial-state <p>
 pnpm run play:ascii -- --keys "ddss" --no-color     # scripted: apply keys, print, exit
 pnpm run play:ascii -- --keys "ddss" --json         # scripted, as { ok, level, turns, status, screen }
 pnpm run play:ascii -- --no-fog                     # debug: see the whole map
+pnpm run play:ascii -- --record game.json           # on quit, save the played commands
+pnpm run play:ascii -- --replay game.json           # re-run a saved game, then keep playing
 ```
+
+**Record and replay.** `--record <path>` writes the current level's played commands as a `CapturedInputArtifact` (`source.adapter: "player"`, one `{ tick, actorId, command }` per turn) when you quit or when `--keys` finishes. `--replay <path>` re-runs them on the same level (a bundled level is picked from the capture) and play continues from there; with `--keys` or `--json` it prints the result instead. The simulation is deterministic, so a replay reaches the exact same state; the play session refuses a capture whose commands no longer land on their recorded ticks. The log and the replay are the play session's (`captureInput`, `replayPlaySession`); this package only reads and writes the file.
 
 **Fog of war is on.** You see only what is in sight (levels are unlit, so that is close by). Cells you have never seen are `?`, cells you saw before are drawn dimmed with no actors on them (until dark covers them out of sight, which makes you forget them), and other actors and traps appear only while in sight. What counts as in sight is core's and the play session's (`createPlaySession({ fog: true })`, `view().sight`); this package only draws it. `--no-fog` (also on `ak play`, and `fog: false` on `ak_play_ascii`) is a debug view of the whole level for tests and level checks, not a way to play.
 

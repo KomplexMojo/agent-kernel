@@ -4,7 +4,7 @@
  * terminal IO and no rules — `cli.mjs` owns the terminal, the runtime play
  * session owns the simulation.
  */
-import { createPlaySession } from "../../runtime/src/runner/play-session.js";
+import { createPlaySession, replayPlaySession } from "../../runtime/src/runner/play-session.js";
 import { INTENT } from "./keymap.js";
 import { renderScreen } from "./screen.js";
 
@@ -348,5 +348,21 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     };
   }
 
-  return { handle, screen, state };
+  /** This level's played commands as a player capture (#204), naming the level it was played on. */
+  function captureInput(meta) {
+    const capture = session.captureInput({ meta });
+    return { ...capture, source: { ...capture.source, request: { level: levels[levelIndex].name } } };
+  }
+
+  /** Re-run a capture on the current level and continue from where it ended. */
+  async function replay(capture) {
+    const level = levels[levelIndex];
+    session = await replayPlaySession({ simConfig: level.simConfig, initialState: level.initialState, capturedInput: capture, fog });
+    turns = capture.payload.commands.length;
+    message = "";
+    panel = null;
+    finished = false;
+  }
+
+  return { handle, screen, state, captureInput, replay };
 }

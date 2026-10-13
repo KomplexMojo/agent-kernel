@@ -183,7 +183,7 @@ function usage() {
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
-  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog]
+  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--record path] [--replay path]
 
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
@@ -264,6 +264,8 @@ Options:
   --keys          play: apply these keys without a terminal and print the final screen (e.g. "ddss.")
   --json          play: print { ok, level, turns, status, screen, launch } instead of the screen
   --no-fog        play: debug view of the whole map (play is always under fog of war)
+  --record        play: save the played commands to this path (CapturedInputArtifact)
+  --replay        play: re-run a saved game on its level, then continue
   --help          Show this help
 
 Schema discovery:
@@ -6200,7 +6202,7 @@ async function playCommand(argv) {
     console.log(usage());
     return;
   }
-  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog"]);
+  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay"]);
   const unknown = Object.keys(args).filter((key) => !allowed.has(key));
   if (unknown.length > 0) throw new Error(`play does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
   const named = ["dir", "from-run", "level"].filter((key) => args[key] !== undefined);
@@ -6226,11 +6228,19 @@ async function playCommand(argv) {
   const fog = !args["no-fog"];
   // parseArgs reads a bare `--keys ""` as a flag.
   const keys = args.keys === true ? "" : args.keys;
+  // #204: record the played commands, or re-run a recorded game first.
+  const capture = {
+    recordPath: isNonEmptyString(args.record) ? resolvePath(args.record) : undefined,
+    replayPath: isNonEmptyString(args.replay) ? resolvePath(args.replay) : undefined,
+  };
+  if ((args.record !== undefined && !capture.recordPath) || (args.replay !== undefined && !capture.replayPath)) {
+    throw new Error("play --record and --replay each need a file path.");
+  }
   if (keys === undefined && !args.json) {
-    process.exitCode = await playAsciiInteractive({ source, color, fog });
+    process.exitCode = await playAsciiInteractive({ source, color, fog, ...capture });
     return;
   }
-  const result = playAsciiScripted({ source, keys: keys ?? "", color: color === true, fog });
+  const result = playAsciiScripted({ source, keys: keys ?? "", color: color === true, fog, ...capture });
   if (!result.ok) throw new Error(result.error);
   if (args.json) {
     emitJsonStdout({ ...result, command: "play", source, launch: launchCommand(source) });

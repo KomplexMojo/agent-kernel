@@ -10,6 +10,7 @@ const {
   createPlaySession,
   normalizePlayCommand,
   PLAY_DIRECTIONS,
+  replayPlaySession,
 } = require("../../packages/runtime/src/runner/play-session.js");
 const { buildUnifiedLevel, viableVitals } = require("../fixtures/ui-ascii/unified-level.mjs");
 
@@ -428,7 +429,60 @@ test("a player worn down by a warden is defeated, and the session then refuses t
   assert.equal(after.tick, tick, "no tick runs after defeat");
 });
 
+// #204: a played game is re-run from its own inputs.
+const CAPTURE_META = { id: "capture_1", runId: "play_1", createdAt: "2026-10-13T00:00:00.000Z" };
+
+test("a session logs each command that ran a tick and exports it as a player capture", async () => {
+  const session = await newSession();
+  await session.act(move("east"));
+  await session.act(move("north")); // into a wall: rejected, but the tick still ran
+  await session.act({ kind: "wait" });
+  const capture = session.captureInput({ meta: CAPTURE_META });
+  assert.equal(capture.schema, "agent-kernel/CapturedInputArtifact");
+  assert.equal(capture.source.adapter, "player");
+  assert.equal(capture.contentType, "application/json");
+  assert.equal(capture.meta.producedBy, "play-session");
+  assert.equal(capture.payload.playerActorId, "actor_mvp");
+  assert.deepEqual(capture.payload.commands.map(({ tick, command }) => [tick, command.kind]),
+    [[1, "move"], [2, "move"], [3, "wait"]]);
+  assert.throws(() => session.captureInput({ meta: { id: "x" } }), /meta with id, runId and createdAt/);
+});
+
+test("replaying a capture reaches exactly the state the game was played to", async () => {
+  const played = await newSession();
+  await walkToExit(played);
+  await played.act({ kind: "wait" });
+  const capture = JSON.parse(JSON.stringify(played.captureInput({ meta: CAPTURE_META })));
+  const replayed = await replayPlaySession({ simConfig, initialState, capturedInput: capture });
+  assert.deepEqual(replayed.status(), played.status());
+  assert.deepEqual(replayed.view(), played.view());
+  assert.deepEqual(replayed.captureInput({ meta: CAPTURE_META }), capture);
+});
+
+test("commands refused after the game is over are not logged", async () => {
+  const session = await newSession();
+  await walkToExit(session);
+  for (let i = 0; i < 3 && !session.status().exited; i += 1) await session.act({ kind: "wait" });
+  assert.equal(session.status().exited, true);
+  const logged = session.captureInput({ meta: CAPTURE_META }).payload.commands.length;
+  await session.act({ kind: "wait" });
+  assert.equal(session.captureInput({ meta: CAPTURE_META }).payload.commands.length, logged);
+});
+
+test("replay refuses a capture that is not a player's or does not fit the level", async () => {
+  const played = await newSession();
+  await played.act(move("east"));
+  const capture = played.captureInput({ meta: CAPTURE_META });
+  await assert.rejects(replayPlaySession({ simConfig, initialState,
+    capturedInput: { ...capture, source: { adapter: "llm" } } }), /not a player capture/);
+  const shifted = structuredClone(capture);
+  shifted.payload.commands[0].tick = 5;
+  await assert.rejects(replayPlaySession({ simConfig, initialState, capturedInput: shifted }), /ran at tick 1/);
+});
+
 // ## TODO: Test Permutations
+// - a capture replays with fog on and off to the same status
+// - a capture from a level the player restarted holds only the latest attempt
 // - an actor that emits light sees one more tile per stack
 // - a dark cell is unknown from beyond one tile
 // - each of the eight directions from an open floor cell (accepted, position delta)

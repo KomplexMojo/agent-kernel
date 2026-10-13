@@ -44,6 +44,23 @@ test("ak play shows an `ak create` out-dir level with its traps, as text or JSON
   }
 });
 
+// #204: `ak play --record` saves the played commands; `--replay` re-runs them on the same level.
+test("ak play records a bundled-level game and replays it to the same result", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ak-play-capture-"));
+  try {
+    const capture = join(dir, "game.json");
+    const played = ak(["play", "--level", "first-steps", "--json", "--keys", "dds.", "--record", capture]);
+    assert.equal(played.status, 0, played.stderr);
+    const replayed = ak(["play", "--json", "--replay", capture]);
+    assert.equal(replayed.status, 0, replayed.stderr);
+    const strip = ({ ok, level, turns, status, screen }) => ({ ok, level, turns, status, screen });
+    assert.deepEqual(strip(JSON.parse(replayed.stdout)), strip(JSON.parse(played.stdout)));
+    assert.match(ak(["play", "--level", "first-steps", "--json", "--record"]).stderr, /need a file path/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("ak play takes one level source and refuses unknown flags", () => {
   const two = ak(["play", "--level", "first-steps", "--dir", "x", "--json"]);
   assert.equal(two.status, 1);
