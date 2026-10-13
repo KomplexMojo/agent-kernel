@@ -346,8 +346,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       profile: Object.freeze({ mobility: "exploring", combat: "attacking", cognition: "goal_oriented" }),
       exclusiveGroup: "combat",
       displayGroup: "combat",
-      patterns: Object.freeze(["melee", "ranged", "mixed"]),
-      defaultPattern: "melee",
       defaultFlags: Object.freeze({ canMove: true, prefersStealth: false, prefersCover: false, aggroRangeBoost: true }),
     }),
     Object.freeze({
