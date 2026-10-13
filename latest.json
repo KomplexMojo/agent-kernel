@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-13T07-11-23-858Z-1697d2b890dd-f025cd07babf",
-    "key": "f025cd07babf0da22529be98574917e9c2ad856bd54294f4995a35493aea0f82",
+    "id": "2026-10-13T07-29-25-078Z-c38a29800ab2-5632f8272528",
+    "key": "5632f82725280511da0caf326b605c126609df15c0a79632225c9f9143f00522",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-13T07:11:23.858Z",
-    "completedAt": "2026-10-13T07:11:46.559Z",
-    "durationMs": 22701,
+    "startedAt": "2026-10-13T07:29:25.078Z",
+    "completedAt": "2026-10-13T07:29:47.763Z",
+    "durationMs": 22685,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "1697d2b890dd65a0e0e750fc89928f983272d93f",
-    "tree": "05a4e7be06f2c7903cc69a5dcf8d779cf4cc8b66"
+    "commit": "c38a29800ab2289fc5b5885136dd8eda49596ac5",
+    "tree": "43d2a2cc2b62e7b0787c8974ba442d0da3d8be66"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -31,6 +31,7 @@
       "packages/adapters-cli/src/cli/play-ascii.mjs",
       "packages/adapters-cli/src/mcp/README.md",
       "packages/adapters-cli/src/mcp/tools/sandbox.mjs",
+      "packages/core-ts/src/affinity-readers.ts",
       "packages/core-ts/src/index.ts",
       "packages/core-ts/src/mvp-movement.ts",
       "packages/core-ts/src/rules/actor-affinity.ts",
@@ -101,6 +102,11 @@
       "packages/runtime/src/personas/director/buildspec-assembler.js",
       "packages/runtime/src/personas/director/pool-mapper.js",
       "packages/runtime/src/personas/director/summary-selections.js",
+      "packages/runtime/src/personas/moderator/README.md",
+      "packages/runtime/src/personas/moderator/affinity-target-effects.js",
+      "packages/runtime/src/render/affinity-aura.js",
+      "packages/runtime/src/render/affinity-spatial-formulas.js",
+      "packages/runtime/src/render/ascii-cell-style.js",
       "packages/runtime/src/render/entity-sprite-composer.js",
       "packages/runtime/src/render/visualization-snapshot.js",
       "packages/runtime/src/runner/core-facade.js",
@@ -110,6 +116,7 @@
       "tools/remote-ollama-control/benchmarks/content-gen/affinity.json",
       "tools/remote-ollama-control/benchmarks/content-gen/complex.json",
       "tools/remote-ollama-control/benchmarks/content-gen/constrained.json",
+      "tools/remote-ollama-control/benchmarks/execution/RUNBOOK.md",
       "tools/remote-ollama-control/benchmarks/execution/generated-content-routes.json"
     ],
     "pathClasses": [
@@ -162,7 +169,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/f025cd07babf0da22529be98574917e9c2ad856bd54294f4995a35493aea0f82"
+    "retentionId": "preflights/5632f82725280511da0caf326b605c126609df15c0a79632225c9f9143f00522"
   },
   "qualifies": false
 }
