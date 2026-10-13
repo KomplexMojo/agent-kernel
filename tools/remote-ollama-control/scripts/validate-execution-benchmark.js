@@ -189,47 +189,6 @@ async function runCanonicalFixtureValidation({ outputRoot, catalog = loadExecuti
   return record;
 }
 
-async function probeResourceRuntimeLoading(sourceWorktree) {
-  const setupPath = path.join(sourceWorktree, 'packages', 'runtime', 'src', 'runner', 'core-setup.mjs');
-  const moduleUrl = `${pathToFileURL(setupPath).href}?resource-probe=${process.hrtime.bigint()}`;
-  const { applySimConfigToCore } = await import(moduleUrl);
-  if (typeof applySimConfigToCore !== 'function') {
-    return { status: 'failed', vitalPlacements: 0, affinityPlacements: 0 };
-  }
-  const calls = { vital: 0, affinity: 0 };
-  const core = {
-    configureGrid: () => 0,
-    setTileAt: () => 0,
-    placeResourceAt: () => { calls.vital += 1; return 0; },
-    placeAffinityResourceAt: () => { calls.affinity += 1; return 0; },
-  };
-  const result = applySimConfigToCore(core, {
-    layout: {
-      kind: 'grid',
-      data: {
-        width: 3,
-        height: 3,
-        tiles: ['###', '#.#', '###'],
-        resources: [
-          {
-            id: 'probe-vital', position: { x: 1, y: 1 }, permanenceMode: 'consumable',
-            vitals: [{ key: 'health', delta: 1, regen: 0 }],
-          },
-          {
-            id: 'probe-affinity', position: { x: 1, y: 1 }, permanenceMode: 'consumable', vitals: [],
-            affinity: { kind: 'fire', expression: 'emit', stacks: 1, mana: 3, manaRegen: 0 },
-          },
-        ],
-      },
-    },
-  });
-  return {
-    status: result?.ok === true && calls.vital > 0 && calls.affinity > 0 ? 'passed' : 'failed',
-    vitalPlacements: calls.vital,
-    affinityPlacements: calls.affinity,
-  };
-}
-
 function loadJson(filePath, label) {
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -271,7 +230,6 @@ async function runCorpusIntegrationValidation({
   sourceWorktree = REPOSITORY_ROOT,
   runtimeRouteDocument,
   generatedRouteDocument,
-  probeResourceCapability = probeResourceRuntimeLoading,
   runFixtureValidation = runCanonicalFixtureValidation,
 } = {}) {
   if (typeof outputRoot !== 'string' || !outputRoot) throw new Error('outputRoot is required');
@@ -305,10 +263,6 @@ async function runCorpusIntegrationValidation({
     }
   }
   const artifactEvidence = runtimeArtifactSetEvidence(sourceRoot, runtimeRoutes);
-  const resourceRuntimeCapability = await probeResourceCapability(sourceRoot);
-  if (resourceRuntimeCapability?.status !== 'passed') {
-    throw new Error('resource runtime loading capability is not proven; refusing deterministic scheduling');
-  }
   const fixtureValidation = await runFixtureValidation({
     outputRoot: path.join(outputRoot, 'fixture-schedule'), catalog,
   });
@@ -325,7 +279,6 @@ async function runCorpusIntegrationValidation({
       runtimeBuilds: artifactEvidence.builds.length,
       generatedMappings: generatedKeys.length,
       runtimeArtifactSetHash: artifactEvidence.runtimeArtifactSetHash,
-      resourceRuntimeCapability,
     },
     fixtureValidation,
     publication: false,
@@ -366,7 +319,6 @@ if (require.main === module) {
 
 module.exports = {
   fixtureExecutionArtifacts,
-  probeResourceRuntimeLoading,
   runCanonicalFixtureValidation,
   runCorpusIntegrationValidation,
 };

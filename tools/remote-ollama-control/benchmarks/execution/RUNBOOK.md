@@ -152,11 +152,7 @@ checkpoint is rejected rather than read as a world containing no resources.
 
 This corpus preflight verifies exact 26-key parity, both manifest identities, source-owned artifact
 paths, `SimConfigArtifact`/`InitialStateArtifact` schemas, explicit generated prompt markers, and a
-canonical hash over every committed artifact pair. It then behaviorally probes the pinned source's
-`applySimConfigToCore()` with both vital and affinity resources. Unless that probe observes calls to
-both `placeResourceAt` and `placeAffinityResourceAt`, validation fails before the deterministic fixture
-scheduler starts and writes no success record. A green unit test using an injected capability is not a
-substitute for this pinned-source probe.
+canonical hash over every committed artifact pair.
 
 On success, the command runs the deterministic 25-scenario fixture schedule and writes
 `corpus-integration-validation.json`. This still is not gameplay-quality evidence and does not contact

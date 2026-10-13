@@ -989,8 +989,8 @@ export function createFsmRuntime({
    *
    * This is the binding that makes the ordering real. Until it existed, actors resolved in
    * `initialState.actors` array order -- the sequence the build happened to emit -- and the
-   * measurement in `scripts/testing/logic-actor-ordering.mjs` found 75% of two- and
-   * three-actor scenarios had an outcome that depended on it: who claims a contested tile,
+   * old-world measurement (the retired `actor_ordering` logic-sweep domain) found 75% of two-
+   * and three-actor scenarios had an outcome that depended on it: who claims a contested tile,
    * and whether a defender escapes a blow or takes it at 1 health.
    *
    * STABLE within an actor and for anything the ruling does not name. Actions whose actorId
