@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-13T01-29-03-929Z-dc785a81b8ed-12c2fe7c7c5a",
-    "key": "12c2fe7c7c5a8940aee775d671561a296bd358cfd28102e1f7ffbcb923346d38",
+    "id": "2026-10-13T01-47-05-751Z-694ddbd805bb-0e96e149b487",
+    "key": "0e96e149b487fad9ccd487e4b02cc7a740079e5aa4462e183b3afb404588bede",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-13T01:29:03.929Z",
-    "completedAt": "2026-10-13T01:29:26.839Z",
-    "durationMs": 22910,
+    "startedAt": "2026-10-13T01:47:05.751Z",
+    "completedAt": "2026-10-13T01:47:28.593Z",
+    "durationMs": 22842,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "dc785a81b8ed557f7874c34306d749c61952972c",
-    "tree": "2e5090d53489e54365982eb3427e467c567b4220"
+    "commit": "694ddbd805bb1063a8b574a52c0cd3744b7e45cd",
+    "tree": "b672424f96a1367df4b9e80e97f37062d553482c"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -28,6 +28,7 @@
     ],
     "relevantPaths": [
       "packages/adapters-cli/src/cli/ak-impl.mjs",
+      "packages/adapters-cli/src/mcp/README.md",
       "packages/adapters-cli/src/mcp/tools/sandbox.mjs",
       "packages/core-ts/src/index.ts",
       "packages/core-ts/src/mvp-movement.ts",
@@ -160,7 +161,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/12c2fe7c7c5a8940aee775d671561a296bd358cfd28102e1f7ffbcb923346d38"
+    "retentionId": "preflights/0e96e149b487fad9ccd487e4b02cc7a740079e5aa4462e183b3afb404588bede"
   },
   "qualifies": false
 }
