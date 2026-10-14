@@ -92,8 +92,30 @@ test("each action says what it needs", () => {
   ak(["play-session", "end", "--session", session]);
 });
 
+test("order gives a companion a strategy for one turn, and advance lets it play out", () => {
+  const dir = partyRun();
+  const session = name("orders");
+  ak(["play-session", "start", "--session", session, "--dir", dir]);
+  const ordered = ak(["play-session", "order", "--session", session, "--actor", "D3", "--strategy", "follow:D1"]);
+  assert.equal(ordered.json.ok, true, ordered.stderr);
+  assert.equal(ordered.json.turns, 1, "an order is a turn");
+  assert.equal(ordered.json.results[0].actorId, "pal-1");
+  assert.deepEqual(ordered.json.orders.map((entry) => [entry.label, entry.doing]),
+    [["D3", { kind: "follow", target: "hero-1", distance: 1 }]]);
+
+  const advanced = ak(["play-session", "advance", "--session", session, "--ticks", "3"]);
+  assert.equal(advanced.json.turns, 4);
+  assert.equal(advanced.json.results[0].ticks, 3);
+
+  assert.match(ak(["play-session", "order", "--session", session, "--actor", "D3"]).json.error, /needs --actor .* and --strategy/);
+  assert.match(ak(["play-session", "act", "--session", session, "--ticks", "2"]).json.error, /go with advance/);
+  ak(["play-session", "end", "--session", session]);
+});
+
 // ## TODO: Test Permutations
 // - start --from-run <id> plays the level under artifacts/runs/<id>.
 // - act with keys and commands applies commands first, then keys.
 // - a save written before party control (no activeActorId) reopens on the first player.
 // - end on a defeated or escaped game still returns its final board.
+// - order with a JSON strategy and with a .json file; an order to a warden answers not_yours.
+// - advance --until orders_done stops before --ticks once every order is done or stalled.

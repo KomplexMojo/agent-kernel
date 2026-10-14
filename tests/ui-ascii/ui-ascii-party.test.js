@@ -85,6 +85,19 @@ test("structured commands take labels for the actor and the target", async () =>
   assert.equal(game.state().turns, 1);
 });
 
+test("an order is a turn, and the screen lists who is under orders", async () => {
+  const pal = { category: "delver", id: "pal", position: { x: 5, y: 3 }, vitals: viableVitals(), motivations: ["stationary", "goal_oriented"] };
+  const game = await createGame({ levels: [partyLevel([...ACTORS, pal])], showHelp: false });
+  const result = await game.command({ kind: "order", actorId: "D3", strategy: { goals: [{ kind: "reach", place: { x: 7, y: 3 } }] } });
+  assert.equal(result.ok, true);
+  assert.equal(game.state().turns, 1);
+  assert.match(game.screen(), /D3 takes the order\./);
+  assert.match(game.screen(), /Orders: D3 reach 7,3/);
+  await game.command({ kind: "advance", ticks: 5, until: "orders_done" });
+  assert.match(game.screen(), /Orders: D3 done/);
+  assert.equal((await game.command({ kind: "order", actorId: "W1", strategy: { goals: [{ kind: "survive" }] } })).reason, "not_yours");
+});
+
 test("--session keeps one game across calls and reopens its own level", () => {
   const dir = levelFiles();
   const session = join(dir, "game.json");
@@ -124,3 +137,5 @@ test("--session refuses level options once the game exists, and --actor needs --
 // - a session on a bundled level (--level) reopens by name.
 // - Tab while a panel is open still moves the panel's highlight, not the seat.
 // - a defeated party member stays listed as "(defeated)" and can be seated but not commanded.
+// - an order with a malformed strategy says why in the message line and runs no turn.
+// - a stalled or searching order shows its status in brackets on the Orders line.

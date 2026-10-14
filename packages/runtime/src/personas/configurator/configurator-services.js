@@ -47,6 +47,7 @@ import {
   applyViabilityDerivedVitalRequirements,
   assessDelverStructure,
   reportActorViabilityFloor,
+  reportActorStrategies,
   buildBudgetEnvelope,
   buildMinimumDelverCard,
   cloneVitals,
@@ -374,6 +375,8 @@ export function attachConfiguratorServices({ fsm } = {}) {
     applyViabilityDerivedVitalRequirements,
     /** A loaded level's actors below the viability floor: reported, never raised. */
     reportActorViabilityFloor,
+    /** Phase 2b — the strategy parts each actor's thinking does not reach: reported, never refused. */
+    reportActorStrategies,
     /** AM.5/F14 — an actor holding an affinity must be able to pay to express it. */
     applyAffinityDerivedVitalRequirements,
     /**

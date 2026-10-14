@@ -73,7 +73,7 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
   try {
     await server.initialize();
     const { tools } = await server.request("tools/list", {});
-    for (const name of ["ak_play_start", "ak_play_act", "ak_play_view", "ak_play_switch", "ak_play_end"]) {
+    for (const name of ["ak_play_start", "ak_play_act", "ak_play_view", "ak_play_switch", "ak_play_order", "ak_play_advance", "ak_play_end"]) {
       assert.ok(tools.some((tool) => tool.name === name), `${name} is listed`);
     }
 
@@ -120,7 +120,45 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
   }
 });
 
+test("orders: ak_create authors a strategy, ak_play_order replaces it, ak_play_advance plays it out", async () => {
+  const server = startServer();
+  try {
+    await server.initialize();
+    const created = await server.callTool("ak_create", {
+      room: ["size=medium;count=2"],
+      delver: [
+        { count: 1, id: "hero", affinity: "earth", motivation: ["user_controlled"], vitals: "health:10:1,mana:10:1,stamina:10:1,durability:10:1" },
+        { count: 1, id: "pal", affinity: "dark", motivation: ["exploring", "goal_oriented"], vitals: "health:10:1,mana:10:1,stamina:10:1,durability:10:1",
+          strategy: { goals: [{ kind: "follow", target: "hero-1", distance: 2 }] } },
+      ],
+      budgetTokens: 6000,
+      runId: "orders-mcp",
+      createdAt: "2026-10-14T00:00:00.000Z",
+    });
+    assert.equal(created.ok, true, JSON.stringify(created));
+
+    await server.callTool("ak_play_start", { session: "mcp-orders", runId: "orders-mcp" });
+    const ordered = await server.callTool("ak_play_order", {
+      session: "mcp-orders", actor: "D2", strategy: { goals: [{ kind: "hold", place: { x: 1, y: 1 }, ticks: 1 }] },
+    });
+    assert.equal(ordered.ok, true, JSON.stringify(ordered));
+    assert.equal(ordered.turns, 1);
+    assert.equal(ordered.orders[0].id, "pal-1");
+    assert.equal(ordered.orders[0].doing.kind, "hold");
+
+    const advanced = await server.callTool("ak_play_advance", { session: "mcp-orders", ticks: 2 });
+    assert.equal(advanced.ok, true, JSON.stringify(advanced));
+    assert.equal(advanced.turns, 3);
+    assert.equal(advanced.results[0].ticks, 2);
+    await server.callTool("ak_play_end", { session: "mcp-orders" });
+  } finally {
+    await server.close();
+  }
+});
+
 // ## TODO: Test Permutations
+// - ak_play_order to a warden answers not_yours; a malformed strategy answers invalid_strategy with the reason.
+// - ak_play_advance with until "contact" stops when a hostile comes into sight.
 // - ak_play_start with dir, with simConfig + initialState, and with a bundled level.
 // - ak_play_switch to a companion answers not_playable and keeps the seat.
 // - ak_play_act on a name that was never started answers ok: false with the reason.

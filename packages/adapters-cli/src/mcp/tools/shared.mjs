@@ -67,6 +67,9 @@ export function specObjectToString(spec) {
         typeof e === "string" ? e : [e.kind, e.expression, ...(e.stacks === undefined ? [] : [e.stacks])].join(":")
       );
       if (eparts.length) parts.push(`equip=${eparts.join(",")}`);
+    } else if (k === "strategy" && typeof v === "object") {
+      // A strategy object travels as inline JSON (strategy={...}); a string is compact goals or a .json path.
+      parts.push(`strategy=${JSON.stringify(v)}`);
     } else if (k === "goals" && Array.isArray(v)) {
       const gparts = v.map((g) =>
         typeof g === "string" ? g : g.priority ? `${g.kind}:${g.priority}` : g.kind

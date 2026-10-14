@@ -110,7 +110,9 @@ At a high level, the Configurator:
 > candidate enumeration (`proposeDelverCandidates` / `proposeRoomCandidates` / `reviseDelverCandidate`).
 > It applies `ACTOR_VIABILITY_FLOOR` while authoring, and `reportActorViabilityFloor(initialState)` answers
 > the same question for a level loaded as written (the play session asks it): each delver or warden vital
-> below the floor, reported and never raised.
+> below the floor, reported and never raised. `reportActorStrategies(initialState)` does the same for
+> strategies (Phase 2b): the parts each actor's thinking motivation will not follow and the target ids
+> the level lacks, reported and never refused (`ak create` returns it as `strategyReport`).
 > All of it previously lived in `allocator/budget-fulfillment.js`, where the budget maximizer built its own
 > cards and then priced them.
 >
@@ -452,7 +454,11 @@ data. Entity lists, numeric kinds and ASCII tiles are no longer accepted there.
 `budgetScaffold` stays a levelGen/pricing flag on the working layout for
 Allocator spend; locked SimConfig layout data drops it and still rejects other
 extras. `buildInitialStateArtifact` requires `actors` as preset definitions, `dimensions`,
-`terrain`, `meta` and `simConfigRef`. It emits one actor list and presentation map.
+`terrain`, `meta` and `simConfigRef`. It emits one actor list and presentation map, and, when an
+authored actor carries a `strategy` (or `strategies` is passed by id), `strategies` keyed by actor id,
+each checked by the Actor's `normalizeActorStrategy`. The strategy rides on the authored card
+(`ACTOR_STRATEGY_FIELD`, copied through the Director like the equipment fields) but never onto the
+actor record, whose fields are core's.
 The resolved-effects/traits merge has been removed. Envelope versions stay fixed
 by the approved clean-break decision. Current legacy producers fail until migrated.
 

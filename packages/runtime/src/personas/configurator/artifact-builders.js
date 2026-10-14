@@ -1,6 +1,7 @@
 import { INITIAL_STATE_SCHEMA, SIM_CONFIG_SCHEMA } from '../../contracts/artifacts.ts';
 import { normalizeActorRoster } from './unified-actors.js';
 import { resolveActorTurnCosts } from './affinity-rules.js';
+import { normalizeActorStrategy } from '../actor/persona.js';
 
 const LAYOUT_FIELDS = new Set(['width', 'height', 'terrain', 'rooms', 'connectivity',
   'bounds', 'entryRoomId', 'exitRoomId', 'spawnApproach', 'exitApproach', 'render']);
@@ -35,12 +36,37 @@ export function buildSimConfigArtifact({
   return structuredClone(artifact);
 }
 
+/**
+ * Strategies authored on actors (`strategy` on an actor request, Phase 2b) or passed by
+ * id. Core refuses any field it does not own on an actor record, so a level carries its
+ * strategies beside the roster, keyed by actor id. The shape is the Actor's to check.
+ */
+function collectStrategies(actors, strategies) {
+  const collected = {};
+  for (const [id, strategy] of Object.entries(strategies ?? {})) collected[id] = strategy;
+  for (const actor of Array.isArray(actors) ? actors : []) {
+    if (actor?.strategy !== undefined && actor.strategy !== null && typeof actor.id === 'string') collected[actor.id] = actor.strategy;
+  }
+  const ids = new Set((Array.isArray(actors) ? actors : []).map(actor => actor?.id));
+  for (const id of Object.keys(collected)) {
+    if (!ids.has(id)) throw new Error(`strategy for unknown actor: ${id}`);
+    try {
+      collected[id] = normalizeActorStrategy(collected[id]);
+    } catch (error) {
+      throw new Error(`actor ${id}: ${error.message}`);
+    }
+  }
+  return collected;
+}
+
 export function buildInitialStateArtifact({
-  meta, simConfigRef, actors, dimensions, terrain, ...unsupported
+  meta, simConfigRef, actors, dimensions, terrain, strategies, ...unsupported
 } = {}) {
   const keys = Object.keys(unsupported);
   if (keys.length) throw new Error(`unsupported initial-state inputs: ${keys.join(', ')}`);
   const roster = normalizeActorRoster({ actors, dimensions, terrain });
+  const authored = collectStrategies(actors, strategies);
   return structuredClone({ schema: INITIAL_STATE_SCHEMA, schemaVersion: 1,
-    meta, simConfigRef, actors: roster.actors, presentation: roster.presentation });
+    meta, simConfigRef, actors: roster.actors, presentation: roster.presentation,
+    ...(Object.keys(authored).length > 0 ? { strategies: authored } : {}) });
 }

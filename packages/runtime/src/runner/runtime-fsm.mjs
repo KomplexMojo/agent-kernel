@@ -4,7 +4,7 @@ import * as effects from "../ports/effects.js";
 import { createSolverPort } from "../ports/solver.js";
 import { createTickOrchestrator } from "../personas/_shared/tick-orchestrator.mts";
 import { TickPhases } from "../personas/_shared/tick-state-machine.mts";
-import { createActorPersona, normalizeActorCommand } from "../personas/actor/persona.js";
+import { createActorPersona, normalizeActorCommand, normalizeActorStrategy } from "../personas/actor/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createAnnotatorPersona } from "../personas/annotator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
@@ -151,6 +151,22 @@ function normalizeActorCommands(raw, isTrackedActor) {
       throw new Error(`actorCommands names an actor the runtime does not track: ${actorId}`);
     }
     normalized[actorId] = normalizeActorCommand(command);
+  }
+  return normalized;
+}
+
+// Mid-game orders (Phase 2b) — `actorStrategies` is keyed by actor id like
+// `actorCommands`: each entry replaces that actor's strategy from this tick on. The
+// strategy's shape is the Actor's, checked here only so a malformed order is refused
+// before the tick starts.
+function normalizeActorStrategies(raw, isTrackedActor) {
+  const strategies = ensureRecord(raw, "actorStrategies");
+  const normalized = {};
+  for (const [actorId, strategy] of Object.entries(strategies)) {
+    if (!isTrackedActor(actorId)) {
+      throw new Error(`actorStrategies names an actor the runtime does not track: ${actorId}`);
+    }
+    normalized[actorId] = normalizeActorStrategy(strategy);
   }
   return normalized;
 }
@@ -693,7 +709,7 @@ export function createFsmRuntime({
     return actorRegistry ? actorRegistry.getActor(id)?.lifecycle === "exited" : false;
   }
 
-  function buildPersonaPayloads({ phase, observation, phaseInputs = {}, actions = [], emittedEffects = [], fulfilledEffects = [], actorId, reservedTargets, command } = {}) {
+  function buildPersonaPayloads({ phase, observation, phaseInputs = {}, actions = [], emittedEffects = [], fulfilledEffects = [], actorId, reservedTargets, command, strategyOrder } = {}) {
     const overrides = normalizePersonaPayloadsMap(phaseInputs.personaPayloads || phaseInputs.inputs);
     const actorOverrides = overrides.actor || {};
     const annotatorOverrides = overrides.annotator || {};
@@ -749,6 +765,7 @@ export function createFsmRuntime({
       baseTiles,
       ...(Array.isArray(reservedTargets) && reservedTargets.length > 0 ? { reservedTargets } : {}),
       ...(command !== undefined ? { command } : {}),
+      ...(strategyOrder !== undefined ? { strategyOrder } : {}),
       ...actorOverrides,
     };
 
@@ -1159,6 +1176,8 @@ export function createFsmRuntime({
         actorRegistry = loaded.registry;
         actorCosts = loaded.costs;
         actorPresentation = loaded.presentation;
+        // A level's strategies are refused at load, not on the tick an actor first reads one.
+        for (const strategy of Object.values(initialState.strategies ?? {})) normalizeActorStrategy(strategy);
       }
       baseTiles = resolveBaseTiles(simConfig);
       // P5.5 — the applied caps are RETAINED now, because they are the "issued"
@@ -1217,6 +1236,7 @@ export function createFsmRuntime({
       }
 
       const actorCommands = normalizeActorCommands(stepOptions.actorCommands, (id) => actorIdMap.has(id));
+      const actorStrategies = normalizeActorStrategies(stepOptions.actorStrategies, (id) => actorIdMap.has(id));
       const currentPhase = orchestrator.view().phase;
       // Deterministic decide-phase iteration order: initialState.actors array
       // order (filtered to actors the core actually tracks). Every tracked actor
@@ -1302,6 +1322,7 @@ export function createFsmRuntime({
           actorId,
           reservedTargets,
           command: actorCommands[actorId],
+          strategyOrder: actorStrategies[actorId],
         });
         const decideInputs = {
           personaTick: tick,

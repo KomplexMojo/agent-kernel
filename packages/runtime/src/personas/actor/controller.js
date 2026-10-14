@@ -41,6 +41,19 @@ import {
   actorCanExit,
 } from "./proposal-helpers.js";
 import { getMotivationModule } from "./motivations/index.js";
+import {
+  NEAREST_HOSTILE,
+  RETREAT,
+  STRATEGY_DEPTH,
+  STRATEGY_GOAL_KINDS,
+  STRATEGY_STATUS,
+  followStrategy,
+  ignoredStrategyParts,
+  normalizeStrategy,
+  strategyDepth,
+} from "./strategy.js";
+
+export { NEAREST_HOSTILE, RETREAT, STRATEGY_DEPTH, STRATEGY_GOAL_KINDS, STRATEGY_STATUS };
 
 /**
  * Stage B — `profileAlignment` split into its two independent signals.
@@ -1525,6 +1538,70 @@ function buildCommandProposals({ command, observationView, observation, actorId 
   }];
 }
 
+/**
+ * Check a strategy's shape and return its canonical form (Phase 2b). The goal and tactic
+ * vocabulary is the Actor's, like the command vocabulary; whether a target exists or a
+ * place can be reached is found out turn by turn. Throws on a malformed strategy.
+ */
+export function normalizeActorStrategy(strategy) {
+  return normalizeStrategy(strategy, normalizeActorCommand);
+}
+
+/** How much of a strategy an actor with these motivations follows: none, goals, or full. */
+export function actorStrategyDepth(motivationKinds) {
+  return strategyDepth(motivationKinds);
+}
+
+/** The parts of a strategy an actor with these motivations ignores (reported, never refused). */
+export function actorStrategyIgnoredParts(strategy, motivationKinds) {
+  return ignoredStrategyParts(normalizeActorStrategy(strategy), strategyDepth(motivationKinds));
+}
+
+/**
+ * This actor's turn under its strategy, if it has one: the ordered strategy (a mid-game
+ * order, kept in the Actor context) or else the level's (`initialState.strategies`).
+ * Returns null for an actor with no strategy.
+ */
+function resolveStrategyTurn({ entry, payload, observation, observationView, simConfig, actorId, tick, baseTiles }) {
+  const strategy = entry?.order ?? payload?.initialState?.strategies?.[actorId];
+  if (!strategy) return null;
+  const actor = resolveActor(observationView, actorId, observation);
+  const record = resolveActorRecord(observationView, actorId, observation);
+  if (!actor?.position) return null;
+  const canonical = normalizeActorStrategy(strategy);
+  const depth = strategyDepth(resolveActorMotivationKinds(observationView, actorId, payload));
+  const allActors = Array.isArray(observationView?.actors) ? observationView.actors : [];
+  const hostiles = allActors.filter((other) => other?.id !== actorId && other?.position
+    && !["defeated", "exited"].includes(other.lifecycle) && !alignmentsAreAllied(actor.alignment, other.alignment));
+  const configured = Array.isArray(payload?.initialState?.actors) ? payload.initialState.actors : allActors;
+  const context = {
+    actorId,
+    self: actor,
+    record,
+    view: observationView,
+    hostiles,
+    nearestHostile: resolveNearestHostile(observationView, actorId)?.actor ?? null,
+    configuredIds: new Set(configured.map((other) => other?.id).filter(Boolean)),
+    tick: Number.isFinite(tick) ? tick : 0,
+    tileKinds: resolveTileKinds(observationView, payload),
+    baseTiles,
+    reservedTargets: payload?.reservedTargets,
+    castAt: (target, distance) => buildAffinityCastProposal({ actor, actorRecord: record, hostile: { actor: target, distance } }),
+    exitStep: () => {
+      const step = buildMoveProposal({ observation, payload, simConfig });
+      return step.length > 0 ? step : [{ kind: "wait" }];
+    },
+    commandProposal: (command) => buildCommandProposals({ command, observationView, observation, actorId })[0] ?? null,
+  };
+  return { depth, ...followStrategy({ strategy: canonical, depth, entry: entry ?? {}, context }) };
+}
+
+/** Keep a follower's own moves within `distance` of `center`; everything else stays. */
+function keepProposalsNear(proposals, { center, distance }) {
+  return proposals.filter((proposal) => proposal?.kind !== "move" || !proposal.params?.target
+    || chebyshevDistance(proposal.params.target, center) <= distance);
+}
+
 function buildCombatProposals({
   observation,
   payload,
@@ -1609,9 +1686,33 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     const commandProposals = shouldEmitActions && payload.command !== undefined
       ? buildCommandProposals({ command: payload.command, observationView, observation, actorId: payload.actorId })
       : null;
-    const derivedProposals = !shouldEmitActions
-      ? []
-      : commandProposals || buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed });
+    // Phase 2b — a strategy the actor follows on its own turns. A mid-game order replaces
+    // it and starts over at the first goal; the turn the order is given is spent taking it.
+    const strategyActorId = payload.actorId || observation?.actorId;
+    let strategyEntry = null;
+    let strategyTurn = null;
+    if (shouldEmitActions && strategyActorId) {
+      const progress = view().context.strategies?.[strategyActorId];
+      if (payload.strategyOrder !== undefined) {
+        strategyEntry = { order: normalizeActorStrategy(payload.strategyOrder), goal: 0, status: STRATEGY_STATUS.ACTIVE };
+      } else if (!commandProposals) {
+        strategyTurn = resolveStrategyTurn({ entry: progress, payload, observation, observationView, simConfig,
+          actorId: strategyActorId, tick, baseTiles });
+        if (strategyTurn) strategyEntry = strategyTurn.entry;
+      }
+    }
+    const followsStrategy = strategyTurn && strategyTurn.depth !== STRATEGY_DEPTH.NONE;
+    let derivedProposals = [];
+    if (shouldEmitActions) {
+      if (commandProposals) derivedProposals = commandProposals;
+      else if (followsStrategy && strategyTurn.proposals) derivedProposals = strategyTurn.proposals;
+      else {
+        derivedProposals = buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed });
+        if (followsStrategy && strategyTurn.keepNear) derivedProposals = keepProposalsNear(derivedProposals, strategyTurn.keepNear);
+      }
+      // An actor with a strategy always takes its turn, so its progress is always kept.
+      if (strategyTurn && derivedProposals.length === 0) derivedProposals = [{ kind: "wait" }];
+    }
     // CR.6 — the Actor derives CANDIDATE proposals. Budget admissibility used to
     // be decided here by a local filterBudgetedProposals; the policy now lives in
     // personas/allocator/proposal-admissibility.js and reaches the Actor only as
@@ -1669,9 +1770,10 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       : Array.isArray(runtimeCandidates)
         ? runtimeCandidates.map((entry) => entry.action)
         : candidateProposals;
-    const fsmPayload = shouldEmitActions && Array.isArray(transitionProposals)
-      ? { ...payload, proposals: transitionProposals }
-      : payload;
+    const fsmPayload = {
+      ...(shouldEmitActions && Array.isArray(transitionProposals) ? { ...payload, proposals: transitionProposals } : payload),
+      ...(strategyEntry ? { strategyEntry: { actorId: strategyActorId, entry: strategyEntry } } : {}),
+    };
     const result = fsm.advance(event, fsmPayload);
     if (!shouldEmitActions) {
       return { ...result, tick, actions: [], effects: [], telemetry: null };

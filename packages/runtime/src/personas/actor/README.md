@@ -127,7 +127,7 @@ Dynamic actors express behavior through **stackable motivations** organised into
 | **Posture** | `attacking`, `defending`, `stealthy`, `friendly` | How the actor engages |
 | **Cognition** | `reflexive`, `goal_oriented`, `strategy_focused` | How the actor thinks |
 
-Intelligence is represented through Cognition motivations — there is no separate parallel system for "smartness". A `reflexive` actor reacts instantly; a `strategy_focused` actor plans ahead.
+Intelligence is represented through Cognition motivations — there is no separate parallel system for "smartness". A `reflexive` actor reacts instantly; a `strategy_focused` actor plans ahead. What that buys today is how much of a strategy the actor follows (see *Strategies* below).
 
 Conflicting motivations within the same family are rejected (e.g. `attacking + defending`, `stealthy + friendly`, `random + patrolling`, `reflexive + goal_oriented`). Compatible cross-family combinations are allowed (e.g. `random + attacking`, `goal_oriented + stealthy`).
 
@@ -283,6 +283,45 @@ interpret them; it does call this persona's exported `normalizeActorCommand` fir
 is refused before the tick starts. `runner/play-session.js` wraps this into `act` / `view` / `status` for a
 playable UI.
 Proof: `tests/personas/actor/actor-player-command.test.js`, `tests/runtime/runtime-actor-commands.test.js`.
+
+## Strategies (Phase 2b)
+
+A strategy is standing orders an actor follows on its own turns: an ordered list of **goals**
+and, optionally, conditional **tactics**. The vocabulary is this persona's (`strategy.js`,
+checked by the exported `normalizeActorStrategy`), like the command vocabulary.
+
+| Goal | Does | Finishes |
+|---|---|---|
+| `reach {place}` | walks to `{x,y}` or `"exit"` | on arrival |
+| `defeat {target}` | closes in and casts | when the target is defeated |
+| `take {target}` | defeats it, then takes each unclaimed holding | when nothing is left |
+| `guard {target, radius=2}` | engages hostiles near the target, else stays within `radius` | never |
+| `follow {target, distance=1}` | stays within `distance`; its motivations play inside that | never |
+| `lead {target, place="exit", distance=3}` | walks to the place, waiting for an ally that falls behind | on arrival |
+| `hold {place, ticks}` | goes there and stays `ticks` ticks | after the ticks |
+| `survive {distance=3}` | steps away from a hostile that close | never |
+
+Tactics are `{ when, do }`, checked before goals each turn, first match wins. `when` is
+`{vital, below}` (percent), `{hostileWithin}`, `{defeated}` or `{tickAtLeast}`; `do` is a command,
+`{ kind: "retreat" }`, or a cast at `"nearest_hostile"`.
+
+**How deep an actor follows is its thinking motivation** (`actorStrategyDepth`): none or
+`reflexive` ignores the strategy, `goal_oriented` follows the goals, `strategy_focused` and
+`user_controlled` (on turns it is not commanded) follow the goals and the tactics. What an actor
+does not follow is ignored and reported (`actorStrategyIgnoredParts`), never refused.
+
+**Sight bounds it.** A goal whose target the actor cannot see is `searching` and hands the turn to
+its motivations; one that cannot be met is `stalled` with a reason (`unknown_target`, `no_route`,
+`target_gone`). Strategy proposals replace the motivated candidates for that turn; the decision
+tuple still picks among them, and core still judges legality.
+
+**Where it lives.** A level's strategies are `InitialState.strategies`, keyed by actor id (core
+owns every actor-record field, so they sit beside the roster). A mid-game order arrives as
+`runtime.step({ actorStrategies: { [actorId]: strategy } })` and is kept in this persona's
+context. Progress, per actor, is `context.strategies[actorId]`: `{ goal, status, reason?,
+heldSince?, tactic?, ignored?, order? }`. The decision stays a pure function of (FSM view,
+event, payload).
+Proof: `tests/personas/actor/actor-strategy.test.js`, `tests/runtime/play-session-orders.test.js`.
 
 ## Determinism and Replay
 

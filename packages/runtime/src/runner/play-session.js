@@ -45,13 +45,20 @@
  * `W2`, `H3`: role letter, then its place in id order) a caller may use in place of
  * an id, for a switch, an `actorId` or a cast's `targetId`.
  *
+ * **Orders (Phase 2b).** `order(actor, strategy)` gives a party member or a companion
+ * (an actor on the seated actor's side) a new strategy: goals and tactics the Actor
+ * follows on that actor's own turns, as deep as its thinking motivation reaches. Giving
+ * it is the seated actor's turn and taking it is the ordered actor's (decision 8), so
+ * one tick runs with both waiting. A strategy's targets may be labels. `strategies()`
+ * and `view().orders` read each actor's progress back from the Actor.
+ *
  * **Replay (#204).** Every command that runs a tick is logged as
  * `{ tick, actorId, command }`; `captureInput({ meta })` returns the log as a
  * CapturedInputArtifact (`source.adapter: "player"`), and `replayPlaySession`
  * re-runs it on the same level. The simulation is deterministic, so a replay
  * reaches the same state. Writing the artifact to disk is the caller's job.
  */
-import { ACTOR_COMMAND_KINDS, normalizeActorCommand } from "../personas/actor/persona.js";
+import { ACTOR_COMMAND_KINDS, normalizeActorCommand, normalizeActorStrategy } from "../personas/actor/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
@@ -208,6 +215,136 @@ export async function createPlaySession({
     return { ok: true, actorId, status: status() };
   }
 
+  // Strategy progress, per actor, as the Actor keeps it (its context, read off the last frame).
+  function strategies() {
+    const frame = runtime.getTickFrames().at(-1);
+    return structuredClone(frame?.personaViews?.actor?.context?.strategies ?? {});
+  }
+
+  // Every actor id a strategy names may be given as a label.
+  function withStrategyRefsResolved(strategy) {
+    if (!strategy || typeof strategy !== "object") return strategy;
+    const ref = (value) => resolveActorRef(value) ?? value;
+    const resolved = structuredClone(strategy);
+    for (const goal of Array.isArray(resolved.goals) ? resolved.goals : []) {
+      if (goal && typeof goal.target === "string") goal.target = ref(goal.target);
+    }
+    for (const tactic of Array.isArray(resolved.tactics) ? resolved.tactics : []) {
+      if (typeof tactic?.when?.defeated === "string") tactic.when.defeated = ref(tactic.when.defeated);
+      if (typeof tactic?.do?.params?.targetId === "string") tactic.do.params.targetId = ref(tactic.do.params.targetId);
+    }
+    return resolved;
+  }
+
+  // Who may be given orders: the party, and every actor on the seated actor's side.
+  function orderable(actorId) {
+    if (partyIds.includes(actorId)) return true;
+    const actors = readSnapshot().actors;
+    const alignment = (id) => actors.find((actor) => actor.id === id)?.alignment;
+    return alignment(actorId) !== undefined && alignment(actorId) === alignment(activeId);
+  }
+
+  /** Give `ref` a new strategy. Costs a turn: the seated actor gives it, the ordered actor takes it. */
+  async function order(ref, strategy) {
+    const actorId = resolveActorRef(ref);
+    const refuse = (reason, extra = {}) => ({ ok: false, reason, actorId: actorId ?? ref, tick: currentTick(), status: status(), ...extra });
+    if (actorId === undefined) return refuse("unknown_actor");
+    if (!orderable(actorId)) return refuse("not_yours");
+    let normalized;
+    try {
+      normalized = normalizeActorStrategy(withStrategyRefsResolved(strategy));
+    } catch (error) {
+      return refuse("invalid_strategy", { error: error.message });
+    }
+    const target = statusOf(actorId);
+    if (target.exited || target.defeated) return refuse(target.exited ? "exited" : "defeated");
+    const seat = statusOf(activeId);
+    const actorCommands = { [actorId]: { kind: "wait" } };
+    if (!seat.exited && !seat.defeated) actorCommands[activeId] = { kind: "wait" };
+    await runtime.step({ actorCommands, actorStrategies: { [actorId]: normalized } });
+    commandLog.push({ tick: currentTick(), actorId, seat: activeId, order: structuredClone(normalized) });
+    rememberParty();
+    return { ok: true, actorId, tick: currentTick(), strategy: normalized, status: status() };
+  }
+
+  // Whether any hostile is in sight of a party member still in the level.
+  function hostileInSight() {
+    const actors = readSnapshot().actors;
+    return partyIds.some((id) => {
+      const member = actors.find((actor) => actor.id === id);
+      if (!member || member.lifecycle !== "alive") return false;
+      const visible = readVisible(id);
+      return actors.some((other) => other.lifecycle === "alive" && other.alignment !== member.alignment
+        && visible?.[other.position.y]?.[other.position.x]);
+    });
+  }
+
+  const ADVANCE_UNTIL = Object.freeze(["orders_done", "contact"]);
+  const SETTLED = new Set(["done", "stalled", "ignored"]);
+
+  /**
+   * Let the world run (Phase 2b): up to `ticks` ticks in which the seated actor follows
+   * its own strategy if it has one and otherwise waits. Stops early at `until`:
+   * "orders_done" when every actor with a strategy is done, stalled or ignoring it;
+   * "contact" when a hostile comes into a party member's sight. Each tick is logged.
+   */
+  async function advance({ ticks = 1, until } = {}) {
+    if (!Number.isInteger(ticks) || ticks < 1) throw new Error("advance: ticks must be a positive integer");
+    if (until !== undefined && !ADVANCE_UNTIL.includes(until)) {
+      throw new Error(`advance: until must be one of ${ADVANCE_UNTIL.join(", ")}`);
+    }
+    const reached = () => (until === "orders_done" && Object.values(strategies()).every((entry) => SETTLED.has(entry.status)))
+      || (until === "contact" && hostileInSight());
+    let ran = 0;
+    let stoppedBy = "ticks";
+    while (ran < ticks) {
+      const seat = statusOf(activeId);
+      if (seat.exited || seat.defeated) {
+        stoppedBy = seat.exited ? "exited" : "defeated";
+        break;
+      }
+      if (until && reached()) {
+        stoppedBy = until;
+        break;
+      }
+      const auto = Boolean(strategies()[activeId] || initialState.strategies?.[activeId]);
+      await runtime.step(auto ? {} : { actorCommands: { [activeId]: { kind: "wait" } } });
+      commandLog.push(auto ? { tick: currentTick(), actorId: activeId, auto: true }
+        : { tick: currentTick(), actorId: activeId, command: { kind: "wait" } });
+      rememberParty();
+      ran += 1;
+    }
+    if (ran === ticks && until && reached()) stoppedBy = until;
+    return { ticks: ran, stoppedBy, tick: currentTick(), status: status() };
+  }
+
+  /** Replay one logged tick the seated actor spent on its own strategy. */
+  async function autoTick(actorId) {
+    await runtime.step({});
+    commandLog.push({ tick: currentTick(), actorId, auto: true });
+    rememberParty();
+    return { tick: currentTick() };
+  }
+
+  // What each actor under orders is doing, for a UI or a caller: one line per actor.
+  function ordersView() {
+    return Object.entries(strategies()).map(([id, entry]) => {
+      const strategy = entry.order ?? initialState.strategies?.[id];
+      const goal = strategy?.goals?.[entry.goal];
+      return {
+        id,
+        label: labels.get(id) ?? null,
+        status: entry.status,
+        goal: entry.goal,
+        goals: strategy?.goals?.length ?? 0,
+        ...(goal ? { doing: goal } : {}),
+        ...(Number.isInteger(entry.tactic) ? { tactic: entry.tactic } : {}),
+        ...(entry.reason ? { reason: entry.reason } : {}),
+        ...(entry.ignored ? { ignored: entry.ignored } : {}),
+      };
+    }).sort((left, right) => compareIds(left.id, right.id));
+  }
+
   // A cast's target may be a label; what the command means stays the Actor's.
   function withTargetResolved(command) {
     const targetId = command.params?.targetId;
@@ -272,6 +409,7 @@ export async function createPlaySession({
         labels,
       }),
       party: partyView(snapshot),
+      orders: ordersView(),
     };
   }
 
@@ -292,6 +430,10 @@ export async function createPlaySession({
 
   return {
     act,
+    order,
+    advance,
+    autoTick,
+    strategies,
     view,
     status,
     switchTo,
@@ -533,7 +675,16 @@ export async function replayPlaySession({ simConfig, initialState, capturedInput
   if (!Array.isArray(commands)) throw new Error("replayPlaySession: capture has no commands");
   const session = await createPlaySession({ simConfig, initialState, playerActorId, ...options });
   for (const entry of commands) {
-    const result = await session.act(entry.command, { actorId: entry.actorId ?? playerActorId });
+    let result;
+    // Orders and auto ticks depend on who was seated, so the replay reseats first.
+    if (entry.order !== undefined) {
+      if (entry.seat !== undefined) session.switchTo(entry.seat);
+      result = await session.order(entry.actorId, entry.order);
+    } else if (entry.auto) {
+      session.switchTo(entry.actorId);
+      result = await session.autoTick(entry.actorId);
+    }
+    else result = await session.act(entry.command, { actorId: entry.actorId ?? playerActorId });
     if (result.tick !== entry.tick) {
       throw new Error(`replayPlaySession: command for tick ${entry.tick} ran at tick ${result.tick}; the level does not match this capture`);
     }

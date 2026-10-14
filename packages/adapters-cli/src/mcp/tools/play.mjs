@@ -17,8 +17,9 @@ const actingSpec = [
   { key: "keys" },
 ];
 
-const SESSION_RESULT = "Returns { screen, status, turns, active, party, inSight, hud, results? }: show `screen` verbatim in a code block. "
+const SESSION_RESULT = "Returns { screen, status, turns, active, party, orders?, inSight, hud, results? }: show `screen` verbatim in a code block. "
   + "`active` is the seated actor; `party` lists every playable (user_controlled) actor with its label (D1, D2, ...), position and status; "
+  + "`orders` lists every actor following a strategy: the goal it is on (`doing`, `goal` of `goals`) and its status (active, searching: target out of sight, stalled: with a reason, done, ignored: its thinking motivation does not reach the strategy); "
   + "`inSight` lists every other actor and trap the seated actor sees now, each with a label (W1, H2, ...) you and the player can use instead of its id. "
   + "Fog of war is on: report only what the screen and inSight show.";
 
@@ -135,6 +136,53 @@ export const playTools = [
       required: ["actor"],
     },
     buildArgs: (args) => ["switch", ...buildArgv(args, [...sessionSpec, { key: "actor" }])],
+  }),
+  createTool({
+    name: "ak_play_order",
+    description: "Give a party member or a companion (an actor on the seated actor's side) a new strategy in a live game: standing orders it follows on its own turns. "
+      + "It replaces the actor's strategy and starts at the first goal. Giving the order is the seated actor's turn and taking it the ordered actor's, so one turn passes. "
+      + "How much it follows depends on its thinking motivation: goal_oriented follows the goals, strategy_focused and user_controlled the tactics too; any other actor ignores it. "
+      + "Results say not_yours for a hostile actor, invalid_strategy with the reason for a malformed one. " + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: {
+      properties: {
+        session: sessionProperty,
+        actor: stringSchema("Who takes the order: an id or label (D3)."),
+        strategy: {
+          type: "object",
+          additionalProperties: false,
+          description: "{ goals, tactics? }. Goals run in order; ids may be labels. "
+            + "reach {place: {x,y} | \"exit\"}; defeat {target}; take {target} (defeats it, then takes its loot); guard {target, radius=2}; "
+            + "follow {target, distance=1}; lead {target, place=\"exit\", distance=3} (waits for the ally); hold {place, ticks}; survive {distance=3} (steps away from hostiles). "
+            + "guard, follow and survive never finish. Tactics are checked before goals, first match wins: { when, do } with when "
+            + "{vital: health|mana|stamina|durability, below: percent} | {hostileWithin: n} | {defeated: id} | {tickAtLeast: n}, "
+            + "and do a command as in commands, { kind: \"retreat\" }, or a cast_affinity with params.targetId \"nearest_hostile\". "
+            + "Actors see only what is lit: a goal whose target is out of sight leaves the turn to the actor's own motivations.",
+          properties: {
+            goals: { type: "array", items: { type: "object", additionalProperties: true } },
+            tactics: { type: "array", items: { type: "object", additionalProperties: true } },
+          },
+        },
+      },
+      required: ["actor", "strategy"],
+    },
+    buildArgs: (args) => ["order", ...buildArgv(args, [...sessionSpec, { key: "actor" },
+      { key: "strategy", format: (value) => JSON.stringify(value) }])],
+  }),
+  createTool({
+    name: "ak_play_advance",
+    description: "Let a live game run several turns at once, for orders to play out: the seated actor follows its own strategy if it has one, else waits. "
+      + "Stops after `ticks`, or earlier at `until`: orders_done (every actor's strategy is done, stalled or ignored) or contact (a hostile comes into a party member's sight). "
+      + "Use it as a bounded autopilot only when the player asks you to play on. Results give { ticks, stoppedBy }. " + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: {
+      properties: {
+        session: sessionProperty,
+        ticks: integerSchema("At most this many turns (default 1, or 50 with until)."),
+        until: { type: "string", enum: ["orders_done", "contact"], description: "Stop early at this." },
+      },
+    },
+    buildArgs: (args) => ["advance", ...buildArgv(args, [...sessionSpec, { key: "ticks" }, { key: "until" }])],
   }),
   createTool({
     name: "ak_play_end",
