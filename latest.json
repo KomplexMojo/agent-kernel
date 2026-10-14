@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-14T05-29-36-862Z-87a46aa7a06f-5ed8a4adbaa9",
-    "key": "5ed8a4adbaa94e97296e5f8c86cfe3620d3c628d703ccde93df708a4c5fd1904",
+    "id": "2026-10-14T05-48-38-775Z-d6e29cf0cf71-939e00053300",
+    "key": "939e00053300aa1bb15333ad54bb7714c3a2a45768a5840138105eea6cbc43f9",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-14T05:29:36.862Z",
-    "completedAt": "2026-10-14T05:29:59.294Z",
-    "durationMs": 22432,
+    "startedAt": "2026-10-14T05:48:38.775Z",
+    "completedAt": "2026-10-14T05:49:01.160Z",
+    "durationMs": 22385,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "87a46aa7a06f096b3d0e372e0caf1d68b8aa5792",
-    "tree": "9d4fe9da3e47c80fb2caf3e20cbaf2a59f9e471f"
+    "commit": "d6e29cf0cf71890adfbded67388bf3d03f7a158c",
+    "tree": "d417d2f885e09d2a16fd914576f6a882faf74dea"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -86,10 +86,12 @@
       "packages/runtime/src/personas/configurator/README.md",
       "packages/runtime/src/personas/configurator/actor-placement.js",
       "packages/runtime/src/personas/configurator/affinity-effects.js",
+      "packages/runtime/src/personas/configurator/affinity-interaction-core.js",
       "packages/runtime/src/personas/configurator/affinity-rules.js",
       "packages/runtime/src/personas/configurator/artifact-builders.js",
       "packages/runtime/src/personas/configurator/candidate-authoring.js",
       "packages/runtime/src/personas/configurator/configurator-services.js",
+      "packages/runtime/src/personas/configurator/contracts.ts",
       "packages/runtime/src/personas/configurator/controller.js",
       "packages/runtime/src/personas/configurator/cost-model.js",
       "packages/runtime/src/personas/configurator/feasibility.js",
@@ -98,6 +100,8 @@
       "packages/runtime/src/personas/configurator/level-layout.js",
       "packages/runtime/src/personas/configurator/logical-validation.js",
       "packages/runtime/src/personas/configurator/mixed-room-composition.js",
+      "packages/runtime/src/personas/configurator/motivation-loadouts.js",
+      "packages/runtime/src/personas/configurator/motivation-rules.js",
       "packages/runtime/src/personas/configurator/object-placement.js",
       "packages/runtime/src/personas/configurator/terrain-layout.js",
       "packages/runtime/src/personas/configurator/unified-actors.js",
@@ -177,7 +181,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/5ed8a4adbaa94e97296e5f8c86cfe3620d3c628d703ccde93df708a4c5fd1904"
+    "retentionId": "preflights/939e00053300aa1bb15333ad54bb7714c3a2a45768a5840138105eea6cbc43f9"
   },
   "qualifies": false
 }
