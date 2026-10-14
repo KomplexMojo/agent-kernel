@@ -62,6 +62,11 @@ export function specObjectToString(spec) {
     } else if (k === "motivation" && Array.isArray(v)) {
       // One motivation per family, e.g. ["exploring", "stealthy"] → motivation=exploring+stealthy.
       if (v.length) parts.push(`motivation=${v.join("+")}`);
+    } else if (k === "equip" && Array.isArray(v)) {
+      const eparts = v.map((e) =>
+        typeof e === "string" ? e : [e.kind, e.expression, ...(e.stacks === undefined ? [] : [e.stacks])].join(":")
+      );
+      if (eparts.length) parts.push(`equip=${eparts.join(",")}`);
     } else if (k === "goals" && Array.isArray(v)) {
       const gparts = v.map((g) =>
         typeof g === "string" ? g : g.priority ? `${g.kind}:${g.priority}` : g.kind

@@ -245,10 +245,13 @@ Options:
   --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]]
+  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]
+  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]
                     where <expression> is push|pull (spatial) or emit|draw (field)
+                Delver and warden slots/equip (create too): slots=<n> sets affinity slots (1-6; preset delver 3, warden 2);
+                each slot above the preset is charged at the slot-unlock price. equip= lists starting equips in order,
+                each held by the actor; :<stacks> runs it at fewer stacks than it holds. Any mix may be equipped.
   --prompt        Prompt override (llm-plan)
   --budget-loop   Enable budget loop (layout then actors)
   --budget-pool   Budget pool weight entry (repeatable): id=weight (e.g., player=0.2)
@@ -691,6 +694,42 @@ function parseActorAffinities(value, actorType, actorIndex) {
     merged.set(key, { ...tuple });
   });
   return Array.from(merged.values());
+}
+
+// `equip=kind:expression[:stacks],...`: the starting equips, in equip order. Only the
+// tuple syntax is checked here; what may be equipped is the Configurator's call.
+function parseActorEquip(value, actorType, actorIndex) {
+  if (!isNonEmptyString(value)) return undefined;
+  return String(value).split(",").map((entry) => entry.trim()).filter(Boolean).map((entry, index) => {
+    const parts = entry.split(":").map((part) => part.trim());
+    if (parts.length !== 2 && parts.length !== 3) {
+      throw new Error(`${actorType}[${actorIndex}] equip[${index + 1}] must be kind:expression[:stacks], got "${entry}".`);
+    }
+    const [kind, expression] = parts.map((part) => part.toLowerCase());
+    if (!ALLOWED_AFFINITIES.includes(kind)) {
+      throw new Error(`${actorType}[${actorIndex}] equip[${index + 1}] has invalid affinity kind "${parts[0]}".`);
+    }
+    if (!ALLOWED_AFFINITY_EXPRESSIONS.includes(expression)) {
+      throw new Error(`${actorType}[${actorIndex}] equip[${index + 1}] has invalid affinity expression "${parts[1]}".`);
+    }
+    return parts[2] === undefined
+      ? { kind, expression }
+      : { kind, expression, stacks: parsePositiveIntStrict(parts[2], `${actorType}[${actorIndex}] equip[${index + 1}] stacks`) };
+  });
+}
+
+// `slots=` and `equip=` on a delver or warden spec, authored by the Configurator into the
+// card's slot and equip fields.
+function readActorEquipment(fields, role, index, card) {
+  const slots = fields.has("slots") ? parsePositiveIntStrict(fields.get("slots"), `${role}[${index}] slots`) : undefined;
+  return configurator.authorActorEquipment({
+    role,
+    index,
+    slots,
+    equip: parseActorEquip(fields.get("equip"), role, index),
+    affinity: card.affinity,
+    affinities: card.affinities,
+  });
 }
 
 function parseActorVitals(value, actorType, actorIndex) {
@@ -1328,7 +1367,7 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
     throw new Error(`delver[${delverIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals"]);
+  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1393,6 +1432,8 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
     vitals,
   });
 
+  Object.assign(delver, readActorEquipment(fields, "delver", delverIndex, delver));
+
   return {
     value: delver,
     optimizationGoals,
@@ -1416,7 +1457,7 @@ function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON
     throw new Error(`warden[${wardenIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals"]);
+  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "slots", "equip"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1485,6 +1526,7 @@ function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON
   if (vitals && Object.keys(vitals).length > 0) {
     warden.vitals = vitals;
   }
+  Object.assign(warden, readActorEquipment(fields, "warden", wardenIndex, warden));
   return warden;
 }
 

@@ -62,7 +62,9 @@ export function buildPriceMap(priceList) {
 export function calculatePriceTotal(price, quantity) {
   const unitCost = isFiniteNumber(price?.unitCost) ? price.unitCost : 0;
   const q = normalizeQuantity(quantity);
-  return price?.formula === "quadratic" ? unitCost * q * q : unitCost * q;
+  if (price?.formula === "quadratic") return unitCost * q * q;
+  if (price?.formula === "triangular") return (unitCost * q * (q + 1)) / 2;
+  return unitCost * q;
 }
 
 function buildAllocationRef(allocation) {

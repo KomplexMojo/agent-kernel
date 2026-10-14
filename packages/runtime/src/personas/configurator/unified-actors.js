@@ -3,16 +3,16 @@ import { validateActorRecordVitals } from '../../../../core-ts/src/state/actor-v
 import { validateActorInventory } from '../../../../core-ts/src/state/actor-inventory.ts';
 import { validateActorHoldings } from '../../../../core-ts/src/state/actor-holdings.ts';
 import { DEFAULT_MOVEMENT_COST } from './logical-validation.js';
-import { ACTOR_EQUIPMENT_FIELDS } from '../../contracts/domain-constants.js';
+import { ACTOR_EQUIPMENT_FIELDS, PRESET_AFFINITY_SLOTS } from '../../contracts/domain-constants.js';
 
-// affinitySlots: how many affinities each preset can equip at once (maintainer,
-// 2026-10-12). Every type has the same affinity capabilities; only this differs.
+// affinitySlots: how many affinities each preset can equip at once (PRESET_AFFINITY_SLOTS).
+// Every type has the same affinity capabilities; only this differs.
 const PRESETS = Object.freeze({
-  delver: { alignment: 'external', defeatVital: 'health', canMove: true, blocksMovement: true, affinitySlots: 3 },
-  warden: { alignment: 'dungeon', defeatVital: 'health', canMove: true, blocksMovement: true, affinitySlots: 2 },
-  hazard: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: false, affinitySlots: 1 },
-  resource: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: false, affinitySlots: 1 },
-  barrier: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: true, affinitySlots: 1 },
+  delver: { alignment: 'external', defeatVital: 'health', canMove: true, blocksMovement: true, affinitySlots: PRESET_AFFINITY_SLOTS.delver },
+  warden: { alignment: 'dungeon', defeatVital: 'health', canMove: true, blocksMovement: true, affinitySlots: PRESET_AFFINITY_SLOTS.warden },
+  hazard: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: false, affinitySlots: PRESET_AFFINITY_SLOTS.hazard },
+  resource: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: false, affinitySlots: PRESET_AFFINITY_SLOTS.resource },
+  barrier: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: true, affinitySlots: PRESET_AFFINITY_SLOTS.barrier },
 });
 export const INPUT_KEYS = new Set(['category', 'id', 'position', 'alignment', 'lifecycle', 'defeatVital',
   'vitals', 'capabilities', 'motivations', 'affinities', ...ACTOR_EQUIPMENT_FIELDS, 'holdings']);

@@ -236,7 +236,7 @@
       "id": "resource_affinity_slot",
       "kind": "resource",
       "unitCost": 600,
-      "formula": "linear",
+      "formula": "triangular",
       "description": "Slot-unlock loot — opens one more affinity slot; the most valuable loot"
     },
     {

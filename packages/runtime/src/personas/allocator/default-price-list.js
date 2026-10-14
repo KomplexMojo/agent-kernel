@@ -10,7 +10,7 @@ import { PRICE_LIST_SCHEMA } from "../../contracts/artifacts.ts";
  *
  * DATA vs LOGIC: the base costs live in `base-costs.json` and are tunable there.
  * The formulas that consume them live HERE, in code:
- *   - which ids scale quadratically (QUADRATIC_IDS)
+ *   - which ids scale quadratically (QUADRATIC_IDS) or triangularly (TRIANGULAR_IDS)
  *   - the resource free-floating premium (buildResourceItems)
  * Edit numbers in the JSON; edit maths here.
  *
@@ -19,11 +19,14 @@ import { PRICE_LIST_SCHEMA } from "../../contracts/artifacts.ts";
  *   - Vitals (max points): linear — 1 token per point
  *   - Regen (per-tick rate): quadratic — n units costs n² tokens
  *   - Affinity stacks: quadratic — n stacks costs n² tokens
+ *   - Affinity slots: triangular — the nth slot opened costs n × unitCost, so n slots
+ *     cost unitCost × n(n+1)/2 (maintainer, 2026-10-14)
  *   - Everything else: linear at the listed unitCost
  *
  * "formula" field on each emitted item tells consumers how to compute totalCost:
  *   "linear":    totalCost = unitCost × quantity
  *   "quadratic": totalCost = unitCost × quantity²
+ *   "triangular": totalCost = unitCost × quantity(quantity+1)/2
  */
 
 /** Ids whose quantity scales quadratically. This is logic, not data. */
@@ -34,6 +37,17 @@ const QUADRATIC_IDS = new Set([
   "vital_durability_regen_tick",
   "affinity_stack",
 ]);
+
+/** Ids whose quantity scales triangularly: each further unit costs one unitCost more. */
+const TRIANGULAR_IDS = new Set([
+  "resource_affinity_slot",
+]);
+
+function formulaFor(id) {
+  if (QUADRATIC_IDS.has(id)) return "quadratic";
+  if (TRIANGULAR_IDS.has(id)) return "triangular";
+  return "linear";
+}
 
 /**
  * Human-readable descriptions only. The NUMBERS live in base-costs.json —
@@ -86,7 +100,7 @@ function itemFrom(id, unitCost, description) {
     id,
     kind: KIND_BY_GROUP[GROUP_BY_ID[id]] || "misc",
     unitCost,
-    formula: QUADRATIC_IDS.has(id) ? "quadratic" : "linear",
+    formula: formulaFor(id),
     ...(description ? { description } : {}),
   };
 }
@@ -141,7 +155,7 @@ function buildResourceItems() {
       kind: "resource",
       unitCost: Math.round(base * premium),
       // Mirror the base id's scaling — premium changes price, never shape.
-      formula: QUADRATIC_IDS.has(baseId) ? "quadratic" : "linear",
+      formula: formulaFor(baseId),
       description: `${DESCRIPTIONS[baseId] || baseId} — free-floating resource (${premium}× ${base}, rounded)`,
     };
   });
@@ -190,18 +204,21 @@ export function buildDefaultPriceList({ meta, createdAt } = {}) {
 
 /** Resolves the formula for a price list item, defaulting to "linear". */
 export function resolveFormula(item) {
-  return item?.formula === "quadratic" ? "quadratic" : "linear";
+  return item?.formula === "quadratic" || item?.formula === "triangular" ? item.formula : "linear";
 }
 
 /**
  * Computes the effective token cost for a price list item given a quantity,
- * applying the item's formula (linear or quadratic).
- *   linear:    unitCost × quantity
- *   quadratic: unitCost × quantity²
+ * applying the item's formula (linear, quadratic or triangular).
+ *   linear:     unitCost × quantity
+ *   quadratic:  unitCost × quantity²
+ *   triangular: unitCost × quantity(quantity+1)/2
  */
 export function applyFormula(item, quantity) {
   const q = typeof quantity === "number" && quantity > 0 ? quantity : 1;
   const formula = resolveFormula(item);
   const unitCost = typeof item?.unitCost === "number" ? item.unitCost : 0;
-  return formula === "quadratic" ? unitCost * q * q : unitCost * q;
+  if (formula === "quadratic") return unitCost * q * q;
+  if (formula === "triangular") return (unitCost * q * (q + 1)) / 2;
+  return unitCost * q;
 }
