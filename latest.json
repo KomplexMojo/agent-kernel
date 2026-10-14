@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-14T19-45-19-663Z-76be852032ef-90aece71010e",
-    "key": "90aece71010e297405a20a74dc12e467036fa2f7f3867d8fed102b98db78983b",
+    "id": "2026-10-14T20-05-24-311Z-67bde0e97704-650949f83876",
+    "key": "650949f838762ac9772186a50518f82ab75d2608c644afe216e1e2317bf93dfe",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-14T19:45:19.663Z",
-    "completedAt": "2026-10-14T19:45:42.560Z",
-    "durationMs": 22897,
+    "startedAt": "2026-10-14T20:05:24.311Z",
+    "completedAt": "2026-10-14T20:05:47.332Z",
+    "durationMs": 23021,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "76be852032ef78715237d666f239b229bb18728f",
-    "tree": "02130f92ec934db1545e5a2ae7e2282278727790"
+    "commit": "67bde0e97704668cba4af463a63ad3d72ea0bcfb",
+    "tree": "70b0df799493d069c32c739683c85ce1d04ae5a4"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -77,6 +77,8 @@
       "packages/runtime/src/personas/actor/README.md",
       "packages/runtime/src/personas/actor/controller.js",
       "packages/runtime/src/personas/actor/proposal-helpers.js",
+      "packages/runtime/src/personas/actor/state-machine.js",
+      "packages/runtime/src/personas/actor/strategy.js",
       "packages/runtime/src/personas/allocator/README.md",
       "packages/runtime/src/personas/allocator/allocator-services.js",
       "packages/runtime/src/personas/allocator/base-costs.json",
@@ -187,7 +189,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/90aece71010e297405a20a74dc12e467036fa2f7f3867d8fed102b98db78983b"
+    "retentionId": "preflights/650949f838762ac9772186a50518f82ab75d2608c644afe216e1e2317bf93dfe"
   },
   "qualifies": false
 }
