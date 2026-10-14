@@ -12,7 +12,7 @@ import {
 } from "./shared.mjs";
 
 const authoringProperties = withCommonOutput({
-  text: stringSchema("Freeform authoring text."),
+  text: stringSchema("A label recorded with the authored objects. It authors nothing by itself: give at least one room, hazard, resource, delver or warden spec."),
   room: entitySpecSchema("Room authoring specs. Accepts spec strings or structured objects."),
   floorTile: entitySpecSchema("Floor tile specs. Accepts spec strings or structured objects."),
   hazard: entitySpecSchema("Hazard specs. Accepts spec strings or structured objects."),
@@ -27,7 +27,7 @@ const authoringProperties = withCommonOutput({
   budget: pathSchema("Budget artifact path."),
   priceList: pathSchema("Price list artifact path."),
   emitIntermediates: booleanSchema("Persist non-canonical sidecar artifacts."),
-  dryRun: booleanSchema("Validate inputs without writing artifacts when supported."),
+  dryRun: booleanSchema("Validate inputs without writing artifacts when supported. The result's `valid` field (with `errors`) says whether the inputs pass; `ok` only says the check ran."),
 });
 
 // Exported so the benchmark harness can import and reuse the same argv
@@ -57,7 +57,7 @@ export const authoringSpec = [
 export const authoringTools = [
   createTool({
     name: "ak_create",
-    description: "Create authored build artifacts from freeform and structured object specs.",
+    description: "Create a level (rooms joined by corridors, hazards, resources, delvers, wardens) from structured object specs. Freeform text alone authors nothing; for a level from a natural-language request use ak_llm_plan or ak_scenario.",
     command: "create",
     inputSchema: {
       properties: authoringProperties,
@@ -66,7 +66,7 @@ export const authoringTools = [
   }),
   createTool({
     name: "ak_configure",
-    description: "Configure authored build artifacts from freeform and structured object specs.",
+    description: "Configure authored build artifacts from structured object specs, recording the configure action.",
     command: "configure",
     inputSchema: {
       properties: authoringProperties,

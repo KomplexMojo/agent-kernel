@@ -242,6 +242,23 @@ test("cli arguments parse, and bad ones are errors", () => {
 });
 
 // #204: `--record` saves a played game; `--replay` re-runs it and play continues from there.
+test("the cli records a game into a directory that does not exist yet", () => {
+  const files = [
+    "--sim-config", join(FIXTURE_LEVELS_DIR, "first-steps.sim-config.json"),
+    "--initial-state", join(FIXTURE_LEVELS_DIR, "first-steps.initial-state.json"),
+  ];
+  const dir = mkdtempSync(join(tmpdir(), "ak-maze-record-nested-"));
+  try {
+    const capturePath = join(dir, "games", "saves", "capture.json");
+    const recorded = spawnSync(process.execPath, [CLI, ...files, "--json", "--keys", "d", "--record", capturePath], { encoding: "utf8" });
+    assert.equal(recorded.status, 0, recorded.stderr);
+    const capture = JSON.parse(require("node:fs").readFileSync(capturePath, "utf8"));
+    assert.equal(capture.schema, "agent-kernel/CapturedInputArtifact");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("the cli records a game and replays it to the same place", () => {
   const files = [
     "--sim-config", join(FIXTURE_LEVELS_DIR, "first-steps.sim-config.json"),

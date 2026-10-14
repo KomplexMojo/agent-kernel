@@ -7,7 +7,7 @@
 - Server name: `agent-kernel-cli`
 - Server version: `1.0.0`
 - Transport: stdio
-- Tool count: `49`
+- Tool count: `50`
 - Tool source: `packages/adapters-cli/src/mcp/tools/*.mjs`
 
 The server is a thin adapter over the CLI command surface in `packages/adapters-cli/src/cli/ak-impl.mjs`. Each MCP tool maps to one CLI command, translates JSON input into CLI flags, executes the command, and returns structured JSON back to the client.
@@ -139,7 +139,7 @@ Expected output shape:
     "name": "agent-kernel-cli",
     "version": "1.0.0"
   },
-  "toolCount": 49,
+  "toolCount": 50,
   "firstTools": [
     "ak_create",
     "ak_configure",
@@ -154,7 +154,17 @@ Expected output shape:
 
 #### Claude Code
 
-Current Claude Code docs use `claude mcp add` for registration:
+The repository root carries a project-scoped `.mcp.json` that registers this server as
+`agent-kernel-cli`. It starts from the repository root whatever directory Claude Code was
+opened in, and `.claude/settings.json` enables it and pre-allows the game tools
+(`ak_play_ascii`, `ak_create`, `ak_run`, `ak_show`, the tick tools and the other read-only
+inspection tools), so a session in this repository needs no setup. Check it with:
+
+```bash
+claude mcp get agent-kernel-cli
+```
+
+To register it by hand instead (for example from outside the repository), use `claude mcp add`:
 
 ```bash
 claude mcp add --transport stdio agent-kernel-cli -- \
@@ -236,20 +246,20 @@ The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollam
 
 | Tool name | Group | Description | Key input parameters |
 | --- | --- | --- | --- |
-| ak_create | Authoring | Create authored build artifacts from freeform and structured object specs. | text, room[], floorTile[], hazard[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList, dryRun |
-| ak_configure | Authoring | Configure authored build artifacts from freeform and structured object specs. | text, room[], floorTile[], hazard[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
+| ak_create | Authoring | Create a level from structured object specs; text alone authors nothing (use ak_llm_plan or ak_scenario for natural language). | text, room[], floorTile[], hazard[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList, dryRun |
+| ak_configure | Authoring | Configure authored build artifacts from structured object specs. | text, room[], floorTile[], hazard[], delver[], warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_room_plan | Authoring | Build a room-only authoring plan. | room[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_delver_plan | Authoring | Build a delver-only authoring plan. | delver[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_warden_plan | Authoring | Build a warden-only authoring plan. | warden[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_hazard_plan | Authoring | Build a hazard-only authoring plan. | hazard[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_resource_plan | Authoring | Build a resource-only authoring plan. | resource[], goal, dungeonAffinity, budgetTokens, budget, priceList |
 | ak_build | Simulation | Build artifacts from a build spec. | spec |
-| ak_solve | Simulation | Solve a scenario into runnable artifacts. | scenario, plan, intent, options |
+| ak_solve | Simulation | Pose a scenario to the constraint solver; `solved` says whether it answered. | scenario, plan, intent, options |
 | ak_run | Simulation | Run a simulation from artifacts or from an existing run. | simConfig, initialState, fromRun, executionPolicy, ticks, seed, actor[], vital[], vitalDefault[], tileWall[], tileBarrier[], tileFloor[], actions, affinityPresets, affinityLoadouts, affinitySummary, progress, dryRun |
 | ak_configurator | Simulation | Assemble simulation config and initial state inputs. | levelGen, actors, plan, budgetReceipt, budget, priceList, receiptOut, affinityPresets, affinityLoadouts |
 | ak_budget | Simulation | Compute a budget receipt from budget and price list artifacts. | budget, priceList, receipt, receiptOut |
 | ak_replay | Simulation | Replay a run deterministically from recorded tick frames. | simConfig, initialState, tickFrames, executionPolicy, ticks, seed |
-| ak_scenario | Simulation | Run llm-plan plus run plus inspect as a single scenario pipeline. | text, fromRun, catalog, model, goal, budgetTokens, baseUrl, fixture, budgetLoop, budgetPool[], budgetReserve, ticks, seed, dryRun |
+| ak_scenario | Simulation | Run llm-plan plus run plus inspect as a single scenario pipeline. | text, fromRun, simConfig, initialState, catalog, model, goal, budgetTokens, baseUrl, fixture, budgetLoop, budgetPool[], budgetReserve, ticks, seed, dryRun |
 | ak_schemas | Inspection | List the schema catalog used by the runtime. | outDir |
 | ak_inspect | Inspection | Inspect recorded tick frames and summarize effects. | tickFrames, effectsLog |
 | ak_narrate | Inspection | Generate a narrative artifact from frames and initial state. | tickFrames, initialState |
@@ -306,13 +316,18 @@ Purpose: turn freeform or structured dungeon/card requests into the canonical pe
 
 #### `ak_create`
 
-Creates authored build artifacts. Supports dry-run validation.
+Creates a level from structured object specs: rooms joined by corridors, hazards, resources,
+delvers and wardens. `text` is a label recorded with them and authors nothing on its own, so a
+call needs at least one object spec; a natural-language request goes to `ak_llm_plan` or
+`ak_scenario`. Supports dry-run validation: a dry run answers `ok: true` whenever the check
+ran, and `valid` (with `errors`) says whether the inputs pass. `ak_run` and `ak_scenario`
+dry runs answer the same way.
 
 Schema:
 
 | Parameter | Type | Required | Notes |
 | --- | --- | --- | --- |
-| text | string | no | Freeform authoring text |
+| text | string | no | Label recorded with the authored objects; authors nothing by itself |
 | room | string[] | no | Room authoring specs |
 | floorTile | string[] | no | Floor tile specs |
 | hazard | string[] | no | Hazard specs |
@@ -717,13 +732,20 @@ Expected output shape:
   "command": "solve",
   "runId": "run_solve_basic",
   "outDir": "/tmp/agent-kernel/solve",
+  "solved": false,
+  "status": "deferred",
+  "reason": "constraint_domain_unsupported",
   "artifactPaths": {
-    "plan": "/tmp/agent-kernel/solve/plan.json",
-    "simConfig": "/tmp/agent-kernel/solve/sim-config.json",
-    "initialState": "/tmp/agent-kernel/solve/initial-state.json"
+    "solver_request": "/tmp/agent-kernel/solve/solver-request.json",
+    "solver_result": "/tmp/agent-kernel/solve/solver-result.json"
   }
 }
 ```
+
+`ok` says the command ran; `solved` says whether the solver answered. The real Z3 adapter
+serves only the `allocator_budget_fit` and `configurator_satisfiability` domains, and a
+free-text scenario carries no domain, so it comes back `solved: false` with status
+`deferred`. A `--solver-fixture` replay reports the fixture's status.
 
 #### `ak_run`
 
@@ -912,7 +934,9 @@ Schema:
 | Parameter | Type | Required | Notes |
 | --- | --- | --- | --- |
 | text | string | no | Text-driven scenario path |
-| fromRun | string | no | Reuse prior artifacts |
+| fromRun | string | no | Reuse prior artifacts; a level made earlier in the same MCP session is found where the server wrote it |
+| simConfig | string | no | Replay this sim config (with initialState) instead of text or fromRun |
+| initialState | string | no | Replay this initial state (with simConfig) |
 | catalog | string | no | Needed for text-driven planning |
 | model | string | no | LLM model override |
 | goal | string | no | Goal override |
@@ -1100,6 +1124,10 @@ Expected output shape:
 ```
 
 #### `ak_diff`
+
+Compares two runs. Runs made earlier in the same MCP session are read where the server wrote
+them; others come from `artifacts/runs/<runId>`. A run played with `ak_run {fromRun}` is
+compared against the level embedded in its GameplayBundle.
 
 Schema:
 

@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "agent-kernel-cli": {
+      "type": "stdio",
+      "command": "sh",
+      "args": [
+        "-c",
+        "cd \"$(git rev-parse --show-toplevel)\" && exec node packages/adapters-cli/src/mcp/server.mjs"
+      ],
+      "env": {
+        "NODE_OPTIONS": "--experimental-strip-types --disable-warning=ExperimentalWarning"
+      }
+    }
+  }
+}

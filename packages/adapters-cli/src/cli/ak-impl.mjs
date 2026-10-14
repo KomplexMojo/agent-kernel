@@ -178,7 +178,7 @@ function usage() {
   node ${rel} blockchain-load --rpc-url url --token-id id [--owner addr] [--contract addr] [--fixture-chain-id path] [--fixture-load path] [--out path] [--out-dir dir]
   node ${rel} llm [--model model] --prompt text [--base-url url] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} llm-plan [--scenario path | (--text text | --prompt text) --catalog path] [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
-  node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId) [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--dry-run]
+  node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId | --sim-config path --initial-state path) [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
   node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
@@ -1910,6 +1910,7 @@ function defaultLlmPlanOutDir(runId) {
 
 const STRUCTURED_STDOUT_COMMANDS = new Set([
   "play",
+  "solve",
   "build",
   "budget",
   "create",
@@ -2152,6 +2153,23 @@ async function readJsonIfExists(path) {
     return null;
   }
   return readJson(path);
+}
+
+// A `run` outDir holds no sim-config.json / initial-state.json of its own: the level it
+// played is embedded in that run's GameplayBundle. Readers that need the level (show, diff)
+// fall back to the bundle so every run made with `run --from-run` stays describable.
+async function readEmbeddedBundleArtifact(outDir, schema) {
+  const bundle = await readJsonIfExists(join(outDir, "bundle.json"));
+  const artifacts = Array.isArray(bundle?.artifacts) ? bundle.artifacts : [];
+  return artifacts.find((artifact) => artifact?.schema === schema) || null;
+}
+
+async function readLevelArtifactsForOutDir(outDir) {
+  const simConfig = await readJsonIfExists(join(outDir, "sim-config.json"))
+    || await readEmbeddedBundleArtifact(outDir, SCHEMAS.simConfig);
+  const initialState = await readJsonIfExists(join(outDir, "initial-state.json"))
+    || await readEmbeddedBundleArtifact(outDir, SCHEMAS.initialState);
+  return { simConfig, initialState };
 }
 
 async function summarizeBuildLikeOutput({
@@ -2809,26 +2827,63 @@ function findFirstFrameDivergence(tickFramesA, tickFramesB) {
   return null;
 }
 
-async function resolveDiffRunArtifacts(runId) {
-  if (!isNonEmptyString(runId)) {
-    throw new Error("diff requires non-empty run ids.");
+// Resolves a run's directories either from disk (artifacts/runs/<runId>/<command>) or, when
+// commandOutDirs is given, from the MCP server's remembered per-command outDirs.
+async function resolveDiffRunCommandEntries(runId, commandOutDirs) {
+  if (commandOutDirs) {
+    const entries = normalizeCommandOutDirEntries(commandOutDirs)
+      .filter((entry) => isNonEmptyString(entry.command) && isNonEmptyString(entry.outDir));
+    if (entries.length === 0) {
+      throw new Error(`Run directory not found for remembered run: ${runId}`);
+    }
+    return { runDir: deriveRememberedRunDir(entries), entries, remembered: true };
   }
   const runDir = defaultRunDir(runId);
   if (!existsSync(runDir)) {
     throw new Error(`Run directory not found: ${runDir}`);
   }
+  const entries = (await listDirectoryNames(runDir)).map((command) => ({ command, outDir: join(runDir, command) }));
+  return { runDir, entries, remembered: false };
+}
 
-  const sourcePaths = await resolveFromRunArtifactPaths(runId);
-  const commandNames = await listDirectoryNames(runDir);
-  const candidateCommands = [...commandNames].sort(compareDiffStagePriority);
+// The level a run played: sim-config.json / initial-state.json files when a stage wrote
+// them (create, build, llm-plan ...), else the copies embedded in the compared stage's
+// GameplayBundle, which is all a `run --from-run` directory carries.
+async function resolveDiffLevelArtifacts({ runId, entries, remembered, compareDir }) {
+  let fileLookupError = null;
+  try {
+    const sourcePaths = remembered
+      ? await resolveFromRunArtifactPathsFromCommandOutDirs({ runId, commandOutDirs: entries })
+      : await resolveFromRunArtifactPaths(runId);
+    return {
+      sourceDir: sourcePaths.sourceDir,
+      simConfig: await readJson(sourcePaths.simConfigPath),
+      initialState: await readJson(sourcePaths.initialStatePath),
+    };
+  } catch (error) {
+    fileLookupError = error;
+  }
+  const simConfig = await readEmbeddedBundleArtifact(compareDir, SCHEMAS.simConfig);
+  const initialState = await readEmbeddedBundleArtifact(compareDir, SCHEMAS.initialState);
+  if (!simConfig || !initialState) {
+    throw fileLookupError;
+  }
+  return { sourceDir: compareDir, simConfig, initialState };
+}
+
+async function resolveDiffRunArtifacts(runId, commandOutDirs = null) {
+  if (!isNonEmptyString(runId)) {
+    throw new Error("diff requires non-empty run ids.");
+  }
+  const { runDir, entries, remembered } = await resolveDiffRunCommandEntries(runId, commandOutDirs);
+  const candidateEntries = [...entries].sort((left, right) => compareDiffStagePriority(left.command, right.command));
   let compareDir = null;
   let compareCommand = "";
 
-  for (const command of candidateCommands) {
-    const candidateDir = join(runDir, command);
-    if (existsSync(join(candidateDir, "tick-frames.json")) || existsSync(join(candidateDir, "run-summary.json"))) {
-      compareDir = candidateDir;
-      compareCommand = command;
+  for (const entry of candidateEntries) {
+    if (existsSync(join(entry.outDir, "tick-frames.json")) || existsSync(join(entry.outDir, "run-summary.json"))) {
+      compareDir = entry.outDir;
+      compareCommand = entry.command;
       break;
     }
   }
@@ -2837,9 +2892,9 @@ async function resolveDiffRunArtifacts(runId) {
     throw new Error(`diff could not find tick-frames.json or run-summary.json for run ${runId} under ${runDir}.`);
   }
 
-  const [simConfig, initialState, runSummary, tickFrames] = await Promise.all([
-    readJson(sourcePaths.simConfigPath),
-    readJson(sourcePaths.initialStatePath),
+  const level = await resolveDiffLevelArtifacts({ runId, entries, remembered, compareDir });
+  const { simConfig, initialState } = level;
+  const [runSummary, tickFrames] = await Promise.all([
     readJsonIfExists(join(compareDir, "run-summary.json")),
     readJsonIfExists(join(compareDir, "tick-frames.json")),
   ]);
@@ -2856,7 +2911,7 @@ async function resolveDiffRunArtifacts(runId) {
   return {
     runId,
     runDir,
-    sourceDir: sourcePaths.sourceDir,
+    sourceDir: level.sourceDir,
     compareDir,
     compareCommand,
     simConfig,
@@ -2898,10 +2953,12 @@ function buildActorDiffRecords(runA, runB) {
   });
 }
 
-async function summarizeRunDiff({ runA, runB } = {}) {
+// commandOutDirsA/B: the MCP server's remembered outDirs for a run made in its session;
+// omitted, a run is read from artifacts/runs/<runId>.
+export async function summarizeRunDiff({ runA, runB, commandOutDirsA = null, commandOutDirsB = null } = {}) {
   const [resolvedA, resolvedB] = await Promise.all([
-    resolveDiffRunArtifacts(runA),
-    resolveDiffRunArtifacts(runB),
+    resolveDiffRunArtifacts(runA, commandOutDirsA),
+    resolveDiffRunArtifacts(runB, commandOutDirsB),
   ]);
   const divergence = findFirstFrameDivergence(resolvedA.tickFrames, resolvedB.tickFrames);
   return {
@@ -2945,8 +3002,7 @@ async function summarizeRunDiff({ runA, runB } = {}) {
 async function summarizeRunIndexCommand({ runId, command, outDir } = {}) {
   const request = await readJsonIfExists(join(outDir, "request.json"));
   const spec = await readJsonIfExists(join(outDir, "spec.json"));
-  const simConfig = await readJsonIfExists(join(outDir, "sim-config.json"));
-  const initialState = await readJsonIfExists(join(outDir, "initial-state.json"));
+  const { simConfig, initialState } = await readLevelArtifactsForOutDir(outDir);
   const telemetry = await readJsonIfExists(join(outDir, "telemetry.json"));
   const runSummary = await readJsonIfExists(join(outDir, "run-summary.json"));
   const budgetReceipt = await readJsonIfExists(join(outDir, "budget-receipt.json"));
@@ -3653,6 +3709,8 @@ function assertAllowedScenarioArgs(args) {
   const allowed = new Set([
     "text",
     "from-run",
+    "sim-config",
+    "initial-state",
     "catalog",
     "model",
     "goal",
@@ -4143,14 +4201,38 @@ async function validateRunDryRun(args) {
   });
 }
 
+// The level a scenario replays instead of planning one from --text: an explicit
+// --sim-config/--initial-state pair (what the MCP server passes for a run it remembers),
+// or the files `--from-run <runId>` finds under artifacts/runs/<runId>.
+async function resolveScenarioLevelSource(args) {
+  const hasSimConfig = isNonEmptyString(args["sim-config"]);
+  const hasInitialState = isNonEmptyString(args["initial-state"]);
+  if (hasSimConfig || hasInitialState) {
+    if (!hasSimConfig || !hasInitialState) {
+      throw new Error("scenario requires --sim-config and --initial-state together.");
+    }
+    if (isNonEmptyString(args.text) || isNonEmptyString(args["from-run"])) {
+      throw new Error("scenario does not allow --sim-config/--initial-state together with --text or --from-run.");
+    }
+    return {
+      simConfigPath: resolvePath(args["sim-config"]),
+      initialStatePath: resolvePath(args["initial-state"]),
+    };
+  }
+  if (isNonEmptyString(args["from-run"])) {
+    return resolveFromRunArtifactPaths(args["from-run"]);
+  }
+  return null;
+}
+
 async function validateScenarioDryRun(args) {
   const fromRunId = args["from-run"];
-  if (isNonEmptyString(fromRunId)) {
-    if (isNonEmptyString(args.text)) {
-      throw new Error("scenario does not allow --text together with --from-run.");
-    }
-    const resolvedFromRun = await resolveFromRunArtifactPaths(fromRunId);
-    const runId = args["run-id"] || fromRunId;
+  if (isNonEmptyString(fromRunId) && isNonEmptyString(args.text)) {
+    throw new Error("scenario does not allow --text together with --from-run.");
+  }
+  const resolvedFromRun = await resolveScenarioLevelSource(args);
+  if (resolvedFromRun) {
+    const runId = args["run-id"] || fromRunId || makeId("run");
     const outDir = resolvePath(args["out-dir"]) || defaultRunDir(runId);
     const runValidation = await validateRunDryRun({
       "sim-config": resolvedFromRun.simConfigPath,
@@ -4649,7 +4731,25 @@ async function solveCommand(argv) {
     console.log(usage());
     return;
   }
-  await commandKernel.solve(args);
+  const { outDir, solverRequest, solverResult } = await commandKernel.solve(args);
+  const artifactPaths = {
+    solver_request: join(outDir, "solver-request.json"),
+    solver_result: join(outDir, "solver-result.json"),
+  };
+  // `ok` says the command ran; `solved` says whether the solver answered. A deferred
+  // result means no adapter served the request's domain, so nothing was solved, and
+  // callers (ak_solve above all) must not read the envelope as an answer.
+  const status = solverResult?.status;
+  emitJsonStdout({
+    ok: true,
+    command: "solve",
+    runId: solverRequest?.meta?.runId || args["run-id"] || "",
+    outDir,
+    solved: status !== "deferred" && status !== "error",
+    status,
+    ...(solverResult?.reason ? { reason: solverResult.reason } : {}),
+    artifactPaths,
+  });
 }
 
 async function runCommand(argv) {
@@ -5960,8 +6060,9 @@ async function scenarioCommand(argv) {
   assertAllowedScenarioArgs(args);
   const fromRunId = args["from-run"];
   const hasFromRun = isNonEmptyString(fromRunId);
-  if (!hasFromRun && !isNonEmptyString(args.text)) {
-    throw new Error("scenario requires --text or --from-run.");
+  const hasLevelFiles = isNonEmptyString(args["sim-config"]) || isNonEmptyString(args["initial-state"]);
+  if (!hasFromRun && !hasLevelFiles && !isNonEmptyString(args.text)) {
+    throw new Error("scenario requires --text, --from-run, or --sim-config with --initial-state.");
   }
   if (hasFromRun && isNonEmptyString(args.text)) {
     throw new Error("scenario does not allow --text together with --from-run.");
@@ -5989,8 +6090,8 @@ async function scenarioCommand(argv) {
   let sourceArtifactPaths = null;
   let runArgs;
 
-  if (hasFromRun) {
-    const resolvedFromRun = await resolveFromRunArtifactPaths(fromRunId);
+  const resolvedFromRun = await resolveScenarioLevelSource(args);
+  if (resolvedFromRun) {
     runArgs = {
       "sim-config": resolvedFromRun.simConfigPath,
       "initial-state": resolvedFromRun.initialStatePath,
