@@ -153,6 +153,12 @@ At a high level, the Configurator:
 > (`affinities`/`vitals`/`goals` tuples, shared with the still-unmigrated `parseWardenSpec`): those
 > are DSL syntax, not configuration authoring, and moving them was out of this milestone's scope.
 >
+> `authorActorEquipment`, beside it, authors a delver or warden card's `slots=` and `equip=`
+> (`ak create`) into core's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and
+> `equippedAffinityStacks`. It refuses only what core could not load: more equips than slots, an
+> affinity the actor does not hold, a duplicate, more stacks than held, slots outside 1-6. Any mix,
+> opposite emits included, is allowed. The preset slot counts are `PRESET_AFFINITY_SLOTS` in contracts.
+>
 > Not the same responsibility as the candidate-authoring block above: that one assembles **priced
 > cards** for the Allocator to judge; this one assembles a request's **actor roster entry**
 > directly, with no pricing involved. `actor-generator.js`'s `generateActorSet` was investigated

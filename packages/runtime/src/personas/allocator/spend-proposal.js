@@ -62,7 +62,7 @@ import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePri
 import { buildDefaultPriceList } from "./default-price-list.js";
 import { evaluateLayoutSpend, evaluateRoomCardLayoutSpend } from "./layout-spend.js";
 import { GAME_MOTIVATION_KIND_IDS as MOTIVATION_KIND_IDS } from "../../contracts/game-elements.js";
-import { VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
+import { PRESET_AFFINITY_SLOTS, VITAL_KEYS, normalizeCardType } from "../../contracts/domain-constants.js";
 // M8 relocated the two subject types this module names four times between them —
 // `LayoutArtifact` and `ActorArtifact`, which are not artifacts anything writes but the
 // type half of a spend line's `subjectRef`, naming what a charge is about. M9 finished the
@@ -202,6 +202,18 @@ function inferActorCategory(actor) {
   if (DELVER_KEYWORDS.some((token) => bag.includes(token))) return "delvers";
   if (WARDEN_KEYWORDS.some((token) => bag.includes(token))) return "wardens";
   return undefined;
+}
+
+/**
+ * Affinity slots an actor was authored with beyond its preset's (`ak create slots=`). Each is
+ * charged like slot-unlock loot (`resource_affinity_slot`, a triangular list item): opening a
+ * slot costs the same whether it is bought at authoring or found on the floor. Slots below the preset refund nothing.
+ */
+function extraAffinitySlots(actor) {
+  const role = String(actor?.category || actor?.type || "").toLowerCase();
+  const preset = PRESET_AFFINITY_SLOTS[role];
+  if (!Number.isSafeInteger(preset) || !Number.isSafeInteger(actor?.affinitySlots)) return 0;
+  return Math.max(0, actor.affinitySlots - preset);
 }
 
 function extractAffinities(actor) {
@@ -350,7 +362,7 @@ function extractResourceGrantPriceEntries(resource) {
   const entries = [];
 
   // Slot-unlock loot (maintainer, 2026-10-12): the most valuable loot in the
-  // game, priced per slot it opens.
+  // game, priced per slot it opens on the list's triangular curve.
   if (Number.isSafeInteger(resource?.slotGrant) && resource.slotGrant > 0) {
     entries.push({ priceId: "resource_affinity_slot", quantity: resource.slotGrant });
   }
@@ -646,6 +658,11 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
         });
       }
 
+      const extraSlots = extraAffinitySlots(actor);
+      if (extraSlots > 0) {
+        accumulateItem(counts, "resource_affinity_slot", "resource", extraSlots, { category, subjectRef });
+      }
+
       // Loot carried as a holding (a placed floor resource), priced as on the
       // resource-spec path above: slot unlocks per slot they open; a vital grant's
       // delta at its permanence tier and its regen per tick (#242).
@@ -907,13 +924,31 @@ export function calculateActorConfigurationUnitCost({
     });
   });
 
+  // Slots authored beyond the preset, at the slot-unlock price (see extraAffinitySlots).
+  let slotCost = 0;
+  const extraSlots = extraAffinitySlots(entry);
+  if (extraSlots > 0) {
+    const slotItem = requireEntry("resource", "resource_affinity_slot");
+    if (slotItem) {
+      slotCost = calculatePriceTotal(slotItem, extraSlots);
+      lineItems.push({
+        category: "affinity_slot",
+        id: slotItem.id,
+        label: `${extraSlots} extra affinity slot${extraSlots === 1 ? "" : "s"}`,
+        quantity: extraSlots,
+        unitCostTokens: slotItem.unitCost,
+        spendTokens: slotCost,
+      });
+    }
+  }
+
   const motivations = extractMotivations(entry, normalizeMotivations);
   const motivationResult = calculateMotivationStackCost(motivations, priceMap);
   const motivationCost = motivationResult.cost;
   lineItems.push(...motivationResult.lineItems);
   if (Array.isArray(motivationResult.errors)) errors.push(...motivationResult.errors);
 
-  const cost = vitalCost + regenCost + affinityCost + motivationCost;
+  const cost = vitalCost + regenCost + affinityCost + slotCost + motivationCost;
   return {
     cost,
     detail: {

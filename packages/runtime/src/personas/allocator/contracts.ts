@@ -113,7 +113,7 @@ export interface PriceListItem {
   id: string;
   kind: string;
   unitCost: number;
-  formula?: "linear" | "quadratic";
+  formula?: "linear" | "quadratic" | "triangular";
   description?: string;
 }
 

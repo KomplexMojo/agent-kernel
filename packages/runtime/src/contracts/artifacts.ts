@@ -1366,7 +1366,7 @@ export interface PriceListItemTokenV1 {
   /** Legacy cost field retained for old fixtures and imported artifacts. */
   costTokens?: number;
   /** Formula used to convert quantity into total cost. */
-  formula?: "linear" | "quadratic";
+  formula?: "linear" | "quadratic" | "triangular";
   /** Optional description for clarity/audit. */
   notes?: string;
   description?: string;
