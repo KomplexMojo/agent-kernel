@@ -184,6 +184,32 @@ export function hudLine(view, { turns } = {}) {
   return [who, vitals, `tick ${view.tick}${Number.isInteger(turns) ? `, ${turns} ${turns === 1 ? "turn" : "turns"}` : ""}`, state].filter(Boolean).join(" · ");
 }
 
+function goalPhrase(goal) {
+  if (!goal) return "";
+  const place = (at) => (at === "exit" ? "the exit" : `${at.x},${at.y}`);
+  switch (goal.kind) {
+    case "reach": return `reach ${place(goal.place)}`;
+    case "hold": return `hold ${place(goal.place)}`;
+    case "lead": return `lead ${goal.target} to ${place(goal.place)}`;
+    case "survive": return "survive";
+    default: return `${goal.kind} ${goal.target}`;
+  }
+}
+
+/**
+ * Who is under orders and how it is going (Phase 2b), one entry each:
+ * `Orders: D3 follow hero-1 (1/2)  D4 defeat W1 (searching)`.
+ */
+export function ordersLine(orders) {
+  if (!Array.isArray(orders) || orders.length === 0) return null;
+  return `Orders: ${orders.map((entry) => {
+    const doing = entry.status === "done" ? "done" : entry.status === "ignored" ? "ignores its orders" : goalPhrase(entry.doing);
+    const step = entry.goals > 1 && entry.status !== "done" ? ` ${entry.goal + 1}/${entry.goals}` : "";
+    const how = ["searching", "stalled"].includes(entry.status) ? ` (${entry.status})` : "";
+    return `${entry.label ?? entry.id} ${doing}${step}${how}`;
+  }).join("  ")}`;
+}
+
 /** Everyone in sight right now, by label, so a person or Claude can name them. */
 export function inSightLine(view) {
   const seen = [...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.label);
@@ -235,7 +261,7 @@ export function renderScreen({
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (vitals.length > 0) lines.push(vitals.join("   "));
   lines.push(...affinityLines(view.player, { hints }));
-  for (const line of [partyLine(view.party), inSightLine(view)]) if (line) lines.push(line);
+  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view)]) if (line) lines.push(line);
   lines.push(tickLine);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
   if (Array.isArray(panel) && panel.length > 0) {

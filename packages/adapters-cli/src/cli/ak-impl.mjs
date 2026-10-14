@@ -195,6 +195,8 @@ function usage() {
   node ${rel} play-session start [--session id] (--dir dir | --from-run id | --sim-config path --initial-state path | --level name) [--actor id|label] [--commands json] [--keys keys]
   node ${rel} play-session start [--session id] --load path
   node ${rel} play-session act|view|switch|end [--session id] [--actor id|label] [--commands json] [--keys keys] [--save path]
+  node ${rel} play-session order [--session id] --actor id|label --strategy goals|json|file.json
+  node ${rel} play-session advance [--session id] [--ticks n] [--until orders_done|contact]
 
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
@@ -249,13 +251,18 @@ Options:
   --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]
+  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]
+  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
                     where <expression> is push|pull (spatial) or emit|draw (field)
                 Delver and warden slots/equip (create too): slots=<n> sets affinity slots (1-6; preset delver 3, warden 2);
                 each slot above the preset is charged at the slot-unlock price. equip= lists starting equips in order,
                 each held by the actor; :<stacks> runs it at fewer stacks than it holds. Any mix may be equipped.
+                Delver and warden strategy (create too): standing orders the actor follows on its own turns, as compact
+                goals in order (reach:exit|reach:<x>/<y>, defeat:<id>, take:<id>, guard:<id>[:radius], follow:<id>[:distance],
+                lead:<id>[:distance], hold:<x>/<y>:<ticks>, survive[:distance]), JSON { goals, tactics? } or a .json file.
+                goal_oriented follows the goals, strategy_focused and user_controlled the tactics too; any other actor
+                ignores it. The create result lists ignored parts and unknown targets under strategyReport.
   --prompt        Prompt override (llm-plan)
   --budget-loop   Enable budget loop (layout then actors)
   --budget-pool   Budget pool weight entry (repeatable): id=weight (e.g., player=0.2)
@@ -287,6 +294,11 @@ Options:
   --commands      play-session: a JSON array of commands, each { kind, params?, actorId? } or { kind: "switch", actorId }
   --save          play-session: also copy the game to this path after the call (reopen it with start --load)
   --load          play-session start: begin from a game saved with --save, in place of a level
+  --strategy      play-session order: the new strategy for --actor, as compact goals (follow:D1:2,reach:exit),
+                  JSON { goals, tactics? } or a .json file. Taking it is that actor's turn and giving it yours.
+  --ticks         play-session advance: how many ticks to let run (default 1, or 50 with --until)
+  --until         play-session advance: stop early at orders_done (every order done or stalled) or contact
+                  (a hostile in a party member's sight). The seated actor follows its own strategy, else waits.
   --help          Show this help
 
 Schema discovery:
@@ -725,6 +737,57 @@ function parseActorEquip(value, actorType, actorIndex) {
       ? { kind, expression }
       : { kind, expression, stacks: parsePositiveIntStrict(parts[2], `${actorType}[${actorIndex}] equip[${index + 1}] stacks`) };
   });
+}
+
+// `strategy=` on a delver or warden spec (Phase 2b): a JSON strategy, a path to a .json
+// file holding one, or compact goals `kind[:arg[:n]],...` in order:
+//   reach:exit | reach:<x>/<y> · defeat:<id> · take:<id> · guard:<id>[:radius]
+//   follow:<id>[:distance] · lead:<id>[:distance] (to the exit) · hold:<x>/<y>:<ticks> · survive[:distance]
+// Only the text is read here; what a strategy means is the Actor's (normalizeActorStrategy),
+// and attaching it to the level is the Configurator's.
+function parseCompactPlace(text, label) {
+  if (text === "exit") return "exit";
+  const match = /^(\d+)\/(\d+)$/.exec(String(text ?? ""));
+  if (!match) throw new Error(`${label} place must be exit or <x>/<y>, got "${text ?? ""}".`);
+  return { x: Number(match[1]), y: Number(match[2]) };
+}
+
+function parseActorStrategy(value, actorType, actorIndex) {
+  if (!isNonEmptyString(value)) return undefined;
+  const text = String(value).trim();
+  const label = `${actorType}[${actorIndex}] strategy`;
+  if (text.startsWith("{")) {
+    try {
+      return JSON.parse(text);
+    } catch (error) {
+      throw new Error(`${label} is not valid JSON (${error.message}).`);
+    }
+  }
+  if (text.toLowerCase().endsWith(".json")) {
+    try {
+      return JSON.parse(readFileSync(resolvePath(text), "utf8"));
+    } catch (error) {
+      throw new Error(`${label} file ${text} could not be read as JSON (${error.message}).`);
+    }
+  }
+  const number = (raw, name) => (raw === undefined ? undefined : parsePositiveIntStrict(raw, `${label} ${name}`));
+  const goals = text.split(",").map((entry) => entry.trim()).filter(Boolean).map((entry, index) => {
+    const [kind, first, second, ...rest] = entry.split(":").map((part) => part.trim());
+    const at = `${label} goal ${index + 1}`;
+    if (rest.length > 0) throw new Error(`${at} has too many parts: "${entry}".`);
+    switch (kind) {
+      case "reach": return { kind, place: parseCompactPlace(first, at) };
+      case "defeat":
+      case "take": return { kind, target: first };
+      case "guard": return { kind, target: first, ...(second ? { radius: number(second, "radius") } : {}) };
+      case "follow":
+      case "lead": return { kind, target: first, ...(second ? { distance: number(second, "distance") } : {}) };
+      case "hold": return { kind, place: parseCompactPlace(first, at), ticks: number(second, "ticks") };
+      case "survive": return { kind, ...(first ? { distance: number(first, "distance") } : {}) };
+      default: throw new Error(`${at} has unknown kind "${kind}" (expected reach, defeat, take, guard, follow, lead, hold, survive).`);
+    }
+  });
+  return { goals };
 }
 
 // `slots=` and `equip=` on a delver or warden spec, authored by the Configurator into the
@@ -1376,7 +1439,7 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
     throw new Error(`delver[${delverIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip"]);
+  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip", "strategy"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1442,6 +1505,8 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
   });
 
   Object.assign(delver, readActorEquipment(fields, "delver", delverIndex, delver));
+  const delverStrategy = parseActorStrategy(fields.get("strategy"), "delver", delverIndex);
+  if (delverStrategy !== undefined) delver.strategy = delverStrategy;
 
   return {
     value: delver,
@@ -1466,7 +1531,7 @@ function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON
     throw new Error(`warden[${wardenIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "slots", "equip"]);
+  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "slots", "equip", "strategy"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1536,6 +1601,8 @@ function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON
     warden.vitals = vitals;
   }
   Object.assign(warden, readActorEquipment(fields, "warden", wardenIndex, warden));
+  const wardenStrategy = parseActorStrategy(fields.get("strategy"), "warden", wardenIndex);
+  if (wardenStrategy !== undefined) warden.strategy = wardenStrategy;
   return warden;
 }
 
@@ -2147,6 +2214,9 @@ function buildStructuredSuccessSummary({
       spec,
     }),
   };
+  // Strategy parts an actor will not follow, and targets not in the level: reported, never refused.
+  const strategyReport = initialState?.strategies ? configurator.authorCandidates.reportActorStrategies(initialState) : [];
+  if (strategyReport.length > 0) summary.strategyReport = strategyReport;
   Object.entries(extra).forEach(([key, value]) => {
     if (value !== undefined) {
       summary[key] = value;
@@ -6417,7 +6487,7 @@ async function resolvePlaySource(args, command = "play") {
 }
 
 export const PLAY_SESSIONS_DIR = "artifacts/play-sessions";
-const PLAY_SESSION_ACTIONS = new Set(["start", "act", "view", "switch", "end"]);
+const PLAY_SESSION_ACTIONS = new Set(["start", "act", "view", "switch", "order", "advance", "end"]);
 
 /**
  * `ak play-session`: a game that lasts across calls, for a caller that is not at a
@@ -6427,6 +6497,8 @@ const PLAY_SESSION_ACTIONS = new Set(["start", "act", "view", "switch", "end"]);
  * program does the playing; this only names the file and the level.
  *   start   a new game on a level          act     commands and/or keys
  *   view    the board, nothing played      switch  seat another party member (free)
+ *   order   give --actor a new --strategy (a turn)
+ *   advance let the world run --ticks n, or --until orders_done|contact
  *   end     the final board; removes the file
  * `--save <path>` copies the game out after any call; `start --load <path>` begins from such a copy.
  * It also writes artifacts/play-sessions/hud.txt, one line about the seated actor,
@@ -6442,7 +6514,7 @@ async function playSessionCommand(argv) {
   if (!PLAY_SESSION_ACTIONS.has(action)) {
     throw new Error(`play-session needs an action: ${[...PLAY_SESSION_ACTIONS].join(", ")}.`);
   }
-  const allowed = new Set(["_", "session", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "commands", "actor", "json", "color", "no-fog", "save", "load"]);
+  const allowed = new Set(["_", "session", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "commands", "actor", "json", "color", "no-fog", "save", "load", "strategy", "ticks", "until"]);
   const unknown = Object.keys(args).filter((key) => !allowed.has(key));
   if (unknown.length > 0) throw new Error(`play-session does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
   const name = args.session === undefined ? "game" : String(args.session);
@@ -6461,6 +6533,13 @@ async function playSessionCommand(argv) {
     throw new Error(`play-session ${action} plays nothing; use act (or switch) for keys, commands and --actor.`);
   }
   if (action === "switch" && args.actor === undefined) throw new Error("play-session switch needs --actor <id or label>.");
+  if (action === "order" && (args.actor === undefined || args.strategy === undefined)) {
+    throw new Error("play-session order needs --actor <id or label> and --strategy <goals, JSON or a .json file>.");
+  }
+  if (args.strategy !== undefined && action !== "order") throw new Error("play-session --strategy goes with order.");
+  if ((args.ticks !== undefined || args.until !== undefined) && action !== "advance") {
+    throw new Error("play-session --ticks and --until go with advance.");
+  }
   if (args.load !== undefined && (action !== "start" || levelNamed)) {
     throw new Error("play-session --load goes with start, in place of a level: the saved game names its own level.");
   }
@@ -6475,8 +6554,18 @@ async function playSessionCommand(argv) {
     }
     if (!Array.isArray(commands)) throw new Error("play-session --commands needs a JSON array.");
   }
-  const actor = Array.isArray(args.actor) ? args.actor.at(-1) : args.actor;
+  let actor = Array.isArray(args.actor) ? args.actor.at(-1) : args.actor;
   const keys = args.keys === true ? "" : args.keys;
+  // An order and an advance are structured commands the game plays; the order's --actor
+  // names who takes it, not a seat change.
+  if (action === "order") {
+    commands = [{ kind: "order", actorId: String(actor), strategy: parseActorStrategy(String(args.strategy), "order", 1) }];
+    actor = undefined;
+  }
+  if (action === "advance") {
+    const ticks = args.ticks === undefined ? (args.until === undefined ? 1 : 50) : parsePositiveIntStrict(args.ticks, "play-session --ticks");
+    commands = [...(commands ?? []), { kind: "advance", ticks, ...(args.until === undefined ? {} : { until: String(args.until) }) }];
+  }
   const source = action === "start" && args.load === undefined ? await resolvePlaySource(args, "play-session start") : {};
   await mkdir(sessionsDir, { recursive: true });
   if (args.load !== undefined) {

@@ -46,6 +46,8 @@ You are the game's front end, like `packages/ui-ascii`: you turn what the player
 | A new level | `ak_create` with spec objects and a `runId`, then `ak_play_ascii {runId}` |
 | To play | `ak_play_start {runId}` once, then `ak_play_act {commands?, keys?}` a few turns at a time; `ak_play_view` to look |
 | To play another party member | `ak_play_switch {actor: "D2"}` (free), or `actorId` on a command |
+| To give a companion or party member orders | `ak_play_order {actor: "D3", strategy: {goals, tactics?}}` (one turn) |
+| To let orders play out | `ak_play_advance {ticks, until: "orders_done" \| "contact"}` |
 | To save / resume | `ak_play_view {save: path}` / `ak_play_start {load: path}` |
 | To stop | `ak_play_end` (pass `save` to keep it) |
 | A one-off look or scripted keys | `ak_play_ascii {runId, keys}` (stateless: each call replays from the start) |

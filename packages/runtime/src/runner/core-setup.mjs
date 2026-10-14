@@ -42,7 +42,7 @@ export function initializeCoreFromArtifacts({ simConfig, initialState } = {}) {
     || ['hazards', 'resources', 'actors', 'tiles', 'kinds'].some(key => Object.hasOwn(data, key))) {
     throw new Error('expected normalized grid terrain without category storage');
   }
-  if (Object.keys(initialState).some(key => !['schema', 'schemaVersion', 'meta', 'simConfigRef', 'actors', 'presentation'].includes(key))) {
+  if (Object.keys(initialState).some(key => !['schema', 'schemaVersion', 'meta', 'simConfigRef', 'actors', 'presentation', 'strategies'].includes(key))) {
     throw new Error('unexpected initial-state fields');
   }
   const registry = createActorRegistry({ dimensions: { width: data.width, height: data.height },
@@ -54,6 +54,13 @@ export function initializeCoreFromArtifacts({ simConfig, initialState } = {}) {
       || !plain(presentation[actor.id]) || Object.keys(presentation[actor.id]).length !== 1
       || !ACTOR_PRESENTATION_CATEGORIES.includes(presentation[actor.id].category))) {
     throw new Error('presentation must contain exactly one valid category per actor ID');
+  }
+  // Strategies (Phase 2b) are the Actor's to read; the loader only checks whose they are.
+  // What a strategy means, and its shape, are checked by the Actor (normalizeActorStrategy).
+  const strategies = initialState.strategies;
+  if (strategies !== undefined && (!plain(strategies)
+    || Object.keys(strategies).some(id => !actors.some(actor => actor.id === id) || !plain(strategies[id])))) {
+    throw new Error('strategies must map actor IDs in this level to strategy objects');
   }
   const costs = legacyCastPricesToBases(simConfig.actionCosts);
   const castPrices = plain(costs) ? costs.castManaBase : undefined;

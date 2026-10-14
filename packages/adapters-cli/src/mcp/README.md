@@ -7,7 +7,7 @@
 - Server name: `agent-kernel-cli`
 - Server version: `1.0.0`
 - Transport: stdio
-- Tool count: `55`
+- Tool count: `57`
 - Tool source: `packages/adapters-cli/src/mcp/tools/*.mjs`
 
 The server is a thin adapter over the CLI command surface in `packages/adapters-cli/src/cli/ak-impl.mjs`. Each MCP tool maps to one CLI command, translates JSON input into CLI flags, executes the command, and returns structured JSON back to the client.
@@ -45,7 +45,7 @@ Use the CLI directly when you want:
 | Inspect outputs | `ak_show`, `ak_diff`, `ak_runs_list`, `ak_inspect`, `ak_narrate`, `ak_schemas` | Summaries, schema catalog, narrative output |
 | LLM planning | `ak_llm`, `ak_ollama`, `ak_llm_plan` | Captured LLM responses and generated artifacts |
 | External adapters | `ak_ipfs`, `ak_ipfs_publish`, `ak_ipfs_load`, `ak_blockchain`, `ak_blockchain_mint`, `ak_blockchain_load` | Adapter response artifacts |
-| Sandbox / interactive | `ak_sandbox_create`, `ak_sandbox_place`, `ak_sandbox_move`, `ak_push_to_ui`, `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`, `ak_play_ascii`, `ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_end` | Sandbox session, action sequence, tick/ASCII/image state, the terminal UI board |
+| Sandbox / interactive | `ak_sandbox_create`, `ak_sandbox_place`, `ak_sandbox_move`, `ak_push_to_ui`, `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`, `ak_play_ascii`, `ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_order`, `ak_play_advance`, `ak_play_end` | Sandbox session, action sequence, tick/ASCII/image state, the terminal UI board |
 | Test authoring | `ak_test_list_suites`, `ak_test_discover_patterns`, `ak_test_plan_from_change`, `ak_test_run`, `ak_test_scaffold_case`, `ak_test_insert_case`, `ak_test_explain_failure`, `ak_test_lint_structure` | Inventory summaries, scaffolded test files, run results |
 | Workflow | `ak_workflow_run`, `ak_workflow_status`, `ak_workflow_replay`, `ak_workflow_cancel`, `ak_workflow_validate` | Durable AdaptiveWorkflowAgent run state |
 
@@ -287,6 +287,8 @@ The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollam
 | ak_play_act | Sandbox / Interactive | Play turns in a live game: a seat change, structured commands (labels allowed), keys. | session, actor, commands, keys, save |
 | ak_play_view | Sandbox / Interactive | Show a live game's board without playing; optionally save a copy. | session, save |
 | ak_play_switch | Sandbox / Interactive | Seat another party member (a user_controlled actor) for free. | session, actor |
+| ak_play_order | Sandbox / Interactive | Give a party member or companion a new strategy (goals, tactics); one turn. | session, actor, strategy |
+| ak_play_advance | Sandbox / Interactive | Let a live game run up to n turns, or until orders are done or a hostile is in sight. | session, ticks, until |
 | ak_play_end | Sandbox / Interactive | End a live game, returning its final board. | session, save |
 | ak_test_list_suites | Test Authoring | List discovered test suites and current runner ownership. | none |
 | ak_test_discover_patterns | Test Authoring | Discover repo test recipes and matching files, optionally filtered. | runner, suite, recipe |
@@ -1753,7 +1755,7 @@ Show `screen` verbatim; `launch` opens the interactive, coloured game in a termi
 
 `watch: true` shows a run an `ak_run` call recorded instead of a level: pass that call's `runId` (resolved from this session's remembered runs, else `artifacts/runs/<runId>`) or its `outDir` as `dir`, and `tick` (default 0). Every actor and trap is drawn where the run recorded it, with no fog, and the result is `{ ok, tick, maxTick, level, status, screen, launch }`; `keys` takes the watch keys (`.` next tick, `,` previous, `[`/`]` first/last).
 
-#### `ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_end`
+#### `ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_order`, `ak_play_advance`, `ak_play_end`
 
 A live game, played a few turns per call, through `ak play-session` (see `packages/adapters-cli/README.md`). The game is saved to `artifacts/play-sessions/<session>.json` after every call (`session` defaults to `game`), so it survives a server restart; each call replays it, so nothing is held in the server's memory. `ak_play_start` takes a level like `ak_play_ascii` (a remembered `runId`, `dir`, `simConfig` + `initialState`, or a bundled `level`) or `load`, a copy kept with `save`.
 
@@ -1767,6 +1769,8 @@ A live game, played a few turns per call, through `ak play-session` (see `packag
 ```
 
 The party is every actor authored `user_controlled`; `ak_play_switch` (or `actor` on `ak_play_act`) seats another one for free, and fog follows the seat. `commands` are structured play commands (`move`, `wait`, `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`, or `switch`), each with an optional `actorId` to command a member without seating it; ids and targets may be the labels in `party` and `inSight`. Commands run before `keys`, and each one but a switch is a turn for the whole level.
+
+**Orders (Phase 2b).** `ak_play_order {actor, strategy}` gives a party member, or a companion on the seated actor's side, a new strategy: `{ goals, tactics? }`, followed on that actor's own turns. Goals run in order (`reach`, `defeat`, `take`, `guard`, `follow`, `lead`, `hold`, `survive`); tactics are `{ when, do }` rules checked first each turn. Its thinking motivation sets how much it follows: `goal_oriented` the goals, `strategy_focused` and `user_controlled` the tactics too, any other actor nothing. Giving the order is the seated actor's turn and taking it the ordered actor's: one turn. `orders` in every result lists each actor following a strategy, with the goal it is on and its status (`active`, `searching`, `stalled` with a reason, `done`, `ignored`). `ak_play_advance {ticks, until}` lets the level run for orders to play out, the seated actor following its own strategy or waiting, and stops early at `orders_done` or `contact`. `ak_create` takes a `strategy` (an object, or compact goals such as `"follow:hero-1:2"`) on a delver or warden spec and returns `strategyReport` for parts an actor will not follow.
 
 #### `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`
 

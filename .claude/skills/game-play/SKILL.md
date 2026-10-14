@@ -26,11 +26,20 @@ Follow the `game-master` skill's house rules throughout.
   moves" is one `ak_play_act` with `commands`, using `actorId` for the one not seated.
   Companions, wardens and traps cannot be played: if asked, say the engine's answer
   (`not_playable`) and carry on.
+- **Orders.** "Have D3 follow me", "send D4 to kill W1", "guard D1 and fall back when hurt"
+  are `ak_play_order {actor, strategy}`: goals in order (`follow`, `defeat`, `guard`, `reach`,
+  `hold`, `lead`, `take`, `survive`; targets may be labels) and, for a `strategy_focused` or
+  `user_controlled` actor, tactics such as `{ when: { vital: "health", below: 30 }, do: { kind:
+  "retreat" } }`. It costs one turn. `orders` in the result says what each ordered actor is
+  doing; if it says `ignored`, tell the player that actor's thinking does not reach orders
+  (it needs `goal_oriented` for goals, `strategy_focused` for tactics) and carry on.
+  "Let them get on with it" is `ak_play_advance {until: "orders_done"}` or `{until: "contact"}`.
 - **Plain-language moves.** Translate into `commands` or `keys`: "move east twice" is `dd` or
   two `move` commands, "wait" is `.`, "cast at W1" is a `cast_affinity` command with
   `targetId: "W1"`. Use the labels from `inSight` for anything on the board.
 - **Bounded autopilot** (only when the player asks you to play for them, e.g. "explore until
-  you find something"): at most 10 turns per call, and stop as soon as something new appears
+  you find something"): at most 10 turns per call (`ak_play_advance` with `ticks` up to 10 and
+  `until: "contact"` when the seated actor has orders of its own), and stop as soon as something new appears
   in `inSight`, a vital drops, or `status` changes (at the exit, defeated, escaped). Then
   report and let the player decide.
 - **Each turn** show `screen` in a code block and one or two lines on what changed (moves,

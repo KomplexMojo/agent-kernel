@@ -313,7 +313,8 @@ Inputs/outputs:
 
 ### `play-session`
 A game that lasts across calls, for a caller that is not at a terminal (the MCP tools
-`ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_end`). The game is kept in
+`ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_order`, `ak_play_advance`,
+`ak_play_end`). The game is kept in
 `artifacts/play-sessions/<name>.json` (`--session`, default `game`; `AK_PLAY_SESSIONS_DIR` moves it) as a
 player `CapturedInputArtifact` that names its level, so it survives a restart and replays exactly. Each call
 re-runs it in the terminal UI, applies the call's seat change, commands and keys, and saves it again.
@@ -322,12 +323,14 @@ re-runs it in the terminal UI, applies the call's seat change, commands and keys
 ak play-session start --session g --dir <create-out-dir>            # or --from-run / --sim-config + --initial-state / --level
 ak play-session act --session g --keys "dd" --commands '[{"kind":"cast_affinity","params":{"targetId":"W1"}}]'
 ak play-session switch --session g --actor D2                       # seat another party member; free
+ak play-session order --session g --actor D3 --strategy follow:D1:2  # new standing orders; one turn
+ak play-session advance --session g --ticks 20 --until orders_done  # let orders play out
 ak play-session view --session g --save artifacts/games/g.json      # look, and keep a copy
 ak play-session end --session g                                     # final board; removes the live file
 ak play-session start --session g2 --load artifacts/games/g.json    # reopen a copy
 ```
 
-- Output: `{ ok, action, name, session, level, turns, status, active, party, inSight, results?, hud, screen, saved?, ended? }`.
+- Output: `{ ok, action, name, session, level, turns, status, active, party, orders?, inSight, results?, hud, screen, saved?, ended? }`.
   `party` is every actor authored `user_controlled` (the actors a player may seat), each with a short label
   (`D1`, `D2`), position and status; `inSight` is every other actor and trap the seated actor sees now, with labels.
 - `--actor <id|label>` seats a party member before anything is played; a companion or warden answers `not_playable`
@@ -335,6 +338,17 @@ ak play-session start --session g2 --load artifacts/games/g.json    # reopen a c
   `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`) or `{ kind: "switch", actorId }`; actor ids and
   targets may be labels, and `actorId` commands that member without seating it. Commands run before `--keys`.
   Every command but a switch is one turn for the whole level.
+- `order --actor <id|label> --strategy <s>` gives a party member, or a companion on the seated actor's side, a new
+  strategy (compact goals, JSON or a `.json` file, as `strategy=` on `create` below; ids may be labels). Giving it is
+  the seated actor's turn and taking it the ordered actor's, so one turn passes. A hostile answers `not_yours`, a
+  malformed strategy `invalid_strategy` with the reason. `orders` in the output lists every actor following a
+  strategy: the goal it is on (`doing`, `goal` of `goals`) and its status (`active`; `searching`, target out of
+  sight; `stalled`, with a reason; `done`; `ignored`, its thinking motivation does not reach the strategy).
+- `advance [--ticks n] [--until orders_done|contact]` lets the level run up to `n` ticks (default 1, or 50 with
+  `--until`): the seated actor follows its own strategy if it has one, else waits. It stops early once every
+  strategy is done, stalled or ignored (`orders_done`), or a hostile comes into a party member's sight (`contact`);
+  `results[0]` is `{ ticks, stoppedBy }`. `--commands` takes `{ kind: "order", actorId, strategy }` and
+  `{ kind: "advance", ticks?, until? }` too.
 - `start` refuses a name that is running; the others refuse a name that is not, and take no level options.
   `view` and `end` play nothing.
 - Every call also writes `artifacts/play-sessions/hud.txt`, one line about the seated actor, which
@@ -452,6 +466,19 @@ Inputs/outputs:
   node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=1" \
     --delver "count=1;affinity=earth;affinities=earth:push:3,life:emit:1,corrode:draw:1;slots=4;equip=earth:push:2,life:emit"
   ```
+- `--delver` and `--warden` accept `strategy=`: standing orders each actor the card makes follows on its own turns.
+  Compact goals run in order: `reach:exit|reach:<x>/<y>`, `defeat:<id>`, `take:<id>`, `guard:<id>[:radius]`,
+  `follow:<id>[:distance]`, `lead:<id>[:distance]` (to the exit), `hold:<x>/<y>:<ticks>`, `survive[:distance]`.
+  JSON `{ goals, tactics? }` (inline or a `.json` file) adds tactics, `{ when, do }` rules checked first each turn.
+  `goal_oriented` actors follow the goals, `strategy_focused` and `user_controlled` the tactics too; any other actor
+  ignores it. The level keeps strategies in `initial-state.json` under `strategies`, keyed by actor id; the result's
+  `strategyReport` lists ignored parts and target ids the level lacks (reported, never refused). Strategies are free;
+  the thinking motivation is what is priced.
+  ```bash
+  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+    --delver "count=1;id=hero;affinity=light;motivation=user_controlled" \
+    --delver "count=5;id=pal;affinity=earth;motivation=exploring+goal_oriented;strategy=follow:hero-1:2"
+  ```
 - Hard constraints are recorded separately from optimization goals in the embedded authoring request under `spec.json`.
   The current contract treats total budget as a hard constraint and maximize-spend / mana goals as
   optimization directions for later fulfillment waves. A hard budget alone does not imply
@@ -556,7 +583,7 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
@@ -587,7 +614,7 @@ Inputs/outputs:
 - Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.

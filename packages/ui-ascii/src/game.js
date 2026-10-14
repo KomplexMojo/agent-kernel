@@ -30,6 +30,7 @@ const REJECTION_MESSAGES = Object.freeze({
   unknown_actor: "No actor goes by that name.",
   exited: "They have already left the level.",
   defeated: "They were defeated.",
+  not_yours: "Only your party and actors on your side take orders.",
 });
 
 function rejectionMessage(reason, player) {
@@ -146,15 +147,42 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     switchTo(party[(at + 1) % party.length].id);
   }
 
+  /** Give a party member or companion a new strategy (Phase 2b). Costs a turn when it lands. */
+  async function order(actorId, strategy) {
+    panel = null;
+    const result = await session.order(actorId, strategy);
+    if (!result.ok) {
+      message = result.reason === "invalid_strategy" ? `That order does not make sense: ${result.error}` : rejectionMessage(result.reason);
+      return result;
+    }
+    turns += 1;
+    const member = (session.view().orders || []).find((entry) => entry.id === result.actorId);
+    message = `${member?.label ?? result.actorId} takes the order.`;
+    return result;
+  }
+
+  /** Let the world run up to `ticks` ticks, or until `until` (Phase 2b). */
+  async function advance({ ticks, until } = {}) {
+    panel = null;
+    const result = await session.advance({ ticks, until });
+    turns += result.ticks;
+    message = result.stoppedBy === "contact" ? "Someone hostile comes into sight."
+      : result.stoppedBy === "orders_done" ? "Every order has run its course." : "";
+    return result;
+  }
+
   /**
    * A structured command, for a caller that is not pressing keys (`--commands`):
-   * `{ kind: "switch", actorId }`, or any play command with an optional `actorId`.
+   * `{ kind: "switch", actorId }`, `{ kind: "order", actorId, strategy }`,
+   * `{ kind: "advance", ticks?, until? }`, or any play command with an optional `actorId`.
    * Targets and actors may be given by label. Returns what the session reported.
    */
   async function command(entry) {
     if (!entry || typeof entry !== "object") throw new Error("a command must be an object with a kind");
     message = "";
     if (entry.kind === "switch") return switchTo(entry.actorId);
+    if (entry.kind === "order") return order(entry.actorId, entry.strategy);
+    if (entry.kind === "advance") return advance({ ticks: entry.ticks ?? 1, until: entry.until });
     const { actorId, ...rest } = entry;
     const result = await act(rest, () => "", { actorId });
     return result ?? { accepted: [], rejected: [{ kind: rest.kind, reason: session.status().defeated ? "defeated" : "exited" }] };
@@ -402,6 +430,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       panel: panel?.type ?? null,
       active: session.activeActorId?.() ?? null,
       party: session.view().party ?? [],
+      orders: session.view().orders ?? [],
       warnings: viabilityWarnings(),
     };
   }

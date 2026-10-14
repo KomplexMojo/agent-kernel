@@ -42,8 +42,10 @@ const USAGE = `Usage: ak-maze [options]
                           --actor, --commands and --keys, then save it back (with --json, the
                           result adds active, party and inSight). A new session needs a level
   --actor <id|label>      play this party member (a user_controlled actor) first; free
-  --commands <json>       a JSON array of commands to act first, each { kind, params?, actorId? }
-                          or { kind: "switch", actorId }; actors and targets may be labels (D1, W2)
+  --commands <json>       a JSON array of commands to act first, each { kind, params?, actorId? },
+                          { kind: "switch", actorId }, { kind: "order", actorId, strategy } (a turn)
+                          or { kind: "advance", ticks?, until? } (until: orders_done | contact);
+                          actors and targets may be labels (D1, W2)
   -h, --help              show this help
 
 ${HELP_LINES.join("\n")}
@@ -306,12 +308,13 @@ async function session(options) {
     console.log(screen);
     return 0;
   }
-  const { levelName, turns, status, active, party, warnings, message } = game.state();
+  const { levelName, turns, status, active, party, orders, warnings, message } = game.state();
   const view = game.view();
   const inSight = [...(view.actors || []), ...(view.hazards || [])]
     .map((actor) => ({ label: actor.label, id: actor.id, role: actor.role, position: actor.position }));
   console.log(JSON.stringify({
-    ok: true, session: resolve(options.sessionPath), level: levelName, turns, status, active, party, inSight,
+    ok: true, session: resolve(options.sessionPath), level: levelName, turns, status, active, party,
+    ...(orders.length ? { orders } : {}), inSight,
     ...(results.length ? { results } : {}), ...(message ? { message } : {}), hud: hudLine(view, { turns }), screen,
     ...(warnings.length ? { warnings } : {}),
   }));

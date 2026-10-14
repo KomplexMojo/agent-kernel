@@ -43,6 +43,7 @@ import {
   CONFIGURATION_CANDIDATE_SCHEMA,
   SPEND_PROTOCOL_SCHEMA_VERSION,
 } from "../../contracts/spend-protocol.js";
+import { actorStrategyDepth, actorStrategyIgnoredParts } from "../actor/persona.js";
 import { resolveAffinityManaCost } from "./affinity-rules.js";
 import { normalizeMotivations } from "./motivation-loadouts.js";
 import {
@@ -189,6 +190,37 @@ export function reportActorViabilityFloor(initialState) {
         if (value < floor[field]) findings.push({ actorId: actor.id, vital, field, value, floor: floor[field] });
       }
     }
+  }
+  return findings;
+}
+
+/**
+ * Report, never refuse (Phase 2b), per actor with a strategy:
+ *   ignored         the parts its thinking motivation does not reach (goal_oriented follows
+ *                   goals; tactics need strategy_focused or user_controlled; without
+ *                   either the whole strategy is ignored)
+ *   unknownTargets  actor ids the strategy names that are not in the level (those goals
+ *                   stall when reached)
+ * Returns `[{ actorId, depth, ignored?, unknownTargets? }]` for the actors with a finding.
+ */
+export function reportActorStrategies(initialState) {
+  const findings = [];
+  const strategies = initialState?.strategies || {};
+  const actors = Array.isArray(initialState?.actors) ? initialState.actors : [];
+  const ids = new Set(actors.map((actor) => actor?.id));
+  for (const actor of actors) {
+    const strategy = strategies[actor?.id];
+    if (!strategy) continue;
+    const motivations = Array.isArray(actor.motivations) ? actor.motivations : [];
+    const ignored = actorStrategyIgnoredParts(strategy, motivations);
+    const named = [
+      ...(strategy.goals || []).map((goal) => goal?.target),
+      ...(strategy.tactics || []).flatMap((tactic) => [tactic?.when?.defeated, tactic?.do?.params?.targetId]),
+    ].filter((id) => typeof id === "string" && id !== "nearest_hostile");
+    const unknownTargets = [...new Set(named.filter((id) => !ids.has(id)))];
+    if (ignored.length === 0 && unknownTargets.length === 0) continue;
+    findings.push({ actorId: actor.id, depth: actorStrategyDepth(motivations),
+      ...(ignored.length > 0 ? { ignored } : {}), ...(unknownTargets.length > 0 ? { unknownTargets } : {}) });
   }
   return findings;
 }

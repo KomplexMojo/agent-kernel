@@ -1503,6 +1503,46 @@ export interface InitialStateArtifactV1 {
   actors: ActorRecord[];
   /** UI/CLI/MCP labels are keyed by actor ID, outside mechanical state. */
   presentation: Record<string, ActorPresentation>;
+  /**
+   * Phase 2b: standing orders the Actor follows on an actor's own turns, keyed by actor
+   * ID. Optional and additive. Kept beside the roster because core owns every field of
+   * an actor record. How much of one an actor follows is set by its thinking motivation.
+   */
+  strategies?: Record<string, ActorStrategyV1>;
+}
+
+/** A place on the grid, or the level's exit. */
+export type StrategyPlace = { x: number; y: number } | "exit";
+
+/** Goals run in order; guard, follow and survive never finish. Targets are actor IDs. */
+export type StrategyGoalV1 =
+  | { kind: "reach"; place: StrategyPlace }
+  | { kind: "defeat"; target: string }
+  | { kind: "take"; target: string }
+  | { kind: "guard"; target: string; radius: number }
+  | { kind: "follow"; target: string; distance: number }
+  | { kind: "lead"; target: string; place: StrategyPlace; distance: number }
+  | { kind: "hold"; place: { x: number; y: number }; ticks: number }
+  | { kind: "survive"; distance: number };
+
+export type StrategyConditionV1 =
+  | { vital: "health" | "mana" | "stamina" | "durability"; below: number }
+  | { hostileWithin: number }
+  | { defeated: string }
+  | { tickAtLeast: number };
+
+/**
+ * A tactic's action is a player command (`ActorAction` without actor and tick), or
+ * `retreat`. A cast may target "nearest_hostile", resolved on the turn it fires.
+ */
+export interface StrategyTacticV1 {
+  when: StrategyConditionV1;
+  do: { kind: string; params?: Record<string, unknown> };
+}
+
+export interface ActorStrategyV1 {
+  goals: StrategyGoalV1[];
+  tactics?: StrategyTacticV1[];
 }
 
 export type SimConfigArtifact = SimConfigArtifactV1;

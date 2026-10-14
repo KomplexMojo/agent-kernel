@@ -489,6 +489,13 @@ export const ACTOR_EQUIPMENT_FIELDS = Object.freeze([
 ]);
 
 /**
+ * Phase 2b: the authored actor field that carries a strategy (goals and tactics) from a
+ * card to the level. Not an actor-record field: the Configurator moves it to
+ * `InitialState.strategies`, keyed by actor id, because core owns the record's shape.
+ */
+export const ACTOR_STRATEGY_FIELD = "strategy";
+
+/**
  * The least an actor can be and still be worth simulating.
  *
  * DEFAULT_VITALS above is a ZERO, not a floor: health 1 with regen 0 dies to a single point of

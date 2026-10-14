@@ -49,7 +49,7 @@ export function createActorStateMachine({ initialState = ActorStates.IDLE, clock
   };
 
   function view() {
-    return { state, context: { ...context } };
+    return { state, context: context.strategies ? { ...context, strategies: structuredClone(context.strategies) } : { ...context } };
   }
 
   function advance(event, payload = {}) {
@@ -69,6 +69,12 @@ export function createActorStateMachine({ initialState = ActorStates.IDLE, clock
       updatedAt: clock(),
       lastProposalCount: Array.isArray(payload.proposals) ? payload.proposals.length : context.lastProposalCount,
     };
+    // Strategy progress, per actor (Phase 2b): which goal each is on and how it is going.
+    // Plain data, so the whole Actor stays serializable; absent until an actor has a strategy.
+    const strategyEntry = payload.strategyEntry;
+    if (strategyEntry && typeof strategyEntry.actorId === "string" && strategyEntry.actorId) {
+      nextContext.strategies = { ...(context.strategies || {}), [strategyEntry.actorId]: structuredClone(strategyEntry.entry) };
+    }
 
     state = nextState;
     context = nextContext;
