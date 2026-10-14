@@ -5,7 +5,7 @@ function isObject(v) {
   return v !== null && typeof v === "object";
 }
 
-const VALID_FORMULAS = ["linear", "quadratic"];
+const VALID_FORMULAS = ["linear", "quadratic", "triangular"];
 
 /**
  * Validates the canonical PriceListItem shape:

@@ -206,8 +206,8 @@ function inferActorCategory(actor) {
 
 /**
  * Affinity slots an actor was authored with beyond its preset's (`ak create slots=`). Each is
- * charged like slot-unlock loot (`resource_affinity_slot`): opening a slot costs the same
- * whether it is bought at authoring or found on the floor. Slots below the preset refund nothing.
+ * charged like slot-unlock loot (`resource_affinity_slot`, a triangular list item): opening a
+ * slot costs the same whether it is bought at authoring or found on the floor. Slots below the preset refund nothing.
  */
 function extraAffinitySlots(actor) {
   const role = String(actor?.category || actor?.type || "").toLowerCase();
@@ -362,7 +362,7 @@ function extractResourceGrantPriceEntries(resource) {
   const entries = [];
 
   // Slot-unlock loot (maintainer, 2026-10-12): the most valuable loot in the
-  // game, priced per slot it opens.
+  // game, priced per slot it opens on the list's triangular curve.
   if (Number.isSafeInteger(resource?.slotGrant) && resource.slotGrant > 0) {
     entries.push({ priceId: "resource_affinity_slot", quantity: resource.slotGrant });
   }

@@ -75,7 +75,7 @@ test("every item carries a formula, and formulas are decided in code not JSON", 
     }
   }
   for (const item of buildDefaultPriceList().items) {
-    assert.ok(["linear", "quadratic"].includes(item.formula), `${item.id} has no formula`);
+    assert.ok(["linear", "quadratic", "triangular"].includes(item.formula), `${item.id} has no formula`);
   }
 });
 

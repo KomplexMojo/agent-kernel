@@ -368,7 +368,10 @@ The actor loop prices each holding through the same extractors as the resource-s
 second formula exists. A `slot` holding is charged `resource_affinity_slot` per slot, and so is
 each slot an actor was authored with above its preset (`ak create slots=`; presets from
 `PRESET_AFFINITY_SLOTS`), on the receipt path and the card path alike: opening a slot costs the
-same bought at authoring or found on the floor. A `vital`
+same bought at authoring or found on the floor. `resource_affinity_slot` is the one triangular
+item (maintainer, 2026-10-14): the nth slot costs n × its unit cost, so n slots cost
+`unitCost × n(n+1)/2`. The quantity accumulates per actor, so authored and carried slots share
+one curve. A `vital`
 holding (#242) is charged its delta at the permanence tier and its regen as
 `resource_vital_<key>_regen_tick`.
 

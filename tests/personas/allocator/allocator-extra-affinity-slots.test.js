@@ -1,5 +1,6 @@
 // Slots authored beyond an actor's preset are charged at the slot-unlock price, on the
-// receipt path and the card path alike; slots at or below the preset cost nothing.
+// receipt path and the card path alike; slots at or below the preset cost nothing. The
+// price is triangular (maintainer, 2026-10-14): the nth extra slot costs n × the unit.
 const assert = require("node:assert/strict");
 
 const P = "../../../packages/runtime/src/personas/";
@@ -43,10 +44,19 @@ test("the card path charges the same extra slots at the same price", async () =>
   const base = cardCost({ type: "delver" });
   const extra = cardCost({ type: "delver", affinitySlots: 6 });
   assert.equal(extra.errors, undefined);
-  assert.equal(extra.cost - base.cost, 3 * slotPrice);
+  assert.equal(extra.cost - base.cost, 6 * slotPrice); // 1 + 2 + 3
   assert.deepEqual(extra.detail.lineItems.find((line) => line.category === "affinity_slot"),
     { category: "affinity_slot", id: "resource_affinity_slot", label: "3 extra affinity slots", quantity: 3,
-      unitCostTokens: slotPrice, spendTokens: 3 * slotPrice });
+      unitCostTokens: slotPrice, spendTokens: 6 * slotPrice });
+});
+
+test("slot pricing is triangular: 1, 3, 6 units for 1, 2, 3 slots, for loot and authored slots alike", async () => {
+  const { buildDefaultPriceList, applyFormula } = await import(`${P}allocator/default-price-list.js`);
+  const { calculatePriceTotal } = await import(`${P}allocator/validate-spend.js`);
+  const item = buildDefaultPriceList().items.find((entry) => entry.id === "resource_affinity_slot");
+  assert.equal(item.formula, "triangular");
+  assert.deepEqual([1, 2, 3].map((n) => calculatePriceTotal(item, n)), [1, 3, 6].map((k) => k * item.unitCost));
+  assert.deepEqual([1, 2, 3].map((n) => applyFormula(item, n)), [1, 3, 6].map((k) => k * item.unitCost));
 });
 
 // ## TODO: Test Permutations
