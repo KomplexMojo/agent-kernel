@@ -18,15 +18,52 @@ import {
   AFFINITY_KINDS,
   MOTIVATION_KINDS,
   DELVER_SETUP_MODES,
+  getMotivationExclusiveGroup,
   DEFAULT_AFFINITY_EXPRESSION,
   PRESET_AFFINITY_SLOTS,
 } from "../../contracts/domain-constants.js";
 import { MAX_AFFINITY_SLOTS } from "../../../../core-ts/src/state/actor-inventory.ts";
 
-const DEFAULT_DELVER_MOTIVATION = "attacking";
+// What an actor does when its spec names no motivation. Neither is `user_controlled`:
+// an actor is playable only when authored so (Darren, 2026-10-13), never by default.
+const DEFAULT_MOTIVATION_BY_ROLE = Object.freeze({ delver: "attacking", warden: "defending" });
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * Authors an actor's motivations from its spec's `motivation=` value: one kind, or
+ * several joined with `+` or `,` (`exploring+attacking`), at most one per family
+ * (mobility, posture, cognition). `user_controlled` sits beside any of them and makes
+ * the actor playable; nothing is added that was not asked for. Order is kept, repeats
+ * collapse, an unknown kind or two kinds from one family is refused.
+ *
+ * @returns {string[]}
+ */
+export function authorMotivations({ role, index, raw } = {}) {
+  const label = `${role}[${index}]`;
+  const text = isNonEmptyString(raw) ? raw : DEFAULT_MOTIVATION_BY_ROLE[role];
+  if (!isNonEmptyString(text)) throw new Error(`${label} has no default motivation.`);
+  const kinds = [];
+  const byFamily = new Map();
+  for (const part of String(text).split(/[+,]/)) {
+    const kind = part.trim().toLowerCase();
+    if (!MOTIVATION_KINDS.includes(kind)) {
+      throw new Error(`${label} motivation must be one of: ${MOTIVATION_KINDS.join(", ")}.`);
+    }
+    if (kinds.includes(kind)) continue;
+    const family = getMotivationExclusiveGroup(kind);
+    if (family) {
+      const taken = byFamily.get(family.id);
+      if (taken) {
+        throw new Error(`${label} motivations ${taken} and ${kind} are both ${family.id}; take at most one per family.`);
+      }
+      byFamily.set(family.id, kind);
+    }
+    kinds.push(kind);
+  }
+  return kinds;
 }
 
 /**
@@ -52,10 +89,7 @@ export function authorDelverCandidate({
     throw new Error(`delver[${index}] affinity must be one of: ${AFFINITY_KINDS.join(", ")}.`);
   }
 
-  const motivation = String(rawMotivation || DEFAULT_DELVER_MOTIVATION).trim().toLowerCase();
-  if (!MOTIVATION_KINDS.includes(motivation)) {
-    throw new Error(`delver[${index}] motivation must be one of: ${MOTIVATION_KINDS.join(", ")}.`);
-  }
+  const motivations = authorMotivations({ role: "delver", index, raw: rawMotivation });
 
   const id = isNonEmptyString(rawId) ? String(rawId).trim() : `card_delver_${index}`;
 
@@ -73,7 +107,7 @@ export function authorDelverCandidate({
     source: "actor",
     count,
     affinity,
-    motivations: Array.from(new Set([motivation, "user_controlled"])),
+    motivations,
   };
   if (affinities && affinities.length > 0) {
     delver.affinities = affinities;

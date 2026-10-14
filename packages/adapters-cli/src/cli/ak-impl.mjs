@@ -245,9 +245,9 @@ Options:
   --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]
+  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]
+  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]
                     where <expression> is push|pull (spatial) or emit|draw (field)
                 Delver and warden slots/equip (create too): slots=<n> sets affinity slots (1-6; preset delver 3, warden 2);
                 each slot above the preset is charged at the slot-unlock price. equip= lists starting equips in order,
@@ -1501,10 +1501,7 @@ function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON
     throw new Error(`warden[${wardenIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
-  const motivation = String(fields.get("motivation") || "defending").trim().toLowerCase();
-  if (!ALLOWED_MOTIVATIONS.includes(motivation)) {
-    throw new Error(`warden[${wardenIndex}] motivation must be one of: ${ALLOWED_MOTIVATIONS.join(", ")}.`);
-  }
+  const motivations = configurator.authorMotivations({ role: "warden", index: wardenIndex, raw: fields.get("motivation") });
 
   const count = fields.has("count")
     ? parsePositiveIntStrict(fields.get("count"), `warden[${wardenIndex}] count`)
@@ -1521,7 +1518,7 @@ function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON
     source: "actor",
     count,
     affinity,
-    motivations: [motivation],
+    motivations,
   };
   if (affinities && affinities.length > 0) {
     warden.affinities = affinities;

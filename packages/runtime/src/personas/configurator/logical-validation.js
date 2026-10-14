@@ -78,9 +78,14 @@ function motivationMoves(entry) {
   return index >= 0 && getMotivationMobilityTier(index + 1) > 0;
 }
 
+// A playable actor moves whenever its player says so, every turn if they like, so it
+// needs movement stamina like any moving actor, though the `user_controlled` profile
+// itself holds still when nobody commands it.
+const PLAYABLE_MOTIVATION = "user_controlled";
+
 export function requiresMovementStamina(card = null) {
   const motivations = Array.isArray(card?.motivations) ? card.motivations : [];
-  return motivations.some((motivation) => motivationMoves(motivation));
+  return motivations.some((motivation) => motivationMoves(motivation) || motivationKind(motivation) === PLAYABLE_MOTIVATION);
 }
 
 export function resolveWorstCaseMoveCost(movementCost = DEFAULT_MOVEMENT_COST) {

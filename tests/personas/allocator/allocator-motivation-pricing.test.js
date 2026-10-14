@@ -56,7 +56,7 @@ test("every kind resolves from the LIST; cognition prices still order upward", a
   assert.ok(cost("goal_oriented") <= cost("strategy_focused"));
   assert.equal(cost("exploring"), 2);
   assert.equal(cost("attacking"), 3);
-  assert.equal(cost("user_controlled"), 10);
+  assert.equal(cost("user_controlled"), 18);
 });
 
 test("no price map, no price: resolution is null, stack cost errors — never a default", async () => {

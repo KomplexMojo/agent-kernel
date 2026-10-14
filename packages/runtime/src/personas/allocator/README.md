@@ -355,6 +355,14 @@ Adding a priced element:
 3. If it scales quadratically, add its id to `QUADRATIC_IDS`. Otherwise it is linear by default.
 4. Do **not** write the number anywhere in code.
 
+**Formula-derived ids.** Besides the `resource_` mirrors, one listed price is derived rather than
+typed in: `motivation_user_controlled`, the right to play an actor (Darren, 2026-10-13). It costs the
+dearest autonomous motivation stack plus one: the sum of each exclusive family's dearest kind
+(mobility, posture, cognition) + 1, read from the price list in force (`motivation-price-policy.js`,
+`resolveMotivationUnitCost`). With today's base costs that is 3 + 4 + 10 + 1 = **18**. A listed
+`user_controlled` price is ignored, so raising any family's dearest price raises the premium with it;
+a price list missing a family's prices cannot price it (null, never a default).
+
 Formulas applied to each item (`validate-spend.js`):
 - `linear` — `totalCost = unitCost × quantity`
 - `quadratic` — `totalCost = unitCost × quantity²`

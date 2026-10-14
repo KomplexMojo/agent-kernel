@@ -65,11 +65,60 @@ export const MOTIVATION_PRICE_IDS = Object.freeze({
 
 const MOTIVATION_PRICE_KIND = "motivation";
 
+/** The families an autonomous actor stacks, one motivation from each. */
+const AUTONOMOUS_FAMILIES = Object.freeze(["mobility", "posture", "cognition"]);
+const PLAYABLE_KIND = "user_controlled";
+
+function listedUnitCost(kind, priceMap) {
+  const priceId = MOTIVATION_PRICE_IDS[kind];
+  if (!priceMap || !priceId) return null;
+  const fromList = priceMap.get(`${MOTIVATION_PRICE_KIND}:${priceId}`);
+  // Accept both map shapes: a bare unitCost number (buildPriceMap) or a
+  // price item object (normalizePriceItems). Motivations are linear either way.
+  const unit = fromList && typeof fromList === "object" ? fromList.unitCost : fromList;
+  return Number.isFinite(unit) && unit >= 0 ? unit : null;
+}
+
+/**
+ * The playable premium (Darren, 2026-10-13): `user_controlled` costs the dearest
+ * autonomous stack — the most expensive motivation of each family, summed — plus one,
+ * worked out from the price list in force. It is never typed in, so it stays the
+ * highest motivation price whatever the others are set to; a listed
+ * `motivation_user_controlled` is ignored. Null when a family has no usable price.
+ *
+ * @param {(kind: string) => number|null} unitCostOf
+ * @returns {number|null}
+ */
+function derivePlayablePremium(unitCostOf) {
+  let dearestStack = 0;
+  for (const family of AUTONOMOUS_FAMILIES) {
+    const prices = MOTIVATION_FAMILIES[family].map(unitCostOf).filter((unit) => unit !== null);
+    if (prices.length === 0) return null;
+    dearestStack += Math.max(...prices);
+  }
+  return dearestStack + 1;
+}
+
+/**
+ * The playable premium priced from `motivation` unit costs keyed by price id, as
+ * base-costs.json holds them. The default price list lists the result.
+ *
+ * @param {Record<string, number>} motivationUnitCosts
+ * @returns {number|null}
+ */
+export function playablePremiumFromUnitCosts(motivationUnitCosts) {
+  return derivePlayablePremium((kind) => {
+    const unit = motivationUnitCosts?.[MOTIVATION_PRICE_IDS[kind]];
+    return Number.isFinite(unit) && unit >= 0 ? unit : null;
+  });
+}
+
 /**
  * Resolve the unit cost for a single motivation kind from the price list.
  *
  * FAIL-LOUD (P1.4): there is no fallback. A missing or invalid entry returns
- * null and the caller must surface it as an error.
+ * null and the caller must surface it as an error. `user_controlled` is derived
+ * (see derivePlayablePremium), never read from its own entry.
  *
  * @param {string} kind - The motivation kind (e.g. "reflexive").
  * @param {Map<string,number>} [priceMap] - Map from "kind:id" → costTokens.
@@ -77,18 +126,10 @@ const MOTIVATION_PRICE_KIND = "motivation";
  *   price list has no usable entry for this kind.
  */
 export function resolveMotivationUnitCost(kind, priceMap) {
-  const priceId = MOTIVATION_PRICE_IDS[kind];
-  if (priceMap && priceId) {
-    const key = `${MOTIVATION_PRICE_KIND}:${priceId}`;
-    const fromList = priceMap.get(key);
-    // Accept both map shapes: a bare unitCost number (buildPriceMap) or a
-    // price item object (normalizePriceItems). Motivations are linear either way.
-    const unit = fromList && typeof fromList === "object" ? fromList.unitCost : fromList;
-    if (Number.isFinite(unit) && unit >= 0) {
-      return unit;
-    }
+  if (kind === PLAYABLE_KIND) {
+    return priceMap ? derivePlayablePremium((other) => listedUnitCost(other, priceMap)) : null;
   }
-  return null;
+  return listedUnitCost(kind, priceMap);
 }
 
 /**

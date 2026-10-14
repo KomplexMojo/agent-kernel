@@ -75,7 +75,7 @@ test("cli delver-plan authors delver cards directly from delver flags", async ()
   const delver = cards[0];
   assert.equal(delver.count, 2);
   assert.equal(delver.affinity, "fire");
-  assert.deepEqual(delver.motivations, ["attacking", "user_controlled"]);
+  assert.deepEqual(delver.motivations, ["attacking"]);
 });
 
 test("cli delver-plan applies default delver motivation and affinity fallback", async () => {
@@ -100,7 +100,7 @@ test("cli delver-plan applies default delver motivation and affinity fallback", 
   const delver = cards[0];
   assert.equal(delver.count, 1);
   assert.equal(delver.affinity, "water");
-  assert.deepEqual(delver.motivations, ["attacking", "user_controlled"]);
+  assert.deepEqual(delver.motivations, ["attacking"]);
 });
 
 test("cli delver-plan supports multiple delver configurations in one command", async () => {
@@ -126,7 +126,7 @@ test("cli delver-plan supports multiple delver configurations in one command", a
   const byAffinity = new Map(cards.map((card) => [card.affinity, card]));
   assert.equal(byAffinity.get("fire")?.count, 2);
   assert.equal(byAffinity.get("earth")?.count, 1);
-  assert.deepEqual(byAffinity.get("earth")?.motivations, ["patrolling", "user_controlled"]);
+  assert.deepEqual(byAffinity.get("earth")?.motivations, ["patrolling"]);
 });
 
 test("cli delver-plan supports advanced affinities, vitals, setup mode, and receipt accounting", async () => {
@@ -299,8 +299,11 @@ assert.equal(receipt.totalCost, 200);
 // floor's own minimum, not a choice the optimizer made. Quadratic regen is simply a bad buy once
 // 22 tokens of the 200 are spoken for. The test's stated intent (the whole budget, spent on mana)
 // still holds; WHICH mana it buys has inverted.
-assert.equal(card.vitals.mana.max, 104);
-assert.equal(card.vitals.mana.regen, 1);
+// Playable re-baseline (Phase 1b): a delver is no longer auto-tagged user_controlled, so it no
+// longer pays the 10-token playable premium. Those 10 tokens buy mana max 104 -> 106 and regen
+// 1 -> 3 (2 + 3² - 1² = 10), so `mana_regen` is served again at this budget.
+assert.equal(card.vitals.mana.max, 106);
+assert.equal(card.vitals.mana.regen, 3);
 assert.equal(card.vitals.stamina.max, 2);
 assert.equal(card.vitals.stamina.regen, 2);
 });

@@ -482,7 +482,7 @@ function cardEntryToDelverPick(card, dungeonAffinity) {
     {
       id: card.id,
       actorType: "delver",
-      motivations: Array.isArray(card.motivations) && card.motivations.length > 0 ? card.motivations : ["attacking", "user_controlled"],
+      motivations: Array.isArray(card.motivations) && card.motivations.length > 0 ? card.motivations : ["attacking"],
       role: card.motivations?.[0] || "attacking",
       affinity: card.affinity || dungeonAffinity,
       count: card.count,
@@ -540,7 +540,7 @@ function reduceDelverConfigsToCards(delverConfigs = [], dungeonAffinity = DEFAUL
     affinity: entry.affinities[0]?.kind || dungeonAffinity,
     affinities: entry.affinities,
     expressions: normalizeStringList(entry.affinities.map((affinityEntry) => affinityEntry.expression), DEFAULT_AFFINITY_EXPRESSION),
-    motivations: ["attacking", "user_controlled"],
+    motivations: ["attacking"],
     setupMode: entry.setupMode,
     vitals: entry.vitals,
     flipped: false,

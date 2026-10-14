@@ -164,6 +164,15 @@ At a high level, the Configurator:
 > directly, with no pricing involved. `actor-generator.js`'s `generateActorSet` was investigated
 > as a possible fulfiller and ruled out — it is a real, separate grid-placement generator for
 > scale/perf test fixtures (`tests/helpers/tier-generators.js`), untouched by this milestone.
+>
+> **Motivations are authored exactly as asked** (Phase 1b, 2026-10-14). `authorMotivations`, on the
+> persona surface, turns a `+`/`,`-joined motivation string into a delver's or warden's list: each kind
+> checked against the vocabulary, repeats collapsed, at most one kind per exclusive family (mobility,
+> posture, cognition), `user_controlled` beside any of them, and the role's default (`attacking` /
+> `defending`) when none is given. Nothing is tagged `user_controlled` automatically: only an actor
+> authored that way is playable, and every other delver is a companion. `parseWardenSpec` calls it too.
+> `logical-validation.js`'s `requiresMovementStamina` counts `user_controlled` as moving, since its
+> player moves it every turn; the core mobility tier, which drives autonomous movement, is unchanged.
 
 The simulation core (`core-ts`) remains the sole authority on rule enforcement and state mutation.
 

@@ -53,6 +53,8 @@ test("every price list item is sourced from the JSON", async () => {
       known.add(`resource_${id}`); // premium mirrors are derived in code
     }
   }
+  // The playable premium is derived in code from the motivation group (dearest stack + 1).
+  known.add("motivation_user_controlled");
   for (const item of buildDefaultPriceList().items) {
     assert.ok(known.has(item.id), `${item.id} is not backed by base-costs.json`);
   }

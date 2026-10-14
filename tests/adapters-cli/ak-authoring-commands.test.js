@@ -397,8 +397,11 @@ test("cli create maximizes delver spend deterministically when explicitly asked 
   // and the maximizer pays for them by abandoning mana REGEN rather than mana max: regen 6 -> 1
   // frees 6² - 1² = 35 quadratic tokens against 22 of floor. Accepted deliberately -- a 200-token
   // delver was never going to sustain regen 6, and `mana_regen` is simply outbid at this budget.
-  assert.equal(delver.vitals.mana.max, 104);
-  assert.equal(delver.vitals.mana.regen, 1);
+  // Playable re-baseline (Phase 1b): a delver is no longer auto-tagged user_controlled, so it no
+  // longer pays the 10-token playable premium. Those 10 tokens buy mana max 104 -> 106 and regen
+  // 1 -> 3 (2 + 3² - 1² = 10), so `mana_regen` is served again at this budget.
+  assert.equal(delver.vitals.mana.max, 106);
+  assert.equal(delver.vitals.mana.regen, 3);
   assert.ok(delver.vitals.mana.regen >= 1);
   // The pool, not just the regen — regen against a zero pool is what let the
   // maximizer buy a delver that could never take a step (F12).
