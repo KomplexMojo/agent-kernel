@@ -7,7 +7,7 @@
 - Server name: `agent-kernel-cli`
 - Server version: `1.0.0`
 - Transport: stdio
-- Tool count: `50`
+- Tool count: `55`
 - Tool source: `packages/adapters-cli/src/mcp/tools/*.mjs`
 
 The server is a thin adapter over the CLI command surface in `packages/adapters-cli/src/cli/ak-impl.mjs`. Each MCP tool maps to one CLI command, translates JSON input into CLI flags, executes the command, and returns structured JSON back to the client.
@@ -45,7 +45,7 @@ Use the CLI directly when you want:
 | Inspect outputs | `ak_show`, `ak_diff`, `ak_runs_list`, `ak_inspect`, `ak_narrate`, `ak_schemas` | Summaries, schema catalog, narrative output |
 | LLM planning | `ak_llm`, `ak_ollama`, `ak_llm_plan` | Captured LLM responses and generated artifacts |
 | External adapters | `ak_ipfs`, `ak_ipfs_publish`, `ak_ipfs_load`, `ak_blockchain`, `ak_blockchain_mint`, `ak_blockchain_load` | Adapter response artifacts |
-| Sandbox / interactive | `ak_sandbox_create`, `ak_sandbox_place`, `ak_sandbox_move`, `ak_push_to_ui`, `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`, `ak_play_ascii` | Sandbox session, action sequence, tick/ASCII/image state, the terminal UI board |
+| Sandbox / interactive | `ak_sandbox_create`, `ak_sandbox_place`, `ak_sandbox_move`, `ak_push_to_ui`, `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`, `ak_play_ascii`, `ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_end` | Sandbox session, action sequence, tick/ASCII/image state, the terminal UI board |
 | Test authoring | `ak_test_list_suites`, `ak_test_discover_patterns`, `ak_test_plan_from_change`, `ak_test_run`, `ak_test_scaffold_case`, `ak_test_insert_case`, `ak_test_explain_failure`, `ak_test_lint_structure` | Inventory summaries, scaffolded test files, run results |
 | Workflow | `ak_workflow_run`, `ak_workflow_status`, `ak_workflow_replay`, `ak_workflow_cancel`, `ak_workflow_validate` | Durable AdaptiveWorkflowAgent run state |
 
@@ -283,6 +283,11 @@ The MCP server stays the same. Only LLM-backed tools such as `ak_llm`, `ak_ollam
 | ak_tick_forward | Sandbox / Interactive | Advance the interactive session cursor forward by one tick. | runId, visualization |
 | ak_tick_backward | Sandbox / Interactive | Rewind the interactive session cursor back by one tick. | runId, visualization |
 | ak_play_ascii | Sandbox / Interactive | Show (and optionally play) a level in the ASCII terminal UI, or watch a recorded run in it; returns the screen text and the command to open it interactively. | runId, dir, simConfig, initialState, level, keys, color, fog, record, replay, watch, tick |
+| ak_play_start | Sandbox / Interactive | Start a live game on a level, kept between calls, for turn-by-turn play. | session, runId, dir, simConfig, initialState, level, load, actor, commands, keys |
+| ak_play_act | Sandbox / Interactive | Play turns in a live game: a seat change, structured commands (labels allowed), keys. | session, actor, commands, keys, save |
+| ak_play_view | Sandbox / Interactive | Show a live game's board without playing; optionally save a copy. | session, save |
+| ak_play_switch | Sandbox / Interactive | Seat another party member (a user_controlled actor) for free. | session, actor |
+| ak_play_end | Sandbox / Interactive | End a live game, returning its final board. | session, save |
 | ak_test_list_suites | Test Authoring | List discovered test suites and current runner ownership. | none |
 | ak_test_discover_patterns | Test Authoring | Discover repo test recipes and matching files, optionally filtered. | runner, suite, recipe |
 | ak_test_plan_from_change | Test Authoring | Recommend runner scopes from changed paths. | paths[] |
@@ -1747,6 +1752,21 @@ Show `screen` verbatim; `launch` opens the interactive, coloured game in a termi
 `record` saves the played commands to a path as a `CapturedInputArtifact`, and `replay` re-runs a saved game (on the bundled level it names, unless a level source is given) before `keys`, the same as `ak play --record/--replay`.
 
 `watch: true` shows a run an `ak_run` call recorded instead of a level: pass that call's `runId` (resolved from this session's remembered runs, else `artifacts/runs/<runId>`) or its `outDir` as `dir`, and `tick` (default 0). Every actor and trap is drawn where the run recorded it, with no fog, and the result is `{ ok, tick, maxTick, level, status, screen, launch }`; `keys` takes the watch keys (`.` next tick, `,` previous, `[`/`]` first/last).
+
+#### `ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_end`
+
+A live game, played a few turns per call, through `ak play-session` (see `packages/adapters-cli/README.md`). The game is saved to `artifacts/play-sessions/<session>.json` after every call (`session` defaults to `game`), so it survives a server restart; each call replays it, so nothing is held in the server's memory. `ak_play_start` takes a level like `ak_play_ascii` (a remembered `runId`, `dir`, `simConfig` + `initialState`, or a bundled `level`) or `load`, a copy kept with `save`.
+
+```json
+{ "ok": true, "command": "play-session", "action": "act", "name": "game", "turns": 3, "active": "hero-2",
+  "party": [{ "id": "hero-1", "label": "D1", "active": false, "position": { "x": 4, "y": 2 }, "status": { "tick": 3, "exited": false, "atExit": false, "defeated": false } }, "..."],
+  "inSight": [{ "label": "W1", "id": "card_warden_1-1", "role": "warden", "position": { "x": 6, "y": 2 } }],
+  "results": [{ "tick": 2, "accepted": [{ "actorId": "hero-2", "kind": "wait" }], "rejected": [] }],
+  "hud": "D2 hero-2 · HP 10/10 MP 10/10 ST 10/10 DU 10/10 · tick 3, 3 turns",
+  "screen": "..." }
+```
+
+The party is every actor authored `user_controlled`; `ak_play_switch` (or `actor` on `ak_play_act`) seats another one for free, and fog follows the seat. `commands` are structured play commands (`move`, `wait`, `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`, or `switch`), each with an optional `actorId` to command a member without seating it; ids and targets may be the labels in `party` and `inSight`. Commands run before `keys`, and each one but a switch is a turn for the whole level.
 
 #### `ak_show_state`, `ak_tick_forward`, `ak_tick_backward`
 

@@ -61,6 +61,29 @@ export function playAsciiScripted({ source, keys = "", color = false, fog = true
   return JSON.parse(result.stdout);
 }
 
+/**
+ * One call on a game kept in a session file (`ak play-session`): the UI replays the file
+ * if it exists (else starts the level `source` names), seats `actor`, acts `commands`
+ * (structured, labels allowed) and `keys`, writes the file back, and returns
+ * `{ ok, session, level, turns, status, active, party, inSight, results?, hud, screen }`,
+ * or `{ ok: false, error }`.
+ */
+export function playSessionScripted({ sessionPath, source = {}, keys = "", commands, actor, color = false, fog = true }) {
+  const result = spawnSync(
+    process.execPath,
+    [UI_ASCII_CLI, "--session", sessionPath, ...levelArgs(source), "--json", "--no-help",
+      ...(color ? ["--color"] : []), ...(fog ? [] : ["--no-fog"]),
+      ...(actor !== undefined ? ["--actor", String(actor)] : []),
+      ...(commands !== undefined ? ["--commands", JSON.stringify(commands)] : []),
+      "--keys", keys],
+    { encoding: "utf8" },
+  );
+  if (result.status !== 0) {
+    return { ok: false, error: (result.stderr || result.stdout || `ui-ascii exited ${result.status}`).trim() };
+  }
+  return JSON.parse(result.stdout);
+}
+
 /** ui-ascii arguments for watching the run recorded in `runDir` from `tick`. */
 export function watchArgs({ runDir, tick }) {
   return ["--run", runDir, "--watch", ...(Number.isInteger(tick) ? ["--tick", String(tick)] : [])];

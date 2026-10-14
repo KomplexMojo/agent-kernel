@@ -311,6 +311,35 @@ Inputs/outputs:
   `i` then a digit equips (or unequips), Tab and `+`/`-` there run an equipped affinity at fewer stacks, `f` or a slot's digit then Tab/Enter casts, `g` takes loot.
   For example `--keys "i1ff"` equips the first affinity and casts it at the nearest actor in sight.
 
+### `play-session`
+A game that lasts across calls, for a caller that is not at a terminal (the MCP tools
+`ak_play_start`, `ak_play_act`, `ak_play_view`, `ak_play_switch`, `ak_play_end`). The game is kept in
+`artifacts/play-sessions/<name>.json` (`--session`, default `game`; `AK_PLAY_SESSIONS_DIR` moves it) as a
+player `CapturedInputArtifact` that names its level, so it survives a restart and replays exactly. Each call
+re-runs it in the terminal UI, applies the call's seat change, commands and keys, and saves it again.
+
+```bash
+ak play-session start --session g --dir <create-out-dir>            # or --from-run / --sim-config + --initial-state / --level
+ak play-session act --session g --keys "dd" --commands '[{"kind":"cast_affinity","params":{"targetId":"W1"}}]'
+ak play-session switch --session g --actor D2                       # seat another party member; free
+ak play-session view --session g --save artifacts/games/g.json      # look, and keep a copy
+ak play-session end --session g                                     # final board; removes the live file
+ak play-session start --session g2 --load artifacts/games/g.json    # reopen a copy
+```
+
+- Output: `{ ok, action, name, session, level, turns, status, active, party, inSight, results?, hud, screen, saved?, ended? }`.
+  `party` is every actor authored `user_controlled` (the actors a player may seat), each with a short label
+  (`D1`, `D2`), position and status; `inSight` is every other actor and trap the seated actor sees now, with labels.
+- `--actor <id|label>` seats a party member before anything is played; a companion or warden answers `not_playable`
+  in `results`. `--commands` is a JSON array of `{ kind, params?, actorId? }` (the play commands `move`, `wait`,
+  `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`) or `{ kind: "switch", actorId }`; actor ids and
+  targets may be labels, and `actorId` commands that member without seating it. Commands run before `--keys`.
+  Every command but a switch is one turn for the whole level.
+- `start` refuses a name that is running; the others refuse a name that is not, and take no level options.
+  `view` and `end` play nothing.
+- Every call also writes `artifacts/play-sessions/hud.txt`, one line about the seated actor, which
+  `scripts/game/statusline.mjs` prints as a Claude Code status line (opt in from your own settings).
+
 **Watching a run.** `--watch` shows a run `ak run` recorded instead of playing a level, in the same UI, tick by tick:
 
 ```bash

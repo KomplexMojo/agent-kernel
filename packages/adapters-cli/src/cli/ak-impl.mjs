@@ -1,12 +1,13 @@
 import { UNUSED_CLOCK } from "../../../runtime/src/personas/_shared/require-clock.js";
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { copyFileSync, existsSync, readFileSync, rmSync } from "node:fs";
 import { resolve, dirname, isAbsolute, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   launchCommand,
   playAsciiInteractive,
   playAsciiScripted,
+  playSessionScripted,
   watchAsciiInteractive,
   watchAsciiScripted,
 } from "./play-ascii.mjs";
@@ -191,6 +192,9 @@ function usage() {
   node ${rel} runs list
   node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--record path] [--replay path]
   node ${rel} play --watch (--dir dir | --from-run id) [--tick N] [--keys keys] [--json] [--color | --no-color]
+  node ${rel} play-session start [--session id] (--dir dir | --from-run id | --sim-config path --initial-state path | --level name) [--actor id|label] [--commands json] [--keys keys]
+  node ${rel} play-session start [--session id] --load path
+  node ${rel} play-session act|view|switch|end [--session id] [--actor id|label] [--commands json] [--keys keys] [--save path]
 
 Options:
   --out-dir       Output directory (default: ./artifacts/runs/<runId>/<command>)
@@ -278,6 +282,11 @@ Options:
   --replay        play: re-run a saved game on its level, then continue
   --watch         play: watch the run \`ak run\` recorded in --dir (or under artifacts/runs/<--from-run>), tick by tick
   --tick          play --watch: open at this tick (default 0)
+  --session       play-session: the game's name (default "game"), kept in artifacts/play-sessions/<name>.json
+  --actor         play-session: play this party member (a user_controlled actor, by id or label such as D2); free
+  --commands      play-session: a JSON array of commands, each { kind, params?, actorId? } or { kind: "switch", actorId }
+  --save          play-session: also copy the game to this path after the call (reopen it with start --load)
+  --load          play-session start: begin from a game saved with --save, in place of a level
   --help          Show this help
 
 Schema discovery:
@@ -1907,6 +1916,7 @@ function defaultLlmPlanOutDir(runId) {
 
 const STRUCTURED_STDOUT_COMMANDS = new Set([
   "play",
+  "play-session",
   "solve",
   "build",
   "budget",
@@ -6359,24 +6369,7 @@ async function playCommand(argv) {
     return;
   }
   if (args.tick !== undefined) throw new Error("play --tick needs --watch.");
-  const named = ["dir", "from-run", "level"].filter((key) => args[key] !== undefined);
-  if (args["sim-config"] !== undefined || args["initial-state"] !== undefined) named.push("sim-config");
-  if (named.length > 1) throw new Error("play takes one level source: --dir, --from-run, --sim-config/--initial-state, or --level.");
-
-  let source = {};
-  if (isNonEmptyString(args.dir)) {
-    source = { dir: resolvePath(args.dir) };
-  } else if (args["from-run"] !== undefined) {
-    const resolved = await resolveFromRunArtifactPaths(args["from-run"]);
-    source = { simConfigPath: resolved.simConfigPath, initialStatePath: resolved.initialStatePath };
-  } else if (args["sim-config"] !== undefined || args["initial-state"] !== undefined) {
-    if (!isNonEmptyString(args["sim-config"]) || !isNonEmptyString(args["initial-state"])) {
-      throw new Error("play needs --sim-config and --initial-state together.");
-    }
-    source = { simConfigPath: resolvePath(args["sim-config"]), initialStatePath: resolvePath(args["initial-state"]) };
-  } else if (isNonEmptyString(args.level)) {
-    source = { level: args.level };
-  }
+  const source = await resolvePlaySource(args);
 
   const color = args["no-color"] ? false : args.color ? true : undefined;
   const fog = !args["no-fog"];
@@ -6402,6 +6395,117 @@ async function playCommand(argv) {
     for (const warning of result.warnings || []) console.error(`warning: ${warning}`);
     console.log(result.screen);
   }
+}
+
+/** The level `play` and `play-session start` name: one of --dir, --from-run, --sim-config/--initial-state, --level. */
+async function resolvePlaySource(args, command = "play") {
+  const named = ["dir", "from-run", "level"].filter((key) => args[key] !== undefined);
+  if (args["sim-config"] !== undefined || args["initial-state"] !== undefined) named.push("sim-config");
+  if (named.length > 1) throw new Error(`${command} takes one level source: --dir, --from-run, --sim-config/--initial-state, or --level.`);
+  if (isNonEmptyString(args.dir)) return { dir: resolvePath(args.dir) };
+  if (args["from-run"] !== undefined) {
+    const resolved = await resolveFromRunArtifactPaths(args["from-run"]);
+    return { simConfigPath: resolved.simConfigPath, initialStatePath: resolved.initialStatePath };
+  }
+  if (args["sim-config"] !== undefined || args["initial-state"] !== undefined) {
+    if (!isNonEmptyString(args["sim-config"]) || !isNonEmptyString(args["initial-state"])) {
+      throw new Error(`${command} needs --sim-config and --initial-state together.`);
+    }
+    return { simConfigPath: resolvePath(args["sim-config"]), initialStatePath: resolvePath(args["initial-state"]) };
+  }
+  return isNonEmptyString(args.level) ? { level: args.level } : {};
+}
+
+export const PLAY_SESSIONS_DIR = "artifacts/play-sessions";
+const PLAY_SESSION_ACTIONS = new Set(["start", "act", "view", "switch", "end"]);
+
+/**
+ * `ak play-session`: a game that lasts across calls, for a caller that is not at a
+ * terminal (the MCP tools). The game lives in artifacts/play-sessions/<name>.json as a
+ * player capture, so it survives a restart and replays exactly; each call re-runs it,
+ * applies this call's seat change, commands and keys, and saves it again. The UI
+ * program does the playing; this only names the file and the level.
+ *   start   a new game on a level          act     commands and/or keys
+ *   view    the board, nothing played      switch  seat another party member (free)
+ *   end     the final board; removes the file
+ * `--save <path>` copies the game out after any call; `start --load <path>` begins from such a copy.
+ * It also writes artifacts/play-sessions/hud.txt, one line about the seated actor,
+ * for a status line to show. AK_PLAY_SESSIONS_DIR moves both.
+ */
+async function playSessionCommand(argv) {
+  const args = parseArgs(argv);
+  if (args.help) {
+    console.log(usage());
+    return;
+  }
+  const action = args._[0];
+  if (!PLAY_SESSION_ACTIONS.has(action)) {
+    throw new Error(`play-session needs an action: ${[...PLAY_SESSION_ACTIONS].join(", ")}.`);
+  }
+  const allowed = new Set(["_", "session", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "commands", "actor", "json", "color", "no-fog", "save", "load"]);
+  const unknown = Object.keys(args).filter((key) => !allowed.has(key));
+  if (unknown.length > 0) throw new Error(`play-session does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
+  const name = args.session === undefined ? "game" : String(args.session);
+  if (!/^[\w.-]+$/.test(name) || name.startsWith(".")) {
+    throw new Error(`play-session --session must be a plain name (letters, digits, - _ .), got ${name}`);
+  }
+  // AK_PLAY_SESSIONS_DIR moves the saves (tests keep theirs apart with it).
+  const sessionsDir = resolvePath(process.env.AK_PLAY_SESSIONS_DIR || PLAY_SESSIONS_DIR);
+  const sessionPath = join(sessionsDir, `${name}.json`);
+  const exists = existsSync(sessionPath);
+  const levelNamed = ["dir", "from-run", "sim-config", "initial-state", "level"].some((key) => args[key] !== undefined);
+  if (action === "start" && exists) throw new Error(`play-session "${name}" is already running; act on it, or end it first.`);
+  if (action !== "start" && !exists) throw new Error(`No play-session "${name}"; start one with play-session start.`);
+  if (action !== "start" && levelNamed) throw new Error(`play-session ${action} continues "${name}" on its own level; level options go with start.`);
+  if ((action === "view" || action === "end") && (args.keys !== undefined || args.commands !== undefined || args.actor !== undefined)) {
+    throw new Error(`play-session ${action} plays nothing; use act (or switch) for keys, commands and --actor.`);
+  }
+  if (action === "switch" && args.actor === undefined) throw new Error("play-session switch needs --actor <id or label>.");
+  if (args.load !== undefined && (action !== "start" || levelNamed)) {
+    throw new Error("play-session --load goes with start, in place of a level: the saved game names its own level.");
+  }
+  if (args.save !== undefined && !isNonEmptyString(args.save)) throw new Error("play-session --save needs a file path.");
+
+  let commands;
+  if (args.commands !== undefined) {
+    try {
+      commands = JSON.parse(String(args.commands));
+    } catch {
+      throw new Error("play-session --commands needs a JSON array.");
+    }
+    if (!Array.isArray(commands)) throw new Error("play-session --commands needs a JSON array.");
+  }
+  const actor = Array.isArray(args.actor) ? args.actor.at(-1) : args.actor;
+  const keys = args.keys === true ? "" : args.keys;
+  const source = action === "start" && args.load === undefined ? await resolvePlaySource(args, "play-session start") : {};
+  await mkdir(sessionsDir, { recursive: true });
+  if (args.load !== undefined) {
+    // A saved game: a session save, or any player capture that names its level.
+    const loadPath = resolvePath(String(args.load));
+    const saved = JSON.parse(readFileSync(loadPath, "utf8"));
+    const request = saved?.source?.request;
+    if (!request?.source && !request?.level) {
+      throw new Error(`${args.load} does not say which level it was played on; start on that level and play it again.`);
+    }
+    copyFileSync(loadPath, sessionPath);
+  }
+  const result = playSessionScripted({
+    sessionPath, source, keys: keys ?? "", commands, actor, color: args.color === true, fog: !args["no-fog"],
+  });
+  if (!result.ok) throw new Error(result.error);
+  if (result.hud) await writeFile(join(sessionsDir, "hud.txt"), `${result.hud}\n`);
+  let saved;
+  if (args.save !== undefined) {
+    saved = resolvePath(String(args.save));
+    await mkdir(dirname(saved), { recursive: true });
+    copyFileSync(sessionPath, saved);
+  }
+  if (action === "end") {
+    rmSync(sessionPath, { force: true });
+    rmSync(join(sessionsDir, "hud.txt"), { force: true });
+  }
+  const payload = { ...result, command: "play-session", action, name, ...(saved ? { saved } : {}), ...(action === "end" ? { ended: true } : {}) };
+  emitJsonStdout(payload);
 }
 
 /**
@@ -6829,6 +6933,7 @@ export const COMMANDS = {
   "sandbox-move": sandboxMoveCommand,
   workflow: workflowCommand,
   play: playCommand,
+  "play-session": playSessionCommand,
 };
 
 /**

@@ -5,8 +5,8 @@
  * The terminal is the only thing this file owns: argument parsing, raw-mode
  * keypresses, redraws. See README.md for usage.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createGame } from "./game.js";
 import { HELP_LINES, WATCH_HELP_LINES, intentForKey, splitKeys, watchIntentForKey } from "./keymap.js";
@@ -18,6 +18,7 @@ import {
   loadLevelFromRunDir,
   loadRunFromDir,
 } from "./levels.js";
+import { hudLine } from "./screen.js";
 import { createWatch } from "./watch.js";
 
 const USAGE = `Usage: ak-maze [options]
@@ -37,6 +38,12 @@ const USAGE = `Usage: ak-maze [options]
   --watch                 with --run: watch the run \`ak run\` recorded there, tick by tick
   --tick <n>              with --watch: open at this tick (default 0)
   --no-help               start with the key help hidden (? shows it)
+  --session <path>        a game kept in a file across calls: replay it if it exists, then
+                          --actor, --commands and --keys, then save it back (with --json, the
+                          result adds active, party and inSight). A new session needs a level
+  --actor <id|label>      play this party member (a user_controlled actor) first; free
+  --commands <json>       a JSON array of commands to act first, each { kind, params?, actorId? }
+                          or { kind: "switch", actorId }; actors and targets may be labels (D1, W2)
   -h, --help              show this help
 
 ${HELP_LINES.join("\n")}
@@ -70,6 +77,20 @@ export function parseArgs(argv) {
       case "--no-fog": options.fog = false; break;
       case "--watch": options.watch = true; break;
       case "--no-help": options.showHelp = false; break;
+      case "--session": options.sessionPath = next(); break;
+      case "--actor": options.actor = next(); break;
+      case "--commands": {
+        const text = next();
+        let commands;
+        try {
+          commands = JSON.parse(text);
+        } catch {
+          throw new Error(`--commands needs a JSON array, got ${text}`);
+        }
+        if (!Array.isArray(commands)) throw new Error("--commands needs a JSON array of commands");
+        options.commands = commands;
+        break;
+      }
       case "--tick": {
         const value = next();
         if (!/^\d+$/.test(value)) throw new Error(`--tick needs a whole number, got ${value}`);
@@ -107,10 +128,14 @@ export function resolveLevels(options) {
   return { levels, startIndex: levels.findIndex((level) => level.name === options.level) };
 }
 
-/** Write the game's played commands to `path` (#204); the clock is read here, at the edge. */
-export function recordGame(game, path, { now = new Date() } = {}) {
+/**
+ * Write the game's played commands to `path` (#204); the clock is read here, at the edge.
+ * `source` (where the level came from) lets `--session` reopen it without level options.
+ */
+export function recordGame(game, path, { now = new Date(), source } = {}) {
   const createdAt = now.toISOString();
-  const capture = game.captureInput({ id: `play_capture_${now.getTime()}`, runId: `play_${now.getTime()}`, createdAt });
+  const recorded = game.captureInput({ id: `play_capture_${now.getTime()}`, runId: `play_${now.getTime()}`, createdAt });
+  const capture = source ? { ...recorded, source: { ...recorded.source, request: { ...recorded.source.request, source } } } : recorded;
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(capture, null, 2)}\n`);
 }
@@ -118,8 +143,19 @@ export function recordGame(game, path, { now = new Date() } = {}) {
 /** The level a capture was recorded on, so `--replay` alone picks it. */
 export function readCapture(path) {
   const capture = JSON.parse(readFileSync(path, "utf8"));
-  return { capture, level: capture?.source?.request?.level };
+  return { capture, level: capture?.source?.request?.level, source: capture?.source?.request?.source };
 }
+
+/** Where the level came from, with absolute paths, as a session file keeps it. */
+export function levelSource(options) {
+  if (options.runDir) return { runDir: resolve(options.runDir) };
+  if (options.simConfigPath || options.initialStatePath) {
+    return { simConfigPath: resolve(options.simConfigPath), initialStatePath: resolve(options.initialStatePath) };
+  }
+  return options.level ? { level: options.level } : null;
+}
+
+const LEVEL_OPTIONS = ["level", "runDir", "simConfigPath", "initialStatePath"];
 
 /** Feed a key string through the game without a terminal; returns the final screen. */
 export async function runScripted(game, keys, { color = false, keyIntent = intentForKey } = {}) {
@@ -175,6 +211,11 @@ export async function main(argv = process.argv.slice(2)) {
     return 0;
   }
   if (options.watch) return watch(options);
+  if (options.sessionPath) return session(options);
+  if (options.actor !== undefined || options.commands !== undefined) {
+    console.error(`--actor and --commands need --session.\n\n${USAGE}`);
+    return 2;
+  }
   if (options.tick !== undefined) {
     console.error(`--tick needs --watch.\n\n${USAGE}`);
     return 2;
@@ -217,6 +258,64 @@ export async function main(argv = process.argv.slice(2)) {
   }
   runInteractive(game, { color: shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env }), recordPath: options.recordPath });
   return null; // keeps running until the player quits
+}
+
+/**
+ * `--session`: one game kept in a file across calls. An existing file is replayed on the
+ * level it names; then the seat changes (--actor), structured commands and keys are
+ * applied, and the file is written back. Nothing else is kept between calls.
+ */
+async function session(options) {
+  const conflicts = ["recordPath", "replayPath", "watch"].filter((key) => options[key] !== undefined);
+  if (conflicts.length > 0) {
+    console.error("--session keeps its own record; it does not take --record, --replay or --watch.");
+    return 2;
+  }
+  const exists = existsSync(options.sessionPath);
+  const named = LEVEL_OPTIONS.some((key) => options[key] !== undefined);
+  if (exists && named) {
+    console.error(`${options.sessionPath} already holds a game; continue it without level options.`);
+    return 2;
+  }
+  let game;
+  let source;
+  try {
+    const recorded = exists ? readCapture(options.sessionPath) : null;
+    source = recorded ? (recorded.source ?? (recorded.level ? { level: recorded.level } : null)) : levelSource(options);
+    const levelOptions = { ...options, ...(source?.runDir ? { runDir: source.runDir } : {}),
+      ...(source?.simConfigPath ? { simConfigPath: source.simConfigPath, initialStatePath: source.initialStatePath } : {}),
+      ...(source?.level ? { level: source.level } : {}) };
+    game = await createGame({ ...resolveLevels(levelOptions), fog: options.fog, showHelp: options.showHelp !== false });
+    if (recorded) await game.replay(recorded.capture);
+  } catch (error) {
+    console.error(error.message);
+    return 1;
+  }
+  const results = [];
+  if (options.actor !== undefined) results.push(game.switchTo(options.actor));
+  try {
+    for (const entry of options.commands ?? []) results.push(await game.command(entry));
+  } catch (error) {
+    console.error(error.message);
+    return 2;
+  }
+  const color = options.json ? options.color === "always" : shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env });
+  const screen = await runScripted(game, options.keys ?? "", { color });
+  recordGame(game, options.sessionPath, { source: source ?? undefined });
+  if (!options.json) {
+    console.log(screen);
+    return 0;
+  }
+  const { levelName, turns, status, active, party, warnings, message } = game.state();
+  const view = game.view();
+  const inSight = [...(view.actors || []), ...(view.hazards || [])]
+    .map((actor) => ({ label: actor.label, id: actor.id, role: actor.role, position: actor.position }));
+  console.log(JSON.stringify({
+    ok: true, session: resolve(options.sessionPath), level: levelName, turns, status, active, party, inSight,
+    ...(results.length ? { results } : {}), ...(message ? { message } : {}), hud: hudLine(view, { turns }), screen,
+    ...(warnings.length ? { warnings } : {}),
+  }));
+  return 0;
 }
 
 /** `--watch`: a recorded run, drawn with the game's screen; keys step through its ticks. */

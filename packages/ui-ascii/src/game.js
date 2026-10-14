@@ -26,6 +26,10 @@ const REJECTION_MESSAGES = Object.freeze({
   InvalidCapability: "You cannot do that.",
   AffinityNotEquipped: "That affinity is not equipped.",
   InvalidAffinityStacks: "You cannot run it at that many stacks.",
+  not_playable: "Only your party (actors authored user_controlled) takes your commands.",
+  unknown_actor: "No actor goes by that name.",
+  exited: "They have already left the level.",
+  defeated: "They were defeated.",
 });
 
 function rejectionMessage(reason, player) {
@@ -103,16 +107,57 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
 
   await startLevel(levelIndex);
 
-  async function act(command, describe = () => "") {
+  // `actorId` commands a party member other than the seated one (a label works too).
+  async function act(command, describe = () => "", { actorId } = {}) {
     const before = session.status();
-    if (before.exited || before.defeated) return;
-    const result = await session.act(command);
-    turns += 1;
+    if (actorId === undefined && (before.exited || before.defeated)) return null;
+    const result = await session.act(command, actorId === undefined ? {} : { actorId });
+    // A command the session refused outright (not your party, already gone) runs no tick.
+    if (result.tick !== before.tick) turns += 1;
     const rejected = result.rejected[0];
     // At the exit, or once defeated, the status line already says what to do next.
     if (result.status.defeated) message = "";
     else if (rejected && !result.status.atExit) message = rejectionMessage(rejected.reason, session.view().player);
     else if (result.accepted.length > 0) message = describe();
+    return result;
+  }
+
+  /** Seat another party member (an id or a label). Free: no turn passes. */
+  function switchTo(ref) {
+    panel = null;
+    const result = session.switchTo(ref);
+    if (!result.ok) {
+      message = rejectionMessage(result.reason);
+      return result;
+    }
+    const member = session.view().party.find((entry) => entry.id === result.actorId);
+    message = `You now play ${result.actorId}${member?.label ? ` (${member.label})` : ""}.`;
+    return result;
+  }
+
+  // Tab outside a panel: the next party member, in party order.
+  function nextPartyMember() {
+    const party = session.view().party || [];
+    if (party.length < 2) {
+      message = "No one else in your party to play.";
+      return;
+    }
+    const at = party.findIndex((member) => member.active);
+    switchTo(party[(at + 1) % party.length].id);
+  }
+
+  /**
+   * A structured command, for a caller that is not pressing keys (`--commands`):
+   * `{ kind: "switch", actorId }`, or any play command with an optional `actorId`.
+   * Targets and actors may be given by label. Returns what the session reported.
+   */
+  async function command(entry) {
+    if (!entry || typeof entry !== "object") throw new Error("a command must be an object with a kind");
+    message = "";
+    if (entry.kind === "switch") return switchTo(entry.actorId);
+    const { actorId, ...rest } = entry;
+    const result = await act(rest, () => "", { actorId });
+    return result ?? { accepted: [], rejected: [{ kind: rest.kind, reason: session.status().defeated ? "defeated" : "exited" }] };
   }
 
   function openAffinities() {
@@ -298,6 +343,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       case INTENT.TAKE:
         await openLoot();
         break;
+      case INTENT.NEXT_TARGET:
+        nextPartyMember();
+        break;
       default:
         break;
     }
@@ -352,6 +400,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       finished,
       message,
       panel: panel?.type ?? null,
+      active: session.activeActorId?.() ?? null,
+      party: session.view().party ?? [],
       warnings: viabilityWarnings(),
     };
   }
@@ -378,5 +428,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     finished = false;
   }
 
-  return { handle, screen, state, captureInput, replay };
+  /** The play session's current view (board, player, party, actors in sight). */
+  const view = () => session.view();
+
+  return { handle, command, switchTo, screen, state, view, captureInput, replay };
 }
