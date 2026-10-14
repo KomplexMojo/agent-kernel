@@ -9,10 +9,9 @@ argument-hint: <name or path>
 
 Resume a saved game: $ARGUMENTS
 
-1. The capture is `artifacts/games/<name>.json`, or the path given.
-2. Call `ak_play_ascii` with `replay` set to it and the same level the save was made on
-   (the `runId` or bundled `level`; a bundled level is picked from the capture on its own).
-   The replay re-runs the saved commands; the engine refuses a capture that no longer fits
-   its level, and you report that reason as it is.
-3. Show `screen` and carry on as `/game-play` does. Every later turn passes `replay` again with
-   only the new keys in `keys`, so keep that new-key history.
+1. The save is `artifacts/games/<name>.json`, or the path given.
+2. Call `ak_play_start` with `load` set to it (and a session name; end a game already running
+   under that name first, or pick another). The save names its own level, and the engine
+   re-runs every saved command, seating the actor that was seated. If it refuses (the save
+   does not name its level, or no longer fits it), report its reason as it is.
+3. Show `screen` and carry on as `/game-play` does.

@@ -213,9 +213,9 @@ async function maybeResolveRememberedInputs(tool, rawArgs) {
       delete args.runId;
     }
   }
-  // ak_play_ascii with a runId from this session plays the level that run wrote.
+  // ak_play_ascii (and ak_play_start) with a runId from this session plays the level that run wrote.
   if (
-    tool.command === "play"
+    (tool.command === "play" || tool.name === "ak_play_start")
     && normalizeNonEmptyString(args.runId)
     && !normalizeNonEmptyString(args.dir)
     && !normalizeNonEmptyString(args.simConfig)

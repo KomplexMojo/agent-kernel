@@ -1,5 +1,41 @@
 import { booleanSchema, buildArgv, createTool, integerSchema, pathSchema, stringSchema } from "./shared.mjs";
 
+// A live game (`ak play-session`): one file per session name, replayed and saved on every call.
+const sessionSpec = [{ key: "session" }];
+const saveSpec = [{ key: "save" }];
+const saveProperty = pathSchema("Also copy the game to this file after the call (e.g. artifacts/games/<name>.json); ak_play_start with load reopens it.");
+const levelSpec = [
+  { key: "runId", flag: "from-run" },
+  { key: "dir" },
+  { key: "simConfig", flag: "sim-config" },
+  { key: "initialState", flag: "initial-state" },
+  { key: "level" },
+];
+const actingSpec = [
+  { key: "actor" },
+  { key: "commands", format: (value) => JSON.stringify(value) },
+  { key: "keys" },
+];
+
+const SESSION_RESULT = "Returns { screen, status, turns, active, party, inSight, hud, results? }: show `screen` verbatim in a code block. "
+  + "`active` is the seated actor; `party` lists every playable (user_controlled) actor with its label (D1, D2, ...), position and status; "
+  + "`inSight` lists every other actor and trap the seated actor sees now, each with a label (W1, H2, ...) you and the player can use instead of its id. "
+  + "Fog of war is on: report only what the screen and inSight show.";
+
+const sessionProperty = stringSchema("The game's name (default \"game\"). One game per name; it is saved to artifacts/play-sessions/<name>.json after every call, so it survives a restart.");
+const actingProperties = {
+  actor: stringSchema("Seat this party member first (its id or label, e.g. D2). Free: no turn passes. Only actors authored user_controlled can be seated."),
+  commands: {
+    type: "array",
+    description: "Commands to play in order, before keys. Each is { kind, params?, actorId? } with kind move (params.direction: north|south|east|west|northeast|northwest|southeast|southwest), wait, "
+      + "equip_affinity (params.affinityKey \"kind:expression\", optional params.stacks), unequip_affinity (params.affinityKey), cast_affinity (params.targetId, optional params.affinityKey) "
+      + "or take (params.targetId, params.holdingId); or { kind: \"switch\", actorId } to change the seat. actorId commands that party member without seating it. Ids may be labels (W1). "
+      + "Every command except switch is one turn for the whole level, refused or not.",
+    items: { type: "object", additionalProperties: true },
+  },
+  keys: stringSchema("Keys to play after commands, as in ak_play_ascii: w/a/s/d or h/j/k/l move, y/u/b/n diagonals, '.' waits, g takes loot. Each acting key is one turn."),
+};
+
 const playSpec = [
   { key: "runId", flag: "from-run" },
   { key: "dir" },
@@ -48,5 +84,64 @@ export const playTools = [
       },
     },
     buildArgs: (args) => [...buildArgv(args, playSpec), ...fogArgs(args), "--json"],
+  }),
+  createTool({
+    name: "ak_play_start",
+    description: "Start a live game on a level and keep it between calls, for playing turn by turn (then ak_play_act). "
+      + "Name the level as for ak_play_ascii: an ak_create call's runId, its outDir as dir, simConfig + initialState, or a bundled level. "
+      + "The seated actor is the first one authored user_controlled. Optional actor/commands/keys are played straight away. A name already running must be ended first. "
+      + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: {
+      properties: {
+        session: sessionProperty,
+        runId: stringSchema("Run id of an earlier ak_create/ak_configure/ak_run call (or under artifacts/runs/<runId>)."),
+        dir: pathSchema("A directory holding sim-config.json and initial-state.json, such as an ak_create outDir."),
+        simConfig: pathSchema("SimConfig artifact path (with initialState)."),
+        initialState: pathSchema("InitialState artifact path (with simConfig)."),
+        level: stringSchema("A bundled ui-ascii level by name."),
+        load: pathSchema("Begin from a game saved with save, in place of a level: it names its own level."),
+        ...actingProperties,
+      },
+    },
+    buildArgs: (args) => ["start", ...buildArgv(args, [...sessionSpec, ...levelSpec, { key: "load" }, ...actingSpec])],
+  }),
+  createTool({
+    name: "ak_play_act",
+    description: "Play turns in a live game started with ak_play_start: optional actor (seat change, free), then commands, then keys, then the game is saved. "
+      + "For natural-language orders, translate them into commands or keys a few turns at a time and stop to report when something new comes into sight or a vital drops. "
+      + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: { properties: { session: sessionProperty, ...actingProperties, save: saveProperty } },
+    buildArgs: (args) => ["act", ...buildArgv(args, [...sessionSpec, ...actingSpec, ...saveSpec])],
+  }),
+  createTool({
+    name: "ak_play_view",
+    description: "Show a live game's board without playing anything; with save, also copy the game to a file. " + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: { properties: { session: sessionProperty, save: saveProperty } },
+    buildArgs: (args) => ["view", ...buildArgv(args, [...sessionSpec, ...saveSpec])],
+  }),
+  createTool({
+    name: "ak_play_switch",
+    description: "Seat another party member in a live game (an actor authored user_controlled, by id or label such as D2). Free: no turn passes, and fog follows the new seat. "
+      + "A companion, warden or trap cannot be seated (results say not_playable). " + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: {
+      properties: {
+        session: sessionProperty,
+        actor: stringSchema("The party member to seat: its id or label (D2)."),
+      },
+      required: ["actor"],
+    },
+    buildArgs: (args) => ["switch", ...buildArgv(args, [...sessionSpec, { key: "actor" }])],
+  }),
+  createTool({
+    name: "ak_play_end",
+    description: "End a live game: returns its final board and removes its live file. Pass save to keep a copy first. "
+      + SESSION_RESULT,
+    command: "play-session",
+    inputSchema: { properties: { session: sessionProperty, save: saveProperty } },
+    buildArgs: (args) => ["end", ...buildArgv(args, [...sessionSpec, ...saveSpec])],
   }),
 ];

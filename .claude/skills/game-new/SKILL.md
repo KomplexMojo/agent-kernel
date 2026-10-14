@@ -24,4 +24,5 @@ Follow the `game-master` skill's house rules throughout.
 3. Call `ak_create` for real with the same specs and `runId`.
 4. Call `ak_play_ascii {runId}` and show `screen` in a code block, then one line naming what
    was made (rooms, actors, traps, from `actorIds`/`roomIds`), the `runId`, and that
-   `/game-play` plays it and `/game-terminal` opens it in a terminal.
+   `/game-play` plays it (as a live game: `ak_play_start` with that `runId`) and
+   `/game-terminal` opens it in a terminal.

@@ -27,6 +27,11 @@
   "permissions": {
     "allow": [
       "mcp__agent-kernel-cli__ak_play_ascii",
+      "mcp__agent-kernel-cli__ak_play_start",
+      "mcp__agent-kernel-cli__ak_play_act",
+      "mcp__agent-kernel-cli__ak_play_view",
+      "mcp__agent-kernel-cli__ak_play_switch",
+      "mcp__agent-kernel-cli__ak_play_end",
       "mcp__agent-kernel-cli__ak_create",
       "mcp__agent-kernel-cli__ak_configure",
       "mcp__agent-kernel-cli__ak_run",

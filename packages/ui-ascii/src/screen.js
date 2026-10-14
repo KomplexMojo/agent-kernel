@@ -154,6 +154,43 @@ export function affinityLines(player, { hints = true } = {}) {
   });
 }
 
+function memberNote(status) {
+  if (status?.defeated) return " (defeated)";
+  if (status?.exited) return " (escaped)";
+  return "";
+}
+
+/**
+ * Who you can play, when there is more than one: the seated member in brackets, each
+ * by the short label the view gives it (Tab plays the next).
+ */
+export function partyLine(party) {
+  if (!Array.isArray(party) || party.length < 2) return null;
+  return `Party: ${party.map((member) => {
+    const name = `${member.label ?? "?"} ${member.id}${memberNote(member.status)}`;
+    return member.active ? `[${name}]` : name;
+  }).join("  ")}`;
+}
+
+/**
+ * One plain line about the seated actor (who, vitals, tick), for a status line outside
+ * the game such as Claude Code's (`ak play-session` writes it to a file).
+ */
+export function hudLine(view, { turns } = {}) {
+  const player = view.player;
+  const who = player ? `${player.label ? `${player.label} ` : ""}${player.id}` : "nobody seated";
+  const vitals = presentVitals(player).map((vital) => `${vital.label} ${vital.current}/${vital.max}`).join(" ");
+  const state = view.status?.exited ? "escaped" : view.status?.defeated ? "defeated" : view.status?.atExit ? "at the exit" : "";
+  return [who, vitals, `tick ${view.tick}${Number.isInteger(turns) ? `, ${turns} ${turns === 1 ? "turn" : "turns"}` : ""}`, state].filter(Boolean).join(" · ");
+}
+
+/** Everyone in sight right now, by label, so a person or Claude can name them. */
+export function inSightLine(view) {
+  const seen = [...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.label);
+  if (seen.length === 0) return null;
+  return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}`).join("  ")}`;
+}
+
 /**
  * @param {object} args
  * @param {object} args.view        createPlaySession().view()
@@ -198,6 +235,7 @@ export function renderScreen({
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (vitals.length > 0) lines.push(vitals.join("   "));
   lines.push(...affinityLines(view.player, { hints }));
+  for (const line of [partyLine(view.party), inSightLine(view)]) if (line) lines.push(line);
   lines.push(tickLine);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
   if (Array.isArray(panel) && panel.length > 0) {

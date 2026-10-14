@@ -100,6 +100,7 @@ export const HELP_LINES = Object.freeze([
   "Affinities: i, then 1-9 to equip or unequip   Take: g",
   "In the affinity list: Tab picks a row, + / - run it at more or fewer stacks",
   "Cast: f (or a slot's number), then Tab for the next target, Enter to cast, Esc to cancel",
+  "Party: Tab (outside a list) plays your next user_controlled actor",
 ]);
 
 /** Watching a recorded run (`--watch`): keys step through its ticks. */

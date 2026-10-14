@@ -36,6 +36,15 @@
  * The view is built by `buildPlayView`, a pure function of one registry snapshot,
  * so `runner/run-viewer.js` draws a recorded run's ticks in the same shape.
  *
+ * **Party control (Phase 2).** The party is every actor authored `user_controlled`
+ * (Darren, 2026-10-13), plus the seated actor when a caller names another. One is
+ * active: `act` commands it (or the party member `actorId` names), `switchTo` moves
+ * the seat for free (no tick), and fog follows the active actor while each party
+ * member keeps its own explored memory. A companion or warden is never seated by a
+ * switch (`not_playable`). Every actor in a view carries a short stable label (`D1`,
+ * `W2`, `H3`: role letter, then its place in id order) a caller may use in place of
+ * an id, for a switch, an `actorId` or a cast's `targetId`.
+ *
  * **Replay (#204).** Every command that runs a tick is logged as
  * `{ tick, actorId, command }`; `captureInput({ meta })` returns the log as a
  * CapturedInputArtifact (`source.adapter: "player"`), and `replayPlaySession`
@@ -131,31 +140,48 @@ export async function createPlaySession({
   // A hand-written level is played as written; actors below the floor are only reported.
   const viabilityReport = Object.freeze(reportActorViabilityFloor(initialState).map((finding) => Object.freeze(finding)));
   const legend = playLegend(simConfig);
+  const labels = playActorLabels(sourceActors, presentation);
+  // The party: every playable actor, and the seated one even when it is not (a caller's choice).
+  const partyIds = playableActorIds(initialState);
+  if (playerId !== undefined && !partyIds.includes(playerId)) partyIds.unshift(playerId);
+  let activeId = playerId;
 
-  // Explored memory: a cell stays explored once the player has seen it.
-  let explored = null;
+  // Explored memory, per party member: a cell stays explored once that actor has seen it.
+  const explored = new Map();
   // Every command that ran a tick, in order (#204).
   const commandLog = [];
 
-  function readVisible() {
-    const grid = runtime.readVisibleCells(playerId);
+  /** An actor id, or a label standing for one; undefined when it names nobody. */
+  function resolveActorRef(ref) {
+    if (typeof ref !== "string" || !ref) return undefined;
+    if (configuredIds.includes(ref)) return ref;
+    const upper = ref.toUpperCase();
+    for (const [id, label] of labels) if (label === upper) return id;
+    return undefined;
+  }
+
+  function readVisible(actorId = activeId) {
+    const grid = runtime.readVisibleCells(actorId);
     return Array.isArray(grid) && grid.length > 0 ? grid : null;
   }
 
   // Dark invalidates memory (#203): a remembered cell that dark covers and the
-  // player cannot see right now is forgotten, back to fog until seen again.
-  function rememberVisible() {
-    const visible = readVisible();
+  // actor cannot see right now is forgotten, back to fog until seen again.
+  function rememberVisible(actorId) {
+    if (runtime.hasActorExited(actorId)) return;
+    const visible = readVisible(actorId);
     if (!visible) return;
-    if (!explored) explored = visible.map((row) => row.map(() => 0));
+    if (!explored.has(actorId)) explored.set(actorId, visible.map((row) => row.map(() => 0)));
+    const memory = explored.get(actorId);
     const dark = runtime.readDarkCells();
     visible.forEach((row, y) => row.forEach((cell, x) => {
-      if (cell) explored[y][x] = 1;
-      else if (dark[y]?.[x]) explored[y][x] = 0;
+      if (cell) memory[y][x] = 1;
+      else if (dark[y]?.[x]) memory[y][x] = 0;
     }));
   }
 
-  rememberVisible();
+  const rememberParty = () => partyIds.forEach(rememberVisible);
+  rememberParty();
 
   function readSnapshot() {
     return runtime.getActorSnapshot();
@@ -165,43 +191,88 @@ export async function createPlaySession({
     return runtime.readObservation()?.tick ?? 0;
   }
 
-  function status() {
-    return playStatus({ snapshot: readSnapshot(), playerId, exited: runtime.hasActorExited(playerId), tick: currentTick() });
+  function statusOf(actorId) {
+    return playStatus({ snapshot: readSnapshot(), playerId: actorId, exited: runtime.hasActorExited(actorId), tick: currentTick() });
   }
 
-  async function act(command) {
-    const normalized = normalizePlayCommand(command);
-    // The game is over once the player has left the level or been defeated: no more ticks.
-    const before = status();
-    if (before.exited || before.defeated) {
-      const action = { actorId: playerId, tick: currentTick() + 1, kind: normalized.kind, params: { ...normalized.params } };
-      return { tick: currentTick(), accepted: [], rejected: [{ ...action, reason: before.exited ? "exited" : "defeated" }], status: before };
-    }
-    await runtime.step({ actorCommands: { [playerId]: normalized } });
-    commandLog.push({ tick: currentTick(), actorId: playerId, command: structuredClone(normalized) });
-    if (!runtime.hasActorExited(playerId)) rememberVisible();
+  function status() {
+    return statusOf(activeId);
+  }
+
+  /** Seat another party member. Free: no tick runs. */
+  function switchTo(ref) {
+    const actorId = resolveActorRef(ref);
+    if (actorId === undefined) return { ok: false, reason: "unknown_actor", actorId: ref };
+    if (!partyIds.includes(actorId)) return { ok: false, reason: "not_playable", actorId };
+    activeId = actorId;
+    return { ok: true, actorId, status: status() };
+  }
+
+  // A cast's target may be a label; what the command means stays the Actor's.
+  function withTargetResolved(command) {
+    const targetId = command.params?.targetId;
+    const resolved = resolveActorRef(targetId);
+    if (resolved === undefined || resolved === targetId) return command;
+    return { ...command, params: { ...command.params, targetId: resolved } };
+  }
+
+  async function act(command, { actorId: actorRef } = {}) {
+    const normalized = withTargetResolved(normalizePlayCommand(command));
+    const actorId = actorRef === undefined ? activeId : resolveActorRef(actorRef);
+    const refuse = (reason, who = actorId ?? actorRef) => {
+      const action = { actorId: who, tick: currentTick() + 1, kind: normalized.kind, params: { ...normalized.params } };
+      return { tick: currentTick(), accepted: [], rejected: [{ ...action, reason }], status: status() };
+    };
+    if (actorId === undefined) return refuse("unknown_actor");
+    if (!partyIds.includes(actorId)) return refuse("not_playable");
+    // That actor's game is over once it has left the level or been defeated: no more ticks for it.
+    const before = statusOf(actorId);
+    if (before.exited || before.defeated) return refuse(before.exited ? "exited" : "defeated");
+    await runtime.step({ actorCommands: { [actorId]: normalized } });
+    commandLog.push({ tick: currentTick(), actorId, command: structuredClone(normalized) });
+    rememberParty();
     const applyFrame = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "apply").at(-1) || {};
     const accepted = (applyFrame.acceptedActions || [])
-      .filter((action) => action?.actorId === playerId && isGameplayAction(action))
+      .filter((action) => action?.actorId === actorId && isGameplayAction(action))
       .map(toPlayAction);
     const rejected = (applyFrame.preCoreRejections || [])
-      .filter((entry) => entry?.action?.actorId === playerId && isGameplayAction(entry.action))
+      .filter((entry) => entry?.action?.actorId === actorId && isGameplayAction(entry.action))
       .map(toPlayRejection);
     return { tick: currentTick(), accepted, rejected, status: status() };
   }
 
-  function view() {
-    const fogOn = fog && !runtime.hasActorExited(playerId);
-    return buildPlayView({
-      snapshot: readSnapshot(),
-      presentation,
-      legend,
-      playerId,
-      tick: currentTick(),
-      status: status(),
-      visible: fogOn ? readVisible() : null,
-      explored: fogOn ? explored : null,
+  // The party as the UI lists it: who is seated, and where each member stands.
+  function partyView(snapshot) {
+    return partyIds.map((id) => {
+      const actor = snapshot.actors.find((entry) => entry.id === id);
+      const memberStatus = statusOf(id);
+      return {
+        id,
+        label: labels.get(id) ?? null,
+        active: id === activeId,
+        ...(actor && !memberStatus.exited ? { position: { ...actor.position } } : {}),
+        status: memberStatus,
+      };
     });
+  }
+
+  function view() {
+    const fogOn = fog && !runtime.hasActorExited(activeId);
+    const snapshot = readSnapshot();
+    return {
+      ...buildPlayView({
+        snapshot,
+        presentation,
+        legend,
+        playerId: activeId,
+        tick: currentTick(),
+        status: status(),
+        visible: fogOn ? readVisible() : null,
+        explored: fogOn ? explored.get(activeId) ?? null : null,
+        labels,
+      }),
+      party: partyView(snapshot),
+    };
   }
 
   /** The played commands as a CapturedInputArtifact; `meta` comes from the caller (no clock here). */
@@ -215,11 +286,21 @@ export async function createPlaySession({
       meta: { producedBy: "play-session", ...meta },
       source: { adapter: PLAYER_CAPTURE_ADAPTER },
       contentType: "application/json",
-      payload: { playerActorId: playerId, commands: structuredClone(commandLog) },
+      payload: { playerActorId: playerId, activeActorId: activeId, commands: structuredClone(commandLog) },
     };
   }
 
-  return { act, view, status, captureInput, playerActorId: playerId, viabilityReport };
+  return {
+    act,
+    view,
+    status,
+    switchTo,
+    resolveActorRef,
+    activeActorId: () => activeId,
+    captureInput,
+    playerActorId: playerId,
+    viabilityReport,
+  };
 }
 
 
@@ -272,10 +353,11 @@ function applyFog(frame, visible, explored) {
 }
 
 // One actor as the UI sees it: plain data, vitals as records, the active pair named.
-function toViewActor(actor, presentation) {
+function toViewActor(actor, presentation, labels) {
   const category = presentation[actor.id]?.category ?? null;
   return {
     id: actor.id,
+    ...(labels?.has(actor.id) ? { label: labels.get(actor.id) } : {}),
     role: category,
     position: { ...actor.position },
     vitals: structuredClone(actor.vitals),
@@ -318,8 +400,9 @@ function lootNextTo(snapshot, player) {
  * @param {string} args.playerId      the actor drawn as the player
  * @param {number} args.tick
  * @param {object} args.status        { tick, exited, atExit, defeated }
+ * @param {Map}    [args.labels]      actor id -> short label; worked out from the snapshot when absent
  */
-export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null }) {
+export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation) }) {
   const frame = renderBoard(snapshot, { presentation, legend, playerId });
   const fogged = applyFog(frame, visible, explored);
   const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
@@ -334,10 +417,11 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     status,
     // With fog, only traps in sight right now.
     hazards: others.filter((actor) => presentation[actor.id]?.category === HAZARD_CATEGORY)
-      .map((actor) => toViewActor(actor, presentation)),
+      .map((actor) => toViewActor(actor, presentation, labels)),
     player: player
       ? {
-        ...buildActorHudModel({ ...toViewActor(player, presentation), role: presentation[player.id]?.category ?? null }),
+        ...buildActorHudModel({ ...toViewActor(player, presentation, labels), role: presentation[player.id]?.category ?? null }),
+        ...(labels.has(player.id) ? { label: labels.get(player.id) } : {}),
         affinities: player.affinities.map((pair) => ({ ...pair })),
         activeAffinityKey: player.activeAffinityKey,
         ...(player.affinityExhausted ? { affinityExhausted: true } : {}),
@@ -361,7 +445,7 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     // Every OTHER living actor in sight (id, role, position, vitals, affinities), for the
     // UI to draw over the board. Traps are reported in `hazards` instead.
     actors: others.filter((actor) => presentation[actor.id]?.category !== HAZARD_CATEGORY)
-      .map((actor) => toViewActor(actor, presentation)),
+      .map((actor) => toViewActor(actor, presentation, labels)),
   };
 }
 
@@ -400,6 +484,39 @@ export function defaultPlayerActorId(initialState) {
     ?? sourceActors.slice().sort(byId)[0])?.id;
 }
 
+/** Every actor authored `user_controlled`, by id: the actors a player may seat. */
+export function playableActorIds(initialState) {
+  return (Array.isArray(initialState?.actors) ? initialState.actors : [])
+    .filter((actor) => typeof actor?.id === "string" && actor.id && actor.motivations?.includes?.(PLAYER_MOTIVATION))
+    .map((actor) => actor.id)
+    .sort(compareIds);
+}
+
+// Natural order, so "w-2" comes before "w-10".
+function compareIds(a, b) {
+  return a.localeCompare(b, "en", { numeric: true });
+}
+
+const LABEL_LETTERS = Object.freeze({ delver: "D", warden: "W", hazard: "H", barrier: "B", resource: "R" });
+
+/**
+ * Short, stable names for a level's actors: the role's letter and the actor's place
+ * among that role in id order (`D1`, `W2`, `H3`; `A` for an actor with no role).
+ * They depend only on the level, so they never change during a game.
+ */
+export function playActorLabels(actors, presentation = {}) {
+  const counts = new Map();
+  const labels = new Map();
+  const ids = (Array.isArray(actors) ? actors : []).map((actor) => actor?.id).filter((id) => typeof id === "string" && id);
+  for (const id of [...new Set(ids)].sort(compareIds)) {
+    const letter = LABEL_LETTERS[presentation[id]?.category] ?? "A";
+    const n = (counts.get(letter) ?? 0) + 1;
+    counts.set(letter, n);
+    labels.set(id, `${letter}${n}`);
+  }
+  return labels;
+}
+
 export const PLAYER_CAPTURE_ADAPTER = "player";
 
 /**
@@ -412,14 +529,15 @@ export async function replayPlaySession({ simConfig, initialState, capturedInput
   if (capturedInput?.schema !== CAPTURED_INPUT_SCHEMA || capturedInput?.source?.adapter !== PLAYER_CAPTURE_ADAPTER) {
     throw new Error("replayPlaySession: capturedInput is not a player capture");
   }
-  const { playerActorId, commands } = capturedInput.payload ?? {};
+  const { playerActorId, activeActorId, commands } = capturedInput.payload ?? {};
   if (!Array.isArray(commands)) throw new Error("replayPlaySession: capture has no commands");
   const session = await createPlaySession({ simConfig, initialState, playerActorId, ...options });
   for (const entry of commands) {
-    const result = await session.act(entry.command);
+    const result = await session.act(entry.command, { actorId: entry.actorId ?? playerActorId });
     if (result.tick !== entry.tick) {
       throw new Error(`replayPlaySession: command for tick ${entry.tick} ran at tick ${result.tick}; the level does not match this capture`);
     }
   }
+  if (activeActorId !== undefined) session.switchTo(activeActorId);
   return session;
 }
