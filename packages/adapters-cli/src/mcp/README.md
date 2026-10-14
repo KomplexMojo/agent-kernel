@@ -129,6 +129,8 @@ function request(method, params) {
 EOF
 ```
 
+`delver` and `warden` specs also take `slots` and `equip`, as `ak create` does: `"count=1;affinity=earth;affinities=earth:push:3,life:emit:1;slots=4;equip=earth:push:2,life:emit"`, or as an object `{ "affinity": "earth", "slots": 4, "equip": [{ "kind": "earth", "expression": "push", "stacks": 2 }, "life:emit"] }`. Slots above the preset (delver 3, warden 2) cost a slot unlock each.
+
 Expected output shape:
 
 ```json

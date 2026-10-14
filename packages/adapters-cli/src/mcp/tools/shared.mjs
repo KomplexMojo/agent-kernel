@@ -59,6 +59,11 @@ export function specObjectToString(spec) {
     } else if (k === "affinities" && Array.isArray(v)) {
       const aparts = v.map((a) => `${a.kind}:${a.expression}:${a.stacks ?? 1}`);
       if (aparts.length) parts.push(`affinities=${aparts.join(",")}`);
+    } else if (k === "equip" && Array.isArray(v)) {
+      const eparts = v.map((e) =>
+        typeof e === "string" ? e : [e.kind, e.expression, ...(e.stacks === undefined ? [] : [e.stacks])].join(":")
+      );
+      if (eparts.length) parts.push(`equip=${eparts.join(",")}`);
     } else if (k === "goals" && Array.isArray(v)) {
       const gparts = v.map((g) =>
         typeof g === "string" ? g : g.priority ? `${g.kind}:${g.priority}` : g.kind

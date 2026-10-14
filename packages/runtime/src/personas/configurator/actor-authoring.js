@@ -14,7 +14,14 @@
  * module assembles PRICED CARDS for the Allocator to judge. This assembles a build/run
  * request's ACTOR ROSTER ENTRY directly — no pricing involved.
  */
-import { AFFINITY_KINDS, MOTIVATION_KINDS, DELVER_SETUP_MODES } from "../../contracts/domain-constants.js";
+import {
+  AFFINITY_KINDS,
+  MOTIVATION_KINDS,
+  DELVER_SETUP_MODES,
+  DEFAULT_AFFINITY_EXPRESSION,
+  PRESET_AFFINITY_SLOTS,
+} from "../../contracts/domain-constants.js";
+import { MAX_AFFINITY_SLOTS } from "../../../../core-ts/src/state/actor-inventory.ts";
 
 const DEFAULT_DELVER_MOTIVATION = "attacking";
 
@@ -78,4 +85,62 @@ export function authorDelverCandidate({
     delver.setupMode = setupMode;
   }
   return delver;
+}
+
+/**
+ * Authors an actor card's affinity slots and starting equips (`ak create` delver/warden
+ * `slots=` and `equip=`), as the unified actor fields core reads. Returns only the fields
+ * the author set, so a card without them is unchanged.
+ *
+ * `equip` arrives tokenized by the caller: `[{ kind, expression, stacks? }]`, in equip
+ * order. `stacks` runs the slot below what the actor holds (#230); omitted, it runs at
+ * all it holds. What is held is the card's `affinities`, else its primary `affinity` at
+ * the default expression and one stack, exactly as the actor is assembled. Any mix is
+ * allowed (opposite emits included); only what core could not load is refused.
+ *
+ * @returns {{ affinitySlots?: number, activeAffinityKey?: string,
+ *   equippedAffinityKeys?: string[], equippedAffinityStacks?: Record<string, number> }}
+ */
+export function authorActorEquipment({ role, index, slots, equip, affinity, affinities } = {}) {
+  const label = `${role}[${index}]`;
+  if (!Object.hasOwn(PRESET_AFFINITY_SLOTS, role)) throw new Error(`${label} has no affinity slot preset.`);
+  const fields = {};
+  if (slots !== undefined) {
+    if (!Number.isSafeInteger(slots) || slots < 1 || slots > MAX_AFFINITY_SLOTS) {
+      throw new Error(`${label} slots must be an integer from 1 to ${MAX_AFFINITY_SLOTS}, got ${slots}.`);
+    }
+    fields.affinitySlots = slots;
+  }
+  if (!Array.isArray(equip) || equip.length === 0) return fields;
+
+  const held = Array.isArray(affinities) && affinities.length > 0
+    ? affinities
+    : [{ kind: affinity, expression: DEFAULT_AFFINITY_EXPRESSION, stacks: 1 }];
+  const capacity = fields.affinitySlots ?? PRESET_AFFINITY_SLOTS[role];
+  if (equip.length > capacity) {
+    throw new Error(`${label} equips ${equip.length} affinities but has ${capacity} slot${capacity === 1 ? "" : "s"}; add slots=${equip.length} or equip fewer.`);
+  }
+  const keys = [];
+  const running = {};
+  equip.forEach((entry) => {
+    const key = `${entry.kind}:${entry.expression}`;
+    const holding = held.find((pair) => pair.kind === entry.kind && pair.expression === entry.expression);
+    if (!holding) {
+      const known = held.map((pair) => `${pair.kind}:${pair.expression}`).join(", ");
+      throw new Error(`${label} cannot equip ${key}: it holds only ${known}.`);
+    }
+    if (keys.includes(key)) throw new Error(`${label} equips ${key} twice.`);
+    keys.push(key);
+    if (entry.stacks === undefined || entry.stacks === holding.stacks) return;
+    if (!Number.isSafeInteger(entry.stacks) || entry.stacks < 1 || entry.stacks > holding.stacks) {
+      throw new Error(`${label} runs ${key} at ${entry.stacks} stacks but holds only ${holding.stacks}.`);
+    }
+    running[key] = entry.stacks;
+  });
+  // Core's record shape: the first equipped key is the active one, the full list is kept
+  // only past one slot, and running stacks only for slots run below what they hold.
+  fields.activeAffinityKey = keys[0];
+  if (keys.length > 1) fields.equippedAffinityKeys = keys;
+  if (Object.keys(running).length > 0) fields.equippedAffinityStacks = running;
+  return fields;
 }

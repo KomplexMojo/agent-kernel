@@ -408,6 +408,16 @@ Inputs/outputs:
   ```
 - `--delver` accepts `goals=max_mana[:<priority>],mana_regen[:<priority>]` to record qualitative
   vitals goals as optimization directions over the existing deterministic vitals and regen cost model.
+- `--delver` and `--warden` accept `slots=<n>` and `equip=<kind>:<expression>[:<stacks>],...`. `slots` sets how many
+  affinities the actor can equip at once (1-6; the preset is delver 3, warden 2), and each slot above the preset is
+  charged at the slot-unlock price (`resource_affinity_slot`). `equip` lists its starting equips in equip order; each
+  must be an affinity the actor holds (`affinities=`, else its `affinity` at the default expression), and `:<stacks>`
+  runs it at fewer stacks than it holds. Any mix may be equipped, opposite emits included. The Configurator validates
+  both and writes the actor's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and `equippedAffinityStacks`:
+  ```bash
+  node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=1" \
+    --delver "count=1;affinity=earth;affinities=earth:push:3,life:emit:1,corrode:draw:1;slots=4;equip=earth:push:2,life:emit"
+  ```
 - Hard constraints are recorded separately from optimization goals in the embedded authoring request under `spec.json`.
   The current contract treats total budget as a hard constraint and maximize-spend / mana goals as
   optimization directions for later fulfillment waves. A hard budget alone does not imply
@@ -512,7 +522,7 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` is singular for direct CLI authoring; repeating it in the same `--delver` spec is rejected.
@@ -536,7 +546,7 @@ Inputs/outputs:
 - Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` is singular for direct CLI authoring; repeating it in the same `--warden` spec is rejected.
