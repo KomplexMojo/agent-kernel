@@ -97,7 +97,7 @@ test("a chunk of input splits into keys with escape sequences kept whole", () =>
 });
 
 test("bundled levels list in play order and every one loads and is winnable", async () => {
-  assert.deepEqual(listBundledLevels(), ["first-steps", "long-way-round", "warden-hall", "water-traps"]);
+  assert.deepEqual(listBundledLevels(), ["first-steps", "long-way-round", "trap-rooms", "warden-hall"]);
   for (const name of listBundledLevels()) {
     const level = loadBundledLevel(name);
     // With other actors taking turns the replay is no longer a fixed script,
@@ -236,7 +236,7 @@ test("cli arguments parse, and bad ones are errors", () => {
   assert.throws(() => parseArgs(["--level"]), /needs a value/);
   assert.throws(() => parseArgs(["--bogus"]), /Unknown option/);
   assert.equal(resolveLevels({ level: "long-way-round" }).startIndex, 1);
-  assert.equal(resolveLevels({ level: "warden-hall" }).startIndex, 2);
+  assert.equal(resolveLevels({ level: "warden-hall" }).startIndex, 3);
   assert.equal(parseArgs(["--keys", "", "--json"]).json, true);
   assert.throws(() => resolveLevels({ simConfigPath: "x.json" }), /required together/);
 });
@@ -294,6 +294,26 @@ test("the cli plays a scripted game end to end, as text or JSON", () => {
   const noTty = spawnSync(process.execPath, [CLI], { encoding: "utf8", input: "" });
   assert.equal(noTty.status, 1);
   assert.match(noTty.stderr, /interactive terminal/);
+});
+
+test("the cli plays a level below the viability floor as written and warns about it", () => {
+  const dir = mkdtempSync(join(tmpdir(), "ak-maze-floor-"));
+  try {
+    const vitals = viableVitals({ mana: 4 });
+    const level = buildUnifiedLevel({ id: "weak_floor", tiles: ["#####", "#S.E#", "#####"],
+      actors: [{ category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals }] });
+    const { writeFileSync } = require("node:fs");
+    writeFileSync(join(dir, "sim-config.json"), JSON.stringify(level.simConfig));
+    writeFileSync(join(dir, "initial-state.json"), JSON.stringify(level.initialState));
+    const files = ["--sim-config", join(dir, "sim-config.json"), "--initial-state", join(dir, "initial-state.json")];
+    const json = spawnSync(process.execPath, [CLI, ...files, "--json", "--keys", ""], { encoding: "utf8" });
+    assert.equal(json.status, 0, json.stderr);
+    const message = "delver_1 mana max is 4, below the viability floor of 10.";
+    assert.deepEqual(JSON.parse(json.stdout).warnings, [message]);
+    assert.match(json.stderr, new RegExp(`warning: ${message.replace(/\./g, "\\.")}`));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("other actors are drawn over the board rows with the snapshot's letters, never over the player", () => {
@@ -385,20 +405,25 @@ test("generated actors read as wardens from their id when role is unset", () => 
   assert.deepEqual(overlayActors(rows, actors, { x: 1, y: 1 }), ["#####", `#@.${ASCII_ENTITY_GLYPHS.warden}#`, "#####"]);
 });
 
-test("water-traps draws its traps as H in the water fill, and a trap costs health", async () => {
+test("trap-rooms draws each trap as H in its own affinity's fill, and a trap costs health", async () => {
   const { GAME_AFFINITY_COLOR_HEX } = require("../../packages/runtime/src/contracts/game-elements.js");
-  const level = loadBundledLevel("water-traps");
+  const level = loadBundledLevel("trap-rooms");
   const session = await createPlaySession(level);
   const view = session.view();
   assert.ok(view.hazards.length > 0, "the level's hazards reach the view");
-  const plain = renderScreen({ view, levelName: "water-traps" });
+  const plain = renderScreen({ view, levelName: "trap-rooms" });
   const boardRows = plain.split("\n").slice(2, 2 + view.rows.length).map((row) => row.slice(2));
   for (const { position } of view.hazards) {
     assert.equal(boardRows[position.y][position.x], ASCII_ENTITY_GLYPHS.hazard, `trap at ${position.x},${position.y}`);
   }
   assert.match(plain, /Mind the traps \(H\)/);
-  const colored = renderScreen({ view, levelName: "water-traps", color: true });
-  assert.ok(colored.includes(`${ansi(GAME_AFFINITY_COLOR_HEX.water, 48)}`), "trap cells take the water fill");
+  const colored = renderScreen({ view, levelName: "trap-rooms", color: true });
+  // The traps are of different kinds on purpose: no one affinity is the trap affinity.
+  const kinds = new Set(view.hazards.map((hazard) => hazard.affinities[0].kind));
+  assert.ok(kinds.size > 1, "the bundled traps are not all one kind");
+  for (const kind of kinds) {
+    assert.ok(colored.includes(`${ansi(GAME_AFFINITY_COLOR_HEX[kind], 48)}`), `a ${kind} trap takes the ${kind} fill`);
+  }
   assert.equal(colored.replace(/\u001b\[[0-9;]*m/g, ""), plain);
 
   // Walk onto the first trap along a breadth-first path and let core apply it.
@@ -413,14 +438,14 @@ test("water-traps draws its traps as H in the water fill, and a trap costs healt
 
 test("the game plays under fog of war by default; --no-fog shows the whole map", async () => {
   const { PLAY_SIGHT } = require("../../packages/runtime/src/runner/play-session.js");
-  const fogged = await createGame({ levels: [loadBundledLevel("water-traps")] });
+  const fogged = await createGame({ levels: [loadBundledLevel("trap-rooms")] });
   const screen = fogged.screen();
   const board = screen.split("\n").filter((line) => /^ {2}[#?.@SEH]/.test(line));
   assert.ok(board.some((line) => line.includes("?")), "unseen cells are ?");
   assert.ok(board.every((line) => !line.includes("H")), "traps out of sight are hidden");
   assert.ok(board.some((line) => line.includes("@")));
 
-  const clear = await createGame({ levels: [loadBundledLevel("water-traps")], fog: false });
+  const clear = await createGame({ levels: [loadBundledLevel("trap-rooms")], fog: false });
   assert.doesNotMatch(clear.screen(), /\?{3}/);
   assert.match(clear.screen(), /H/);
 

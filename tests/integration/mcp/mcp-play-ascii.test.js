@@ -118,9 +118,9 @@ test("ak_play_ascii shows a bundled level, and refuses a directory with no level
   const server = startServer();
   try {
     await server.initialize();
-    const bundled = await server.callTool("ak_play_ascii", { level: "water-traps" });
+    const bundled = await server.callTool("ak_play_ascii", { level: "trap-rooms" });
     assert.equal(bundled.ok, true, JSON.stringify(bundled));
-    assert.equal(bundled.level, "water-traps");
+    assert.equal(bundled.level, "trap-rooms");
     await assert.rejects(
       server.callTool("ak_play_ascii", { dir: resolve(ROOT, "no-such-run-dir") }),
       /No sim-config\.json/,

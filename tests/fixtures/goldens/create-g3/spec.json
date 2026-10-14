@@ -1747,12 +1747,7 @@
             },
             "exclusiveGroup": "combat",
             "displayGroup": "combat",
-            "patterns": [
-              "melee",
-              "ranged",
-              "mixed"
-            ],
-            "defaultPattern": "melee",
+            "patterns": [],
             "defaultFlags": {
               "canMove": true,
               "prefersStealth": false,

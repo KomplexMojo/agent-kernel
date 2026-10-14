@@ -288,7 +288,7 @@ program; adapters-cli never imports it.
 ```bash
 node packages/adapters-cli/src/cli/ak.mjs play --dir <create-out-dir>         # interactive
 node packages/adapters-cli/src/cli/ak.mjs play --from-run <runId> --keys "dd."  # scripted: print the final screen
-node packages/adapters-cli/src/cli/ak.mjs play --level water-traps --json       # { ok, level, turns, status, screen, launch }
+node packages/adapters-cli/src/cli/ak.mjs play --level trap-rooms --json        # { ok, level, turns, status, screen, launch, warnings? }
 ```
 
 Inputs/outputs:
@@ -298,6 +298,8 @@ Inputs/outputs:
 - `--keys` applies keys without a terminal and prints the final screen; `--json` prints the structured
   result instead, `launch` being the command to play that level interactively. `--color`/`--no-color`
   pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map. MCP: `ak_play_ascii`.
+- A level is played as written. Delvers or wardens below the viability floor are reported as `warning:` lines on
+  stderr, and as `warnings` with `--json`.
 - `--record <path>` saves the played commands as a `CapturedInputArtifact`; `--replay <path>` re-runs a saved
   game on its level, then play continues (both pass through to the UI; see `packages/ui-ascii/README.md`).
 - `--keys` takes the game's own keys (see `packages/ui-ascii/README.md`), including the affinity keys:

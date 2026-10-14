@@ -17,7 +17,9 @@ test("normalizeMotivations accepts allowed kinds and applies defaults", async ()
   assert.equal(result.value[0].kind, "random");
   assert.equal(result.value[0].intensity, MOTIVATION_DEFAULTS.intensity);
   assert.equal(result.value[1].kind, "attacking");
-  assert.equal(result.value[1].pattern, "melee");
+  // Attacking has no patterns since there is no conventional attack (melee/ranged were
+  // never read by core); a pattern given anyway is ignored, so older inputs still load.
+  assert.equal(result.value[1].pattern, undefined);
   assert.equal(result.value[1].intensity, 2);
   assert.equal(result.value[1].flags.canMove, false);
   assert.equal(result.value[1].flags.prefersStealth, true);
@@ -31,15 +33,15 @@ test("normalizeMotivations surfaces invalid kinds/patterns and clamps intensity"
 
   const result = normalizeMotivations([
     { kind: "invalid_kind" },
-    { kind: "attacking", pattern: "invalid", intensity: 99 },
+    { kind: "patrolling", pattern: "invalid", intensity: 99 },
   ]);
 
   assert.equal(result.ok, false);
   assert.ok(result.errors.find((err) => err.code === "invalid_kind"));
   assert.ok(result.errors.find((err) => err.code === "unknown_pattern"));
   assert.equal(result.value.length, 1);
-  assert.equal(result.value[0].kind, "attacking");
-  assert.equal(result.value[0].pattern, MOTIVATION_PATTERNS.attacking[0]);
+  assert.equal(result.value[0].kind, "patrolling");
+  assert.equal(result.value[0].pattern, MOTIVATION_PATTERNS.patrolling[0]);
   assert.equal(result.value[0].intensity, 10); // clamped to max
 });
 

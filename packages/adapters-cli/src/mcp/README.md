@@ -1703,16 +1703,16 @@ Expected output shape:
 
 #### `ak_play_ascii`
 
-Shows a level in the terminal UI (`packages/ui-ascii`) through `ak play --json`. This is how a harness answers "create an ascii UI filled with water affinity traps": `ak_create` with water `hazard` specs, then `ak_play_ascii` with that call's `runId` (resolved from this session's remembered runs, else `artifacts/runs/<runId>`). Pass `dir` for any directory holding `sim-config.json` + `initial-state.json`, or `level` for a bundled one.
+Shows a level in the terminal UI (`packages/ui-ascii`) through `ak play --json`. This is how a harness answers "create an ascii UI filled with <affinity> traps" (any affinity): `ak_create` with `hazard` specs of that affinity, then `ak_play_ascii` with that call's `runId` (resolved from this session's remembered runs, else `artifacts/runs/<runId>`). Pass `dir` for any directory holding `sim-config.json` + `initial-state.json`, or `level` for a bundled one.
 
 ```json
-{ "ok": true, "command": "play", "level": "water-traps-mcp", "turns": 0,
+{ "ok": true, "command": "play", "level": "trap-rooms-mcp", "turns": 0,
   "status": { "tick": 0, "exited": false, "atExit": false, "defeated": false },
   "screen": "agent-kernel maze — ...\n  ####H.@..#\n...",
   "launch": "node packages/adapters-cli/src/cli/ak.mjs play --sim-config ... --initial-state ..." }
 ```
 
-Show `screen` verbatim; `launch` opens the interactive, coloured game in a terminal. `keys` plays moves before the screen is taken, replayed from the start on every call. `color: true` keeps the ANSI escapes in `screen`. Fog of war is on, so a fresh board is mostly `?`; the player sees only what `@` sees. `fog: false` is a debug view of the whole level (every actor and trap), not a way to play.
+Show `screen` verbatim; `launch` opens the interactive, coloured game in a terminal. `keys` plays moves before the screen is taken, replayed from the start on every call. `color: true` keeps the ANSI escapes in `screen`. Fog of war is on, so a fresh board is mostly `?`; the player sees only what `@` sees. `fog: false` is a debug view of the whole level (every actor and trap), not a way to play. A level whose delvers or wardens sit below the viability floor still plays as written; the result then carries `warnings`, one line per vital below the floor.
 
 `record` saves the played commands to a path as a `CapturedInputArtifact`, and `replay` re-runs a saved game (on the bundled level it names, unless a level source is given) before `keys`, the same as `ak play --record/--replay`.
 

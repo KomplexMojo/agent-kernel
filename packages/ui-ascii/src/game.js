@@ -17,7 +17,7 @@ const REJECTION_MESSAGES = Object.freeze({
   InsufficientMana: "Not enough mana.",
   NoActiveAffinity: "Nothing is equipped. Press i to equip an affinity.",
   AffinityNotCastable: "Emit and draw work on their own while equipped. Only push and pull are cast.",
-  TargetOutOfRange: "Out of range. Push and pull reach one tile per stack.",
+  TargetOutOfRange: "Out of range. The target panel shows how far each cast reaches.",
   InvalidTarget: "That cannot be targeted.",
   UnknownAffinity: "You do not know that affinity.",
   AffinityAlreadyEquipped: "That affinity is already equipped.",
@@ -25,11 +25,11 @@ const REJECTION_MESSAGES = Object.freeze({
   NotAdjacent: "Too far away to take that.",
   InvalidCapability: "You cannot do that.",
   AffinityNotEquipped: "That affinity is not equipped.",
-  AffinitySlotsFull: "You already have every affinity slot (6).",
   InvalidAffinityStacks: "You cannot run it at that many stacks.",
 });
 
-function rejectionMessage(reason) {
+function rejectionMessage(reason, player) {
+  if (reason === "AffinitySlotsFull") return `You already have every affinity slot (${player?.maxAffinitySlots}).`;
   return REJECTION_MESSAGES[reason] || `Rejected (${reason}).`;
 }
 
@@ -47,13 +47,11 @@ function keyLabel(affinityKey) {
   return String(affinityKey || "").replace(":", " ");
 }
 
-const isCastable = (key) => /:(push|pull)$/.test(String(key));
+/** The equipped slots core would cast, with their reach, as the play session reports them. */
+const castable = (player) => player?.castableAffinities || {};
 
 /** Equipped keys in equip order, as the play session reports them. */
-function equippedKeys(player) {
-  if (Array.isArray(player?.equippedAffinityKeys)) return player.equippedAffinityKeys;
-  return player?.activeAffinityKey ? [player.activeAffinityKey] : [];
-}
+const equippedKeys = (player) => player?.equippedAffinityKeys || [];
 
 function lootLabel(item) {
   if (item.kind === "affinity") return `${item.affinity} ${item.expression}`;
@@ -113,7 +111,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     const rejected = result.rejected[0];
     // At the exit, or once defeated, the status line already says what to do next.
     if (result.status.defeated) message = "";
-    else if (rejected && !result.status.atExit) message = rejectionMessage(rejected.reason);
+    else if (rejected && !result.status.atExit) message = rejectionMessage(rejected.reason, session.view().player);
     else if (result.accepted.length > 0) message = describe();
   }
 
@@ -136,6 +134,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       return;
     }
     const stacks = runningStacks(player, pair) + step;
+    // Core refuses these too (InvalidAffinityStacks), but a refused command still
+    // costs the turn; the bounds come from the view: 1 up to the stacks held.
     if (stacks < 1) {
       message = "It already runs at its lowest, 1 stack.";
       return;
@@ -160,12 +160,13 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
 
   // A slot's digit outside a panel: aim that slot. Emit and draw need no cast.
   function aimSlot(index) {
-    const key = equippedKeys(session.view().player)[index];
+    const player = session.view().player;
+    const key = equippedKeys(player)[index];
     if (!key) {
       message = `Slot ${index + 1} is empty.`;
       return;
     }
-    if (!isCastable(key)) {
+    if (!castable(player)[key]) {
       message = `${keyLabel(key)} works on its own while equipped.`;
       return;
     }
@@ -176,7 +177,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     const target = panel.items[panel.index];
     const named = panel.affinityKey;
     panel = null;
-    const used = named ?? equippedKeys(session.view().player).find(isCastable);
+    const player = session.view().player;
+    const used = named ?? equippedKeys(player).find((key) => castable(player)[key]);
     await act({ kind: "cast_affinity", params: { targetId: target.id, ...(named ? { affinityKey: named } : {}) } },
       () => `You cast ${keyLabel(used)} at ${target.id}.`);
   }
@@ -320,7 +322,11 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         ...panel.items.map((item, i) => `  ${i + 1}) ${item.kind === "vital" ? item.holdingId : lootLabel(item)} from ${item.targetId}`)];
     }
     const target = panel.items[panel.index];
-    return [`Target: ${target.id}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${target.distance} ${target.distance === 1 ? "tile" : "tiles"} away)   Tab next, Enter cast, Esc cancel`];
+    const player = session.view().player;
+    const key = panel.affinityKey ?? equippedKeys(player).find((k) => castable(player)[k]);
+    const reach = key ? castable(player)[key]?.range : undefined;
+    const tiles = (n) => `${n} ${n === 1 ? "tile" : "tiles"}`;
+    return [`Target: ${target.id}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${tiles(target.distance)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})   Tab next, Enter cast, Esc cancel`];
   }
 
   function screen({ color = false } = {}) {
@@ -346,7 +352,14 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       finished,
       message,
       panel: panel?.type ?? null,
+      warnings: viabilityWarnings(),
     };
+  }
+
+  /** The Configurator's report on this level's actors below the viability floor, worded. */
+  function viabilityWarnings() {
+    return (session.viabilityReport || []).map(({ actorId, vital, field, value, floor }) =>
+      `${actorId} ${vital} ${field} is ${value}, below the viability floor of ${floor}.`);
   }
 
   /** This level's played commands as a player capture (#204), naming the level it was played on. */

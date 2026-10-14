@@ -49,32 +49,14 @@ test("the Configurator has no push/pull range formula of its own", async () => {
   assert.equal(costModel.computeExternalRange, undefined);
 });
 
-test("internal radius: 1 + s (design §10.2)", async () => {
-  const { computeInternalRadius } = await import("../../../packages/runtime/src/personas/configurator/cost-model.js");
-
-assert.equal(computeInternalRadius(1), 2);
-assert.equal(computeInternalRadius(3), 4);
-});
-
-test("draw net formula: 3·min(s, async e) - (2+s) (design §11.3)", async () => {
-  const { computeDrawNet } = await import("../../../packages/runtime/src/personas/configurator/cost-model.js");
-
-// fire +1 + draw, e=1: 3×min(1,1) - (2+1) = 3 - 3 = 0
-assert.equal(computeDrawNet(1, 1), 0);
-
-// fire +3 + draw, e=2: 3×min(3,2) - (2+3) = 6 - 5 = 1
-assert.equal(computeDrawNet(3, 2), 1);
-
-// fire +3 + draw, e=4: 3×min(3,4) - (2+3) = 9 - 5 = 4
-assert.equal(computeDrawNet(3, 4), 4);
-});
-
-test("emit strength: s (design §12.2)", async () => {
-  const { computeEmitStrength } = await import("../../../packages/runtime/src/personas/configurator/cost-model.js");
-
-assert.equal(computeEmitStrength(1), 1);
-assert.equal(computeEmitStrength(3), 3);
-assert.equal(computeEmitStrength(5), 5);
+// Emit radius, draw yield and emit strength are core's (rules/actor-fields.ts). The 1 + s
+// radius, draw-net and emit-strength formulas that lived here had no production caller and
+// disagreed with core, so they were removed (drift review, 2026-10-13).
+test("the Configurator has no emit radius, draw or emit strength formula of its own", async () => {
+  const costModel = await import("../../../packages/runtime/src/personas/configurator/cost-model.js");
+  assert.equal(costModel.computeInternalRadius, undefined);
+  assert.equal(costModel.computeDrawNet, undefined);
+  assert.equal(costModel.computeEmitStrength, undefined);
 });
 
 test("affinity package validation: requires kind + stacks + expression (design §5.1)", async () => {

@@ -35,11 +35,10 @@ The maintainer reads chat for **two things only**: *is this going the right way*
 
 ## Session-Start Protocol (mandatory before the first code change)
 
-**Unified-actor cloud handoff:** for this rewrite, read
-`docs/implementation/unified-actor/Handoff.md` first. Its tracked Prompt/Plan/Implement/
-Documentation files are the portable execution source of truth in place of the
-Mac-only vault/local-codex records below. No Obsidian vault is required in cloud.
-This branch is a partial implementation; continue at the recorded next milestone.
+**Cloud sessions:** no Obsidian vault is required or available; skip the vault steps
+below and work from the open GitHub issues. The unified-actor rewrite is merged and the
+old core engine is retired, so `docs/implementation/unified-actor/` is a historical record,
+not a handoff to continue.
 
 Not optional — a stale vault or an unpatched tool produces wrong structural answers that compound. Steps 5–8 cost seconds.
 

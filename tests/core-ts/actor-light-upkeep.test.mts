@@ -35,7 +35,7 @@ function corridor(width: number, actors: ActorRecord[]) {
 
 // 2 + stacks, indexed by stacks (what the runtime builds from the Configurator).
 const UPKEEP = Array.from({ length: 11 }, (_, stacks) => (stacks === 0 ? 0 : 2 + stacks));
-const costs = { castMana: {}, movementStamina: {}, persistentUpkeep: UPKEEP };
+const costs = { castManaBase: {}, movementStamina: {}, persistentUpkeep: UPKEEP };
 
 function closeTurn(registry: ReturnType<typeof corridor>, tick: number) {
   const turn = createActorTurn(registry, tick, costs);
@@ -107,7 +107,7 @@ test('a source that cannot pay goes dark and projects nothing until its mana is 
 
 test('without an upkeep table nothing is charged', () => {
   const registry = corridor(4, [lamp('lamp', 0, 3)]);
-  const turn = createActorTurn(registry, 0, { castMana: {}, movementStamina: {} });
+  const turn = createActorTurn(registry, 0, { castManaBase: {}, movementStamina: {} });
   turn.closeActions(); turn.resolveFields(); turn.regenerate();
   expect(registry.getActor('lamp')!.vitals.mana!.current).toBe(10);
 });

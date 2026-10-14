@@ -314,7 +314,7 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
   Neither may be added to, converted into, or labelled as `runtimeBudgetUnits`.
 
   The Allocator is the sole source of runtime prices. Its runtime-action pricing surface publishes
-  one unit name and this complete v1 schedule: accepted `wait` = 1, `attack` = 1,
+  one unit name and this complete v1 schedule: accepted `wait` = 1,
   `cast_affinity` = 1 flat unit, and `request_solver` = 2; accepted `move` = 0 by the existing
   stamina-cost ruling; every other accepted runtime action uses the published default of 1; every
   rejected action = 0. The affinity-cast unit is independent of both its gameplay mana payment and
@@ -337,8 +337,8 @@ this paragraph as evidence that a behavior is owned — require its G1 test.**
   replay byte-identical.
 
   Worked receipt: at tick 1, actor `delver` waits (1) and actor `warden` moves (0); at tick 2,
-  `delver` issues a solver request (2), its resulting attack is accepted (1), `warden` casts an
-  affinity (1), and a malformed unaffiliated attack is rejected (0, `actorId: null`). The actor
+  `delver` issues a solver request (2), its resulting cast is accepted (1), `warden` casts an
+  affinity (1), and a malformed unaffiliated cast is rejected (0, `actorId: null`). The actor
   subtotals are `delver: 4`, `warden: 1`, unattributed: `0`, and the run total is `5`.
 - **Mixed-room spend is real design-token spend (RB3.0, approved 2026-08-30).** The Configurator
   authors room dimensions and components without prices. The Allocator alone resolves those inputs
@@ -455,9 +455,8 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 
 ## Combat Boundary
 
-- `packages/core-ts/src/rules/combat.ts` owns the deterministic combat primitive: `createCombatRules(world).applyAttack(attackerIndex, defenderIndex, damage)`.
-- `core.applyAttack` is the only mutation entry point for HP changes caused by an attack. It enforces valid actor indices, rejects self-attacks, requires Chebyshev-1 adjacency, requires positive integer damage, and clamps defender HP to `0`.
-- Runtime never mutates HP directly for attacks. `packages/runtime/src/runner/runtime-fsm.mjs` adapts actor `attack` actions into a direct `{ kind: "apply_attack" }` directive, converts runtime actor IDs to core motivated-actor indices, and calls `core.applyAttack`.
+- There is no conventional attack. The only way one actor harms another is an affinity: a cast push or pull (`cast_affinity`), or the lasting field of an equipped emit or draw. The old `rules/combat.ts` / `applyAttack` primitive was retired with the old core world (#226, #228, #257).
+- Core is the authority on every vital change. `packages/core-ts/src/rules/actor-cast.ts` judges a cast (equipped slot, range = stacks, mana price `base × s(s+1)/2`, target) and `rules/actor-fields.ts` applies lasting fields; a refusal is a ValidationError name. Runtime never mutates vitals directly: `runtime-fsm.mjs` hands the Actor's `cast_affinity` proposal to core's actor turn.
 - `core-ts` remains IO-free and runtime-ignorant: no adapter imports, no clocks, no process state, and no dependency on persona or runtime action shapes.
 
 ## Motivation And Action Flow
@@ -470,7 +469,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   branch to add — the earlier form tested `kind === "stationary"` and everything else fell
   through to movement, behaviour living in the list of names someone remembered. But four kinds
   still have name branches: `random`, `patrolling`, and the `attacking`/`defending` pair that
-  gates casting and striking. Those are the sites a thirteenth motivation would have to be
+  gates casting. Those are the sites a thirteenth motivation would have to be
   wired into by hand, and the honest statement of the current design rather than the one the
   profile table implies.
 - **There are twelve kinds, and they produce five distinct behaviours** (audited 2026-09-06).
@@ -483,7 +482,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   | seed-derived move to a legal adjacent tile | `random` |
   | clockwise circuit of the actor's own room | `patrolling` |
   | shortest path to the level exit | `exploring`, `stealthy`, `friendly` |
-  | strike an adjacent hostile; else pursue (mobility 1) or hold (mobility 0) | `attacking`, `defending` |
+  | cast an equipped push or pull at a hostile in range; else pursue (mobility 1) or hold (mobility 0) | `attacking`, `defending` |
   | no movement proposal | `stationary`, `reflexive`, `goal_oriented`, `strategy_focused`, `user_controlled` |
 
 - **Mobility 0 means hold position, in BOTH directions an actor can walk away.** The rule is
@@ -491,8 +490,8 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   proposes one — because covering only one direction is how it was wrong before: `defending`
   (mobility 0, combat 2) skipped the holds-position guard, found no hostile, and fell through
   to exit pathfinding, proposing moves byte-identical to `attacking`. Holding position
-  suppresses MOVEMENT, not every proposal: `defending` holds ground and still strikes what
-  comes to it (§382).
+  suppresses MOVEMENT, not every proposal: `defending` holds ground and still casts at what
+  comes into range (§382).
 - ⚠️ **This section previously named four kinds** — `attacking`, `defending`, `stationary`,
   `random` — as "the current simple motivation kinds", which was true when written and had
   stopped being true twice over: `patrolling` gained behaviour of its own, and the description

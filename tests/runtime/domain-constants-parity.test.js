@@ -39,7 +39,9 @@ test("affinity and expression type unions stay aligned with shared runtime const
   assert.deepEqual(affinityKinds, Array.from(AFFINITY_KINDS));
   assert.deepEqual(affinityExpressions, Array.from(AFFINITY_EXPRESSIONS));
   assert.deepEqual(affinityTargetTypes, Array.from(AFFINITY_TARGET_TYPES));
-  assert.deepEqual(hazardAffinityKinds, Array.from(AFFINITY_KINDS));
+  // The Configurator's hazard kinds are core's AffinityKind, not a second copy of the list.
+  assert.deepEqual(hazardAffinityKinds, []);
+  assert.match(configuratorSource, /export\s+type\s+HazardAffinityKind\s*=\s*AffinityKind;/);
   assert.deepEqual(hazardAffinityExpressions, Array.from(AFFINITY_EXPRESSIONS));
   assert.deepEqual(hazardAffinityTargetTypes, Array.from(AFFINITY_TARGET_TYPES));
   AFFINITY_KINDS.forEach((kind) => {

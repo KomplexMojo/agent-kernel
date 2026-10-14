@@ -4,7 +4,7 @@ import type { ActorAction, ActorAffinityKey } from '../state/actor-types.ts';
 import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
 import { actorAffinityMagnitude } from './actor-affinity.ts';
-import { assertActorCastPrices, castFocusedActorAffinity, selectActorCastAffinity, type ActorCastManaBases, type ActorCastManaCosts, type ActorEffectSuppression } from './actor-cast.ts';
+import { assertActorCastPrices, castFocusedActorAffinity, selectActorCastAffinity, type ActorCastManaBases, type ActorEffectSuppression } from './actor-cast.ts';
 import { computeMovementStaminaCost } from './move.ts';
 
 export interface ActorTurnSnapshot {
@@ -17,17 +17,15 @@ export interface ActorTurnSnapshot {
   suppressions: ActorEffectSuppression[];
 }
 export interface ActorTurnCosts {
-  /** Legacy five-tier cast prices; a run carries this or `castManaBase`, not both. */
-  castMana?: ActorCastManaCosts;
   /** Per-key base of the escalating cast curve, base × s(s+1)/2 (#232). */
-  castManaBase?: ActorCastManaBases;
+  castManaBase: ActorCastManaBases;
   movementStamina: Record<string, number>;
   /** Per-turn mana upkeep of a lasting affinity, indexed by stacks; absent means none. */
   persistentUpkeep?: number[];
 }
 function copy<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
 function castPrices(costs: ActorTurnCosts) {
-  return costs.castManaBase ? { castManaBase: costs.castManaBase } : costs.castMana ?? {};
+  return { castManaBase: costs.castManaBase };
 }
 function hasParams(action: ActorAction, keys: string[], optional: string[] = []): boolean {
   if (!action.params || typeof action.params !== 'object' || Array.isArray(action.params)) return false;
@@ -44,7 +42,7 @@ export function createActorTurn(
 ) {
   if (!Number.isSafeInteger(tick) || tick < 0) throw new Error('invalid turn tick');
   if (Object.values(costs.movementStamina).some(cost => !Number.isSafeInteger(cost) || cost < 0)
-    || (costs.castMana === undefined) === (costs.castManaBase === undefined)
+    || Object.hasOwn(costs, 'castMana')
     || costs.persistentUpkeep !== undefined && (!Array.isArray(costs.persistentUpkeep)
       || costs.persistentUpkeep.some(cost => !Number.isSafeInteger(cost) || cost < 0))) throw new Error('invalid action costs');
   assertActorCastPrices(castPrices(costs));

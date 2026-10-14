@@ -16,6 +16,8 @@ General rules:
 - Keep payloads minimal and deterministic.
 - Invalid fixtures live under tests/fixtures/artifacts/invalid for negative tests.
 
+The lists below name the fixtures with a documented purpose; the directory holds more.
+
 ## MVP actor movement
 - sim-config-artifact-v1-mvp-grid.json: 9x9 grid layout with internal walls, spawn (1,1), and exit (7,7) plus render palette.
 - initial-state-artifact-v1-mvp-actor.json: one ambulatory actor at spawn with vitals stub (hp/maxHp 10) and speed 1.
@@ -39,8 +41,8 @@ General rules:
 - captured-input-artifact-v1-ref.json: captured adapter payload stored via payloadRef path.
 
 ## Budgeting
-- budget-request-v1-basic.json: allocator request derived from the plan.
-- budget-receipt-v1-basic.json: allocator response referencing the request.
+- budget-artifact-v1-basic.json: a token budget (1000 tokens).
+- budget-receipt-artifact-v1-basic.json: allocator receipt for that budget.
 - price-list-v1-basic.json: price list artifact with at least one priced item.
 
 ## Execution Inputs
@@ -62,14 +64,8 @@ General rules:
 
 ## Runtime ↔ core-ts
 - action-v1-basic.json: action proposal for a single actor/tick.
-- observation-v1-basic.json: minimal observation view for an actor/tick.
-- event-v1-basic.json: emitted event fact for a tick.
 - effect-v1-basic.json: emitted effect (deterministic) for a tick.
-- snapshot-v1-basic.json: minimal inspector snapshot view.
-- debug-dump-v1-basic.json: debug-only full dump with warning flag.
 - tick-frame-v1-basic.json: Moderator execution frame with actions/effects.
-- actor-state-v1-mvp.json: canonical actor state with vitals for core-ts actor model tests.
-- actor-state-v1-barrier.json: barrier actor state with durability initialized for collision tests.
 
 ## Telemetry
 - telemetry-record-v1-basic.json: annotator telemetry record (run scope).

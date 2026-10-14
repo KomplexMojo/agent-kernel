@@ -1,21 +1,18 @@
 /**
  * Affinity Spatial Formulas — pure parametric functions.
  *
- * @deprecated These JS formulas are superseded by core-ts core-ts spatial
- * computation (AK-AFF-M2, AK-AFF-M3). Use the actor registry's affinity
- * fields (core-ts rules/actor-fields.ts) or the core-ts exports (computeAffinityRadius, computeAffinityIntensity,
- * computeAffinityPotency, computeAffinityManaCost) for new code.
- * This module is retained for backward compatibility only.
+ * Visual alpha only: what an aura tile looks like, never what it does. Game
+ * rules (radius, intensity, potency, mana) are core's (core-ts
+ * rules/actor-fields.ts, rules/actor-cast.ts); the potency, merge,
+ * cancellation and mana-cost copies that used to live here were removed
+ * (drift review 2026-10-13) because nothing but their tests read them.
  *
  * All formulas take a weights object so coefficients can be tuned
  * without changing code. Weights are sourced from SPATIAL_WEIGHTS
  * in affinity-spatial-rules.js.
  *
  * Formula reference:
- *   §1.1 radius     §1.2 intensity    §1.3 potency
- *   §1.4 opposite cancellation        §1.5 same-kind merge
- *   §1.6 effective potency at tile    §1.7 mana cost
- *   §2.2 stack alpha multiplier
+ *   §1.1 radius     §1.2 intensity    §2.2 stack alpha multiplier
  *
  * @module affinity-spatial-formulas
  */
@@ -94,128 +91,6 @@ export function computeIntensity(d, stacks, expression, weights) {
   const normalizedDist = (dist - w.buffer) / radius;
   const falloff = Math.max(0, 1 - Math.pow(normalizedDist, w.falloffCurve));
   return w.peakIntensity * Math.pow(s, w.stackExponent) * falloff;
-}
-
-// ---------------------------------------------------------------------------
-// §1.3 Potency
-// ---------------------------------------------------------------------------
-
-/**
- * Compute the mechanical potency for an expression at a given stack level.
- *
- * potency(stacks, W) = W.basePotency + W.potencyGrowth * stacks^W.potencyExponent
- *
- * push: quadratic (1, 4, 9, 16, 25)
- * pull/emit/draw: linear (1, 2, 3, 4, 5)
- *
- * @param {number} stacks - stack count (>= 1)
- * @param {string} expression - "push"|"pull"|"emit"|"draw"
- * @param {object} weights - SPATIAL_WEIGHTS
- * @returns {number} potency value
- */
-export function computePotency(stacks, expression, weights) {
-  const w = weights?.potency?.[expression];
-  if (!w) return 0;
-  const s = toPositiveStacks(stacks);
-  return w.basePotency + w.potencyGrowth * Math.pow(s, w.potencyExponent);
-}
-
-// ---------------------------------------------------------------------------
-// §1.4 Opposite affinity stack cancellation
-// ---------------------------------------------------------------------------
-
-/**
- * Resolve the net stacks after opposite-affinity cancellation.
- *
- * canceled = min(sourceStacks, targetStacks)
- * netSource = sourceStacks - canceled
- * netTarget = targetStacks - canceled
- *
- * @param {number} sourceStacks
- * @param {number} targetStacks
- * @returns {{ canceled: number, netSource: number, netTarget: number }}
- */
-export function resolveStackCancellation(sourceStacks, targetStacks) {
-  const s = toPositiveStacks(sourceStacks);
-  const t = toPositiveStacks(targetStacks);
-  const canceled = Math.min(s, t);
-  return {
-    canceled,
-    netSource: s - canceled,
-    netTarget: t - canceled,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// §1.5 Same-kind stack merge
-// ---------------------------------------------------------------------------
-
-/**
- * Compute merged stacks for same-kind projection overlap.
- *
- * mergedStacks = min(sourceStacks + targetStacks, W.maxMergedStacks)
- *
- * The merged value is used for visual intensity only;
- * each source retains its own potency for mechanical effects.
- *
- * @param {number} sourceStacks
- * @param {number} targetStacks
- * @param {object} weights - SPATIAL_WEIGHTS
- * @returns {number} merged stack count
- */
-export function resolveMergedStacks(sourceStacks, targetStacks, weights) {
-  const s = toPositiveStacks(sourceStacks);
-  const t = toPositiveStacks(targetStacks);
-  const max = Number.isFinite(weights?.maxMergedStacks) ? weights.maxMergedStacks : 8;
-  return Math.min(s + t, max);
-}
-
-// ---------------------------------------------------------------------------
-// §1.6 Effective potency at a tile
-// ---------------------------------------------------------------------------
-
-/**
- * Compute the effective mechanical potency at a tile given affinity relationship.
- *
- * - opposite: use netStacks after §1.4 cancellation
- * - same/unrelated: use sourceStacks directly
- *
- * @param {number} sourceStacks
- * @param {number} targetStacks - only used for "opposite"
- * @param {"same"|"opposite"|"unrelated"} affinityRel
- * @param {string} expression
- * @param {object} weights
- * @returns {number} effective potency
- */
-export function computeEffectivePotency(sourceStacks, targetStacks, affinityRel, expression, weights) {
-  if (affinityRel === "opposite") {
-    const { netSource } = resolveStackCancellation(sourceStacks, targetStacks);
-    return computePotency(netSource, expression, weights);
-  }
-  return computePotency(toPositiveStacks(sourceStacks), expression, weights);
-}
-
-// ---------------------------------------------------------------------------
-// §1.7 Mana cost
-// ---------------------------------------------------------------------------
-
-/**
- * Compute the per-tick mana cost for a persistent expression field.
- *
- * manaCost(stacks, W) = ceil(W.baseMana + W.manaGrowth * stacks^W.manaExponent)
- *
- * push/pull return 0 (instantaneous, no per-tick cost).
- *
- * @param {number} stacks - stack count (>= 1)
- * @param {string} expression - "push"|"pull"|"emit"|"draw"
- * @param {object} weights - SPATIAL_WEIGHTS
- * @returns {number} mana cost per tick (integer >= 0)
- */
-export function computeManaCost(stacks, expression, weights) {
-  const w = weights?.manaCost?.[expression];
-  if (!w) return 0;
-  const s = toPositiveStacks(stacks);
-  return Math.ceil(w.baseMana + w.manaGrowth * Math.pow(s, w.manaExponent));
 }
 
 // ---------------------------------------------------------------------------

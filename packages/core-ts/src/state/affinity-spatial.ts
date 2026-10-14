@@ -26,15 +26,6 @@ const INTENSITY_STACK_EXP = Object.freeze([0.5, 0.5, 0.3, 0.0]);
 const INTENSITY_BUFFER = Object.freeze([0, 0, 0, 0]);
 const INTENSITY_FALLOFF = Object.freeze([2.0, 2.0, 1.0, 0.0]);
 
-const POTENCY_BASE = Object.freeze([0.0, 0.0, 0.0, 0.0]);
-const POTENCY_GROWTH = Object.freeze([1.0, 1.0, 1.0, 1.0]);
-const POTENCY_EXPONENT = Object.freeze([2.0, 1.0, 1.0, 1.0]);
-
-const MANA_BASE = Object.freeze([0.0, 0.0, 1.0, 0.0]);
-const MANA_GROWTH = Object.freeze([0.0, 0.0, 0.5, 0.25]);
-const MANA_EXPONENT = Object.freeze([0.0, 0.0, 2.0, 2.0]);
-
-const MAX_MERGED_STACKS = 8;
 const MATRIX_CELL_COUNT = 48;
 
 const AffinityInteractionVisualState = {
@@ -109,35 +100,6 @@ export function computeAffinityIntensity(
   const normalizedDist = (dist - buffer) / radius;
   const falloff = Math.max(0, 1 - Math.pow(normalizedDist, falloffCurve));
   return peak * Math.pow(s, stackExp) * falloff;
-}
-
-export function computeAffinityPotency(
-  stacks: number,
-  expression: number,
-): number {
-  if (!isValidAffinityExpression(expression)) return 0;
-  const s = stacks >= 1 ? stacks : 1;
-  const idx = exprIdx(expression);
-  return POTENCY_BASE[idx] + POTENCY_GROWTH[idx] * Math.pow(s, POTENCY_EXPONENT[idx]);
-}
-
-export function computeAffinityManaCost(
-  stacks: number,
-  expression: number,
-): number {
-  if (!isValidAffinityExpression(expression)) return 0;
-  const s = stacks >= 1 ? stacks : 1;
-  const idx = exprIdx(expression);
-  return Math.ceil(MANA_BASE[idx] + MANA_GROWTH[idx] * Math.pow(s, MANA_EXPONENT[idx]));
-}
-
-export function resolveAffinityMergedStacks(
-  sourceStacks: number,
-  targetStacks: number,
-): number {
-  const source = sourceStacks >= 1 ? sourceStacks : 1;
-  const target = targetStacks >= 1 ? targetStacks : 1;
-  return Math.min(source + target, MAX_MERGED_STACKS);
 }
 
 export function getAffinityInteractionCellCount(): number {
@@ -331,7 +293,6 @@ export function deriveAffinityInteractionCell(
     usesStackCancellation: relationship === AffinityRelationship.Opposite ? 1 : 0,
   };
 }
-
 
 /**
  * How much harder an OPPOSITE field bites than an unrelated one. Opposition is the

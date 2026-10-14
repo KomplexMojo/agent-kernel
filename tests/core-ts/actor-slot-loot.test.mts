@@ -25,7 +25,7 @@ function cache(slots = 1, claimedBy: string | null = null): ActorRecord {
 const registry = (actors: ActorRecord[]) =>
   createActorRegistry({ dimensions: { width: 3, height: 1 }, terrain: ['floor', 'floor', 'floor'], actors });
 function take(reg: ReturnType<typeof registry>) {
-  const turn = createActorTurn(reg, 1, { castMana: {}, movementStamina: {} });
+  const turn = createActorTurn(reg, 1, { castManaBase: {}, movementStamina: {} });
   const accepted = turn.apply({ actorId: 'a', tick: 1, kind: 'take', params: { targetId: 'cache', holdingId: 'slot_cache' } });
   return { accepted, reason: turn.lastRejection() };
 }

@@ -16,6 +16,7 @@ import {
 } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
+import { ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
 import { createActorTurn } from "../../../core-ts/src/rules/actor-turn.ts";
 import {
   readActorRegistryDarkCells,
@@ -54,7 +55,11 @@ const configuratorPersonaSurface = createConfiguratorPersona({ clock: UNUSED_CLO
  * Every affinity has a mana cost (maintainer, 2026-10-11). Persistent
  * expressions (emit, draw) pay a per-tick upkeep, authored by the Configurator
  * (`computeInternalManaUpkeep`, 2 + stacks). Core charges it from this table,
- * indexed by stacks; the last entry covers anything higher.
+ * indexed by stacks; the last entry covers anything higher, so upkeep stops
+ * rising past 100 stacks. The rule has no such cap; the table stops there only
+ * because stack n costs n² budget tokens, so 100 stacks of one affinity cost
+ * over 330,000 tokens, far beyond any level's budget. Raise this if budgets
+ * ever reach it.
  */
 const PERSISTENT_UPKEEP_TABLE_STACKS = 100;
 const persistentAffinityUpkeepTable = Object.freeze(
@@ -204,9 +209,8 @@ function resolveBaseTiles(simConfig) {
   const height = simConfig?.layout?.data?.height;
   if (Array.isArray(terrain) && Number.isSafeInteger(width) && width > 0
     && Number.isSafeInteger(height) && height > 0 && terrain.length === width * height) {
-    const glyph = { wall: "#", floor: ".", spawn: "S", exit: "E" };
     return Array.from({ length: height }, (_, y) => terrain
-      .slice(y * width, (y + 1) * width).map(kind => glyph[kind] || "#").join(""));
+      .slice(y * width, (y + 1) * width).map(kind => ASCII_TERRAIN_GLYPHS[kind] || ASCII_TERRAIN_GLYPHS.wall).join(""));
   }
   const tiles = simConfig?.layout?.data?.tiles;
   if (Array.isArray(tiles)) return tiles;

@@ -15,7 +15,6 @@ import { fileURLToPath } from "node:url";
 
 export const UI_ASCII_CLI = resolve(dirname(fileURLToPath(import.meta.url)), "../../../ui-ascii/src/cli.mjs");
 const AK_CLI = resolve(dirname(fileURLToPath(import.meta.url)), "ak.mjs");
-
 /** ui-ascii arguments naming the level; `source` is exactly one of its keys. */
 export function levelArgs(source = {}) {
   if (source.dir) return ["--run", source.dir];
@@ -47,7 +46,7 @@ export function captureArgs({ recordPath, replayPath } = {}) {
 
 /**
  * Run the UI with `keys` and return its result:
- * `{ ok, level, turns, status, screen }`, or `{ ok: false, error }`.
+ * `{ ok, level, turns, status, screen, warnings? }`, or `{ ok: false, error }`.
  */
 export function playAsciiScripted({ source, keys = "", color = false, fog = true, recordPath, replayPath }) {
   const result = spawnSync(

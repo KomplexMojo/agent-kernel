@@ -3,6 +3,7 @@ import { validateActorRecordVitals } from '../../../../core-ts/src/state/actor-v
 import { validateActorInventory } from '../../../../core-ts/src/state/actor-inventory.ts';
 import { validateActorHoldings } from '../../../../core-ts/src/state/actor-holdings.ts';
 import { DEFAULT_MOVEMENT_COST } from './logical-validation.js';
+import { ACTOR_EQUIPMENT_FIELDS } from '../../contracts/domain-constants.js';
 
 // affinitySlots: how many affinities each preset can equip at once (maintainer,
 // 2026-10-12). Every type has the same affinity capabilities; only this differs.
@@ -14,8 +15,7 @@ const PRESETS = Object.freeze({
   barrier: { alignment: 'dungeon', defeatVital: 'durability', canMove: false, blocksMovement: true, affinitySlots: 1 },
 });
 export const INPUT_KEYS = new Set(['category', 'id', 'position', 'alignment', 'lifecycle', 'defeatVital',
-  'vitals', 'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings',
-  'affinitySlots', 'equippedAffinityKeys', 'equippedAffinityStacks']);
+  'vitals', 'capabilities', 'motivations', 'affinities', ...ACTOR_EQUIPMENT_FIELDS, 'holdings']);
 const CATEGORIES = new Set(Object.keys(PRESETS));
 
 function leftoverMotivations(actor) {

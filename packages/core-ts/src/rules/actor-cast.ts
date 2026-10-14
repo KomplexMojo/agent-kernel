@@ -3,12 +3,10 @@ import type { ActorAffinityEntry, ActorAffinityKey, ActorRecord } from '../state
 import { affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { actorAffinityMagnitude, getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
 
-/** Configurator-authored tier prices; these are mana costs, not Allocator token prices. */
-export type ActorCastManaCosts = Partial<Record<ActorAffinityKey, readonly number[]>>;
 /** Configurator-authored per-kind base prices for the escalating cast curve (#232). */
 export type ActorCastManaBases = Partial<Record<ActorAffinityKey, number>>;
-/** Either the legacy five-tier tables, or the bases of the escalating curve. */
-export type ActorCastPrices = ActorCastManaCosts | { castManaBase: ActorCastManaBases };
+/** The cast prices a turn carries: the bases of the escalating curve, never a tier table. */
+export type ActorCastPrices = { castManaBase: ActorCastManaBases };
 
 /**
  * The mana a push or pull costs at `stacks` (maintainer, 2026-10-13, #232): the kind's
@@ -21,26 +19,18 @@ export function actorCastManaPrice(base: number, stacks: number): number {
 
 const isPrice = (value: unknown): boolean => Number.isSafeInteger(value) && (value as number) >= 0;
 
-/** Throws unless `prices` is a valid tier map or base map. */
+/** Throws unless `prices` is a valid base map. */
 export function assertActorCastPrices(prices: ActorCastPrices): void {
-  if ('castManaBase' in prices) {
-    if (!prices.castManaBase || typeof prices.castManaBase !== 'object'
-      || !Object.values(prices.castManaBase).every(isPrice)) throw new Error('invalid authored cast prices');
-    return;
-  }
-  for (const tiers of Object.values(prices)) {
-    if (!Array.isArray(tiers) || tiers.length !== 5 || ![...tiers].every(isPrice)) throw new Error('invalid authored cast prices');
+  if (!prices || typeof prices !== 'object' || !prices.castManaBase || typeof prices.castManaBase !== 'object'
+    || Array.isArray(prices.castManaBase) || !Object.values(prices.castManaBase).every(isPrice)) {
+    throw new Error('invalid authored cast prices');
   }
 }
 
 /** The authored price of one cast; undefined when the key has no price. */
 function castManaCost(prices: ActorCastPrices, key: ActorAffinityKey, stacks: number): number | undefined {
-  if ('castManaBase' in prices) {
-    const base = prices.castManaBase[key];
-    return base === undefined ? undefined : actorCastManaPrice(base, stacks);
-  }
-  const tiers = (prices as ActorCastManaCosts)[key];
-  return tiers ? tiers[Math.min(5, stacks) - 1] : undefined;
+  const base = prices.castManaBase[key];
+  return base === undefined ? undefined : actorCastManaPrice(base, stacks);
 }
 export interface ActorEffectSuppression { sourceId: string; targetId: string; affinityKey: ActorAffinityKey; amount: number }
 export interface ActorCastResult {
@@ -49,6 +39,23 @@ export interface ActorCastResult {
   suppression?: ActorEffectSuppression;
   /** Why the cast was refused, as a ValidationError name; absent when accepted. */
   rejection?: string;
+}
+
+/** Only push and pull are cast; emit and draw work on their own while equipped. */
+export function isCastableExpression(expression: string): boolean {
+  return expression === 'push' || expression === 'pull';
+}
+
+/** How far a cast reaches, in tiles (Chebyshev): one per stack it runs at (#231). */
+export function actorCastRange(pair: ActorAffinityEntry): number {
+  return pair.stacks;
+}
+
+/** The actor's equipped push and pull slots, keyed, with how far each reaches. */
+export function actorCastableAffinities(actor: ActorRecord): Partial<Record<ActorAffinityKey, { range: number }>> {
+  return Object.fromEntries(equippedActorAffinities(actor)
+    .filter(pair => isCastableExpression(pair.expression))
+    .map(pair => [affinityKey(pair), { range: actorCastRange(pair) }]));
 }
 
 /**
@@ -60,10 +67,10 @@ export function selectActorCastAffinity(actor: ActorRecord, key?: ActorAffinityK
   if (key !== undefined) {
     const named = equipped.find(pair => affinityKey(pair) === key);
     if (!named) return 'AffinityNotEquipped';
-    return named.expression === 'push' || named.expression === 'pull' ? named : 'AffinityNotCastable';
+    return isCastableExpression(named.expression) ? named : 'AffinityNotCastable';
   }
   if (!equipped.length) return 'NoActiveAffinity';
-  return equipped.find(pair => pair.expression === 'push' || pair.expression === 'pull') ?? 'AffinityNotCastable';
+  return equipped.find(pair => isCastableExpression(pair.expression)) ?? 'AffinityNotCastable';
 }
 
 /** The target's slot a neutralizing cast of `kind` suppresses: its first push or emit of that kind. */
@@ -88,7 +95,7 @@ export function castFocusedActorAffinity(
   if (typeof pair === 'string') return reject(pair);
   if (target?.lifecycle !== 'alive') return reject('InvalidTarget');
   if (Math.max(Math.abs(source.position.x - target.position.x),
-    Math.abs(source.position.y - target.position.y)) > pair.stacks) return reject('TargetOutOfRange');
+    Math.abs(source.position.y - target.position.y)) > actorCastRange(pair)) return reject('TargetOutOfRange');
   const effect = getActorAffinityEffect(pair.kind, pair.expression);
   if (effect.operation === 'drain' && sourceId === targetId) return reject('InvalidTarget');
   const cost = castManaCost(manaCosts, affinityKey(pair), pair.stacks);

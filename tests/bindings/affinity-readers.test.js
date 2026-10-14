@@ -71,7 +71,6 @@ test("core affinity codebook functions are callable through bindings", async () 
     "getAffinityExpressionCount",
     "getOppositeAffinityKind",
     "resolveAffinityRelationshipCode",
-    "computeAffinityRadius",
     "getAffinityInteractionCellCount",
     "getAffinityVisualStateCount",
     "getAffinityEffectCount",

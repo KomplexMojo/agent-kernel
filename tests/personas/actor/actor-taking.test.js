@@ -35,7 +35,7 @@ test('taking claims one stack and one turn; competing claims cannot duplicate it
   expect(self).toHaveLength(1);
   expect(self[0]).toMatchObject({ kind: 'take', params: { targetId: 'source', holdingId: 'affinity:fire:emit' } });
   const competing = decide(observation, 'other').actions[0];
-  const turn = createActorTurn(registry, 0, { castMana: {}, movementStamina: {} });
+  const turn = createActorTurn(registry, 0, { castManaBase: {}, movementStamina: {} });
   expect(turn.apply(self[0])).toBe(true);
   expect(turn.apply(competing)).toBe(false);
   expect(turn.apply({ actorId: 'self', tick: 0, kind: 'wait' })).toBe(false);
@@ -73,7 +73,7 @@ test('an already-owned pair increases by one through the proposed take', () => {
   snapshot.actors.find(actor => actor.id === 'self').affinities.push({ kind: 'fire', expression: 'emit', stacks: 4 });
   const registry = createActorRegistry(snapshot);
   const action = decide(readActorRegistryObservation(registry, 0)).actions[0];
-  expect(createActorTurn(registry, 0, { castMana: {}, movementStamina: {} }).apply(action)).toBe(true);
+  expect(createActorTurn(registry, 0, { castManaBase: {}, movementStamina: {} }).apply(action)).toBe(true);
   expect(registry.getActor('self').affinities.find(pair => pair.kind === 'fire').stacks).toBe(5);
 });
 
@@ -85,7 +85,7 @@ test('explicit vital holding retains its authored grant semantics', () => {
   const registry = createActorRegistry(snapshot);
   const action = decide(readActorRegistryObservation(registry, 0)).actions[0];
   expect(action.params.holdingId).toBe('a_health');
-  expect(createActorTurn(registry, 0, { castMana: {}, movementStamina: {} }).apply(action)).toBe(true);
+  expect(createActorTurn(registry, 0, { castManaBase: {}, movementStamina: {} }).apply(action)).toBe(true);
   expect(registry.getActor('self').vitals.health).toEqual({ current: 8, max: 12, regen: 0 });
 });
 

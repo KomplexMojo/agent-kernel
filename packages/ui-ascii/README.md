@@ -7,12 +7,12 @@ It is reachable from the `ak` CLI and the MCP server, so any harness can create 
 ```bash
 node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=3" \
   --delver "count=1;affinity=wind;motivation=exploring" \
-  --hazard "affinity=water;expression=emit;proximityRadius=1;mana=one-time:30" --out-dir /tmp/water
-node packages/adapters-cli/src/cli/ak.mjs play --dir /tmp/water            # play it here
-node packages/adapters-cli/src/cli/ak.mjs play --dir /tmp/water --json     # { screen, status, turns, launch }
+  --hazard "affinity=corrode;expression=emit;proximityRadius=1;mana=one-time:30" --out-dir /tmp/traps
+node packages/adapters-cli/src/cli/ak.mjs play --dir /tmp/traps            # play it here
+node packages/adapters-cli/src/cli/ak.mjs play --dir /tmp/traps --json     # { screen, status, turns, launch, warnings? }
 ```
 
-Over MCP the same request ("create an ascii UI filled with water affinity traps") is `ak_create` with water hazards, then `ak_play_ascii` with that call's `runId`: it returns the board as text plus the `launch` command for the interactive game. `ak play` runs this package as a separate program; adapters-cli never imports it.
+Over MCP the same request ("create an ascii UI filled with <affinity> traps", for any of the ten affinities) is `ak_create` with hazards of that affinity, then `ak_play_ascii` with that call's `runId`: it returns the board as text plus the `launch` command for the interactive game. `ak play` runs this package as a separate program; adapters-cli never imports it.
 
 ```bash
 pnpm run play:ascii                                 # bundled levels, in order
@@ -20,11 +20,13 @@ pnpm run play:ascii -- --level long-way-round       # start at a bundled level
 pnpm run play:ascii -- --run <dir>                 # play a level `ak create --out-dir <dir>` generated (rooms + corridors)
 pnpm run play:ascii -- --sim-config <p> --initial-state <p>
 pnpm run play:ascii -- --keys "ddss" --no-color     # scripted: apply keys, print, exit
-pnpm run play:ascii -- --keys "ddss" --json         # scripted, as { ok, level, turns, status, screen }
+pnpm run play:ascii -- --keys "ddss" --json         # scripted, as { ok, level, turns, status, screen, warnings? }
 pnpm run play:ascii -- --no-fog                     # debug: see the whole map
 pnpm run play:ascii -- --record game.json           # on quit, save the played commands
 pnpm run play:ascii -- --replay game.json           # re-run a saved game, then keep playing
 ```
+
+**Viability floor.** A level loaded from files is played as written. If a delver or warden sits below the viability floor (health, mana and durability each need max 10 and regen 1, which `ak create` applies while authoring), the Configurator's report is printed as `warning:` lines on stderr and returned as `warnings` in `--json`.
 
 **Watching a run.** The same screen also shows a run `ak run` recorded, tick by tick: `--watch --run <dir>` (an `ak run --out-dir`, or an `artifacts/runs/<id>` directory with the run under `run/` and the build under `create/`).
 
@@ -71,7 +73,7 @@ Reaching the exit's approach tile puts you **at the exit**; waiting one more tic
 | `src/levels.js` | Finds and parses SimConfig + InitialState artifact pairs, and a recorded run's tick frames |
 | `levels/` | Bundled levels, as `<name>.sim-config.json` + `<name>.initial-state.json`, generated from `levels/recipes.json` |
 
-The simulation side is `packages/runtime/src/runner/play-session.js`: `await createPlaySession(...)`, then `await act({ kind: "move", params: { direction } })`, `act({ kind: "wait" })`, `act({ kind: "equip_affinity", params: { affinityKey, replaceKey?, stacks? } })`, `act({ kind: "unequip_affinity", params: { affinityKey } })`, `act({ kind: "cast_affinity", params: { targetId, affinityKey? } })` or `act({ kind: "take", params: { targetId, holdingId } })`, then `view()` (including `player.affinities`, `player.affinitySlots`, `player.equippedAffinityKeys`, `player.exhaustedAffinityKeys`, `player.equippedAffinityStacks` and `loot`) and `status()`. One command, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, when it leaves, and whether it is defeated: `status()` is `{ tick, exited, atExit, defeated }`, and once the player is defeated the session refuses every command (reason `defeated`) and runs no more ticks.
+The simulation side is `packages/runtime/src/runner/play-session.js`: `await createPlaySession(...)`, then `await act({ kind: "move", params: { direction } })`, `act({ kind: "wait" })`, `act({ kind: "equip_affinity", params: { affinityKey, replaceKey?, stacks? } })`, `act({ kind: "unequip_affinity", params: { affinityKey } })`, `act({ kind: "cast_affinity", params: { targetId, affinityKey? } })` or `act({ kind: "take", params: { targetId, holdingId } })`, then `view()` (including `player.affinities`, `player.affinitySlots`, `player.equippedAffinityKeys`, `player.exhaustedAffinityKeys`, `player.equippedAffinityStacks`, `player.castableAffinities` (each equipped push or pull with its reach), `player.maxAffinitySlots` and `loot`) and `status()`; `viabilityReport` is the Configurator's list of actors below the viability floor. One command, one closed tick, one fresh frame. Core decides whether a move is legal, whether the actor reached the exit, when it leaves, and whether it is defeated: `status()` is `{ tick, exited, atExit, defeated }`, and once the player is defeated the session refuses every command (reason `defeated`) and runs no more ticks.
 
 ## Other actors and traps
 
@@ -86,6 +88,6 @@ Every bundled level is `ak create` output: the Configurator lays out the rooms a
 | `first-steps` | one small room |
 | `long-way-round` | three large rooms |
 | `warden-hall` | two large rooms. One warden wanders at random; the Configurator posts it on the exit's approach, so the exit opens once it moves. The other attacks: it equips its push and casts at you whenever you are in reach, so you can lose here (r restarts the level). Which affinity each warden holds is just this level's data; any affinity works the same way |
-| `water-traps` | three small rooms, three water `emit` traps |
+| `trap-rooms` | three small rooms, three `emit` traps of different affinities (fire, water, decay); any affinity works the same way |
 
 Tests that need an exact board shape use the hand-written levels in `tests/fixtures/ui-ascii/levels/`.

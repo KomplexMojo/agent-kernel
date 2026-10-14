@@ -170,8 +170,21 @@ test("reads affinity from every shape the observation actually uses", () => {
 test("unknown role and affinity fall back without throwing", () => {
   const state = normalizeEntitySpriteState({ role: "sorcerer", affinity: "plasma" } as never);
   assert.ok(ENTITY_SPRITE_ROLES.includes(state.role));
-  assert.ok(AFFINITY_KINDS.includes(state.affinity));
+  assert.equal(state.affinity, null);
   assert.doesNotThrow(() => composeEntitySprite({ state, size: ENTITY_SPRITE_CANONICAL_SIZE }));
+});
+
+// Affinity-agnostic (maintainer, 2026-10-13): an actor with no affinity is not drawn as any
+// one affinity. It used to default to `fire`; it now wears its role's own palette colour.
+test("an actor with no affinity wears its role colour, not any affinity's", () => {
+  const size = ENTITY_SPRITE_CANONICAL_SIZE;
+  for (const role of ENTITY_SPRITE_ROLES) {
+    const bare = composeEntitySprite({ entity: { role }, size });
+    for (const affinity of AFFINITY_KINDS) {
+      assert.notDeepEqual(Array.from(bare), Array.from(compose(role, affinity)),
+        `${role} with no affinity is drawn as ${affinity}`);
+    }
+  }
 });
 
 // The reason this module exists: the camera can shrink a tile a long way, and the

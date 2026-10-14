@@ -82,9 +82,10 @@ light/dark field observations and re-observes defeat without another pulse.
 
 `castFocusedActorAffinity` checks focused range and the authored mana price before
 writes, spends one actor pool and returns suppression with caster provenance. A run's
-`actionCosts` carries exactly one of `castManaBase` (per-kind base; a cast costs
-`base * s(s+1)/2`, uncapped, #232) or the legacy five-tier `castMana` tables, whose
-tier clamps at five so older artifacts replay unchanged.
+`actionCosts` carries `castManaBase` (per-kind base; a cast costs `base * s(s+1)/2`,
+uncapped, #232); core has no other cast price model. An artifact written before #232
+with five-tier `castMana` tables loads on the same curve: `runner/core-setup.mjs` takes
+each table's tier-1 price as the base.
 
 `createActorTurn` dispatches ordered common actions and permits one accepted action
 per actor. Its detached snapshot includes tick, accepted IDs, suppression and phase

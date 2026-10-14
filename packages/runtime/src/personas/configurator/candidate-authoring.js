@@ -165,6 +165,34 @@ export function applyActorViabilityFloor(vitals) {
   return vitals;
 }
 
+// The presets whose cards `ak create` raises to the floor: the actor cards. Hazards,
+// resources and barriers are authored on their own paths and never floored.
+const VIABILITY_FLOOR_CATEGORIES = Object.freeze(["delver", "warden"]);
+
+/**
+ * Report, never raise: every delver or warden vital below ACTOR_VIABILITY_FLOOR in a
+ * loaded InitialState. `ak create` applies the floor while authoring (above); a
+ * hand-written level loaded for play is checked with this instead and played as
+ * written. A vital the actor lacks counts as 0.
+ * Returns `[{ actorId, vital, field, value, floor }]`, empty when all clear.
+ */
+export function reportActorViabilityFloor(initialState) {
+  const findings = [];
+  const presentation = initialState?.presentation || {};
+  for (const actor of Array.isArray(initialState?.actors) ? initialState.actors : []) {
+    if (typeof actor?.id !== "string") continue;
+    if (!VIABILITY_FLOOR_CATEGORIES.includes(presentation[actor.id]?.category)) continue;
+    for (const [vital, floor] of Object.entries(ACTOR_VIABILITY_FLOOR)) {
+      for (const field of ["max", "regen"]) {
+        const raw = actor.vitals?.[vital]?.[field];
+        const value = Number.isFinite(raw) ? raw : 0;
+        if (value < floor[field]) findings.push({ actorId: actor.id, vital, field, value, floor: floor[field] });
+      }
+    }
+  }
+  return findings;
+}
+
 /**
  * Apply the requirements an actor's MOTIVATION implies to its vitals, in place.
  *

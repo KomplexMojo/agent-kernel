@@ -43,21 +43,24 @@
  * reaches the same state. Writing the artifact to disk is the caller's job.
  */
 import { ACTOR_COMMAND_KINDS, normalizeActorCommand } from "../personas/actor/persona.js";
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
-import { ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
+import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
-import { equippedActorAffinityKeys, exhaustedActorAffinityKeys } from "../../../core-ts/src/state/actor-inventory.ts";
+import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
+import { actorCastableAffinities } from "../../../core-ts/src/rules/actor-cast.ts";
 
 export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
 
 /** Per-cell sight in `view().sight`: seen now, seen before, never seen. */
 export const PLAY_SIGHT = Object.freeze({ VISIBLE: "v", REMEMBERED: "r", UNKNOWN: "u" });
 
-// The fog tile's board character; `render/resource-bundle.js` already maps "?" to the
-// `fog` tile (palette `tiles.fog`).
-const FOG_GLYPH = "?";
+// Whether a loaded level's actors meet the viability floor is the Configurator's question.
+const reportActorViabilityFloor = createConfiguratorPersona({ clock: UNUSED_CLOCK })
+  .authorCandidates.reportActorViabilityFloor;
 
 export const PLAY_DIRECTIONS = Object.freeze(EIGHT_WAY_DELTAS.map((delta) => delta.direction));
 
@@ -125,6 +128,8 @@ export async function createPlaySession({
     throw new Error("createPlaySession: level did not load (no unified actors)");
   }
   const presentation = runtime.getActorPresentation() || {};
+  // A hand-written level is played as written; actors below the floor are only reported.
+  const viabilityReport = Object.freeze(reportActorViabilityFloor(initialState).map((finding) => Object.freeze(finding)));
   const legend = playLegend(simConfig);
 
   // Explored memory: a cell stays explored once the player has seen it.
@@ -214,7 +219,7 @@ export async function createPlaySession({
     };
   }
 
-  return { act, view, status, captureInput, playerActorId: playerId };
+  return { act, view, status, captureInput, playerActorId: playerId, viabilityReport };
 }
 
 
@@ -256,7 +261,7 @@ function applyFog(frame, visible, explored) {
         row += frame.baseTiles[y][x];
         sightRow += PLAY_SIGHT.REMEMBERED;
       } else {
-        row += FOG_GLYPH;
+        row += ASCII_FOG_GLYPH;
         sightRow += PLAY_SIGHT.UNKNOWN;
       }
     }
@@ -325,7 +330,7 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     tick,
     rows: fogged.rows,
     sight: fogged.sight,
-    legend: { ...legend, fog: FOG_GLYPH },
+    legend: { ...legend, fog: ASCII_FOG_GLYPH },
     status,
     // With fog, only traps in sight right now.
     hazards: others.filter((actor) => presentation[actor.id]?.category === HAZARD_CATEGORY)
@@ -343,6 +348,10 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
         equippedAffinityKeys: equippedActorAffinityKeys(player),
         exhaustedAffinityKeys: exhaustedActorAffinityKeys(player),
         equippedAffinityStacks: { ...(player.equippedAffinityStacks ?? {}) },
+        // Core's rules, stated as data so the UI never restates them: which equipped
+        // slots can be cast and how far each reaches, and the most slots anyone holds.
+        castableAffinities: actorCastableAffinities(player),
+        maxAffinitySlots: MAX_AFFINITY_SLOTS,
         position: { ...player.position },
       }
       : null,

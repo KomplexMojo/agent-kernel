@@ -19,7 +19,7 @@ function actor(id: string, x: number, overrides: Partial<ActorRecord> = {}): Act
     activeAffinityKey: null, holdings: [], ...overrides } as ActorRecord;
 }
 const UPKEEP = Array.from({ length: 11 }, (_, stacks) => (stacks === 0 ? 0 : 2 + stacks));
-const costs = { castMana: { 'water:push': [1, 2, 3, 4, 5] }, movementStamina: {}, persistentUpkeep: UPKEEP };
+const costs = { castManaBase: { 'water:push': 1 }, movementStamina: {}, persistentUpkeep: UPKEEP };
 const corridor = (actors: ActorRecord[]) =>
   createActorRegistry({ dimensions: { width: 8, height: 1 }, terrain: Array(8).fill('floor'), actors });
 function act(registry: ReturnType<typeof corridor>, tick: number, action: object) {

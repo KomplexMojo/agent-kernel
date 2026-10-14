@@ -31,9 +31,7 @@ assert.equal(flagsToBitmask(null), 0);
 }
 
 // resolvePatternCode
-assert.equal(resolvePatternCode("attacking", "melee"), 1);
-assert.equal(resolvePatternCode("attacking", "ranged"), 2);
-assert.equal(resolvePatternCode("attacking", "mixed"), 3);
+assert.equal(resolvePatternCode("attacking", "melee"), 0, "attacking has no patterns");
 assert.equal(resolvePatternCode("patrolling", "loop"), 1);
 assert.equal(resolvePatternCode("patrolling", "ping_pong"), 2);
 assert.equal(resolvePatternCode("defending", "hold_point"), 1);
@@ -173,9 +171,7 @@ for (const [kind, [mobility, combat, cognition, reasoningClass]] of Object.entri
   assert.equal(profile.reasoningClass, reasoningClass, `${kind} reasoning`);
 }
 
-assert.equal(resolvePatternCode("attacking", "melee"), 1);
-assert.equal(resolvePatternCode("attacking", "ranged"), 2);
-assert.equal(resolvePatternCode("attacking", "mixed"), 3);
+assert.equal(resolvePatternCode("attacking", "melee"), 0, "attacking has no patterns");
 assert.equal(resolvePatternCode("defending", "hold_point"), 1);
 assert.equal(resolvePatternCode("defending", "bodyguard"), 2);
 assert.equal(resolvePatternCode("patrolling", "loop"), 1);

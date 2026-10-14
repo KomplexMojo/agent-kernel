@@ -24,10 +24,10 @@
  *   - **Normalizers** (`normalizeVitals`, `normalizeRegen`, `normalizeAffinityList`) and
  *     **prerequisites** (`validateAffinityPrereqs`) — configuration SHAPE, which is
  *     Configurator law.
- *   - **Runtime affinity math** (`computeInternalManaUpkeep`, `computeInternalRadius`, `computeDrawNet`,
- *     `computeEmitStrength`) — what an affinity DOES during a tick, in mana and tiles, with
- *     its own literals. None of it is denominated in tokens, and none of it ever read the
- *     deleted constants.
+ *   - **Runtime affinity math** (`computeInternalManaUpkeep`) — the mana a lasting affinity
+ *     costs per tick, with its own literals. Emit radius, draw and emit strength are core's
+ *     (`rules/actor-fields.ts`); this file keeps no second copy of them. None of it is
+ *     denominated in tokens, and none of it ever read the deleted constants.
  */
 import { VITAL_KEYS } from "../../contracts/domain-constants.js";
 
@@ -40,34 +40,6 @@ const REGEN_KEYS = Object.freeze([...VITAL_KEYS]);
 export function computeInternalManaUpkeep(s) {
   if (!Number.isInteger(s) || s < 1) return 0;
   return 2 + s;
-}
-
-/**
- * Internal expression radius for stack s (design §10.2).
- * Formula: 1 + s
- */
-export function computeInternalRadius(s) {
-  if (!Number.isInteger(s) || s < 1) return 0;
-  return 1 + s;
-}
-
-/**
- * Draw net mana formula (design §11.3).
- * DrawNet(s, e) = 3·min(s, e) - (2 + s)
- */
-export function computeDrawNet(s, e) {
-  if (!Number.isInteger(s) || s < 1) return 0;
-  if (!Number.isInteger(e) || e < 0) return -(2 + s);
-  return 3 * Math.min(s, e) - (2 + s);
-}
-
-/**
- * Emit strength for stack s (design §12.2).
- * EmitStrength(s) = s
- */
-export function computeEmitStrength(s) {
-  if (!Number.isInteger(s) || s < 1) return 0;
-  return s;
 }
 
 function addError(errors, field, code, detail) {

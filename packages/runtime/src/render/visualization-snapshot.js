@@ -31,6 +31,9 @@ export const ASCII_TERRAIN_GLYPHS = Object.freeze({
   barrier: "B",
 });
 
+/** The glyph for a cell the viewer has not seen (fog of war); `resource-bundle.js` maps it to the `fog` tile. */
+export const ASCII_FOG_GLYPH = "?";
+
 /**
  * An actor's glyph, read the way this snapshot reads it (`inferKind`): a role
  * naming a hazard or resource takes that glyph; a role, kind or id naming a

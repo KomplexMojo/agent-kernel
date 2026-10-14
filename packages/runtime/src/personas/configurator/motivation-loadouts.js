@@ -26,7 +26,6 @@ import { findMotivationConflict } from "./logical-validation.js";
 
 export const MOTIVATION_PATTERNS = Object.freeze({
   patrolling: Object.freeze(["loop", "ping_pong", "random_walk"]),
-  attacking: Object.freeze(["melee", "ranged", "mixed"]),
   defending: Object.freeze(["hold_point", "bodyguard"]),
 });
 
