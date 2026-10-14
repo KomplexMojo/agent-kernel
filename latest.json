@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-14T18-45-16-950Z-7e2528925dfb-abd63f1d30fd",
-    "key": "abd63f1d30fd26dd6e8c9368cf313b210b50b7b362c89b8f6bf8f4ad7e00465e",
+    "id": "2026-10-14T19-05-19-582Z-30c60a73b981-09efb0f02dc0",
+    "key": "09efb0f02dc0c458dfe1624a746918a0ec18c938edf82d6a0d8494a242bdb106",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-14T18:45:16.950Z",
-    "completedAt": "2026-10-14T18:45:39.579Z",
-    "durationMs": 22629,
+    "startedAt": "2026-10-14T19:05:19.582Z",
+    "completedAt": "2026-10-14T19:05:42.327Z",
+    "durationMs": 22745,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "7e2528925dfbdcc2bd00abec9dac89cca52bd475",
-    "tree": "635160538ede53209ea3adfcb69857fa8be27015"
+    "commit": "30c60a73b9818a815b1d7d20706fd21d6fa104b6",
+    "tree": "e231e7922ed84c4de5f4bc67208773545ac16270"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -34,6 +34,7 @@
       "packages/adapters-cli/src/mcp/tools/authoring.mjs",
       "packages/adapters-cli/src/mcp/tools/play.mjs",
       "packages/adapters-cli/src/mcp/tools/sandbox.mjs",
+      "packages/adapters-cli/src/mcp/tools/shared.mjs",
       "packages/adapters-cli/src/mcp/tools/simulation.mjs",
       "packages/adapters-cli/src/mcp/tools/tick.mjs",
       "packages/core-ts/src/affinity-readers.ts",
@@ -82,10 +83,13 @@
       "packages/runtime/src/personas/allocator/budget-fulfillment.js",
       "packages/runtime/src/personas/allocator/contracts.ts",
       "packages/runtime/src/personas/allocator/default-price-list.js",
+      "packages/runtime/src/personas/allocator/motivation-price-policy.js",
       "packages/runtime/src/personas/allocator/spend-proposal.js",
+      "packages/runtime/src/personas/allocator/validate-spend.js",
       "packages/runtime/src/personas/annotator/README.md",
       "packages/runtime/src/personas/annotator/world-state.js",
       "packages/runtime/src/personas/configurator/README.md",
+      "packages/runtime/src/personas/configurator/actor-authoring.js",
       "packages/runtime/src/personas/configurator/actor-placement.js",
       "packages/runtime/src/personas/configurator/affinity-effects.js",
       "packages/runtime/src/personas/configurator/affinity-interaction-core.js",
@@ -183,7 +187,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/abd63f1d30fd26dd6e8c9368cf313b210b50b7b362c89b8f6bf8f4ad7e00465e"
+    "retentionId": "preflights/09efb0f02dc0c458dfe1624a746918a0ec18c938edf82d6a0d8494a242bdb106"
   },
   "qualifies": false
 }
