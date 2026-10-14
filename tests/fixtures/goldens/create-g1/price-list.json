@@ -184,12 +184,6 @@
       "description": "Strategy-focused cognition"
     },
     {
-      "id": "motivation_user_controlled",
-      "kind": "motivation",
-      "unitCost": 10,
-      "formula": "linear"
-    },
-    {
       "id": "actor_spawn",
       "kind": "actor",
       "unitCost": 5,
@@ -342,6 +336,13 @@
       "unitCost": 2,
       "formula": "quadratic",
       "description": "Durability regen rate — n regen/tick costs n² tokens — free-floating resource (1.5× 1, rounded)"
+    },
+    {
+      "id": "motivation_user_controlled",
+      "kind": "motivation",
+      "unitCost": 18,
+      "formula": "linear",
+      "description": "Playable control — the dearest autonomous motivation stack + 1"
     }
   ]
 }

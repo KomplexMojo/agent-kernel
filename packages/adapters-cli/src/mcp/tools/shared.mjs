@@ -59,6 +59,9 @@ export function specObjectToString(spec) {
     } else if (k === "affinities" && Array.isArray(v)) {
       const aparts = v.map((a) => `${a.kind}:${a.expression}:${a.stacks ?? 1}`);
       if (aparts.length) parts.push(`affinities=${aparts.join(",")}`);
+    } else if (k === "motivation" && Array.isArray(v)) {
+      // One motivation per family, e.g. ["exploring", "stealthy"] → motivation=exploring+stealthy.
+      if (v.length) parts.push(`motivation=${v.join("+")}`);
     } else if (k === "goals" && Array.isArray(v)) {
       const gparts = v.map((g) =>
         typeof g === "string" ? g : g.priority ? `${g.kind}:${g.priority}` : g.kind

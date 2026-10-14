@@ -1,6 +1,7 @@
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 
 import BASE_COSTS from "./base-costs.json" with { type: "json" };
+import { playablePremiumFromUnitCosts } from "./motivation-price-policy.js";
 import { PRICE_LIST_SCHEMA } from "../../contracts/artifacts.ts";
 
 
@@ -64,6 +65,7 @@ const DESCRIPTIONS = {
   "motivation_reflexive": "Reflexive cognition",
   "motivation_goal_oriented": "Goal-oriented cognition",
   "motivation_strategy_focused": "Strategy-focused cognition",
+  "motivation_user_controlled": "Playable control — the dearest autonomous motivation stack + 1",
   "actor_spawn": "Spawn one actor (delver or warden)",
   "tile_floor": "One floor tile",
   "tile_hallway": "One hallway/connector tile — walkable area, priced as a floor tile",
@@ -152,6 +154,13 @@ const DEFAULT_ITEMS = [
       Object.entries(entries).map(([id, unitCost]) => itemFrom(id, unitCost, DESCRIPTIONS[id])),
     ),
   ...buildResourceItems(),
+  // The playable premium is a formula over the autonomous motivation prices, so it has no
+  // number in base-costs.json; it is listed so receipts and price lists show what it costs.
+  {
+    ...itemFrom("motivation_user_controlled", playablePremiumFromUnitCosts(BASE_COSTS.motivation),
+      DESCRIPTIONS.motivation_user_controlled),
+    kind: "motivation",
+  },
 ];
 
 /**

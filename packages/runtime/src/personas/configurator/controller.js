@@ -60,6 +60,7 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     authorCandidates: services.authorCandidates,
     // configurator/actors (2026-08-18) — a build/run request's delver roster entry.
     authorDelverCandidate: services.authorDelverCandidate,
+    authorMotivations: services.authorMotivations,
     normalizeMotivations: services.normalizeMotivations,
     normalizeActorDefinition: services.normalizeActorDefinition,
     normalizeActorRoster: services.normalizeActorRoster,

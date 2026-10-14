@@ -517,10 +517,17 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `attacking`.
-- `motivation` is singular for direct CLI authoring; repeating it in the same `--delver` spec is rejected.
+- `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
+  kind, one cognition kind, plus `user_controlled`, e.g. `motivation=exploring+attacking`. Two kinds
+  from one family (`exploring+patrolling`) are refused with the Configurator's reason. The
+  `motivation=` key itself is given once per spec; repeating it is rejected.
+- Only a delver authored `user_controlled` is playable (`ak play` seats it as `@`); every other
+  delver is a companion acting on its own motivations. Nothing is tagged playable automatically.
+  `user_controlled` is priced by the Allocator at the dearest autonomous motivation stack + 1, and a
+  playable actor is costed for movement stamina because its player moves it.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from delver-plan runs.
 - Delver `goals=` values are optimization directions only; they do not bypass the existing
@@ -541,10 +548,10 @@ Inputs/outputs:
 - Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `defending`.
-- `motivation` is singular for direct CLI authoring; repeating it in the same `--warden` spec is rejected.
+- `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from warden-plan runs.
 - Output dir: `artifacts/runs/<runId>/warden-plan` by default, or `--out-dir`.
@@ -853,7 +860,7 @@ Expected outputs (defaults when `--out-dir` is set):
   Use `--budget-tokens` or `--budget` + `--price-list` to enforce a hazards-only allocation receipt.
 - Resource authoring (`resource-plan`): repeat `--resource` with `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>]`.
   Use `--budget-tokens` or `--budget` + `--price-list` to enforce a resources-only allocation receipt.
-- Delver authoring (`delver-plan`): repeat `--delver` with `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>]`.
+- Delver authoring (`delver-plan`): repeat `--delver` with `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>]`.
   If `affinity` is omitted, the command falls back to `--dungeon-affinity` (default `fire`).
   If `motivation` is omitted, default is `attacking`.
   Repeating `motivation` inside the same `--delver` spec is rejected.
@@ -861,7 +868,7 @@ Expected outputs (defaults when `--out-dir` is set):
   `vitals=<vital>:<max>:<regen>,...` or `<vital>:<current>:<max>:<regen>,...`,
   and `setup-mode=<auto|user|hybrid>`.
   Use `--budget` + `--price-list` together to emit `budget-receipt.json` from the same run.
-- Warden authoring (`warden-plan`): repeat `--warden` with `count=<n>;affinity=<kind>;motivation=<kind>[;id=<id>]`.
+- Warden authoring (`warden-plan`): repeat `--warden` with `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>]`.
   If `affinity` is omitted, the command falls back to `--dungeon-affinity` (default `fire`).
   If `motivation` is omitted, default is `defending`.
   Repeating `motivation` inside the same `--warden` spec is rejected.

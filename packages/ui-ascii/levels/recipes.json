@@ -6,21 +6,21 @@
       "name": "first-steps",
       "args": [
         "--room", "size=small;count=1",
-        "--delver", "count=1;affinity=wind;motivation=exploring"
+        "--delver", "count=1;affinity=wind;motivation=exploring+user_controlled"
       ]
     },
     {
       "name": "long-way-round",
       "args": [
         "--room", "size=large;count=3",
-        "--delver", "count=1;affinity=wind;motivation=exploring"
+        "--delver", "count=1;affinity=wind;motivation=exploring+user_controlled"
       ]
     },
     {
       "name": "warden-hall",
       "args": [
         "--room", "size=large;count=2",
-        "--delver", "count=1;affinity=wind;motivation=exploring",
+        "--delver", "count=1;affinity=wind;motivation=exploring+user_controlled",
         "--warden", "count=1;affinity=fire;motivation=random",
         "--warden", "count=1;affinity=water;motivation=attacking"
       ]
@@ -29,7 +29,7 @@
       "name": "trap-rooms",
       "args": [
         "--room", "size=small;count=3",
-        "--delver", "count=1;affinity=wind;motivation=exploring",
+        "--delver", "count=1;affinity=wind;motivation=exploring+user_controlled",
         "--hazard", "affinity=fire;expression=emit;stacks=2;proximityRadius=1;mana=regen:30:30:3",
         "--hazard", "affinity=water;expression=emit;stacks=2;proximityRadius=1;mana=regen:30:30:3",
         "--hazard", "affinity=decay;expression=emit;stacks=2;proximityRadius=1;mana=regen:30:30:3"

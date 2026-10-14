@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 103,
-  "remaining": 1897,
+  "totalCost": 93,
+  "remaining": 1907,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -93,20 +93,6 @@
       "quantity": 1,
       "unitCost": 3,
       "totalCost": 3,
-      "status": "approved",
-      "category": "delvers",
-      "subjectRef": {
-        "id": "card_delver_1-1",
-        "schema": "agent-kernel/ActorArtifact",
-        "schemaVersion": 1
-      }
-    },
-    {
-      "id": "motivation_user_controlled",
-      "kind": "motivation",
-      "quantity": 1,
-      "unitCost": 10,
-      "totalCost": 10,
       "status": "approved",
       "category": "delvers",
       "subjectRef": {
@@ -260,15 +246,15 @@
     {
       "id": "delver",
       "capTokens": 2000,
-      "spentTokens": 103,
-      "remainingTokens": 1897,
+      "spentTokens": 93,
+      "remainingTokens": 1907,
       "status": "approved"
     }
   ],
   "scenarioSpendReport": {
     "budget": 2000,
-    "totalSpend": 103,
-    "remainingBudget": 1897,
+    "totalSpend": 93,
+    "remainingBudget": 1907,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -292,7 +278,7 @@
         "usagePercent": 0
       },
       "delvers": {
-        "actual": 103,
+        "actual": 93,
         "target": 2000,
         "usagePercent": 5
       },
