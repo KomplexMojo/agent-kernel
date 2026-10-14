@@ -29,7 +29,7 @@ export const simulationTools = [
   }),
   createTool({
     name: "ak_solve",
-    description: "Solve a scenario into runnable artifacts.",
+    description: "Pose a scenario to the constraint solver and write its SolverRequest and SolverResult. `solved` says whether the solver answered: a free-text scenario carries no solver domain, so it comes back solved:false with status deferred and a reason.",
     command: "solve",
     inputSchema: {
       required: ["scenario"],
@@ -72,7 +72,7 @@ export const simulationTools = [
         affinityLoadouts: pathSchema("ActorLoadoutArtifact path."),
         affinitySummary: pathSchema("Affinity summary output path."),
         progress: booleanSchema("Emit tick progress events."),
-        dryRun: booleanSchema("Validate resolved inputs without executing."),
+        dryRun: booleanSchema("Validate resolved inputs without executing. The result's `valid` field (with `errors`) says whether the inputs pass; `ok` only says the check ran."),
       }),
     },
     buildArgs: (args) => buildArgv(args, [
@@ -185,6 +185,8 @@ export const simulationTools = [
       properties: withCommonOutput({
         text: stringSchema("Scenario text input."),
         fromRun: stringSchema("Existing run id to reuse artifacts from."),
+        simConfig: pathSchema("Sim config artifact path to replay (with initialState), instead of text or fromRun."),
+        initialState: pathSchema("Initial state artifact path to replay (with simConfig)."),
         catalog: pathSchema("Catalog path for text-driven llm-plan."),
         model: stringSchema("LLM model override."),
         goal: stringSchema("Goal override."),
@@ -197,12 +199,14 @@ export const simulationTools = [
         ticks: integerSchema("Tick count.", { minimum: 1 }),
         seed: integerSchema("Initialization seed.", { minimum: 0 }),
         emitIntermediates: booleanSchema("Persist non-canonical llm-plan sidecar artifacts."),
-        dryRun: booleanSchema("Validate scenario inputs without executing."),
+        dryRun: booleanSchema("Validate scenario inputs without executing. The result's `valid` field (with `errors`) says whether the inputs pass; `ok` only says the check ran."),
       }),
     },
     buildArgs: (args) => buildArgv(args, [
       { key: "text" },
       { key: "fromRun", flag: "from-run" },
+      { key: "simConfig", flag: "sim-config" },
+      { key: "initialState", flag: "initial-state" },
       { key: "catalog" },
       { key: "model" },
       { key: "goal" },
