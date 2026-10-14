@@ -14,6 +14,8 @@ node packages/adapters-cli/src/cli/ak.mjs play --dir /tmp/traps --json     # { s
 
 Over MCP the same request ("create an ascii UI filled with <affinity> traps", for any of the ten affinities) is `ak_create` with hazards of that affinity, then `ak_play_ascii` with that call's `runId`: it returns the board as text plus the `launch` command for the interactive game. `ak play` runs this package as a separate program; adapters-cli never imports it.
 
+**Play through Claude Code.** Opened in this repository, Claude Code already has the MCP server (the root `.mcp.json`, enabled with the game tools pre-allowed in `.claude/settings.json`) and the game commands in `.claude/skills/`: `/game-new` authors a level from a description with `ak_create` and shows it, `/game-play` plays it a few keys at a time, `/game-watch` steps through a recorded run, `/game-save` and `/game-load` keep a game in a capture file, `/game-recap` narrates a run, and `/game-terminal` gives the command for the interactive game. The `game-master` skill holds the rules Claude follows while doing it. Claude is a front end like this one: every move goes through `ak_play_ascii`, so the screen it shows is this package's.
+
 ```bash
 pnpm run play:ascii                                 # bundled levels, in order
 pnpm run play:ascii -- --level long-way-round       # start at a bundled level

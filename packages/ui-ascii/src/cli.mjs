@@ -5,7 +5,8 @@
  * The terminal is the only thing this file owns: argument parsing, raw-mode
  * keypresses, redraws. See README.md for usage.
  */
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createGame } from "./game.js";
 import { HELP_LINES, WATCH_HELP_LINES, intentForKey, splitKeys, watchIntentForKey } from "./keymap.js";
@@ -110,6 +111,7 @@ export function resolveLevels(options) {
 export function recordGame(game, path, { now = new Date() } = {}) {
   const createdAt = now.toISOString();
   const capture = game.captureInput({ id: `play_capture_${now.getTime()}`, runId: `play_${now.getTime()}`, createdAt });
+  mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(capture, null, 2)}\n`);
 }
 

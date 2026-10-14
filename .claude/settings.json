@@ -20,5 +20,26 @@
         ]
       }
     ]
+  },
+  "enabledMcpjsonServers": [
+    "agent-kernel-cli"
+  ],
+  "permissions": {
+    "allow": [
+      "mcp__agent-kernel-cli__ak_play_ascii",
+      "mcp__agent-kernel-cli__ak_create",
+      "mcp__agent-kernel-cli__ak_configure",
+      "mcp__agent-kernel-cli__ak_run",
+      "mcp__agent-kernel-cli__ak_show",
+      "mcp__agent-kernel-cli__ak_show_state",
+      "mcp__agent-kernel-cli__ak_tick_forward",
+      "mcp__agent-kernel-cli__ak_tick_backward",
+      "mcp__agent-kernel-cli__ak_narrate",
+      "mcp__agent-kernel-cli__ak_inspect",
+      "mcp__agent-kernel-cli__ak_runs_list",
+      "mcp__agent-kernel-cli__ak_schemas",
+      "mcp__agent-kernel-cli__ak_replay",
+      "mcp__agent-kernel-cli__ak_diff"
+    ]
   }
 }

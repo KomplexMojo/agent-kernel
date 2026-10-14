@@ -7,6 +7,7 @@ import { CallToolRequestSchema, ListResourcesRequestSchema, ListToolsRequestSche
 import {
   executeCommand,
   resolveFromRunArtifactPathsFromCommandOutDirs,
+  summarizeRunDiff,
   summarizeRunShowFromCommandOutDirs,
 } from "../cli/ak-impl.mjs";
 import { authoringTools } from "./tools/authoring.mjs";
@@ -186,6 +187,24 @@ async function maybeResolveRememberedInputs(tool, rawArgs) {
       delete args.fromRun;
     }
   }
+  // ak_scenario {fromRun} for a level made in this session replays that level's files; the
+  // CLI's own --from-run only looks under artifacts/runs/<id>. The run id defaults to the
+  // level's, exactly as the CLI's --from-run does.
+  if (
+    tool.command === "scenario"
+    && normalizeNonEmptyString(args.fromRun)
+    && !normalizeNonEmptyString(args.simConfig)
+    && !normalizeNonEmptyString(args.initialState)
+  ) {
+    const commandOutDirs = getCommandOutDirEntries(args.fromRun);
+    if (commandOutDirs.length > 0) {
+      const resolved = await resolveFromRunArtifactPathsFromCommandOutDirs({ runId: args.fromRun, commandOutDirs });
+      args.simConfig = resolved.simConfigPath;
+      args.initialState = resolved.initialStatePath;
+      if (!normalizeNonEmptyString(args.runId)) args.runId = args.fromRun;
+      delete args.fromRun;
+    }
+  }
   // ak_play_ascii watching a runId from this session watches the run that ak_run recorded.
   if (tool.command === "play" && args.watch === true && normalizeNonEmptyString(args.runId) && !normalizeNonEmptyString(args.dir)) {
     const runOutDir = REMEMBERED_RUNS.get(args.runId)?.commands.get("run");
@@ -221,6 +240,24 @@ async function maybeHandleRememberedTool(tool, args) {
         runId: args.runId,
         commandOutDirs,
       });
+    }
+  }
+
+  // ak_diff over runs made in this session reads them where the server wrote them.
+  if (tool.command === "diff" && normalizeNonEmptyString(args.runA) && normalizeNonEmptyString(args.runB)) {
+    const commandOutDirsA = getCommandOutDirEntries(args.runA);
+    const commandOutDirsB = getCommandOutDirEntries(args.runB);
+    if (commandOutDirsA.length > 0 || commandOutDirsB.length > 0) {
+      try {
+        return await summarizeRunDiff({
+          runA: args.runA,
+          runB: args.runB,
+          commandOutDirsA: commandOutDirsA.length > 0 ? commandOutDirsA : null,
+          commandOutDirsB: commandOutDirsB.length > 0 ? commandOutDirsB : null,
+        });
+      } catch (error) {
+        return { ok: false, command: "diff", error: error?.message || String(error) };
+      }
     }
   }
 

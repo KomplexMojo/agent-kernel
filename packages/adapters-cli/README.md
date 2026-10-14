@@ -235,7 +235,9 @@ implementations for each stage.
 Inputs/outputs:
 - Input: either `--text` + `--catalog`, optional `--model`, `--goal`, `--budget-tokens`,
   `--base-url`, `--fixture`, optional budget-loop flags, `--created-at`; or `--from-run <runId>`
-  to reuse prior stage outputs discovered under `artifacts/runs/<runId>/*`. Both modes accept
+  to reuse prior stage outputs discovered under `artifacts/runs/<runId>/*`; or
+  `--sim-config <path> --initial-state <path>` (both required) to replay a level by its files,
+  which is how the MCP server replays a level made earlier in its session. All modes accept
   `--ticks`, `--seed`, optional `--run-id`, and `--out-dir`.
 - Output dir: `artifacts/runs/<runId>` by default, or `--out-dir` as the pipeline root.
 - Outputs: `llm-plan/spec.json`, `llm-plan/sim-config.json`, `llm-plan/initial-state.json`,
@@ -251,7 +253,8 @@ inspect what a previous run created without rerunning the pipeline.
 Inputs/outputs:
 - Input: `--run-id <runId>`.
 - Stdout: structured JSON including `runId`, `actors[]`, `rooms[]`, `artifactPaths{}`, and
-  `budgetSpend`.
+  `budgetSpend`. A `run --from-run` directory writes no `sim-config.json`/`initial-state.json`;
+  its actors and rooms are read from the level embedded in its `bundle.json`.
 - Error: structured JSON error when the requested run directory does not exist under the selected
   output root.
 
@@ -260,7 +263,9 @@ Compares two previously recorded runs without rerunning the pipeline. It reuses 
 artifact discovery rules as `run --from-run`: source `sim-config.json` / `initial-state.json`
 come from the resolved run source directory, while `tick-frames.json` and `run-summary.json`
 come from the highest-priority execution stage under each run (`run`, then `replay`, then
-other run-like stages).
+other run-like stages). A run made with `run --from-run <level>` holds no level files of its
+own, so its level comes from the copy embedded in that stage's `bundle.json`; two plays of one
+level can be compared directly.
 
 Inputs/outputs:
 - Input: `--run-a <runId>` and `--run-b <runId>`.
@@ -618,6 +623,12 @@ artifact plus a `SolverResult` (no network). Since 2026-09-04 the default engine
 (`createHybridConstraintSolverAdapter`); pass `--solver-fixture <path>` to replay a recorded result
 instead, or set `AK_SOLVER_ENGINE=fixture` to force the stub adapter everywhere. An explicitly
 supplied fixture path always wins over the engine default.
+
+Stdout is structured JSON: `ok`, `runId`, `outDir`, `status`, optional `reason`,
+`artifactPaths`, and `solved`. `solved` is false when the solver deferred or errored. The real
+adapter answers only the `allocator_budget_fit` and `configurator_satisfiability` domains, and a
+free-text `--scenario` carries no domain, so it reports `solved: false`, status `deferred`,
+reason `constraint_domain_unsupported`.
 
 ### `run`
 Execute a configured simulation run using captured artifacts, emitting TickFrame and
