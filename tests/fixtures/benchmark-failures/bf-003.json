@@ -3,7 +3,7 @@
   "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
   "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
   "scenarioIndex": 21,
-  "scenarioTitle": "Execution EX-CB-05 — Mixed cognition combat",
+  "scenarioTitle": "Execution EX-CB-05 \u2014 Mixed cognition combat",
   "expectedOutcome": "success",
   "observedOutcome": "execution_failed",
   "scenarioBudget": null,
@@ -16,6 +16,6 @@
   },
   "observedError": "delver[1] segment \"[{\"count\": 1, \"affinity\": \"fire\", \"motivation\": \"attacking\", \"vitals\": {\"health\": {\"max\": 120}, \"stamina\": {\"max\": 80}, \"mana\": {\"max\": 60}}}, {\"count\": 1, \"affinity\": \"earth\", \"motivation\": \"defending\", \"vitals\": {\"health\": {\"max\": 150}, \"stamina\": {\"max\": 90}, \"mana\": {\"max\": 40}}}, {\"count\": 1, \"affinity\": \"wind\", \"motivation\": \"reflexive\", \"vitals\": {\"health\": {\"max\": 100}, \"stamina\": {\"max\": 70}, \"mana\": {\"max\": 80}}}]}\" is invalid; expected key=value.\n",
   "occurrences": 13,
-  "disposition": "harness-defect",
-  "dispositionNote": "M3: model emits a JSON array where the CLI expects key=value segments."
+  "disposition": "model-error",
+  "dispositionNote": "M3 fixed the JSON array parse; the request now reaches the movement floor and is refused: the model set stamina max with no regen on moving actors (#186). Unbudgeted creates used to skip that check; every create is priced now (#274)."
 }

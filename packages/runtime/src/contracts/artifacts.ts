@@ -593,7 +593,7 @@ export type AgentCommandCompileTarget =
   | "build_spec_plan"
   | "build_spec_configurator"
   | "artifact_extension";
-export type AgentCommandDirectiveSource = "text" | "flag" | "object_flag" | "budget_artifact";
+export type AgentCommandDirectiveSource = "text" | "flag" | "object_flag" | "budget_artifact" | "allocator_default";
 export type AgentCommandOptimizationPriority = "low" | "medium" | "high";
 export type AgentCommandOptimizationScope = AgentCommandObjectKind | "shared_config";
 export type AgentCommandOptimizationGoalKind =

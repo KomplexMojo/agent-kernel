@@ -53,6 +53,6 @@
   },
   "observedError": "Budget receipt denied: status=denied; remaining=998; deniedLines=tile:tile_floor:floor_tiles; deniedPools=rooms:25/0\n",
   "occurrences": 1,
-  "disposition": "model-error",
-  "dispositionNote": "unexpected but correct: allocator enforcing combined resource/actor pool caps."
+  "disposition": "harness-defect",
+  "dispositionNote": "Was a harness defect, not a model error: a create with no room spec gave the rooms pool weight 0, so its own floor tiles were denied (rooms:25/0). Fixed in #275 (carvesLevel): the scenario now reaches its expected success."
 }

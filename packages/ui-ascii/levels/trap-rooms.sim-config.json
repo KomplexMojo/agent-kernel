@@ -5,7 +5,21 @@
     "id": "trap-rooms_sim_config",
     "runId": "trap-rooms",
     "createdAt": "2026-10-10T00:00:00.000Z",
-    "producedBy": "cli-create"
+    "producedBy": "cli-create",
+    "cost": {
+      "runTotalTokens": 491,
+      "budgetTokens": 2500,
+      "receiptRef": {
+        "id": "trap-rooms_budget_receipt",
+        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schemaVersion": 1
+      },
+      "proposalRef": {
+        "id": "trap-rooms_spend_proposal",
+        "schema": "agent-kernel/SpendProposal",
+        "schemaVersion": 1
+      }
+    }
   },
   "planRef": {
     "id": "trap-rooms_plan",
@@ -600,5 +614,10 @@
     "movementStamina": {
       "card_delver_1-1": 1
     }
+  },
+  "budgetReceiptRef": {
+    "id": "trap-rooms_budget_receipt",
+    "schema": "agent-kernel/BudgetReceiptArtifact",
+    "schemaVersion": 1
   }
 }

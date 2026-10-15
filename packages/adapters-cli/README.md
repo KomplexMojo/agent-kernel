@@ -387,6 +387,9 @@ Inputs/outputs:
   `--resource`, `--delver`, and `--warden`, optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard
   `--run-id`, `--created-at`, `--out-dir`.
+- With no budget input (no `--budget-tokens`, `--budget`, or budget in the text), the Allocator's reference
+  budget applies (`levelAuthoring().referenceBudgetTokens`, 2500 tokens), recorded as source `allocator_default`.
+  Every level is priced and gets a receipt; a level that does not fit is refused (#274).
 - `--budget-tokens` is a hard cap for agent-authored spend. If `--text` or `--goal` also says
   `budget <N> tokens`, and/or `--budget` supplies `budget.tokens`, all values must agree or
   the command fails validation.

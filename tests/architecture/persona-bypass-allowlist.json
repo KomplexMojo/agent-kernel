@@ -1,0 +1,23 @@
+{
+  "_note": "Budget-gated conditionals in glue, ratcheted (#275). A conditional on caller budget input in glue is how a persona step gets skipped (#274: no budget meant no Allocator). Each count may only go down. Lower it when you remove one; never raise it: route the input to a persona default instead. Issues track the known bypasses each file holds.",
+  "gates": {
+    "packages/adapters-cli/src/cli/ak-impl.mjs": { "max": 17, "issues": [276, 277] },
+    "packages/adapters-cli/src/cli/ak-persona.mjs": { "max": 1, "issues": [] },
+    "packages/adapters-cli/src/mcp/tools/sandbox.mjs": { "max": 3, "issues": [277] },
+    "packages/adapters-web/src/adapters/cli-worker/shared.js": { "max": 1, "issues": [276] },
+    "packages/runtime/src/build/orchestrate-build.js": { "max": 5, "issues": [276] },
+    "packages/runtime/src/build/map-build-spec.js": { "max": 1, "issues": [276] },
+    "packages/runtime/src/commands/kernel.js": { "max": 11, "issues": [276, 278] },
+    "packages/runtime/src/commands/ui-flow.js": { "max": 1, "issues": [] },
+    "packages/runtime/src/commands/card-authoring.js": { "max": 5, "issues": [281] },
+    "packages/runtime/src/runner/runtime-fsm.mjs": { "max": 1, "issues": [] },
+    "packages/ui-web/src/build-spec-ui.js": { "max": 1, "issues": [] },
+    "packages/ui-web/src/views/design-view.js": { "max": 2, "issues": [] },
+    "packages/ui-web/src/design-guidance.js": { "max": 5, "issues": [] },
+    "packages/ui-web/src/main.js": { "max": 2, "issues": [] },
+    "packages/ui-web/src/card-builder-controller.js": { "max": 1, "issues": [] }
+  },
+  "unpricedEntrypoints": {
+    "build --spec without a budget": 276
+  }
+}

@@ -585,12 +585,17 @@ function resolveAuthoringBudget({
     throw new Error(`${commandName} hard budget inputs disagree: ${detail}. Freeform text, --budget-tokens, and budget artifact tokens must agree.`);
   }
 
+  // No budget given: the Allocator's reference budget applies (#274). An input picks a
+  // default, never skips the Allocator.
   if (inputs.length === 0) {
-    return { resolvedBudgetTokens: undefined, constraints: undefined };
+    inputs.push({ source: "allocator_default", totalTokens: allocatorWithGeometry().pricing.levelAuthoring().referenceBudgetTokens });
   }
 
   return {
     resolvedBudgetTokens: inputs[0].totalTokens,
+    // The budget the caller named, if any. The reference default caps a plan but is not a
+    // budget to fill: maximizing toward it would inflate every unbudgeted plan.
+    requestedBudgetTokens: inputs[0].source === "allocator_default" ? undefined : inputs[0].totalTokens,
     constraints: {
       hardBudget: {
         totalTokens: inputs[0].totalTokens,
@@ -4137,9 +4142,12 @@ function buildPoolWeightsForAuthoredKinds({
   resources = [],
   delvers = [],
   wardens = [],
+  carvesLevel = false,
 } = {}) {
   const weights = [];
-  if (rooms.length > 0 || floorTiles.length > 0 || placedHazards.length > 0) {
+  // A create that names hazards but no room still carves a room for them, so its floor
+  // tiles need the rooms pool or the Allocator denies them (bf-042).
+  if (carvesLevel || rooms.length > 0 || floorTiles.length > 0 || placedHazards.length > 0) {
     weights.push({ id: "rooms", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.rooms });
   }
   if (hazards.length > 0) weights.push({ id: "hazards", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.hazards });
@@ -5329,6 +5337,8 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     rooms: fulfilled.rooms.map((entry) => entry.value),
     actors: [...fulfilled.delvers.map((entry) => entry.value), ...parsedWardens.map((entry) => entry.value)],
     poolWeights: buildPoolWeightsForAuthoredKinds({
+      // No room, floor tile or hazard is a budget scaffold (no floor); a hazard needs a room.
+      carvesLevel: canonicalHazardEntries.length > 0,
       rooms: fulfilled.rooms,
       floorTiles: parsedFloorTiles,
       // Was written twice, `parsedHazards` then `canonicalHazardEntries`. Inert here only
@@ -5603,6 +5613,7 @@ async function roomPlanCommand(argv) {
   const textBudgetTokens = extractBudgetTokensFromText(goal, "room-plan --goal");
   const {
     resolvedBudgetTokens,
+    requestedBudgetTokens,
     constraints: authoringConstraints,
   } = resolveAuthoringBudget({
     commandName: "room-plan",
@@ -5630,7 +5641,7 @@ async function roomPlanCommand(argv) {
     rooms: parsedRooms,
     delvers: [],
     priceListArtifact,
-    budgetTokens: resolvedBudgetTokens,
+    budgetTokens: requestedBudgetTokens,
   }).rooms;
   const summary = {
     goal,
@@ -5922,6 +5933,7 @@ async function delverPlanCommand(argv) {
   const textBudgetTokens = extractBudgetTokensFromText(goal, "delver-plan --goal");
   const {
     resolvedBudgetTokens,
+    requestedBudgetTokens,
     constraints: authoringConstraints,
   } = resolveAuthoringBudget({
     commandName: "delver-plan",
@@ -5965,7 +5977,7 @@ async function delverPlanCommand(argv) {
       ]),
     })),
     priceListArtifact,
-    budgetTokens: resolvedBudgetTokens,
+    budgetTokens: requestedBudgetTokens,
   }).delvers;
   const summary = {
     goal,

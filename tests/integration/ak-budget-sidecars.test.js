@@ -81,7 +81,7 @@ test("ak create with --budget-tokens writes budget-receipt.json by default", () 
   );
 });
 
-test("ak create without --budget-tokens does not write spend-proposal.json", () => {
+test("ak create without --budget-tokens still writes spend-proposal.json: the reference budget applies (#274)", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-no-budget-"));
   runCliOk([
     "create",
@@ -101,8 +101,8 @@ test("ak create without --budget-tokens does not write spend-proposal.json", () 
 
   assert.equal(
     existsSync(join(outDir, "spend-proposal.json")),
-    false,
-    "spend-proposal.json must NOT be written when no budget is present",
+    true,
+    "every create goes through the Allocator, so its spend proposal is written",
   );
 });
 

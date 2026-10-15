@@ -5,7 +5,21 @@
     "id": "warden-hall_initial_state",
     "runId": "warden-hall",
     "createdAt": "2026-10-10T00:00:00.000Z",
-    "producedBy": "cli-create"
+    "producedBy": "cli-create",
+    "cost": {
+      "runTotalTokens": 490,
+      "budgetTokens": 2500,
+      "receiptRef": {
+        "id": "warden-hall_budget_receipt",
+        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schemaVersion": 1
+      },
+      "proposalRef": {
+        "id": "warden-hall_spend_proposal",
+        "schema": "agent-kernel/SpendProposal",
+        "schemaVersion": 1
+      }
+    }
   },
   "simConfigRef": {
     "id": "warden-hall_sim_config",
