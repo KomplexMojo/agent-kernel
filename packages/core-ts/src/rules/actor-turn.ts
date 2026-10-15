@@ -1,4 +1,4 @@
-import { resolveActorFields } from './actor-fields.ts';
+import { readActorOverwhelms, resolveActorFields, type ActorOverwhelm } from './actor-fields.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey } from '../state/actor-types.ts';
 import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
@@ -153,7 +153,7 @@ export function createActorTurn(
     regenerate(): boolean {
       if (!state.fieldsResolved || state.regenerated) return false;
       if (prices.persistentUpkeep) registry.chargeAffinityUpkeep(prices.persistentUpkeep);
-      registry.regenerate(); state.regenerated = true; return true;
+      registry.regenerate(overwhelmRegenScales(readActorOverwhelms(registry))); state.regenerated = true; return true;
     },
     resolveExits(): string[] | null {
       if (!state.regenerated || state.exitsResolved) return null;
@@ -163,4 +163,14 @@ export function createActorTurn(
     },
     snapshot(): ActorTurnSnapshot { return copy({ ...state, acceptedActorIds: [...state.acceptedActorIds].sort() }); },
   };
+}
+
+/** Per actor and vital, the lowest overwhelm regen scale: a stop beats a doubling on the same vital. */
+function overwhelmRegenScales(overwhelms: readonly ActorOverwhelm[]): Record<string, Record<string, number>> {
+  const scales: Record<string, Record<string, number>> = {};
+  for (const { actorId, vital, regenScale } of overwhelms) {
+    const byVital = scales[actorId] ??= {};
+    byVital[vital] = Math.min(byVital[vital] ?? Infinity, regenScale);
+  }
+  return scales;
 }
