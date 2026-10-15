@@ -584,6 +584,9 @@ The examples below assume integer tokens and the current price list rules:
 - Motivations: reflexive = 1, goal-oriented = 5, strategy-focused = 20 tokens.
 - Actors without movement-related motivations are treated as tiles/barriers.
 - Vitals without regen are one-time pools; once spent, they do not recover.
+- Regen above a vital's max is priced as asked but can never be used (regen never fills past max). The
+  regen line carries `detail.usableRegen` and `detail.wastedTokens`, and `readWastedRegen(receipt)`
+  (controller) lists each case. It is a warning, never a refusal.
 
 Scenario A: 100-token single-stat actor
 - Health 100 = 100 tokens

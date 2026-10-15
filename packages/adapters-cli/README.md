@@ -596,6 +596,9 @@ Inputs/outputs:
   delver is a companion acting on its own motivations. Nothing is tagged playable automatically.
   `user_controlled` is priced by the Allocator at the dearest autonomous motivation stack + 1, and a
   playable actor is costed for movement stamina because its player moves it.
+- A vital whose regen is above its max is built and priced as asked, but regen never fills past max, so the
+  excess buys nothing. `create` prints a `warning:` line per such vital on stderr and lists them as
+  `cost.wastedRegen` (`{ subjectId, vital, regen, usableRegen, wastedTokens }`) in its JSON.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from delver-plan runs.
 - Delver `goals=` values are optimization directions only; they do not bypass the existing

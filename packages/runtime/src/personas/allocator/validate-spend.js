@@ -122,6 +122,29 @@ function copyAttribution(item, lineItem) {
   return lineItem;
 }
 
+const REGEN_LINE = /^vital_(health|mana|stamina|durability)_regen_tick$/;
+
+/**
+ * The regen a receipt charged for above each vital's max: one entry per subject and vital,
+ * `{ subjectId, category, vital, regen, usableRegen, wastedTokens }`. Empty when none.
+ */
+export function readWastedRegen(receipt) {
+  const lineItems = Array.isArray(receipt?.lineItems) ? receipt.lineItems : [];
+  return lineItems.flatMap((item) => {
+    const vital = REGEN_LINE.exec(item?.id ?? "")?.[1];
+    const usableRegen = item?.detail?.usableRegen;
+    if (!vital || !Number.isInteger(usableRegen) || usableRegen >= item.quantity) return [];
+    return [{
+      subjectId: item.subjectRef?.id ?? null,
+      category: item.category ?? null,
+      vital,
+      regen: item.quantity,
+      usableRegen,
+      wastedTokens: item.detail.wastedTokens ?? 0,
+    }];
+  });
+}
+
 export function validateSpendProposal({
   budget,
   priceList,
@@ -177,7 +200,14 @@ export function validateSpendProposal({
       totalCost,
       status: "approved",
     };
-    return copyAttribution(item, lineItem);
+    copyAttribution(item, lineItem);
+    // Regen bought above max: what the unusable part cost at this line's own formula.
+    const usableRegen = item?.detail?.usableRegen;
+    if (Number.isInteger(usableRegen) && usableRegen < quantity) {
+      const usableCost = usableRegen > 0 ? calculatePriceTotal(price, usableRegen) : 0;
+      lineItem.detail = { ...lineItem.detail, wastedTokens: totalCost - usableCost };
+    }
+    return lineItem;
   });
 
   const totalCost = lineItems.reduce((sum, item) => sum + item.totalCost, 0);

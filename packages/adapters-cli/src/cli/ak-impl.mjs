@@ -37,6 +37,7 @@ import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtim
 
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/contracts/domain-constants.js";
 import { createAllocatorPersona } from "../../../runtime/src/personas/allocator/persona.js";
+import { readWastedRegen } from "../../../runtime/src/personas/allocator/controller.js";
 import { createConfiguratorPersona } from "../../../runtime/src/personas/configurator/persona.js";
 // CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
 // it. `prompt-contract.js` only renamed these (P5.1 D1: one value, three names), so the
@@ -4035,11 +4036,18 @@ function buildCostSummary(budgetReceipt, spendProposal, outDir) {
   }
   const totalSpend = budgetReceipt.totalCost ?? 0;
   const remaining = budgetReceipt.remaining ?? 0;
+  // The Allocator prices regen above max as asked and flags it; say so, refuse nothing.
+  const wastedRegen = readWastedRegen(budgetReceipt);
+  for (const { subjectId, vital, regen, usableRegen, wastedTokens } of wastedRegen) {
+    console.error(`warning: ${subjectId} buys ${vital} regen ${regen} but its max is ${usableRegen}; `
+      + `regen never fills past max, so ${wastedTokens} tokens buy nothing.`);
+  }
   return {
     totalSpend,
     budgetTokens: totalSpend + remaining,
     remaining,
     status: budgetReceipt.status,
+    ...(wastedRegen.length > 0 ? { wastedRegen } : {}),
     receiptPath: join(outDir, "budget-receipt.json"),
     proposalPath: spendProposal ? join(outDir, "spend-proposal.json") : undefined,
   };
