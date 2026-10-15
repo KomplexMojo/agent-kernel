@@ -34,7 +34,19 @@ const FIXTURE_LEVELS_DIR = resolve(ROOT, "tests/fixtures/ui-ascii/levels");
 const fixtureLevel = (name) => loadBundledLevel(name, FIXTURE_LEVELS_DIR);
 const fixtureLevels = () => loadBundledLevels(FIXTURE_LEVELS_DIR);
 // first-steps fixture: from the spawn approach (1,1) onto the exit (8,7), then wait out the dwell.
-const FIRST_STEPS_SOLUTION = "ddssddssssddd.";
+// Stamina only recovers on a turn without a move (#273): the default pool (2, regen 2) walks two
+// steps, then rests one turn.
+const FIRST_STEPS_SOLUTION = "dd.ss.dd.ss.ss.dd.d.";
+
+/** Move along `path`, resting a turn first whenever the player cannot pay for the step (#273). */
+async function walk(session, path, onMove = () => {}) {
+  for (const direction of path) {
+    while ((session.view().player.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1) {
+      await session.act({ kind: "wait" });
+    }
+    onMove(await session.act({ kind: "move", params: { direction } }), direction);
+  }
+}
 
 /** The actor the play session seats as the player: its `user_controlled` delver. */
 function playerOf(level) {
@@ -112,10 +124,7 @@ test("bundled levels list in play order and every one loads and is winnable", as
     const { path } = solve(level);
     assert.ok(path.length > 0, `${name} has a path to its exit`);
     const session = await createPlaySession(level);
-    for (const direction of path) {
-      const result = await session.act({ kind: "move", params: { direction } });
-      assert.equal(result.accepted.length, 1, `${name}: ${direction}`);
-    }
+    await walk(session, path, (result, direction) => assert.equal(result.accepted.length, 1, `${name}: ${direction}`));
     assert.equal((await session.act({ kind: "wait" })).status.exited, true, `${name} exits`);
   }
 });
@@ -418,12 +427,16 @@ test("warden-hall's wardens wander once the play session runs their turns", asyn
   // session from the enemy-turns PR; until it lands this level is solo.
   if (!Array.isArray(start)) return context.skip();
   const startById = new Map(start.map((actor) => [actor.id, actor.position]));
-  for (let turn = 0; turn < 6; turn += 1) await session.act({ kind: "wait" });
-  const moved = session.view().actors.filter((actor) => {
-    const from = startById.get(actor.id);
-    return from && (from.x !== actor.position.x || from.y !== actor.position.y);
-  });
-  assert.ok(moved.length > 0, "at least one warden left its starting cell");
+  // A wandering warden can step back onto its start, so any turn off it counts.
+  const moved = new Set();
+  for (let turn = 0; turn < 6; turn += 1) {
+    await session.act({ kind: "wait" });
+    for (const actor of session.view().actors) {
+      const from = startById.get(actor.id);
+      if (from && (from.x !== actor.position.x || from.y !== actor.position.y)) moved.add(actor.id);
+    }
+  }
+  assert.ok(moved.size > 0, "at least one warden left its starting cell");
 });
 
 test("in colour, actors with an equipped affinity are filled with it; others keep their role colour", async () => {
@@ -475,7 +488,7 @@ test("trap-rooms draws each trap as H in its own affinity's fill, and a trap cos
   const trap = view.hazards[0].position;
   const { path } = solve(level, { target: trap });
   const healthBefore = view.player.vitals.find((vital) => vital.key === "health").current;
-  for (const direction of path) await session.act({ kind: "move", params: { direction } });
+  await walk(session, path);
   const after = session.view();
   assert.deepEqual(after.player.position, trap);
   assert.ok(after.player.vitals.find((vital) => vital.key === "health").current < healthBefore, "the trap hurt");

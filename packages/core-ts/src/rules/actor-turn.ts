@@ -10,6 +10,8 @@ import { computeMovementStaminaCost } from './move.ts';
 export interface ActorTurnSnapshot {
   tick: number;
   acceptedActorIds: string[];
+  /** Actors whose move was accepted this turn: they get no stamina regen (#273). Absent in older snapshots. */
+  movedActorIds?: string[];
   closed: boolean;
   fieldsResolved: boolean;
   regenerated: boolean;
@@ -47,13 +49,15 @@ export function createActorTurn(
       || costs.persistentUpkeep.some(cost => !Number.isSafeInteger(cost) || cost < 0))) throw new Error('invalid action costs');
   assertActorCastPrices(castPrices(costs));
   const prices = copy(costs);
-  const state = saved ? copy(saved) : { tick, acceptedActorIds: [], closed: false, fieldsResolved: false, regenerated: false, exitsResolved: false, suppressions: [] };
+  const state = saved ? copy(saved) : { tick, acceptedActorIds: [], movedActorIds: [], closed: false, fieldsResolved: false, regenerated: false, exitsResolved: false, suppressions: [] };
   if (state.tick !== tick || typeof state.closed !== 'boolean'
     || typeof state.fieldsResolved !== 'boolean' || typeof state.regenerated !== 'boolean'
     || typeof state.exitsResolved !== 'boolean' || state.exitsResolved && !state.regenerated
     || state.fieldsResolved && !state.closed || state.regenerated && !state.fieldsResolved || !Array.isArray(state.acceptedActorIds)
     || new Set(state.acceptedActorIds).size !== state.acceptedActorIds.length
     || state.acceptedActorIds.some(id => typeof id !== 'string' || !registry.getActor(id))
+    || state.movedActorIds !== undefined && (!Array.isArray(state.movedActorIds)
+      || state.movedActorIds.some(id => !state.acceptedActorIds.includes(id)))
     || !Array.isArray(state.suppressions) || state.suppressions.some(entry => !entry || !Number.isFinite(entry.amount)
       || entry.amount < 0 || !registry.getActor(entry.sourceId) || !registry.getActor(entry.targetId)?.affinities.some(pair => affinityKey(pair) === entry.affinityKey))) {
     throw new Error('invalid turn snapshot');
@@ -118,6 +122,7 @@ export function createActorTurn(
           if ((actor.vitals.stamina?.current ?? 0) < cost) { lastRejection = 'InsufficientStamina'; break; }
           accepted = registry.moveActor(actor.id, target);
           if (accepted && cost > 0) registry.changeVital(actor.id, 'stamina', -cost);
+          if (accepted) (state.movedActorIds ??= []).push(actor.id);
           break;
         }
         case 'cast_affinity': {
@@ -153,7 +158,8 @@ export function createActorTurn(
     regenerate(): boolean {
       if (!state.fieldsResolved || state.regenerated) return false;
       if (prices.persistentUpkeep) registry.chargeAffinityUpkeep(prices.persistentUpkeep);
-      registry.regenerate(overwhelmRegenScales(readActorOverwhelms(registry))); state.regenerated = true; return true;
+      registry.regenerate(regenScales(readActorOverwhelms(registry), state.movedActorIds ?? []));
+      state.regenerated = true; return true;
     },
     resolveExits(): string[] | null {
       if (!state.regenerated || state.exitsResolved) return null;
@@ -161,16 +167,22 @@ export function createActorTurn(
       state.exitsResolved = true;
       return exited;
     },
-    snapshot(): ActorTurnSnapshot { return copy({ ...state, acceptedActorIds: [...state.acceptedActorIds].sort() }); },
+    snapshot(): ActorTurnSnapshot { return copy({ ...state, acceptedActorIds: [...state.acceptedActorIds].sort(),
+      ...(state.movedActorIds ? { movedActorIds: [...state.movedActorIds].sort() } : {}) }); },
   };
 }
 
-/** Per actor and vital, the lowest overwhelm regen scale: a stop beats a doubling on the same vital. */
-function overwhelmRegenScales(overwhelms: readonly ActorOverwhelm[]): Record<string, Record<string, number>> {
+/**
+ * Per actor and vital, the lowest regen scale this turn: a stop beats a doubling on the same vital.
+ * Overwhelm (#289) scales any vital; a mover rests no stamina (#273), so walking drains and waiting refills.
+ */
+function regenScales(overwhelms: readonly ActorOverwhelm[], movedActorIds: readonly string[]): Record<string, Record<string, number>> {
   const scales: Record<string, Record<string, number>> = {};
-  for (const { actorId, vital, regenScale } of overwhelms) {
+  const lower = (actorId: string, vital: string, scale: number) => {
     const byVital = scales[actorId] ??= {};
-    byVital[vital] = Math.min(byVital[vital] ?? Infinity, regenScale);
-  }
+    byVital[vital] = Math.min(byVital[vital] ?? Infinity, scale);
+  };
+  for (const { actorId, vital, regenScale } of overwhelms) lower(actorId, vital, regenScale);
+  for (const actorId of movedActorIds) lower(actorId, 'stamina', 0);
   return scales;
 }
