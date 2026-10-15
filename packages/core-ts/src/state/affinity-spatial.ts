@@ -502,14 +502,19 @@ export function createAffinitySpatialState() {
   };
 }
 
-/** Existing per-cell opposition arithmetic, shared by both projection call sites during migration. */
+/**
+ * Per-cell opposition, decided by STACKS (maintainer, 2026-10-15, #290): the side
+ * with more stacks survives with the difference, its intensity scaled by the share
+ * of its stacks left; equal stacks cancel both. Intensity used to decide it, and an
+ * emitter's own tile always reads intensity 1, so a 1-stack emit erased a 3-stack
+ * opposite there. One rule for every opposed pair.
+ */
 export function cancelAffinityOverlap(sourceIntensity: number, sourceStacks: number, targetIntensity: number, targetStacks: number) {
-  const netSource = Math.max(0, sourceIntensity - targetIntensity);
-  const netTarget = Math.max(0, targetIntensity - sourceIntensity);
+  const net = sourceStacks - targetStacks;
   return {
-    sourceIntensity: netSource,
-    sourceStacks: netSource === 0 ? 0 : netTarget === 0 && sourceStacks > targetStacks ? sourceStacks - targetStacks : sourceStacks,
-    targetIntensity: netTarget,
-    targetStacks: netTarget === 0 ? 0 : netSource === 0 && targetStacks > sourceStacks ? targetStacks - sourceStacks : targetStacks,
+    sourceIntensity: net > 0 ? sourceIntensity * (net / sourceStacks) : 0,
+    sourceStacks: net > 0 ? net : 0,
+    targetIntensity: net < 0 ? targetIntensity * (-net / targetStacks) : 0,
+    targetStacks: net < 0 ? -net : 0,
   };
 }
