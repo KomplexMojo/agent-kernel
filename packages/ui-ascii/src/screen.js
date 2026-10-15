@@ -11,6 +11,7 @@
  */
 import {
   asciiActorCellStyle,
+  asciiFieldCellStyle,
   asciiRememberedCellStyle,
   buildAsciiCellStyles,
 } from "../../runtime/src/render/ascii-cell-style.js";
@@ -63,14 +64,17 @@ function paint(text, hex, color) {
  * Colour one board row cell by cell; characters with no style stay plain.
  * `cellStyles` (column -> style) overrides the per-character style, which is
  * how an actor's affinity colours its cell. `sightRow` (the play session's
- * fog of war) dims the cells the player only remembers.
+ * fog of war) dims the cells the player only remembers. `fieldRow` (the view's
+ * per-cell affinity fields) tints `floorChar` cells by the fields on them.
  */
-export function paintBoardRow(row, styles, cellStyles = null, sightRow = null, depth = "truecolor") {
+export function paintBoardRow(row, styles, cellStyles = null, sightRow = null, depth = "truecolor", fieldRow = null, floorChar = null) {
   let out = "";
   let open = null;
   for (let x = 0; x < row.length; x += 1) {
     const char = row[x];
-    const base = cellStyles?.get(x) || styles[char] || null;
+    // Floor shows the affinity fields on it (#287); actors and traps keep their own fill.
+    const tile = char === floorChar ? asciiFieldCellStyle(styles[char] || null, fieldRow?.[x]) : styles[char] || null;
+    const base = cellStyles?.get(x) || tile;
     const style = sightRow?.[x] === PLAY_SIGHT.REMEMBERED ? asciiRememberedCellStyle(base) : base;
     const code = style ? `${ansiForHex(style.bg, 48, depth)}${ansiForHex(style.fg, 38, depth)}` : "";
     if (code !== open) {
@@ -279,7 +283,7 @@ export function renderScreen({
   const actorCells = color ? actorCellStyles(view) : null;
   const playerPosition = view.player?.position;
   overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition).forEach((row, y) => {
-    lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y], depthOf(color)) : row}`);
+    lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y], depthOf(color), view.field?.[y], view.legend?.floor) : row}`);
   });
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
