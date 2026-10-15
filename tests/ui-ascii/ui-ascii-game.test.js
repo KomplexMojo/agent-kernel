@@ -695,3 +695,37 @@ test("a defeated player sees the defeat line; moves do nothing and r restarts th
 // - an exhausted slot's HUD row says it is off until mana is full
 // - Tab in the affinity list wraps from the last row to the first
 // - + at full stacks says it already runs at all held stacks
+
+// #291: turn-based by default; real time is an opt-in wait turn on a timer.
+const { DEFAULT_REALTIME_MS, REALTIME_TOGGLE_KEY, parseRealtimeMs, realtimeBeat, realtimeLine } = require("../../packages/ui-ascii/src/realtime.js");
+
+test("--realtime takes whole milliseconds of at least 50; play is turn-based without it", () => {
+  assert.equal(parseArgs([]).realtimeMs, undefined);
+  assert.equal(parseArgs(["--realtime", "250"]).realtimeMs, 250);
+  assert.throws(() => parseArgs(["--realtime", "10"]), /at least 50/);
+  assert.throws(() => parseArgs(["--realtime", "fast"]), /whole milliseconds/);
+  assert.equal(parseRealtimeMs("50"), 50);
+  assert.equal(DEFAULT_REALTIME_MS, 500);
+  assert.equal(REALTIME_TOGGLE_KEY, "t");
+  assert.equal(intentForKey("t"), null, "t is free for the toggle");
+});
+
+test("a real-time beat is a wait turn, and pauses while a panel is open or the level is over", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  assert.equal(await realtimeBeat(game), true);
+  assert.equal(game.state().turns, 1, "a beat costs one turn, exactly like pressing .");
+  await press(game, "i");
+  assert.equal(await realtimeBeat(game), false);
+  assert.equal(game.state().turns, 1, "no beat while the affinity list is open");
+
+  const finished = await createGame({ levels: fixtureLevels() });
+  await runScripted(finished, FIRST_STEPS_SOLUTION);
+  const turns = finished.state().turns;
+  assert.equal(await realtimeBeat(finished), false);
+  assert.equal(finished.state().turns, turns, "no beat after the exit");
+});
+
+test("the real-time line names the mode and the toggle key", () => {
+  assert.match(realtimeLine({ on: true, intervalMs: 250 }), /every 250 ms.*t pauses/);
+  assert.match(realtimeLine({ on: false, intervalMs: 500 }), /Turn-based.*t for real time/);
+});

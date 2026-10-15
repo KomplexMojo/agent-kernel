@@ -190,7 +190,7 @@ function usage() {
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
-  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--record path] [--replay path]
+  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--realtime ms] [--record path] [--replay path]
   node ${rel} play --watch (--dir dir | --from-run id) [--tick N] [--keys keys] [--json] [--color | --no-color]
   node ${rel} play-session start [--session id] (--dir dir | --from-run id | --sim-config path --initial-state path | --level name) [--actor id|label] [--commands json] [--keys keys]
   node ${rel} play-session start [--session id] --load path
@@ -285,6 +285,7 @@ Options:
   --keys          play: apply these keys without a terminal and print the final screen (e.g. "ddss.")
   --json          play: print { ok, level, turns, status, screen, launch, warnings? } instead of the screen
   --no-fog        play: debug view of the whole map (play is always under fog of war)
+  --realtime      play: a turn passes every <ms> while you wait (interactive only; t toggles)
   --record        play: save the played commands to this path (CapturedInputArtifact)
   --replay        play: re-run a saved game on its level, then continue
   --watch         play: watch the run \`ak run\` recorded in --dir (or under artifacts/runs/<--from-run>), tick by tick
@@ -6431,7 +6432,7 @@ async function playCommand(argv) {
     console.log(usage());
     return;
   }
-  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick"]);
+  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick", "realtime"]);
   const unknown = Object.keys(args).filter((key) => !allowed.has(key));
   if (unknown.length > 0) throw new Error(`play does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
   if (args.watch) {
@@ -6453,8 +6454,12 @@ async function playCommand(argv) {
   if ((args.record !== undefined && !capture.recordPath) || (args.replay !== undefined && !capture.replayPath)) {
     throw new Error("play --record and --replay each need a file path.");
   }
+  // #291: real time is for a person at the keyboard, so only interactive play takes it.
+  if (args.realtime !== undefined && (keys !== undefined || args.json)) {
+    throw new Error("play --realtime is for interactive play; drop --keys/--json.");
+  }
   if (keys === undefined && !args.json) {
-    process.exitCode = await playAsciiInteractive({ source, color, fog, ...capture });
+    process.exitCode = await playAsciiInteractive({ source, color, fog, realtime: args.realtime, ...capture });
     return;
   }
   const result = playAsciiScripted({ source, keys: keys ?? "", color: color === true, fog, ...capture });

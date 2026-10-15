@@ -25,6 +25,7 @@ pnpm run play:ascii -- --keys "ddss" --no-color     # scripted: apply keys, prin
 pnpm run play:ascii -- --keys "ddss" --json         # scripted, as { ok, level, turns, status, screen, warnings? }
 pnpm run play:ascii -- --no-fog                     # debug: see the whole map
 pnpm run play:ascii -- --record game.json           # on quit, save the played commands
+pnpm run play:ascii -- --realtime 500              # a turn passes every 500 ms while you wait (t toggles)
 pnpm run play:ascii -- --replay game.json           # re-run a saved game, then keep playing
 ```
 
@@ -46,6 +47,8 @@ pnpm run play:ascii -- --watch --run <dir> --tick 5 --json      # { ok, tick, ma
 Every actor and trap is drawn where the run recorded it at that tick, with no fog (a viewer watches the whole run, not one actor's sight), and the HUD follows the actor the game would seat as the player, drawn `@`. What is on the board at a tick is the runtime run viewer's (`runner/run-viewer.js`): it reads the registry snapshot each tick frame recorded and hands back the play session's `view()` shape, so this package draws it with the same code; nothing is re-simulated. `ak play --watch`, MCP `ak_play_ascii` with `watch: true`, and the `ascii` of `ak tick` / `ak_show_state` are this screen. `--no-help` starts with the key help hidden, in play and in watch.
 
 **Record and replay.** `--record <path>` writes the current level's played commands as a `CapturedInputArtifact` (`source.adapter: "player"`, one `{ tick, actorId, command }` per turn) when you quit or when `--keys` finishes. `--replay <path>` re-runs them on the same level (a bundled level is picked from the capture) and play continues from there; with `--keys` or `--json` it prints the result instead. The simulation is deterministic, so a replay reaches the exact same state; the play session refuses a capture whose commands no longer land on their recorded ticks. The log and the replay are the play session's (`captureInput`, `replayPlaySession`); this package only reads and writes the file.
+
+**Turn-based by default; real time is opt-in.** Time passes only when you act, so standing next to a trap costs nothing until you take a turn. `--realtime <ms>` starts real time: every `<ms>` milliseconds without a key, the game takes a wait turn for you, exactly as if you had pressed `.`. `t` switches real time on and off in game (at 500 ms when no `--realtime` was given), and a line under the board says which mode is on. The beat pauses while a panel is open or the level is over. A beat is an ordinary wait turn, so recordings and replays stay deterministic. Interactive play only: `--keys` and `--json` ignore it (#291).
 
 **Fog of war is on.** You see only what is in sight (levels are unlit, so that is close by). Cells you have never seen are `?`, cells you saw before are drawn dimmed with no actors on them (until dark covers them out of sight, which makes you forget them), and other actors and traps appear only while in sight. What counts as in sight is core's and the play session's (`createPlaySession({ fog: true })`, `view().sight`); this package only draws it. `--no-fog` (also on `ak play`, and `fog: false` on `ak_play_ascii`) is a debug view of the whole level for tests and level checks, not a way to play.
 

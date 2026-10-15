@@ -305,6 +305,8 @@ Inputs/outputs:
   pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map. MCP: `ak_play_ascii`.
 - A level is played as written. Delvers or wardens below the viability floor are reported as `warning:` lines on
   stderr, and as `warnings` with `--json`.
+- `--realtime <ms>` (interactive play only) passes a turn every `<ms>` milliseconds while the player waits; `t` toggles it
+  in game. Play is turn-based by default (#291).
 - `--record <path>` saves the played commands as a `CapturedInputArtifact`; `--replay <path>` re-runs a saved
   game on its level, then play continues (both pass through to the UI; see `packages/ui-ascii/README.md`).
 - `--keys` takes the game's own keys (see `packages/ui-ascii/README.md`), including the affinity keys:

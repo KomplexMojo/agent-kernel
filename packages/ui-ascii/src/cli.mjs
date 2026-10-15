@@ -20,6 +20,7 @@ import {
 } from "./levels.js";
 import { hudLine } from "./screen.js";
 import { createWatch } from "./watch.js";
+import { DEFAULT_REALTIME_MS, REALTIME_TOGGLE_KEY, parseRealtimeMs, realtimeBeat, realtimeLine } from "./realtime.js";
 
 const USAGE = `Usage: ak-maze [options]
 
@@ -35,6 +36,8 @@ const USAGE = `Usage: ak-maze [options]
   --color                 colour even when output is not a terminal
   --no-color              plain text output (also: NO_COLOR set in the environment)
   --no-fog                debug: show the whole map (play is always under fog of war)
+  --realtime <ms>         interactive play: a turn passes every <ms> while you wait (t toggles;
+                          turn-based by default)
   --watch                 with --run: watch the run \`ak run\` recorded there, tick by tick
   --tick <n>              with --watch: open at this tick (default 0)
   --no-help               start with the key help hidden (? shows it)
@@ -100,6 +103,7 @@ export function parseArgs(argv) {
         break;
       }
       case "--color": options.color = "always"; break;
+      case "--realtime": options.realtimeMs = parseRealtimeMs(next()); break;
       case "-h":
       case "--help": options.help = true; break;
       default: throw new Error(`Unknown option: ${arg}`);
@@ -183,10 +187,13 @@ export async function runScripted(game, keys, { color = false, keyIntent = inten
   return game.screen({ color });
 }
 
-function runInteractive(game, { color, recordPath, keyIntent = intentForKey }) {
+function runInteractive(game, { color, recordPath, keyIntent = intentForKey, realtimeMs = null, realtimeKeys = true }) {
   const { stdin, stdout } = process;
-  const draw = () => stdout.write(`\u001b[2J\u001b[H${game.screen({ color })}\n`);
+  // #291: turn-based unless --realtime or `t` switches real time on.
+  const realtime = { on: realtimeMs !== null, intervalMs: realtimeMs ?? DEFAULT_REALTIME_MS, timer: null };
+  const draw = () => stdout.write(`\u001b[2J\u001b[H${game.screen({ color })}\n${realtimeKeys ? `\n${realtimeLine(realtime)}\n` : ""}`);
   const restore = () => {
+    if (realtime.timer) clearInterval(realtime.timer);
     if (stdin.isTTY) stdin.setRawMode(false);
     stdout.write("\u001b[?25h");
   };
@@ -194,12 +201,24 @@ function runInteractive(game, { color, recordPath, keyIntent = intentForKey }) {
   stdin.setRawMode(true);
   stdin.setEncoding("utf8");
   stdout.write("\u001b[?25l");
-  draw();
-  // Keys are applied strictly in order: each chunk waits for the previous one.
+  // Keys and real-time beats are applied strictly in order on one chain.
   let pending = Promise.resolve();
+  const schedule = () => {
+    if (realtime.timer) clearInterval(realtime.timer);
+    realtime.timer = realtime.on ? setInterval(() => {
+      pending = pending.then(async () => { if (await realtimeBeat(game)) draw(); });
+    }, realtime.intervalMs) : null;
+  };
+  schedule();
+  draw();
   stdin.on("data", (chunk) => {
     pending = pending.then(async () => {
       for (const key of splitKeys(chunk)) {
+        if (realtimeKeys && key === REALTIME_TOGGLE_KEY) {
+          realtime.on = !realtime.on;
+          schedule();
+          continue;
+        }
         if ((await game.handle(keyIntent(key))).quit) {
           if (recordPath) recordGame(game, recordPath);
           restore();
@@ -274,7 +293,7 @@ export async function main(argv = process.argv.slice(2)) {
     console.error("ak-maze needs an interactive terminal (or pass --keys).");
     return 1;
   }
-  runInteractive(game, { color: resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env }), recordPath: options.recordPath });
+  runInteractive(game, { color: resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env }), recordPath: options.recordPath, realtimeMs: options.realtimeMs ?? null });
   return null; // keeps running until the player quits
 }
 
@@ -365,7 +384,7 @@ async function watch(options) {
     }
     return 0;
   }
-  runInteractive(viewer, { color: resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env }), keyIntent: watchIntentForKey });
+  runInteractive(viewer, { color: resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env }), keyIntent: watchIntentForKey, realtimeKeys: false });
   return null;
 }
 
