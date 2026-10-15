@@ -18,7 +18,7 @@ function registry(records = [actor('source'), actor('target')]) {
 const positive: [AffinityKind, number[]][] = [
   ['fire', [8, 0, 4, 6]], ['water', [5, 3, 4, 6]], ['earth', [8, 0, 4, 6]],
   ['wind', [10, 3, 4, 1]], ['life', [15, 3, 4, 6]], ['decay', [5, 3, 4, 6]],
-  ['corrode', [10, 0, 4, 6]], ['fortify', [10, 8, 4, 6]],
+  ['corrode', [8, 0, 4, 6]], ['fortify', [10, 8, 4, 6]],
   ['light', [10, 3, 9, 6]], ['dark', [10, 3, 0, 6]],
 ];
 for (const expression of ['push', 'emit'] as const) {
@@ -64,9 +64,10 @@ test('missing durability offers no protection and missing target pool has no eff
   resolveActorAffinity(state, 'source', 'target', 'fire', 'push', 5);
   expect(state.getActor('target')!.vitals.health!.current).toBe(5);
   expect(resolveActorAffinity(state, 'source', 'target', 'light', 'pull', 5).changes).toEqual([]);
-  const before = state.snapshot();
+  // Corrode spills like fire (Darren, 2026-10-15): no armour, so all of it reaches health.
   resolveActorAffinity(state, 'source', 'target', 'corrode', 'push', 5);
-  expect(state.snapshot()).toEqual(before);
+  expect(state.getActor('target')!.vitals.health!.current).toBe(0);
+  expect(state.getActor('target')!.lifecycle).toBe('defeated');
 });
 
 test('rejects self-drain and malformed inputs atomically', () => {

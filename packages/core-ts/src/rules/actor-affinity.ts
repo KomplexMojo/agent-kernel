@@ -26,7 +26,7 @@ const MATRIX: Record<AffinityKind, readonly [Effect, Effect]> = {
   wind: [{ operation: 'damage', vital: 'stamina' }, neutralize],
   life: [{ operation: 'restore', vital: 'health' }, { operation: 'drain', vital: 'health' }],
   decay: [{ operation: 'damage', vital: 'health' }, neutralize],
-  corrode: [{ operation: 'damage', vital: 'durability' }, neutralize],
+  corrode: [{ operation: 'damage', vital: 'durability', overflow: 'health' }, neutralize],
   fortify: [{ operation: 'restore', vital: 'durability' }, { operation: 'drain', vital: 'durability' }],
   light: [{ operation: 'restore', vital: 'mana' }, { operation: 'drain', vital: 'mana' }],
   dark: [{ operation: 'damage', vital: 'mana' }, neutralize],

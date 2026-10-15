@@ -213,7 +213,7 @@ at its matching vital's missing capacity.
 Field scoring calls core's `previewActorFieldChanges` with the cells at the
 candidate destination (or current cell for non-moves). This forecasts a detached
 receiver using the same damage/restore/drain routing and vital mutation primitive
-as execution. Fire/earth consume durability and overflow into health; water/decay
+as execution. Fire, earth and corrode consume durability and overflow into health; water/decay
 bypass durability. Only active equipment supplies protection or draw absorption.
 Owned inactive alternatives confer neither. Matching draw credits mana up to its
 capacity; it never heals health. Missing vitals produce no changes, and terminal
