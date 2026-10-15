@@ -153,7 +153,8 @@ Each actor receives its own perception-scoped observation. Levels are unlit: cor
 of one tile, extended by the stacks of light the actor itself emits less the dark stacks at its tile. Per cell,
 core weighs the strongest emitted light reaching it against the strongest emitted dark, stack for stack: more light
 and the cell is lit, seen from any distance; more dark and the cell, and anyone in it, is hidden beyond one tile; a
-tie is neither. Light and dark are both powered by their source's mana: they dim as the pool drains and regen
+tie is neither. Dark from other sources that beats the light on the actor's own tile by two or more stacks blinds
+it: it sees only its own tile, plus lit cells in line of sight (#284); an actor's own dark never blinds it. Light and dark are both powered by their source's mana: they dim as the pool drains and regen
 restores them. Core then applies deterministic line of sight: walls and barriers block actors and hazards behind
 them, including diagonal corner peeking. The shared world snapshot is
 never mutated, and resources remain absent because actor observations do not currently expose them.

@@ -51,10 +51,12 @@ export function readActorRegistryDarkByCell(snapshot: Pick<ActorRegistrySnapshot
   return readEmittedStacksByCell(snapshot, 'dark');
 }
 
-function readEmittedStacksByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensions' | 'actors'>, kind: 'light' | 'dark'): Record<string, number> {
+function readEmittedStacksByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensions' | 'actors'>, kind: 'light' | 'dark',
+  excludeActorId?: string): Record<string, number> {
   const { width, height } = snapshot.dimensions;
   const reached: Record<string, number> = {};
   for (const actor of snapshot.actors) {
+    if (actor.id === excludeActorId) continue;
     const stacks = poweredEmitStacks(actor, kind);
     if (stacks <= 0) continue;
     const radius = computeAffinityRadius(SIGHT_LIGHT_EXPRESSION, stacks);
@@ -92,13 +94,19 @@ function resolveRegistryLightDark(observation: RegistryObservation) {
 /**
  * One observer's sight inputs. Its own light, less the dark at its tile, extends
  * its radius; cells where light outweighs dark are lit; cells where dark
- * outweighs light are obscured, along with anyone standing in them.
+ * outweighs light are obscured, along with anyone standing in them. Dark from
+ * other sources that beats the light at its tile by the blinding threshold
+ * leaves it its own tile only (#284).
  */
 function resolveRegistrySight(observation: RegistryObservation, self: ActorRecord) {
-  const { lightByCell, darkStacksByCell, darkByCell } = resolveRegistryLightDark(observation);
-  const ownLight = Math.max(0, poweredEmitStacks(self, 'light') - (darkByCell[`${self.position.x},${self.position.y}`] ?? 0));
+  const { width, height, lightByCell, darkStacksByCell, darkByCell } = resolveRegistryLightDark(observation);
+  const tile = `${self.position.x},${self.position.y}`;
+  const ownLight = Math.max(0, poweredEmitStacks(self, 'light') - (darkByCell[tile] ?? 0));
+  // Blinding dark (#284) is other sources' dark against all the light at the tile.
+  const othersDark = readEmittedStacksByCell({ dimensions: { width, height }, actors: observation.actors }, 'dark', self.id)[tile] ?? 0;
+  const lightAtTile = readActorRegistryLightByCell({ dimensions: { width, height }, actors: observation.actors })[tile] ?? 0;
   return {
-    radius: resolveVisibilityRadius({ lightStacks: ownLight }),
+    radius: resolveVisibilityRadius({ lightStacks: ownLight, blindingDarkStacks: Math.max(0, othersDark - lightAtTile) }),
     options: { darkStacksByCell, lightByCell, darkObscureThreshold: NET_DARK_OBSCURE_STACK_THRESHOLD },
   };
 }
