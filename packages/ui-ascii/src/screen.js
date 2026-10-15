@@ -21,17 +21,41 @@ import { HELP_LINES } from "./keymap.js";
 const BAR_WIDTH = 10;
 const RESET = "\u001b[0m";
 
-/** 24-bit ANSI for a palette hex; layer 38 is foreground, 48 background. */
-function ansiForHex(hex, layer = 38) {
+/**
+ * The colour depth a `color` option asks for: `"256"` for xterm-256 terminals
+ * (macOS Terminal reads 24-bit codes as separate attributes, #286), anything
+ * else truthy for 24-bit.
+ */
+function depthOf(color) {
+  return color === "256" ? "256" : "truecolor";
+}
+
+const CUBE_LEVELS = [0, 95, 135, 175, 215, 255];
+
+/** The nearest xterm-256 index for an RGB colour: the 6×6×6 cube or the grey ramp. */
+export function xterm256Index(r, g, b) {
+  const nearestLevel = (channel) => CUBE_LEVELS.reduce((best, level, i) =>
+    (Math.abs(level - channel) < Math.abs(CUBE_LEVELS[best] - channel) ? i : best), 0);
+  const [cr, cg, cb] = [r, g, b].map(nearestLevel);
+  const cube = [CUBE_LEVELS[cr], CUBE_LEVELS[cg], CUBE_LEVELS[cb]];
+  const greyStep = Math.max(0, Math.min(23, Math.round(((r + g + b) / 3 - 8) / 10)));
+  const grey = 8 + greyStep * 10;
+  const distance = (target) => (target[0] - r) ** 2 + (target[1] - g) ** 2 + (target[2] - b) ** 2;
+  return distance([grey, grey, grey]) < distance(cube) ? 232 + greyStep : 16 + 36 * cr + 6 * cg + cb;
+}
+
+/** ANSI for a palette hex at a colour depth; layer 38 is foreground, 48 background. */
+function ansiForHex(hex, layer = 38, depth = "truecolor") {
   const match = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || ""));
   if (!match) return "";
   const [r, g, b] = match.slice(1).map((part) => parseInt(part, 16));
+  if (depth === "256") return `\u001b[${layer};5;${xterm256Index(r, g, b)}m`;
   return `\u001b[${layer};2;${r};${g};${b}m`;
 }
 
 function paint(text, hex, color) {
   if (!color) return text;
-  const code = ansiForHex(hex);
+  const code = ansiForHex(hex, 38, depthOf(color));
   return code ? `${code}${text}${RESET}` : text;
 }
 
@@ -41,14 +65,14 @@ function paint(text, hex, color) {
  * how an actor's affinity colours its cell. `sightRow` (the play session's
  * fog of war) dims the cells the player only remembers.
  */
-export function paintBoardRow(row, styles, cellStyles = null, sightRow = null) {
+export function paintBoardRow(row, styles, cellStyles = null, sightRow = null, depth = "truecolor") {
   let out = "";
   let open = null;
   for (let x = 0; x < row.length; x += 1) {
     const char = row[x];
     const base = cellStyles?.get(x) || styles[char] || null;
     const style = sightRow?.[x] === PLAY_SIGHT.REMEMBERED ? asciiRememberedCellStyle(base) : base;
-    const code = style ? `${ansiForHex(style.bg, 48)}${ansiForHex(style.fg, 38)}` : "";
+    const code = style ? `${ansiForHex(style.bg, 48, depth)}${ansiForHex(style.fg, 38, depth)}` : "";
     if (code !== open) {
       out += open ? RESET : "";
       out += code;
@@ -226,7 +250,7 @@ export function inSightLine(view) {
  * @param {number} [args.turns]
  * @param {string} [args.message]   overrides the default status line
  * @param {boolean} [args.showHelp]
- * @param {boolean} [args.color]    emit ANSI colour
+ * @param {boolean|string} [args.color] emit ANSI colour: true or "truecolor" for 24-bit, "256" for xterm-256
  * @param {string[]} [args.panel]   lines of an open panel (affinities, target, loot)
  * @param {string} [args.title]      replaces the game's title line (the run viewer's)
  * @param {string} [args.tickLine]   replaces the "Tick n   Turns n" line
@@ -255,7 +279,7 @@ export function renderScreen({
   const actorCells = color ? actorCellStyles(view) : null;
   const playerPosition = view.player?.position;
   overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition).forEach((row, y) => {
-    lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y]) : row}`);
+    lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y], depthOf(color)) : row}`);
   });
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));

@@ -18,10 +18,10 @@ const {
   loadLevelFromRunDir,
 } = require("../../packages/ui-ascii/src/levels.js");
 const { createGame } = require("../../packages/ui-ascii/src/game.js");
-const { overlayActors, paintBoardRow, renderScreen } = require("../../packages/ui-ascii/src/screen.js");
+const { overlayActors, paintBoardRow, renderScreen, xterm256Index } = require("../../packages/ui-ascii/src/screen.js");
 const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/game-elements.js");
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
-const { parseArgs, resolveLevels, runScripted, shouldUseColor } = require("../../packages/ui-ascii/src/cli.mjs");
+const { colorDepth, parseArgs, resolveColor, resolveLevels, runScripted, shouldUseColor } = require("../../packages/ui-ascii/src/cli.mjs");
 const { createPlaySession } = require("../../packages/runtime/src/runner/play-session.js");
 const { buildUnifiedLevel, viableVitals } = require("../fixtures/ui-ascii/unified-level.mjs");
 
@@ -381,6 +381,34 @@ test("colour: on for a terminal, off for pipes, NO_COLOR and --no-color; --color
   assert.equal(shouldUseColor({ color: false }, { isTTY: true, env: {} }), false);
   assert.equal(shouldUseColor({ color: "always" }, { isTTY: false, env: { NO_COLOR: "1" } }), true);
   assert.equal(parseArgs(["--color"]).color, "always");
+});
+
+test("colour depth (#286): 24-bit only when the terminal says so or the output is captured", () => {
+  assert.equal(colorDepth({ isTTY: true, env: { COLORTERM: "truecolor" } }), "truecolor");
+  assert.equal(colorDepth({ isTTY: true, env: { COLORTERM: "24bit" } }), "truecolor");
+  // macOS Terminal sets no COLORTERM and misreads 24-bit codes.
+  assert.equal(colorDepth({ isTTY: true, env: { TERM_PROGRAM: "Apple_Terminal" } }), "256");
+  assert.equal(colorDepth({ isTTY: false, env: {} }), "truecolor");
+  assert.equal(resolveColor({ color: true }, { isTTY: true, env: {} }), "256");
+  assert.equal(resolveColor({ color: true }, { isTTY: true, env: { NO_COLOR: "1" } }), false);
+  assert.equal(resolveColor({ color: "always" }, { isTTY: false, env: {} }), "truecolor");
+});
+
+test("xterm-256 picks the nearest cube colour or grey", () => {
+  assert.equal(xterm256Index(0, 0, 0), 16);
+  assert.equal(xterm256Index(255, 255, 255), 231);
+  assert.equal(xterm256Index(255, 0, 0), 196);
+  assert.equal(xterm256Index(128, 128, 128), 244);
+  assert.equal(xterm256Index(0x3b, 0x32, 0x37), 237);
+});
+
+test("a 256-colour screen has the same text and no 24-bit codes", async () => {
+  const session = await createPlaySession(fixtureLevel("first-steps"));
+  const screen = renderScreen({ view: session.view(), levelName: "first-steps", color: "256" });
+  assert.match(screen, /\u001b\[48;5;\d+m/);
+  assert.doesNotMatch(screen, /\u001b\[[34]8;2;/);
+  const plain = renderScreen({ view: session.view(), levelName: "first-steps" });
+  assert.equal(screen.replace(/\u001b\[[0-9;]*m/g, ""), plain);
 });
 
 test("warden-hall's wardens wander once the play session runs their turns", async (context) => {

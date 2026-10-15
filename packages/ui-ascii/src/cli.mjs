@@ -119,6 +119,22 @@ export function shouldUseColor(options, { isTTY = false, env = {} } = {}) {
   return Boolean(isTTY);
 }
 
+/**
+ * How many colours to write (#286). 24-bit when the terminal says it takes it
+ * (`COLORTERM=truecolor|24bit`) or when the output is captured rather than shown
+ * (not a terminal); otherwise xterm-256, which every colour terminal reads —
+ * macOS Terminal does not set COLORTERM and misreads 24-bit codes.
+ */
+export function colorDepth({ isTTY = false, env = {} } = {}) {
+  if (/^(truecolor|24bit)$/i.test(String(env.COLORTERM || ""))) return "truecolor";
+  return isTTY ? "256" : "truecolor";
+}
+
+/** The `color` a screen takes: false, or the depth to write it at. */
+export function resolveColor(options, terminal) {
+  return shouldUseColor(options, terminal) ? colorDepth(terminal) : false;
+}
+
 export function resolveLevels(options) {
   if (options.runDir) return { levels: [loadLevelFromRunDir(options.runDir)], startIndex: 0 };
   if (options.simConfigPath || options.initialStatePath) {
@@ -239,7 +255,7 @@ export async function main(argv = process.argv.slice(2)) {
   const { warnings } = game.state();
   for (const warning of warnings) console.error(`warning: ${warning}`);
   if (options.keys !== undefined || (options.replayPath && (options.json || !process.stdin.isTTY))) {
-    const color = options.json ? options.color === "always" : shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env });
+    const color = options.json ? options.color === "always" && "truecolor" : resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env });
     const screen = await runScripted(game, options.keys ?? "", { color });
     if (options.recordPath) recordGame(game, options.recordPath);
     if (options.json) {
@@ -258,7 +274,7 @@ export async function main(argv = process.argv.slice(2)) {
     console.error("ak-maze needs an interactive terminal (or pass --keys).");
     return 1;
   }
-  runInteractive(game, { color: shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env }), recordPath: options.recordPath });
+  runInteractive(game, { color: resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env }), recordPath: options.recordPath });
   return null; // keeps running until the player quits
 }
 
@@ -301,7 +317,7 @@ async function session(options) {
     console.error(error.message);
     return 2;
   }
-  const color = options.json ? options.color === "always" : shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env });
+  const color = options.json ? options.color === "always" && "truecolor" : resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env });
   const screen = await runScripted(game, options.keys ?? "", { color });
   recordGame(game, options.sessionPath, { source: source ?? undefined });
   if (!options.json) {
@@ -340,7 +356,7 @@ async function watch(options) {
     return 1;
   }
   if (options.keys !== undefined || options.json || !process.stdin.isTTY) {
-    const color = options.json ? options.color === "always" : shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env });
+    const color = options.json ? options.color === "always" && "truecolor" : resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env });
     const screen = await runScripted(viewer, options.keys ?? "", { color, keyIntent: watchIntentForKey });
     if (options.json) {
       console.log(JSON.stringify({ ok: true, ...viewer.state(), screen }));
@@ -349,7 +365,7 @@ async function watch(options) {
     }
     return 0;
   }
-  runInteractive(viewer, { color: shouldUseColor(options, { isTTY: process.stdout.isTTY, env: process.env }), keyIntent: watchIntentForKey });
+  runInteractive(viewer, { color: resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env }), keyIntent: watchIntentForKey });
   return null;
 }
 
