@@ -427,6 +427,37 @@ function placeObjectsLegacy({ layout, hazards = [], resources = [], affinityRule
     actors: [...hazardActors(allHazards, affinityRules), ...resourceActors(placedResources)] };
 }
 
+/**
+ * #300 — pose a built level's placement question again. Its hazard and resource actors become
+ * unpositioned placement requests that map back to the same actors once placed; every other
+ * actor stays where it stands. Room membership is not recorded on a built actor, so the
+ * re-placement ranges over every walkable cell.
+ */
+export function levelObjectRequests({ actors = [], presentation = {} } = {}) {
+  const hazards = [];
+  const resources = [];
+  const fixed = [];
+  (Array.isArray(actors) ? actors : []).forEach((actor) => {
+    const category = presentation?.[actor?.id]?.category ?? actor?.category;
+    const { position: _position, category: _category, ...request } = actor || {};
+    if (category === "hazard") {
+      hazards.push({
+        id: request.id,
+        affinity: Array.isArray(request.affinities) ? request.affinities[0] : undefined,
+        vitals: request.vitals,
+        blocking: request.capabilities?.blocksMovement === true,
+        motivations: request.motivations,
+        holdings: request.holdings,
+      });
+    } else if (category === "resource") {
+      resources.push(request);
+    } else {
+      fixed.push(actor);
+    }
+  });
+  return { hazards, resources, actors: fixed };
+}
+
 /** Consume host output; deferred/error/capability absence keeps the characterized fallback. */
 export function completeObjectPlacement({ prepared: supplied, solverResult, ...args } = {}) {
   const prepared = supplied || prepareObjectPlacement(args);

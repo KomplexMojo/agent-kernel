@@ -89,6 +89,8 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     // Z9.1 — object assignment and path-preserving placement are Configurator policy.
     prepareObjectPlacement: services.prepareObjectPlacement,
     completeObjectPlacement: services.completeObjectPlacement,
+    // #300 — a built level's hazards and resources as placement requests, for `ak solve`.
+    levelObjectRequests: services.levelObjectRequests,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,
     resolveMotivationRules: services.resolveMotivationRules,
     // CR.7 / WP-5 — the third card-model derivation; its siblings are `deriveRoomLayout` and

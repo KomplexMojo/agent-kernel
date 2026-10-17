@@ -29,11 +29,13 @@ export const simulationTools = [
   }),
   createTool({
     name: "ak_solve",
-    description: "Pose a scenario to the constraint solver and write its SolverRequest and SolverResult. `solved` says whether the solver answered: a free-text scenario carries no solver domain, so it comes back solved:false with status deferred and a reason.",
+    description: "Ask the constraint solver a question. With `dir` (a built level, e.g. from ak_create) and `question`, the owning persona poses a real problem: `place-objects` re-places the level's hazards and resources keeping spawn connected to exit (Configurator); `budget-fit` fits the level's billed tiles to `budgetTokens` (Allocator). The result's `answer` holds the persona's verdict and `source` (solver or fallback); `status: not_posed` means no search was needed. With `scenario` instead, free text carries no solver domain, so it comes back solved:false with status deferred and a reason. `solved` says whether the solver answered.",
     command: "solve",
     inputSchema: {
-      required: ["scenario"],
       properties: withCommonOutput({
+        dir: pathSchema("Built level directory holding sim-config.json and initial-state.json (with question)."),
+        question: { type: "string", enum: ["place-objects", "budget-fit"], description: "Question about the level in dir." },
+        budgetTokens: integerSchema("Token budget for question budget-fit.", { minimum: 0 }),
         scenario: stringSchema("Scenario text."),
         plan: pathSchema("Existing plan artifact path."),
         intent: pathSchema("Existing intent artifact path."),
@@ -41,6 +43,9 @@ export const simulationTools = [
       }),
     },
     buildArgs: (args) => buildArgv(args, [
+      { key: "dir" },
+      { key: "question" },
+      { key: "budgetTokens", flag: "budget-tokens" },
       { key: "scenario" },
       { key: "plan" },
       { key: "intent" },
