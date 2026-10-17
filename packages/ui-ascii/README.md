@@ -82,7 +82,7 @@ Reaching the exit's approach tile puts you **at the exit**; waiting one more tic
 | `src/cli.mjs` | The terminal: arguments, raw-mode keypresses, redraws |
 | `src/keymap.js` | Key → intent (`move`, `wait`, `affinities`, `cast`, `take`, …; and the watch keys). No legality |
 | `src/game.js` | Intent → play-session call; level index, move count, last message, the open panel (affinities, target, loot) |
-| `src/screen.js` | Lays out the view as text and turns palette hex into ANSI escapes. Board glyphs come from the play session's rows (the registry's terrain in the level's render legend); board colours from `render/ascii-cell-style.js`; vital labels and colours from runtime's HUD model |
+| `src/screen.js` | Lays out the view as text and turns palette hex into ANSI escapes. Board glyphs come from the play session's rows (the registry's terrain in the level's render legend); board colours from `render/ascii-cell-style.js`; vital labels and colours from runtime's HUD model. Each vital reads `current/max (+regen)`, and the `hud` line uses the same form |
 | `src/watch.js` | Watching a recorded run: the tick cursor and help toggle over the runtime run viewer |
 | `src/levels.js` | Finds and parses SimConfig + InitialState artifact pairs, and a recorded run's tick frames |
 | `levels/` | Bundled levels, as `<name>.sim-config.json` + `<name>.initial-state.json`, generated from `levels/recipes.json` |
