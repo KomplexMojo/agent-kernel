@@ -32,6 +32,7 @@ import {
   resolveObservationView,
   resolveBaseTiles,
   resolveExit,
+  findExitFromTiles,
   resolveActor,
   resolveActorRecord,
   resolveTileKinds,
@@ -1590,6 +1591,10 @@ function resolveStrategyTurn({ entry, payload, observation, observationView, sim
     exitStep: () => {
       const step = buildMoveProposal({ observation, payload, simConfig });
       return step.length > 0 ? step : [{ kind: "wait" }];
+    },
+    onExit: () => {
+      const portal = findExitFromTiles(baseTiles);
+      return Boolean(portal) && actor.position.x === portal.x && actor.position.y === portal.y;
     },
     commandProposal: (command) => buildCommandProposals({ command, observationView, observation, actorId })[0] ?? null,
   };
