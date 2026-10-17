@@ -5,7 +5,7 @@
     "id": "golden_g2_budget_receipt",
     "runId": "golden_g2",
     "createdAt": "2026-07-18T00:00:00.000Z",
-    "producedBy": "cli-create"
+    "producedBy": "allocator"
   },
   "budgetRef": {
     "id": "budget_golden_g2",

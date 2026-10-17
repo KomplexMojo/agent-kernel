@@ -105,6 +105,9 @@ flowchart LR
   Personas --> ModeratorPersona
   Personas --> AnnotatorPersona
   %% Build plane is a persona round (enforced target model)
+  %% No parallel paths (charter, #275): every build, play and sandbox entrypoint enters this round;
+  %% a missing input selects the persona's default, never skips it. Each persona stamps
+  %% meta.producedBy on what it emits (contracts/persona-stamps.js).
   CommandKernel -- "build round" --> DirectorPersona
   DirectorPersona -- "BuildSpec" --> ConfiguratorPersona
   ConfiguratorPersona -- "spend proposal" --> AllocatorPersona
