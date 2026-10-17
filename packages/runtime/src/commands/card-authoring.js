@@ -99,8 +99,6 @@ const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden", "hazard",
 
 const RESOURCE_VITAL_KEYS = Object.freeze(["health", "mana", "stamina"]);
 
-const RESOURCE_PERMANENT_MULTIPLIER = LEVEL_ECONOMY.resourcePermanentMultiplier;
-
 const DEFAULT_BUDGET_SPLIT = Object.freeze({ ...LEVEL_ECONOMY.budgetSplitPercent });
 
 function formatDisplayLabel(value, fallback = "") {
@@ -1778,7 +1776,6 @@ export {
   DEFAULT_BUDGET_SPLIT,
   DEFAULT_LEVEL_BUDGET_TOKENS,
   GLOBAL_ISSUED_CARD_IDS,
-  RESOURCE_PERMANENT_MULTIPLIER,
   RESOURCE_VITAL_KEYS,
   ROOM_SHAPE_ORDER,
   ROOM_SIZE_ORDER,

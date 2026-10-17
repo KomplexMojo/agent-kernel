@@ -415,7 +415,9 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
       : undefined,
     proximityRadius: type === "hazard" ? normalizePositiveInt(entry?.proximityRadius, 1) : undefined,
     mana: type === "hazard" ? normalizeHazardVital(entry?.mana, { kind: "one-time", amount: 3 }) : undefined,
-    durability: type === "room" && entry?.durability ? normalizeHazardVital(entry.durability, { kind: "one-time", amount: 1 }) : undefined,
+    durability: (type === "room" || type === "hazard") && entry?.durability
+      ? normalizeHazardVital(entry.durability, { kind: "one-time", amount: 1 })
+      : undefined,
     tier: type === "resource" ? entry?.tier : undefined,
     stat: type === "resource" ? entry?.stat : undefined,
     delta: type === "resource" && Number.isFinite(Number(entry?.delta)) ? Number(entry.delta) : undefined,

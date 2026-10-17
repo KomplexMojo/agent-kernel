@@ -36,7 +36,6 @@ import {
   DEFAULT_BUDGET_SPLIT,
   DEFAULT_LEVEL_BUDGET_TOKENS,
   GLOBAL_ISSUED_CARD_IDS,
-  RESOURCE_PERMANENT_MULTIPLIER,
   RESOURCE_VITAL_KEYS,
   ROOM_SHAPE_ORDER,
   ROOM_SIZE_ORDER,
@@ -1668,7 +1667,7 @@ export function wireDesignGuidance({
             if (permanentBtn) {
               permanentBtn.type = "button";
               permanentBtn.className = "design-card-room-size";
-              permanentBtn.textContent = card.permanent ? `×${RESOURCE_PERMANENT_MULTIPLIER} cost` : "level-scoped";
+              permanentBtn.textContent = card.permanent ? "permanent" : "level-scoped";
               permanentBtn.addEventListener?.("click", (event) => {
                 event.stopPropagation?.();
                 toggleResourcePermanent(card.id);
