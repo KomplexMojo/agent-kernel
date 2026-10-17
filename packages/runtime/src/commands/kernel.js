@@ -1577,7 +1577,18 @@ export function createCommandKernel(host = {}) {
     ];
     const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;
 
-    if (budget && priceList) {
+    // #276: with no budget the Allocator's reference budget and price list apply, as for
+    // `ak create` (#274). Only a caller-supplied receipt with no budget is taken as already priced.
+    const pricedHere = Boolean(budget) || !budgetReceipt;
+    if (pricedHere) {
+      const allocator = createAllocatorPersona({ clock: UNUSED_CLOCK });
+      budget = budget || {
+        schema: BUDGET_ARTIFACT_SCHEMA,
+        schemaVersion: 1,
+        meta: createMeta({ producedBy: "cli-configurator", runId }),
+        budget: { tokens: allocator.pricing.levelAuthoring().referenceBudgetTokens },
+      };
+      priceList = priceList || allocator.resolvePriceList();
       const spendResult = evaluateConfiguratorSpend({
         budget,
         priceList,
@@ -1610,7 +1621,8 @@ export function createCommandKernel(host = {}) {
 
     await writeJson(join(outDir, "sim-config.json"), simConfig);
     await writeJson(join(outDir, "initial-state.json"), initialState);
-    if (budget && priceList && budgetReceipt) {
+    if (pricedHere) {
+      await writeJson(join(outDir, "price-list.json"), priceList);
       const receiptPath = join(outDir, "budget-receipt.json");
       await writeJson(receiptPath, budgetReceipt);
       if (receiptOutPath) {

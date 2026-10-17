@@ -177,7 +177,9 @@ automatically. See [`docs/adaptive-workflow.md`](../../docs/adaptive-workflow.md
 Agent-only builder that consumes a single JSON build spec and emits the canonical persisted
 handoff for downstream personas. By default it writes `spec.json`, the budget triplet when
 present, `sim-config.json`, `initial-state.json`, `resource-bundle.json`, `bundle.json`,
-`manifest.json`, and `telemetry.json`. `--emit-intermediates` additionally writes `intent.json`,
+`manifest.json`, and `telemetry.json`. A spec with a level but no `budget` is priced against the
+Allocator's reference budget (2500 tokens), so it still gets a price list and receipt (#276); only a
+spec that brings its own receipt and no budget is taken as already priced. `--emit-intermediates` additionally writes `intent.json`,
 `plan.json`, solver artifacts, and captured-input sidecars. Manifest/bundle include a filtered
 `schemas` list for emitted artifacts.
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
@@ -728,6 +730,9 @@ artifact unchanged. The stitched bundle is what `ak_push_to_ui` delivers to the 
 
 ### `configurator`
 Build `SimConfigArtifact` + `InitialStateArtifact` outputs from deterministic configurator inputs.
+With no `--budget`, the Allocator's reference budget (2500 tokens) and price list apply and
+`price-list.json` + `budget-receipt.json` are written (#276); `--budget-receipt` alone is taken as
+already priced.
 
 ### `replay`
 Replay a run deterministically from captured inputs and TickFrames without external IO,

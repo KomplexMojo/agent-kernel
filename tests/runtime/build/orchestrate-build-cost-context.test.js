@@ -51,7 +51,7 @@ test("orchestrateBuild with explicit priceList still produces receipt+proposal (
   assert.ok(result, "orchestrateBuild must complete without error");
 });
 
-test("orchestrateBuild without any budget produces no spendProposal or budgetReceipt", async () => {
+test("orchestrateBuild without any budget is priced against the Allocator's reference budget (#276)", async () => {
   const { orchestrateBuild } = await import(
     "../../../packages/runtime/src/build/orchestrate-build.js"
   );
@@ -60,6 +60,8 @@ test("orchestrateBuild without any budget produces no spendProposal or budgetRec
   const spec = specNoBudget;
   const result = await orchestrateBuild({ spec, producedBy: "test" });
 
-  assert.equal(result.spendProposal ?? null, null, "no spendProposal when no budget");
-  assert.equal(result.budgetReceipt ?? null, null, "no budgetReceipt when no budget");
+  assert.ok(result.spendProposal, "the Allocator still sees a spend proposal");
+  assert.equal(result.budgetReceipt?.status, "approved");
+  assert.equal(result.budgetReceipt.totalCost + result.budgetReceipt.remaining, 2500, "Allocator reference budget");
+  assert.ok(result.simConfig.budgetReceiptRef, "sim config references the receipt");
 });
