@@ -450,12 +450,15 @@ function stableSortAffinities(entries = []) {
       if (!kind || !expression) return;
       const key = `${kind}:${expression}`;
       const stacks = normalizeCardCount(entry?.stacks, 1);
+      // #340: an authored intensity rides along; merged entries keep the stronger one.
+      const intensity = Number.isSafeInteger(entry?.intensity) && entry.intensity >= 1 ? entry.intensity : undefined;
       const existing = merged.get(key);
       if (existing) {
         existing.stacks += stacks;
+        if (intensity !== undefined && intensity > (existing.intensity ?? 1)) existing.intensity = intensity;
         return;
       }
-      merged.set(key, { kind, expression, stacks, hazardVitals: entry?.hazardVitals });
+      merged.set(key, { kind, expression, stacks, ...(intensity !== undefined ? { intensity } : {}), hazardVitals: entry?.hazardVitals });
     });
   return Array.from(merged.values())
     .sort((a, b) => a.kind.localeCompare(b.kind) || a.expression.localeCompare(b.expression) || a.stacks - b.stacks);

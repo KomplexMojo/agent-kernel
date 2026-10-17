@@ -161,6 +161,10 @@ At a high level, the Configurator:
 > affinity the actor does not hold, a duplicate, more stacks than held, slots outside 1-6. Any mix,
 > opposite emits included, is allowed. The preset slot counts are `PRESET_AFFINITY_SLOTS` in contracts.
 >
+> Range and intensity (#340, #343): an authored affinity entry may carry `intensity` beside its
+> `stacks` (the range). The Configurator carries it unchanged onto the actor and hazard records
+> (`input-preparation.js` `mapHazards`, `cost-model.js` `normalizeAffinityList`); absent, core reads 1.
+>
 > Not the same responsibility as the candidate-authoring block above: that one assembles **priced
 > cards** for the Allocator to judge; this one assembles a request's **actor roster entry**
 > directly, with no pricing involved. `actor-generator.js`'s `generateActorSet` was investigated

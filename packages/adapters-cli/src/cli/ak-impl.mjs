@@ -239,7 +239,7 @@ Options:
   --delver-budget-tokens  Separate hard budget cap for delver-side objects (delvers, wardens).
   --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
-  --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
+  --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
   --resource      Resource artifact spec for create/configure/resource-plan (repeatable).
                   Vital payload:   permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]
                   permanenceMode governs delta only (consumable raises current, level/permanent raise max).
@@ -252,12 +252,12 @@ Options:
                   Slots payload: slots=<n>[;id=<id>] is slot-unlock loot: taking it opens n more affinity
                   slots (an actor is capped at 6). The most valuable loot, priced per slot.
                   Legacy: tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
-  --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
+  --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<range>][;intensity=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
+  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
+  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
                     where <expression> is push|pull (spatial) or emit|draw (field)
                 Delver and warden slots/equip (create too): slots=<n> sets affinity slots (1-6; preset delver 3, warden 2);
                 each slot above the preset is charged at the slot-unlock price. equip= lists starting equips in order,
@@ -682,8 +682,8 @@ function parseActorAffinityTuple(value, actorType, actorIndex, affinityIndex) {
     throw new Error(`${actorType}[${actorIndex}] affinity[${affinityIndex}] is empty.`);
   }
   const parts = raw.split(":").map((part) => part.trim()).filter((part) => part.length > 0);
-  if (parts.length === 0 || parts.length > 3) {
-    throw new Error(`${actorType}[${actorIndex}] affinity[${affinityIndex}] must be kind[:expression[:stacks]].`);
+  if (parts.length === 0 || parts.length > 4) {
+    throw new Error(`${actorType}[${actorIndex}] affinity[${affinityIndex}] must be kind[:expression[:range[:intensity]]].`);
   }
 
   const kind = parts[0].toLowerCase();
@@ -698,9 +698,11 @@ function parseActorAffinityTuple(value, actorType, actorIndex, affinityIndex) {
 
   const stacks = parts[2] === undefined
     ? 1
-    : parsePositiveIntStrict(parts[2], `${actorType}[${actorIndex}] affinity[${affinityIndex}] stacks`);
-
-  return { kind, expression, stacks };
+    : parsePositiveIntStrict(parts[2], `${actorType}[${actorIndex}] affinity[${affinityIndex}] range`);
+  // #340: the fourth part is intensity; omitted, the entry carries none and reads as 1.
+  if (parts[3] === undefined) return { kind, expression, stacks };
+  const intensity = parsePositiveIntStrict(parts[3], `${actorType}[${actorIndex}] affinity[${affinityIndex}] intensity`);
+  return { kind, expression, stacks, intensity };
 }
 
 function parseActorAffinities(value, actorType, actorIndex) {
@@ -721,6 +723,9 @@ function parseActorAffinities(value, actorType, actorIndex) {
     const existing = merged.get(key);
     if (existing) {
       existing.stacks += tuple.stacks;
+      // Range adds up; the stronger intensity is kept.
+      const intensity = Math.max(existing.intensity ?? 1, tuple.intensity ?? 1);
+      if (intensity > 1) existing.intensity = intensity;
       return;
     }
     merged.set(key, { ...tuple });
@@ -1028,7 +1033,7 @@ function parsePlacedHazardSpec(value, hazardIndex) {
     throw new Error(`hazard[${hazardIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "x", "y", "affinity", "expression", "stacks", "blocking", "vitals"]);
+  const allowedFields = new Set(["id", "x", "y", "affinity", "expression", "stacks", "intensity", "blocking", "vitals"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1075,6 +1080,9 @@ function parsePlacedHazardSpec(value, hazardIndex) {
       stacks: fields.has("stacks")
         ? parsePositiveIntStrict(fields.get("stacks"), `hazard[${hazardIndex}] stacks`)
         : 1,
+      ...(fields.has("intensity")
+        ? { intensity: parsePositiveIntStrict(fields.get("intensity"), `hazard[${hazardIndex}] intensity`) }
+        : {}),
       targetType: "floor",
     },
     vitals: parsePlacedHazardVitals(fields.get("vitals"), hazardIndex),
@@ -1138,6 +1146,7 @@ function buildCanonicalHazard({
   affinity,
   expression,
   stacks = 1,
+  intensity,
   proximityRadius = 0,
   mana,
   durability,
@@ -1155,6 +1164,7 @@ function buildCanonicalHazard({
       kind: affinity,
       expression,
       stacks: resolvedStacks,
+      ...(Number.isInteger(intensity) && intensity > 0 ? { intensity } : {}),
       targetType: "floor",
     }],
     vitals: {
@@ -1176,6 +1186,7 @@ function canonicalizePlacedHazard(hazard, hazardIndex) {
     affinity: affinity.kind,
     expression: affinity.expression || "emit",
     stacks: affinity.stacks,
+    intensity: affinity.intensity,
     proximityRadius: 0,
     mana: placementVitalToHazardVital(hazard?.vitals?.mana),
     durability: placementVitalToHazardVital(hazard?.vitals?.durability),
@@ -1190,7 +1201,7 @@ function parseHazardSpec(value, hazardIndex) {
   if (!raw) {
     throw new Error(`hazard[${hazardIndex}] requires a non-empty spec.`);
   }
-  const allowedFields = new Set(["id", "affinity", "expression", "stacks", "proximityRadius", "blocking", "mana", "durability"]);
+  const allowedFields = new Set(["id", "affinity", "expression", "stacks", "intensity", "proximityRadius", "blocking", "mana", "durability"]);
   const fields = new Map();
   const segments = raw.split(";").map((s) => s.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1230,6 +1241,9 @@ function parseHazardSpec(value, hazardIndex) {
     affinity,
     expression,
     stacks,
+    intensity: fields.has("intensity")
+      ? parsePositiveIntStrict(fields.get("intensity"), `hazard[${hazardIndex}] intensity`)
+      : undefined,
     proximityRadius: parseNonNegativeIntStrict(fields.get("proximityRadius"), `hazard[${hazardIndex}] proximityRadius`),
     mana: parseHazardVitalSpec(fields.get("mana"), "mana", hazardIndex),
     durability: fields.has("durability")
