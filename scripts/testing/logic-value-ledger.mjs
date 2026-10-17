@@ -53,7 +53,7 @@ const MAX_RECORDED_EXAMPLES = 12;
  * fallback. Using this rather than calling the legacy fitter directly means the
  * ledger measures the real production path, including the host glue.
  */
-function createDeferringAdapter(domain) {
+export function createDeferringAdapter(domain) {
   return {
     kind: "ledger-deferring",
     capabilities: { domains: [domain], deterministic: true },
@@ -109,7 +109,7 @@ export function allocatorRegions({ floorTiles, hallwayTiles, costFloor, costHall
   return { fullCost, unsatPoints, decisionPoints, bypassAtOrAbove: fullCost };
 }
 
-function* enumerateAllocatorPoints({ maxFloor, maxHallway, maxCost }) {
+export function* enumerateAllocatorPoints({ maxFloor, maxHallway, maxCost }) {
   for (let floorTiles = 1; floorTiles <= maxFloor; floorTiles += 1) {
     for (let hallwayTiles = 0; hallwayTiles <= maxHallway; hallwayTiles += 1) {
       for (let costFloor = 1; costFloor <= maxCost; costFloor += 1) {
@@ -151,7 +151,7 @@ function summarizeAllocatorRegions({ maxFloor, maxHallway, maxCost }) {
   return { combos, unsatRegion, decisionRegion };
 }
 
-function outcomeRank(result, requestedLayout) {
+export function outcomeRank(result, requestedLayout) {
   if (!result?.ok || !result.layout) return null;
   return allocatorObjectiveRank(result.layout, requestedLayout);
 }
@@ -484,21 +484,28 @@ function* enumerateWallMasks(interior, maxWalls) {
   yield* results;
 }
 
+// The Configurator reads one terrain representation (`terrain-layout.js`): a row-major
+// `terrain` array where only "floor" is walkable, with the route endpoints given as
+// approach floors. The earlier `kinds` grid predates that and made every point "not
+// ready", so this domain silently measured nothing.
 function buildGridLayout({ width, height, walls }) {
-  const kinds = Array.from({ length: height }, (_, y) => (
-    Array.from({ length: width }, (_, x) => (walls.has(`${x},${y}`) ? 1 : 0))
-  ));
+  const terrain = [];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) terrain.push(walls.has(`${x},${y}`) ? "wall" : "floor");
+  }
   return {
     data: {
-      kinds,
-      spawn: { x: 0, y: 0 },
-      exit: { x: width - 1, y: height - 1 },
+      width,
+      height,
+      terrain,
+      spawnApproach: { x: 0, y: 0 },
+      exitApproach: { x: width - 1, y: height - 1 },
       rooms: [],
     },
   };
 }
 
-function* enumerateConfiguratorPoints({ width, height, maxWalls, objectSets }) {
+export function* enumerateConfiguratorPoints({ width, height, maxWalls, objectSets }) {
   const interior = [];
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
@@ -518,20 +525,16 @@ function* enumerateConfiguratorPoints({ width, height, maxWalls, objectSets }) {
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 /** Positions actually assigned, keyed by object id, from a placement result. */
-function placementOf(result) {
-  const data = result?.layout?.data || result?.layout;
-  if (!data) return null;
-  const entries = [
-    ...(Array.isArray(data.hazards) ? data.hazards : []),
-    ...(Array.isArray(data.resources) ? data.resources : []),
-  ];
-  return Object.fromEntries(entries
+export function placementOf(result) {
+  // Placed hazards and resources come back as actors (unified actor model).
+  if (!Array.isArray(result?.actors)) return null;
+  return Object.fromEntries(result.actors
     .filter((entry) => entry?.id && entry.position)
     .map((entry) => [entry.id, `${entry.position.x},${entry.position.y}`]));
 }
 
 /** Does this placement leave spawn able to reach exit? The question greedy never asks. */
-function placementKeepsPathOpen(prepared, placement) {
+export function placementKeepsPathOpen(prepared, placement) {
   if (!placement) return false;
   const blocked = new Set(prepared.blocking);
   prepared.pending.forEach((object) => {
@@ -802,6 +805,11 @@ function median(values) {
   return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
+// Placement never reads a hazard's affinity, but the hazard actor needs one. Spread across
+// kinds so no affinity is the ledger's default.
+const trap = (id, blocking, kind) => ({ id, blocking, affinity: { kind, expression: "emit", stacks: 1 } });
+const cache = (id) => ({ id, vitals: { durability: { current: 1, max: 1, regen: 0 } }, holdings: [] });
+
 export const LEDGER_DOMAINS = Object.freeze({
   allocator_budget_fit: {
     run: runAllocatorLedger,
@@ -820,10 +828,10 @@ export const LEDGER_DOMAINS = Object.freeze({
         height: 3,
         maxWalls: 3,
         objectSets: [
-          { hazards: [{ id: "h1", blocking: true }], resources: [] },
-          { hazards: [{ id: "h1", blocking: true }], resources: [{ id: "r1" }] },
-          { hazards: [{ id: "h1", blocking: true }, { id: "h2", blocking: true }], resources: [] },
-          { hazards: [{ id: "h1", blocking: false }], resources: [{ id: "r1" }] },
+          { hazards: [trap("h1", true, "earth")], resources: [] },
+          { hazards: [trap("h1", true, "water")], resources: [cache("r1")] },
+          { hazards: [trap("h1", true, "decay"), trap("h2", true, "light")], resources: [] },
+          { hazards: [trap("h1", false, "corrode")], resources: [cache("r1")] },
         ],
       },
       sweep: {
@@ -831,10 +839,10 @@ export const LEDGER_DOMAINS = Object.freeze({
         height: 3,
         maxWalls: 4,
         objectSets: [
-          { hazards: [{ id: "h1", blocking: true }], resources: [] },
-          { hazards: [{ id: "h1", blocking: true }], resources: [{ id: "r1" }] },
-          { hazards: [{ id: "h1", blocking: true }, { id: "h2", blocking: true }], resources: [] },
-          { hazards: [{ id: "h1", blocking: true }, { id: "h2", blocking: false }], resources: [{ id: "r1" }] },
+          { hazards: [trap("h1", true, "fire")], resources: [] },
+          { hazards: [trap("h1", true, "wind")], resources: [cache("r1")] },
+          { hazards: [trap("h1", true, "growth"), trap("h2", true, "fortify")], resources: [] },
+          { hazards: [trap("h1", true, "dark"), trap("h2", false, "earth")], resources: [cache("r1")] },
         ],
       },
     },
