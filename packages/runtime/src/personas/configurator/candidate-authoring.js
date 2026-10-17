@@ -33,7 +33,7 @@
  * BEHAVIOR-PRESERVING. The enumeration order, the bounds, the fill rule and the
  * tie-break are reproduced exactly as the fused loop had them. Goldens are the gate.
  */
-import { ACTOR_VIABILITY_FLOOR, DEFAULT_VITALS, ROOM_CARD_SIZE_IDS, VITAL_KEYS } from "../../contracts/domain-constants.js";
+import { ACTOR_VIABILITY_FLOOR, DEFAULT_AFFINITY_EXPRESSION, DEFAULT_VITALS, ROOM_CARD_SIZE_IDS, VITAL_KEYS } from "../../contracts/domain-constants.js";
 // CR.9 M4. These three were restated as local consts here and in the Allocator, on the
 // reasoning that `contracts/artifacts.ts` cannot be imported by a runtime `.js` module.
 // True, and beside the point: a runtime `.js` CONTRACTS module can be, so the protocol
@@ -375,13 +375,25 @@ export function fillFlexibleDelverVitals(vitals, remainingTokens) {
   return next;
 }
 
+/**
+ * The affinities an actor card carries, with defaults applied (#282): its `affinities`
+ * list, or else its single `affinity` at the default expression and one stack, which is
+ * what the Director's summary pick gives the built actor. Reading only `affinities` priced
+ * a singular-affinity card without its affinity, so a budget fill overshot its own receipt.
+ */
+export function readCardAffinities(card) {
+  if (Array.isArray(card?.affinities) && card.affinities.length > 0) return card.affinities;
+  const kind = typeof card?.affinity === "string" ? card.affinity.trim() : "";
+  return kind ? [{ kind, expression: DEFAULT_AFFINITY_EXPRESSION, stacks: 1 }] : [];
+}
+
 /** The smallest card that still satisfies the author's hard requirements. */
 export function buildMinimumDelverCard(card) {
   const next = {
     ...card,
     vitals: cloneVitals(card?.vitals),
   };
-  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
+  const affinities = readCardAffinities(card);
 
   if (affinities.length > 0) {
     next.vitals.mana.max = Math.max(next.vitals.mana.max, 1);
@@ -491,7 +503,7 @@ export function proposeDelverCandidates({ card, envelope, optimizationGoals = []
 
   const goals = resolveDelverGoalOrder(optimizationGoals);
   const baseVitals = cloneVitals(card?.vitals);
-  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
+  const affinities = readCardAffinities(card);
 
   if (affinities.length > 0) {
     baseVitals.mana.max = Math.max(baseVitals.mana.max, 1);

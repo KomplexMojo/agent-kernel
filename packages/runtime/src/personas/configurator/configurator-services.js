@@ -53,6 +53,7 @@ import {
   cloneVitals,
   proposeDelverCandidates,
   proposeRoomCandidates,
+  readCardAffinities,
   reviseDelverCandidate,
 } from "./candidate-authoring.js";
 import { maximizeActorBudget } from "./budget-maximizer.js";
@@ -385,6 +386,8 @@ export function attachConfiguratorServices({ fsm } = {}) {
      * cards through its own copy of this before M3.
      */
     readCardVitals: cloneVitals,
+    /** The same question for affinities: a singular `affinity` is one stack at the default expression (#282). */
+    readCardAffinities,
     /**
      * Scale authored actors to exhaust an unspent budget (WP-5/D10).
      *
