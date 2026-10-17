@@ -222,9 +222,6 @@ export function attachAllocatorServices({
      */
     levelAuthoring: () => ({
       referenceBudgetTokens: REFERENCE_BUDGET_TOKENS,
-      resourceVitalCostPerDelta: BASE_COSTS.levelAuthoring.resource_vital_cost_per_delta,
-      resourceVitalCostPerRegen: BASE_COSTS.levelAuthoring.resource_vital_cost_per_regen,
-      resourcePermanentMultiplier: BASE_COSTS.levelAuthoring.resource_permanent_multiplier,
       roomAffinityStackCostFactor: BASE_COSTS.levelAuthoring.room_affinity_stack_cost_factor,
       // Its own JSON group: the base-cost standard requires every item to be a
       // NUMBER, so a nested split object would be formula selection in JSON.

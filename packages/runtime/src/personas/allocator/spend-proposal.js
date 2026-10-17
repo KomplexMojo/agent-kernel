@@ -1083,6 +1083,19 @@ function asActorEntries({ actorSet, summary } = {}) {
     return cardSet
       .map((entry, index) => {
         const type = normalizeCardType(entry?.type) || (entry?.source === "room" ? "room" : "warden");
+        if (type === "hazard" || type === "resource") {
+          // #312: a hazard or resource card is priced as the object the receipt charges
+          // (calculateObjectCardUnitCost), not as an actor. Like the card value, a hazard's
+          // tokenHint is extra spend on top of that price; a resource's is not.
+          return {
+            source: "object",
+            type,
+            id: entry?.id || `${type}_${index + 1}`,
+            count: normalizePositiveInt(entry?.count, 1) || 1,
+            tokenHint: type === "hazard" ? normalizePositiveInt(entry?.tokenHint, 0) : 0,
+            card: entry,
+          };
+        }
         const source = type === "room" ? "room" : "actor";
         const fallbackMotivation = type === "delver" ? "attacking" : type === "room" ? "stationary" : "defending";
         return {
@@ -1195,6 +1208,37 @@ export function buildDesignSpendLedger({
     const count = normalizePositiveInt(entry?.count, 1) || 1;
     const tokenHint = normalizePositiveInt(entry?.tokenHint, 0);
     const entryId = entry.id || `${entry.source}_${entry.motivation}_${entry.affinity}`;
+    if (entry.source === "object") {
+      if (tokenHint > 0) {
+        const hintSpend = tokenHint * count;
+        actorBaseSpent += hintSpend;
+        lineItems.push({
+          category: "actorBase",
+          id: entryId,
+          source: entry.type,
+          label: `${entry.type}-base`,
+          count,
+          unitCostTokens: tokenHint,
+          spendTokens: hintSpend,
+        });
+      }
+      const priced = calculateObjectCardUnitCost({ card: entry.card, priceList: resolvedPriceList });
+      const unitSpend = normalizePositiveInt(priced.cost, 0);
+      if (unitSpend > 0) {
+        actorConfigSpent += unitSpend * count;
+        lineItems.push({
+          category: "actorConfiguration",
+          id: entryId,
+          source: entry.type,
+          label: `${entry.type}-price`,
+          count,
+          unitCostTokens: unitSpend,
+          spendTokens: unitSpend * count,
+          detail: { lineItems: priced.lineItems },
+        });
+      }
+      return;
+    }
     if (entry.source !== "actor") {
       const roomPricing = pricing;
       const levelConfig = calculateActorConfigurationUnitCost({
