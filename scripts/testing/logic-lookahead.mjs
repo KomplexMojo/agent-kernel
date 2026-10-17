@@ -179,7 +179,7 @@ async function policyStep({ persona, TickPhases, tiles, fields, position, exit, 
     }
   }
   const chosen = actions[winner]?.action;
-  const to = chosen?.params?.to;
+  const to = chosen?.params?.target;
   return to && walkable(tiles, to) ? { x: to.x, y: to.y } : position;
 }
 
