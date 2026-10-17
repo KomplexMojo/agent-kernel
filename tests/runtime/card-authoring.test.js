@@ -80,9 +80,10 @@ test("resource card property updates preserve budget ceilings and permanent mult
   assert.equal(result.ok, true);
   assert.equal(result.card.permanent, true);
   assert.equal(result.card.budgetCeiling, 100);
-  assert.equal(beforeValue.unitTokens, 100);
-  assert.equal(afterValue.unitTokens, 100);
-  assert.ok(afterValue.lineItems.some((item) => item.id === "resource_mana_delta" && item.unitCostTokens === 40));
+  // #281: the Allocator prices the card; the budget ceiling is kept on the card but is not its price.
+  assert.equal(afterValue.unitTokens, beforeValue.unitTokens);
+  assert.ok(beforeValue.unitTokens > 0);
+  assert.ok(afterValue.lineItems.some((item) => item.id === "resource_permanent"), JSON.stringify(afterValue.lineItems));
 });
 
 test("hazard cards keep mana and durability normalization stable through facade imports", async () => {
@@ -102,7 +103,10 @@ test("hazard cards keep mana and durability normalization stable through facade 
   assert.deepEqual(runtimeHazard.mana, { kind: "regen", current: 2, max: 7, regen: 3 });
   assert.deepEqual(runtimeHazard.durability, { kind: "one-time", amount: 4 });
   assert.equal(runtimeHazard.expressions[0], "draw");
-  assert.equal(calculateCardValue(runtimeHazard).unitTokens, 75);
+  // #281: the Allocator's price for the hazard, plus its tokenHint as extra spend.
+  const unhinted = calculateCardValue(createDesignCard({ ...hazard, tokenHint: undefined })).unitTokens;
+  assert.ok(unhinted > 0);
+  assert.equal(calculateCardValue(runtimeHazard).unitTokens, unhinted + 75);
 });
 
 test("empty and duplicate card ids keep summary generation deterministic", () => {

@@ -115,6 +115,16 @@ silently-diverging answer to "how big is this card set" is the CR.1 defect class
 because the output stays well-formed. Most Allocator surfaces never price a room card, so the parameter is
 optional at construction and enforced at the point of use.
 
+### It prices hazard and resource cards from the receipt's own items (#281)
+
+`calculateObjectCardUnitCost({ card, priceList })`, published from `controller.js`, prices one hazard or
+resource design card from the same spend items its build receipt charges (`hazard_basic`, affinity base,
+stack and expression, vital points and regen; `resource_base`/`level`/`permanent` and grants), against
+the default price list when none is given. An item with no price-list entry is refused by name. The card
+builder (`commands/card-authoring.js#calculateCardValue`) used to price a hazard at its `tokenHint` alone
+and a resource by its own arithmetic or its `budgetCeiling`. A `budgetCeiling` is a cap, not a price, and a
+`tokenHint` is extra spend added on top of the price (which is how `buildDesignSpendLedger` counts it).
+
 ### It owns mixed-room design-token spend; presentation does not reconstruct it (RB3.0/RB3.2)
 
 The approved unit is `design_tokens`. `priceMixedRoomDesignSpend({ room, composition, priceList })`
