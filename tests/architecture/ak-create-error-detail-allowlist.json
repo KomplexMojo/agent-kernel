@@ -11,12 +11,12 @@
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 544,
+    "line": 545,
     "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier cannot inspect it. formatBudgetReceiptDenial() already reports status/remaining/deniedLines/deniedPools/per-pool shortfall. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 548,
+    "line": 549,
     "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 544. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary."
   },
   {

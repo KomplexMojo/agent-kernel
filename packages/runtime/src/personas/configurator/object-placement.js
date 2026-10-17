@@ -102,6 +102,11 @@ function pathExists(cells, spawn, exit, blocking = new Set()) {
 }
 
 function hasCompleteMatching(candidateCells) {
+  return maximumMatchingSize(candidateCells) === candidateCells.length;
+}
+
+// How many objects can be given distinct cells at once (augmenting-path bipartite matching).
+function maximumMatchingSize(candidateCells) {
   const ownerByCell = new Map();
   function assign(objectIndex, visited) {
     for (const cellIndex of candidateCells[objectIndex]) {
@@ -115,7 +120,7 @@ function hasCompleteMatching(candidateCells) {
     }
     return false;
   }
-  return candidateCells.every((_cells, index) => assign(index, new Set()));
+  return candidateCells.reduce((matched, _cells, index) => matched + (assign(index, new Set()) ? 1 : 0), 0);
 }
 
 function stableHash(value) {
@@ -172,7 +177,15 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
     return { status: "unsat", reason: "containment" };
   }
   if (candidates.some((list) => list.length === 0) || !hasCompleteMatching(candidates)) {
-    return { status: "unsat", reason: "capacity" };
+    // The deficit in the fields the author controls, so a solver-backed refusal says as much
+    // as the fallback's did (#296).
+    const available = new Set(candidates.flat()).size;
+    return {
+      status: "unsat",
+      reason: "capacity",
+      detail: `insufficient unoccupied walkable tiles (${available} available, ${pending.length} requested, `
+        + `${maximumMatchingSize(candidates)} placed before running out — raise floorTile.count)`,
+    };
   }
   // Path endpoints are approach floors; wall portals themselves are non-walkable.
   const spawn = normalizePoint(
@@ -434,7 +447,7 @@ export function completeObjectPlacement({ prepared: supplied, solverResult, ...a
     return { ok: false, status: prepared.status, reason: prepared.reason };
   }
   if (prepared.status === "unsat" && solverResult?.status === "unsat") {
-    return { ok: false, status: "unsat", reason: prepared.reason };
+    return { ok: false, status: "unsat", reason: prepared.reason, ...(prepared.detail ? { detail: prepared.detail } : {}) };
   }
   if (prepared.status === "unsat") return placeObjectsLegacy(args);
   if (prepared.status === "bypass") return prepared.result;
