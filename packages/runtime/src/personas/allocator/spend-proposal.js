@@ -732,6 +732,58 @@ export function buildSpendProposal({ meta, layout, actors, hazards, resources, n
   };
 }
 
+/**
+ * The price of one hazard or resource design card (#281): the same spend items the build's
+ * receipt charges for that object, priced against `priceList` (the default when absent). The
+ * card builder used to price hazards at their caller-set `tokenHint` and resources by its own
+ * arithmetic (or their `budgetCeiling`); neither is a price. An item with no price list entry
+ * is refused by name rather than read as free.
+ */
+export function calculateObjectCardUnitCost({ card, priceList } = {}) {
+  const type = normalizeCardType(card?.type);
+  if (type !== "hazard" && type !== "resource") {
+    throw new Error(`calculateObjectCardUnitCost prices hazard and resource cards, got ${JSON.stringify(card?.type)}`);
+  }
+  const object = type === "hazard" ? hazardFromDesignCard(card) : card;
+  const items = buildSpendItems({
+    layoutData: { budgetScaffold: true },
+    hazards: type === "hazard" ? [object] : [],
+    resources: type === "resource" ? [object] : [],
+  });
+  const priceMap = normalizePriceItems(priceList || buildDefaultPriceList({}));
+  const lineItems = items.map((item) => {
+    const price = priceMap.get(`${item.kind}:${item.id}`);
+    if (!price) throw new Error(`${type} card ${card?.id || ""} needs price ${item.kind}:${item.id}, which the price list does not have`);
+    return {
+      id: item.id,
+      kind: item.kind,
+      quantity: item.quantity,
+      unitCostTokens: price.unitCost,
+      spendTokens: calculatePriceTotal(price, item.quantity),
+    };
+  });
+  return { cost: lineItems.reduce((sum, item) => sum + item.spendTokens, 0), lineItems };
+}
+
+// A hazard design card carries its affinity as `affinities` / `expressions` and its grants as
+// top-level `mana` / `durability`; the receipt path reads `affinityStacks` and `vitals`.
+function hazardFromDesignCard(card) {
+  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
+  const fallbackExpression = Array.isArray(card?.expressions) ? card.expressions[0] : undefined;
+  return {
+    id: card?.id,
+    affinity: card?.affinity,
+    affinityStacks: affinities.map((entry) => ({
+      kind: entry?.kind || card?.affinity,
+      expression: entry?.expression || fallbackExpression,
+      stacks: Number.isInteger(entry?.stacks) && entry.stacks > 0 ? entry.stacks : 1,
+    })),
+    vitals: Object.fromEntries(["mana", "durability"]
+      .filter((key) => card?.[key] && typeof card[key] === "object")
+      .map((key) => [key, card[key]])),
+  };
+}
+
 export function evaluateConfiguratorSpend({
   budget,
   priceList,

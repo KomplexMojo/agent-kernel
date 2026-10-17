@@ -13,6 +13,7 @@ import { createAllocatorStateMachine, AllocatorStates } from "./state-machine.js
 export {
   evaluateConfiguratorSpend,
   calculateActorConfigurationUnitCost,
+  calculateObjectCardUnitCost,
   buildDesignSpendLedger,
 } from "./spend-proposal.js";
 export { buildDefaultPriceList } from "./default-price-list.js";
