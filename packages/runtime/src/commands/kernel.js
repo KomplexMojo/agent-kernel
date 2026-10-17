@@ -1199,6 +1199,34 @@ export function createCommandKernel(host = {}) {
       vitalDefaults,
     });
     const overridesApplied = tileOverrideResult.mutated || actorOverrideResult.mutated;
+    // #278: an overridden level is priced again by the Allocator, against the budget of the
+    // receipt `ak create` wrote beside it. The run plays as overridden either way.
+    let overridePricing = null;
+    if (overridesApplied) {
+      const levelDir = dirname(simConfigPath);
+      const readJsonIfExists = async (path) => (await exists(path) ? readJson(path) : null);
+      const levelReceipt = await readJsonIfExists(join(levelDir, "budget-receipt.json"));
+      const ownReceipt = levelReceipt?.meta?.id && levelReceipt.meta.id === simConfig.budgetReceiptRef?.id ? levelReceipt : null;
+      const levelPriceList = ownReceipt ? await readJsonIfExists(join(levelDir, "price-list.json")) : null;
+      const pricingMeta = (prefix) => ({
+        id: `${prefix}_${runId}_overrides`,
+        runId,
+        createdAt: simConfig.meta?.createdAt || initialState.meta?.createdAt,
+        producedBy: "cli-run",
+      });
+      overridePricing = createAllocatorPersona({ clock: UNUSED_CLOCK }).priceLevelOverrides({
+        simConfig,
+        initialState,
+        levelReceipt: ownReceipt,
+        priceList: levelPriceList?.meta?.id && levelPriceList.meta.id === ownReceipt?.priceListRef?.id ? levelPriceList : undefined,
+        budgetMeta: pricingMeta("budget"),
+        proposalMeta: pricingMeta("spend_proposal"),
+        receiptMeta: pricingMeta("budget_receipt"),
+        normalizeMotivations: createConfiguratorPersona({ clock: UNUSED_CLOCK }).normalizeMotivations,
+      });
+      simConfig.budgetReceiptRef = toRef(overridePricing.receipt);
+      overridePricing.report.forEach(({ message }) => commandLog(`run: ${message}`));
+    }
 
     const affinitySummaryPath = wantsAffinitySummary
       ? (typeof affinitySummaryArg === "string" ? resolvePath(affinitySummaryArg) : join(outDir, "affinity-summary.json"))
@@ -1348,6 +1376,8 @@ export function createCommandKernel(host = {}) {
     if (overridesApplied) {
       await writeJson(join(outDir, "resolved-sim-config.json"), simConfig);
       await writeJson(join(outDir, "resolved-initial-state.json"), initialState);
+      await writeJson(join(outDir, "price-list.json"), overridePricing.priceList);
+      await writeJson(join(outDir, "budget-receipt.json"), overridePricing.receipt);
     }
 
     if (onTickProgress) {
@@ -1359,7 +1389,7 @@ export function createCommandKernel(host = {}) {
     }
 
     commandLog(`run: wrote ${outDir}`);
-    return { outDir, runtimeBudgetReceipt };
+    return { outDir, runtimeBudgetReceipt, ...(overridePricing ? { pricingReport: overridePricing.report } : {}) };
   }
 
   async function replay(args) {

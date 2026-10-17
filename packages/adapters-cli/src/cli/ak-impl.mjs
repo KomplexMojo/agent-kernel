@@ -2318,7 +2318,7 @@ function buildGameplayBundleFromRunArtifacts({
   };
 }
 
-async function summarizeRunOutput({ outDir, args } = {}) {
+async function summarizeRunOutput({ outDir, args, pricingReport } = {}) {
   const runSummary = await readJsonIfExists(join(outDir, "run-summary.json"));
   const resolvedSimConfigPath = join(outDir, "resolved-sim-config.json");
   const resolvedInitialStatePath = join(outDir, "resolved-initial-state.json");
@@ -2345,6 +2345,11 @@ async function summarizeRunOutput({ outDir, args } = {}) {
   }
   if (existsSync(resolvedInitialStatePath)) {
     artifactPaths.resolved_initial_state = resolvedInitialStatePath;
+  }
+  // #278: overrides are re-priced by the Allocator, which writes its receipt with the resolved level.
+  if (pricingReport) {
+    artifactPaths.price_list = join(outDir, "price-list.json");
+    artifactPaths.budget_receipt = join(outDir, "budget-receipt.json");
   }
 
   // M7 gap 3: stitch a post-run agent-kernel/GameplayBundle from the artifacts
@@ -2412,6 +2417,7 @@ async function summarizeRunOutput({ outDir, args } = {}) {
     roomIds: deriveRoomIds(simConfig),
     artifactPaths,
     ticks: runSummary?.metrics?.ticks,
+    ...(pricingReport ? { pricingReport } : {}),
   };
 }
 
@@ -4876,7 +4882,7 @@ async function runCommand(argv) {
       }
     : resolvedArgs;
   const result = await commandKernel.run(kernelArgs);
-  emitJsonStdout(await summarizeRunOutput({ outDir: result.outDir, args: resolvedArgs }));
+  emitJsonStdout(await summarizeRunOutput({ outDir: result.outDir, args: resolvedArgs, pricingReport: result.pricingReport }));
 }
 
 async function configuratorCommand(argv) {
@@ -6250,6 +6256,7 @@ async function scenarioCommand(argv) {
     summarizeRunOutput({
       outDir: runResult.outDir,
       args: runArgs,
+      pricingReport: runResult.pricingReport,
     }),
     summarizeInspectOutput({
       outDir: inspectResult.outDir,

@@ -132,6 +132,14 @@ returns `{ ok: false, error }` (with `budgetInsufficient` for a non-approved or 
 `--budget` spends the budget on the room's floor with `evaluateConfiguratorSpend`, writing the
 issued `budget-receipt.json` and `price-list.json` beside the session.
 
+### It re-prices `ak run` overrides (#278)
+
+`priceLevelOverrides({ simConfig, initialState, levelReceipt, priceList, ... })` prices an
+overridden level's layout and actors with `evaluateConfiguratorSpend`, against the level's own
+budget (`levelReceipt.totalCost + levelReceipt.remaining`, or the reference budget without a
+receipt), and returns `{ receipt, priceList, report }`. `report` holds one `overrides_over_budget`
+finding when the receipt is not approved; the run is not refused.
+
 ### It prices hazard and resource cards from the receipt's own items (#281)
 
 `calculateObjectCardUnitCost({ card, priceList })`, published from `controller.js`, prices one hazard or
