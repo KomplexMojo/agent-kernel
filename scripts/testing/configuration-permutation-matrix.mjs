@@ -14,7 +14,7 @@
 // See mcp-harness-run-through.md ("Configuration-permutation sweep") for the sweep this matrix
 // backs, its results, and the issue (#148) its first full run found.
 
-export const AFFINITIES = ["fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark"];
+export const AFFINITIES = ["fire", "water", "earth", "wind", "growth", "decay", "corrode", "fortify", "light", "dark"];
 export const EXPRESSIONS = ["push", "pull", "emit", "draw"];
 export const NON_CONTROL_MOTIVATIONS = [
   "random", "stationary", "exploring", "patrolling",

@@ -37,7 +37,7 @@ const name = (suffix) => `test-${suffix}`;
 
 test("start, act, switch, view and end one game", () => {
   const dir = partyRun();
-  const session = name("life");
+  const session = name("growth");
   const started = ak(["play-session", "start", "--session", session, "--dir", dir, "--keys", "."]);
   assert.equal(started.json.ok, true, started.stderr);
   assert.equal(started.json.turns, 1);

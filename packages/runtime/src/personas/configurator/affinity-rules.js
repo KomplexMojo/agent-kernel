@@ -452,7 +452,7 @@ const DEFAULT_AFFINITY_ROWS = Object.freeze({
     ids: ["gust_lance", "draft_pull", "storm_ring", "breeze_siphon"],
     manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
   },
-  life: {
+  growth: {
     ids: ["bloom_strike", "vital_draw", "verdant_aura", "vitality_siphon"],
     manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: [0, 1, 2, 3, 4] },
     potency: { pull: LINEAR_TIERS, draw: LINEAR_TIERS },

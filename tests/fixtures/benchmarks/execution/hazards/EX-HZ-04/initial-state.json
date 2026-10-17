@@ -61,7 +61,7 @@
       "holdings": []
     },
     {
-      "id": "hazard_life_draw",
+      "id": "hazard_growth_draw",
       "position": {
         "x": 4,
         "y": 4
@@ -93,12 +93,12 @@
       "motivations": [],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "draw",
           "stacks": 2
         }
       ],
-      "activeAffinityKey": "life:draw",
+      "activeAffinityKey": "growth:draw",
       "holdings": []
     },
     {
@@ -153,7 +153,7 @@
     "delver_draw_subject": {
       "category": "delver"
     },
-    "hazard_life_draw": {
+    "hazard_growth_draw": {
       "category": "hazard"
     },
     "warden_unrelated_target": {

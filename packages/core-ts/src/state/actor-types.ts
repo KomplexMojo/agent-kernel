@@ -1,5 +1,5 @@
 // Mechanical actor data belongs to core; runtime owns only artifact envelopes.
-export type AffinityKind = "fire" | "water" | "earth" | "wind" | "life" | "decay" | "corrode" | "fortify" | "light" | "dark";
+export type AffinityKind = "fire" | "water" | "earth" | "wind" | "growth" | "decay" | "corrode" | "fortify" | "light" | "dark";
 export type AffinityExpression = "push" | "pull" | "emit" | "draw";
 export interface ActorVitalRecord { current: number; max: number; regen: number }
 export interface ActorVitalGrant {

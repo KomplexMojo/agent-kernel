@@ -116,6 +116,15 @@ const VITAL_REGEN_IDS = Object.freeze({
 const DELVER_KEYWORDS = Object.freeze(["delver", "attack", "attacking", "player", "assault", "intruder", "raider", "runner"]);
 const WARDEN_KEYWORDS = Object.freeze(["warden", "defend", "defending", "stationary", "guard", "patrol", "patrolling", "sentry"]);
 
+/**
+ * Regen never fills a vital past its max, so regen above max is bought and never used.
+ * It is still priced as asked (no refusal, Darren 2026-10-15: "Warn"); the line carries
+ * the usable amount so the receipt can name the waste (`readWastedRegen`).
+ */
+function regenDetail(regen, max) {
+  return Number.isInteger(max) && max >= 0 && regen > max ? { usableRegen: max } : undefined;
+}
+
 function buildSubjectRef(id, schema) {
   return {
     id: String(id || "unknown"),
@@ -570,7 +579,7 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
     const subjectRef = buildSubjectRef(hazard?.id || `hazard_${index + 1}`, HAZARD_ARTIFACT_SCHEMA);
     readHazardVitalCharges(hazard).forEach(({ key, points, regen }) => {
       accumulateItem(counts, `vital_${key}_point`, "vital", points, { category: "hazards", subjectRef });
-      accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category: "hazards", subjectRef });
+      accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category: "hazards", subjectRef, detail: regenDetail(regen, points) });
     });
 
     const affinityEntries = readHazardAffinityStacks(hazard);
@@ -634,7 +643,7 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
               : 0;
           accumulateItem(counts, `vital_${key}_point`, "vital", max, { category, subjectRef });
           const regen = Number.isInteger(vital.regen) ? vital.regen : 0;
-          accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category, subjectRef });
+          accumulateItem(counts, `vital_${key}_regen_tick`, "vital", regen, { category, subjectRef, detail: regenDetail(regen, max) });
         });
       }
 

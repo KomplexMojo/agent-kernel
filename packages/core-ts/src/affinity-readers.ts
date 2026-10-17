@@ -4,7 +4,7 @@ export const AFFINITY_KIND_BY_CODE: Readonly<Record<number, string>> =
     2: "water",
     3: "earth",
     4: "wind",
-    5: "life",
+    5: "growth",
     6: "decay",
     7: "corrode",
     8: "fortify",

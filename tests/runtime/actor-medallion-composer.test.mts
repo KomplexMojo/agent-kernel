@@ -115,13 +115,13 @@ test("composer shifts the warden affinity glyph down inside the diamond", () => 
 test("composer vital bar pixels change when current and max change", () => {
   const full = composeActorMedallion({
     size,
-    actor: { role: "delver", affinities: [{ kind: "life", expression: "emit" }] },
+    actor: { role: "delver", affinities: [{ kind: "growth", expression: "emit" }] },
   });
   const damaged = composeActorMedallion({
     size,
     actor: {
       role: "delver",
-      affinities: [{ kind: "life", expression: "emit" }],
+      affinities: [{ kind: "growth", expression: "emit" }],
       vitals: { health: { current: 4, max: 10 } },
     },
   });
@@ -153,20 +153,20 @@ test("composer uses first traits.affinities key when actor affinities are absent
     role: "delver",
     traits: {
       affinities: {
-        "life:draw": 2,
+        "growth:draw": 2,
         "fire:push": 1,
       },
     },
   });
 
-  assert.equal(state.affinity, "life");
+  assert.equal(state.affinity, "growth");
   assert.equal(state.expression, "draw");
 });
 
 test("composer clamps zero-max vitals to finite safe defaults", () => {
   const state = normalizeActorMedallionState({
     role: "delver",
-    affinities: [{ kind: "life", expression: "emit" }],
+    affinities: [{ kind: "growth", expression: "emit" }],
     vitals: {
       health: { current: 0, max: 0 },
       mana: { current: 0, max: 0 },
@@ -180,7 +180,7 @@ test("composer clamps zero-max vitals to finite safe defaults", () => {
     size,
     actor: {
       role: "delver",
-      affinities: [{ kind: "life", expression: "emit" }],
+      affinities: [{ kind: "growth", expression: "emit" }],
       vitals: { health: { current: 0, max: 0 } },
     },
   });

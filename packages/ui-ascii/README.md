@@ -25,6 +25,7 @@ pnpm run play:ascii -- --keys "ddss" --no-color     # scripted: apply keys, prin
 pnpm run play:ascii -- --keys "ddss" --json         # scripted, as { ok, level, turns, status, screen, warnings? }
 pnpm run play:ascii -- --no-fog                     # debug: see the whole map
 pnpm run play:ascii -- --record game.json           # on quit, save the played commands
+pnpm run play:ascii -- --realtime 500              # a turn passes every 500 ms while you wait (t toggles)
 pnpm run play:ascii -- --replay game.json           # re-run a saved game, then keep playing
 ```
 
@@ -47,9 +48,13 @@ Every actor and trap is drawn where the run recorded it at that tick, with no fo
 
 **Record and replay.** `--record <path>` writes the current level's played commands as a `CapturedInputArtifact` (`source.adapter: "player"`, one `{ tick, actorId, command }` per turn) when you quit or when `--keys` finishes. `--replay <path>` re-runs them on the same level (a bundled level is picked from the capture) and play continues from there; with `--keys` or `--json` it prints the result instead. The simulation is deterministic, so a replay reaches the exact same state; the play session refuses a capture whose commands no longer land on their recorded ticks. The log and the replay are the play session's (`captureInput`, `replayPlaySession`); this package only reads and writes the file.
 
+**Walking tires you; resting refills.** A step costs stamina, and stamina regenerates only on a turn you don't move (#273), for every actor alike. When the bar is empty, wait (`.`) to catch your breath. The rule is core's; this package only shows the bar.
+
+**Turn-based by default; real time is opt-in.** Time passes only when you act, so standing next to a trap costs nothing until you take a turn. `--realtime <ms>` starts real time: every `<ms>` milliseconds without a key, the game takes a wait turn for you, exactly as if you had pressed `.`. `t` switches real time on and off in game (at 500 ms when no `--realtime` was given), and a line under the board says which mode is on. The beat pauses while a panel is open or the level is over. A beat is an ordinary wait turn, so recordings and replays stay deterministic. Interactive play only: `--keys` and `--json` ignore it (#291).
+
 **Fog of war is on.** You see only what is in sight (levels are unlit, so that is close by). Cells you have never seen are `?`, cells you saw before are drawn dimmed with no actors on them (until dark covers them out of sight, which makes you forget them), and other actors and traps appear only while in sight. What counts as in sight is core's and the play session's (`createPlaySession({ fog: true })`, `view().sight`); this package only draws it. `--no-fog` (also on `ak play`, and `fog: false` on `ak_play_ascii`) is a debug view of the whole level for tests and level checks, not a way to play.
 
-Colour is on by default in a terminal and uses the application's approved palette (`GAME_COLOR_PALETTE`, via `runtime/src/render/ascii-cell-style.js`): tiles are flat fills like the Phaser board, the player is the user-controlled colour, wardens and delvers wear their role colours, and an actor or trap with an affinity is filled with that affinity's colour. Output that is not a terminal, `NO_COLOR`, or `--no-color` gives plain text; `--color` forces colour.
+Colour is on by default in a terminal and uses the application's approved palette (`GAME_COLOR_PALETTE`, via `runtime/src/render/ascii-cell-style.js`): tiles are flat fills like the Phaser board, the player is the user-controlled colour, wardens and delvers wear their role colours, and an actor or trap with an affinity is filled with that affinity's colour. Floor you can see is tinted by the affinity fields on it, every kind alike: the fill blends toward each field's affinity colour by its strength, after opposite pairs (fire/water, earth/wind, growth/decay, corrode/fortify, light/dark) cancel in core, so a tile shows what actually acts on it (#287). Output that is not a terminal, `NO_COLOR`, or `--no-color` gives plain text; `--color` forces colour. A terminal gets 24-bit colour only when it sets `COLORTERM=truecolor` (or `24bit`), and xterm-256 colour otherwise, because macOS Terminal sets neither and misreads 24-bit codes (#286). Run with `COLORTERM=truecolor` to force 24-bit. Captured output (`--json`, pipes) stays 24-bit.
 
 | Key | Does |
 |---|---|

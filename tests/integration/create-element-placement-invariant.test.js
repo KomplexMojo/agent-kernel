@@ -176,7 +176,7 @@ const SHAPES = [
       // resources pool unless a hazard is present (deniedPools=resources:N/0
       // otherwise) — every canonical resource scenario carries one. Logged
       // 2026-07-11 as an open observation; code-is-law until adjudicated.
-      hazard: ["id=h1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"],
+      hazard: ["id=h1;affinity=growth;expression=emit;proximityRadius=2;mana=regen:3:3:1"],
       room: ["size=medium;count=1"],
       resource: [
         "permanenceMode=permanent;vital=health;delta=6",

@@ -517,10 +517,10 @@ describe("deriveTileAffinityVisuals permutations", () => {
   it("hazard with empty affinityStacks falls back to hazard kind", () => {
     const visuals = deriveTileAffinityVisuals({
       tiles: ["...", "...", "..."],
-      hazards: [{ id: "h", kind: "life", position: { x: 1, y: 1 }, emitStrength: 1, affinityStacks: [] }],
+      hazards: [{ id: "h", kind: "growth", position: { x: 1, y: 1 }, emitStrength: 1, affinityStacks: [] }],
     });
 
-    assert.equal(visuals.get("1,1").affinityKind, "life");
+    assert.equal(visuals.get("1,1").affinityKind, "growth");
     assert.equal(visuals.get("1,1").expression, "");
   });
 

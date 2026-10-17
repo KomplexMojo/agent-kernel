@@ -20,6 +20,7 @@ import { ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
 import { createActorTurn } from "../../../core-ts/src/rules/actor-turn.ts";
 import {
   readActorRegistryDarkCells,
+  readActorRegistryFieldCells,
   readActorRegistryObservation,
   readActorRegistryVisibleCells,
   scopeActorRegistryObservation,
@@ -1556,6 +1557,15 @@ export function createFsmRuntime({
      */
     readDarkCells() {
       return actorRegistry ? readActorRegistryDarkCells(readActorRegistryObservation(actorRegistry, tick)) : [];
+    },
+
+    /**
+     * Every affinity field on each cell right now, after opposite pairs cancel (#287):
+     * a grid the map's shape of `{ kind, stacks, intensity }` lists. Core's reading
+     * (`readActorRegistryFieldCells`); `[]` without the actor registry.
+     */
+    readFieldCells() {
+      return actorRegistry ? readActorRegistryFieldCells(readActorRegistryObservation(actorRegistry, tick)) : [];
     },
 
     /** Core's verdict on whether `actorId` has left the level. */

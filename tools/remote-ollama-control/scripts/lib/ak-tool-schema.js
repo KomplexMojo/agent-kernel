@@ -2,7 +2,7 @@
 
 const AFFINITY_ENUM = [
   'fire', 'water', 'earth', 'wind',
-  'life', 'decay', 'corrode', 'fortify',
+  'growth', 'decay', 'corrode', 'fortify',
   'light', 'dark'
 ];
 

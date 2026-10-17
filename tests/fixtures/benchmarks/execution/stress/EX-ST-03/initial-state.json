@@ -231,7 +231,7 @@
       "holdings": []
     },
     {
-      "id": "hazard_dense_life",
+      "id": "hazard_dense_growth",
       "position": {
         "x": 8,
         "y": 3
@@ -263,12 +263,12 @@
       "motivations": [],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "draw",
           "stacks": 1
         }
       ],
-      "activeAffinityKey": "life:draw",
+      "activeAffinityKey": "growth:draw",
       "holdings": []
     },
     {
@@ -818,7 +818,7 @@
     "hazard_dense_fire": {
       "category": "hazard"
     },
-    "hazard_dense_life": {
+    "hazard_dense_growth": {
       "category": "hazard"
     },
     "hazard_dense_water": {

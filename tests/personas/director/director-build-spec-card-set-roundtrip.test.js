@@ -235,7 +235,7 @@ test("hazard with one-time mana round-trips preserving amount", async () => {
 test("resource with permanent mode and multiple vitals survives round-trip", async () => {
   const { extractSummaryFromCardSet } = await loadSelections();
   const resolved = extractSummaryFromCardSet({
-    dungeonAffinity: "life",
+    dungeonAffinity: "growth",
     cardSet: [
       {
         id: "card_resource_multi",

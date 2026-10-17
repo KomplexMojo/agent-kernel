@@ -4,7 +4,7 @@
 // this file stays runnable after the live palette is re-derived. Do not "fix" these colours to
 // match the current palette — they are the record of what the medallion actually looked like.
 const AFFINITY_COLOR_HEX = Object.freeze({
-  fire: "#f05a28", water: "#2b7fff", earth: "#7a5c33", wind: "#60d8c0", life: "#49b96b",
+  fire: "#f05a28", water: "#2b7fff", earth: "#7a5c33", wind: "#60d8c0", growth: "#49b96b",
   decay: "#a05828", corrode: "#c8c030", fortify: "#9ca3af", light: "#f5d14d", dark: "#0b0d12",
 });
 function normalizeHex(hex, fallback = "#000000") {
@@ -426,7 +426,7 @@ function drawAffinityGlyph(pixels, size, state) {
             drawLine(pixels, size, cx - radius, cy + 1, cx + radius + 3, cy + 1, rgba("#c9f1ff", 220), Math.max(1, Math.round(2 * s)));
             drawLine(pixels, size, cx - 2, cy + 6, cx + radius, cy + 6, color, Math.max(1, Math.round(2 * s)));
             break;
-        case "life":
+        case "growth":
             fillCircle(pixels, size, cx - Math.round(3 * s), cy, radius - 1, color);
             fillCircle(pixels, size, cx + Math.round(4 * s), cy - Math.round(2 * s), radius - 2, rgba("#9ef0a6", 230));
             drawLine(pixels, size, cx, cy + radius, cx + Math.round(6 * s), cy - radius, rgba("#f3ffe0", 210), Math.max(1, Math.round(2 * s)));

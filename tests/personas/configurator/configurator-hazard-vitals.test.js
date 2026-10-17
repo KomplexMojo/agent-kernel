@@ -259,7 +259,7 @@ async function doubledCastRules() {
   return { rules, castManaBase };
 }
 
-const AUTHORED_KINDS = ["fire", "dark", "life"];
+const AUTHORED_KINDS = ["fire", "dark", "growth"];
 
 test("mapHazards sizes push/pull traps from authored affinity rules", async () => {
   const { mapHazards } = await import("../../../packages/runtime/src/personas/configurator/input-preparation.js");
@@ -296,8 +296,8 @@ test("object placement carries authored affinity rules into the trap actors it p
   const { actorCastManaPrice } = await import("../../../packages/core-ts/src/rules/actor-cast.ts");
   const { rules, castManaBase } = await doubledCastRules();
   const layout = { width: 5, height: 1, terrain: ["spawn", "floor", "floor", "floor", "exit"] };
-  const hazards = [{ id: "trap", affinity: "life", expression: "push", stacks: 2 }];
-  const expected = 2 * actorCastManaPrice(castManaBase["life:push"], 2);
+  const hazards = [{ id: "trap", affinity: "growth", expression: "push", stacks: 2 }];
+  const expected = 2 * actorCastManaPrice(castManaBase["growth:push"], 2);
   const fallback = completeObjectPlacement({ layout, hazards, resources: [], actors: [], affinityRules: rules });
   assert.equal(fallback.ok, true);
   assert.equal(fallback.actors[0].vitals.mana.max, expected);

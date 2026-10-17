@@ -94,7 +94,7 @@ export const GAME_AFFINITY_KINDS = Object.freeze([
   "water",
   "earth",
   "wind",
-  "life",
+  "growth",
   "decay",
   "corrode",
   "fortify",
@@ -143,7 +143,7 @@ export const GAME_MOTIVATION_DISPLAY_GROUPS = deepFreeze([
 //
 // Opposition follows AFFINITY_OPPOSITES on three axes, because ten hues do not fit one
 // wheel without collisions:
-//   hue       fire/water, earth/wind, life/decay
+//   hue       fire/water, earth/wind, growth/decay
 //   chroma    corrode (acid) / fortify (inert steel)
 //   lightness light (near-white) / dark (charcoal violet)
 // Every opposed pair measures dE >= 103, so the counterplay relation is the most
@@ -156,7 +156,7 @@ const AFFINITY_COLORS = Object.freeze({
   water:   "#5e82f1",  // blue — opposes fire on hue
   earth:   "#794301",  // deep brown — opposes wind on hue
   wind:    "#06f6f5",  // cyan — opposes earth on hue
-  life:    "#3ba251",  // green — opposes decay on hue
+  growth:    "#3ba251",  // green — opposes decay on hue
   decay:   "#c64a9a",  // magenta rot — was a second brown, indistinguishable from earth
   corrode: "#d3e602",  // acid yellow-green — opposes fortify on chroma
   fortify: "#708591",  // inert steel — opposes corrode on chroma
@@ -311,7 +311,7 @@ const ACTOR_MEDALLION_COMPONENT_VISUALS = [
       water: "◍",
       earth: "◆",
       wind: "〰",
-      life: "♧",
+      growth: "♧",
       decay: "☠",
       corrode: "◌",
       fortify: "⬟",
@@ -541,7 +541,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
         water: "💧",
         earth: "🪨",
         wind: "🌪️",
-        life: "🌿",
+        growth: "🌿",
         decay: "🍂",
         corrode: "⚗️",
         fortify: "🧱",

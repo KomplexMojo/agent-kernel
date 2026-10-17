@@ -18,8 +18,8 @@
           "targetType": "enemy"
         },
         {
-          "presetId": "affinity_life_pull",
-          "kind": "life",
+          "presetId": "affinity_growth_pull",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1,
           "targetType": "self"

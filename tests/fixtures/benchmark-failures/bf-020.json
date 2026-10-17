@@ -79,7 +79,7 @@
     "dungeonAffinity": "neutral",
     "text": "Neutral duel scenario: Create 1 attacking Delver and 1 defending Warden with balanced stats. No attacker advantage. Use hazards for affinity pressure. Rooms are generic containers."
   },
-  "observedError": "create --dungeon-affinity must be one of: fire, water, earth, wind, life, decay, corrode, fortify, light, dark.\n",
+  "observedError": "create --dungeon-affinity must be one of: fire, water, earth, wind, growth, decay, corrode, fortify, light, dark.\n",
   "occurrences": 2,
   "disposition": "model-error",
   "dispositionNote": "M3 investigated: dungeonAffinity already carries the AFFINITY_ENUM (since the schema's first commit, 2026-05-05) -- the model sent \"neutral\", which is not a real affinity and never was. Schema and CLI already agree; no drift to fix."

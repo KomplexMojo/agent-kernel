@@ -11,7 +11,7 @@ function actor(id: string, x: number, pair?: ActorAffinityEntry): ActorRecord {
     activeAffinityKey: pair ? `${pair.kind}:${pair.expression}` : null, holdings: [] };
 }
 const pair = { kind: 'fire', expression: 'push', stacks: 3 } as const;
-const costs = { castManaBase: { 'fire:push': 1, 'life:pull': 1, 'fire:pull': 1 } };
+const costs = { castManaBase: { 'fire:push': 1, 'growth:pull': 1, 'fire:pull': 1 } };
 function registry(source = actor('source', 0, pair), target = actor('target', 1)) {
   return createActorRegistry({ dimensions: { width: 10, height: 1 }, terrain: Array(10).fill('floor'), actors: [source, target] });
 }
@@ -51,8 +51,8 @@ test('range, active expression, capability and lifecycle gate casts', () => {
     expect(state.snapshot()).toEqual(before);
   }
 });
-test('life pull transfers actual removal through durability; self-drain costs nothing', () => {
-  const source = actor('source', 0, { kind: 'life', expression: 'pull', stacks: 3 });
+test('growth pull transfers actual removal through durability; self-drain costs nothing', () => {
+  const source = actor('source', 0, { kind: 'growth', expression: 'pull', stacks: 3 });
   const target = actor('target', 1); target.vitals.health!.current = 2;
   const state = registry(source, target); const before = state.snapshot();
   expect(castFocusedActorAffinity(state, 'source', 'source', costs).accepted).toBe(false);

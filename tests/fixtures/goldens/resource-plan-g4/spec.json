@@ -734,7 +734,7 @@
             ]
           },
           {
-            "kind": "life",
+            "kind": "growth",
             "opposite": "decay",
             "basePriority": 1,
             "expressions": [
@@ -880,7 +880,7 @@
           },
           {
             "kind": "decay",
-            "opposite": "life",
+            "opposite": "growth",
             "basePriority": 1,
             "expressions": [
               {

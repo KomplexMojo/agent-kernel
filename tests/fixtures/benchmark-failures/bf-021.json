@@ -31,7 +31,7 @@
     ],
     "resource": [
       {
-        "affinity": "life",
+        "affinity": "growth",
         "delta": 25,
         "expression": "emit",
         "mana": 50,

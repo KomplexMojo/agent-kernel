@@ -99,7 +99,7 @@ they are not.** CIE76 ΔE over `GAME_AFFINITY_COLOR_HEX`, and against the floor 
 |---|---|---|
 | `corrode` #c8c030 / `light` #f5d14d | **14.6** | Indistinguishable at any small size |
 | `earth` #7a5c33 / `decay` #a05828 | **22.3** | Confusable — two muddy browns |
-| `wind` #60d8c0 / `life` #49b96b | 32.5 | Marginal |
+| `wind` #60d8c0 / `growth` #49b96b | 32.5 | Marginal |
 
 | Colour vs floor | ΔE | Verdict |
 |---|---|---|
@@ -268,8 +268,8 @@ An unseeded optimizer re-rolls a different palette every run, which is not a con
 | `water` | `#2b7fff` | **`#5e82f1`** | `fire` | hue |
 | `earth` | `#7a5c33` | **`#794301`** | `wind` | hue |
 | `wind` | `#60d8c0` | **`#06f6f5`** | `earth` | hue |
-| `life` | `#49b96b` | **`#3ba251`** | `decay` | hue |
-| `decay` | `#a05828` | **`#c64a9a`** | `life` | hue |
+| `growth` | `#49b96b` | **`#3ba251`** | `decay` | hue |
+| `decay` | `#a05828` | **`#c64a9a`** | `growth` | hue |
 | `corrode` | `#c8c030` | **`#d3e602`** | `fortify` | chroma — saturated vs neutral |
 | `fortify` | `#9ca3af` | **`#708591`** | `corrode` | chroma — saturated vs neutral |
 | `light` | `#f5d14d` | **`#fdfed3`** | `dark` | lightness — near-white vs charcoal |
@@ -283,7 +283,7 @@ one wheel without collisions. Three pairs oppose on hue; `corrode`/`fortify` opp
 
 Two semantic re-assignments were required. **Both approved by the maintainer 2026-09-02:**
 - **`decay` moves from brown to magenta** (`#a05828` → `#c64a9a`). It was one of two browns; rot as
-  magenta is a common convention and makes it the visual complement of `life`, which it opposes.
+  magenta is a common convention and makes it the visual complement of `growth`, which it opposes.
 - **`dark` moves from near-black to deep violet** (`#0b0d12` → `#28174a`). Near-black was
   near-invisible on the floor (ΔE 21.0).
 
@@ -301,7 +301,7 @@ Two semantic re-assignments were required. **Both approved by the maintainer 202
 Forcing the background bar to 45 was tested (`FLOOR_MIN=45`). The optimizer reaches only **38.3**,
 because `dark` must stay dark and `fortify` must stay neutral, and *it makes the palette worse*:
 min pairwise ΔE76 drops 53.0 → 50.1 and perceptual ΔE2000 collapses (`water`/`fortify` 19.9,
-`life`/`corrode` 20.9). Buying background contrast costs foreground separability.
+`growth`/`corrode` 20.9). Buying background contrast costs foreground separability.
 
 **Resolution:** figure-ground moves to the outline, which the sprite spec already has. A constant
 light 1–2px outline separates any fill from the floor, so the fill only needs to be separable from

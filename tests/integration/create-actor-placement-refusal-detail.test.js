@@ -64,7 +64,7 @@ test("too many wardens for the room refuses with the actual deficit", async () =
       { affinity: "water", count: 1, motivation: "defending" },
       { affinity: "earth", count: 1, motivation: "defending" },
       { affinity: "wind", count: 1, motivation: "defending" },
-      { affinity: "life", count: 1, motivation: "defending" },
+      { affinity: "growth", count: 1, motivation: "defending" },
       { affinity: "decay", count: 1, motivation: "defending" },
     ],
   });

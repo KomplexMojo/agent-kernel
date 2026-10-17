@@ -8,7 +8,7 @@
   "observedOutcome": "execution_failed",
   "scenarioBudget": null,
   "toolArgs": {
-    "text": "Medium arena dungeon scenario with one attacking Delver and one defending Warden positioned for immediate encounter. Arena features hazard zones with affinity pressure effects including fire burn, water dampening, earth crushing, wind gusts, life healing, decay corruption, corrode damage, fortify buffs, light illumination, and dark shadow effects. Delver has attacking motivation with full vital stats. Warden has defending motivation with full vital stats. Hazards placed via proximity-based affinity pressure mechanics.",
+    "text": "Medium arena dungeon scenario with one attacking Delver and one defending Warden positioned for immediate encounter. Arena features hazard zones with affinity pressure effects including fire burn, water dampening, earth crushing, wind gusts, growth healing, decay corruption, corrode damage, fortify buffs, light illumination, and dark shadow effects. Delver has attacking motivation with full vital stats. Warden has defending motivation with full vital stats. Hazards placed via proximity-based affinity pressure mechanics.",
     "runId": "EX-CB-01",
     "outDir": "./artifacts/ex-cb-01",
     "emitIntermediates": true,
@@ -54,7 +54,7 @@
         "stacks": 1
       },
       {
-        "affinity": "life",
+        "affinity": "growth",
         "expression": "draw",
         "mana": 25,
         "proximityRadius": 2,

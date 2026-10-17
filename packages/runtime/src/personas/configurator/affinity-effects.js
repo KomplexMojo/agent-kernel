@@ -258,7 +258,7 @@ function resolveHazardEffects(hazard, presets, affinityRules) {
 
   const preset = selectPresetForHazard(hazard, presets);
   if (preset) {
-    const allowHealth = preset.kind === "life" || preset.kind === "decay";
+    const allowHealth = preset.kind === "growth" || preset.kind === "decay";
     const updatedVitals = applyPresetToVitals(baseVitals, preset, hazard.affinity.stacks, {
       health: allowHealth,
       stamina: false,

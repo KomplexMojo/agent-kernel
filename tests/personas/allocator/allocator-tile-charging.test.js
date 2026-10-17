@@ -218,7 +218,7 @@ test("every tile price the Allocator publishes can be charged", async () => {
     chargedTileIds,
     publishedTileIds,
     "a price id with no charging path is dead vocabulary that still reaches every PriceList "
-      + "artifact — exactly what tile_hallway was, at a cost nobody could spend, for the life "
+      + "artifact — exactly what tile_hallway was, at a cost nobody could spend, for the growth "
       + "of this branch under a green suite",
   );
 });

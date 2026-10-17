@@ -51,10 +51,12 @@ export function readActorRegistryDarkByCell(snapshot: Pick<ActorRegistrySnapshot
   return readEmittedStacksByCell(snapshot, 'dark');
 }
 
-function readEmittedStacksByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensions' | 'actors'>, kind: 'light' | 'dark'): Record<string, number> {
+function readEmittedStacksByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensions' | 'actors'>, kind: 'light' | 'dark',
+  excludeActorId?: string): Record<string, number> {
   const { width, height } = snapshot.dimensions;
   const reached: Record<string, number> = {};
   for (const actor of snapshot.actors) {
+    if (actor.id === excludeActorId) continue;
     const stacks = poweredEmitStacks(actor, kind);
     if (stacks <= 0) continue;
     const radius = computeAffinityRadius(SIGHT_LIGHT_EXPRESSION, stacks);
@@ -92,13 +94,19 @@ function resolveRegistryLightDark(observation: RegistryObservation) {
 /**
  * One observer's sight inputs. Its own light, less the dark at its tile, extends
  * its radius; cells where light outweighs dark are lit; cells where dark
- * outweighs light are obscured, along with anyone standing in them.
+ * outweighs light are obscured, along with anyone standing in them. Dark from
+ * other sources that beats the light at its tile by the blinding threshold
+ * leaves it its own tile only (#284).
  */
 function resolveRegistrySight(observation: RegistryObservation, self: ActorRecord) {
-  const { lightByCell, darkStacksByCell, darkByCell } = resolveRegistryLightDark(observation);
-  const ownLight = Math.max(0, poweredEmitStacks(self, 'light') - (darkByCell[`${self.position.x},${self.position.y}`] ?? 0));
+  const { width, height, lightByCell, darkStacksByCell, darkByCell } = resolveRegistryLightDark(observation);
+  const tile = `${self.position.x},${self.position.y}`;
+  const ownLight = Math.max(0, poweredEmitStacks(self, 'light') - (darkByCell[tile] ?? 0));
+  // Blinding dark (#284) is other sources' dark against all the light at the tile.
+  const othersDark = readEmittedStacksByCell({ dimensions: { width, height }, actors: observation.actors }, 'dark', self.id)[tile] ?? 0;
+  const lightAtTile = readActorRegistryLightByCell({ dimensions: { width, height }, actors: observation.actors })[tile] ?? 0;
   return {
-    radius: resolveVisibilityRadius({ lightStacks: ownLight }),
+    radius: resolveVisibilityRadius({ lightStacks: ownLight, blindingDarkStacks: Math.max(0, othersDark - lightAtTile) }),
     options: { darkStacksByCell, lightByCell, darkObscureThreshold: NET_DARK_OBSCURE_STACK_THRESHOLD },
   };
 }
@@ -134,4 +142,29 @@ export function readActorRegistryDarkCells(observation: RegistryObservation): nu
   const { width, height, darkStacksByCell } = resolveRegistryLightDark(observation);
   return Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) =>
     (darkStacksByCell[`${x},${y}`] ?? 0) >= NET_DARK_OBSCURE_STACK_THRESHOLD ? 1 : 0));
+}
+
+/** One affinity's net presence on a cell: what survives opposite-kind cancellation there. */
+export interface FieldCellReading { kind: string; stacks: number; intensity: number }
+
+/**
+ * Every affinity field on each cell right now, for every kind alike (#287): a
+ * grid the map's shape, each cell the emitted (emit/push) fields that survive
+ * there after opposite pairs cancel, strongest first. Read from the field
+ * projection the tick uses (`affinityFields`), never recomputed.
+ */
+export function readActorRegistryFieldCells(observation: RegistryObservation): FieldCellReading[][][] {
+  const height = observation.sightKinds.length;
+  const width = height ? observation.sightKinds[0].length : 0;
+  const grid: FieldCellReading[][][] = Array.from({ length: height }, () => Array.from({ length: width }, () => []));
+  for (const field of observation.affinityFields) {
+    const { x, y } = field.position;
+    if (field.expression === 'draw' || field.intensity <= 0 || !grid[y]?.[x]) continue;
+    const cell = grid[y][x];
+    const existing = cell.find(entry => entry.kind === field.kind);
+    if (!existing) cell.push({ kind: field.kind, stacks: field.stacks, intensity: field.intensity });
+    else if (field.intensity > existing.intensity) Object.assign(existing, { stacks: field.stacks, intensity: field.intensity });
+  }
+  for (const row of grid) for (const cell of row) cell.sort((a, b) => b.intensity - a.intensity || (a.kind < b.kind ? -1 : 1));
+  return grid;
 }

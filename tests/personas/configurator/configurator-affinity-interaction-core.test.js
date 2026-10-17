@@ -138,7 +138,7 @@ assert.equal(AFFINITY_EXPRESSION_TO_CODE.draw, 4);
 // ── resolveNetPressureFromCore: basic cancellation ──
 
 {
-  const baseByKind = { fire: 3, water: 2, earth: 0, wind: 0, life: 0, decay: 0, corrode: 0, fortify: 0, light: 0, dark: 0 };
+  const baseByKind = { fire: 3, water: 2, earth: 0, wind: 0, growth: 0, decay: 0, corrode: 0, fortify: 0, light: 0, dark: 0 };
   const { netByKind, cancellations } = resolveNetPressureFromCore(core, baseByKind);
   assert.equal(netByKind.fire, 1, "fire: 3 - 2 = 1");
   assert.equal(netByKind.water, 0, "water: 2 - 2 = 0");
@@ -151,7 +151,7 @@ assert.equal(AFFINITY_EXPRESSION_TO_CODE.draw, 4);
 // ── resolveNetPressureFromCore: no opposites → no cancellation ──
 
 {
-  const baseByKind = { fire: 2, water: 0, earth: 3, wind: 0, life: 0, decay: 0, corrode: 0, fortify: 0, light: 0, dark: 0 };
+  const baseByKind = { fire: 2, water: 0, earth: 3, wind: 0, growth: 0, decay: 0, corrode: 0, fortify: 0, light: 0, dark: 0 };
   const { netByKind, cancellations } = resolveNetPressureFromCore(core, baseByKind);
   assert.equal(netByKind.fire, 2, "fire unchanged");
   assert.equal(netByKind.earth, 3, "earth unchanged");
@@ -164,7 +164,7 @@ assert.equal(AFFINITY_EXPRESSION_TO_CODE.draw, 4);
 // ── resolveNetPressureFromCore: multiple pairs ──
 
 {
-  const baseByKind = { fire: 4, water: 4, earth: 1, wind: 3, life: 0, decay: 0, corrode: 5, fortify: 2, light: 0, dark: 0 };
+  const baseByKind = { fire: 4, water: 4, earth: 1, wind: 3, growth: 0, decay: 0, corrode: 5, fortify: 2, light: 0, dark: 0 };
   const { netByKind, cancellations } = resolveNetPressureFromCore(core, baseByKind);
   // fire/water: cancel min(4,4)=4
   assert.equal(netByKind.fire, 0, "fire: 4-4=0");
@@ -192,7 +192,7 @@ assert.equal(AFFINITY_EXPRESSION_TO_CODE.draw, 4);
 // ── resolveNetPressureFromCore: all zeroes → all zeroes ──
 
 {
-  const baseByKind = { fire: 0, water: 0, earth: 0, wind: 0, life: 0, decay: 0, corrode: 0, fortify: 0, light: 0, dark: 0 };
+  const baseByKind = { fire: 0, water: 0, earth: 0, wind: 0, growth: 0, decay: 0, corrode: 0, fortify: 0, light: 0, dark: 0 };
   const { netByKind, cancellations } = resolveNetPressureFromCore(core, baseByKind);
   for (const [kind, val] of Object.entries(netByKind)) {
     assert.equal(val, 0, kind + " is 0");
@@ -225,7 +225,7 @@ assert.equal(AFFINITY_EXPRESSION_TO_CODE.draw, 4);
 
 {
   const pairs = [
-    ["fire", "water"], ["earth", "wind"], ["life", "decay"],
+    ["fire", "water"], ["earth", "wind"], ["growth", "decay"],
     ["corrode", "fortify"], ["light", "dark"],
   ];
   for (const [a, b] of pairs) {
@@ -268,7 +268,7 @@ const expressions = Object.keys(AFFINITY_EXPRESSION_TO_CODE);
 const oppositePairs = [
   ["fire", "water"],
   ["earth", "wind"],
-  ["life", "decay"],
+  ["growth", "decay"],
   ["corrode", "fortify"],
   ["light", "dark"],
 ];
@@ -375,13 +375,13 @@ for (const sourceExpression of expressions) {
 const pressureFixtures = [
   { fire: 3, water: 1 },
   { fire: 0, water: 5, earth: 2 },
-  { earth: 9, wind: 4, life: 2, decay: 2 },
+  { earth: 9, wind: 4, growth: 2, decay: 2 },
   { corrode: 6, fortify: 1, light: 8, dark: 3 },
-  { fire: 1, water: 1, earth: 1, wind: 1, life: 1, decay: 1 },
+  { fire: 1, water: 1, earth: 1, wind: 1, growth: 1, decay: 1 },
   { fire: 10, water: 0, dark: 10 },
-  { life: 0, decay: 7, corrode: 2, fortify: 9 },
+  { growth: 0, decay: 7, corrode: 2, fortify: 9 },
   { wind: 12, earth: 5, light: 0, dark: 2 },
-  { fire: 4, water: 9, earth: 8, wind: 1, life: 3 },
+  { fire: 4, water: 9, earth: 8, wind: 1, growth: 3 },
   { corrode: 0, fortify: 0, light: 11, dark: 11 },
 ];
 for (const fixture of pressureFixtures) {

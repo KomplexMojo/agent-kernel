@@ -221,6 +221,10 @@ The exact diagnostic families are
 `movement_requires_stamina_pool`, `movement_requires_stamina_regen`,
 `affinity_slot_limit_exceeded`, and `stacks_exceed_max`.
 
+The stamina floor (`applyMovementStaminaFloor`) gives a mover a pool and regen that each cover one worst-case
+move. Core regenerates stamina only on turns an actor does not move (#273), so at the floor an actor walks a short
+burst and then rests; a longer burst is a bigger pool, which the Allocator prices like any other vital.
+
 The existing `configurator_satisfiability` constraint domain remains reserved for Z9 object-placement
 assignment, which is a genuine combinatorial search. It uses
 `context.problemKind: "object_placement"`. Core's live resource-affinity grant slots are runtime state,

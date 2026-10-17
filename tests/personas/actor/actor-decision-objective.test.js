@@ -282,7 +282,7 @@ test("intent separates moves the proposal stamp used to equalise", async () => {
 test("field benefit is capped by missing vital capacity and ignored when full", async () => {
   const fields = [{
     position: { x: 3, y: 2 },
-    kind: "life", expression: "emit",
+    kind: "growth", expression: "emit",
       sourceId: "field_source", stacks: 8, intensity: 1,
   }];
   const input = {
@@ -346,7 +346,7 @@ test("field benefit cannot override a stronger primary intent", async () => {
     },
     affinityFields: [{
       position: { x: 3, y: 2 },
-      kind: "life", expression: "emit",
+      kind: "growth", expression: "emit",
       sourceId: "field_source", stacks: 10, intensity: 1,
     }],
   });

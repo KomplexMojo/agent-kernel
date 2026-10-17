@@ -51,11 +51,11 @@ test('receiver forecast caps matching draw mana and stops effects at defeat', ()
   const field = { ...fire, sourceId: 'source', position: receiver.position, intensity: 1 };
   expect(previewActorFieldChanges(receiver, [field])).toEqual([{ actorId: receiver.id, vital: 'mana', delta: 1 }]);
   receiver.activeAffinityKey = null; receiver.vitals.health!.current = 1;
-  expect(previewActorFieldChanges(receiver, [field, { ...field, sourceId: 'z_healer', kind: 'life' }]))
+  expect(previewActorFieldChanges(receiver, [field, { ...field, sourceId: 'z_healer', kind: 'growth' }]))
     .toEqual([{ actorId: receiver.id, vital: 'health', delta: -1 }]);
 });
 test('receiver forecast agrees with a real field pass for all area affinities with one receiver', () => {
-  const kinds = ['fire', 'water', 'earth', 'wind', 'life', 'decay', 'corrode', 'fortify', 'light', 'dark'] as const;
+  const kinds = ['fire', 'water', 'earth', 'wind', 'growth', 'decay', 'corrode', 'fortify', 'light', 'dark'] as const;
   for (const kind of kinds) for (const expression of ['emit', 'draw'] as const) {
     const receiver = actor('receiver', 0);
     receiver.vitals = {
@@ -80,7 +80,7 @@ test('forecast preserves stable source order independently of field enumeration'
   const receiver = actor('receiver', 0);
   receiver.vitals.health!.current = 1;
   const fireCell = { ...fire, sourceId: 'a_fire', position: receiver.position, intensity: 1 };
-  const healingCell = { ...fireCell, sourceId: 'z_healer', kind: 'life' as const };
+  const healingCell = { ...fireCell, sourceId: 'z_healer', kind: 'growth' as const };
   expect(previewActorFieldChanges(receiver, [healingCell, fireCell]))
     .toEqual([{ actorId: receiver.id, vital: 'health', delta: -1 }]);
 });
@@ -97,7 +97,7 @@ test('field exposure reads active equipment only and never exposes self or termi
 });
 
 test('projection and receiver evaluation agree across every active affinity pair', () => {
-  const kinds = ['fire', 'water', 'earth', 'wind', 'life', 'decay', 'corrode', 'fortify', 'light', 'dark'] as const;
+  const kinds = ['fire', 'water', 'earth', 'wind', 'growth', 'decay', 'corrode', 'fortify', 'light', 'dark'] as const;
   for (const kind of kinds) for (const expression of ['push', 'pull', 'emit', 'draw'] as const) {
     const receiver = actor('receiver', 0, { kind, expression, stacks: 1 });
     const state = registry([actor('source', 0, fire), receiver]);
@@ -126,9 +126,18 @@ test('equally strong water emit counters fire locally without destroying invento
   resolveActorFields(state);
   expect(state.snapshot()).toEqual(before);
 });
-test('overlap retains established intensity and residual-stack arithmetic', () => {
-  expect(cancelAffinityOverlap(0.8, 5, 0.3, 2)).toEqual({ sourceIntensity: 0.5, sourceStacks: 3, targetIntensity: 0, targetStacks: 0 });
-  expect(cancelAffinityOverlap(0.3, 5, 0.8, 2)).toEqual({ sourceIntensity: 0, sourceStacks: 0, targetIntensity: 0.5, targetStacks: 2 });
+test('overlap is decided by stacks; the survivor keeps the difference and a matching share of intensity (#290)', () => {
+  const close = (actual: ReturnType<typeof cancelAffinityOverlap>, expected: ReturnType<typeof cancelAffinityOverlap>) => {
+    expect(actual.sourceStacks).toBe(expected.sourceStacks);
+    expect(actual.targetStacks).toBe(expected.targetStacks);
+    expect(actual.sourceIntensity).toBeCloseTo(expected.sourceIntensity, 10);
+    expect(actual.targetIntensity).toBeCloseTo(expected.targetIntensity, 10);
+  };
+  close(cancelAffinityOverlap(0.8, 5, 0.3, 2), { sourceIntensity: 0.48, sourceStacks: 3, targetIntensity: 0, targetStacks: 0 });
+  // A weaker intensity no longer decides it: more stacks win.
+  close(cancelAffinityOverlap(0.3, 5, 0.8, 2), { sourceIntensity: 0.18, sourceStacks: 3, targetIntensity: 0, targetStacks: 0 });
+  close(cancelAffinityOverlap(1, 1, 1.05, 3), { sourceIntensity: 0, sourceStacks: 0, targetIntensity: 0.7, targetStacks: 2 });
+  close(cancelAffinityOverlap(1, 2, 0.4, 2), { sourceIntensity: 0, sourceStacks: 0, targetIntensity: 0, targetStacks: 0 });
 });
 test('only active area pairs project; focused alternatives, movement and defeat update fields', () => {
   const source = actor('source', 0, { ...fire, stacks: 1 });
@@ -163,6 +172,16 @@ test('a source defeated during the pass neither emits later nor remains in retur
   expect(state.getActor('b')!.lifecycle).toBe('defeated');
   expect(state.getActor('c')!.vitals.health!.current).toBe(10);
   expect(result.fields.some(cell => cell.sourceId === 'b')).toBe(false);
+});
+test('every opposed pair: a 1-stack emit on a 3-stack source leaves the 3-stack side at 2 (#290)', () => {
+  const pairs = [['fire', 'water'], ['earth', 'wind'], ['growth', 'decay'], ['corrode', 'fortify'], ['light', 'dark']] as const;
+  for (const [a, b] of pairs) {
+    for (const [weak, strong] of [[a, b], [b, a]] as const) {
+      const fields = projectActorFieldsAt([actor('trap', 0, { kind: strong, expression: 'emit', stacks: 3 }),
+        actor('hero', 0, { kind: weak, expression: 'emit', stacks: 1 })], { x: 0, y: 0 });
+      expect(fields.map(cell => [cell.kind, cell.stacks]), `${weak} x1 on ${strong} x3`).toEqual([[strong, 2]]);
+    }
+  }
 });
 // ## TODO: Test Permutations
 // - Moderator must call this once after ordered actions; focused casts and UI consume the same projection.

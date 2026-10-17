@@ -41,7 +41,7 @@ const EXPECTED_AFFINITY_GLYPHS = Object.freeze({
   water: "💧",
   earth: "🪨",
   wind: "🌪️",
-  life: "🌿",
+  growth: "🌿",
   decay: "🍂",
   corrode: "⚗️",
   fortify: "🧱",

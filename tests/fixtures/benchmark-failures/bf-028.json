@@ -12,7 +12,7 @@
     "runId": "EX-RS-01",
     "outDir": "./artifacts/EX-RS-01",
     "emitIntermediates": true,
-    "dungeonAffinity": "life",
+    "dungeonAffinity": "growth",
     "room": [
       {
         "size": "medium"
@@ -27,7 +27,7 @@
     "hazard": [],
     "resource": [
       {
-        "affinity": "life",
+        "affinity": "growth",
         "delta": 10,
         "expression": "emit",
         "permanenceMode": "consumable",
@@ -37,7 +37,7 @@
     ],
     "delver": [
       {
-        "affinity": "life",
+        "affinity": "growth",
         "count": 1,
         "motivation": "exploring",
         "vitals": {

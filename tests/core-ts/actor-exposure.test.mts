@@ -57,7 +57,7 @@ test('only active pairs apply; defeated sources stop within a pass', () => {
   expect(live.getActor('target')!.vitals.health!.current).toBe(10);
 });
 test('prevalidates the complete batch before mutating and uses shared transfer routing', () => {
-  const state = registry([actor('source', { kind: 'life', expression: 'draw', stacks: 5 }), actor('target')]);
+  const state = registry([actor('source', { kind: 'growth', expression: 'draw', stacks: 5 }), actor('target')]);
   const before = state.snapshot();
   expect(() => resolveActorExposures(state, [{ sourceId: 'source', budget: 5, targets: [{ targetId: 'target', amount: 5 }] },
     { sourceId: 'source', budget: -1, targets: [] }])).toThrow();
