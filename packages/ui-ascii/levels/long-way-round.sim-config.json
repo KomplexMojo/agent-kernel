@@ -5,7 +5,21 @@
     "id": "long-way-round_sim_config",
     "runId": "long-way-round",
     "createdAt": "2026-10-10T00:00:00.000Z",
-    "producedBy": "cli-create"
+    "producedBy": "cli-create",
+    "cost": {
+      "runTotalTokens": 409,
+      "budgetTokens": 2500,
+      "receiptRef": {
+        "id": "long-way-round_budget_receipt",
+        "schema": "agent-kernel/BudgetReceiptArtifact",
+        "schemaVersion": 1
+      },
+      "proposalRef": {
+        "id": "long-way-round_spend_proposal",
+        "schema": "agent-kernel/SpendProposal",
+        "schemaVersion": 1
+      }
+    }
   },
   "planRef": {
     "id": "long-way-round_plan",
@@ -1016,5 +1030,10 @@
     "movementStamina": {
       "card_delver_1-1": 1
     }
+  },
+  "budgetReceiptRef": {
+    "id": "long-way-round_budget_receipt",
+    "schema": "agent-kernel/BudgetReceiptArtifact",
+    "schemaVersion": 1
   }
 }

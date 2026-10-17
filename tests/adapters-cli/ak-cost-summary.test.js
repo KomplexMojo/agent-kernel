@@ -1,6 +1,6 @@
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
-const { mkdtempSync, existsSync } = require("node:fs");
+const { mkdtempSync, existsSync, rmSync } = require("node:fs");
 const { resolve, join } = require("node:path");
 const os = require("node:os");
 
@@ -53,7 +53,7 @@ test("ak create with --budget-tokens emits top-level cost summary", () => {
   assert.ok(existsSync(summary.cost.proposalPath), "cost.proposalPath must point to an existing file");
 });
 
-test("ak create without --budget-tokens omits cost field", () => {
+test("ak create without --budget-tokens is priced against the Allocator's reference budget (#274)", () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-cost-summary-no-budget-"));
   const result = runCliOk([
     "create",
@@ -65,7 +65,8 @@ test("ak create without --budget-tokens omits cost field", () => {
     "--out-dir", outDir,
   ]);
   const summary = parseStdout(result);
-  assert.equal(summary.cost, undefined, "cost field must be absent when no budget is supplied");
+  assert.equal(summary.cost.budgetTokens, 2500, "no budget given: the Allocator's reference budget applies");
+  assert.equal(summary.cost.totalSpend + summary.cost.remaining, 2500);
 });
 
 test("ak create cost.totalSpend + cost.remaining equals cost.budgetTokens", () => {
@@ -116,6 +117,11 @@ test("ak show with no budget artifacts omits cost and budgetSpend", () => {
     "--run-id", "run_cost_show_none",
     "--created-at", "2026-04-22T00:00:00.000Z",
   ], { cwd: workDir });
+  // Every create is priced now (#274); a run without budget artifacts is an older or hand-made one.
+  const runDir = join(workDir, "artifacts", "runs", "run_cost_show_none", "create");
+  for (const file of ["budget.json", "budget-receipt.json", "price-list.json", "spend-proposal.json"]) {
+    rmSync(join(runDir, file), { force: true });
+  }
   const result = runCliOk(["show", "--run-id", "run_cost_show_none"], { cwd: workDir });
   const lines = result.stdout.trim().split("\n");
   const jsonLine = [...lines].reverse().find((line) => line.startsWith("{"));

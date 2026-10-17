@@ -218,6 +218,8 @@ describe("CLI create+run multi-actor permutations", () => {
       createArgs: [
         "--delver", "count=1;affinity=water;motivation=random",
         "--warden", "count=10;affinity=fire;motivation=random",
+        // Eleven actors cost more than the default 2500 (#274).
+        "--budget-tokens", "8000",
       ],
       ticks: 100,
     });

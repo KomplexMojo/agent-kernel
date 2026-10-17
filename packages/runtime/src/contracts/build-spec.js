@@ -57,7 +57,7 @@ const AGENT_COMMAND_COMPILE_TARGETS = new Set([
   "build_spec_configurator",
   "artifact_extension",
 ]);
-const AGENT_COMMAND_DIRECTIVE_SOURCES = new Set(["text", "flag", "object_flag", "budget_artifact"]);
+const AGENT_COMMAND_DIRECTIVE_SOURCES = new Set(["text", "flag", "object_flag", "budget_artifact", "allocator_default"]);
 const AGENT_COMMAND_OPTIMIZATION_PRIORITIES = new Set(["low", "medium", "high"]);
 const AGENT_COMMAND_OPTIMIZATION_SCOPES = new Set([
   ...Array.from(AGENT_COMMAND_OBJECT_KINDS),

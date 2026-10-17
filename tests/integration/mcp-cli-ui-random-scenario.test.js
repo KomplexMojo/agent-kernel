@@ -143,6 +143,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
       room: ["count=5;size=medium"],
       delver: ["count=1;affinity=water;motivation=random"],
       warden: ["count=10;affinity=fire;motivation=random"],
+      budgetTokens: 8000, // eleven actors cost more than the default 2500 (#274)
       runId: "mcp_random_scenario",
       outDir,
     };
@@ -253,6 +254,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
       room: ["count=5;size=medium"],
       delver: ["count=1;affinity=water;motivation=random"],
       warden: ["count=10;affinity=fire;motivation=random"],
+      budgetTokens: 8000, // eleven actors cost more than the default 2500 (#274)
       runId: "mcp_random_scenario_run",
       outDir,
     });
@@ -347,6 +349,7 @@ describe("MCP -> CLI random-movement scenario pipeline (5 rooms / 10 wardens / 1
         room: ["count=5;size=medium"],
         delver: ["count=1;affinity=water;motivation=random"],
         warden: ["count=10;affinity=fire;motivation=random"],
+      budgetTokens: 8000, // eleven actors cost more than the default 2500 (#274)
         runId: "mcp_random_scenario_bundle",
         outDir: bundleOutDir,
       });
