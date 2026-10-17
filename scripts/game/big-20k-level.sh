@@ -16,7 +16,7 @@ $AK create --run-id big-20k --budget-tokens 20000 "$@" \
   --room "size=large;count=6" \
   --floor-tile "count=5700" \
   `# Delver pool (5,000): two playable delvers (D1 with 6 slots, 4 equipped) and five followers.` \
-  --delver "count=1;id=hero;affinity=light;affinities=light:emit:4,fire:push:4,life:emit:3,fortify:emit:2;slots=6;equip=light:emit,fire:push,life:emit,fortify:emit;motivation=user_controlled;$PLAYER" \
+  --delver "count=1;id=hero;affinity=light;affinities=light:emit:4,fire:push:4,growth:emit:3,fortify:emit:2;slots=6;equip=light:emit,fire:push,growth:emit,fortify:emit;motivation=user_controlled;$PLAYER" \
   --delver "count=1;id=scout;affinity=wind;motivation=user_controlled;$PLAYER" \
   --delver "count=5;id=pal;affinity=earth;vitals=health:20:2,mana:20:2,stamina:10:1,durability:10:1;motivation=exploring+goal_oriented;strategy=follow:hero-1:2" \
   `# Warden pool (4,600): a boss that hunts the player, four patrols, four defenders.` \
@@ -42,7 +42,7 @@ $AK create --run-id big-20k --budget-tokens 20000 "$@" \
   --resource "permanenceMode=permanent;vital=health;delta=10;regen=2" \
   --resource "permanenceMode=level;vital=health;delta=15;regen=2" \
   --resource "affinity=fortify;expression=emit;stacks=2;mana=40" \
-  --resource "affinity=life;expression=emit;stacks=2;mana=40" \
+  --resource "affinity=growth;expression=emit;stacks=2;mana=40" \
   --resource "affinity=earth;expression=pull;stacks=2;mana=40;manaRegen=1" \
   --resource "affinity=dark;expression=emit;stacks=3;mana=60;manaRegen=3" \
   --resource "affinity=wind;expression=push;stacks=3;mana=60;manaRegen=3"
