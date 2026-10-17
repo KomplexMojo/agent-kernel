@@ -337,7 +337,7 @@
           "id=room_1_field_1;affinity=water;expression=emit;proximityRadius=2;mana=regen:3:3:1"
         ],
         "delver": [
-          "count=1;affinity=water;motivation=exploring;setup-mode=hybrid;affinities=water:draw:2,life:pull:1;vitals=health:8:2,stamina:6:1,mana:6:1"
+          "count=1;affinity=water;motivation=exploring;setup-mode=hybrid;affinities=water:draw:2,growth:pull:1;vitals=health:8:2,stamina:6:1,mana:6:1"
         ]
       },
       "expectedOutcome": "success",
@@ -365,9 +365,9 @@
       "tier": "complex",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a two-Delver squad with mana regeneration goals and mixed water and life affinity. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a two-Delver squad with mana regeneration goals and mixed water and growth affinity. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-Delver squad with mana regeneration goals and mixed water and life affinity. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-Delver squad with mana regeneration goals and mixed water and growth affinity. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
         "runId": "ak_prompt_38_create_mana_regen_goal_squad",
         "createdAt": "2026-05-03T17:00:00.000Z",
@@ -381,11 +381,11 @@
         ],
         "hazard": [
           "id=room_1_field_1;affinity=water;expression=emit;proximityRadius=2;mana=regen:3:3:1",
-          "id=room_1_field_2;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+          "id=room_1_field_2;affinity=growth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
         ],
         "delver": [
           "count=1;affinity=water;motivation=exploring;affinities=water:draw:2;vitals=health:8:1,stamina:6:1,mana:6:2;goals=mana_regen:high",
-          "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:8:2,stamina:5:1,mana:5:1;goals=max_mana:medium,mana_regen:medium"
+          "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:8:2,stamina:5:1,mana:5:1;goals=max_mana:medium,mana_regen:medium"
         ]
       },
       "expectedOutcome": "success",
@@ -396,7 +396,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life",
+            "growth",
             "water"
           ]
         },
@@ -865,7 +865,7 @@
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
-        "dungeonAffinity": "life",
+        "dungeonAffinity": "growth",
         "room": [
           "size=large;count=2"
         ],
@@ -873,16 +873,16 @@
           "count=38"
         ],
         "hazard": [
-          "id=room_1_field_1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1",
+          "id=room_1_field_1;affinity=growth;expression=emit;proximityRadius=2;mana=regen:3:3:1",
           "id=room_1_field_2;affinity=fortify;expression=emit;proximityRadius=2;mana=regen:3:3:1"
         ],
         "resource": [
           "permanenceMode=permanent;vital=health;delta=8",
           "permanenceMode=level;vital=health;regen=1",
-          "affinity=life;expression=pull;stacks=1;mana=10"
+          "affinity=growth;expression=pull;stacks=1;mana=10"
         ],
         "delver": [
-          "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1",
+          "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1",
           "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:8:1,stamina:6:1,mana:4:1"
         ],
         "warden": [
@@ -899,7 +899,7 @@
         "affinitiesByType": {
           "delver": [
             "fire",
-            "life"
+            "growth"
           ],
           "warden": [
             "fortify"
@@ -940,7 +940,7 @@
         ],
         "delver": [
           "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1,wind:push:1;vitals=health:8:1,stamina:7:1,mana:5:1",
-          "count=1;affinity=life;motivation=friendly;affinities=life:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:5:1"
+          "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:5:1"
         ],
         "warden": [
           "count=1;affinity=dark;motivation=defending;affinities=dark:emit:2,decay:emit:1;vitals=health:12:1,stamina:4:1,mana:5:1,durability:6:0",
@@ -957,7 +957,7 @@
         "affinitiesByType": {
           "delver": [
             "fire",
-            "life"
+            "growth"
           ],
           "warden": [
             "dark",
@@ -1006,7 +1006,7 @@
         ],
         "delver": [
           "count=1;affinity=fire;motivation=attacking;setup-mode=user;affinities=fire:push:2;vitals=health:10:1,stamina:7:1,mana:6:1",
-          "count=1;affinity=life;motivation=friendly;setup-mode=hybrid;affinities=life:pull:2,water:draw:1;vitals=health:9:2,stamina:5:1,mana:6:1",
+          "count=1;affinity=growth;motivation=friendly;setup-mode=hybrid;affinities=growth:pull:2,water:draw:1;vitals=health:9:2,stamina:5:1,mana:6:1",
           "count=1;affinity=light;motivation=exploring;affinities=light:emit:2;vitals=health:8:1,stamina:8:1,mana:5:1"
         ],
         "warden": [
@@ -1025,7 +1025,7 @@
         "affinitiesByType": {
           "delver": [
             "fire",
-            "life",
+            "growth",
             "light"
           ],
           "warden": [
@@ -1064,7 +1064,7 @@
         ],
         "delver": [
           "count=1;affinity=wind;motivation=exploring",
-          "count=1;affinity=life;motivation=friendly"
+          "count=1;affinity=growth;motivation=friendly"
         ],
         "warden": [
           "count=1;affinity=dark;motivation=defending"
@@ -1079,7 +1079,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life",
+            "growth",
             "wind"
           ],
           "warden": [
@@ -1266,7 +1266,7 @@
         ],
         "delver": [
           "count=1;affinity=water;motivation=exploring",
-          "count=1;affinity=life;motivation=friendly"
+          "count=1;affinity=growth;motivation=friendly"
         ],
         "warden": [
           "count=1;affinity=earth;motivation=defending",
@@ -1282,7 +1282,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life",
+            "growth",
             "water"
           ],
           "warden": [

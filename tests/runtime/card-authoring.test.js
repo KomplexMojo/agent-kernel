@@ -67,7 +67,7 @@ test("resource card property updates preserve budget ceilings and permanent mult
   const resource = createDesignCard({
     id: "resource_authoring",
     type: "resource",
-    affinity: "life",
+    affinity: "growth",
     resourceVitals: { mana: { delta: 4, regen: 2 } },
     permanent: true,
     budgetCeiling: 100,

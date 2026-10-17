@@ -125,7 +125,7 @@ test("casting spends the caster's mana at the AUTHORED price", async () => {
 // Keep every assertion on registry state.
 //
 // - all 10 affinity kinds x all 4 expressions against an actor target: the sign
-//   of the change must match the matrix (Water/Life/Fortify/Light/Earth buff,
+//   of the change must match the matrix (Water/Growth/Fortify/Light/Earth buff,
 //   Fire/Wind/Decay/Corrode/Dark drain), and the routed vital must be the
 //   affinity's primary one
 // - push vs pull sign reversal on the same kind and target

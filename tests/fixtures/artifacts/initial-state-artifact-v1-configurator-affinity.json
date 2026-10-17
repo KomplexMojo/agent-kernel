@@ -45,11 +45,11 @@
       "traits": {
         "affinities": {
           "fire:push": 2,
-          "life:pull": 1
+          "growth:pull": 1
         },
         "affinityTargets": {
           "fire:push:enemy": 2,
-          "life:pull:self": 1
+          "growth:pull:self": 1
         },
         "abilities": [
           {
@@ -62,9 +62,9 @@
             "manaCost": 6
           },
           {
-            "id": "life_surge",
+            "id": "growth_surge",
             "kind": "buff",
-            "affinityKind": "life",
+            "affinityKind": "growth",
             "expression": "pull",
             "targetType": "self",
             "potency": 1,
@@ -86,12 +86,12 @@
             "potency": 2
           },
           {
-            "id": "life:pull:self:vital",
+            "id": "growth:pull:self:vital",
             "category": "vital",
             "operation": "apply_vital_affinity",
             "sourceType": "actor",
             "sourceId": "actor_mvp",
-            "kind": "life",
+            "kind": "growth",
             "expression": "pull",
             "stacks": 1,
             "targetType": "self",

@@ -18,10 +18,10 @@ const {
   loadLevelFromRunDir,
 } = require("../../packages/ui-ascii/src/levels.js");
 const { createGame } = require("../../packages/ui-ascii/src/game.js");
-const { overlayActors, paintBoardRow, renderScreen } = require("../../packages/ui-ascii/src/screen.js");
+const { overlayActors, paintBoardRow, renderScreen, xterm256Index } = require("../../packages/ui-ascii/src/screen.js");
 const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/game-elements.js");
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
-const { parseArgs, resolveLevels, runScripted, shouldUseColor } = require("../../packages/ui-ascii/src/cli.mjs");
+const { colorDepth, parseArgs, resolveColor, resolveLevels, runScripted, shouldUseColor } = require("../../packages/ui-ascii/src/cli.mjs");
 const { createPlaySession } = require("../../packages/runtime/src/runner/play-session.js");
 const { buildUnifiedLevel, viableVitals } = require("../fixtures/ui-ascii/unified-level.mjs");
 
@@ -34,7 +34,19 @@ const FIXTURE_LEVELS_DIR = resolve(ROOT, "tests/fixtures/ui-ascii/levels");
 const fixtureLevel = (name) => loadBundledLevel(name, FIXTURE_LEVELS_DIR);
 const fixtureLevels = () => loadBundledLevels(FIXTURE_LEVELS_DIR);
 // first-steps fixture: from the spawn approach (1,1) onto the exit (8,7), then wait out the dwell.
-const FIRST_STEPS_SOLUTION = "ddssddssssddd.";
+// Stamina only recovers on a turn without a move (#273): the default pool (2, regen 2) walks two
+// steps, then rests one turn.
+const FIRST_STEPS_SOLUTION = "dd.ss.dd.ss.ss.dd.d.";
+
+/** Move along `path`, resting a turn first whenever the player cannot pay for the step (#273). */
+async function walk(session, path, onMove = () => {}) {
+  for (const direction of path) {
+    while ((session.view().player.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1) {
+      await session.act({ kind: "wait" });
+    }
+    onMove(await session.act({ kind: "move", params: { direction } }), direction);
+  }
+}
 
 /** The actor the play session seats as the player: its `user_controlled` delver. */
 function playerOf(level) {
@@ -112,10 +124,7 @@ test("bundled levels list in play order and every one loads and is winnable", as
     const { path } = solve(level);
     assert.ok(path.length > 0, `${name} has a path to its exit`);
     const session = await createPlaySession(level);
-    for (const direction of path) {
-      const result = await session.act({ kind: "move", params: { direction } });
-      assert.equal(result.accepted.length, 1, `${name}: ${direction}`);
-    }
+    await walk(session, path, (result, direction) => assert.equal(result.accepted.length, 1, `${name}: ${direction}`));
     assert.equal((await session.act({ kind: "wait" })).status.exited, true, `${name} exits`);
   }
 });
@@ -383,6 +392,34 @@ test("colour: on for a terminal, off for pipes, NO_COLOR and --no-color; --color
   assert.equal(parseArgs(["--color"]).color, "always");
 });
 
+test("colour depth (#286): 24-bit only when the terminal says so or the output is captured", () => {
+  assert.equal(colorDepth({ isTTY: true, env: { COLORTERM: "truecolor" } }), "truecolor");
+  assert.equal(colorDepth({ isTTY: true, env: { COLORTERM: "24bit" } }), "truecolor");
+  // macOS Terminal sets no COLORTERM and misreads 24-bit codes.
+  assert.equal(colorDepth({ isTTY: true, env: { TERM_PROGRAM: "Apple_Terminal" } }), "256");
+  assert.equal(colorDepth({ isTTY: false, env: {} }), "truecolor");
+  assert.equal(resolveColor({ color: true }, { isTTY: true, env: {} }), "256");
+  assert.equal(resolveColor({ color: true }, { isTTY: true, env: { NO_COLOR: "1" } }), false);
+  assert.equal(resolveColor({ color: "always" }, { isTTY: false, env: {} }), "truecolor");
+});
+
+test("xterm-256 picks the nearest cube colour or grey", () => {
+  assert.equal(xterm256Index(0, 0, 0), 16);
+  assert.equal(xterm256Index(255, 255, 255), 231);
+  assert.equal(xterm256Index(255, 0, 0), 196);
+  assert.equal(xterm256Index(128, 128, 128), 244);
+  assert.equal(xterm256Index(0x3b, 0x32, 0x37), 237);
+});
+
+test("a 256-colour screen has the same text and no 24-bit codes", async () => {
+  const session = await createPlaySession(fixtureLevel("first-steps"));
+  const screen = renderScreen({ view: session.view(), levelName: "first-steps", color: "256" });
+  assert.match(screen, /\u001b\[48;5;\d+m/);
+  assert.doesNotMatch(screen, /\u001b\[[34]8;2;/);
+  const plain = renderScreen({ view: session.view(), levelName: "first-steps" });
+  assert.equal(screen.replace(/\u001b\[[0-9;]*m/g, ""), plain);
+});
+
 test("warden-hall's wardens wander once the play session runs their turns", async (context) => {
   const session = await createPlaySession(loadBundledLevel("warden-hall"));
   const start = session.view().actors;
@@ -390,12 +427,16 @@ test("warden-hall's wardens wander once the play session runs their turns", asyn
   // session from the enemy-turns PR; until it lands this level is solo.
   if (!Array.isArray(start)) return context.skip();
   const startById = new Map(start.map((actor) => [actor.id, actor.position]));
-  for (let turn = 0; turn < 6; turn += 1) await session.act({ kind: "wait" });
-  const moved = session.view().actors.filter((actor) => {
-    const from = startById.get(actor.id);
-    return from && (from.x !== actor.position.x || from.y !== actor.position.y);
-  });
-  assert.ok(moved.length > 0, "at least one warden left its starting cell");
+  // A wandering warden can step back onto its start, so any turn off it counts.
+  const moved = new Set();
+  for (let turn = 0; turn < 6; turn += 1) {
+    await session.act({ kind: "wait" });
+    for (const actor of session.view().actors) {
+      const from = startById.get(actor.id);
+      if (from && (from.x !== actor.position.x || from.y !== actor.position.y)) moved.add(actor.id);
+    }
+  }
+  assert.ok(moved.size > 0, "at least one warden left its starting cell");
 });
 
 test("in colour, actors with an equipped affinity are filled with it; others keep their role colour", async () => {
@@ -447,7 +488,7 @@ test("trap-rooms draws each trap as H in its own affinity's fill, and a trap cos
   const trap = view.hazards[0].position;
   const { path } = solve(level, { target: trap });
   const healthBefore = view.player.vitals.find((vital) => vital.key === "health").current;
-  for (const direction of path) await session.act({ kind: "move", params: { direction } });
+  await walk(session, path);
   const after = session.view();
   assert.deepEqual(after.player.position, trap);
   assert.ok(after.player.vitals.find((vital) => vital.key === "health").current < healthBefore, "the trap hurt");
@@ -667,3 +708,37 @@ test("a defeated player sees the defeat line; moves do nothing and r restarts th
 // - an exhausted slot's HUD row says it is off until mana is full
 // - Tab in the affinity list wraps from the last row to the first
 // - + at full stacks says it already runs at all held stacks
+
+// #291: turn-based by default; real time is an opt-in wait turn on a timer.
+const { DEFAULT_REALTIME_MS, REALTIME_TOGGLE_KEY, parseRealtimeMs, realtimeBeat, realtimeLine } = require("../../packages/ui-ascii/src/realtime.js");
+
+test("--realtime takes whole milliseconds of at least 50; play is turn-based without it", () => {
+  assert.equal(parseArgs([]).realtimeMs, undefined);
+  assert.equal(parseArgs(["--realtime", "250"]).realtimeMs, 250);
+  assert.throws(() => parseArgs(["--realtime", "10"]), /at least 50/);
+  assert.throws(() => parseArgs(["--realtime", "fast"]), /whole milliseconds/);
+  assert.equal(parseRealtimeMs("50"), 50);
+  assert.equal(DEFAULT_REALTIME_MS, 500);
+  assert.equal(REALTIME_TOGGLE_KEY, "t");
+  assert.equal(intentForKey("t"), null, "t is free for the toggle");
+});
+
+test("a real-time beat is a wait turn, and pauses while a panel is open or the level is over", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  assert.equal(await realtimeBeat(game), true);
+  assert.equal(game.state().turns, 1, "a beat costs one turn, exactly like pressing .");
+  await press(game, "i");
+  assert.equal(await realtimeBeat(game), false);
+  assert.equal(game.state().turns, 1, "no beat while the affinity list is open");
+
+  const finished = await createGame({ levels: fixtureLevels() });
+  await runScripted(finished, FIRST_STEPS_SOLUTION);
+  const turns = finished.state().turns;
+  assert.equal(await realtimeBeat(finished), false);
+  assert.equal(finished.state().turns, turns, "no beat after the exit");
+});
+
+test("the real-time line names the mode and the toggle key", () => {
+  assert.match(realtimeLine({ on: true, intervalMs: 250 }), /every 250 ms.*t pauses/);
+  assert.match(realtimeLine({ on: false, intervalMs: 500 }), /Turn-based.*t for real time/);
+});

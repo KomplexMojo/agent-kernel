@@ -194,3 +194,41 @@ export function resolveActorFields(registry: Registry, suppressions: ActorEffect
   return { ...result, suppressions: [...applied, ...result.suppressions],
     fields: projectActorFields(registry).fields.filter(field => (pending.get(fieldSlotKey(field.sourceId, field))?.budget ?? 0) > 0) };
 }
+
+/** Net stacks one side of an opposed pair must win by on an actor's tile to overwhelm it (#289). */
+export const OVERWHELM_NET_STACKS = 2;
+/** Regen multiplier when a harmful (damaging) affinity overwhelms: regen of its vital stops. */
+export const OVERWHELM_HARM_REGEN_SCALE = 0;
+/** Regen multiplier when a restoring affinity overwhelms: regen of its vital doubles. */
+export const OVERWHELM_RESTORE_REGEN_SCALE = 2;
+
+export interface ActorOverwhelm { actorId: string; kind: string; vital: string; regenScale: number }
+
+/**
+ * Overwhelm (maintainer, 2026-10-15, #289), one rule for every opposed pair: when an
+ * emitted affinity from OTHER sources beats its opposite on an actor's tile by
+ * `OVERWHELM_NET_STACKS` or more (the opposite counted from every source, the actor's
+ * own included), the actor's regen of that affinity's vital is scaled for this turn:
+ * stopped when the affinity's emit damages (`MATRIX`), doubled when it restores. Stacks
+ * are the strongest single source of each kind reaching the tile, as in cancellation
+ * (#290). An actor's own emission never overwhelms it. Read-only.
+ */
+export function readActorOverwhelms(registry: Pick<Registry, 'snapshot'>): ActorOverwhelm[] {
+  const actors = registry.snapshot().actors.filter(actor => actor.lifecycle === 'alive');
+  const sources = activeFieldSources(actors).filter(({ pair }) => pair.expression === 'emit');
+  const out: ActorOverwhelm[] = [];
+  for (const actor of actors) {
+    const local = sourceContributionsAt(sources, actor.position);
+    const strongest = (kind: string, includeSelf: boolean) => Math.max(0, ...local
+      .filter(cell => cell.kind === kind && (includeSelf || cell.sourceId !== actor.id)).map(cell => cell.stacks));
+    for (const kind of new Set(local.map(cell => cell.kind))) {
+      const opposite = AFFINITY_KIND_BY_CODE[getOppositeAffinityKind(KIND_CODES[kind])];
+      if (!opposite || strongest(kind, false) - strongest(opposite, true) < OVERWHELM_NET_STACKS) continue;
+      const effect = getActorAffinityEffect(kind as ActorAffinityEntry['kind'], 'emit');
+      if (effect.operation === 'neutralize') continue;
+      out.push({ actorId: actor.id, kind, vital: effect.vital,
+        regenScale: effect.operation === 'restore' ? OVERWHELM_RESTORE_REGEN_SCALE : OVERWHELM_HARM_REGEN_SCALE });
+    }
+  }
+  return out;
+}

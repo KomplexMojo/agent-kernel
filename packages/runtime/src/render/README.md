@@ -126,7 +126,7 @@ passes:
 | affinity labels vs the UI panel | WCAG AA 4.5:1 | 4.55:1 |
 
 Opposition is carried on three axes, because ten hues do not fit one wheel:
-**hue** (fire/water, earth/wind, life/decay), **chroma** (corrode acid vs fortify
+**hue** (fire/water, earth/wind, growth/decay), **chroma** (corrode acid vs fortify
 inert steel), **lightness** (light near-white vs dark charcoal).
 
 Text colours are **not** the fills. A fill answers to the dark board tiles; a

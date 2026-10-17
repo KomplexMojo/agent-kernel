@@ -15,7 +15,7 @@
   &nbsp;
   <img src="docs/brand/affinities/icon-affinity-wind.png" alt="" height="40">
   &nbsp;
-  <img src="docs/brand/affinities/icon-affinity-life.png" alt="" height="40">
+  <img src="docs/brand/affinities/icon-affinity-growth.png" alt="" height="40">
   &nbsp;
   <img src="docs/brand/affinities/icon-affinity-decay.png" alt="" height="40">
   &nbsp;

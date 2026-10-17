@@ -409,7 +409,7 @@ function drawAffinityGlyph(pixels, size, state) {
             drawLine(pixels, size, cx - radius, cy + 1, cx + radius + 3, cy + 1, rgba("#c9f1ff", 220), Math.max(1, Math.round(2 * s)));
             drawLine(pixels, size, cx - 2, cy + 6, cx + radius, cy + 6, color, Math.max(1, Math.round(2 * s)));
             break;
-        case "life":
+        case "growth":
             fillCircle(pixels, size, cx - Math.round(3 * s), cy, radius - 1, color);
             fillCircle(pixels, size, cx + Math.round(4 * s), cy - Math.round(2 * s), radius - 2, rgba("#9ef0a6", 230));
             drawLine(pixels, size, cx, cy + radius, cx + Math.round(6 * s), cy - radius, rgba("#f3ffe0", 210), Math.max(1, Math.round(2 * s)));

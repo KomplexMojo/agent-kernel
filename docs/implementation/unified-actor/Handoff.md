@@ -157,7 +157,7 @@ llm-plan/warden-pool 0, t1-medium rooms pool, spawn/exit occupancy,
 proximityRadius, and V1 resources red. No commit/push/PR.
 
 LATEST September 22: leftover configurator-startup rebuilds the hazard-grid
-oracle through Configurator terrain plus actor_mvp (fire/push, life/pull).
+oracle through Configurator terrain plus actor_mvp (fire/push, growth/pull).
 Asserts registry vitals and terrain glyphs; leftover tiles/kinds/hazards stay
 off SimConfig. Restoring leftover hazard fixtures failed; restored. Typecheck
 0. Wiring 36 vs 13. Leave leftover e2e-annotator ambulatory actors, JS-spread

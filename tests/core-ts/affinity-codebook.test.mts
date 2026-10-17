@@ -30,7 +30,7 @@ describe("core-ts affinity codebook", () => {
     const pairs = [
       [AffinityKind.Fire, AffinityKind.Water],
       [AffinityKind.Earth, AffinityKind.Wind],
-      [AffinityKind.Life, AffinityKind.Decay],
+      [AffinityKind.Growth, AffinityKind.Decay],
       [AffinityKind.Corrode, AffinityKind.Fortify],
       [AffinityKind.Light, AffinityKind.Dark],
     ];
@@ -173,7 +173,7 @@ describe("core-ts affinity codebook permutations", () => {
       [AffinityKind.Water, VitalKind.Health],
       [AffinityKind.Earth, VitalKind.Stamina],
       [AffinityKind.Wind, VitalKind.Stamina],
-      [AffinityKind.Life, VitalKind.Health],
+      [AffinityKind.Growth, VitalKind.Health],
       [AffinityKind.Decay, VitalKind.Health],
       [AffinityKind.Corrode, VitalKind.Durability],
       [AffinityKind.Fortify, VitalKind.Durability],

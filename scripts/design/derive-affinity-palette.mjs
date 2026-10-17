@@ -12,16 +12,16 @@ function rand() {
 
 // Opposites are a domain fact (AFFINITY_OPPOSITES). The palette should make them
 // visually opposite too, on three different axes:
-//   hue      : fire/water, earth/wind, life/decay
+//   hue      : fire/water, earth/wind, growth/decay
 //   chroma   : corrode (saturated) / fortify (neutral)
 //   lightness: light (near-white) / dark (charcoal)
-const OPPOSITES = [["fire","water"],["earth","wind"],["life","decay"],["corrode","fortify"],["light","dark"]];
+const OPPOSITES = [["fire","water"],["earth","wind"],["growth","decay"],["corrode","fortify"],["light","dark"]];
 const BOX = [
   ["fire",     30,  48, 0.58, 0.72, 0.15, 0.22],
   ["water",   242, 268, 0.46, 0.64, 0.13, 0.21],
   ["earth",    62,  88, 0.44, 0.62, 0.05, 0.12],
   ["wind",    186, 214, 0.70, 0.88, 0.07, 0.15],
-  ["life",    140, 166, 0.60, 0.80, 0.13, 0.21],
+  ["growth",    140, 166, 0.60, 0.80, 0.13, 0.21],
   ["decay",   316, 344, 0.42, 0.60, 0.09, 0.18],
   ["corrode", 106, 130, 0.70, 0.88, 0.13, 0.20],
   ["fortify", 228, 284, 0.60, 0.76, 0.004, 0.030],
@@ -70,7 +70,7 @@ for (let r = 0; r < 28; r += 1) {
   }
 }
 const ordered = {};
-for (const n of ["fire","water","earth","wind","life","decay","corrode","fortify","light","dark"]) ordered[n] = best[n];
+for (const n of ["fire","water","earth","wind","growth","decay","corrode","fortify","light","dark"]) ordered[n] = best[n];
 console.log(JSON.stringify(ordered, null, 1));
 const pairs = [];
 for (let i = 0; i < NAMES.length; i += 1) for (let j = i + 1; j < NAMES.length; j += 1) pairs.push([NAMES[i], NAMES[j], dE76(best[NAMES[i]], best[NAMES[j]]), dE2000(best[NAMES[i]], best[NAMES[j]])]);

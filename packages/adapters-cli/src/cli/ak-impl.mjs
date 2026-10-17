@@ -37,6 +37,7 @@ import { createSchemaCatalog, filterSchemaCatalogEntries } from "../../../runtim
 
 import { ROOM_CARD_SIZE_IDS } from "../../../runtime/src/contracts/domain-constants.js";
 import { createAllocatorPersona } from "../../../runtime/src/personas/allocator/persona.js";
+import { readWastedRegen } from "../../../runtime/src/personas/allocator/controller.js";
 import { createConfiguratorPersona } from "../../../runtime/src/personas/configurator/persona.js";
 // CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
 // it. `prompt-contract.js` only renamed these (P5.1 D1: one value, three names), so the
@@ -190,7 +191,7 @@ function usage() {
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
-  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--record path] [--replay path]
+  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--realtime ms] [--record path] [--replay path]
   node ${rel} play --watch (--dir dir | --from-run id) [--tick N] [--keys keys] [--json] [--color | --no-color]
   node ${rel} play-session start [--session id] (--dir dir | --from-run id | --sim-config path --initial-state path | --level name) [--actor id|label] [--commands json] [--keys keys]
   node ${rel} play-session start [--session id] --load path
@@ -241,7 +242,7 @@ Options:
                   permanenceMode governs delta only (consumable raises current, level/permanent raise max).
                   regen is a third, independent grant: the actor permanently gains that regen rate on top
                   of the delta. delta may be omitted when regen is given (a regen-only resource).
-                  Affinity payload: affinity=<fire|water|earth|wind|life|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]
+                  Affinity payload: affinity=<fire|water|earth|wind|growth|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]
                   Both payloads may be combined in one spec. manaRegen defaults to 0, which grants the
                   affinity temporarily until its mana is spent; manaRegen>0 refills the pool, making the
                   granted affinity permanent (and costing 5*manaRegen^2 more tokens to author).
@@ -285,6 +286,7 @@ Options:
   --keys          play: apply these keys without a terminal and print the final screen (e.g. "ddss.")
   --json          play: print { ok, level, turns, status, screen, launch, warnings? } instead of the screen
   --no-fog        play: debug view of the whole map (play is always under fog of war)
+  --realtime      play: a turn passes every <ms> while you wait (interactive only; t toggles)
   --record        play: save the played commands to this path (CapturedInputArtifact)
   --replay        play: re-run a saved game on its level, then continue
   --watch         play: watch the run \`ak run\` recorded in --dir (or under artifacts/runs/<--from-run>), tick by tick
@@ -1259,7 +1261,7 @@ function parseAuthoringHazardSpec(value, hazardIndex) {
 const RESOURCE_ALLOWED_PERMANENCE_MODES = new Set(["consumable", "level", "permanent"]);
 const RESOURCE_ALLOWED_VITAL_KEYS = new Set(["health", "mana", "stamina"]);
 const RESOURCE_ALLOWED_AFFINITY_KINDS = new Set([
-  "fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark",
+  "fire", "water", "earth", "wind", "growth", "decay", "corrode", "fortify", "light", "dark",
 ]);
 const RESOURCE_ALLOWED_AFFINITY_EXPRESSIONS = new Set(["push", "pull", "emit", "draw"]);
 
@@ -4039,11 +4041,18 @@ function buildCostSummary(budgetReceipt, spendProposal, outDir) {
   }
   const totalSpend = budgetReceipt.totalCost ?? 0;
   const remaining = budgetReceipt.remaining ?? 0;
+  // The Allocator prices regen above max as asked and flags it; say so, refuse nothing.
+  const wastedRegen = readWastedRegen(budgetReceipt);
+  for (const { subjectId, vital, regen, usableRegen, wastedTokens } of wastedRegen) {
+    console.error(`warning: ${subjectId} buys ${vital} regen ${regen} but its max is ${usableRegen}; `
+      + `regen never fills past max, so ${wastedTokens} tokens buy nothing.`);
+  }
   return {
     totalSpend,
     budgetTokens: totalSpend + remaining,
     remaining,
     status: budgetReceipt.status,
+    ...(wastedRegen.length > 0 ? { wastedRegen } : {}),
     receiptPath: join(outDir, "budget-receipt.json"),
     proposalPath: spendProposal ? join(outDir, "spend-proposal.json") : undefined,
   };
@@ -6443,7 +6452,7 @@ async function playCommand(argv) {
     console.log(usage());
     return;
   }
-  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick"]);
+  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick", "realtime"]);
   const unknown = Object.keys(args).filter((key) => !allowed.has(key));
   if (unknown.length > 0) throw new Error(`play does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
   if (args.watch) {
@@ -6465,8 +6474,12 @@ async function playCommand(argv) {
   if ((args.record !== undefined && !capture.recordPath) || (args.replay !== undefined && !capture.replayPath)) {
     throw new Error("play --record and --replay each need a file path.");
   }
+  // #291: real time is for a person at the keyboard, so only interactive play takes it.
+  if (args.realtime !== undefined && (keys !== undefined || args.json)) {
+    throw new Error("play --realtime is for interactive play; drop --keys/--json.");
+  }
   if (keys === undefined && !args.json) {
-    process.exitCode = await playAsciiInteractive({ source, color, fog, ...capture });
+    process.exitCode = await playAsciiInteractive({ source, color, fog, realtime: args.realtime, ...capture });
     return;
   }
   const result = playAsciiScripted({ source, keys: keys ?? "", color: color === true, fog, ...capture });

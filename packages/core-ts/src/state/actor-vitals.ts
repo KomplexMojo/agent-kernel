@@ -35,7 +35,8 @@ export function changeActorVital(actor: ActorRecord | undefined, key: ActorVital
   return vital.current - before;
 }
 
-export function regenerateActor(actor: ActorRecord): void {
+/** One turn of regen; `scale` multiplies a vital's regen this turn (overwhelm, #289; 1 when absent). */
+export function regenerateActor(actor: ActorRecord, scale: Partial<Record<ActorVitalKind, number>> = {}): void {
   if (actor.lifecycle !== 'alive') return;
-  for (const key of VITALS) changeActorVital(actor, key, actor.vitals[key]?.regen ?? 0);
+  for (const key of VITALS) changeActorVital(actor, key, (actor.vitals[key]?.regen ?? 0) * (scale[key] ?? 1));
 }

@@ -147,8 +147,8 @@ test('a matching draw slot absorbs before an opposite slot can double the damage
     turn.closeActions(); turn.resolveFields();
     return registry.getActor('a')!.vitals;
   };
-  const lone = exposed(['life:emit'], [{ kind: 'life', expression: 'emit', stacks: 1 }]);
-  const opposed = exposed(['life:emit', 'water:push'], [{ kind: 'life', expression: 'emit', stacks: 1 },
+  const lone = exposed(['growth:emit'], [{ kind: 'growth', expression: 'emit', stacks: 1 }]);
+  const opposed = exposed(['growth:emit', 'water:push'], [{ kind: 'growth', expression: 'emit', stacks: 1 },
     { kind: 'water', expression: 'push', stacks: 1 }]);
   // Doubled, then capped by the source's finite budget (2 for two stacks).
   expect(10 - opposed.health!.current).toBe(Math.min(2, 2 * (10 - lone.health!.current)));
@@ -164,7 +164,7 @@ test('the record is validated: slot count 1..6, equipped keys known, unique, wit
   expect(load({ affinitySlots: 7 })).toThrow();
   expect(load({ affinitySlots: 0 })).toThrow();
   expect(load({ affinitySlots: 1, activeAffinityKey: 'fire:push', equippedAffinityKeys: ['fire:push', 'light:emit'] })).toThrow();
-  expect(load({ affinitySlots: 2, activeAffinityKey: 'fire:push', equippedAffinityKeys: ['fire:push', 'life:emit'] as never })).toThrow();
+  expect(load({ affinitySlots: 2, activeAffinityKey: 'fire:push', equippedAffinityKeys: ['fire:push', 'growth:emit'] as never })).toThrow();
   expect(load({ affinitySlots: 2, activeAffinityKey: 'fire:push', equippedAffinityKeys: ['fire:push', 'fire:push'] })).toThrow();
   expect(load({ affinitySlots: 2, activeAffinityKey: 'light:emit', equippedAffinityKeys: ['fire:push', 'light:emit'] })).toThrow();
   expect(load({ affinitySlots: 2, activeAffinityKey: 'fire:push', equippedAffinityKeys: ['fire:push'],

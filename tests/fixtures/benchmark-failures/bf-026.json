@@ -8,7 +8,7 @@
   "observedOutcome": "execution_failed",
   "scenarioBudget": null,
   "toolArgs": {
-    "text": "Create a comprehensive evaluation dungeon with multiple rooms, hazards, resources, delvers, and wardens. The dungeon should feature diverse affinity mechanics including fire, water, earth, wind, life, decay, corrode, fortify, light, and dark affinities. Include various hazard expressions (push, pull, emit, draw) with different proximity radii and durability/mana pools. Create resources with vital payloads (health, mana, stamina) using permanence modes (consumable, level, permanent). Design delvers with optimization goals (max_mana, mana_regen, maximize_spend) and various motivations. Include wardens with attacking, defending, patrolling, and stealthy motivations. Ensure the dungeon has a balanced mix of room sizes (small, medium, large) and appropriate hazard/resource placement through proximity-based mechanics.",
+    "text": "Create a comprehensive evaluation dungeon with multiple rooms, hazards, resources, delvers, and wardens. The dungeon should feature diverse affinity mechanics including fire, water, earth, wind, growth, decay, corrode, fortify, light, and dark affinities. Include various hazard expressions (push, pull, emit, draw) with different proximity radii and durability/mana pools. Create resources with vital payloads (health, mana, stamina) using permanence modes (consumable, level, permanent). Design delvers with optimization goals (max_mana, mana_regen, maximize_spend) and various motivations. Include wardens with attacking, defending, patrolling, and stealthy motivations. Ensure the dungeon has a balanced mix of room sizes (small, medium, large) and appropriate hazard/resource placement through proximity-based mechanics.",
     "runId": "eval-dungeon-001",
     "outDir": "./dungeons/evaluation",
     "emitIntermediates": true,
@@ -61,7 +61,7 @@
         "stacks": 2
       },
       {
-        "affinity": "life",
+        "affinity": "growth",
         "durability": 0,
         "expression": "emit",
         "mana": "regen:4:8:1",
@@ -147,7 +147,7 @@
         "vital": "health"
       },
       {
-        "affinity": "life",
+        "affinity": "growth",
         "expression": "emit",
         "mana": 0,
         "permanenceMode": "permanent",
@@ -289,7 +289,7 @@
         }
       },
       {
-        "affinity": "life",
+        "affinity": "growth",
         "count": 1,
         "goals": [
           {

@@ -108,11 +108,14 @@ export function hasNonStationaryMobilityMotivation(motivations = []) {
 // than the capability it exists to guarantee (can this actor take a step?), so
 // it passed while the capability was absent. Stated as a capability instead:
 //
-//   an actor whose motivation implies movement must be able to move EVERY tick,
-//   including the most expensive single move it can make (a diagonal).
+//   an actor whose motivation implies movement must be able to make the most
+//   expensive single move it can (a diagonal) from a full pool, and one rest
+//   turn must refill that pool.
 //
 // so the pool must cover one worst-case move and regen must refill it.
-// Both derive from movementCost — no second constant to drift.
+// Both derive from movementCost — no second constant to drift. Stamina only
+// regenerates on a turn without a move (#273), so a mover at this floor walks
+// in bursts and rests; a larger pool is a longer burst, bought through vitals.
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;

@@ -36,7 +36,7 @@ const AFFINITY_ASCII_GLYPHS = Object.freeze({
   water: "w",
   earth: "e",
   wind: "n",
-  life: "l",
+  growth: "l",
   decay: "d",
   corrode: "c",
   fortify: "t",

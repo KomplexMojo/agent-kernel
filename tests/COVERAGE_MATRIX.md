@@ -27,7 +27,7 @@ Run: `pnpm run test:vitest -- tests/integration/element-matrix-cli.test.mjs`
 
 Legend: ✅ asserted · 🟡 covered indirectly (build/render only) · ⏳ pending (open design question)
 
-### Affinities (10) — `fire water earth wind life decay corrode fortify light dark`
+### Affinities (10) — `fire water earth wind growth decay corrode fortify light dark`
 | | L1 (CLI) | L2 (UI) | L3 (parity) |
 |---|---|---|---|
 | each kind on a hazard (emit) | ✅ round-trips to `sim-config.layout.data.hazards[].affinity.kind` | 🟡 via hazards in full-breadth build | ✅ ladder build parity |

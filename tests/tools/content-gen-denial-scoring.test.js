@@ -32,7 +32,7 @@ test("a wrong spec that is also denied scores far below a right one", () => {
     denialScenario, undefined, undefined, opts).points;
   const wrong = scoreRun(denied({
     warden: [{ count: 9, affinity: "fire", motivation: "attacking" }],
-    delver: [{ count: 5, affinity: "life", motivation: "patrolling" }],
+    delver: [{ count: 5, affinity: "growth", motivation: "patrolling" }],
   }), denialScenario, undefined, undefined, opts).points;
   assert.ok(right > wrong + 20,
     `right=${right} wrong=${wrong} — the two must be distinguishable, which is the whole defect: `

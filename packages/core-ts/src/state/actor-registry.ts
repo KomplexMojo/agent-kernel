@@ -147,8 +147,9 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     chargeAffinityUpkeep(upkeepByStacks: readonly number[]): void {
       for (const actor of ordered) chargeActorAffinityUpkeep(actor, upkeepByStacks);
     },
-    regenerate(): void {
-      for (const actor of ordered) { regenerateActor(actor); recoverActorAffinity(actor); }
+    /** `scaleByActor` multiplies regen per actor and vital this turn (overwhelm, #289). */
+    regenerate(scaleByActor: Readonly<Record<string, Partial<Record<ActorVitalKind, number>>>> = {}): void {
+      for (const actor of ordered) { regenerateActor(actor, scaleByActor[actor.id]); recoverActorAffinity(actor); }
     },
     advanceExitDwell(): string[] {
       const exited: string[] = [];

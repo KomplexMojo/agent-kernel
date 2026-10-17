@@ -238,7 +238,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -582,7 +582,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -926,7 +926,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -1270,7 +1270,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -1614,7 +1614,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -1958,7 +1958,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -2302,7 +2302,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -2646,7 +2646,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -2990,7 +2990,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -3334,7 +3334,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -3678,7 +3678,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -4022,7 +4022,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -4366,7 +4366,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -4710,7 +4710,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -5054,7 +5054,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -5398,7 +5398,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -5742,7 +5742,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -6086,7 +6086,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -6430,7 +6430,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -6774,7 +6774,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -7118,7 +7118,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -7462,7 +7462,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -7806,7 +7806,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -8150,7 +8150,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -8494,7 +8494,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -8838,7 +8838,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -9182,7 +9182,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -9526,7 +9526,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -9870,7 +9870,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -10214,7 +10214,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -10558,7 +10558,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -10902,7 +10902,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -11246,7 +11246,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -11590,7 +11590,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -11934,7 +11934,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -12278,7 +12278,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -12622,7 +12622,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -12966,7 +12966,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -13310,7 +13310,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -13654,7 +13654,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -13998,7 +13998,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -14342,7 +14342,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -14686,7 +14686,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -15030,7 +15030,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -15374,7 +15374,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -15718,7 +15718,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -16062,7 +16062,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -16406,7 +16406,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -16750,7 +16750,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -17094,7 +17094,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -17438,7 +17438,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -17782,7 +17782,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -18126,7 +18126,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -18470,7 +18470,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -18814,7 +18814,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -19158,7 +19158,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -19502,7 +19502,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -19846,7 +19846,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -20190,7 +20190,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }
@@ -20534,7 +20534,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "push",
           "stacks": 1
         }
@@ -20878,7 +20878,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "emit",
           "stacks": 1
         }
@@ -21222,7 +21222,7 @@
       ],
       "affinities": [
         {
-          "kind": "life",
+          "kind": "growth",
           "expression": "pull",
           "stacks": 1
         }

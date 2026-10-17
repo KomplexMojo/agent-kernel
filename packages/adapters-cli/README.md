@@ -305,6 +305,8 @@ Inputs/outputs:
   pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map. MCP: `ak_play_ascii`.
 - A level is played as written. Delvers or wardens below the viability floor are reported as `warning:` lines on
   stderr, and as `warnings` with `--json`.
+- `--realtime <ms>` (interactive play only) passes a turn every `<ms>` milliseconds while the player waits; `t` toggles it
+  in game. Play is turn-based by default (#291).
 - `--record <path>` saves the played commands as a `CapturedInputArtifact`; `--replay <path>` re-runs a saved
   game on its level, then play continues (both pass through to the UI; see `packages/ui-ascii/README.md`).
 - `--keys` takes the game's own keys (see `packages/ui-ascii/README.md`), including the affinity keys:
@@ -408,7 +410,7 @@ Inputs/outputs:
   Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
 - `--resource` format: a resource carries a **vital payload**, an **affinity payload**, a **slots payload**, or a combination.
   - Vital payload: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]`
-  - Affinity payload: `affinity=<fire|water|earth|wind|life|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]`
+  - Affinity payload: `affinity=<fire|water|earth|wind|growth|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]`
   - Slots payload: `slots=<n>[;id=<id>]` is slot-unlock loot: taking it opens `n` more equipped-affinity
     slots, up to the cap of 6 (at 6 the take is refused and the loot stays). It is the most valuable loot,
     priced on an escalating curve (`resource_affinity_slot`, triangular: the nth slot costs n × 600), and only resources carry it: defeated delvers and wardens
@@ -467,7 +469,7 @@ Inputs/outputs:
   both and writes the actor's `affinitySlots`, `activeAffinityKey`, `equippedAffinityKeys` and `equippedAffinityStacks`:
   ```bash
   node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=1" \
-    --delver "count=1;affinity=earth;affinities=earth:push:3,life:emit:1,corrode:draw:1;slots=4;equip=earth:push:2,life:emit"
+    --delver "count=1;affinity=earth;affinities=earth:push:3,growth:emit:1,corrode:draw:1;slots=4;equip=earth:push:2,growth:emit"
   ```
 - `--delver` and `--warden` accept `strategy=`: standing orders each actor the card makes follows on its own turns.
   Compact goals run in order: `reach:exit|reach:<x>/<y>`, `defeat:<id>`, `take:<id>`, `guard:<id>[:radius]`,
@@ -597,6 +599,9 @@ Inputs/outputs:
   delver is a companion acting on its own motivations. Nothing is tagged playable automatically.
   `user_controlled` is priced by the Allocator at the dearest autonomous motivation stack + 1, and a
   playable actor is costed for movement stamina because its player moves it.
+- A vital whose regen is above its max is built and priced as asked, but regen never fills past max, so the
+  excess buys nothing. `create` prints a `warning:` line per such vital on stderr and lists them as
+  `cost.wastedRegen` (`{ subjectId, vital, regen, usableRegen, wastedTokens }`) in its JSON.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from delver-plan runs.
 - Delver `goals=` values are optimization directions only; they do not bypass the existing
@@ -957,7 +962,7 @@ When overrides are provided, `run` writes `resolved-sim-config.json` and
 ## Configurator artifacts (affinities + hazards)
 
 Configurator artifacts are affinity-only (no martial weapons). Affinity kinds:
-fire, water, earth, wind, life, decay, corrode, fortify, light, dark. Expressions: push, pull, emit.
+fire, water, earth, wind, growth, decay, corrode, fortify, light, dark. Expressions: push, pull, emit.
 
 Example `SimConfigArtifact.layout.data` snippet with hazards:
 ```json
@@ -979,7 +984,7 @@ Example `InitialStateArtifact.actors[].traits` snippet:
 ```json
 {
   "traits": {
-    "affinities": { "fire:push": 2, "life:pull": 1 },
+    "affinities": { "fire:push": 2, "growth:pull": 1 },
     "abilities": [
       { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "potency": 4, "manaCost": 6 }
     ]

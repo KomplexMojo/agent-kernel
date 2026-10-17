@@ -972,9 +972,9 @@
       "tier": "constrained",
       "budgetMode": "constrained",
       "budget": 230,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly life Delver five tokens above the minimum passing budget. Use a 230 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly growth Delver five tokens above the minimum passing budget. Use a 230 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly life Delver five tokens above the minimum passing budget. Use a 230 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly growth Delver five tokens above the minimum passing budget. Use a 230 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 230,
         "runId": "ak_prompt_98_constrained_near_fit_resource_route",
         "createdAt": "2026-05-03T17:00:00.000Z",
@@ -987,7 +987,7 @@
           "permanenceMode=level;vital=health;delta=2"
         ],
         "delver": [
-          "count=1;affinity=life;motivation=friendly"
+          "count=1;affinity=growth;motivation=friendly"
         ]
       },
       "expectedOutcome": "success",
@@ -998,7 +998,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life"
+            "growth"
           ]
         },
         "totalSpend": 108

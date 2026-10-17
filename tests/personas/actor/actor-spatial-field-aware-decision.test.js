@@ -82,7 +82,7 @@ test("CLI cannot let field benefit outrank the Actor's primary intent", async ()
     self,
     proposals: [],
     affinityFields: [{
-      position: { x: 3, y: 2 }, kind: "life", expression: "emit",
+      position: { x: 3, y: 2 }, kind: "growth", expression: "emit",
       sourceId: "field_source", stacks: 10, intensity: 1,
     }],
   });

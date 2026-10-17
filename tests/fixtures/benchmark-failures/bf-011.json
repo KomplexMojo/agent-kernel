@@ -8,9 +8,9 @@
   "observedOutcome": "budget_denied",
   "scenarioBudget": 230,
   "toolArgs": {
-    "text": "Create a medium room with one level vital resource and one friendly life Delver. Room specs are generic containers; affinity pressure belongs in hazards, not room specs.",
-    "runId": "ak-medium-room-life-delver-001",
-    "outDir": "out/ak-medium-room-life-delver-001",
+    "text": "Create a medium room with one level vital resource and one friendly growth Delver. Room specs are generic containers; affinity pressure belongs in hazards, not room specs.",
+    "runId": "ak-medium-room-growth-delver-001",
+    "outDir": "out/ak-medium-room-growth-delver-001",
     "budgetTokens": 230,
     "emitIntermediates": true,
     "room": [
@@ -28,7 +28,7 @@
     ],
     "delver": [
       {
-        "affinity": "life",
+        "affinity": "growth",
         "count": 1,
         "motivation": "friendly"
       }

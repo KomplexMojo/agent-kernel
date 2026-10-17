@@ -24,8 +24,8 @@ test("configurator artifact fixtures include hazards and affinity traits", () =>
   assert.equal(initialState.schema, "agent-kernel/InitialStateArtifact");
   assert.equal(initialState.schemaVersion, 1);
   const actorMvp = initialState.actors.find((actor) => actor.id === "actor_mvp");
-  assert.deepEqual(actorMvp.traits.affinities, { "fire:push": 2, "life:pull": 1 });
-  assert.deepEqual(actorMvp.traits.affinityTargets, { "fire:push:enemy": 2, "life:pull:self": 1 });
+  assert.deepEqual(actorMvp.traits.affinities, { "fire:push": 2, "growth:pull": 1 });
+  assert.deepEqual(actorMvp.traits.affinityTargets, { "fire:push:enemy": 2, "growth:pull:self": 1 });
   assert.equal(actorMvp.traits.abilities.length, 2);
   assert.equal(actorMvp.traits.abilities[0].targetType, "enemy");
   assert.equal(actorMvp.traits.resolvedEffects.length, 2);

@@ -95,7 +95,7 @@
     ],
     "resource": [
       {
-        "affinity": "life",
+        "affinity": "growth",
         "expression": "emit",
         "mana": 5,
         "stacks": 1,

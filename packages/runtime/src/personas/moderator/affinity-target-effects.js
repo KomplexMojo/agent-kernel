@@ -19,7 +19,7 @@ const CARDINAL_NEIGHBORS = Object.freeze([
 const VITAL_TARGET_BY_AFFINITY = Object.freeze({
   fire: "health",
   water: "health",
-  life: "health",
+  growth: "health",
   decay: "health",
   earth: "stamina",
   wind: "stamina",

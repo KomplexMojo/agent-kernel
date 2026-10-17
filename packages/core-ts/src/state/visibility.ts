@@ -70,13 +70,29 @@ export const LIGHT_SIGHT_MIN_STACK = 1;
 export const LIGHT_SIGHT_BONUS_PER_STACK = 1;
 
 /**
- * The floor clamp, ruled 2026-08-20: an actor always perceives what is adjacent.
+ * The floor clamp for ordinary dark, ruled 2026-08-20: an actor always perceives
+ * what is adjacent. Only blinding dark (below) goes under it.
  *
- * A radius of 0 would leave an actor unable to see an attacker standing next to
- * it, collapsing every hostile-dependent proposal to `wait` and turning a dark
- * room into a dead zone rather than a dangerous one.
+ * A radius of 0 leaves an actor unable to see an attacker standing next to it,
+ * collapsing every hostile-dependent proposal to `wait`. That is a dead zone in
+ * an ordinary dark room, so weaker dark keeps this floor.
  */
 export const MIN_SIGHT_RADIUS = 1;
+
+/**
+ * Blinding dark (maintainer, 2026-10-15, #284): when the dark OTHER sources
+ * cast on an actor's tile outweighs the light there by this many stacks, the
+ * actor sees only its own tile (`BLIND_SIGHT_RADIUS`). Lit cells further off
+ * stay visible in line of sight. Every actor is under the same rule, so strong
+ * dark is also a way to slip past a warden.
+ *
+ * The actor's own dark does not count: it hides the emitter, it does not blind
+ * it, or every dark-bearer above one stack would blind itself.
+ */
+export const BLINDING_DARK_STACK_THRESHOLD = 2;
+
+/** What sight collapses to under blinding dark: the actor's own tile. */
+export const BLIND_SIGHT_RADIUS = 0;
 
 /**
  * `readObservation().tiles.kinds` carries core tile-ACTOR kinds, not raw Tile
@@ -94,6 +110,11 @@ export interface VisibilityStacks {
   lightStacks?: number;
   /** Dark surviving at the observer's tile. */
   darkStacks?: number;
+  /**
+   * Net dark from other sources at the observer's tile, after the light there
+   * (#284). At `BLINDING_DARK_STACK_THRESHOLD` or more the observer is blind.
+   */
+  blindingDarkStacks?: number;
 }
 
 /**
@@ -112,6 +133,9 @@ export function resolveVisibilityRadius(stacks: VisibilityStacks): number {
   const dark = asStackCount(stacks?.darkStacks);
   const light = asStackCount(stacks?.lightStacks);
 
+  if (asStackCount(stacks?.blindingDarkStacks) >= BLINDING_DARK_STACK_THRESHOLD) {
+    return BLIND_SIGHT_RADIUS;
+  }
   if (dark >= DARKNESS_OBSCURE_STACK_THRESHOLD) {
     return Math.max(MIN_SIGHT_RADIUS, DARKNESS_OBSCURE_RADIUS);
   }
@@ -379,8 +403,10 @@ export function scopeObservation<T extends VisibilityObservation>(
     return observation;
   }
 
+  // Callers resolve the radius (`resolveVisibilityRadius`); only blinding dark
+  // takes it under `MIN_SIGHT_RADIUS`, so the clamp here is the blind floor.
   const effectiveRadius = Math.max(
-    MIN_SIGHT_RADIUS,
+    BLIND_SIGHT_RADIUS,
     typeof radius === "number" && Number.isFinite(radius) ? Math.trunc(radius) : BASELINE_SIGHT_RADIUS,
   );
   const tileKinds = resolveTileKinds(observation);
@@ -455,8 +481,10 @@ export function computeVisibleCells(
   if (!isGridPosition(origin) || origin.x < 0 || origin.y < 0 || origin.x >= width || origin.y >= height) {
     return grid;
   }
+  // Callers resolve the radius (`resolveVisibilityRadius`); only blinding dark
+  // takes it under `MIN_SIGHT_RADIUS`, so the clamp here is the blind floor.
   const effectiveRadius = Math.max(
-    MIN_SIGHT_RADIUS,
+    BLIND_SIGHT_RADIUS,
     typeof radius === "number" && Number.isFinite(radius) ? Math.trunc(radius) : BASELINE_SIGHT_RADIUS,
   );
   const darkStacksByCell = options.darkStacksByCell ?? {};

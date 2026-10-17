@@ -10,7 +10,7 @@
     "--hazard", "affinity=water;expression=push;proximityRadius=2;mana=regen:4:4:1",
     "--hazard", "affinity=earth;expression=pull;proximityRadius=2;mana=regen:4:4:1",
     "--hazard", "affinity=wind;expression=draw;proximityRadius=2;mana=regen:4:4:1",
-    "--hazard", "affinity=life;expression=emit;proximityRadius=2;mana=regen:4:4:1",
+    "--hazard", "affinity=growth;expression=emit;proximityRadius=2;mana=regen:4:4:1",
     "--hazard", "affinity=decay;expression=push;proximityRadius=2;mana=regen:4:4:1",
     "--hazard", "affinity=corrode;expression=pull;proximityRadius=2;mana=regen:4:4:1",
     "--hazard", "affinity=fortify;expression=draw;proximityRadius=2;mana=regen:4:4:1",

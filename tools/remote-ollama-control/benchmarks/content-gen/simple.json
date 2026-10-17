@@ -252,9 +252,9 @@
       "tier": "simple",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a two-person Delver party with one fire attacker and one life-friendly support Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a two-person Delver party with one fire attacker and one growth-friendly support Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-person Delver party with one fire attacker and one life-friendly support Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-person Delver party with one fire attacker and one growth-friendly support Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
         "runId": "ak_prompt_07_create_mixed_delver_pair",
         "createdAt": "2026-05-03T17:00:00.000Z",
@@ -263,7 +263,7 @@
         "room": [],
         "delver": [
           "count=1;affinity=fire;motivation=attacking;affinities=fire:push:1;vitals=health:9:1,stamina:6:1,mana:4:1",
-          "count=1;affinity=life;motivation=friendly;affinities=life:pull:1;vitals=health:8:2,stamina:5:1,mana:5:1"
+          "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:1;vitals=health:8:2,stamina:5:1,mana:5:1"
         ]
       },
       "expectedOutcome": "success",
@@ -274,7 +274,7 @@
         "affinitiesByType": {
           "delver": [
             "fire",
-            "life"
+            "growth"
           ]
         },
         "totalSpend": 154
@@ -393,7 +393,7 @@
           "id=resource_health_consumable;permanenceMode=consumable;vital=health;delta=5"
         ],
         "delver": [
-          "count=1;id=delver_injured;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          "count=1;id=delver_injured;affinity=growth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ]
       },
       "expectedOutcome": "success",
@@ -404,7 +404,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life"
+            "growth"
           ]
         },
         "totalSpend": 196
@@ -436,7 +436,7 @@
           "id=resource_health_max;permanenceMode=level;vital=health;delta=5"
         ],
         "delver": [
-          "count=1;id=delver_max_health;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          "count=1;id=delver_max_health;affinity=growth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ]
       },
       "expectedOutcome": "success",
@@ -447,7 +447,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life"
+            "growth"
           ]
         },
         "totalSpend": 236
@@ -479,7 +479,7 @@
           "id=resource_health_regen;permanenceMode=level;vital=health;regen=2"
         ],
         "delver": [
-          "count=1;id=delver_regen;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          "count=1;id=delver_regen;affinity=growth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ]
       },
       "expectedOutcome": "success",
@@ -490,7 +490,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life"
+            "growth"
           ]
         },
         "totalSpend": 218

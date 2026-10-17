@@ -407,6 +407,7 @@ export async function createPlaySession({
         visible: fogOn ? readVisible() : null,
         explored: fogOn ? explored.get(activeId) ?? null : null,
         labels,
+        field: typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null,
       }),
       party: partyView(snapshot),
       orders: ordersView(),
@@ -544,7 +545,7 @@ function lootNextTo(snapshot, player) {
  * @param {object} args.status        { tick, exited, atExit, defeated }
  * @param {Map}    [args.labels]      actor id -> short label; worked out from the snapshot when absent
  */
-export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation) }) {
+export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null }) {
   const frame = renderBoard(snapshot, { presentation, legend, playerId });
   const fogged = applyFog(frame, visible, explored);
   const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
@@ -555,6 +556,9 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     tick,
     rows: fogged.rows,
     sight: fogged.sight,
+    // Every affinity field on each cell (#287), only where the player sees now:
+    // a remembered or unknown cell shows no live field.
+    field: playField(field, fogged.visible),
     legend: { ...legend, fog: ASCII_FOG_GLYPH },
     status,
     // With fog, only traps in sight right now.
@@ -589,6 +593,13 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     actors: others.filter((actor) => presentation[actor.id]?.category !== HAZARD_CATEGORY)
       .map((actor) => toViewActor(actor, presentation, labels)),
   };
+}
+
+/** Core's per-cell field grid, emptied outside the visible set (all of it without fog). */
+function playField(field, visible) {
+  if (!Array.isArray(field) || field.length === 0) return null;
+  return field.map((row, y) => row.map((cell, x) =>
+    (visible && !visible[y]?.[x] ? [] : cell.map((entry) => ({ ...entry })))));
 }
 
 /**

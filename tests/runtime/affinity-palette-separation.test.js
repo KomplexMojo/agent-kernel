@@ -93,7 +93,7 @@ test("opposed affinities are the most visually distant pairs", () => {
   // AFFINITY_OPPOSITES is a domain fact, and counterplay only works if a player
   // can identify an opponent's element at a glance. Opposition is carried on
   // three axes because ten hues do not fit one wheel: hue (fire/water,
-  // earth/wind, life/decay), chroma (corrode/fortify), lightness (light/dark).
+  // earth/wind, growth/decay), chroma (corrode/fortify), lightness (light/dark).
   const seen = new Set();
   for (const [a, b] of Object.entries(AFFINITY_OPPOSITES)) {
     const key = [a, b].sort().join("/");

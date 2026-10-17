@@ -565,14 +565,14 @@ test("hazards and resources render composed sprites, not bundle art", async () =
     observation: {
       actors: [
         { id: "h1", position: { x: 0, y: 0 }, affinity: { kind: "decay" } },
-        { id: "r1", position: { x: 2, y: 2 }, affinity: { kind: "life" } },
+        { id: "r1", position: { x: 2, y: 2 }, affinity: { kind: "growth" } },
       ],
     },
     resourceBundle: V2_BUNDLE,
   });
   const keys = records.createdTextures.map((t) => t.key);
   assert.ok(keys.includes("ak-sprite:32:hazard:decay"), `hazard sprite missing, got ${JSON.stringify(keys)}`);
-  assert.ok(keys.includes("ak-sprite:32:resource:life"), `resource sprite missing, got ${JSON.stringify(keys)}`);
+  assert.ok(keys.includes("ak-sprite:32:resource:growth"), `resource sprite missing, got ${JSON.stringify(keys)}`);
   renderer.dispose();
 });
 
