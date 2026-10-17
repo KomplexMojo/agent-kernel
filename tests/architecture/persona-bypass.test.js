@@ -114,5 +114,4 @@ test("budget-gated conditionals in glue only go down", () => {
 // ## TODO: Test Permutations
 // - bridge compile (--push-ui) with a spec that has no budget writes a receipt.
 // - MCP ak_create and ak_build with no budget behave as their CLI commands.
-// - sandbox-create --budget: its budgetReceiptRef names a receipt that exists (#277).
 // - a play session on a level with no receipt (#279).

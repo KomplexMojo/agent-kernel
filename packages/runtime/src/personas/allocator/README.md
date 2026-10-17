@@ -123,6 +123,15 @@ the finding (`session.pricingReport`, shown as a warning by the ASCII game). `ca
 loads a pre-#232 five-tier `castMana` table on the one cast curve; the run loader (`runner/core-setup.mjs`)
 asks for it here rather than translating prices itself.
 
+### It judges and issues sandbox receipts (#277)
+
+`assessReceiptForUse(receipt)` accepts a receipt only when it is a v1 `BudgetReceiptArtifact` with an
+id, `status: "approved"`, a finite non-negative `remaining` and a `lineItems` list; anything else
+returns `{ ok: false, error }` (with `budgetInsufficient` for a non-approved or overspent receipt).
+`sandbox-create` (CLI and MCP share one implementation) uses it for `--budget-receipt`, and for
+`--budget` spends the budget on the room's floor with `evaluateConfiguratorSpend`, writing the
+issued `budget-receipt.json` and `price-list.json` beside the session.
+
 ### It prices hazard and resource cards from the receipt's own items (#281)
 
 `calculateObjectCardUnitCost({ card, priceList })`, published from `controller.js`, prices one hazard or

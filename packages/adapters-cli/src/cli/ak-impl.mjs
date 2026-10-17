@@ -77,7 +77,7 @@ import {
 } from "../tick-session.mjs";
 import { validateBuildSpec } from "../../../runtime/src/contracts/build-spec.js";
 import { SANDBOX_SESSION_SCHEMA } from "../../../runtime/src/contracts/sandbox-session.mjs";
-import { executeSandboxPlace, executeSandboxMove } from "../mcp/tools/sandbox.mjs";
+import { executeSandboxCreate, executeSandboxPlace, executeSandboxMove } from "../mcp/tools/sandbox.mjs";
 import {
   DEFAULT_LLM_BASE_URL,
   DEFAULT_LLM_MODEL,
@@ -6684,62 +6684,6 @@ async function sandboxCreateCommand(argv) {
     return;
   }
 
-  const budgetReceiptPath = resolvePath(args["budget-receipt"]);
-  const budgetPath = resolvePath(args.budget);
-
-  if (!budgetReceiptPath && !budgetPath) {
-    emitJsonStdout({
-      ok: false,
-      command: "sandbox-create",
-      error: "sandbox-create requires --budget-receipt or --budget.",
-      budgetRequired: true,
-    });
-    return;
-  }
-
-  const runId = isNonEmptyString(args["run-id"]) ? args["run-id"].trim() : makeId("sandbox_run");
-  const createdAt = isNonEmptyString(args["created-at"])
-    ? args["created-at"].trim()
-    : new Date().toISOString();
-
-  let budgetReceiptRef;
-
-  if (budgetReceiptPath) {
-    const receipt = await readJson(budgetReceiptPath);
-    assertSchema(receipt, SCHEMAS.budgetReceiptArtifact);
-    if (
-      receipt.status === "denied" ||
-      (typeof receipt.remaining === "number" && receipt.remaining < 0)
-    ) {
-      emitJsonStdout({
-        ok: false,
-        command: "sandbox-create",
-        error: `Budget insufficient: status=${receipt.status}, remaining=${receipt.remaining}`,
-        budgetInsufficient: true,
-      });
-      return;
-    }
-    budgetReceiptRef = toRef(receipt);
-  } else {
-    const budgetArtifact = await readJson(budgetPath);
-    assertSchema(budgetArtifact, SCHEMAS.budgetArtifact);
-    const tokens = budgetArtifact.budget?.tokens;
-    if (!Number.isInteger(tokens) || tokens <= 0) {
-      emitJsonStdout({
-        ok: false,
-        command: "sandbox-create",
-        error: `Budget insufficient: tokens=${tokens}`,
-        budgetInsufficient: true,
-      });
-      return;
-    }
-    budgetReceiptRef = {
-      id: `budget_receipt_${runId}`,
-      schema: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
-      schemaVersion: 1,
-    };
-  }
-
   const width = args.width !== undefined ? Number(args.width) : 10;
   const height = args.height !== undefined ? Number(args.height) : 10;
   if (!Number.isInteger(width) || width <= 0) {
@@ -6749,41 +6693,18 @@ async function sandboxCreateCommand(argv) {
     throw new Error("sandbox-create: --height must be a positive integer.");
   }
 
-  const entityCategories = [];
-  if (isNonEmptyString(args["entity-categories"])) {
-    for (const cat of args["entity-categories"].split(",")) {
-      const trimmed = cat.trim();
-      if (trimmed) entityCategories.push(trimmed);
-    }
-  }
-
-  const sandboxId = `sandbox_session_${runId}`;
-  const outDir =
-    resolvePath(args["out-dir"]) ||
-    resolve(process.cwd(), DEFAULT_ARTIFACTS_DIR, "sandbox", runId);
-  await mkdir(outDir, { recursive: true });
-
-  const session = {
-    schema: SANDBOX_SESSION_SCHEMA,
-    schemaVersion: 1,
-    meta: { id: sandboxId, runId, createdAt, producedBy: "sandbox-create" },
-    rooms: [{ id: "room_default", width, height }],
-    artifacts: { budgetReceiptRef },
-    ...(entityCategories.length > 0 ? { entityCategories } : {}),
-  };
-
-  await writeJson(join(outDir, "sandbox-session.json"), session);
-
-  emitJsonStdout({
-    ok: true,
-    command: "sandbox-create",
-    sandboxId,
-    runId,
-    outDir,
-    rooms: session.rooms,
-    artifacts: session.artifacts,
-    ...(entityCategories.length > 0 ? { entityCategories } : {}),
+  // #277: one sandbox-create for the CLI and MCP, so the Allocator judges and issues every receipt.
+  const result = await executeSandboxCreate({
+    budgetReceipt: resolvePath(args["budget-receipt"]),
+    budget: resolvePath(args.budget),
+    width,
+    height,
+    entityCategories: isNonEmptyString(args["entity-categories"]) ? args["entity-categories"].split(",") : undefined,
+    runId: args["run-id"],
+    createdAt: args["created-at"],
+    outDir: resolvePath(args["out-dir"]) || undefined,
   });
+  emitJsonStdout(result);
 }
 
 async function sandboxPlaceCommand(argv) {
