@@ -75,6 +75,28 @@ function targetsInSight(view) {
     .sort((a, b) => a.distance - b.distance || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
+/** How many turns "hold here" keeps a companion in place: the session needs a count. */
+export const HOLD_ORDER_TICKS = 10;
+
+/**
+ * The orders the terminal offers (#272), as strategies the play session takes. Each is
+ * built from what the screen knows: who is seated, where the ordered actor stands, and
+ * the nearest hostile in sight. A choice with nothing to aim at is left out. What a
+ * goal means is the Actor's; this only names it.
+ */
+function orderChoices({ playerId, actor, hostile }) {
+  return [
+    { label: `follow you`, strategy: { goals: [{ kind: "follow", target: playerId }] } },
+    { label: `guard you`, strategy: { goals: [{ kind: "guard", target: playerId }] } },
+    { label: `lead you to the exit`, strategy: { goals: [{ kind: "lead", target: playerId, place: "exit" }] } },
+    { label: `go to the exit`, strategy: { goals: [{ kind: "reach", place: "exit" }] } },
+    ...(hostile ? [{ label: `defeat ${hostile.label ?? hostile.id}`, strategy: { goals: [{ kind: "defeat", target: hostile.id }] } }] : []),
+    ...(actor?.position ? [{ label: `hold where it stands for ${HOLD_ORDER_TICKS} turns`,
+      strategy: { goals: [{ kind: "hold", place: { ...actor.position }, ticks: HOLD_ORDER_TICKS }] } }] : []),
+    { label: `keep away from hostiles`, strategy: { goals: [{ kind: "survive" }] } },
+  ];
+}
+
 /**
  * @param {object} args
  * @param {Array<{name: string, simConfig: object, initialState: object}>} args.levels
@@ -186,6 +208,27 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     const { actorId, ...rest } = entry;
     const result = await act(rest, () => "", { actorId });
     return result ?? { accepted: [], rejected: [{ kind: rest.kind, reason: session.status().defeated ? "defeated" : "exited" }] };
+  }
+
+  // o: who to order. Party members and companions on your side, as the session says.
+  function openOrders() {
+    const items = session.view().orderable || [];
+    if (items.length === 0) {
+      message = "No one on your side to order.";
+      return;
+    }
+    if (items.length === 1) openOrderChoices(items[0]);
+    else panel = { type: "order_actor", items };
+  }
+
+  function openOrderChoices(target) {
+    const view = session.view();
+    const actor = (view.actors || []).find((entry) => entry.id === target.id)
+      ?? (view.party || []).find((entry) => entry.id === target.id);
+    const ours = new Set([...(view.orderable || []), ...(view.party || [])].map((entry) => entry.id));
+    const nearest = targetsInSight(view).find(({ id }) => !ours.has(id));
+    const hostile = nearest ? [...(view.actors || []), ...(view.hazards || [])].find((entry) => entry.id === nearest.id) : null;
+    panel = { type: "order_goal", target, items: orderChoices({ playerId: view.player?.id, actor, hostile }) };
   }
 
   function openAffinities() {
@@ -315,6 +358,14 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     } else if (intent.type === INTENT.SELECT) {
       const item = panel.items[intent.index];
       if (!item) return true;
+      if (panel.type === "order_actor") {
+        openOrderChoices(item);
+        return true;
+      }
+      if (panel.type === "order_goal") {
+        await order(panel.target.id, item.strategy);
+        return true;
+      }
       if (panel.type === "loot") {
         await take(item);
         return true;
@@ -374,6 +425,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       case INTENT.NEXT_TARGET:
         nextPartyMember();
         break;
+      case INTENT.ORDER:
+        openOrders();
+        break;
       default:
         break;
     }
@@ -392,6 +446,14 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
           const at = slot >= 0 && running < pair.stacks ? `, running ${running}` : "";
           return `${i === panel.index ? ">" : " "} ${i + 1}) ${affinityLabel(pair)}${slot >= 0 ? `  [slot ${slot + 1}${at}]` : ""}`;
         })];
+    }
+    if (panel.type === "order_actor") {
+      return ["Order who? (a number picks, Esc closes):",
+        ...panel.items.map((item, i) => `  ${i + 1}) ${item.label ? `${item.label} ` : ""}${item.id}`)];
+    }
+    if (panel.type === "order_goal") {
+      return [`Order ${panel.target.label ?? panel.target.id} to (a number gives the order, a turn; Esc closes):`,
+        ...panel.items.map((item, i) => `  ${i + 1}) ${item.label}`)];
     }
     if (panel.type === "loot") {
       return ["Take (a number picks, Esc closes):",
