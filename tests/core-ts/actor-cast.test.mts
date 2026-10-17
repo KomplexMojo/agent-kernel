@@ -10,7 +10,7 @@ function actor(id: string, x: number, pair?: ActorAffinityEntry): ActorRecord {
       blocksMovement: false, blocksSight: false }, motivations: [], affinities: pair ? [pair] : [],
     activeAffinityKey: pair ? `${pair.kind}:${pair.expression}` : null, holdings: [] };
 }
-const pair = { kind: 'fire', expression: 'push', stacks: 3 } as const;
+const pair = { kind: 'fire', expression: 'push', stacks: 3, intensity: 2 } as const;
 const costs = { castManaBase: { 'fire:push': 1, 'growth:pull': 1, 'fire:pull': 1 } };
 function registry(source = actor('source', 0, pair), target = actor('target', 1)) {
   return createActorRegistry({ dimensions: { width: 10, height: 1 }, terrain: Array(10).fill('floor'), actors: [source, target] });
@@ -18,10 +18,11 @@ function registry(source = actor('source', 0, pair), target = actor('target', 1)
 test('focused fire pays authored cost once and routes durability overflow', () => {
   const state = registry(); const result = castFocusedActorAffinity(state, 'source', 'target', costs);
   expect(result.accepted).toBe(true);
-  // base 1 at 3 stacks: 1 × 3 × 4 / 2 = 6
+  // base 1 at range 3: 1 × 3 × 4 / 2 = 6
   expect(state.getActor('source')!.vitals.mana!.current).toBe(4);
+  // 2 × intensity² = 8: durability 3 first, then 5 into health.
   expect(state.getActor('target')!.vitals.durability!.current).toBe(0);
-  expect(state.getActor('target')!.vitals.health!.current).toBe(7);
+  expect(state.getActor('target')!.vitals.health!.current).toBe(5);
 });
 test('unaffordable, missing-price and invalid casts leave both actors unchanged', () => {
   const source = actor('source', 0, pair); source.vitals.mana!.current = 2;
@@ -32,10 +33,10 @@ test('unaffordable, missing-price and invalid casts leave both actors unchanged'
   expect(state.snapshot()).toEqual(before);
 });
 test('the price keeps rising past five stacks, with strength', () => {
-  const source = actor('source', 0, { ...pair, stacks: 8 }); source.vitals.mana = { current: 40, max: 40, regen: 0 };
+  const source = actor('source', 0, { ...pair, stacks: 8, intensity: 3 }); source.vitals.mana = { current: 40, max: 40, regen: 0 };
   const state = registry(source);
   expect(castFocusedActorAffinity(state, 'source', 'target', costs).accepted).toBe(true);
-  // base 1 at 8 stacks: 1 × 8 × 9 / 2 = 36
+  // base 1 at range 8: 1 × 8 × 9 / 2 = 36; 2 × 3² = 18 harm defeats 3 durability + 10 health
   expect(state.getActor('source')!.vitals.mana!.current).toBe(4);
   expect(state.getActor('target')!.lifecycle).toBe('defeated');
 });
@@ -62,11 +63,11 @@ test('growth pull transfers actual removal through durability; self-drain costs 
   expect(state.getActor('target')!.vitals.durability!.current).toBe(3);
 });
 test('neutralizing pull reports pending suppression without healing or removing equipment', () => {
-  const state = registry(actor('source', 0, { kind: 'fire', expression: 'pull', stacks: 3 }),
-    actor('target', 1, { kind: 'fire', expression: 'emit', stacks: 8 }));
+  const state = registry(actor('source', 0, { kind: 'fire', expression: 'pull', stacks: 3, intensity: 2 }),
+    actor('target', 1, { kind: 'fire', expression: 'emit', stacks: 8, intensity: 3 }));
   const before = state.getActor('target');
   const result = castFocusedActorAffinity(state, 'source', 'target', costs);
-  expect(result.suppression).toEqual({ sourceId: 'source', targetId: 'target', affinityKey: 'fire:emit', amount: 6 });
+  expect(result.suppression).toEqual({ sourceId: 'source', targetId: 'target', affinityKey: 'fire:emit', amount: 8 });
   expect(state.getActor('target')).toEqual(before);
 });
 test('malformed authored prices are rejected before any mutation', () => {

@@ -7,7 +7,7 @@
     "createdAt": "2026-10-10T00:00:00.000Z",
     "producedBy": "configurator",
     "cost": {
-      "runTotalTokens": 491,
+      "runTotalTokens": 561,
       "budgetTokens": 2500,
       "receiptRef": {
         "id": "trap-rooms_budget_receipt",
@@ -95,7 +95,7 @@
         "mana": {
           "current": 30,
           "max": 30,
-          "regen": 3
+          "regen": 6
         },
         "durability": {
           "current": 1,
@@ -117,7 +117,8 @@
         {
           "kind": "fire",
           "expression": "emit",
-          "stacks": 2
+          "stacks": 2,
+          "intensity": 2
         }
       ],
       "activeAffinityKey": "fire:emit",
@@ -136,7 +137,7 @@
         "mana": {
           "current": 30,
           "max": 30,
-          "regen": 3
+          "regen": 6
         },
         "durability": {
           "current": 1,
@@ -158,7 +159,8 @@
         {
           "kind": "water",
           "expression": "emit",
-          "stacks": 2
+          "stacks": 2,
+          "intensity": 2
         }
       ],
       "activeAffinityKey": "water:emit",
@@ -177,7 +179,7 @@
         "mana": {
           "current": 30,
           "max": 30,
-          "regen": 3
+          "regen": 5
         },
         "durability": {
           "current": 1,
@@ -199,7 +201,8 @@
         {
           "kind": "decay",
           "expression": "emit",
-          "stacks": 2
+          "stacks": 2,
+          "intensity": 1
         }
       ],
       "activeAffinityKey": "decay:emit",

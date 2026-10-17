@@ -391,7 +391,7 @@ test("deferred and capability-absent solvers retain the exact hazards-first row-
       id: "hazard_first", position: { x: 2, y: 1 }, alignment: "dungeon",
       lifecycle: "alive", defeatVital: "durability",
       vitals: {
-        mana: { current: 9, max: 9, regen: 3 },
+        mana: { current: 12, max: 12, regen: 4 }, // upkeep 2 + range 1 + intensity 1 (#340)
         durability: { current: 5, max: 5, regen: 0 },
       },
       capabilities: { canMove: false, canCast: true, canEquip: false, canTake: false,

@@ -14,11 +14,11 @@ function actor(id: string, x: number, pair?: ActorAffinityEntry): ActorRecord {
 function registry(actors: ActorRecord[]) {
   return createActorRegistry({ dimensions: { width: 5, height: 1 }, terrain: Array(5).fill('floor'), actors });
 }
-const fire = { kind: 'fire', expression: 'emit', stacks: 3 } as const;
+const fire = { kind: 'fire', expression: 'emit', stacks: 3, intensity: 2 } as const;
 test('equipment alternatives reproject fire absorption and water opposition without a pulse', () => {
   const source = actor('source', 0, fire);
   const receiver = actor('receiver', 0);
-  receiver.affinities = [{ kind: 'fire', expression: 'draw', stacks: 2 }, { kind: 'water', expression: 'emit', stacks: 3 }];
+  receiver.affinities = [{ kind: 'fire', expression: 'draw', stacks: 2 }, { kind: 'water', expression: 'emit', stacks: 3, intensity: 2 }];
   const before = structuredClone([source, receiver]);
   for (const activeAffinityKey of ['fire:draw', 'water:emit'] as const) {
     const alternative = { ...receiver, activeAffinityKey };
@@ -26,7 +26,7 @@ test('equipment alternatives reproject fire absorption and water opposition with
     const fields = projectActorFieldsAt(actors, alternative.position);
     const forecast = previewActorFieldChanges(alternative, fields);
     expect(forecast).toEqual(activeAffinityKey === 'fire:draw'
-      ? [{ actorId: receiver.id, vital: 'mana', delta: 3 }] : []);
+      ? [{ actorId: receiver.id, vital: 'mana', delta: 4 }] : []);
     if (activeAffinityKey === 'water:emit') expect(fields).toEqual([]);
     expect(fields).toEqual(projectActorFields(registry(actors)).fields.filter(field => field.position.x === 0));
     expect(projectActorFieldsAt([...actors].reverse(), alternative.position)).toEqual(fields);
@@ -38,17 +38,17 @@ test('receiver forecast uses durability overflow without mutating the observatio
   const receiver = actor('receiver', 0);
   receiver.vitals.durability = { current: 3, max: 3, regen: 0 };
   const before = structuredClone(receiver);
-  const fields = [{ ...fire, stacks: 5, sourceId: 'source', position: receiver.position, falloff: 1 }];
+  const fields = [{ ...fire, stacks: 5, sourceId: 'source', position: receiver.position, intensity: 2, falloff: 1 }];
   expect(previewActorFieldChanges(receiver, fields)).toEqual([
     { actorId: receiver.id, vital: 'durability', delta: -3 },
-    { actorId: receiver.id, vital: 'health', delta: -2 },
+    { actorId: receiver.id, vital: 'health', delta: -1 },
   ]);
   expect(receiver).toEqual(before);
 });
 test('receiver forecast caps matching draw mana and stops effects at defeat', () => {
   const receiver = actor('receiver', 0, { kind: 'fire', expression: 'draw', stacks: 2 });
   receiver.vitals.mana!.current = 9;
-  const field = { ...fire, sourceId: 'source', position: receiver.position, falloff: 1 };
+  const field = { ...fire, sourceId: 'source', position: receiver.position, intensity: 2, falloff: 1 };
   expect(previewActorFieldChanges(receiver, [field])).toEqual([{ actorId: receiver.id, vital: 'mana', delta: 1 }]);
   receiver.activeAffinityKey = null; receiver.vitals.health!.current = 1;
   expect(previewActorFieldChanges(receiver, [field, { ...field, sourceId: 'z_healer', kind: 'growth' }]))
@@ -71,24 +71,24 @@ test('receiver forecast agrees with a real field pass for all area affinities wi
 });
 test('forecast cannot credit the same source twice or invent a missing vital', () => {
   const receiver = actor('receiver', 0, { kind: 'fire', expression: 'draw', stacks: 1 });
-  const field = { ...fire, sourceId: 'source', position: receiver.position, falloff: 1 };
-  expect(previewActorFieldChanges(receiver, [field, field])).toEqual([{ actorId: receiver.id, vital: 'mana', delta: 3 }]);
+  const field = { ...fire, sourceId: 'source', position: receiver.position, intensity: 2, falloff: 1 };
+  expect(previewActorFieldChanges(receiver, [field, field])).toEqual([{ actorId: receiver.id, vital: 'mana', delta: 4 }]);
   delete receiver.vitals.mana;
   expect(previewActorFieldChanges(receiver, [field])).toEqual([]);
 });
 test('forecast preserves stable source order independently of field enumeration', () => {
   const receiver = actor('receiver', 0);
   receiver.vitals.health!.current = 1;
-  const fireCell = { ...fire, sourceId: 'a_fire', position: receiver.position, falloff: 1 };
+  const fireCell = { ...fire, sourceId: 'a_fire', position: receiver.position, intensity: 2, falloff: 1 };
   const healingCell = { ...fireCell, sourceId: 'z_healer', kind: 'growth' as const };
   expect(previewActorFieldChanges(receiver, [healingCell, fireCell]))
     .toEqual([{ actorId: receiver.id, vital: 'health', delta: -1 }]);
 });
 test('field exposure reads active equipment only and never exposes self or terminal receivers', () => {
-  const cell = { ...fire, sourceId: 'source', position: { x: 0, y: 0 }, falloff: 1 };
+  const cell = { ...fire, sourceId: 'source', position: { x: 0, y: 0 }, intensity: 2, falloff: 1 };
   const receiver = actor('receiver', 0);
   receiver.affinities = [{ kind: 'fire', expression: 'emit', stacks: 8 }];
-  expect(actorFieldExposureAmount(receiver, cell, [cell])).toBe(3);
+  expect(actorFieldExposureAmount(receiver, cell, [cell])).toBe(4);
   receiver.activeAffinityKey = 'fire:emit';
   expect(actorFieldExposureAmount(receiver, cell, [cell])).toBe(0);
   expect(actorFieldExposureAmount(actor('source', 0), cell, [cell])).toBe(0);
@@ -114,8 +114,8 @@ test('projection and receiver evaluation agree across every active affinity pair
 test('projected emit and matching draw resolve finite absorption from actual owned equipment', () => {
   const state = registry([actor('fire', 0, fire), actor('absorber', 0, { kind: 'fire', expression: 'draw', stacks: 2 })]);
   const before = state.snapshot(); const result = resolveActorFields(state);
-  expect(result.absorptions.reduce((sum, item) => sum + item.amount, 0)).toBe(3);
-  expect(state.getActor('absorber')!.vitals.mana!.current).toBe(3);
+  expect(result.absorptions.reduce((sum, item) => sum + item.amount, 0)).toBe(4);
+  expect(state.getActor('absorber')!.vitals.mana!.current).toBe(4);
   expect(state.getActor('absorber')!.vitals.health!.current).toBe(10);
   expect(state.getActor('fire')!.affinities).toEqual(before.actors.find(a => a.id === 'fire')!.affinities);
 });
@@ -126,18 +126,10 @@ test('equally strong water emit counters fire locally without destroying invento
   resolveActorFields(state);
   expect(state.snapshot()).toEqual(before);
 });
-test('overlap is decided by stacks; the survivor keeps the difference and a matching share of falloff (#290)', () => {
-  const close = (actual: ReturnType<typeof cancelAffinityOverlap>, expected: ReturnType<typeof cancelAffinityOverlap>) => {
-    expect(actual.sourceStacks).toBe(expected.sourceStacks);
-    expect(actual.targetStacks).toBe(expected.targetStacks);
-    expect(actual.sourceFalloff).toBeCloseTo(expected.sourceFalloff, 10);
-    expect(actual.targetFalloff).toBeCloseTo(expected.targetFalloff, 10);
-  };
-  close(cancelAffinityOverlap(0.8, 5, 0.3, 2), { sourceFalloff: 0.48, sourceStacks: 3, targetFalloff: 0, targetStacks: 0 });
-  // A weaker falloff no longer decides it: more stacks win.
-  close(cancelAffinityOverlap(0.3, 5, 0.8, 2), { sourceFalloff: 0.18, sourceStacks: 3, targetFalloff: 0, targetStacks: 0 });
-  close(cancelAffinityOverlap(1, 1, 1.05, 3), { sourceFalloff: 0, sourceStacks: 0, targetFalloff: 0.7, targetStacks: 2 });
-  close(cancelAffinityOverlap(1, 2, 0.4, 2), { sourceFalloff: 0, sourceStacks: 0, targetFalloff: 0, targetStacks: 0 });
+test('overlap is decided by intensity; the survivor keeps the difference (#290, #340)', () => {
+  expect(cancelAffinityOverlap(5, 2)).toEqual({ sourceIntensity: 3, targetIntensity: 0 });
+  expect(cancelAffinityOverlap(1, 3)).toEqual({ sourceIntensity: 0, targetIntensity: 2 });
+  expect(cancelAffinityOverlap(2, 2)).toEqual({ sourceIntensity: 0, targetIntensity: 0 });
 });
 test('only active area pairs project; focused alternatives, movement and defeat update fields', () => {
   const source = actor('source', 0, { ...fire, stacks: 1 });
@@ -154,9 +146,9 @@ test('only active area pairs project; focused alternatives, movement and defeat 
 });
 test('light and dark retain net field observations independently of vital pools', () => {
   const light = registry([actor('source', 0, { ...fire, kind: 'light', stacks: 1 })]);
-  expect(projectActorFields(light).fields[0]).toMatchObject({ kind: 'light', expression: 'emit', falloff: 1 });
+  expect(projectActorFields(light).fields[0]).toMatchObject({ kind: 'light', expression: 'emit', intensity: 2, falloff: 1 });
   const dark = registry([actor('source', 0, { ...fire, kind: 'dark', stacks: 1 })]);
-  expect(projectActorFields(dark).fields[0]).toMatchObject({ kind: 'dark', expression: 'emit', falloff: 1 });
+  expect(projectActorFields(dark).fields[0]).toMatchObject({ kind: 'dark', expression: 'emit', intensity: 2, falloff: 1 });
 });
 test('canceled emission cannot be harvested by a nearby matching draw', () => {
   const state = registry([actor('fire', 0, fire), actor('water', 0, { ...fire, kind: 'water' }),
@@ -166,20 +158,21 @@ test('canceled emission cannot be harvested by a nearby matching draw', () => {
   expect(state.getActor('absorber')!.vitals.mana!.current).toBe(0);
 });
 test('a source defeated during the pass neither emits later nor remains in returned fields', () => {
-  const state = registry([actor('a', 0, { kind: 'decay', expression: 'emit', stacks: 10 }),
+  const state = registry([actor('a', 0, { kind: 'decay', expression: 'emit', stacks: 1, intensity: 4 }),
     actor('b', 0, fire), actor('c', 0)]);
   const result = resolveActorFields(state);
   expect(state.getActor('b')!.lifecycle).toBe('defeated');
   expect(state.getActor('c')!.vitals.health!.current).toBe(10);
   expect(result.fields.some(cell => cell.sourceId === 'b')).toBe(false);
 });
-test('every opposed pair: a 1-stack emit on a 3-stack source leaves the 3-stack side at 2 (#290)', () => {
+test('every opposed pair: an intensity-1 emit on an intensity-3 source leaves the stronger side at 2, whatever the range (#290, #340)', () => {
   const pairs = [['fire', 'water'], ['earth', 'wind'], ['growth', 'decay'], ['corrode', 'fortify'], ['light', 'dark']] as const;
   for (const [a, b] of pairs) {
     for (const [weak, strong] of [[a, b], [b, a]] as const) {
-      const fields = projectActorFieldsAt([actor('trap', 0, { kind: strong, expression: 'emit', stacks: 3 }),
-        actor('hero', 0, { kind: weak, expression: 'emit', stacks: 1 })], { x: 0, y: 0 });
-      expect(fields.map(cell => [cell.kind, cell.stacks]), `${weak} x1 on ${strong} x3`).toEqual([[strong, 2]]);
+      // The weak side has the wider range; range does not decide cancellation.
+      const fields = projectActorFieldsAt([actor('trap', 0, { kind: strong, expression: 'emit', stacks: 1, intensity: 3 }),
+        actor('hero', 0, { kind: weak, expression: 'emit', stacks: 3, intensity: 1 })], { x: 0, y: 0 });
+      expect(fields.map(cell => [cell.kind, cell.stacks, cell.intensity]), `${weak} i1 on ${strong} i3`).toEqual([[strong, 1, 2]]);
     }
   }
 });

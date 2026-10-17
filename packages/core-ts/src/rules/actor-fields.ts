@@ -1,19 +1,24 @@
 import type { ActorEffectSuppression } from './actor-cast.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorPosition, ActorAffinityEntry, ActorRecord } from '../state/actor-types.ts';
-import { affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
+import { affinityIntensity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { AFFINITY_KIND_BY_CODE, AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
-import { getOppositeAffinityKind, resolveAffinityRelationshipCode, AffinityRelationship, scaleAffinityVitalEffect } from '../state/affinity.ts';
+import { getOppositeAffinityKind, resolveAffinityRelationshipCode, AffinityRelationship } from '../state/affinity.ts';
 import { computeAffinityFalloff, computeAffinityRadius, cancelAffinityOverlap,
   deriveAffinityInteractionCell, AffinityEffect, OPPOSITE_EXPOSURE_AMPLIFICATION } from '../state/affinity-spatial.ts';
-import { evaluateActorAffinityReceiver, getActorAffinityEffect, type ActorVitalChange } from './actor-affinity.ts';
+import { actorAffinityMagnitude, evaluateActorAffinityReceiver, getActorAffinityEffect, type ActorVitalChange } from './actor-affinity.ts';
 import { changeActorVital } from '../state/actor-vitals.ts';
 import { resolveActorExposures, type ActorExposureSource } from './actor-exposure.ts';
 import { litActorAffinities } from './actor-upkeep.ts';
 
 const KIND_CODES = Object.fromEntries(Object.entries(AFFINITY_KIND_BY_CODE).map(([code, name]) => [name, Number(code)]));
 const EXPRESSION_CODES = Object.fromEntries(Object.entries(AFFINITY_EXPRESSION_BY_CODE).map(([code, name]) => [name, Number(code)]));
-export interface ActorFieldCell extends ActorAffinityEntry { sourceId: string; position: ActorPosition; falloff: number }
+/**
+ * One source's field on one tile. `stacks` is the range it was cast at and
+ * `intensity` its strength (after any opposite cancellation); `falloff` is the
+ * distance shape, 1 at the source easing to 0 at the edge.
+ */
+export interface ActorFieldCell extends ActorAffinityEntry { sourceId: string; position: ActorPosition; intensity: number; falloff: number }
 type Registry = ReturnType<typeof createActorRegistry>;
 
 /** One field per lit slot: exposure budgets are keyed by source and affinity. */
@@ -46,7 +51,7 @@ function receiverExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, amo
 /** Receiver-local exposure before finite source budgets and vital routing. No mutation. */
 export function actorFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, localCells: readonly ActorFieldCell[]): number {
   if (receiver.lifecycle !== 'alive' || receiver.id === cell.sourceId) return 0;
-  const amount = scaleAffinityVitalEffect(cell.falloff, cell.stacks);
+  const amount = cell.falloff * actorAffinityMagnitude(cell.expression, cell.intensity);
   const operation = getActorAffinityEffect(cell.kind, cell.expression).operation;
   if (operation === 'neutralize') {
     return localCells.some(pending => pending.sourceId === receiver.id
@@ -56,7 +61,7 @@ export function actorFieldExposureAmount(receiver: ActorRecord, cell: ActorField
 }
 
 /** Receiver-local forecast from projected cells, before other receivers consume exposure.
- * Uses residual observed stacks as a conservative source budget. Does not project new fields.
+ * Uses residual observed intensity as a conservative source budget. Does not project new fields.
  */
 export function previewActorFieldChanges(receiver: ActorRecord, localCells: readonly ActorFieldCell[]): ActorVitalChange[] {
   const actor: ActorRecord = JSON.parse(JSON.stringify(receiver));
@@ -71,7 +76,7 @@ export function previewActorFieldChanges(receiver: ActorRecord, localCells: read
   const ordered = [...localCells].sort((left, right) => left.sourceId < right.sourceId ? -1 : left.sourceId > right.sourceId ? 1 : 0);
   for (const cell of ordered) {
     const slot = fieldSlotKey(cell.sourceId, cell);
-    const budget = remaining.get(slot) ?? scaleAffinityVitalEffect(1, cell.stacks);
+    const budget = remaining.get(slot) ?? actorAffinityMagnitude(cell.expression, cell.intensity);
     const amount = Math.min(budget, actorFieldExposureAmount(actor, cell, localCells));
     remaining.set(slot, budget - amount);
     if (amount <= 0) continue;
@@ -108,7 +113,7 @@ export function projectActorFieldsAt(actors: readonly ActorRecord[], position: A
 function sourceContributionsAt(sources: readonly FieldSource[], position: ActorPosition): ActorFieldCell[] {
   return sources.flatMap(({ actor, pair }) => {
     const falloff = projectedFalloff(actor, pair, position);
-    return falloff > 0 ? [{ ...pair, sourceId: actor.id, position: { ...position }, falloff }] : [];
+    return falloff > 0 ? [{ ...pair, sourceId: actor.id, position: { ...position }, intensity: affinityIntensity(pair), falloff }] : [];
   });
 }
 
@@ -132,17 +137,21 @@ function resolveFieldOverlap(contributions: readonly ActorFieldCell[]): ActorFie
     const cell = { ...contribution, position: { ...contribution.position } };
     const code = KIND_CODES[cell.kind];
     if (cell.expression === 'draw') draws.push(cell);
-    else if (!emitters.has(code) || emitters.get(code)!.falloff < cell.falloff) emitters.set(code, cell);
+    else if (!emitters.has(code) || strongerField(cell, emitters.get(code)!)) emitters.set(code, cell);
   }
   for (const [code, source] of emitters) {
     const opposite = getOppositeAffinityKind(code);
     const target = emitters.get(opposite);
     if (!target || opposite <= code) continue;
-    const net = cancelAffinityOverlap(source.falloff, source.stacks, target.falloff, target.stacks);
-    source.falloff = net.sourceFalloff; source.stacks = net.sourceStacks;
-    target.falloff = net.targetFalloff; target.stacks = net.targetStacks;
+    const net = cancelAffinityOverlap(source.intensity, target.intensity);
+    source.intensity = net.sourceIntensity; target.intensity = net.targetIntensity;
   }
-  return [...emitters.values(), ...draws].filter(cell => cell.falloff > 0);
+  return [...emitters.values(), ...draws].filter(cell => cell.intensity > 0 && cell.falloff > 0);
+}
+
+/** The stronger of two same-kind fields on a tile: more intensity, then less falloff lost. */
+function strongerField(cell: ActorFieldCell, current: ActorFieldCell): boolean {
+  return cell.intensity !== current.intensity ? cell.intensity > current.intensity : cell.falloff > current.falloff;
 }
 
 /** Current-position projection. No equipment, vitality, or historical field mutation. */
@@ -151,7 +160,7 @@ export function projectActorFields(registry: Pick<Registry, 'snapshot'>): { fiel
   const actors = snapshot.actors.filter(actor => actor.lifecycle === 'alive');
   const sources = activeFieldSources(actors);
   const exposures = new Map(sources.map(({ actor, pair }) => [fieldSlotKey(actor.id, pair), {
-    sourceId: actor.id, affinityKey: affinityKey(pair), budget: scaleAffinityVitalEffect(1, pair.stacks), targets: [],
+    sourceId: actor.id, affinityKey: affinityKey(pair), budget: actorAffinityMagnitude(pair.expression, affinityIntensity(pair)), targets: [],
   } as ActorExposureSource]));
   const fields: ActorFieldCell[] = [];
   const contributions: ActorFieldCell[] = [];
@@ -195,8 +204,8 @@ export function resolveActorFields(registry: Registry, suppressions: ActorEffect
     fields: projectActorFields(registry).fields.filter(field => (pending.get(fieldSlotKey(field.sourceId, field))?.budget ?? 0) > 0) };
 }
 
-/** Net stacks one side of an opposed pair must win by on an actor's tile to overwhelm it (#289). */
-export const OVERWHELM_NET_STACKS = 2;
+/** Net intensity one side of an opposed pair must win by on an actor's tile to overwhelm it (#289, #340). */
+export const OVERWHELM_NET_INTENSITY = 2;
 /** Regen multiplier when a harmful (damaging) affinity overwhelms: regen of its vital stops. */
 export const OVERWHELM_HARM_REGEN_SCALE = 0;
 /** Regen multiplier when a restoring affinity overwhelms: regen of its vital doubles. */
@@ -207,11 +216,11 @@ export interface ActorOverwhelm { actorId: string; kind: string; vital: string; 
 /**
  * Overwhelm (maintainer, 2026-10-15, #289), one rule for every opposed pair: when an
  * emitted affinity from OTHER sources beats its opposite on an actor's tile by
- * `OVERWHELM_NET_STACKS` or more (the opposite counted from every source, the actor's
+ * `OVERWHELM_NET_INTENSITY` or more (the opposite counted from every source, the actor's
  * own included), the actor's regen of that affinity's vital is scaled for this turn:
- * stopped when the affinity's emit damages (`MATRIX`), doubled when it restores. Stacks
- * are the strongest single source of each kind reaching the tile, as in cancellation
- * (#290). An actor's own emission never overwhelms it. Read-only.
+ * stopped when the affinity's emit damages (`MATRIX`), doubled when it restores. Each
+ * side is the strongest single source's intensity of that kind reaching the tile, as in
+ * cancellation (#290). An actor's own emission never overwhelms it. Read-only.
  */
 export function readActorOverwhelms(registry: Pick<Registry, 'snapshot'>): ActorOverwhelm[] {
   const actors = registry.snapshot().actors.filter(actor => actor.lifecycle === 'alive');
@@ -220,10 +229,10 @@ export function readActorOverwhelms(registry: Pick<Registry, 'snapshot'>): Actor
   for (const actor of actors) {
     const local = sourceContributionsAt(sources, actor.position);
     const strongest = (kind: string, includeSelf: boolean) => Math.max(0, ...local
-      .filter(cell => cell.kind === kind && (includeSelf || cell.sourceId !== actor.id)).map(cell => cell.stacks));
+      .filter(cell => cell.kind === kind && (includeSelf || cell.sourceId !== actor.id)).map(cell => cell.intensity));
     for (const kind of new Set(local.map(cell => cell.kind))) {
       const opposite = AFFINITY_KIND_BY_CODE[getOppositeAffinityKind(KIND_CODES[kind])];
-      if (!opposite || strongest(kind, false) - strongest(opposite, true) < OVERWHELM_NET_STACKS) continue;
+      if (!opposite || strongest(kind, false) - strongest(opposite, true) < OVERWHELM_NET_INTENSITY) continue;
       const effect = getActorAffinityEffect(kind as ActorAffinityEntry['kind'], 'emit');
       if (effect.operation === 'neutralize') continue;
       out.push({ actorId: actor.id, kind, vital: effect.vital,

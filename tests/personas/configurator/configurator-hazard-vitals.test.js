@@ -19,9 +19,10 @@ test("resolveAffinityEffects computes hazard vitals from expression and stacks w
 
     assert.equal(result.hazards.length, 1);
     const hazard = result.hazards[0];
-    assert.equal(hazard.vitals.mana.current, 12);
-    assert.equal(hazard.vitals.mana.max, 12);
-    assert.equal(hazard.vitals.mana.regen, 4);
+    // Upkeep 2 + range 2 + intensity 1 = 5 (#340): a pool of three ticks, regen sustains it.
+    assert.equal(hazard.vitals.mana.current, 15);
+    assert.equal(hazard.vitals.mana.max, 15);
+    assert.equal(hazard.vitals.mana.regen, 5);
     assert.equal(hazard.vitals.durability.current, 10);
     assert.equal(hazard.vitals.durability.max, 10);
     assert.equal(hazard.vitals.durability.regen, 0);
@@ -62,9 +63,9 @@ test("resolveAffinityEffects computes hazard vitals from expression and stacks w
     });
 
     const hazard = result.hazards[0];
-    assert.equal(hazard.vitals.mana.current, 9);
-    assert.equal(hazard.vitals.mana.max, 9);
-    assert.equal(hazard.vitals.mana.regen, 3);
+    assert.equal(hazard.vitals.mana.current, 12);
+    assert.equal(hazard.vitals.mana.max, 12);
+    assert.equal(hazard.vitals.mana.regen, 4);
     assert.equal(hazard.vitals.durability.current, 5);
     assert.equal(hazard.vitals.durability.max, 5);
     assert.equal(hazard.vitals.durability.regen, 0);
@@ -103,19 +104,20 @@ test("hazard vitals computation scales with stack levels", async () => {
 
   const stackLevels = [1, 2, 3, 5, 8];
 
-  stackLevels.forEach((stacks) => {
+  stackLevels.flatMap((stacks) => [[stacks, undefined], [stacks, 3]]).forEach(([stacks, intensity]) => {
     const result = resolveAffinityEffects({
       presets: [],
       hazards: [
         {
           x: 0, y: 0, blocking: false,
-          affinity: { kind: "fire", expression: "emit", stacks },
+          affinity: { kind: "fire", expression: "emit", stacks, ...(intensity ? { intensity } : {}) },
         },
       ],
     });
 
     const hazard = result.hazards[0];
-    const expectedUpkeep = 2 + stacks;
+    // #340: upkeep is 2 + range + intensity; an omitted intensity reads 1.
+    const expectedUpkeep = 2 + stacks + (intensity ?? 1);
     const expectedPool = expectedUpkeep * 3;
     const expectedRegen = expectedUpkeep;
     const expectedDurability = stacks * 5;

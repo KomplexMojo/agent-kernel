@@ -1,7 +1,7 @@
 import { readActorOverwhelms, resolveActorFields, type ActorOverwhelm } from './actor-fields.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey } from '../state/actor-types.ts';
-import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
+import { affinityIntensity, affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
 import { actorAffinityMagnitude } from './actor-affinity.ts';
 import { assertActorCastPrices, castFocusedActorAffinity, selectActorCastAffinity, type ActorCastManaBases, type ActorEffectSuppression } from './actor-cast.ts';
@@ -22,7 +22,7 @@ export interface ActorTurnCosts {
   /** Per-key base of the escalating cast curve, base × s(s+1)/2 (#232). */
   castManaBase: ActorCastManaBases;
   movementStamina: Record<string, number>;
-  /** Per-turn mana upkeep of a lasting affinity, indexed by stacks; absent means none. */
+  /** Per-turn mana upkeep of a lasting affinity, indexed by range + intensity; absent means none. */
   persistentUpkeep?: number[];
 }
 function copy<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
@@ -137,7 +137,7 @@ export function createActorTurn(
           accepted = result.accepted;
           if (!accepted) lastRejection = result.rejection ?? null;
           if (accepted) {
-            consumeSuppression(actor.id, key, actorAffinityMagnitude(pair.expression, pair.stacks));
+            consumeSuppression(actor.id, key, actorAffinityMagnitude(pair.expression, affinityIntensity(pair)));
             if (result.suppression && result.suppression.amount > 0) state.suppressions.push(result.suppression);
           }
           break;

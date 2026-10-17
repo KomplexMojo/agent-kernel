@@ -32,13 +32,13 @@ function act(registry: ReturnType<typeof corridor>, tick: number, action: object
 const equip = (affinityKey: string, stacks?: number) =>
   ({ kind: 'equip_affinity', params: stacks === undefined ? { affinityKey } : { affinityKey, stacks } });
 
-test('equipping at a lower level runs it there and pays 2 + running upkeep; held stacks stay', () => {
+test('equipping at a lower level runs it there and pays 2 + running range + intensity; held stacks stay', () => {
   const registry = corridor([actor('a', 0)]);
   expect(act(registry, 1, equip('fire:emit', 1)).accepted).toBe(true);
   const record = registry.getActor('a')!;
   expect(record.equippedAffinityStacks).toEqual({ 'fire:emit': 1 });
   expect(record.affinities.find(pair => pair.kind === 'fire')!.stacks).toBe(3);
-  expect(record.vitals.mana!.current).toBe(20 - 3);
+  expect(record.vitals.mana!.current).toBe(20 - (2 + 1 + 1));
   expect(equippedActorAffinities(record)).toEqual([{ kind: 'fire', expression: 'emit', stacks: 1 }]);
 });
 

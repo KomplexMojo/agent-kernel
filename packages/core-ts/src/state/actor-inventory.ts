@@ -7,6 +7,11 @@ export function affinityKey(entry: ActorAffinityEntry): ActorAffinityKey {
 
 const AFFINITY_ENTRY_FIELDS = new Set(['kind', 'expression', 'stacks', 'intensity']);
 
+/** An entry's strength (#340): its `intensity`, or 1 when absent, which is how older entries load. */
+export function affinityIntensity(entry: Pick<ActorAffinityEntry, 'intensity'>): number {
+  return entry.intensity ?? 1;
+}
+
 export function validateActorInventory(actor: ActorRecord): void {
   if (!Array.isArray(actor.motivations) || actor.motivations.some(value => typeof value !== 'string' || !value.trim())) {
     throw new Error('invalid motivation list');

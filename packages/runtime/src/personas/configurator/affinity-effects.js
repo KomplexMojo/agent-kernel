@@ -134,12 +134,13 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
  * @param {object} [rules] - an authored affinity rules artifact; the default rules otherwise
  * @returns {{ mana: { current: number, max: number, regen: number }, durability: { current: number, max: number, regen: number } }}
  */
-export function computeHazardVitals(expression, stacks, kind, rules) {
+export function computeHazardVitals(expression, stacks, kind, rules, intensity = 1) {
   const s = Number.isInteger(stacks) && stacks >= 1 ? stacks : 1;
+  const i = Number.isInteger(intensity) && intensity >= 1 ? intensity : 1;
 
   if (expression === "emit" || expression === "draw") {
-    // Persistent expressions: use internal upkeep formula (2 + s)
-    const upkeep = computeInternalManaUpkeep(s);
+    // Persistent expressions: core charges the upkeep at range + intensity (2 + r + i, #340).
+    const upkeep = computeInternalManaUpkeep(s + i);
     const manaPool = upkeep * 3; // 3 ticks worth
     const manaRegen = upkeep; // Sustain indefinitely
     const durability = s * 5; // Structural integrity
@@ -192,7 +193,7 @@ function resolveHazardEffects(hazard, presets, affinityRules) {
   } else {
     // No vitals provided: compute defaults from expression and stacks
     const computed = computeHazardVitals(hazard.affinity.expression, hazard.affinity.stacks, hazard.affinity.kind,
-      affinityRules ?? undefined);
+      affinityRules ?? undefined, hazard.affinity.intensity);
     baseVitals = ensureVitals(computed);
   }
 

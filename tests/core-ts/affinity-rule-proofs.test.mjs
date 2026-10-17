@@ -5,12 +5,14 @@ import { cancelAffinityOverlap, OPPOSITE_EXPOSURE_AMPLIFICATION, resolveExposure
 import { getOppositeAffinityKind, resolveAffinityRelationshipCode } from "../../packages/core-ts/src/state/affinity.ts";
 import { AffinityExpression, AffinityKind, AffinityRelationship } from "../../packages/core-ts/src/state/affinity.ts";
 import { VitalKind } from "../../packages/core-ts/src/state/vitals.ts";
-import { OVERWHELM_NET_STACKS, readActorOverwhelms } from "../../packages/core-ts/src/rules/actor-fields.ts";
+import { OVERWHELM_NET_INTENSITY, readActorOverwhelms } from "../../packages/core-ts/src/rules/actor-fields.ts";
+import { actorAffinityMagnitude } from "../../packages/core-ts/src/rules/actor-affinity.ts";
 import { createActorRegistry } from "../../packages/core-ts/src/state/actor-registry.ts";
 
-// #305 — Z3 proofs that the opposed-pair rules hold for every pair and ANY stack count.
-// Samples cover small stacks; these quantify over all non-negative integers (and all
-// non-negative intensities), which is what a sample cannot. Each formula restates core's
+// #305 — Z3 proofs that the opposed-pair rules hold for every pair and ANY intensity.
+// Since #340 cancellation and overwhelm compare intensity (range only sets reach), and a
+// hit's strength is base × intensity². Samples cover small values; these quantify over
+// all non-negative integers, which is what a sample cannot. Each formula restates core's
 // integer arithmetic and is cross-checked against core on a grid of sampled values, so a
 // proof is about the code, not about a paraphrase of it. A failed proof reports Z3's
 // counterexample. Test-only: z3-solver is resolved through adapters-cli, which already
@@ -63,90 +65,84 @@ async function evaluateAt(expression, assignments) {
   return typeof exact === "bigint" ? Number(exact) : Number(exact.numerator) / Number(exact.denominator);
 }
 
-/** core's cancelAffinityOverlap, restated over Z3 integers (stacks) and reals (falloff). */
-function cancelFormula(sourceFalloff, sourceStacks, targetFalloff, targetStacks) {
-  const { If, ToReal } = ctx;
-  const net = sourceStacks.sub(targetStacks);
+/** core's cancelAffinityOverlap, restated over Z3 integers (intensity, #340). */
+function cancelFormula(sourceIntensity, targetIntensity) {
+  const net = sourceIntensity.sub(targetIntensity);
   return {
-    sourceFalloff: If(net.gt(0), sourceFalloff.mul(ToReal(net)).div(ToReal(sourceStacks)), ctx.Real.val(0)),
-    sourceStacks: If(net.gt(0), net, ctx.Int.val(0)),
-    targetFalloff: If(net.lt(0), targetFalloff.mul(ToReal(net.neg())).div(ToReal(targetStacks)), ctx.Real.val(0)),
-    targetStacks: If(net.lt(0), net.neg(), ctx.Int.val(0)),
+    sourceIntensity: ctx.If(net.gt(0), net, ctx.Int.val(0)),
+    targetIntensity: ctx.If(net.lt(0), net.neg(), ctx.Int.val(0)),
   };
 }
 
 function cancelVariables() {
-  const m = ctx.Int.const("source_stacks");
-  const n = ctx.Int.const("target_stacks");
-  const i = ctx.Real.const("source_falloff");
-  const j = ctx.Real.const("target_falloff");
-  const domain = ctx.And(m.ge(0), n.ge(0), i.ge(0), j.ge(0));
-  return { m, n, i, j, domain, variables: { m, n, i, j } };
+  const m = ctx.Int.const("source_intensity");
+  const n = ctx.Int.const("target_intensity");
+  const domain = ctx.And(m.ge(0), n.ge(0));
+  return { m, n, domain, variables: { m, n } };
 }
 
-test("the cancellation encoding matches core on sampled stacks and intensities", async () => {
-  const { m, n, i, j } = cancelVariables();
-  const formula = cancelFormula(i, m, j, n);
-  for (const [sm, tn, si, tj] of [[3, 1, 1, 0.5], [1, 3, 0.25, 2], [2, 2, 1, 1], [5, 0, 0.75, 0], [0, 4, 0, 1], [7, 4, 2, 3]]) {
-    const core = cancelAffinityOverlap(si, sm, tj, tn);
-    const at = [[m, sm], [n, tn], [i, si], [j, tj]];
-    for (const key of ["sourceFalloff", "sourceStacks", "targetFalloff", "targetStacks"]) {
-      expect(await evaluateAt(formula[key], at), `${key} at m=${sm} n=${tn} i=${si} j=${tj}`).toBeCloseTo(core[key], 12);
+test("the cancellation encoding matches core on sampled intensities", async () => {
+  const { m, n } = cancelVariables();
+  const formula = cancelFormula(m, n);
+  for (const [sm, tn] of [[3, 1], [1, 3], [2, 2], [5, 0], [0, 4], [7, 4]]) {
+    const core = cancelAffinityOverlap(sm, tn);
+    const at = [[m, sm], [n, tn]];
+    for (const key of ["sourceIntensity", "targetIntensity"]) {
+      expect(await evaluateAt(formula[key], at), `${key} at m=${sm} n=${tn}`).toBe(core[key]);
     }
   }
 }, 60_000);
 
-test("cancellation is symmetric: swapping the sides swaps the outcome, for any stacks", async () => {
-  const { m, n, i, j, domain, variables } = cancelVariables();
-  const forward = cancelFormula(i, m, j, n);
-  const swapped = cancelFormula(j, n, i, m);
+test("cancellation is symmetric: swapping the sides swaps the outcome, for any intensity", async () => {
+  const { m, n, domain, variables } = cancelVariables();
+  const forward = cancelFormula(m, n);
+  const swapped = cancelFormula(n, m);
   await expectProved("symmetry", ctx.Implies(domain, ctx.And(
-    forward.sourceStacks.eq(swapped.targetStacks),
-    forward.targetStacks.eq(swapped.sourceStacks),
-    forward.sourceFalloff.eq(swapped.targetFalloff),
-    forward.targetFalloff.eq(swapped.sourceFalloff),
+    forward.sourceIntensity.eq(swapped.targetIntensity),
+    forward.targetIntensity.eq(swapped.sourceIntensity),
   )), variables);
 }, 60_000);
 
 test("cancellation never goes negative, never strengthens a side, and at most one side survives", async () => {
-  const { m, n, i, j, domain, variables } = cancelVariables();
-  const out = cancelFormula(i, m, j, n);
+  const { m, n, domain, variables } = cancelVariables();
+  const out = cancelFormula(m, n);
   await expectProved("non-negative", ctx.Implies(domain, ctx.And(
-    out.sourceStacks.ge(0), out.targetStacks.ge(0), out.sourceFalloff.ge(0), out.targetFalloff.ge(0),
+    out.sourceIntensity.ge(0), out.targetIntensity.ge(0),
   )), variables);
   await expectProved("never stronger than it arrived", ctx.Implies(domain, ctx.And(
-    out.sourceStacks.le(m), out.targetStacks.le(n), out.sourceFalloff.le(i), out.targetFalloff.le(j),
+    out.sourceIntensity.le(m), out.targetIntensity.le(n),
   )), variables);
-  await expectProved("one survivor, by the stack difference", ctx.Implies(domain, ctx.And(
-    ctx.Or(out.sourceStacks.eq(0), out.targetStacks.eq(0)),
-    out.sourceStacks.add(out.targetStacks).eq(ctx.If(m.ge(n), m.sub(n), n.sub(m))),
+  await expectProved("one survivor, by the intensity difference", ctx.Implies(domain, ctx.And(
+    ctx.Or(out.sourceIntensity.eq(0), out.targetIntensity.eq(0)),
+    out.sourceIntensity.add(out.targetIntensity).eq(ctx.If(m.ge(n), m.sub(n), n.sub(m))),
   )), variables);
-  await expectProved("equal stacks cancel to nothing", ctx.Implies(ctx.And(domain, m.eq(n)), ctx.And(
-    out.sourceStacks.eq(0), out.targetStacks.eq(0), out.sourceFalloff.eq(0), out.targetFalloff.eq(0),
+  await expectProved("equal intensity cancels to nothing", ctx.Implies(ctx.And(domain, m.eq(n)), ctx.And(
+    out.sourceIntensity.eq(0), out.targetIntensity.eq(0),
   )), variables);
 }, 60_000);
 
-// Overwhelm (#289): kind beats its opposite on a tile by OVERWHELM_NET_STACKS or more.
-const overwhelms = (stacks, oppositeStacks) => stacks.sub(oppositeStacks).ge(OVERWHELM_NET_STACKS);
+// Overwhelm (#289): kind beats its opposite on a tile by OVERWHELM_NET_INTENSITY or more.
+const overwhelms = (intensity, oppositeIntensity) => intensity.sub(oppositeIntensity).ge(OVERWHELM_NET_INTENSITY);
 
-function overwhelmRegistry(kind, stacks, opposite, oppositeStacks) {
+function overwhelmRegistry(kind, intensity, opposite, oppositeIntensity) {
   const actor = (id, x, pair) => ({
     id, alignment: "dungeon", lifecycle: "alive", position: { x, y: 0 }, defeatVital: "health",
     vitals: Object.fromEntries(["health", "mana", "stamina", "durability"].map((key) => [key, { current: 5, max: 10, regen: 1 }])),
     capabilities: { canMove: true, canCast: true, canEquip: true, canTake: true, canExit: true, blocksMovement: false, blocksSight: false },
     motivations: [], affinities: pair ? [pair] : [], activeAffinityKey: pair ? `${pair.kind}:${pair.expression}` : null, holdings: [],
   });
-  const emit = (k, s) => (s > 0 ? { kind: k, expression: "emit", stacks: s } : undefined);
+  // Range 1 throughout: only intensity decides overwhelm.
+  const emit = (k, i) => (i > 0 ? { kind: k, expression: "emit", stacks: 1, intensity: i } : undefined);
   return createActorRegistry({
     dimensions: { width: 5, height: 1 },
     terrain: Array(5).fill("floor"),
-    actors: [actor("trap", 1, emit(kind, stacks)), actor("hero", 2, emit(opposite, oppositeStacks))],
+    actors: [actor("trap", 1, emit(kind, intensity)), actor("hero", 2, emit(opposite, oppositeIntensity))],
   });
 }
 
 test("the overwhelm encoding matches core for every kind of every pair, on both sides of the threshold", async () => {
-  const x = ctx.Int.const("stacks");
-  const y = ctx.Int.const("opposite_stacks");
+  const x = ctx.Int.const("intensity");
+  const y = ctx.Int.const("opposite_intensity");
   for (const pair of PAIRS) {
     for (const [kind, opposite] of [pair, [...pair].reverse()]) {
       for (const [sx, sy] of [[1, 0], [2, 0], [3, 1], [3, 2], [4, 1], [5, 3]]) {
@@ -160,15 +156,14 @@ test("the overwhelm encoding matches core for every kind of every pair, on both 
 }, 60_000);
 
 test("overwhelm is one threshold for every kind: never mutual, and it always leaves its side surviving cancellation", async () => {
-  const x = ctx.Int.const("stacks");
-  const y = ctx.Int.const("opposite_stacks");
+  const x = ctx.Int.const("intensity");
+  const y = ctx.Int.const("opposite_intensity");
   const domain = ctx.And(x.ge(0), y.ge(0));
   await expectProved("never mutual", ctx.Implies(domain, ctx.Not(ctx.And(overwhelms(x, y), overwhelms(y, x)))), { x, y });
-  const falloff = ctx.Real.val(1);
-  const out = cancelFormula(falloff, x, falloff, y);
-  await expectProved("overwhelm implies the cancellation survivor has the threshold's stacks", ctx.Implies(
+  const out = cancelFormula(x, y);
+  await expectProved("overwhelm implies the cancellation survivor has the threshold's intensity", ctx.Implies(
     ctx.And(domain, overwhelms(x, y)),
-    ctx.And(out.sourceStacks.ge(OVERWHELM_NET_STACKS), out.targetStacks.eq(0)),
+    ctx.And(out.sourceIntensity.ge(OVERWHELM_NET_INTENSITY), out.targetIntensity.eq(0)),
   ), { x, y });
 }, 60_000);
 
@@ -209,7 +204,21 @@ test("opposite exposure is the same rule for every pair: harm is amplified, neve
   ), { base });
 }, 120_000);
 
+test("a hit's strength is base × intensity²: matches core, and every point of intensity adds more than the last (#340)", async () => {
+  const i = ctx.Int.const("intensity");
+  for (const [expression, base] of [["push", 2], ["pull", 2], ["emit", 1], ["draw", 1]]) {
+    const formula = ctx.Int.val(base).mul(i).mul(i);
+    for (const sample of [0, 1, 2, 3, 6]) {
+      expect(await evaluateAt(formula, [[i, sample]]), `${expression} at ${sample}`).toBe(actorAffinityMagnitude(expression, sample));
+    }
+    const next = ctx.Int.val(base).mul(i.add(1)).mul(i.add(1));
+    const after = ctx.Int.val(base).mul(i.add(2)).mul(i.add(2));
+    await expectProved(`${expression} grows quadratically`, ctx.Implies(i.ge(0),
+      after.sub(next).gt(next.sub(formula))), { i });
+  }
+}, 60_000);
+
 // ## TODO: Test Permutations
 // - stack scaling (scaleAffinityVitalEffect): for any base and stacks >= 0, effect = base * stacks with base's sign.
 // - overwhelm with the opposite reaching the tile from two sources: the strongest single source counts.
-// - cancellation where intensities differ wildly (emit tile reads 1, edge tile reads near 0): still decided by stacks.
+// - cancellation where falloffs differ wildly (emit tile reads 1, edge tile reads near 0): still decided by intensity.
