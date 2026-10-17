@@ -374,3 +374,9 @@ This repo is paired with an Obsidian vault holding non-load-bearing knowledge. `
 For Codex specifically: active plan `local-codex/Plan.md`, active prompt `local-codex/Prompt.md`, orientation snapshot `local-codex/CodeContext.md`, cheatsheets `~/vault/concepts/CODEX-CHEATSHEET.md` and `~/vault/concepts/MODEL-SELECTION-CHEATSHEET.md`. Session decisions are saved by Claude's `/save` to `~/vault/decisions/`; Codex reads decisions but does not author them.
 
 Setup: `bash scripts/setup/setup-km.sh` on each machine. **Vault storage hazards and the retired session hooks are in `CLAUDE.md → Vault-Backed Knowledge Management` — read them before writing anything into the vault.**
+
+## Cursor Cloud specific instructions
+
+- Bootstrap with `bash .cursor/install.sh` (Node >= 22.18 via nvm, pnpm 10.33.3, frozen lockfile). `/exec-daemon/node` on the default image is older and rejects `.ts` imports with `ERR_UNKNOWN_FILE_EXTENSION`. The install script prepends the nvm runtime on `~/.bashrc`, which login shells (`bash -l`, including `start`) actually read.
+- The UI listens on port 8001 via `.cursor/start.sh` (`pnpm run serve:ui`). Open `http://localhost:8001/packages/ui-web/index_c.html`.
+- Gates: `pnpm run test` and `pnpm run typecheck`. Offline CLI check: `node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=1" --delver "count=1;affinity=fire;motivation=attacking" --warden "count=1;affinity=dark;motivation=defending"`.
