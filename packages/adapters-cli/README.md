@@ -963,7 +963,12 @@ Expected outputs (defaults when `--out-dir` is set):
   - `--tile-barrier x,y` (repeatable barrier actors)
 
 When overrides are provided, `run` writes `resolved-sim-config.json` and
-`resolved-initial-state.json` to the output directory for inspection.
+`resolved-initial-state.json` to the output directory for inspection. The Allocator
+prices the overridden level again (#278), against the budget of the `budget-receipt.json`
+`ak create` wrote beside `--sim-config` (the reference budget when there is none), and
+writes the new `budget-receipt.json` and `price-list.json` with them; the resolved
+SimConfig names that receipt. A level the overrides take over budget still runs: the
+output carries `pricingReport: [{ code: "overrides_over_budget", message }]`.
 
 ## Configurator artifacts (affinities + hazards)
 

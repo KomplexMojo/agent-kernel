@@ -167,6 +167,7 @@ export function createAllocatorPersona({
     pricing: services.pricing,
     reportLevelPricing: services.reportLevelPricing,
     assessReceiptForUse: services.assessReceiptForUse,
+    priceLevelOverrides: services.priceLevelOverrides,
     castPricesFromLegacyTiers: services.castPricesFromLegacyTiers,
     issueRuntimeBudgetReceipt: services.issueRuntimeBudgetReceipt,
     // RB3.1/RB3.2 — read-only build economy policy; none mutates the ledger.
