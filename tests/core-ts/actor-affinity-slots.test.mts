@@ -139,7 +139,8 @@ test('a matching draw slot absorbs before an opposite slot can double the damage
   const source = actor('src', 0, { alignment: 'dungeon', affinities: [{ kind: 'fire', expression: 'emit', stacks: 2 }],
     activeAffinityKey: 'fire:emit' });
   const exposed = (equipped: string[], extra: ActorAffinityEntry[]) => {
-    const receiver = actor('a', 1, { affinitySlots: 2, affinities: extra, activeAffinityKey: equipped[0] as never,
+    // Two tiles out the field exposure rounds to 1 (#283), so doubling it shows under the budget.
+    const receiver = actor('a', 2, { affinitySlots: 2, affinities: extra, activeAffinityKey: equipped[0] as never,
       ...(equipped.length > 1 ? { equippedAffinityKeys: equipped as never } : {}) });
     receiver.vitals.mana = { current: 0, max: 20, regen: 0 };
     const registry = corridor([source, receiver]);

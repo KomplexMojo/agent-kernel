@@ -98,6 +98,53 @@ test("an order is a turn, and the screen lists who is under orders", async () =>
   assert.equal((await game.command({ kind: "order", actorId: "W1", strategy: { goals: [{ kind: "survive" }] } })).reason, "not_yours");
 });
 
+test("o orders a companion from the keyboard: pick who, then what; the order is a turn (#272)", async () => {
+  assert.equal(intentForKey("o").type, INTENT.ORDER);
+  const pal = { category: "delver", id: "pal", position: { x: 5, y: 3 }, vitals: viableVitals(), motivations: ["stationary", "goal_oriented"] };
+  const game = await createGame({ levels: [partyLevel([...ACTORS, pal])], showHelp: false });
+  await game.handle(intentForKey("o"));
+  assert.equal(game.state().panel, "order_actor");
+  assert.match(game.screen(), /Order who\?/);
+  assert.match(game.screen(), /1\) D2 hero-b/);
+  assert.match(game.screen(), /2\) D3 pal/);
+  assert.doesNotMatch(game.screen(), /\d\) W1/, "a warden is not on your side");
+  assert.equal(game.state().turns, 0, "opening the order lists is free");
+  await game.handle(intentForKey("2"));
+  assert.equal(game.state().panel, "order_goal");
+  const screen = game.screen();
+  assert.match(screen, /Order D3 to/);
+  assert.match(screen, /1\) follow you/);
+  assert.match(screen, /defeat W1/, "the nearest hostile in sight can be named");
+  await game.handle(intentForKey("1"));
+  assert.equal(game.state().panel, null);
+  assert.equal(game.state().turns, 1, "giving the order is a turn");
+  assert.match(game.screen(), /D3 takes the order\./);
+  assert.match(game.screen(), /Orders: D3 follow hero-a/);
+});
+
+test("o with no one on your side says so and runs no turn", async () => {
+  const game = await createGame({ levels: [partyLevel([ACTORS[0], ACTORS[2]])], showHelp: false });
+  await game.handle(intentForKey("o"));
+  assert.equal(game.state().panel, null);
+  assert.equal(game.state().turns, 0);
+  assert.match(game.screen(), /No one on your side to order\./);
+});
+
+test("without colour, remembered floor is drawn blank so it never reads as floor in sight (#284)", async () => {
+  const game = await createGame({ levels: [partyLevel([ACTORS[0], ACTORS[2]])], showHelp: false });
+  await game.handle(intentForKey("j"));
+  await game.handle(intentForKey("j"));
+  const view = game.view();
+  const board = game.screen().split("\n").filter((line) => line.startsWith("  ")).slice(0, view.sight.length);
+  let remembered = 0;
+  view.sight.forEach((row, y) => [...row].forEach((cell, x) => {
+    const drawn = board[y].slice(2)[x];
+    if (cell === "r" && view.rows[y][x] === view.legend.floor) { remembered += 1; assert.equal(drawn, " "); }
+    if (cell === "v" && view.rows[y][x] === view.legend.floor) assert.notEqual(drawn, " ", "floor in sight is never blank");
+  }));
+  assert.ok(remembered > 0, "walking away leaves remembered floor behind");
+});
+
 test("--session keeps one game across calls and reopens its own level", () => {
   const dir = levelFiles();
   const session = join(dir, "game.json");

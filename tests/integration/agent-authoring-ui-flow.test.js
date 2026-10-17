@@ -195,24 +195,6 @@ function withUiGlobals(run) {
     });
 }
 
-function createInjectedPreviewOptions() {
-  return {
-    levelBuilderAdapter: {
-      async buildFromTiles() {
-        return {
-          ok: true,
-          image: {
-            width: 5,
-            height: 4,
-            pixelFormat: "rgba8",
-            pixels: new Uint8ClampedArray(5 * 4 * 4).fill(120),
-          },
-        };
-      },
-    },
-  };
-}
-
 test("preview load uses the synchronous TypeScript core without a binary prerequisite", async () => withUiGlobals(async () => {
   const outDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-agent-flow-real-preview-"));
   runCliOk([
@@ -234,19 +216,6 @@ test("preview load uses the synchronous TypeScript core without a binary prerequ
   const { elements, root } = createPreviewRoot();
   const preview = wirePreviewView({
     root,
-    levelBuilderAdapter: {
-      async buildFromTiles() {
-        return {
-          ok: true,
-          image: {
-            width: 5,
-            height: 4,
-            pixelFormat: "rgba8",
-            pixels: new Uint8ClampedArray(5 * 4 * 4).fill(120),
-          },
-        };
-      },
-    },
   });
 
   const loaded = await preview.loadBundle(bundle, { source: "file" });
@@ -290,7 +259,6 @@ test("mixed-object create bundle survives the CLI -> Diagnostics -> Preview -> r
 
   preview = wirePreviewView({
     root,
-    ...createInjectedPreviewOptions(),
     onBuildAndLoadGame: async () => validatePreviewLaunchBundle(preview.getLastBundle()),
   });
 
@@ -355,7 +323,6 @@ test("room-only create bundle still previews the generated room image and remain
 
   preview = wirePreviewView({
     root,
-    ...createInjectedPreviewOptions(),
     onBuildAndLoadGame: async () => validatePreviewLaunchBundle(preview.getLastBundle()),
   });
 

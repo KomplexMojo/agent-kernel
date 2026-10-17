@@ -191,7 +191,7 @@ function usage() {
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
-  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--realtime ms] [--record path] [--replay path]
+  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--realtime ms] [--web [--port n] [--lan]] [--record path] [--replay path]
   node ${rel} play --watch (--dir dir | --from-run id) [--tick N] [--keys keys] [--json] [--color | --no-color]
   node ${rel} play-session start [--session id] (--dir dir | --from-run id | --sim-config path --initial-state path | --level name) [--actor id|label] [--commands json] [--keys keys]
   node ${rel} play-session start [--session id] --load path
@@ -287,6 +287,7 @@ Options:
   --json          play: print { ok, level, turns, status, screen, launch, warnings? } instead of the screen
   --no-fog        play: debug view of the whole map (play is always under fog of war)
   --realtime      play: a turn passes every <ms> while you wait (interactive only; t toggles)
+  --web           play: play in a browser tab on http://localhost:<port> (--port, default 8765; --lan for a phone on the same network)
   --record        play: save the played commands to this path (CapturedInputArtifact)
   --replay        play: re-run a saved game on its level, then continue
   --watch         play: watch the run \`ak run\` recorded in --dir (or under artifacts/runs/<--from-run>), tick by tick
@@ -6452,7 +6453,7 @@ async function playCommand(argv) {
     console.log(usage());
     return;
   }
-  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick", "realtime"]);
+  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick", "realtime", "web", "port", "lan"]);
   const unknown = Object.keys(args).filter((key) => !allowed.has(key));
   if (unknown.length > 0) throw new Error(`play does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
   if (args.watch) {
@@ -6478,8 +6479,10 @@ async function playCommand(argv) {
   if (args.realtime !== undefined && (keys !== undefined || args.json)) {
     throw new Error("play --realtime is for interactive play; drop --keys/--json.");
   }
+  if (args.web && (keys !== undefined || args.json)) throw new Error("play --web is for play in a browser; drop --keys/--json.");
+  if ((args.port !== undefined || args.lan) && !args.web) throw new Error("play --port and --lan need --web.");
   if (keys === undefined && !args.json) {
-    process.exitCode = await playAsciiInteractive({ source, color, fog, realtime: args.realtime, ...capture });
+    process.exitCode = await playAsciiInteractive({ source, color, fog, realtime: args.realtime, web: Boolean(args.web), port: args.port, lan: Boolean(args.lan), ...capture });
     return;
   }
   const result = playAsciiScripted({ source, keys: keys ?? "", color: color === true, fog, ...capture });

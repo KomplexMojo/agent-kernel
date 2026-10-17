@@ -136,13 +136,6 @@ export function computePreviewFocusBounds(previewState = {}) {
     }
   });
 
-  const auras = Array.isArray(previewState?.observation?.auras) ? previewState.observation.auras : [];
-  auras.forEach((aura) => {
-    if (Number.isFinite(aura?.x) && Number.isFinite(aura?.y)) {
-      points.push({ x: aura.x, y: aura.y });
-    }
-  });
-
   if (points.length === 0) {
     return {
       minX: 0,
@@ -311,7 +304,6 @@ export function createCanvasPreviewRenderer({
         actors: previewState?.actors || [],
         floorAffinityHazards: previewState?.floorAffinityHazards || [],
         bundle: previewState?.bundle || null,
-        observation: previewState?.observation || null,
       });
       if (!result?.ok) {
         hide();
@@ -559,27 +551,6 @@ export function createPhaserPreviewRenderer({
         currentRenderRoot.add(node);
       }
     }
-
-    const auras = Array.isArray(previewState?.observation?.auras) ? previewState.observation.auras : [];
-    auras.forEach((aura) => {
-      const colorHex = AFFINITY_COLOR_HEX[aura?.affinityKind || aura?.kind];
-      if (!colorHex) return;
-      const x = Number.isFinite(aura?.x) ? aura.x : null;
-      const y = Number.isFinite(aura?.y) ? aura.y : null;
-      if (x === null || y === null || !isPointInBounds(x, y, currentFocusBounds)) return;
-      const alpha = Math.min(0.18 + (Number(aura?.intensity) || 0) * 0.3, 0.46);
-      const { centerX, centerY } = projectBoardPointToFocus(x, y, currentFocusBounds, tileWidth, tileHeight);
-      const overlay = scene.add.rectangle(
-        centerX,
-        centerY,
-        Math.max(8, tileWidth - 6),
-        Math.max(8, tileHeight - 6),
-        Number.parseInt(colorHex.replace("#", ""), 16),
-        alpha,
-      );
-      overlay.setStrokeStyle?.(1, Number.parseInt(colorHex.replace("#", ""), 16), Math.min(alpha + 0.15, 0.65));
-      currentRenderRoot.add(overlay);
-    });
 
     const hazardAsset = resolveHazardAsset(resourceBundle);
     const hazardTextureKey = await ensureTexture(scene, hazardAsset);

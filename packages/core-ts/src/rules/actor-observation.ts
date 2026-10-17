@@ -1,8 +1,7 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import { projectActorFields } from './actor-fields.ts';
-import { computeVisibleCells, NET_DARK_OBSCURE_STACK_THRESHOLD, resolveNetLightDark, resolvePoweredLightStacks,
+import { projectActorFields, resolveActorFieldOverlap } from './actor-fields.ts';
+import { computeVisibleCells, NET_DARK_OBSCURE_STACK_THRESHOLD, resolveNetLightDark, resolveOwnSightLight,
   resolveVisibilityRadius, scopeObservation, SIGHT_LIGHT_EXPRESSION } from '../state/visibility.ts';
-import { computeAffinityRadius } from '../state/affinity-spatial.ts';
 import type { ActorRecord, ActorRegistrySnapshot } from '../state/actor-types.ts';
 import { litActorAffinities } from './actor-upkeep.ts';
 import { AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
@@ -30,83 +29,67 @@ export function readActorRegistryObservation(registry: Pick<ReturnType<typeof cr
 type RegistryObservation = ReturnType<typeof readActorRegistryObservation>;
 
 /**
- * Fog of war: emitted light reaching each cell, keyed `x,y`, as the strongest
- * source's powered stacks. A living light-on-emit actor whose affinity is on
- * shines with its mana-powered stacks (`resolvePoweredLightStacks`), so a
- * drained source is dark and regen relights it. Reach is the emit radius of
- * those stacks, Manhattan like the field projection but without the emit dead
- * zone (a lamp should not leave a dark ring around itself). Dark is weighed per
- * cell by the visibility rule, not here.
+ * Fog of war reads the affinity field (maintainer, 2026-10-17, #288): the light and
+ * dark on a cell are the emitted light and dark fields there, after the field's own
+ * opposite-pair cancellation, keyed `x,y` as the strongest surviving source's stacks.
+ * There is one cancellation rule for sight, floor shading and every vital effect.
+ * A source shines at full strength while its affinity is on and goes dark when it
+ * drains (the generic switch-off), and light reaches as far as its field does.
  */
-export function readActorRegistryLightByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensions' | 'actors'>): Record<string, number> {
-  return readEmittedStacksByCell(snapshot, 'light');
-}
-
-/**
- * The dark half of the same reading: emitted dark reaching each cell as the
- * strongest source's powered stacks, with the same reach and the same mana
- * powering as light, so the two compare stack for stack (#203).
- */
-export function readActorRegistryDarkByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensions' | 'actors'>): Record<string, number> {
-  return readEmittedStacksByCell(snapshot, 'dark');
-}
-
-function readEmittedStacksByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensions' | 'actors'>, kind: 'light' | 'dark',
-  excludeActorId?: string): Record<string, number> {
-  const { width, height } = snapshot.dimensions;
+function fieldStacksByCell(fields: readonly { kind: string; expression: string; stacks: number; intensity: number;
+  position: { x: number; y: number } }[], kind: 'light' | 'dark'): Record<string, number> {
   const reached: Record<string, number> = {};
-  for (const actor of snapshot.actors) {
-    if (actor.id === excludeActorId) continue;
-    const stacks = poweredEmitStacks(actor, kind);
-    if (stacks <= 0) continue;
-    const radius = computeAffinityRadius(SIGHT_LIGHT_EXPRESSION, stacks);
-    const { x: sx, y: sy } = actor.position;
-    for (let y = Math.max(sy - radius, 0); y <= Math.min(sy + radius, height - 1); y++) {
-      const reach = radius - Math.abs(y - sy);
-      for (let x = Math.max(sx - reach, 0); x <= Math.min(sx + reach, width - 1); x++) {
-        const key = `${x},${y}`;
-        if (stacks > (reached[key] ?? 0)) reached[key] = stacks;
-      }
-    }
+  for (const field of fields) {
+    if (field.kind !== kind || field.expression !== AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]
+      || field.intensity <= 0 || field.stacks <= 0) continue;
+    const key = `${field.position.x},${field.position.y}`;
+    if (field.stacks > (reached[key] ?? 0)) reached[key] = field.stacks;
   }
   return reached;
 }
 
-/** The stacks an actor emits of `kind` right now: its strongest lit emit slot of that kind, 0 if none. */
-function poweredEmitStacks(actor: ActorRecord, kind: 'light' | 'dark'): number {
-  if (actor.lifecycle !== 'alive') return 0;
-  const own = litActorAffinities(actor).filter(pair => pair.kind === kind
-    && pair.expression === AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]);
-  if (!own.length) return 0;
-  const stacks = Math.max(...own.map(pair => pair.stacks));
-  return resolvePoweredLightStacks(stacks, actor.vitals.mana?.current ?? 0, actor.vitals.mana?.max ?? 0);
+/** Net emitted light on each cell of a registry snapshot, from the field (#288). Read-only. */
+export function readActorRegistryLightByCell(snapshot: ActorRegistrySnapshot): Record<string, number> {
+  return fieldStacksByCell(projectActorFields({ snapshot: () => snapshot }).fields, 'light');
 }
 
-/** Per-cell light against dark, stack for stack: what survives at each cell. */
+/** Net emitted dark on each cell of a registry snapshot, from the field (#288). Read-only. */
+export function readActorRegistryDarkByCell(snapshot: ActorRegistrySnapshot): Record<string, number> {
+  return fieldStacksByCell(projectActorFields({ snapshot: () => snapshot }).fields, 'dark');
+}
+
+/** The stacks of light an actor emits right now: its strongest lit light emit slot, 0 if none. */
+function litEmitStacks(actor: ActorRecord, kind: 'light' | 'dark'): number {
+  if (actor.lifecycle !== 'alive') return 0;
+  return Math.max(0, ...litActorAffinities(actor).filter(pair => pair.kind === kind
+    && pair.expression === AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]).map(pair => pair.stacks));
+}
+
+/** Per-cell light against dark as the field leaves them. */
 function resolveRegistryLightDark(observation: RegistryObservation) {
   const { width, height } = observation.sightKinds.length
     ? { width: observation.sightKinds[0].length, height: observation.sightKinds.length } : { width: 0, height: 0 };
-  const snapshot = { dimensions: { width, height }, actors: observation.actors };
-  const darkByCell = readActorRegistryDarkByCell(snapshot);
-  return { width, height, darkByCell, ...resolveNetLightDark(readActorRegistryLightByCell(snapshot), darkByCell) };
+  const darkByCell = fieldStacksByCell(observation.affinityFields, 'dark');
+  return { width, height, darkByCell, ...resolveNetLightDark(fieldStacksByCell(observation.affinityFields, 'light'), darkByCell) };
 }
 
 /**
- * One observer's sight inputs. Its own light, less the dark at its tile, extends
- * its radius; cells where light outweighs dark are lit; cells where dark
- * outweighs light are obscured, along with anyone standing in them. Dark from
- * other sources that beats the light at its tile by the blinding threshold
- * leaves it its own tile only (#284).
+ * One observer's sight inputs. Its own light, as far as it survives at its tile,
+ * extends its radius; cells where light survives are lit; cells where dark
+ * survives are obscured, along with anyone standing in them. Dark from other
+ * sources that still survives at its tile by the blinding threshold, once its own
+ * dark is left out, leaves it its own tile only (#284).
  */
 function resolveRegistrySight(observation: RegistryObservation, self: ActorRecord) {
-  const { width, height, lightByCell, darkStacksByCell, darkByCell } = resolveRegistryLightDark(observation);
+  const { lightByCell, darkStacksByCell } = resolveRegistryLightDark(observation);
   const tile = `${self.position.x},${self.position.y}`;
-  const ownLight = Math.max(0, poweredEmitStacks(self, 'light') - (darkByCell[tile] ?? 0));
-  // Blinding dark (#284) is other sources' dark against all the light at the tile.
-  const othersDark = readEmittedStacksByCell({ dimensions: { width, height }, actors: observation.actors }, 'dark', self.id)[tile] ?? 0;
-  const lightAtTile = readActorRegistryLightByCell({ dimensions: { width, height }, actors: observation.actors })[tile] ?? 0;
+  const ownLight = resolveOwnSightLight(litEmitStacks(self, 'light'), lightByCell[tile] ?? 0);
+  // Blinding dark (#284): the field at the tile re-resolved without the observer's own dark.
+  const atTile = observation.affinityContributions.filter(cell => cell.position.x === self.position.x
+    && cell.position.y === self.position.y && !(cell.sourceId === self.id && cell.kind === 'dark'));
+  const othersDark = fieldStacksByCell(resolveActorFieldOverlap(atTile), 'dark')[tile] ?? 0;
   return {
-    radius: resolveVisibilityRadius({ lightStacks: ownLight, blindingDarkStacks: Math.max(0, othersDark - lightAtTile) }),
+    radius: resolveVisibilityRadius({ lightStacks: ownLight, blindingDarkStacks: othersDark }),
     options: { darkStacksByCell, lightByCell, darkObscureThreshold: NET_DARK_OBSCURE_STACK_THRESHOLD },
   };
 }

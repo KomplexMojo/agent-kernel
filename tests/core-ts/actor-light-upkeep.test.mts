@@ -11,7 +11,8 @@ import {
 
 // Mana-powered light and per-turn upkeep (#200) on the unified actor registry.
 // Maintainer rulings: levels are unlit; any emitted light makes the cells it
-// reaches visible in line of sight; every light is powered by its mana; every
+// reaches visible in line of sight; a light shines while its affinity is on and
+// goes dark when it drains (sight reads the field, #288); every
 // lasting affinity (emit, draw) pays 2 + stacks a turn, and one that cannot pay
 // stays off until its mana regenerates to full.
 
@@ -45,37 +46,38 @@ function closeTurn(registry: ReturnType<typeof corridor>, tick: number) {
   turn.resolveExits();
 }
 
-test('a lamp lights the cells its powered stacks reach, so an unlit observer sees into them', () => {
-  // Lamp at x=6 with 2 stacks lights x=3..9. The observer at 0 sees one tile on its own.
+test('a lamp lights the cells its field reaches, so an unlit observer sees into them', () => {
+  // Lamp at x=6 with 2 stacks lights x=4..8. The observer at 0 sees one tile on its own.
   const registry = corridor(10, [actor('self', 0), lamp('lamp', 6, 2), actor('far', 4)]);
   const light = readActorRegistryLightByCell(registry.snapshot());
-  expect(Object.keys(light).sort()).toEqual(['3,0', '4,0', '5,0', '6,0', '7,0', '8,0', '9,0']);
+  expect(Object.keys(light).sort()).toEqual(['4,0', '5,0', '6,0', '7,0', '8,0']);
   const ids = scopeActorRegistryObservation(readActorRegistryObservation(registry, 0), 'self').actors.map(entry => entry.id);
   expect(ids).toContain('far');
   const visible = readActorRegistryVisibleCells(readActorRegistryObservation(registry, 0), 'self');
-  expect(visible[0]).toEqual([1, 1, 0, 1, 1, 1, 1, 1, 1, 1]);
+  expect(visible[0]).toEqual([1, 1, 0, 0, 1, 1, 1, 1, 1, 0]);
 });
 
-test('light is powered by mana: a half-full lamp shines half as far and a drained one is dark', () => {
+test('a lamp shines its full stacks while on, whatever its mana, and a drained one is dark (#288)', () => {
   const lightOf = (record: ActorRecord) => readActorRegistryLightByCell(corridor(10, [record]).snapshot());
   const half = lamp('lamp', 0, 4); half.vitals.mana = { current: 5, max: 10, regen: 0 };
-  // ceil(4 * 5/10) = 2 powered stacks: emit radius 3, so x=0..3.
-  expect(Object.keys(lightOf(half)).sort()).toEqual(['0,0', '1,0', '2,0', '3,0']);
-  const drained = lamp('lamp', 0, 4); drained.vitals.mana = { current: 0, max: 10, regen: 0 };
+  expect(lightOf(half)).toEqual({ '0,0': 4, '1,0': 4, '2,0': 4, '3,0': 4, '4,0': 4 });
+  const drained = lamp('lamp', 0, 4); drained.affinityExhausted = true;
   expect(lightOf(drained)).toEqual({});
-  const manaless = lamp('lamp', 0, 4); delete manaless.vitals.mana;
-  expect(lightOf(manaless)).toEqual({});
 });
 
-test("an observer's own sight radius follows its powered light", () => {
+test("an observer's own sight radius follows its lit light", () => {
   const self = lamp('self', 0, 4);
   const registry = corridor(8, [self, actor('far', 4)]);
   expect(readActorRegistryVisibleCells(readActorRegistryObservation(registry, 0), 'self')[0].slice(0, 6))
     .toEqual([1, 1, 1, 1, 1, 1]);
   registry.changeVital('self', 'mana', -9);
-  // 1 of 10 mana powers ceil(4/10) = 1 stack: sight 2, light reach 2.
+  // Low mana does not dim a light that is on.
   expect(readActorRegistryVisibleCells(readActorRegistryObservation(registry, 0), 'self')[0].slice(0, 6))
-    .toEqual([1, 1, 1, 0, 0, 0]);
+    .toEqual([1, 1, 1, 1, 1, 1]);
+  const drained = corridor(8, [{ ...lamp('self', 0, 4), affinityExhausted: true }, actor('far', 4)]);
+  // Switched off, it is back to the unlit floor of 1.
+  expect(readActorRegistryVisibleCells(readActorRegistryObservation(drained, 0), 'self')[0].slice(0, 6))
+    .toEqual([1, 1, 0, 0, 0, 0]);
 });
 
 test('a lasting affinity pays 2 + stacks each turn before regen; push pays nothing', () => {

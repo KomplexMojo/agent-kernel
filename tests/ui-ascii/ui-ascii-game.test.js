@@ -41,8 +41,10 @@ const FIRST_STEPS_SOLUTION = "dd.ss.dd.ss.ss.dd.d.";
 /** Move along `path`, resting a turn first whenever the player cannot pay for the step (#273). */
 async function walk(session, path, onMove = () => {}) {
   for (const direction of path) {
-    while ((session.view().player.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1) {
-      await session.act({ kind: "wait" });
+    // A defeated or departed player can never rest back up; stop rather than wait forever.
+    for (let rest = 0; rest < 20 && (session.view().player?.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1; rest += 1) {
+      const result = await session.act({ kind: "wait" });
+      if (result.status.defeated || result.status.exited) break;
     }
     onMove(await session.act({ kind: "move", params: { direction } }), direction);
   }
@@ -67,11 +69,15 @@ function solve(level, { othersAreWalls = true, target } = {}) {
     const index = terrain.indexOf("exit");
     goal = { x: index % width, y: Math.trunc(index / width) };
   }
+  // Traps are passable (a destroyable trap does not block a route), but a sensible
+  // player walks round them rather than through them, so the search does too.
+  const isTrap = (actor) => level.initialState.presentation?.[actor.id]?.category === "hazard";
   const occupied = new Set(othersAreWalls
     ? level.initialState.actors
-      .filter((actor) => actor.id !== player.id && actor.capabilities.blocksMovement)
+      .filter((actor) => actor.id !== player.id && (actor.capabilities.blocksMovement || isTrap(actor)))
       .map((actor) => `${actor.position.x},${actor.position.y}`)
     : []);
+  occupied.delete(`${goal.x},${goal.y}`); // a trap that is the goal is walked onto
   const steps = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
   const key = (p) => `${p.x},${p.y}`;
   const prev = new Map([[key(start), null]]);
@@ -124,7 +130,7 @@ test("bundled levels list in play order and every one loads and is winnable", as
     const { path } = solve(level);
     assert.ok(path.length > 0, `${name} has a path to its exit`);
     const session = await createPlaySession(level);
-    await walk(session, path, (result, direction) => assert.equal(result.accepted.length, 1, `${name}: ${direction}`));
+    await walk(session, path, (result, direction) => assert.equal(result.accepted.length, 1, `${name}: ${direction} ${JSON.stringify(result.rejected)} ${JSON.stringify(result.status)}`));
     assert.equal((await session.act({ kind: "wait" })).status.exited, true, `${name} exits`);
   }
 });
@@ -526,7 +532,12 @@ test("in colour, remembered cells are dimmed and unseen cells take the fog fill"
   assert.ok(screen.includes(`${ansi(dim.bg, 48)}${ansi(dim.fg, 38)}`), "a remembered floor cell is dimmed");
   assert.ok(screen.includes(`${ansi(GAME_COLOR_PALETTE.tiles.fog, 48)}`), "unseen cells sit on the fog fill");
   const plain = game.screen();
-  assert.equal(screen.replace(/\u001b\[[0-9;]*m/g, ""), plain, "colour adds escapes only");
+  // Without colour there is no dimming, so remembered floor is drawn blank instead (#284).
+  const stripped = screen.replace(/\u001b\[[0-9;]*m/g, "");
+  assert.equal(stripped.length, plain.length, "colour adds escapes, and the plain screen keeps every cell");
+  assert.ok([...plain].every((char, i) => char === stripped[i] || (char === " " && stripped[i] === ".")),
+    "the only plain-text difference is remembered floor drawn blank");
+  assert.ok([...plain].some((char, i) => char !== stripped[i]), "some remembered floor is blank without colour");
   assert.equal(paintBoardRow("..", styles, null, "rv"), `${ansi(dim.bg, 48)}${ansi(dim.fg, 38)}.\u001b[0m${ansi(styles["."].bg, 48)}${ansi(styles["."].fg, 38)}.\u001b[0m`);
 });
 
