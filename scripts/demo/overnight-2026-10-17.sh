@@ -259,12 +259,13 @@ orders() {
   session order --actor D3 --strategy reach:exit | pick "$turns + \"; orders: \" + $orders"
   step "A malformed strategy is refused, and no turn passes"
   session order --actor D2 --strategy dance:1 2>&1 | head -1 || true
-  step "The seated hero can take orders too"
-  session order --actor D1 --strategy reach:exit | pick "$turns + \"; orders: \" + $orders"
+  step "The seated hero can take orders too: the companion leads, the hero follows (#338)"
+  session order --actor D2 --strategy lead:D1:2 >/dev/null
+  session order --actor D1 --strategy follow:D2:1 | pick "$turns + \"; orders: \" + $orders"
 
-  step "advance --until orders_done: the orders play out; it stops when the seated hero leaves"
+  step "advance --until orders_done: the companion leads the hero to the exit and leaves; the follow ends there"
   session advance --until orders_done | pick '"stopped by " + r.results[0].stoppedBy + " after " + r.results[0].ticks + " ticks; "
-    + r.party.map((p) => p.label + (p.status.exited ? " exited" : " in play")).join(", ")'
+    + r.party.map((p) => p.label + (p.status.exited ? " exited" : p.status.atExit ? " at the exit" : " in play")).join(", ")'
   session view | pick "\"orders: \" + $orders"
   session view --save "$WORK/orders-game.json" | pick '"saved a copy: " + (r.saved ? "yes" : "no")'
   end_session
