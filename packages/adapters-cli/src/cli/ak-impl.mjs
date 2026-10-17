@@ -4694,6 +4694,8 @@ async function validateScenarioDryRun(args) {
     spec: buildSpecResult.spec,
     producedBy: "cli-llm-plan",
     capturedInputs: capturedInputsForBuild,
+    // #280: the plan this build persists is the one this round drafted.
+    directorRound: director.currentRound(),
   });
 
   return buildDryRunSuccess({

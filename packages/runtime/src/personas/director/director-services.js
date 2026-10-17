@@ -63,6 +63,7 @@ export function attachDirectorServices({
   createConfigurator,
 } = {}) {
   let planArtifact = null;
+  let roundIntent = null;
   let buildSpecCount = 0;
 
   const currentState = () => fsm.view().state;
@@ -92,12 +93,22 @@ export function attachDirectorServices({
     advanceWithPlan("bootstrap", payload);
     const drafted = advanceWithPlan("ingest_intent", payload);
     planArtifact = drafted.planArtifact ?? null;
+    roundIntent = intentEnvelope;
     return { state: currentState(), planArtifact };
   }
 
   /** The plan produced by the current build round, if any. */
   function currentPlan() {
     return planArtifact;
+  }
+
+  /**
+   * #280: the round as a pair — the IntentEnvelope that opened it and the plan it drafted —
+   * so a build carries this round instead of reconstructing one from the finished spec.
+   * Null before beginBuild.
+   */
+  function currentRound() {
+    return roundIntent && planArtifact ? { intent: roundIntent, plan: planArtifact } : null;
   }
 
   function mapPool(args = {}) {
@@ -399,6 +410,7 @@ export function attachDirectorServices({
   return {
     beginBuild,
     currentPlan,
+    currentRound,
     mapPool,
     deriveLevelGen,
     buildCardSet,

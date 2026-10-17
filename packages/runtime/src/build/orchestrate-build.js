@@ -235,6 +235,13 @@ export async function orchestrateBuild({
 
   const mapped = mapBuildSpecToArtifacts(spec, { producedBy, directorRound });
 
+  // #280: every build validates and locks its config through the Configurator, not only
+  // create/configure. A config the Configurator rejects fails the build, whoever called it.
+  const roundConfigurator = createConfiguratorPersona({ clock: () => spec.meta.createdAt });
+  roundConfigurator.provideConfig(mapped.configuratorInputs || {});
+  roundConfigurator.validate();
+  roundConfigurator.lock();
+
   let solverRequest = null;
   let solverResult = null;
   if (solver?.adapter) {

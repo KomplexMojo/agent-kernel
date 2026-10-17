@@ -286,8 +286,10 @@ the CONFIG plane uses the service surface below. Both move the same state machin
 `validate()` and `lock()` were label-only until CR.2 (2026-07-29): both were
 `requireState` + `fsm.advance`, and the production authoring path
 (`build/authoring-build.js`) called neither, so a malformed `levelGen` or resource
-list reached `orchestrateBuild` untouched. `runAuthoringBuild` now validates and
-locks before the build proceeds — a config the Configurator rejects fails the build.
+list reached `orchestrateBuild` untouched. Since #280 `orchestrateBuild` itself validates and
+locks, so every build path (create/configure, the *-plan commands, `ak build`, `ak llm-plan`,
+`ak scenario`, the sandbox bridge) gets the same verdict, and `ak configurator` runs the same
+round on its `--level-gen`/`--actors` input — a config the Configurator rejects fails the build.
 
 Validation is **permissive on presence, strict on type**: production emits partial
 shapes that are legitimate (the `resource-plan-g4` golden carries

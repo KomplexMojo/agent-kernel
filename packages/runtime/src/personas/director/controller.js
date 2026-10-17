@@ -304,6 +304,7 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     subscribePhases: directorSubscribePhases,
     beginBuild: services.beginBuild,
     currentPlan: services.currentPlan,
+    currentRound: services.currentRound,
     mapPool: services.mapPool,
     // D8.1 — level geometry for callers that want no BuildSpec (the preview path).
     deriveLevelGen: services.deriveLevelGen,
