@@ -21,6 +21,7 @@ import {
 import { hudLine } from "./screen.js";
 import { createWatch } from "./watch.js";
 import { DEFAULT_REALTIME_MS, REALTIME_TOGGLE_KEY, parseRealtimeMs, realtimeBeat, realtimeLine } from "./realtime.js";
+import { DEFAULT_WEB_PORT, lanAddresses, startWebGame } from "./web.mjs";
 
 const USAGE = `Usage: ak-maze [options]
 
@@ -38,6 +39,10 @@ const USAGE = `Usage: ak-maze [options]
   --no-fog                debug: show the whole map (play is always under fog of war)
   --realtime <ms>         interactive play: a turn passes every <ms> while you wait (t toggles;
                           turn-based by default)
+  --web                   play in a browser tab instead: serves the game on http://localhost:<port>
+  --port <n>              with --web: the port (default ${DEFAULT_WEB_PORT})
+  --lan                   with --web: also serve the local network, so a phone on the same
+                          Wi-Fi can play (prints the address to open)
   --watch                 with --run: watch the run \`ak run\` recorded there, tick by tick
   --tick <n>              with --watch: open at this tick (default 0)
   --no-help               start with the key help hidden (? shows it)
@@ -81,6 +86,14 @@ export function parseArgs(argv) {
       case "--no-color": options.color = false; break;
       case "--no-fog": options.fog = false; break;
       case "--watch": options.watch = true; break;
+      case "--web": options.web = true; break;
+      case "--lan": options.lan = true; break;
+      case "--port": {
+        const value = next();
+        if (!/^\d+$/.test(value) || Number(value) > 65535) throw new Error(`--port needs a port number, got ${value}`);
+        options.port = Number(value);
+        break;
+      }
       case "--no-help": options.showHelp = false; break;
       case "--session": options.sessionPath = next(); break;
       case "--actor": options.actor = next(); break;
@@ -273,7 +286,11 @@ export async function main(argv = process.argv.slice(2)) {
   // Reported, not fixed: the level is played as written.
   const { warnings } = game.state();
   for (const warning of warnings) console.error(`warning: ${warning}`);
-  if (options.keys !== undefined || (options.replayPath && (options.json || !process.stdin.isTTY))) {
+  if (options.web && (options.keys !== undefined || options.json)) {
+    console.error(`--web is for play in a browser; drop --keys/--json.\n\n${USAGE}`);
+    return 2;
+  }
+  if (!options.web && (options.keys !== undefined || (options.replayPath && (options.json || !process.stdin.isTTY)))) {
     const color = options.json ? options.color === "always" && "truecolor" : resolveColor(options, { isTTY: process.stdout.isTTY, env: process.env });
     const screen = await runScripted(game, options.keys ?? "", { color });
     if (options.recordPath) recordGame(game, options.recordPath);
@@ -287,6 +304,20 @@ export async function main(argv = process.argv.slice(2)) {
   }
   if (options.json) {
     console.error("--json needs --keys (an interactive game has no single result).");
+    return 2;
+  }
+  if (options.web) {
+    const server = await startWebGame(game, { port: options.port ?? DEFAULT_WEB_PORT, realtimeMs: options.realtimeMs ?? null,
+      host: options.lan ? "0.0.0.0" : "127.0.0.1" });
+    const { port } = server.address();
+    console.log(`Playing in your browser: http://localhost:${port}  (Ctrl-C here to stop)`);
+    if (options.lan) {
+      for (const address of lanAddresses()) console.log(`On a phone on the same network: http://${address}:${port}`);
+    }
+    return null; // keeps serving until stopped
+  }
+  if (options.port !== undefined || options.lan) {
+    console.error(`--port and --lan need --web.\n\n${USAGE}`);
     return 2;
   }
   if (!process.stdin.isTTY) {

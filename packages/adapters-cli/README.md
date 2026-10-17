@@ -306,6 +306,7 @@ Inputs/outputs:
 - A level is played as written. Delvers or wardens below the viability floor are reported as `warning:` lines on
   stderr, and as `warnings` with `--json`.
 - `--realtime <ms>` (interactive play only) passes a turn every `<ms>` milliseconds while the player waits; `t` toggles it
+- `--web` plays in a browser tab instead of the terminal, served on `http://localhost:8765` (`--port <n>` to change; `--lan` also serves the local network for a phone on the same Wi-Fi and prints its address); not with `--keys`/`--json`
   in game. Play is turn-based by default (#291).
 - `--record <path>` saves the played commands as a `CapturedInputArtifact`; `--replay <path>` re-runs a saved
   game on its level, then play continues (both pass through to the UI; see `packages/ui-ascii/README.md`).
