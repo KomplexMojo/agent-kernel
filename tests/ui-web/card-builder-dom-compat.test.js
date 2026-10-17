@@ -212,7 +212,7 @@ test("DOM builder and headless controller match for hazard and resource budget-c
   const controller = createCardBuilderController();
   const cards = [
     createDesignCard({ id: "hazard_budget", type: "hazard", affinity: "decay", expressions: ["emit"], count: 1, tokenHint: 50 }),
-    createDesignCard({ id: "resource_budget", type: "resource", affinity: "life", budgetCeiling: 100, count: 1 }),
+    createDesignCard({ id: "resource_budget", type: "resource", affinity: "growth", budgetCeiling: 100, count: 1 }),
   ];
 
   assert.equal(guidance.setCards(cards.map((card) => createDesignCard(card))), true);

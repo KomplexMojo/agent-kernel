@@ -17,11 +17,11 @@ test("affinity presets and loadouts normalize with defaults", async () => {const
 
 const presetsResult = normalizeAffinityPresetCatalog(presetsFixture);
 assert.equal(presetsResult.ok, true);
-const lifePull = presetsResult.value.presets.find((preset) => preset.id === "affinity_life_pull");
-assert.equal(lifePull.manaCost, 0);
-assert.equal(Array.isArray(lifePull.abilities), true);
-assert.equal(lifePull.abilities.length, 1);
-assert.equal(lifePull.vitalsModifiers.health.max, 2);
+const growthPull = presetsResult.value.presets.find((preset) => preset.id === "affinity_growth_pull");
+assert.equal(growthPull.manaCost, 0);
+assert.equal(Array.isArray(growthPull.abilities), true);
+assert.equal(growthPull.abilities.length, 1);
+assert.equal(growthPull.vitalsModifiers.health.max, 2);
 
 const loadoutsResult = normalizeActorLoadoutCatalog(loadoutsFixture, { presets: presetsResult.value.presets });
 assert.equal(loadoutsResult.ok, true);

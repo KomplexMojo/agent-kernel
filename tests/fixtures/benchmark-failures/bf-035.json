@@ -53,7 +53,7 @@
     ],
     "runId": "setup_mode_delver_001"
   },
-  "observedError": "delver[1] affinity must be one of: fire, water, earth, wind, life, decay, corrode, fortify, light, dark.\n",
+  "observedError": "delver[1] affinity must be one of: fire, water, earth, wind, growth, decay, corrode, fortify, light, dark.\n",
   "occurrences": 1,
   "disposition": "model-error",
   "dispositionNote": "delver affinity value outside the supported enum."

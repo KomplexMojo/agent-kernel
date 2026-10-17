@@ -8,10 +8,10 @@ import type { ActorRecord, ActorAffinityEntry } from '../../packages/core-ts/src
 // stacks, the actor's regen of that affinity's vital stops (harmful emit) or doubles
 // (restoring emit) for the turn.
 
-const PAIRS = [['fire', 'water'], ['earth', 'wind'], ['life', 'decay'], ['corrode', 'fortify'], ['light', 'dark']] as const;
+const PAIRS = [['fire', 'water'], ['earth', 'wind'], ['growth', 'decay'], ['corrode', 'fortify'], ['light', 'dark']] as const;
 const HARM: Record<string, string> = { fire: 'durability', water: 'health', earth: 'durability', wind: 'stamina',
   decay: 'health', corrode: 'durability', dark: 'mana' };
-const RESTORE: Record<string, string> = { life: 'health', fortify: 'durability', light: 'mana' };
+const RESTORE: Record<string, string> = { growth: 'health', fortify: 'durability', light: 'mana' };
 
 function actor(id: string, x: number, pair?: ActorAffinityEntry): ActorRecord {
   const vital = { current: 5, max: 10, regen: 1 };
@@ -54,7 +54,7 @@ test("an actor's own emission never overwhelms it", () => {
   }
 });
 
-test('a turn applies it: decay stops health regen, life doubles it', () => {
+test('a turn applies it: decay stops health regen, growth doubles it', () => {
   const run = (kind: string) => {
     const state = registry([actor('trap', 1, emit(kind, 2)), actor('hero', 3)]);
     state.regenerate({ hero: Object.fromEntries(readActorOverwhelms(state)
@@ -62,7 +62,7 @@ test('a turn applies it: decay stops health regen, life doubles it', () => {
     return state.getActor('hero')!.vitals.health!.current;
   };
   expect(run('decay')).toBe(5);
-  expect(run('life')).toBe(7);
+  expect(run('growth')).toBe(7);
 });
 
 // ## TODO: Test Permutations

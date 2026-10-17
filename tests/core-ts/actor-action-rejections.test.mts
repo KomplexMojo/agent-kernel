@@ -71,5 +71,5 @@ test('every reason core gives is a ValidationError name', () => {
 // - a take by an actor without canTake is InvalidCapability
 // - a take of an already claimed holding is NothingToTake
 // - a take from a living actor is InvalidTarget
-// - self-drain (life pull on self) is InvalidTarget
+// - self-drain (growth pull on self) is InvalidTarget
 // - an accepted action leaves lastRejection null

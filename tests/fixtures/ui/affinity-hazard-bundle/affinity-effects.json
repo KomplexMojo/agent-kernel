@@ -10,9 +10,9 @@
       },
       "abilities": [
         { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "potency": 4, "manaCost": 6 },
-        { "id": "life_surge", "kind": "buff", "affinityKind": "life", "expression": "pull", "potency": 1, "manaCost": 0 }
+        { "id": "growth_surge", "kind": "buff", "affinityKind": "growth", "expression": "pull", "potency": 1, "manaCost": 0 }
       ],
-      "affinityStacks": { "fire:push": 2, "life:pull": 1 }
+      "affinityStacks": { "fire:push": 2, "growth:pull": 1 }
     },
     {
       "actorId": "actor_rival",

@@ -13,7 +13,7 @@ const { createPlaySession } = require("../../packages/runtime/src/runner/play-se
 const { renderScreen } = require("../../packages/ui-ascii/src/screen.js");
 const { buildUnifiedLevel, viableVitals } = require("../fixtures/ui-ascii/unified-level.mjs");
 
-const OPPOSITES = [["fire", "water"], ["earth", "wind"], ["life", "decay"], ["corrode", "fortify"], ["light", "dark"]];
+const OPPOSITES = [["fire", "water"], ["earth", "wind"], ["growth", "decay"], ["corrode", "fortify"], ["light", "dark"]];
 const HALL = ["###########", "S.........E", "###########"];
 const PLAYER = { category: "delver", id: "hero", position: { x: 1, y: 1 }, vitals: viableVitals(), motivations: ["user_controlled"] };
 
@@ -43,8 +43,8 @@ test("every opposite pair cancels where equal fields meet, and unrelated kinds l
     const view = (await session([trap("ta", a, 4), trap("tb", b, 6)])).view();
     assert.deepEqual(kindsAt(view, 5), [], `${a}/${b} cancel at the midpoint`);
   }
-  const layered = (await session([trap("ta", "fire", 4), trap("tb", "life", 6)])).view();
-  assert.deepEqual([...kindsAt(layered, 5)].sort(), ["fire", "life"]);
+  const layered = (await session([trap("ta", "fire", 4), trap("tb", "growth", 6)])).view();
+  assert.deepEqual([...kindsAt(layered, 5)].sort(), ["fire", "growth"]);
 });
 
 test("with fog the view only carries the field on cells the player sees now", async () => {
@@ -65,8 +65,8 @@ test("a field tints the fill toward its affinity colour, opposed or mixed alike"
     const distance = (a, b) => [1, 3, 5].reduce((sum, i) => sum + Math.abs(parseInt(a.slice(i, i + 2), 16) - parseInt(b.slice(i, i + 2), 16)), 0);
     assert.ok(distance(tinted.bg, GAME_AFFINITY_COLOR_HEX[kind]) < distance(floor.bg, GAME_AFFINITY_COLOR_HEX[kind]), kind);
   }
-  const mixed = asciiFieldCellStyle(floor, [{ kind: "life", intensity: 1 }, { kind: "fire", intensity: 1 }]);
-  assert.notEqual(mixed.bg, asciiFieldCellStyle(floor, [{ kind: "life", intensity: 1 }]).bg);
+  const mixed = asciiFieldCellStyle(floor, [{ kind: "growth", intensity: 1 }, { kind: "fire", intensity: 1 }]);
+  assert.notEqual(mixed.bg, asciiFieldCellStyle(floor, [{ kind: "growth", intensity: 1 }]).bg);
   assert.notEqual(mixed.bg, asciiFieldCellStyle(floor, [{ kind: "fire", intensity: 1 }]).bg);
 });
 

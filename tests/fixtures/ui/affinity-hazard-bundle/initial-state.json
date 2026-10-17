@@ -24,10 +24,10 @@
         "durability": { "current": 0, "max": 0, "regen": 0 }
       },
       "traits": {
-        "affinities": { "fire:push": 2, "life:pull": 1 },
+        "affinities": { "fire:push": 2, "growth:pull": 1 },
         "abilities": [
           { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "potency": 4, "manaCost": 6 },
-          { "id": "life_surge", "kind": "buff", "affinityKind": "life", "expression": "pull", "potency": 1, "manaCost": 0 }
+          { "id": "growth_surge", "kind": "buff", "affinityKind": "growth", "expression": "pull", "potency": 1, "manaCost": 0 }
         ]
       }
     },

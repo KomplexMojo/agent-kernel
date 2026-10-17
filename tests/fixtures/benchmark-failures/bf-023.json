@@ -52,7 +52,7 @@
         "proximityRadius": 2
       },
       {
-        "affinity": "life",
+        "affinity": "growth",
         "blocking": true,
         "expression": "push",
         "proximityRadius": 2
@@ -114,7 +114,7 @@
         }
       },
       {
-        "affinity": "life",
+        "affinity": "growth",
         "expression": "push",
         "mana": 30,
         "permanenceMode": "permanent",
@@ -194,7 +194,7 @@
         }
       },
       {
-        "affinity": "life",
+        "affinity": "growth",
         "count": 1,
         "motivation": "stationary",
         "vitals": {

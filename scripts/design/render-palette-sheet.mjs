@@ -3,9 +3,9 @@ import { encodePng } from "./png.mjs";
 import { FONT } from "./glyphs.mjs";
 
 const NEW = JSON.parse(readFileSync(new URL("../../docs/design/affinity-palette-2026-09.json", import.meta.url), "utf8"));
-const OLD = { fire:"#f05a28", water:"#2b7fff", earth:"#7a5c33", wind:"#60d8c0", life:"#49b96b",
+const OLD = { fire:"#f05a28", water:"#2b7fff", earth:"#7a5c33", wind:"#60d8c0", growth:"#49b96b",
               decay:"#a05828", corrode:"#c8c030", fortify:"#9ca3af", light:"#f5d14d", dark:"#0b0d12" };
-const ORDER = ["fire","water","earth","wind","life","decay","corrode","fortify","light","dark"];
+const ORDER = ["fire","water","earth","wind","growth","decay","corrode","fortify","light","dark"];
 const FLOOR = "#3a3a3a", BG = "#15181c", INK = "#e8ecf0", DIM = "#8a949e", OUTLINE = "#f2f5f8";
 
 const W = 1268, H = 760;
@@ -57,7 +57,7 @@ text("RETIRED", 250, y, rgb(DIM), 1);
 text("LANDED", 340, y, rgb(DIM), 1);
 text("OPPOSED ON", 470, y, rgb(DIM), 1);
 y += 14;
-const PAIRS = [["fire","water","HUE"],["earth","wind","HUE"],["life","decay","HUE"],
+const PAIRS = [["fire","water","HUE"],["earth","wind","HUE"],["growth","decay","HUE"],
                ["corrode","fortify","CHROMA - SATURATED VS NEUTRAL"],["light","dark","LIGHTNESS - NEAR WHITE VS CHARCOAL"]];
 for (const [a, b, axis] of PAIRS) {
   for (const [k, name] of [[0, a], [1, b]]) {

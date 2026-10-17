@@ -80,7 +80,7 @@ test("shows only the vitals its role actually has", () => {
   assert.deepEqual(hazard.vitals.map((v) => v.key), [...HAZARD_VITAL_KEYS]);
 
   const resource = buildActorHudModel({
-    id: "r1", type: "resource", affinity: { kind: "life" },
+    id: "r1", type: "resource", affinity: { kind: "growth" },
     vitals: { health: { current: 1, max: 2 }, mana: { current: 1, max: 2 }, stamina: { current: 1, max: 2 } },
   });
   assert.deepEqual(resource.vitals.map((v) => v.key), [...RESOURCE_VITAL_KEYS]);

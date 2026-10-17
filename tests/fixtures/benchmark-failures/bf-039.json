@@ -3,7 +3,7 @@
   "sourceRunId": "2026-08-28T17-48-28-063Z-94b75c0d2094-60bd8e52",
   "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
   "scenarioIndex": 83,
-  "scenarioTitle": "Create Life Decay Resource Opposition",
+  "scenarioTitle": "Create Growth Decay Resource Opposition",
   "expectedOutcome": "success",
   "observedOutcome": "execution_failed",
   "scenarioBudget": null,
@@ -11,7 +11,7 @@
     "emitIntermediates": true,
     "delver": [
       {
-        "affinity": "life",
+        "affinity": "growth",
         "count": 1,
         "goals": [
           {
@@ -60,7 +60,7 @@
     ],
     "resource": [
       {
-        "affinity": "life",
+        "affinity": "growth",
         "expression": "emit",
         "mana": 15,
         "permanenceMode": "permanent",
@@ -68,8 +68,8 @@
         "stacks": 3
       }
     ],
-    "text": "A life Delver and decay Warden contesting a permanent mana regeneration resource. The Delver seeks to maximize mana regen, while the Warden aims to disrupt the resource.",
-    "runId": "contest_life_decay",
+    "text": "A growth Delver and decay Warden contesting a permanent mana regeneration resource. The Delver seeks to maximize mana regen, while the Warden aims to disrupt the resource.",
+    "runId": "contest_growth_decay",
     "outDir": "./artifacts"
   },
   "observedError": "resource[1] vital is required for a vital payload (read as a vital payload because permanenceMode, regen are set). For an affinity-only resource, omit permanenceMode, regen.\n",

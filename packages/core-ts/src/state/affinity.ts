@@ -5,7 +5,7 @@ export const AffinityKind = {
   Water: 2,
   Earth: 3,
   Wind: 4,
-  Life: 5,
+  Growth: 5,
   Decay: 6,
   Corrode: 7,
   Fortify: 8,
@@ -58,8 +58,8 @@ OPPOSITE_TABLE[AffinityKind.Fire] = AffinityKind.Water;
 OPPOSITE_TABLE[AffinityKind.Water] = AffinityKind.Fire;
 OPPOSITE_TABLE[AffinityKind.Earth] = AffinityKind.Wind;
 OPPOSITE_TABLE[AffinityKind.Wind] = AffinityKind.Earth;
-OPPOSITE_TABLE[AffinityKind.Life] = AffinityKind.Decay;
-OPPOSITE_TABLE[AffinityKind.Decay] = AffinityKind.Life;
+OPPOSITE_TABLE[AffinityKind.Growth] = AffinityKind.Decay;
+OPPOSITE_TABLE[AffinityKind.Decay] = AffinityKind.Growth;
 OPPOSITE_TABLE[AffinityKind.Corrode] = AffinityKind.Fortify;
 OPPOSITE_TABLE[AffinityKind.Fortify] = AffinityKind.Corrode;
 OPPOSITE_TABLE[AffinityKind.Light] = AffinityKind.Dark;
@@ -71,7 +71,7 @@ VITAL_TARGET_TABLE[AffinityKind.Fire] = VitalKind.Health;
 VITAL_TARGET_TABLE[AffinityKind.Water] = VitalKind.Health;
 VITAL_TARGET_TABLE[AffinityKind.Earth] = VitalKind.Stamina;
 VITAL_TARGET_TABLE[AffinityKind.Wind] = VitalKind.Stamina;
-VITAL_TARGET_TABLE[AffinityKind.Life] = VitalKind.Health;
+VITAL_TARGET_TABLE[AffinityKind.Growth] = VitalKind.Health;
 VITAL_TARGET_TABLE[AffinityKind.Decay] = VitalKind.Health;
 VITAL_TARGET_TABLE[AffinityKind.Corrode] = VitalKind.Durability;
 VITAL_TARGET_TABLE[AffinityKind.Fortify] = VitalKind.Durability;
@@ -184,7 +184,7 @@ PRIMARY_VITAL_BY_AFFINITY[AffinityKind.Fire] = VitalKind.Health;
 PRIMARY_VITAL_BY_AFFINITY[AffinityKind.Water] = VitalKind.Health;
 PRIMARY_VITAL_BY_AFFINITY[AffinityKind.Earth] = VitalKind.Durability;
 PRIMARY_VITAL_BY_AFFINITY[AffinityKind.Wind] = VitalKind.Stamina;
-PRIMARY_VITAL_BY_AFFINITY[AffinityKind.Life] = VitalKind.Health;
+PRIMARY_VITAL_BY_AFFINITY[AffinityKind.Growth] = VitalKind.Health;
 PRIMARY_VITAL_BY_AFFINITY[AffinityKind.Decay] = VitalKind.Health;
 PRIMARY_VITAL_BY_AFFINITY[AffinityKind.Corrode] = VitalKind.Durability;
 PRIMARY_VITAL_BY_AFFINITY[AffinityKind.Fortify] = VitalKind.Durability;
@@ -197,7 +197,7 @@ POLARITY_BY_AFFINITY[AffinityKind.Fire] = -1;
 POLARITY_BY_AFFINITY[AffinityKind.Water] = +1;
 POLARITY_BY_AFFINITY[AffinityKind.Earth] = +1;
 POLARITY_BY_AFFINITY[AffinityKind.Wind] = -1;
-POLARITY_BY_AFFINITY[AffinityKind.Life] = +1;
+POLARITY_BY_AFFINITY[AffinityKind.Growth] = +1;
 POLARITY_BY_AFFINITY[AffinityKind.Decay] = -1;
 POLARITY_BY_AFFINITY[AffinityKind.Corrode] = -1;
 POLARITY_BY_AFFINITY[AffinityKind.Fortify] = +1;

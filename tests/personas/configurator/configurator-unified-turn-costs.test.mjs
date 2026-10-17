@@ -38,7 +38,7 @@ test('requires explicit finite movement costs and supports arbitrary stable IDs'
   const input = JSON.parse('{"__proto__":3,"constructor":4}');
   expect(c.resolveActorTurnCosts({ movementStamina: input }).movementStamina).toEqual(input);
 });
-// Every push and pull costs mana (maintainer, 2026-10-11); life:pull was the one free cast.
+// Every push and pull costs mana (maintainer, 2026-10-11); growth:pull was the one free cast.
 test('no default push or pull is free', () => {
   const { castManaBase } = c.resolveActorTurnCosts({ movementStamina: {} });
   for (const [key, base] of Object.entries(castManaBase)) {

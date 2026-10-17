@@ -6,7 +6,7 @@ test("affinity bindings round-trip all kind and expression names", async () => {
     AFFINITY_EXPRESSION_BY_CODE,
   } = await import("../../packages/core-ts/src/index.ts");
   assert.deepEqual(Object.values(AFFINITY_KIND_BY_CODE), [
-    "fire", "water", "earth", "wind", "life",
+    "fire", "water", "earth", "wind", "growth",
     "decay", "corrode", "fortify", "light", "dark",
   ]);
   assert.deepEqual(Object.values(AFFINITY_EXPRESSION_BY_CODE), ["push", "pull", "emit", "draw"]);

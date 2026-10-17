@@ -13,7 +13,7 @@ function actor(id, x = 0) {
 }
 function setup() {
   const source = actor('source', 1); source.alignment = 'dungeon';
-  source.affinities = [{ kind: 'fire', expression: 'emit', stacks: 8 }, { kind: 'life', expression: 'draw', stacks: 2 }];
+  source.affinities = [{ kind: 'fire', expression: 'emit', stacks: 8 }, { kind: 'growth', expression: 'draw', stacks: 2 }];
   source.activeAffinityKey = 'fire:emit';
   const registry = createActorRegistry({ dimensions: { width: 4, height: 1 }, terrain: Array(4).fill('floor'),
     actors: [actor('self'), actor('other'), source] });
@@ -42,7 +42,7 @@ test('taking claims one stack and one turn; competing claims cannot duplicate it
   expect(registry.getActor('self').affinities.find(pair => pair.kind === 'fire')).toEqual({ kind: 'fire', expression: 'emit', stacks: 1 });
   expect(registry.getActor('self').activeAffinityKey).toBe('water:push');
   expect(observation.actors.find(actor => actor.id === 'source').holdings[0].claimedBy).toBe(null);
-  expect(decide(readActorRegistryObservation(registry, 1)).actions[0].params.holdingId).toBe('affinity:life:draw');
+  expect(decide(readActorRegistryObservation(registry, 1)).actions[0].params.holdingId).toBe('affinity:growth:draw');
 });
 test.each(['living_source', 'exited_source', 'distant', 'claimed', 'disabled', 'defeated_receiver'])('%s is not a taking candidate', scenario => {
   const observation = readActorRegistryObservation(setup(), 0);

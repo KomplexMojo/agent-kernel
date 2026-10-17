@@ -42,7 +42,7 @@ async function writeUnifiedAffinityArtifacts(dir) {
         motivations: ["attacking"],
         affinities: [
           { kind: "fire", expression: "push", stacks: 2 },
-          { kind: "life", expression: "pull", stacks: 1 },
+          { kind: "growth", expression: "pull", stacks: 1 },
         ],
         activeAffinityKey: "fire:push",
         vitals: {

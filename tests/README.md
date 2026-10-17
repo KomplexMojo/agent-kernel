@@ -155,7 +155,7 @@ When generating permutations, stay **bounded and explainable**.
 Generated tests must start from these canonical game concepts. Do not invent
 new names just because a local helper currently tolerates them.
 
-- Affinity kinds are only: `fire`, `water`, `earth`, `wind`, `life`,
+- Affinity kinds are only: `fire`, `water`, `earth`, `wind`, `growth`,
   `decay`, `corrode`, `fortify`, `light`, `dark`.
 - Affinity expressions are only: `push`, `pull`, `emit`, `draw`.
 - Affinity stacks are positive integer strength counts attached to an

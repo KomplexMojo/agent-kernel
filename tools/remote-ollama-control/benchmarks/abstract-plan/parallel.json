@@ -2,7 +2,7 @@
   "schemaVersion": "agent-kernel-abstract-plan-catalog/v1",
   "sourceScenarioSet": {
     "count": 100,
-    "sha256": "11e70c490d0f8ac02bf11ca52f7acfba4346bf0bd3f8ecb43baadf385ca564c0"
+    "sha256": "05ee94ac5e5400e3889a67ae9d611af261981179988472d8356a5a85de6b8f72"
   },
   "scenarios": [
     {
@@ -856,7 +856,7 @@
         "minimumCost": 23
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-person Delver party with one fire attacker and one life-friendly support Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-person Delver party with one fire attacker and one growth-friendly support Delver. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-4f725a62881b": {
@@ -869,11 +869,11 @@
           },
           "p-89ad6baf489b": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:1;vitals=health:8:2,stamina:5:1,mana:5:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:1;vitals=health:8:2,stamina:5:1,mana:5:1"
           },
           "p-91b14eff64af": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:1;vitals=health:8:2,stamina:5:1,mana:5:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:1;vitals=health:8:2,stamina:5:1,mana:5:1"
           }
         }
       }
@@ -1500,7 +1500,7 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a water-themed recovery encounter with a life support Delver and a water mana hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a water-themed recovery encounter with a growth support Delver and a water mana hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "dungeonAffinity": "water"
         },
@@ -1531,11 +1531,11 @@
           },
           "p-6654e0d867a6": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:6:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:6:1"
           },
           "p-7da07c493ba2": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:6:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:6:1"
           }
         }
       }
@@ -2153,9 +2153,9 @@
         "minimumCost": 81
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a life shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a growth shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "dungeonAffinity": "life"
+          "dungeonAffinity": "growth"
         },
         "components": {
           "p-8f20e4f3743b": {
@@ -2176,11 +2176,11 @@
           },
           "p-a7f9812c637c": {
             "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "spec": "id=room_1_field_1;affinity=growth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
           },
           "p-f2fc52f8341a": {
             "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "spec": "id=room_1_field_1;affinity=growth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
           },
           "p-8700414d7d32": {
             "target": "resource",
@@ -2192,11 +2192,11 @@
           },
           "p-97b504662c75": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
           },
           "p-d61f154ee1a4": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
           },
           "p-77443767f462": {
             "target": "warden",
@@ -2562,11 +2562,11 @@
           },
           "p-83a529bea184": {
             "target": "delver",
-            "spec": "count=1;id=delver_temporary_affinity;affinity=life;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+            "spec": "count=1;id=delver_temporary_affinity;affinity=growth;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "p-5b6f84d71c32": {
             "target": "delver",
-            "spec": "count=1;id=delver_temporary_affinity;affinity=life;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+            "spec": "count=1;id=delver_temporary_affinity;affinity=growth;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "p-73e9af893814": {
             "target": "warden",
@@ -5375,7 +5375,7 @@
         "minimumCost": 65
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests life support against decay pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests growth support against decay pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-cbd2a94be9c6": {
@@ -5404,11 +5404,11 @@
           },
           "p-93896d131c74": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:10:2,stamina:5:1,mana:5:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:10:2,stamina:5:1,mana:5:1"
           },
           "p-f005049fbe54": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:10:2,stamina:5:1,mana:5:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:10:2,stamina:5:1,mana:5:1"
           },
           "p-7545a677ad41": {
             "target": "warden",
@@ -7065,11 +7065,11 @@
           },
           "p-0e2a858293a5": {
             "target": "delver",
-            "spec": "count=1;affinity=water;motivation=exploring;setup-mode=hybrid;affinities=water:draw:2,life:pull:1;vitals=health:8:2,stamina:6:1,mana:6:1"
+            "spec": "count=1;affinity=water;motivation=exploring;setup-mode=hybrid;affinities=water:draw:2,growth:pull:1;vitals=health:8:2,stamina:6:1,mana:6:1"
           },
           "p-aa4fbff507ca": {
             "target": "delver",
-            "spec": "count=1;affinity=water;motivation=exploring;setup-mode=hybrid;affinities=water:draw:2,life:pull:1;vitals=health:8:2,stamina:6:1,mana:6:1"
+            "spec": "count=1;affinity=water;motivation=exploring;setup-mode=hybrid;affinities=water:draw:2,growth:pull:1;vitals=health:8:2,stamina:6:1,mana:6:1"
           }
         }
       }
@@ -7270,7 +7270,7 @@
         "minimumCost": 81
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-Delver squad with mana regeneration goals and mixed water and life affinity. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a two-Delver squad with mana regeneration goals and mixed water and growth affinity. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {},
         "components": {
           "p-c61b3be5afb6": {
@@ -7299,11 +7299,11 @@
           },
           "p-fcfcd040afbc": {
             "target": "hazard",
-            "spec": "id=room_1_field_2;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "spec": "id=room_1_field_2;affinity=growth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
           },
           "p-107a77e1b918": {
             "target": "hazard",
-            "spec": "id=room_1_field_2;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "spec": "id=room_1_field_2;affinity=growth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
           },
           "p-f5a285fa952a": {
             "target": "delver",
@@ -7315,11 +7315,11 @@
           },
           "p-2ceffaf28839": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:8:2,stamina:5:1,mana:5:1;goals=max_mana:medium,mana_regen:medium"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:8:2,stamina:5:1,mana:5:1;goals=max_mana:medium,mana_regen:medium"
           },
           "p-9a979fd8a3e7": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:8:2,stamina:5:1,mana:5:1;goals=max_mana:medium,mana_regen:medium"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:8:2,stamina:5:1,mana:5:1;goals=max_mana:medium,mana_regen:medium"
           }
         }
       }
@@ -9669,7 +9669,7 @@
       "mapping": {
         "text": "Using the agent-kernel skill and the agent-kernel MCP, create a large dungeon with several resources and mixed actors. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "dungeonAffinity": "life"
+          "dungeonAffinity": "growth"
         },
         "components": {
           "p-5fd5714bb168": {
@@ -9690,11 +9690,11 @@
           },
           "p-ade9034e54cf": {
             "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "spec": "id=room_1_field_1;affinity=growth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
           },
           "p-b6c5e5936ba6": {
             "target": "hazard",
-            "spec": "id=room_1_field_1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+            "spec": "id=room_1_field_1;affinity=growth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
           },
           "p-def1e670edeb": {
             "target": "hazard",
@@ -9722,19 +9722,19 @@
           },
           "p-63a1b463c3bb": {
             "target": "resource",
-            "spec": "affinity=life;expression=pull;stacks=1;mana=10"
+            "spec": "affinity=growth;expression=pull;stacks=1;mana=10"
           },
           "p-af1ae5b58600": {
             "target": "resource",
-            "spec": "affinity=life;expression=pull;stacks=1;mana=10"
+            "spec": "affinity=growth;expression=pull;stacks=1;mana=10"
           },
           "p-ee39c79437b7": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
           },
           "p-422a701eae82": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
           },
           "p-ca58fdb2808b": {
             "target": "delver",
@@ -10083,11 +10083,11 @@
           },
           "p-197783876cbb": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:5:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:5:1"
           },
           "p-af3fa00093af": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:5:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:5:1"
           },
           "p-10a0385b8d16": {
             "target": "warden",
@@ -10655,11 +10655,11 @@
           },
           "p-a6e99baf6a6f": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;setup-mode=hybrid;affinities=life:pull:2,water:draw:1;vitals=health:9:2,stamina:5:1,mana:6:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;setup-mode=hybrid;affinities=growth:pull:2,water:draw:1;vitals=health:9:2,stamina:5:1,mana:6:1"
           },
           "p-3a9982098248": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;setup-mode=hybrid;affinities=life:pull:2,water:draw:1;vitals=health:9:2,stamina:5:1,mana:6:1"
+            "spec": "count=1;affinity=growth;motivation=friendly;setup-mode=hybrid;affinities=growth:pull:2,water:draw:1;vitals=health:9:2,stamina:5:1,mana:6:1"
           },
           "p-7e6e5fcf08ab": {
             "target": "delver",
@@ -13155,11 +13155,11 @@
           },
           "p-44ad305b15e7": {
             "target": "delver",
-            "spec": "count=1;id=delver_injured;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+            "spec": "count=1;id=delver_injured;affinity=growth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "p-5d0822ad069d": {
             "target": "delver",
-            "spec": "count=1;id=delver_injured;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+            "spec": "count=1;id=delver_injured;affinity=growth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -13302,11 +13302,11 @@
           },
           "p-26ecbbedaf9a": {
             "target": "delver",
-            "spec": "count=1;id=delver_max_health;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+            "spec": "count=1;id=delver_max_health;affinity=growth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "p-fb88983ad785": {
             "target": "delver",
-            "spec": "count=1;id=delver_max_health;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+            "spec": "count=1;id=delver_max_health;affinity=growth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -13449,11 +13449,11 @@
           },
           "p-d0595b90e6db": {
             "target": "delver",
-            "spec": "count=1;id=delver_regen;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+            "spec": "count=1;id=delver_regen;affinity=growth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           },
           "p-00d2cd002965": {
             "target": "delver",
-            "spec": "count=1;id=delver_regen;affinity=life;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+            "spec": "count=1;id=delver_regen;affinity=growth;motivation=exploring;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
           }
         }
       }
@@ -15326,9 +15326,9 @@
         "minimumCost": 50
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a life Delver and decay Warden contesting a permanent vital regeneration resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a growth Delver and decay Warden contesting a permanent vital regeneration resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
-          "dungeonAffinity": "life"
+          "dungeonAffinity": "growth"
         },
         "components": {
           "p-a62594c6a3ac": {
@@ -15349,11 +15349,11 @@
           },
           "p-15aa5cd149c4": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2"
           },
           "p-eddc707014bd": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly;affinities=life:pull:2"
+            "spec": "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2"
           },
           "p-562960ab7be3": {
             "target": "warden",
@@ -15715,11 +15715,11 @@
           },
           "p-76a613127175": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly"
+            "spec": "count=1;affinity=growth;motivation=friendly"
           },
           "p-9742e89fa46d": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly"
+            "spec": "count=1;affinity=growth;motivation=friendly"
           },
           "p-977177a822b1": {
             "target": "warden",
@@ -16707,11 +16707,11 @@
           },
           "p-47ba7acceb33": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly"
+            "spec": "count=1;affinity=growth;motivation=friendly"
           },
           "p-85b207f131bc": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly"
+            "spec": "count=1;affinity=growth;motivation=friendly"
           },
           "p-600633e79f8a": {
             "target": "warden",
@@ -17708,7 +17708,7 @@
         "minimumCost": 36
       },
       "mapping": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly life Delver five tokens above the minimum passing budget. Use a 230 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a medium room with one level vital resource and one friendly growth Delver five tokens above the minimum passing budget. Use a 230 token hard budget, prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "fixedArgs": {
           "budgetTokens": 230
         },
@@ -17731,11 +17731,11 @@
           },
           "p-bca372d0e161": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly"
+            "spec": "count=1;affinity=growth;motivation=friendly"
           },
           "p-b879d761d1bc": {
             "target": "delver",
-            "spec": "count=1;affinity=life;motivation=friendly"
+            "spec": "count=1;affinity=growth;motivation=friendly"
           }
         }
       }

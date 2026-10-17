@@ -207,7 +207,7 @@ pool denials red.
 ## September 22 — leftover configurator-startup artifacts
 
 configurator-startup rebuilds the hazard-grid oracle through Configurator
-terrain plus actor_mvp (health 11/12, mana max 2, fire/push + life/pull).
+terrain plus actor_mvp (health 11/12, mana max 2, fire/push + growth/pull).
 Asserts registry vitals and terrain glyphs; leftover tiles/kinds/hazards stay
 off SimConfig. Restoring leftover hazard fixtures failed; restored. Typecheck
 0. Wiring 36 vs 13. Leave leftover e2e-annotator ambulatory actors, JS-spread

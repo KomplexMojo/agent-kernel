@@ -38,7 +38,7 @@ test("runtime applies configurator sim config and initial state artifacts", asyn
       },
       affinities: [
         { kind: "fire", expression: "push", stacks: 2 },
-        { kind: "life", expression: "pull", stacks: 1 },
+        { kind: "growth", expression: "pull", stacks: 1 },
       ],
     }],
   });

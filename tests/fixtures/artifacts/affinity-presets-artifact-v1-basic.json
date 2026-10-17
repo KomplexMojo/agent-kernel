@@ -43,8 +43,8 @@
       ]
     },
     {
-      "id": "affinity_life_pull",
-      "kind": "life",
+      "id": "affinity_growth_pull",
+      "kind": "growth",
       "expression": "pull",
       "manaCost": 0,
       "stack": {
@@ -53,7 +53,7 @@
       },
       "effects": {
         "buff": {
-          "id": "life_surge",
+          "id": "growth_surge",
           "potency": 1
         }
       },
@@ -66,9 +66,9 @@
       },
       "abilities": [
         {
-          "id": "life_surge",
+          "id": "growth_surge",
           "kind": "buff",
-          "affinityKind": "life",
+          "affinityKind": "growth",
           "expression": "pull",
           "targetType": "self",
           "potency": 1,

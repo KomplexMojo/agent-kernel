@@ -57,9 +57,9 @@
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a water-themed recovery encounter with a life support Delver and a water mana hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a water-themed recovery encounter with a growth support Delver and a water mana hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a water-themed recovery encounter with a life support Delver and a water mana hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a water-themed recovery encounter with a growth support Delver and a water mana hazard. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
         "runId": "ak_prompt_11_create_water_recovery_room",
         "createdAt": "2026-05-03T17:00:00.000Z",
@@ -76,7 +76,7 @@
           "affinity=water;expression=emit;proximityRadius=2;mana=regen:4:4:1"
         ],
         "delver": [
-          "count=1;affinity=life;motivation=friendly;affinities=life:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:6:1"
+          "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:1,water:draw:1;vitals=health:8:2,stamina:5:1,mana:6:1"
         ]
       },
       "expectedOutcome": "success",
@@ -87,7 +87,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life"
+            "growth"
           ]
         },
         "totalSpend": 181
@@ -200,20 +200,20 @@
     },
     {
       "index": 14,
-      "title": "Create Life Shrine Encounter",
-      "runId": "ak_prompt_14_create_life_shrine_encounter",
+      "title": "Create Growth Shrine Encounter",
+      "runId": "ak_prompt_14_create_growth_shrine_encounter",
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a life shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a growth shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a life shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a growth shrine room with a permanent vital regen resource and opposing decay Warden. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
-        "runId": "ak_prompt_14_create_life_shrine_encounter",
+        "runId": "ak_prompt_14_create_growth_shrine_encounter",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
-        "dungeonAffinity": "life",
+        "dungeonAffinity": "growth",
         "room": [
           "size=medium;count=1"
         ],
@@ -221,13 +221,13 @@
           "count=14"
         ],
         "hazard": [
-          "id=room_1_field_1;affinity=life;expression=emit;proximityRadius=2;mana=regen:3:3:1"
+          "id=room_1_field_1;affinity=growth;expression=emit;proximityRadius=2;mana=regen:3:3:1"
         ],
         "resource": [
           "permanenceMode=permanent;vital=health;regen=1"
         ],
         "delver": [
-          "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
+          "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:9:2,stamina:5:1,mana:5:1"
         ],
         "warden": [
           "count=1;affinity=decay;motivation=stationary;affinities=decay:emit:1;vitals=health:10:0,stamina:3:0,mana:4:1,durability:5:0"
@@ -242,7 +242,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life"
+            "growth"
           ],
           "warden": [
             "decay"
@@ -253,7 +253,7 @@
       "referenceSpend": 226,
       "remaining": 999774,
       "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/14-create-life-shrine-encounter/create"
+      "legacyReferencePath": "Reference Artifacts/14-create-growth-shrine-encounter/create"
     },
     {
       "index": 15,
@@ -324,7 +324,7 @@
           "id=resource_fire_temporary;affinity=fire;expression=push;stacks=2;mana=12;manaRegen=0"
         ],
         "delver": [
-          "count=1;id=delver_temporary_affinity;affinity=life;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
+          "count=1;id=delver_temporary_affinity;affinity=growth;motivation=attacking;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
         ],
         "warden": [
           "count=1;id=warden_temporary_target;affinity=earth;motivation=defending;vitals=health:24:1,mana:16:2,stamina:40:4,durability:6:1"
@@ -339,7 +339,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life"
+            "growth"
           ],
           "warden": [
             "earth"
@@ -952,16 +952,16 @@
     },
     {
       "index": 29,
-      "title": "Create Opposed Life Decay Room",
-      "runId": "ak_prompt_29_create_opposed_life_decay_room",
+      "title": "Create Opposed Growth Decay Room",
+      "runId": "ak_prompt_29_create_opposed_growth_decay_room",
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests life support against decay pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests growth support against decay pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests life support against decay pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a room that tests growth support against decay pressure. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
-        "runId": "ak_prompt_29_create_opposed_life_decay_room",
+        "runId": "ak_prompt_29_create_opposed_growth_decay_room",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
@@ -975,7 +975,7 @@
           "affinity=decay;expression=emit;proximityRadius=2;mana=regen:4:4:1"
         ],
         "delver": [
-          "count=1;affinity=life;motivation=friendly;affinities=life:pull:2;vitals=health:10:2,stamina:5:1,mana:5:1"
+          "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2;vitals=health:10:2,stamina:5:1,mana:5:1"
         ],
         "warden": [
           "count=1;affinity=decay;motivation=attacking;affinities=decay:emit:2;vitals=health:10:0,stamina:5:1,mana:5:1,durability:5:0"
@@ -990,7 +990,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life"
+            "growth"
           ],
           "warden": [
             "decay"
@@ -1001,7 +1001,7 @@
       "referenceSpend": 223,
       "remaining": 999777,
       "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/29-create-opposed-life-decay-room/create"
+      "legacyReferencePath": "Reference Artifacts/29-create-opposed-growth-decay-room/create"
     },
     {
       "index": 30,
@@ -1148,20 +1148,20 @@
     },
     {
       "index": 83,
-      "title": "Create Life Decay Resource Opposition",
-      "runId": "ak_prompt_83_create_life_decay_resource_opposition",
+      "title": "Create Growth Decay Resource Opposition",
+      "runId": "ak_prompt_83_create_growth_decay_resource_opposition",
       "tier": "affinity",
       "budgetMode": "unconstrained",
       "budget": null,
-      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a life Delver and decay Warden contesting a permanent vital regeneration resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+      "prompt": "Using the agent-kernel skill and the agent-kernel MCP, create a growth Delver and decay Warden contesting a permanent vital regeneration resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
       "payload": {
-        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a life Delver and decay Warden contesting a permanent vital regeneration resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
+        "text": "Using the agent-kernel skill and the agent-kernel MCP, create a growth Delver and decay Warden contesting a permanent vital regeneration resource. Use whatever token budget the scenario requires (the budget is effectively unconstrained), prefer MCP tools over shell commands, emit intermediates, remember that create/ak_create room specs are generic so affinity pressure belongs in hazards, and report generated artifact paths plus budget receipt cost details.",
         "budgetTokens": 1000000,
-        "runId": "ak_prompt_83_create_life_decay_resource_opposition",
+        "runId": "ak_prompt_83_create_growth_decay_resource_opposition",
         "createdAt": "2026-05-03T17:00:00.000Z",
         "outDir": "$RUN_OUTPUT/create",
         "emitIntermediates": true,
-        "dungeonAffinity": "life",
+        "dungeonAffinity": "growth",
         "room": [
           "size=medium;count=1"
         ],
@@ -1169,7 +1169,7 @@
           "permanenceMode=permanent;vital=health;regen=1"
         ],
         "delver": [
-          "count=1;affinity=life;motivation=friendly;affinities=life:pull:2"
+          "count=1;affinity=growth;motivation=friendly;affinities=growth:pull:2"
         ],
         "warden": [
           "count=1;affinity=decay;motivation=defending;affinities=decay:emit:2"
@@ -1184,7 +1184,7 @@
         },
         "affinitiesByType": {
           "delver": [
-            "life"
+            "growth"
           ],
           "warden": [
             "decay"
@@ -1195,7 +1195,7 @@
       "referenceSpend": 150,
       "remaining": 999850,
       "status": "approved",
-      "legacyReferencePath": "Reference Artifacts/83-create-life-decay-resource-opposition/create"
+      "legacyReferencePath": "Reference Artifacts/83-create-growth-decay-resource-opposition/create"
     },
     {
       "index": 84,

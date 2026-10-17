@@ -51,11 +51,11 @@ test('receiver forecast caps matching draw mana and stops effects at defeat', ()
   const field = { ...fire, sourceId: 'source', position: receiver.position, intensity: 1 };
   expect(previewActorFieldChanges(receiver, [field])).toEqual([{ actorId: receiver.id, vital: 'mana', delta: 1 }]);
   receiver.activeAffinityKey = null; receiver.vitals.health!.current = 1;
-  expect(previewActorFieldChanges(receiver, [field, { ...field, sourceId: 'z_healer', kind: 'life' }]))
+  expect(previewActorFieldChanges(receiver, [field, { ...field, sourceId: 'z_healer', kind: 'growth' }]))
     .toEqual([{ actorId: receiver.id, vital: 'health', delta: -1 }]);
 });
 test('receiver forecast agrees with a real field pass for all area affinities with one receiver', () => {
-  const kinds = ['fire', 'water', 'earth', 'wind', 'life', 'decay', 'corrode', 'fortify', 'light', 'dark'] as const;
+  const kinds = ['fire', 'water', 'earth', 'wind', 'growth', 'decay', 'corrode', 'fortify', 'light', 'dark'] as const;
   for (const kind of kinds) for (const expression of ['emit', 'draw'] as const) {
     const receiver = actor('receiver', 0);
     receiver.vitals = {
@@ -80,7 +80,7 @@ test('forecast preserves stable source order independently of field enumeration'
   const receiver = actor('receiver', 0);
   receiver.vitals.health!.current = 1;
   const fireCell = { ...fire, sourceId: 'a_fire', position: receiver.position, intensity: 1 };
-  const healingCell = { ...fireCell, sourceId: 'z_healer', kind: 'life' as const };
+  const healingCell = { ...fireCell, sourceId: 'z_healer', kind: 'growth' as const };
   expect(previewActorFieldChanges(receiver, [healingCell, fireCell]))
     .toEqual([{ actorId: receiver.id, vital: 'health', delta: -1 }]);
 });
@@ -97,7 +97,7 @@ test('field exposure reads active equipment only and never exposes self or termi
 });
 
 test('projection and receiver evaluation agree across every active affinity pair', () => {
-  const kinds = ['fire', 'water', 'earth', 'wind', 'life', 'decay', 'corrode', 'fortify', 'light', 'dark'] as const;
+  const kinds = ['fire', 'water', 'earth', 'wind', 'growth', 'decay', 'corrode', 'fortify', 'light', 'dark'] as const;
   for (const kind of kinds) for (const expression of ['push', 'pull', 'emit', 'draw'] as const) {
     const receiver = actor('receiver', 0, { kind, expression, stacks: 1 });
     const state = registry([actor('source', 0, fire), receiver]);
@@ -174,7 +174,7 @@ test('a source defeated during the pass neither emits later nor remains in retur
   expect(result.fields.some(cell => cell.sourceId === 'b')).toBe(false);
 });
 test('every opposed pair: a 1-stack emit on a 3-stack source leaves the 3-stack side at 2 (#290)', () => {
-  const pairs = [['fire', 'water'], ['earth', 'wind'], ['life', 'decay'], ['corrode', 'fortify'], ['light', 'dark']] as const;
+  const pairs = [['fire', 'water'], ['earth', 'wind'], ['growth', 'decay'], ['corrode', 'fortify'], ['light', 'dark']] as const;
   for (const [a, b] of pairs) {
     for (const [weak, strong] of [[a, b], [b, a]] as const) {
       const fields = projectActorFieldsAt([actor('trap', 0, { kind: strong, expression: 'emit', stacks: 3 }),

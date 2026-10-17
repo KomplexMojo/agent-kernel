@@ -205,7 +205,7 @@ Owner architecture-artifacts-contracts; supporting structured-test-authoring. Ta
 Validation: new compiler-backed fixture test red before declarations, green after; contract suite + schema origin/catalog guards; pnpm run typecheck. Perturbation: permit attack in the action union and prove the negative fixture fails with an unused expected-error diagnostic, then restore. Stop after this bounded milestone and record remaining migration explicitly.
 
 ## Acceptance oracles for later milestones
-Fire/earth 5 vs durability 3, health 10 => 0/8. Water/decay => 3/5. Corrode => 0/10. Life drain kills through durability and transfers actual removal. Defeat is terminal. Equip preserves mana and allows no second action. Finite field absorption. Stack-8 source grants one stack per pair once. Mobile resource/motivated barrier use common rules. Label-only changes do not affect behavior/price. Equal alignment allies regardless of preset. Composed motivation/equipment choices deterministic with no tie-switch churn. CLI/MCP/UI normalization equivalent. Core snapshots and tick frames replay identically.
+Fire/earth 5 vs durability 3, health 10 => 0/8. Water/decay => 3/5. Corrode => 0/10. Growth drain kills through durability and transfers actual removal. Defeat is terminal. Equip preserves mana and allows no second action. Finite field absorption. Stack-8 source grants one stack per pair once. Mobile resource/motivated barrier use common rules. Label-only changes do not affect behavior/price. Equal alignment allies regardless of preset. Composed motivation/equipment choices deterministic with no tie-switch churn. CLI/MCP/UI normalization equivalent. Core snapshots and tick frames replay identically.
 
 ## Next implementation seam (updated September 10)
 Continue in this worktree at local checkpoint 4736f9ab plus its later changes,
@@ -1014,7 +1014,7 @@ fixtures; restore. Leave leftover configurator-startup hazard tiles red.
 Owner architecture-dependency-direction. Targets configurator-startup.test.js
 and these records. The leftover hazard-grid oracle still fed tiles/kinds/hazards
 into runtime.init and asserted leftover world getters. Rebuild through
-Configurator boxed terrain plus actor_mvp with fire/push and life/pull;
+Configurator boxed terrain plus actor_mvp with fire/push and growth/pull;
 assert registry vitals and terrain glyphs. Do not mutate shared leftover
 fixtures. Do not invent layout.hazards occupants.
 

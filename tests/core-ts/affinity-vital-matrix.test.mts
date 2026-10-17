@@ -16,7 +16,7 @@
  *   - All other cells = explicit 0
  *   - Per-affinity polarity (positive sign = buff, negative sign = drain):
  *       Fire    → -Health (drain)        Decay   → -Health (drain)
- *       Water   → +Health (buff)         Life    → +Health (buff)
+ *       Water   → +Health (buff)         Growth    → +Health (buff)
  *       Wind    → -Stamina (drain)       Earth   → +Durability (buff)
  *       Corrode → -Durability (drain)    Fortify → +Durability (buff)
  *       Dark    → -Mana (drain)          Light   → +Mana (buff)
@@ -53,7 +53,7 @@ const PRIMARY = {
   [AffinityKind.Water]:   { vital: VitalKind.Health,     polarity: +1 },
   [AffinityKind.Earth]:   { vital: VitalKind.Durability, polarity: +1 },
   [AffinityKind.Wind]:    { vital: VitalKind.Stamina,    polarity: -1 },
-  [AffinityKind.Life]:    { vital: VitalKind.Health,     polarity: +1 },
+  [AffinityKind.Growth]:    { vital: VitalKind.Health,     polarity: +1 },
   [AffinityKind.Decay]:   { vital: VitalKind.Health,     polarity: -1 },
   [AffinityKind.Corrode]: { vital: VitalKind.Durability, polarity: -1 },
   [AffinityKind.Fortify]: { vital: VitalKind.Durability, polarity: +1 },
@@ -263,22 +263,22 @@ describe("affinity-vital matrix: worked examples from M1 contract", () => {
     expect(v).toBe(+BASE_PUSH_PULL);
   });
 
-  test("life+push buffs health, life+pull drains health (equal magnitude, opposite sign)", async () => {
+  test("growth+push buffs health, growth+pull drains health (equal magnitude, opposite sign)", async () => {
     const { getAffinityVitalEffectBase } = await import(
       "../../packages/core-ts/src/state/affinity.ts"
     );
-    const push = call(getAffinityVitalEffectBase, AffinityKind.Life, AffinityExpression.Push, VitalKind.Health) as number;
-    const pull = call(getAffinityVitalEffectBase, AffinityKind.Life, AffinityExpression.Pull, VitalKind.Health) as number;
+    const push = call(getAffinityVitalEffectBase, AffinityKind.Growth, AffinityExpression.Push, VitalKind.Health) as number;
+    const pull = call(getAffinityVitalEffectBase, AffinityKind.Growth, AffinityExpression.Pull, VitalKind.Health) as number;
     expect(push).toBe(+BASE_PUSH_PULL);
     expect(pull).toBe(-BASE_PUSH_PULL);
     expect(push).toBe(-pull);
   });
 
-  test("life+emit is a group ambient heal (positive on Health, diffuse magnitude)", async () => {
+  test("growth+emit is a group ambient heal (positive on Health, diffuse magnitude)", async () => {
     const { getAffinityVitalEffectBase } = await import(
       "../../packages/core-ts/src/state/affinity.ts"
     );
-    const v = call(getAffinityVitalEffectBase, AffinityKind.Life, AffinityExpression.Emit, VitalKind.Health) as number;
+    const v = call(getAffinityVitalEffectBase, AffinityKind.Growth, AffinityExpression.Emit, VitalKind.Health) as number;
     expect(v).toBe(+BASE_EMIT_DRAW);
   });
 
@@ -589,14 +589,14 @@ describe("permutations: opposite-affinity pairs have opposite push effects on th
     expect(firePush).not.toBe(0);
   });
 
-  test("Life (+Health) vs Decay (−Health): push(1) effects are negatives of each other", async () => {
+  test("Growth (+Health) vs Decay (−Health): push(1) effects are negatives of each other", async () => {
     const { getAffinityVitalEffect } = await import(
       "../../packages/core-ts/src/state/affinity.ts"
     );
-    const lifePush  = call(getAffinityVitalEffect, AffinityKind.Life,  AffinityExpression.Push, VitalKind.Health, 1) as number;
+    const growthPush  = call(getAffinityVitalEffect, AffinityKind.Growth,  AffinityExpression.Push, VitalKind.Health, 1) as number;
     const decayPush = call(getAffinityVitalEffect, AffinityKind.Decay, AffinityExpression.Push, VitalKind.Health, 1) as number;
-    expect(lifePush).toBe(-decayPush);
-    expect(lifePush).not.toBe(0);
+    expect(growthPush).toBe(-decayPush);
+    expect(growthPush).not.toBe(0);
   });
 
   test("Corrode (−Durability) vs Fortify (+Durability): push(1) effects are negatives of each other", async () => {

@@ -242,7 +242,7 @@ Options:
                   permanenceMode governs delta only (consumable raises current, level/permanent raise max).
                   regen is a third, independent grant: the actor permanently gains that regen rate on top
                   of the delta. delta may be omitted when regen is given (a regen-only resource).
-                  Affinity payload: affinity=<fire|water|earth|wind|life|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]
+                  Affinity payload: affinity=<fire|water|earth|wind|growth|decay|corrode|fortify|light|dark>;expression=<push|pull|emit|draw>;stacks=<n>;mana=<n>[;manaRegen=<n>][;id=<id>]
                   Both payloads may be combined in one spec. manaRegen defaults to 0, which grants the
                   affinity temporarily until its mana is spent; manaRegen>0 refills the pool, making the
                   granted affinity permanent (and costing 5*manaRegen^2 more tokens to author).
@@ -1256,7 +1256,7 @@ function parseAuthoringHazardSpec(value, hazardIndex) {
 const RESOURCE_ALLOWED_PERMANENCE_MODES = new Set(["consumable", "level", "permanent"]);
 const RESOURCE_ALLOWED_VITAL_KEYS = new Set(["health", "mana", "stamina"]);
 const RESOURCE_ALLOWED_AFFINITY_KINDS = new Set([
-  "fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark",
+  "fire", "water", "earth", "wind", "growth", "decay", "corrode", "fortify", "light", "dark",
 ]);
 const RESOURCE_ALLOWED_AFFINITY_EXPRESSIONS = new Set(["push", "pull", "emit", "draw"]);
 

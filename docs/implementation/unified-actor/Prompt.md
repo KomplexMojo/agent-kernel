@@ -3,7 +3,7 @@ Implement the approved requirements in this document and the ordered milestones 
 
 Five editable presets (delver, warden, hazard, resource, barrier) normalize to one mechanical actor model. Alignment is independent of presentation. One actor mana pool; inventory keyed by affinity/expression with stacks; one active pair; equip and take each consume the tick's action. Compose motivation candidates using existing Actor ranking.
 
-Fire/earth erode durability with health overflow. Water/decay bypass durability to health. Corrode affects durability only. Wind affects stamina. Life restores health or drains/transfers actual health. Fortify restores durability or drains/transfers actual durability. Light restores/drains mana; dark drains mana. Harmful-affinity pull/draw neutralizes active effects, never heals old damage. Matching draw credits actual absorbed exposure to actor mana, bounded per source.
+Fire/earth erode durability with health overflow. Water/decay bypass durability to health. Corrode affects durability only. Wind affects stamina. Growth restores health or drains/transfers actual health. Fortify restores durability or drains/transfers actual durability. Light restores/drains mana; dark drains mana. Harmful-affinity pull/draw neutralizes active effects, never heals old damage. Matching draw credits actual absorbed exposure to actor mana, bounded per source.
 
 Defeat is terminal at the declared health/durability vital. Defeated actors cannot act, emit, regenerate, or block. Adjacent/same-cell take claims one named holding. Each owned affinity/expression pair exposes one claim once on defeat: receiver gains exactly one stack regardless of source stacks. No automatic pickup/equip. Explicit vital grants remain separate from the source's living vital pools.
 
@@ -42,7 +42,7 @@ hostile even within the same preset.
 | Water | Damage health directly | Neutralize matching active effects |
 | Earth | Damage durability; overflow into health | Neutralize matching active effects |
 | Wind | Reduce stamina | Neutralize matching active effects |
-| Life | Restore health | Drain health; transfer actual removal to caster |
+| Growth | Restore health | Drain health; transfer actual removal to caster |
 | Decay | Damage health directly | Neutralize matching active effects |
 | Corrode | Damage durability only; no health overflow | Neutralize matching active effects |
 | Fortify | Restore durability | Drain durability; transfer actual removal to caster |
@@ -55,7 +55,7 @@ intensity, stack scaling, opposition, and numerical magnitude helpers unless
 explicitly replaced here. One core matrix must drive focused and field outcomes.
 Missing vitals receive no effect. Missing durability does not protect health.
 Fire/earth consume durability first, then remaining damage affects health when
-present. Water, life drain, and decay bypass durability. Neutralization never
+present. Water, growth drain, and decay bypass durability. Neutralization never
 restores old damage. Matching draw credits actual absorbed exposure to the one
 actor mana pool, clamped to maximum, never to health/durability. Each field source
 has a finite exposure budget so multiple receivers cannot claim the same amount.
@@ -116,7 +116,7 @@ benchmark execution. Keep adapters/UI -> runtime -> core; core has no IO.
 ### Completion criteria
 All 14 approved behavioral oracles are recorded in Plan.md's acceptance section:
 category-independent mechanics/pricing; alignment relations; three durability
-routing examples; actual life transfer/defeat; terminal defeat; equip action
+routing examples; actual growth transfer/defeat; terminal defeat; equip action
 exclusivity; finite absorption; once-only conquest; editable presets; deterministic
 motivation/equipment decisions; CLI/MCP/UI equivalence; and snapshot/frame replay.
 Add negative fixtures for invalid active keys, duplicate pairs, invalid defeat

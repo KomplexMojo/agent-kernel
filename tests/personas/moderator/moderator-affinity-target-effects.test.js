@@ -7,7 +7,7 @@ const effects = resolveAffinityTargetEffectsForList(
   [
     { kind: "earth", expression: "pull", stacks: 3, targetType: "floor" },
     { kind: "water", expression: "emit", stacks: 3, targetType: "area" },
-    { kind: "life", expression: "pull", stacks: 1, targetType: "self" },
+    { kind: "growth", expression: "pull", stacks: 1, targetType: "self" },
   ],
   { sourceType: "actor", sourceId: "A-1", manaReserve: 4 },
 );
@@ -17,7 +17,7 @@ assert.ok(ids.includes("earth:pull:floor:vital"));
 assert.ok(ids.includes("earth:pull:floor:arm_static_hazard"));
 // #227 — barrier effects were dropped with the old engine (#206).
 assert.ok(!ids.some((id) => id.endsWith("_barrier")));
-assert.ok(ids.includes("life:pull:self:vital"));
+assert.ok(ids.includes("growth:pull:self:vital"));
 
 const vital = effects.find((entry) => entry.id === "earth:pull:floor:vital");
 assert.equal(vital.targetVital, "stamina");

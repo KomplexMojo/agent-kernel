@@ -17,7 +17,7 @@ const CWD = process.cwd();
 const REPORT_FILE = path.join(CWD, "test-gen-report.md");
 const LOG_FILE = path.join(CWD, "test-gen.log");
 const TEST_CONTEXT_FILE = path.join(CWD, "tests", "README.md");
-const ALLOWED_AFFINITY_KINDS = Object.freeze(["fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark"]);
+const ALLOWED_AFFINITY_KINDS = Object.freeze(["fire", "water", "earth", "wind", "growth", "decay", "corrode", "fortify", "light", "dark"]);
 const ALLOWED_AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit", "draw"]);
 const ALLOWED_MOTIVATION_KINDS = Object.freeze([
   "random",

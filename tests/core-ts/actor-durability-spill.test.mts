@@ -7,7 +7,7 @@ import { expect, test } from 'vitest';
 import { evaluateActorAffinityReceiver, getActorAffinityEffect } from '../../packages/core-ts/src/rules/actor-affinity.ts';
 import type { ActorVitalKind, AffinityKind } from '../../packages/core-ts/src/state/actor-types.ts';
 
-const KINDS: AffinityKind[] = ['fire', 'water', 'earth', 'wind', 'life', 'decay', 'corrode', 'fortify', 'light', 'dark'];
+const KINDS: AffinityKind[] = ['fire', 'water', 'earth', 'wind', 'growth', 'decay', 'corrode', 'fortify', 'light', 'dark'];
 
 function receiver(vitals: Partial<Record<ActorVitalKind, number>>) {
   const current = { ...vitals };

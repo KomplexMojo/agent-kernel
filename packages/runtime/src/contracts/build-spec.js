@@ -580,7 +580,7 @@ export function validateAgentCommandRequest(request, path = "agentCommandRequest
 // -------------------------
 
 const HAZARD_ALLOWED_AFFINITIES = new Set([
-  "fire", "water", "earth", "wind", "life", "decay", "corrode", "fortify", "light", "dark",
+  "fire", "water", "earth", "wind", "growth", "decay", "corrode", "fortify", "light", "dark",
 ]);
 const HAZARD_ALLOWED_EXPRESSIONS = new Set(["push", "pull", "emit", "draw"]);
 

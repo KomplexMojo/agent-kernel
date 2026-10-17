@@ -68,7 +68,7 @@ test("normalization never adds a resource field the CLI would reject", () => {
     resource: [
       { permanenceMode: "permanent", vital: "mana", stat: "vitalRegen", delta: 1 },
       { tier: "level", stat: "vitalMax", delta: 8 },
-      { affinity: "life", expression: "emit", stacks: 1, mana: 4, dropRate: 10 },
+      { affinity: "growth", expression: "emit", stacks: 1, mana: 4, dropRate: 10 },
     ],
   });
   for (const spec of normalized.resource) {

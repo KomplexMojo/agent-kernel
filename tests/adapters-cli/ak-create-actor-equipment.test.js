@@ -45,9 +45,9 @@ test("delvers and wardens start with the authored slots and equips, and pay for 
 
 test("a spec core could not load is refused with what is wrong", () => {
   const cases = [
-    ["count=1;affinity=life;equip=life:emit", /delver\[1\] cannot equip life:emit: it holds only life:push/],
-    ["count=1;affinity=life;slots=7", /delver\[1\] slots must be an integer from 1 to 6, got 7/],
-    ["count=1;affinity=life;equip=life", /delver\[1\] equip\[1\] must be kind:expression\[:stacks\]/],
+    ["count=1;affinity=growth;equip=growth:emit", /delver\[1\] cannot equip growth:emit: it holds only growth:push/],
+    ["count=1;affinity=growth;slots=7", /delver\[1\] slots must be an integer from 1 to 6, got 7/],
+    ["count=1;affinity=growth;equip=growth", /delver\[1\] equip\[1\] must be kind:expression\[:stacks\]/],
   ];
   for (const [spec, message] of cases) {
     const run = create(["--delver", spec]);

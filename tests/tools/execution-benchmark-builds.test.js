@@ -415,7 +415,7 @@ test('EX-HZ-04 places a draw hazard between its subject and an unrelated target'
   const unrelated = initialState.actors.find((actor) => actor.id === 'warden_unrelated_target');
   assert.ok(subject && unrelated);
   assert.equal(actorsByCategory(initialState, 'delver').length + actorsByCategory(initialState, 'warden').length, 2);
-  assert.deepEqual(hazard.affinities[0], { kind: 'life', expression: 'draw', stacks: 2 });
+  assert.deepEqual(hazard.affinities[0], { kind: 'growth', expression: 'draw', stacks: 2 });
   assert.deepEqual(motivationKinds(subject), ['attacking']);
   assert.deepEqual(motivationKinds(unrelated), ['stationary']);
   assert.ok(chebyshevDistance(subject.position, hazard) > 1);
