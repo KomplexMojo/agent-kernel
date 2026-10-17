@@ -385,14 +385,15 @@ test("G1 configurator/validate-lock@build: neutering the persona's verdict break
   // anything — which is precisely the state CR.2 found and fixed. Asserted here
   // against the real module so the dependency is structural, not documentary.
   const { runAuthoringBuild } = await import("../../packages/runtime/src/build/authoring-build.js");
+  // #280: the round runs in orchestrateBuild, which every build path shares.
   const source = require("node:fs").readFileSync(
-    resolve(ROOT, "packages/runtime/src/build/authoring-build.js"),
+    resolve(ROOT, "packages/runtime/src/build/orchestrate-build.js"),
     "utf8",
   );
   assert.match(
     source,
-    /configurator\.validate\(\);\s*\n\s*configurator\.lock\(\);/,
-    "runAuthoringBuild must call validate() then lock() — removing either is what CR.2 fixed",
+    /roundConfigurator\.validate\(\);\s*\n\s*roundConfigurator\.lock\(\);/,
+    "orchestrateBuild must call validate() then lock() — removing either is what CR.2 fixed",
   );
 
   // And the refusal genuinely stops the build rather than being logged.

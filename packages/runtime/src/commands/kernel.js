@@ -1552,14 +1552,19 @@ export function createCommandKernel(host = {}) {
     }
 
     const levelGenInput = await readJson(levelGenPath);
+    const actorsInput = await readJson(actorsPath);
+    if (!actorsInput || !Array.isArray(actorsInput.actors)) {
+      throw new Error("actors file must include an actors array.");
+    }
+    // #280: the Configurator validates and locks this config, as it does for every build.
+    const roundConfigurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+    roundConfigurator.provideConfig({ levelGen: levelGenInput, actors: actorsInput.actors });
+    roundConfigurator.validate();
+    roundConfigurator.lock();
     const layoutResult = generateGridLayoutFromInput(levelGenInput);
     if (!layoutResult.ok) {
       const details = layoutResult.errors.map((err) => `${err.field}:${err.code}`).join(", ");
       throw new Error(`level-gen input invalid: ${details}`);
-    }
-    const actorsInput = await readJson(actorsPath);
-    if (!actorsInput || !Array.isArray(actorsInput.actors)) {
-      throw new Error("actors file must include an actors array.");
     }
     const objectPlacement = completeObjectPlacement({
       layout: layoutResult.value,
@@ -2436,6 +2441,8 @@ export function createCommandKernel(host = {}) {
       producedBy: "cli-llm-plan",
       capturedInputs: capturedInputsForBuild,
       placeObjects,
+      // #280: the plan this build persists is the one this round drafted.
+      directorRound: director.currentRound(),
     });
 
     await writeJson(join(outDir, "spec.json"), buildResult.spec);

@@ -116,6 +116,10 @@ Feasibility, cost, and validation are delegated to other personas.
   `observe`. **The exception is real and preserved:** a runtime started from a bare `IntentEnvelope` with no
   SimConfig has nothing to consume, and there the Director drafting a plan in-loop is the feature.
 - Outputs: data-only planning artifacts; no IO and no direct state mutation.
+- `currentRound()` returns the open round as `{ intent, plan }` (null before `beginBuild`). A build passes
+  it to `orchestrateBuild` as `directorRound`, so the persisted plan is the one this round drafted (#280;
+  `ak llm-plan` and `ak scenario` used to drop it). A build with only a spec (`ak build --spec`, the sandbox
+  bridge) has no earlier round, so `map-build-spec.js` opens the Director's round from the spec's intent.
 
 ---
 
