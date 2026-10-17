@@ -21,7 +21,7 @@
   },
   {
     "file": "packages/runtime/src/personas/allocator/budget-fulfillment.js",
-    "line": 442,
+    "line": 446,
     "reason": "assertJudgementBudget -- already reports judged/cap/ceiling. Internal backstop (\"must never fire\"), not reachable from model input."
   },
   {

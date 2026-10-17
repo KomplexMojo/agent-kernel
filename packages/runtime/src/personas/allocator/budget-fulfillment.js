@@ -103,6 +103,7 @@ function requireAuthoring(authorCandidates) {
     || typeof authorCandidates.buildMinimumDelverCard !== "function"
     || typeof authorCandidates.buildBudgetEnvelope !== "function"
     || typeof authorCandidates.readCardVitals !== "function"
+    || typeof authorCandidates.readCardAffinities !== "function"
   ) {
     throw new AllocatorCandidateAuthoringError();
   }
@@ -149,11 +150,14 @@ function actorSpawnReserve(priceMap, count) {
  * about card shape, and card shape is not the Allocator's to answer.
  */
 function calculateDelverCardUnitCost(card, priceMap, { authoring, normalizeMotivations }) {
+  // Priced as the build will raise it: an unfilled card still gets the Configurator's floors
+  // (#282), so pricing its raw vitals left a sibling's fill room the receipt then denied.
+  const floored = authoring.buildMinimumDelverCard(card);
   return calculateActorConfigurationUnitCost({
     entry: {
       motivations: Array.isArray(card?.motivations) ? card.motivations : [],
-      affinities: Array.isArray(card?.affinities) ? card.affinities : [],
-      vitals: authoring.readCardVitals(card?.vitals),
+      affinities: authoring.readCardAffinities(card),
+      vitals: authoring.readCardVitals(floored?.vitals),
     },
     priceMap,
     normalizeMotivations,
