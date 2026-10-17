@@ -431,7 +431,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       active: session.activeActorId?.() ?? null,
       party: session.view().party ?? [],
       orders: session.view().orders ?? [],
-      warnings: viabilityWarnings(),
+      warnings: [...(session.pricingReport || []).map(({ message: text }) => text), ...viabilityWarnings()],
     };
   }
 

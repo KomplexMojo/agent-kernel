@@ -1,26 +1,17 @@
 import { createActorRegistry } from '../../../core-ts/src/state/actor-registry.ts';
 import { createActorTurn } from '../../../core-ts/src/rules/actor-turn.ts';
 import { INITIAL_STATE_SCHEMA, SIM_CONFIG_SCHEMA, ACTOR_PRESENTATION_CATEGORIES } from '../contracts/artifacts.ts';
+import { createAllocatorPersona } from '../personas/allocator/persona.js';
+import { UNUSED_CLOCK } from '../personas/_shared/require-clock.js';
+
+// Legacy cast-price tables are translated by the Allocator, which owns prices (#279).
+const allocator = createAllocatorPersona({ clock: UNUSED_CLOCK });
 
 function plain(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     && [Object.prototype, null].includes(Object.getPrototypeOf(value));
 }
 
-/**
- * Core prices a cast only as base × s(s+1)/2 (#232). An artifact written before that
- * carried five-tier `castMana` tables instead; its tier-1 price is the curve's base,
- * so it loads on the one curve rather than keeping a second price model alive.
- */
-function legacyCastPricesToBases(costs) {
-  if (!plain(costs) || !plain(costs.castMana) || Object.hasOwn(costs, "castManaBase")) return costs;
-  const { castMana, ...rest } = costs;
-  const castManaBase = {};
-  for (const [key, tiers] of Object.entries(castMana)) {
-    castManaBase[key] = Array.isArray(tiers) ? tiers[0] : tiers;
-  }
-  return { ...rest, castManaBase };
-}
 function artifact(value, schema) {
   if (!plain(value) || value.schema !== schema || value.schemaVersion !== 1
     || typeof value.meta?.id !== 'string' || !value.meta.id.trim()) {
@@ -62,7 +53,7 @@ export function initializeCoreFromArtifacts({ simConfig, initialState } = {}) {
     || Object.keys(strategies).some(id => !actors.some(actor => actor.id === id) || !plain(strategies[id])))) {
     throw new Error('strategies must map actor IDs in this level to strategy objects');
   }
-  const costs = legacyCastPricesToBases(simConfig.actionCosts);
+  const costs = allocator.castPricesFromLegacyTiers(simConfig.actionCosts);
   const castPrices = plain(costs) ? costs.castManaBase : undefined;
   if (!plain(costs) || !plain(castPrices) || !plain(costs.movementStamina)) {
     throw new Error('missing normalized action costs');

@@ -489,6 +489,36 @@ export function attachAllocatorServices({
     };
   }
 
+  /**
+   * #279: a level's pricing, reported for a play session. A level `ak create` makes carries
+   * the Allocator's receipt; one without it was never priced. Reported, not refused: a
+   * hand-written level is played as written.
+   */
+  function reportLevelPricing(simConfig) {
+    if (simConfig?.budgetReceiptRef?.id) return [];
+    return [{
+      code: "level_unpriced",
+      message: "This level has no budget receipt, so it was not priced by the Allocator; build it with ak create to price it.",
+    }];
+  }
+
+  /**
+   * Core prices a cast only as base × s(s+1)/2 (#232). An artifact written before that
+   * carried five-tier `castMana` tables; its tier-1 price is the curve's base, so it loads
+   * on the one curve rather than keeping a second price model alive. Price translation is
+   * the Allocator's (#279), so the run loader asks for it here.
+   */
+  function castPricesFromLegacyTiers(costs) {
+    const isPlain = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+    if (!isPlain(costs) || !isPlain(costs.castMana) || Object.hasOwn(costs, "castManaBase")) return costs;
+    const { castMana, ...rest } = costs;
+    const castManaBase = {};
+    for (const [key, tiers] of Object.entries(castMana)) {
+      castManaBase[key] = Array.isArray(tiers) ? tiers[0] : tiers;
+    }
+    return { ...rest, castManaBase };
+  }
+
   /** Serializable service-side context merged into the persona view. */
   function serviceContext() {
     return {
@@ -504,6 +534,8 @@ export function attachAllocatorServices({
 
   return {
     pricing,
+    reportLevelPricing,
+    castPricesFromLegacyTiers,
     issueRuntimeBudgetReceipt,
     resolvePriceList,
     resolveActorExpansionAvailability,

@@ -115,6 +115,14 @@ silently-diverging answer to "how big is this card set" is the CR.1 defect class
 because the output stays well-formed. Most Allocator surfaces never price a room card, so the parameter is
 optional at construction and enforced at the point of use.
 
+### It reports an unpriced level, and translates legacy cast prices (#279)
+
+`reportLevelPricing(simConfig)` returns `[]` for a level carrying the Allocator's `budgetReceiptRef`
+and one `level_unpriced` finding otherwise. A play session plays such a level as written and surfaces
+the finding (`session.pricingReport`, shown as a warning by the ASCII game). `castPricesFromLegacyTiers(costs)`
+loads a pre-#232 five-tier `castMana` table on the one cast curve; the run loader (`runner/core-setup.mjs`)
+asks for it here rather than translating prices itself.
+
 ### It prices hazard and resource cards from the receipt's own items (#281)
 
 `calculateObjectCardUnitCost({ card, priceList })`, published from `controller.js`, prices one hazard or
