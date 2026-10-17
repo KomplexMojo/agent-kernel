@@ -1,3 +1,4 @@
+import { PERSONA_IDS, stampPersona } from '../_shared/persona-stamp.js';
 import { INITIAL_STATE_SCHEMA, SIM_CONFIG_SCHEMA } from '../../contracts/artifacts.ts';
 import { normalizeActorRoster } from './unified-actors.js';
 import { resolveActorTurnCosts } from './affinity-rules.js';
@@ -25,7 +26,7 @@ export function buildSimConfigArtifact({
   constraints, affinityRules, movementStamina,
 } = {}) {
   const artifact = {
-    schema: SIM_CONFIG_SCHEMA, schemaVersion: 1, meta, planRef, seed,
+    schema: SIM_CONFIG_SCHEMA, schemaVersion: 1, meta: stampPersona(meta, PERSONA_IDS.configurator), planRef, seed,
     layout: { kind: 'grid', data: cloneLayoutData(layout) },
     actionCosts: resolveActorTurnCosts({ rules: affinityRules, movementStamina }),
   };
@@ -67,6 +68,6 @@ export function buildInitialStateArtifact({
   const roster = normalizeActorRoster({ actors, dimensions, terrain });
   const authored = collectStrategies(actors, strategies);
   return structuredClone({ schema: INITIAL_STATE_SCHEMA, schemaVersion: 1,
-    meta, simConfigRef, actors: roster.actors, presentation: roster.presentation,
+    meta: stampPersona(meta, PERSONA_IDS.configurator), simConfigRef, actors: roster.actors, presentation: roster.presentation,
     ...(Object.keys(authored).length > 0 ? { strategies: authored } : {}) });
 }

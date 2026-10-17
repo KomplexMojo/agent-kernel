@@ -5,7 +5,7 @@
     "id": "first-steps_initial_state",
     "runId": "first-steps",
     "createdAt": "2026-10-10T00:00:00.000Z",
-    "producedBy": "cli-create",
+    "producedBy": "configurator",
     "cost": {
       "runTotalTokens": 125,
       "budgetTokens": 2500,

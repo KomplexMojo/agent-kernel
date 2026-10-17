@@ -1,3 +1,4 @@
+import { PERSONA_IDS, stampPersona } from "../_shared/persona-stamp.js";
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 
 import BASE_COSTS from "./base-costs.json" with { type: "json" };
@@ -185,7 +186,7 @@ export function buildDefaultPriceList({ meta, createdAt } = {}) {
   return {
     schema: PRICE_LIST_SCHEMA,
     schemaVersion: 1,
-    meta: meta || {
+    meta: meta ? stampPersona(meta, PERSONA_IDS.allocator) : {
       id: "default-price-list-v1",
       runId: "system",
       // PX.3 (M6): was `new Date().toISOString()`. Bare `buildDefaultPriceList()` is a

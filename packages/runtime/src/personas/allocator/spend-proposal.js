@@ -43,6 +43,7 @@
  * the same reason. ⇒ *"The last crossing" is a claim about the crossings someone
  * enumerated, not about the file.*
  */
+import { PERSONA_IDS, stampPersona } from "../_shared/persona-stamp.js";
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePriceTotal } from "./validate-spend.js";
 // CR.9 M4: this module used to `import { createAllocatorPersona } from "./persona.js"`
@@ -737,7 +738,7 @@ export function buildSpendProposal({ meta, layout, actors, hazards, resources, n
   return {
     schema: SPEND_PROPOSAL_SCHEMA,
     schemaVersion: 1,
-    meta,
+    meta: stampPersona(meta, PERSONA_IDS.allocator),
     items,
   };
 }

@@ -105,7 +105,7 @@
         "id": "unified-initial",
         "runId": "unified-fixture",
         "createdAt": "2026-09-10T00:00:00.000Z",
-        "producedBy": "fixture"
+        "producedBy": "configurator"
       },
       "simConfigRef": {
         "id": "unified-config",
