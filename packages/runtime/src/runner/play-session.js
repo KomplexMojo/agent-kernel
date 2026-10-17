@@ -102,7 +102,7 @@ function toPlayRejection({ action, reason }) {
 
 const HAZARD_CATEGORY = "hazard";
 const BARRIER_CATEGORY = "barrier";
-const PLAYER_MOTIVATION = "user_controlled";
+export const PLAYER_MOTIVATION = "user_controlled";
 
 /**
  * @param {object} args
@@ -382,7 +382,8 @@ export async function createPlaySession({
     return { tick: currentTick(), accepted, rejected, status: status() };
   }
 
-  // The party as the UI lists it: who is seated, and where each member stands.
+  // The party as the UI lists it: who is seated, where each member stands, and the
+  // motivation stack that explains what it does on its own (#310).
   function partyView(snapshot) {
     return partyIds.map((id) => {
       const actor = snapshot.actors.find((entry) => entry.id === id);
@@ -392,6 +393,7 @@ export async function createPlaySession({
         label: labels.get(id) ?? null,
         active: id === activeId,
         ...(actor && !memberStatus.exited ? { position: { ...actor.position } } : {}),
+        motivations: [...(actor?.motivations ?? [])],
         status: memberStatus,
       };
     });
@@ -512,6 +514,8 @@ function toViewActor(actor, presentation, labels) {
     affinities: actor.affinities.map((pair) => ({ ...pair })),
     activeAffinityKey: actor.activeAffinityKey,
     ...(actor.affinityExhausted ? { affinityExhausted: true } : {}),
+    // The stack that explains its behaviour (#310); the board glyph never encodes it.
+    motivations: [...(actor.motivations ?? [])],
   };
 }
 

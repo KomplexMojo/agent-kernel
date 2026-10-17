@@ -76,6 +76,16 @@ test("the screen names everyone in sight by label", async () => {
   assert.match(game.screen(), /In sight: .*W1 guard/);
 });
 
+test("motivations explain behaviour: in sight, in the target panel and in the party line beyond user_controlled (#310)", async () => {
+  const pal = { category: "delver", id: "hero-c", position: { x: 2, y: 3 }, vitals: viableVitals(), motivations: ["user_controlled", "exploring"] };
+  const game = await createGame({ levels: [partyLevel([...ACTORS, pal])], showHelp: false });
+  assert.match(game.screen(), /In sight: .*W1 guard \(stationary\)/);
+  assert.match(game.screen(), /Party: \[D1 hero-a\] {2}D2 hero-b {2}D3 hero-c \(exploring\)/,
+    "every party member is user_controlled, so only the rest of the stack is shown");
+  await game.handle(intentForKey("f"));
+  assert.match(game.screen(), /Target: guard \(stationary\)/);
+});
+
 test("structured commands take labels for the actor and the target", async () => {
   const game = await createGame({ levels: [partyLevel()], showHelp: false });
   const moved = await game.command({ kind: "move", params: { direction: "east" }, actorId: "D2" });
@@ -107,6 +117,8 @@ test("--session keeps one game across calls and reopens its own level", () => {
   assert.equal(first.json.turns, 1);
   assert.equal(first.json.active, "hero-a");
   assert.deepEqual(first.json.party.map((member) => member.label), ["D1", "D2"]);
+  assert.deepEqual(first.json.party.map((member) => member.motivations), [["user_controlled"], ["user_controlled"]]);
+  assert.deepEqual(first.json.inSight.find((actor) => actor.id === "guard")?.motivations, ["stationary"]);
   assert.ok(existsSync(session));
   assert.match(first.json.hud, /^D1 hero-a · HP 10\/10/);
 

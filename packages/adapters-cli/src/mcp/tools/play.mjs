@@ -18,9 +18,9 @@ const actingSpec = [
 ];
 
 const SESSION_RESULT = "Returns { screen, status, turns, active, party, orders?, inSight, hud, results? }: show `screen` verbatim in a code block. "
-  + "`active` is the seated actor; `party` lists every playable (user_controlled) actor with its label (D1, D2, ...), position and status; "
+  + "`active` is the seated actor; `party` lists every playable (user_controlled) actor with its label (D1, D2, ...), position, motivations and status; "
   + "`orders` lists every actor following a strategy: the goal it is on (`doing`, `goal` of `goals`) and its status (active, searching: target out of sight, stalled: with a reason, done, ignored: its thinking motivation does not reach the strategy); "
-  + "`inSight` lists every other actor and trap the seated actor sees now, each with a label (W1, H2, ...) you and the player can use instead of its id. "
+  + "`inSight` lists every other actor and trap the seated actor sees now, each with a label (W1, H2, ...) you and the player can use instead of its id, and its motivations (the stack that explains how it acts). "
   + "Fog of war is on: report only what the screen and inSight show.";
 
 const sessionProperty = stringSchema("The game's name (default \"game\"). One game per name; it is saved to artifacts/play-sessions/<name>.json after every call, so it survives a restart.");

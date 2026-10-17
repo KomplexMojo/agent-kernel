@@ -337,7 +337,8 @@ ak play-session start --session g2 --load artifacts/games/g.json    # reopen a c
 
 - Output: `{ ok, action, name, session, level, turns, status, active, party, orders?, inSight, results?, hud, screen, saved?, ended? }`.
   `party` is every actor authored `user_controlled` (the actors a player may seat), each with a short label
-  (`D1`, `D2`), position and status; `inSight` is every other actor and trap the seated actor sees now, with labels.
+  (`D1`, `D2`), position, motivations and status; `inSight` is every other actor and trap the seated actor sees now,
+  with labels and motivations (the stack that explains how each acts on its own).
 - `--actor <id|label>` seats a party member before anything is played; a companion or warden answers `not_playable`
   in `results`. `--commands` is a JSON array of `{ kind, params?, actorId? }` (the play commands `move`, `wait`,
   `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`) or `{ kind: "switch", actorId }`; actor ids and
