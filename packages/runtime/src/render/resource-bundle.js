@@ -19,14 +19,6 @@ import {
   composeActorMedallion,
 } from "./actor-medallion-composer.js";
 import { computeTileAlpha } from "./affinity-spatial-formulas.js";
-import {
-  applyAuraMask,
-  emitMask,
-  pushMask,
-  pullMask,
-  drawMask,
-  stackAlphaMultiplier,
-} from "./affinity-tile-mask.js";
 import { getAffinitySpriteAsset } from "./generated/affinity-sprite-assets.js";
 import { getGameSpriteAsset } from "./generated/game-sprite-assets.js";
 import { SPATIAL_WEIGHTS } from "../contracts/affinity-spatial-rules.js";
@@ -998,32 +990,6 @@ function collectHazardAffinities(hazard) {
     });
 }
 
-function buildFloorAffinityMap(floorAffinityHazards = []) {
-  const map = new Map();
-  if (!Array.isArray(floorAffinityHazards)) return map;
-  floorAffinityHazards.forEach((hazard) => {
-    const position = normalizeHazardPosition(hazard);
-    if (!position) return;
-    const affinities = collectHazardAffinities(hazard);
-    const affinity = affinities.length > 0 ? affinities[0] : null;
-    if (!affinity) return;
-    const key = `${position.x},${position.y}`;
-    const prior = map.get(key);
-    if (!prior) {
-      map.set(key, affinity);
-      return;
-    }
-    if (affinity.stacks > prior.stacks) {
-      map.set(key, affinity);
-      return;
-    }
-    if (affinity.stacks === prior.stacks && affinityPriority(affinity.kind) < affinityPriority(prior.kind)) {
-      map.set(key, affinity);
-    }
-  });
-  return map;
-}
-
 function chebyshevDistance(left, right) {
   return Math.max(Math.abs(left.x - right.x), Math.abs(left.y - right.y));
 }
@@ -1128,7 +1094,6 @@ export async function renderBoardWithResourceBundle({
   floorAffinityHazards = [],
   resourceBundle,
   loadAssetPixels,
-  observation,
 } = {}) {
   const widthTiles = Array.isArray(tiles) && tiles.length > 0
     ? tiles.reduce((max, row) => Math.max(max, String(row || "").length), 0)
@@ -1151,7 +1116,6 @@ export async function renderBoardWithResourceBundle({
   const height = heightTiles * tileHeight;
   const pixels = createPixelBuffer(width, height);
   const spriteCache = new Map();
-  const sourceAffinityMap = buildFloorAffinityMap(floorAffinityHazards);
   const tileAffinityProjectionMap = buildTileAffinityProjectionMap(floorAffinityHazards, tiles, widthTiles, heightTiles);
 
   async function getSprite(assetId) {
@@ -1186,65 +1150,6 @@ export async function renderBoardWithResourceBundle({
           : resolveTileAffinityOverlayAssetId(bundle, projection.semantic, projection.kind);
         const overlaySprite = await getSprite(overlayAssetId);
         blitSprite(pixels, width, height, overlaySprite, tileWidth, x * tileWidth, y * tileHeight, projection.alpha);
-      }
-    }
-  }
-
-  // Aura rendering pass (after hazard tinting, before actors)
-  if (observation?.auras && Array.isArray(observation.auras)) {
-    const auraIndex = new Map();
-    observation.auras.forEach((auraData) => {
-      const key = `${auraData.x},${auraData.y}`;
-      auraIndex.set(key, auraData);
-    });
-
-    for (let y = 0; y < heightTiles; y += 1) {
-      const row = String(tiles[y] || "").padEnd(widthTiles, "#");
-      for (let x = 0; x < widthTiles; x += 1) {
-        const char = row[x] || "#";
-        const semantic = inferTileSemantic(char);
-
-        // Observation auras render on floor tiles; authored hazard/source tiles keep their stronger authored overlay.
-        if (semantic !== "floor") continue;
-        const hasHazard = sourceAffinityMap.has(`${x},${y}`);
-        if (hasHazard) continue;
-
-        const auraData = auraIndex.get(`${x},${y}`);
-        if (!auraData) continue;
-
-        // Select mask function based on visualState
-        const visualState = auraData.visualState || "emit";
-        let maskFn = emitMask;
-        if (visualState.includes("push")) maskFn = pushMask;
-        else if (visualState.includes("pull")) maskFn = pullMask;
-        else if (visualState.includes("draw")) maskFn = drawMask;
-
-        // Resolve affinity color
-        const affinityKind = auraData.affinityKind || auraData.kind;
-        const affinityHex = AFFINITY_COLOR_HEX[affinityKind];
-        if (!affinityHex) continue;
-        const affinityRgba = hexToRgba(affinityHex);
-
-        // Compute mask alpha from intensity and stacks
-        const intensity = auraData.intensity ?? 1.0;
-        const stacks = auraData.stacks ?? 1;
-        const stackAlpha = stackAlphaMultiplier(stacks, SPATIAL_WEIGHTS);
-        const maskAlpha = intensity * stackAlpha;
-
-        // Apply aura mask
-        const tilePixelX = x * tileWidth;
-        const tilePixelY = y * tileHeight;
-        const maskFnWithWeights = (u, v) => maskFn(u, v, SPATIAL_WEIGHTS);
-        applyAuraMask(
-          pixels,
-          width,
-          tilePixelX,
-          tilePixelY,
-          tileWidth,
-          affinityRgba,
-          maskFnWithWeights,
-          maskAlpha
-        );
       }
     }
   }
