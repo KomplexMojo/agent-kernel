@@ -293,12 +293,12 @@ checked by the exported `normalizeActorStrategy`), like the command vocabulary.
 
 | Goal | Does | Finishes |
 |---|---|---|
-| `reach {place}` | walks to `{x,y}` or `"exit"` | on arrival |
+| `reach {place}` | walks to `{x,y}`, or onto the exit and waits there until it leaves | on arrival; for the exit, on the turn it leaves |
 | `defeat {target}` | closes in and casts | when the target is defeated |
 | `take {target}` | defeats it, then takes each unclaimed holding | when nothing is left |
 | `guard {target, radius=2}` | engages hostiles near the target, else stays within `radius` | never |
 | `follow {target, distance=1}` | stays within `distance`; its motivations play inside that | never |
-| `lead {target, place="exit", distance=3}` | walks to the place, waiting for an ally that falls behind | on arrival |
+| `lead {target, place="exit", distance=3}` | walks to the place, waiting for an ally that falls behind | on arrival; for the exit, on the turn it leaves |
 | `hold {place, ticks}` | goes there and stays `ticks` ticks | after the ticks |
 | `survive {distance=3}` | steps away from a hostile that close | never |
 

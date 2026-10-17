@@ -285,7 +285,8 @@ function evaluateGoal(goal, entry, context) {
 
   switch (goal.kind) {
     case "reach": {
-      if (goal.place === "exit") return active(context.exitStep());
+      // Standing on the exit, the last wait leaves the level: the goal is met.
+      if (goal.place === "exit") return context.onExit() ? { status: STRATEGY_STATUS.DONE, proposals: [WAIT] } : active(context.exitStep());
       if (samePosition(self.position, goal.place)) return { done: true };
       const step = stepToward(self.position, goal.place, context);
       if (!step.route) return stalled("no_route");
@@ -340,6 +341,7 @@ function evaluateGoal(goal, entry, context) {
     case "lead": {
       const place = goal.place === "exit" ? null : goal.place;
       if (place && samePosition(self.position, place)) return { done: true };
+      if (!place && context.onExit()) return { status: STRATEGY_STATUS.DONE, proposals: [WAIT] };
       // The ally sets the pace: the leader waits for one that falls behind or out of sight.
       if (!gone(target) && (!target || chebyshevDistance(self.position, target.position) > goal.distance)) {
         return active([WAIT], { reason: "waiting_for_ally" });
@@ -403,7 +405,7 @@ function tacticProposal(action, context) {
  * @param {object} args.entry      this actor's progress entry from the Actor context
  * @param {object} args.context    self, record, view, hostiles, nearestHostile, configuredIds,
  *                                 tick, tileKinds, baseTiles, reservedTargets, actorId,
- *                                 castAt(target, distance), exitStep(), commandProposal(command)
+ *                                 castAt(target, distance), exitStep(), onExit(), commandProposal(command)
  * @returns {{ proposals: object[] | null, keepNear?: object, entry: object }}
  */
 export function followStrategy({ strategy, depth, entry = {}, context }) {

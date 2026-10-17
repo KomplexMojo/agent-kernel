@@ -260,6 +260,14 @@ export function buildMoveProposal({ observation, payload, simConfig }) {
   if (actorRecord?.motivation?.mobility === "stationary") {
     return [{ kind: "wait" }];
   }
+  // The exit is a wall portal beside its approach: from the approach, step onto it,
+  // then stay there for core's exit dwell.
+  const portal = findExitFromTiles(baseTiles);
+  if (portal && actor.position.x === portal.x && actor.position.y === portal.y) return [{ kind: "wait" }];
+  if (portal && actor.position.x === exit.x && actor.position.y === exit.y
+    && chebyshevDistance(actor.position, portal) === 1) {
+    return [{ kind: "move", params: { target: portal } }];
+  }
   const path = findPath(actor.position, exit, tileKinds, baseTiles);
   if (!path || path.length < 2) return [];
   const to = path[1];

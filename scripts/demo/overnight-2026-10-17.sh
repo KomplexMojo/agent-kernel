@@ -2,7 +2,7 @@
 # Walk through everything merged overnight on 2026-10-16/17 (#285, #293-#330), each part
 # through `ak` and the personas: levels come from `ak create`, prices from the Allocator.
 # Usage: bash scripts/demo/overnight-2026-10-17.sh [section ...]
-#   sections: rules blind corrode stamina rename regen motivations pricing solver hygiene
+#   sections: rules blind corrode stamina rename regen motivations pricing solver hygiene orders
 #   (no section runs them all, in that order; takes a few minutes)
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -36,7 +36,8 @@ json() { node -e 'const r = require(require("path").resolve(process.argv[1])); c
 quiet() { "$@" >"$WORK/quiet.log" 2>&1 || { cat "$WORK/quiet.log" >&2; return 1; }; }
 create() { quiet $AK create --created-at 2026-10-17T00:00:00.000Z "$@"; }
 session() { $AK play-session "$@" --session "$SESSION"; }
-end_session() { session end >/dev/null 2>&1 || true; }
+# A run stopped part way leaves its session behind with its level gone; drop that file.
+end_session() { session end >/dev/null 2>&1 || rm -f "${AK_PLAY_SESSIONS_DIR:-artifacts/play-sessions}/$SESSION.json"; }
 
 # A playable delver emitting $1 at 3 stacks, a trap 2 tiles away emitting $2 at $3 stacks.
 pair_level() {
@@ -195,6 +196,11 @@ pricing() {
   quiet $AK sandbox-create --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --out-dir "$WORK/sandbox"
   json "$WORK/sandbox/budget-receipt.json" '"receipt " + r.status + ", " + r.totalCost + " for the room"'
   json "$WORK/sandbox/sandbox-session.json" '"session refs " + r.artifacts.budgetReceiptRef.id'
+
+  step "Each persona stamps what it made: meta.producedBy on every artifact (#334)"
+  for file in sim-config initial-state price-list spend-proposal budget-receipt; do
+    json "$WORK/party/$file.json" '"'"$file"' ".padEnd(16) + r.meta.producedBy'
+  done
 }
 
 solver() {
@@ -231,14 +237,52 @@ hygiene() {
     | grep -E '✓|✗|×|Tests ' | sed 's/^ *//'
 }
 
-ALL=(rules blind corrode stamina rename regen motivations pricing solver hygiene)
+orders() {
+  section "11. Game commands: a party, free seat switches and standing orders (#267-#270)"
+  say "Every command here is ak play-session; the ak_play_* MCP tools take the same arguments."
+  create --budget-tokens 12000 --out-dir "$WORK/orders" --room "size=medium;count=2" \
+    --delver "count=1;id=hero;affinity=wind;motivation=user_controlled;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1" \
+    --delver "count=1;id=scout;affinity=earth;motivation=user_controlled;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1" \
+    --delver "count=1;id=pal;affinity=fire;motivation=goal_oriented;strategy=follow:hero-1:2;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1"
+  local orders='(r.orders ?? []).map((o) => o.label + " " + o.doing.kind + " " + o.status).join(", ")'
+  local turns='r.turns + (r.turns === 1 ? " turn" : " turns")'
+  end_session
+
+  step "start: two party members you can seat; a companion already following the hero"
+  session start --dir "$WORK/orders" | pick '"party: " + r.party.map((p) => p.label + " " + p.id).join(", ")
+    + "; in sight: " + r.inSight.map((a) => a.label + " " + a.motivations.join("+")).join(", ")'
+  step "switch seats is free: no turn passes"
+  session switch --actor D3 | pick "\"seated \" + r.active + \", \" + $turns"
+  session switch --actor D1 | pick "\"seated \" + r.active + \", \" + $turns"
+
+  step "order: giving one is a turn (the seated actor's and the ordered actor's)"
+  session order --actor D3 --strategy reach:exit | pick "$turns + \"; orders: \" + $orders"
+  step "A malformed strategy is refused, and no turn passes"
+  session order --actor D2 --strategy dance:1 2>&1 | head -1 || true
+  step "The seated hero can take orders too"
+  session order --actor D1 --strategy reach:exit | pick "$turns + \"; orders: \" + $orders"
+
+  step "advance --until orders_done: the orders play out; it stops when the seated hero leaves"
+  session advance --until orders_done | pick '"stopped by " + r.results[0].stoppedBy + " after " + r.results[0].ticks + " ticks; "
+    + r.party.map((p) => p.label + (p.status.exited ? " exited" : " in play")).join(", ")'
+  session view | pick "\"orders: \" + $orders"
+  session view --save "$WORK/orders-game.json" | pick '"saved a copy: " + (r.saved ? "yes" : "no")'
+  end_session
+
+  step "Orders go to your own side only: a warden answers not_yours"
+  session start --dir "$WORK/party" >/dev/null
+  session order --actor W1 --strategy survive | pick 'r.results[0].reason'
+  end_session
+}
+
+ALL=(rules blind corrode stamina rename regen motivations pricing solver hygiene orders)
 SECTIONS=("$@")
 [ ${#SECTIONS[@]} -eq 0 ] && SECTIONS=("${ALL[@]}")
 for name in "${SECTIONS[@]}"; do
   case " ${ALL[*]} " in *" $name "*) ;; *) echo "unknown section: $name (one of: ${ALL[*]})" >&2; exit 2;; esac
   # pricing, solver and hygiene reuse levels the earlier sections build.
   case $name in
-    pricing|hygiene) [ -d "$WORK/party" ] || motivations >/dev/null ;;
+    pricing|hygiene|orders) [ -d "$WORK/party" ] || motivations >/dev/null ;;
     solver) [ -d "$WORK/objects" ] || pricing >/dev/null ;;
   esac
   "$name"
