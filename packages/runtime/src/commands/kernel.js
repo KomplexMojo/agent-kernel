@@ -1146,14 +1146,14 @@ export function createCommandKernel(host = {}) {
     // simulation output but different meta stamps on these three files, breaking reproducibility the
     // simulation itself already has. Constructed here (moved up from below) so it can seed all three.
     const clock = createDeterministicClock(resolveClockSeed(simConfig, initialState));
-    function deterministicRunArtifactMeta(tag, producedBy) {
+    function deterministicRunArtifactMeta(tag, producedBy, { note, stampClock = clock } = {}) {
       return {
         id: `artifact_${runId}_${tag}`,
         runId,
-        createdAt: clock(),
+        createdAt: stampClock(),
         producedBy,
         correlationId: undefined,
-        note: undefined,
+        note,
       };
     }
 
@@ -1237,14 +1237,18 @@ export function createCommandKernel(host = {}) {
     await runtime.init({ seed, simConfig, initialState, clock, affinityEffects });
 
     const simConfigRef = toRef(simConfig);
+    // #189 — checkpoints get the same seeded stamps as every other run artifact, from a
+    // clock of their own: `clock` times every tick frame, so drawing from it here would
+    // make requesting checkpoints shift the timestamps of everything else the run writes.
+    const checkpointClock = createDeterministicClock(resolveClockSeed(simConfig, initialState));
     async function captureWorldStateCheckpoint(expectedTick) {
       if (!pendingWorldStateCheckpoints.has(expectedTick)) return;
       const checkpoint = runtime.captureWorldState({
-        meta: createMeta({
-          producedBy: "annotator",
-          runId,
-          note: `world-state checkpoint at tick ${expectedTick}`,
-        }),
+        meta: deterministicRunArtifactMeta(
+          `worldstate_${worldStateCheckpointFilename(expectedTick).replace(/\.json$/, "")}`,
+          "annotator",
+          { note: `world-state checkpoint at tick ${expectedTick}`, stampClock: checkpointClock },
+        ),
         simConfigRef,
       });
       if (checkpoint.tick !== expectedTick) {
