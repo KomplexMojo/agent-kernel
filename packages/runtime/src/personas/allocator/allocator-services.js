@@ -38,7 +38,7 @@ import {
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 import { reconcileBudget } from "./reconciliation.js";
 import { priceMixedRoomDesignSpend } from "./mixed-room-spend.js";
-import { RUNTIME_BUDGET_RECEIPT_SCHEMA } from "../../contracts/artifacts.ts";
+import { BUDGET_RECEIPT_ARTIFACT_SCHEMA, RUNTIME_BUDGET_RECEIPT_SCHEMA } from "../../contracts/artifacts.ts";
 
 const RUNTIME_BUDGET_UNIT = "runtimeBudgetUnits";
 const RUNTIME_BUDGET_PRICE_SOURCE = "allocator_runtime_action_price_v1";
@@ -503,6 +503,28 @@ export function attachAllocatorServices({
   }
 
   /**
+   * #277: whether a caller-supplied receipt can stand for spend. The Allocator judges its own
+   * receipts; the sandbox used to check them in glue, differently in the CLI and the MCP.
+   * Only an approved receipt with a non-negative remainder and its line items is usable.
+   */
+  function assessReceiptForUse(receipt) {
+    const refuse = (error, budgetInsufficient = false) => ({ ok: false, error, ...(budgetInsufficient ? { budgetInsufficient } : {}) });
+    if (receipt?.schema !== BUDGET_RECEIPT_ARTIFACT_SCHEMA) {
+      return refuse(`Expected ${BUDGET_RECEIPT_ARTIFACT_SCHEMA}, got ${receipt?.schema || "unknown"}`);
+    }
+    if (receipt.schemaVersion !== 1) return refuse(`Budget receipt schemaVersion must be 1, got ${receipt.schemaVersion}`);
+    if (typeof receipt.meta?.id !== "string" || !receipt.meta.id.trim()) return refuse("Budget receipt is missing meta.id");
+    if (receipt.status !== "approved") {
+      return refuse(`Budget receipt status must be "approved", got ${JSON.stringify(receipt.status)}`, true);
+    }
+    if (!(Number.isFinite(receipt.remaining) && receipt.remaining >= 0)) {
+      return refuse(`Budget receipt remaining must be a non-negative finite number, got ${receipt.remaining}`, true);
+    }
+    if (!Array.isArray(receipt.lineItems)) return refuse("Budget receipt is missing lineItems array");
+    return { ok: true };
+  }
+
+  /**
    * Core prices a cast only as base × s(s+1)/2 (#232). An artifact written before that
    * carried five-tier `castMana` tables; its tier-1 price is the curve's base, so it loads
    * on the one curve rather than keeping a second price model alive. Price translation is
@@ -535,6 +557,7 @@ export function attachAllocatorServices({
   return {
     pricing,
     reportLevelPricing,
+    assessReceiptForUse,
     castPricesFromLegacyTiers,
     issueRuntimeBudgetReceipt,
     resolvePriceList,

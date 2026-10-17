@@ -34,10 +34,9 @@ import {
   ACTION_SCHEMA,
   ACTION_SEQUENCE_SCHEMA,
   BUDGET_ARTIFACT_SCHEMA,
-  BUDGET_RECEIPT_ARTIFACT_SCHEMA,
-  PLAN_ARTIFACT_SCHEMA,
 } from "../../../../runtime/src/contracts/artifacts.ts";
 import { createConfiguratorPersona } from "../../../../runtime/src/personas/configurator/persona.js";
+import { createAllocatorPersona, evaluateConfiguratorSpend } from "../../../../runtime/src/personas/allocator/persona.js";
 
 // ---------------------------------------------------------------------------
 // Local I/O helpers (self-contained — no dependency on ak-impl.mjs)
@@ -113,7 +112,18 @@ export async function executeSandboxCreate({
     ? createdAtInput.trim()
     : new Date().toISOString();
 
+  // Room dimensions (default 10×10)
+  const roomWidth = Number.isInteger(Number(width)) && Number(width) > 0 ? Number(width) : 10;
+  const roomHeight = Number.isInteger(Number(height)) && Number(height) > 0 ? Number(height) : 10;
+  const outDir = isNonEmptyString(outDirInput)
+    ? outDirInput
+    : resolve(process.cwd(), "artifacts", "sandbox", runId);
+
+  // #277: receipts are the Allocator's. A supplied receipt is judged by it; a budget is spent by
+  // it on the room's floor, and the receipt it issues is written and referenced.
+  const allocator = createAllocatorPersona({ clock: () => createdAt });
   let budgetReceiptRef;
+  let issued = null;
 
   if (isNonEmptyString(budgetReceipt)) {
     let receipt;
@@ -126,53 +136,9 @@ export async function executeSandboxCreate({
         error: `Cannot read budget receipt: ${err.message}`,
       };
     }
-    if (receipt.schema !== BUDGET_RECEIPT_ARTIFACT_SCHEMA) {
-      return {
-        ok: false,
-        command: "sandbox-create",
-        error: `Expected agent-kernel/BudgetReceiptArtifact, got ${receipt.schema || "unknown"}`,
-      };
-    }
-    // Full BudgetReceiptArtifact validation — reject malformed receipts that
-    // could bypass the budget trust boundary.
-    if (receipt.schemaVersion !== 1) {
-      return {
-        ok: false,
-        command: "sandbox-create",
-        error: `Budget receipt schemaVersion must be 1, got ${receipt.schemaVersion}`,
-      };
-    }
-    if (!isNonEmptyString(receipt.meta?.id)) {
-      return {
-        ok: false,
-        command: "sandbox-create",
-        error: "Budget receipt is missing meta.id",
-      };
-    }
-    // Only "approved" status is accepted — missing, unknown, or denied status is rejected.
-    const ALLOWED_RECEIPT_STATUSES = new Set(["approved"]);
-    if (!ALLOWED_RECEIPT_STATUSES.has(receipt.status)) {
-      return {
-        ok: false,
-        command: "sandbox-create",
-        error: `Budget receipt status must be "approved", got ${JSON.stringify(receipt.status)}`,
-        budgetInsufficient: true,
-      };
-    }
-    if (!(Number.isFinite(receipt.remaining) && receipt.remaining >= 0)) {
-      return {
-        ok: false,
-        command: "sandbox-create",
-        error: `Budget receipt remaining must be a non-negative finite number, got ${receipt.remaining}`,
-        budgetInsufficient: true,
-      };
-    }
-    if (!Array.isArray(receipt.lineItems)) {
-      return {
-        ok: false,
-        command: "sandbox-create",
-        error: "Budget receipt is missing lineItems array",
-      };
+    const verdict = allocator.assessReceiptForUse(receipt);
+    if (!verdict.ok) {
+      return { ok: false, command: "sandbox-create", error: verdict.error, ...(verdict.budgetInsufficient ? { budgetInsufficient: true } : {}) };
     }
     budgetReceiptRef = toRef(receipt);
   } else {
@@ -202,17 +168,27 @@ export async function executeSandboxCreate({
         budgetInsufficient: true,
       };
     }
-    // Synthesize a placeholder budget receipt ref from the budget artifact
-    budgetReceiptRef = {
-      id: `budget_receipt_${runId}`,
-      schema: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
-      schemaVersion: 1,
-    };
+    const priceList = allocator.pricing.priceList();
+    const meta = (prefix) => ({ id: `${prefix}_${runId}`, runId, createdAt, producedBy: "sandbox-create" });
+    const { receipt } = evaluateConfiguratorSpend({
+      budget: budgetArtifact,
+      priceList,
+      layout: { width: roomWidth, height: roomHeight, terrain: boxedTerrain(roomWidth, roomHeight) },
+      actors: [],
+      proposalMeta: meta("spend_proposal"),
+      receiptMeta: meta("budget_receipt"),
+    });
+    if (receipt.status !== "approved") {
+      return {
+        ok: false,
+        command: "sandbox-create",
+        error: `Budget insufficient: the Allocator denied the room (cost ${receipt.totalCost}, remaining ${receipt.remaining})`,
+        budgetInsufficient: true,
+      };
+    }
+    issued = { receipt, priceList };
+    budgetReceiptRef = toRef(receipt);
   }
-
-  // Room dimensions (default 10×10)
-  const roomWidth = Number.isInteger(Number(width)) && Number(width) > 0 ? Number(width) : 10;
-  const roomHeight = Number.isInteger(Number(height)) && Number(height) > 0 ? Number(height) : 10;
 
   // Entity categories (optional)
   const cats = Array.isArray(entityCategories)
@@ -220,9 +196,6 @@ export async function executeSandboxCreate({
     : [];
 
   const sandboxId = `sandbox_session_${runId}`;
-  const outDir = isNonEmptyString(outDirInput)
-    ? outDirInput
-    : resolve(process.cwd(), "artifacts", "sandbox", runId);
 
   const session = {
     schema: SANDBOX_SESSION_SCHEMA,
@@ -249,6 +222,10 @@ export async function executeSandboxCreate({
   }
 
   await mkdir(outDir, { recursive: true });
+  if (issued) {
+    await writeJson(join(outDir, "price-list.json"), issued.priceList);
+    await writeJson(join(outDir, "budget-receipt.json"), issued.receipt);
+  }
   await writeJson(join(outDir, "sandbox-session.json"), session);
 
   return {
@@ -373,11 +350,8 @@ function rebuildSandboxArtifacts({
       createdAt,
       producedBy: "sandbox-place",
     },
-    planRef: existingSimConfig?.planRef ?? {
-      id: `plan-${runId}`,
-      schema: PLAN_ARTIFACT_SCHEMA,
-      schemaVersion: 1,
-    },
+    // No Director drafts a sandbox plan, so the sandbox names none (#277).
+    planRef: existingSimConfig?.planRef,
     layout: { width, height, terrain },
     movementStamina: configurator.assembleMovementStamina({ actors, movementStamina }),
   });

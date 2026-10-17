@@ -1042,6 +1042,15 @@ pnpm run demo:cli -- /tmp/agent-kernel-demo
 
 Inspect the emitted artifacts in your chosen `--out-dir` or `artifacts/demo-bundle` to see these shapes. Examples align with `tests/fixtures/adapters/effects-routing.json`.
 
+## Sandbox sessions (`sandbox-create`)
+
+`ak sandbox-create` and `ak_sandbox_create` run the same code. `--budget-receipt <file>` must be a
+receipt the Allocator approves (a `partial` or `denied` receipt is refused with `budgetInsufficient`).
+`--budget <file>` is spent by the Allocator on the room (`--width`/`--height`, default 10x10); the
+issued `budget-receipt.json` and `price-list.json` are written to `--out-dir` and the session's
+`budgetReceiptRef` names that receipt. `sandbox-place` names no `planRef`, since no Director plans a
+sandbox.
+
 ## MCP sandbox bridge (`ak_push_to_ui`)
 
 The MCP server's `ak_push_to_ui` tool delivers an `agent-kernel/GameplayBundle` to a
