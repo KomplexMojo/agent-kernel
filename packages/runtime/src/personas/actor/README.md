@@ -136,6 +136,10 @@ Motivations are:
 - Evaluated outside the simulation core.
 - Explicit and inspectable, enabling debugging and experimentation.
 
+`patrolling` circuits the actor's room perimeter. Occupied or reserved ring cells are
+skipped so a holder on the next clockwise tile does not shove the walker off-circuit
+into an oscillation (the mobility demo pair is `patrolling` vs `stationary`).
+
 ---
 
 ## Decision-Making Model

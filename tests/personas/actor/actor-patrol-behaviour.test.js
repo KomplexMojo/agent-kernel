@@ -165,6 +165,39 @@ test("a non-patrolling actor still heads for the exit", async () => {
   );
 });
 
+test("patrol skips an occupied ring cell instead of stepping onto it or oscillating", async () => {
+  // Demo failure mode: stationary warden on the next clockwise cell. Targeting that
+  // cell lets pathfinding leave the ring; the west-wall index then points back, so the
+  // patrol oscillates and looks identical to "stuck" next to a holder.
+  const blocker = { id: "holder_1", kind: 2, role: "warden", position: { x: 2, y: 1 } };
+  const first = await proposeFrom({ x: 1, y: 1 }, { others: [blocker] });
+  assert.ok(first, "blocked patrol must still propose a move");
+  assert.notDeepEqual(
+    first.params.target,
+    { x: 2, y: 1 },
+    "patrol must not step onto the occupied ring cell",
+  );
+
+  const path = [{ x: 1, y: 1 }];
+  let at = { x: 1, y: 1 };
+  for (let i = 0; i < 8; i += 1) {
+    const move = await proposeFrom(at, { others: [blocker] });
+    if (!move) break;
+    at = { ...move.params.target };
+    path.push({ ...at });
+  }
+  assert.ok(path.length > 3, `patrol stalled beside the blocker: ${JSON.stringify(path)}`);
+  const unique = new Set(path.map((p) => `${p.x},${p.y}`));
+  assert.ok(
+    unique.size >= 3,
+    `patrol oscillated instead of advancing past the blocker: ${JSON.stringify(path)}`,
+  );
+  assert.ok(
+    path.every((p) => !(p.x === 2 && p.y === 1)),
+    `patrol entered the occupied cell: ${JSON.stringify(path)}`,
+  );
+});
+
 // ## TODO: Test Permutations
 // - a room whose perimeter is broken by an interior wall
 // - two patrolling actors on the same ring, one blocking the other
