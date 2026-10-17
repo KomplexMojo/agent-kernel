@@ -135,7 +135,12 @@ export function normalizeAffinityList(affinities, errors, fieldBase = "affinitie
       addError(errors, `${base}.expression`, "affinity_requires_expression");
       return list;
     }
-    list.push({ kind: entry.kind.trim(), stacks, expression });
+    // #340: intensity is optional (absent reads as 1); when given it is a whole number from 1 up.
+    if (entry.intensity !== undefined && (!Number.isSafeInteger(entry.intensity) || entry.intensity < 1)) {
+      addError(errors, `${base}.intensity`, "invalid_intensity");
+      return list;
+    }
+    list.push({ kind: entry.kind.trim(), stacks, ...(entry.intensity !== undefined ? { intensity: entry.intensity } : {}), expression });
     return list;
   }, []);
 }

@@ -82,6 +82,8 @@ function normalizeAffinityEntries(
           expression,
           stacks: normalizePositiveInt(entry?.stacks, 1),
         };
+        // #340: an authored intensity is carried as given (absent reads as 1).
+        if (Number.isSafeInteger(entry?.intensity) && entry.intensity >= 1) normalized.intensity = entry.intensity;
         if (entry?.hazardVitals && typeof entry.hazardVitals === "object") {
           normalized.hazardVitals = entry.hazardVitals;
         }

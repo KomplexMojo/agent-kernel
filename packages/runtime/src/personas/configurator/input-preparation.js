@@ -315,7 +315,8 @@ function authoredAffinity(entry) {
   if (stack && typeof stack === "object" && !Array.isArray(stack)
     && typeof stack.kind === "string" && stack.kind.trim()
     && typeof stack.expression === "string" && stack.expression.trim()) {
-    return { kind: stack.kind, expression: stack.expression, stacks: stack.stacks };
+    return { kind: stack.kind, expression: stack.expression, stacks: stack.stacks,
+      ...(stack.intensity !== undefined ? { intensity: stack.intensity } : {}) };
   }
   if (entry?.affinity && typeof entry.affinity === "object" && !Array.isArray(entry.affinity)) {
     return entry.affinity;
@@ -344,7 +345,7 @@ export function mapHazards(hazards = [], { affinityRules } = {}) {
         ? { x: entry.x, y: entry.y }
         : null
     );
-    const { kind, expression, stacks } = affinity;
+    const { kind, expression, stacks, intensity } = affinity;
     const defaults = computeHazardVitals(expression, stacks, kind, affinityRules);
     const { actor, presentation } = normalizeActorDefinition({
       category: "hazard",
@@ -352,7 +353,8 @@ export function mapHazards(hazards = [], { affinityRules } = {}) {
       position,
       vitals: { ...defaults, ...mechanicalVitals(entry.vitals) },
       capabilities: { blocksMovement: entry.blocking === true },
-      affinities: [{ kind, expression, stacks }],
+      // #340: intensity rides along as authored; core validates it and reads absent as 1.
+      affinities: [{ kind, expression, stacks, ...(intensity !== undefined ? { intensity } : {}) }],
       activeAffinityKey: `${kind}:${expression}`,
       motivations: Array.isArray(entry.motivations) ? entry.motivations : [],
       holdings: Array.isArray(entry.holdings) ? entry.holdings : [],

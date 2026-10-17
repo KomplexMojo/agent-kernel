@@ -400,7 +400,7 @@ Inputs/outputs:
   `budget <N> tokens`, and/or `--budget` supplies `budget.tokens`, all values must agree or
   the command fails validation.
 - `--floor-tile` format: `count=<n>[;id=<id>]`
-- Positioned `--hazard` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
+- Positioned `--hazard` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<range>][;intensity=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
   Hazard `x`/`y` are room-relative offsets into the first declared room's interior.
   Level generation maps them to absolute grid coordinates; persisted
   `sim-config.json` hazards carry the mapped absolute coordinates. Coordinates
@@ -410,7 +410,7 @@ Inputs/outputs:
 - In multi-room requests, the `--floor-tile` budget is distributed across all
   declared rooms. Budgets below the minimum viable interior per room are
   rejected instead of leaving declared rooms uncarved.
-- `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
+- `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
   Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
 - `--resource` format: a resource carries a **vital payload**, an **affinity payload**, a **slots payload**, or a combination.
   - Vital payload: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]`
@@ -465,6 +465,10 @@ Inputs/outputs:
   ```
 - `--delver` accepts `goals=max_mana[:<priority>],mana_regen[:<priority>]` to record qualitative
   vitals goals as optimization directions over the existing deterministic vitals and regen cost model.
+- Affinity range and intensity (#340): in `affinities=<kind>:<expression>:<range>:<intensity>` the third part
+  is the range (how far a cast reaches, or a field's radius) and the optional fourth is the intensity (strength;
+  default 1). A hit is the expression's base × intensity² (push/pull 2, emit/draw 1). A hazard takes the same pair as
+  `stacks=<range>;intensity=<n>`. Example: `affinities=fire:push:6:2` throws a fireball 6 tiles for 2 × 2² = 8.
 - `--delver` and `--warden` accept `slots=<n>` and `equip=<kind>:<expression>[:<stacks>],...`. `slots` sets how many
   affinities the actor can equip at once (1-6; the preset is delver 3, warden 2), and slots above the preset are
   charged at the slot-unlock price (`resource_affinity_slot`), which escalates: the nth extra slot costs n × 600. `equip` lists its starting equips in equip order; each
@@ -555,7 +559,7 @@ Inputs/outputs:
 - Input: one or more `--hazard` flags (repeatable), optional `--goal`,
   `--dungeon-affinity`, optional `--budget-tokens`, optional `--budget` +
   `--price-list`, plus standard `--run-id`, `--created-at`, `--out-dir`.
-- `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
+- `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
 - A budgeted run uses an explicit hazards-only allocation pool, so hazard base,
   affinity, and vital spend are capped against hazards instead of rooms or actors.
 - Output dir: `artifacts/runs/<runId>/hazard-plan` by default, or `--out-dir`.
@@ -592,7 +596,7 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
@@ -626,7 +630,7 @@ Inputs/outputs:
 - Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.
