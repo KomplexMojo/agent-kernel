@@ -53,6 +53,19 @@ test("the party is every user_controlled actor; the first is seated", async () =
     [["hero-a", "D1", true], ["hero-b", "D2", false]]);
 });
 
+test("the party and everyone in sight carry their full motivation stack (#310)", async () => {
+  const pal = delver("pal", { x: 3, y: 2 }, ["user_controlled", "exploring"]);
+  const session = await createPlaySession(level([HERO_A, HERO_B, SCOUT, GUARD, pal]));
+  const view = session.view();
+  assert.deepEqual(view.party.map((member) => [member.id, member.motivations]),
+    [["hero-a", ["user_controlled"]], ["hero-b", ["user_controlled"]], ["pal", ["user_controlled", "exploring"]]]);
+  const seen = Object.fromEntries((view.actors || []).map((actor) => [actor.id, actor.motivations]));
+  assert.deepEqual(seen.scout, ["stationary"]);
+  assert.deepEqual(seen.guard, ["stationary"]);
+  view.party[0].motivations.push("tampered");
+  assert.deepEqual(session.view().party[0].motivations, ["user_controlled"], "the view hands out copies");
+});
+
 test("switching is free and moves command and fog to the new actor", async () => {
   const session = await createPlaySession({ ...level(), fog: true });
   const tick = session.status().tick;

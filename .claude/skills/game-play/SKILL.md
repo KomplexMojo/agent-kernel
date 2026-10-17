@@ -22,7 +22,8 @@ Follow the `game-master` skill's house rules throughout.
   the game after every call, so there is no key history to carry. `ak_play_view` shows the
   board without playing.
 - **Party.** `party` lists the actors the player may play (authored `user_controlled`), with
-  labels (`D1`, `D2`). "Switch to D2" is `ak_play_switch` (free). "Have D1 wait while D2
+  labels (`D1`, `D2`) and motivations; `inSight` carries each actor's motivations too, which
+  is how to explain why a companion patrols or holds. "Switch to D2" is `ak_play_switch` (free). "Have D1 wait while D2
   moves" is one `ak_play_act` with `commands`, using `actorId` for the one not seated.
   Companions, wardens and traps cannot be played: if asked, say the engine's answer
   (`not_playable`) and carry on.
