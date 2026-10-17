@@ -60,6 +60,7 @@
  */
 import { ACTOR_COMMAND_KINDS, normalizeActorCommand, normalizeActorStrategy } from "../personas/actor/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
@@ -146,6 +147,9 @@ export async function createPlaySession({
   const presentation = runtime.getActorPresentation() || {};
   // A hand-written level is played as written; actors below the floor are only reported.
   const viabilityReport = Object.freeze(reportActorViabilityFloor(initialState).map((finding) => Object.freeze(finding)));
+  // A level the Allocator never priced is played too, and reported (#279).
+  const pricingReport = Object.freeze(createAllocatorPersona({ clock: UNUSED_CLOCK })
+    .reportLevelPricing(simConfig).map((finding) => Object.freeze(finding)));
   const legend = playLegend(simConfig);
   const labels = playActorLabels(sourceActors, presentation);
   // The party: every playable actor, and the seated one even when it is not (a caller's choice).
@@ -443,6 +447,7 @@ export async function createPlaySession({
     captureInput,
     playerActorId: playerId,
     viabilityReport,
+    pricingReport,
   };
 }
 

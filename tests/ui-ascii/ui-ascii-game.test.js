@@ -335,7 +335,9 @@ test("the cli plays a level below the viability floor as written and warns about
     const json = spawnSync(process.execPath, [CLI, ...files, "--json", "--keys", ""], { encoding: "utf8" });
     assert.equal(json.status, 0, json.stderr);
     const message = "delver_1 mana max is 4, below the viability floor of 10.";
-    assert.deepEqual(JSON.parse(json.stdout).warnings, [message]);
+    // A hand-written level was never priced by the Allocator either, and says so (#279).
+    const unpriced = "This level has no budget receipt, so it was not priced by the Allocator; build it with ak create to price it.";
+    assert.deepEqual(JSON.parse(json.stdout).warnings, [unpriced, message]);
     assert.match(json.stderr, new RegExp(`warning: ${message.replace(/\./g, "\\.")}`));
   } finally {
     rmSync(dir, { recursive: true, force: true });
