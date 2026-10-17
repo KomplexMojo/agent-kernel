@@ -194,9 +194,40 @@ export function isDiagonalStepAllowed(current, next, tileKinds, baseTiles) {
     && isPassable({ x: current.x, y: current.y + dy }, tileKinds, baseTiles);
 }
 
-export function findPath(start, goal, tileKinds, baseTiles) {
+function cellKey(position) {
+  return `${position.x},${position.y}`;
+}
+
+/**
+ * Positions other actors (and same-tick reserved move targets) already hold.
+ * Patrol / random must not path through these — core rejects the step, and a
+ * blocked ring neighbour otherwise shoves the walker off-circuit into a loop.
+ */
+export function collectBlockedPositions(view, actorId, reservedTargets) {
+  const blocked = new Set();
+  if (view?.actors && Array.isArray(view.actors)) {
+    for (const other of view.actors) {
+      if (!other || other.id === actorId || !other.position) continue;
+      blocked.add(cellKey(other.position));
+    }
+  }
+  if (Array.isArray(reservedTargets)) {
+    for (const target of reservedTargets) {
+      if (!target || !Number.isInteger(target.x) || !Number.isInteger(target.y)) continue;
+      blocked.add(cellKey(target));
+    }
+  }
+  return blocked;
+}
+
+function isBlockedPosition(position, blocked) {
+  return Boolean(blocked && blocked.has(cellKey(position)));
+}
+
+export function findPath(start, goal, tileKinds, baseTiles, blocked = null) {
   if (!start || !goal) return null;
   if (start.x === goal.x && start.y === goal.y) return [start];
+  if (isBlockedPosition(goal, blocked)) return null;
   const height = tileKinds ? tileKinds.length : baseTiles ? baseTiles.length : 0;
   const width = tileKinds && Array.isArray(tileKinds[0]) ? tileKinds[0].length : baseTiles && baseTiles[0] ? String(baseTiles[0]).length : 0;
   if (width === 0 || height === 0) return null;
@@ -231,6 +262,7 @@ export function findPath(start, goal, tileKinds, baseTiles) {
       }
       const isGoal = next.x === goal.x && next.y === goal.y;
       if ((!isPassable(next, tileKinds, baseTiles) && !isGoal)
+        || (!isGoal && isBlockedPosition(next, blocked))
         || !isDiagonalStepAllowed(current, next, tileKinds, baseTiles)) {
         continue;
       }
@@ -326,11 +358,54 @@ function resolvePatrolRingTarget(at, ring, pattern, tick) {
   return ring[(at + 1) % ring.length];
 }
 
+/**
+ * Next free ring cell for the active pattern. Occupied / reserved cells are
+ * skipped so the walker stays on a real circuit instead of pathing around a
+ * blocker and snapping onto a reverse ring index.
+ */
+function resolveFreePatrolRingTarget(at, ring, pattern, tick, blocked) {
+  if (at < 0 || ring.length < 2) return null;
+  const normalized = typeof pattern === "string" ? pattern.trim().toLowerCase() : "loop";
+  if (normalized === "ping_pong") {
+    for (let advance = 0; advance < ring.length; advance += 1) {
+      const candidate = resolvePatrolRingTarget(at, ring, "ping_pong", (Number.isFinite(tick) ? tick : 0) + advance);
+      if (candidate && !isBlockedPosition(candidate, blocked)) return candidate;
+    }
+    return null;
+  }
+  for (let offset = 1; offset < ring.length; offset += 1) {
+    const candidate = ring[(at + offset) % ring.length];
+    if (!isBlockedPosition(candidate, blocked)) return candidate;
+  }
+  return null;
+}
+
+/**
+ * Off-ring: aim past the geometrically nearest ring index so a detour around a
+ * blocker continues the circuit instead of snapping back to the prior cell.
+ */
+function resolveOffRingPatrolTarget(position, ring, pattern, tick, blocked) {
+  let nearestIdx = -1;
+  let bestDistance = Infinity;
+  for (let i = 0; i < ring.length; i += 1) {
+    const distance = chebyshevDistance(position, ring[i]);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      nearestIdx = i;
+    }
+  }
+  if (nearestIdx < 0) return null;
+  const forward = resolveFreePatrolRingTarget(nearestIdx, ring, pattern, tick, blocked);
+  if (forward) return forward;
+  return nearestRingCell(position, ring, blocked);
+}
+
 export function buildPatrolProposals({ observation, payload, simConfig, params = null }) {
   const view = resolveObservationView(observation);
   if (!view) return [];
   const actor = resolveActor(view, payload?.actorId, observation);
   if (!actor?.position) return [];
+  const actorId = actor.id || payload?.actorId;
   const baseTiles = resolveBaseTiles(payload, view, simConfig);
   const tileKinds = resolveTileKinds(view, payload);
   const rooms = resolveRooms(payload, view, simConfig);
@@ -339,27 +414,30 @@ export function buildPatrolProposals({ observation, payload, simConfig, params =
   const ring = roomPerimeterRing(room, tileKinds, baseTiles);
   if (ring.length < 2) return [];
 
+  const blocked = collectBlockedPositions(view, actorId, payload?.reservedTargets);
   const at = ring.findIndex((cell) => cell.x === actor.position.x && cell.y === actor.position.y);
-  // On the ring: take the next cell for the active pattern. Inside the room: walk out
-  // to the nearest ring cell first, so an actor that spawned in the middle joins the
-  // patrol instead of standing still — which would look exactly like the defect this replaces.
+  // On the ring: take the next free cell for the active pattern. Inside the room: walk out
+  // toward the forward ring target (not merely nearest), so a detour past a blocker
+  // rejoins the circuit instead of oscillating with the previous cell.
   const pattern = params?.pattern || "loop";
   const tick = Number.isFinite(payload?.tick) ? payload.tick : 0;
   const target = at >= 0
-    ? resolvePatrolRingTarget(at, ring, pattern, tick)
-    : nearestRingCell(actor.position, ring);
+    ? resolveFreePatrolRingTarget(at, ring, pattern, tick, blocked)
+    : resolveOffRingPatrolTarget(actor.position, ring, pattern, tick, blocked);
   if (!target) return [];
 
-  const path = findPath(actor.position, target, tileKinds, baseTiles);
+  const path = findPath(actor.position, target, tileKinds, baseTiles, blocked);
   if (!path || path.length < 2) return [];
   const to = path[1];
+  if (isBlockedPosition(to, blocked)) return [];
   return [{ kind: "move", params: { target: to } }];
 }
 
-export function nearestRingCell(position, ring) {
+export function nearestRingCell(position, ring, blocked = null) {
   let best = null;
   let bestDistance = Infinity;
   for (const cell of ring) {
+    if (isBlockedPosition(cell, blocked)) continue;
     const distance = chebyshevDistance(position, cell);
     // Ties break on the ring's own order, which is deterministic — replay compares runs
     // frame by frame, so "whichever came first" must mean the same thing every run.
