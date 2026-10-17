@@ -87,10 +87,15 @@ export function paintBoardRow(row, styles, cellStyles = null, sightRow = null, d
   return open ? `${out}${RESET}` : out;
 }
 
+/** `current/max (+regen)`: the regen is what the vital gains each turn before any upkeep or harm. */
+function vitalAmount(vital) {
+  return `${vital.current}/${vital.max} (+${vital.regen})`;
+}
+
 function vitalBar(vital, color) {
   const filled = Math.round(Math.max(0, Math.min(1, vital.fraction)) * BAR_WIDTH);
   const bar = "█".repeat(filled) + "░".repeat(BAR_WIDTH - filled);
-  return `${vital.label} ${paint(bar, vital.colorHex, color)} ${vital.current}/${vital.max}`;
+  return `${vital.label} ${paint(bar, vital.colorHex, color)} ${vitalAmount(vital)}`;
 }
 
 function overlay(rows, entities, playerPosition, glyphFor) {
@@ -214,7 +219,7 @@ export function partyLine(party) {
 export function hudLine(view, { turns } = {}) {
   const player = view.player;
   const who = player ? `${player.label ? `${player.label} ` : ""}${player.id}` : "nobody seated";
-  const vitals = presentVitals(player).map((vital) => `${vital.label} ${vital.current}/${vital.max}`).join(" ");
+  const vitals = presentVitals(player).map((vital) => `${vital.label} ${vitalAmount(vital)}`).join(" ");
   const state = view.status?.exited ? "escaped" : view.status?.defeated ? "defeated" : view.status?.atExit ? "at the exit" : "";
   return [who, vitals, `tick ${view.tick}${Number.isInteger(turns) ? `, ${turns} ${turns === 1 ? "turn" : "turns"}` : ""}`, state].filter(Boolean).join(" · ");
 }

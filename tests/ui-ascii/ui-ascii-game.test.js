@@ -18,7 +18,7 @@ const {
   loadLevelFromRunDir,
 } = require("../../packages/ui-ascii/src/levels.js");
 const { createGame } = require("../../packages/ui-ascii/src/game.js");
-const { overlayActors, paintBoardRow, renderScreen, xterm256Index } = require("../../packages/ui-ascii/src/screen.js");
+const { hudLine, overlayActors, paintBoardRow, renderScreen, xterm256Index } = require("../../packages/ui-ascii/src/screen.js");
 const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/game-elements.js");
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
 const { colorDepth, parseArgs, resolveColor, resolveLevels, runScripted, shouldUseColor } = require("../../packages/ui-ascii/src/cli.mjs");
@@ -216,6 +216,18 @@ test("a wall bump shows a message and costs a turn; restart resets the level", a
   await game.handle({ type: INTENT.RESTART });
   assert.equal(game.state().turns, 0);
   assert.match(game.screen(), /S@\.\.#/);
+});
+
+test("each vital shows its regen after current/max, on the screen and the hud line", async () => {
+  const { simConfig, initialState } = fixtureLevel("first-steps");
+  const player = initialState.actors.find((actor) => actor.motivations?.includes("user_controlled")) ?? initialState.actors[0];
+  player.vitals.health = { current: 7, max: 10, regen: 3 };
+  const view = (await createPlaySession({ simConfig, initialState })).view();
+  assert.match(renderScreen({ view, levelName: "first-steps" }), /HP █+░+ 7\/10 \(\+3\)/);
+  assert.match(hudLine(view), /HP 7\/10 \(\+3\)/);
+  for (const vital of view.player.vitals.filter((entry) => entry.max > 0)) {
+    assert.match(hudLine(view), new RegExp(`${vital.label} ${vital.current}/${vital.max} \\(\\+${vital.regen}\\)`));
+  }
 });
 
 test("quit is reported to the caller, not acted on", async () => {
