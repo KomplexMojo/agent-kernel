@@ -114,6 +114,11 @@ The Moderator does **not** decide whether an action is legal or what its effects
 It supplies an ordered sequence of actions to `core-ts`, which enforces legality
 and produces authoritative outcomes (accepted, rejected, or state-changing).
 
+Order matters because there are no simultaneous trades (#165): `core-ts` refuses
+any action from an actor that is no longer alive (`WrongActor`), so an actor downed
+earlier in the sequence loses its own action that turn. Pinned by
+`tests/core-ts/actor-downed-cannot-act.test.mts`.
+
 In short:
 - The Moderator decides **when and in what order** actions are applied.
 

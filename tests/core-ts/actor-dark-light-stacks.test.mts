@@ -11,9 +11,10 @@ import {
 
 // Dark against light by stacks (#203, maintainer 2026-10-12): "the dark affinity
 // keeps a character and area dark based on the affinity stack as compared to
-// countering affinity stacks like light." Per cell, the strongest powered dark
-// stacks reaching it are weighed against the strongest powered light stacks:
-// more dark is dark, more light is lit, a tie is neither.
+// countering affinity stacks like light." Sight reads the affinity field (#288,
+// maintainer 2026-10-17): per cell the field cancels the strongest light against
+// the strongest dark by stacks; more dark is dark, more light is lit, a tie is neither.
+// An emit of s stacks reaches s tiles (its field fades to 0 at radius s + 1).
 
 function actor(id: string, x: number): ActorRecord {
   return { id, position: { x, y: 0 }, alignment: 'dungeon', lifecycle: 'alive', defeatVital: 'health',
@@ -36,19 +37,19 @@ const seen = (registry: ReturnType<typeof corridor>, observer: string) =>
   scopeActorRegistryObservation(readActorRegistryObservation(registry, 0), observer).actors.map(entry => entry.id);
 
 test('a dark actor stays hidden while its dark stacks outweigh the light reaching it', () => {
-  // A 2-stack shade at x=4. Self's 3-stack light reaches x<=4 with 3 stacks: light wins there.
-  expect(seen(corridor([emitting(actor('self', 0), 'light', 3), emitting(actor('shade', 4), 'dark', 2)]), 'self'))
+  // A 2-stack shade at x=4. Self's 5-stack light reaches x<=5 and beats it there.
+  expect(seen(corridor([emitting(actor('self', 0), 'light', 5), emitting(actor('shade', 4), 'dark', 2)]), 'self'))
     .toContain('shade');
-  // Self's 2-stack light stops at x=3, so only dark reaches the shade: it stays hidden.
-  expect(seen(corridor([emitting(actor('self', 0), 'light', 2), emitting(actor('shade', 4), 'dark', 2)]), 'self'))
+  // Self's 3-stack light stops at x=3, so only dark reaches the shade: it stays hidden.
+  expect(seen(corridor([emitting(actor('self', 0), 'light', 3), emitting(actor('shade', 4), 'dark', 2)]), 'self'))
     .not.toContain('shade');
 });
 
 test('one net dark stack is enough to darken a cell; there is no separate threshold', () => {
   const registry = corridor([actor('self', 0), emitting(actor('shade', 6), 'dark', 1)]);
-  // 1-stack dark reaches x=4..8 (Manhattan radius 2).
+  // A 1-stack dark field reaches x=5..7.
   expect(readActorRegistryDarkCells(readActorRegistryObservation(registry, 0))[0])
-    .toEqual([0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0]);
+    .toEqual([0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0]);
 });
 
 test('equal light and dark cancel: the cell is neither lit nor dark', () => {
@@ -67,13 +68,15 @@ test("dark at the observer's tile is subtracted from its own light", () => {
     .not.toContain('target');
 });
 
-test('dark is powered by mana like light: a half-full shade shines half its stacks', () => {
+test('dark is on or off like every affinity: full stacks while on, nothing once drained (#288)', () => {
   const shade = emitting(actor('shade', 6), 'dark', 4);
   shade.vitals.mana!.current = 5;
   const dark = readActorRegistryDarkByCell(corridor([shade]).snapshot());
-  expect(dark['6,0']).toBe(2);
-  expect(dark['3,0']).toBe(2);
-  expect(dark['2,0']).toBeUndefined();
+  expect(dark['6,0']).toBe(4);
+  expect(dark['2,0']).toBe(4);
+  expect(dark['1,0']).toBeUndefined();
+  shade.affinityExhausted = true;
+  expect(readActorRegistryDarkByCell(corridor([shade]).snapshot())).toEqual({});
 });
 
 // ## TODO: Test Permutations
