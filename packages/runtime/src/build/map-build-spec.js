@@ -42,10 +42,10 @@ function buildIntent(spec, producedBy) {
  * it in via `directorRound` and this function is not used; see mapBuildSpecToArtifacts.
  *
  * It survives because several orchestrateBuild callers have only a spec and never
- * ran a Director at all (the sandbox bridge, kernel build paths, fixture-driven
+ * ran a Director at all (the sandbox bridge, `ak build --spec`, fixture-driven
  * tests). For those there is no earlier round to prefer, so this is the ONLY
- * Director — not a second one, and therefore not CR.3's defect. Threading those
- * call sites is WP-5 work (DECISION D-c).
+ * Director — not a second one, and therefore not CR.3's defect. The llm-plan and
+ * scenario paths carry their own round (`director.currentRound()`, #280).
  *
  * The plan id keeps the glue scheme (`${specId}_plan`) rather than the Director's
  * native `plan_${runId}_N`. That id is the only part of the plan that reaches
