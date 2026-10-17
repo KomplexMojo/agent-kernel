@@ -4,7 +4,7 @@ import type { ActorPosition, ActorAffinityEntry, ActorRecord } from '../state/ac
 import { affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { AFFINITY_KIND_BY_CODE, AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 import { getOppositeAffinityKind, resolveAffinityRelationshipCode, AffinityRelationship, scaleAffinityVitalEffect } from '../state/affinity.ts';
-import { computeAffinityIntensity, computeAffinityRadius, cancelAffinityOverlap,
+import { computeAffinityFalloff, computeAffinityRadius, cancelAffinityOverlap,
   deriveAffinityInteractionCell, AffinityEffect, OPPOSITE_EXPOSURE_AMPLIFICATION } from '../state/affinity-spatial.ts';
 import { evaluateActorAffinityReceiver, getActorAffinityEffect, type ActorVitalChange } from './actor-affinity.ts';
 import { changeActorVital } from '../state/actor-vitals.ts';
@@ -13,7 +13,7 @@ import { litActorAffinities } from './actor-upkeep.ts';
 
 const KIND_CODES = Object.fromEntries(Object.entries(AFFINITY_KIND_BY_CODE).map(([code, name]) => [name, Number(code)]));
 const EXPRESSION_CODES = Object.fromEntries(Object.entries(AFFINITY_EXPRESSION_BY_CODE).map(([code, name]) => [name, Number(code)]));
-export interface ActorFieldCell extends ActorAffinityEntry { sourceId: string; position: ActorPosition; intensity: number }
+export interface ActorFieldCell extends ActorAffinityEntry { sourceId: string; position: ActorPosition; falloff: number }
 type Registry = ReturnType<typeof createActorRegistry>;
 
 /** One field per lit slot: exposure budgets are keyed by source and affinity. */
@@ -46,7 +46,7 @@ function receiverExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, amo
 /** Receiver-local exposure before finite source budgets and vital routing. No mutation. */
 export function actorFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, localCells: readonly ActorFieldCell[]): number {
   if (receiver.lifecycle !== 'alive' || receiver.id === cell.sourceId) return 0;
-  const amount = scaleAffinityVitalEffect(cell.intensity, cell.stacks);
+  const amount = scaleAffinityVitalEffect(cell.falloff, cell.stacks);
   const operation = getActorAffinityEffect(cell.kind, cell.expression).operation;
   if (operation === 'neutralize') {
     return localCells.some(pending => pending.sourceId === receiver.id
@@ -85,11 +85,11 @@ export function previewActorFieldChanges(receiver: ActorRecord, localCells: read
   return changes;
 }
 
-function projectedIntensity(actor: ActorRecord, pair: ActorAffinityEntry, position: ActorPosition): number {
+function projectedFalloff(actor: ActorRecord, pair: ActorAffinityEntry, position: ActorPosition): number {
   const distance = Math.abs(actor.position.x - position.x) + Math.abs(actor.position.y - position.y);
   const expression = EXPRESSION_CODES[pair.expression];
   if (distance > computeAffinityRadius(expression, pair.stacks)) return 0;
-  return distance === 0 ? 1 : computeAffinityIntensity(distance, pair.stacks, expression);
+  return distance === 0 ? 1 : computeAffinityFalloff(distance, pair.stacks, expression);
 }
 
 type FieldSource = { actor: ActorRecord; pair: ActorAffinityEntry };
@@ -107,8 +107,8 @@ export function projectActorFieldsAt(actors: readonly ActorRecord[], position: A
 
 function sourceContributionsAt(sources: readonly FieldSource[], position: ActorPosition): ActorFieldCell[] {
   return sources.flatMap(({ actor, pair }) => {
-    const intensity = projectedIntensity(actor, pair, position);
-    return intensity > 0 ? [{ ...pair, sourceId: actor.id, position: { ...position }, intensity }] : [];
+    const falloff = projectedFalloff(actor, pair, position);
+    return falloff > 0 ? [{ ...pair, sourceId: actor.id, position: { ...position }, falloff }] : [];
   });
 }
 
@@ -132,17 +132,17 @@ function resolveFieldOverlap(contributions: readonly ActorFieldCell[]): ActorFie
     const cell = { ...contribution, position: { ...contribution.position } };
     const code = KIND_CODES[cell.kind];
     if (cell.expression === 'draw') draws.push(cell);
-    else if (!emitters.has(code) || emitters.get(code)!.intensity < cell.intensity) emitters.set(code, cell);
+    else if (!emitters.has(code) || emitters.get(code)!.falloff < cell.falloff) emitters.set(code, cell);
   }
   for (const [code, source] of emitters) {
     const opposite = getOppositeAffinityKind(code);
     const target = emitters.get(opposite);
     if (!target || opposite <= code) continue;
-    const net = cancelAffinityOverlap(source.intensity, source.stacks, target.intensity, target.stacks);
-    source.intensity = net.sourceIntensity; source.stacks = net.sourceStacks;
-    target.intensity = net.targetIntensity; target.stacks = net.targetStacks;
+    const net = cancelAffinityOverlap(source.falloff, source.stacks, target.falloff, target.stacks);
+    source.falloff = net.sourceFalloff; source.stacks = net.sourceStacks;
+    target.falloff = net.targetFalloff; target.stacks = net.targetStacks;
   }
-  return [...emitters.values(), ...draws].filter(cell => cell.intensity > 0);
+  return [...emitters.values(), ...draws].filter(cell => cell.falloff > 0);
 }
 
 /** Current-position projection. No equipment, vitality, or historical field mutation. */

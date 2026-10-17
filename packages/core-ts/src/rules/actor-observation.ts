@@ -145,7 +145,7 @@ export function readActorRegistryDarkCells(observation: RegistryObservation): nu
 }
 
 /** One affinity's net presence on a cell: what survives opposite-kind cancellation there. */
-export interface FieldCellReading { kind: string; stacks: number; intensity: number }
+export interface FieldCellReading { kind: string; stacks: number; falloff: number }
 
 /**
  * Every affinity field on each cell right now, for every kind alike (#287): a
@@ -159,12 +159,12 @@ export function readActorRegistryFieldCells(observation: RegistryObservation): F
   const grid: FieldCellReading[][][] = Array.from({ length: height }, () => Array.from({ length: width }, () => []));
   for (const field of observation.affinityFields) {
     const { x, y } = field.position;
-    if (field.expression === 'draw' || field.intensity <= 0 || !grid[y]?.[x]) continue;
+    if (field.expression === 'draw' || field.falloff <= 0 || !grid[y]?.[x]) continue;
     const cell = grid[y][x];
     const existing = cell.find(entry => entry.kind === field.kind);
-    if (!existing) cell.push({ kind: field.kind, stacks: field.stacks, intensity: field.intensity });
-    else if (field.intensity > existing.intensity) Object.assign(existing, { stacks: field.stacks, intensity: field.intensity });
+    if (!existing) cell.push({ kind: field.kind, stacks: field.stacks, falloff: field.falloff });
+    else if (field.falloff > existing.falloff) Object.assign(existing, { stacks: field.stacks, falloff: field.falloff });
   }
-  for (const row of grid) for (const cell of row) cell.sort((a, b) => b.intensity - a.intensity || (a.kind < b.kind ? -1 : 1));
+  for (const row of grid) for (const cell of row) cell.sort((a, b) => b.falloff - a.falloff || (a.kind < b.kind ? -1 : 1));
   return grid;
 }

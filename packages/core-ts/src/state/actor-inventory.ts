@@ -5,6 +5,8 @@ export function affinityKey(entry: ActorAffinityEntry): ActorAffinityKey {
   return `${entry.kind}:${entry.expression}`;
 }
 
+const AFFINITY_ENTRY_FIELDS = new Set(['kind', 'expression', 'stacks', 'intensity']);
+
 export function validateActorInventory(actor: ActorRecord): void {
   if (!Array.isArray(actor.motivations) || actor.motivations.some(value => typeof value !== 'string' || !value.trim())) {
     throw new Error('invalid motivation list');
@@ -12,7 +14,9 @@ export function validateActorInventory(actor: ActorRecord): void {
   if (!Array.isArray(actor.affinities)) throw new Error('invalid affinity inventory');
   const keys = new Set<ActorAffinityKey>();
   for (const entry of actor.affinities) {
-    if (!entry || Object.keys(entry).length !== 3 || !Number.isSafeInteger(entry.stacks) || entry.stacks < 1) {
+    if (!entry || !Number.isSafeInteger(entry.stacks) || entry.stacks < 1
+      || Object.keys(entry).some(field => !AFFINITY_ENTRY_FIELDS.has(field))
+      || (entry.intensity !== undefined && (!Number.isSafeInteger(entry.intensity) || entry.intensity < 1))) {
       throw new Error('invalid affinity entry');
     }
     getActorAffinityEffect(entry.kind, entry.expression);

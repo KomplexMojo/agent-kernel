@@ -492,7 +492,7 @@ export interface VisualizationActorDetail {
   id: string;
   kind: "delver" | "warden";
   position: { x: number; y: number };
-  affinities: Array<{ name: string; stacks: number; expression: string }>;
+  affinities: Array<{ name: string; stacks: number; intensity?: number; expression: string }>;
   vitals: Record<string, unknown>;
   motivation: string;
 }
@@ -1642,6 +1642,8 @@ export interface ActorLoadoutAffinityV1 {
   kind: AffinityKind;
   expression: AffinityExpression;
   stacks: number;
+  /** Strength per hit or per tile (#340); `stacks` is the range. Absent reads as 1. */
+  intensity?: number;
   targetType?: AffinityTargetType;
 }
 
@@ -1654,6 +1656,8 @@ export interface AffinityResolvedEffectV1 {
   kind: AffinityKind;
   expression: AffinityExpression;
   stacks: number;
+  /** Strength per hit or per tile (#340); `stacks` is the range. Absent reads as 1. */
+  intensity?: number;
   targetType: AffinityTargetType;
   targetVital?: "health" | "mana" | "stamina" | "durability";
   potency?: number;
@@ -2622,6 +2626,8 @@ export interface HazardAffinityStackV3 {
   kind: AffinityKind;
   expression: AffinityExpression;
   stacks: number;
+  /** Strength per hit or per tile (#340); `stacks` is the range. Absent reads as 1. */
+  intensity?: number;
   targetType?: AffinityTargetType;
 }
 

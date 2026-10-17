@@ -1561,7 +1561,7 @@ export function createFsmRuntime({
 
     /**
      * Every affinity field on each cell right now, after opposite pairs cancel (#287):
-     * a grid the map's shape of `{ kind, stacks, intensity }` lists. Core's reading
+     * a grid the map's shape of `{ kind, stacks, falloff }` lists. Core's reading
      * (`readActorRegistryFieldCells`); `[]` without the actor registry.
      */
     readFieldCells() {

@@ -63,14 +63,14 @@ async function evaluateAt(expression, assignments) {
   return typeof exact === "bigint" ? Number(exact) : Number(exact.numerator) / Number(exact.denominator);
 }
 
-/** core's cancelAffinityOverlap, restated over Z3 integers (stacks) and reals (intensity). */
-function cancelFormula(sourceIntensity, sourceStacks, targetIntensity, targetStacks) {
+/** core's cancelAffinityOverlap, restated over Z3 integers (stacks) and reals (falloff). */
+function cancelFormula(sourceFalloff, sourceStacks, targetFalloff, targetStacks) {
   const { If, ToReal } = ctx;
   const net = sourceStacks.sub(targetStacks);
   return {
-    sourceIntensity: If(net.gt(0), sourceIntensity.mul(ToReal(net)).div(ToReal(sourceStacks)), ctx.Real.val(0)),
+    sourceFalloff: If(net.gt(0), sourceFalloff.mul(ToReal(net)).div(ToReal(sourceStacks)), ctx.Real.val(0)),
     sourceStacks: If(net.gt(0), net, ctx.Int.val(0)),
-    targetIntensity: If(net.lt(0), targetIntensity.mul(ToReal(net.neg())).div(ToReal(targetStacks)), ctx.Real.val(0)),
+    targetFalloff: If(net.lt(0), targetFalloff.mul(ToReal(net.neg())).div(ToReal(targetStacks)), ctx.Real.val(0)),
     targetStacks: If(net.lt(0), net.neg(), ctx.Int.val(0)),
   };
 }
@@ -78,8 +78,8 @@ function cancelFormula(sourceIntensity, sourceStacks, targetIntensity, targetSta
 function cancelVariables() {
   const m = ctx.Int.const("source_stacks");
   const n = ctx.Int.const("target_stacks");
-  const i = ctx.Real.const("source_intensity");
-  const j = ctx.Real.const("target_intensity");
+  const i = ctx.Real.const("source_falloff");
+  const j = ctx.Real.const("target_falloff");
   const domain = ctx.And(m.ge(0), n.ge(0), i.ge(0), j.ge(0));
   return { m, n, i, j, domain, variables: { m, n, i, j } };
 }
@@ -90,7 +90,7 @@ test("the cancellation encoding matches core on sampled stacks and intensities",
   for (const [sm, tn, si, tj] of [[3, 1, 1, 0.5], [1, 3, 0.25, 2], [2, 2, 1, 1], [5, 0, 0.75, 0], [0, 4, 0, 1], [7, 4, 2, 3]]) {
     const core = cancelAffinityOverlap(si, sm, tj, tn);
     const at = [[m, sm], [n, tn], [i, si], [j, tj]];
-    for (const key of ["sourceIntensity", "sourceStacks", "targetIntensity", "targetStacks"]) {
+    for (const key of ["sourceFalloff", "sourceStacks", "targetFalloff", "targetStacks"]) {
       expect(await evaluateAt(formula[key], at), `${key} at m=${sm} n=${tn} i=${si} j=${tj}`).toBeCloseTo(core[key], 12);
     }
   }
@@ -103,8 +103,8 @@ test("cancellation is symmetric: swapping the sides swaps the outcome, for any s
   await expectProved("symmetry", ctx.Implies(domain, ctx.And(
     forward.sourceStacks.eq(swapped.targetStacks),
     forward.targetStacks.eq(swapped.sourceStacks),
-    forward.sourceIntensity.eq(swapped.targetIntensity),
-    forward.targetIntensity.eq(swapped.sourceIntensity),
+    forward.sourceFalloff.eq(swapped.targetFalloff),
+    forward.targetFalloff.eq(swapped.sourceFalloff),
   )), variables);
 }, 60_000);
 
@@ -112,17 +112,17 @@ test("cancellation never goes negative, never strengthens a side, and at most on
   const { m, n, i, j, domain, variables } = cancelVariables();
   const out = cancelFormula(i, m, j, n);
   await expectProved("non-negative", ctx.Implies(domain, ctx.And(
-    out.sourceStacks.ge(0), out.targetStacks.ge(0), out.sourceIntensity.ge(0), out.targetIntensity.ge(0),
+    out.sourceStacks.ge(0), out.targetStacks.ge(0), out.sourceFalloff.ge(0), out.targetFalloff.ge(0),
   )), variables);
   await expectProved("never stronger than it arrived", ctx.Implies(domain, ctx.And(
-    out.sourceStacks.le(m), out.targetStacks.le(n), out.sourceIntensity.le(i), out.targetIntensity.le(j),
+    out.sourceStacks.le(m), out.targetStacks.le(n), out.sourceFalloff.le(i), out.targetFalloff.le(j),
   )), variables);
   await expectProved("one survivor, by the stack difference", ctx.Implies(domain, ctx.And(
     ctx.Or(out.sourceStacks.eq(0), out.targetStacks.eq(0)),
     out.sourceStacks.add(out.targetStacks).eq(ctx.If(m.ge(n), m.sub(n), n.sub(m))),
   )), variables);
   await expectProved("equal stacks cancel to nothing", ctx.Implies(ctx.And(domain, m.eq(n)), ctx.And(
-    out.sourceStacks.eq(0), out.targetStacks.eq(0), out.sourceIntensity.eq(0), out.targetIntensity.eq(0),
+    out.sourceStacks.eq(0), out.targetStacks.eq(0), out.sourceFalloff.eq(0), out.targetFalloff.eq(0),
   )), variables);
 }, 60_000);
 
@@ -164,8 +164,8 @@ test("overwhelm is one threshold for every kind: never mutual, and it always lea
   const y = ctx.Int.const("opposite_stacks");
   const domain = ctx.And(x.ge(0), y.ge(0));
   await expectProved("never mutual", ctx.Implies(domain, ctx.Not(ctx.And(overwhelms(x, y), overwhelms(y, x)))), { x, y });
-  const intensity = ctx.Real.val(1);
-  const out = cancelFormula(intensity, x, intensity, y);
+  const falloff = ctx.Real.val(1);
+  const out = cancelFormula(falloff, x, falloff, y);
   await expectProved("overwhelm implies the cancellation survivor has the threshold's stacks", ctx.Implies(
     ctx.And(domain, overwhelms(x, y)),
     ctx.And(out.sourceStacks.ge(OVERWHELM_NET_STACKS), out.targetStacks.eq(0)),

@@ -34,7 +34,10 @@ export interface ActorCapabilities {
 export interface ActorAffinityEntry {
   kind: AffinityKind;
   expression: AffinityExpression;
+  /** Range: how far the affinity reaches (#340). */
   stacks: number;
+  /** Strength per hit or per tile (#340); absent reads as 1, which is how older entries load. */
+  intensity?: number;
 }
 
 /** A claim transfers one stack, regardless of the defeated source's stack count. */

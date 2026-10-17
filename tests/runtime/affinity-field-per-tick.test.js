@@ -47,8 +47,8 @@ async function fieldFingerprint(runtime) {
   const { readActorRegistryObservation } = await import("../../packages/core-ts/src/rules/actor-observation.ts");
   const observation = readActorRegistryObservation({ snapshot: () => runtime.getActorSnapshot() }, 0);
   return observation.affinityFields
-    .filter((field) => field.intensity > 0 || field.stacks > 0)
-    .map((field) => `${field.position.x},${field.position.y}:${field.kind}:${field.intensity}:${field.stacks}`)
+    .filter((field) => field.falloff > 0 || field.stacks > 0)
+    .map((field) => `${field.position.x},${field.position.y}:${field.kind}:${field.falloff}:${field.stacks}`)
     .sort()
     .join("|");
 }
