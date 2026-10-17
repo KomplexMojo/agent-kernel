@@ -38,7 +38,8 @@ import {
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 import { reconcileBudget } from "./reconciliation.js";
 import { priceMixedRoomDesignSpend } from "./mixed-room-spend.js";
-import { BUDGET_RECEIPT_ARTIFACT_SCHEMA, RUNTIME_BUDGET_RECEIPT_SCHEMA } from "../../contracts/artifacts.ts";
+import { evaluateConfiguratorSpend } from "./spend-proposal.js";
+import { BUDGET_ARTIFACT_SCHEMA, BUDGET_RECEIPT_ARTIFACT_SCHEMA, RUNTIME_BUDGET_RECEIPT_SCHEMA } from "../../contracts/artifacts.ts";
 
 const RUNTIME_BUDGET_UNIT = "runtimeBudgetUnits";
 const RUNTIME_BUDGET_PRICE_SOURCE = "allocator_runtime_action_price_v1";
@@ -525,6 +526,33 @@ export function attachAllocatorServices({
   }
 
   /**
+   * #278: `ak run` overrides change a level after it was priced. The changed level is priced
+   * again, against the budget of the level's own receipt when there is one (its total cost
+   * plus what remained) and the reference budget otherwise, and a new receipt is issued.
+   * Reported, not refused: a level the overrides take over budget still runs.
+   */
+  function priceLevelOverrides({ simConfig, initialState, levelReceipt, priceList, budgetMeta, proposalMeta, receiptMeta, normalizeMotivations } = {}) {
+    const levelBudget = Number.isFinite(levelReceipt?.totalCost) && Number.isFinite(levelReceipt?.remaining)
+      ? levelReceipt.totalCost + levelReceipt.remaining
+      : REFERENCE_BUDGET_TOKENS;
+    const resolvedPriceList = resolvePriceList(priceList);
+    const { receipt } = evaluateConfiguratorSpend({
+      budget: { schema: BUDGET_ARTIFACT_SCHEMA, schemaVersion: 1, meta: budgetMeta, budget: { tokens: levelBudget } },
+      priceList: resolvedPriceList,
+      layout: simConfig?.layout?.data,
+      actors: Array.isArray(initialState?.actors) ? initialState.actors : [],
+      proposalMeta,
+      receiptMeta,
+      normalizeMotivations,
+    });
+    const report = receipt.status === "approved" ? [] : [{
+      code: "overrides_over_budget",
+      message: `The overrides cost ${receipt.totalCost} of the level's ${levelBudget}-token budget; the run plays as overridden.`,
+    }];
+    return { receipt, priceList: resolvedPriceList, report };
+  }
+
+  /**
    * Core prices a cast only as base × s(s+1)/2 (#232). An artifact written before that
    * carried five-tier `castMana` tables; its tier-1 price is the curve's base, so it loads
    * on the one curve rather than keeping a second price model alive. Price translation is
@@ -558,6 +586,7 @@ export function attachAllocatorServices({
     pricing,
     reportLevelPricing,
     assessReceiptForUse,
+    priceLevelOverrides,
     castPricesFromLegacyTiers,
     issueRuntimeBudgetReceipt,
     resolvePriceList,
