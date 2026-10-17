@@ -31,7 +31,7 @@ export function readCoreAffinityFieldRecordsFromArtifacts(core, { simConfig, ini
     x: field.position.x,
     y: field.position.y,
     kind: field.kind,
-    intensity: field.intensity,
+    intensity: field.falloff,
     stacks: field.stacks,
     expression: field.expression,
     expressionName: field.expression,

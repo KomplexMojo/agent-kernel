@@ -8,7 +8,7 @@ import {
 } from "../../packages/core-ts/src/state/affinity.ts";
 import {
   AffinityEffect,
-  computeAffinityIntensity,
+  computeAffinityFalloff,
   computeAffinityRadius,
   deriveAffinityInteractionCell,
 } from "../../packages/core-ts/src/state/affinity-spatial.ts";
@@ -54,18 +54,18 @@ describe("core-ts affinity spatial formulas", () => {
   test("computes intensity falloff", () => {
     const core = createCore();
 
-    expect(call(computeAffinityIntensity, 1, 2, 0)).toBe(0);
+    expect(call(computeAffinityFalloff, 1, 2, 0)).toBe(0);
     expect(
-      Number(call(computeAffinityIntensity, 1, 4, AffinityExpression.Push)),
+      Number(call(computeAffinityFalloff, 1, 4, AffinityExpression.Push)),
     ).toBeGreaterThan(
-      Number(call(computeAffinityIntensity, 2, 4, AffinityExpression.Push)),
+      Number(call(computeAffinityFalloff, 2, 4, AffinityExpression.Push)),
     );
-    expect(call(computeAffinityIntensity, 3, 4, AffinityExpression.Push)).toBe(0);
+    expect(call(computeAffinityFalloff, 3, 4, AffinityExpression.Push)).toBe(0);
   });
 
   test("an emit is strongest on the tile next to its source: there is no dead zone (maintainer, 2026-10-12)", () => {
     const core = createCore();
-    const at = (d: number) => Number(call(computeAffinityIntensity, d, 3, AffinityExpression.Emit));
+    const at = (d: number) => Number(call(computeAffinityFalloff, d, 3, AffinityExpression.Emit));
     expect(at(1)).toBeGreaterThan(0);
     expect(at(1)).toBeGreaterThan(at(2));
     expect(at(2)).toBeGreaterThan(at(4));
@@ -208,16 +208,16 @@ function call(fn: unknown, ...args: unknown[]): unknown {
 }
 
 describe("core-ts affinity spatial permutations", () => {
-  test("computeAffinityIntensity handles negative distance gracefully", () => {
+  test("computeAffinityFalloff handles negative distance gracefully", () => {
     const core = createCore();
-    const result = call(computeAffinityIntensity, -1, 1, 3);
+    const result = call(computeAffinityFalloff, -1, 1, 3);
     expect(typeof result).toBe("number");
   });
 
-  test("computeAffinityIntensity with zero stacks still computes", () => {
+  test("computeAffinityFalloff with zero stacks still computes", () => {
     const core = createCore();
     // Zero stacks plugs into the formula — doesn't short-circuit to 0
-    const result = call(computeAffinityIntensity, 2, 0, 3) as number;
+    const result = call(computeAffinityFalloff, 2, 0, 3) as number;
     expect(typeof result).toBe("number");
     expect(result).toBeGreaterThanOrEqual(0);
   });

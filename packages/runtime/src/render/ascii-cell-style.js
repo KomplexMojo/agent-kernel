@@ -124,14 +124,14 @@ export function asciiActorCellStyle(entity) {
 }
 
 // How far a cell's fill moves toward its field colour: a floor plus a share per unit of
-// intensity, capped so the tile still reads as floor under the tint.
+// falloff, capped so the tile still reads as floor under the tint.
 export const ASCII_FIELD_TINT_BASE = 0.2;
 export const ASCII_FIELD_TINT_PER_INTENSITY = 0.35;
 export const ASCII_FIELD_TINT_MAX = 0.7;
 
 /**
  * A tile's style under the affinity fields on it (#287), for every affinity alike:
- * the fill moves toward the intensity-weighted mix of each field's affinity colour
+ * the fill moves toward the falloff-weighted mix of each field's affinity colour
  * (`GAME_AFFINITY_COLOR_HEX`), further the stronger the fields are. Opposite pairs
  * have already cancelled in core, so what shows is what acts on the tile; kinds that
  * are not opposed show as their mix. No fields, or none with a colour, leaves the
@@ -139,19 +139,19 @@ export const ASCII_FIELD_TINT_MAX = 0.7;
  * legible. Null style in, null out.
  *
  * @param {{fg: string, bg: string} | null} style
- * @param {Array<{kind: string, intensity: number}> | null} fields
+ * @param {Array<{kind: string, falloff: number}> | null} fields
  * @returns {{fg: string, bg: string} | null}
  */
 export function asciiFieldCellStyle(style, fields) {
   if (!style || !Array.isArray(fields)) return style;
-  const coloured = fields.filter((entry) => AFFINITY_COLOR_HEX[entry?.kind] && entry.intensity > 0);
+  const coloured = fields.filter((entry) => AFFINITY_COLOR_HEX[entry?.kind] && entry.falloff > 0);
   if (coloured.length === 0) return style;
-  const total = coloured.reduce((sum, entry) => sum + entry.intensity, 0);
+  const total = coloured.reduce((sum, entry) => sum + entry.falloff, 0);
   let mix = AFFINITY_COLOR_HEX[coloured[0].kind];
-  let weight = coloured[0].intensity;
+  let weight = coloured[0].falloff;
   for (const entry of coloured.slice(1)) {
-    weight += entry.intensity;
-    mix = mixHex(mix, AFFINITY_COLOR_HEX[entry.kind], entry.intensity / weight);
+    weight += entry.falloff;
+    mix = mixHex(mix, AFFINITY_COLOR_HEX[entry.kind], entry.falloff / weight);
   }
   const tint = Math.min(ASCII_FIELD_TINT_MAX, ASCII_FIELD_TINT_BASE + ASCII_FIELD_TINT_PER_INTENSITY * total);
   const bg = mixHex(style.bg, mix, tint);

@@ -148,7 +148,7 @@ function findUnwiredBehaviors() {
 // #258 — 6 -> 5: `setTileAt` went with the old core world's tile grid.
 // Drift review (2026-10-13) — 5 -> 4: `resolveAffinityMergedStacks`, `computeAffinityManaCost`
 // and `computeAffinityPotency` were deleted (a second mana/potency model nothing called).
-// Two more, `computeAffinityRadius` and `computeAffinityIntensity`, had only looked wired: a
+// Two more, `computeAffinityRadius` and `computeAffinityIntensity` (now `computeAffinityFalloff`), had only looked wired: a
 // deprecated render module NAMED them in a comment, and this scan reads comments. Core uses
 // both internally (`rules/actor-fields.ts`); they left the public surface instead.
 const BASELINE_UNWIRED_BEHAVIOR_COUNT = 4;

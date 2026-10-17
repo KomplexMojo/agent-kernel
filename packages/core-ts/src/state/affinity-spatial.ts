@@ -75,7 +75,7 @@ export function computeAffinityRadius(
   );
 }
 
-export function computeAffinityIntensity(
+export function computeAffinityFalloff(
   distance: number,
   stacks: number,
   expression: number,
@@ -504,17 +504,17 @@ export function createAffinitySpatialState() {
 
 /**
  * Per-cell opposition, decided by STACKS (maintainer, 2026-10-15, #290): the side
- * with more stacks survives with the difference, its intensity scaled by the share
- * of its stacks left; equal stacks cancel both. Intensity used to decide it, and an
- * emitter's own tile always reads intensity 1, so a 1-stack emit erased a 3-stack
+ * with more stacks survives with the difference, its falloff scaled by the share
+ * of its stacks left; equal stacks cancel both. Falloff used to decide it, and an
+ * emitter's own tile always reads falloff 1, so a 1-stack emit erased a 3-stack
  * opposite there. One rule for every opposed pair.
  */
-export function cancelAffinityOverlap(sourceIntensity: number, sourceStacks: number, targetIntensity: number, targetStacks: number) {
+export function cancelAffinityOverlap(sourceFalloff: number, sourceStacks: number, targetFalloff: number, targetStacks: number) {
   const net = sourceStacks - targetStacks;
   return {
-    sourceIntensity: net > 0 ? sourceIntensity * (net / sourceStacks) : 0,
+    sourceFalloff: net > 0 ? sourceFalloff * (net / sourceStacks) : 0,
     sourceStacks: net > 0 ? net : 0,
-    targetIntensity: net < 0 ? targetIntensity * (-net / targetStacks) : 0,
+    targetFalloff: net < 0 ? targetFalloff * (-net / targetStacks) : 0,
     targetStacks: net < 0 ? -net : 0,
   };
 }
