@@ -1555,6 +1555,8 @@ export type InitialStateArtifact = InitialStateArtifactV1;
 export const AFFINITY_PRESET_SCHEMA = "agent-kernel/AffinityPresetArtifact";
 export const ACTOR_LOADOUT_SCHEMA = "agent-kernel/ActorLoadoutArtifact";
 export const AFFINITY_SUMMARY_SCHEMA = "agent-kernel/AffinitySummary";
+// Preset catalogs readers accept: v2, and v1 whose effects/abilities are ignored (#264).
+export const AFFINITY_PRESET_SCHEMA_VERSIONS: readonly number[] = Object.freeze([1, 2]);
 
 export type AffinityTargetType = "self" | "ally" | "enemy" | "area" | "barrier" | "floor";
 export type AffinityStackScaling = "linear" | "multiplier";
@@ -1613,6 +1615,28 @@ export interface AffinityPresetArtifactV1 {
   presets: AffinityPresetV1[];
 }
 
+// v2 (#264): no `effects` (attack/buff/area) and no `abilities`. Nothing read them --
+// there is no conventional attack; harm comes only from affinity casts. v1 artifacts are
+// still read, and their effects/abilities are ignored.
+export interface AffinityPresetV2 {
+  id: string;
+  kind: AffinityKind;
+  expression: AffinityExpression;
+  manaCost: number;
+  vitalsModifiers?: VitalModifiersV1;
+  stack: {
+    max: number;
+    scaling: AffinityStackScaling;
+  };
+}
+
+export interface AffinityPresetArtifactV2 {
+  schema: typeof AFFINITY_PRESET_SCHEMA;
+  schemaVersion: 2;
+  meta: ArtifactMeta;
+  presets: AffinityPresetV2[];
+}
+
 export interface ActorLoadoutAffinityV1 {
   presetId: string;
   kind: AffinityKind;
@@ -1649,7 +1673,7 @@ export interface ActorLoadoutArtifactV1 {
   loadouts: ActorLoadoutV1[];
 }
 
-export type AffinityPresetArtifact = AffinityPresetArtifactV1;
+export type AffinityPresetArtifact = AffinityPresetArtifactV2 | AffinityPresetArtifactV1;
 export type ActorLoadoutArtifact = ActorLoadoutArtifactV1;
 
 export interface AffinitySummaryActorV1 {
@@ -1692,7 +1716,23 @@ export interface AffinitySummaryV1 {
   hazards: AffinitySummaryHazardV1[];
 }
 
-export type AffinitySummary = AffinitySummaryV1;
+// v2 (#264): actors and hazards no longer carry `abilities`.
+export type AffinitySummaryActorV2 = Omit<AffinitySummaryActorV1, "abilities">;
+export type AffinitySummaryHazardV2 = Omit<AffinitySummaryHazardV1, "abilities">;
+
+export interface AffinitySummaryV2 {
+  schema: typeof AFFINITY_SUMMARY_SCHEMA;
+  schemaVersion: 2;
+  meta: ArtifactMeta;
+  presetsRef?: ArtifactRef;
+  loadoutsRef?: ArtifactRef;
+  simConfigRef?: ArtifactRef;
+  initialStateRef?: ArtifactRef;
+  actors: AffinitySummaryActorV2[];
+  hazards: AffinitySummaryHazardV2[];
+}
+
+export type AffinitySummary = AffinitySummaryV2;
 
 // -------------------------
 // Authoring cost parameters retained until producer migration. Mechanical vital

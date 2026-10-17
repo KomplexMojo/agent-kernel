@@ -9,15 +9,30 @@
         "expression": "push",
         "manaCost": 3,
         "effects": {
-          "attack": { "id": "fireball", "potency": 1 }
+          "attack": {
+            "id": "fireball",
+            "potency": 1
+          }
         },
         "abilities": [
-          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "potency": 2 }
+          {
+            "id": "fire_bolt",
+            "kind": "attack",
+            "affinityKind": "fire",
+            "potency": 2
+          }
         ],
         "vitalsModifiers": {
-          "mana": { "current": 0, "max": 1, "regen": 0 }
+          "mana": {
+            "current": 0,
+            "max": 1,
+            "regen": 0
+          }
         },
-        "stack": { "max": 3, "scaling": "multiplier" }
+        "stack": {
+          "max": 3,
+          "scaling": "multiplier"
+        }
       },
       {
         "id": "affinity_growth_pull",
@@ -25,15 +40,30 @@
         "expression": "pull",
         "manaCost": 0,
         "effects": {
-          "buff": { "id": "growth_boost", "potency": 1 }
+          "buff": {
+            "id": "growth_boost",
+            "potency": 1
+          }
         },
         "abilities": [
-          { "id": "growth_surge", "kind": "buff", "affinityKind": "growth", "potency": 1 }
+          {
+            "id": "growth_surge",
+            "kind": "buff",
+            "affinityKind": "growth",
+            "potency": 1
+          }
         ],
         "vitalsModifiers": {
-          "health": { "current": 1, "max": 2, "regen": 0 }
+          "health": {
+            "current": 1,
+            "max": 2,
+            "regen": 0
+          }
         },
-        "stack": { "max": 2, "scaling": "linear" }
+        "stack": {
+          "max": 2,
+          "scaling": "linear"
+        }
       },
       {
         "id": "affinity_decay_emit",
@@ -41,54 +71,131 @@
         "expression": "emit",
         "manaCost": 2,
         "effects": {
-          "area": { "id": "decay_miasma", "potency": 1 }
+          "area": {
+            "id": "decay_miasma",
+            "potency": 1
+          }
         },
         "abilities": [
-          { "id": "decay_field", "kind": "area", "affinityKind": "decay", "potency": 1 }
+          {
+            "id": "decay_field",
+            "kind": "area",
+            "affinityKind": "decay",
+            "potency": 1
+          }
         ],
         "vitalsModifiers": {
-          "health": { "current": -1, "max": 0, "regen": 0 }
+          "health": {
+            "current": -1,
+            "max": 0,
+            "regen": 0
+          }
         },
-        "stack": { "max": 2, "scaling": "multiplier" }
+        "stack": {
+          "max": 2,
+          "scaling": "multiplier"
+        }
       }
     ],
     "loadouts": [
       {
         "actorId": "actor_mvp",
         "affinities": [
-          { "presetId": "affinity_fire_push", "kind": "fire", "expression": "push", "targetType": "enemy", "stacks": 2 },
-          { "presetId": "affinity_growth_pull", "kind": "growth", "expression": "pull", "targetType": "self" }
+          {
+            "presetId": "affinity_fire_push",
+            "kind": "fire",
+            "expression": "push",
+            "targetType": "enemy",
+            "stacks": 2
+          },
+          {
+            "presetId": "affinity_growth_pull",
+            "kind": "growth",
+            "expression": "pull",
+            "targetType": "self"
+          }
         ]
       },
       {
         "actorId": "actor_rival",
         "affinities": [
-          { "presetId": "affinity_decay_emit", "kind": "decay", "expression": "emit", "targetType": "area", "stacks": 1 }
+          {
+            "presetId": "affinity_decay_emit",
+            "kind": "decay",
+            "expression": "emit",
+            "targetType": "area",
+            "stacks": 1
+          }
         ]
       }
     ],
     "baseVitalsByActorId": {
       "actor_mvp": {
-        "health": { "current": 10, "max": 10, "regen": 0 },
-        "mana": { "current": 0, "max": 0, "regen": 0 },
-        "stamina": { "current": 0, "max": 0, "regen": 0 },
-        "durability": { "current": 0, "max": 0, "regen": 0 }
+        "health": {
+          "current": 10,
+          "max": 10,
+          "regen": 0
+        },
+        "mana": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        }
       },
       "actor_rival": {
-        "health": { "current": 6, "max": 6, "regen": 0 },
-        "mana": { "current": 1, "max": 1, "regen": 0 },
-        "stamina": { "current": 0, "max": 0, "regen": 0 },
-        "durability": { "current": 0, "max": 0, "regen": 0 }
+        "health": {
+          "current": 6,
+          "max": 6,
+          "regen": 0
+        },
+        "mana": {
+          "current": 1,
+          "max": 1,
+          "regen": 0
+        },
+        "stamina": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        },
+        "durability": {
+          "current": 0,
+          "max": 0,
+          "regen": 0
+        }
       }
     },
     "hazards": [
       {
         "x": 2,
         "y": 2,
-        "affinity": { "kind": "fire", "expression": "push", "targetType": "floor", "stacks": 2 },
+        "affinity": {
+          "kind": "fire",
+          "expression": "push",
+          "targetType": "floor",
+          "stacks": 2
+        },
         "vitals": {
-          "mana": { "current": 3, "max": 3, "regen": 1 },
-          "durability": { "current": 5, "max": 5, "regen": 0 }
+          "mana": {
+            "current": 3,
+            "max": 3,
+            "regen": 1
+          },
+          "durability": {
+            "current": 5,
+            "max": 5,
+            "regen": 0
+          }
         }
       }
     ]
@@ -98,17 +205,35 @@
       {
         "actorId": "actor_mvp",
         "vitals": {
-          "health": { "current": 11, "max": 12, "regen": 0 },
-          "mana": { "current": 0, "max": 2, "regen": 0 },
-          "stamina": { "current": 0, "max": 0, "regen": 0 },
-          "durability": { "current": 0, "max": 0, "regen": 0 }
+          "health": {
+            "current": 11,
+            "max": 12,
+            "regen": 0
+          },
+          "mana": {
+            "current": 0,
+            "max": 2,
+            "regen": 0
+          },
+          "stamina": {
+            "current": 0,
+            "max": 0,
+            "regen": 0
+          },
+          "durability": {
+            "current": 0,
+            "max": 0,
+            "regen": 0
+          }
         },
-        "abilities": [
-          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "targetType": "enemy", "potency": 4, "manaCost": 6 },
-          { "id": "growth_surge", "kind": "buff", "affinityKind": "growth", "expression": "pull", "targetType": "self", "potency": 1, "manaCost": 0 }
-        ],
-        "affinityStacks": { "fire:push": 2, "growth:pull": 1 },
-        "affinityTargets": { "fire:push:enemy": 2, "growth:pull:self": 1 },
+        "affinityStacks": {
+          "fire:push": 2,
+          "growth:pull": 1
+        },
+        "affinityTargets": {
+          "fire:push:enemy": 2,
+          "growth:pull:self": 1
+        },
         "resolvedEffects": [
           {
             "id": "fire:push:enemy:vital",
@@ -141,16 +266,33 @@
       {
         "actorId": "actor_rival",
         "vitals": {
-          "health": { "current": 5, "max": 6, "regen": 0 },
-          "mana": { "current": 1, "max": 1, "regen": 0 },
-          "stamina": { "current": 0, "max": 0, "regen": 0 },
-          "durability": { "current": 0, "max": 0, "regen": 0 }
+          "health": {
+            "current": 5,
+            "max": 6,
+            "regen": 0
+          },
+          "mana": {
+            "current": 1,
+            "max": 1,
+            "regen": 0
+          },
+          "stamina": {
+            "current": 0,
+            "max": 0,
+            "regen": 0
+          },
+          "durability": {
+            "current": 0,
+            "max": 0,
+            "regen": 0
+          }
         },
-        "abilities": [
-          { "id": "decay_field", "kind": "area", "affinityKind": "decay", "expression": "emit", "targetType": "area", "potency": 1, "manaCost": 2 }
-        ],
-        "affinityStacks": { "decay:emit": 1 },
-        "affinityTargets": { "decay:emit:area": 1 },
+        "affinityStacks": {
+          "decay:emit": 1
+        },
+        "affinityTargets": {
+          "decay:emit:area": 1
+        },
         "resolvedEffects": [
           {
             "id": "decay:emit:area:vital",
@@ -170,18 +312,38 @@
     ],
     "hazards": [
       {
-        "position": { "x": 2, "y": 2 },
-        "vitals": {
-          "health": { "current": 0, "max": 0, "regen": 0 },
-          "mana": { "current": 3, "max": 5, "regen": 1 },
-          "stamina": { "current": 0, "max": 0, "regen": 0 },
-          "durability": { "current": 5, "max": 5, "regen": 0 }
+        "position": {
+          "x": 2,
+          "y": 2
         },
-        "abilities": [
-          { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "targetType": "enemy", "potency": 4, "manaCost": 6 }
-        ],
-        "affinityStacks": { "fire:push": 2 },
-        "affinityTargets": { "fire:push:floor": 2 },
+        "vitals": {
+          "health": {
+            "current": 0,
+            "max": 0,
+            "regen": 0
+          },
+          "mana": {
+            "current": 3,
+            "max": 5,
+            "regen": 1
+          },
+          "stamina": {
+            "current": 0,
+            "max": 0,
+            "regen": 0
+          },
+          "durability": {
+            "current": 5,
+            "max": 5,
+            "regen": 0
+          }
+        },
+        "affinityStacks": {
+          "fire:push": 2
+        },
+        "affinityTargets": {
+          "fire:push:floor": 2
+        },
         "resolvedEffects": [
           {
             "id": "fire:push:floor:arm_static_hazard",

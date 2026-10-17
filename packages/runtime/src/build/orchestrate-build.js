@@ -11,6 +11,7 @@ import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.j
 import {
   ACTOR_LOADOUT_SCHEMA,
   AFFINITY_PRESET_SCHEMA,
+  AFFINITY_PRESET_SCHEMA_VERSIONS,
   AFFINITY_RULES_ARTIFACT_SCHEMA,
   AFFINITY_SUMMARY_SCHEMA,
   MOTIVATION_RULES_ARTIFACT_SCHEMA,
@@ -184,15 +185,15 @@ function formatLevelGenErrorDetail(err) {
   return formatter ? formatter(err.detail) : "";
 }
 
-function assertSchema(artifact, expectedSchema) {
+function assertSchema(artifact, expectedSchema, acceptedVersions = [1]) {
   if (!artifact || typeof artifact !== "object") {
     throw new Error(`Expected ${expectedSchema} artifact.`);
   }
   if (artifact.schema !== expectedSchema) {
     throw new Error(`Expected schema ${expectedSchema}, got ${artifact.schema || "missing"}.`);
   }
-  if (artifact.schemaVersion !== 1) {
-    throw new Error(`Expected schemaVersion 1 for ${expectedSchema}.`);
+  if (!acceptedVersions.includes(artifact.schemaVersion)) {
+    throw new Error(`Expected schemaVersion ${acceptedVersions.join(" or ")} for ${expectedSchema}.`);
   }
 }
 
@@ -368,7 +369,7 @@ export async function orchestrateBuild({
       throw new Error(`configurator inputs require both affinityPresets and affinityLoadouts (missing ${missing}).`);
     }
     if (affinityPresets) {
-      assertSchema(affinityPresets, SCHEMAS.affinityPreset);
+      assertSchema(affinityPresets, SCHEMAS.affinityPreset, AFFINITY_PRESET_SCHEMA_VERSIONS);
     }
     if (affinityLoadouts) {
       assertSchema(affinityLoadouts, SCHEMAS.actorLoadout);
@@ -583,7 +584,7 @@ export async function orchestrateBuild({
       });
       affinitySummary = {
         schema: SCHEMAS.affinitySummary,
-        schemaVersion: 1,
+        schemaVersion: 2,
         // Builds run NO tick, and the Annotator subscribes only to the EMIT/SUMMARIZE tick
         // phases — so it cannot have produced this. Stamp the real caller, as every sibling
         // artifact here does; glue must not claim persona provenance it did not earn (P3.4).
