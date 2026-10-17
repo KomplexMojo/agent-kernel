@@ -16,6 +16,7 @@ import {
   MOTIVATION_RULES_ARTIFACT_SCHEMA,
   SOLVER_REQUEST_SCHEMA,
   SOLVER_RESULT_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA,
 } from "../contracts/artifacts.ts";
 
 // CR.7 / WP-5 — the build-geometry helpers this file used to import out of seven Configurator
@@ -426,9 +427,21 @@ export async function orchestrateBuild({
       priceListMeta: createBuildMeta(spec, producedBy, "default_price_list"),
       clock: UNUSED_CLOCK,
     });
-    resolvedPriceList = mapped.budget?.budget
-      ? buildAllocator.resolvePriceList(mapped.budget?.priceList)
-      : null;
+    // #276: a spec with no budget is priced against the Allocator's reference budget, as
+    // `ak create` is (#274). A missing input picks the Allocator's default, never skips the
+    // Allocator. Only a spec that brings its own receipt (already priced) has no budget here.
+    if (mapped.budget?.budget || !budgetReceipt) {
+      mapped.budget = {
+        ...(mapped.budget || {}),
+        budget: mapped.budget?.budget || {
+          schema: BUDGET_ARTIFACT_SCHEMA,
+          schemaVersion: 1,
+          meta: createBuildMeta(spec, producedBy, "default_budget"),
+          budget: { tokens: buildAllocator.pricing.levelAuthoring().referenceBudgetTokens },
+        },
+      };
+      resolvedPriceList = buildAllocator.resolvePriceList(mapped.budget.priceList);
+    }
     const mixedRoomPriceList = resolvedPriceList || buildAllocator.resolvePriceList();
     if (Array.isArray(layout.rooms)) {
       layout.rooms = layout.rooms.map((room) => {

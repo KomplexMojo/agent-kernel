@@ -86,8 +86,10 @@ test("integration: a real AWA-style summary compiles to a SimConfig+InitialState
   });
   const summary = { dungeonAffinity: "fire", rooms: [{ type: "room", count: 2, size: "small", affinity: "fire" }], actors: [{ type: "delver", count: 1, motivation: "attacking", affinity: "fire" }] };
   const receipt = await op({ runId: "run_real", generated: summary, selectedStrategy: { strategyId: "flagship_full_context_v1" } });
-  assert.equal(receipt.bundleArtifactCount, 3);
   const schemas = pushed[0].payload.bundle.artifacts.map((a) => a.schema);
+  // #276: the summary names no budget, so the Allocator prices it against its reference budget.
+  assert.ok(schemas.some((s) => /BudgetReceipt/.test(s)), "bundle must include the Allocator's receipt");
+  assert.equal(receipt.bundleArtifactCount, schemas.length);
   assert.ok(schemas.some((s) => /SimConfig/.test(s)), "bundle must include a SimConfig artifact");
   assert.ok(schemas.some((s) => /InitialState/.test(s)), "bundle must include an InitialState artifact");
 });
