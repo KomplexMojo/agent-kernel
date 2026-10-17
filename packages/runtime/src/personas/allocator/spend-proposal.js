@@ -513,6 +513,35 @@ function readHazardVitalCharges(hazard) {
     .filter(Boolean);
 }
 
+/**
+ * The floor and hallway tile counts a layout is billed for (#300 publishes this so a built
+ * level's budget-fit question counts tiles exactly as its receipt did).
+ *
+ * CR.9 M5: the RECEIPT path charged floor tiles only, so an explicit
+ * `{ floorTiles, hallwayTiles }` layout was billed for half of itself. This is the
+ * second charging site for tiles — `layout-spend.js` is the other — and fixing one
+ * without the other is how a payload comes to have two prices (CR.1's defect class).
+ *
+ * ⚠️ ONLY when the floor count is NOT derived. `countFloorTiles` has four modes: an
+ * explicit `floorTiles` field, canonical `terrain` floors, a leftover `tiles` grid, or
+ * `width × height`. Terrain counts floor cells only. Leftover tiles and width×height
+ * count walkable leftover glyphs — hallways INCLUDED — so adding an explicit
+ * `hallwayTiles` on top of them bills the same tiles twice. The guard cannot simply be
+ * "floorTiles must be explicit" either: a hallway-ONLY leftover layout has no floor
+ * count at all and must still be charged, which is exactly what this milestone stopped
+ * being free.
+ */
+export function billedLayoutTiles(layoutData) {
+  const isScaffold = layoutData?.budgetScaffold === true;
+  const floorTiles = isScaffold ? 0 : countFloorTiles(layoutData);
+  const hasExplicitFloorCount = Number.isInteger(layoutData?.floorTiles) && layoutData.floorTiles > 0;
+  const floorCountIncludesHallways = !hasExplicitFloorCount && floorTiles > 0;
+  const hallwayTiles = isScaffold || floorCountIncludesHallways || !Number.isInteger(layoutData?.hallwayTiles)
+    ? 0
+    : Math.max(0, layoutData.hallwayTiles);
+  return { floorTiles, hallwayTiles };
+}
+
 function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMotivations }) {
   const counts = new Map();
   const hazardArray = Array.isArray(hazards) && hazards.length > 0
@@ -523,32 +552,13 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
     ...(Array.isArray(layoutData?.resources) ? layoutData.resources : []),
   ];
 
-  const isScaffold = layoutData?.budgetScaffold === true;
-  const floorTiles = isScaffold ? 0 : countFloorTiles(layoutData);
+  const { floorTiles, hallwayTiles } = billedLayoutTiles(layoutData);
   if (floorTiles > 0) {
     accumulateItem(counts, "tile_floor", "tile", floorTiles, {
       category: "floor_tiles",
       subjectRef: buildSubjectRef("layout", LAYOUT_ARTIFACT_SCHEMA),
     });
   }
-  // CR.9 M5: the RECEIPT path charged floor tiles only, so an explicit
-  // `{ floorTiles, hallwayTiles }` layout was billed for half of itself. This is the
-  // second charging site for tiles — `layout-spend.js` is the other — and fixing one
-  // without the other is how a payload comes to have two prices (CR.1's defect class).
-  //
-  // ⚠️ ONLY when the floor count is NOT derived. `countFloorTiles` has four modes: an
-  // explicit `floorTiles` field, canonical `terrain` floors, a leftover `tiles` grid, or
-  // `width × height`. Terrain counts floor cells only. Leftover tiles and width×height
-  // count walkable leftover glyphs — hallways INCLUDED — so adding an explicit
-  // `hallwayTiles` on top of them bills the same tiles twice. The guard cannot simply be
-  // "floorTiles must be explicit" either: a hallway-ONLY leftover layout has no floor
-  // count at all and must still be charged, which is exactly what this milestone stopped
-  // being free.
-  const hasExplicitFloorCount = Number.isInteger(layoutData?.floorTiles) && layoutData.floorTiles > 0;
-  const floorCountIncludesHallways = !hasExplicitFloorCount && floorTiles > 0;
-  const hallwayTiles = isScaffold || floorCountIncludesHallways || !Number.isInteger(layoutData?.hallwayTiles)
-    ? 0
-    : Math.max(0, layoutData.hallwayTiles);
   if (hallwayTiles > 0) {
     accumulateItem(counts, "tile_hallway", "tile", hallwayTiles, {
       category: "floor_tiles",

@@ -166,6 +166,7 @@ function usage() {
   node ${rel} build --spec path [--out-dir dir] [--emit-intermediates]
   node ${rel} schemas [--out-dir dir]
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
+  node ${rel} solve --dir dir --question <place-objects|budget-fit> [--budget-tokens N] [--out-dir dir] [--run-id id]
   node ${rel} workflow <run|status|replay|cancel|validate> [--objective text | --input path] [--out-dir dir] [--policy path] [--runtime-profile path] [--dry-run]
   node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--world-state-checkpoints ticks] [--seed N] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--progress] [--dry-run]
   node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
@@ -207,6 +208,7 @@ Options:
   --world-state-checkpoints  Comma-separated ticks to persist as WorldStateArtifact v2 files (run only)
   --seed          Seed for init (default: 0)
   --solver-fixture Fixture path for solve command (no network)
+  --question      solve: ask about the built level in --dir (place-objects | budget-fit; budget-fit needs --budget-tokens)
   --actor         Actor spec: id,x,y,category (delver/warden/hazard/resource/barrier)
   --vital         Vital spec: actorId,vital,current,max,regen
   --vital-default Vital default: vital,current,max,regen
@@ -283,6 +285,7 @@ Options:
   --created-at    Override createdAt timestamp (ISO-8601) for llm-plan/room-plan/hazard-plan/resource-plan/delver-plan/warden-plan
   --dry-run       Validate schema/budget inputs without executing run or writing artifacts
   --dir           play: an \`ak create --out-dir\` or run directory holding sim-config.json + initial-state.json
+                  solve --question: the same kind of built level directory
   --level         play: a bundled ui-ascii level (default: all bundled levels, in order)
   --keys          play: apply these keys without a terminal and print the final screen (e.g. "ddss.")
   --json          play: print { ok, level, turns, status, screen, launch, warnings? } instead of the screen
@@ -4834,23 +4837,26 @@ async function solveCommand(argv) {
     console.log(usage());
     return;
   }
-  const { outDir, solverRequest, solverResult } = await commandKernel.solve(args);
-  const artifactPaths = {
+  const { outDir, runId, solverRequest, solverResult, answer, artifactPaths: questionPaths } = await commandKernel.solve(args);
+  const artifactPaths = questionPaths || {
     solver_request: join(outDir, "solver-request.json"),
     solver_result: join(outDir, "solver-result.json"),
   };
   // `ok` says the command ran; `solved` says whether the solver answered. A deferred
   // result means no adapter served the request's domain, so nothing was solved, and
   // callers (ak_solve above all) must not read the envelope as an answer.
+  // With --question, `answer` is the owning persona's verdict: which source decided it
+  // (solver or fallback) and what it decided. `not_posed` means the persona needed no search.
   const status = solverResult?.status;
   emitJsonStdout({
     ok: true,
     command: "solve",
-    runId: solverRequest?.meta?.runId || args["run-id"] || "",
+    runId: runId || solverRequest?.meta?.runId || args["run-id"] || "",
     outDir,
-    solved: status !== "deferred" && status !== "error",
+    solved: status !== "deferred" && status !== "error" && status !== "not_posed",
     status,
     ...(solverResult?.reason ? { reason: solverResult.reason } : {}),
+    ...(answer ? { answer } : {}),
     artifactPaths,
   });
 }

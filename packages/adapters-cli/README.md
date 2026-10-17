@@ -714,6 +714,27 @@ adapter answers only the `allocator_budget_fit` and `configurator_satisfiability
 free-text `--scenario` carries no domain, so it reports `solved: false`, status `deferred`,
 reason `constraint_domain_unsupported`.
 
+**Asking about a built level (`--dir` + `--question`, #300).** Point `--dir` at a built level
+(an `ak create --out-dir`, holding `sim-config.json` and `initial-state.json`) and pick one
+question. The owning persona poses the problem and judges the answer; the CLI only chooses
+which question to ask.
+
+- `--question place-objects`: the Configurator re-places the level's hazards and resources on
+  its walkable cells, keeping spawn connected to exit. Room membership is not recorded on a
+  built actor, so the re-placement ranges over the whole level. The level's files are not
+  changed.
+- `--question budget-fit --budget-tokens N`: the Allocator fits the tiles the level was billed
+  for (`billedLayoutTiles`) to `N` tokens, priced with the level's `price-list.json` when it
+  has one.
+
+The output adds `answer` (also written to `solve-answer.json`): the persona's verdict, and for
+placement its `source` (`solver` or `fallback`) and per-object `placements`. `status` reports
+the solver round trip: the adapter's own status when it was asked, `deferred` with reason
+`solver_domain_unavailable` when the engine cannot serve the domain (the fallback decided),
+or `not_posed` with reason `no_search_needed` when the persona needed no search, e.g. a
+layout already under budget. `solver-request.json` and `solver-result.json` are written only
+when the adapter was asked. `ak_solve` takes the same `dir`, `question` and `budgetTokens`.
+
 ### `run`
 Execute a configured simulation run using captured artifacts, emitting TickFrame and
 effect logs plus a minimal RunSummary artifact.
@@ -912,7 +933,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - blockchain-mint: `blockchain-mint.json`
 - blockchain-load: `blockchain-load.json`
 - llm: `llm.json`
-- solve: `solver-request.json`, `solver-result.json`
+- solve: `solver-request.json`, `solver-result.json`; with `--question`, `solve-answer.json` (and the solver pair only when the adapter was asked)
 - run: `tick-frames.json`, `effects-log.json`, `runtime-decision-captures.json`, `run-summary.json`, `action-log.json`, and `deferred-coordination.json` **only when the run deferred something** (P5.5)
 - room-plan / hazard-plan / resource-plan / delver-plan / warden-plan: build handoff artifacts plus command-specific sidecars such as `hazard-<n>.json` and `resource-artifact-<n>.json`
 - configurator: `sim-config.json`, `initial-state.json` (plus `budget-receipt.json` when `--budget` + `--price-list` are provided)

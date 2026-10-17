@@ -38,7 +38,7 @@ import {
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 import { reconcileBudget } from "./reconciliation.js";
 import { priceMixedRoomDesignSpend } from "./mixed-room-spend.js";
-import { evaluateConfiguratorSpend } from "./spend-proposal.js";
+import { billedLayoutTiles, evaluateConfiguratorSpend } from "./spend-proposal.js";
 import { BUDGET_ARTIFACT_SCHEMA, BUDGET_RECEIPT_ARTIFACT_SCHEMA, RUNTIME_BUDGET_RECEIPT_SCHEMA } from "../../contracts/artifacts.ts";
 
 const RUNTIME_BUDGET_UNIT = "runtimeBudgetUnits";
@@ -607,6 +607,9 @@ export function attachAllocatorServices({
     prepareLayoutBudgetFit,
     completeLayoutBudgetFit,
     fitLayoutToBudget: boundFitLayoutToBudget,
+    // #300 — the tile counts a built level was billed for, so `ak solve --question
+    // budget-fit` asks about the same tiles the receipt charged.
+    billedLayoutTiles,
     // P5.5 — the chartered reconciliation. State-gated, unlike the pricing surface.
     reconcile,
     serviceContext,
