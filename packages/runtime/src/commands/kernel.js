@@ -75,6 +75,7 @@ import {
   ACTION_SEQUENCE_SCHEMA,
   ACTOR_LOADOUT_SCHEMA,
   AFFINITY_PRESET_SCHEMA,
+  AFFINITY_PRESET_SCHEMA_VERSIONS,
   AFFINITY_SUMMARY_SCHEMA,
   BUDGET_ARTIFACT_SCHEMA,
   BUDGET_RECEIPT_ARTIFACT_SCHEMA,
@@ -255,15 +256,15 @@ function buildSpecMeta(spec, producedBy, suffix) {
   };
 }
 
-function assertSchema(artifact, expectedSchema) {
+function assertSchema(artifact, expectedSchema, acceptedVersions = [1]) {
   if (!artifact || typeof artifact !== "object") {
     throw new Error(`Expected ${expectedSchema} artifact.`);
   }
   if (artifact.schema !== expectedSchema) {
     throw new Error(`Expected schema ${expectedSchema}, got ${artifact.schema || "missing"}.`);
   }
-  if (artifact.schemaVersion !== 1) {
-    throw new Error(`Expected schemaVersion 1 for ${expectedSchema}.`);
+  if (!acceptedVersions.includes(artifact.schemaVersion)) {
+    throw new Error(`Expected schemaVersion ${acceptedVersions.join(" or ")} for ${expectedSchema}.`);
   }
 }
 
@@ -1132,7 +1133,7 @@ export function createCommandKernel(host = {}) {
     }
     if (affinityPresetsPath) {
       affinityPresets = await readJson(affinityPresetsPath);
-      assertSchema(affinityPresets, SCHEMAS.affinityPreset);
+      assertSchema(affinityPresets, SCHEMAS.affinityPreset, AFFINITY_PRESET_SCHEMA_VERSIONS);
     }
     if (affinityLoadoutsPath) {
       affinityLoadouts = await readJson(affinityLoadoutsPath);
@@ -1240,7 +1241,7 @@ export function createCommandKernel(host = {}) {
       });
       affinitySummary = {
         schema: SCHEMAS.affinitySummary,
-        schemaVersion: 1,
+        schemaVersion: 2,
         // #150 — same wall-clock non-determinism #149 fixed for action-log/run-summary/world-state;
         // confirmed here via a two-run diff (see the fix commit) since no test previously exercised
         // this artifact at all, wantsAffinitySummary being a rarer flag combination.
@@ -1601,7 +1602,7 @@ export function createCommandKernel(host = {}) {
     let affinityLoadouts = null;
     if (affinityPresetsPath) {
       affinityPresets = await readJson(affinityPresetsPath);
-      assertSchema(affinityPresets, AFFINITY_PRESET_SCHEMA);
+      assertSchema(affinityPresets, AFFINITY_PRESET_SCHEMA, AFFINITY_PRESET_SCHEMA_VERSIONS);
     }
     if (affinityLoadoutsPath) {
       affinityLoadouts = await readJson(affinityLoadoutsPath);

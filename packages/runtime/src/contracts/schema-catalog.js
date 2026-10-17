@@ -323,7 +323,13 @@ const CATALOG = [
     schema: AFFINITY_PRESET_SCHEMA,
     schemaVersion: 1,
     category: SCHEMA_CATEGORIES.SUPPORTING_INPUT,
-    description: "Affinity preset catalog.",
+    description: "Legacy affinity preset catalog; its attack/buff/area effects and abilities are read and ignored.",
+  },
+  {
+    schema: AFFINITY_PRESET_SCHEMA,
+    schemaVersion: 2,
+    category: SCHEMA_CATEGORIES.SUPPORTING_INPUT,
+    description: "Affinity preset catalog: kind, expression, mana cost, vital modifiers and stacking.",
   },
   {
     schema: ACTOR_LOADOUT_SCHEMA,
@@ -333,7 +339,7 @@ const CATALOG = [
   },
   {
     schema: AFFINITY_SUMMARY_SCHEMA,
-    schemaVersion: 1,
+    schemaVersion: 2,
     category: SCHEMA_CATEGORIES.OBSERVABILITY,
     description: "Resolved affinity/hazard summary.",
   },

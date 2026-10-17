@@ -19,8 +19,9 @@ const presetsResult = normalizeAffinityPresetCatalog(presetsFixture);
 assert.equal(presetsResult.ok, true);
 const growthPull = presetsResult.value.presets.find((preset) => preset.id === "affinity_growth_pull");
 assert.equal(growthPull.manaCost, 0);
-assert.equal(Array.isArray(growthPull.abilities), true);
-assert.equal(growthPull.abilities.length, 1);
+// #264: a v1 catalog's attack/buff/area effects and abilities are read and ignored.
+assert.equal(Object.hasOwn(growthPull, "abilities"), false);
+assert.equal(Object.hasOwn(growthPull, "effects"), false);
 assert.equal(growthPull.vitalsModifiers.health.max, 2);
 
 const loadoutsResult = normalizeActorLoadoutCatalog(loadoutsFixture, { presets: presetsResult.value.presets });
@@ -28,6 +29,20 @@ assert.equal(loadoutsResult.ok, true);
 const actorLoadout = loadoutsResult.value.loadouts.find((entry) => entry.actorId === "actor_mvp");
 const pullAffinity = actorLoadout.affinities.find((entry) => entry.expression === "pull");
 assert.equal(pullAffinity.stacks, 1);
+});
+
+test("v2 affinity presets normalize without effects or abilities (#264)", async () => {
+  const { normalizeAffinityPresetCatalog } = await import("../../../packages/runtime/src/personas/configurator/affinity-loadouts.js");
+  const v2 = readFixture("affinity-presets-artifact-v2-basic.json");
+  assert.equal(v2.schemaVersion, 2);
+  assert.ok(v2.presets.every((preset) => !("effects" in preset) && !("abilities" in preset)));
+  const result = normalizeAffinityPresetCatalog(v2);
+  assert.equal(result.ok, true, JSON.stringify(result.errors));
+  assert.deepEqual(
+    result.value.presets,
+    normalizeAffinityPresetCatalog(presetsFixture).value.presets,
+    "a v1 catalog and its v2 equivalent normalize to the same presets",
+  );
 });
 
 test("affinity presets reject invalid kinds", async () => {const { normalizeAffinityPresetCatalog } = await import("../../../packages/runtime/src/personas/configurator/affinity-loadouts.js");

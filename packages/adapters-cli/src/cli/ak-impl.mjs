@@ -104,6 +104,7 @@ import {
   ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA,
   ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA,
   AFFINITY_PRESET_SCHEMA,
+  AFFINITY_PRESET_SCHEMA_VERSIONS,
   AFFINITY_SUMMARY_SCHEMA,
   AGENT_COMMAND_REQUEST_SCHEMA,
   BUDGET_ARTIFACT_SCHEMA,
@@ -1747,15 +1748,15 @@ async function writeText(filePath, value) {
   await writeFile(filePath, value, "utf8");
 }
 
-function assertSchema(artifact, expectedSchema) {
+function assertSchema(artifact, expectedSchema, acceptedVersions = [1]) {
   if (!artifact || typeof artifact !== "object") {
     throw new Error(`Expected ${expectedSchema} artifact.`);
   }
   if (artifact.schema !== expectedSchema) {
     throw new Error(`Expected schema ${expectedSchema}, got ${artifact.schema || "missing"}.`);
   }
-  if (artifact.schemaVersion !== 1) {
-    throw new Error(`Expected schemaVersion 1 for ${expectedSchema}.`);
+  if (!acceptedVersions.includes(artifact.schemaVersion)) {
+    throw new Error(`Expected schemaVersion ${acceptedVersions.join(" or ")} for ${expectedSchema}.`);
   }
 }
 
@@ -4253,7 +4254,7 @@ async function validateRunDryRun(args) {
   }
   if (affinityPresetsPath) {
     const affinityPresets = await readJson(affinityPresetsPath);
-    assertSchema(affinityPresets, SCHEMAS.affinityPreset);
+    assertSchema(affinityPresets, SCHEMAS.affinityPreset, AFFINITY_PRESET_SCHEMA_VERSIONS);
   }
   if (affinityLoadoutsPath) {
     const affinityLoadouts = await readJson(affinityLoadoutsPath);

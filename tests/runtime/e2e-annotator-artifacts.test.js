@@ -71,7 +71,7 @@ test("annotator affinity summary artifacts are deterministic and schema-valid", 
 
   const summary = buildResult.affinitySummary;
   assert.equal(summary.schema, "agent-kernel/AffinitySummary");
-  assert.equal(summary.schemaVersion, 1);
+  assert.equal(summary.schemaVersion, 2);
   assert.equal(summary.meta.runId, runId);
   assert.deepEqual(summary.presetsRef, toRef(presets, "agent-kernel/AffinityPresetArtifact"));
   assert.deepEqual(summary.loadoutsRef, toRef(loadouts, "agent-kernel/ActorLoadoutArtifact"));

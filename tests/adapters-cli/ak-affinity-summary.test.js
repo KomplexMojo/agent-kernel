@@ -7,6 +7,7 @@ const os = require("node:os");
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 const PRESETS = resolve(ROOT, "tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json");
+const PRESETS_V2 = resolve(ROOT, "tests/fixtures/artifacts/affinity-presets-artifact-v2-basic.json");
 const LOADOUTS = resolve(ROOT, "tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json");
 const SIM_CONFIG = resolve(ROOT, "tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json");
 const INITIAL_STATE = resolve(ROOT, "tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json");
@@ -102,9 +103,33 @@ test("cli run writes affinity summary", async () => {
   const expected = JSON.parse(readFileSync(AFFINITY_FIXTURE, "utf8")).expected;
 
   assert.equal(summary.schema, "agent-kernel/AffinitySummary");
-  assert.equal(summary.schemaVersion, 1);
+  assert.equal(summary.schemaVersion, 2);
   assert.deepEqual(summary.actors, expected.actors);
   assert.deepEqual(summary.hazards, []);
+});
+
+// #264: v2 presets (no attack/buff/area effects or abilities) resolve to the same summary
+// as the v1 catalog they replace; v1 stays readable.
+test("cli run accepts v2 affinity presets and writes the same summary as v1", async () => {
+  const workDir = mkdtempSync(join(os.tmpdir(), "agent-kernel-affinity-v2-"));
+  const { simConfigPath, initialStatePath } = await writeUnifiedAffinityArtifacts(workDir);
+  const summaries = [PRESETS, PRESETS_V2].map((presets, index) => {
+    const outDir = join(workDir, `out-${index}`);
+    runCli([
+      "run",
+      "--sim-config", simConfigPath,
+      "--initial-state", initialStatePath,
+      "--ticks", "0",
+      "--out-dir", outDir,
+      "--affinity-presets", presets,
+      "--affinity-loadouts", LOADOUTS,
+      "--affinity-summary",
+    ]);
+    return JSON.parse(readFileSync(join(outDir, "affinity-summary.json"), "utf8"));
+  });
+  assert.equal(summaries[1].schemaVersion, 2);
+  assert.deepEqual(summaries[1].actors, summaries[0].actors);
+  assert.ok(summaries[1].actors.every((actor) => !("abilities" in actor)));
 });
 
 test("cli run rejects affinity summary without presets or loadouts", (t) => {
