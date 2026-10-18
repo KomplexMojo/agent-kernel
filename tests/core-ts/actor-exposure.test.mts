@@ -16,12 +16,14 @@ const draw = { kind: 'fire', expression: 'draw', stacks: 2 } as const;
 function registry(actors: ActorRecord[]) {
   return createActorRegistry({ dimensions: { width: 1, height: 1 }, terrain: ['floor'], actors });
 }
-test('multiple draw receivers cannot absorb the same emitted amount twice', () => {
+// #347: the emit's strength is no longer a pool its receivers share in id order. Each draw
+// receiver absorbs its own exposure, capped by that strength; this used to give `b` the 2 left over.
+test('each draw receiver absorbs its own exposure, not a share of one pool', () => {
   const state = registry([actor('source', emit), actor('a', draw), actor('b', draw)]);
   const result = resolveActorExposures(state, [{ sourceId: 'source', budget: 5,
     targets: [{ targetId: 'b', amount: 5 }, { targetId: 'a', amount: 3 }] }]);
   expect(result.absorptions).toEqual([{ sourceId: 'source', receiverId: 'a', amount: 3, mana: 3 },
-    { sourceId: 'source', receiverId: 'b', amount: 2, mana: 2 }]);
+    { sourceId: 'source', receiverId: 'b', amount: 5, mana: 5 }]);
   expect(state.getActor('a')!.vitals.health!.current).toBe(10);
   expect(state.getActor('b')!.vitals.durability!.current).toBe(3);
 });

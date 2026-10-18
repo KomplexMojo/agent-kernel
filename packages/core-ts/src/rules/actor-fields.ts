@@ -48,7 +48,7 @@ function receiverExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, amo
   return amount;
 }
 
-/** Receiver-local exposure before finite source budgets and vital routing. No mutation.
+/** Receiver-local exposure before the source's strength cap and vital routing. No mutation.
  * Vitals are whole numbers (#283): falloff and cancellation make the raw exposure
  * fractional, so it rounds to the nearest point here, the one place every field
  * affinity's exposure passes through. Half rounds up, so the weakest field still lands 1.
@@ -68,7 +68,7 @@ function rawFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, loc
   return receiverExposureAmount(receiver, cell, amount, operation);
 }
 
-/** Receiver-local forecast from projected cells, before other receivers consume exposure.
+/** Receiver-local forecast from projected cells. Other receivers do not change it (#347).
  * Uses residual observed intensity as a conservative source budget. Does not project new fields.
  */
 export function previewActorFieldChanges(receiver: ActorRecord, localCells: readonly ActorFieldCell[]): ActorVitalChange[] {
