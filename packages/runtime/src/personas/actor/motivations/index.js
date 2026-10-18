@@ -7,6 +7,7 @@
  */
 import attacking from "./attacking.js";
 import defending from "./defending.js";
+import escorting from "./escorting.js";
 import exploring from "./exploring.js";
 import friendly from "./friendly.js";
 import goalOriented from "./goal-oriented.js";
@@ -21,6 +22,7 @@ import userControlled from "./user-controlled.js";
 const MODULES = Object.freeze([
   attacking,
   defending,
+  escorting,
   exploring,
   friendly,
   goalOriented,

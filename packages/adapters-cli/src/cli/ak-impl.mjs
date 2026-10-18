@@ -261,9 +261,9 @@ Options:
   --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<range>][;intensity=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
+  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]]
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
+  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]]
                     where <expression> is push|pull (spatial) or emit|draw (field)
                 Delver and warden slots/equip (create too): slots=<n> sets affinity slots (1-6; preset delver 3, warden 2);
                 each slot above the preset is charged at the slot-unlock price. equip= lists starting equips in order,
@@ -774,6 +774,20 @@ function parseCompactPlace(text, label) {
   const match = /^(\d+)\/(\d+)$/.exec(String(text ?? ""));
   if (!match) throw new Error(`${label} place must be exit or <x>/<y>, got "${text ?? ""}".`);
   return { x: Number(match[1]), y: Number(match[2]) };
+}
+
+// `escort=<id>[:<distance>]` on a delver or warden spec (#251): who an `escorting` actor
+// keeps near and within how many tiles. `escort=:<distance>` keeps the default ally (the
+// playable delver). Only the text is read here; the Configurator checks the ally exists.
+function parseActorEscort(value, actorType, actorIndex) {
+  if (!isNonEmptyString(value)) return undefined;
+  const [target, distance, ...rest] = String(value).trim().split(":").map((part) => part.trim());
+  const label = `${actorType}[${actorIndex}] escort`;
+  if (rest.length > 0) throw new Error(`${label} must be <id>[:<distance>], got "${value}".`);
+  return {
+    ...(target ? { target } : {}),
+    ...(distance !== undefined ? { distance: parsePositiveIntStrict(distance, `${label} distance`) } : {}),
+  };
 }
 
 function parseActorStrategy(value, actorType, actorIndex) {
@@ -1472,7 +1486,7 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
     throw new Error(`delver[${delverIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip", "strategy"]);
+  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip", "strategy", "escort"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1540,6 +1554,8 @@ function parseDelverSpec(value, delverIndex, { defaultAffinity = DEFAULT_DUNGEON
   Object.assign(delver, readActorEquipment(fields, "delver", delverIndex, delver));
   const delverStrategy = parseActorStrategy(fields.get("strategy"), "delver", delverIndex);
   if (delverStrategy !== undefined) delver.strategy = delverStrategy;
+  const delverEscort = parseActorEscort(fields.get("escort"), "delver", delverIndex);
+  if (delverEscort !== undefined) delver.escort = delverEscort;
 
   return {
     value: delver,
@@ -1564,7 +1580,7 @@ function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON
     throw new Error(`warden[${wardenIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "slots", "equip", "strategy"]);
+  const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "slots", "equip", "strategy", "escort"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1637,6 +1653,8 @@ function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON
   Object.assign(warden, readActorEquipment(fields, "warden", wardenIndex, warden));
   const wardenStrategy = parseActorStrategy(fields.get("strategy"), "warden", wardenIndex);
   if (wardenStrategy !== undefined) warden.strategy = wardenStrategy;
+  const wardenEscort = parseActorEscort(fields.get("escort"), "warden", wardenIndex);
+  if (wardenEscort !== undefined) warden.escort = wardenEscort;
   return warden;
 }
 

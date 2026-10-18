@@ -61,7 +61,7 @@ test("normalizeMotivations rejects contradictory motivations from the same exclu
   assert.ok(postureGroup);
   assert.ok(postureGroup.kinds.includes("attacking"));
   assert.ok(postureGroup.kinds.includes("defending"));
-  assert.deepEqual(getConflictingMotivationKinds("stationary"), ["random", "exploring", "patrolling"]);
+  assert.deepEqual(getConflictingMotivationKinds("stationary"), ["random", "exploring", "patrolling", "escorting"]);
 
   const result = normalizeMotivations([
     "attacking",
@@ -84,7 +84,7 @@ test("MOTIVATION_FAMILIES defines canonical motivation families", async () => {
     "../../../packages/runtime/src/contracts/domain-constants.js"
   );
 
-  assert.deepEqual(MOTIVATION_FAMILIES.mobility, ["random", "stationary", "exploring", "patrolling"]);
+  assert.deepEqual(MOTIVATION_FAMILIES.mobility, ["random", "stationary", "exploring", "patrolling", "escorting"]);
   assert.deepEqual(MOTIVATION_FAMILIES.posture, ["attacking", "defending", "stealthy", "friendly"]);
   assert.deepEqual(MOTIVATION_FAMILIES.cognition, ["reflexive", "goal_oriented", "strategy_focused"]);
   assert.deepEqual(MOTIVATION_FAMILIES.control, ["user_controlled"]);
@@ -96,7 +96,9 @@ test("MOTIVATION_FAMILIES defines canonical motivation families", async () => {
     ...MOTIVATION_FAMILIES.cognition,
     ...MOTIVATION_FAMILIES.control,
   ];
-  assert.deepEqual(MOTIVATION_KINDS, allFamilyKinds);
+  assert.deepEqual([...MOTIVATION_KINDS].sort(), [...allFamilyKinds].sort());
+  // MOTIVATION_KINDS runs in core's code order: a kind added later (#251) comes last.
+  assert.equal(MOTIVATION_KINDS.at(-1), "escorting");
 });
 
 test("user_controlled composes outside posture and mobility exclusivity", async () => {

@@ -522,6 +522,16 @@ Inputs/outputs:
     --delver "count=1;id=hero;affinity=light;motivation=user_controlled" \
     --delver "count=5;id=pal;affinity=earth;motivation=exploring+goal_oriented;strategy=follow:hero-1:2"
   ```
+- `--delver` and `--warden` accept `escort=<id>[:<distance>]` for an `escorting` actor (#251): the ally it keeps near
+  and within how many tiles. Leave the id out (`escort=:3`) to keep the default ally, the playable delver; leave the
+  distance out for the default, 2. The level keeps escorts in `initial-state.json` under `escorts`, keyed by actor id;
+  an ally that is not another actor in the level, or a distance below 1, is refused. `escorting` is priced like
+  `patrolling` (3).
+  ```bash
+  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+    --delver "count=1;id=hero;affinity=light;motivation=user_controlled" \
+    --delver "count=1;id=pal;affinity=growth;motivation=escorting;escort=hero-1:2"
+  ```
 - Hard constraints are recorded separately from optimization goals in the embedded authoring request under `spec.json`.
   The current contract treats total budget as a hard constraint and maximize-spend / mana goals as
   optimization directions for later fulfillment waves. A hard budget alone does not imply
@@ -626,7 +636,7 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
@@ -661,7 +671,7 @@ Inputs/outputs:
 - Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>][;escort=<id>[:<distance>]]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.

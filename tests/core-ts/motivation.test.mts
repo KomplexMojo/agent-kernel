@@ -25,8 +25,8 @@ import {
 // instance isolation) moved onto the evaluation accumulator below.
 
 describe("core-ts motivation codebook", () => {
-  test("getMotivationKindCount returns 12", () => {
-    expect(getMotivationKindCount()).toBe(12);
+  test("getMotivationKindCount returns 13", () => {
+    expect(getMotivationKindCount()).toBe(13);
   });
 
   test("family lookups match expected families", () => {
@@ -51,8 +51,12 @@ describe("core-ts motivation codebook", () => {
     expect(getMotivationFamily(MotivationKind.UserControlled)).toBe(
       MotivationFamily.Control,
     );
+    // #251: escorting is code 13, a mobility kind added after the first twelve.
+    expect(getMotivationFamily(MotivationKind.Escorting)).toBe(
+      MotivationFamily.Mobility,
+    );
     expect(getMotivationFamily(0)).toBe(-1);
-    expect(getMotivationFamily(13)).toBe(-1);
+    expect(getMotivationFamily(14)).toBe(-1);
   });
 
   test("exclusive group and conflict detection", () => {
@@ -249,11 +253,11 @@ describe("core-ts motivation permutations", () => {
     expect(motivationKindsConflict(MotivationKind.UserControlled, MotivationKind.Random)).toBe(false);
   });
 
-  test("evaluation accumulator rejects invalid kinds (0 and 13)", () => {
+  test("evaluation accumulator rejects invalid kinds (0 and 14)", () => {
     const core = createCore();
     call(core.resetMotivationEvaluation);
     call(core.addMotivationEvaluationEntry, 0, 0, 0);
-    call(core.addMotivationEvaluationEntry, 13, 0, 0);
+    call(core.addMotivationEvaluationEntry, 14, 0, 0);
     expect(call(core.evaluateMotivations)).toBe(0);
   });
 

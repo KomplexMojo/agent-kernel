@@ -67,6 +67,7 @@ const MOTIVATION_MARKS = Object.freeze({
   stationary: "■",
   exploring: "◇",
   patrolling: "⇄",
+  escorting: "⇉",
   attacking: "✕",
   defending: "⌂",
   stealthy: "◐",

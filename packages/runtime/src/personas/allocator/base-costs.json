@@ -27,6 +27,7 @@
     "motivation_random": 1,
     "motivation_exploring": 2,
     "motivation_patrolling": 3,
+    "motivation_escorting": 3,
     "motivation_attacking": 3,
     "motivation_defending": 2,
     "motivation_stealthy": 4,

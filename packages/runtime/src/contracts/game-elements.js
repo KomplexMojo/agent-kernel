@@ -106,17 +106,25 @@ export const GAME_AFFINITY_EXPRESSIONS = Object.freeze(["push", "pull", "emit", 
 export const GAME_VITAL_KEYS = Object.freeze(["health", "mana", "stamina", "durability"]);
 
 export const GAME_MOTIVATION_FAMILIES = deepFreeze({
-  mobility: ["random", "stationary", "exploring", "patrolling"],
+  mobility: ["random", "stationary", "exploring", "patrolling", "escorting"],
   posture: ["attacking", "defending", "stealthy", "friendly"],
   cognition: ["reflexive", "goal_oriented", "strategy_focused"],
   control: ["user_controlled"],
 });
 
+// THE ORDER IS CORE'S CODE: kind n here is core-ts `MotivationKind` n + 1, and callers map
+// by index. The first twelve run family by family; a kind added later is APPENDED in the
+// order it was added (#251), never slotted into its family, or every later code shifts.
+const MOTIVATION_KINDS_ADDED_LATER = Object.freeze(["escorting"]);
+
 export const GAME_MOTIVATION_KINDS = Object.freeze([
-  ...GAME_MOTIVATION_FAMILIES.mobility,
-  ...GAME_MOTIVATION_FAMILIES.posture,
-  ...GAME_MOTIVATION_FAMILIES.cognition,
-  ...GAME_MOTIVATION_FAMILIES.control,
+  ...[
+    ...GAME_MOTIVATION_FAMILIES.mobility,
+    ...GAME_MOTIVATION_FAMILIES.posture,
+    ...GAME_MOTIVATION_FAMILIES.cognition,
+    ...GAME_MOTIVATION_FAMILIES.control,
+  ].filter((kind) => !MOTIVATION_KINDS_ADDED_LATER.includes(kind)),
+  ...MOTIVATION_KINDS_ADDED_LATER,
 ]);
 
 export const GAME_MOTIVATION_KIND_IDS = deepFreeze(
@@ -126,6 +134,7 @@ export const GAME_MOTIVATION_KIND_IDS = deepFreeze(
 export const GAME_MOTIVATION_DISPLAY_GROUPS = deepFreeze([
   { id: "mobility_random_stationary", kinds: ["random", "stationary"] },
   { id: "mobility_exploring_patrolling", kinds: ["exploring", "patrolling"] },
+  { id: "mobility_escorting", kinds: ["escorting"] },
   { id: "posture_attacking_defending", kinds: ["attacking", "defending"] },
   { id: "posture_stealthy_friendly", kinds: ["stealthy", "friendly"] },
   { id: "cognition_reflexive_goal_oriented", kinds: ["reflexive", "goal_oriented"] },
@@ -238,6 +247,7 @@ export const GAME_COLOR_PALETTE = deepFreeze({
     stationary: "#8f6d4c",
     exploring: "#5aaec4",
     patrolling: "#55a66f",
+    escorting: "#4fa39a",
     attacking: "#de7c36",
     defending: "#7388d6",
     stealthy: "#5b4a73",
@@ -623,6 +633,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
         stationary: "⏸️",
         exploring: "🧭",
         patrolling: "👣",
+        escorting: "🛡️",
         attacking: "💥",
         defending: "🚧",
         stealthy: "🥷",
@@ -637,6 +648,7 @@ const GAME_ELEMENT_VISUALS_VALUE = {
         stationary: MOTIVATION_COLORS.stationary,
         exploring: MOTIVATION_COLORS.exploring,
         patrolling: MOTIVATION_COLORS.patrolling,
+        escorting: MOTIVATION_COLORS.escorting,
         attacking: MOTIVATION_COLORS.attacking,
         defending: MOTIVATION_COLORS.defending,
         stealthy: MOTIVATION_COLORS.stealthy,

@@ -17,7 +17,7 @@ async function load() {
   return { ...policy, priceMap: normalizePriceItems(buildDefaultPriceList()) };
 }
 
-test("families and price ids cover all 12 kinds; family resolution intact", async () => {
+test("families and price ids cover all 13 kinds; family resolution intact", async () => {
   const { MOTIVATION_PRICE_IDS, resolveMotivationFamily } = await load();
   // MOTIVATION_FAMILIES comes from contracts/domain-constants.js (P5.1 D2). The
   // Allocator used to hand-maintain its own byte-identical copy; the G2 single-origin
@@ -32,7 +32,7 @@ test("families and price ids cover all 12 kinds; family resolution intact", asyn
     ...MOTIVATION_FAMILIES.cognition,
     ...MOTIVATION_FAMILIES.control,
   ];
-  assert.equal(allKinds.length, 12);
+  assert.equal(allKinds.length, 13);
   for (const kind of allKinds) {
     assert.ok(MOTIVATION_PRICE_IDS[kind], `${kind} has a price id`);
   }
@@ -57,6 +57,14 @@ test("every kind resolves from the LIST; cognition prices still order upward", a
   assert.equal(cost("exploring"), 2);
   assert.equal(cost("attacking"), 3);
   assert.equal(cost("user_controlled"), 18);
+});
+
+test("escorting is priced like patrolling, so the playable delver's price does not move (#251)", async () => {
+  const { resolveMotivationUnitCost, resolveMotivationFamily, priceMap } = await load();
+  assert.equal(resolveMotivationFamily("escorting"), "mobility");
+  assert.equal(resolveMotivationUnitCost("escorting", priceMap), resolveMotivationUnitCost("patrolling", priceMap));
+  assert.equal(resolveMotivationUnitCost("escorting", priceMap), 3);
+  assert.equal(resolveMotivationUnitCost("user_controlled", priceMap), 18);
 });
 
 test("no price map, no price: resolution is null, stack cost errors — never a default", async () => {

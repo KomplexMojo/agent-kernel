@@ -496,6 +496,13 @@ export const ACTOR_EQUIPMENT_FIELDS = Object.freeze([
 export const ACTOR_STRATEGY_FIELD = "strategy";
 
 /**
+ * #251: the authored actor field that names who an `escorting` actor keeps near, and how
+ * close: `{ target?, distance? }`. Like a strategy it is not an actor-record field; the
+ * Configurator moves it to `InitialState.escorts`, keyed by actor id.
+ */
+export const ACTOR_ESCORT_FIELD = "escort";
+
+/**
  * The least an actor can be and still be worth simulating.
  *
  * DEFAULT_VITALS above is a ZERO, not a floor: health 1 with regen 0 dies to a single point of

@@ -60,14 +60,53 @@ function collectStrategies(actors, strategies) {
   return collected;
 }
 
+/**
+ * #251 — who an `escorting` actor keeps near, authored on the actor (`escort`) or passed by
+ * id, carried beside the roster like strategies. `target` names another actor in the
+ * level; `distance` is a whole number of tiles, at least 1. Either may be left out: the
+ * Actor then keeps to the playable delver, within its default distance.
+ */
+function collectEscorts(actors, escorts) {
+  const collected = {};
+  for (const [id, escort] of Object.entries(escorts ?? {})) collected[id] = escort;
+  for (const actor of Array.isArray(actors) ? actors : []) {
+    if (actor?.escort !== undefined && actor.escort !== null && typeof actor.id === 'string') collected[actor.id] = actor.escort;
+  }
+  const ids = new Set((Array.isArray(actors) ? actors : []).map(actor => actor?.id));
+  for (const [id, escort] of Object.entries(collected)) {
+    if (!ids.has(id)) throw new Error(`escort for unknown actor: ${id}`);
+    if (!escort || typeof escort !== 'object' || Array.isArray(escort)
+      || Object.keys(escort).some(key => key !== 'target' && key !== 'distance')) {
+      throw new Error(`actor ${id}: escort must be { target?, distance? }`);
+    }
+    const normalized = {};
+    if (escort.target !== undefined) {
+      if (typeof escort.target !== 'string' || !ids.has(escort.target) || escort.target === id) {
+        throw new Error(`actor ${id}: escort ally ${JSON.stringify(escort.target)} is not another actor in this level`);
+      }
+      normalized.target = escort.target;
+    }
+    if (escort.distance !== undefined) {
+      if (!Number.isSafeInteger(escort.distance) || escort.distance < 1) {
+        throw new Error(`actor ${id}: escort distance must be a whole number of tiles, at least 1`);
+      }
+      normalized.distance = escort.distance;
+    }
+    collected[id] = normalized;
+  }
+  return collected;
+}
+
 export function buildInitialStateArtifact({
-  meta, simConfigRef, actors, dimensions, terrain, strategies, ...unsupported
+  meta, simConfigRef, actors, dimensions, terrain, strategies, escorts, ...unsupported
 } = {}) {
   const keys = Object.keys(unsupported);
   if (keys.length) throw new Error(`unsupported initial-state inputs: ${keys.join(', ')}`);
   const roster = normalizeActorRoster({ actors, dimensions, terrain });
   const authored = collectStrategies(actors, strategies);
+  const escorting = collectEscorts(actors, escorts);
   return structuredClone({ schema: INITIAL_STATE_SCHEMA, schemaVersion: 1,
     meta: stampPersona(meta, PERSONA_IDS.configurator), simConfigRef, actors: roster.actors, presentation: roster.presentation,
-    ...(Object.keys(authored).length > 0 ? { strategies: authored } : {}) });
+    ...(Object.keys(authored).length > 0 ? { strategies: authored } : {}),
+    ...(Object.keys(escorting).length > 0 ? { escorts: escorting } : {}) });
 }

@@ -75,6 +75,7 @@ const DESCRIPTIONS = {
   "motivation_random": "Random movement",
   "motivation_exploring": "Exploring",
   "motivation_patrolling": "Patrolling",
+  "motivation_escorting": "Escorting",
   "motivation_attacking": "Attacking posture",
   "motivation_defending": "Defending posture",
   "motivation_stealthy": "Stealthy posture",

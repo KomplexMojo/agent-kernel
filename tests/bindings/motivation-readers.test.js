@@ -26,7 +26,8 @@ test("motivation bindings: code maps, readMotivationEvaluation", async () => {
   assert.equal(MOTIVATION_KIND_BY_CODE[1], "random");
   assert.equal(MOTIVATION_KIND_BY_CODE[5], "attacking");
   assert.equal(MOTIVATION_KIND_BY_CODE[12], "user_controlled");
-  assert.equal(Object.keys(MOTIVATION_KIND_BY_CODE).length, 12, "12 motivation kinds");
+  assert.equal(MOTIVATION_KIND_BY_CODE[13], "escorting", "added after the first twelve (#251)");
+  assert.equal(Object.keys(MOTIVATION_KIND_BY_CODE).length, 13, "13 motivation kinds");
 
   assert.equal(MOTIVATION_FAMILY_BY_CODE[0], "mobility");
   assert.equal(MOTIVATION_FAMILY_BY_CODE[1], "posture");
@@ -95,14 +96,14 @@ test("motivation bindings: code maps, readMotivationEvaluation", async () => {
 
   // ── Core codebook exports through bindings ──
 
-  assert.equal(core.getMotivationKindCount(), 12, "12 kinds");
+  assert.equal(core.getMotivationKindCount(), 13, "13 kinds");
   assert.equal(core.getMotivationFamily(5), 1, "attacking is posture");
   assert.equal(core.getMotivationTier(5), 0, "attacking is simple tier");
   // #309: motivations have no intensity, so core has nothing to normalize.
   assert.equal(core.normalizeMotivationIntensity, undefined, "no intensity export");
 });
 
-test("motivation bindings round-trip all 12 kind names", async () => {
+test("motivation bindings round-trip all 13 kind names", async () => {
   const { MOTIVATION_KIND_BY_CODE } = await import("../../packages/core-ts/src/index.ts");
   assert.deepEqual(Object.values(MOTIVATION_KIND_BY_CODE), [
     "random",
@@ -117,6 +118,7 @@ test("motivation bindings round-trip all 12 kind names", async () => {
     "goal_oriented",
     "strategy_focused",
     "user_controlled",
+    "escorting",
   ]);
 });
 

@@ -1,5 +1,5 @@
 import { normalizePoolCatalog } from "../../contracts/pool-catalog.js";
-import { ACTOR_EQUIPMENT_FIELDS, ACTOR_STRATEGY_FIELD, VITAL_KEYS } from "../../contracts/domain-constants.js";
+import { ACTOR_EQUIPMENT_FIELDS, ACTOR_ESCORT_FIELD, ACTOR_STRATEGY_FIELD, VITAL_KEYS } from "../../contracts/domain-constants.js";
 
 function snapSelection({ entries, motivation, affinity, tokenHint }) {
   const matching = entries.filter((entry) => entry.motivation === motivation && entry.affinity === affinity);
@@ -119,7 +119,7 @@ export function mapSummaryToPool({ summary, catalog }) {
       };
       if (kind === "actor") {
         for (const key of ["motivations", "category", "position", "alignment", "lifecycle",
-          "defeatVital", "capabilities", ...ACTOR_EQUIPMENT_FIELDS, ACTOR_STRATEGY_FIELD, "holdings"]) {
+          "defeatVital", "capabilities", ...ACTOR_EQUIPMENT_FIELDS, ACTOR_STRATEGY_FIELD, ACTOR_ESCORT_FIELD, "holdings"]) {
           if (Object.hasOwn(pick, key)) instance[key] = structuredClone(pick[key]);
         }
       }

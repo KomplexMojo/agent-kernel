@@ -51,7 +51,7 @@
   },
   {
     "file": "packages/runtime/src/personas/configurator/motivation-rules.js",
-    "line": 417,
+    "line": 425,
     "reason": "Module-load-time assertion on the hardcoded DEFAULT_MOTIVATION_RULES_ARTIFACT constant -- same as affinity-rules.js:566, not model-facing, already reports field:code."
   }
 ]

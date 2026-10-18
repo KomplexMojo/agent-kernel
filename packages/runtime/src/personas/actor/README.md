@@ -126,9 +126,11 @@ Dynamic actors express behavior through **stackable motivations** organised into
 
 | Family | Kinds | Purpose |
 |---|---|---|
-| **Mobility** | `random`, `stationary`, `exploring`, `patrolling` | How the actor moves |
+| **Mobility** | `random`, `stationary`, `exploring`, `patrolling`, `escorting` | How the actor moves |
 | **Posture** | `attacking`, `defending`, `stealthy`, `friendly` | How the actor engages |
 | **Cognition** | `reflexive`, `goal_oriented`, `strategy_focused` | How the actor thinks |
+
+`escorting` (#251) keeps near one ally: the one named in `initialState.escorts`, else the playable delver (the first `user_controlled` actor). It runs the `follow` goal on that ally whatever the actor's thinking, before motivations are asked: further than its distance (default 2 tiles, `ESCORT_DEFAULT_DISTANCE`) it steps toward the ally; within it, it holds, and any other motivation's moves are kept within reach. Out of sight it walks to where it last saw the ally; with no ally, or the ally gone, the turn goes to its other motivations. Its affinities play no part. Bare sight in an unlit level is one tile, so an escort keeps sight of an ally further off only where the ally stands in light.
 
 Intelligence is represented through Cognition motivations — there is no separate parallel system for "smartness". They change play with or without a strategy (#308):
 

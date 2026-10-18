@@ -1582,14 +1582,14 @@ export function actorStrategyIgnoredParts(strategy, motivationKinds) {
  * order, kept in the Actor context) or else the level's (`initialState.strategies`).
  * Returns null for an actor with no strategy.
  */
-function resolveStrategyTurn({ entry, payload, observation, observationView, simConfig, actorId, tick, baseTiles, adopted }) {
+function resolveStrategyTurn({ entry, payload, observation, observationView, simConfig, actorId, tick, baseTiles, adopted, depth: fixedDepth }) {
   const strategy = adopted ?? entry?.order ?? payload?.initialState?.strategies?.[actorId];
   if (!strategy) return null;
   const actor = resolveActor(observationView, actorId, observation);
   const record = resolveActorRecord(observationView, actorId, observation);
   if (!actor?.position) return null;
   const canonical = normalizeActorStrategy(strategy);
-  const depth = strategyDepth(resolveActorMotivationKinds(observationView, actorId, payload));
+  const depth = fixedDepth ?? strategyDepth(resolveActorMotivationKinds(observationView, actorId, payload));
   const allActors = Array.isArray(observationView?.actors) ? observationView.actors : [];
   const hostiles = allActors.filter((other) => other?.id !== actorId && other?.position
     && !["defeated", "exited"].includes(other.lifecycle) && !alignmentsAreAllied(actor.alignment, other.alignment));
@@ -1657,6 +1657,32 @@ function resolveCognitionTurn({ entry, payload, observationView, actorId, ...res
     entry: sameGoal ? entry : {}, adopted: { goals: [goal] } });
   if (!turn) return null;
   return { ...turn, entry: { ...turn.entry, adopted: goal } };
+}
+
+/** #251 — how close an escort keeps to its ally when no distance is authored. */
+export const ESCORT_DEFAULT_DISTANCE = 2;
+
+/**
+ * #251 — an `escorting` actor's turn: it runs the `follow` goal on its ally whatever its
+ * thinking motivation, so it keeps within reach as the ally moves and, out of sight, walks
+ * to where it last saw it. The ally is authored (`initialState.escorts`); with none it is
+ * the playable delver (the first `user_controlled` actor in the level). With no ally, or the
+ * ally gone, it returns null and the turn goes to the actor's other motivations. The same
+ * for every affinity, and for none.
+ */
+function resolveEscortTurn({ entry, payload, observationView, actorId, ...rest }) {
+  const kinds = resolveActorMotivationKinds(observationView, actorId, payload);
+  if (!kinds.includes("escorting")) return null;
+  const authored = payload?.initialState?.escorts?.[actorId] ?? {};
+  const configured = Array.isArray(payload?.initialState?.actors) ? payload.initialState.actors : [];
+  const target = authored.target ?? configured.find((other) => other?.id !== actorId
+    && Array.isArray(other?.motivations) && other.motivations.includes("user_controlled"))?.id;
+  if (!target) return null;
+  const goal = { kind: "follow", target, distance: authored.distance ?? ESCORT_DEFAULT_DISTANCE };
+  const turn = resolveStrategyTurn({ ...rest, payload, observationView, actorId, entry: entry ?? {},
+    adopted: { goals: [goal] }, depth: STRATEGY_DEPTH.GOALS });
+  if (!turn || turn.entry?.status === STRATEGY_STATUS.STALLED) return null;
+  return turn;
 }
 
 /**
@@ -1790,9 +1816,15 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       }
     }
     const followsStrategy = strategyTurn && strategyTurn.depth !== STRATEGY_DEPTH.NONE;
+    // #251 — with no order and no strategy, an escort keeps to its ally before anything else.
+    const escortTurn = shouldEmitActions && strategyActorId && !commandProposals && !strategyTurn
+      && payload.strategyOrder === undefined
+      ? resolveEscortTurn({ entry: view().context.escorts?.[strategyActorId], payload, observation,
+        observationView, simConfig, actorId: strategyActorId, tick, baseTiles })
+      : null;
     // #308 — with no order and no strategy, a thinking actor adopts a goal of its own.
     const cognitionTurn = shouldEmitActions && strategyActorId && !commandProposals && !strategyTurn
-      && payload.strategyOrder === undefined
+      && !escortTurn && payload.strategyOrder === undefined
       ? resolveCognitionTurn({ entry: view().context.cognition?.[strategyActorId], payload, observation,
         observationView, simConfig, actorId: strategyActorId, tick, baseTiles })
       : null;
@@ -1800,6 +1832,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     if (shouldEmitActions) {
       if (commandProposals) derivedProposals = commandProposals;
       else if (followsStrategy && strategyTurn.proposals) derivedProposals = strategyTurn.proposals;
+      else if (escortTurn?.proposals) derivedProposals = escortTurn.proposals;
       else if (cognitionTurn?.proposals) derivedProposals = cognitionTurn.proposals;
       else {
         const reflex = strategyActorId
@@ -1811,6 +1844,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
           ? reflex
           : buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed });
         if (followsStrategy && strategyTurn.keepNear) derivedProposals = keepProposalsNear(derivedProposals, strategyTurn.keepNear);
+        if (escortTurn?.keepNear) derivedProposals = keepProposalsNear(derivedProposals, escortTurn.keepNear);
       }
       // An actor with a strategy always takes its turn, so its progress is always kept.
       if (strategyTurn && derivedProposals.length === 0) derivedProposals = [{ kind: "wait" }];
@@ -1876,6 +1910,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       ...(shouldEmitActions && Array.isArray(transitionProposals) ? { ...payload, proposals: transitionProposals } : payload),
       ...(strategyEntry ? { strategyEntry: { actorId: strategyActorId, entry: strategyEntry } } : {}),
       ...(cognitionTurn ? { cognitionEntry: { actorId: strategyActorId, entry: cognitionTurn.entry } } : {}),
+      ...(escortTurn ? { escortEntry: { actorId: strategyActorId, entry: escortTurn.entry } } : {}),
     };
     const result = fsm.advance(event, fsmPayload);
     if (!shouldEmitActions) {

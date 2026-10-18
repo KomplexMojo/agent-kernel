@@ -32,6 +32,7 @@ export const ACTOR_MEDALLION_COMPONENT_IDS = Object.freeze({
       "stationary",
       "exploring",
       "patrolling",
+      "escorting",
       "attacking",
       "defending",
       "stealthy",
