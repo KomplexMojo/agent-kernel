@@ -78,8 +78,11 @@ Every owned pair exposes one canonical defeat reward regardless of source stacks
 Claimed entries remain in snapshots. New pairs are not auto-equipped. Explicit
 vital grants retain their authored modes; source vital pools are not loot.
 
-`rules/actor-affinity.ts` supplies the explicit effect matrix, durability overflow,
-direct vital effects and actual-amount transfers. `actor-exposure.ts` applies
+`state/affinity-table.ts` holds the one affinity table (#352): a row per kind with its
+primary vital, outward and inward operation, spill and named formulas, plus the receiver
+rules; `docs/affinity-table.md` is generated from it. `rules/actor-affinity.ts` builds its
+effect matrix from that table and supplies durability overflow, direct vital effects and
+actual-amount transfers. `actor-exposure.ts` applies
 preprojected effects with a per-slot strength that caps what each receiver takes
 (every receiver in range takes its own exposure, never a share consumed in id order,
 #347), capped mana absorption and pending-effect suppression. `actor-fields.ts` uses existing radius, intensity and

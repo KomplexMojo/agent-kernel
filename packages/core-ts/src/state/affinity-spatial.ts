@@ -1,3 +1,4 @@
+import { AFFINITY_RECEIVER_RULES } from './affinity-table.ts';
 import {
   AffinityExpression,
   AffinityRelationship,
@@ -294,7 +295,7 @@ export function deriveAffinityInteractionCell(
  * matrix marks `usesStackCancellation` -- so exposure to it costs more. The factor is
  * named rather than inlined because it is a gameplay tuning value, not a derivation.
  */
-export const OPPOSITE_EXPOSURE_AMPLIFICATION = 2;
+export const OPPOSITE_EXPOSURE_AMPLIFICATION = AFFINITY_RECEIVER_RULES.oppositeAmplification;
 
 export interface ExposureQuery {
   /**
