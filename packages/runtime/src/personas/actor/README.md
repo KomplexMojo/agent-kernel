@@ -141,6 +141,8 @@ With a strategy, cognition sets how much of it the actor follows (see *Strategie
 
 Motivations are plain members of a stack: there is no motivation intensity (#309). An `intensity` (or `stacks`) on an older motivation entry still loads and is ignored by validation, evaluation, proposals and pricing alike.
 
+Posture kinds that move differ from `exploring` (#311). `stealthy` takes, of the steps on a shortest route to the exit, the one furthest from the nearest hostile, then the one with the most wall within two tiles. `friendly` keeps with its side: an ally in sight further than two tiles (`FRIENDLY_REACH`) is gone back to first, otherwise it takes the exit step that keeps within reach of that ally and waits when none does; with no ally in sight it walks like `exploring`. `friendly` is also what makes an actor a **companion**: only a `friendly` actor on the seated actor's side takes orders in a play session (party members, authored `user_controlled`, take them anyway). Allegiance is one rule, `alignmentsAreAllied` in `proposal-helpers.js`, used by proposals and the decision rows alike.
+
 Conflicting motivations within the same family are rejected (e.g. `attacking + defending`, `stealthy + friendly`, `random + patrolling`, `reflexive + goal_oriented`). Compatible cross-family combinations are allowed (e.g. `random + attacking`, `goal_oriented + stealthy`).
 
 Motivations are:

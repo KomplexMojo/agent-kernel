@@ -26,7 +26,7 @@ step() { printf '\n=== %s ===\n' "$1"; }
 step "1. Create a level: two playable delvers (D1, D2), one companion, one warden"
 $AK create --room "size=medium;count=2" \
   --delver "count=2;id=hero;affinity=wind;motivation=user_controlled;$FLOOR" \
-  --delver "count=1;id=pal;affinity=earth;motivation=exploring+goal_oriented;$FLOOR" \
+  --delver "count=1;id=pal;affinity=earth;motivation=exploring+friendly+goal_oriented;$FLOOR" \
   --warden "count=1;id=guard;affinity=fire;motivation=stationary" \
   --budget-tokens 8000 --out-dir "$LEVEL" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8").trim().split("\n").at(-1)); console.log("level", r.runId, "actors", r.actorIds.join(", "))'
 

@@ -43,6 +43,7 @@ import {
   isDiagonalStepAllowed,
   isOccupied,
   isPassable,
+  alignmentsAreAllied,
 } from "./proposal-helpers.js";
 import { getMotivationModule } from "./motivations/index.js";
 import {
@@ -471,13 +472,6 @@ function buildRuntimeDecisionCandidateActions({ actor, actorId, tick, proposals 
  * unknown alignments resolve to `true`, never to a missing field, because a consumer
  * defaulting an absent flag has to guess and half of them would guess "allied".
  */
-function alignmentsAreAllied(selfAlignment, otherAlignment) {
-  if (typeof selfAlignment !== "string" || typeof otherAlignment !== "string") return false;
-  const self = selfAlignment.trim().toLowerCase();
-  const other = otherAlignment.trim().toLowerCase();
-  return Boolean(self && other && self === other);
-}
-
 function decisionActorRecord(actor) {
   return projectRuntimeDecisionActor(actor);
 }

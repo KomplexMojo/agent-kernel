@@ -6,7 +6,7 @@
  *
  *   random                                                              unique
  *   patrolling                                                          unique
- *   exploring · stealthy · friendly                                     identical
+ *   exploring · stealthy · friendly                                     identical (fixed, #311)
  *   attacking · defending                                               identical
  *   stationary · reflexive · goal_oriented · strategy_focused ·
  *     user_controlled                                                   identical (silent)
@@ -65,7 +65,7 @@ const vitals = () => ({
   mana: { current: 10, max: 10, regen: 1 },
 });
 
-async function propose({ kind, position = { x: 4, y: 3 }, hostileAt = null, alignment = "external" }) {
+async function propose({ kind, position = { x: 4, y: 3 }, hostileAt = null, alignment = "external", alliesAt = [] }) {
   const [{ createActorPersona }, { TickPhases }] = await loadModules();
   const self = {
     id: "a1", alignment, position, motivations: [kind], vitals: vitals(),
@@ -75,6 +75,7 @@ async function propose({ kind, position = { x: 4, y: 3 }, hostileAt = null, alig
   const others = hostileAt
     ? [{ id: "d1", alignment: alignment === "external" ? "dungeon" : "external", position: hostileAt, vitals: vitals() }]
     : [];
+  alliesAt.forEach((at, index) => others.push({ id: `ally${index}`, alignment, position: at, vitals: vitals() }));
   const payload = {
     actorId: self.id,
     observation: { tick: 0, actors: [self, ...others], exit: { x: 0, y: 3 } },
@@ -171,6 +172,48 @@ test("mobility-bearing motivations do propose movement", async () => {
   }
 });
 
+// #311 — stealthy and friendly mean something of their own. Both still head for the
+// exit like exploring; stealthy keeps to the walls and away from hostiles, friendly keeps
+// within two tiles of its nearest ally.
+const moveOf = (actions) => actions.find((a) => a.kind === "move")?.params?.target ?? null;
+
+test("stealthy keeps to the walls where exploring walks the middle of the room", async () => {
+  // From (4,2), (3,1) (3,2) and (3,3) all keep to a shortest route to the exit; (3,1) runs
+  // beside the north wall.
+  const exploring = moveOf(await propose({ kind: "exploring", position: { x: 4, y: 2 } }));
+  const stealthy = moveOf(await propose({ kind: "stealthy", position: { x: 4, y: 2 } }));
+  assert.deepEqual(stealthy, { x: 3, y: 1 });
+  assert.notDeepEqual(exploring, stealthy, `exploring takes another step: ${JSON.stringify(exploring)}`);
+});
+
+test("stealthy takes the step toward the exit that keeps furthest from a hostile", async () => {
+  const north = moveOf(await propose({ kind: "stealthy", hostileAt: { x: 3, y: 1 } }));
+  const south = moveOf(await propose({ kind: "stealthy", hostileAt: { x: 3, y: 5 } }));
+  assert.deepEqual(north, { x: 3, y: 4 });
+  assert.deepEqual(south, { x: 3, y: 2 });
+});
+
+test("friendly with no ally in sight walks to the exit like exploring", async () => {
+  assert.deepEqual(moveOf(await propose({ kind: "friendly" })), moveOf(await propose({ kind: "exploring" })));
+});
+
+test("friendly goes to an ally that is out of reach before anything else", async () => {
+  const step = moveOf(await propose({ kind: "friendly", alliesAt: [{ x: 7, y: 3 }] }));
+  const exploring = moveOf(await propose({ kind: "exploring", alliesAt: [{ x: 7, y: 3 }] }));
+  assert.equal(step?.x, 5, `toward the ally, away from the exit: ${JSON.stringify(step)}`);
+  assert.equal(exploring.x, 3, "exploring ignores the ally");
+});
+
+test("friendly keeps within two tiles of its ally on the way to the exit", async () => {
+  // The ally stands two tiles east: every step west would leave it behind, so friendly holds.
+  const held = await propose({ kind: "friendly", alliesAt: [{ x: 6, y: 3 }] });
+  assert.equal(moveOf(held), null, `friendly waits for its ally: ${JSON.stringify(held)}`);
+  // One tile east: a step west still keeps it in reach.
+  assert.equal(moveOf(await propose({ kind: "friendly", alliesAt: [{ x: 5, y: 3 }] }))?.x, 3);
+});
+
 // ## TODO: Test Permutations
 // - a defending actor with a hostile two tiles away (out of reach, still holds)
-// - stealthy vs exploring once stealth has behaviour of its own
+// - stealthy in a corridor (one step toward the exit, so it takes it)
+// - friendly with two allies at different distances (the nearest decides)
+// - friendly beside an ally that has exited or been defeated (ignored)

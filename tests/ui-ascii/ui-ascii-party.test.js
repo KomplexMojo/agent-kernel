@@ -96,7 +96,7 @@ test("structured commands take labels for the actor and the target", async () =>
 });
 
 test("an order is a turn, and the screen lists who is under orders", async () => {
-  const pal = { category: "delver", id: "pal", position: { x: 5, y: 3 }, vitals: viableVitals(), motivations: ["stationary", "goal_oriented"] };
+  const pal = { category: "delver", id: "pal", position: { x: 5, y: 3 }, vitals: viableVitals(), motivations: ["stationary", "friendly", "goal_oriented"] };
   const game = await createGame({ levels: [partyLevel([...ACTORS, pal])], showHelp: false });
   const result = await game.command({ kind: "order", actorId: "D3", strategy: { goals: [{ kind: "reach", place: { x: 7, y: 3 } }] } });
   assert.equal(result.ok, true);
@@ -110,7 +110,7 @@ test("an order is a turn, and the screen lists who is under orders", async () =>
 
 test("o orders a companion from the keyboard: pick who, then what; the order is a turn (#272)", async () => {
   assert.equal(intentForKey("o").type, INTENT.ORDER);
-  const pal = { category: "delver", id: "pal", position: { x: 5, y: 3 }, vitals: viableVitals(), motivations: ["stationary", "goal_oriented"] };
+  const pal = { category: "delver", id: "pal", position: { x: 5, y: 3 }, vitals: viableVitals(), motivations: ["stationary", "friendly", "goal_oriented"] };
   const game = await createGame({ levels: [partyLevel([...ACTORS, pal])], showHelp: false });
   await game.handle(intentForKey("o"));
   assert.equal(game.state().panel, "order_actor");

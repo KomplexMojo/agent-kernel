@@ -139,10 +139,10 @@ export const playTools = [
   }),
   createTool({
     name: "ak_play_order",
-    description: "Give a party member or a companion (an actor on the seated actor's side) a new strategy in a live game: standing orders it follows on its own turns. "
+    description: "Give a party member or a companion (a friendly actor on the seated actor's side) a new strategy in a live game: standing orders it follows on its own turns. "
       + "It replaces the actor's strategy and starts at the first goal. Giving the order is the seated actor's turn and taking it the ordered actor's, so one turn passes. "
       + "How much it follows depends on its thinking motivation: goal_oriented follows the goals, strategy_focused and user_controlled the tactics too; any other actor ignores it. "
-      + "Results say not_yours for a hostile actor, invalid_strategy with the reason for a malformed one. " + SESSION_RESULT,
+      + "Results say not_yours for a hostile actor or one on your side that is not friendly, invalid_strategy with the reason for a malformed one. " + SESSION_RESULT,
     command: "play-session",
     inputSchema: {
       properties: {

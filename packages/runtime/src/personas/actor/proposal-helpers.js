@@ -282,6 +282,69 @@ export function buildMoveProposal({ observation, payload, simConfig }) {
 }
 
 /**
+ * Whether two alignments are on one side. The Actor's single allegiance rule: unknown or
+ * missing alignments are never allied, so a consumer cannot guess "allied" by default.
+ */
+export function alignmentsAreAllied(selfAlignment, otherAlignment) {
+  if (typeof selfAlignment !== "string" || typeof otherAlignment !== "string") return false;
+  const self = selfAlignment.trim().toLowerCase();
+  const other = otherAlignment.trim().toLowerCase();
+  return Boolean(self && other && self === other);
+}
+
+/** Other actors still in the level, split by allegiance to `actorId`, each with its distance. */
+export function sideOf(view, actorId) {
+  const actors = Array.isArray(view?.actors) ? view.actors : [];
+  const self = actors.find((entry) => entry?.id === actorId);
+  const allies = [];
+  const hostiles = [];
+  if (!self?.position) return { allies, hostiles };
+  for (const other of actors) {
+    if (!other?.position || other.id === actorId || ["defeated", "exited"].includes(other.lifecycle)) continue;
+    const entry = { actor: other, distance: chebyshevDistance(self.position, other.position) };
+    (alignmentsAreAllied(self.alignment, other.alignment) ? allies : hostiles).push(entry);
+  }
+  const byDistance = (a, b) => a.distance - b.distance || (a.actor.id < b.actor.id ? -1 : a.actor.id > b.actor.id ? 1 : 0);
+  return { allies: allies.sort(byDistance), hostiles: hostiles.sort(byDistance) };
+}
+
+/**
+ * Every first step on a shortest route to the exit, in step order (#311). Where
+ * `buildMoveProposal` answers with anything other than one routed step (a wait, the
+ * portal step, a blocked route), that answer stands: there is no choice to make.
+ */
+export function buildExitSteps({ observation, payload, simConfig }) {
+  const fallback = buildMoveProposal({ observation, payload, simConfig });
+  const view = resolveObservationView(observation);
+  const actor = resolveActor(view, payload?.actorId, observation);
+  if (fallback.length !== 1 || fallback[0].kind !== "move" || !actor?.position) return { fallback, steps: [] };
+  const baseTiles = resolveBaseTiles(payload, view, simConfig);
+  const exit = resolveExit(payload, view, baseTiles, simConfig);
+  const tileKinds = resolveTileKinds(view, payload);
+  const route = findPath(actor.position, exit, tileKinds, baseTiles);
+  if (!route || route.length < 2) return { fallback, steps: [] };
+  const steps = [];
+  for (const delta of DEFAULT_DELTAS) {
+    const to = { x: actor.position.x + delta.dx, y: actor.position.y + delta.dy };
+    if (!isPassable(to, tileKinds, baseTiles) || !isDiagonalStepAllowed(actor.position, to, tileKinds, baseTiles)) continue;
+    const onward = findPath(to, exit, tileKinds, baseTiles);
+    if (onward && onward.length === route.length - 1) steps.push(to);
+  }
+  return { fallback, steps: steps.length > 0 ? steps : [fallback[0].params.target] };
+}
+
+/** Impassable cells within two tiles of `position`: how close it keeps to the walls. */
+export function wallsNear(position, tileKinds, baseTiles) {
+  let walls = 0;
+  for (let dy = -2; dy <= 2; dy += 1) {
+    for (let dx = -2; dx <= 2; dx += 1) {
+      if (!isPassable({ x: position.x + dx, y: position.y + dy }, tileKinds, baseTiles)) walls += 1;
+    }
+  }
+  return walls;
+}
+
+/**
  * When actors plug every route (wardens seated around the exit), walk the terrain
  * route as far as it is free: the actor closes in on whoever holds the way instead
  * of waiting out the run. Null when terrain itself has no route or the first step
