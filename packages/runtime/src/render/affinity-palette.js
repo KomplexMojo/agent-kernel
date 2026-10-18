@@ -95,9 +95,9 @@ export function getAffinityRgba(kind, alpha = 255) {
 }
 
 /**
- * Resolve RGBA from an aura cell with intensity-based alpha.
+ * Resolve RGBA from a field cell with intensity-based alpha.
  *
- * @param {{ kind: string, stacks: number }} resolvedAuraCell - aura data
+ * @param {{ kind: string, stacks: number }} resolvedAuraCell - field cell data
  * @param {number} [baseAlpha=1.0] - base alpha multiplier in [0, 1]
  * @returns {[number, number, number, number]} RGBA with intensity-scaled alpha
  */
