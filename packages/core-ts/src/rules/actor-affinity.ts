@@ -7,18 +7,15 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from '../state/
 function applyEffect(effect: Effect, amount: number, defeatVital: ActorVitalKind,
   change: (vital: ActorVitalKind, delta: number) => number,
   transfer: (vital: ActorVitalKind, amount: number) => void): void {
-  if (effect.operation === 'restore') change(effect.vital, amount);
-  if (effect.operation === 'damage') {
-    const removed = -change(effect.vital, -amount);
-    // #353: the remainder spills into the target's own defeat vital.
-    if (effect.overflow && amount > removed && defeatVital !== effect.vital) change(defeatVital, -(amount - removed));
-  }
-  if (effect.operation === 'drain') transfer(effect.vital, -change(effect.vital, -amount));
+  if (effect.operation === 'restore') { change(effect.vital, amount); return; }
+  const removed = -change(effect.vital, -amount);
+  // #354: a steal credits the source with what the primary vital gave up, never the spill.
+  if (effect.operation === 'drain') transfer(effect.vital, removed);
+  // #353: the remainder spills into the target's own defeat vital.
+  if (effect.overflow && amount > removed && defeatVital !== effect.vital) change(defeatVital, -(amount - removed));
 }
 
-type Effect = { operation: 'damage' | 'restore' | 'drain'; vital: ActorVitalKind; overflow?: 'defeat' }
-  | { operation: 'neutralize' };
-const neutralize: Effect = Object.freeze({ operation: 'neutralize' });
+type Effect = { operation: 'damage' | 'restore' | 'drain'; vital: ActorVitalKind; overflow?: 'defeat' };
 
 /**
  * Explicit routing, read from the one affinity table (#352); expression polarity never
@@ -28,7 +25,9 @@ const MATRIX = Object.freeze(Object.fromEntries(AFFINITY_TABLE.map(entry => [ent
   Object.freeze(entry.outward === 'damage' && entry.spill
     ? { operation: entry.outward, vital: entry.primaryVital, overflow: entry.spill }
     : { operation: entry.outward, vital: entry.primaryVital }) as Effect,
-  entry.inward === 'drain' ? Object.freeze({ operation: 'drain', vital: entry.primaryVital }) as Effect : neutralize,
+  Object.freeze(entry.spill
+    ? { operation: entry.inward, vital: entry.primaryVital, overflow: entry.spill }
+    : { operation: entry.inward, vital: entry.primaryVital }) as Effect,
 ] as const)])) as Record<AffinityKind, readonly [Effect, Effect]>);
 
 export function getActorAffinityEffect(kind: AffinityKind, expression: AffinityExpression): Effect {
@@ -42,7 +41,7 @@ export interface ActorVitalChange { actorId: string; vital: ActorVitalKind; delt
 
 /**
  * Common vital outcome for already-evaluated exposure. Callers own spatial legality,
- * equipment and mana charging. Neutralize is consumed by active-exposure resolution.
+ * equipment and mana charging.
  */
 export function resolveActorAffinity(
   registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital'>,

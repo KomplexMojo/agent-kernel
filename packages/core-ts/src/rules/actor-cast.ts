@@ -34,11 +34,9 @@ function castManaCost(prices: ActorCastPrices, pair: ActorAffinityEntry): number
   const base = prices.castManaBase[affinityKey(pair)];
   return base === undefined ? undefined : actorCastManaPrice(base, pair.stacks, affinityIntensity(pair));
 }
-export interface ActorEffectSuppression { sourceId: string; targetId: string; affinityKey: ActorAffinityKey; amount: number }
 export interface ActorCastResult {
   accepted: boolean;
   changes: ActorVitalChange[];
-  suppression?: ActorEffectSuppression;
   /** Why the cast was refused, as a ValidationError name; absent when accepted. */
   rejection?: string;
 }
@@ -75,19 +73,14 @@ export function selectActorCastAffinity(actor: ActorRecord, key?: ActorAffinityK
   return equipped.find(pair => isCastableExpression(pair.expression)) ?? 'AffinityNotCastable';
 }
 
-/** The target's slot a neutralizing cast of `kind` suppresses: its first push or emit of that kind. */
-function suppressedSlot(target: ActorRecord, kind: string): ActorAffinityEntry | undefined {
-  return equippedActorAffinities(target).find(pair => pair.kind === kind
-    && (pair.expression === 'push' || pair.expression === 'emit'));
-}
-
-/** Focused effect primitive. The turn executor consumes its pending suppression record. */
+/**
+ * Focused effect primitive. Every cast is a direct effect (#354): a pull steals like any
+ * other inward use; nothing is suppressed or carried to a later action.
+ */
 export function castFocusedActorAffinity(
   registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital'>,
-  sourceId: string, targetId: string, manaCosts: ActorCastPrices, suppressedAmount = 0,
-  castKey?: ActorAffinityKey,
+  sourceId: string, targetId: string, manaCosts: ActorCastPrices, castKey?: ActorAffinityKey,
 ): ActorCastResult {
-  if (!Number.isFinite(suppressedAmount) || suppressedAmount < 0) throw new Error('invalid suppressed amount');
   assertActorCastPrices(manaCosts);
   const reject = (rejection: string): ActorCastResult => ({ accepted: false, changes: [], rejection });
   const source = registry.getActor(sourceId); const target = registry.getActor(targetId);
@@ -105,13 +98,7 @@ export function castFocusedActorAffinity(
   if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');
   const changes: ActorVitalChange[] = [];
   const pay = () => { if (cost > 0) changes.push({ actorId: sourceId, vital: 'mana', delta: registry.changeVital(sourceId, 'mana', -cost) }); };
-  const amount = Math.max(0, actorAffinityMagnitude(pair.expression, affinityIntensity(pair)) - suppressedAmount);
-  const targetPair = suppressedSlot(target, pair.kind);
-  if (effect.operation === 'neutralize' && targetPair && target.capabilities.canCast && sourceId !== targetId) {
-    pay();
-    return { accepted: true, changes, suppression: { sourceId, targetId, affinityKey: affinityKey(targetPair),
-      amount: Math.min(amount, actorAffinityMagnitude(targetPair.expression, affinityIntensity(targetPair))) } };
-  }
+  const amount = actorAffinityMagnitude(pair.expression, affinityIntensity(pair));
   // The receiver rules fields apply (#348): a same-kind draw absorbs into mana, a same-kind
   // slot the interaction table makes immune takes nothing, an opposite slot doubles harm.
   // A cast at oneself meets none of them, as a field never exposes its own source.

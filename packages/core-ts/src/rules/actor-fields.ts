@@ -1,4 +1,3 @@
-import type { ActorEffectSuppression } from './actor-cast.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorPosition, ActorAffinityEntry, ActorRecord } from '../state/actor-types.ts';
 import { affinityIntensity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
@@ -38,11 +37,6 @@ export function actorFieldExposureAmount(receiver: ActorRecord, cell: ActorField
 function rawFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, localCells: readonly ActorFieldCell[]): number {
   if (receiver.lifecycle !== 'alive' || receiver.id === cell.sourceId) return 0;
   const amount = cell.falloff * actorAffinityMagnitude(cell.expression, cell.intensity);
-  const operation = getActorAffinityEffect(cell.kind, cell.expression).operation;
-  if (operation === 'neutralize') {
-    return localCells.some(pending => pending.sourceId === receiver.id
-      && pending.kind === cell.kind && pending.expression === 'emit') ? amount : 0;
-  }
   return receiverAffinityAmount(receiver, cell, amount);
 }
 
@@ -174,24 +168,12 @@ export function projectActorFields(registry: Pick<Registry, 'snapshot'>): { fiel
 }
 
 /** One field pass; Moderator remains responsible for calling once after ordered actions. */
-export function resolveActorFields(registry: Registry, suppressions: ActorEffectSuppression[] = []) {
-  for (const entry of suppressions) {
-    if (!entry || !Number.isFinite(entry.amount) || entry.amount < 0 || !registry.getActor(entry.sourceId)
-      || !registry.getActor(entry.targetId)) throw new Error('invalid field suppression');
-  }
+export function resolveActorFields(registry: Registry) {
   const projection = projectActorFields(registry);
   const pending = new Map(projection.sources.map(source => [`${source.sourceId}|${source.affinityKey}`, source]));
-  const applied: { sourceId: string; targetId: string; amount: number }[] = [];
-  for (const entry of suppressions) {
-    const source = pending.get(`${entry.targetId}|${entry.affinityKey}`);
-    if (!source) continue;
-    const amount = Math.min(source.budget, entry.amount);
-    source.budget -= amount;
-    if (amount > 0) applied.push({ sourceId: entry.sourceId, targetId: entry.targetId, amount });
-  }
   const result = resolveActorExposures(registry, projection.sources);
   // Re-observe after immediate defeats; this projects state without applying a second pulse.
-  return { ...result, suppressions: [...applied, ...result.suppressions],
+  return { ...result,
     fields: projectActorFields(registry).fields.filter(field => (pending.get(fieldSlotKey(field.sourceId, field))?.budget ?? 0) > 0) };
 }
 
@@ -225,7 +207,6 @@ export function readActorOverwhelms(registry: Pick<Registry, 'snapshot'>): Actor
       const opposite = AFFINITY_KIND_BY_CODE[getOppositeAffinityKind(KIND_CODES[kind])];
       if (!opposite || strongest(kind, false) - strongest(opposite, true) < OVERWHELM_NET_INTENSITY) continue;
       const effect = getActorAffinityEffect(kind as ActorAffinityEntry['kind'], 'emit');
-      if (effect.operation === 'neutralize') continue;
       out.push({ actorId: actor.id, kind, vital: effect.vital,
         regenScale: effect.operation === 'restore' ? OVERWHELM_RESTORE_REGEN_SCALE : OVERWHELM_HARM_REGEN_SCALE });
     }

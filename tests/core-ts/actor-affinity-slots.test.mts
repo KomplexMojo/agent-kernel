@@ -183,4 +183,4 @@ test('the record is validated: slot count 1..6, equipped keys known, unique, wit
 // - a legacy record with affinityExhausted and no exhaustedAffinityKeys treats every equipped slot as off
 // - a canEquip:false actor cannot equip or unequip (InvalidCapability)
 // - two draw slots of different kinds each absorb their own kind
-// - neutralizing pull suppresses only the matching emit slot of a two-slot target
+// - a harmful pull against a two-slot target meets the receiver rules of every slot

@@ -133,4 +133,4 @@ test("casting spends the caster's mana at the AUTHORED price", async () => {
 // - a caster with insufficient mana: refused, recorded, target untouched
 // - hazard targets: durability damage, destruction at 0, and the immortal
 //   (durabilityMax 0) hazard which must refuse
-// - a pull against a matching armed hazard: neutralization transfers its mana
+// - a pull against an armed hazard: the steal comes out of its primary vital, then durability

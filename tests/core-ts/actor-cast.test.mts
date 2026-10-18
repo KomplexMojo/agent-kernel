@@ -62,13 +62,19 @@ test('growth pull transfers actual removal through durability; self-drain costs 
   expect(state.getActor('source')!.vitals.health!.current).toBe(12);
   expect(state.getActor('target')!.vitals.durability!.current).toBe(3);
 });
-test('neutralizing pull reports pending suppression without healing or removing equipment', () => {
-  const state = registry(actor('source', 0, { kind: 'fire', expression: 'pull', stacks: 3, intensity: 2 }),
-    actor('target', 1, { kind: 'fire', expression: 'emit', stacks: 8, intensity: 3 }));
-  const before = state.getActor('target');
+// #354: a harmful pull steals its primary vital, durability for fire, and spills the rest.
+test('harmful pull steals durability into the caster and spills into health', () => {
+  const source = actor('source', 0, { kind: 'fire', expression: 'pull', stacks: 3, intensity: 2 });
+  source.vitals.durability!.current = 1;
+  const state = registry(source, actor('target', 1));
   const result = castFocusedActorAffinity(state, 'source', 'target', costs);
-  expect(result.suppression).toEqual({ sourceId: 'source', targetId: 'target', affinityKey: 'fire:emit', amount: 8 });
-  expect(state.getActor('target')).toEqual(before);
+  expect(result.accepted).toBe(true);
+  // 2 × 2² = 8: durability gives up 3, the other 5 spill into health.
+  expect(state.getActor('target')!.vitals.durability!.current).toBe(0);
+  expect(state.getActor('target')!.vitals.health!.current).toBe(5);
+  // The caster gains the 3 durability, capped at 3; the spill is not credited to health.
+  expect(state.getActor('source')!.vitals.durability!.current).toBe(3);
+  expect(state.getActor('source')!.vitals.health!.current).toBe(10);
 });
 test('malformed authored prices are rejected before any mutation', () => {
   const state = registry(); const before = state.snapshot();
@@ -80,4 +86,4 @@ test('malformed authored prices are rejected before any mutation', () => {
   expect(state.snapshot()).toEqual(before);
 });
 // ## TODO: Test Permutations
-// - Tick executor must persist suppression and prohibit any second action after accepted casting/equipping.
+// - Tick executor must prohibit any second action after accepted casting/equipping.
