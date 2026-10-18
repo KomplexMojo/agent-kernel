@@ -28,7 +28,6 @@ import { describe, expect, test } from "vitest";
 
 import {
   BASELINE_SIGHT_RADIUS,
-  resolvePoweredLightStacks,
   computeVisibleCells,
   DARKNESS_OBSCURE_RADIUS,
   DARKNESS_OBSCURE_STACK_THRESHOLD,
@@ -378,23 +377,6 @@ describe("lit cells", () => {
     };
     const scoped = scopeObservation(observation, "self", 1, { lightByCell: { "6,1": 2, "6,2": 2 } });
     expect(scoped.actors.map((entry: { id: string }) => entry.id)).toEqual(["self", "lit", "lamp"]);
-  });
-});
-
-describe("resolvePoweredLightStacks", () => {
-  test("a full pool powers every stack; part of a pool powers its share, rounded up", () => {
-    expect(resolvePoweredLightStacks(4, 10, 10)).toBe(4);
-    expect(resolvePoweredLightStacks(4, 5, 10)).toBe(2);
-    expect(resolvePoweredLightStacks(4, 1, 10)).toBe(1);
-  });
-
-  test("no mana, or no pool at all, powers nothing", () => {
-    expect(resolvePoweredLightStacks(4, 0, 10)).toBe(0);
-    expect(resolvePoweredLightStacks(4, 5, 0)).toBe(0);
-  });
-
-  test("mana above the max never powers more than the stacks", () => {
-    expect(resolvePoweredLightStacks(3, 50, 10)).toBe(3);
   });
 });
 

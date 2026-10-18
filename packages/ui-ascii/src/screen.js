@@ -10,6 +10,7 @@
  * This module only lays them out and turns hex into terminal escape codes.
  */
 import {
+  ASCII_REMEMBERED_FLOOR_MONO,
   asciiActorCellStyle,
   asciiFieldCellStyle,
   asciiRememberedCellStyle,
@@ -85,6 +86,13 @@ export function paintBoardRow(row, styles, cellStyles = null, sightRow = null, d
     out += char;
   }
   return open ? `${out}${RESET}` : out;
+}
+
+/** Without colour, remembered floor is drawn blank so it never reads as floor in sight (#284). */
+function monoBoardRow(row, sightRow, floorChar) {
+  if (!sightRow || !floorChar) return row;
+  return [...row].map((char, x) => (char === floorChar && sightRow[x] === PLAY_SIGHT.REMEMBERED
+    ? ASCII_REMEMBERED_FLOOR_MONO : char)).join("");
 }
 
 /** `current/max (+regen)`: the regen is what the vital gains each turn before any upkeep or harm. */
@@ -295,7 +303,8 @@ export function renderScreen({
   const actorCells = color ? actorCellStyles(view) : null;
   const playerPosition = view.player?.position;
   overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition).forEach((row, y) => {
-    lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y], depthOf(color), view.field?.[y], view.legend?.floor) : row}`);
+    lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y], depthOf(color), view.field?.[y], view.legend?.floor)
+      : monoBoardRow(row, view.sight?.[y], view.legend?.floor)}`);
   });
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));

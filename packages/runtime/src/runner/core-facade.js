@@ -20,7 +20,7 @@ export function createPlaybackRuntime(options = {}) {
   return createRuntime({ ...options, core, adapters });
 }
 
-export function readCoreAffinityFieldRecordsFromArtifacts(core, { simConfig, initialState } = {}) {
+export function readCoreAffinityFieldRecordsFromArtifacts({ simConfig, initialState } = {}) {
   const { registry } = initializeCoreFromArtifacts({ simConfig, initialState });
   const snapshot = registry.snapshot();
   const observation = readActorRegistryObservation(registry, 0);

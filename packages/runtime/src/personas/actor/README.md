@@ -153,12 +153,14 @@ The Actor persona follows a simple loop:
 How motivations are resolved (priority, scoring, veto, etc.) is an implementation detail of the Actor persona and may evolve over time.
 
 Each actor receives its own perception-scoped observation. Levels are unlit: core starts with a sight radius
-of one tile, extended by the stacks of light the actor itself emits less the dark stacks at its tile. Per cell,
-core weighs the strongest emitted light reaching it against the strongest emitted dark, stack for stack: more light
-and the cell is lit, seen from any distance; more dark and the cell, and anyone in it, is hidden beyond one tile; a
-tie is neither. Dark from other sources that beats the light on the actor's own tile by two or more stacks blinds
-it: it sees only its own tile, plus lit cells in line of sight (#284); an actor's own dark never blinds it. Light and dark are both powered by their source's mana: they dim as the pool drains and regen
-restores them. Core then applies deterministic line of sight: walls and barriers block actors and hazards behind
+of one tile, extended by the stacks of the actor's own light that survive at its tile. Light and dark come from
+the affinity field, the same projection every vital effect and floor shading read (#288): per cell the field
+cancels the strongest emitted light against the strongest emitted dark, stack for stack, so more light and the cell
+is lit, seen from any distance; more dark and the cell, and anyone in it, is hidden beyond one tile; a tie is
+neither. An emit of s stacks reaches s tiles. Dark from other sources that still survives on the actor's own tile
+by two or more stacks, with its own dark left out, blinds it: it sees only its own tile, plus lit cells in line of
+sight (#284); an actor's own dark never blinds it. Light and dark switch on and off like every lasting affinity:
+full strength while on, dark once a drained source switches off until its mana is full again. Core then applies deterministic line of sight: walls and barriers block actors and hazards behind
 them, including diagonal corner peeking. The shared world snapshot is
 never mutated, and resources remain absent because actor observations do not currently expose them.
 

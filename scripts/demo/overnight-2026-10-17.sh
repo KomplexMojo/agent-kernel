@@ -13,8 +13,17 @@ trap 'rm -rf "$WORK"' EXIT
 SESSION="overnight-demo"
 
 # The five opposed pairs, both ways round.
-declare -A OPP=([fire]=water [water]=fire [earth]=wind [wind]=earth [growth]=decay
-  [decay]=growth [corrode]=fortify [fortify]=corrode [light]=dark [dark]=light)
+# (A function, not an associative array: macOS ships bash 3.2.)
+opposite() {
+  case $1 in
+    fire) echo water;; water) echo fire;; earth) echo wind;; wind) echo earth;;
+    growth) echo decay;; decay) echo growth;; corrode) echo fortify;; fortify) echo corrode;;
+    light) echo dark;; dark) echo light;;
+  esac
+}
+
+# macOS has shasum, not sha256sum.
+if command -v sha256sum >/dev/null; then SHA256=sha256sum; else SHA256="shasum -a 256"; fi
 
 section() { printf '\n\n######## %s ########\n' "$1"; }
 step() { printf '\n=== %s ===\n' "$1"; }
@@ -39,27 +48,28 @@ session() { $AK play-session "$@" --session "$SESSION"; }
 # A run stopped part way leaves its session behind with its level gone; drop that file.
 end_session() { session end >/dev/null 2>&1 || rm -f "${AK_PLAY_SESSIONS_DIR:-artifacts/play-sessions}/$SESSION.json"; }
 
-# A playable delver emitting $1 at 3 stacks, a trap 2 tiles away emitting $2 at $3 stacks.
+# A playable delver emitting $1 at intensity 3, a trap beside it emitting $2 at intensity $3,
+# both at range 3 (since #342, stacks is range and intensity is strength).
 pair_level() {
   create --budget-tokens 5000 --out-dir "$4" --room "size=medium;count=1" \
-    --delver "count=1;id=hero;affinities=$1:emit:3;equip=$1:emit;motivation=user_controlled;vitals=health:10:20:1,mana:60:6,stamina:10:1,durability:10:1" \
-    --hazard "x=2;y=2;affinity=$2;expression=emit;stacks=$3;vitals=mana:60:10,durability:10:1"
+    --delver "count=1;id=hero;affinities=$1:emit:3:3;equip=$1:emit;motivation=user_controlled;vitals=health:10:20:1,mana:60:6,stamina:10:1,durability:10:1" \
+    --hazard "x=3;y=3;affinity=$2;expression=emit;stacks=3;intensity=$3;vitals=mana:60:10,durability:10:1"
 }
 
 rules() {
-  section "1. Opposed affinities cancel by stacks; a lead of 2 overwhelms (#290, #289)"
-  say "One rule for every pair. The hero emits one side at 3 stacks; a trap 2 tiles away" \
-      "emits the other. Equal stacks cancel on every tile between them, so the hero only" \
-      "regenerates (HP 10 -> 14 in 4 turns). At 5 stacks the trap leads by 2: what is left" \
-      "reaches the hero AND stops the regen of the vital it harms."
+  section "1. Opposed affinities cancel by intensity; a lead of 2 overwhelms (#290, #289, #342)"
+  say "One rule for every pair. The hero emits one side at intensity 3; a trap beside it" \
+      "emits the other. Equal intensities cancel on the hero's tile, so the hero only" \
+      "regenerates (HP 10 -> 14 in 4 turns). At intensity 5 the trap leads by 2: what is left" \
+      "stops the regen of the vital it harms, and its hits (intensity squared) drain it fast."
   for trap in water wind decay corrode dark; do
-    hero=${OPP[$trap]}
-    for stacks in 3 5; do
-      dir="$WORK/pair-$trap-$stacks"
-      pair_level "$hero" "$trap" "$stacks" "$dir"
+    hero=$(opposite "$trap")
+    for intensity in 3 5; do
+      dir="$WORK/pair-$trap-$intensity"
+      pair_level "$hero" "$trap" "$intensity" "$dir"
       end_session
       session start --dir "$dir" >/dev/null
-      printf '%-8s x3 vs %-8s x%s  after 4 turns: ' "$hero" "$trap" "$stacks"
+      printf '%-8s x3 vs %-8s x%s  after 4 turns: ' "$hero" "$trap" "$intensity"
       session act --keys "...." | pick 'r.hud.replace(/^D1 hero-1 · /, "").replace(/ · tick.*$/, "").replace(/(\d+\.\d)\d+/g, "$1")'
       end_session
     done
@@ -69,13 +79,13 @@ rules() {
 }
 
 blind() {
-  section "2. Blinding dark: a net 2 of dark on your tile cuts sight to your own tile (#284)"
+  section "2. Blinding dark: a net intensity 2 of dark on your tile cuts sight to your own tile (#284, #342)"
   pair_level light dark 3 "$WORK/blind-3"
   pair_level light dark 5 "$WORK/blind-5"
-  for stacks in 3 5; do
+  for intensity in 3 5; do
     end_session
-    session start --dir "$WORK/blind-$stacks" >/dev/null
-    step "hero light x3 vs dark trap x$stacks, after 2 turns"
+    session start --dir "$WORK/blind-$intensity" >/dev/null
+    step "hero light x3 vs dark trap x$intensity (intensity), after 2 turns"
     session act --keys ".." | board
     end_session
   done
@@ -86,7 +96,7 @@ corrode() {
   say "Durability is armour; an actor is defeated at health 0, not durability 0."
   create --budget-tokens 2500 --out-dir "$WORK/corrode" --room "size=medium;count=1" \
     --delver "count=1;id=hero;motivation=user_controlled;vitals=health:20:1,mana:10:1,stamina:10:1,durability:10:1" \
-    --hazard "x=3;y=3;affinity=corrode;expression=emit;stacks=5;vitals=mana:60:10,durability:10:1"
+    --hazard "x=3;y=3;affinity=corrode;expression=emit;stacks=3;intensity=2;vitals=mana:60:10,durability:10:1"
   end_session
   session start --dir "$WORK/corrode" | hud
   for _ in 1 2 3 4 5 6 7; do session act --keys "." | hud; done
@@ -225,7 +235,7 @@ hygiene() {
     quiet $AK run --sim-config "$WORK/party/sim-config.json" --initial-state "$WORK/party/initial-state.json" \
       --ticks 4 --world-state-checkpoints 2,4 --seed 7 --run-id ckpt --out-dir "$WORK/ckpt-$n"
   done
-  (cd "$WORK" && sha256sum ckpt-1/world-state-checkpoints/* ckpt-2/world-state-checkpoints/* | sed 's/^\(.\{16\}\)[^ ]*/\1…/')
+  (cd "$WORK" && $SHA256 ckpt-1/world-state-checkpoints/* ckpt-2/world-state-checkpoints/* | sed 's/^\(.\{16\}\)[^ ]*/\1…/')
   step "AffinitySummary is v2 with no attack/buff/area abilities; v1 presets still read (#324)"
   quiet $AK run --sim-config "$WORK/party/sim-config.json" --initial-state "$WORK/party/initial-state.json" --ticks 1 \
     --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json \
@@ -277,8 +287,8 @@ orders() {
 }
 
 ALL=(rules blind corrode stamina rename regen motivations pricing solver hygiene orders)
-SECTIONS=("$@")
-[ ${#SECTIONS[@]} -eq 0 ] && SECTIONS=("${ALL[@]}")
+# bash 3.2 (macOS) treats an empty array as unbound under set -u, so never expand one.
+if [ $# -eq 0 ]; then SECTIONS=("${ALL[@]}"); else SECTIONS=("$@"); fi
 for name in "${SECTIONS[@]}"; do
   case " ${ALL[*]} " in *" $name "*) ;; *) echo "unknown section: $name (one of: ${ALL[*]})" >&2; exit 2;; esac
   # pricing, solver and hygiene reuse levels the earlier sections build.

@@ -73,7 +73,8 @@ test('equipment evaluation retains contributions when the source actor is unseen
   ] }).snapshot();
   snapshot.dimensions.width = 12; snapshot.terrain = Array(12).fill('floor');
   const source = snapshot.actors.find(actor => actor.id === 'source');
-  source.position.x = 5; source.affinities[0].stacks = 8;
+  // Intensity 2 so the field still lands a whole point five tiles out (#283 rounds exposure).
+  source.position.x = 5; source.affinities[0].stacks = 8; source.affinities[0].intensity = 2;
   const registry = createActorRegistry(snapshot);
   const observed = scopeActorRegistryObservation(readActorRegistryObservation(registry, 0), 'self');
   expect(observed.actors.some(actor => actor.id === 'source')).toBe(false);

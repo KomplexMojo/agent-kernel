@@ -84,6 +84,13 @@ export function buildAsciiCellStyles(legend) {
 // How far a remembered cell fades toward the fog fill (0 = unchanged, 1 = fog).
 export const ASCII_REMEMBERED_FADE = 0.55;
 
+/**
+ * Without colour there is no fade, so remembered FLOOR draws as this instead
+ * (#284, maintainer 2026-10-17): seen floor stays `.`, remembered floor is blank,
+ * and remembered walls, doors and the exit keep their glyphs so the map keeps its shape.
+ */
+export const ASCII_REMEMBERED_FLOOR_MONO = " ";
+
 function mixHex(from, to, amount) {
   const parse = (hex) => {
     const match = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex || ""));

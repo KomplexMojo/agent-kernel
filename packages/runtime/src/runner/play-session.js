@@ -248,6 +248,14 @@ export async function createPlaySession({
     return alignment(actorId) !== undefined && alignment(actorId) === alignment(activeId);
   }
 
+  // Everyone `order` would accept right now, other than the seated actor, in id order (#272).
+  // Your own side is known to you in or out of sight, as the party is.
+  function orderableView(snapshot) {
+    return snapshot.actors.filter((actor) => actor.id !== activeId && actor.lifecycle === "alive" && orderable(actor.id))
+      .map((actor) => actor.id).sort(compareIds)
+      .map((id) => ({ id, label: labels.get(id) ?? null }));
+  }
+
   /** Give `ref` a new strategy. Costs a turn: the seated actor gives it, the ordered actor takes it. */
   async function order(ref, strategy) {
     const actorId = resolveActorRef(ref);
@@ -417,6 +425,7 @@ export async function createPlaySession({
       }),
       party: partyView(snapshot),
       orders: ordersView(),
+      orderable: orderableView(snapshot),
     };
   }
 
