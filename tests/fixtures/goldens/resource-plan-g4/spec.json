@@ -23,11 +23,8 @@
   },
   "intent": {
     "goal": "Author resources (1 configuration).",
-    "tags": [
-      "fire"
-    ],
+    "tags": [],
     "hints": {
-      "levelAffinity": "fire",
       "budgetTokens": 5000,
       "poolWeights": [
         {
@@ -84,7 +81,6 @@
         },
         "budgetScaffold": true
       },
-      "levelAffinity": "fire",
       "actors": [],
       "actorGroups": [],
       "resources": [

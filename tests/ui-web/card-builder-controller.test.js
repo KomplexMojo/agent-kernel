@@ -57,7 +57,8 @@ test("applyPropertyDrop routes through the existing card-builder actions", () =>
   const delver = controller.getActiveCard();
   assert.equal(delver.type, "delver");
   assert.match(delver.id, /^A-[A-Z0-9]{6}$/);
-  assert.equal(delver.affinity, "light");
+  // #263: no affinity is a default; a new delver card has none until one is dropped on it.
+  assert.equal(delver.affinity, null);
 
   controller.applyPropertyDrop(delver.id, { group: "affinities", value: "water" });
   controller.applyPropertyDrop(delver.id, { group: "expressions", value: "emit", affinityKind: "water" });

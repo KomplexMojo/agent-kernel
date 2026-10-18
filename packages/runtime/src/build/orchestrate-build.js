@@ -302,7 +302,11 @@ export async function orchestrateBuild({
       );
     }
 
-    const authoredHazards = Array.isArray(levelGenInput.hazards) ? levelGenInput.hazards : [];
+    // #263 — the Configurator names any hazard affinity left unnamed, from the run seed.
+    const authoredHazards = configuratorBuild.nameUnnamedHazardAffinities(
+      Array.isArray(levelGenInput.hazards) ? levelGenInput.hazards : [],
+      { seed: levelGenInput.seed },
+    );
     const positionedHazards = authoredHazards.filter(
       (hazard) => Number.isFinite(hazard?.x) && Number.isFinite(hazard?.y),
     );

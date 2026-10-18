@@ -434,7 +434,7 @@ export function buildBuildSpecFromSummary({
       goal: resolvedSummary?.goal || `Dungeon plan for ${resolvedSummary?.dungeonAffinity || "unknown"}`,
       tags: resolvedSummary?.tags || (resolvedSummary?.dungeonAffinity ? [resolvedSummary.dungeonAffinity] : []),
       hints: {
-        levelAffinity: resolvedSummary?.dungeonAffinity,
+        levelAffinity: resolvedSummary?.dungeonAffinity || undefined,
         budgetTokens: resolvedSummary?.budgetTokens,
         dungeonBudgetTokens: resolvedSummary?.dungeonBudgetTokens,
         delverBudgetTokens: resolvedSummary?.delverBudgetTokens,
@@ -461,7 +461,7 @@ export function buildBuildSpecFromSummary({
     configurator: {
       inputs: {
         levelGen,
-        levelAffinity: resolvedSummary?.dungeonAffinity,
+        levelAffinity: resolvedSummary?.dungeonAffinity || undefined,
         actors,
         actorGroups,
         delverCount,

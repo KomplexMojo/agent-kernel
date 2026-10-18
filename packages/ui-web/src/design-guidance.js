@@ -743,23 +743,17 @@ export function wireDesignGuidance({
         ...active,
         type: targetType,
       });
+    // #263: a hazard or resource card may name no affinity; the Configurator picks one from
+    // the run seed when it builds the level. A hazard still needs an expression and mana.
     if (targetType === "hazard") {
-      const hasAffinity = Array.isArray(staged.affinities) && staged.affinities.length > 0
-        && staged.affinities[0]?.expression;
+      const hasExpression = Boolean(staged.affinities?.[0]?.expression || staged.expressions?.[0]);
       const hasMana = staged.mana && typeof staged.mana === "object";
-      if (!hasAffinity) {
-        setStatus(statusEl, "Hazard cards require at least one affinity with an expression.", true);
+      if (!hasExpression) {
+        setStatus(statusEl, "Hazard cards require an affinity expression.", true);
         return false;
       }
       if (!hasMana) {
         setStatus(statusEl, "Hazard cards require a mana vital.", true);
-        return false;
-      }
-    }
-    if (targetType === "resource") {
-      const hasAffinity = Array.isArray(staged.affinities) && staged.affinities.length > 0;
-      if (!hasAffinity) {
-        setStatus(statusEl, "Resource cards require at least one affinity.", true);
         return false;
       }
     }

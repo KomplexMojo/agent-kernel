@@ -545,10 +545,10 @@ Inputs/outputs:
 - Input: one or more `--room` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--room` format: `size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...`
+- `--room` format: `size=<small|medium|large>;count=<n>`
 - Room sides by size: small 3-5, medium 5-8, large 8-12 (the default is medium). A room that
   holds hazards is at least medium, so entrance, exit and hazards fit.
-- If `affinities` are omitted, defaults are applied: `dark:emit:2`.
+- Rooms carry no affinity (#263); place affinity in a room with `--hazard`.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from room-plan runs.
 - If `--goal` includes a budget phrase such as `budget 400 tokens`, it must agree with
@@ -608,7 +608,7 @@ Inputs/outputs:
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
 - `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
-- If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
+- If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
   kind, one cognition kind, plus `user_controlled`, e.g. `motivation=exploring+attacking`. Two kinds
@@ -642,7 +642,7 @@ Inputs/outputs:
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
 - `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
-- If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
+- If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
@@ -982,7 +982,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - Resource authoring (`resource-plan`): repeat `--resource` with `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>]`.
   Use `--budget-tokens` or `--budget` + `--price-list` to enforce a resources-only allocation receipt.
 - Delver authoring (`delver-plan`): repeat `--delver` with `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>]`.
-  If `affinity` is omitted, the command falls back to `--dungeon-affinity` (default `fire`).
+  If `affinity` is omitted, the command falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
   If `motivation` is omitted, default is `attacking`.
   Repeating `motivation` inside the same `--delver` spec is rejected.
   Optional advanced fields in `--delver`: `affinities=<kind>[:<expression>[:<stacks>]],...`,
@@ -990,7 +990,7 @@ Expected outputs (defaults when `--out-dir` is set):
   and `setup-mode=<auto|user|hybrid>`.
   Use `--budget` + `--price-list` together to emit `budget-receipt.json` from the same run.
 - Warden authoring (`warden-plan`): repeat `--warden` with `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>]`.
-  If `affinity` is omitted, the command falls back to `--dungeon-affinity` (default `fire`).
+  If `affinity` is omitted, the command falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
   If `motivation` is omitted, default is `defending`.
   Repeating `motivation` inside the same `--warden` spec is rejected.
   Optional advanced fields in `--warden`: `affinities=<kind>[:<expression>[:<stacks>]],...`,
