@@ -14,16 +14,16 @@ describe("affinity pair-order measurement (#163)", () => {
     }
   });
 
-  it("detects an emit budget shared by two receivers in id order (#347) wherever the budget runs short", () => {
-    let detected = 0;
+  it("finds no emit budget shared by two receivers in id order, for every kind (#347 holds)", () => {
+    // #347 gave every receiver its own exposure, so two receivers of one emitter take the
+    // same outcome and renaming them changes nothing. Before #347 this probe found the
+    // id-order sharing; it now guards against that sharing coming back (#393).
     for (const kinds of OPPOSED_PAIRS) for (const kind of kinds) {
       const roles = [{ x: 0, slot: null }, { x: 0, slot: null }, { x: 0, slot: { kind, expression: "emit", stacks: 1 } }];
       const [first, second] = runScenario(roles, ["actor-a", "actor-b", "actor-c"]);
-      if (JSON.stringify(first) === JSON.stringify(second)) continue; // budget covered both receivers
-      expect(isOrderDependent(roles), kind).toBe(true);
-      detected++;
+      expect(second, kind).toEqual(first);
+      expect(isOrderDependent(roles), kind).toBe(false);
     }
-    expect(detected).toBeGreaterThan(0);
   });
 
   it("finds no order dependence with two actors for one pair, and reports every enumerated pair", () => {
