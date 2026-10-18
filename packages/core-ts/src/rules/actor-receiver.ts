@@ -4,6 +4,7 @@ import { AFFINITY_KIND_BY_CODE, AFFINITY_EXPRESSION_BY_CODE } from '../affinity-
 import { resolveAffinityRelationshipCode, AffinityRelationship } from '../state/affinity.ts';
 import { deriveAffinityInteractionCell, AffinityEffect, OPPOSITE_EXPOSURE_AMPLIFICATION } from '../state/affinity-spatial.ts';
 import { getActorAffinityEffect } from './actor-affinity.ts';
+import { AFFINITY_RECEIVER_RULES } from '../state/affinity-table.ts';
 
 const KIND_CODES = Object.fromEntries(Object.entries(AFFINITY_KIND_BY_CODE).map(([code, name]) => [name, Number(code)]));
 const EXPRESSION_CODES = Object.fromEntries(Object.entries(AFFINITY_EXPRESSION_BY_CODE).map(([code, name]) => [name, Number(code)]));
@@ -12,8 +13,9 @@ type Incoming = Pick<ActorAffinityEntry, 'kind' | 'expression'>;
 
 /** An outward (push or emit) effect of `kind` meets a same-kind draw on the receiver: its mana takes it. */
 export function receiverAbsorbsAffinity(receiver: ActorRecord, incoming: Incoming): boolean {
-  return (incoming.expression === 'push' || incoming.expression === 'emit')
-    && equippedActorAffinities(receiver).some(pair => pair.kind === incoming.kind && pair.expression === 'draw');
+  return AFFINITY_RECEIVER_RULES.absorbs.includes(incoming.expression)
+    && equippedActorAffinities(receiver).some(pair => pair.kind === incoming.kind
+      && pair.expression === AFFINITY_RECEIVER_RULES.absorbedBy);
 }
 
 /**
@@ -33,6 +35,6 @@ export function receiverAffinityAmount(receiver: ActorRecord, incoming: Incoming
   if (relationships.some(({ relationship, interaction }) => relationship === AffinityRelationship.Same
     && interaction?.targetEffect === AffinityEffect.None)) return 0;
   if (relationships.some(({ relationship }) => relationship === AffinityRelationship.Opposite)
-    && (operation === 'damage' || operation === 'drain')) return amount * OPPOSITE_EXPOSURE_AMPLIFICATION;
+    && (AFFINITY_RECEIVER_RULES.amplifies as readonly string[]).includes(operation)) return amount * OPPOSITE_EXPOSURE_AMPLIFICATION;
   return amount;
 }

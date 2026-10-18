@@ -1,6 +1,7 @@
 import { AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 import { getAffinityExpressionBaseMagnitude, scaleAffinityVitalEffect } from '../state/affinity.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
+import { AFFINITY_TABLE, isOutwardAffinityExpression } from '../state/affinity-table.ts';
 import type { AffinityKind, AffinityExpression, ActorVitalKind } from '../state/actor-types.ts';
 
 function applyEffect(effect: Effect, amount: number,
@@ -18,25 +19,22 @@ type Effect = { operation: 'damage' | 'restore' | 'drain'; vital: ActorVitalKind
   | { operation: 'neutralize' };
 const neutralize: Effect = Object.freeze({ operation: 'neutralize' });
 
-/** Explicit routing; expression polarity never invents healing or resource creation. */
-const MATRIX: Record<AffinityKind, readonly [Effect, Effect]> = {
-  fire: [{ operation: 'damage', vital: 'durability', overflow: 'health' }, neutralize],
-  water: [{ operation: 'damage', vital: 'health' }, neutralize],
-  earth: [{ operation: 'damage', vital: 'durability', overflow: 'health' }, neutralize],
-  wind: [{ operation: 'damage', vital: 'stamina' }, neutralize],
-  growth: [{ operation: 'restore', vital: 'health' }, { operation: 'drain', vital: 'health' }],
-  decay: [{ operation: 'damage', vital: 'health' }, neutralize],
-  corrode: [{ operation: 'damage', vital: 'durability', overflow: 'health' }, neutralize],
-  fortify: [{ operation: 'restore', vital: 'durability' }, { operation: 'drain', vital: 'durability' }],
-  light: [{ operation: 'restore', vital: 'mana' }, { operation: 'drain', vital: 'mana' }],
-  dark: [{ operation: 'damage', vital: 'mana' }, neutralize],
-};
+/**
+ * Explicit routing, read from the one affinity table (#352); expression polarity never
+ * invents healing or resource creation.
+ */
+const MATRIX = Object.freeze(Object.fromEntries(AFFINITY_TABLE.map(entry => [entry.kind, Object.freeze([
+  Object.freeze(entry.outward === 'damage' && entry.spill
+    ? { operation: entry.outward, vital: entry.primaryVital, overflow: entry.spill }
+    : { operation: entry.outward, vital: entry.primaryVital }) as Effect,
+  entry.inward === 'drain' ? Object.freeze({ operation: 'drain', vital: entry.primaryVital }) as Effect : neutralize,
+] as const)])) as Record<AffinityKind, readonly [Effect, Effect]>);
 
 export function getActorAffinityEffect(kind: AffinityKind, expression: AffinityExpression): Effect {
   if (!Object.hasOwn(MATRIX, kind) || !['push', 'pull', 'emit', 'draw'].includes(expression)) {
     throw new Error('invalid affinity expression');
   }
-  return { ...MATRIX[kind][expression === 'push' || expression === 'emit' ? 0 : 1] };
+  return { ...MATRIX[kind][isOutwardAffinityExpression(expression) ? 0 : 1] };
 }
 
 export interface ActorVitalChange { actorId: string; vital: ActorVitalKind; delta: number }
