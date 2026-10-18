@@ -485,8 +485,21 @@ function buildPlacementResult(actors, assignedById, unresolvedReason) {
   return { actors: normalized, changed };
 }
 
-export function placeActors({ actors, layout, reservedActors = [], delverCount = 1 } = {}) {
+export function placeActors({ actors, layout, reservedActors = [], delverCount = 1, pinnedPositions = {} } = {}) {
   if (!Array.isArray(actors) || actors.length === 0) return { actors, changed: false };
+  // #301: an actor a placement constraint positioned keeps that cell; the others are seated
+  // around it as usual.
+  const pinnedIds = actors.map((actor) => actor?.id).filter((id) => pinnedPositions?.[id]);
+  if (pinnedIds.length > 0) {
+    const pinned = actors.filter((actor) => pinnedIds.includes(actor?.id))
+      .map((actor) => ({ ...actor, position: { ...pinnedPositions[actor.id] } }));
+    const free = actors.filter((actor) => !pinnedIds.includes(actor?.id));
+    const seated = free.length > 0
+      ? placeActors({ actors: free, layout, reservedActors: [...reservedActors, ...pinned], delverCount })
+      : { actors: [] };
+    const byId = new Map([...pinned, ...seated.actors].map((actor) => [actor.id, actor]));
+    return { actors: actors.map((actor) => byId.get(actor.id)), changed: true };
+  }
   const data = layout?.data || layout;
   const walkable = collectWalkablePositions(layout);
   if (!data || walkable.length === 0) {

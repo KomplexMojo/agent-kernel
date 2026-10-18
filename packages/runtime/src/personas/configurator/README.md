@@ -421,6 +421,33 @@ finished. Both surfaces are stateless and pure;
 neither mutates caller-owned layout or object data. Hazard affinities become owned equipment with
 the authored pair active; category-specific hazard/resource collections do not enter SimConfig.
 
+### Relational placement constraints (#301, 2026-10-18)
+
+`placement-constraints.js` owns the shape, the `--place` grammar (`parsePlacementConstraint`,
+`normalizePlacementConstraints`, both on the controller) and the check of a finished placement.
+A constraint names a subject (`hazard|resource|delver|warden:<id|n|*>`) and any of: `near=<target>:<d>`,
+`far=<target>:<d>`, `count=<n>` (with `near`: at least n of the subjects), `onRoute`/`offRoute`, and
+`spread`/`clump`. Targets are `spawn`, `exit` (their approach floors), `room:<id>` (nearest cell), or
+one placed thing. Distances are Chebyshev. `onRoute` is a cell every spawn-to-exit route passes
+(an articulation point between the approaches, computed once).
+
+`orchestrateBuild` passes `configurator.inputs.placement` to `prepareObjectPlacement` as `placement`.
+A constraint whose other side is already in place narrows the subject's candidate cells; one
+relating two things still to be placed is linear on their coordinates (each object's X and Y are
+linear in its own cell variables), and `far`, a count against an unplaced target and `spread` use
+a binary per alternative with a big-M row. `spread` (maximise the closest pair) and `clump`
+(minimise the farthest pair) come before the default cell-order objectives. An object a relational
+constraint names keeps every candidate cell (the #331 trim does not apply to it).
+
+A delver or warden a constraint names is placed by this search: its cell comes back in
+`actorPositions`, and `placeActors({ pinnedPositions })` keeps it while seating the rest as usual.
+Every result carries `placementReport` (one row per constraint: `held`, plus `matched`,
+`closestPair` or `farthestPair`), and the hosted decision record repeats it. A constraint that cannot
+hold is `unsat` with reason `placement_constraint` and the constraint named in `detail`; a bad
+reference is `error`/`placement_constraint_invalid`. The reading-order fallback cannot honour these,
+so without a solver a constrained placement is refused (`placement_constraints_need_solver`), never
+placed as if unconstrained.
+
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
