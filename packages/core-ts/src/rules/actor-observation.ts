@@ -78,16 +78,33 @@ function resolveRegistryLightDark(observation: RegistryObservation) {
  * One observer's sight inputs. Its own light extends its radius by its range while
  * light survives the field's cancellation at its tile; cells where light survives
  * are lit; cells where dark survives are obscured, along with anyone standing in
- * them. Dark from other sources that still survives at its tile by the blinding
- * threshold, once its own dark is left out, leaves it its own tile only (#284).
+ * them. The observer's own dark is left out of the field it sees by: dark obscures
+ * everyone else, never the actor emitting it (#409, "own emit never affects self",
+ * #336). Dark from other sources that still survives at its tile by the blinding
+ * threshold leaves it its own tile only (#284).
  */
 function resolveRegistrySight(observation: RegistryObservation, self: ActorRecord) {
-  const { lightByCell, darkStacksByCell } = resolveRegistryLightDark(observation);
+  const ownDark = (cell: { sourceId?: string; kind?: string }) => cell.sourceId === self.id && cell.kind === 'dark';
+  // Without dark of its own the observer sees the field as it stands; with some, the field is
+  // re-resolved from every contribution but its own dark.
+  const { lightByCell, darkStacksByCell } = observation.affinityContributions.some(ownDark)
+    ? (() => {
+      // The overlap resolves one cell's contributions at a time.
+      const byCell = new Map<string, typeof observation.affinityContributions>();
+      for (const cell of observation.affinityContributions) {
+        if (ownDark(cell)) continue;
+        const key = `${cell.position.x},${cell.position.y}`;
+        byCell.set(key, [...(byCell.get(key) ?? []), cell]);
+      }
+      const others = [...byCell.values()].flatMap(cells => resolveActorFieldOverlap(cells));
+      return resolveNetLightDark(fieldIntensityByCell(others, 'light'), fieldIntensityByCell(others, 'dark'));
+    })()
+    : resolveRegistryLightDark(observation);
   const tile = `${self.position.x},${self.position.y}`;
   const ownLight = (lightByCell[tile] ?? 0) > 0 ? litLightRange(self) : 0;
   // Blinding dark (#284): the field at the tile re-resolved without the observer's own dark.
   const atTile = observation.affinityContributions.filter(cell => cell.position.x === self.position.x
-    && cell.position.y === self.position.y && !(cell.sourceId === self.id && cell.kind === 'dark'));
+    && cell.position.y === self.position.y && !ownDark(cell));
   const othersDark = fieldIntensityByCell(resolveActorFieldOverlap(atTile), 'dark')[tile] ?? 0;
   return {
     radius: resolveVisibilityRadius({ lightStacks: ownLight, blindingDarkIntensity: othersDark }),

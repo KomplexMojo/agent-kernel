@@ -174,7 +174,8 @@ cancels the strongest emitted light against the strongest emitted dark, stack fo
 is lit, seen from any distance; more dark and the cell, and anyone in it, is hidden beyond one tile; a tie is
 neither. An emit of s stacks reaches s tiles. Dark from other sources that still survives on the actor's own tile
 by two or more stacks, with its own dark left out, blinds it: it sees only its own tile, plus lit cells in line of
-sight (#284); an actor's own dark never blinds it. Light and dark switch on and off like every lasting affinity:
+sight (#284); an actor's own dark never blinds it, and never hides a cell from it either: each actor sees the field
+re-resolved without its own dark, while everyone else sees that dark (#409). Light and dark switch on and off like every lasting affinity:
 full strength while on, dark once a drained source switches off until its mana is full again. Core then applies deterministic line of sight: walls and barriers block actors and hazards behind
 them, including diagonal corner peeking. The shared world snapshot is
 never mutated, and resources remain absent because actor observations do not currently expose them.
