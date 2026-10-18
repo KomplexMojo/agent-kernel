@@ -40,6 +40,9 @@ import {
   chebyshevDistance,
   findPath,
   actorCanExit,
+  isDiagonalStepAllowed,
+  isOccupied,
+  isPassable,
 } from "./proposal-helpers.js";
 import { getMotivationModule } from "./motivations/index.js";
 import {
@@ -1563,8 +1566,8 @@ export function actorStrategyIgnoredParts(strategy, motivationKinds) {
  * order, kept in the Actor context) or else the level's (`initialState.strategies`).
  * Returns null for an actor with no strategy.
  */
-function resolveStrategyTurn({ entry, payload, observation, observationView, simConfig, actorId, tick, baseTiles }) {
-  const strategy = entry?.order ?? payload?.initialState?.strategies?.[actorId];
+function resolveStrategyTurn({ entry, payload, observation, observationView, simConfig, actorId, tick, baseTiles, adopted }) {
+  const strategy = adopted ?? entry?.order ?? payload?.initialState?.strategies?.[actorId];
   if (!strategy) return null;
   const actor = resolveActor(observationView, actorId, observation);
   const record = resolveActorRecord(observationView, actorId, observation);
@@ -1599,6 +1602,68 @@ function resolveStrategyTurn({ entry, payload, observation, observationView, sim
     commandProposal: (command) => buildCommandProposals({ command, observationView, observation, actorId })[0] ?? null,
   };
   return { depth, ...followStrategy({ strategy: canonical, depth, entry: entry ?? {}, context }) };
+}
+
+/**
+ * #308 — the goal a thinking actor adopts from its other motivations when nobody gave it
+ * an order or a strategy (Darren, 2026-10-17, option A): an attacker that sees a hostile
+ * goes to defeat the nearest one; an explorer goes to reach the exit. Anything else adopts
+ * nothing and plays its motivations as before. The same for every affinity.
+ */
+function defaultCognitionGoal(kinds, nearestHostile) {
+  if (kinds.includes("attacking") && nearestHostile?.id) return { kind: "defeat", target: nearestHostile.id };
+  if (kinds.includes("exploring")) return { kind: "reach", place: "exit" };
+  return null;
+}
+
+/**
+ * #308 — a thinking actor's turn with no order and no strategy. `goal_oriented` adopts a
+ * goal once and follows it to the end (a planned route, not one-step ranking);
+ * `strategy_focused` re-plans every turn, so it changes goal when the situation changes.
+ * A `user_controlled` actor is the player's, so it adopts nothing. Returns null when no
+ * goal applies; the turn then goes to the actor's motivations.
+ */
+function resolveCognitionTurn({ entry, payload, observationView, actorId, ...rest }) {
+  const kinds = resolveActorMotivationKinds(observationView, actorId, payload);
+  if (kinds.includes("user_controlled")) return null;
+  const depth = strategyDepth(kinds);
+  if (depth === STRATEGY_DEPTH.NONE) return null;
+  const replans = depth === STRATEGY_DEPTH.FULL;
+  const keeps = !replans && entry?.adopted
+    && ![STRATEGY_STATUS.DONE, STRATEGY_STATUS.STALLED].includes(entry.status);
+  const goal = keeps
+    ? entry.adopted
+    : defaultCognitionGoal(kinds, resolveNearestHostile(observationView, actorId)?.actor);
+  if (!goal) return null;
+  const sameGoal = Boolean(entry?.adopted) && JSON.stringify(entry.adopted) === JSON.stringify(goal);
+  const turn = resolveStrategyTurn({ ...rest, payload, observationView, actorId,
+    entry: sameGoal ? entry : {}, adopted: { goals: [goal] } });
+  if (!turn) return null;
+  return { ...turn, entry: { ...turn.entry, adopted: goal } };
+}
+
+/**
+ * #308 — `reflexive` reacts to what touches it this tick: standing in a field that harms
+ * it, it steps to the adjacent free cell that harms it least (the first in direction order
+ * on a tie), or holds when no step is better. Unharmed, it has no reflex to add.
+ */
+function buildReflexProposals({ record, observation, view, payload, baseTiles }) {
+  if (!record?.position || record.lifecycle === "defeated") return [];
+  const evaluate = (endPosition) => fieldUtilityRanks({ endPosition, actorRecord: record,
+    affinityFields: observation?.affinityFields, affinityContributions: observation?.affinityContributions }).safety;
+  const here = evaluate(record.position);
+  if (here >= 0) return [];
+  if (record.capabilities?.canMove === false) return [{ kind: "wait" }];
+  const tileKinds = resolveTileKinds(view, payload);
+  let best = null;
+  for (const delta of DEFAULT_DELTAS) {
+    const cell = { x: record.position.x + delta.dx, y: record.position.y + delta.dy };
+    if (!isPassable(cell, tileKinds, baseTiles) || isOccupied(cell, view, record.id)
+      || !isDiagonalStepAllowed(record.position, cell, tileKinds, baseTiles)) continue;
+    const safety = evaluate(cell);
+    if (safety > here && (!best || safety > best.safety)) best = { cell, safety };
+  }
+  return best ? [{ kind: "move", params: { target: best.cell } }] : [{ kind: "wait" }];
 }
 
 /** Keep a follower's own moves within `distance` of `center`; everything else stays. */
@@ -1707,12 +1772,26 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       }
     }
     const followsStrategy = strategyTurn && strategyTurn.depth !== STRATEGY_DEPTH.NONE;
+    // #308 — with no order and no strategy, a thinking actor adopts a goal of its own.
+    const cognitionTurn = shouldEmitActions && strategyActorId && !commandProposals && !strategyTurn
+      && payload.strategyOrder === undefined
+      ? resolveCognitionTurn({ entry: view().context.cognition?.[strategyActorId], payload, observation,
+        observationView, simConfig, actorId: strategyActorId, tick, baseTiles })
+      : null;
     let derivedProposals = [];
     if (shouldEmitActions) {
       if (commandProposals) derivedProposals = commandProposals;
       else if (followsStrategy && strategyTurn.proposals) derivedProposals = strategyTurn.proposals;
+      else if (cognitionTurn?.proposals) derivedProposals = cognitionTurn.proposals;
       else {
-        derivedProposals = buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed });
+        const reflex = strategyActorId
+          && resolveActorMotivationKinds(observationView, strategyActorId, payload).includes("reflexive")
+          ? buildReflexProposals({ record: resolveActorRecord(observationView, strategyActorId, observation),
+            observation, view: observationView, payload, baseTiles })
+          : [];
+        derivedProposals = reflex.length > 0
+          ? reflex
+          : buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed });
         if (followsStrategy && strategyTurn.keepNear) derivedProposals = keepProposalsNear(derivedProposals, strategyTurn.keepNear);
       }
       // An actor with a strategy always takes its turn, so its progress is always kept.
@@ -1778,6 +1857,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
     const fsmPayload = {
       ...(shouldEmitActions && Array.isArray(transitionProposals) ? { ...payload, proposals: transitionProposals } : payload),
       ...(strategyEntry ? { strategyEntry: { actorId: strategyActorId, entry: strategyEntry } } : {}),
+      ...(cognitionTurn ? { cognitionEntry: { actorId: strategyActorId, entry: cognitionTurn.entry } } : {}),
     };
     const result = fsm.advance(event, fsmPayload);
     if (!shouldEmitActions) {

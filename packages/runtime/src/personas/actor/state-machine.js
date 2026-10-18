@@ -49,7 +49,10 @@ export function createActorStateMachine({ initialState = ActorStates.IDLE, clock
   };
 
   function view() {
-    return { state, context: context.strategies ? { ...context, strategies: structuredClone(context.strategies) } : { ...context } };
+    const copy = { ...context };
+    if (context.strategies) copy.strategies = structuredClone(context.strategies);
+    if (context.cognition) copy.cognition = structuredClone(context.cognition);
+    return { state, context: copy };
   }
 
   function advance(event, payload = {}) {
@@ -74,6 +77,12 @@ export function createActorStateMachine({ initialState = ActorStates.IDLE, clock
     const strategyEntry = payload.strategyEntry;
     if (strategyEntry && typeof strategyEntry.actorId === "string" && strategyEntry.actorId) {
       nextContext.strategies = { ...(context.strategies || {}), [strategyEntry.actorId]: structuredClone(strategyEntry.entry) };
+    }
+    // #308 — the goal a thinking actor adopted on its own (no order, no level strategy).
+    // Kept apart from `strategies`, which hold only what someone ordered or authored.
+    const cognitionEntry = payload.cognitionEntry;
+    if (cognitionEntry && typeof cognitionEntry.actorId === "string" && cognitionEntry.actorId) {
+      nextContext.cognition = { ...(context.cognition || {}), [cognitionEntry.actorId]: structuredClone(cognitionEntry.entry) };
     }
 
     state = nextState;
