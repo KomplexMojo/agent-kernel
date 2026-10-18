@@ -2,13 +2,22 @@ import type { ActorRecord, ActorHolding, ActorVitalHolding } from './actor-types
 import { affinityKey, MAX_AFFINITY_SLOTS } from './actor-inventory.ts';
 import { getActorAffinityEffect } from '../rules/actor-affinity.ts';
 
+/**
+ * #406: whose holdings a receiver may take. A defeated actor's, always; an intact one's only
+ * when it cannot move (a resource), and then only its authored holdings: affinity rewards
+ * are derived at defeat, so an intact actor has none to give.
+ */
+export function actorHoldingsOpen(source: ActorRecord): boolean {
+  return source.lifecycle === 'defeated' || source.lifecycle === 'alive' && !source.capabilities.canMove;
+}
+
 export function validateActorHoldings(actor: ActorRecord): void {
   if (!Array.isArray(actor.holdings)) throw new Error('invalid holdings');
   const ids = new Set<string>();
   for (const holding of actor.holdings) {
     if (!holding || typeof holding.id !== 'string' || !holding.id.trim() || ids.has(holding.id)
       || !(holding.claimedBy === null || typeof holding.claimedBy === 'string' && holding.claimedBy.trim())
-      || actor.lifecycle === 'alive' && holding.claimedBy !== null) throw new Error('invalid holding identity/claim');
+      || actor.lifecycle === 'alive' && holding.claimedBy !== null && !actorHoldingsOpen(actor)) throw new Error('invalid holding identity/claim');
     ids.add(holding.id);
     if (holding.kind === 'affinity') {
       getActorAffinityEffect(holding.affinity, holding.expression);
@@ -63,7 +72,7 @@ function grantVitals(draft: ActorRecord, holding: ActorVitalHolding): boolean {
 export function explainTakeActorHolding(receiver: ActorRecord | undefined, source: ActorRecord | undefined, holdingId: string): string | null {
   if (!receiver || receiver.lifecycle !== 'alive') return 'WrongActor';
   if (!receiver.capabilities.canTake) return 'InvalidCapability';
-  if (!source || source.lifecycle !== 'defeated') return 'InvalidTarget';
+  if (!source || !actorHoldingsOpen(source)) return 'InvalidTarget';
   if (Math.max(Math.abs(receiver.position.x - source.position.x),
     Math.abs(receiver.position.y - source.position.y)) > 1) return 'NotAdjacent';
   const holding = source.holdings.find(entry => entry.id === holdingId);

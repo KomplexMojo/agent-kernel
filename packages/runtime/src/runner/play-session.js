@@ -69,6 +69,7 @@ import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
 import { actorCastableAffinities } from "../../../core-ts/src/rules/actor-cast.ts";
+import { actorHoldingsOpen } from "../../../core-ts/src/state/actor-holdings.ts";
 
 export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
 
@@ -533,12 +534,13 @@ function toViewActor(actor, presentation, labels) {
   };
 }
 
-// Holdings are core's derived data (one per affinity of the defeated actor); this
-// only lists them, by actor id, in the shape a take command needs.
+// Holdings are core's data: authored ones, plus one per affinity once an actor is defeated.
+// Core says whose may be taken (a defeated actor's, or an intact resource's, #406); this only
+// lists them, by actor id, in the shape a take command needs.
 function lootNextTo(snapshot, player) {
   const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   return snapshot.actors
-    .filter((actor) => actor.lifecycle === "defeated" && Array.isArray(actor.holdings)
+    .filter((actor) => actor.id !== player.id && actorHoldingsOpen(actor) && Array.isArray(actor.holdings)
       && Math.max(Math.abs(actor.position.x - player.position.x), Math.abs(actor.position.y - player.position.y)) <= 1)
     .sort(byId)
     .flatMap((actor) => actor.holdings
@@ -610,8 +612,8 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
         position: { ...player.position },
       }
       : null,
-    // What the player could `take` this turn: unclaimed holdings of defeated actors
-    // next to it. Whether a take succeeds is still core's call.
+    // What the player could `take` this turn: unclaimed holdings of defeated actors and
+    // intact resources next to it. Whether a take succeeds is still core's call.
     loot: player && player.lifecycle === "alive" ? lootNextTo(snapshot, player) : [],
     // Every OTHER living actor in sight (id, role, position, vitals, affinities), for the
     // UI to draw over the board. Traps are reported in `hazards` instead.
