@@ -34,11 +34,11 @@ const FIXTURE_LEVELS_DIR = resolve(ROOT, "tests/fixtures/ui-ascii/levels");
 const fixtureLevel = (name) => loadBundledLevel(name, FIXTURE_LEVELS_DIR);
 const fixtureLevels = () => loadBundledLevels(FIXTURE_LEVELS_DIR);
 // first-steps fixture: from the spawn approach (1,1) onto the exit (8,7), then wait out the dwell.
-// Stamina only recovers on a turn without a move (#273): the default pool (2, regen 2) walks two
-// steps, then rests one turn.
+// The rests in it date from #273 (stamina only on a turn without a move); since #407 stamina
+// regenerates every tick, so they are just waits.
 const FIRST_STEPS_SOLUTION = "dd.ss.dd.ss.ss.dd.d.";
 
-/** Move along `path`, resting a turn first whenever the player cannot pay for the step (#273). */
+/** Move along `path`, resting a turn first whenever the player cannot pay for the step. */
 async function walk(session, path, onMove = () => {}) {
   for (const direction of path) {
     for (let waits = 0; (session.view().player.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1; waits += 1) {

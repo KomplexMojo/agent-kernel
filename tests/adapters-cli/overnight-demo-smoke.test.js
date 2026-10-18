@@ -12,8 +12,10 @@ const demo = (...sections) => spawnSync("bash", [SCRIPT, ...sections], { cwd: RO
 test("the stamina, rename and regen sections run through ak", () => {
   const result = demo("stamina", "rename", "regen");
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /move {2}ST 9\/10/);
-  assert.match(result.stdout, /wait {2}ST 7\/10/);
+  // #407: a step costs 1 and regen 1 returns it, so walking never drains the pool.
+  assert.doesNotMatch(result.stdout, /move {2}ST [0-9]\/10/);
+  assert.match(result.stdout, /move {2}ST 10\/10/);
+  assert.match(result.stdout, /wait {2}ST 10\/10/);
   assert.match(result.stdout, /affinity must be one of: .*growth/);
   assert.match(result.stdout, /"wastedTokens":125/);
 });
