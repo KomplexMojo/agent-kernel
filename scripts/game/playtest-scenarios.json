@@ -15,7 +15,7 @@
       "args": [
         "--room", "size=medium;count=2",
         "--delver", "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:1;equip={A}:emit;motivation=user_controlled;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1",
-        "--warden", "count=1;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=stationary;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
+        "--warden", "count=1;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
         "--resource", "permanenceMode=consumable;vital=health;delta=10"
       ]
     },
