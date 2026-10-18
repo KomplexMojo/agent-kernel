@@ -506,6 +506,9 @@ Inputs/outputs:
     --warden "count=3;affinity=earth;motivation=stationary" \
     --place "hazard:trap1;near=exit:1" --place "warden:*;near=hazard:trap1:2;count=2"
   ```
+- Authored `vitals=` on `--delver` and `--warden` are kept as written (#371): the movement and cast floors fill only
+  a stamina regen or mana pool left at 0. A value you set that a floor still raises (a pool below one step, a vital
+  below the viability floor) is listed in the result's `vitalsReport` as `{ actorId, vital, field, set, built, floor }`.
 - `--delver` and `--warden` accept `strategy=`: standing orders each actor the card makes follows on its own turns.
   Compact goals run in order: `reach:exit|reach:<x>/<y>`, `defeat:<id>`, `take:<id>`, `guard:<id>[:radius]`,
   `follow:<id>[:distance]`, `lead:<id>[:distance]` (to the exit), `hold:<x>/<y>:<ticks>`, `survive[:distance]`.

@@ -4079,6 +4079,8 @@ async function writeBuildOutputs({
       ...(costSummary !== undefined ? { cost: costSummary } : {}),
       ...(placedObjects !== undefined ? { placedObjects } : {}),
       ...(placementReport !== undefined ? { placementReport } : {}),
+      // #371: authored vitals a Configurator floor raised, so none changes silently.
+      ...(buildResult.vitalsReport?.length > 0 ? { vitalsReport: buildResult.vitalsReport } : {}),
     },
   });
 }

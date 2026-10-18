@@ -43,6 +43,7 @@ import { normalizeMotivations } from "./motivation-loadouts.js";
 import { assessLayoutFeasibility } from "./feasibility.js";
 import {
   applyAffinityDerivedVitalRequirements,
+  applyAuthoredActorVitalFloors,
   applyMotivationDerivedVitalRequirements,
   applyViabilityDerivedVitalRequirements,
   assessDelverStructure,
@@ -382,6 +383,8 @@ export function attachConfiguratorServices({ fsm } = {}) {
     reportActorStrategies,
     /** AM.5/F14 — an actor holding an affinity must be able to pay to express it. */
     applyAffinityDerivedVitalRequirements,
+    /** #371 — all three floors on an authored actor, and which set values they raised. */
+    applyAuthoredActorVitalFloors,
     /**
      * "What are this card's vitals, with defaults applied?" — a question about card
      * shape, which is why the Allocator asks it rather than answering it. It priced

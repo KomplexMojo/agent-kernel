@@ -229,6 +229,13 @@ The stamina floor (`applyMovementStaminaFloor`) gives a mover a pool and regen t
 move. Core regenerates stamina only on turns an actor does not move (#273), so at the floor an actor walks a short
 burst and then rests; a longer burst is a bigger pool, which the Allocator prices like any other vital.
 
+Authored vitals stand (#371). The stamina regen floor and the cast floor (`applyAffinityDerivedVitalRequirements`,
+mana max raised to one cast) fill only a value left unset at 0; a regen of 1 means more rest turns, and a pool
+smaller than one cast keeps that affinity off, both as the author wrote. `applyAuthoredActorVitalFloors` applies
+the movement, cast and viability floors to each authored actor in `ak create` and returns every max or regen
+someone set (anything other than `DEFAULT_VITALS`) that a floor still raised, such as a pool below one step or
+health below the viability floor; the create result lists them under `vitalsReport`.
+
 The existing `configurator_satisfiability` constraint domain remains reserved for Z9 object-placement
 assignment, which is a genuine combinatorial search. It uses
 `context.problemKind: "object_placement"`. Core's live resource-affinity grant slots are runtime state,
