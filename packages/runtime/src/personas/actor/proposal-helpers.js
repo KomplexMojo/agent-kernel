@@ -201,42 +201,48 @@ export function findPath(start, goal, tileKinds, baseTiles) {
   const width = tileKinds && Array.isArray(tileKinds[0]) ? tileKinds[0].length : baseTiles && baseTiles[0] ? String(baseTiles[0]).length : 0;
   if (width === 0 || height === 0) return null;
 
-  const queue = [start];
-  const cameFrom = {};
-  const startKey = `${start.x},${start.y}`;
-  cameFrom[startKey] = null;
-  let head = 0;
-
-  while (head < queue.length) {
-    const current = queue[head];
-    head += 1;
-    if (current.x === goal.x && current.y === goal.y) {
-      const path = [];
-      let key = `${goal.x},${goal.y}`;
-      while (key) {
-        const [x, y] = key.split(",").map((v) => Number(v));
-        path.unshift({ x, y });
-        key = cameFrom[key];
-      }
-      return path;
+  // Breadth-first over cell indexes: visit order matches the eight-way deltas, so
+  // the path is the same one a keyed search finds, without a string per cell.
+  const NONE = -1;
+  const FROM_START = -2;
+  const cells = width * height;
+  const parent = new Int32Array(cells).fill(NONE);
+  const queue = new Int32Array(cells);
+  const inBounds = (x, y) => x >= 0 && y >= 0 && x < width && y < height;
+  const goalIndex = inBounds(goal.x, goal.y) ? goal.y * width + goal.x : NONE;
+  if (inBounds(start.x, start.y)) parent[start.y * width + start.x] = FROM_START;
+  const toPath = (index) => {
+    const path = [];
+    for (let at = index; at !== FROM_START; at = parent[at]) {
+      path.push({ x: at % width, y: Math.floor(at / width) });
     }
+    path.push({ x: start.x, y: start.y });
+    return path.reverse();
+  };
+  let head = 0;
+  let tail = 0;
+  let current = { x: start.x, y: start.y };
+  let currentIndex = FROM_START;
+  for (;;) {
     for (const delta of DEFAULT_DELTAS) {
       const next = { x: current.x + delta.dx, y: current.y + delta.dy };
-      if (next.x < 0 || next.y < 0 || next.x >= width || next.y >= height) {
-        continue;
-      }
-      const key = `${next.x},${next.y}`;
-      if (Object.prototype.hasOwnProperty.call(cameFrom, key)) {
-        continue;
-      }
-      const isGoal = next.x === goal.x && next.y === goal.y;
+      if (!inBounds(next.x, next.y)) continue;
+      const index = next.y * width + next.x;
+      if (parent[index] !== NONE) continue;
+      const isGoal = index === goalIndex;
       if ((!isPassable(next, tileKinds, baseTiles) && !isGoal)
         || !isDiagonalStepAllowed(current, next, tileKinds, baseTiles)) {
         continue;
       }
-      cameFrom[key] = `${current.x},${current.y}`;
-      queue.push(next);
+      parent[index] = currentIndex;
+      if (isGoal) return toPath(index);
+      queue[tail] = index;
+      tail += 1;
     }
+    if (head >= tail) break;
+    currentIndex = queue[head];
+    head += 1;
+    current = { x: currentIndex % width, y: Math.floor(currentIndex / width) };
   }
   return null;
 }
@@ -268,10 +274,24 @@ export function buildMoveProposal({ observation, payload, simConfig }) {
     && chebyshevDistance(actor.position, portal) === 1) {
     return [{ kind: "move", params: { target: portal } }];
   }
-  const path = findPath(actor.position, exit, tileKinds, baseTiles);
+  const path = findPath(actor.position, exit, tileKinds, baseTiles)
+    ?? findTerrainRoute(actor.position, exit, tileKinds, baseTiles);
   if (!path || path.length < 2) return [];
   const to = path[1];
   return [{ kind: "move", params: { target: to } }];
+}
+
+/**
+ * When actors plug every route (wardens seated around the exit), walk the terrain
+ * route as far as it is free: the actor closes in on whoever holds the way instead
+ * of waiting out the run. Null when terrain itself has no route or the first step
+ * is occupied.
+ */
+function findTerrainRoute(start, goal, tileKinds, baseTiles) {
+  if (!tileKinds || !baseTiles) return null;
+  const route = findPath(start, goal, null, baseTiles);
+  if (!route || route.length < 2) return null;
+  return isPassable(route[1], tileKinds, baseTiles) ? route : null;
 }
 
 export function roomPerimeterRing(room, tileKinds, baseTiles) {

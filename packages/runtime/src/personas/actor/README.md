@@ -7,6 +7,9 @@ capabilities govern movement/exit/casting, and terminal actors stop deciding.
 Movement actions contain `params.target`; focused casts contain `params.targetId`.
 Only active push/pull equipment supplies focused casting and its range. Cast
 ranking reads shared actor mana. Ordinary walls and floors remain terrain.
+When other actors plug every route to the exit (wardens seated around it), the
+exit walk follows the terrain route as far as it is free instead of waiting, so
+the actor closes in on whoever holds the way.
 
 Runtime observations now project independent movement and sight grids, active
 fields, and live actor records from core. Observing applies no field effects.
