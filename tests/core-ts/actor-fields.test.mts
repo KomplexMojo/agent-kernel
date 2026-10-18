@@ -158,11 +158,17 @@ test('canceled emission cannot be harvested by a nearby matching draw', () => {
   expect(state.getActor('absorber')!.vitals.mana!.current).toBe(0);
 });
 test('a source defeated during the pass neither emits later nor remains in returned fields', () => {
-  const state = registry([actor('a', 0, { kind: 'decay', expression: 'emit', stacks: 1, intensity: 4 }),
-    actor('b', 0, fire), actor('c', 0)]);
+  // `c` is sturdy enough to survive the decay, which reaches it as fully as it reaches `b` (#347),
+  // so any fire from the defeated `b` would show on top of the decay alone.
+  const sturdy = () => { const c = actor('c', 0); c.vitals.health = { current: 30, max: 30, regen: 0 }; return c; };
+  const decay = { kind: 'decay', expression: 'emit', stacks: 1, intensity: 4 } as const;
+  const alone = registry([actor('a', 0, decay), sturdy()]);
+  resolveActorFields(alone);
+  const state = registry([actor('a', 0, decay), actor('b', 0, fire), sturdy()]);
   const result = resolveActorFields(state);
   expect(state.getActor('b')!.lifecycle).toBe('defeated');
-  expect(state.getActor('c')!.vitals.health!.current).toBe(10);
+  expect(state.getActor('c')!.vitals.health!.current).toBe(alone.getActor('c')!.vitals.health!.current);
+  expect(state.getActor('c')!.vitals.health!.current).toBeLessThan(30);
   expect(result.fields.some(cell => cell.sourceId === 'b')).toBe(false);
 });
 test('every opposed pair: an intensity-1 emit on an intensity-3 source leaves the stronger side at 2, whatever the range (#290, #340)', () => {
