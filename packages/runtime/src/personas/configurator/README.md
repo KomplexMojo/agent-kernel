@@ -404,7 +404,13 @@ adapters to compile it through their generic linear solver without learning Conf
 
 When the domain is unavailable, deferred, or errors, completion uses the characterized
 hazards-first row-major fallback. A solver `unsat` is final and reports one actionable family:
-`capacity`, `containment`, `collision`, or `path_obstruction`. Both surfaces are stateless and pure;
+`capacity`, `containment`, `collision`, or `path_obstruction`.
+
+Both paths share one route test (#297, Darren 2026-10-17): a blocking object counts against the
+spawn-to-exit route only if it can't be destroyed (no durability to lose). A destroyable trap is
+passable, so it never causes `path_obstruction`. The fallback stays first-fit and refuses with
+`path_obstruction` when its cell would seal the route, rather than emitting a level that can't be
+finished. Both surfaces are stateless and pure;
 neither mutates caller-owned layout or object data. Hazard affinities become owned equipment with
 the authored pair active; category-specific hazard/resource collections do not enter SimConfig.
 

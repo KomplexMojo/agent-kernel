@@ -45,6 +45,22 @@ function collectLegacyWalkablePositions(layout) {
   return terrainPositions(layout).filter(point => !blocked.has(pointKey(point)));
 }
 
+/**
+ * #297 (Darren, 2026-10-17): the one route test both placement paths share. A blocking
+ * object counts against the spawn-to-exit route only if it can't be destroyed, i.e. it has
+ * no durability to lose. A destroyable trap is passable (Darren's rule, 2026-10-13), so it
+ * never seals the route. With no authored durability a hazard takes the Configurator's
+ * default, which is always above zero, so it is destroyable.
+ */
+function sealsRoute(value) {
+  if (value?.blocking !== true) return false;
+  const authored = [value?.vitals?.durability, value?.durability]
+    .find((vital) => vital && typeof vital === "object" && !Array.isArray(vital));
+  if (!authored) return false;
+  const max = [authored.max, authored.amount, authored.current].find((amount) => Number.isFinite(amount));
+  return !(max > 0);
+}
+
 function collectObjects(hazards = [], resources = []) {
   return [
     ...hazards.map((value, index) => ({
@@ -57,7 +73,7 @@ function collectObjects(hazards = [], resources = []) {
       kind: "resource",
       id: typeof value?.id === "string" && value.id.trim() ? value.id.trim() : `resource_${index + 1}`,
     })),
-  ].map((entry, index) => ({ ...entry, index }));
+  ].map((entry, index) => ({ ...entry, index, sealsRoute: sealsRoute(entry.value) }));
 }
 
 function existingPlacementState(layout, actors = []) {
@@ -73,7 +89,7 @@ function existingPlacementState(layout, actors = []) {
   add(data.spawnApproach || terrainMarker(data, "spawn"));
   add(data.exitApproach || terrainMarker(data, "exit"));
   actors.forEach((actor) => add(actor));
-  (Array.isArray(data.hazards) ? data.hazards : []).forEach((hazard) => add(hazard, hazard?.blocking === true));
+  (Array.isArray(data.hazards) ? data.hazards : []).forEach((hazard) => add(hazard, sealsRoute(hazard)));
   (Array.isArray(data.resources) ? data.resources : []).forEach((resource) => add(resource));
   return { occupied, blocking };
 }
@@ -156,7 +172,7 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
     }
     if (occupied.has(pointKey(point))) return { status: "unsat", reason: "collision" };
     occupied.add(pointKey(point));
-    if (object.value?.blocking === true) blocking.add(pointKey(point));
+    if (object.sealsRoute) blocking.add(pointKey(point));
     fixed.set(object.index, point);
   }
 
@@ -222,7 +238,7 @@ export function buildObjectPlacementProblem(args = {}) {
 
   const dynamicBlockers = context.pending
     .map((object, index) => ({ object, index }))
-    .filter(({ object }) => object.value?.blocking === true);
+    .filter(({ object }) => object.sealsRoute);
   if (dynamicBlockers.length > 0) {
     const usable = context.cells.filter((cell) => !context.blocking.has(pointKey(cell)));
     const usableKeys = new Set(usable.map(pointKey));
@@ -376,12 +392,14 @@ export function consumeObjectPlacementResult({ prepared, rawResult } = {}) {
     || reportedObjectives.some((value, index) => value !== expectedObjectives[index])) valid = false;
   const blocking = new Set(prepared.blocking);
   prepared.pending.forEach((object) => {
-    if (object.value?.blocking === true && solved.has(object.index)) blocking.add(pointKey(solved.get(object.index)));
+    if (object.sealsRoute && solved.has(object.index)) blocking.add(pointKey(solved.get(object.index)));
   });
   if (!pathExists(prepared.cells, prepared.spawn, prepared.exit, blocking)) valid = false;
   if (!valid) return { ok: false, status: "error", reason: "configurator_object_placement_model_invalid" };
   return applyPlacements(prepared, solved, "solver");
 }
+
+class RouteObstruction extends Error {}
 
 function placeObjectsLegacy({ layout, hazards = [], resources = [], affinityRules } = {}) {
   const output = clone(layout);
@@ -391,9 +409,21 @@ function placeObjectsLegacy({ layout, hazards = [], resources = [], affinityRule
     const point = normalizePoint(value);
     if (point) occupied.add(pointKey(point));
   };
-  reserve(data.spawnApproach || terrainMarker(data, "spawn"));
-  reserve(data.exitApproach || terrainMarker(data, "exit"));
+  const spawn = normalizePoint(data.spawnApproach || terrainMarker(data, "spawn"));
+  const exit = normalizePoint(data.exitApproach || terrainMarker(data, "exit"));
+  reserve(spawn);
+  reserve(exit);
   (Array.isArray(data.hazards) ? data.hazards : []).forEach(reserve);
+  // The same route test the solver path enforces (#297). The fallback stays first-fit (it is
+  // not a search; finding a cell that keeps the route open is the solver's job), so a
+  // first-fit cell that would seal the spawn-to-exit route refuses the level instead of
+  // emitting one that cannot be finished.
+  const cells = collectWalkablePositions(output);
+  const sealed = new Set((Array.isArray(data.hazards) ? data.hazards : []).filter(sealsRoute)
+    .map(normalizePoint).filter(Boolean).map(pointKey));
+  const routeOpen = !spawn || !exit || pathExists(cells, spawn, exit, sealed);
+  const keepsRoute = (value, cell) => !routeOpen || !sealsRoute(value)
+    || pathExists(cells, spawn, exit, new Set([...sealed, pointKey(cell)]));
   const place = (values, kind) => {
     const walkable = collectLegacyWalkablePositions(output);
     const walkableKeys = new Set(walkable.map(pointKey));
@@ -408,6 +438,7 @@ function placeObjectsLegacy({ layout, hazards = [], resources = [], affinityRule
         const candidate = candidates[cursor++];
         if (!occupied.has(pointKey(candidate))) assigned = candidate;
       }
+      if (assigned && !keepsRoute(value, assigned)) throw new RouteObstruction();
       if (!assigned) {
         throw new Error(
           `configurator inputs could not place ${kind}: insufficient unoccupied walkable tiles `
@@ -415,12 +446,20 @@ function placeObjectsLegacy({ layout, hazards = [], resources = [], affinityRule
         );
       }
       occupied.add(pointKey(assigned));
+      if (sealsRoute(value)) sealed.add(pointKey(assigned));
       const id = typeof value?.id === "string" && value.id.trim() ? value.id.trim() : `${kind}_${index + 1}`;
       return { ...value, id, position: { ...assigned }, x: assigned.x, y: assigned.y };
     });
   };
-  const placedHazards = place(Array.isArray(hazards) ? hazards : [], "hazard");
-  const placedResources = place(Array.isArray(resources) ? resources : [], "resource");
+  let placedHazards;
+  let placedResources;
+  try {
+    placedHazards = place(Array.isArray(hazards) ? hazards : [], "hazard");
+    placedResources = place(Array.isArray(resources) ? resources : [], "resource");
+  } catch (error) {
+    if (error instanceof RouteObstruction) return { ok: false, status: "unsat", reason: "path_obstruction" };
+    throw error;
+  }
   const allHazards = [...(Array.isArray(data.hazards) ? data.hazards : []), ...placedHazards];
   delete data.hazards;
   return { ok: true, source: "fallback", layout: output,

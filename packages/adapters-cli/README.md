@@ -407,7 +407,9 @@ Inputs/outputs:
   `sim-config.json` hazards carry the mapped absolute coordinates. Coordinates
   outside the room interior are rejected with a structured `hazard_outside_room`
   error. `blocking=true` hazards are valid on floor tiles and do not count toward
-  the `--floor-tile` walkable target.
+  the `--floor-tile` walkable target. A blocking hazard only seals the
+  spawn-to-exit route when it has no durability to lose (durability max 0);
+  a destroyable one is passable, so it never causes `path_obstruction` (#297).
 - In multi-room requests, the `--floor-tile` budget is distributed across all
   declared rooms. Budgets below the minimum viable interior per room are
   rejected instead of leaving declared rooms uncarved.
