@@ -1,10 +1,11 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import { projectActorFields } from './actor-fields.ts';
-import { computeVisibleCells, NET_DARK_OBSCURE_STACK_THRESHOLD, resolveNetLightDark, resolvePoweredLightStacks,
+import { computeVisibleCells, NET_DARK_OBSCURE_INTENSITY_THRESHOLD, resolveNetLightDark, resolvePoweredLightStacks,
   resolveVisibilityRadius, scopeObservation, SIGHT_LIGHT_EXPRESSION } from '../state/visibility.ts';
 import { computeAffinityRadius } from '../state/affinity-spatial.ts';
 import type { ActorRecord, ActorRegistrySnapshot } from '../state/actor-types.ts';
 import { litActorAffinities } from './actor-upkeep.ts';
+import { affinityIntensity } from '../state/actor-inventory.ts';
 import { AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 
 /** Detached facts; reading an observation never applies exposure or advances time. */
@@ -31,12 +32,13 @@ type RegistryObservation = ReturnType<typeof readActorRegistryObservation>;
 
 /**
  * Fog of war: emitted light reaching each cell, keyed `x,y`, as the strongest
- * source's powered stacks. A living light-on-emit actor whose affinity is on
- * shines with its mana-powered stacks (`resolvePoweredLightStacks`), so a
- * drained source is dark and regen relights it. Reach is the emit radius of
- * those stacks, Manhattan like the field projection but without the emit dead
- * zone (a lamp should not leave a dark ring around itself). Dark is weighed per
- * cell by the visibility rule, not here.
+ * source's powered intensity (#340: range is how far light reaches, intensity
+ * is what beats dark). A living light-on-emit actor whose affinity is on shines
+ * with its mana-powered range and intensity (`resolvePoweredLightStacks`), so a
+ * drained source is dark and regen relights it. Reach is the emit radius of the
+ * range, Manhattan like the field projection but without the emit dead zone (a
+ * lamp should not leave a dark ring around itself). Dark is weighed per cell by
+ * the visibility rule, not here.
  */
 export function readActorRegistryLightByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensions' | 'actors'>): Record<string, number> {
   return readEmittedStacksByCell(snapshot, 'light');
@@ -44,8 +46,8 @@ export function readActorRegistryLightByCell(snapshot: Pick<ActorRegistrySnapsho
 
 /**
  * The dark half of the same reading: emitted dark reaching each cell as the
- * strongest source's powered stacks, with the same reach and the same mana
- * powering as light, so the two compare stack for stack (#203).
+ * strongest source's powered intensity, with the same reach and the same mana
+ * powering as light, so the two compare intensity for intensity (#203, #340).
  */
 export function readActorRegistryDarkByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensions' | 'actors'>): Record<string, number> {
   return readEmittedStacksByCell(snapshot, 'dark');
@@ -57,32 +59,40 @@ function readEmittedStacksByCell(snapshot: Pick<ActorRegistrySnapshot, 'dimensio
   const reached: Record<string, number> = {};
   for (const actor of snapshot.actors) {
     if (actor.id === excludeActorId) continue;
-    const stacks = poweredEmitStacks(actor, kind);
-    if (stacks <= 0) continue;
-    const radius = computeAffinityRadius(SIGHT_LIGHT_EXPRESSION, stacks);
+    const { range, intensity } = poweredEmit(actor, kind);
+    if (range <= 0 || intensity <= 0) continue;
+    const radius = computeAffinityRadius(SIGHT_LIGHT_EXPRESSION, range);
     const { x: sx, y: sy } = actor.position;
     for (let y = Math.max(sy - radius, 0); y <= Math.min(sy + radius, height - 1); y++) {
       const reach = radius - Math.abs(y - sy);
       for (let x = Math.max(sx - reach, 0); x <= Math.min(sx + reach, width - 1); x++) {
         const key = `${x},${y}`;
-        if (stacks > (reached[key] ?? 0)) reached[key] = stacks;
+        if (intensity > (reached[key] ?? 0)) reached[key] = intensity;
       }
     }
   }
   return reached;
 }
 
-/** The stacks an actor emits of `kind` right now: its strongest lit emit slot of that kind, 0 if none. */
-function poweredEmitStacks(actor: ActorRecord, kind: 'light' | 'dark'): number {
-  if (actor.lifecycle !== 'alive') return 0;
+/**
+ * The range and intensity an actor emits of `kind` right now: its strongest lit
+ * emit slot of that kind (more intensity, then more range), each powered by how
+ * full its mana is. Zero for both if none.
+ */
+function poweredEmit(actor: ActorRecord, kind: 'light' | 'dark'): { range: number; intensity: number } {
+  const none = { range: 0, intensity: 0 };
+  if (actor.lifecycle !== 'alive') return none;
   const own = litActorAffinities(actor).filter(pair => pair.kind === kind
     && pair.expression === AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]);
-  if (!own.length) return 0;
-  const stacks = Math.max(...own.map(pair => pair.stacks));
-  return resolvePoweredLightStacks(stacks, actor.vitals.mana?.current ?? 0, actor.vitals.mana?.max ?? 0);
+  if (!own.length) return none;
+  const best = own.reduce((top, pair) => affinityIntensity(pair) > affinityIntensity(top)
+    || (affinityIntensity(pair) === affinityIntensity(top) && pair.stacks > top.stacks) ? pair : top);
+  const mana = actor.vitals.mana?.current ?? 0; const manaMax = actor.vitals.mana?.max ?? 0;
+  return { range: resolvePoweredLightStacks(best.stacks, mana, manaMax),
+    intensity: resolvePoweredLightStacks(affinityIntensity(best), mana, manaMax) };
 }
 
-/** Per-cell light against dark, stack for stack: what survives at each cell. */
+/** Per-cell light against dark, intensity for intensity: what survives at each cell. */
 function resolveRegistryLightDark(observation: RegistryObservation) {
   const { width, height } = observation.sightKinds.length
     ? { width: observation.sightKinds[0].length, height: observation.sightKinds.length } : { width: 0, height: 0 };
@@ -92,22 +102,23 @@ function resolveRegistryLightDark(observation: RegistryObservation) {
 }
 
 /**
- * One observer's sight inputs. Its own light, less the dark at its tile, extends
- * its radius; cells where light outweighs dark are lit; cells where dark
- * outweighs light are obscured, along with anyone standing in them. Dark from
- * other sources that beats the light at its tile by the blinding threshold
- * leaves it its own tile only (#284).
+ * One observer's sight inputs. Its own light extends its radius by its range
+ * while its intensity beats the dark at its tile; cells where light outweighs
+ * dark are lit; cells where dark outweighs light are obscured, along with anyone
+ * standing in them. Dark from other sources that beats the light at its tile by
+ * the blinding threshold, intensity for intensity, leaves it its own tile only (#284).
  */
 function resolveRegistrySight(observation: RegistryObservation, self: ActorRecord) {
   const { width, height, lightByCell, darkStacksByCell, darkByCell } = resolveRegistryLightDark(observation);
   const tile = `${self.position.x},${self.position.y}`;
-  const ownLight = Math.max(0, poweredEmitStacks(self, 'light') - (darkByCell[tile] ?? 0));
+  const own = poweredEmit(self, 'light');
+  const ownLight = own.intensity > (darkByCell[tile] ?? 0) ? own.range : 0;
   // Blinding dark (#284) is other sources' dark against all the light at the tile.
   const othersDark = readEmittedStacksByCell({ dimensions: { width, height }, actors: observation.actors }, 'dark', self.id)[tile] ?? 0;
   const lightAtTile = readActorRegistryLightByCell({ dimensions: { width, height }, actors: observation.actors })[tile] ?? 0;
   return {
-    radius: resolveVisibilityRadius({ lightStacks: ownLight, blindingDarkStacks: Math.max(0, othersDark - lightAtTile) }),
-    options: { darkStacksByCell, lightByCell, darkObscureThreshold: NET_DARK_OBSCURE_STACK_THRESHOLD },
+    radius: resolveVisibilityRadius({ lightStacks: ownLight, blindingDarkIntensity: Math.max(0, othersDark - lightAtTile) }),
+    options: { darkStacksByCell, lightByCell, darkObscureThreshold: NET_DARK_OBSCURE_INTENSITY_THRESHOLD },
   };
 }
 /** Reuse the established radius/occlusion policy with independent sight capabilities. */
@@ -141,11 +152,11 @@ export function readActorRegistryVisibleCells(observation: RegistryObservation, 
 export function readActorRegistryDarkCells(observation: RegistryObservation): number[][] {
   const { width, height, darkStacksByCell } = resolveRegistryLightDark(observation);
   return Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) =>
-    (darkStacksByCell[`${x},${y}`] ?? 0) >= NET_DARK_OBSCURE_STACK_THRESHOLD ? 1 : 0));
+    (darkStacksByCell[`${x},${y}`] ?? 0) >= NET_DARK_OBSCURE_INTENSITY_THRESHOLD ? 1 : 0));
 }
 
 /** One affinity's net presence on a cell: what survives opposite-kind cancellation there. */
-export interface FieldCellReading { kind: string; stacks: number; falloff: number }
+export interface FieldCellReading { kind: string; stacks: number; intensity: number; falloff: number }
 
 /**
  * Every affinity field on each cell right now, for every kind alike (#287): a
@@ -153,6 +164,9 @@ export interface FieldCellReading { kind: string; stacks: number; falloff: numbe
  * there after opposite pairs cancel, strongest first. Read from the field
  * projection the tick uses (`affinityFields`), never recomputed.
  */
+/** What a field does on a tile: its falloff times intensity squared, the same scale as its effect. */
+const strength = (reading: Pick<FieldCellReading, 'intensity' | 'falloff'>) => reading.falloff * reading.intensity * reading.intensity;
+
 export function readActorRegistryFieldCells(observation: RegistryObservation): FieldCellReading[][][] {
   const height = observation.sightKinds.length;
   const width = height ? observation.sightKinds[0].length : 0;
@@ -162,9 +176,10 @@ export function readActorRegistryFieldCells(observation: RegistryObservation): F
     if (field.expression === 'draw' || field.falloff <= 0 || !grid[y]?.[x]) continue;
     const cell = grid[y][x];
     const existing = cell.find(entry => entry.kind === field.kind);
-    if (!existing) cell.push({ kind: field.kind, stacks: field.stacks, falloff: field.falloff });
-    else if (field.falloff > existing.falloff) Object.assign(existing, { stacks: field.stacks, falloff: field.falloff });
+    const reading = { stacks: field.stacks, intensity: field.intensity, falloff: field.falloff };
+    if (!existing) cell.push({ kind: field.kind, ...reading });
+    else if (strength(reading) > strength(existing)) Object.assign(existing, reading);
   }
-  for (const row of grid) for (const cell of row) cell.sort((a, b) => b.falloff - a.falloff || (a.kind < b.kind ? -1 : 1));
+  for (const row of grid) for (const cell of row) cell.sort((a, b) => strength(b) - strength(a) || (a.kind < b.kind ? -1 : 1));
   return grid;
 }

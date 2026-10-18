@@ -15,7 +15,7 @@ function artifacts() {
       { id: 'caster', category: 'delver', position: { x: 0, y: 0 },
         vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 9, max: 9, regen: 0 } },
         motivations: ['attacking', 'seeking_resources'],
-        affinities: [{ kind: 'fire', expression: 'push', stacks: 2 }], activeAffinityKey: 'fire:push' },
+        affinities: [{ kind: 'fire', expression: 'push', stacks: 2, intensity: 2 }], activeAffinityKey: 'fire:push' },
       { id: 'reward', category: 'resource', position: { x: 1, y: 0 },
         vitals: { durability: { current: 3, max: 3, regen: 0 } },
         affinities: [{ kind: 'fire', expression: 'emit', stacks: 8 }], activeAffinityKey: 'fire:emit' },

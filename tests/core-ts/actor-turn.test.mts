@@ -78,13 +78,14 @@ test('equipment then exactly one field pass and regeneration survive snapshot re
   turn.apply({ actorId: 'a', tick: 1, kind: 'equip_affinity', params: { affinityKey: 'fire:draw' } });
   expect(state.getActor('a')!.vitals.mana!.current).toBe(0);
   turn.closeActions();
-  expect(turn.resolveFields()!.absorptions.reduce((sum, entry) => sum + entry.amount, 0)).toBe(3);
-  expect(state.getActor('a')!.vitals.mana!.current).toBe(3);
+  // b's fire emit at intensity 1 has a budget of 1 × 1² = 1 a turn.
+  expect(turn.resolveFields()!.absorptions.reduce((sum, entry) => sum + entry.amount, 0)).toBe(1);
+  expect(state.getActor('a')!.vitals.mana!.current).toBe(1);
   const restored = createActorTurn(state, 1, costs, turn.snapshot());
   expect(restored.resolveFields()).toBeNull();
   expect(restored.regenerate()).toBe(true);
   expect(restored.regenerate()).toBe(false);
-  expect(state.getActor('a')!.vitals.mana!.current).toBe(4);
+  expect(state.getActor('a')!.vitals.mana!.current).toBe(2);
   expect(createActorTurn(state, 1, costs, restored.snapshot()).regenerate()).toBe(false);
 });
 test('focused suppression remains effective across restore and does not destroy equipment', () => {
@@ -94,7 +95,7 @@ test('focused suppression remains effective across restore and does not destroy 
   turn.apply({ actorId: 'a', tick: 1, kind: 'cast_affinity', params: { targetId: 'b' } });
   const restored = createActorTurn(state, 1, costs, turn.snapshot()); restored.closeActions();
   const result = restored.resolveFields()!;
-  expect(result.suppressions).toEqual([{ sourceId: 'a', targetId: 'b', amount: 3 }]);
+  expect(result.suppressions).toEqual([{ sourceId: 'a', targetId: 'b', amount: 1 }]); // all of b's intensity-1 budget
   expect(result.fields.some(field => field.sourceId === 'b')).toBe(false);
   expect(state.getActor('a')!.vitals.health!.current).toBe(10);
   expect(state.getActor('b')!.affinities[0].stacks).toBe(3);

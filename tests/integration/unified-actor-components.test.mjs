@@ -28,10 +28,10 @@ function finish(turn) {
   return fields;
 }
 test('authored costs compose with lethal combat, atomic competing claims, equipment and replay', () => {
-  // A 5-stack fire push costs 3 × 15 = 45 (#232), leaving 5 of 50.
+  // A range-5 fire push costs 3 × 15 = 45 (#232), leaving 5 of 50; intensity 2 hits for 2 × 2² = 8 (#340).
   const actors = [actor('caster', 'delver', {
     vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 50, max: 50, regen: 0 } },
-    affinities: [{ kind: 'fire', expression: 'push', stacks: 5 }], activeAffinityKey: 'fire:push' }),
+    affinities: [{ kind: 'fire', expression: 'push', stacks: 5, intensity: 2 }], activeAffinityKey: 'fire:push' }),
   actor('source', 'resource', { position: { x: 1, y: 0 },
     vitals: { health: { current: 4, max: 4, regen: 9 }, durability: { current: 3, max: 3, regen: 9 } },
     capabilities: { blocksMovement: true, canCast: true },
@@ -78,7 +78,8 @@ test('one authored inventory can equip fire draw for absorption or water emit fo
     expect(turn.apply({ actorId: 'receiver', tick: 1, kind: 'equip_affinity', params: { affinityKey: key } })).toBe(true);
     const result = finish(turn);
     expect(state.getActor('receiver').vitals.health.current).toBe(10);
-    expect(state.getActor('receiver').vitals.mana.current).toBe(key === 'fire:draw' ? 3 : 0);
+    // The hazard's fire emit at intensity 1 gives 1 × 1² a turn (#340).
+    expect(state.getActor('receiver').vitals.mana.current).toBe(key === 'fire:draw' ? 1 : 0);
     if (key === 'water:emit') expect(result.fields.filter(field => field.position.x === 0)).toEqual([]);
     expect(state.getActor('receiver').affinities).toEqual(actors[1].affinities);
   }

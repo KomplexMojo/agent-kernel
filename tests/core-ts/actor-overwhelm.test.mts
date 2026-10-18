@@ -1,11 +1,11 @@
 import { expect, test } from 'vitest';
 import { createActorRegistry } from '../../packages/core-ts/src/state/actor-registry.ts';
-import { readActorOverwhelms, OVERWHELM_NET_STACKS } from '../../packages/core-ts/src/rules/actor-fields.ts';
+import { readActorOverwhelms, OVERWHELM_NET_INTENSITY } from '../../packages/core-ts/src/rules/actor-fields.ts';
 import type { ActorRecord, ActorAffinityEntry } from '../../packages/core-ts/src/state/actor-types.ts';
 
 // Overwhelm (#289, maintainer 2026-10-15): one rule for every opposed pair. When an
 // emitted affinity from other sources beats its opposite on an actor's tile by 2+
-// stacks, the actor's regen of that affinity's vital stops (harmful emit) or doubles
+// intensity (#340; these helpers set range = intensity unless a test says otherwise), the actor's regen of that affinity's vital stops (harmful emit) or doubles
 // (restoring emit) for the turn.
 
 const PAIRS = [['fire', 'water'], ['earth', 'wind'], ['growth', 'decay'], ['corrode', 'fortify'], ['light', 'dark']] as const;
@@ -21,12 +21,12 @@ function actor(id: string, x: number, pair?: ActorAffinityEntry): ActorRecord {
       blocksMovement: false, blocksSight: false }, motivations: [], affinities: pair ? [pair] : [],
     activeAffinityKey: pair ? `${pair.kind}:${pair.expression}` : null, holdings: [] };
 }
-const emit = (kind: string, stacks: number) => ({ kind, expression: 'emit', stacks }) as ActorAffinityEntry;
+const emit = (kind: string, intensity: number, range = intensity) => ({ kind, expression: 'emit', stacks: range, intensity }) as ActorAffinityEntry;
 const registry = (actors: ActorRecord[]) =>
   createActorRegistry({ dimensions: { width: 5, height: 1 }, terrain: Array(5).fill('floor'), actors });
 
 test('every affinity in every opposed pair overwhelms at net 2: harm stops regen of its vital, restore doubles it', () => {
-  expect(OVERWHELM_NET_STACKS).toBe(2);
+  expect(OVERWHELM_NET_INTENSITY).toBe(2);
   for (const pair of PAIRS) {
     for (const kind of pair) {
       const overwhelms = readActorOverwhelms(registry([actor('trap', 1, emit(kind, 2)), actor('hero', 2)]));
@@ -63,6 +63,17 @@ test('a turn applies it: decay stops health regen, growth doubles it', () => {
   };
   expect(run('decay')).toBe(5);
   expect(run('growth')).toBe(7);
+});
+
+test('intensity decides overwhelm, not range (#340)', () => {
+  for (const pair of PAIRS) {
+    for (const kind of pair) {
+      // Range 4 at intensity 1 reaches the hero but is too weak; range 1 at intensity 2 overwhelms.
+      expect(readActorOverwhelms(registry([actor('trap', 1, emit(kind, 1, 4)), actor('hero', 2)])), `${kind} r4 i1`).toEqual([]);
+      expect(readActorOverwhelms(registry([actor('trap', 1, emit(kind, 2, 1)), actor('hero', 2)]))
+        .map(entry => entry.kind), `${kind} r1 i2`).toEqual([kind]);
+    }
+  }
 });
 
 // ## TODO: Test Permutations

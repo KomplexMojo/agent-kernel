@@ -271,7 +271,7 @@ test("intent separates moves the proposal stamp used to equalise", async () => {
     affinityFields: [{
       position: { x: 3, y: 2 },
       kind: "fire", expression: "emit",
-      sourceId: "field_source", stacks: 4, falloff: 1,
+      sourceId: "field_source", stacks: 4, intensity: 2, falloff: 1,
     }],
   });
 
@@ -283,7 +283,7 @@ test("field benefit is capped by missing vital capacity and ignored when full", 
   const fields = [{
     position: { x: 3, y: 2 },
     kind: "growth", expression: "emit",
-      sourceId: "field_source", stacks: 8, falloff: 1,
+      sourceId: "field_source", stacks: 8, intensity: 8, falloff: 1,
   }];
   const input = {
     self: {
@@ -327,11 +327,11 @@ test("a non-move evaluates the field at the Actor's current cell", async () => {
     affinityFields: [{
       position: { x: 2, y: 2 },
       kind: "fire", expression: "emit",
-      sourceId: "field_source", stacks: 3, falloff: 1,
+      sourceId: "field_source", stacks: 3, intensity: 3, falloff: 1,
     }],
   });
 
-  assert.deepEqual(row(envelope, "wait_1").rank.slice(0, 6), [100, 0, 0, 0, -3, 0]);
+  assert.deepEqual(row(envelope, "wait_1").rank.slice(0, 6), [100, 0, 0, 0, -9, 0]); // 1 × 3²
 });
 
 test("field benefit cannot override a stronger primary intent", async () => {
@@ -347,7 +347,7 @@ test("field benefit cannot override a stronger primary intent", async () => {
     affinityFields: [{
       position: { x: 3, y: 2 },
       kind: "growth", expression: "emit",
-      sourceId: "field_source", stacks: 10, falloff: 1,
+      sourceId: "field_source", stacks: 10, intensity: 10, falloff: 1,
     }],
   });
 
@@ -463,7 +463,7 @@ test("fieldSafety separates two candidates at the SAME intentClass", async () =>
     affinityFields: [{
       position: { x: 3, y: 3 },
       kind: "fire", expression: "emit",
-      sourceId: "field_source", stacks: 6, falloff: 1,
+      sourceId: "field_source", stacks: 6, intensity: 6, falloff: 1,
     }],
   });
 

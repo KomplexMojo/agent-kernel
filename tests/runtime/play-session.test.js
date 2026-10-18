@@ -332,7 +332,7 @@ test("without fog, every cell is visible", async () => {
 });
 
 // #202: the player uses affinities through the same Actor commands as a move.
-function buildDuelLevel({ playerAffinities = [{ kind: "water", expression: "push", stacks: 3 }, { kind: "light", expression: "emit", stacks: 1 }] } = {}) {
+function buildDuelLevel({ playerAffinities = [{ kind: "water", expression: "push", stacks: 3, intensity: 2 }, { kind: "light", expression: "emit", stacks: 1 }] } = {}) {
   return buildUnifiedLevel({
     id: "duel",
     tiles: ["######", "#....#", "#....E", "######"],
@@ -440,7 +440,7 @@ test("a level below the viability floor still plays as written; the floor is onl
 // lands, status() says so and the session refuses further commands without ticking.
 test("a player worn down by a warden is defeated, and the session then refuses to act", async () => {
   const warden = { category: "warden", id: "warden_1", position: { x: 3, y: 1 }, motivations: ["attacking"],
-    vitals: viableVitals({ mana: 200 }), affinities: [{ kind: "fire", expression: "push", stacks: 3 }],
+    vitals: viableVitals({ mana: 200 }), affinities: [{ kind: "fire", expression: "push", stacks: 3, intensity: 2 }],
     activeAffinityKey: "fire:push" };
   const level = buildUnifiedLevel({ id: "mvp_maze", tiles: MAZE,
     actors: [{ ...PLAYER, vitals: viableVitals({ health: 10 }) }, warden] });

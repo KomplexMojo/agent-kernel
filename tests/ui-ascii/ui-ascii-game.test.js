@@ -42,7 +42,8 @@ const FIRST_STEPS_SOLUTION = "dd.ss.dd.ss.ss.dd.d.";
 async function walk(session, path, onMove = () => {}) {
   for (const direction of path) {
     while ((session.view().player.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1) {
-      await session.act({ kind: "wait" });
+      // A defeated player never recovers stamina: fail rather than wait forever.
+      assert.equal((await session.act({ kind: "wait" })).status.defeated, false, "the player was defeated");
     }
     onMove(await session.act({ kind: "move", params: { direction } }), direction);
   }
@@ -552,7 +553,7 @@ function duelLevels({ wardenAt = { x: 2, y: 1 } } = {}) {
     actors: [
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
         vitals: viableVitals({ mana: 40 }), affinities: [
-          { kind: "water", expression: "push", stacks: 3 }, { kind: "light", expression: "emit", stacks: 1 }] },
+          { kind: "water", expression: "push", stacks: 3, intensity: 2 }, { kind: "light", expression: "emit", stacks: 1 }] },
       ...(wardenAt ? [{ category: "warden", id: "warden_1", position: wardenAt, motivations: ["stationary"],
         vitals: viableVitals(), affinities: [{ kind: "fire", expression: "push", stacks: 1 }] }] : []),
     ],
@@ -695,7 +696,7 @@ test("a defeated player sees the defeat line; moves do nothing and r restarts th
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
         vitals: viableVitals(), affinities: [] },
       { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["attacking"],
-        vitals: viableVitals({ mana: 200 }), affinities: [{ kind: "fire", expression: "push", stacks: 3 }],
+        vitals: viableVitals({ mana: 200 }), affinities: [{ kind: "fire", expression: "push", stacks: 3, intensity: 2 }],
         activeAffinityKey: "fire:push" },
     ],
   });

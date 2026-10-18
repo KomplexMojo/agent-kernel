@@ -1,11 +1,13 @@
 import type { ActorRecord, ActorAffinityEntry } from '../state/actor-types.ts';
-import { affinityKey, equippedActorAffinities, exhaustedActorAffinityKeys, setExhaustedActorAffinityKeys } from '../state/actor-inventory.ts';
+import { affinityIntensity, affinityKey, equippedActorAffinities, exhaustedActorAffinityKeys, setExhaustedActorAffinityKeys } from '../state/actor-inventory.ts';
 
 /**
  * Every affinity has a mana cost (maintainer, 2026-10-11). Push and pull pay per
  * cast; emit and draw are lasting, so they pay an upkeep every turn, charged
  * before regeneration. The amount is Configurator tuning handed in as a table
- * indexed by stacks (the last entry covers anything higher); core invents none.
+ * (the last entry covers anything higher); core invents none. A slot reads the
+ * table at its range plus its intensity (#340), so with the `2 + n` table the
+ * upkeep is `2 + range + intensity` mana a turn.
  */
 export function isLastingAffinityExpression(expression: string): boolean {
   return expression === 'emit' || expression === 'draw';
@@ -39,7 +41,7 @@ export function chargeActorAffinityUpkeep(actor: ActorRecord, upkeepByStacks: re
   const off = exhaustedActorAffinityKeys(actor);
   let changed = false;
   for (const pair of litActorAffinities(actor)) {
-    const cost = affinityUpkeepForStacks(upkeepByStacks, pair.stacks);
+    const cost = affinityUpkeepForStacks(upkeepByStacks, pair.stacks + affinityIntensity(pair));
     if (cost <= 0) continue;
     const mana = actor.vitals.mana;
     if (mana && mana.current >= cost) mana.current -= cost;

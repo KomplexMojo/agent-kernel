@@ -67,9 +67,11 @@ test("dark at the observer's tile is subtracted from its own light", () => {
     .not.toContain('target');
 });
 
-test('dark is powered by mana like light: a half-full shade shines half its stacks', () => {
+test('dark is powered by mana like light: a half-full shade shines half its range and intensity', () => {
   const shade = emitting(actor('shade', 6), 'dark', 4);
+  shade.affinities[0].intensity = 4;
   shade.vitals.mana!.current = 5;
+  // ceil(4 × 5/10) = 2 for both: intensity 2, reaching emit radius 3.
   const dark = readActorRegistryDarkByCell(corridor([shade]).snapshot());
   expect(dark['6,0']).toBe(2);
   expect(dark['3,0']).toBe(2);
