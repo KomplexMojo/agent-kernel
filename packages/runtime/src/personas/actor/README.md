@@ -130,7 +130,14 @@ Dynamic actors express behavior through **stackable motivations** organised into
 | **Posture** | `attacking`, `defending`, `stealthy`, `friendly` | How the actor engages |
 | **Cognition** | `reflexive`, `goal_oriented`, `strategy_focused` | How the actor thinks |
 
-Intelligence is represented through Cognition motivations — there is no separate parallel system for "smartness". A `reflexive` actor reacts instantly; a `strategy_focused` actor plans ahead. What that buys today is how much of a strategy the actor follows (see *Strategies* below).
+Intelligence is represented through Cognition motivations — there is no separate parallel system for "smartness". They change play with or without a strategy (#308):
+
+- `reflexive` reacts to what touches it this tick. Standing in a field that harms it, it steps to the adjacent free cell that harms it least, or holds when no step is better; unharmed, it plays its other motivations.
+- `goal_oriented` with no order or strategy adopts a goal from its other motivations (`attacking` with a hostile in sight: defeat the nearest; `exploring`: reach the exit) and follows it as a planned route until it is done or stalled, then adopts again.
+- `strategy_focused` adopts the same way but re-plans every turn, so it switches goal when the situation changes (an explorer that spots a hostile while attacking turns on it).
+- With nothing to adopt, or as a `user_controlled` actor, it plays its motivations as before. The adopted goal is kept per actor in `context.cognition[actorId]` (`{ adopted, goal, status, ... }`), apart from `context.strategies`, which holds only what was ordered or authored.
+
+With a strategy, cognition sets how much of it the actor follows (see *Strategies* below).
 
 Conflicting motivations within the same family are rejected (e.g. `attacking + defending`, `stealthy + friendly`, `random + patrolling`, `reflexive + goal_oriented`). Compatible cross-family combinations are allowed (e.g. `random + attacking`, `goal_oriented + stealthy`).
 
