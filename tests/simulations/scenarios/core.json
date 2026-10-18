@@ -12,13 +12,6 @@
         "count=1;id=atk;affinity=fire;affinities=fire:push:3:2;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
         "--warden",
         "count=1;id=def;affinity=water;affinities=water:push:3:2;equip=water:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
-      ],
-      "knownIssues": [
-        {
-          "rule": "refused_streak",
-          "actor": "atk-1",
-          "issue": "#367"
-        }
       ]
     },
     {
