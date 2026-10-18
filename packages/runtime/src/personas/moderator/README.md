@@ -119,8 +119,15 @@ any action from an actor that is no longer alive (`WrongActor`), so an actor dow
 earlier in the sequence loses its own action that turn. Pinned by
 `tests/core-ts/actor-downed-cannot-act.test.mts`.
 
+The Moderator also rules the order actors **propose** in (#164, `orderActorsForDecision` in
+`actor-ordering.js`). An actor deciding earlier claims contested tiles first, through the
+runner's `reservedTargets`, so this order is load-bearing too. It sorts by the **previous**
+tick's intent class (highest first), ties on actor id; tick 1 has no intentions and is id
+order. Resolution order uses the same signal from the current tick. Pinned by
+`tests/personas/moderator/moderator-decide-order.test.js`.
+
 In short:
-- The Moderator decides **when and in what order** actions are applied.
+- The Moderator decides **when and in what order** actions are applied, and in what order actors propose them.
 
 ## State machine & phases
 - States: initializing → ticking → pausing → stopping.

@@ -23,6 +23,10 @@
  * action plus each actor's final position, lifecycle and vitals. A scenario is
  * order-dependent when two namings disagree.
  *
+ * SINCE #164 the Moderator orders deciders by the previous tick's intent class, then id.
+ * The contested cases measured here are mostly equal intents (two delvers making exit
+ * progress), so they still fall to the id tie-break and the rates did not move.
+ *
  * THIS CHANGES NO BEHAVIOUR. Run: `node scripts/testing/logic-decide-order.mjs`
  * (`--json` for the full report).
  */
@@ -186,7 +190,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (process.argv.includes("--json")) {
     console.log(JSON.stringify(report, null, 2));
   } else {
-    console.log(`outcomes that change when the actors are renamed (decide order is id order) (#164), ${TICKS} ticks`);
+    console.log(`outcomes that change when the actors are renamed (decide order: last tick's intent, then id) (#164), ${TICKS} ticks`);
     console.log(`  authored array order alone: ${rate(report.arrayOrder)}`);
     for (const bucket of ["two", "three"]) {
       console.log(`  ${bucket === "two" ? "2" : "3"} actors: ${rate(report[bucket])}`);
