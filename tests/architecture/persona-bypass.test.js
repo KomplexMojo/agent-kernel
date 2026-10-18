@@ -41,6 +41,8 @@ const AUTHORING = [
   ["resource-plan", "--resource", "permanenceMode=consumable;vital=health;delta=5"],
   ["delver-plan", "--delver", "count=1;motivation=exploring"],
   ["warden-plan", "--warden", "count=1;motivation=stationary"],
+  ["configurator", "--level-gen", "tests/fixtures/configurator/level-gen-input-v1-hazard.json",
+    "--actors", "tests/fixtures/configurator/actors-v1-affinity-base.json"],
 ];
 
 test.each(AUTHORING.map((args) => [args[0], args]))("%s with no budget is priced by the Allocator", (_name, args) => {
@@ -54,7 +56,7 @@ test.each(AUTHORING.map((args) => [args[0], args]))("%s with no budget is priced
   }
 });
 
-test("build --spec without a budget is still a known bypass (#276): lift it from the allowlist when fixed", () => {
+test("build --spec with no budget is priced by the Allocator (#276)", () => {
   const dir = mkdtempSync(join(tmpdir(), "persona-bypass-build-"));
   try {
     assert.equal(ak(AUTHORING[0], join(dir, "create")).status, 0);
@@ -63,11 +65,15 @@ test("build --spec without a budget is still a known bypass (#276): lift it from
     writeFileSync(join(dir, "spec.json"), JSON.stringify(spec));
     const result = ak(["build", "--spec", join(dir, "spec.json")], join(dir, "build"), { stamp: false });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(ALLOWLIST.unpricedEntrypoints["build --spec without a budget"], 276);
-    assert.equal(priced(join(dir, "build")), false,
-      "build --spec is priced now: remove it from unpricedEntrypoints and add it to the priced list above");
+    assert.ok(priced(join(dir, "build")), "build --spec wrote no Allocator receipt and price list");
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("no level-producing entrypoint is left as a known bypass without an open issue", () => {
+  for (const [entry, issue] of Object.entries(ALLOWLIST.unpricedEntrypoints)) {
+    assert.ok(Number.isInteger(issue), `${entry} names no issue`);
   }
 });
 
@@ -106,7 +112,6 @@ test("budget-gated conditionals in glue only go down", () => {
 });
 
 // ## TODO: Test Permutations
-// - ak configurator with --level-gen/--actors and no budget: still unpriced (#276); add as a known bypass.
+// - bridge compile (--push-ui) with a spec that has no budget writes a receipt.
 // - MCP ak_create and ak_build with no budget behave as their CLI commands.
-// - sandbox-create --budget: its budgetReceiptRef names a receipt that exists (#277).
 // - a play session on a level with no receipt (#279).

@@ -82,15 +82,15 @@ export const MIN_SIGHT_RADIUS = 1;
 
 /**
  * Blinding dark (maintainer, 2026-10-15, #284): when the dark OTHER sources
- * cast on an actor's tile outweighs the light there by this many stacks, the
+ * cast on an actor's tile outweighs the light there by this much intensity (#340), the
  * actor sees only its own tile (`BLIND_SIGHT_RADIUS`). Lit cells further off
  * stay visible in line of sight. Every actor is under the same rule, so strong
  * dark is also a way to slip past a warden.
  *
  * The actor's own dark does not count: it hides the emitter, it does not blind
- * it, or every dark-bearer above one stack would blind itself.
+ * it, or every dark-bearer above intensity 1 would blind itself.
  */
-export const BLINDING_DARK_STACK_THRESHOLD = 2;
+export const BLINDING_DARK_INTENSITY_THRESHOLD = 2;
 
 /** What sight collapses to under blinding dark: the actor's own tile. */
 export const BLIND_SIGHT_RADIUS = 0;
@@ -107,15 +107,15 @@ function asStackCount(value: unknown): number {
 }
 
 export interface VisibilityStacks {
-  /** Light the OBSERVER emits that survives cancellation at its own tile. */
+  /** Range of the light the OBSERVER emits, when its intensity survives the dark at its own tile. */
   lightStacks?: number;
   /** Dark surviving at the observer's tile. */
   darkStacks?: number;
   /**
    * Net dark from other sources at the observer's tile, after the light there
-   * (#284). At `BLINDING_DARK_STACK_THRESHOLD` or more the observer is blind.
+   * (#284). At `BLINDING_DARK_INTENSITY_THRESHOLD` or more the observer is blind.
    */
-  blindingDarkStacks?: number;
+  blindingDarkIntensity?: number;
 }
 
 /**
@@ -134,7 +134,7 @@ export function resolveVisibilityRadius(stacks: VisibilityStacks): number {
   const dark = asStackCount(stacks?.darkStacks);
   const light = asStackCount(stacks?.lightStacks);
 
-  if (asStackCount(stacks?.blindingDarkStacks) >= BLINDING_DARK_STACK_THRESHOLD) {
+  if (asStackCount(stacks?.blindingDarkIntensity) >= BLINDING_DARK_INTENSITY_THRESHOLD) {
     return BLIND_SIGHT_RADIUS;
   }
   if (dark >= DARKNESS_OBSCURE_STACK_THRESHOLD) {
@@ -161,20 +161,21 @@ export const SIGHT_AFFINITY_KINDS = Object.freeze({
  * compared to countering affinity stacks like light." Per cell, the strongest
  * emitted dark reaching it is weighed against the strongest emitted light:
  * the difference is what survives. More dark leaves net dark, more light
- * leaves net light, a tie leaves neither.
+ * leaves net light, a tie leaves neither. Since #340 the weighing is by
+ * intensity: range only sets how far each reaches.
  *
- * One net dark stack darkens a cell (`NET_DARK_OBSCURE_STACK_THRESHOLD`), so
- * every stack of light invested counters exactly one stack of dark. The
+ * One net dark intensity darkens a cell (`NET_DARK_OBSCURE_INTENSITY_THRESHOLD`),
+ * so every point of light intensity counters exactly one of dark. The
  * 2-stack `DARKNESS_OBSCURE_STACK_THRESHOLD` remains for the legacy world
  * path, which reads intensity-cancelled field stacks rather than this
  * comparison.
  */
-export const NET_DARK_OBSCURE_STACK_THRESHOLD = 1;
+export const NET_DARK_OBSCURE_INTENSITY_THRESHOLD = 1;
 
 export interface NetLightDark {
-  /** Light stacks left after the dark at the same cell is subtracted, keyed `x,y`. */
+  /** Light intensity left after the dark at the same cell is subtracted, keyed `x,y`. */
   lightByCell: Record<string, number>;
-  /** Dark stacks left after the light at the same cell is subtracted, keyed `x,y`. */
+  /** Dark intensity left after the light at the same cell is subtracted, keyed `x,y`. */
   darkStacksByCell: Record<string, number>;
 }
 

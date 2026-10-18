@@ -377,7 +377,7 @@ async function session(options) {
   const { levelName, turns, status, active, party, orders, warnings, message } = game.state();
   const view = game.view();
   const inSight = [...(view.actors || []), ...(view.hazards || [])]
-    .map((actor) => ({ label: actor.label, id: actor.id, role: actor.role, position: actor.position }));
+    .map((actor) => ({ label: actor.label, id: actor.id, role: actor.role, position: actor.position, motivations: actor.motivations }));
   console.log(JSON.stringify({
     ok: true, session: resolve(options.sessionPath), level: levelName, turns, status, active, party,
     ...(orders.length ? { orders } : {}), inSight,

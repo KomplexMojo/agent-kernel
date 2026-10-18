@@ -53,6 +53,7 @@ import {
   cloneVitals,
   proposeDelverCandidates,
   proposeRoomCandidates,
+  readCardAffinities,
   reviseDelverCandidate,
 } from "./candidate-authoring.js";
 import { maximizeActorBudget } from "./budget-maximizer.js";
@@ -85,7 +86,7 @@ import { buildAmbientAffinityPressure } from "./affinity-pressure.js";
 import { computeInternalManaUpkeep } from "./cost-model.js";
 import { composeMixedRooms } from "./mixed-room-composition.js";
 import { placeActors } from "./actor-placement.js";
-import { prepareObjectPlacement, completeObjectPlacement } from "./object-placement.js";
+import { prepareObjectPlacement, completeObjectPlacement, levelObjectRequests } from "./object-placement.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "./motivation-rules.js";
 /**
  * CR.7 / WP-5 — level PREVIEW rendering, published for the web level-builder adapter.
@@ -385,6 +386,8 @@ export function attachConfiguratorServices({ fsm } = {}) {
      * cards through its own copy of this before M3.
      */
     readCardVitals: cloneVitals,
+    /** The same question for affinities: a singular `affinity` is one stack at the default expression (#282). */
+    readCardAffinities,
     /**
      * Scale authored actors to exhaust an unspent budget (WP-5/D10).
      *
@@ -451,6 +454,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
     placeActors,
     prepareObjectPlacement,
     completeObjectPlacement,
+    levelObjectRequests,
     normalizeMotivationRulesArtifact,
     resolveMotivationRules,
     // CR.7 / WP-5 — the third card-model derivation. Its two siblings were already published

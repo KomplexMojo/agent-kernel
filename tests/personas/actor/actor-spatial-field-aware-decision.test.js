@@ -55,7 +55,7 @@ test("CLI selects the safer Actor-authored v2 move without interpreting field da
     ],
     affinityFields: [{
       position: { x: 3, y: 2 }, kind: "fire", expression: "emit",
-      sourceId: "field_source", stacks: 4, intensity: 1,
+      sourceId: "field_source", stacks: 4, intensity: 4, falloff: 1,
     }],
   });
   const { createRealZ3SolverAdapter } = await import(
@@ -83,7 +83,7 @@ test("CLI cannot let field benefit outrank the Actor's primary intent", async ()
     proposals: [],
     affinityFields: [{
       position: { x: 3, y: 2 }, kind: "growth", expression: "emit",
-      sourceId: "field_source", stacks: 10, intensity: 1,
+      sourceId: "field_source", stacks: 10, intensity: 10, falloff: 1,
     }],
   });
   const { createRealZ3SolverAdapter } = await import(

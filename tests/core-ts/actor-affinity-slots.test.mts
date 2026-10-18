@@ -9,7 +9,7 @@ import type { ActorRecord, ActorAffinityEntry } from '../../packages/core-ts/src
 
 // Equipped affinity slots (maintainer, 2026-10-12): an actor equips up to
 // `affinitySlots` affinities at once (omitted = 1, today's behaviour). Every lit
-// emit/draw slot is its own field and pays its own 2 + stacks upkeep; a slot that
+// emit/draw slot is its own field and pays its own 2 + range + intensity upkeep (#340); a slot that
 // cannot pay goes off on its own. Nothing is refused for being unwise: opposite
 // emits on one actor are allowed and cancel through the field overlap rule.
 
@@ -87,7 +87,8 @@ test('each lit slot pays its own upkeep; the one that cannot pay goes off alone 
   const registry = corridor([a]);
   act(registry, 1, { kind: 'wait' });
   const record = registry.getActor('a')!;
-  expect(record.vitals.mana!.current).toBe(1);
+  // light pays 2 + 1 + 1 = 4 from 4; dark cannot pay and goes off alone.
+  expect(record.vitals.mana!.current).toBe(0);
   expect(record.exhaustedAffinityKeys).toEqual(['dark:emit']);
   expect(record.affinityExhausted).toBe(true);
   const full = registry.getActor('a')!;
@@ -115,7 +116,7 @@ test('light and dark emitted by one actor are allowed, both pay, and they cancel
   const registry = corridor([a]);
   expect(projectActorFields(registry).fields.filter(cell => cell.kind === 'light' || cell.kind === 'dark')).toEqual([]);
   act(registry, 1, { kind: 'wait' });
-  expect(registry.getActor('a')!.vitals.mana!.current).toBe(14);
+  expect(registry.getActor('a')!.vitals.mana!.current).toBe(20 - 4 - 4);
 });
 
 test('light from any lit light:emit slot lights the actor\'s surroundings, not only the first slot', () => {
@@ -128,7 +129,7 @@ test('a cast names its slot, or uses the first equipped push or pull', () => {
   const registry = corridor([actor('a', 0, { affinitySlots: 3, activeAffinityKey: 'light:emit',
     equippedAffinityKeys: ['light:emit', 'fire:push', 'water:push'] }), actor('b', 1, { affinities: [] })]);
   expect(act(registry, 1, { kind: 'cast_affinity', params: { targetId: 'b' } }).accepted).toBe(true);
-  expect(registry.getActor('a')!.vitals.mana!.current).toBe(20 - 1 - 3); // fire:push tier 1, then light upkeep
+  expect(registry.getActor('a')!.vitals.mana!.current).toBe(20 - 1 - 4); // fire:push at range 1, then light upkeep 2 + 1 + 1
   expect(act(registry, 2, { kind: 'cast_affinity', params: { targetId: 'b', affinityKey: 'water:push' } }).accepted).toBe(true);
   expect(registry.getActor('b')!.vitals.health!.current).toBeLessThan(10);
   expect(act(registry, 3, { kind: 'cast_affinity', params: { targetId: 'b', affinityKey: 'dark:emit' } }))
@@ -136,10 +137,10 @@ test('a cast names its slot, or uses the first equipped push or pull', () => {
 });
 
 test('a matching draw slot absorbs before an opposite slot can double the damage', () => {
-  const source = actor('src', 0, { alignment: 'dungeon', affinities: [{ kind: 'fire', expression: 'emit', stacks: 2 }],
+  const source = actor('src', 0, { alignment: 'dungeon', affinities: [{ kind: 'fire', expression: 'emit', stacks: 2, intensity: 2 }],
     activeAffinityKey: 'fire:emit' });
   const exposed = (equipped: string[], extra: ActorAffinityEntry[]) => {
-    // Two tiles out the field exposure rounds to 1 (#283), so doubling it shows under the budget.
+    // Two tiles out at intensity 2 the rounded exposure (#283) is 1, so a doubling shows under the budget of 4.
     const receiver = actor('a', 2, { affinitySlots: 2, affinities: extra, activeAffinityKey: equipped[0] as never,
       ...(equipped.length > 1 ? { equippedAffinityKeys: equipped as never } : {}) });
     receiver.vitals.mana = { current: 0, max: 20, regen: 0 };
@@ -151,8 +152,9 @@ test('a matching draw slot absorbs before an opposite slot can double the damage
   const lone = exposed(['growth:emit'], [{ kind: 'growth', expression: 'emit', stacks: 1 }]);
   const opposed = exposed(['growth:emit', 'water:push'], [{ kind: 'growth', expression: 'emit', stacks: 1 },
     { kind: 'water', expression: 'push', stacks: 1 }]);
-  // Doubled, then capped by the source's finite budget (2 for two stacks).
-  expect(10 - opposed.health!.current).toBe(Math.min(2, 2 * (10 - lone.health!.current)));
+  // Doubled before rounding (raw ~1.5 → 3), still under the source's finite budget (1 × intensity² = 4).
+  expect(10 - lone.health!.current).toBe(1);
+  expect(10 - opposed.health!.current).toBe(3);
   expect(10 - opposed.health!.current).toBeGreaterThan(10 - lone.health!.current);
   const absorbing = exposed(['water:push', 'fire:draw'], [{ kind: 'water', expression: 'push', stacks: 1 },
     { kind: 'fire', expression: 'draw', stacks: 1 }]);

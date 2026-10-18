@@ -9,11 +9,11 @@ import {
   scopeActorRegistryObservation,
 } from '../../packages/core-ts/src/rules/actor-observation.ts';
 
-// Mana-powered light and per-turn upkeep (#200) on the unified actor registry.
+// Light and per-turn upkeep (#200) on the unified actor registry.
 // Maintainer rulings: levels are unlit; any emitted light makes the cells it
 // reaches visible in line of sight; a light shines while its affinity is on and
-// goes dark when it drains (sight reads the field, #288); every
-// lasting affinity (emit, draw) pays 2 + stacks a turn, and one that cannot pay
+// goes dark when it drains (sight reads the field, #288); every lasting affinity
+// (emit, draw) pays 2 + range + intensity a turn (#340), and one that cannot pay
 // stays off until its mana regenerates to full.
 
 function actor(id: string, x: number, y = 0): ActorRecord {
@@ -34,7 +34,7 @@ function corridor(width: number, actors: ActorRecord[]) {
   return createActorRegistry({ dimensions: { width, height: 1 }, terrain: Array(width).fill('floor'), actors });
 }
 
-// 2 + stacks, indexed by stacks (what the runtime builds from the Configurator).
+// 2 + n, read at n = range + intensity (what the runtime builds from the Configurator).
 const UPKEEP = Array.from({ length: 11 }, (_, stacks) => (stacks === 0 ? 0 : 2 + stacks));
 const costs = { castManaBase: {}, movementStamina: {}, persistentUpkeep: UPKEEP };
 
@@ -60,7 +60,8 @@ test('a lamp lights the cells its field reaches, so an unlit observer sees into 
 test('a lamp shines its full stacks while on, whatever its mana, and a drained one is dark (#288)', () => {
   const lightOf = (record: ActorRecord) => readActorRegistryLightByCell(corridor(10, [record]).snapshot());
   const half = lamp('lamp', 0, 4); half.vitals.mana = { current: 5, max: 10, regen: 0 };
-  expect(lightOf(half)).toEqual({ '0,0': 4, '1,0': 4, '2,0': 4, '3,0': 4, '4,0': 4 });
+  // Intensity 1 (the default) out to range 4, at half mana as at full.
+  expect(lightOf(half)).toEqual({ '0,0': 1, '1,0': 1, '2,0': 1, '3,0': 1, '4,0': 1 });
   const drained = lamp('lamp', 0, 4); drained.affinityExhausted = true;
   expect(lightOf(drained)).toEqual({});
 });
@@ -80,19 +81,25 @@ test("an observer's own sight radius follows its lit light", () => {
     .toEqual([1, 1, 0, 0, 0, 0]);
 });
 
-test('a lasting affinity pays 2 + stacks each turn before regen; push pays nothing', () => {
+test('a lasting affinity pays 2 + range + intensity each turn before regen; push pays nothing', () => {
   const emitter = lamp('lamp', 0, 3); emitter.vitals.mana = { current: 20, max: 20, regen: 1 };
   const pusher = actor('pusher', 3);
   pusher.affinities = [{ kind: 'fire', expression: 'push', stacks: 3 }];
   pusher.activeAffinityKey = 'fire:push';
   const registry = corridor(6, [emitter, pusher]);
   closeTurn(registry, 0);
-  expect(registry.getActor('lamp')!.vitals.mana!.current).toBe(20 - 5 + 1);
+  // Range 3, intensity 1 (absent): 2 + 3 + 1 = 6.
+  expect(registry.getActor('lamp')!.vitals.mana!.current).toBe(20 - 6 + 1);
+  const strong = lamp('lamp', 0, 3); strong.affinities[0].intensity = 3; strong.vitals.mana = { current: 20, max: 20, regen: 1 };
+  const second = corridor(6, [strong]);
+  closeTurn(second, 0);
+  expect(second.getActor('lamp')!.vitals.mana!.current).toBe(20 - 8 + 1);
   expect(registry.getActor('pusher')!.vitals.mana!.current).toBe(10);
 });
 
 test('a source that cannot pay goes dark and projects nothing until its mana is full again', () => {
-  const emitter = lamp('lamp', 0, 3); emitter.vitals.mana = { current: 6, max: 6, regen: 2 };
+  // Range 2 at intensity 1 pays 2 + 2 + 1 = 5 a turn.
+  const emitter = lamp('lamp', 0, 2); emitter.vitals.mana = { current: 6, max: 6, regen: 2 };
   const registry = corridor(6, [emitter]);
   closeTurn(registry, 0); // pays 5 → 1, regen → 3
   expect(registry.getActor('lamp')!.affinityExhausted).toBeUndefined();

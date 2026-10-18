@@ -1,3 +1,4 @@
+import { PERSONA_IDS, stampPersona } from "../_shared/persona-stamp.js";
 import {
   BUDGET_ALLOCATION_SCHEMA,
   BUDGET_ARTIFACT_SCHEMA,
@@ -237,7 +238,7 @@ export function validateSpendProposal({
     receipt: {
       schema: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
       schemaVersion: 1,
-      meta,
+      meta: stampPersona(meta, PERSONA_IDS.allocator),
       budgetRef: budgetRef || buildRef(budget, BUDGET_ARTIFACT_SCHEMA),
       priceListRef: priceListRef || buildRef(priceList, PRICE_LIST_SCHEMA),
       proposalRef,

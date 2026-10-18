@@ -6,10 +6,10 @@ import {
   readActorRegistryVisibleCells,
   scopeActorRegistryObservation,
 } from '../../packages/core-ts/src/rules/actor-observation.ts';
-import { BLINDING_DARK_STACK_THRESHOLD, BLIND_SIGHT_RADIUS, resolveVisibilityRadius } from '../../packages/core-ts/src/state/visibility.ts';
+import { BLINDING_DARK_INTENSITY_THRESHOLD, BLIND_SIGHT_RADIUS, resolveVisibilityRadius } from '../../packages/core-ts/src/state/visibility.ts';
 
 // Blinding dark (#284, maintainer 2026-10-15): when other sources' dark beats the
-// light on an actor's tile by 2 or more stacks, the actor sees only its own tile.
+// light on an actor's tile by 2 or more intensity (#340), the actor sees only its own tile.
 // Net dark of 1 keeps the adjacent ring. Every actor is under the same rule, and
 // an actor's own dark never blinds it.
 
@@ -20,8 +20,9 @@ function actor(id: string, x: number): ActorRecord {
       blocksMovement: false, blocksSight: false }, motivations: [], affinities: [], activeAffinityKey: null, holdings: [] };
 }
 
-function emitting(record: ActorRecord, kind: 'light' | 'dark', stacks: number): ActorRecord {
-  record.affinities = [{ kind, expression: 'emit', stacks }];
+/** Range defaults to the intensity, so the reach in these corridors is unchanged. */
+function emitting(record: ActorRecord, kind: 'light' | 'dark', intensity: number, range = intensity): ActorRecord {
+  record.affinities = [{ kind, expression: 'emit', stacks: range, intensity }];
   record.activeAffinityKey = `${kind}:emit`;
   return record;
 }
@@ -36,10 +37,10 @@ const seen = (registry: ReturnType<typeof corridor>, observer: string) =>
   scopeActorRegistryObservation(readActorRegistryObservation(registry, 0), observer).actors.map(entry => entry.id);
 
 test('the radius rule: net blinding dark at 2 leaves the own tile only', () => {
-  expect(BLINDING_DARK_STACK_THRESHOLD).toBe(2);
-  expect(resolveVisibilityRadius({ blindingDarkStacks: 2 })).toBe(BLIND_SIGHT_RADIUS);
-  expect(resolveVisibilityRadius({ blindingDarkStacks: 1 })).toBe(1);
-  expect(resolveVisibilityRadius({ lightStacks: 3, blindingDarkStacks: 5 })).toBe(0);
+  expect(BLINDING_DARK_INTENSITY_THRESHOLD).toBe(2);
+  expect(resolveVisibilityRadius({ blindingDarkIntensity: 2 })).toBe(BLIND_SIGHT_RADIUS);
+  expect(resolveVisibilityRadius({ blindingDarkIntensity: 1 })).toBe(1);
+  expect(resolveVisibilityRadius({ lightStacks: 3, blindingDarkIntensity: 5 })).toBe(0);
 });
 
 test('net dark of 2 from another source blinds: only the own tile is seen', () => {
@@ -79,6 +80,20 @@ test('a blinded observer still sees lit cells in line of sight', () => {
   expect(row[1]).toBe(0);
   expect(row[3]).toBe(0);
   expect(row[10]).toBe(1);
+});
+
+test('intensity blinds, range only reaches (#340)', () => {
+  // A wide dark at intensity 1 reaches self but keeps the ring; a narrow one at intensity 2 blinds.
+  const wide = visibleRow(corridor([actor('self', 5), emitting(actor('shade', 4), 'dark', 1, 4)]), 'self');
+  expect(wide.slice(4, 7)).toEqual([1, 1, 1]);
+  const narrow = visibleRow(corridor([actor('self', 5), emitting(actor('shade', 4), 'dark', 2, 1)]), 'self');
+  expect(narrow.slice(4, 7)).toEqual([0, 1, 0]);
+});
+
+test("light that out-intensifies the dark at the observer's tile lights its full range (#340)", () => {
+  // Light range 3, intensity 2 against a weaker dark at intensity 1: sight is 1 + 3.
+  const row = visibleRow(corridor([emitting(actor('self', 5), 'light', 2, 3), emitting(actor('shade', 4), 'dark', 1, 1)]), 'self');
+  expect(row.slice(1, 10)).toEqual([1, 1, 1, 1, 1, 1, 1, 1, 1]);
 });
 
 // ## TODO: Test Permutations

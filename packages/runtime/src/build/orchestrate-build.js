@@ -11,11 +11,13 @@ import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.j
 import {
   ACTOR_LOADOUT_SCHEMA,
   AFFINITY_PRESET_SCHEMA,
+  AFFINITY_PRESET_SCHEMA_VERSIONS,
   AFFINITY_RULES_ARTIFACT_SCHEMA,
   AFFINITY_SUMMARY_SCHEMA,
   MOTIVATION_RULES_ARTIFACT_SCHEMA,
   SOLVER_REQUEST_SCHEMA,
   SOLVER_RESULT_SCHEMA,
+  BUDGET_ARTIFACT_SCHEMA,
 } from "../contracts/artifacts.ts";
 
 // CR.7 / WP-5 — the build-geometry helpers this file used to import out of seven Configurator
@@ -183,15 +185,15 @@ function formatLevelGenErrorDetail(err) {
   return formatter ? formatter(err.detail) : "";
 }
 
-function assertSchema(artifact, expectedSchema) {
+function assertSchema(artifact, expectedSchema, acceptedVersions = [1]) {
   if (!artifact || typeof artifact !== "object") {
     throw new Error(`Expected ${expectedSchema} artifact.`);
   }
   if (artifact.schema !== expectedSchema) {
     throw new Error(`Expected schema ${expectedSchema}, got ${artifact.schema || "missing"}.`);
   }
-  if (artifact.schemaVersion !== 1) {
-    throw new Error(`Expected schemaVersion 1 for ${expectedSchema}.`);
+  if (!acceptedVersions.includes(artifact.schemaVersion)) {
+    throw new Error(`Expected schemaVersion ${acceptedVersions.join(" or ")} for ${expectedSchema}.`);
   }
 }
 
@@ -232,6 +234,13 @@ export async function orchestrateBuild({
   }
 
   const mapped = mapBuildSpecToArtifacts(spec, { producedBy, directorRound });
+
+  // #280: every build validates and locks its config through the Configurator, not only
+  // create/configure. A config the Configurator rejects fails the build, whoever called it.
+  const roundConfigurator = createConfiguratorPersona({ clock: () => spec.meta.createdAt });
+  roundConfigurator.provideConfig(mapped.configuratorInputs || {});
+  roundConfigurator.validate();
+  roundConfigurator.lock();
 
   let solverRequest = null;
   let solverResult = null;
@@ -367,7 +376,7 @@ export async function orchestrateBuild({
       throw new Error(`configurator inputs require both affinityPresets and affinityLoadouts (missing ${missing}).`);
     }
     if (affinityPresets) {
-      assertSchema(affinityPresets, SCHEMAS.affinityPreset);
+      assertSchema(affinityPresets, SCHEMAS.affinityPreset, AFFINITY_PRESET_SCHEMA_VERSIONS);
     }
     if (affinityLoadouts) {
       assertSchema(affinityLoadouts, SCHEMAS.actorLoadout);
@@ -426,9 +435,21 @@ export async function orchestrateBuild({
       priceListMeta: createBuildMeta(spec, producedBy, "default_price_list"),
       clock: UNUSED_CLOCK,
     });
-    resolvedPriceList = mapped.budget?.budget
-      ? buildAllocator.resolvePriceList(mapped.budget?.priceList)
-      : null;
+    // #276: a spec with no budget is priced against the Allocator's reference budget, as
+    // `ak create` is (#274). A missing input picks the Allocator's default, never skips the
+    // Allocator. Only a spec that brings its own receipt (already priced) has no budget here.
+    if (mapped.budget?.budget || !budgetReceipt) {
+      mapped.budget = {
+        ...(mapped.budget || {}),
+        budget: mapped.budget?.budget || {
+          schema: BUDGET_ARTIFACT_SCHEMA,
+          schemaVersion: 1,
+          meta: createBuildMeta(spec, producedBy, "default_budget"),
+          budget: { tokens: buildAllocator.pricing.levelAuthoring().referenceBudgetTokens },
+        },
+      };
+      resolvedPriceList = buildAllocator.resolvePriceList(mapped.budget.priceList);
+    }
     const mixedRoomPriceList = resolvedPriceList || buildAllocator.resolvePriceList();
     if (Array.isArray(layout.rooms)) {
       layout.rooms = layout.rooms.map((room) => {
@@ -570,7 +591,7 @@ export async function orchestrateBuild({
       });
       affinitySummary = {
         schema: SCHEMAS.affinitySummary,
-        schemaVersion: 1,
+        schemaVersion: 2,
         // Builds run NO tick, and the Annotator subscribes only to the EMIT/SUMMARIZE tick
         // phases — so it cannot have produced this. Stamp the real caller, as every sibling
         // artifact here does; glue must not claim persona provenance it did not earn (P3.4).

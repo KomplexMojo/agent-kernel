@@ -39,7 +39,8 @@ test('fire room selects owned draw and emits only an equip action without changi
   expect(turn.apply({ actorId: 'self', tick: 0, kind: 'wait' })).toBe(false);
   expect(registry.getActor('self').vitals.mana.current).toBe(0);
   resolveActorFields(registry);
-  expect(registry.getActor('self').vitals.mana.current).toBe(3);
+  // The source's fire emit at intensity 1 gives 1 × 1² a turn (#340).
+  expect(registry.getActor('self').vitals.mana.current).toBe(1);
   expect(decide(registry).actions.some(action => action.kind === 'equip_affinity')).toBe(false);
 });
 
@@ -63,7 +64,7 @@ test('solver receives the same equipment candidate and its field evaluation', ()
   const candidate = envelope.candidateActions.find(entry => entry.action.params?.affinityKey === 'fire:draw');
   expect(candidate).toBeDefined();
   const row = envelope.objectives.actorDecision.candidates.find(row => row.candidateActionId === candidate.id);
-  expect(row.rank.slice(4, 6)).toEqual([0, 3]);
+  expect(row.rank.slice(4, 6)).toEqual([0, 1]);
 });
 
 test('equipment evaluation retains contributions when the source actor is unseen', () => {
@@ -72,7 +73,8 @@ test('equipment evaluation retains contributions when the source actor is unseen
   ] }).snapshot();
   snapshot.dimensions.width = 12; snapshot.terrain = Array(12).fill('floor');
   const source = snapshot.actors.find(actor => actor.id === 'source');
-  source.position.x = 5; source.affinities[0].stacks = 8;
+  // Intensity 2 so the field still lands a whole point five tiles out (#283 rounds exposure).
+  source.position.x = 5; source.affinities[0].stacks = 8; source.affinities[0].intensity = 2;
   const registry = createActorRegistry(snapshot);
   const observed = scopeActorRegistryObservation(readActorRegistryObservation(registry, 0), 'self');
   expect(observed.actors.some(actor => actor.id === 'source')).toBe(false);

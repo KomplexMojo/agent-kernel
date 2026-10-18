@@ -137,7 +137,7 @@ test("tactics need strategy_focused: goal_oriented reports them ignored, strateg
 });
 
 test("defeat closes in and casts until the target is defeated, then the goal is done", async () => {
-  const armed = { affinities: [{ kind: "fire", expression: "push", stacks: 2 }, { kind: "light", expression: "emit", stacks: 9 }],
+  const armed = { affinities: [{ kind: "fire", expression: "push", stacks: 2, intensity: 2 }, { kind: "light", expression: "emit", stacks: 9 }],
     activeAffinityKey: "fire:push", equippedAffinityKeys: ["fire:push", "light:emit"], vitals: viableVitals({ mana: 2000 }) };
   const actors = [HERO,
     companion("hunter", { x: 1, y: 4 }, ["stationary", "goal_oriented"], { goals: [{ kind: "defeat", target: "prey" }] }, armed),

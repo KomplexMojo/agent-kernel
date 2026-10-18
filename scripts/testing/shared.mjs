@@ -59,14 +59,20 @@ function detectRecipe(relativePath, content) {
   if (relativePath.startsWith("tests/bindings/")) {
     return "runtime_module_contract";
   }
+  // Allocator tests that do not drive the persona FSM check pricing and budget
+  // invariants; they moved here from tests/allocator/ and tests/financial-model/ (#160).
+  if (
+    relativePath.startsWith("tests/personas/allocator/")
+    && !content.includes("TickPhases")
+    && !content.includes("createAllocatorStateMachine")
+  ) {
+    return "budget_policy_invariant";
+  }
   if (relativePath.startsWith("tests/personas/")) {
     return "runtime_persona_transition";
   }
   if (relativePath.startsWith("tests/adapters-test/") || relativePath.startsWith("tests/adapters-web/")) {
     return "adapter_port_contract";
-  }
-  if (relativePath.startsWith("tests/allocator/") || relativePath.startsWith("tests/financial-model/")) {
-    return "budget_policy_invariant";
   }
   if (content.includes("manifest.json") && content.includes("bundle.json")) {
     return "manifest_bundle_consistency";

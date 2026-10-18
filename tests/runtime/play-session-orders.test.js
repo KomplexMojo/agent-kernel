@@ -65,6 +65,30 @@ test("advance runs until every order has run its course", async () => {
   assert.deepEqual(positionOf(session, "hero"), { x: 1, y: 1 }, "a seated actor with no strategy waits");
 });
 
+test("an order to reach the exit walks onto the exit, leaves the level, and is done", async () => {
+  const scout = { ...PAL, id: "scout", motivations: ["goal_oriented"] };
+  const session = await createPlaySession(buildUnifiedLevel({ id: "exit_room", tiles: ROOM, actors: [HERO, scout],
+    approaches: { exitApproach: { x: 10, y: 5 } } }));
+  await session.order("scout", { goals: [{ kind: "reach", place: "exit" }] });
+  const result = await session.advance({ ticks: 30, until: "orders_done" });
+  assert.equal(result.stoppedBy, "orders_done");
+  assert.equal(session.view().actors.find((actor) => actor.id === "scout")?.lifecycle ?? "exited", "exited");
+  assert.equal(session.view().orders.find((order) => order.id === "scout").status, "done");
+});
+
+test("a leader and its follower keep moving when they lose sight of each other (#338)", async () => {
+  // Unlit, sight is one tile, so a leader two tiles ahead is out of its follower's sight
+  // every other turn: the follower walks to where it last saw the leader and finds it again.
+  const guide = { ...PAL, id: "guide", position: { x: 2, y: 1 }, motivations: ["goal_oriented"] };
+  const session = await createPlaySession(buildUnifiedLevel({ id: "lead_room", tiles: ROOM, actors: [HERO, guide],
+    approaches: { exitApproach: { x: 10, y: 5 } } }));
+  await session.order("guide", { goals: [{ kind: "lead", target: "hero", distance: 2 }] });
+  await session.order("hero", { goals: [{ kind: "follow", target: "guide", distance: 1 }] });
+  const result = await session.advance({ ticks: 60, until: "orders_done" });
+  assert.equal(result.stoppedBy, "orders_done", JSON.stringify(session.view().orders));
+  assert.equal(session.view().orders.find((order) => order.id === "guide").status, "done");
+});
+
 test("advance stops at contact when a hostile comes into a party member's sight", async () => {
   const lantern = { affinities: [{ kind: "light", expression: "emit", stacks: 3 }], activeAffinityKey: "light:emit", vitals: viableVitals({ mana: 2000 }) };
   const strategy = { goals: [{ kind: "reach", place: { x: 8, y: 4 } }] };

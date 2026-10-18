@@ -60,6 +60,7 @@
  */
 import { ACTOR_COMMAND_KINDS, normalizeActorCommand, normalizeActorStrategy } from "../personas/actor/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
+import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
@@ -101,7 +102,7 @@ function toPlayRejection({ action, reason }) {
 
 const HAZARD_CATEGORY = "hazard";
 const BARRIER_CATEGORY = "barrier";
-const PLAYER_MOTIVATION = "user_controlled";
+export const PLAYER_MOTIVATION = "user_controlled";
 
 /**
  * @param {object} args
@@ -146,6 +147,9 @@ export async function createPlaySession({
   const presentation = runtime.getActorPresentation() || {};
   // A hand-written level is played as written; actors below the floor are only reported.
   const viabilityReport = Object.freeze(reportActorViabilityFloor(initialState).map((finding) => Object.freeze(finding)));
+  // A level the Allocator never priced is played too, and reported (#279).
+  const pricingReport = Object.freeze(createAllocatorPersona({ clock: UNUSED_CLOCK })
+    .reportLevelPricing(simConfig).map((finding) => Object.freeze(finding)));
   const legend = playLegend(simConfig);
   const labels = playActorLabels(sourceActors, presentation);
   // The party: every playable actor, and the seated one even when it is not (a caller's choice).
@@ -386,7 +390,8 @@ export async function createPlaySession({
     return { tick: currentTick(), accepted, rejected, status: status() };
   }
 
-  // The party as the UI lists it: who is seated, and where each member stands.
+  // The party as the UI lists it: who is seated, where each member stands, and the
+  // motivation stack that explains what it does on its own (#310).
   function partyView(snapshot) {
     return partyIds.map((id) => {
       const actor = snapshot.actors.find((entry) => entry.id === id);
@@ -396,6 +401,7 @@ export async function createPlaySession({
         label: labels.get(id) ?? null,
         active: id === activeId,
         ...(actor && !memberStatus.exited ? { position: { ...actor.position } } : {}),
+        motivations: [...(actor?.motivations ?? [])],
         status: memberStatus,
       };
     });
@@ -452,6 +458,7 @@ export async function createPlaySession({
     captureInput,
     playerActorId: playerId,
     viabilityReport,
+    pricingReport,
   };
 }
 
@@ -516,6 +523,8 @@ function toViewActor(actor, presentation, labels) {
     affinities: actor.affinities.map((pair) => ({ ...pair })),
     activeAffinityKey: actor.activeAffinityKey,
     ...(actor.affinityExhausted ? { affinityExhausted: true } : {}),
+    // The stack that explains its behaviour (#310); the board glyph never encodes it.
+    motivations: [...(actor.motivations ?? [])],
   };
 }
 

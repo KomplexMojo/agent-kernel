@@ -50,48 +50,6 @@ function applyVitalModifier(vital, modifier, stacks, scaling) {
   };
 }
 
-function sortedById(list) {
-  if (!Array.isArray(list)) return [];
-  return list.slice().sort((a, b) => String(a?.id || "").localeCompare(String(b?.id || "")));
-}
-
-function deriveAbilitiesFromEffects(preset) {
-  const effects = preset.effects || {};
-  const abilities = [];
-  if (effects.attack) {
-    abilities.push({ id: effects.attack.id, kind: "attack", potency: effects.attack.potency });
-  }
-  if (effects.buff) {
-    abilities.push({ id: effects.buff.id, kind: "buff", potency: effects.buff.potency });
-  }
-  if (effects.area) {
-    abilities.push({ id: effects.area.id, kind: "area", potency: effects.area.potency });
-  }
-  return abilities;
-}
-
-function resolvePresetAbilities(preset) {
-  if (Array.isArray(preset.abilities) && preset.abilities.length > 0) {
-    return sortedById(preset.abilities);
-  }
-  return sortedById(deriveAbilitiesFromEffects(preset));
-}
-
-function resolveAbility(ability, preset, stacks) {
-  const scaling = preset.stack?.scaling || "linear";
-  const baseManaCost = ability.manaCost ?? preset.manaCost ?? 0;
-  const expression = ability.expression || preset.expression;
-  return {
-    id: ability.id,
-    kind: ability.kind,
-    affinityKind: ability.affinityKind || preset.kind,
-    expression,
-    targetType: normalizeAffinityTargetType(ability.targetType, expression),
-    potency: scaleValue(ability.potency, stacks, scaling),
-    manaCost: scaleValue(baseManaCost, stacks, scaling),
-  };
-}
-
 function addAffinityStack(map, kind, expression, stacks) {
   const key = `${kind}:${expression}`;
   const current = map[key];
@@ -122,7 +80,6 @@ function applyPresetToVitals(vitals, preset, stacks, allowByVital = {}) {
 
 function resolveActorEffects(loadout, presetIndex, baseVitals) {
   const vitals = ensureVitals(baseVitals);
-  const abilities = [];
   const affinityStacks = {};
   const affinityTargets = {};
   const resolvedEffects = [];
@@ -151,15 +108,10 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
         },
       ),
     );
-
-    const presetAbilities = resolvePresetAbilities(preset);
-    presetAbilities.forEach((ability) => {
-      abilities.push(resolveAbility(ability, preset, stacks));
-    });
   });
 
   resolvedEffects.sort((a, b) => String(a.id || "").localeCompare(String(b.id || "")));
-  return { vitals, abilities, affinityStacks, affinityTargets, resolvedEffects };
+  return { vitals, affinityStacks, affinityTargets, resolvedEffects };
 }
 
 /**
@@ -182,12 +134,13 @@ function resolveActorEffects(loadout, presetIndex, baseVitals) {
  * @param {object} [rules] - an authored affinity rules artifact; the default rules otherwise
  * @returns {{ mana: { current: number, max: number, regen: number }, durability: { current: number, max: number, regen: number } }}
  */
-export function computeHazardVitals(expression, stacks, kind, rules) {
+export function computeHazardVitals(expression, stacks, kind, rules, intensity = 1) {
   const s = Number.isInteger(stacks) && stacks >= 1 ? stacks : 1;
+  const i = Number.isInteger(intensity) && intensity >= 1 ? intensity : 1;
 
   if (expression === "emit" || expression === "draw") {
-    // Persistent expressions: use internal upkeep formula (2 + s)
-    const upkeep = computeInternalManaUpkeep(s);
+    // Persistent expressions: core charges the upkeep at range + intensity (2 + r + i, #340).
+    const upkeep = computeInternalManaUpkeep(s + i);
     const manaPool = upkeep * 3; // 3 ticks worth
     const manaRegen = upkeep; // Sustain indefinitely
     const durability = s * 5; // Structural integrity
@@ -240,11 +193,10 @@ function resolveHazardEffects(hazard, presets, affinityRules) {
   } else {
     // No vitals provided: compute defaults from expression and stacks
     const computed = computeHazardVitals(hazard.affinity.expression, hazard.affinity.stacks, hazard.affinity.kind,
-      affinityRules ?? undefined);
+      affinityRules ?? undefined, hazard.affinity.intensity);
     baseVitals = ensureVitals(computed);
   }
 
-  const abilities = [];
   const affinityStacks = {};
   const affinityTargets = {};
   const expression = hazard.affinity.expression;
@@ -266,10 +218,6 @@ function resolveHazardEffects(hazard, presets, affinityRules) {
     VITAL_KEYS.forEach((key) => {
       baseVitals[key] = updatedVitals[key];
     });
-    const presetAbilities = resolvePresetAbilities(preset);
-    presetAbilities.forEach((ability) => {
-      abilities.push(resolveAbility(ability, preset, hazard.affinity.stacks));
-    });
   }
 
   const resolvedEffects = resolveAffinityTargetEffectsForEntry(
@@ -290,7 +238,6 @@ function resolveHazardEffects(hazard, presets, affinityRules) {
   return {
     position: { x: hazard.x, y: hazard.y },
     vitals: baseVitals,
-    abilities,
     affinityStacks,
     affinityTargets,
     resolvedEffects,
@@ -314,7 +261,6 @@ export function resolveAffinityEffects({
       return {
         actorId: loadout.actorId,
         vitals: resolved.vitals,
-        abilities: resolved.abilities,
         affinityStacks: resolved.affinityStacks,
         affinityTargets: resolved.affinityTargets,
         resolvedEffects: resolved.resolvedEffects,

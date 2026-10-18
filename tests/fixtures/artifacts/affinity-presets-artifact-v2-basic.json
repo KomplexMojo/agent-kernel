@@ -1,0 +1,80 @@
+{
+  "schema": "agent-kernel/AffinityPresetArtifact",
+  "schemaVersion": 2,
+  "meta": {
+    "id": "affinity_presets_basic",
+    "runId": "run_affinity_presets_basic",
+    "createdAt": "2026-03-22T00:00:00.000Z",
+    "producedBy": "fixture"
+  },
+  "presets": [
+    {
+      "id": "affinity_fire_push",
+      "kind": "fire",
+      "expression": "push",
+      "manaCost": 3,
+      "stack": {
+        "max": 3,
+        "scaling": "linear"
+      },
+      "vitalsModifiers": {
+        "mana": {
+          "current": 0,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "affinity_growth_pull",
+      "kind": "growth",
+      "expression": "pull",
+      "manaCost": 0,
+      "stack": {
+        "max": 3,
+        "scaling": "linear"
+      },
+      "vitalsModifiers": {
+        "health": {
+          "current": 1,
+          "max": 2,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "affinity_water_draw",
+      "kind": "water",
+      "expression": "draw",
+      "manaCost": 1,
+      "stack": {
+        "max": 3,
+        "scaling": "linear"
+      },
+      "vitalsModifiers": {
+        "mana": {
+          "current": 0,
+          "max": 1,
+          "regen": 0
+        }
+      }
+    },
+    {
+      "id": "affinity_decay_emit",
+      "kind": "decay",
+      "expression": "emit",
+      "manaCost": 2,
+      "stack": {
+        "max": 3,
+        "scaling": "linear"
+      },
+      "vitalsModifiers": {
+        "health": {
+          "current": -1,
+          "max": 0,
+          "regen": 0
+        }
+      }
+    }
+  ]
+}

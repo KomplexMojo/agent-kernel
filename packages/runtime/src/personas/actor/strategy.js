@@ -270,7 +270,7 @@ function attackProposals(self, target, context) {
 /**
  * One goal's verdict for this turn:
  *   { done: true }                                     move on to the next goal
- *   { status, proposals | null, reason?, keepNear?, heldSince? }
+ *   { status, proposals | null, reason?, keepNear?, heldSince?, lastSeen?, unseenSince? }
  * `proposals: null` hands the turn to the actor's motivations; `keepNear` lets them
  * play but keeps their moves within `distance` of `center`.
  */
@@ -285,7 +285,8 @@ function evaluateGoal(goal, entry, context) {
 
   switch (goal.kind) {
     case "reach": {
-      if (goal.place === "exit") return active(context.exitStep());
+      // Standing on the exit, the last wait leaves the level: the goal is met.
+      if (goal.place === "exit") return context.onExit() ? { status: STRATEGY_STATUS.DONE, proposals: [WAIT] } : active(context.exitStep());
       if (samePosition(self.position, goal.place)) return { done: true };
       const step = stepToward(self.position, goal.place, context);
       if (!step.route) return stalled("no_route");
@@ -328,26 +329,42 @@ function evaluateGoal(goal, entry, context) {
       return active([WAIT]);
     }
     case "follow": {
-      if (!target) return searching;
+      // Out of sight, a follower walks to where it last saw its target and looks again.
+      if (!target) {
+        const lastSeen = entry.lastSeen;
+        if (!lastSeen || samePosition(self.position, lastSeen)) return searching;
+        const step = stepToward(self.position, lastSeen, context);
+        return { ...searching, ...(step.move ? { proposals: [step.move] } : {}), lastSeen };
+      }
       if (gone(target)) return stalled("target_gone");
+      const lastSeen = { ...target.position };
       if (chebyshevDistance(self.position, target.position) > goal.distance) {
         const step = stepToward(self.position, target.position, context, { stopAdjacent: true });
         if (!step.route) return stalled("no_route");
-        return active(step.move ? [step.move] : [WAIT]);
+        return active(step.move ? [step.move] : [WAIT], { lastSeen });
       }
-      return active(null, { keepNear: { center: { ...target.position }, distance: goal.distance } });
+      return active(null, { keepNear: { center: { ...target.position }, distance: goal.distance }, lastSeen });
     }
     case "lead": {
       const place = goal.place === "exit" ? null : goal.place;
       if (place && samePosition(self.position, place)) return { done: true };
-      // The ally sets the pace: the leader waits for one that falls behind or out of sight.
-      if (!gone(target) && (!target || chebyshevDistance(self.position, target.position) > goal.distance)) {
-        return active([WAIT], { reason: "waiting_for_ally" });
+      if (!place && context.onExit()) return { status: STRATEGY_STATUS.DONE, proposals: [WAIT] };
+      const lastSeen = target && !gone(target) ? { ...target.position } : entry.lastSeen;
+      const unseenSince = target ? undefined : (Number.isInteger(entry.unseenSince) ? entry.unseenSince : tick);
+      const seen = { ...(lastSeen ? { lastSeen } : {}), ...(unseenSince !== undefined ? { unseenSince } : {}) };
+      // The ally sets the pace: the leader waits for one that falls behind. One out of sight
+      // gets a turn to catch up, then the leader goes back toward where it last saw it.
+      if (!target && lastSeen && tick > unseenSince && chebyshevDistance(self.position, lastSeen) > 1) {
+        const back = stepToward(self.position, lastSeen, context, { stopAdjacent: true });
+        if (back.move) return active([back.move], { reason: "returning_for_ally", ...seen });
       }
-      if (!place) return active(context.exitStep());
+      if (!gone(target) && (!target || chebyshevDistance(self.position, target.position) > goal.distance)) {
+        return active([WAIT], { reason: "waiting_for_ally", ...seen });
+      }
+      if (!place) return active(context.exitStep(), seen);
       const step = stepToward(self.position, place, context);
       if (!step.route) return stalled("no_route");
-      return active(step.move ? [step.move] : [WAIT]);
+      return active(step.move ? [step.move] : [WAIT], seen);
     }
     case "hold": {
       if (!samePosition(self.position, goal.place)) {
@@ -403,9 +420,14 @@ function tacticProposal(action, context) {
  * @param {object} args.entry      this actor's progress entry from the Actor context
  * @param {object} args.context    self, record, view, hostiles, nearestHostile, configuredIds,
  *                                 tick, tileKinds, baseTiles, reservedTargets, actorId,
- *                                 castAt(target, distance), exitStep(), commandProposal(command)
+ *                                 castAt(target, distance), exitStep(), onExit(), commandProposal(command)
  * @returns {{ proposals: object[] | null, keepNear?: object, entry: object }}
  */
+// What a goal remembers between turns, kept in its progress entry until the goal changes:
+// when a hold began, where a target was last seen, since when an ally has been out of sight.
+const GOAL_MEMORY = Object.freeze(["heldSince", "lastSeen", "unseenSince"]);
+const goalMemory = (from) => Object.fromEntries(GOAL_MEMORY.filter((key) => from[key] !== undefined).map((key) => [key, from[key]]));
+
 export function followStrategy({ strategy, depth, entry = {}, context }) {
   const ignored = ignoredStrategyParts(strategy, depth);
   const report = (fields) => ({
@@ -427,18 +449,18 @@ export function followStrategy({ strategy, depth, entry = {}, context }) {
       return {
         proposals: [proposal],
         entry: report({ goal, status: STRATEGY_STATUS.ACTIVE, tactic: index,
-          ...(Number.isInteger(entry.heldSince) ? { heldSince: entry.heldSince } : {}) }),
+          ...goalMemory(entry) }),
       };
     }
   }
 
   let goal = Number.isInteger(entry.goal) ? entry.goal : 0;
-  let heldSince = entry.heldSince;
+  let memory = goalMemory(entry);
   while (goal < strategy.goals.length) {
-    const verdict = evaluateGoal(strategy.goals[goal], { heldSince }, context);
+    const verdict = evaluateGoal(strategy.goals[goal], memory, context);
     if (verdict.done) {
       goal += 1;
-      heldSince = undefined;
+      memory = {};
       continue;
     }
     return {
@@ -448,7 +470,7 @@ export function followStrategy({ strategy, depth, entry = {}, context }) {
         goal,
         status: verdict.status,
         ...(verdict.reason ? { reason: verdict.reason } : {}),
-        ...(Number.isInteger(verdict.heldSince) ? { heldSince: verdict.heldSince } : {}),
+        ...goalMemory(verdict),
       }),
     };
   }

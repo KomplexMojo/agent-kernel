@@ -204,6 +204,44 @@ test("world-state checkpoints are opt-in and deterministic after metadata normal
   }
 });
 
+// #189: checkpoints used to be stamped by createMeta()'s wall clock, so two runs of
+// identical input wrote checkpoint files that differed in meta.id/createdAt -- the same
+// bug #149 fixed for action-log/run-summary/world-state. The stamp must also come from
+// its own clock: the run's seeded clock times every tick frame, and drawing from it per
+// checkpoint would make asking for checkpoints change every other output.
+test("world-state checkpoints are byte-identical across runs and leave other outputs untouched", async () => {
+  const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoint-bytes-"));
+  try {
+    const paths = await writeArtifacts(root);
+    const firstDir = join(root, "first");
+    const secondDir = join(root, "second");
+    const ordinaryDir = join(root, "ordinary");
+    for (const [outDir, checkpoints] of [[firstDir, "0,1,3"], [secondDir, "0,1,3"], [ordinaryDir, undefined]]) {
+      const result = runCli(runArgs(outDir, checkpoints, paths));
+      assert.equal(result.status, 0, result.stderr || result.stdout);
+      await new Promise((done) => setTimeout(done, 5));
+    }
+    const ids = new Set();
+    for (const name of ["tick-000000.json", "tick-000001.json", "tick-000003.json"]) {
+      const first = readFileSync(join(firstDir, "world-state-checkpoints", name), "utf8");
+      const second = readFileSync(join(secondDir, "world-state-checkpoints", name), "utf8");
+      assert.equal(first, second, `${name} must be byte-identical across runs`);
+      ids.add(JSON.parse(first).meta.id);
+    }
+    assert.equal(ids.size, 3, "each checkpoint carries its own meta.id");
+    for (const name of ["tick-frames.json", "run-summary.json", "world-state.json", "action-log.json"]) {
+      if (!existsSync(join(ordinaryDir, name))) continue;
+      assert.equal(
+        readFileSync(join(firstDir, name), "utf8"),
+        readFileSync(join(ordinaryDir, name), "utf8"),
+        `${name} must not change when checkpoints are requested`,
+      );
+    }
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("world-state checkpoint validation fails closed", async () => {
   const root = mkdtempSync(join(os.tmpdir(), "ak-world-state-checkpoint-invalid-"));
   try {

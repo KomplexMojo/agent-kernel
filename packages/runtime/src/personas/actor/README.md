@@ -295,12 +295,12 @@ checked by the exported `normalizeActorStrategy`), like the command vocabulary.
 
 | Goal | Does | Finishes |
 |---|---|---|
-| `reach {place}` | walks to `{x,y}` or `"exit"` | on arrival |
+| `reach {place}` | walks to `{x,y}`, or onto the exit and waits there until it leaves | on arrival; for the exit, on the turn it leaves |
 | `defeat {target}` | closes in and casts | when the target is defeated |
 | `take {target}` | defeats it, then takes each unclaimed holding | when nothing is left |
 | `guard {target, radius=2}` | engages hostiles near the target, else stays within `radius` | never |
-| `follow {target, distance=1}` | stays within `distance`; its motivations play inside that | never |
-| `lead {target, place="exit", distance=3}` | walks to the place, waiting for an ally that falls behind | on arrival |
+| `follow {target, distance=1}` | stays within `distance`; its motivations play inside that. Out of sight, it walks to where it last saw the target | never |
+| `lead {target, place="exit", distance=3}` | walks to the place, waiting for an ally that falls behind. An ally out of sight gets one turn to catch up, then the leader goes back toward where it last saw it | on arrival; for the exit, on the turn it leaves |
 | `hold {place, ticks}` | goes there and stays `ticks` ticks | after the ticks |
 | `survive {distance=3}` | steps away from a hostile that close | never |
 
@@ -314,7 +314,7 @@ Tactics are `{ when, do }`, checked before goals each turn, first match wins. `w
 does not follow is ignored and reported (`actorStrategyIgnoredParts`), never refused.
 
 **Sight bounds it.** A goal whose target the actor cannot see is `searching` and hands the turn to
-its motivations; one that cannot be met is `stalled` with a reason (`unknown_target`, `no_route`,
+its motivations (a `follow` that saw its target first walks to the last-seen spot instead); one that cannot be met is `stalled` with a reason (`unknown_target`, `no_route`,
 `target_gone`). Strategy proposals replace the motivated candidates for that turn; the decision
 tuple still picks among them, and core still judges legality.
 

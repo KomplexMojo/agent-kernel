@@ -281,6 +281,31 @@ Still open by design: the Orchestrator inversion (Phase 4) and the enforcement f
 boundary allowlist to zero (Phase 5). **Consult the Plan for current state; do not treat any claim in
 this paragraph as evidence that a behavior is owned — require its G1 test.**
 
+### No parallel paths (adopted 2026-10-17, #275)
+
+*Maintainer sign-off 2026-10-17. Found by the #275 audit: `ak create` with no budget built a level the
+Allocator never priced (#274), and seven more entrypoints skipped a persona when the caller left an input
+out (#276–#282). Every static guard passed, because a conditional skip — `if (budget) { …allocator… }` — is
+invisible to import and boundary checks.*
+
+**Every flow goes through every persona its charter step names. A missing input selects that persona's
+default; it never skips the persona.** No budget means the Allocator's reference budget, not an unpriced
+level; no plan means the Director drafts one; every build is validated and locked by the Configurator,
+whichever command started it. A level the system did not author (a hand-written file) is played as
+written and the gap is **reported** (`level_unpriced`), not refused, and not silently treated as priced.
+
+**Every artifact a persona emits carries that persona in `meta.producedBy`**, stamped by the persona
+itself (`personas/_shared/persona-stamp.js`), never by the glue that called it. The required stamps per
+schema are `REQUIRED_PERSONA_STAMPS` in `contracts/persona-stamps.js`: PlanArtifact → director;
+SimConfig and InitialState → configurator; PriceList, SpendProposal and BudgetReceipt → allocator. A
+level artifact with another stamp means a flow went around its persona.
+
+Enforced by `tests/architecture/persona-bypass.test.js` (every authoring command leaves a receipt and
+price list; budget-gated conditionals in glue only go down), `tests/architecture/persona-stamps.test.mjs`
+(every level-producing command's artifacts carry their persona's stamp) and
+`tests/architecture/build-persona-rounds.test.mjs` (every build path is validated and locked by the
+Configurator and carries its Director round).
+
 ## Economy — Allocator Authority
 
 - There is **one price model**, owned by the Allocator. Base cost numbers live in

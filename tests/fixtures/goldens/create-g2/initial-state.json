@@ -5,7 +5,7 @@
     "id": "golden_g2_initial_state",
     "runId": "golden_g2",
     "createdAt": "2026-07-18T00:00:00.000Z",
-    "producedBy": "cli-create",
+    "producedBy": "configurator",
     "cost": {
       "runTotalTokens": 184,
       "budgetTokens": 5000,

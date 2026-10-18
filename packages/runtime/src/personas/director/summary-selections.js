@@ -82,6 +82,8 @@ function normalizeAffinityEntries(
           expression,
           stacks: normalizePositiveInt(entry?.stacks, 1),
         };
+        // #340: an authored intensity is carried as given (absent reads as 1).
+        if (Number.isSafeInteger(entry?.intensity) && entry.intensity >= 1) normalized.intensity = entry.intensity;
         if (entry?.hazardVitals && typeof entry.hazardVitals === "object") {
           normalized.hazardVitals = entry.hazardVitals;
         }
@@ -415,7 +417,9 @@ export function normalizeCardEntry(entry, { dungeonAffinity = DEFAULT_DUNGEON_AF
       : undefined,
     proximityRadius: type === "hazard" ? normalizePositiveInt(entry?.proximityRadius, 1) : undefined,
     mana: type === "hazard" ? normalizeHazardVital(entry?.mana, { kind: "one-time", amount: 3 }) : undefined,
-    durability: type === "room" && entry?.durability ? normalizeHazardVital(entry.durability, { kind: "one-time", amount: 1 }) : undefined,
+    durability: (type === "room" || type === "hazard") && entry?.durability
+      ? normalizeHazardVital(entry.durability, { kind: "one-time", amount: 1 })
+      : undefined,
     tier: type === "resource" ? entry?.tier : undefined,
     stat: type === "resource" ? entry?.stat : undefined,
     delta: type === "resource" && Number.isFinite(Number(entry?.delta)) ? Number(entry.delta) : undefined,

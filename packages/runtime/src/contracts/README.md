@@ -3,6 +3,11 @@
 `artifacts.ts` is the declaration origin for boundary schemas. It declares data;
 Configurator validates authoring and core validates simulation legality.
 
+`persona-stamps.js` (#275) names the persona whose `meta.producedBy` stamp each level
+artifact must carry (`REQUIRED_PERSONA_STAMPS`) and reports artifacts stamped otherwise
+(`personaStampViolations`). Personas stamp their own output through
+`personas/_shared/persona-stamp.js`.
+
 ## Unified actor rewrite — declaration milestone
 
 Mechanical actor types now live in `packages/core-ts/src/state/actor-types.ts`.

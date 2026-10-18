@@ -75,6 +75,7 @@ import {
   ACTION_SEQUENCE_SCHEMA,
   ACTOR_LOADOUT_SCHEMA,
   AFFINITY_PRESET_SCHEMA,
+  AFFINITY_PRESET_SCHEMA_VERSIONS,
   AFFINITY_SUMMARY_SCHEMA,
   BUDGET_ARTIFACT_SCHEMA,
   BUDGET_RECEIPT_ARTIFACT_SCHEMA,
@@ -92,6 +93,9 @@ import {
   TELEMETRY_RECORD_SCHEMA,
   TICK_FRAME_SCHEMA,
 } from "../contracts/artifacts.ts";
+
+// #300 — the questions `ak solve --dir` can ask about a built level, one per adopted domain.
+const SOLVE_QUESTIONS = Object.freeze(["place-objects", "budget-fit"]);
 
 const SCHEMAS = Object.freeze({
   intent: INTENT_ENVELOPE_SCHEMA,
@@ -255,15 +259,15 @@ function buildSpecMeta(spec, producedBy, suffix) {
   };
 }
 
-function assertSchema(artifact, expectedSchema) {
+function assertSchema(artifact, expectedSchema, acceptedVersions = [1]) {
   if (!artifact || typeof artifact !== "object") {
     throw new Error(`Expected ${expectedSchema} artifact.`);
   }
   if (artifact.schema !== expectedSchema) {
     throw new Error(`Expected schema ${expectedSchema}, got ${artifact.schema || "missing"}.`);
   }
-  if (artifact.schemaVersion !== 1) {
-    throw new Error(`Expected schemaVersion 1 for ${expectedSchema}.`);
+  if (!acceptedVersions.includes(artifact.schemaVersion)) {
+    throw new Error(`Expected schemaVersion ${acceptedVersions.join(" or ")} for ${expectedSchema}.`);
   }
 }
 
@@ -851,6 +855,10 @@ export function createCommandKernel(host = {}) {
     const outDir = resolvePath(args["out-dir"]) || defaultRunCommandOutDir("solve", runId);
     const solverFixturePath = resolvePath(args["solver-fixture"]);
 
+    if (args.question !== undefined) {
+      return solveLevelQuestion(args, { runId, outDir, solverFixturePath });
+    }
+
     let scenarioData = scenario;
     if (!scenarioData && scenarioFilePath) {
       scenarioData = await readText(scenarioFilePath);
@@ -902,6 +910,112 @@ export function createCommandKernel(host = {}) {
 
     log(`solve: wrote ${outDir}`);
     return { outDir, solverRequest, solverResult };
+  }
+
+  /**
+   * #300 — ask the solver a real question about a built level. The owning persona poses the
+   * problem and judges the answer; this glue only reads the level, records the round trip,
+   * and dispatches through the same hosts the build uses.
+   */
+  async function readLevelPriceList(dir) {
+    const path = join(dir, "price-list.json");
+    if (!(await exists(path))) return undefined;
+    const artifact = await readJson(path);
+    assertSchema(artifact, SCHEMAS.priceList);
+    return artifact;
+  }
+
+  async function solveLevelQuestion(args, { runId, outDir, solverFixturePath }) {
+    const question = args.question;
+    if (!SOLVE_QUESTIONS.includes(question)) {
+      throw new Error(`solve --question must be one of: ${SOLVE_QUESTIONS.join(", ")}.`);
+    }
+    const dir = resolvePath(args.dir);
+    if (!dir) throw new Error("solve --question needs --dir <built level directory>.");
+    const simConfig = await readJson(join(dir, "sim-config.json"));
+    assertSchema(simConfig, SCHEMAS.simConfig);
+    const createdAt = simConfig.meta?.createdAt || nowIso();
+    const clock = () => createdAt;
+
+    // Record the request the persona posed and the answer the adapter gave, without
+    // handing the persona anything but the hosted round trip it already uses.
+    const solverAdapter = await createSolverAdapter({ fixturePath: solverFixturePath });
+    const recorded = { prepared: null, request: null, result: null };
+    const recordPrepared = (prepare) => (input) => {
+      recorded.prepared = prepare(input);
+      return recorded.prepared;
+    };
+    const recordingAdapter = Object.assign(Object.create(solverAdapter), {
+      solve: async (request) => {
+        recorded.request = request;
+        recorded.result = await solverAdapter.solve(request);
+        return recorded.result;
+      },
+    });
+
+    let answer;
+    if (question === "place-objects") {
+      const initialState = await readJson(join(dir, "initial-state.json"));
+      assertSchema(initialState, SCHEMAS.initialState);
+      const configurator = createConfiguratorPersona({ clock });
+      const requests = configurator.levelObjectRequests(initialState);
+      const placeObjects = createHostedObjectPlacer({
+        prepare: recordPrepared(configurator.prepareObjectPlacement),
+        complete: configurator.completeObjectPlacement,
+        adapter: recordingAdapter,
+        clock,
+      });
+      const placement = await placeObjects({ layout: simConfig.layout?.data, ...requests });
+      const before = new Map((initialState.actors || []).map((actor) => [actor.id, actor.position]));
+      const placements = (placement?.actors || []).map((actor) => ({
+        id: actor.id,
+        x: actor.position?.x,
+        y: actor.position?.y,
+        moved: before.get(actor.id)?.x !== actor.position?.x || before.get(actor.id)?.y !== actor.position?.y,
+      }));
+      answer = {
+        question,
+        ok: placement?.ok === true,
+        ...(placement?.ok ? { source: placement.source, placements } : { status: placement?.status, reason: placement?.reason }),
+      };
+    } else {
+      // The Allocator judges the budget (a missing or invalid one is its refusal, not ours)
+      // and prices with the level's own price list, or its default when the level has none.
+      const budgetTokens = Number(args["budget-tokens"]);
+      const allocator = createAllocatorPersona({ clock, priceList: await readLevelPriceList(dir) });
+      const requestedLayout = allocator.billedLayoutTiles(simConfig.layout?.data);
+      const fitLayout = createHostedLayoutBudgetFitter({
+        prepare: recordPrepared(allocator.prepareLayoutBudgetFit),
+        complete: allocator.completeLayoutBudgetFit,
+        adapter: recordingAdapter,
+        clock,
+      });
+      const fit = await fitLayout({ layout: requestedLayout, remainingBudgetTokens: budgetTokens });
+      answer = { question, budgetTokens, requestedLayout, ...fit };
+    }
+
+    // No adapter call means one of two things: the persona posed a problem this adapter
+    // cannot serve (it fell back), or the persona needed no search at all.
+    let solverResult = recorded.result;
+    if (!solverResult && recorded.prepared?.status === "ready") {
+      solverResult = { status: "deferred", reason: "solver_domain_unavailable" };
+    } else if (!solverResult) {
+      solverResult = {
+        status: "not_posed",
+        reason: recorded.prepared?.status === "bypass" ? "no_search_needed" : recorded.prepared?.reason || "not_posed",
+      };
+    }
+    const artifactPaths = {};
+    if (recorded.request) {
+      artifactPaths.solver_request = join(outDir, "solver-request.json");
+      await writeJson(artifactPaths.solver_request, recorded.request);
+      artifactPaths.solver_result = join(outDir, "solver-result.json");
+      await writeJson(artifactPaths.solver_result, recorded.result);
+    }
+    artifactPaths.answer = join(outDir, "solve-answer.json");
+    await writeJson(artifactPaths.answer, answer);
+    log(`solve: wrote ${outDir}`);
+    return { outDir, runId, solverRequest: recorded.request, solverResult, answer, artifactPaths };
   }
 
   async function build(args) {
@@ -1132,7 +1246,7 @@ export function createCommandKernel(host = {}) {
     }
     if (affinityPresetsPath) {
       affinityPresets = await readJson(affinityPresetsPath);
-      assertSchema(affinityPresets, SCHEMAS.affinityPreset);
+      assertSchema(affinityPresets, SCHEMAS.affinityPreset, AFFINITY_PRESET_SCHEMA_VERSIONS);
     }
     if (affinityLoadoutsPath) {
       affinityLoadouts = await readJson(affinityLoadoutsPath);
@@ -1146,14 +1260,14 @@ export function createCommandKernel(host = {}) {
     // simulation output but different meta stamps on these three files, breaking reproducibility the
     // simulation itself already has. Constructed here (moved up from below) so it can seed all three.
     const clock = createDeterministicClock(resolveClockSeed(simConfig, initialState));
-    function deterministicRunArtifactMeta(tag, producedBy) {
+    function deterministicRunArtifactMeta(tag, producedBy, { note, stampClock = clock } = {}) {
       return {
         id: `artifact_${runId}_${tag}`,
         runId,
-        createdAt: clock(),
+        createdAt: stampClock(),
         producedBy,
         correlationId: undefined,
-        note: undefined,
+        note,
       };
     }
 
@@ -1198,6 +1312,34 @@ export function createCommandKernel(host = {}) {
       vitalDefaults,
     });
     const overridesApplied = tileOverrideResult.mutated || actorOverrideResult.mutated;
+    // #278: an overridden level is priced again by the Allocator, against the budget of the
+    // receipt `ak create` wrote beside it. The run plays as overridden either way.
+    let overridePricing = null;
+    if (overridesApplied) {
+      const levelDir = dirname(simConfigPath);
+      const readJsonIfExists = async (path) => (await exists(path) ? readJson(path) : null);
+      const levelReceipt = await readJsonIfExists(join(levelDir, "budget-receipt.json"));
+      const ownReceipt = levelReceipt?.meta?.id && levelReceipt.meta.id === simConfig.budgetReceiptRef?.id ? levelReceipt : null;
+      const levelPriceList = ownReceipt ? await readJsonIfExists(join(levelDir, "price-list.json")) : null;
+      const pricingMeta = (prefix) => ({
+        id: `${prefix}_${runId}_overrides`,
+        runId,
+        createdAt: simConfig.meta?.createdAt || initialState.meta?.createdAt,
+        producedBy: "cli-run",
+      });
+      overridePricing = createAllocatorPersona({ clock: UNUSED_CLOCK }).priceLevelOverrides({
+        simConfig,
+        initialState,
+        levelReceipt: ownReceipt,
+        priceList: levelPriceList?.meta?.id && levelPriceList.meta.id === ownReceipt?.priceListRef?.id ? levelPriceList : undefined,
+        budgetMeta: pricingMeta("budget"),
+        proposalMeta: pricingMeta("spend_proposal"),
+        receiptMeta: pricingMeta("budget_receipt"),
+        normalizeMotivations: createConfiguratorPersona({ clock: UNUSED_CLOCK }).normalizeMotivations,
+      });
+      simConfig.budgetReceiptRef = toRef(overridePricing.receipt);
+      overridePricing.report.forEach(({ message }) => commandLog(`run: ${message}`));
+    }
 
     const affinitySummaryPath = wantsAffinitySummary
       ? (typeof affinitySummaryArg === "string" ? resolvePath(affinitySummaryArg) : join(outDir, "affinity-summary.json"))
@@ -1212,7 +1354,7 @@ export function createCommandKernel(host = {}) {
       });
       affinitySummary = {
         schema: SCHEMAS.affinitySummary,
-        schemaVersion: 1,
+        schemaVersion: 2,
         // #150 — same wall-clock non-determinism #149 fixed for action-log/run-summary/world-state;
         // confirmed here via a two-run diff (see the fix commit) since no test previously exercised
         // this artifact at all, wantsAffinitySummary being a rarer flag combination.
@@ -1237,14 +1379,18 @@ export function createCommandKernel(host = {}) {
     await runtime.init({ seed, simConfig, initialState, clock, affinityEffects });
 
     const simConfigRef = toRef(simConfig);
+    // #189 — checkpoints get the same seeded stamps as every other run artifact, from a
+    // clock of their own: `clock` times every tick frame, so drawing from it here would
+    // make requesting checkpoints shift the timestamps of everything else the run writes.
+    const checkpointClock = createDeterministicClock(resolveClockSeed(simConfig, initialState));
     async function captureWorldStateCheckpoint(expectedTick) {
       if (!pendingWorldStateCheckpoints.has(expectedTick)) return;
       const checkpoint = runtime.captureWorldState({
-        meta: createMeta({
-          producedBy: "annotator",
-          runId,
-          note: `world-state checkpoint at tick ${expectedTick}`,
-        }),
+        meta: deterministicRunArtifactMeta(
+          `worldstate_${worldStateCheckpointFilename(expectedTick).replace(/\.json$/, "")}`,
+          "annotator",
+          { note: `world-state checkpoint at tick ${expectedTick}`, stampClock: checkpointClock },
+        ),
         simConfigRef,
       });
       if (checkpoint.tick !== expectedTick) {
@@ -1343,6 +1489,8 @@ export function createCommandKernel(host = {}) {
     if (overridesApplied) {
       await writeJson(join(outDir, "resolved-sim-config.json"), simConfig);
       await writeJson(join(outDir, "resolved-initial-state.json"), initialState);
+      await writeJson(join(outDir, "price-list.json"), overridePricing.priceList);
+      await writeJson(join(outDir, "budget-receipt.json"), overridePricing.receipt);
     }
 
     if (onTickProgress) {
@@ -1354,7 +1502,7 @@ export function createCommandKernel(host = {}) {
     }
 
     commandLog(`run: wrote ${outDir}`);
-    return { outDir, runtimeBudgetReceipt };
+    return { outDir, runtimeBudgetReceipt, ...(overridePricing ? { pricingReport: overridePricing.report } : {}) };
   }
 
   async function replay(args) {
@@ -1518,14 +1666,19 @@ export function createCommandKernel(host = {}) {
     }
 
     const levelGenInput = await readJson(levelGenPath);
+    const actorsInput = await readJson(actorsPath);
+    if (!actorsInput || !Array.isArray(actorsInput.actors)) {
+      throw new Error("actors file must include an actors array.");
+    }
+    // #280: the Configurator validates and locks this config, as it does for every build.
+    const roundConfigurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
+    roundConfigurator.provideConfig({ levelGen: levelGenInput, actors: actorsInput.actors });
+    roundConfigurator.validate();
+    roundConfigurator.lock();
     const layoutResult = generateGridLayoutFromInput(levelGenInput);
     if (!layoutResult.ok) {
       const details = layoutResult.errors.map((err) => `${err.field}:${err.code}`).join(", ");
       throw new Error(`level-gen input invalid: ${details}`);
-    }
-    const actorsInput = await readJson(actorsPath);
-    if (!actorsInput || !Array.isArray(actorsInput.actors)) {
-      throw new Error("actors file must include an actors array.");
     }
     const objectPlacement = completeObjectPlacement({
       layout: layoutResult.value,
@@ -1562,7 +1715,7 @@ export function createCommandKernel(host = {}) {
     let affinityLoadouts = null;
     if (affinityPresetsPath) {
       affinityPresets = await readJson(affinityPresetsPath);
-      assertSchema(affinityPresets, AFFINITY_PRESET_SCHEMA);
+      assertSchema(affinityPresets, AFFINITY_PRESET_SCHEMA, AFFINITY_PRESET_SCHEMA_VERSIONS);
     }
     if (affinityLoadoutsPath) {
       affinityLoadouts = await readJson(affinityLoadoutsPath);
@@ -1577,7 +1730,18 @@ export function createCommandKernel(host = {}) {
     ];
     const seed = Number.isFinite(levelGenInput.seed) ? levelGenInput.seed : 0;
 
-    if (budget && priceList) {
+    // #276: with no budget the Allocator's reference budget and price list apply, as for
+    // `ak create` (#274). Only a caller-supplied receipt with no budget is taken as already priced.
+    const pricedHere = Boolean(budget) || !budgetReceipt;
+    if (pricedHere) {
+      const allocator = createAllocatorPersona({ clock: UNUSED_CLOCK });
+      budget = budget || {
+        schema: BUDGET_ARTIFACT_SCHEMA,
+        schemaVersion: 1,
+        meta: createMeta({ producedBy: "cli-configurator", runId }),
+        budget: { tokens: allocator.pricing.levelAuthoring().referenceBudgetTokens },
+      };
+      priceList = priceList || allocator.resolvePriceList();
       const spendResult = evaluateConfiguratorSpend({
         budget,
         priceList,
@@ -1610,7 +1774,8 @@ export function createCommandKernel(host = {}) {
 
     await writeJson(join(outDir, "sim-config.json"), simConfig);
     await writeJson(join(outDir, "initial-state.json"), initialState);
-    if (budget && priceList && budgetReceipt) {
+    if (pricedHere) {
+      await writeJson(join(outDir, "price-list.json"), priceList);
       const receiptPath = join(outDir, "budget-receipt.json");
       await writeJson(receiptPath, budgetReceipt);
       if (receiptOutPath) {
@@ -2390,6 +2555,8 @@ export function createCommandKernel(host = {}) {
       producedBy: "cli-llm-plan",
       capturedInputs: capturedInputsForBuild,
       placeObjects,
+      // #280: the plan this build persists is the one this round drafted.
+      directorRound: director.currentRound(),
     });
 
     await writeJson(join(outDir, "spec.json"), buildResult.spec);

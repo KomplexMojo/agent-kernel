@@ -16,7 +16,7 @@ import {
   asciiRememberedCellStyle,
   buildAsciiCellStyles,
 } from "../../runtime/src/render/ascii-cell-style.js";
-import { PLAY_SIGHT } from "../../runtime/src/runner/play-session.js";
+import { PLAY_SIGHT, PLAYER_MOTIVATION } from "../../runtime/src/runner/play-session.js";
 import { ASCII_ENTITY_GLYPHS, ASCII_TERRAIN_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
 
@@ -95,10 +95,15 @@ function monoBoardRow(row, sightRow, floorChar) {
     ? ASCII_REMEMBERED_FLOOR_MONO : char)).join("");
 }
 
+/** `current/max (+regen)`: the regen is what the vital gains each turn before any upkeep or harm. */
+function vitalAmount(vital) {
+  return `${vital.current}/${vital.max} (+${vital.regen})`;
+}
+
 function vitalBar(vital, color) {
   const filled = Math.round(Math.max(0, Math.min(1, vital.fraction)) * BAR_WIDTH);
   const bar = "█".repeat(filled) + "░".repeat(BAR_WIDTH - filled);
-  return `${vital.label} ${paint(bar, vital.colorHex, color)} ${vital.current}/${vital.max}`;
+  return `${vital.label} ${paint(bar, vital.colorHex, color)} ${vitalAmount(vital)}`;
 }
 
 function overlay(rows, entities, playerPosition, glyphFor) {
@@ -190,6 +195,11 @@ export function affinityLines(player, { hints = true } = {}) {
   });
 }
 
+/** An actor's motivation stack, in brackets after its name (#310); nothing when it has none. */
+export function motivationNote(motivations) {
+  return Array.isArray(motivations) && motivations.length > 0 ? ` (${motivations.join(", ")})` : "";
+}
+
 function memberNote(status) {
   if (status?.defeated) return " (defeated)";
   if (status?.exited) return " (escaped)";
@@ -203,7 +213,9 @@ function memberNote(status) {
 export function partyLine(party) {
   if (!Array.isArray(party) || party.length < 2) return null;
   return `Party: ${party.map((member) => {
-    const name = `${member.label ?? "?"} ${member.id}${memberNote(member.status)}`;
+    // Every member is user_controlled; the rest of its stack is what says how it acts alone.
+    const own = (member.motivations ?? []).filter((motivation) => motivation !== PLAYER_MOTIVATION);
+    const name = `${member.label ?? "?"} ${member.id}${motivationNote(own)}${memberNote(member.status)}`;
     return member.active ? `[${name}]` : name;
   }).join("  ")}`;
 }
@@ -215,7 +227,7 @@ export function partyLine(party) {
 export function hudLine(view, { turns } = {}) {
   const player = view.player;
   const who = player ? `${player.label ? `${player.label} ` : ""}${player.id}` : "nobody seated";
-  const vitals = presentVitals(player).map((vital) => `${vital.label} ${vital.current}/${vital.max}`).join(" ");
+  const vitals = presentVitals(player).map((vital) => `${vital.label} ${vitalAmount(vital)}`).join(" ");
   const state = view.status?.exited ? "escaped" : view.status?.defeated ? "defeated" : view.status?.atExit ? "at the exit" : "";
   return [who, vitals, `tick ${view.tick}${Number.isInteger(turns) ? `, ${turns} ${turns === 1 ? "turn" : "turns"}` : ""}`, state].filter(Boolean).join(" · ");
 }
@@ -250,7 +262,7 @@ export function ordersLine(orders) {
 export function inSightLine(view) {
   const seen = [...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.label);
   if (seen.length === 0) return null;
-  return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}`).join("  ")}`;
+  return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}${motivationNote(actor.motivations)}`).join("  ")}`;
 }
 
 /**

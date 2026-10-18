@@ -21,10 +21,10 @@ const RADIUS_BASE = Object.freeze([0.5, 0.5, 1.0, 1.0]);
 const RADIUS_GROWTH = Object.freeze([0.5, 0.5, 1.0, 0.0]);
 const RADIUS_EXPONENT = Object.freeze([1.0, 1.0, 1.0, 1.0]);
 
-const INTENSITY_PEAK = Object.freeze([1.0, 1.0, 1.0, 1.0]);
-const INTENSITY_STACK_EXP = Object.freeze([0.5, 0.5, 0.3, 0.0]);
-const INTENSITY_BUFFER = Object.freeze([0, 0, 0, 0]);
-const INTENSITY_FALLOFF = Object.freeze([2.0, 2.0, 1.0, 0.0]);
+// Falloff is shape only: 1 at the source, easing to 0 at the edge of the radius.
+// Strength lives in intensity (#340), so range no longer adds to it.
+const FALLOFF_BUFFER = Object.freeze([0, 0, 0, 0]);
+const FALLOFF_CURVE = Object.freeze([2.0, 2.0, 1.0, 0.0]);
 
 const MATRIX_CELL_COUNT = 48;
 
@@ -75,31 +75,25 @@ export function computeAffinityRadius(
   );
 }
 
-export function computeAffinityIntensity(
+export function computeAffinityFalloff(
   distance: number,
   stacks: number,
   expression: number,
 ): number {
   if (!isValidAffinityExpression(expression)) return 0;
-  const s = stacks >= 1 ? stacks : 1;
   const dist = distance >= 0 ? distance : 0;
   const idx = exprIdx(expression);
-  const buffer = INTENSITY_BUFFER[idx];
+  const buffer = FALLOFF_BUFFER[idx];
   if (dist <= buffer) return 0;
 
   const radius = computeAffinityRadius(expression, stacks);
   if (dist > radius) return 0;
 
-  const peak = INTENSITY_PEAK[idx];
-  const stackExp = INTENSITY_STACK_EXP[idx];
-  const falloffCurve = INTENSITY_FALLOFF[idx];
-  if (falloffCurve === 0) {
-    return peak * Math.pow(s, stackExp);
-  }
+  const falloffCurve = FALLOFF_CURVE[idx];
+  if (falloffCurve === 0) return 1;
 
   const normalizedDist = (dist - buffer) / radius;
-  const falloff = Math.max(0, 1 - Math.pow(normalizedDist, falloffCurve));
-  return peak * Math.pow(s, stackExp) * falloff;
+  return Math.max(0, 1 - Math.pow(normalizedDist, falloffCurve));
 }
 
 export function getAffinityInteractionCellCount(): number {
@@ -503,18 +497,12 @@ export function createAffinitySpatialState() {
 }
 
 /**
- * Per-cell opposition, decided by STACKS (maintainer, 2026-10-15, #290): the side
- * with more stacks survives with the difference, its intensity scaled by the share
- * of its stacks left; equal stacks cancel both. Intensity used to decide it, and an
- * emitter's own tile always reads intensity 1, so a 1-stack emit erased a 3-stack
- * opposite there. One rule for every opposed pair.
+ * Per-cell opposition, decided by INTENSITY (#290, re-stated for #340): the side
+ * with more intensity survives with the difference; equal intensity cancels both.
+ * Range does not decide it: a wide, weak field no longer cancels a narrow, strong
+ * one. One rule for every opposed pair.
  */
-export function cancelAffinityOverlap(sourceIntensity: number, sourceStacks: number, targetIntensity: number, targetStacks: number) {
-  const net = sourceStacks - targetStacks;
-  return {
-    sourceIntensity: net > 0 ? sourceIntensity * (net / sourceStacks) : 0,
-    sourceStacks: net > 0 ? net : 0,
-    targetIntensity: net < 0 ? targetIntensity * (-net / targetStacks) : 0,
-    targetStacks: net < 0 ? -net : 0,
-  };
+export function cancelAffinityOverlap(sourceIntensity: number, targetIntensity: number) {
+  const net = sourceIntensity - targetIntensity;
+  return { sourceIntensity: net > 0 ? net : 0, targetIntensity: net < 0 ? -net : 0 };
 }

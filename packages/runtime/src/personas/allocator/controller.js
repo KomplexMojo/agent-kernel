@@ -13,6 +13,7 @@ import { createAllocatorStateMachine, AllocatorStates } from "./state-machine.js
 export {
   evaluateConfiguratorSpend,
   calculateActorConfigurationUnitCost,
+  calculateObjectCardUnitCost,
   buildDesignSpendLedger,
 } from "./spend-proposal.js";
 export { buildDefaultPriceList } from "./default-price-list.js";
@@ -164,6 +165,10 @@ export function createAllocatorPersona({
     advance,
     view,
     pricing: services.pricing,
+    reportLevelPricing: services.reportLevelPricing,
+    assessReceiptForUse: services.assessReceiptForUse,
+    priceLevelOverrides: services.priceLevelOverrides,
+    castPricesFromLegacyTiers: services.castPricesFromLegacyTiers,
     issueRuntimeBudgetReceipt: services.issueRuntimeBudgetReceipt,
     // RB3.1/RB3.2 — read-only build economy policy; none mutates the ledger.
     resolvePriceList: services.resolvePriceList,
@@ -189,6 +194,8 @@ export function createAllocatorPersona({
     // CR.4 M5b.2c — the auto-fit search. Its reduction policy spends by price, which is why
     // it is the Allocator's and not the loop's.
     fitLayoutToBudget: services.fitLayoutToBudget,
+    // #300 — read-only: the floor/hallway counts a layout is billed for.
+    billedLayoutTiles: services.billedLayoutTiles,
     // CR.6 — budget admissibility of Actor proposals. Stateless, like the pricing
     // surface: it judges the proposals it is handed against the budget it is
     // handed. Published here so the runner can apply it without importing

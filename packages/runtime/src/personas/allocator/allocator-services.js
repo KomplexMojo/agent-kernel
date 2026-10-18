@@ -38,7 +38,8 @@ import {
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 import { reconcileBudget } from "./reconciliation.js";
 import { priceMixedRoomDesignSpend } from "./mixed-room-spend.js";
-import { RUNTIME_BUDGET_RECEIPT_SCHEMA } from "../../contracts/artifacts.ts";
+import { billedLayoutTiles, evaluateConfiguratorSpend } from "./spend-proposal.js";
+import { BUDGET_ARTIFACT_SCHEMA, BUDGET_RECEIPT_ARTIFACT_SCHEMA, RUNTIME_BUDGET_RECEIPT_SCHEMA } from "../../contracts/artifacts.ts";
 
 const RUNTIME_BUDGET_UNIT = "runtimeBudgetUnits";
 const RUNTIME_BUDGET_PRICE_SOURCE = "allocator_runtime_action_price_v1";
@@ -221,9 +222,6 @@ export function attachAllocatorServices({
      */
     levelAuthoring: () => ({
       referenceBudgetTokens: REFERENCE_BUDGET_TOKENS,
-      resourceVitalCostPerDelta: BASE_COSTS.levelAuthoring.resource_vital_cost_per_delta,
-      resourceVitalCostPerRegen: BASE_COSTS.levelAuthoring.resource_vital_cost_per_regen,
-      resourcePermanentMultiplier: BASE_COSTS.levelAuthoring.resource_permanent_multiplier,
       roomAffinityStackCostFactor: BASE_COSTS.levelAuthoring.room_affinity_stack_cost_factor,
       // Its own JSON group: the base-cost standard requires every item to be a
       // NUMBER, so a nested split object would be formula selection in JSON.
@@ -489,6 +487,85 @@ export function attachAllocatorServices({
     };
   }
 
+  /**
+   * #279: a level's pricing, reported for a play session. A level `ak create` makes carries
+   * the Allocator's receipt; one without it was never priced. Reported, not refused: a
+   * hand-written level is played as written.
+   */
+  function reportLevelPricing(simConfig) {
+    if (simConfig?.budgetReceiptRef?.id) return [];
+    return [{
+      code: "level_unpriced",
+      message: "This level has no budget receipt, so it was not priced by the Allocator; build it with ak create to price it.",
+    }];
+  }
+
+  /**
+   * #277: whether a caller-supplied receipt can stand for spend. The Allocator judges its own
+   * receipts; the sandbox used to check them in glue, differently in the CLI and the MCP.
+   * Only an approved receipt with a non-negative remainder and its line items is usable.
+   */
+  function assessReceiptForUse(receipt) {
+    const refuse = (error, budgetInsufficient = false) => ({ ok: false, error, ...(budgetInsufficient ? { budgetInsufficient } : {}) });
+    if (receipt?.schema !== BUDGET_RECEIPT_ARTIFACT_SCHEMA) {
+      return refuse(`Expected ${BUDGET_RECEIPT_ARTIFACT_SCHEMA}, got ${receipt?.schema || "unknown"}`);
+    }
+    if (receipt.schemaVersion !== 1) return refuse(`Budget receipt schemaVersion must be 1, got ${receipt.schemaVersion}`);
+    if (typeof receipt.meta?.id !== "string" || !receipt.meta.id.trim()) return refuse("Budget receipt is missing meta.id");
+    if (receipt.status !== "approved") {
+      return refuse(`Budget receipt status must be "approved", got ${JSON.stringify(receipt.status)}`, true);
+    }
+    if (!(Number.isFinite(receipt.remaining) && receipt.remaining >= 0)) {
+      return refuse(`Budget receipt remaining must be a non-negative finite number, got ${receipt.remaining}`, true);
+    }
+    if (!Array.isArray(receipt.lineItems)) return refuse("Budget receipt is missing lineItems array");
+    return { ok: true };
+  }
+
+  /**
+   * #278: `ak run` overrides change a level after it was priced. The changed level is priced
+   * again, against the budget of the level's own receipt when there is one (its total cost
+   * plus what remained) and the reference budget otherwise, and a new receipt is issued.
+   * Reported, not refused: a level the overrides take over budget still runs.
+   */
+  function priceLevelOverrides({ simConfig, initialState, levelReceipt, priceList, budgetMeta, proposalMeta, receiptMeta, normalizeMotivations } = {}) {
+    const levelBudget = Number.isFinite(levelReceipt?.totalCost) && Number.isFinite(levelReceipt?.remaining)
+      ? levelReceipt.totalCost + levelReceipt.remaining
+      : REFERENCE_BUDGET_TOKENS;
+    const resolvedPriceList = resolvePriceList(priceList);
+    const { receipt } = evaluateConfiguratorSpend({
+      budget: { schema: BUDGET_ARTIFACT_SCHEMA, schemaVersion: 1, meta: budgetMeta, budget: { tokens: levelBudget } },
+      priceList: resolvedPriceList,
+      layout: simConfig?.layout?.data,
+      actors: Array.isArray(initialState?.actors) ? initialState.actors : [],
+      proposalMeta,
+      receiptMeta,
+      normalizeMotivations,
+    });
+    const report = receipt.status === "approved" ? [] : [{
+      code: "overrides_over_budget",
+      message: `The overrides cost ${receipt.totalCost} of the level's ${levelBudget}-token budget; the run plays as overridden.`,
+    }];
+    return { receipt, priceList: resolvedPriceList, report };
+  }
+
+  /**
+   * Core prices a cast only as base × s(s+1)/2 (#232). An artifact written before that
+   * carried five-tier `castMana` tables; its tier-1 price is the curve's base, so it loads
+   * on the one curve rather than keeping a second price model alive. Price translation is
+   * the Allocator's (#279), so the run loader asks for it here.
+   */
+  function castPricesFromLegacyTiers(costs) {
+    const isPlain = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+    if (!isPlain(costs) || !isPlain(costs.castMana) || Object.hasOwn(costs, "castManaBase")) return costs;
+    const { castMana, ...rest } = costs;
+    const castManaBase = {};
+    for (const [key, tiers] of Object.entries(castMana)) {
+      castManaBase[key] = Array.isArray(tiers) ? tiers[0] : tiers;
+    }
+    return { ...rest, castManaBase };
+  }
+
   /** Serializable service-side context merged into the persona view. */
   function serviceContext() {
     return {
@@ -504,6 +581,10 @@ export function attachAllocatorServices({
 
   return {
     pricing,
+    reportLevelPricing,
+    assessReceiptForUse,
+    priceLevelOverrides,
+    castPricesFromLegacyTiers,
     issueRuntimeBudgetReceipt,
     resolvePriceList,
     resolveActorExpansionAvailability,
@@ -523,6 +604,9 @@ export function attachAllocatorServices({
     prepareLayoutBudgetFit,
     completeLayoutBudgetFit,
     fitLayoutToBudget: boundFitLayoutToBudget,
+    // #300 — the tile counts a built level was billed for, so `ak solve --question
+    // budget-fit` asks about the same tiles the receipt charged.
+    billedLayoutTiles,
     // P5.5 — the chartered reconciliation. State-gated, unlike the pricing surface.
     reconcile,
     serviceContext,

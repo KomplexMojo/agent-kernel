@@ -77,7 +77,7 @@ import {
 } from "../tick-session.mjs";
 import { validateBuildSpec } from "../../../runtime/src/contracts/build-spec.js";
 import { SANDBOX_SESSION_SCHEMA } from "../../../runtime/src/contracts/sandbox-session.mjs";
-import { executeSandboxPlace, executeSandboxMove } from "../mcp/tools/sandbox.mjs";
+import { executeSandboxCreate, executeSandboxPlace, executeSandboxMove } from "../mcp/tools/sandbox.mjs";
 import {
   DEFAULT_LLM_BASE_URL,
   DEFAULT_LLM_MODEL,
@@ -104,6 +104,7 @@ import {
   ADAPTIVE_WORKFLOW_EXECUTION_RECEIPT_SCHEMA,
   ADAPTIVE_WORKFLOW_STRATEGY_POLICY_SCHEMA,
   AFFINITY_PRESET_SCHEMA,
+  AFFINITY_PRESET_SCHEMA_VERSIONS,
   AFFINITY_SUMMARY_SCHEMA,
   AGENT_COMMAND_REQUEST_SCHEMA,
   BUDGET_ARTIFACT_SCHEMA,
@@ -165,6 +166,7 @@ function usage() {
   node ${rel} build --spec path [--out-dir dir] [--emit-intermediates]
   node ${rel} schemas [--out-dir dir]
   node ${rel} solve --scenario "..." [--out-dir dir] [--run-id id] [--plan path] [--intent path] [--options path]
+  node ${rel} solve --dir dir --question <place-objects|budget-fit> [--budget-tokens N] [--out-dir dir] [--run-id id]
   node ${rel} workflow <run|status|replay|cancel|validate> [--objective text | --input path] [--out-dir dir] [--policy path] [--runtime-profile path] [--dry-run]
   node ${rel} run (--sim-config path --initial-state path | --from-run runId) [--execution-policy path] [--ticks N] [--world-state-checkpoints ticks] [--seed N] [--out-dir dir] [--run-id id] [--actor spec] [--vital spec] [--vital-default spec] [--tile-wall xy] [--tile-barrier xy] [--tile-floor xy] [--actions path] [--affinity-presets path] [--affinity-loadouts path] [--affinity-summary path] [--progress] [--dry-run]
   node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
@@ -206,6 +208,7 @@ Options:
   --world-state-checkpoints  Comma-separated ticks to persist as WorldStateArtifact v2 files (run only)
   --seed          Seed for init (default: 0)
   --solver-fixture Fixture path for solve command (no network)
+  --question      solve: ask about the built level in --dir (place-objects | budget-fit; budget-fit needs --budget-tokens)
   --actor         Actor spec: id,x,y,category (delver/warden/hazard/resource/barrier)
   --vital         Vital spec: actorId,vital,current,max,regen
   --vital-default Vital default: vital,current,max,regen
@@ -236,7 +239,7 @@ Options:
   --delver-budget-tokens  Separate hard budget cap for delver-side objects (delvers, wardens).
   --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
-  --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
+  --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
   --resource      Resource artifact spec for create/configure/resource-plan (repeatable).
                   Vital payload:   permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]
                   permanenceMode governs delta only (consumable raises current, level/permanent raise max).
@@ -249,12 +252,12 @@ Options:
                   Slots payload: slots=<n>[;id=<id>] is slot-unlock loot: taking it opens n more affinity
                   slots (an actor is capped at 6). The most valuable loot, priced per slot.
                   Legacy: tier=<level|permanent>;stat=<vitalMax|vitalRegen|affinity|affinityStack|pushExpression>;delta=<n>;dropRate=<n>[;id=<id>]
-  --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
+  --hazard          Hazard spec for create/configure (repeatable): x=<n>;y=<n>;affinity=<kind>[;expression=<push|pull|emit|draw>][;stacks=<range>][;intensity=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]
   --room          Room spec for room-plan (repeatable): size=<small|medium|large>;count=<n>  (rooms are generic containers; affinity comes from --hazard placement)
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
+  --delver      Delver spec for delver-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
                     where <expression> is push|pull (spatial) or emit|draw (field)
-  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
+  --warden      Warden spec for warden-plan (repeatable): count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]
                     where <expression> is push|pull (spatial) or emit|draw (field)
                 Delver and warden slots/equip (create too): slots=<n> sets affinity slots (1-6; preset delver 3, warden 2);
                 each slot above the preset is charged at the slot-unlock price. equip= lists starting equips in order,
@@ -282,6 +285,7 @@ Options:
   --created-at    Override createdAt timestamp (ISO-8601) for llm-plan/room-plan/hazard-plan/resource-plan/delver-plan/warden-plan
   --dry-run       Validate schema/budget inputs without executing run or writing artifacts
   --dir           play: an \`ak create --out-dir\` or run directory holding sim-config.json + initial-state.json
+                  solve --question: the same kind of built level directory
   --level         play: a bundled ui-ascii level (default: all bundled levels, in order)
   --keys          play: apply these keys without a terminal and print the final screen (e.g. "ddss.")
   --json          play: print { ok, level, turns, status, screen, launch, warnings? } instead of the screen
@@ -679,8 +683,8 @@ function parseActorAffinityTuple(value, actorType, actorIndex, affinityIndex) {
     throw new Error(`${actorType}[${actorIndex}] affinity[${affinityIndex}] is empty.`);
   }
   const parts = raw.split(":").map((part) => part.trim()).filter((part) => part.length > 0);
-  if (parts.length === 0 || parts.length > 3) {
-    throw new Error(`${actorType}[${actorIndex}] affinity[${affinityIndex}] must be kind[:expression[:stacks]].`);
+  if (parts.length === 0 || parts.length > 4) {
+    throw new Error(`${actorType}[${actorIndex}] affinity[${affinityIndex}] must be kind[:expression[:range[:intensity]]].`);
   }
 
   const kind = parts[0].toLowerCase();
@@ -695,9 +699,11 @@ function parseActorAffinityTuple(value, actorType, actorIndex, affinityIndex) {
 
   const stacks = parts[2] === undefined
     ? 1
-    : parsePositiveIntStrict(parts[2], `${actorType}[${actorIndex}] affinity[${affinityIndex}] stacks`);
-
-  return { kind, expression, stacks };
+    : parsePositiveIntStrict(parts[2], `${actorType}[${actorIndex}] affinity[${affinityIndex}] range`);
+  // #340: the fourth part is intensity; omitted, the entry carries none and reads as 1.
+  if (parts[3] === undefined) return { kind, expression, stacks };
+  const intensity = parsePositiveIntStrict(parts[3], `${actorType}[${actorIndex}] affinity[${affinityIndex}] intensity`);
+  return { kind, expression, stacks, intensity };
 }
 
 function parseActorAffinities(value, actorType, actorIndex) {
@@ -718,6 +724,9 @@ function parseActorAffinities(value, actorType, actorIndex) {
     const existing = merged.get(key);
     if (existing) {
       existing.stacks += tuple.stacks;
+      // Range adds up; the stronger intensity is kept.
+      const intensity = Math.max(existing.intensity ?? 1, tuple.intensity ?? 1);
+      if (intensity > 1) existing.intensity = intensity;
       return;
     }
     merged.set(key, { ...tuple });
@@ -1025,7 +1034,7 @@ function parsePlacedHazardSpec(value, hazardIndex) {
     throw new Error(`hazard[${hazardIndex}] requires a non-empty spec.`);
   }
 
-  const allowedFields = new Set(["id", "x", "y", "affinity", "expression", "stacks", "blocking", "vitals"]);
+  const allowedFields = new Set(["id", "x", "y", "affinity", "expression", "stacks", "intensity", "blocking", "vitals"]);
   const fields = new Map();
   const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1072,6 +1081,9 @@ function parsePlacedHazardSpec(value, hazardIndex) {
       stacks: fields.has("stacks")
         ? parsePositiveIntStrict(fields.get("stacks"), `hazard[${hazardIndex}] stacks`)
         : 1,
+      ...(fields.has("intensity")
+        ? { intensity: parsePositiveIntStrict(fields.get("intensity"), `hazard[${hazardIndex}] intensity`) }
+        : {}),
       targetType: "floor",
     },
     vitals: parsePlacedHazardVitals(fields.get("vitals"), hazardIndex),
@@ -1135,6 +1147,7 @@ function buildCanonicalHazard({
   affinity,
   expression,
   stacks = 1,
+  intensity,
   proximityRadius = 0,
   mana,
   durability,
@@ -1152,6 +1165,7 @@ function buildCanonicalHazard({
       kind: affinity,
       expression,
       stacks: resolvedStacks,
+      ...(Number.isInteger(intensity) && intensity > 0 ? { intensity } : {}),
       targetType: "floor",
     }],
     vitals: {
@@ -1173,6 +1187,7 @@ function canonicalizePlacedHazard(hazard, hazardIndex) {
     affinity: affinity.kind,
     expression: affinity.expression || "emit",
     stacks: affinity.stacks,
+    intensity: affinity.intensity,
     proximityRadius: 0,
     mana: placementVitalToHazardVital(hazard?.vitals?.mana),
     durability: placementVitalToHazardVital(hazard?.vitals?.durability),
@@ -1187,7 +1202,7 @@ function parseHazardSpec(value, hazardIndex) {
   if (!raw) {
     throw new Error(`hazard[${hazardIndex}] requires a non-empty spec.`);
   }
-  const allowedFields = new Set(["id", "affinity", "expression", "stacks", "proximityRadius", "blocking", "mana", "durability"]);
+  const allowedFields = new Set(["id", "affinity", "expression", "stacks", "intensity", "proximityRadius", "blocking", "mana", "durability"]);
   const fields = new Map();
   const segments = raw.split(";").map((s) => s.trim()).filter(Boolean);
   if (segments.length === 0) {
@@ -1227,6 +1242,9 @@ function parseHazardSpec(value, hazardIndex) {
     affinity,
     expression,
     stacks,
+    intensity: fields.has("intensity")
+      ? parsePositiveIntStrict(fields.get("intensity"), `hazard[${hazardIndex}] intensity`)
+      : undefined,
     proximityRadius: parseNonNegativeIntStrict(fields.get("proximityRadius"), `hazard[${hazardIndex}] proximityRadius`),
     mana: parseHazardVitalSpec(fields.get("mana"), "mana", hazardIndex),
     durability: fields.has("durability")
@@ -1748,15 +1766,15 @@ async function writeText(filePath, value) {
   await writeFile(filePath, value, "utf8");
 }
 
-function assertSchema(artifact, expectedSchema) {
+function assertSchema(artifact, expectedSchema, acceptedVersions = [1]) {
   if (!artifact || typeof artifact !== "object") {
     throw new Error(`Expected ${expectedSchema} artifact.`);
   }
   if (artifact.schema !== expectedSchema) {
     throw new Error(`Expected schema ${expectedSchema}, got ${artifact.schema || "missing"}.`);
   }
-  if (artifact.schemaVersion !== 1) {
-    throw new Error(`Expected schemaVersion 1 for ${expectedSchema}.`);
+  if (!acceptedVersions.includes(artifact.schemaVersion)) {
+    throw new Error(`Expected schemaVersion ${acceptedVersions.join(" or ")} for ${expectedSchema}.`);
   }
 }
 
@@ -2318,7 +2336,7 @@ function buildGameplayBundleFromRunArtifacts({
   };
 }
 
-async function summarizeRunOutput({ outDir, args } = {}) {
+async function summarizeRunOutput({ outDir, args, pricingReport } = {}) {
   const runSummary = await readJsonIfExists(join(outDir, "run-summary.json"));
   const resolvedSimConfigPath = join(outDir, "resolved-sim-config.json");
   const resolvedInitialStatePath = join(outDir, "resolved-initial-state.json");
@@ -2345,6 +2363,11 @@ async function summarizeRunOutput({ outDir, args } = {}) {
   }
   if (existsSync(resolvedInitialStatePath)) {
     artifactPaths.resolved_initial_state = resolvedInitialStatePath;
+  }
+  // #278: overrides are re-priced by the Allocator, which writes its receipt with the resolved level.
+  if (pricingReport) {
+    artifactPaths.price_list = join(outDir, "price-list.json");
+    artifactPaths.budget_receipt = join(outDir, "budget-receipt.json");
   }
 
   // M7 gap 3: stitch a post-run agent-kernel/GameplayBundle from the artifacts
@@ -2412,6 +2435,7 @@ async function summarizeRunOutput({ outDir, args } = {}) {
     roomIds: deriveRoomIds(simConfig),
     artifactPaths,
     ticks: runSummary?.metrics?.ticks,
+    ...(pricingReport ? { pricingReport } : {}),
   };
 }
 
@@ -4248,7 +4272,7 @@ async function validateRunDryRun(args) {
   }
   if (affinityPresetsPath) {
     const affinityPresets = await readJson(affinityPresetsPath);
-    assertSchema(affinityPresets, SCHEMAS.affinityPreset);
+    assertSchema(affinityPresets, SCHEMAS.affinityPreset, AFFINITY_PRESET_SCHEMA_VERSIONS);
   }
   if (affinityLoadoutsPath) {
     const affinityLoadouts = await readJson(affinityLoadoutsPath);
@@ -4688,6 +4712,8 @@ async function validateScenarioDryRun(args) {
     spec: buildSpecResult.spec,
     producedBy: "cli-llm-plan",
     capturedInputs: capturedInputsForBuild,
+    // #280: the plan this build persists is the one this round drafted.
+    directorRound: director.currentRound(),
   });
 
   return buildDryRunSuccess({
@@ -4826,23 +4852,26 @@ async function solveCommand(argv) {
     console.log(usage());
     return;
   }
-  const { outDir, solverRequest, solverResult } = await commandKernel.solve(args);
-  const artifactPaths = {
+  const { outDir, runId, solverRequest, solverResult, answer, artifactPaths: questionPaths } = await commandKernel.solve(args);
+  const artifactPaths = questionPaths || {
     solver_request: join(outDir, "solver-request.json"),
     solver_result: join(outDir, "solver-result.json"),
   };
   // `ok` says the command ran; `solved` says whether the solver answered. A deferred
   // result means no adapter served the request's domain, so nothing was solved, and
   // callers (ak_solve above all) must not read the envelope as an answer.
+  // With --question, `answer` is the owning persona's verdict: which source decided it
+  // (solver or fallback) and what it decided. `not_posed` means the persona needed no search.
   const status = solverResult?.status;
   emitJsonStdout({
     ok: true,
     command: "solve",
-    runId: solverRequest?.meta?.runId || args["run-id"] || "",
+    runId: runId || solverRequest?.meta?.runId || args["run-id"] || "",
     outDir,
-    solved: status !== "deferred" && status !== "error",
+    solved: status !== "deferred" && status !== "error" && status !== "not_posed",
     status,
     ...(solverResult?.reason ? { reason: solverResult.reason } : {}),
+    ...(answer ? { answer } : {}),
     artifactPaths,
   });
 }
@@ -4876,7 +4905,7 @@ async function runCommand(argv) {
       }
     : resolvedArgs;
   const result = await commandKernel.run(kernelArgs);
-  emitJsonStdout(await summarizeRunOutput({ outDir: result.outDir, args: resolvedArgs }));
+  emitJsonStdout(await summarizeRunOutput({ outDir: result.outDir, args: resolvedArgs, pricingReport: result.pricingReport }));
 }
 
 async function configuratorCommand(argv) {
@@ -6250,6 +6279,7 @@ async function scenarioCommand(argv) {
     summarizeRunOutput({
       outDir: runResult.outDir,
       args: runArgs,
+      pricingReport: runResult.pricingReport,
     }),
     summarizeInspectOutput({
       outDir: inspectResult.outDir,
@@ -6687,62 +6717,6 @@ async function sandboxCreateCommand(argv) {
     return;
   }
 
-  const budgetReceiptPath = resolvePath(args["budget-receipt"]);
-  const budgetPath = resolvePath(args.budget);
-
-  if (!budgetReceiptPath && !budgetPath) {
-    emitJsonStdout({
-      ok: false,
-      command: "sandbox-create",
-      error: "sandbox-create requires --budget-receipt or --budget.",
-      budgetRequired: true,
-    });
-    return;
-  }
-
-  const runId = isNonEmptyString(args["run-id"]) ? args["run-id"].trim() : makeId("sandbox_run");
-  const createdAt = isNonEmptyString(args["created-at"])
-    ? args["created-at"].trim()
-    : new Date().toISOString();
-
-  let budgetReceiptRef;
-
-  if (budgetReceiptPath) {
-    const receipt = await readJson(budgetReceiptPath);
-    assertSchema(receipt, SCHEMAS.budgetReceiptArtifact);
-    if (
-      receipt.status === "denied" ||
-      (typeof receipt.remaining === "number" && receipt.remaining < 0)
-    ) {
-      emitJsonStdout({
-        ok: false,
-        command: "sandbox-create",
-        error: `Budget insufficient: status=${receipt.status}, remaining=${receipt.remaining}`,
-        budgetInsufficient: true,
-      });
-      return;
-    }
-    budgetReceiptRef = toRef(receipt);
-  } else {
-    const budgetArtifact = await readJson(budgetPath);
-    assertSchema(budgetArtifact, SCHEMAS.budgetArtifact);
-    const tokens = budgetArtifact.budget?.tokens;
-    if (!Number.isInteger(tokens) || tokens <= 0) {
-      emitJsonStdout({
-        ok: false,
-        command: "sandbox-create",
-        error: `Budget insufficient: tokens=${tokens}`,
-        budgetInsufficient: true,
-      });
-      return;
-    }
-    budgetReceiptRef = {
-      id: `budget_receipt_${runId}`,
-      schema: BUDGET_RECEIPT_ARTIFACT_SCHEMA,
-      schemaVersion: 1,
-    };
-  }
-
   const width = args.width !== undefined ? Number(args.width) : 10;
   const height = args.height !== undefined ? Number(args.height) : 10;
   if (!Number.isInteger(width) || width <= 0) {
@@ -6752,41 +6726,18 @@ async function sandboxCreateCommand(argv) {
     throw new Error("sandbox-create: --height must be a positive integer.");
   }
 
-  const entityCategories = [];
-  if (isNonEmptyString(args["entity-categories"])) {
-    for (const cat of args["entity-categories"].split(",")) {
-      const trimmed = cat.trim();
-      if (trimmed) entityCategories.push(trimmed);
-    }
-  }
-
-  const sandboxId = `sandbox_session_${runId}`;
-  const outDir =
-    resolvePath(args["out-dir"]) ||
-    resolve(process.cwd(), DEFAULT_ARTIFACTS_DIR, "sandbox", runId);
-  await mkdir(outDir, { recursive: true });
-
-  const session = {
-    schema: SANDBOX_SESSION_SCHEMA,
-    schemaVersion: 1,
-    meta: { id: sandboxId, runId, createdAt, producedBy: "sandbox-create" },
-    rooms: [{ id: "room_default", width, height }],
-    artifacts: { budgetReceiptRef },
-    ...(entityCategories.length > 0 ? { entityCategories } : {}),
-  };
-
-  await writeJson(join(outDir, "sandbox-session.json"), session);
-
-  emitJsonStdout({
-    ok: true,
-    command: "sandbox-create",
-    sandboxId,
-    runId,
-    outDir,
-    rooms: session.rooms,
-    artifacts: session.artifacts,
-    ...(entityCategories.length > 0 ? { entityCategories } : {}),
+  // #277: one sandbox-create for the CLI and MCP, so the Allocator judges and issues every receipt.
+  const result = await executeSandboxCreate({
+    budgetReceipt: resolvePath(args["budget-receipt"]),
+    budget: resolvePath(args.budget),
+    width,
+    height,
+    entityCategories: isNonEmptyString(args["entity-categories"]) ? args["entity-categories"].split(",") : undefined,
+    runId: args["run-id"],
+    createdAt: args["created-at"],
+    outDir: resolvePath(args["out-dir"]) || undefined,
   });
+  emitJsonStdout(result);
 }
 
 async function sandboxPlaceCommand(argv) {

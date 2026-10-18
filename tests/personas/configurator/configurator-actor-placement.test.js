@@ -144,7 +144,16 @@ test("orchestrateBuild preserves the current typed placement failure", async () 
 
   await assert.rejects(
     () => orchestrateBuild({
-      spec: buildSpec({ actors, delverCount: actors.length }),
+      // A budget big enough for 200 delvers, so the Allocator approves and placement is what fails
+      // (#276: an unbudgeted build is priced against the 2,500 reference budget).
+      spec: {
+        ...buildSpec({ actors, delverCount: actors.length }),
+        budget: { budget: {
+          schema: "agent-kernel/BudgetArtifact", schemaVersion: 1,
+          meta: { id: "rb2_budget", runId: "rb2_actor_characterization", createdAt: "2026-08-30T00:00:00.000Z", producedBy: "runtime-test" },
+          budget: { tokens: 1000000 },
+        } },
+      },
       producedBy: "runtime-test",
     }),
     /configurator inputs could not place actors: insufficient entry-room tiles for delver \d+ of 200 \(\d+ entry-room tiles, \d+ already occupied\)\./,

@@ -177,7 +177,9 @@ automatically. See [`docs/adaptive-workflow.md`](../../docs/adaptive-workflow.md
 Agent-only builder that consumes a single JSON build spec and emits the canonical persisted
 handoff for downstream personas. By default it writes `spec.json`, the budget triplet when
 present, `sim-config.json`, `initial-state.json`, `resource-bundle.json`, `bundle.json`,
-`manifest.json`, and `telemetry.json`. `--emit-intermediates` additionally writes `intent.json`,
+`manifest.json`, and `telemetry.json`. A spec with a level but no `budget` is priced against the
+Allocator's reference budget (2500 tokens), so it still gets a price list and receipt (#276); only a
+spec that brings its own receipt and no budget is taken as already priced. `--emit-intermediates` additionally writes `intent.json`,
 `plan.json`, solver artifacts, and captured-input sidecars. Manifest/bundle include a filtered
 `schemas` list for emitted artifacts.
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
@@ -303,8 +305,9 @@ Inputs/outputs:
 - `--keys` applies keys without a terminal and prints the final screen; `--json` prints the structured
   result instead, `launch` being the command to play that level interactively. `--color`/`--no-color`
   pass through. Fog of war is always on for play; `--no-fog` is a debug view of the whole map. MCP: `ak_play_ascii`.
-- A level is played as written. Delvers or wardens below the viability floor are reported as `warning:` lines on
-  stderr, and as `warnings` with `--json`.
+- A level is played as written. Delvers or wardens below the viability floor, and a level with no Allocator
+  budget receipt (not built by `ak create`, #279), are reported as `warning:` lines on stderr, and as `warnings`
+  with `--json`.
 - `--realtime <ms>` (interactive play only) passes a turn every `<ms>` milliseconds while the player waits; `t` toggles it
 - `--web` plays in a browser tab instead of the terminal, served on `http://localhost:8765` (`--port <n>` to change; `--lan` also serves the local network for a phone on the same Wi-Fi and prints its address); not with `--keys`/`--json`
   in game. Play is turn-based by default (#291).
@@ -335,7 +338,8 @@ ak play-session start --session g2 --load artifacts/games/g.json    # reopen a c
 
 - Output: `{ ok, action, name, session, level, turns, status, active, party, orders?, inSight, results?, hud, screen, saved?, ended? }`.
   `party` is every actor authored `user_controlled` (the actors a player may seat), each with a short label
-  (`D1`, `D2`), position and status; `inSight` is every other actor and trap the seated actor sees now, with labels.
+  (`D1`, `D2`), position, motivations and status; `inSight` is every other actor and trap the seated actor sees now,
+  with labels and motivations (the stack that explains how each acts on its own).
 - `--actor <id|label>` seats a party member before anything is played; a companion or warden answers `not_playable`
   in `results`. `--commands` is a JSON array of `{ kind, params?, actorId? }` (the play commands `move`, `wait`,
   `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`) or `{ kind: "switch", actorId }`; actor ids and
@@ -397,7 +401,7 @@ Inputs/outputs:
   `budget <N> tokens`, and/or `--budget` supplies `budget.tokens`, all values must agree or
   the command fails validation.
 - `--floor-tile` format: `count=<n>[;id=<id>]`
-- Positioned `--hazard` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
+- Positioned `--hazard` format: `x=<n>;y=<n>;affinity=<kind>[;expression=<kind>][;stacks=<range>][;intensity=<n>][;blocking=<true|false>][;id=<id>][;vitals=<vital>:<max>:<regen>|<vital>:<current>:<max>:<regen>,...]`
   Hazard `x`/`y` are room-relative offsets into the first declared room's interior.
   Level generation maps them to absolute grid coordinates; persisted
   `sim-config.json` hazards carry the mapped absolute coordinates. Coordinates
@@ -407,7 +411,7 @@ Inputs/outputs:
 - In multi-room requests, the `--floor-tile` budget is distributed across all
   declared rooms. Budgets below the minimum viable interior per room are
   rejected instead of leaving declared rooms uncarved.
-- `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
+- `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
   Produces a `HazardArtifact` written to `hazard-<n>.json` in the output directory.
 - `--resource` format: a resource carries a **vital payload**, an **affinity payload**, a **slots payload**, or a combination.
   - Vital payload: `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]`
@@ -462,6 +466,10 @@ Inputs/outputs:
   ```
 - `--delver` accepts `goals=max_mana[:<priority>],mana_regen[:<priority>]` to record qualitative
   vitals goals as optimization directions over the existing deterministic vitals and regen cost model.
+- Affinity range and intensity (#340): in `affinities=<kind>:<expression>:<range>:<intensity>` the third part
+  is the range (how far a cast reaches, or a field's radius) and the optional fourth is the intensity (strength;
+  default 1). A hit is the expression's base × intensity² (push/pull 2, emit/draw 1). A hazard takes the same pair as
+  `stacks=<range>;intensity=<n>`. Example: `affinities=fire:push:6:2` throws a fireball 6 tiles for 2 × 2² = 8.
 - `--delver` and `--warden` accept `slots=<n>` and `equip=<kind>:<expression>[:<stacks>],...`. `slots` sets how many
   affinities the actor can equip at once (1-6; the preset is delver 3, warden 2), and slots above the preset are
   charged at the slot-unlock price (`resource_affinity_slot`), which escalates: the nth extra slot costs n × 600. `equip` lists its starting equips in equip order; each
@@ -552,7 +560,7 @@ Inputs/outputs:
 - Input: one or more `--hazard` flags (repeatable), optional `--goal`,
   `--dungeon-affinity`, optional `--budget-tokens`, optional `--budget` +
   `--price-list`, plus standard `--run-id`, `--created-at`, `--out-dir`.
-- `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
+- `--hazard` format: `affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>][;durability=one-time:<amount>|regen:<current>:<max>:<regen>][;id=<id>]`
 - A budgeted run uses an explicit hazards-only allocation pool, so hazard base,
   affinity, and vital spend are capped against hazards instead of rooms or actors.
 - Output dir: `artifacts/runs/<runId>/hazard-plan` by default, or `--out-dir`.
@@ -589,7 +597,7 @@ Inputs/outputs:
 - Input: one or more `--delver` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
+- `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
@@ -623,7 +631,7 @@ Inputs/outputs:
 - Input: one or more `--warden` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<stacks>]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
+- `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
 - If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.
@@ -712,6 +720,27 @@ adapter answers only the `allocator_budget_fit` and `configurator_satisfiability
 free-text `--scenario` carries no domain, so it reports `solved: false`, status `deferred`,
 reason `constraint_domain_unsupported`.
 
+**Asking about a built level (`--dir` + `--question`, #300).** Point `--dir` at a built level
+(an `ak create --out-dir`, holding `sim-config.json` and `initial-state.json`) and pick one
+question. The owning persona poses the problem and judges the answer; the CLI only chooses
+which question to ask.
+
+- `--question place-objects`: the Configurator re-places the level's hazards and resources on
+  its walkable cells, keeping spawn connected to exit. Room membership is not recorded on a
+  built actor, so the re-placement ranges over the whole level. The level's files are not
+  changed.
+- `--question budget-fit --budget-tokens N`: the Allocator fits the tiles the level was billed
+  for (`billedLayoutTiles`) to `N` tokens, priced with the level's `price-list.json` when it
+  has one.
+
+The output adds `answer` (also written to `solve-answer.json`): the persona's verdict, and for
+placement its `source` (`solver` or `fallback`) and per-object `placements`. `status` reports
+the solver round trip: the adapter's own status when it was asked, `deferred` with reason
+`solver_domain_unavailable` when the engine cannot serve the domain (the fallback decided),
+or `not_posed` with reason `no_search_needed` when the persona needed no search, e.g. a
+layout already under budget. `solver-request.json` and `solver-result.json` are written only
+when the adapter was asked. `ak_solve` takes the same `dir`, `question` and `budgetTokens`.
+
 ### `run`
 Execute a configured simulation run using captured artifacts, emitting TickFrame and
 effect logs plus a minimal RunSummary artifact.
@@ -729,6 +758,9 @@ artifact unchanged. The stitched bundle is what `ak_push_to_ui` delivers to the 
 
 ### `configurator`
 Build `SimConfigArtifact` + `InitialStateArtifact` outputs from deterministic configurator inputs.
+With no `--budget`, the Allocator's reference budget (2500 tokens) and price list apply and
+`price-list.json` + `budget-receipt.json` are written (#276); `--budget-receipt` alone is taken as
+already priced.
 
 ### `replay`
 Replay a run deterministically from captured inputs and TickFrames without external IO,
@@ -787,7 +819,7 @@ node packages/adapters-cli/src/cli/ak.mjs run --from-run run_fixture --ticks 5 -
 node packages/adapters-cli/src/cli/ak.mjs run --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --actions path/to/action-sequence.json --ticks 0
 node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --out-dir path/to/out
 node packages/adapters-cli/src/cli/ak.mjs configurator --level-gen path/to/level-gen.json --actors path/to/actors.json --budget tests/fixtures/artifacts/budget-artifact-v1-basic.json --price-list tests/fixtures/artifacts/price-list-artifact-v1-basic.json --out-dir path/to/out
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v2-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
 node packages/adapters-cli/src/cli/ak.mjs replay --sim-config path/to/sim-config.json --initial-state path/to/initial-state.json --tick-frames path/to/tick-frames.json
 node packages/adapters-cli/src/cli/ak.mjs inspect --tick-frames path/to/tick-frames.json --effects-log path/to/effects-log.json
 node packages/adapters-cli/src/cli/ak.mjs ipfs --cid bafy... --json
@@ -907,7 +939,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - blockchain-mint: `blockchain-mint.json`
 - blockchain-load: `blockchain-load.json`
 - llm: `llm.json`
-- solve: `solver-request.json`, `solver-result.json`
+- solve: `solver-request.json`, `solver-result.json`; with `--question`, `solve-answer.json` (and the solver pair only when the adapter was asked)
 - run: `tick-frames.json`, `effects-log.json`, `runtime-decision-captures.json`, `run-summary.json`, `action-log.json`, and `deferred-coordination.json` **only when the run deferred something** (P5.5)
 - room-plan / hazard-plan / resource-plan / delver-plan / warden-plan: build handoff artifacts plus command-specific sidecars such as `hazard-<n>.json` and `resource-artifact-<n>.json`
 - configurator: `sim-config.json`, `initial-state.json` (plus `budget-receipt.json` when `--budget` + `--price-list` are provided)
@@ -958,7 +990,12 @@ Expected outputs (defaults when `--out-dir` is set):
   - `--tile-barrier x,y` (repeatable barrier actors)
 
 When overrides are provided, `run` writes `resolved-sim-config.json` and
-`resolved-initial-state.json` to the output directory for inspection.
+`resolved-initial-state.json` to the output directory for inspection. The Allocator
+prices the overridden level again (#278), against the budget of the `budget-receipt.json`
+`ak create` wrote beside `--sim-config` (the reference budget when there is none), and
+writes the new `budget-receipt.json` and `price-list.json` with them; the resolved
+SimConfig names that receipt. A level the overrides take over budget still runs: the
+output carries `pricingReport: [{ code: "overrides_over_budget", message }]`.
 
 ## Configurator artifacts (affinities + hazards)
 
@@ -997,13 +1034,13 @@ Defaults: manaCost=0, stacks=1, roomCount=4, roomMinSize=3, roomMaxSize=9, corri
 preset id, kind, expression, actor id. Deterministic ordering is preserved in artifacts.
 
 Affinity summary output (resolved from presets + loadouts):
-- `--affinity-presets` path to `AffinityPresetArtifact`
+- `--affinity-presets` path to `AffinityPresetArtifact` (schemaVersion 2: kind, expression, manaCost, vitalsModifiers, stack; a v1 catalog is still read and its attack/buff/area `effects`/`abilities` are ignored)
 - `--affinity-loadouts` path to `ActorLoadoutArtifact`
-- When both are supplied, `run` writes `affinity-summary.json` to `--out-dir` (default). Use `--affinity-summary` to override the output path.
+- When both are supplied, `run` writes `affinity-summary.json` (`AffinitySummary` schemaVersion 2: resolved vitals, stacks, targets and effects per actor; no `abilities`) to `--out-dir` (default). Use `--affinity-summary` to override the output path.
 
 Example:
 ```
-node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v1-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
+node packages/adapters-cli/src/cli/ak.mjs run --sim-config tests/fixtures/artifacts/sim-config-artifact-v1-configurator-hazard.json --initial-state tests/fixtures/artifacts/initial-state-artifact-v1-affinity-base.json --ticks 0 --affinity-presets tests/fixtures/artifacts/affinity-presets-artifact-v2-basic.json --affinity-loadouts tests/fixtures/artifacts/actor-loadouts-artifact-v1-basic.json --affinity-summary
 ```
 Expected outputs in `--out-dir`:
 - `affinity-summary.json`
@@ -1036,6 +1073,15 @@ pnpm run demo:cli -- /tmp/agent-kernel-demo
 - `log`/`telemetry` effects include severity/tags/personaRef for UI/CLI inspection.
 
 Inspect the emitted artifacts in your chosen `--out-dir` or `artifacts/demo-bundle` to see these shapes. Examples align with `tests/fixtures/adapters/effects-routing.json`.
+
+## Sandbox sessions (`sandbox-create`)
+
+`ak sandbox-create` and `ak_sandbox_create` run the same code. `--budget-receipt <file>` must be a
+receipt the Allocator approves (a `partial` or `denied` receipt is refused with `budgetInsufficient`).
+`--budget <file>` is spent by the Allocator on the room (`--width`/`--height`, default 10x10); the
+issued `budget-receipt.json` and `price-list.json` are written to `--out-dir` and the session's
+`budgetReceiptRef` names that receipt. `sandbox-place` names no `planRef`, since no Director plans a
+sandbox.
 
 ## MCP sandbox bridge (`ak_push_to_ui`)
 

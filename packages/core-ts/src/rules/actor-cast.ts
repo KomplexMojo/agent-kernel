@@ -1,6 +1,6 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAffinityEntry, ActorAffinityKey, ActorRecord } from '../state/actor-types.ts';
-import { affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
+import { affinityIntensity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { actorAffinityMagnitude, getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
 
 /** Configurator-authored per-kind base prices for the escalating cast curve (#232). */
@@ -46,7 +46,7 @@ export function isCastableExpression(expression: string): boolean {
   return expression === 'push' || expression === 'pull';
 }
 
-/** How far a cast reaches, in tiles (Chebyshev): one per stack it runs at (#231). */
+/** How far a cast reaches, in tiles (Chebyshev): one per stack of range it runs at (#231, #340). */
 export function actorCastRange(pair: ActorAffinityEntry): number {
   return pair.stacks;
 }
@@ -103,11 +103,11 @@ export function castFocusedActorAffinity(
   if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');
   const changes: ActorVitalChange[] = [];
   if (cost > 0) changes.push({ actorId: sourceId, vital: 'mana', delta: registry.changeVital(sourceId, 'mana', -cost) });
-  const amount = Math.max(0, actorAffinityMagnitude(pair.expression, pair.stacks) - suppressedAmount);
+  const amount = Math.max(0, actorAffinityMagnitude(pair.expression, affinityIntensity(pair)) - suppressedAmount);
   const targetPair = suppressedSlot(target, pair.kind);
   if (effect.operation === 'neutralize' && targetPair && target.capabilities.canCast && sourceId !== targetId) {
     return { accepted: true, changes, suppression: { sourceId, targetId, affinityKey: affinityKey(targetPair),
-      amount: Math.min(amount, actorAffinityMagnitude(targetPair.expression, targetPair.stacks)) } };
+      amount: Math.min(amount, actorAffinityMagnitude(targetPair.expression, affinityIntensity(targetPair))) } };
   }
   return { accepted: true, changes: [...changes,
     ...resolveActorAffinity(registry, sourceId, targetId, pair.kind, pair.expression, amount).changes] };

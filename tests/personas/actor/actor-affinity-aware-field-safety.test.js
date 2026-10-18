@@ -41,7 +41,8 @@ async function fieldRanksFor(grants, active = true) {
       expression: EMIT,
       sourceId: "fire_source",
       stacks: 4,
-      intensity: 0.5,
+      intensity: 2,
+      falloff: 0.5,
     }],
   };
   const payload = {

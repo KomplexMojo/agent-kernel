@@ -18,7 +18,7 @@ const {
   loadLevelFromRunDir,
 } = require("../../packages/ui-ascii/src/levels.js");
 const { createGame } = require("../../packages/ui-ascii/src/game.js");
-const { overlayActors, paintBoardRow, renderScreen, xterm256Index } = require("../../packages/ui-ascii/src/screen.js");
+const { hudLine, overlayActors, paintBoardRow, renderScreen, xterm256Index } = require("../../packages/ui-ascii/src/screen.js");
 const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/game-elements.js");
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
 const { colorDepth, parseArgs, resolveColor, resolveLevels, runScripted, shouldUseColor } = require("../../packages/ui-ascii/src/cli.mjs");
@@ -41,10 +41,9 @@ const FIRST_STEPS_SOLUTION = "dd.ss.dd.ss.ss.dd.d.";
 /** Move along `path`, resting a turn first whenever the player cannot pay for the step (#273). */
 async function walk(session, path, onMove = () => {}) {
   for (const direction of path) {
-    // A defeated or departed player can never rest back up; stop rather than wait forever.
-    for (let rest = 0; rest < 20 && (session.view().player?.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1; rest += 1) {
-      const result = await session.act({ kind: "wait" });
-      if (result.status.defeated || result.status.exited) break;
+    while ((session.view().player.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1) {
+      // A defeated player never recovers stamina: fail rather than wait forever.
+      assert.equal((await session.act({ kind: "wait" })).status.defeated, false, "the player was defeated");
     }
     onMove(await session.act({ kind: "move", params: { direction } }), direction);
   }
@@ -224,6 +223,18 @@ test("a wall bump shows a message and costs a turn; restart resets the level", a
   assert.match(game.screen(), /S@\.\.#/);
 });
 
+test("each vital shows its regen after current/max, on the screen and the hud line", async () => {
+  const { simConfig, initialState } = fixtureLevel("first-steps");
+  const player = initialState.actors.find((actor) => actor.motivations?.includes("user_controlled")) ?? initialState.actors[0];
+  player.vitals.health = { current: 7, max: 10, regen: 3 };
+  const view = (await createPlaySession({ simConfig, initialState })).view();
+  assert.match(renderScreen({ view, levelName: "first-steps" }), /HP █+░+ 7\/10 \(\+3\)/);
+  assert.match(hudLine(view), /HP 7\/10 \(\+3\)/);
+  for (const vital of view.player.vitals.filter((entry) => entry.max > 0)) {
+    assert.match(hudLine(view), new RegExp(`${vital.label} ${vital.current}/${vital.max} \\(\\+${vital.regen}\\)`));
+  }
+});
+
 test("quit is reported to the caller, not acted on", async () => {
   const game = await createGame({ levels: loadBundledLevels() });
   assert.deepEqual(await game.handle({ type: INTENT.QUIT }), { quit: true });
@@ -341,7 +352,9 @@ test("the cli plays a level below the viability floor as written and warns about
     const json = spawnSync(process.execPath, [CLI, ...files, "--json", "--keys", ""], { encoding: "utf8" });
     assert.equal(json.status, 0, json.stderr);
     const message = "delver_1 mana max is 4, below the viability floor of 10.";
-    assert.deepEqual(JSON.parse(json.stdout).warnings, [message]);
+    // A hand-written level was never priced by the Allocator either, and says so (#279).
+    const unpriced = "This level has no budget receipt, so it was not priced by the Allocator; build it with ak create to price it.";
+    assert.deepEqual(JSON.parse(json.stdout).warnings, [unpriced, message]);
     assert.match(json.stderr, new RegExp(`warning: ${message.replace(/\./g, "\\.")}`));
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -493,11 +506,14 @@ test("trap-rooms draws each trap as H in its own affinity's fill, and a trap cos
   // Walk onto the first trap along a breadth-first path and let core apply it.
   const trap = view.hazards[0].position;
   const { path } = solve(level, { target: trap });
-  const healthBefore = view.player.vitals.find((vital) => vital.key === "health").current;
-  await walk(session, path);
-  const after = session.view();
-  assert.deepEqual(after.player.position, trap);
-  assert.ok(after.player.vitals.find((vital) => vital.key === "health").current < healthBefore, "the trap hurt");
+  const health = () => session.view().player.vitals.find((vital) => vital.key === "health").current;
+  const healthBefore = health();
+  // Track the lowest health on the way: regen heals between traps, and opposed
+  // traps side by side cancel on each other's tiles, so the end tile alone can read full.
+  let lowest = healthBefore;
+  await walk(session, path, () => { lowest = Math.min(lowest, health()); });
+  assert.deepEqual(session.view().player.position, trap);
+  assert.ok(lowest < healthBefore, "the trap hurt");
 });
 
 test("the game plays under fog of war by default; --no-fog shows the whole map", async () => {
@@ -549,7 +565,7 @@ function duelLevels({ wardenAt = { x: 2, y: 1 } } = {}) {
     actors: [
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
         vitals: viableVitals({ mana: 40 }), affinities: [
-          { kind: "water", expression: "push", stacks: 3 }, { kind: "light", expression: "emit", stacks: 1 }] },
+          { kind: "water", expression: "push", stacks: 3, intensity: 2 }, { kind: "light", expression: "emit", stacks: 1 }] },
       ...(wardenAt ? [{ category: "warden", id: "warden_1", position: wardenAt, motivations: ["stationary"],
         vitals: viableVitals(), affinities: [{ kind: "fire", expression: "push", stacks: 1 }] }] : []),
     ],
@@ -692,7 +708,7 @@ test("a defeated player sees the defeat line; moves do nothing and r restarts th
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
         vitals: viableVitals(), affinities: [] },
       { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["attacking"],
-        vitals: viableVitals({ mana: 200 }), affinities: [{ kind: "fire", expression: "push", stacks: 3 }],
+        vitals: viableVitals({ mana: 200 }), affinities: [{ kind: "fire", expression: "push", stacks: 3, intensity: 2 }],
         activeAffinityKey: "fire:push" },
     ],
   });

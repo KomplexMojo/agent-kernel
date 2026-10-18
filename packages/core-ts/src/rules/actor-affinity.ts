@@ -73,8 +73,13 @@ export function evaluateActorAffinityReceiver(kind: AffinityKind, expression: Af
   applyEffect(getActorAffinityEffect(kind, expression), amount, change, () => {});
 }
 
-/** Uses existing expression magnitudes and stack scaling, without legacy sign routing. */
-export function actorAffinityMagnitude(expression: AffinityExpression, stacks: number): number {
+/**
+ * The strength of one hit (#340, maintainer 2026-10-17): the expression's base
+ * (push/pull 2, emit/draw 1) times intensity squared. Range plays no part; it
+ * only sets how far the hit reaches. Without legacy sign routing.
+ */
+export function actorAffinityMagnitude(expression: AffinityExpression, intensity: number): number {
   const code = Object.entries(AFFINITY_EXPRESSION_BY_CODE).find(([, name]) => name === expression)?.[0];
-  return scaleAffinityVitalEffect(getAffinityExpressionBaseMagnitude(Number(code)), stacks);
+  if (!Number.isInteger(intensity) || intensity < 0) return 0;
+  return scaleAffinityVitalEffect(getAffinityExpressionBaseMagnitude(Number(code)), intensity * intensity);
 }

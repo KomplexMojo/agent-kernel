@@ -115,6 +115,41 @@ silently-diverging answer to "how big is this card set" is the CR.1 defect class
 because the output stays well-formed. Most Allocator surfaces never price a room card, so the parameter is
 optional at construction and enforced at the point of use.
 
+### It reports an unpriced level, and translates legacy cast prices (#279)
+
+`reportLevelPricing(simConfig)` returns `[]` for a level carrying the Allocator's `budgetReceiptRef`
+and one `level_unpriced` finding otherwise. A play session plays such a level as written and surfaces
+the finding (`session.pricingReport`, shown as a warning by the ASCII game). `castPricesFromLegacyTiers(costs)`
+loads a pre-#232 five-tier `castMana` table on the one cast curve; the run loader (`runner/core-setup.mjs`)
+asks for it here rather than translating prices itself.
+
+### It judges and issues sandbox receipts (#277)
+
+`assessReceiptForUse(receipt)` accepts a receipt only when it is a v1 `BudgetReceiptArtifact` with an
+id, `status: "approved"`, a finite non-negative `remaining` and a `lineItems` list; anything else
+returns `{ ok: false, error }` (with `budgetInsufficient` for a non-approved or overspent receipt).
+`sandbox-create` (CLI and MCP share one implementation) uses it for `--budget-receipt`, and for
+`--budget` spends the budget on the room's floor with `evaluateConfiguratorSpend`, writing the
+issued `budget-receipt.json` and `price-list.json` beside the session.
+
+### It re-prices `ak run` overrides (#278)
+
+`priceLevelOverrides({ simConfig, initialState, levelReceipt, priceList, ... })` prices an
+overridden level's layout and actors with `evaluateConfiguratorSpend`, against the level's own
+budget (`levelReceipt.totalCost + levelReceipt.remaining`, or the reference budget without a
+receipt), and returns `{ receipt, priceList, report }`. `report` holds one `overrides_over_budget`
+finding when the receipt is not approved; the run is not refused.
+
+### It prices hazard and resource cards from the receipt's own items (#281)
+
+`calculateObjectCardUnitCost({ card, priceList })`, published from `controller.js`, prices one hazard or
+resource design card from the same spend items its build receipt charges (`hazard_basic`, affinity base,
+stack and expression, vital points and regen; `resource_base`/`level`/`permanent` and grants), against
+the default price list when none is given. An item with no price-list entry is refused by name. The card
+builder (`commands/card-authoring.js#calculateCardValue`) used to price a hazard at its `tokenHint` alone
+and a resource by its own arithmetic or its `budgetCeiling`. A `budgetCeiling` is a cap, not a price, and a
+`tokenHint` is extra spend added on top of the price (which is how `buildDesignSpendLedger` counts it).
+
 ### It owns mixed-room design-token spend; presentation does not reconstruct it (RB3.0/RB3.2)
 
 The approved unit is `design_tokens`. `priceMixedRoomDesignSpend({ room, composition, priceList })`

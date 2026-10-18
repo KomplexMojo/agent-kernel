@@ -43,5 +43,14 @@ test('rejects invalid active keys, duplicates, stack counts and motivations', ()
   const invalid = actor(); (invalid.motivations as unknown[]).push(7); expect(() => registry(invalid)).toThrow();
   const none = actor(); none.activeAffinityKey = null; expect(registry(none).getActor('a')!.activeAffinityKey).toBeNull();
 });
+test('an entry may carry an intensity: a whole number from 1 up, absent reads as before (#341)', () => {
+  const strong = actor(); strong.affinities[0].intensity = 2;
+  expect(registry(strong).getActor('a')!.affinities[0]).toEqual({ kind: 'fire', expression: 'emit', stacks: 1, intensity: 2 });
+  for (const intensity of [0, -1, 1.5, '2', null]) {
+    const a = actor(); (a.affinities[0] as unknown as Record<string, unknown>).intensity = intensity; expect(() => registry(a)).toThrow('invalid affinity entry');
+  }
+  const extra = actor(); (extra.affinities[0] as unknown as Record<string, unknown>).range = 3; expect(() => registry(extra)).toThrow('invalid affinity entry');
+});
 // ## TODO: Test Permutations
 // - Tick executor must reject a second action after equipping and emit exactly one field pass.
+// - an entry with intensity survives equip, unequip and a claim unchanged.

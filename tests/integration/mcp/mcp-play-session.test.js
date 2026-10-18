@@ -110,7 +110,7 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
 
     const viewed = await server.callTool("ak_play_view", { session: "mcp-party" });
     assert.equal(viewed.turns, 3);
-    assert.match(viewed.screen, /Party: D1 hero-1 {2}\[D2 hero-2\]/);
+    assert.match(viewed.screen, /Party: D1 hero-1 \(exploring\) {2}\[D2 hero-2 \(exploring\)\]/);
 
     const ended = await server.callTool("ak_play_end", { session: "mcp-party" });
     assert.equal(ended.ended, true);

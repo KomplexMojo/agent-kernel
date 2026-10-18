@@ -70,7 +70,9 @@ test("dark at the observer's tile is subtracted from its own light", () => {
 
 test('dark is on or off like every affinity: full stacks while on, nothing once drained (#288)', () => {
   const shade = emitting(actor('shade', 6), 'dark', 4);
+  shade.affinities[0].intensity = 4;
   shade.vitals.mana!.current = 5;
+  // Half its mana changes nothing: the field reads intensity 4 out to range 4.
   const dark = readActorRegistryDarkByCell(corridor([shade]).snapshot());
   expect(dark['6,0']).toBe(4);
   expect(dark['2,0']).toBe(4);

@@ -161,6 +161,10 @@ At a high level, the Configurator:
 > affinity the actor does not hold, a duplicate, more stacks than held, slots outside 1-6. Any mix,
 > opposite emits included, is allowed. The preset slot counts are `PRESET_AFFINITY_SLOTS` in contracts.
 >
+> Range and intensity (#340, #343): an authored affinity entry may carry `intensity` beside its
+> `stacks` (the range). The Configurator carries it unchanged onto the actor and hazard records
+> (`input-preparation.js` `mapHazards`, `cost-model.js` `normalizeAffinityList`); absent, core reads 1.
+>
 > Not the same responsibility as the candidate-authoring block above: that one assembles **priced
 > cards** for the Allocator to judge; this one assembles a request's **actor roster entry**
 > directly, with no pricing involved. `actor-generator.js`'s `generateActorSet` was investigated
@@ -286,8 +290,10 @@ the CONFIG plane uses the service surface below. Both move the same state machin
 `validate()` and `lock()` were label-only until CR.2 (2026-07-29): both were
 `requireState` + `fsm.advance`, and the production authoring path
 (`build/authoring-build.js`) called neither, so a malformed `levelGen` or resource
-list reached `orchestrateBuild` untouched. `runAuthoringBuild` now validates and
-locks before the build proceeds — a config the Configurator rejects fails the build.
+list reached `orchestrateBuild` untouched. Since #280 `orchestrateBuild` itself validates and
+locks, so every build path (create/configure, the *-plan commands, `ak build`, `ak llm-plan`,
+`ak scenario`, the sandbox bridge) gets the same verdict, and `ak configurator` runs the same
+round on its `--level-gen`/`--actors` input — a config the Configurator rejects fails the build.
 
 Validation is **permissive on presence, strict on type**: production emits partial
 shapes that are legitimate (the `resource-plan-g4` golden carries
@@ -325,7 +331,7 @@ The Configurator is therefore a **bridge between planning and execution**, respo
 
 - Room cards expand in authored card/count order, then a seed-shuffled room order receives the
   profiles cyclically. Each emitted affinity gets one deterministic unoccupied cell in its assigned
-  room. Generated hazard ids include affinity plus room index; mana upkeep is `2 + stacks`, the pool
+  room. Generated hazard ids include affinity plus room index; mana upkeep is `2 + range + intensity` (#340; range is `stacks`, intensity defaults to 1), the pool
   is three upkeep ticks, regen equals upkeep, and durability is `5 * stacks`. A push or pull hazard's
   pool is exactly two casts at the price core charges for that kind and stack count, with no regen
   and durability `3 * stacks`. The price comes from the build's authored affinity rules when it has

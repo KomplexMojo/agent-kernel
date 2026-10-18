@@ -16,6 +16,7 @@ import { createDirectorPersona } from "../personas/director/persona.js";
 // CR.7 / WP-5 — design spend is the Allocator's, taken from its PUBLIC barrel.
 import {
   calculateActorConfigurationUnitCost,
+  calculateObjectCardUnitCost,
   buildDesignSpendLedger,
 } from "../personas/allocator/persona.js";
 import {
@@ -97,12 +98,6 @@ function normalizeRoomCardShape(value) {
 const BUDGET_BUCKET_ORDER = Object.freeze(["room", "delver", "warden", "hazard", "resource"]);
 
 const RESOURCE_VITAL_KEYS = Object.freeze(["health", "mana", "stamina"]);
-
-const RESOURCE_VITAL_COST_PER_DELTA = LEVEL_ECONOMY.resourceVitalCostPerDelta;
-
-const RESOURCE_VITAL_COST_PER_REGEN = LEVEL_ECONOMY.resourceVitalCostPerRegen;
-
-const RESOURCE_PERMANENT_MULTIPLIER = LEVEL_ECONOMY.resourcePermanentMultiplier;
 
 const DEFAULT_BUDGET_SPLIT = Object.freeze({ ...LEVEL_ECONOMY.budgetSplitPercent });
 
@@ -455,12 +450,15 @@ function stableSortAffinities(entries = []) {
       if (!kind || !expression) return;
       const key = `${kind}:${expression}`;
       const stacks = normalizeCardCount(entry?.stacks, 1);
+      // #340: an authored intensity rides along; merged entries keep the stronger one.
+      const intensity = Number.isSafeInteger(entry?.intensity) && entry.intensity >= 1 ? entry.intensity : undefined;
       const existing = merged.get(key);
       if (existing) {
         existing.stacks += stacks;
+        if (intensity !== undefined && intensity > (existing.intensity ?? 1)) existing.intensity = intensity;
         return;
       }
-      merged.set(key, { kind, expression, stacks, hazardVitals: entry?.hazardVitals });
+      merged.set(key, { kind, expression, stacks, ...(intensity !== undefined ? { intensity } : {}), hazardVitals: entry?.hazardVitals });
     });
   return Array.from(merged.values())
     .sort((a, b) => a.kind.localeCompare(b.kind) || a.expression.localeCompare(b.expression) || a.stacks - b.stacks);
@@ -1200,7 +1198,8 @@ function calculateRoomCardUnitValue(card, { tileCosts, priceList } = {}) {
   // (`costTokens`) shapes via the Allocator pricing surface (BUG-2 fix).
   const allocator = allocatorFor(priceList);
   const priceMap = new Map(
-    Array.from(priceList ? allocator.pricing.priceMap() : new Map())
+    // #281: the Allocator's own price map (the default list when none is given), never an empty one.
+    Array.from(allocator.pricing.priceMap())
       .filter(([key]) => typeof key === "string" && key.includes(":") && !key.startsWith("legacy:"))
       .map(([key, entry]) => [key, entry.unitCost]),
   );
@@ -1275,7 +1274,8 @@ function calculateActorCardUnitValue(card, { priceList } = {}) {
   // (`costTokens`) shapes via the Allocator pricing surface (BUG-2 fix).
   const allocator = allocatorFor(priceList);
   const priceMap = new Map(
-    Array.from(priceList ? allocator.pricing.priceMap() : new Map())
+    // #281: the Allocator's own price map (the default list when none is given), never an empty one.
+    Array.from(allocator.pricing.priceMap())
       .filter(([key]) => typeof key === "string" && key.includes(":") && !key.startsWith("legacy:"))
       .map(([key, entry]) => [key, entry.unitCost]),
   );
@@ -1296,20 +1296,20 @@ function calculateActorCardUnitValue(card, { priceList } = {}) {
       spendTokens: readPositiveInt(item?.spendTokens, 0),
     }))
     : [];
-  const tokenHint = readPositiveInt(card?.tokenHint, 0);
-  if (tokenHint > 0) {
-    lineItems.push({
-      id: "token_hint",
-      label: "token hint",
-      quantity: 1,
-      unitCostTokens: tokenHint,
-      spendTokens: tokenHint,
-    });
-  }
   return {
-    unitTokens: readPositiveInt(cost?.cost, 0) + tokenHint,
+    unitTokens: readPositiveInt(cost?.cost, 0) + appendTokenHintLine(lineItems, card),
     lineItems,
   };
+}
+
+// A tokenHint is spend the author chose on top of the card's price; the Allocator's design
+// ledger (buildDesignSpendLedger) counts it as such, so the card value shows the same line.
+function appendTokenHintLine(lineItems, card) {
+  const tokenHint = readPositiveInt(card?.tokenHint, 0);
+  if (tokenHint > 0) {
+    lineItems.push({ id: "token_hint", label: "token hint", quantity: 1, unitCostTokens: tokenHint, spendTokens: tokenHint });
+  }
+  return tokenHint;
 }
 
 function calculateCardValue(card, { tileCosts, priceList } = {}) {
@@ -1318,46 +1318,19 @@ function calculateCardValue(card, { tileCosts, priceList } = {}) {
   if (!type) {
     return { unitTokens: 0, totalTokens: 0, lineItems: [] };
   }
-  if (type === "hazard") {
-    const budgetCeiling = readPositiveInt(normalized.tokenHint, 0);
-    const unitTokens = budgetCeiling;
-    const totalTokens = unitTokens * normalizeCardCount(normalized.count, 1);
-    const lineItems = budgetCeiling > 0
-      ? [{
-        id: "hazard_budget_ceiling",
-        label: "budget ceiling",
-        quantity: 1,
-        unitCostTokens: budgetCeiling,
-        spendTokens: budgetCeiling,
-      }]
-      : [];
-    return { unitTokens, totalTokens, lineItems };
-  }
-  if (type === "resource") {
-    const vitalsObj = normalized.resourceVitals || {};
-    const multiplier = normalized.permanent ? RESOURCE_PERMANENT_MULTIPLIER : 1;
-    const lineItems = [];
-    let baseCost = 0;
-    RESOURCE_VITAL_KEYS.forEach((k) => {
-      const vd = vitalsObj[k] || { delta: 0, regen: 0 };
-      if (vd.delta > 0) {
-        const cost = vd.delta * RESOURCE_VITAL_COST_PER_DELTA * multiplier;
-        baseCost += cost;
-        lineItems.push({ id: `resource_${k}_delta`, label: `${k}:max`, quantity: 1, unitCostTokens: cost, spendTokens: cost });
-      }
-      if (vd.regen > 0) {
-        const cost = vd.regen * RESOURCE_VITAL_COST_PER_REGEN * multiplier;
-        baseCost += cost;
-        lineItems.push({ id: `resource_${k}_regen`, label: `${k}:regen`, quantity: 1, unitCostTokens: cost, spendTokens: cost });
-      }
-    });
-    const budgetCeiling = readPositiveInt(normalized.budgetCeiling, 0);
-    if (budgetCeiling > 0) {
-      lineItems.push({ id: "resource_budget_ceiling", label: "budget ceiling", quantity: 1, unitCostTokens: budgetCeiling, spendTokens: budgetCeiling });
-    }
-    const unitTokens = budgetCeiling > 0 ? budgetCeiling : baseCost;
-    const totalTokens = unitTokens * normalizeCardCount(normalized.count, 1);
-    return { unitTokens, totalTokens, lineItems };
+  if (type === "hazard" || type === "resource") {
+    // #281: the Allocator prices the card from the spend items its receipt charges. A
+    // budgetCeiling is a cap, not a price, and a tokenHint is extra spend, not the price.
+    const priced = calculateObjectCardUnitCost({ card: normalized, priceList });
+    const lineItems = priced.lineItems.map((item) => ({
+      id: item.id,
+      label: formatDisplayLabel(item.id, item.id),
+      quantity: readPositiveInt(item.quantity, 1),
+      unitCostTokens: readPositiveInt(item.unitCostTokens, 0),
+      spendTokens: readPositiveInt(item.spendTokens, 0),
+    }));
+    const unitTokens = readPositiveInt(priced.cost, 0) + (type === "hazard" ? appendTokenHintLine(lineItems, normalized) : 0);
+    return { unitTokens, totalTokens: unitTokens * normalizeCardCount(normalized.count, 1), lineItems };
   }
   const unitValue = type === "room"
     ? calculateRoomCardUnitValue(normalized, { tileCosts, priceList })
@@ -1806,7 +1779,6 @@ export {
   DEFAULT_BUDGET_SPLIT,
   DEFAULT_LEVEL_BUDGET_TOKENS,
   GLOBAL_ISSUED_CARD_IDS,
-  RESOURCE_PERMANENT_MULTIPLIER,
   RESOURCE_VITAL_KEYS,
   ROOM_SHAPE_ORDER,
   ROOM_SIZE_ORDER,

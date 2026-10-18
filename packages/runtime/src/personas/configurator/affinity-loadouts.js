@@ -13,7 +13,6 @@ import {
 } from "./logical-validation.js";
 
 export { AFFINITY_KINDS, AFFINITY_EXPRESSIONS, AFFINITY_TARGET_TYPES };
-const ABILITY_KINDS = Object.freeze(["attack", "buff", "area"]);
 const STACK_SCALING = Object.freeze(["linear", "multiplier"]);
 
 function isPlainObject(value) {
@@ -41,23 +40,6 @@ function defaultTargetTypeForExpression(expression) {
     || DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION[DEFAULT_AFFINITY_EXPRESSION];
 }
 
-function normalizeEffect(effect, fieldBase, errors) {
-  if (!isPlainObject(effect)) {
-    addError(errors, fieldBase, "invalid_effect");
-    return null;
-  }
-  if (typeof effect.id !== "string" || effect.id.trim() === "") {
-    addError(errors, `${fieldBase}.id`, "invalid_effect_id");
-  }
-  if (!isNumber(effect.potency) || effect.potency < 0) {
-    addError(errors, `${fieldBase}.potency`, "invalid_effect_potency");
-  }
-  return {
-    id: effect.id,
-    potency: effect.potency,
-  };
-}
-
 function normalizeVitalModifier(modifier, fieldBase, errors) {
   if (!isPlainObject(modifier)) {
     addError(errors, fieldBase, "invalid_vital_modifier");
@@ -79,54 +61,9 @@ function normalizeVitalModifier(modifier, fieldBase, errors) {
   };
 }
 
-function normalizeAbility(ability, fieldBase, errors, preset) {
-  if (!isPlainObject(ability)) {
-    addError(errors, fieldBase, "invalid_ability");
-    return null;
-  }
-  if (typeof ability.id !== "string" || ability.id.trim() === "") {
-    addError(errors, `${fieldBase}.id`, "invalid_ability_id");
-  }
-  if (!ABILITY_KINDS.includes(ability.kind)) {
-    addError(errors, `${fieldBase}.kind`, "invalid_ability_kind");
-  }
-  if (!AFFINITY_KINDS.includes(ability.affinityKind)) {
-    addError(errors, `${fieldBase}.affinityKind`, "invalid_kind");
-  }
-  if (preset && ability.affinityKind && ability.affinityKind !== preset.kind) {
-    addError(errors, `${fieldBase}.affinityKind`, "mismatched_kind");
-  }
-  if (!isNumber(ability.potency)) {
-    addError(errors, `${fieldBase}.potency`, "invalid_potency");
-  }
-  if (ability.manaCost !== undefined && (!isNumber(ability.manaCost) || ability.manaCost < 0 || !isInteger(ability.manaCost))) {
-    addError(errors, `${fieldBase}.manaCost`, "invalid_mana_cost");
-  }
-  if (ability.expression !== undefined && !AFFINITY_EXPRESSIONS.includes(ability.expression)) {
-    addError(errors, `${fieldBase}.expression`, "invalid_expression");
-  }
-  if (preset && ability.expression && ability.expression !== preset.expression) {
-    addError(errors, `${fieldBase}.expression`, "mismatched_expression");
-  }
-  if (ability.targetType !== undefined && !AFFINITY_TARGET_TYPES.includes(ability.targetType)) {
-    addError(errors, `${fieldBase}.targetType`, "invalid_target_type");
-  }
-  return {
-    id: ability.id,
-    kind: ability.kind,
-    affinityKind: ability.affinityKind,
-    potency: ability.potency,
-    manaCost: ability.manaCost,
-    expression: ability.expression,
-    targetType: ability.targetType,
-  };
-}
-
-function hasAbilityKind(abilities, kind) {
-  if (!Array.isArray(abilities)) return false;
-  return abilities.some((ability) => ability?.kind === kind);
-}
-
+// #264 — presets carry no attack/buff/area effects or abilities (schemaVersion 2). A v1
+// catalog's `effects`/`abilities` are read and ignored: nothing consumed them, because
+// there is no conventional attack and harm comes only from affinity casts.
 export function normalizeAffinityPresetCatalog(input = {}) {
   const errors = [];
   const warnings = [];
@@ -179,34 +116,6 @@ export function normalizeAffinityPresetCatalog(input = {}) {
       }
     }
 
-    if (!isPlainObject(preset.effects)) {
-      addError(errors, `${base}.effects`, "invalid_effects");
-    } else {
-      if (preset.effects.attack) {
-        normalizeEffect(preset.effects.attack, `${base}.effects.attack`, errors);
-      }
-      if (preset.effects.buff) {
-        normalizeEffect(preset.effects.buff, `${base}.effects.buff`, errors);
-      }
-      if (preset.effects.area) {
-        normalizeEffect(preset.effects.area, `${base}.effects.area`, errors);
-      }
-    }
-
-    const abilitiesInput = preset.abilities;
-    const abilities = [];
-    if (abilitiesInput !== undefined) {
-      if (!Array.isArray(abilitiesInput)) {
-        addError(errors, `${base}.abilities`, "invalid_list");
-      } else {
-        abilitiesInput.forEach((ability, abilityIndex) => {
-          const abilityBase = `${base}.abilities[${abilityIndex}]`;
-          const normalized = normalizeAbility(ability, abilityBase, errors, preset);
-          if (normalized) abilities.push(normalized);
-        });
-      }
-    }
-
     if (preset.vitalsModifiers !== undefined) {
       if (!isPlainObject(preset.vitalsModifiers)) {
         addError(errors, `${base}.vitalsModifiers`, "invalid_vitals_modifiers");
@@ -219,21 +128,6 @@ export function normalizeAffinityPresetCatalog(input = {}) {
       }
     }
 
-    if (preset.expression === "push") {
-      if (!preset.effects?.attack && !hasAbilityKind(abilities, "attack")) {
-        addError(errors, `${base}.effects.attack`, "missing_attack_effect");
-      }
-    }
-    if (preset.expression === "pull") {
-      if (!preset.effects?.buff && !hasAbilityKind(abilities, "buff")) {
-        addError(errors, `${base}.effects.buff`, "missing_buff_effect");
-      }
-    }
-    if (preset.expression === "emit") {
-      if (!preset.effects?.area && !hasAbilityKind(abilities, "area")) {
-        addError(errors, `${base}.effects.area`, "missing_area_effect");
-      }
-    }
     if (preset.expression === "draw") {
       if (!preset.vitalsModifiers?.mana) {
         addError(errors, `${base}.vitalsModifiers.mana`, "missing_mana_modifier");
@@ -245,9 +139,7 @@ export function normalizeAffinityPresetCatalog(input = {}) {
       kind: preset.kind,
       expression: preset.expression,
       manaCost,
-      effects: preset.effects,
       vitalsModifiers: preset.vitalsModifiers,
-      abilities: abilities.length > 0 ? abilities : undefined,
       stack: preset.stack,
     });
   });

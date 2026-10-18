@@ -43,6 +43,7 @@
  * the same reason. ⇒ *"The last crossing" is a claim about the crossings someone
  * enumerated, not about the file.*
  */
+import { PERSONA_IDS, stampPersona } from "../_shared/persona-stamp.js";
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { buildPriceMap, normalizePriceItems, validateSpendProposal, calculatePriceTotal } from "./validate-spend.js";
 // CR.9 M4: this module used to `import { createAllocatorPersona } from "./persona.js"`
@@ -513,6 +514,35 @@ function readHazardVitalCharges(hazard) {
     .filter(Boolean);
 }
 
+/**
+ * The floor and hallway tile counts a layout is billed for (#300 publishes this so a built
+ * level's budget-fit question counts tiles exactly as its receipt did).
+ *
+ * CR.9 M5: the RECEIPT path charged floor tiles only, so an explicit
+ * `{ floorTiles, hallwayTiles }` layout was billed for half of itself. This is the
+ * second charging site for tiles — `layout-spend.js` is the other — and fixing one
+ * without the other is how a payload comes to have two prices (CR.1's defect class).
+ *
+ * ⚠️ ONLY when the floor count is NOT derived. `countFloorTiles` has four modes: an
+ * explicit `floorTiles` field, canonical `terrain` floors, a leftover `tiles` grid, or
+ * `width × height`. Terrain counts floor cells only. Leftover tiles and width×height
+ * count walkable leftover glyphs — hallways INCLUDED — so adding an explicit
+ * `hallwayTiles` on top of them bills the same tiles twice. The guard cannot simply be
+ * "floorTiles must be explicit" either: a hallway-ONLY leftover layout has no floor
+ * count at all and must still be charged, which is exactly what this milestone stopped
+ * being free.
+ */
+export function billedLayoutTiles(layoutData) {
+  const isScaffold = layoutData?.budgetScaffold === true;
+  const floorTiles = isScaffold ? 0 : countFloorTiles(layoutData);
+  const hasExplicitFloorCount = Number.isInteger(layoutData?.floorTiles) && layoutData.floorTiles > 0;
+  const floorCountIncludesHallways = !hasExplicitFloorCount && floorTiles > 0;
+  const hallwayTiles = isScaffold || floorCountIncludesHallways || !Number.isInteger(layoutData?.hallwayTiles)
+    ? 0
+    : Math.max(0, layoutData.hallwayTiles);
+  return { floorTiles, hallwayTiles };
+}
+
 function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMotivations }) {
   const counts = new Map();
   const hazardArray = Array.isArray(hazards) && hazards.length > 0
@@ -523,32 +553,13 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
     ...(Array.isArray(layoutData?.resources) ? layoutData.resources : []),
   ];
 
-  const isScaffold = layoutData?.budgetScaffold === true;
-  const floorTiles = isScaffold ? 0 : countFloorTiles(layoutData);
+  const { floorTiles, hallwayTiles } = billedLayoutTiles(layoutData);
   if (floorTiles > 0) {
     accumulateItem(counts, "tile_floor", "tile", floorTiles, {
       category: "floor_tiles",
       subjectRef: buildSubjectRef("layout", LAYOUT_ARTIFACT_SCHEMA),
     });
   }
-  // CR.9 M5: the RECEIPT path charged floor tiles only, so an explicit
-  // `{ floorTiles, hallwayTiles }` layout was billed for half of itself. This is the
-  // second charging site for tiles — `layout-spend.js` is the other — and fixing one
-  // without the other is how a payload comes to have two prices (CR.1's defect class).
-  //
-  // ⚠️ ONLY when the floor count is NOT derived. `countFloorTiles` has four modes: an
-  // explicit `floorTiles` field, canonical `terrain` floors, a leftover `tiles` grid, or
-  // `width × height`. Terrain counts floor cells only. Leftover tiles and width×height
-  // count walkable leftover glyphs — hallways INCLUDED — so adding an explicit
-  // `hallwayTiles` on top of them bills the same tiles twice. The guard cannot simply be
-  // "floorTiles must be explicit" either: a hallway-ONLY leftover layout has no floor
-  // count at all and must still be charged, which is exactly what this milestone stopped
-  // being free.
-  const hasExplicitFloorCount = Number.isInteger(layoutData?.floorTiles) && layoutData.floorTiles > 0;
-  const floorCountIncludesHallways = !hasExplicitFloorCount && floorTiles > 0;
-  const hallwayTiles = isScaffold || floorCountIncludesHallways || !Number.isInteger(layoutData?.hallwayTiles)
-    ? 0
-    : Math.max(0, layoutData.hallwayTiles);
   if (hallwayTiles > 0) {
     accumulateItem(counts, "tile_hallway", "tile", hallwayTiles, {
       category: "floor_tiles",
@@ -727,8 +738,60 @@ export function buildSpendProposal({ meta, layout, actors, hazards, resources, n
   return {
     schema: SPEND_PROPOSAL_SCHEMA,
     schemaVersion: 1,
-    meta,
+    meta: stampPersona(meta, PERSONA_IDS.allocator),
     items,
+  };
+}
+
+/**
+ * The price of one hazard or resource design card (#281): the same spend items the build's
+ * receipt charges for that object, priced against `priceList` (the default when absent). The
+ * card builder used to price hazards at their caller-set `tokenHint` and resources by its own
+ * arithmetic (or their `budgetCeiling`); neither is a price. An item with no price list entry
+ * is refused by name rather than read as free.
+ */
+export function calculateObjectCardUnitCost({ card, priceList } = {}) {
+  const type = normalizeCardType(card?.type);
+  if (type !== "hazard" && type !== "resource") {
+    throw new Error(`calculateObjectCardUnitCost prices hazard and resource cards, got ${JSON.stringify(card?.type)}`);
+  }
+  const object = type === "hazard" ? hazardFromDesignCard(card) : card;
+  const items = buildSpendItems({
+    layoutData: { budgetScaffold: true },
+    hazards: type === "hazard" ? [object] : [],
+    resources: type === "resource" ? [object] : [],
+  });
+  const priceMap = normalizePriceItems(priceList || buildDefaultPriceList({}));
+  const lineItems = items.map((item) => {
+    const price = priceMap.get(`${item.kind}:${item.id}`);
+    if (!price) throw new Error(`${type} card ${card?.id || ""} needs price ${item.kind}:${item.id}, which the price list does not have`);
+    return {
+      id: item.id,
+      kind: item.kind,
+      quantity: item.quantity,
+      unitCostTokens: price.unitCost,
+      spendTokens: calculatePriceTotal(price, item.quantity),
+    };
+  });
+  return { cost: lineItems.reduce((sum, item) => sum + item.spendTokens, 0), lineItems };
+}
+
+// A hazard design card carries its affinity as `affinities` / `expressions` and its grants as
+// top-level `mana` / `durability`; the receipt path reads `affinityStacks` and `vitals`.
+function hazardFromDesignCard(card) {
+  const affinities = Array.isArray(card?.affinities) ? card.affinities : [];
+  const fallbackExpression = Array.isArray(card?.expressions) ? card.expressions[0] : undefined;
+  return {
+    id: card?.id,
+    affinity: card?.affinity,
+    affinityStacks: affinities.map((entry) => ({
+      kind: entry?.kind || card?.affinity,
+      expression: entry?.expression || fallbackExpression,
+      stacks: Number.isInteger(entry?.stacks) && entry.stacks > 0 ? entry.stacks : 1,
+    })),
+    vitals: Object.fromEntries(["mana", "durability"]
+      .filter((key) => card?.[key] && typeof card[key] === "object")
+      .map((key) => [key, card[key]])),
   };
 }
 
@@ -1021,6 +1084,19 @@ function asActorEntries({ actorSet, summary } = {}) {
     return cardSet
       .map((entry, index) => {
         const type = normalizeCardType(entry?.type) || (entry?.source === "room" ? "room" : "warden");
+        if (type === "hazard" || type === "resource") {
+          // #312: a hazard or resource card is priced as the object the receipt charges
+          // (calculateObjectCardUnitCost), not as an actor. Like the card value, a hazard's
+          // tokenHint is extra spend on top of that price; a resource's is not.
+          return {
+            source: "object",
+            type,
+            id: entry?.id || `${type}_${index + 1}`,
+            count: normalizePositiveInt(entry?.count, 1) || 1,
+            tokenHint: type === "hazard" ? normalizePositiveInt(entry?.tokenHint, 0) : 0,
+            card: entry,
+          };
+        }
         const source = type === "room" ? "room" : "actor";
         const fallbackMotivation = type === "delver" ? "attacking" : type === "room" ? "stationary" : "defending";
         return {
@@ -1133,6 +1209,37 @@ export function buildDesignSpendLedger({
     const count = normalizePositiveInt(entry?.count, 1) || 1;
     const tokenHint = normalizePositiveInt(entry?.tokenHint, 0);
     const entryId = entry.id || `${entry.source}_${entry.motivation}_${entry.affinity}`;
+    if (entry.source === "object") {
+      if (tokenHint > 0) {
+        const hintSpend = tokenHint * count;
+        actorBaseSpent += hintSpend;
+        lineItems.push({
+          category: "actorBase",
+          id: entryId,
+          source: entry.type,
+          label: `${entry.type}-base`,
+          count,
+          unitCostTokens: tokenHint,
+          spendTokens: hintSpend,
+        });
+      }
+      const priced = calculateObjectCardUnitCost({ card: entry.card, priceList: resolvedPriceList });
+      const unitSpend = normalizePositiveInt(priced.cost, 0);
+      if (unitSpend > 0) {
+        actorConfigSpent += unitSpend * count;
+        lineItems.push({
+          category: "actorConfiguration",
+          id: entryId,
+          source: entry.type,
+          label: `${entry.type}-price`,
+          count,
+          unitCostTokens: unitSpend,
+          spendTokens: unitSpend * count,
+          detail: { lineItems: priced.lineItems },
+        });
+      }
+      return;
+    }
     if (entry.source !== "actor") {
       const roomPricing = pricing;
       const levelConfig = calculateActorConfigurationUnitCost({

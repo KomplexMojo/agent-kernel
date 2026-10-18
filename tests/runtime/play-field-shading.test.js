@@ -57,17 +57,17 @@ test("with fog the view only carries the field on cells the player sees now", as
 test("a field tints the fill toward its affinity colour, opposed or mixed alike", () => {
   const floor = { fg: "#8a8588", bg: "#241f22" };
   assert.deepEqual(asciiFieldCellStyle(floor, []), floor);
-  assert.equal(asciiFieldCellStyle(null, [{ kind: "fire", intensity: 1 }]), null);
+  assert.equal(asciiFieldCellStyle(null, [{ kind: "fire", falloff: 1 }]), null);
   for (const kind of AFFINITY_KINDS) {
-    const tinted = asciiFieldCellStyle(floor, [{ kind, stacks: 1, intensity: 1 }]);
+    const tinted = asciiFieldCellStyle(floor, [{ kind, stacks: 1, falloff: 1 }]);
     assert.notEqual(tinted.bg, floor.bg, kind);
     // Closer to the affinity colour than the bare floor is.
     const distance = (a, b) => [1, 3, 5].reduce((sum, i) => sum + Math.abs(parseInt(a.slice(i, i + 2), 16) - parseInt(b.slice(i, i + 2), 16)), 0);
     assert.ok(distance(tinted.bg, GAME_AFFINITY_COLOR_HEX[kind]) < distance(floor.bg, GAME_AFFINITY_COLOR_HEX[kind]), kind);
   }
-  const mixed = asciiFieldCellStyle(floor, [{ kind: "growth", intensity: 1 }, { kind: "fire", intensity: 1 }]);
-  assert.notEqual(mixed.bg, asciiFieldCellStyle(floor, [{ kind: "growth", intensity: 1 }]).bg);
-  assert.notEqual(mixed.bg, asciiFieldCellStyle(floor, [{ kind: "fire", intensity: 1 }]).bg);
+  const mixed = asciiFieldCellStyle(floor, [{ kind: "growth", falloff: 1 }, { kind: "fire", falloff: 1 }]);
+  assert.notEqual(mixed.bg, asciiFieldCellStyle(floor, [{ kind: "growth", falloff: 1 }]).bg);
+  assert.notEqual(mixed.bg, asciiFieldCellStyle(floor, [{ kind: "fire", falloff: 1 }]).bg);
 });
 
 test("the screen tints floor under a field and leaves the text unchanged", async () => {
@@ -83,5 +83,5 @@ test("the screen tints floor under a field and leaves the text unchanged", async
 // - a stronger opposite leaves its remainder tinted at the meeting tile
 // - draw expressions never tint the floor
 // - a remembered cell keeps its faded style with no live field
-// - tint grows with intensity up to ASCII_FIELD_TINT_MAX
+// - tint grows with falloff up to ASCII_FIELD_TINT_MAX
 // - walls, spawn and exit cells are never tinted
