@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-label="agent-kernel: simulation engine for a future decentralized dungeon game">
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="520" viewBox="0 0 1600 520" role="img" aria-label="Deepward: a dungeon game, built on the agent-kernel engine">
   <rect width="1600" height="520" fill="#1A1F2E"/>
 
   <!-- Mark: hex kernel with grid cell and delver triangle -->
@@ -13,11 +13,11 @@
 
   <!-- Wordmark -->
   <text x="420" y="180" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="72" font-weight="700" letter-spacing="-1.5">
-    <tspan fill="#FFFFFF">agent</tspan><tspan fill="#C4A35A">-kernel</tspan>
+    <tspan fill="#FFFFFF">Deep</tspan><tspan fill="#C4A35A">ward</tspan>
   </text>
 
   <text x="420" y="235" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="500" fill="#E8DFC8">
-    Simulation engine for a future dungeon game.
+    A dungeon game, built on the agent-kernel engine.
   </text>
 
   <text x="420" y="285" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="22" fill="#9AA3B5">

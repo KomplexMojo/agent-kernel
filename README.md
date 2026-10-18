@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/banner.png" alt="agent-kernel: simulation engine for a future decentralized dungeon game" width="100%">
+  <img src="docs/brand/banner.png" alt="Deepward: a dungeon game, built on the agent-kernel engine" width="100%">
 </p>
 
 <p align="center">
@@ -29,7 +29,9 @@
 </p>
 
 <p align="center">
-  <a href="#the-engine"><b>The engine</b></a>
+  <a href="#the-game"><b>The game</b></a>
+  &nbsp;·&nbsp;
+  <a href="#the-engine">The engine</a>
   &nbsp;·&nbsp;
   <a href="#surfaces">Surfaces</a>
   &nbsp;·&nbsp;
@@ -38,11 +40,17 @@
   <a href="#status">Status</a>
 </p>
 
-> **Status.** This is a **large, multi-year project under active development**. Progress is about **40%** of the intended scope. The simulation core, CLI, and MCP surfaces are in active use; the game that will sit on top of them is still ahead.
+> **Status.** This is a **large, multi-year project under active development**. Progress is about **40%** of the intended scope. The simulation core, CLI, and MCP surfaces are in active use; the game that sits on top of them is early.
+
+## The game
+
+**Deepward** is a dungeon game: delvers go down through rooms of wardens, traps and resources, and every one of them
+acts through its affinities and motivations. Deepward is the game and the public name; **agent-kernel** is the engine
+underneath it, and the name the code, packages and tools still carry.
 
 ## The engine
 
-agent-kernel is the **underlying simulation engine** for a future dungeon game. It is not the game itself.
+agent-kernel is the **underlying simulation engine** for Deepward. It is not the game itself.
 
 The core advances dungeon scenarios deterministically: rooms, actors, affinities, motivations, hazards, resources, combat. Runs are replayable. Given the same inputs, the engine produces the same outcomes — that is the basis for **provable fairness**.
 
@@ -99,7 +107,15 @@ The harness turns those requests into structured `ak_create` / `ak_configure` ca
 
 Early relative to the full multi-year scope. The engine, offline authoring path, and harness integration are the working middle. The public game layer, wider distribution path, and product polish are still open.
 
-Private repository while under development. Licence: ISC (see `package.json`).
+## Licence
+
+**Playing Deepward is free.** The [terms of use](TERMS.md) ask only that you don't sell it or bundle it into something
+paid, and don't host or copy it elsewhere.
+
+The source code, game and engine alike, is published under the [PolyForm Strict License 1.0.0](LICENSE.md): you may read
+and run it for noncommercial use, but not modify or redistribute it. It is source-available, not open source. The
+"Deepward" name and banner are not licensed for reuse. Third-party components keep their own licences
+([NOTICE.md](NOTICE.md)).
 
 <br>
 

@@ -1,6 +1,7 @@
 # AGENTS.md
 
-How the solo developer and the agent team work together on this repo. Short, strict, easy to follow.
+How the solo developer and the agent team work together on this repo. Short, strict, easy to follow. The repo holds
+**Deepward**, the game and public name, and **agent-kernel**, its engine and the internal name the code keeps.
 
 **Scope split with `CLAUDE.md` — neither file restates the other.** This one owns the roster, the workflow, per-agent scope, review reality, test and benchmark strategy, file placement, naming, and the pre-handoff checklist. `CLAUDE.md` owns reporting, the session-start protocol, code navigation, commands, the architecture summary, and the enforcement checklist. Change a rule in its owning file only.
 

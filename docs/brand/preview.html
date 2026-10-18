@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>agent-kernel — README preview (not published)</title>
+  <title>Deepward — README preview (not published)</title>
   <style>
     :root {
       --bg: #0d1117;
@@ -128,13 +128,13 @@
 <body>
   <div class="chrome">
     <strong>Local preview</strong>
-    <span>KomplexMojo / agent-kernel · README</span>
+    <span>KomplexMojo / Deepward · README</span>
     <span class="pill">Not published — review only</span>
   </div>
   <main>
     <article class="readme">
       <p class="center">
-        <img src="banner.png" alt="agent-kernel banner" width="100%">
+        <img src="banner.png" alt="Deepward banner" width="100%">
       </p>
       <p class="center">
         <img src="progress.svg" alt="Overall progress 40%" width="520">
@@ -152,7 +152,9 @@
         <img src="affinities/icon-affinity-dark.png" alt="">
       </div>
       <p class="center nav">
-        <a href="#the-engine"><b>The engine</b></a>
+        <a href="#the-game"><b>The game</b></a>
+        &nbsp;·&nbsp;
+        <a href="#the-engine">The engine</a>
         &nbsp;·&nbsp;
         <a href="#surfaces">Surfaces</a>
         &nbsp;·&nbsp;
@@ -164,11 +166,14 @@
       <blockquote>
         <b>Status.</b> This is a <b>large, multi-year project under active development</b>.
         Progress is about <b>40%</b> of the intended scope. The simulation core, CLI, and MCP surfaces
-        are in active use; the game that will sit on top of them is still ahead.
+        are in active use; the game that sits on top of them is early.
       </blockquote>
 
+      <h2 id="the-game">The game</h2>
+      <p><b>Deepward</b> is a dungeon game: delvers go down through rooms of wardens, traps and resources, and every one of them acts through its affinities and motivations. Deepward is the game and the public name; <b>agent-kernel</b> is the engine underneath it, and the name the code, packages and tools still carry.</p>
+
       <h2 id="the-engine">The engine</h2>
-      <p>agent-kernel is the <b>underlying simulation engine</b> for a future dungeon game. It is not the game itself.</p>
+      <p>agent-kernel is the <b>underlying simulation engine</b> for Deepward. It is not the game itself.</p>
       <p>The core advances dungeon scenarios deterministically: rooms, actors, affinities, motivations, hazards, resources, combat. Runs are replayable. Given the same inputs, the engine produces the same outcomes — that is the basis for <b>provable fairness</b>.</p>
       <p>Token spend is not advisory. <b>Token economics are enforced</b> in the Allocator: base costs, pricing formulas, spend validation, and receipts. Nothing else in the system invents a price.</p>
       <p class="center">

@@ -291,7 +291,7 @@ export function renderScreen({
   showHelp = true,
   color = false,
   panel = null,
-  title = `agent-kernel maze — ${levelName} (${levelIndex + 1}/${levelCount})`,
+  title = `Deepward — ${levelName} (${levelIndex + 1}/${levelCount})`,
   tickLine = `Tick ${view.tick}   Turns ${turns}`,
   helpLines = HELP_LINES,
   hints = true,

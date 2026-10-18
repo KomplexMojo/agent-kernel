@@ -51,7 +51,7 @@ export function createWatch({ run, tick = 0, showHelp: initialHelp = true, creat
     return renderScreen({
       view,
       levelName: run.name,
-      title: `agent-kernel run — ${run.name}`,
+      title: `Deepward run — ${run.name}`,
       tickLine: `Tick ${cursor} of ${viewer.maxTick}${following}`,
       message: watchStatusLine(view, viewer.maxTick, viewer.playerActorId) || "Watching a recorded run.",
       showHelp,

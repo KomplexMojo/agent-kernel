@@ -62,7 +62,7 @@ const button = ([key, label]) => `<button data-key="${encodeURIComponent(key)}">
 // Browser key names -> the keys the terminal keymap reads.
 const PAGE = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>agent-kernel</title>
+<title>Deepward</title>
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; background: #0d0d0f; color: #d8d8d8; font: 16px/1.25 ui-monospace, Menlo, Consolas, monospace; }
