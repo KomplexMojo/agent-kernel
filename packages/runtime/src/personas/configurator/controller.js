@@ -94,6 +94,8 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     // #301 — relational placement constraints: the `--place` spec grammar and its canonical shape.
     parsePlacementConstraint: services.parsePlacementConstraint,
     normalizePlacementConstraints: services.normalizePlacementConstraints,
+    // #396 — how each tactic in the plan was handled, for the placement report.
+    reportTactics: services.reportTactics,
     // #263 — a hazard authored with no affinity gets one picked from the run seed.
     nameUnnamedHazardAffinities: services.nameUnnamedHazardAffinities,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,

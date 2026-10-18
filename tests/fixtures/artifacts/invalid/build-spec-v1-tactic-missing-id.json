@@ -1,0 +1,12 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_tactic_missing_id",
+    "runId": "run_build_tactics",
+    "createdAt": "2026-10-18T00:00:00.000Z",
+    "source": "cli-create"
+  },
+  "intent": { "goal": "Every tactic names itself." },
+  "plan": { "hints": { "tactics": [{ "params": { "guards": 2 } }, { "tactic": "retinue", "params": { "size": [1] } }] } }
+}

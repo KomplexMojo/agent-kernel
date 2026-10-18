@@ -1,0 +1,12 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_tactics_not_array",
+    "runId": "run_build_tactics",
+    "createdAt": "2026-10-18T00:00:00.000Z",
+    "source": "cli-create"
+  },
+  "intent": { "goal": "Tactics must be a list." },
+  "plan": { "hints": { "tactics": { "tactic": "ambush" } } }
+}

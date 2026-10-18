@@ -400,7 +400,7 @@ single multi-object entrypoint for automation callers.
 
 Inputs/outputs:
 - Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--hazard`,
-  `--resource`, `--delver`, `--warden` and `--place`, optional `--goal`, `--dungeon-affinity`,
+  `--resource`, `--delver`, `--warden`, `--place` and `--tactic`, optional `--seed`, `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard
   `--run-id`, `--created-at`, `--out-dir`.
 - With no budget input (no `--budget-tokens`, `--budget`, or budget in the text), the Allocator's reference
@@ -505,6 +505,16 @@ Inputs/outputs:
     --delver "count=1;affinity=wind;motivation=exploring+user_controlled" \
     --warden "count=3;affinity=earth;motivation=stationary" \
     --place "hazard:trap1;near=exit:1" --place "warden:*;near=hazard:trap1:2;count=2"
+  ```
+- `--tactic` (repeatable, `tactics` on `ak_create`) asks for a placement tactic: `<ambush|retinue>[;key=value...]`.
+  The Director reads it and refuses an unknown tactic, naming the known ones; the list rides in the plan
+  (`directives.tactics`) and the BuildSpec (`plan.hints.tactics`), and the result echoes it as `tactics`. Tactics are
+  compiled by the Configurator in later steps of #395; until then each one appears in `placementReport` as
+  `{ tactic, params?, applied: false, note }`. `--seed N` (`seed` on `ak_create`) fixes the build seed; a tactic with no
+  `--seed` draws one, and the result reports it as `seed`, so the same flags plus `--seed` rebuild the level exactly.
+  ```bash
+  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+    --warden "count=2;motivation=defending" --tactic "ambush;guards=2" --seed 7
   ```
 - Authored `vitals=` on `--delver` and `--warden` are kept as written (#371): the movement and cast floors fill only
   a stamina regen or mana pool left at 0. A value you set that a floor still raises (a pool below one step, a vital

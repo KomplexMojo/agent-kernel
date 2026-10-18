@@ -86,6 +86,13 @@ The Director produces plans that are:
 
 Plans describe *what is desired*, not *how it will be built* or *how it will be enforced*.
 
+**Placement tactics (#396).** The Director owns which tactics exist (`PLAN_TACTIC_IDS`: `ambush`,
+`retinue`) and reads the authored list (`parseTactic` for `"<tactic>[;key=value...]"`,
+`normalizeTactics` for strings or `{ tactic, params }`), refusing an unknown tactic with the known
+ones named. The list rides in the plan as `directives.tactics` and in the BuildSpec as
+`plan.hints.tactics` (`tactics.js`; shape checked by `contracts/build-spec.js`). Compiling a tactic
+into placement is the Configurator's.
+
 ### Prompt Plan Authoring (LLM)
 When using an LLM (e.g. Ollama), the Director owns the prompt plan:
 - Decide the questions to ask (level design intent, constraints, roles) and the expected response contract.

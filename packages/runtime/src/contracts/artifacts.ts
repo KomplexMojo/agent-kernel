@@ -840,7 +840,10 @@ export interface BuildSpecV1 {
 
   /** Optional plan hints to seed the Director. */
   plan?: {
-    hints?: Record<string, unknown>;
+    hints?: Record<string, unknown> & {
+      /** #396: the plan's placement tactics, as the Director read them. */
+      tactics?: PlanTacticV1[];
+    };
   };
 
   /** Optional configurator inputs (implementation-specific). */
@@ -954,7 +957,20 @@ export interface PlanArtifactV1 {
    * Optional plan-to-persona directives (still not implementation details).
    * Examples: "prefer exploration", "keep actor count low", etc.
    */
-  directives?: Record<string, unknown>;
+  directives?: Record<string, unknown> & {
+    /** #396: placement tactics for the Configurator to compile, in order. */
+    tactics?: PlanTacticV1[];
+  };
+}
+
+/**
+ * #396 — one placement tactic in a plan: a named, parameterised pattern such as `ambush` or
+ * `retinue`. The Director owns which ids exist; params are a flat map of strings and numbers.
+ * Additive and optional, so PlanArtifact and BuildSpec stay at schemaVersion 1.
+ */
+export interface PlanTacticV1 {
+  tactic: string;
+  params?: Record<string, string | number>;
 }
 
 export type PlanArtifact = PlanArtifactV1;

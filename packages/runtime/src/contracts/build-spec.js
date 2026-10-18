@@ -815,6 +815,38 @@ function validateBuildSpecAuthoring(value, path, errors) {
   validateAuthoringValidation(value.validation, `${path}.validation`, errors);
 }
 
+/**
+ * #396 — the shape of a plan's tactic list (`BuildSpec.plan.hints.tactics`, and the plan's
+ * `directives.tactics`): `[{ tactic, params? }]`, params a flat map of strings and numbers.
+ * Which tactic ids exist is the Director's to say; this checks the shape only.
+ */
+export function validateTacticList(value, path, errors) {
+  if (!Array.isArray(value)) {
+    addError(errors, path, "expected array of { tactic, params? }");
+    return;
+  }
+  value.forEach((entry, index) => {
+    const at = `${path}[${index}]`;
+    if (!isObject(entry)) {
+      addError(errors, at, "expected object");
+      return;
+    }
+    if (!isNonEmptyString(entry.tactic)) {
+      addError(errors, `${at}.tactic`, "expected non-empty string");
+    }
+    if (entry.params === undefined) return;
+    if (!isObject(entry.params)) {
+      addError(errors, `${at}.params`, "expected object");
+      return;
+    }
+    for (const [key, param] of Object.entries(entry.params)) {
+      if (!(isNonEmptyString(param) || Number.isFinite(param))) {
+        addError(errors, `${at}.params.${key}`, "expected string or finite number");
+      }
+    }
+  });
+}
+
 export function validateBuildSpec(spec) {
   const errors = [];
 
@@ -868,6 +900,8 @@ export function validateBuildSpec(spec) {
       addError(errors, "plan", "expected object");
     } else if (spec.plan.hints !== undefined && !isObject(spec.plan.hints)) {
       addError(errors, "plan.hints", "expected object");
+    } else if (spec.plan.hints?.tactics !== undefined) {
+      validateTacticList(spec.plan.hints.tactics, "plan.hints.tactics", errors);
     }
   }
 

@@ -157,12 +157,17 @@ export function applyMotivationToInitialStateActors(initialState, { parsedDelver
 function assembleSpecThroughDirector({ summary, commandName, runId, createdAt, budgetArtifact, priceListArtifact }) {
   const source = `cli-${commandName}`;
   const director = createDirectorPersona({ clock: () => createdAt });
+  // #396: the Director reads the authored tactics; the list rides in the plan's directives.
+  const tactics = director.normalizeTactics(summary?.tactics);
   const intentEnvelope = {
     schema: INTENT_ENVELOPE_SCHEMA,
     schemaVersion: 1,
     meta: { id: `intent_${runId}`, runId, createdAt, producedBy: "cli" },
     source,
-    intent: { goal: isNonEmptyString(summary?.goal) ? summary.goal : `author ${runId}` },
+    intent: {
+      goal: isNonEmptyString(summary?.goal) ? summary.goal : `author ${runId}`,
+      ...(tactics.length > 0 ? { hints: { tactics } } : {}),
+    },
   };
   const { planArtifact } = director.beginBuild(intentEnvelope, { runId });
   const built = director.assembleBuildSpec({
@@ -251,12 +256,15 @@ export async function runAuthoringBuild(input = {}) {
     parsedDelvers = [],
     parsedWardens = [],
     placement = [],
+    tactics = [],
+    seed,
     placeObjects,
     solverDecisions,
   } = input;
 
   const { spec, plan, intent } = assembleSpecThroughDirector({
-    summary, commandName, runId, createdAt, budgetArtifact, priceListArtifact,
+    summary: tactics.length > 0 ? { ...summary, tactics } : summary,
+    commandName, runId, createdAt, budgetArtifact, priceListArtifact,
   });
 
   // Configurator owns input preparation (P2.2/P2.3.1): grid sizing, hazard
@@ -265,8 +273,10 @@ export async function runAuthoringBuild(input = {}) {
   // marker (PX.3). createdAt is already threaded through this function.
   const configurator = createConfiguratorPersona({ clock: () => createdAt });
   configurator.provideConfig(spec.configurator?.inputs || {});
+  // #396: the build seed, when one is given, so the level can be rebuilt exactly.
+  const existingLevelGen = spec.configurator?.inputs?.levelGen || {};
   spec.configurator.inputs.levelGen = configurator.prepareLevelGen({
-    existingLevelGen: spec.configurator?.inputs?.levelGen || {},
+    existingLevelGen: Number.isSafeInteger(seed) ? { ...existingLevelGen, seed } : existingLevelGen,
     rooms,
     floorTiles,
     hazards,

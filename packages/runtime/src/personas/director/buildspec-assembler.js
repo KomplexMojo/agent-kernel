@@ -1,5 +1,6 @@
 import { requireClock } from "../_shared/require-clock.js";
 
+import { normalizeTactics } from "./tactics.js";
 import { mapSummaryToPool } from "./pool-mapper.js";
 import {
   buildCardSetFromSummary,
@@ -456,6 +457,10 @@ export function buildBuildSpecFromSummary({
         delverConfigs: delverConfigs.length > 0 ? delverConfigs : undefined,
         delverConfig: delverConfig || undefined,
         cardSet: cardSet.length > 0 ? cardSet : undefined,
+        // #396: the plan's tactic list, already read by normalizeTactics.
+        ...(Array.isArray(resolvedSummary?.tactics) && resolvedSummary.tactics.length > 0
+          ? { tactics: normalizeTactics(resolvedSummary.tactics) }
+          : {}),
       },
     },
     configurator: {
@@ -469,6 +474,10 @@ export function buildBuildSpecFromSummary({
         delverConfig: delverConfig || undefined,
         resources: resources.length > 0 ? resources : undefined,
         cardSet: cardSet.length > 0 ? cardSet : undefined,
+        // #396: the plan's tactic list, already read by normalizeTactics.
+        ...(Array.isArray(resolvedSummary?.tactics) && resolvedSummary.tactics.length > 0
+          ? { tactics: normalizeTactics(resolvedSummary.tactics) }
+          : {}),
       },
     },
   };
