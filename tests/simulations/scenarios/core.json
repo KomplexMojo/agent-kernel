@@ -223,13 +223,6 @@
         "count=2;id=d;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
         "--warden",
         "count=2;id=w;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
-      ],
-      "knownIssues": [
-        {
-          "rule": "silent_actor",
-          "actor": "d-1",
-          "issue": "#368"
-        }
       ]
     },
     {
