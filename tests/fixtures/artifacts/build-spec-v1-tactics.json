@@ -1,0 +1,25 @@
+{
+  "schema": "agent-kernel/BuildSpec",
+  "schemaVersion": 1,
+  "meta": {
+    "id": "build_spec_tactics",
+    "runId": "run_build_tactics",
+    "createdAt": "2026-10-18T00:00:00.000Z",
+    "source": "cli-create"
+  },
+  "intent": {
+    "goal": "A level whose wardens follow two tactics.",
+    "hints": { "budgetTokens": 2500 }
+  },
+  "plan": {
+    "hints": {
+      "tactics": [
+        { "tactic": "ambush", "params": { "guards": 2 } },
+        { "tactic": "retinue" }
+      ]
+    }
+  },
+  "configurator": {
+    "inputs": { "levelGen": { "seed": 7 } }
+  }
+}

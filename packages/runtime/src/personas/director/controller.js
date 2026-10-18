@@ -5,6 +5,7 @@ import { createAllocatorPersona } from "../allocator/persona.js";
 import { createConfiguratorPersona } from "../configurator/persona.js";
 import { requireClock, UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { attachDirectorServices } from "./director-services.js";
+import { parseTactic, normalizeTactics } from "./tactics.js";
 import {
   INTENT_ENVELOPE_SCHEMA as INTENT_SCHEMA,
   PLAN_ARTIFACT_SCHEMA,
@@ -204,6 +205,9 @@ function buildArtifactProposalEffects({ intentEnvelope, planRef, personaRef = "d
 }
 
 // Phases this persona listens to (others are ignored).
+// #396 — the tactic vocabulary a plan carries. Pure readers, ungated: they stamp nothing.
+export { PLAN_TACTIC_IDS } from "./tactics.js";
+
 export const directorSubscribePhases = Object.freeze([TickPhases.DECIDE]);
 
 // Phase-aware Director persona wrapper. Pure/deterministic; no IO.
@@ -334,5 +338,8 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     // CR.4 M5b.2f — layout feasibility; the Director derives the levelGen, the Configurator
     // returns the verdict.
     assessFeasibility: services.assessFeasibility,
+    // #396 — the authored tactic list, read and checked against the tactics that exist.
+    parseTactic,
+    normalizeTactics,
   };
 }

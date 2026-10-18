@@ -268,3 +268,26 @@ test("room tile actor config reports all forbidden vital errors", async () => {
   assert.match(errors, /mana/);
   assert.match(errors, /stamina/);
 });
+
+// #396: the tactic list the Director puts in the plan rides in plan.hints.tactics.
+test("build spec validation accepts a tactic list", async () => {
+  const { validateBuildSpec } = await loadValidator();
+  const result = validateBuildSpec(readFixture("build-spec-v1-tactics.json"));
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.ok, true);
+});
+
+test("build spec validation rejects a tactic list that is not a list", async () => {
+  const { validateBuildSpec } = await loadValidator();
+  const result = validateBuildSpec(readFixture("invalid/build-spec-v1-tactics-not-array.json"));
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /plan\.hints\.tactics: expected array/);
+});
+
+test("build spec validation rejects a tactic without an id or with a non-scalar param", async () => {
+  const { validateBuildSpec } = await loadValidator();
+  const result = validateBuildSpec(readFixture("invalid/build-spec-v1-tactic-missing-id.json"));
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /plan\.hints\.tactics\[0\]\.tactic/);
+  assert.match(result.errors.join("\n"), /plan\.hints\.tactics\[1\]\.params\.size/);
+});

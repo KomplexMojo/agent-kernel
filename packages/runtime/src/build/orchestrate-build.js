@@ -670,10 +670,16 @@ export async function orchestrateBuild({
     };
   }
 
+  // #396: the plan's tactics are carried through; the Configurator reports what it did with each.
+  const tacticReport = configuratorBuild.reportTactics(
+    mapped.plan?.directives?.tactics ?? spec?.plan?.hints?.tactics,
+  );
+
   return {
     spec,
     intent: mapped.intent,
     plan: mapped.plan,
+    ...(tacticReport.length > 0 ? { tacticReport } : {}),
     budget: resolvedBudget,
     solverRequest,
     solverResult,

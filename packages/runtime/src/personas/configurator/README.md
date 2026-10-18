@@ -462,6 +462,13 @@ reference is `error`/`placement_constraint_invalid`. The reading-order fallback 
 so without a solver a constrained placement is refused (`placement_constraints_need_solver`), never
 placed as if unconstrained.
 
+### Placement tactics (#396, tracker #395)
+The plan's `directives.tactics` (`ambush`, `retinue`, ...) are the Director's; the Configurator will
+compile each into actor roles and placement constraints. Until it does, `reportTactics` (in
+`tactic-report.js`) turns each tactic into a `{ tactic, params?, applied: false, note }` row, which the
+build returns as `tacticReport` and `ak create` appends to its `placementReport`, so an asked-for
+tactic is never silently dropped.
+
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.
