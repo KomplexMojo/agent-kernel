@@ -89,7 +89,7 @@ import { composeMixedRooms } from "./mixed-room-composition.js";
 import { placeActors } from "./actor-placement.js";
 import { prepareObjectPlacement, completeObjectPlacement, levelObjectRequests } from "./object-placement.js";
 import { parsePlacementConstraint, normalizePlacementConstraints } from "./placement-constraints.js";
-import { reportTactics } from "./tactic-report.js";
+import { reportTactics, compileTactics } from "./tactic-report.js";
 import { nameUnnamedHazardAffinities } from "./unnamed-affinity.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "./motivation-rules.js";
 /**
@@ -464,6 +464,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
     parsePlacementConstraint,
     normalizePlacementConstraints,
     reportTactics,
+    compileTactics,
     nameUnnamedHazardAffinities,
     normalizeMotivationRulesArtifact,
     resolveMotivationRules,

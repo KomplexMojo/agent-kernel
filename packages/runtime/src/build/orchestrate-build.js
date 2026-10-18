@@ -263,6 +263,9 @@ export async function orchestrateBuild({
   }
 
   const configuratorInputs = mapped.configuratorInputs;
+  // #396: the plan's tactics; a BuildSpec built without a Director round carries them as plan hints.
+  const planTactics = mapped.plan?.directives?.tactics ?? spec?.plan?.hints?.tactics;
+  let compiledTacticReport = null;
   const levelGenInput = configuratorInputs?.levelGen;
   const actorsInputRaw = configuratorInputs?.actors;
   const hasLevelGen = levelGenInput && typeof levelGenInput === "object" && !Array.isArray(levelGenInput);
@@ -395,6 +398,17 @@ export async function orchestrateBuild({
       cardSet: configuratorInputs?.cardSet,
       seed,
     }).layout;
+    // #398: the plan's tactics, compiled by the Configurator into placement constraints over
+    // this level's rooms, wardens and resources, after any authored `--place` constraints.
+    const compiled = configuratorBuild.compileTactics({
+      tactics: planTactics,
+      layout,
+      actors: actorsInput.actors,
+      resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
+      placement: Array.isArray(configuratorInputs?.placement) ? configuratorInputs.placement : [],
+      seed,
+    });
+    compiledTacticReport = compiled.report;
     // Without a hosted solver the placement still goes through the host, so the build records
     // that the fallback answered and why (no adapter: `solver_domain_unavailable`).
     const objectPlacement = await (typeof placeObjects === "function"
@@ -409,8 +423,8 @@ export async function orchestrateBuild({
       resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
       actors: actorsInput.actors,
       affinityRules,
-      // #301: the authored relational placement constraints, if any.
-      ...(Array.isArray(configuratorInputs?.placement) ? { placement: configuratorInputs.placement } : {}),
+      // #301: the authored relational placement constraints, then the compiled tactics (#398).
+      ...(compiled.placement.length > 0 ? { placement: compiled.placement } : {}),
       meta: createBuildMeta(spec, producedBy, "object_placement"),
     });
     if (!objectPlacement?.ok) {
@@ -670,10 +684,8 @@ export async function orchestrateBuild({
     };
   }
 
-  // #396: the plan's tactics are carried through; the Configurator reports what it did with each.
-  const tacticReport = configuratorBuild.reportTactics(
-    mapped.plan?.directives?.tactics ?? spec?.plan?.hints?.tactics,
-  );
+  // #396: the Configurator reports what it did with each of the plan's tactics.
+  const tacticReport = compiledTacticReport ?? configuratorBuild.reportTactics(planTactics);
 
   return {
     spec,

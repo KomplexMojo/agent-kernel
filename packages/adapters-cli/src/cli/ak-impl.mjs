@@ -246,12 +246,15 @@ Options:
   --resource      Resource artifact spec for create/configure/resource-plan (repeatable).
   --tactic        Placement tactic for create/configure (repeatable): <ambush|retinue>[;key=value...]. The Director refuses an
                   unknown tactic, naming the known ones. The plan records each tactic and the placementReport says how it was
-                  handled; until the Configurator compiles tactics (#397-#400) each one is recorded but not applied.
+                  handled. ambush[;guards=<n>][;resources=<n>][;room=<id>][;visible=true] puts that many of the level's resources in
+                  a room (room=, else picked from the seed) and seats that many of its wardens there out of sight of the room's
+                  doorways (visible=true: in the open, within 2 of the loot); a room that can't hide them all hides what fits and
+                  says so. A tactic the Configurator does not compile yet (retinue) is recorded but not applied.
                   With a tactic and no --seed, a seed is drawn; the result reports it (seed) so --seed rebuilds the level exactly.
-  --place         Placement constraint for create/configure (repeatable): <subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump]
+  --place         Placement constraint for create/configure (repeatable): <subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump][;outOfSight=room:<id>]
                   subject: hazard|resource|delver|warden:<id|n|*>; target: spawn, exit, room:<id> or one hazard|resource|delver|warden:<id|n>.
                   Distances are king moves (a room counts from its nearest cell). count=<n> with near= means at least n of the subjects;
-                  onRoute is a cell every spawn-to-exit route passes. A delver or warden named here is placed by this search, not seated
+                  onRoute is a cell every spawn-to-exit route passes; outOfSight=room:<id> is a cell no doorway of that room can see. A delver or warden named here is placed by this search, not seated
                   by the usual rules. A constraint that cannot hold refuses the level, naming it; the result's placementReport says how each held.
                   Vital payload:   permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]
                   permanenceMode governs delta only (consumable raises current, level/permanent raise max).

@@ -35,7 +35,7 @@ async function create(payload) {
 
 const level = { room: ["size=medium;count=2"], warden: ["count=2;motivation=defending"] };
 
-test("ak_create tactics reach the BuildSpec and are reported as recorded, not applied", async () => {
+test("ak_create tactics reach the BuildSpec and each one is reported", async () => {
   const result = await create({ ...level, tactics: ["ambush;guards=2", "retinue"], seed: 7 });
   assert.equal(result.status, 0, result.output);
   const tactics = [{ tactic: "ambush", params: { guards: 2 } }, { tactic: "retinue" }];
@@ -43,9 +43,10 @@ test("ak_create tactics reach the BuildSpec and are reported as recorded, not ap
   assert.deepEqual(result.summary.tactics, tactics);
   assert.equal(result.summary.seed, 7);
   assert.equal(result.spec.configurator.inputs.levelGen.seed, 7);
-  assert.deepEqual(result.summary.placementReport.map(({ tactic, applied }) => [tactic, applied]),
-    [["ambush", false], ["retinue", false]]);
-  assert.match(result.summary.placementReport[0].note, /not applied/);
+  // #398 compiles ambush; retinue is still only recorded.
+  const tacticRows = result.summary.placementReport.filter((row) => row.tactic);
+  assert.deepEqual(tacticRows.map(({ tactic, applied }) => [tactic, applied]), [["ambush", true], ["retinue", false]]);
+  assert.match(tacticRows[1].note, /not applied/);
 });
 
 test("the same tactics and seed rebuild the same level", async () => {
