@@ -187,8 +187,9 @@ decision (object placement, and budget fit for `llm-plan --budget-loop`), each w
 `decision` (`solver` when the solver's answer was used, `fallback` when the persona's characterized
 fallback answered, `none` when no search was posed), the `status` and `reason` behind it (e.g.
 `deferred` / `solver_domain_unavailable`), and the solver's `objectiveValues` when it answered.
-`build` and `llm-plan` host the solver; `create`, `configure` and the `*-plan` commands do not
-yet (#296), so a placement they pose reports `fallback (solver_domain_unavailable)`.
+Every build command hosts the solver (`build`, `llm-plan`, `create`, `configure` and the `*-plan`
+commands, #296); `AK_SOLVER_ENGINE=fixture` turns it off, and a placement then reports
+`fallback (solver_domain_unavailable)`.
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
 for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
 

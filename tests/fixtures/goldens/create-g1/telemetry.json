@@ -12,9 +12,11 @@
     "solverDecisions": [
       {
         "domain": "configurator_satisfiability",
-        "decision": "fallback",
-        "status": "deferred",
-        "reason": "solver_domain_unavailable"
+        "decision": "solver",
+        "status": "fulfilled",
+        "objectiveValues": [
+          1
+        ]
       }
     ],
     "status": "success",

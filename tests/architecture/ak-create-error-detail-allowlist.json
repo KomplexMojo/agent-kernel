@@ -11,13 +11,13 @@
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 559,
-    "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier cannot inspect it. formatBudgetReceiptDenial() already reports status/remaining/deniedLines/deniedPools/per-pool shortfall. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, again when #299 hosted the default placement, and again when #263 named unnamed hazard affinities."
+    "line": 560,
+    "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier cannot inspect it. formatBudgetReceiptDenial() already reports status/remaining/deniedLines/deniedPools/per-pool shortfall. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, again when #299 hosted the default placement, and again when #263 named unnamed hazard affinities, and again when #296 added the capacity detail."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 563,
-    "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 559. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, again when #299 hosted the default placement, and again when #263 named unnamed hazard affinities."
+    "line": 564,
+    "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 560. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, again when #299 hosted the default placement, and again when #263 named unnamed hazard affinities, and again when #296 added the capacity detail."
   },
   {
     "file": "packages/runtime/src/personas/allocator/budget-fulfillment.js",

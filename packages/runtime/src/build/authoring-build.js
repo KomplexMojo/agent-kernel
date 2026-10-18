@@ -198,6 +198,8 @@ export async function runPlanBuild(input = {}) {
     createdAt,
     budgetArtifact = null,
     priceListArtifact = null,
+    placeObjects,
+    solverDecisions,
   } = input;
 
   const { spec, plan, intent } = assembleSpecThroughDirector({
@@ -211,6 +213,9 @@ export async function runPlanBuild(input = {}) {
     // CR.3: the plan this build persists is the one the Director drafted above,
     // not a second Director's reconstruction from the finished spec.
     directorRound: { intent, plan },
+    // #296: the host's solver round trip for the Configurator's object placement.
+    placeObjects,
+    solverDecisions,
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
 
@@ -245,6 +250,8 @@ export async function runAuthoringBuild(input = {}) {
     maximizeBudget = false,
     parsedDelvers = [],
     parsedWardens = [],
+    placeObjects,
+    solverDecisions,
   } = input;
 
   const { spec, plan, intent } = assembleSpecThroughDirector({
@@ -284,6 +291,8 @@ export async function runAuthoringBuild(input = {}) {
     producedBy: `cli-${commandName}`,
     // CR.3 — see runPlanBuild.
     directorRound: { intent, plan },
+    placeObjects,
+    solverDecisions,
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
   applyMotivationToInitialStateActors(buildResult.initialState, { parsedDelvers, parsedWardens });
