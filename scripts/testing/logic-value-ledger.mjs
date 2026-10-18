@@ -460,7 +460,7 @@ async function runActorLedger({ bounds, limit, log }) {
  * trivially. They differ in what they know: `placeObjectsLegacy` is a row-major
  * first-fit that never reconsiders, and is entirely blind to reachability. The
  * authored problem carries a unit-flow constraint that keeps spawn connected to exit
- * around anything declaring `blocking: true`.
+ * around anything that seals the route: blocking and indestructible (#297).
  *
  * So the question this domain answers is not "how much better is the layout" but
  * "how often does the greedy path emit a level you cannot finish". A grid with a
@@ -538,7 +538,7 @@ export function placementKeepsPathOpen(prepared, placement) {
   if (!placement) return false;
   const blocked = new Set(prepared.blocking);
   prepared.pending.forEach((object) => {
-    if (object.value?.blocking === true && placement[object.id]) blocked.add(placement[object.id]);
+    if (object.sealsRoute === true && placement[object.id]) blocked.add(placement[object.id]);
   });
   return pathExistsOracle(prepared.cells, prepared.spawn, prepared.exit, blocked);
 }
@@ -807,7 +807,10 @@ function median(values) {
 
 // Placement never reads a hazard's affinity, but the hazard actor needs one. Spread across
 // kinds so no affinity is the ledger's default.
-const trap = (id, blocking, kind) => ({ id, blocking, affinity: { kind, expression: "emit", stacks: 1 } });
+// #297: only a blocker with no durability to lose seals the route (a destroyable trap is
+// passable), so the blocking traps here carry durability 0 to keep the corridor question real.
+const trap = (id, blocking, kind) => ({ id, blocking, affinity: { kind, expression: "emit", stacks: 1 },
+  ...(blocking ? { vitals: { durability: { current: 0, max: 0, regen: 0 } } } : {}) });
 const cache = (id) => ({ id, vitals: { durability: { current: 1, max: 1, regen: 0 } }, holdings: [] });
 
 export const LEDGER_DOMAINS = Object.freeze({

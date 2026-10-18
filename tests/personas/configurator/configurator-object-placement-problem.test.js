@@ -338,7 +338,8 @@ test("solver unsat is final and distinguishes collision, containment, capacity, 
   };
   assert.deepEqual(await placeObjects({
     layout: corridor,
-    hazards: [{ id: "blocker", roomId: "choke", blocking: true }],
+    // #297: only a blocker with no durability to lose seals the route; a destroyable trap is passable.
+    hazards: [{ id: "blocker", roomId: "choke", blocking: true, vitals: { durability: { current: 0, max: 0, regen: 0 } } }],
     resources: [],
     actors: [],
   }), {

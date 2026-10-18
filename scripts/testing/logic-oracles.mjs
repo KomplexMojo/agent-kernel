@@ -185,8 +185,8 @@ export function pathExistsOracle(cells, spawn, exit, blocked = new Set()) {
  * until it isn't: greedy takes the same first-fit cells but never backtracks, so it
  * cannot discover that its choice made the rest infeasible.
  *
- * Feasible means: every object on a distinct cell, and — once any object declaring
- * `blocking: true` is placed — spawn still reaches exit.
+ * Feasible means: every object on a distinct cell, and — once any object the Configurator
+ * marks `sealsRoute` (blocking and indestructible, #297) is placed — spawn still reaches exit.
  *
  * Takes the persona's own `prepared` context rather than re-deriving candidates,
  * rooms or occupancy. Re-deriving them here would make this a second placement
@@ -202,7 +202,7 @@ export function solveObjectPlacementExhaustive({ prepared }) {
   const feasibleSoFar = () => {
     const blocked = new Set(staticBlocked);
     pending.forEach((object, index) => {
-      if (chosen[index] >= 0 && object.value?.blocking === true) {
+      if (chosen[index] >= 0 && object.sealsRoute === true) {
         blocked.add(cellKey(cells[chosen[index]]));
       }
     });
@@ -217,7 +217,7 @@ export function solveObjectPlacementExhaustive({ prepared }) {
       chosen[index] = cellIndex;
       // Prune on the path constraint as soon as a blocker is placed: a severed level
       // cannot be repaired by placing more objects.
-      if (!(pending[index].value?.blocking === true) || feasibleSoFar()) {
+      if (!(pending[index].sealsRoute === true) || feasibleSoFar()) {
         if (descend(index + 1)) return true;
       }
       used.delete(cellIndex);
