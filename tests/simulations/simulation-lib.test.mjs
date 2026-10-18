@@ -66,6 +66,13 @@ test("authored vitals that the built actor does not keep are a violation", () =>
   expect(differs.map((v) => v.detail)).toEqual(['mana authored {"max":12,"regen":1}, built {"current":10,"max":10,"regen":1}']);
 });
 
+test("actors a tactic adds beside an authored one are not held to its authored vitals (#400)", () => {
+  const minion = delver("a-1_minion_1");
+  const scenario = { args: ["--warden", "count=1;id=a;vitals=mana:12:1"] };
+  const analysis = analyzeRun({ initialState: { actors: [minion] }, frames: frames([{ actors: [minion] }]) });
+  expect(checkRules(scenario, analysis).filter((v) => v.rule === "authored_vitals")).toEqual([]);
+});
+
 test("known issues hide their violations and are reported once they stop happening", () => {
   const scenario = { knownIssues: [{ rule: "no_exit", issue: "#1" }, { rule: "silent_actor", actor: "x-1", issue: "#2" }] };
   const { unexpected, fixed } = compareWithKnown(scenario, [{ rule: "no_exit" }, { rule: "refused_streak", actor: "y-1" }]);

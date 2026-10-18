@@ -12,8 +12,14 @@
  * many as fit and seats the rest in the open, and the row says so; the level is never refused
  * for it. Guards are the level's ordinary wardens, priced as such by the Allocator. Which
  * wardens and resources: those no authored `--place` constraint names, in id order.
+ *
+ * `retinue` (#400): `leader=<warden id>` (else the first free warden) gets `size=<n>` (3)
+ * minions composed by role from the affinity table (retinue.js), each within 2 of it. The
+ * minions are new wardens returned in `actors`; the Allocator prices them, and `fitRetinues`
+ * shrinks a retinue the warden share cannot afford.
  */
 import { hiddenRoomCells } from "./doorway-sight.js";
+import { composeRetinue, readRetinueParams } from "./retinue.js";
 import { leftoverCategory } from "./unified-actors.js";
 
 const NOT_APPLIED_NOTE = "recorded but not applied: the Configurator does not compile this tactic yet";
@@ -71,10 +77,11 @@ function inRoom(room) {
 
 /**
  * Compile the tactics into placement constraints. Returns `{ placement, report }`: the authored
- * constraints followed by the compiled ones, and one report row per tactic, in order.
+ * constraints followed by the compiled ones, one report row per tactic in order, and the
+ * actors the tactics add (retinue minions).
  */
 export function compileTactics({ tactics = [], layout, actors = [], resources = [], placement = [], seed = 0 } = {}) {
-  if (!Array.isArray(tactics) || tactics.length === 0) return { placement, report: [] };
+  if (!Array.isArray(tactics) || tactics.length === 0) return { placement, report: [], actors: [] };
   const data = layout?.data || layout || {};
   const rooms = (Array.isArray(data.rooms) ? data.rooms : []).filter((room) => typeof room?.id === "string");
   const named = new Set((Array.isArray(placement) ? placement : [])
@@ -92,7 +99,26 @@ export function compileTactics({ tactics = [], layout, actors = [], resources = 
     return picked;
   };
   const compiled = [];
+  const added = [];
+  const takenIds = new Set(actors.map((actor) => actor?.id).filter((id) => typeof id === "string"));
   const report = tactics.map((entry, index) => {
+    if (entry?.tactic === "retinue") {
+      const params = readRetinueParams(entry.params);
+      const leaderId = params.leader ?? wardens.find((id) => !claimed.has(id));
+      if (params.leader && !actors.some((actor) => actor?.id === params.leader && isWarden(actor))) {
+        throw new Error(`tactic retinue: no warden "${params.leader}" in this level.`);
+      }
+      if (!leaderId) return { tactic: "retinue", ...withParams(entry), applied: false, note: "this level has no warden to lead a retinue" };
+      claimed.add(leaderId);
+      const leader = actors.find((actor) => actor?.id === leaderId);
+      const retinue = composeRetinue({ leader, size: params.size, takenIds });
+      added.push(...retinue.minions);
+      compiled.push(...retinue.placement);
+      return {
+        tactic: "retinue", ...withParams(entry), applied: true, leader: leaderId, minions: retinue.roles,
+        ...(retinue.notes.length > 0 ? { note: retinue.notes.join("; ") } : {}),
+      };
+    }
     if (entry?.tactic !== "ambush") return reportTactics([entry])[0];
     const params = readAmbushParams(entry.params);
     const room = params.room ? rooms.find((candidate) => candidate.id === params.room) : pickRoom(rooms, data, seed, index);
@@ -133,5 +159,5 @@ export function compileTactics({ tactics = [], layout, actors = [], resources = 
       ...(notes.length > 0 ? { note: notes.join("; ") } : {}),
     };
   });
-  return { placement: [...placement, ...compiled], report };
+  return { placement: [...placement, ...compiled], report, actors: added };
 }

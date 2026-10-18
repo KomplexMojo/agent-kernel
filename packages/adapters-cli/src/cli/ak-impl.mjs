@@ -249,7 +249,10 @@ Options:
                   handled. ambush[;guards=<n>][;resources=<n>][;room=<id>][;visible=true] puts that many of the level's resources in
                   a room (room=, else picked from the seed) and seats that many of its wardens there out of sight of the room's
                   doorways (visible=true: in the open, within 2 of the loot); a room that can't hide them all hides what fits and
-                  says so. A tactic the Configurator does not compile yet (retinue) is recorded but not applied.
+                  says so. retinue[;leader=<warden id>][;size=<n>] gives the leader (default: the first free warden) that many
+                  minions (default 3) within 2 of it, by role from the affinity table: shield (emits the leader's kind),
+                  support (the restoring kind for its defeat vital, push), striker (the leader's kind in a harmful expression
+                  it lacks); the Allocator prices them as wardens, and a retinue the warden share can't afford shrinks.
                   With a tactic and no --seed, a seed is drawn; the result reports it (seed) so --seed rebuilds the level exactly.
   --place         Placement constraint for create/configure (repeatable): <subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump][;outOfSight=room:<id>]
                   subject: hazard|resource|delver|warden:<id|n|*>; target: spawn, exit, room:<id> or one hazard|resource|delver|warden:<id|n>.
