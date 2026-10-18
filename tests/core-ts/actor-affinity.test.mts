@@ -16,10 +16,10 @@ function registry(records = [actor('source'), actor('target')]) {
   return createActorRegistry({ dimensions: { width: 1, height: 1 }, terrain: ['floor'], actors: records });
 }
 const positive: [AffinityKind, number[]][] = [
-  ['fire', [8, 0, 4, 6]], ['water', [5, 3, 4, 6]], ['earth', [8, 0, 4, 6]],
+  ['fire', [8, 0, 4, 6]], ['water', [10, 3, 4, 1]], ['earth', [8, 0, 4, 6]],
   ['wind', [10, 3, 4, 1]], ['growth', [15, 3, 4, 6]], ['decay', [5, 3, 4, 6]],
   ['corrode', [8, 0, 4, 6]], ['fortify', [10, 8, 4, 6]],
-  ['light', [10, 3, 9, 6]], ['dark', [10, 3, 0, 6]],
+  ['light', [10, 3, 9, 6]], ['dark', [9, 3, 0, 6]], // #353: water takes stamina; dark spills into health
 ];
 for (const expression of ['push', 'emit'] as const) {
   test.each(positive)(`${expression} routes %s with magnitude 5`, (kind, expected) => {

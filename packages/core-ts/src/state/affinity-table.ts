@@ -12,7 +12,10 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from './actor-t
  * - `outward` (push, emit): `damage` the primary vital, or `restore` it up to max.
  * - `inward` (pull, draw): `drain` (steal the primary vital into the source) or
  *   `neutralize` (no vital change; a cast suppresses the target's same-kind push or emit).
- * - `spill`: where outward damage goes once the primary vital is empty, or null.
+ * - `spill`: where outward damage goes once the primary vital is empty, or null. `defeat`
+ *   is the target's own defeat vital (health for delvers and wardens, durability for
+ *   hazards, resources and barriers); a target without the primary vital takes it all
+ *   there (#353).
  * - `formulas`: the named formula for each stack-driven quantity (AFFINITY_FORMULAS).
  */
 export type AffinityOutwardOperation = 'damage' | 'restore';
@@ -24,7 +27,7 @@ export interface AffinityTableRow {
   readonly primaryVital: ActorVitalKind;
   readonly outward: AffinityOutwardOperation;
   readonly inward: AffinityInwardOperation;
-  readonly spill: 'health' | null;
+  readonly spill: 'defeat' | null;
   readonly formulas: Readonly<Record<'magnitude' | 'reach' | 'castMana' | 'upkeep', AffinityFormulaId>>;
 }
 
@@ -60,21 +63,21 @@ const FORMULAS = Object.freeze({
 } as const);
 
 const row = (kind: AffinityKind, primaryVital: ActorVitalKind, outward: AffinityOutwardOperation,
-  inward: AffinityInwardOperation, spill: 'health' | null): AffinityTableRow =>
+  inward: AffinityInwardOperation, spill: 'defeat' | null): AffinityTableRow =>
   Object.freeze({ kind, primaryVital, outward, inward, spill, formulas: FORMULAS });
 
 /** In affinity-codebook order. */
 export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
-  row('fire', 'durability', 'damage', 'neutralize', 'health'),
-  row('water', 'health', 'damage', 'neutralize', null),
-  row('earth', 'durability', 'damage', 'neutralize', 'health'),
-  row('wind', 'stamina', 'damage', 'neutralize', null),
+  row('fire', 'durability', 'damage', 'neutralize', 'defeat'),
+  row('water', 'stamina', 'damage', 'neutralize', 'defeat'),
+  row('earth', 'durability', 'damage', 'neutralize', 'defeat'),
+  row('wind', 'stamina', 'damage', 'neutralize', 'defeat'),
   row('growth', 'health', 'restore', 'drain', null),
-  row('decay', 'health', 'damage', 'neutralize', null),
-  row('corrode', 'durability', 'damage', 'neutralize', 'health'),
+  row('decay', 'health', 'damage', 'neutralize', 'defeat'),
+  row('corrode', 'durability', 'damage', 'neutralize', 'defeat'),
   row('fortify', 'durability', 'restore', 'drain', null),
   row('light', 'mana', 'restore', 'drain', null),
-  row('dark', 'mana', 'damage', 'neutralize', null),
+  row('dark', 'mana', 'damage', 'neutralize', 'defeat'),
 ]);
 
 /**
