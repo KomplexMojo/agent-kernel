@@ -18,7 +18,7 @@ $AK create --run-id big-20k --budget-tokens 20000 "$@" \
   `# Delver pool (5,000): two playable delvers (D1 with 6 slots, 4 equipped) and five followers.` \
   --delver "count=1;id=hero;affinity=light;affinities=light:emit:4,fire:push:4,growth:emit:3,fortify:emit:2;slots=6;equip=light:emit,fire:push,growth:emit,fortify:emit;motivation=user_controlled;$PLAYER" \
   --delver "count=1;id=scout;affinity=wind;motivation=user_controlled;$PLAYER" \
-  --delver "count=5;id=pal;affinity=earth;vitals=health:20:2,mana:20:2,stamina:10:1,durability:10:1;motivation=exploring+goal_oriented;strategy=follow:hero-1:2" \
+  --delver "count=5;id=pal;affinity=earth;vitals=health:20:2,mana:20:2,stamina:10:1,durability:10:1;motivation=exploring+friendly+goal_oriented;strategy=follow:hero-1:2" \
   `# Warden pool (4,600): a boss that hunts the player, four patrols, four defenders.` \
   --warden "count=1;id=boss;affinity=dark;affinities=dark:emit:7,decay:push:7,corrode:pull:5;slots=3;equip=dark:emit,decay:push,corrode:pull;vitals=health:80:6,mana:80:6,stamina:20:2,durability:20:2;motivation=stationary+goal_oriented;strategy=defeat:hero-1" \
   --warden "count=4;id=guard;affinity=corrode;affinities=corrode:push:5,fortify:emit:3;equip=corrode:push,fortify:emit;motivation=patrolling;vitals=health:50:4,mana:50:4,stamina:10:1,durability:10:1" \

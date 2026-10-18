@@ -26,7 +26,7 @@ function partyRun() {
   const outDir = mkdtempSync(join(os.tmpdir(), "ak-play-session-"));
   const made = ak(["create", "--room", "size=medium;count=2",
     "--delver", `count=2;id=hero;affinity=wind;motivation=user_controlled+exploring;${FLOOR}`,
-    "--delver", `count=1;id=pal;affinity=earth;motivation=exploring;${FLOOR}`,
+    "--delver", `count=1;id=pal;affinity=earth;motivation=exploring+friendly;${FLOOR}`,
     "--warden", "count=1;affinity=fire;motivation=stationary",
     "--budget-tokens", "6000", "--created-at", "2026-10-14T00:00:00.000Z", "--out-dir", outDir]);
   assert.equal(made.status, 0, made.stderr);

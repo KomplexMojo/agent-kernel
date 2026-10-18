@@ -81,7 +81,7 @@ test("a live game: start by runId, switch seats, act by label, end", async () =>
       room: ["size=medium;count=2"],
       delver: [
         { count: 2, id: "hero", affinity: "earth", motivation: ["user_controlled", "exploring"], vitals: "health:10:1,mana:10:1,stamina:10:1,durability:10:1" },
-        `count=1;id=pal;affinity=dark;motivation=exploring;${FLOOR}`,
+        `count=1;id=pal;affinity=dark;motivation=exploring+friendly;${FLOOR}`,
       ],
       budgetTokens: 6000,
       runId: "party-mcp",
@@ -128,7 +128,7 @@ test("orders: ak_create authors a strategy, ak_play_order replaces it, ak_play_a
       room: ["size=medium;count=2"],
       delver: [
         { count: 1, id: "hero", affinity: "earth", motivation: ["user_controlled"], vitals: "health:10:1,mana:10:1,stamina:10:1,durability:10:1" },
-        { count: 1, id: "pal", affinity: "dark", motivation: ["exploring", "goal_oriented"], vitals: "health:10:1,mana:10:1,stamina:10:1,durability:10:1",
+        { count: 1, id: "pal", affinity: "dark", motivation: ["exploring", "friendly", "goal_oriented"], vitals: "health:10:1,mana:10:1,stamina:10:1,durability:10:1",
           strategy: { goals: [{ kind: "follow", target: "hero-1", distance: 2 }] } },
       ],
       budgetTokens: 6000,

@@ -176,7 +176,7 @@ At a high level, the Configurator:
 > checked against the vocabulary, repeats collapsed, at most one kind per exclusive family (mobility,
 > posture, cognition), `user_controlled` beside any of them, and the role's default (`attacking` /
 > `defending`) when none is given. Nothing is tagged `user_controlled` automatically: only an actor
-> authored that way is playable, and every other delver is a companion. `parseWardenSpec` calls it too.
+> authored that way is playable. Nothing is tagged `friendly` automatically either: only a delver authored `friendly` is a companion that takes orders (#311); the role default stays `attacking`. `parseWardenSpec` calls it too.
 > `logical-validation.js`'s `requiresMovementStamina` counts `user_controlled` as moving, since its
 > player moves it every turn; the core mobility tier, which drives autonomous movement, is unchanged.
 

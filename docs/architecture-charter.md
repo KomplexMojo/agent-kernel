@@ -497,7 +497,8 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   gates casting. Those are the sites a thirteenth motivation would have to be
   wired into by hand, and the honest statement of the current design rather than the one the
   profile table implies.
-- **There are twelve kinds, and they produce five distinct behaviours** (audited 2026-09-06).
+- **There are twelve kinds, and they produce seven distinct behaviours** (audited 2026-09-06;
+  `stealthy` and `friendly` split from `exploring` in #311).
   Behaviour collapsing is not automatically a defect: kinds sharing a profile *should* behave
   alike, and the axis that separates several of them — cognition — is not yet consumed by the
   Actor.
@@ -506,7 +507,9 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   |---|---|
   | seed-derived move to a legal adjacent tile | `random` |
   | clockwise circuit of the actor's own room | `patrolling` |
-  | shortest path to the level exit | `exploring`, `stealthy`, `friendly` |
+  | shortest path to the level exit | `exploring` |
+  | shortest path to the exit, keeping furthest from hostiles, then closest to walls | `stealthy` |
+  | back to an ally further than two tiles, else toward the exit within two tiles of it | `friendly` |
   | cast an equipped push or pull at a hostile in range; else pursue (mobility 1) or hold (mobility 0) | `attacking`, `defending` |
   | no movement proposal | `stationary`, `reflexive`, `goal_oriented`, `strategy_focused`, `user_controlled` |
 

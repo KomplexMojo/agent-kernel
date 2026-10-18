@@ -353,9 +353,9 @@ ak play-session start --session g2 --load artifacts/games/g.json    # reopen a c
   `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`) or `{ kind: "switch", actorId }`; actor ids and
   targets may be labels, and `actorId` commands that member without seating it. Commands run before `--keys`.
   Every command but a switch is one turn for the whole level.
-- `order --actor <id|label> --strategy <s>` gives a party member, or a companion on the seated actor's side, a new
+- `order --actor <id|label> --strategy <s>` gives a party member, or a companion (a `friendly` actor on the seated actor's side), a new
   strategy (compact goals, JSON or a `.json` file, as `strategy=` on `create` below; ids may be labels). Giving it is
-  the seated actor's turn and taking it the ordered actor's, so one turn passes. A hostile answers `not_yours`, a
+  the seated actor's turn and taking it the ordered actor's, so one turn passes. A hostile, or an actor on your side that is not `friendly`, answers `not_yours`; a
   malformed strategy `invalid_strategy` with the reason. `orders` in the output lists every actor following a
   strategy: the goal it is on (`doing`, `goal` of `goals`) and its status (`active`; `searching`, target out of
   sight; `stalled`, with a reason; `done`; `ignored`, its thinking motivation does not reach the strategy).
@@ -615,7 +615,8 @@ Inputs/outputs:
   from one family (`exploring+patrolling`) are refused with the Configurator's reason. The
   `motivation=` key itself is given once per spec; repeating it is rejected.
 - Only a delver authored `user_controlled` is playable (`ak play` seats it as `@`); every other
-  delver is a companion acting on its own motivations. Nothing is tagged playable automatically.
+  delver acts on its own motivations. A delver authored `friendly` is a companion: it keeps with its
+  allies and takes orders in play. Nothing is tagged playable or friendly automatically.
   `user_controlled` is priced by the Allocator at the dearest autonomous motivation stack + 1, and a
   playable actor is costed for movement stamina because its player moves it.
 - A vital whose regen is above its max is built and priced as asked, but regen never fills past max, so the

@@ -253,7 +253,7 @@ orders() {
   create --budget-tokens 12000 --out-dir "$WORK/orders" --room "size=medium;count=2" \
     --delver "count=1;id=hero;affinity=wind;motivation=user_controlled;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1" \
     --delver "count=1;id=scout;affinity=earth;motivation=user_controlled;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1" \
-    --delver "count=1;id=pal;affinity=fire;motivation=goal_oriented;strategy=follow:hero-1:2;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1"
+    --delver "count=1;id=pal;affinity=fire;motivation=friendly+goal_oriented;strategy=follow:hero-1:2;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1"
   local orders='(r.orders ?? []).map((o) => o.label + " " + o.doing.kind + " " + o.status).join(", ")'
   local turns='r.turns + (r.turns === 1 ? " turn" : " turns")'
   end_session

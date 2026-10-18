@@ -46,7 +46,7 @@
  * an id, for a switch, an `actorId` or a cast's `targetId`.
  *
  * **Orders (Phase 2b).** `order(actor, strategy)` gives a party member or a companion
- * (an actor on the seated actor's side) a new strategy: goals and tactics the Actor
+ * (a `friendly` actor on the seated actor's side, #311) a new strategy: goals and tactics the Actor
  * follows on that actor's own turns, as deep as its thinking motivation reaches. Giving
  * it is the seated actor's turn and taking it is the ordered actor's (decision 8), so
  * one tick runs with both waiting. A strategy's targets may be labels. `strategies()`
@@ -103,6 +103,8 @@ function toPlayRejection({ action, reason }) {
 const HAZARD_CATEGORY = "hazard";
 const BARRIER_CATEGORY = "barrier";
 export const PLAYER_MOTIVATION = "user_controlled";
+/** The motivation that makes an actor on your side a companion you may order (Darren, #311). */
+export const COMPANION_MOTIVATION = "friendly";
 
 /**
  * @param {object} args
@@ -240,12 +242,15 @@ export async function createPlaySession({
     return resolved;
   }
 
-  // Who may be given orders: the party, and every actor on the seated actor's side.
+  // Who may be given orders: the party, and every companion: an actor on the seated
+  // actor's side that is `friendly` (#311). Same side alone does not make a companion.
   function orderable(actorId) {
     if (partyIds.includes(actorId)) return true;
     const actors = readSnapshot().actors;
-    const alignment = (id) => actors.find((actor) => actor.id === id)?.alignment;
-    return alignment(actorId) !== undefined && alignment(actorId) === alignment(activeId);
+    const actor = actors.find((entry) => entry.id === actorId);
+    const alignment = actors.find((entry) => entry.id === activeId)?.alignment;
+    return actor?.alignment !== undefined && actor.alignment === alignment
+      && Boolean(actor.motivations?.includes?.(COMPANION_MOTIVATION));
   }
 
   // Everyone `order` would accept right now, other than the seated actor, in id order (#272).
