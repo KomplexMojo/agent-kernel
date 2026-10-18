@@ -388,9 +388,11 @@ placement, affinity-room preference, and occupancy. It is stateless and pure: it
 caller-owned actor list or layout and returns `{ actors, changed }` in authored actor order.
 
 The strategic path reserves spawn/exit **wall portals**, hazards, and resources. Delvers seat on
-the spawn approach (entry doorway floor), then prefer the entry room; the first dungeon-aligned
-actor seats on the exit approach, then dungeon-aligned actors prefer affinity-matching rooms, the
-exit room, and finally any room.
+the spawn approach (entry doorway floor), then prefer the entry room. No dungeon-aligned actor seats
+on the exit approach itself, so none can seal the exit (#397, #360): the first guards the exit room
+beside it, and the rest prefer affinity-matching rooms, else spread one room each over the rooms
+other than the entry room (exit room first, then nearest the exit), anchored at the room's centre,
+then the exit room, and finally any room.
 Spawn and exit tiles themselves are non-walkable perimeter portals — not seating cells. Layouts without a
 viable room context retain the existing deterministic power-group/anchor fallback. `orchestrateBuild`
 passes only actors, layout, and the delver-count hint through the public persona surface and consumes
