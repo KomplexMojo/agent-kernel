@@ -64,13 +64,6 @@
         "count=1;id=atk;affinity=light;affinities=light:pull:3:2;equip=light:pull;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
         "--warden",
         "count=1;id=def;affinity=dark;affinities=dark:pull:3:2;equip=dark:pull;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
-      ],
-      "knownIssues": [
-        {
-          "rule": "cast_without_cost",
-          "actor": "atk-1",
-          "issue": "#369"
-        }
       ]
     },
     {

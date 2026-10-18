@@ -103,10 +103,11 @@ export function castFocusedActorAffinity(
   if (cost === undefined) return reject('InvalidActionValue');
   if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');
   const changes: ActorVitalChange[] = [];
-  if (cost > 0) changes.push({ actorId: sourceId, vital: 'mana', delta: registry.changeVital(sourceId, 'mana', -cost) });
+  const pay = () => { if (cost > 0) changes.push({ actorId: sourceId, vital: 'mana', delta: registry.changeVital(sourceId, 'mana', -cost) }); };
   const amount = Math.max(0, actorAffinityMagnitude(pair.expression, affinityIntensity(pair)) - suppressedAmount);
   const targetPair = suppressedSlot(target, pair.kind);
   if (effect.operation === 'neutralize' && targetPair && target.capabilities.canCast && sourceId !== targetId) {
+    pay();
     return { accepted: true, changes, suppression: { sourceId, targetId, affinityKey: affinityKey(targetPair),
       amount: Math.min(amount, actorAffinityMagnitude(targetPair.expression, affinityIntensity(targetPair))) } };
   }
@@ -114,10 +115,15 @@ export function castFocusedActorAffinity(
   // slot the interaction table makes immune takes nothing, an opposite slot doubles harm.
   // A cast at oneself meets none of them, as a field never exposes its own source.
   if (sourceId !== targetId && receiverAbsorbsAffinity(target, pair)) {
+    pay();
     const mana = registry.changeVital(targetId, 'mana', amount);
     return { accepted: true, changes: mana !== 0 ? [...changes, { actorId: targetId, vital: 'mana', delta: mana }] : changes };
   }
   const received = sourceId === targetId ? amount : receiverAffinityAmount(target, pair, amount);
-  return { accepted: true, changes: [...changes,
-    ...resolveActorAffinity(registry, sourceId, targetId, pair.kind, pair.expression, received).changes] };
+  // #369: every use costs mana. The price is taken after the effect, so mana the cast brings
+  // back to the caster (a mana steal, a mana restore on itself) cannot refund it.
+  const effects = resolveActorAffinity(registry, sourceId, targetId, pair.kind, pair.expression, received).changes;
+  const paid = cost > 0 ? registry.changeVital(sourceId, 'mana', -cost) : 0;
+  return { accepted: true, changes: [...changes, ...effects,
+    ...(paid !== 0 ? [{ actorId: sourceId, vital: 'mana' as const, delta: paid }] : [])] };
 }
