@@ -233,13 +233,6 @@
         "size=small;count=1",
         "--delver",
         "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
-      ],
-      "knownIssues": [
-        {
-          "rule": "authored_vitals",
-          "actor": "a-1",
-          "issue": "#371"
-        }
       ]
     }
   ]

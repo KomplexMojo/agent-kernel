@@ -52,20 +52,11 @@ const configuratorMotivations = configuratorBuild.normalizeMotivations;
 const configuratorMaximizeActorBudget = createConfiguratorPersona({ clock: UNUSED_CLOCK })
   .authorCandidates.maximizeActorBudget;
 
-// AM.2b — what an actor's motivation REQUIRES of its vitals is configuration
-// validity, so it comes off the same public surface for the same reason.
-const configuratorApplyMotivationVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
-  .authorCandidates.applyMotivationDerivedVitalRequirements;
-
-// AM.5/F14 — and what an actor's AFFINITIES require of its mana, for the same
-// reason and at the same point: before anything prices the actor list.
-const configuratorApplyAffinityVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
-  .authorCandidates.applyAffinityDerivedVitalRequirements;
-
-// The viability floor, off the same surface for the same reason. Unlike the two above it is
-// unconditional: a stationary actor with no affinities still has to survive being hit.
-const configuratorApplyViabilityVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
-  .authorCandidates.applyViabilityDerivedVitalRequirements;
+// AM.2b / AM.5 / viability — what an actor's motivation, affinities and survival REQUIRE of its
+// vitals is configuration validity, so it comes off the Configurator's public surface. #371: one
+// call applies all three and says which values someone set were raised, for the create result.
+const configuratorApplyAuthoredActorVitalFloors = createConfiguratorPersona({ clock: UNUSED_CLOCK })
+  .authorCandidates.applyAuthoredActorVitalFloors;
 
 const SCHEMAS = Object.freeze({
   solverRequest: SOLVER_REQUEST_SCHEMA,
@@ -246,6 +237,8 @@ export async function orchestrateBuild({
   roundConfigurator.validate();
   roundConfigurator.lock();
 
+  // #371: values someone set that a vital floor raised, for the create result.
+  const vitalsReport = [];
   let solverRequest = null;
   let solverResult = null;
   if (solver?.adapter) {
@@ -357,9 +350,7 @@ export async function orchestrateBuild({
           )
           : prepared?.vitals,
       };
-      configuratorApplyMotivationVitalRequirements(draft);
-      configuratorApplyAffinityVitalRequirements(draft);
-      configuratorApplyViabilityVitalRequirements(draft);
+      vitalsReport.push(...configuratorApplyAuthoredActorVitalFloors(draft));
       return draft;
     });
 
@@ -687,6 +678,7 @@ export async function orchestrateBuild({
     solverRequest,
     solverResult,
     solverDecisions,
+    vitalsReport,
     spendProposal,
     budgetReceipt,
     affinityRules,
