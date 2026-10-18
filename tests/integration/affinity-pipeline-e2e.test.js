@@ -20,13 +20,11 @@ const PALETTE_INT = Object.fromEntries(
 const assert = require("node:assert/strict");
 
 test("affinity pipeline e2e: fixture -> core -> field records -> tile visuals -> renderer shape", async () => {
-  const [bindings, coreSetup, tileVisuals] = await Promise.all([
-    import("../../packages/core-ts/src/index.ts"),
+  const [coreSetup, tileVisuals] = await Promise.all([
     import("../../packages/runtime/src/runner/core-setup.mjs"),
     import("../../packages/ui-web/src/views/tile-affinity-visuals.js"),
   ]);
 
-  const { createCore } = bindings;
   const { initializeCoreFromArtifacts } = coreSetup;
   const { deriveTileAffinityVisuals } = tileVisuals;
   const { readCoreAffinityFieldRecordsFromArtifacts } = await import(
@@ -65,7 +63,7 @@ test("affinity pipeline e2e: fixture -> core -> field records -> tile visuals ->
   const loaded = initializeCoreFromArtifacts({ simConfig, initialState });
   assert.ok(loaded.registry, "unified registry loaded");
 
-  const { fieldRecords } = readCoreAffinityFieldRecordsFromArtifacts(createCore(), { simConfig, initialState });
+  const { fieldRecords } = readCoreAffinityFieldRecordsFromArtifacts({ simConfig, initialState });
 
   assert.ok(fieldRecords.length > 0, "field records collected from core");
 
@@ -136,11 +134,11 @@ test("affinity pipeline e2e: fixture -> core -> field records -> tile visuals ->
 });
 
 // ---------------------------------------------------------------------------
-// Sandbox bundle path — water/fire overlap through buildTileAffinityVisualsFromSandboxBundle
+// Bundle path — water/fire overlap through buildTileAffinityVisualsFromBundle
 // ---------------------------------------------------------------------------
 
-test("water/fire sandbox bundle: full pipeline produces visuals with contributions at overlap tile", async () => {
-  const { buildTileAffinityVisualsFromSandboxBundle } = await import(
+test("water/fire bundle: full pipeline produces visuals with contributions at overlap tile", async () => {
+  const { buildTileAffinityVisualsFromBundle } = await import(
     "../../packages/ui-web/src/views/affinity-field-bridge.js"
   );
   const { buildUnifiedArtifacts } = await import("../fixtures/personas/unified-actor-runtime.mjs");
@@ -176,11 +174,7 @@ test("water/fire sandbox bundle: full pipeline produces visuals with contributio
     ],
   });
 
-  const visuals = await buildTileAffinityVisualsFromSandboxBundle({
-    simConfig,
-    initialState,
-    resourceBundle: null,
-  });
+  const visuals = await buildTileAffinityVisualsFromBundle({ artifacts: [simConfig, initialState] });
 
   assert.ok(visuals instanceof Map, "must return a Map");
   assert.ok(visuals.size > 0, "must produce tile visuals");
@@ -260,7 +254,7 @@ test("affinity pipeline visual permutations preserve colors, dominance, contribu
 });
 
 test.skip("affinity pipeline hazard emitStrength=0 produces empty tile visuals", async () => {
-  const { buildTileAffinityVisualsFromSandboxBundle } = await import("../../packages/ui-web/src/views/affinity-field-bridge.js");
+  const { buildTileAffinityVisualsFromBundle } = await import("../../packages/ui-web/src/views/affinity-field-bridge.js");
   const simConfig = {
     schema: "agent-kernel/SimConfigArtifact",
     schemaVersion: 1,
@@ -283,10 +277,8 @@ test.skip("affinity pipeline hazard emitStrength=0 produces empty tile visuals",
     },
   };
 
-  const visuals = await buildTileAffinityVisualsFromSandboxBundle({
-    simConfig,
-    initialState: { schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1, actors: [] },
-    resourceBundle: null,
+  const visuals = await buildTileAffinityVisualsFromBundle({
+    artifacts: [simConfig, { schema: "agent-kernel/InitialStateArtifact", schemaVersion: 1, actors: [] }],
   });
 
   assert.equal(visuals.size, 0);

@@ -19,6 +19,7 @@ export const INTENT = Object.freeze({
   SELECT: "select",
   LEVEL_UP: "level_up",
   LEVEL_DOWN: "level_down",
+  ORDER: "order",
 });
 
 const MOVE_KEYS = Object.freeze({
@@ -57,6 +58,7 @@ const OTHER_KEYS = Object.freeze({
   i: INTENT.AFFINITIES,
   f: INTENT.CAST,
   g: INTENT.TAKE,
+  o: INTENT.ORDER,
   "\t": INTENT.NEXT_TARGET,
   "+": INTENT.LEVEL_UP,
   "=": INTENT.LEVEL_UP,
@@ -101,6 +103,7 @@ export const HELP_LINES = Object.freeze([
   "In the affinity list: Tab picks a row, + / - run it at more or fewer stacks",
   "Cast: f (or a slot's number), then Tab for the next target, Enter to cast, Esc to cancel",
   "Party: Tab (outside a list) plays your next user_controlled actor",
+  "Order: o, then a number for who and a number for what (follow, guard, ...); costs a turn",
 ]);
 
 /** Watching a recorded run (`--watch`): keys step through its ticks. */

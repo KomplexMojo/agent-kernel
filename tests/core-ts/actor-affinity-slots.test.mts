@@ -137,10 +137,11 @@ test('a cast names its slot, or uses the first equipped push or pull', () => {
 });
 
 test('a matching draw slot absorbs before an opposite slot can double the damage', () => {
-  const source = actor('src', 0, { alignment: 'dungeon', affinities: [{ kind: 'fire', expression: 'emit', stacks: 2 }],
+  const source = actor('src', 0, { alignment: 'dungeon', affinities: [{ kind: 'fire', expression: 'emit', stacks: 2, intensity: 2 }],
     activeAffinityKey: 'fire:emit' });
   const exposed = (equipped: string[], extra: ActorAffinityEntry[]) => {
-    const receiver = actor('a', 1, { affinitySlots: 2, affinities: extra, activeAffinityKey: equipped[0] as never,
+    // Two tiles out at intensity 2 the rounded exposure (#283) is 1, so a doubling shows under the budget of 4.
+    const receiver = actor('a', 2, { affinitySlots: 2, affinities: extra, activeAffinityKey: equipped[0] as never,
       ...(equipped.length > 1 ? { equippedAffinityKeys: equipped as never } : {}) });
     receiver.vitals.mana = { current: 0, max: 20, regen: 0 };
     const registry = corridor([source, receiver]);
@@ -151,8 +152,9 @@ test('a matching draw slot absorbs before an opposite slot can double the damage
   const lone = exposed(['growth:emit'], [{ kind: 'growth', expression: 'emit', stacks: 1 }]);
   const opposed = exposed(['growth:emit', 'water:push'], [{ kind: 'growth', expression: 'emit', stacks: 1 },
     { kind: 'water', expression: 'push', stacks: 1 }]);
-  // Doubled, then capped by the source's finite budget (1 × intensity² = 1).
-  expect(10 - opposed.health!.current).toBe(Math.min(1, 2 * (10 - lone.health!.current)));
+  // Doubled before rounding (raw ~1.5 → 3), still under the source's finite budget (1 × intensity² = 4).
+  expect(10 - lone.health!.current).toBe(1);
+  expect(10 - opposed.health!.current).toBe(3);
   expect(10 - opposed.health!.current).toBeGreaterThan(10 - lone.health!.current);
   const absorbing = exposed(['water:push', 'fire:draw'], [{ kind: 'water', expression: 'push', stacks: 1 },
     { kind: 'fire', expression: 'draw', stacks: 1 }]);

@@ -48,8 +48,16 @@ function receiverExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, amo
   return amount;
 }
 
-/** Receiver-local exposure before finite source budgets and vital routing. No mutation. */
+/** Receiver-local exposure before finite source budgets and vital routing. No mutation.
+ * Vitals are whole numbers (#283): falloff and cancellation make the raw exposure
+ * fractional, so it rounds to the nearest point here, the one place every field
+ * affinity's exposure passes through. Half rounds up, so the weakest field still lands 1.
+ */
 export function actorFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, localCells: readonly ActorFieldCell[]): number {
+  return Math.round(rawFieldExposureAmount(receiver, cell, localCells));
+}
+
+function rawFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, localCells: readonly ActorFieldCell[]): number {
   if (receiver.lifecycle !== 'alive' || receiver.id === cell.sourceId) return 0;
   const amount = cell.falloff * actorAffinityMagnitude(cell.expression, cell.intensity);
   const operation = getActorAffinityEffect(cell.kind, cell.expression).operation;
@@ -127,6 +135,11 @@ export function projectActorEquipmentFields(actor: ActorRecord, position: ActorP
   const others = contributions.filter(cell => cell.sourceId !== actor.id
     && cell.position.x === position.x && cell.position.y === position.y);
   return resolveFieldOverlap([...others, ...sourceContributionsAt(activeFieldSources([actor]), position)]);
+}
+
+/** One cell's fields from raw source contributions, opposite pairs cancelled: the tick's own rule. Pure. */
+export function resolveActorFieldOverlap(contributions: readonly ActorFieldCell[]): ActorFieldCell[] {
+  return resolveFieldOverlap(contributions);
 }
 
 function resolveFieldOverlap(contributions: readonly ActorFieldCell[]): ActorFieldCell[] {
