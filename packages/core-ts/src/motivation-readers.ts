@@ -17,6 +17,7 @@ export const MOTIVATION_KIND_BY_CODE = Object.freeze({
   10: "goal_oriented",
   11: "strategy_focused",
   12: "user_controlled",
+  13: "escorting",
 });
 
 export const MOTIVATION_FAMILY_BY_CODE = Object.freeze({

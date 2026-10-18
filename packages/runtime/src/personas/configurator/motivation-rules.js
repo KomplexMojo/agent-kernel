@@ -381,6 +381,14 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
       defaultFlags: DEFAULT_MOTIVATION_FLAGS,
     }),
     Object.freeze({
+      // #251: keeps near one ally and follows it (the Actor's `follow` goal).
+      kind: "escorting",
+      profile: Object.freeze({ mobility: "exploring", combat: "none", cognition: "reflexive" }),
+      exclusiveGroup: "mobility",
+      displayGroup: "mobility_route",
+      defaultFlags: DEFAULT_MOTIVATION_FLAGS,
+    }),
+    Object.freeze({
       kind: "reflexive",
       profile: Object.freeze({ mobility: "stationary", combat: "none", cognition: "reflexive" }),
       exclusiveGroup: "response",

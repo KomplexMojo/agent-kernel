@@ -17,11 +17,12 @@ export const MotivationKind = {
   GoalOriented: 10,
   StrategyFocused: 11,
   UserControlled: 12,
+  Escorting: 13,
 } as const;
 
-const MOTIVATION_KIND_COUNT = 12;
+const MOTIVATION_KIND_COUNT = 13;
 const MOTIVATION_KIND_MIN = 1;
-const MOTIVATION_KIND_MAX = 12;
+const MOTIVATION_KIND_MAX = 13;
 
 export function getMotivationKindCount(): number {
   return MOTIVATION_KIND_COUNT;
@@ -63,6 +64,7 @@ const FAMILY_TABLE: readonly number[] = Object.freeze([
   MotivationFamily.Cognition,// 10: GoalOriented
   MotivationFamily.Cognition,// 11: StrategyFocused
   MotivationFamily.Control,  // 12: UserControlled
+  MotivationFamily.Mobility, // 13: Escorting
 ]);
 
 export function getMotivationFamily(kind: number): number {
@@ -149,6 +151,7 @@ const TIER_TABLE: readonly number[] = Object.freeze([
   MotivationTier.Advanced,     // 10: GoalOriented
   MotivationTier.Advanced,     // 11: StrategyFocused
   MotivationTier.Control,      // 12: UserControlled
+  MotivationTier.Simple,       // 13: Escorting
 ]);
 
 // ── Tier lookup ──
@@ -198,6 +201,7 @@ const PROFILE_MOBILITY: readonly number[] = Object.freeze([
   0,  // 10: GoalOriented → stationary
   0,  // 11: StrategyFocused → stationary
   0,  // 12: UserControlled → stationary
+  1,  // 13: Escorting → exploring
 ]);
 
 // combat: none=0, attacking=1, defending=2
@@ -215,6 +219,7 @@ const PROFILE_COMBAT: readonly number[] = Object.freeze([
   0,  // 10: GoalOriented
   0,  // 11: StrategyFocused
   0,  // 12: UserControlled
+  0,  // 13: Escorting
 ]);
 
 // cognition: none=0, reflexive=1, goal_oriented=2, strategy_focused=3
@@ -232,6 +237,7 @@ const PROFILE_COGNITION: readonly number[] = Object.freeze([
   2,  // 10: GoalOriented → goal_oriented
   3,  // 11: StrategyFocused → strategy_focused
   0,  // 12: UserControlled → none
+  1,  // 13: Escorting → reflexive
 ]);
 
 const DEFAULT_FLAG_MASK: readonly number[] = Object.freeze([
@@ -248,6 +254,7 @@ const DEFAULT_FLAG_MASK: readonly number[] = Object.freeze([
   MotivationFlag.CanMove,                                      // 10: GoalOriented
   MotivationFlag.CanMove,                                      // 11: StrategyFocused
   MotivationFlag.CanMove,                                      // 12: UserControlled
+  MotivationFlag.CanMove,                                      // 13: Escorting
 ]);
 
 // (Profile-cost and design-cost lookups were deleted in P1.2 — pricing is

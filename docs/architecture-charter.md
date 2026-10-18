@@ -512,6 +512,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   | shortest path to the level exit | `exploring` |
   | shortest path to the exit, keeping furthest from hostiles, then closest to walls | `stealthy` |
   | back to an ally further than two tiles, else toward the exit within two tiles of it | `friendly` |
+  | follows one ally (authored, else the playable delver) to within its distance (default 2), then holds; out of sight, to where it last saw it (#251) | `escorting` |
   | cast an equipped push or pull at a hostile in range; else pursue (mobility 1) or hold (mobility 0) | `attacking`, `defending` |
   | no movement proposal | `stationary`, `reflexive`, `goal_oriented`, `strategy_focused`, `user_controlled` |
 

@@ -33,7 +33,7 @@ export function initializeCoreFromArtifacts({ simConfig, initialState } = {}) {
     || ['hazards', 'resources', 'actors', 'tiles', 'kinds'].some(key => Object.hasOwn(data, key))) {
     throw new Error('expected normalized grid terrain without category storage');
   }
-  if (Object.keys(initialState).some(key => !['schema', 'schemaVersion', 'meta', 'simConfigRef', 'actors', 'presentation', 'strategies'].includes(key))) {
+  if (Object.keys(initialState).some(key => !['schema', 'schemaVersion', 'meta', 'simConfigRef', 'actors', 'presentation', 'strategies', 'escorts'].includes(key))) {
     throw new Error('unexpected initial-state fields');
   }
   const registry = createActorRegistry({ dimensions: { width: data.width, height: data.height },
@@ -52,6 +52,12 @@ export function initializeCoreFromArtifacts({ simConfig, initialState } = {}) {
   if (strategies !== undefined && (!plain(strategies)
     || Object.keys(strategies).some(id => !actors.some(actor => actor.id === id) || !plain(strategies[id])))) {
     throw new Error('strategies must map actor IDs in this level to strategy objects');
+  }
+  // Escorts (#251), likewise the Actor's to read: the loader checks only whose they are.
+  const escorts = initialState.escorts;
+  if (escorts !== undefined && (!plain(escorts)
+    || Object.keys(escorts).some(id => !actors.some(actor => actor.id === id) || !plain(escorts[id])))) {
+    throw new Error('escorts must map actor IDs in this level to escort objects');
   }
   const costs = allocator.castPricesFromLegacyTiers(simConfig.actionCosts);
   const castPrices = plain(costs) ? costs.castManaBase : undefined;

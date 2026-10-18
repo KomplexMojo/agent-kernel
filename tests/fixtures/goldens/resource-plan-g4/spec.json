@@ -1748,6 +1748,23 @@
             }
           },
           {
+            "kind": "escorting",
+            "profile": {
+              "mobility": "exploring",
+              "combat": "none",
+              "cognition": "reflexive"
+            },
+            "exclusiveGroup": "mobility",
+            "displayGroup": "mobility_route",
+            "patterns": [],
+            "defaultFlags": {
+              "canMove": true,
+              "prefersStealth": false,
+              "prefersCover": false,
+              "aggroRangeBoost": false
+            }
+          },
+          {
             "kind": "reflexive",
             "profile": {
               "mobility": "stationary",

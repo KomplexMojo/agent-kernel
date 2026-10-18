@@ -52,6 +52,7 @@ export function createActorStateMachine({ initialState = ActorStates.IDLE, clock
     const copy = { ...context };
     if (context.strategies) copy.strategies = structuredClone(context.strategies);
     if (context.cognition) copy.cognition = structuredClone(context.cognition);
+    if (context.escorts) copy.escorts = structuredClone(context.escorts);
     return { state, context: copy };
   }
 
@@ -83,6 +84,11 @@ export function createActorStateMachine({ initialState = ActorStates.IDLE, clock
     const cognitionEntry = payload.cognitionEntry;
     if (cognitionEntry && typeof cognitionEntry.actorId === "string" && cognitionEntry.actorId) {
       nextContext.cognition = { ...(context.cognition || {}), [cognitionEntry.actorId]: structuredClone(cognitionEntry.entry) };
+    }
+    // #251 — an escort's follow progress (where it last saw its ally), per actor.
+    const escortEntry = payload.escortEntry;
+    if (escortEntry && typeof escortEntry.actorId === "string" && escortEntry.actorId) {
+      nextContext.escorts = { ...(context.escorts || {}), [escortEntry.actorId]: structuredClone(escortEntry.entry) };
     }
 
     state = nextState;

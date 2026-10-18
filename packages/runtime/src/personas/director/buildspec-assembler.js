@@ -7,7 +7,7 @@ import {
   extractSummaryFromCardSet,
 } from "./summary-selections.js";
 import { validateBuildSpec } from "../../contracts/build-spec.js";
-import { ACTOR_EQUIPMENT_FIELDS, ACTOR_STRATEGY_FIELD } from "../../contracts/domain-constants.js";
+import { ACTOR_EQUIPMENT_FIELDS, ACTOR_ESCORT_FIELD, ACTOR_STRATEGY_FIELD } from "../../contracts/domain-constants.js";
 import {
   BUDGET_ARTIFACT_SCHEMA,
   BUILD_SPEC_SCHEMA,
@@ -327,7 +327,7 @@ function buildActorsAndGroups(selections) {
           motivations: structuredClone(Object.hasOwn(inst, "motivations") ? inst.motivations : (inst.motivation ? [inst.motivation] : [])),
         };
         for (const key of ["alignment", "lifecycle", "defeatVital", "vitals", "capabilities",
-          "affinities", ...ACTOR_EQUIPMENT_FIELDS, ACTOR_STRATEGY_FIELD, "holdings"]) {
+          "affinities", ...ACTOR_EQUIPMENT_FIELDS, ACTOR_STRATEGY_FIELD, ACTOR_ESCORT_FIELD, "holdings"]) {
           if (Object.hasOwn(inst, key)) entry[key] = structuredClone(inst[key]);
         }
         actorIndex += 1;

@@ -45,7 +45,7 @@ const VITAL_KEYS = ["health", "mana", "stamina", "durability"];
 const EXPRESSIONS = ["emit", "push", "pull", "draw"];
 const MOTIVATION_KINDS = [
   "stationary", "random", "exploring", "patrolling", "attacking", "defending",
-  "stealthy", "friendly", "reflexive", "goal_oriented", "strategy_focused", "user_controlled",
+  "stealthy", "friendly", "reflexive", "goal_oriented", "strategy_focused", "user_controlled", "escorting",
 ];
 const ALL_VITALS = Object.fromEntries(
   VITAL_KEYS.map((key) => [key, { max: 2, current: 2, regen: 1 }]),

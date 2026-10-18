@@ -46,7 +46,8 @@ test("the Z8 logical layer is bounded validation with no objective or choice sea
     { id: "affinity_stack_tier", bound: 5 },
   ];
 
-  assert.equal(benefitCensus.every(({ bound }) => Number.isInteger(bound) && bound <= 144), true);
+  // 13 motivation kinds since #251, so the largest census is 13² = 169.
+  assert.equal(benefitCensus.every(({ bound }) => Number.isInteger(bound) && bound <= 169), true);
   assert.equal(benefitCensus.some((entry) => Object.hasOwn(entry, "objective")), false);
   assert.equal(benefitCensus.some((entry) => Object.hasOwn(entry, "choiceVariables")), false);
 });

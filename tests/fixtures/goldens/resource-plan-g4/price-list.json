@@ -142,6 +142,13 @@
       "description": "Patrolling"
     },
     {
+      "id": "motivation_escorting",
+      "kind": "motivation",
+      "unitCost": 3,
+      "formula": "linear",
+      "description": "Escorting"
+    },
+    {
       "id": "motivation_attacking",
       "kind": "motivation",
       "unitCost": 3,

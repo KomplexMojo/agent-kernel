@@ -1509,6 +1509,18 @@ export interface InitialStateArtifactV1 {
    * an actor record. How much of one an actor follows is set by its thinking motivation.
    */
   strategies?: Record<string, ActorStrategyV1>;
+  /**
+   * #251: who an `escorting` actor keeps near, keyed by actor ID. Optional and additive,
+   * kept beside the roster like `strategies`. A missing target is the playable delver; a
+   * missing distance is the Actor's default (2 tiles).
+   */
+  escorts?: Record<string, ActorEscortV1>;
+}
+
+/** #251: the ally an `escorting` actor keeps near, and within how many tiles. */
+export interface ActorEscortV1 {
+  target?: string;
+  distance?: number;
 }
 
 /** A place on the grid, or the level's exit. */
