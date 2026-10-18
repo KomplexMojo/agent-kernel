@@ -15,7 +15,6 @@ import {
   getMotivationPatternCodeAt,
   getDefaultMotivationPattern,
   getMotivationTier,
-  normalizeMotivationIntensity,
   getMotivationDefaultFlagMask,
   getMotivationFlagCount,
 } from "../../packages/core-ts/src/state/motivation.ts";
@@ -112,12 +111,6 @@ describe("core-ts motivation codebook", () => {
     expect(getMotivationTier(0)).toBe(-1);
   });
 
-  test("intensity normalization clamps", () => {
-    expect(normalizeMotivationIntensity(0)).toBe(1);
-    expect(normalizeMotivationIntensity(5)).toBe(5);
-    expect(normalizeMotivationIntensity(15)).toBe(10);
-  });
-
   test("flag masks", () => {
     expect(getMotivationDefaultFlagMask(MotivationKind.Attacking)).toBe(
       MotivationFlag.CanMove | MotivationFlag.AggroRangeBoost,
@@ -140,14 +133,12 @@ describe("core-ts motivation state (evaluation accumulator)", () => {
     call(
       core.addMotivationEvaluationEntry,
       MotivationKind.Attacking,
-      5,
       1,
       0,
     );
     call(
       core.addMotivationEvaluationEntry,
       MotivationKind.Stealthy,
-      3,
       0,
       0,
     );
@@ -179,7 +170,6 @@ describe("core-ts motivation state (evaluation accumulator)", () => {
     call(
       core.addMotivationEvaluationEntry,
       MotivationKind.StrategyFocused,
-      5,
       0,
       0,
     );
@@ -195,7 +185,7 @@ describe("core-ts motivation state (evaluation accumulator)", () => {
     const b = createCore();
 
     call(a.resetMotivationEvaluation);
-    call(a.addMotivationEvaluationEntry, MotivationKind.Attacking, 5, 1, 0);
+    call(a.addMotivationEvaluationEntry, MotivationKind.Attacking, 1, 0);
     call(a.evaluateMotivations);
 
     call(b.resetMotivationEvaluation);
@@ -262,15 +252,15 @@ describe("core-ts motivation permutations", () => {
   test("evaluation accumulator rejects invalid kinds (0 and 13)", () => {
     const core = createCore();
     call(core.resetMotivationEvaluation);
-    call(core.addMotivationEvaluationEntry, 0, 5, 0, 0);
-    call(core.addMotivationEvaluationEntry, 13, 5, 0, 0);
+    call(core.addMotivationEvaluationEntry, 0, 0, 0);
+    call(core.addMotivationEvaluationEntry, 13, 0, 0);
     expect(call(core.evaluateMotivations)).toBe(0);
   });
 
   test("evaluation reset clears tiers and flags", () => {
     const core = createCore();
     call(core.resetMotivationEvaluation);
-    call(core.addMotivationEvaluationEntry, MotivationKind.Stealthy, 3, 0, 0);
+    call(core.addMotivationEvaluationEntry, MotivationKind.Stealthy, 0, 0);
     call(core.evaluateMotivations);
     expect(call(core.getLastMotivationFlags)).not.toBe(0);
 
@@ -283,28 +273,28 @@ describe("core-ts motivation permutations", () => {
     // cognition 0 → Instinctual (via Stationary which has cognition=0)
     const core0 = createCore();
     call(core0.resetMotivationEvaluation);
-    call(core0.addMotivationEvaluationEntry, MotivationKind.Stationary, 5, 0, 0);
+    call(core0.addMotivationEvaluationEntry, MotivationKind.Stationary, 0, 0);
     call(core0.evaluateMotivations);
     expect(call(core0.getLastMotivationReasoningClass)).toBe(ReasoningClass.Instinctual);
 
     // cognition 1 → Instinctual (via Random which has cognition=1, still maps to Instinctual)
     const core1 = createCore();
     call(core1.resetMotivationEvaluation);
-    call(core1.addMotivationEvaluationEntry, MotivationKind.Random, 5, 0, 0);
+    call(core1.addMotivationEvaluationEntry, MotivationKind.Random, 0, 0);
     call(core1.evaluateMotivations);
     expect(call(core1.getLastMotivationReasoningClass)).toBe(ReasoningClass.Instinctual);
 
     // cognition 2 → Tactical (via Attacking which has cognition=2)
     const core2 = createCore();
     call(core2.resetMotivationEvaluation);
-    call(core2.addMotivationEvaluationEntry, MotivationKind.Attacking, 5, 1, 0);
+    call(core2.addMotivationEvaluationEntry, MotivationKind.Attacking, 1, 0);
     call(core2.evaluateMotivations);
     expect(call(core2.getLastMotivationReasoningClass)).toBe(ReasoningClass.Tactical);
 
     // cognition 3 → Strategic (via StrategyFocused)
     const core3 = createCore();
     call(core3.resetMotivationEvaluation);
-    call(core3.addMotivationEvaluationEntry, MotivationKind.StrategyFocused, 5, 0, 0);
+    call(core3.addMotivationEvaluationEntry, MotivationKind.StrategyFocused, 0, 0);
     call(core3.evaluateMotivations);
     expect(call(core3.getLastMotivationReasoningClass)).toBe(ReasoningClass.Strategic);
   });

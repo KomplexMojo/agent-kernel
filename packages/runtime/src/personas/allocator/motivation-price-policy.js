@@ -148,13 +148,14 @@ export function resolveMotivationFamily(kind) {
 /**
  * Calculate the total motivation cost for a list of normalized motivations.
  *
- * Each motivation contributes its unit cost × intensity.
+ * Each motivation contributes its unit cost once (#309: motivations have no intensity; an
+ * `intensity` on an older input is ignored).
  * Costs are additive across families.
  *
  * FAIL-LOUD (P1.4): kinds without a price list entry contribute no cost and
  * are reported in `errors` — never silently defaulted.
  *
- * @param {Array<{kind:string, intensity?:number}>} motivations
+ * @param {Array<{kind:string}>} motivations
  * @param {Map<string,number>} [priceMap]
  * @returns {{cost:number, lineItems:Array, errors?:string[]}}
  */
@@ -170,15 +171,12 @@ export function calculateMotivationStackCost(motivations, priceMap) {
   for (const entry of motivations) {
     if (!entry || typeof entry.kind !== "string") continue;
     const kind = entry.kind;
-    const intensity = Number.isInteger(entry.intensity) && entry.intensity > 0
-      ? entry.intensity
-      : 1;
     const unitCost = resolveMotivationUnitCost(kind, priceMap);
     if (unitCost === null) {
       errors.push(`motivation "${kind}" has no price list entry (expected ${MOTIVATION_PRICE_KIND}:${MOTIVATION_PRICE_IDS[kind] || "?"})`);
       continue;
     }
-    const spend = unitCost * intensity;
+    const spend = unitCost;
     totalCost += spend;
 
     const priceId = MOTIVATION_PRICE_IDS[kind];
@@ -189,7 +187,7 @@ export function calculateMotivationStackCost(motivations, priceMap) {
         motivationKind: kind,
         family: resolveMotivationFamily(kind),
         label: `motivation:${kind}`,
-        quantity: intensity,
+        quantity: 1,
         unitCostTokens: unitCost,
         spendTokens: spend,
       });

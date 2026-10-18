@@ -4,7 +4,6 @@ import { DEFAULT_VITALS, MOTIVATION_KINDS, VITAL_KEYS } from "../../contracts/do
 const DEFAULT_KIND = "ambulatory";
 const DEFAULT_EDGE_PADDING = 1;
 const DEFAULT_STACKS = 1;
-const DEFAULT_INTENSITY = 1;
 
 function isPositiveInt(value) {
   return Number.isInteger(value) && value > 0;
@@ -99,7 +98,6 @@ export function generateActorSet({
   expressions,
   motivations,
   stacks = DEFAULT_STACKS,
-  intensity = DEFAULT_INTENSITY,
 } = {}) {
   const errors = [];
   const warnings = [];
@@ -147,7 +145,7 @@ export function generateActorSet({
       id,
       kind,
       position: { x: pos.x, y: pos.y },
-      motivations: [{ kind: motivation, intensity }],
+      motivations: [{ kind: motivation }],
       affinities: [{ kind: affinity, expression, stacks }],
       vitals: cloneDefaultVitals(),
     };

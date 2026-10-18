@@ -244,7 +244,7 @@ export function reportActorStrategies(initialState) {
  *
  * Accepts either shape a motivated entity carries in this codebase: the singular
  * `motivation: { kind }` patched onto InitialState actors, or the
- * `motivations: [{ kind, intensity }]` / `motivations: ["random"]` list the
+ * `motivations: [{ kind }]` / `motivations: ["random"]` list the
  * Configurator's actor generator and the parsed CLI cards use. One function for
  * both, so the requirement cannot be enforced on one shape and missed on the
  * other — which is how it came to be enforced on `regen` and missed on `max`.

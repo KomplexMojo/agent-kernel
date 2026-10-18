@@ -60,8 +60,8 @@ test("motivation bindings: code maps, readMotivationEvaluation", async () => {
   // ── readMotivationEvaluation: attacking + reflexive ──
 
   core.resetMotivationEvaluation();
-  core.addMotivationEvaluationEntry(5, 3, 1, 0); // attacking, intensity=3, melee, no extra flags
-  core.addMotivationEvaluationEntry(9, 1, 0, 0); // reflexive, intensity=1
+  core.addMotivationEvaluationEntry(5, 1, 0); // attacking, melee, no extra flags
+  core.addMotivationEvaluationEntry(9, 0, 0); // reflexive
   core.evaluateMotivations();
 
   const evaluation = readMotivationEvaluation(core);
@@ -98,8 +98,8 @@ test("motivation bindings: code maps, readMotivationEvaluation", async () => {
   assert.equal(core.getMotivationKindCount(), 12, "12 kinds");
   assert.equal(core.getMotivationFamily(5), 1, "attacking is posture");
   assert.equal(core.getMotivationTier(5), 0, "attacking is simple tier");
-  assert.equal(core.normalizeMotivationIntensity(15), 10, "clamps to max");
-  assert.equal(core.normalizeMotivationIntensity(-3), 1, "clamps to min");
+  // #309: motivations have no intensity, so core has nothing to normalize.
+  assert.equal(core.normalizeMotivationIntensity, undefined, "no intensity export");
 });
 
 test("motivation bindings round-trip all 12 kind names", async () => {
@@ -125,7 +125,7 @@ test("readMotivationEvaluation reports strategic reasoning for strategy_focused"
   const core = createCore();
   core.init(0);
   core.resetMotivationEvaluation();
-  core.addMotivationEvaluationEntry(11, 1, 0, 0);
+  core.addMotivationEvaluationEntry(11, 0, 0);
   core.evaluateMotivations();
   const evaluation = readMotivationEvaluation(core);
   assert.equal(evaluation.cognitionName, "strategy_focused");
@@ -137,8 +137,8 @@ test("readMotivationEvaluation combines stealthy and defending flags", async () 
   const core = createCore();
   core.init(0);
   core.resetMotivationEvaluation();
-  core.addMotivationEvaluationEntry(7, 1, 0, 0);
-  core.addMotivationEvaluationEntry(6, 1, 0, 0);
+  core.addMotivationEvaluationEntry(7, 0, 0);
+  core.addMotivationEvaluationEntry(6, 0, 0);
   core.evaluateMotivations();
   const evaluation = readMotivationEvaluation(core);
   assert.ok(evaluation.flagNames.includes("prefersStealth"));
@@ -151,7 +151,7 @@ test("readMotivationEvaluation with user_controlled alone keeps neutral axes", a
   const core = createCore();
   core.init(0);
   core.resetMotivationEvaluation();
-  core.addMotivationEvaluationEntry(12, 1, 0, 0);
+  core.addMotivationEvaluationEntry(12, 0, 0);
   core.evaluateMotivations();
   const evaluation = readMotivationEvaluation(core);
   assert.equal(evaluation.mobilityName, "stationary");
@@ -181,7 +181,6 @@ test("core motivation codebook functions are callable through createCore", async
     "getMotivationPatternCodeAt",
     "getDefaultMotivationPattern",
     "getMotivationTier",
-    "normalizeMotivationIntensity",
     "getMotivationDefaultFlagMask",
     "getMotivationFlagCount",
   ].forEach((name) => assert.equal(typeof core[name], "function", `${name} export`));

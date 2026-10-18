@@ -61,7 +61,7 @@ function resolvePatternCode(kind, pattern) {
  *   { flags, flagValues, mobility, combat, cognition, reasoningClass }
  *
  * @param {object} core - Core object from core-ts.
- * @param {Array<{kind:string, intensity?:number, pattern?:string, flags?:object}|string>} motivations
+ * @param {Array<{kind:string, pattern?:string, flags?:object}|string>} motivations
  * @returns {{
  *   flags: number,
  *   flagValues: {canMove:boolean, prefersStealth:boolean, prefersCover:boolean, aggroRangeBoost:boolean},
@@ -94,14 +94,10 @@ export function evaluateMotivationProfileFromCore(core, motivations) {
     const code = MOTIVATION_KIND_TO_CODE[kind];
     if (!code) continue;
 
-    const intensity = typeof entry === "object" && Number.isInteger(entry.intensity) && entry.intensity > 0
-      ? entry.intensity
-      : 1;
-
     const pattern = typeof entry === "object" ? resolvePatternCode(kind, entry.pattern) : 0;
     const flagMask = typeof entry === "object" && entry.flags ? flagsToBitmask(entry.flags) : 0;
 
-    core.addMotivationEvaluationEntry(code, intensity, pattern, flagMask);
+    core.addMotivationEvaluationEntry(code, pattern, flagMask);
   }
 
   core.evaluateMotivations();
