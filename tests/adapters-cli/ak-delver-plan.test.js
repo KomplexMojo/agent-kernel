@@ -173,7 +173,11 @@ test("cli delver-plan supports advanced affinities, vitals, setup mode, and rece
   const receipt = readJson(join(outDir, "budget-receipt.json"));
   const byId = new Map(receipt.lineItems.map((item) => [item.id, item]));
   assert.equal(byId.get("affinity_base")?.quantity, 2);
-  assert.equal(byId.get("affinity_stack")?.quantity, 5);
+  // Range and intensity are priced per affinity (#340): 2·3² + 2·2², never 2·(3 + 2)².
+  const lines = (id) => receipt.lineItems.filter((item) => item.id === id)
+    .map((item) => [item.detail?.affinity, item.quantity, item.totalCost]).sort();
+  assert.deepEqual(lines("affinity_range"), [["fire:push", 3, 18], ["wind:emit", 2, 8]]);
+  assert.deepEqual(lines("affinity_intensity"), [["fire:push", 1, 10], ["wind:emit", 1, 10]]);
   assert.equal(byId.get("affinity_expression_externalize")?.quantity, 1);
   assert.equal(byId.get("affinity_expression_localized")?.quantity, 1);
   assert.equal(byId.get("vital_health_point")?.quantity, 12);
@@ -302,8 +306,10 @@ assert.equal(receipt.totalCost, 200);
 // Playable re-baseline (Phase 1b): a delver is no longer auto-tagged user_controlled, so it no
 // longer pays the 10-token playable premium. Those 10 tokens buy mana max 104 -> 106 and regen
 // 1 -> 3 (2 + 3² - 1² = 10), so `mana_regen` is served again at this budget.
-assert.equal(card.vitals.mana.max, 106);
-assert.equal(card.vitals.mana.regen, 3);
+// Range/intensity re-baseline (#340): the fire affinity now prices range 2·1² + intensity 10·1²
+// where one stack cost 1, so fixed spend rose 11. Mana pays it: max 106 -> 100, regen 3 -> 1.
+assert.equal(card.vitals.mana.max, 100);
+assert.equal(card.vitals.mana.regen, 1);
 assert.equal(card.vitals.stamina.max, 2);
 assert.equal(card.vitals.stamina.regen, 2);
 });

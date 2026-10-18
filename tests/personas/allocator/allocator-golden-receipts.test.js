@@ -19,7 +19,7 @@
  *     budget) — the output P1.4 is EXPECTED to change (motivation overcharge
  *     fix); its golden documents the before.
  * g4: resource-plan with the SAME affinity resource as g2 — the isolated
- *     planning path, which must agree with create at 538 tokens.
+ *     planning path, which must agree with create.
  */
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -110,26 +110,27 @@ test("golden receipts charge: g1/g3/g4 spend nonzero and remaining reconciles", 
 test("create and resource-plan charge the identical affinity resource", () => {
   const g2 = readJson(join(GOLDENS, "create-g2", "budget-receipt.json"));
   const g2AffinityLines = g2.lineItems.filter((l) => l.subjectRef?.id === "resource_1");
-  assert.equal(g2AffinityLines.length, 7, "create charges every affinity component");
+  assert.equal(g2AffinityLines.length, 8, "create charges every affinity component, range and intensity apart (#340)");
   assert.equal(
     g2AffinityLines.reduce((sum, line) => sum + line.totalCost, 0),
-    120,
+    134,
     "create affinity resource total",
   );
   // #242: resource_2's grant (+5 permanent health, +2 regen) is charged too: 5 x 10 + 2 x 2^2.
   const g2VitalGrant = g2.lineItems.filter((l) => l.subjectRef?.id === "resource_2" && l.kind === "resource");
   assert.deepEqual(g2VitalGrant.map((l) => [l.id, l.totalCost]).sort(),
     [["resource_permanent", 50], ["resource_vital_health_regen_tick", 8]]);
-  assert.equal(g2.totalCost, 184, "affinity and permanent vital resources are charged");
+  assert.equal(g2.totalCost, 198, "affinity and permanent vital resources are charged");
 
   const g4 = readJson(join(GOLDENS, "resource-plan-g4", "budget-receipt.json"));
-  assert.equal(g4.totalCost, 120, "resource-plan charges the same payload fully");
+  assert.equal(g4.totalCost, 134, "resource-plan charges the same payload fully");
   const g4Ids = g4.lineItems.map((l) => l.id).sort();
   assert.deepEqual(g4Ids, [
     "actor_spawn",
     "affinity_base",
     "affinity_expression_localized",
-    "affinity_stack",
+    "affinity_intensity",
+    "affinity_range",
     "vital_durability_point",
     "vital_mana_point",
     "vital_mana_regen_tick",

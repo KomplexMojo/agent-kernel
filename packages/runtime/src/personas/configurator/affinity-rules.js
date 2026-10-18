@@ -599,16 +599,17 @@ export function findExpressionRule(rules, kind, expression) {
  * decides no outcome, and spends nothing: applying an interaction is Moderator
  * work through core's matrix, and pricing in tokens is the Allocator's.
  *
- * Core owns the curve (`actorCastManaPrice`, base × s(s+1)/2) but not the base:
+ * Core owns the curve (`actorCastManaPrice`, base × intensity × r(r+1)/2, #340) but not the base:
  * mana is campaign-tunable data, and this artifact is where it is authored.
  *
- * A push or pull costs the kind's tier-1 price times s(s+1)/2, with no cap
- * (maintainer, 2026-10-13, #232) — the same curve core charges from
+ * A push or pull costs the kind's tier-1 price times its intensity times r(r+1)/2
+ * of its range (`stacks`), with no cap (maintainer, 2026-10-13, #232; #340) — the
+ * same curve core charges from
  * `castManaBase`. Emit and draw read their tier (1..5, clamped); their per-turn
  * upkeep is `computeInternalManaUpkeep`. A kind or expression the rules do not
  * describe returns null so the caller can refuse rather than invent a price.
  */
-export function resolveAffinityManaCost({ rules, kind, expression, stacks = 1 } = {}) {
+export function resolveAffinityManaCost({ rules, kind, expression, stacks = 1, intensity = 1 } = {}) {
   const expressionRule = findExpressionRule(resolveAffinityRules(rules), kind, expression);
   if (!expressionRule || !Array.isArray(expressionRule.stackTiers)) return null;
   const count = Math.max(1, Number.isInteger(stacks) ? stacks : 1);
@@ -616,7 +617,8 @@ export function resolveAffinityManaCost({ rules, kind, expression, stacks = 1 } 
   const tier = cast ? 1 : Math.min(5, count);
   const tierRule = expressionRule.stackTiers.find((entry) => entry.tier === tier);
   if (!Number.isInteger(tierRule?.manaCost)) return null;
-  return cast ? actorCastManaPrice(tierRule.manaCost, count) : tierRule.manaCost;
+  const strength = Number.isInteger(intensity) && intensity >= 1 ? intensity : 1;
+  return cast ? actorCastManaPrice(tierRule.manaCost, count, strength) : tierRule.manaCost;
 }
 
 // ── AM.4 — the parallel cast/interaction EVALUATOR was deleted here ─────────

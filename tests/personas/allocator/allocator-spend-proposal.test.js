@@ -206,7 +206,8 @@ test("configurator accounts for hazards and UI-authored resources", async () => 
   const byId = new Map(proposal.items.map((item) => [`${item.subjectRef?.id}:${item.id}`, item]));
   assert.equal(byId.get("hazard_fire:hazard_basic").category, "hazards");
   assert.equal(byId.get("hazard_fire:vital_mana_point").quantity, 3);
-  assert.equal(byId.get("hazard_fire:affinity_stack").quantity, 2);
+  assert.equal(byId.get("hazard_fire:affinity_range").quantity, 2);
+  assert.equal(byId.get("hazard_fire:affinity_intensity").quantity, 1);
   assert.equal(byId.get("ui_resource:resource_permanent").category, "resources");
   assert.equal(byId.get("ui_resource:resource_permanent").quantity, 4);
   assert.equal(byId.get("budget_only_resource:resource_base").quantity, 7);

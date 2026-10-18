@@ -30,7 +30,8 @@
           { "id": "motivation_goal_oriented", "kind": "motivation", "quantity": 1, "unitCost": 5, "totalCost": 5, "status": "denied" },
           { "id": "affinity_expression_externalize", "kind": "affinity", "quantity": 1, "unitCost": 60, "totalCost": 60, "status": "approved" },
           { "id": "affinity_expression_internalize", "kind": "affinity", "quantity": 1, "unitCost": 60, "totalCost": 60, "status": "denied" },
-          { "id": "affinity_stack", "kind": "affinity", "quantity": 1, "unitCost": 50, "totalCost": 50, "status": "approved" }
+          { "id": "affinity_range", "kind": "affinity", "quantity": 1, "unitCost": 25, "totalCost": 25, "status": "approved" },
+          { "id": "affinity_intensity", "kind": "affinity", "quantity": 1, "unitCost": 25, "totalCost": 25, "status": "approved" }
         ]
       },
       "expectedKinds": ["move", "motivation", "affinity", "custom_action"],
@@ -61,7 +62,8 @@
         "lineItems": [
           { "id": "motivation_reflexive", "kind": "motivation", "quantity": 1, "unitCost": 1, "totalCost": 1, "status": "approved" },
           { "id": "affinity_expression_externalize", "kind": "affinity", "quantity": 1, "unitCost": 60, "totalCost": 60, "status": "approved" },
-          { "id": "affinity_stack", "kind": "affinity", "quantity": 1, "unitCost": 50, "totalCost": 50, "status": "approved" }
+          { "id": "affinity_range", "kind": "affinity", "quantity": 1, "unitCost": 25, "totalCost": 25, "status": "approved" },
+          { "id": "affinity_intensity", "kind": "affinity", "quantity": 1, "unitCost": 25, "totalCost": 25, "status": "approved" }
         ]
       },
       "budgetAllocation": {

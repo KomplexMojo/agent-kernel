@@ -292,7 +292,8 @@ export function applyAffinityDerivedVitalRequirements(actor) {
       ? affinity.expression.trim().toLowerCase()
       : "push";
     const stacks = Number.isInteger(affinity?.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
-    const cost = resolveAffinityManaCost({ rules: null, kind, expression, stacks });
+    const intensity = Number.isInteger(affinity?.intensity) && affinity.intensity > 0 ? affinity.intensity : 1;
+    const cost = resolveAffinityManaCost({ rules: null, kind, expression, stacks, intensity });
     if (Number.isInteger(cost) && cost > required) required = cost;
   }
   if (required <= 0) return false;

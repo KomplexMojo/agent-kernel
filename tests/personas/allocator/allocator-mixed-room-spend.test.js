@@ -37,7 +37,7 @@ async function allocator() {
   return createAllocatorPersona({ priceListMeta: META, clock: () => META.createdAt });
 }
 
-test("Allocator publishes the signed 88-token mixed-room breakdown from its price list", async () => {
+test("Allocator publishes the signed 99-token mixed-room breakdown from its price list", async () => {
   const persona = await allocator();
 
   assert.deepEqual(persona.priceMixedRoomDesignSpend({ room: ROOM, composition: COMPOSITION }), {
@@ -48,9 +48,9 @@ test("Allocator publishes the signed 88-token mixed-room breakdown from its pric
       defaultTiles: 24,
       localizedTiles: 0,
       roomWideOverlay: 0,
-      localizedHazards: 64,
+      localizedHazards: 75,
     },
-    total: 88,
+    total: 99,
   });
 });
 
@@ -77,10 +77,10 @@ test("mixed-room pricing uses the caller-resolved list and keeps tiles partition
   assert.deepEqual(result.components, {
     defaultTiles: 46,
     localizedTiles: 3,
-    roomWideOverlay: 36,
-    localizedHazards: 64,
+    roomWideOverlay: 47,
+    localizedHazards: 75,
   });
-  assert.equal(result.total, 149);
+  assert.equal(result.total, 171);
 });
 
 test("mixed-room pricing refuses malformed partitions and incomplete prices", async () => {

@@ -65,11 +65,18 @@
       "description": "Durability regen rate — n regen/tick costs n² tokens"
     },
     {
-      "id": "affinity_stack",
+      "id": "affinity_range",
       "kind": "affinity",
-      "unitCost": 1,
+      "unitCost": 2,
       "formula": "quadratic",
-      "description": "Affinity stack — n stacks costs n² tokens"
+      "description": "Affinity range — r tiles of reach costs r² units (#340)"
+    },
+    {
+      "id": "affinity_intensity",
+      "kind": "affinity",
+      "unitCost": 10,
+      "formula": "quadratic",
+      "description": "Affinity intensity — strength i costs i² units (#340)"
     },
     {
       "id": "affinity_base",
@@ -240,11 +247,18 @@
       "description": "Slot-unlock loot — opens one more affinity slot; the most valuable loot"
     },
     {
-      "id": "resource_affinity_stack",
+      "id": "resource_affinity_range",
       "kind": "resource",
-      "unitCost": 2,
+      "unitCost": 3,
       "formula": "quadratic",
-      "description": "Affinity stack — n stacks costs n² tokens — free-floating resource (1.5× 1, rounded)"
+      "description": "Affinity range — r tiles of reach costs r² units (#340) — free-floating resource (1.5× 2, rounded)"
+    },
+    {
+      "id": "resource_affinity_intensity",
+      "kind": "resource",
+      "unitCost": 15,
+      "formula": "quadratic",
+      "description": "Affinity intensity — strength i costs i² units (#340) — free-floating resource (1.5× 10, rounded)"
     },
     {
       "id": "resource_affinity_base",

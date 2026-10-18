@@ -75,7 +75,8 @@ const REQUIRED_REGEN_IDS = [
 ];
 
 const REQUIRED_AFFINITY_IDS = [
-  "affinity_stack",
+  "affinity_range",
+  "affinity_intensity",
   "affinity_expression_externalize",
   "affinity_expression_internalize",
   "affinity_expression_localized",
@@ -139,12 +140,13 @@ test("price list canonical fixture covers all regen categories with quadratic fo
   }
 });
 
-test("price list canonical fixture covers affinity stacks with quadratic formula", () => {
+test("price list canonical fixture covers affinity range and intensity with quadratic formulas", () => {
   const fixture = readFixture("price-list-artifact-v1-canonical.json");
   const itemMap = new Map(fixture.items.map((i) => [i.id, i]));
-  const stackItem = itemMap.get("affinity_stack");
-  assert.ok(stackItem, "affinity_stack must be present");
-  assert.equal(stackItem.formula, "quadratic", "affinity_stack must use quadratic formula");
+  for (const id of ["affinity_range", "affinity_intensity"]) {
+    assert.ok(itemMap.get(id), `${id} must be present`);
+    assert.equal(itemMap.get(id).formula, "quadratic", `${id} must use quadratic formula`);
+  }
   for (const id of REQUIRED_AFFINITY_IDS) {
     assert.ok(itemMap.has(id), `Missing required affinity item: ${id}`);
   }
@@ -181,12 +183,12 @@ test("normalizePriceItems accepts canonical unitCost field (not just costTokens)
     meta: { id: "pl-1", runId: "r-1", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
     items: [
       { id: "vital_health_point", kind: "vital", unitCost: 1, formula: "linear" },
-      { id: "affinity_stack", kind: "affinity", unitCost: 1, formula: "quadratic" },
+      { id: "affinity_range", kind: "affinity", unitCost: 1, formula: "quadratic" },
     ],
   };
   const map = normalizePriceItems(priceList);
   assert.ok(map.has("vital:vital_health_point"), "Should find canonical item by kind:id key");
-  assert.ok(map.has("affinity:affinity_stack"), "Should find canonical item by kind:id key");
+  assert.ok(map.has("affinity:affinity_range"), "Should find canonical item by kind:id key");
   assert.equal(map.get("vital:vital_health_point").unitCost, 1);
 });
 
@@ -196,7 +198,7 @@ test("price list accepts free quadratic item", () => {
     schemaVersion: 1,
     meta: { id: "pl-free", runId: "run-free", createdAt: "2026-04-22T00:00:00Z", producedBy: "test" },
     items: [
-      { id: "affinity_stack", kind: "affinity", unitCost: 0, formula: "quadratic" },
+      { id: "affinity_range", kind: "affinity", unitCost: 0, formula: "quadratic" },
     ],
   };
   assert.doesNotThrow(() => validatePriceListArtifact(artifact));

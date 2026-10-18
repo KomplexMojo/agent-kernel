@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 175,
+      "runTotalTokens": 197,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g1_budget_receipt",
@@ -29,7 +29,7 @@
       "poolWeights": [
         {
           "id": "rooms",
-          "weight": 0.29
+          "weight": 0.27
         },
         {
           "id": "hazards",

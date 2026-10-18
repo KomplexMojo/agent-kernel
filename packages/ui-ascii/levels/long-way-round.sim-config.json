@@ -7,7 +7,7 @@
     "createdAt": "2026-10-10T00:00:00.000Z",
     "producedBy": "configurator",
     "cost": {
-      "runTotalTokens": 409,
+      "runTotalTokens": 420,
       "budgetTokens": 2500,
       "receiptRef": {
         "id": "long-way-round_budget_receipt",

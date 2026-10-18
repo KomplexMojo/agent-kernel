@@ -1315,7 +1315,9 @@ function canAffordCast(actorRecord, entry, castManaBase) {
   const base = castManaBase?.[key];
   if (!Number.isFinite(base)) return true;
   const stacks = Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1;
-  return (actorRecord?.vitals?.mana?.current ?? 0) >= actorCastManaPrice(base, stacks);
+  // #344: the price scales with intensity too; an entry without one reads as 1.
+  const intensity = Number.isInteger(entry.intensity) && entry.intensity > 0 ? entry.intensity : 1;
+  return (actorRecord?.vitals?.mana?.current ?? 0) >= actorCastManaPrice(base, stacks, intensity);
 }
 
 function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase }) {

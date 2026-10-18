@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 93,
-  "remaining": 1907,
+  "totalCost": 104,
+  "remaining": 1896,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -74,17 +74,37 @@
       }
     },
     {
-      "id": "affinity_stack",
+      "id": "affinity_intensity",
       "kind": "affinity",
       "quantity": 1,
-      "unitCost": 1,
-      "totalCost": 1,
+      "unitCost": 10,
+      "totalCost": 10,
       "status": "approved",
       "category": "delvers",
       "subjectRef": {
         "id": "card_delver_1-1",
         "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "water:push"
+      }
+    },
+    {
+      "id": "affinity_range",
+      "kind": "affinity",
+      "quantity": 1,
+      "unitCost": 2,
+      "totalCost": 2,
+      "status": "approved",
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "water:push"
       }
     },
     {
@@ -246,15 +266,15 @@
     {
       "id": "delver",
       "capTokens": 2000,
-      "spentTokens": 93,
-      "remainingTokens": 1907,
+      "spentTokens": 104,
+      "remainingTokens": 1896,
       "status": "approved"
     }
   ],
   "scenarioSpendReport": {
     "budget": 2000,
-    "totalSpend": 93,
-    "remainingBudget": 1907,
+    "totalSpend": 104,
+    "remainingBudget": 1896,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -278,7 +298,7 @@
         "usagePercent": 0
       },
       "delvers": {
-        "actual": 93,
+        "actual": 104,
         "target": 2000,
         "usagePercent": 5
       },

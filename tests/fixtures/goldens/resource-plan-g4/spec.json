@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-resource-plan",
     "cost": {
-      "runTotalTokens": 120,
+      "runTotalTokens": 134,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g4_budget_receipt",

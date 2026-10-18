@@ -160,7 +160,7 @@ export function computeHazardVitals(expression, stacks, kind, rules, intensity =
   }
 
   // Instantaneous expressions (push/pull): two casts at the price core charges.
-  const manaUse = resolveAffinityManaCost({ rules, kind, expression, stacks: s });
+  const manaUse = resolveAffinityManaCost({ rules, kind, expression, stacks: s, intensity: i });
   if (manaUse === null) throw new Error(`no cast price for hazard affinity ${kind}:${expression}`);
   const manaPool = manaUse * 2; // 2 activations worth
   const durability = s * 3;

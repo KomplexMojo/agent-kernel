@@ -226,6 +226,11 @@ function extraAffinitySlots(actor) {
   return Math.max(0, actor.affinitySlots - preset);
 }
 
+/** An affinity's intensity (#340): a positive integer, or 1 when absent. */
+function readIntensity(entry) {
+  return Number.isInteger(entry?.intensity) && entry.intensity > 0 ? entry.intensity : 1;
+}
+
 function extractAffinities(actor) {
   const entries = [];
   const affinityMap = actor?.traits?.affinities;
@@ -234,7 +239,7 @@ function extractAffinities(actor) {
       if (!Number.isInteger(stacks) || stacks <= 0) return;
       const [kind, expression] = key.split(":");
       if (!expression) return;
-      entries.push({ kind, expression, stacks });
+      entries.push({ kind, expression, stacks, intensity: 1 });
     });
   }
   const affinityList = Array.isArray(actor?.affinities) ? actor.affinities : [];
@@ -244,7 +249,7 @@ function extractAffinities(actor) {
     if (stacks <= 0) return;
     const expression = entry.expression || entry.type;
     if (!expression) return;
-    entries.push({ kind: entry.kind, expression, stacks });
+    entries.push({ kind: entry.kind, expression, stacks, intensity: readIntensity(entry) });
   });
   return entries;
 }
@@ -381,7 +386,8 @@ function extractResourceGrantPriceEntries(resource) {
   if (affinity && typeof affinity === "object") {
     const stacks = Number.isInteger(affinity.stacks) && affinity.stacks > 0 ? affinity.stacks : 1;
     entries.push({ priceId: "resource_affinity_base", quantity: 1 });
-    entries.push({ priceId: "resource_affinity_stack", quantity: stacks });
+    entries.push({ priceId: "resource_affinity_range", quantity: stacks });
+    entries.push({ priceId: "resource_affinity_intensity", quantity: readIntensity(affinity) });
     const expressionId = RESOURCE_AFFINITY_EXPRESSION_IDS[affinity.expression];
     if (expressionId) entries.push({ priceId: expressionId, quantity: 1 });
     const mana = Number.isFinite(affinity.mana) ? Math.abs(affinity.mana) : 0;
@@ -455,22 +461,28 @@ function readHazardAffinityStacks(hazard) {
   if (stackList.length > 0) {
     return stackList
       .map((entry) => ({
+        kind: entry?.kind || (typeof hazard?.affinity === "string" ? hazard.affinity : hazard?.affinity?.kind),
         expression: entry?.expression || hazard?.expression,
         stacks: Number.isInteger(entry?.stacks) && entry.stacks > 0 ? entry.stacks : 1,
+        intensity: readIntensity(entry),
       }))
       .filter((entry) => entry.expression || entry.stacks > 0);
   }
   const affinity = hazard?.affinity;
   if (affinity && typeof affinity === "object") {
     return [{
+      kind: affinity.kind,
       expression: affinity.expression,
       stacks: Number.isInteger(affinity.stacks) && affinity.stacks > 0 ? affinity.stacks : 1,
+      intensity: readIntensity(affinity),
     }];
   }
   if (typeof affinity === "string" && affinity.length > 0) {
     return [{
+      kind: affinity,
       expression: hazard?.expression,
       stacks: Number.isInteger(hazard?.stacks) && hazard.stacks > 0 ? hazard.stacks : 1,
+      intensity: readIntensity(hazard),
     }];
   }
   return [];
@@ -599,7 +611,7 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
       // (see the actor branch below, and `calculateActorConfigurationUnitCost`). Every
       // hazard in every level carried its affinity base for free. Nothing failed, because a
       // missing charge produces a smaller well-formed receipt.
-      affinityEntries.forEach(({ expression, stacks }) => {
+      affinityEntries.forEach(({ kind, expression, stacks, intensity }) => {
         // Base is PER AFFINITY ENTRY, matching the actor branch below. Charging it once
         // per hazard was a second, subtler divergence in the same payload: a hazard with
         // two affinities paid one base where an actor pays two. Found by the Codex
@@ -620,7 +632,11 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
           // `deniedPools=hazards:262/156`.
           accumulateItem(counts, expressionId, "affinity", 1, { category: "hazards", subjectRef });
         }
-        accumulateItem(counts, "affinity_stack", "affinity", stacks, { category: "hazards", subjectRef });
+        // #340: range and intensity are priced apart, each quadratic at the list and keyed by
+        // affinity, so two affinities pay r₁² + r₂², never (r₁ + r₂)².
+        const detail = { affinity: `${kind || "affinity"}:${expression}` };
+        accumulateItem(counts, "affinity_range", "affinity", stacks, { category: "hazards", subjectRef, detail });
+        accumulateItem(counts, "affinity_intensity", "affinity", intensity, { category: "hazards", subjectRef, detail });
       });
     }
   });
@@ -665,13 +681,14 @@ function buildSpendItems({ layoutData, actors, hazards, resources, normalizeMoti
         // affinity entry. The old itemization omitted the base and charged
         // the expression ×stacks — a fourth divergent affinity model, caught
         // by Codex's rulebook derivation during the P1.4 sweep.
-        // Caveat: accumulateItem merges quantities per (id, subject), so a
-        // multi-affinity actor quadratics on summed stacks; single-affinity
-        // actors (the norm) price identically to
-        // calculateActorConfigurationUnitCost.
+        // Range and intensity (#340) are keyed by affinity, so a multi-affinity
+        // actor pays each entry's square, exactly as
+        // calculateActorConfigurationUnitCost does, never the square of the sum.
         affinities.forEach((entry) => {
+          const detail = { affinity: `${entry.kind || "affinity"}:${entry.expression}` };
           accumulateItem(counts, "affinity_base", "affinity", 1, { category, subjectRef });
-          accumulateItem(counts, "affinity_stack", "affinity", entry.stacks, { category, subjectRef });
+          accumulateItem(counts, "affinity_range", "affinity", entry.stacks, { category, subjectRef, detail });
+          accumulateItem(counts, "affinity_intensity", "affinity", entry.intensity, { category, subjectRef, detail });
           const expressionId = AFFINITY_EXPRESSION_IDS[entry.expression];
           if (!expressionId) return;
           accumulateItem(counts, expressionId, "affinity", 1, { category, subjectRef });
@@ -884,7 +901,7 @@ function normalizeAffinityEntriesForCost(entry) {
       const expression = typeof affinity.expression === "string" ? affinity.expression : "";
       const stacks = normalizePositiveInt(affinity.stacks, 1);
       if (!expression || stacks <= 0) return null;
-      return { kind, expression, stacks };
+      return { kind, expression, stacks, intensity: readIntensity(affinity) };
     })
     .filter(Boolean);
 }
@@ -973,13 +990,15 @@ export function calculateActorConfigurationUnitCost({
     affinityStacks += stacks;
 
     const baseItem = requireEntry("affinity", "affinity_base");
-    const stackItem = requireEntry("affinity", "affinity_stack");
+    const rangeItem = requireEntry("affinity", "affinity_range");
+    const intensityItem = requireEntry("affinity", "affinity_intensity");
     const expressionId = AFFINITY_EXPRESSION_IDS[affinity.expression];
     const exprItem = expressionId ? requireEntry("affinity", expressionId) : null;
-    if (!baseItem || !stackItem || (expressionId && !exprItem)) return;
+    if (!baseItem || !rangeItem || !intensityItem || (expressionId && !exprItem)) return;
 
-    const basePlusStack =
-      calculatePriceTotal(baseItem, 1) + calculatePriceTotal(stackItem, stacks);
+    // #340: base + range² × its unit + intensity² × its unit (list formulas).
+    const basePlusStack = calculatePriceTotal(baseItem, 1) + calculatePriceTotal(rangeItem, stacks)
+      + calculatePriceTotal(intensityItem, affinity.intensity);
     const scaledBasePlusStack = scaleTokenCost(basePlusStack, affinityCostScale);
     const expressionCost = exprItem
       ? scaleTokenCost(calculatePriceTotal(exprItem, 1), affinityCostScale)

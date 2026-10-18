@@ -52,11 +52,12 @@ test("an affinity resource produces spend lines instead of being free", async ()
   assert.ok(lines.length > 0, "affinity resource must be charged");
 });
 
-test("the affinity payload charges base, stacks and expression", async () => {
+test("the affinity payload charges base, range, intensity and expression", async () => {
   const { buildSpendProposal } = await import(SPEND);
   const proposal = buildSpendProposal({ resources: [affinityResource()] });
   assert.ok(lineFor(proposal, "resource_affinity_base"), "missing base line");
-  assert.equal(lineFor(proposal, "resource_affinity_stack").quantity, 2);
+  assert.equal(lineFor(proposal, "resource_affinity_range").quantity, 2);
+  assert.equal(lineFor(proposal, "resource_affinity_intensity").quantity, 1, "no intensity reads 1 (#340)");
   assert.ok(lineFor(proposal, "resource_affinity_expression_localized"), "emit → localized");
 });
 

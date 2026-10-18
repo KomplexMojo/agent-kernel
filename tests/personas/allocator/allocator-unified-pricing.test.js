@@ -6,9 +6,10 @@
  * price entry is a structured error, never a quiet default.
  *
  * The census card (see allocator-price-census.test.js) under the unified
- * model: vitals 28 + regen 5 (quadratic at list unit 1) + affinity 39
- * (10 base + 2² stacks + 25 emit) + motivations 5 (2+3) = 77 — down from
- * 119 (old actor model with list) and 236 (old empty-map fallback).
+ * model: vitals 28 + regen 5 (quadratic at list unit 1) + affinity 53
+ * (10 base + 2·2² range + 10·1² intensity + 25 emit, #340) + motivations 5 (2+3)
+ * = 91. Before the range/intensity split it was 77; before P1.4, 119 (old actor
+ * model with list) and 236 (old empty-map fallback).
  */
 const assert = require("node:assert/strict");
 // CR.9 M3: the Allocator refuses to price raw motivations without the Configurator's
@@ -39,19 +40,19 @@ async function fullPriceMap() {
 
 // ── Actor costing prices from the list ──
 
-test("unified: the census card costs 77, every line from the price list", async () => {
+test("unified: the census card costs 91, every line from the price list", async () => {
   const { calculateActorConfigurationUnitCost } = await import(`${P}allocator/spend-proposal.js`);
   const normalizeMotivations = await configuratorNormalizeMotivations();
   const r = calculateActorConfigurationUnitCost({ entry: CARD, priceMap: await fullPriceMap(), normalizeMotivations });
   assert.equal(r.errors, undefined);
-  assert.equal(r.cost, 77);
+  assert.equal(r.cost, 91);
   const by = (id) => r.detail.lineItems.find((l) => l.id === id);
   // Regen is quadratic per the list's formula: 1 × 2² = 4, 1 × 1² = 1.
   assert.equal(by("vital_health_regen_tick").spendTokens, 4);
   assert.equal(by("vital_mana_regen_tick").spendTokens, 1);
-  // Affinity prices from list ids, not cost-model math: 10 + 4 + 25 = 39.
+  // Affinity prices from list ids, not cost-model math: 10 + range 2·2² + intensity 10·1² + 25 = 53 (#340).
   const affinity = r.detail.lineItems.filter((l) => l.category === "affinity");
-  assert.equal(affinity.reduce((s, l) => s + l.spendTokens, 0), 39);
+  assert.equal(affinity.reduce((s, l) => s + l.spendTokens, 0), 53);
   // Motivations from the list: 2 + 3.
   assert.equal(by("motivation_exploring").spendTokens, 2);
   assert.equal(by("motivation_attacking").spendTokens, 3);

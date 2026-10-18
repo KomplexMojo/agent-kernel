@@ -119,8 +119,8 @@ test("cli llm-plan budget loop writes intermediates only when explicitly request
   assert.equal(trace[0].spentTokens, 150);
   // Spend is unchanged at 150 — the layout is the same 100 floor + 50 hallway tiles. What moved is
   // the ROOM POOL this phase draws against: the actor viability floor retune took room from 41% to
-  // 29%, so the same layout leaves less behind.
-  assert.equal(trace[0].remainingBudgetTokens, 266);
+  // 29%, so the same layout leaves less behind. #344 took room 29% -> 27%.
+  assert.equal(trace[0].remainingBudgetTokens, 258);
   assert.ok(
     !(trace[0].warnings || []).some((warning) => warning?.code === "deprecated_hallway_tiles_ignored"),
   );
@@ -130,8 +130,8 @@ test("cli llm-plan budget loop writes intermediates only when explicitly request
   const allocation = telemetry?.data?.llm?.budgetAllocation;
   assert.ok(allocation);
   const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
-  assert.equal(poolsById.rooms, 232);  // CR.9 M5: rooms 44% -> 41%; viability floor: 41% -> 29%
-  assert.equal(poolsById.wardens, 184);  // 16% -> 23%
+  assert.equal(poolsById.rooms, 216);  // CR.9 M5: rooms 44% -> 41%; viability floor: 41% -> 29%; #344: 27%
+  assert.equal(poolsById.wardens, 192);  // 16% -> 23%; #344: 24%
   assert.equal(poolsById.delver, 200);  // 20% -> 25%
 });
 

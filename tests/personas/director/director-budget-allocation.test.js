@@ -52,12 +52,12 @@ assert.equal(allocation.priceListRef.schema, "agent-kernel/PriceList");
 assert.deepEqual(allocation.policy, { reserveTokens: 100, maxActorSpend: 300 });
 
 const poolsById = Object.fromEntries(allocation.pools.map((pool) => [pool.id, pool.tokens]));
-assert.equal(poolsById.rooms, 261);
+assert.equal(poolsById.rooms, 243);
 assert.equal(poolsById.hazards, 135);
-assert.equal(poolsById.wardens, 207);
-assert.equal(poolsById.resources, 72);
+assert.equal(poolsById.wardens, 216);
+assert.equal(poolsById.resources, 81);
 assert.equal(poolsById.delver, 225);
-assert.equal(result.dungeonTokens, 261 + 135 + 207 + 72);
+assert.equal(result.dungeonTokens, 243 + 135 + 216 + 81);
 assert.equal(result.delverTokens, 225);
 
 // Custom pool weights — explicit 5-pool override; available = 1000-50=950

@@ -97,8 +97,8 @@ draw absorbs it into mana, a same-kind slot the interaction table makes immune t
 nothing, an opposite slot doubles damage and drain. A cast at oneself meets none of them. The price
 is taken after a cast's effect, so mana the cast brings back to its caster (a mana steal, a mana
 restore on itself) never refunds it: every use costs mana (#369). A run's
-`actionCosts` carries `castManaBase` (per-kind base; a cast costs `base * s(s+1)/2`,
-uncapped, #232); core has no other cast price model. An artifact written before #232
+`actionCosts` carries `castManaBase` (per-kind base; a cast costs `base * intensity * r(r+1)/2`
+of its range, uncapped, #232, #340); core has no other cast price model. An artifact written before #232
 with five-tier `castMana` tables loads on the same curve: `runner/core-setup.mjs` takes
 each table's tier-1 price as the base.
 

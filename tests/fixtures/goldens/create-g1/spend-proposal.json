@@ -42,7 +42,7 @@
       }
     },
     {
-      "id": "affinity_stack",
+      "id": "affinity_intensity",
       "kind": "affinity",
       "quantity": 1,
       "category": "delvers",
@@ -50,6 +50,23 @@
         "id": "card_delver_1-1",
         "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "water:push"
+      }
+    },
+    {
+      "id": "affinity_range",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "delvers",
+      "subjectRef": {
+        "id": "card_delver_1-1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "water:push"
       }
     },
     {
@@ -196,7 +213,7 @@
       }
     },
     {
-      "id": "affinity_stack",
+      "id": "affinity_intensity",
       "kind": "affinity",
       "quantity": 1,
       "category": "hazards",
@@ -204,6 +221,23 @@
         "id": "hazard_1",
         "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "fire:emit"
+      }
+    },
+    {
+      "id": "affinity_range",
+      "kind": "affinity",
+      "quantity": 1,
+      "category": "hazards",
+      "subjectRef": {
+        "id": "hazard_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "fire:emit"
       }
     },
     {

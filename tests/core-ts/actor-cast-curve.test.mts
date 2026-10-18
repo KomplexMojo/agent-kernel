@@ -25,6 +25,16 @@ test('the curve is the triangular number times the base', () => {
   expect([1, 2, 3, 4, 5, 6, 7].map(s => actorCastManaPrice(3, s))).toEqual([3, 9, 18, 30, 45, 63, 84]);
 });
 
+test('intensity multiplies the curve: base × intensity × r(r+1)/2 (#340)', () => {
+  expect([1, 2, 3, 6].map(i => actorCastManaPrice(3, 4, i))).toEqual([30, 60, 90, 180]);
+  expect(actorCastManaPrice(3, 4)).toBe(actorCastManaPrice(3, 4, 1));
+  const strong = caster('a', 4); strong.affinities[0].intensity = 2;
+  const state = createActorRegistry({ dimensions: { width: 2, height: 1 }, terrain: ['floor', 'floor'],
+    actors: [strong, caster('b', 1, 1)] });
+  expect(createActorTurn(state, 1, costs).apply({ actorId: 'a', tick: 1, kind: 'cast_affinity', params: { targetId: 'b' } })).toBe(true);
+  expect(200 - state.getActor('a')!.vitals.mana!.current).toBe(60);
+});
+
 test('every stack costs more than the last, past five too', () => {
   const spent = [1, 2, 3, 4, 5, 6, 7].map(s => castAt(s).spent);
   expect(spent).toEqual([3, 9, 18, 30, 45, 63, 84]);
