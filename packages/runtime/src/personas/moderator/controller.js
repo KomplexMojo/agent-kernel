@@ -8,7 +8,7 @@ import { planEffectFulfillment, FulfillmentDispositions } from "./effect-fulfill
 // without importing persona internals (charter: external code imports persona
 // controllers only).
 export { FulfillmentDispositions };
-export { describeActorOrdering, orderActorsByIntention } from "./actor-ordering.js";
+export { describeActorOrdering, orderActorsByIntention, orderActorsForDecision } from "./actor-ordering.js";
 
 /**
  * CR.7 / WP-5 — affinity TARGET resolution, published for the Configurator.

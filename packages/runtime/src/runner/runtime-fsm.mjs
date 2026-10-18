@@ -13,6 +13,7 @@ import {
   createModeratorPersona,
   FulfillmentDispositions,
   orderActorsByIntention,
+  orderActorsForDecision,
 } from "../personas/moderator/persona.js";
 import { createOrchestratorPersona, collectDeferredEffects } from "../personas/orchestrator/persona.js";
 import { initializeCoreFromArtifacts } from "./core-setup.mjs";
@@ -583,6 +584,8 @@ export function createFsmRuntime({
   let affinityEffects = null;
   let orchestrator = null;
   const runtimeBudgetOutcomes = [];
+  // Last tick's actor intentions: the Moderator orders this tick's DECIDE pass from them (#164).
+  let previousTickIntentions = [];
 
   function nextFrameMeta() {
     frameCounter += 1;
@@ -1156,6 +1159,7 @@ export function createFsmRuntime({
       tickFrames.length = 0;
       observationLog.length = 0;
       runtimeBudgetOutcomes.length = 0;
+      previousTickIntentions = [];
       frameCounter = 0;
       simConfig = options.simConfig || null;
       initialState = options.initialState || null;
@@ -1301,7 +1305,12 @@ export function createFsmRuntime({
       // DECIDE phase. Non-actor personas receive no event override on
       // repeat passes, so collectPhaseRecord() treats them as pure view()
       // reads (see packages/runtime/src/personas/_shared/tick-orchestrator.mts).
-      const decideActorIterationIds = decideActorIds.length > 0 ? decideActorIds : [primaryActorId];
+      // The MODERATOR rules who proposes first, from last tick's intentions (#164): an
+      // earlier decider claims contested tiles through `reservedTargets`, so this order is
+      // load-bearing. Tick 1 has no intentions and falls back to id order.
+      const decideActorIterationIds = decideActorIds.length > 0
+        ? orderActorsForDecision({ actorIds: decideActorIds, previousIntentions: previousTickIntentions })
+        : [primaryActorId];
       const actions = [];
       // ACCUMULATED ACROSS THE LOOP, not read off `decideRecord`. The loop advances the Actor
       // once PER ACTOR and keeps only the last record, so reading intentions from it would
@@ -1417,6 +1426,7 @@ export function createFsmRuntime({
       const applyRecord = await orchestrator.stepPhase("apply", applyInputs);
       const applyActions = Array.isArray(applyRecord.actions) ? applyRecord.actions : [];
       const resolutionOrdered = orderActionsForResolution(actions, tickIntentions, decideActorIterationIds);
+      previousTickIntentions = tickIntentions;
       const applied = applyActionsToCore(resolutionOrdered.concat(applyActions));
       runtimeBudgetOutcomes.push(...applied.outcomes);
 

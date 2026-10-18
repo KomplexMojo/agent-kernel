@@ -74,6 +74,20 @@ export function orderActorsByIntention({ actorIds = [], intentions = [] } = {}) 
   });
 }
 
+/**
+ * Decide the order actors PROPOSE in this tick (#164, maintainer ruling 2026-10-18).
+ *
+ * Decide order is not cosmetic: each actor sees the tiles claimed by actors that decided
+ * earlier in the same tick, so whoever decides first takes a contested tile. This tick's
+ * intentions do not exist until actors have decided, so the ruling reads the PREVIOUS
+ * tick's, the same signal resolution order uses, one tick stale. Tick 1 has none, and every
+ * actor sorts at class 0, which is id order. An actor that reported nothing last tick (new,
+ * or silent) decides behind every actor that did, as in resolution order.
+ */
+export function orderActorsForDecision({ actorIds = [], previousIntentions = [] } = {}) {
+  return orderActorsByIntention({ actorIds, intentions: previousIntentions });
+}
+
 /** Diagnostic view: what the Moderator decided and why, for telemetry and replay inspection. */
 export function describeActorOrdering({ actorIds = [], intentions = [] } = {}) {
   const order = orderActorsByIntention({ actorIds, intentions });
