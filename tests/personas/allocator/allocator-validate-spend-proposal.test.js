@@ -60,11 +60,14 @@ test("default price list marks all regen items as quadratic", () => {
   }
 });
 
-test("default price list marks affinity_stack as quadratic", () => {
+test("default price list marks affinity range and intensity as quadratic (#340)", () => {
   const pl = buildDefaultPriceList();
-  const item = pl.items.find((i) => i.id === "affinity_stack");
-  assert.ok(item, "affinity_stack must be in default price list");
-  assert.equal(item.formula, "quadratic");
+  for (const id of ["affinity_range", "affinity_intensity"]) {
+    const item = pl.items.find((i) => i.id === id);
+    assert.ok(item, `${id} must be in default price list`);
+    assert.equal(item.formula, "quadratic");
+  }
+  assert.equal(pl.items.some((i) => i.id === "affinity_stack"), false, "the single stack price is gone");
 });
 
 test("normalizePriceItems accepts new canonical unitCost field", () => {
@@ -166,7 +169,7 @@ test("validateSpendProposal applies quadratic price formulas", () => {
     schemaVersion: 1,
     meta: { ...baseMeta, id: "prop-quadratic" },
     items: [
-      { id: "affinity_stack", kind: "affinity", quantity: 4 },
+      { id: "affinity_range", kind: "affinity", quantity: 4 },
     ],
   };
   const result = validateSpendProposal({
@@ -176,8 +179,9 @@ test("validateSpendProposal applies quadratic price formulas", () => {
     meta: { ...baseMeta, id: "receipt-quadratic" },
   });
   assert.equal(result.receipt.status, "approved");
-  assert.equal(result.receipt.totalCost, 16);
-  assert.equal(result.receipt.lineItems[0].totalCost, 16);
+  // Range unit 2 × 4² = 32.
+  assert.equal(result.receipt.totalCost, 32);
+  assert.equal(result.receipt.lineItems[0].totalCost, 32);
 });
 
 test("validateSpendProposal keeps legacy partial status for mixed known and unknown spend without allocation", () => {

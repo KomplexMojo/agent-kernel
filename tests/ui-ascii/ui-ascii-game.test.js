@@ -552,7 +552,7 @@ function duelLevels({ wardenAt = { x: 2, y: 1 } } = {}) {
     tiles: ["######", "#....#", "#....E", "######"],
     actors: [
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
-        vitals: viableVitals({ mana: 40 }), affinities: [
+        vitals: viableVitals({ mana: 80 }), affinities: [
           { kind: "water", expression: "push", stacks: 3, intensity: 2 }, { kind: "light", expression: "emit", stacks: 1 }] },
       ...(wardenAt ? [{ category: "warden", id: "warden_1", position: wardenAt, motivations: ["stationary"],
         vitals: viableVitals(), affinities: [{ kind: "fire", expression: "push", stacks: 1 }] }] : []),

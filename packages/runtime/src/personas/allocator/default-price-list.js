@@ -36,7 +36,8 @@ const QUADRATIC_IDS = new Set([
   "vital_mana_regen_tick",
   "vital_stamina_regen_tick",
   "vital_durability_regen_tick",
-  "affinity_stack",
+  "affinity_range",
+  "affinity_intensity",
 ]);
 
 /** Ids whose quantity scales triangularly: each further unit costs one unitCost more. */
@@ -63,7 +64,8 @@ const DESCRIPTIONS = {
   "vital_mana_regen_tick": "Mana regen rate — n regen/tick costs n² tokens",
   "vital_stamina_regen_tick": "Stamina regen rate — n regen/tick costs n² tokens",
   "vital_durability_regen_tick": "Durability regen rate — n regen/tick costs n² tokens",
-  "affinity_stack": "Affinity stack — n stacks costs n² tokens",
+  "affinity_range": "Affinity range — r tiles of reach costs r² units (#340)",
+  "affinity_intensity": "Affinity intensity — strength i costs i² units (#340)",
   "affinity_base": "Base cost to add any affinity kind",
   "affinity_expression_externalize": "External expression (push/pull)",
   "affinity_expression_internalize": "External expression (internalize/pull)",

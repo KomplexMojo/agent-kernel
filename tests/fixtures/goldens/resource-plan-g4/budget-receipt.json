@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 120,
-  "remaining": 4880,
+  "totalCost": 134,
+  "remaining": 4866,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -74,17 +74,37 @@
       }
     },
     {
-      "id": "affinity_stack",
+      "id": "affinity_intensity",
       "kind": "affinity",
-      "quantity": 2,
-      "unitCost": 1,
-      "totalCost": 4,
+      "quantity": 1,
+      "unitCost": 10,
+      "totalCost": 10,
       "status": "approved",
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
         "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "water:emit"
+      }
+    },
+    {
+      "id": "affinity_range",
+      "kind": "affinity",
+      "quantity": 2,
+      "unitCost": 2,
+      "totalCost": 8,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "water:emit"
       }
     },
     {
@@ -155,8 +175,8 @@
     {
       "id": "resources",
       "capTokens": 5000,
-      "spentTokens": 120,
-      "remainingTokens": 4880,
+      "spentTokens": 134,
+      "remainingTokens": 4866,
       "status": "approved"
     },
     {
@@ -169,8 +189,8 @@
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 120,
-    "remainingBudget": 4880,
+    "totalSpend": 134,
+    "remainingBudget": 4866,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -189,9 +209,9 @@
         "usagePercent": 0
       },
       "resources": {
-        "actual": 120,
+        "actual": 134,
         "target": 5000,
-        "usagePercent": 2
+        "usagePercent": 3
       },
       "delvers": {
         "actual": 0,
@@ -209,7 +229,7 @@
         "usagePercent": 0
       }
     },
-    "totalBudgetUsagePercent": 2,
+    "totalBudgetUsagePercent": 3,
     "incentive": {
       "actualRatio": 0,
       "targetRatio": 0.8,

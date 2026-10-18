@@ -33,11 +33,11 @@ assert.equal(REFERENCE_BUDGET_TOKENS, 2500);
 
 test("reference targets include five budget pools for the 2500-token budget (design §2.2)", async () => {
   const { REFERENCE_TARGETS } = await import("../../../packages/runtime/src/personas/allocator/incentive-model.js");
-assert.equal(REFERENCE_TARGETS.rooms, 725);
+assert.equal(REFERENCE_TARGETS.rooms, 675);
 assert.equal(REFERENCE_TARGETS.delvers, 625);
-assert.equal(REFERENCE_TARGETS.wardens, 575);
+assert.equal(REFERENCE_TARGETS.wardens, 600);
 assert.equal(REFERENCE_TARGETS.hazards, 375);
-assert.equal(REFERENCE_TARGETS.resources, 200);
+assert.equal(REFERENCE_TARGETS.resources, 225);
 });
 
 test("scenario spend report includes all required fields (design §14)", async () => {
@@ -57,11 +57,11 @@ assert.equal(report.overBudget, false);
 
 // Categories
 assert.equal(report.categories.rooms.actual, 500);
-assert.equal(report.categories.rooms.target, 725);
+assert.equal(report.categories.rooms.target, 675);
 assert.equal(report.categories.delvers.actual, 180);
 assert.equal(report.categories.delvers.target, 625);
 assert.equal(report.categories.wardens.actual, 230);
-assert.equal(report.categories.wardens.target, 575);
+assert.equal(report.categories.wardens.target, 600);
 
 // Incentive
 assert.equal(typeof report.incentive.actualRatio, "number");
@@ -76,12 +76,12 @@ test("scenario spend report scales default allocation targets for a 10000-token 
 
 const report = buildScenarioSpendReport({ budgetTokens: 10000 });
 
-assert.equal(report.categories.rooms.target, 2900);
-assert.equal(report.categories.floor_tiles.target, 2900);
+assert.equal(report.categories.rooms.target, 2700);
+assert.equal(report.categories.floor_tiles.target, 2700);
 assert.equal(report.categories.delvers.target, 2500);
-assert.equal(report.categories.wardens.target, 2300);
+assert.equal(report.categories.wardens.target, 2400);
 assert.equal(report.categories.hazards.target, 1500);
-assert.equal(report.categories.resources.target, 800);
+assert.equal(report.categories.resources.target, 900);
 });
 
 /**

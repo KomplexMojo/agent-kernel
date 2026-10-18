@@ -48,16 +48,17 @@ test("buildDesignSpendLedger computes level, actor base, and actor config catego
     },
   });
 
-  // P1.4 unified list: vitals 4+2+1+1=8, regen 1²+1²=2, affinity 10+2²+35=49 → 59/unit × 2 = 118
+  // P1.4 unified list: vitals 4+2+1+1=8, regen 1²+1²=2, affinity 10 + range 2·2² + intensity
+  // 10·1² + 35 = 63 (#340) → 73/unit × 2 = 146 (118 before the range/intensity split)
   // CR.9 M5: levelConfig 110 → 120 and the total 388 → 398. The layout is 10 floor + 10
   // HALLWAY tiles; hallway tiles used to be zeroed before pricing, so half this layout was
   // free. They now cost what floor tiles cost.
-  assert.equal(ledger.totalSpentTokens, 398);
-  assert.equal(ledger.remainingTokens, 602);
+  assert.equal(ledger.totalSpentTokens, 426);
+  assert.equal(ledger.remainingTokens, 574);
   assert.equal(ledger.overBudget, false);
   assert.equal(ledger.categories.levelConfig.spentTokens, 120);
   assert.equal(ledger.categories.actorBase.spentTokens, 160);
-  assert.equal(ledger.categories.actorConfiguration.spentTokens, 118);
+  assert.equal(ledger.categories.actorConfiguration.spentTokens, 146);
   assert.ok(ledger.lineItems.some((entry) => entry.category === "levelConfig"));
   assert.ok(ledger.lineItems.some((entry) => entry.category === "actorBase"));
   assert.ok(ledger.lineItems.some((entry) => entry.category === "actorConfiguration"));
@@ -122,7 +123,8 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
         { id: "vital_health_point", kind: "vital", costTokens: 1 },
         { id: "vital_health_regen_tick", kind: "vital", costTokens: 4 },
         { id: "affinity_base", kind: "affinity", costTokens: 8 },
-        { id: "affinity_stack", kind: "affinity", costTokens: 6 },
+        { id: "affinity_range", kind: "affinity", costTokens: 6 },
+        { id: "affinity_intensity", kind: "affinity", costTokens: 5 },
         { id: "affinity_expression_externalize", kind: "affinity", costTokens: 7 },
       ],
     },
@@ -131,9 +133,10 @@ test("buildDesignSpendLedger prices actor configuration from price list items", 
   const configLine = ledger.lineItems.find((entry) => entry.category === "actorConfiguration");
   assert.ok(configLine);
   // P1.4: custom items without a formula price linearly.
-  // vitals 30×1=30, regen 3×4=12, affinity base 8 + stacks 2×6 + push 7 = 27 → 69/unit × 3 = 207
-  assert.equal(configLine.unitCostTokens, 69);
-  assert.equal(configLine.spendTokens, 207);
+  // vitals 30×1=30, regen 3×4=12, affinity base 8 + range 2×6 + intensity 1×5 + push 7 = 32
+  // → 74/unit × 3 = 222
+  assert.equal(configLine.unitCostTokens, 74);
+  assert.equal(configLine.spendTokens, 222);
   assert.equal(configLine.detail.vitalPoints, 30);
   assert.equal(configLine.detail.regenPoints, 3);
   assert.equal(configLine.detail.affinityStacks, 2);
@@ -196,10 +199,11 @@ test("buildDesignSpendLedger treats tokenHint as per-unit and multiplies by coun
   });
 
   assert.equal(ledger.categories.actorBase.spentTokens, 69300);
-  // P1.4 unified list: vitals 10+5+8+6=29, regen 1²+1²+2²=6, affinity 10+2²+35=49 → 84/unit × 9 = 756
-  assert.equal(ledger.categories.actorConfiguration.spentTokens, 756);
-  assert.equal(ledger.totalSpentTokens, 70056);
-  assert.equal(ledger.remainingTokens, 6944);
+  // P1.4 unified list: vitals 10+5+8+6=29, regen 1²+1²+2²=6, affinity 10 + range 2·2² +
+  // intensity 10·1² + 35 = 63 (#340) → 98/unit × 9 = 882
+  assert.equal(ledger.categories.actorConfiguration.spentTokens, 882);
+  assert.equal(ledger.totalSpentTokens, 70182);
+  assert.equal(ledger.remainingTokens, 6818);
   assert.equal(ledger.overBudget, false);
 });
 
@@ -282,7 +286,7 @@ test("buildDesignSpendLedger charges rooms layout cost only — no affinity cost
         { id: "tile_floor", kind: "tile", costTokens: 1 },
         // CR.9 M5: every tile field needs a price — an incomplete list is a refusal.
         { id: "tile_hallway", kind: "tile", costTokens: 1 },
-        { id: "affinity_stack", kind: "affinity", costTokens: 10 },
+        { id: "affinity_range", kind: "affinity", costTokens: 10 },
         { id: "affinity_expression_externalize", kind: "affinity", costTokens: 10 },
       ],
     },

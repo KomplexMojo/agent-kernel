@@ -142,9 +142,15 @@ finding when the receipt is not approved; the run is not refused.
 
 ### It prices hazard and resource cards from the receipt's own items (#281)
 
+An affinity's range (`stacks`) and intensity are priced apart (#340): `affinity_range` (unit 2) and
+`affinity_intensity` (unit 10), both quadratic, so range r at intensity i costs `2·r² + 10·i²` on top of
+the base and expression. Receipt lines for both carry `detail.affinity` (`kind:expression`), so an actor
+with two affinities pays each entry's square, never the square of their sum. An entry without an
+intensity is priced at 1.
+
 `calculateObjectCardUnitCost({ card, priceList })`, published from `controller.js`, prices one hazard or
 resource design card from the same spend items its build receipt charges (`hazard_basic`, affinity base,
-stack and expression, vital points and regen; `resource_base`/`level`/`permanent` and grants), against
+range, intensity and expression, vital points and regen; `resource_base`/`level`/`permanent` and grants), against
 the default price list when none is given. An item with no price-list entry is refused by name. The card
 builder (`commands/card-authoring.js#calculateCardValue`) used to price a hazard at its `tokenHint` alone
 and a resource by its own arithmetic or its `budgetCeiling`. A `budgetCeiling` is a cap, not a price, and a
@@ -166,13 +172,14 @@ malformed structure returns `mixed_room_input_invalid`; a missing price returns
 
 The price source is the same versioned Allocator price list used by the build receipt. Default and
 localized cells partition the room's priced tiles so no cell is charged twice; overlays use the
-Allocator's affinity base/expression/stack items; localized hazards use the complete hazard, affinity,
+Allocator's affinity base/expression/range/intensity items; localized hazards use the complete hazard, affinity,
 vital, and regen line items. Template-authored `tokenCost` is not a price source.
 
 Worked default-price example: a 6×4 room with 24 ordinary floor cells and one one-stack fire/emit hazard
-has `defaultTiles: 24`. The hazard contributes 64 (`hazard_basic` 5 + mana 9 + mana-regen 9 + durability
-5 + `affinity_base` 10 + localized expression 25 + stack 1), so the summary is
-`{defaultTiles:24, localizedTiles:0, roomWideOverlay:0, localizedHazards:64, total:88}`. This is a
+has `defaultTiles: 24`. The hazard contributes 75 (`hazard_basic` 5 + mana 9 + mana-regen 9 + durability
+5 + `affinity_base` 10 + localized expression 25 + `affinity_range` 2·1² + `affinity_intensity` 10·1²,
+#340), so the summary is
+`{defaultTiles:24, localizedTiles:0, roomWideOverlay:0, localizedHazards:75, total:99}`. This is a
 breakdown of the existing design receipt, not an additional charge.
 
 The capability is read-only and available in every FSM state. `orchestrateBuild` calls it once for each
@@ -597,7 +604,7 @@ Judging a receipt against proposed actions is this persona's call, and lives in
 budgetAllocation })`. It is pure and stateless: proposals and budget in, the admitted subset out.
 
 It used to live in `actor/controller.js` and run inline inside the Actor's `advance()`. The give-away was
-the vocabulary — the ids it resolves (`motivation_reflexive`, `affinity_expression_*`, `affinity_stack`)
+the vocabulary — the ids it resolves (`motivation_reflexive`, `affinity_expression_*`, `affinity_range`, `affinity_intensity`)
 are priced in this persona's own `base-costs.json`, so the Actor was reading the Allocator's price-list
 keys to judge its own proposals.
 

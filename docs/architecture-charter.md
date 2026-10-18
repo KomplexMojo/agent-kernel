@@ -481,7 +481,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 ## Combat Boundary
 
 - There is no conventional attack. The only way one actor harms another is an affinity: a cast push or pull (`cast_affinity`), or the lasting field of an equipped emit or draw. The old `rules/combat.ts` / `applyAttack` primitive was retired with the old core world (#226, #228, #257).
-- Core is the authority on every vital change. `packages/core-ts/src/rules/actor-cast.ts` judges a cast (equipped slot, range = stacks, mana price `base × s(s+1)/2`, target) and `rules/actor-fields.ts` applies lasting fields; a refusal is a ValidationError name. Runtime never mutates vitals directly: `runtime-fsm.mjs` hands the Actor's `cast_affinity` proposal to core's actor turn.
+- Core is the authority on every vital change. `packages/core-ts/src/rules/actor-cast.ts` judges a cast (equipped slot, range = stacks, mana price `base × intensity × r(r+1)/2`, target) and `rules/actor-fields.ts` applies lasting fields; a refusal is a ValidationError name. Runtime never mutates vitals directly: `runtime-fsm.mjs` hands the Actor's `cast_affinity` proposal to core's actor turn.
 - `core-ts` remains IO-free and runtime-ignorant: no adapter imports, no clocks, no process state, and no dependency on persona or runtime action shapes.
 
 ## Motivation And Action Flow

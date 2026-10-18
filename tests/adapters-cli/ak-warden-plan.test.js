@@ -190,9 +190,13 @@ test("cli warden-plan supports advanced affinities, vitals, and receipt accounti
   assert.equal(receipt.lineItems.some((item) => item.category === "wardens"), true);
   assert.equal(receipt.lineItems.some((item) => item.category === "delvers"), false);
   // P1.4 unified itemization: base ×1 and expression ×1 per affinity entry
-  // (dark/emit/4 + earth/pull/1); stacks merge to 5.
+  // (dark/emit/4 + earth/pull/1). Range and intensity are priced per affinity (#340):
+  // range 2·4² + 2·1², never 2·(4 + 1)².
   assert.equal(byId.get("affinity_base")?.quantity, 2);
-  assert.equal(byId.get("affinity_stack")?.quantity, 5);
+  const lines = (id) => receipt.lineItems.filter((item) => item.id === id)
+    .map((item) => [item.detail?.affinity, item.quantity, item.totalCost]).sort();
+  assert.deepEqual(lines("affinity_range"), [["dark:emit", 4, 32], ["earth:pull", 1, 2]]);
+  assert.deepEqual(lines("affinity_intensity"), [["dark:emit", 1, 10], ["earth:pull", 1, 10]]);
   assert.equal(byId.get("affinity_expression_localized")?.quantity, 1);
   assert.equal(byId.get("affinity_expression_internalize")?.quantity, 1);
   assert.equal(byId.get("vital_health_point")?.quantity, 15);

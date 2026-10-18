@@ -7,7 +7,7 @@
     "createdAt": "2026-07-18T00:00:00.000Z",
     "source": "cli-create",
     "cost": {
-      "runTotalTokens": 184,
+      "runTotalTokens": 198,
       "budgetTokens": 5000,
       "receiptRef": {
         "id": "golden_g2_budget_receipt",
@@ -32,7 +32,7 @@
       "poolWeights": [
         {
           "id": "resources",
-          "weight": 0.08
+          "weight": 0.09
         }
       ]
     }

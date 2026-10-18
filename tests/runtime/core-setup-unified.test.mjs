@@ -13,7 +13,8 @@ function artifacts() {
     simConfigRef: { id: meta.id, schema: simConfig.schema, schemaVersion: simConfig.schemaVersion },
     dimensions: { width: 2, height: 1 }, terrain: layout.terrain, actors: [
       { id: 'caster', category: 'delver', position: { x: 0, y: 0 },
-        vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 9, max: 9, regen: 0 } },
+        // Intensity 2 doubles the range-2 cast price (#340): 2 × 9 = 18, all of it.
+        vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 18, max: 18, regen: 0 } },
         motivations: ['attacking', 'seeking_resources'],
         affinities: [{ kind: 'fire', expression: 'push', stacks: 2, intensity: 2 }], activeAffinityKey: 'fire:push' },
       { id: 'reward', category: 'resource', position: { x: 1, y: 0 },

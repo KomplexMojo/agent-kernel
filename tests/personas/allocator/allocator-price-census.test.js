@@ -63,7 +63,8 @@ test("site 1: price-list unit costs and formulas for the census card's component
     vital_health_regen_tick: { unitCost: 1, formula: "quadratic", q: 2, total: 4 },
     vital_mana_regen_tick: { unitCost: 1, formula: "quadratic", q: 1, total: 1 },
     affinity_base: { unitCost: 10, formula: "linear", q: 1, total: 10 },
-    affinity_stack: { unitCost: 1, formula: "quadratic", q: 2, total: 4 },
+    affinity_range: { unitCost: 2, formula: "quadratic", q: 2, total: 8 },
+    affinity_intensity: { unitCost: 10, formula: "quadratic", q: 1, total: 10 },
     affinity_expression_localized: { unitCost: 25, formula: "linear", q: 1, total: 25 },
     motivation_exploring: { unitCost: 2, formula: "linear", q: 1, total: 2 },
     motivation_attacking: { unitCost: 3, formula: "linear", q: 1, total: 3 },
@@ -79,11 +80,11 @@ test("site 1: price-list unit costs and formulas for the census card's component
 
 // ── Site 2 CONVERGED: actor costing == the list, line for line ──
 
-test("site 2 == site 1: the census card costs 77, every line at list price", async () => {
+test("site 2 == site 1: the census card costs 91, every line at list price", async () => {
   const { calculateActorConfigurationUnitCost, priceMap, item, applyFormula, normalizeMotivations } = await load();
   const r = calculateActorConfigurationUnitCost({ entry: CARD, priceMap, normalizeMotivations });
   assert.equal(r.errors, undefined);
-  assert.equal(r.cost, 77, "28 vitals + 5 regen + 39 affinity + 5 motivations");
+  assert.equal(r.cost, 91, "28 vitals + 5 regen + 53 affinity + 5 motivations");
   const by = (id) => r.detail.lineItems.find((l) => l.id === id);
   for (const [id, q] of [
     ["vital_health_point", 10], ["vital_mana_point", 8], ["vital_stamina_point", 6],
@@ -96,9 +97,10 @@ test("site 2 == site 1: the census card costs 77, every line at list price", asy
   assert.equal(
     affinity.reduce((s, l) => s + l.spendTokens, 0),
     applyFormula(item("affinity_base"), 1)
-      + applyFormula(item("affinity_stack"), 2)
+      + applyFormula(item("affinity_range"), 2)
+      + applyFormula(item("affinity_intensity"), 1)
       + applyFormula(item("affinity_expression_localized"), 1),
-    "actor affinity == list model (39), the 83-token actor model is gone",
+    "actor affinity == list model (53), the 83-token actor model is gone",
   );
 });
 
@@ -145,18 +147,20 @@ test("site 4 == site 1: maximizer buys regen at list prices (quadratic, unit 1)"
 
 // ── The one sanctioned difference: the resource premium ──
 
-test("resource premium: the same payload costs 39 attached, 61 free-floating — premium, not a second model", async () => {
+test("resource premium: the same payload costs 53 attached, 80 free-floating — premium, not a second model", async () => {
   const { item, applyFormula } = await load();
   const attached =
     applyFormula(item("affinity_base"), 1)
-    + applyFormula(item("affinity_stack"), 2)
+    + applyFormula(item("affinity_range"), 2)
+    + applyFormula(item("affinity_intensity"), 1)
     + applyFormula(item("affinity_expression_localized"), 1);
   const resource =
     applyFormula(item("resource_affinity_base"), 1)
-    + applyFormula(item("resource_affinity_stack"), 2)
+    + applyFormula(item("resource_affinity_range"), 2)
+    + applyFormula(item("resource_affinity_intensity"), 1)
     + applyFormula(item("resource_affinity_expression_localized"), 1);
-  assert.equal(attached, 39);
-  assert.equal(resource, 61);
+  assert.equal(attached, 53);
+  assert.equal(resource, 80);
   assert.ok(resource > attached, "free-floating costs MORE than attached — absurdity resolved");
   // Premium derivation stays code-enforced: round(1.5 × base) per mirrored id.
   assert.equal(item("resource_affinity_base").unitCost, Math.round(item("affinity_base").unitCost * 1.5));

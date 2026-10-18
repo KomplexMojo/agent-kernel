@@ -7,7 +7,7 @@
     "createdAt": "2026-10-10T00:00:00.000Z",
     "producedBy": "configurator",
     "cost": {
-      "runTotalTokens": 561,
+      "runTotalTokens": 674,
       "budgetTokens": 2500,
       "receiptRef": {
         "id": "trap-rooms_budget_receipt",

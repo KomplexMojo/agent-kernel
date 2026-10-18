@@ -49,13 +49,55 @@
       }
     },
     {
-      "id": "affinity_stack",
+      "id": "affinity_intensity",
       "kind": "affinity",
-      "quantity": 3,
+      "quantity": 1,
       "subjectRef": {
         "id": "actor_vam",
         "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "fire:push"
+      }
+    },
+    {
+      "id": "affinity_intensity",
+      "kind": "affinity",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "growth:pull"
+      }
+    },
+    {
+      "id": "affinity_range",
+      "kind": "affinity",
+      "quantity": 2,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "fire:push"
+      }
+    },
+    {
+      "id": "affinity_range",
+      "kind": "affinity",
+      "quantity": 1,
+      "subjectRef": {
+        "id": "actor_vam",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "growth:pull"
       }
     },
     {

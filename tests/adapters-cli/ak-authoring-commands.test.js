@@ -340,11 +340,11 @@ test("cli create keeps budget-only input as a hard constraint without maximize-s
   runCliOk([
     "create",
     "--text",
-    "Create one delver with budget 103 tokens.",
+    "Create one delver with budget 115 tokens.",
     "--delver",
     "count=1;affinity=fire;motivation=attacking",
     "--budget-tokens",
-    "103",
+    "115",
     "--run-id",
     "run_create_budget_only",
     "--created-at",
@@ -355,10 +355,10 @@ test("cli create keeps budget-only input as a hard constraint without maximize-s
 
   const spec = readJson(join(outDir, "spec.json"));
   const request = spec.authoring.request;
-  assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 103);
+  assert.equal(request.sharedConfig.constraints.hardBudget.totalTokens, 115);
   assert.deepEqual(request.sharedConfig.constraints.hardBudget.sources, ["text", "flag"]);
   assert.equal(request.sharedConfig.optimizationGoals, undefined);
-  assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 103);
+  assert.equal(spec.authoring.constraints.hardBudget.totalTokens, 115);
   assert.equal(spec.authoring.optimizationGoals, undefined);
 });
 
@@ -400,8 +400,10 @@ test("cli create maximizes delver spend deterministically when explicitly asked 
   // Playable re-baseline (Phase 1b): a delver is no longer auto-tagged user_controlled, so it no
   // longer pays the 10-token playable premium. Those 10 tokens buy mana max 104 -> 106 and regen
   // 1 -> 3 (2 + 3² - 1² = 10), so `mana_regen` is served again at this budget.
-  assert.equal(delver.vitals.mana.max, 106);
-  assert.equal(delver.vitals.mana.regen, 3);
+  // Range/intensity re-baseline (#340): the fire affinity now prices range 2·1² + intensity 10·1²
+  // where one stack cost 1, so fixed spend rose 11. Mana pays it: max 106 -> 100, regen 3 -> 1.
+  assert.equal(delver.vitals.mana.max, 100);
+  assert.equal(delver.vitals.mana.regen, 1);
   assert.ok(delver.vitals.mana.regen >= 1);
   // The pool, not just the regen — regen against a zero pool is what let the
   // maximizer buy a delver that could never take a step (F12).

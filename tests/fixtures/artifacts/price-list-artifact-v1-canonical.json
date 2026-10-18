@@ -19,7 +19,8 @@
     { "id": "vital_stamina_regen_tick",    "kind": "vital", "unitCost": 1, "formula": "quadratic", "description": "Stamina regen rate — n regen/tick costs n² tokens" },
     { "id": "vital_durability_regen_tick", "kind": "vital", "unitCost": 1, "formula": "quadratic", "description": "Durability regen rate — n regen/tick costs n² tokens" },
 
-    { "id": "affinity_stack",                  "kind": "affinity", "unitCost": 1,  "formula": "quadratic", "description": "Affinity stack — n stacks costs n² tokens" },
+    { "id": "affinity_range",                  "kind": "affinity", "unitCost": 2,  "formula": "quadratic", "description": "Affinity range — r tiles of reach costs r² units (#340)" },
+    { "id": "affinity_intensity",              "kind": "affinity", "unitCost": 10, "formula": "quadratic", "description": "Affinity intensity — strength i costs i² units (#340)" },
     { "id": "affinity_base",                   "kind": "affinity", "unitCost": 10, "formula": "linear",    "description": "Base cost to add any affinity kind" },
     { "id": "affinity_expression_externalize", "kind": "affinity", "unitCost": 35, "formula": "linear",    "description": "External expression (push)" },
     { "id": "affinity_expression_internalize", "kind": "affinity", "unitCost": 35, "formula": "linear",    "description": "External expression (pull)" },

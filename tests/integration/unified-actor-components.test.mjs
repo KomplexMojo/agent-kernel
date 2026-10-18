@@ -28,9 +28,9 @@ function finish(turn) {
   return fields;
 }
 test('authored costs compose with lethal combat, atomic competing claims, equipment and replay', () => {
-  // A range-5 fire push costs 3 × 15 = 45 (#232), leaving 5 of 50; intensity 2 hits for 2 × 2² = 8 (#340).
+  // A range-5 fire push at intensity 2 costs 3 × 2 × 15 = 90 (#232, #340), leaving 5 of 95; it hits for 2 × 2² = 8.
   const actors = [actor('caster', 'delver', {
-    vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 50, max: 50, regen: 0 } },
+    vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 95, max: 95, regen: 0 } },
     affinities: [{ kind: 'fire', expression: 'push', stacks: 5, intensity: 2 }], activeAffinityKey: 'fire:push' }),
   actor('source', 'resource', { position: { x: 1, y: 0 },
     vitals: { health: { current: 4, max: 4, regen: 9 }, durability: { current: 3, max: 3, regen: 9 } },

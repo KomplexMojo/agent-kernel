@@ -7,7 +7,7 @@
 // in the opposite direction (there, the Allocator doing the Configurator's job).
 //
 // The give-away was the vocabulary: the ids resolved below (`motivation_reflexive`,
-// `affinity_expression_externalize`, `affinity_stack`) are priced in this persona's
+// `affinity_expression_externalize`, `affinity_range`, `affinity_intensity`) are priced in this persona's
 // own `base-costs.json`. The Actor was reading the Allocator's price-list keys.
 //
 // Moved verbatim; this is a relocation, not a redesign. Pure — proposals and budget
@@ -122,7 +122,8 @@ export function admitProposals(proposals, { budgetReceipt, budgetAllocation } = 
         id: affinityExpressionId,
       });
       if (!expressionAllowed) return false;
-      return hasBudgetAllowance({ budgetAllocation, budgetReceipt, kind: "affinity", id: "affinity_stack" });
+      return hasBudgetAllowance({ budgetAllocation, budgetReceipt, kind: "affinity", id: "affinity_range" })
+        && hasBudgetAllowance({ budgetAllocation, budgetReceipt, kind: "affinity", id: "affinity_intensity" });
     }
     return true;
   });

@@ -28,10 +28,10 @@ test("allocator denies one token below a warden pool boundary while total budget
   // The scenario's own budget was its minimum until the actor viability floor retuned the pool
   // split (warden 16% -> 23%). It is no longer: the minimum for this payload measured 400 against a
   // catalog budget of 469, so `budgetTokens - 1` now SUCCEEDS and characterises nothing. Pinned to
-  // the measured boundary instead. The property under test is unchanged and still holds -- the
-  // allocator denies on the WARDEN POOL while leftover tiles-grid remaining
-  // was 132 and terrain floor remaining is 188. The warden shortfall is unchanged.
-  const boundaryBudget = 399;
+  // the measured boundary instead. #340 (range and intensity priced apart, warden share 23% -> 24%)
+  // moved that boundary to 441, so 440 is one below it. The property under test is unchanged and
+  // still holds -- the allocator denies on the WARDEN POOL while total budget remains.
+  const boundaryBudget = 440;
   const boundaryText = scenario.payload.text.replace(
     /Use a \d+ token hard budget/,
     `Use a ${boundaryBudget} token hard budget`,
@@ -53,13 +53,14 @@ test("allocator denies one token below a warden pool boundary while total budget
     ], { cwd: ROOT, encoding: "utf8" });
 
     assert.notEqual(result.status, 0);
-    // remaining was 188 until #198 gave medium rooms their real 5-8 range (more floor billed).
-    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=173/);
+    // remaining was 188 until #198 gave medium rooms their real 5-8 range (more floor billed),
+    // then 173 until #340 re-pinned the boundary.
+    assert.match(result.stderr, /Budget receipt denied: status=denied; remaining=192/);
     assert.match(result.stderr, /deniedLines=actor:actor_spawn:wardens/);
-    assert.match(result.stderr, /deniedPools=wardens:186\/176/);
+    assert.match(result.stderr, /deniedPools=wardens:208\/207/);
     // #145 — the shortfall (how many more tokens this one pool alone needed) used to be
-    // uncomputable from the denial message; 186 spent against a 176 cap is short by 10.
-    assert.match(result.stderr, /deniedPools=wardens:186\/176 \(short 10\)/);
+    // uncomputable from the denial message; 208 spent against a 207 cap is short by 1.
+    assert.match(result.stderr, /deniedPools=wardens:208\/207 \(short 1\)/);
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }

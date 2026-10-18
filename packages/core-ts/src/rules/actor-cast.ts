@@ -9,12 +9,13 @@ export type ActorCastManaBases = Partial<Record<ActorAffinityKey, number>>;
 export type ActorCastPrices = { castManaBase: ActorCastManaBases };
 
 /**
- * The mana a push or pull costs at `stacks` (maintainer, 2026-10-13, #232): the kind's
- * base times the triangular number s(s+1)/2, with no cap, so every stack costs more
- * than the last. The curve is the rule; the base is the Configurator's tuning.
+ * The mana a push or pull costs (maintainer, 2026-10-13, #232; #340): the kind's base
+ * times its intensity times the triangular number r(r+1)/2 of its range, with no cap,
+ * so every tile of reach costs more than the last and a harder hit costs in step with
+ * its intensity. The curve is the rule; the base is the Configurator's tuning.
  */
-export function actorCastManaPrice(base: number, stacks: number): number {
-  return base * stacks * (stacks + 1) / 2;
+export function actorCastManaPrice(base: number, range: number, intensity = 1): number {
+  return base * intensity * range * (range + 1) / 2;
 }
 
 const isPrice = (value: unknown): boolean => Number.isSafeInteger(value) && (value as number) >= 0;
@@ -28,9 +29,9 @@ export function assertActorCastPrices(prices: ActorCastPrices): void {
 }
 
 /** The authored price of one cast; undefined when the key has no price. */
-function castManaCost(prices: ActorCastPrices, key: ActorAffinityKey, stacks: number): number | undefined {
-  const base = prices.castManaBase[key];
-  return base === undefined ? undefined : actorCastManaPrice(base, stacks);
+function castManaCost(prices: ActorCastPrices, pair: ActorAffinityEntry): number | undefined {
+  const base = prices.castManaBase[affinityKey(pair)];
+  return base === undefined ? undefined : actorCastManaPrice(base, pair.stacks, affinityIntensity(pair));
 }
 export interface ActorEffectSuppression { sourceId: string; targetId: string; affinityKey: ActorAffinityKey; amount: number }
 export interface ActorCastResult {
@@ -98,7 +99,7 @@ export function castFocusedActorAffinity(
     Math.abs(source.position.y - target.position.y)) > actorCastRange(pair)) return reject('TargetOutOfRange');
   const effect = getActorAffinityEffect(pair.kind, pair.expression);
   if (effect.operation === 'drain' && sourceId === targetId) return reject('InvalidTarget');
-  const cost = castManaCost(manaCosts, affinityKey(pair), pair.stacks);
+  const cost = castManaCost(manaCosts, pair);
   if (cost === undefined) return reject('InvalidActionValue');
   if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');
   const changes: ActorVitalChange[] = [];

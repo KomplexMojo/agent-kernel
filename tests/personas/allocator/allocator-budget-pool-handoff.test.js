@@ -75,9 +75,9 @@ const allocation = computeBudgetPools({
 assert.ok(allocation.ok);
 
 const poolMap = new Map(allocation.pools.map(p => [p.id, p.tokens]));
-assert.equal(poolMap.get("rooms"), 725, "29% of 2500 = 725");
+assert.equal(poolMap.get("rooms"), 675, "27% of 2500 = 675");
 assert.equal(poolMap.get("delver"), 625, "25% of 2500 = 625");
-assert.equal(poolMap.get("wardens"), 575, "23% of 2500 = 575");
+assert.equal(poolMap.get("wardens"), 600, "24% of 2500 = 600");
 assert.equal(poolMap.get("hazards"), 375, "15% of 2500 = 375");
-assert.equal(poolMap.get("resources"), 200, "8% of 2500 = 200");
+assert.equal(poolMap.get("resources"), 225, "9% of 2500 = 225");
 });

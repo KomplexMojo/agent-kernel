@@ -263,9 +263,9 @@ test("a hazard authored the way the CLI writes it pays for its affinity and its 
     "a hazard's affinity payload pays a base, exactly as a delver's does",
   );
   assert.ok(
-    byId.get("affinity_stack"),
-    "and its stacks — a level of affinity hazards at 5 tokens each is the exploit the "
-      + "economy exists to prevent",
+    byId.get("affinity_range") && byId.get("affinity_intensity"),
+    "and its range and intensity (#340) — a level of affinity hazards at 5 tokens each is the "
+      + "exploit the economy exists to prevent",
   );
   assert.ok(
     byId.get("affinity_expression_localized"),

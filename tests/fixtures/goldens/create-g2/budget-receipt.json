@@ -28,8 +28,8 @@
     "schemaVersion": 1
   },
   "status": "approved",
-  "totalCost": 184,
-  "remaining": 4816,
+  "totalCost": 198,
+  "remaining": 4802,
   "lineItems": [
     {
       "id": "actor_spawn",
@@ -74,17 +74,37 @@
       }
     },
     {
-      "id": "affinity_stack",
+      "id": "affinity_intensity",
       "kind": "affinity",
-      "quantity": 2,
-      "unitCost": 1,
-      "totalCost": 4,
+      "quantity": 1,
+      "unitCost": 10,
+      "totalCost": 10,
       "status": "approved",
       "category": "resources",
       "subjectRef": {
         "id": "resource_1",
         "schema": "agent-kernel/ActorArtifact",
         "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "water:emit"
+      }
+    },
+    {
+      "id": "affinity_range",
+      "kind": "affinity",
+      "quantity": 2,
+      "unitCost": 2,
+      "totalCost": 8,
+      "status": "approved",
+      "category": "resources",
+      "subjectRef": {
+        "id": "resource_1",
+        "schema": "agent-kernel/ActorArtifact",
+        "schemaVersion": 1
+      },
+      "detail": {
+        "affinity": "water:emit"
       }
     },
     {
@@ -211,8 +231,8 @@
     {
       "id": "resources",
       "capTokens": 5000,
-      "spentTokens": 184,
-      "remainingTokens": 4816,
+      "spentTokens": 198,
+      "remainingTokens": 4802,
       "status": "approved"
     },
     {
@@ -225,8 +245,8 @@
   ],
   "scenarioSpendReport": {
     "budget": 5000,
-    "totalSpend": 184,
-    "remainingBudget": 4816,
+    "totalSpend": 198,
+    "remainingBudget": 4802,
     "overBudget": false,
     "categories": {
       "rooms": {
@@ -245,7 +265,7 @@
         "usagePercent": 0
       },
       "resources": {
-        "actual": 184,
+        "actual": 198,
         "target": 5000,
         "usagePercent": 4
       },

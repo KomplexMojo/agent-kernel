@@ -5,7 +5,7 @@ import type { ActorRecord, ActorAffinityEntry } from '../../packages/core-ts/src
 function actor(id: string, x: number, pair?: ActorAffinityEntry): ActorRecord {
   return { id, alignment: 'dungeon', lifecycle: 'alive', position: { x, y: 0 },
     defeatVital: 'health', vitals: { health: { current: 10, max: 20, regen: 0 },
-      durability: { current: 3, max: 3, regen: 0 }, mana: { current: 10, max: 10, regen: 0 } },
+      durability: { current: 3, max: 3, regen: 0 }, mana: { current: 20, max: 20, regen: 0 } },
     capabilities: { canMove: true, canCast: true, canEquip: true, canTake: true, canExit: true,
       blocksMovement: false, blocksSight: false }, motivations: [], affinities: pair ? [pair] : [],
     activeAffinityKey: pair ? `${pair.kind}:${pair.expression}` : null, holdings: [] };
@@ -18,8 +18,8 @@ function registry(source = actor('source', 0, pair), target = actor('target', 1)
 test('focused fire pays authored cost once and routes durability overflow', () => {
   const state = registry(); const result = castFocusedActorAffinity(state, 'source', 'target', costs);
   expect(result.accepted).toBe(true);
-  // base 1 at range 3: 1 × 3 × 4 / 2 = 6
-  expect(state.getActor('source')!.vitals.mana!.current).toBe(4);
+  // base 1 × intensity 2 × range 3·4/2 = 12 (#340)
+  expect(state.getActor('source')!.vitals.mana!.current).toBe(8);
   // 2 × intensity² = 8: durability 3 first, then 5 into health.
   expect(state.getActor('target')!.vitals.durability!.current).toBe(0);
   expect(state.getActor('target')!.vitals.health!.current).toBe(5);
@@ -33,11 +33,11 @@ test('unaffordable, missing-price and invalid casts leave both actors unchanged'
   expect(state.snapshot()).toEqual(before);
 });
 test('the price keeps rising past five stacks, with strength', () => {
-  const source = actor('source', 0, { ...pair, stacks: 8, intensity: 3 }); source.vitals.mana = { current: 40, max: 40, regen: 0 };
+  const source = actor('source', 0, { ...pair, stacks: 8, intensity: 3 }); source.vitals.mana = { current: 120, max: 120, regen: 0 };
   const state = registry(source);
   expect(castFocusedActorAffinity(state, 'source', 'target', costs).accepted).toBe(true);
-  // base 1 at range 8: 1 × 8 × 9 / 2 = 36; 2 × 3² = 18 harm defeats 3 durability + 10 health
-  expect(state.getActor('source')!.vitals.mana!.current).toBe(4);
+  // base 1 × intensity 3 × range 8·9/2 = 108; 2 × 3² = 18 harm defeats 3 durability + 10 health
+  expect(state.getActor('source')!.vitals.mana!.current).toBe(12);
   expect(state.getActor('target')!.lifecycle).toBe('defeated');
 });
 test('range, active expression, capability and lifecycle gate casts', () => {

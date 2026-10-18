@@ -10,7 +10,7 @@ const { resolve } = require("node:path");
  * `actor/controller.js`. Judging whether a proposal is affordable is an economy
  * question and the charter gives the Allocator sole authority over the economy;
  * the give-away was that the ids being resolved (`motivation_reflexive`,
- * `affinity_expression_*`, `affinity_stack`) are priced in the Allocator's own
+ * `affinity_expression_*`, `affinity_range`/`affinity_intensity`) are priced in the Allocator's own
  * `base-costs.json`.
  *
  * Same fixture, same expectations, asked of the persona that owns the answer.
@@ -89,6 +89,6 @@ test("allocator admissibility is not something the Actor can still do", async ()
  * - a receipt whose line item is `denied` vs one with quantity 0
  * - allocation pools other than `affinity_motivation`
  * - proposals carrying costKind/costId directly rather than kind/tier
- * - affinity proposals where the expression is allowed but affinity_stack is not
+ * - affinity proposals where the expression is allowed but affinity_range or affinity_intensity is not
  * - a receipt and an allocation that disagree
  */

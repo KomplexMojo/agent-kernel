@@ -10,7 +10,8 @@ const { join, resolve } = require("node:path");
 const ROOT = resolve(__dirname, "../../..");
 const CLI = resolve(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
 
-test.each([300, 1000, 2500, 5000, 10000])("delver-plan filled to %i tokens is approved by its own receipt", (budget) => {
+// 312 is these three cards' floor since #340 priced intensity apart (it was under 300 before).
+test.each([312, 1000, 2500, 5000, 10000])("delver-plan filled to %i tokens is approved by its own receipt", (budget) => {
   const dir = mkdtempSync(join(tmpdir(), "allocator-fill-"));
   try {
     const result = spawnSync(process.execPath, [CLI, "delver-plan",
