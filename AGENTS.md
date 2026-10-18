@@ -259,6 +259,17 @@ the confident register of a finding is the failure this section exists to stop.
 - Base tests are Sonnet/medium's output; permutations are Ollama's.
 - **Persona alignment (enforced by `tests/architecture/persona-test-layout.test.js`):** persona behavior tests live in `tests/personas/<persona>/`, not `tests/runtime/`. A test that asserts only a state label is legacy — remove it only after a behavior test replaces it, never before; until then it is the safety net.
 
+## Simulation strategy
+
+Unit tests check the code; benchmarks probe the non-deterministic LLM surface; **simulations check what levels do when they play**. The kernel is deterministic, so a simulation is as repeatable as a unit test and runs on every change.
+
+- A scenario is a level built through `ak create` (so the Allocator prices it and every persona builds it as for a player) and run headless with `ak run`. Never hand-write a level for one.
+- Catalogues: `tests/simulations/scenarios/core.json` (small levels, 40 ticks, run by `pnpm run test`) and `sweep.json` (everything else worth watching, run only by the sweep). Logic: `scripts/testing/simulation-lib.mjs`.
+- **Rules** are properties every level must satisfy (no refused-proposal streaks, no silent mobile actor, no free casts, nothing defeated on tick 1, no touching objects, authored vitals kept, expected exits happen). A rule violation in the core set fails the suite. An open violation is listed on its scenario as `knownIssues` with an issue number; the suite also fails when a listed one stops happening, so **fixing that issue includes deleting its entry**.
+- **Metrics** (first exit, exits, defeats, health lost, casts, moves, accept rate) are reported, never asserted: balance changes move them on purpose. `pnpm run sim:sweep` runs both catalogues, writes `report.md`/`report.json` and compares with the previous report. Pass `--out-dir /mnt/project-files/simulations` where that shared folder exists so each run compares with the last one.
+- **Unattended issue runs** end with `pnpm run sim:sweep -- --out-dir /mnt/project-files/simulations` and put its *Rules* and *Metric changes* sections in the run summary.
+- A bug a simulation finds is fixed with a unit or behaviour test as well; the simulation is the detector, not the only guard. A new mechanic adds a core scenario when it can be seen in a small level.
+
 ## Benchmark strategy
 
 Tests verify correctness; benchmarks verify that the LLM tool-call surface holds up under permutation load and budget stress.

@@ -26,6 +26,7 @@
     "config-sweep": "node scripts/testing/run-configuration-permutation-sweep.mjs",
     "logic-sweep": "node scripts/testing/run-logic-sweep.mjs",
     "logic-sweep:dry-run": "node scripts/testing/run-logic-sweep.mjs --dry-run",
+    "sim:sweep": "node scripts/testing/run-simulation-sweep.mjs",
     "config-sweep:dry-run": "node scripts/testing/run-configuration-permutation-sweep.mjs --dry-run",
     "serve:ui": "node scripts/serve-ui.mjs --entry index_c.html",
     "demo:cli": "bash scripts/demo-cli.sh",

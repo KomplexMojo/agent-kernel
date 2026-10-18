@@ -123,6 +123,7 @@ pnpm run test                                         # Vitest suite
 pnpm run test -- --reporter=json --outputFile=<f>     # Structured results (what fast-pass uses)
 pnpm run test:vitest -- tests/<path>/<name>.test.js   # Single Vitest file
 pnpm run test:coverage:core-ts                        # core-ts coverage report
+pnpm run sim:sweep                                    # Simulation sweep: rules + metrics report (AGENTS.md → Simulation strategy)
 pnpm run typecheck                                    # Typecheck gate (core-ts + its tests, strict)
 pnpm run typecheck:report                             # Cost of widening the gate, per package
 pnpm run typecheck:report -- --check-js               # ...including .js: the all-TypeScript size
@@ -152,7 +153,7 @@ Pure-TypeScript simulation kernel using **Ports & Adapters** with deterministic 
 | `adapters-test` | Fixture-based deterministic test doubles. |
 | `ui-web` | Browser UI; imports the synchronous TypeScript core via runtime adapters. |
 
-Tests live under `tests/` — `personas/` (persona behavior), `runtime/`, `core-ts/`, `contracts/` (artifact schemas), `architecture/` (the boundary guards), `integration/` (UI↔CLI equivalence, LLM), `adapters-*`, `ui-web/`, `fixtures/` (shared data; `invalid/` holds negative cases).
+Tests live under `tests/` — `personas/` (persona behavior), `runtime/`, `core-ts/`, `contracts/` (artifact schemas), `architecture/` (the boundary guards), `integration/` (UI↔CLI equivalence, LLM), `simulations/` (levels run headless and checked against rules), `adapters-*`, `ui-web/`, `fixtures/` (shared data; `invalid/` holds negative cases).
 
 ## Design Pattern: Ports & Adapters with Persona State Machines
 
