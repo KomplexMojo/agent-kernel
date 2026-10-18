@@ -14,6 +14,7 @@ import {
 } from "../../contracts/constraint-problem.js";
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { leftoverCategory } from "./unified-actors.js";
+import { cellsSeenFromDoorways } from "./doorway-sight.js";
 import {
   checkPlacementConstraints,
   distanceToTarget,
@@ -282,6 +283,12 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
   const cutCells = resolved.some((entry) => entry.constraint.route)
     ? routeCutCells(cells, spawn, exit, blocking) : new Set();
   const isFixedKey = (key) => fixed.has(entityIndex(key));
+  // #398: what each named room's doorways can see, by core's sight rule, computed once a room.
+  const seenByRoom = new Map();
+  const seenFrom = (room) => {
+    if (!seenByRoom.has(room.id)) seenByRoom.set(room.id, cellsSeenFromDoorways(layout, room));
+    return seenByRoom.get(room.id);
+  };
   const fixedPositions = new Map([...fixed].map(([index, point]) => [`obj:${index}`, point]));
   // A constraint whose other side is already in place (a marker, a room, a placed object)
   // narrows the subject's own cells; it needs no variables. Anything relating two objects
@@ -299,6 +306,7 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
       if (!filters.has(subject)) filters.set(subject, []);
       if (!counted) unaryFields.forEach((field) => filters.get(subject).push({ entry, field }));
       if (constraint.route) filters.get(subject).push({ entry, field: "route" });
+      if (entry.outOfSight) filters.get(subject).push({ entry, field: "outOfSight" });
     }
     if (counted || binaryFields.length > 0 || constraint.arrange) {
       relational.push({ entry, binaryFields: counted ? [] : binaryFields });
@@ -309,6 +317,7 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
   const passes = (cell, { entry, field }, subject) => {
     if (field !== "route" && entry[field].target.key === subject) return true;
     if (field === "route") return cutCells.has(pointKey(cell)) === (entry.constraint.route === "on");
+    if (field === "outOfSight") return !seenFrom(entry.outOfSight.target.room).has(pointKey(cell));
     const distance = distanceToTarget(cell, entry[field].target, fixedPositions);
     return field === "near" ? distance <= entry[field].distance : distance >= entry[field].distance;
   };
@@ -362,7 +371,7 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
     return { status: "unsat", reason: "path_obstruction" };
   }
   return { status: pending.length === 0 ? "bypass" : "ready", layout, objects, pending, fixed, cells, candidates, blocking, spawn, exit,
-    affinityRules, constraints: resolved, relational, involved, cutCells };
+    affinityRules, constraints: resolved, relational, involved, cutCells, seenFrom };
 }
 
 /** Author the complete binary assignment and reachability problem. */
@@ -770,6 +779,7 @@ function placementReport(prepared, solved) {
   return checkPlacementConstraints(prepared.constraints, {
     positions: placementPositions(prepared, solved),
     cutCells: prepared.cutCells,
+    seenFrom: prepared.seenFrom,
     labelOf: (key) => prepared.objects[entityIndex(key)].id,
   });
 }

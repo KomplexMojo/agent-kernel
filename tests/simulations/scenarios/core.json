@@ -228,6 +228,44 @@
         "--delver",
         "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:60:6,stamina:10:1,durability:10:1"
       ]
+    },
+    {
+      "id": "ambush-hidden",
+      "note": "an exploring delver meets a loot room whose two guards are hidden from its doorways (#398)",
+      "ticks": 40,
+      "args": [
+        "--room",
+        "size=medium;count=3",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=5;id=loot",
+        "--delver",
+        "count=1;id=ex;affinity=fire;affinities=fire:push:2:2;equip=fire:push;motivation=exploring+attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=2;id=guard;affinity=water;affinities=water:push:2:2;equip=water:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "--tactic",
+        "ambush;guards=2",
+        "--seed",
+        "3"
+      ]
+    },
+    {
+      "id": "ambush-visible",
+      "note": "the same loot room with its two guards standing in the open by the loot (#398)",
+      "ticks": 40,
+      "args": [
+        "--room",
+        "size=medium;count=3",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=5;id=loot",
+        "--delver",
+        "count=1;id=ex;affinity=fire;affinities=fire:push:2:2;equip=fire:push;motivation=exploring+attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=2;id=guard;affinity=water;affinities=water:push:2:2;equip=water:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "--tactic",
+        "ambush;guards=2;visible=true",
+        "--seed",
+        "3"
+      ]
     }
   ]
 }

@@ -465,11 +465,23 @@ so without a solver a constrained placement is refused (`placement_constraints_n
 placed as if unconstrained.
 
 ### Placement tactics (#396, tracker #395)
-The plan's `directives.tactics` (`ambush`, `retinue`, ...) are the Director's; the Configurator will
-compile each into actor roles and placement constraints. Until it does, `reportTactics` (in
-`tactic-report.js`) turns each tactic into a `{ tactic, params?, applied: false, note }` row, which the
-build returns as `tacticReport` and `ak create` appends to its `placementReport`, so an asked-for
-tactic is never silently dropped.
+The plan's `directives.tactics` (`ambush`, `retinue`, ...) are the Director's; the Configurator
+compiles each it knows into #301 placement constraints over the level's own wardens and resources
+(`compileTactics` in `tactic-report.js`, run by the build just before object placement), so the
+placement search seats them. Every tactic gets a report row, which the build returns as
+`tacticReport` and `ak create` appends to its `placementReport`; one not compiled yet is
+`{ tactic, params?, applied: false, note }`, so an asked-for tactic is never silently dropped.
+
+`ambush` (#398): `guards=<n>` (default 2) of the wardens and `resources=<n>` (default 1) of the
+resources no `--place` constraint names, in id order, go to one room: `room=<id>`, else one picked
+from the build seed among the rooms other than the entry and exit rooms. Each guard is constrained
+into the room and `outOfSight` of its doorways; with `visible=true`, into the room and within 2 of
+the first resource instead. `outOfSight=room:<id>` is a #301 relation: a cell none of that room's
+doorways (walkable cells just outside it) can see, by core's own line of sight
+(`computeVisibleCells` with an unbounded radius, in `doorway-sight.js`), so hiding never depends on
+light, dark or any affinity. A room that cannot hide every guard hides as many as fit, seats the rest
+in the open and says so in its row (`hidden`, `note`); the level is not refused. Guards are the
+level's ordinary wardens, priced as such.
 
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.

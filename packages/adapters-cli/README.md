@@ -508,12 +508,18 @@ Inputs/outputs:
   ```
 - `--tactic` (repeatable, `tactics` on `ak_create`) asks for a placement tactic: `<ambush|retinue>[;key=value...]`.
   The Director reads it and refuses an unknown tactic, naming the known ones; the list rides in the plan
-  (`directives.tactics`) and the BuildSpec (`plan.hints.tactics`), and the result echoes it as `tactics`. Tactics are
-  compiled by the Configurator in later steps of #395; until then each one appears in `placementReport` as
-  `{ tactic, params?, applied: false, note }`. `--seed N` (`seed` on `ak_create`) fixes the build seed; a tactic with no
-  `--seed` draws one, and the result reports it as `seed`, so the same flags plus `--seed` rebuild the level exactly.
+  (`directives.tactics`) and the BuildSpec (`plan.hints.tactics`), and the result echoes it as `tactics`. Each tactic
+  gets a row in `placementReport`. `ambush[;guards=<n>][;resources=<n>][;room=<id>][;visible=true]` (#398) puts that
+  many of the level's resources (default 1) in a room (`room=`, else one picked from the seed, never the entry room)
+  and seats that many of its wardens (default 2) there out of sight of the room's doorways; `visible=true` seats them
+  in the open within 2 of the loot instead. A room that can't hide them all hides what fits and the row says so
+  (`hidden`, `note`). A tactic not compiled yet (`retinue`) is `{ tactic, params?, applied: false, note }`.
+  `--seed N` (`seed` on `ak_create`) fixes the build seed; a tactic with no `--seed` draws one, and the result reports
+  it as `seed`, so the same flags plus `--seed` rebuild the level exactly. `--place` also takes `outOfSight=room:<id>`:
+  a cell no doorway of that room can see, by core's line of sight.
   ```bash
   node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+    --resource "permanenceMode=consumable;vital=health;delta=5;id=loot" \
     --warden "count=2;motivation=defending" --tactic "ambush;guards=2" --seed 7
   ```
 - Authored `vitals=` on `--delver` and `--warden` are kept as written (#371): the movement and cast floors fill only
