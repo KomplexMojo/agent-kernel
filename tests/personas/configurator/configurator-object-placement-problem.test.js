@@ -153,6 +153,56 @@ function solve(board) {
   return { status: "unsat", reason: "capacity" };
 }
 
+// #370: the Configurator's objective puts "hazards and resources apart" first: the fewest
+// objects sharing a 2x2 window (two things touch exactly when a window holds both), then the
+// lexicographic cell order. This reference finds that answer by depth-first search, allowing
+// one more unit of crowding per pass, so on a board where nothing need touch it is the
+// lexicographic-first assignment in which nothing touches.
+function crowding(points) {
+  const windows = new Map();
+  points.forEach(({ x, y }) => [[-1, -1], [0, -1], [-1, 0], [0, 0]].forEach(([dx, dy]) => {
+    const key = `${x + dx},${y + dy}`;
+    windows.set(key, (windows.get(key) || 0) + 1);
+  }));
+  return [...windows.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+}
+
+function solveApart(board) {
+  const pending = board.objects.filter((object) => !object.position);
+  const fixedPoints = board.objects.filter((object) => object.position).map(({ position }) => position);
+  for (let budget = 0; budget <= 4 * board.objects.length * board.objects.length; budget += 1) {
+    const context = placementContext(board);
+    if (context.error) return { status: "unsat", reason: context.error };
+    const placed = [...fixedPoints];
+    const floor = crowding(fixedPoints);
+    const visit = (index) => {
+      if (index === pending.length) {
+        return board.objects.map((object) => ({ id: object.id, position: context.placements.get(object.id) }));
+      }
+      const object = pending[index];
+      for (const cell of candidates(board, object, context)) {
+        placed.push(cell);
+        if (crowding(placed) - floor <= budget) {
+          const key = pointKey(cell);
+          context.occupied.add(key);
+          context.placements.set(object.id, cell);
+          if (object.blocking === true) context.blocking.add(key);
+          const result = pathExists(board.layout, context.blocking) ? visit(index + 1) : null;
+          if (result) return result;
+          context.occupied.delete(key);
+          context.placements.delete(object.id);
+          if (object.blocking === true) context.blocking.delete(key);
+        }
+        placed.pop();
+      }
+      return null;
+    };
+    const assignment = visit(0);
+    if (assignment) return { status: "fulfilled", assignment };
+  }
+  return solve(board);
+}
+
 function greedyFailure(board) {
   const context = placementContext(board);
   if (context.error) return context.error;
@@ -278,8 +328,8 @@ test("the Configurator authors a linear object-placement problem and consumes ge
   assert.ok(prepared.problem.variables.every(({ kind }) => kind === "integer"));
   assert.ok(prepared.problem.constraints.every(({ kind }) => kind === "linear"));
   assert.deepEqual(
-    prepared.problem.objective.priorities.slice(0, 2).map(({ id }) => id),
-    ["place_flexible_hazard", "place_room_resource"],
+    prepared.problem.objective.priorities.slice(0, 3).map(({ id }) => id),
+    ["objects_apart", "place_flexible_hazard", "place_room_resource"],
   );
 
   const adapter = createHybridConstraintSolverAdapter();
@@ -295,10 +345,11 @@ test("the Configurator authors a linear object-placement problem and consumes ge
   const placedById = new Map(
     result.actors.map((entry) => [entry.id, entry]),
   );
-  assert.deepEqual(fixture.expected.assignment.map(({ id }) => ({
+  const expected = solveApart(fixture).assignment;
+  assert.deepEqual(expected.map(({ id }) => ({
     id,
     position: placedById.get(id).position,
-  })), fixture.expected.assignment);
+  })), expected);
   assert.deepEqual(fixture.layout, readPlacementFixture().layout, "placement must not mutate caller layout");
 });
 
@@ -466,7 +517,8 @@ function openBoard(width, height) {
   return {
     width, height, terrain,
     spawnApproach: { x: 1, y: 1 }, exitApproach: { x: width - 2, y: height - 2 },
-    rooms: [{ id: "corner", x: width - 4, y: 1, width: 2, height: 1 }],
+    // Three cells wide, so its two objects can sit apart (#370).
+    rooms: [{ id: "corner", x: width - 5, y: 1, width: 3, height: 1 }],
   };
 }
 
@@ -492,14 +544,16 @@ test("a large level poses a problem sized by its objects, and the answer does no
   const args = { layout, actors: board.actors, ...splitFixtureObjects(board) };
   const prepared = configurator.prepareObjectPlacement(args);
   assert.equal(prepared.status, "ready");
-  assert.ok(prepared.problem.variables.length <= objects.length ** 2,
+  // Each object needs 9 candidates per other object to be sure of one touching nothing (#370),
+  // so the problem grows with the square of the objects, never with the grid.
+  assert.ok(prepared.problem.variables.length <= 10 * objects.length ** 2,
     `${prepared.problem.variables.length} variables for ${objects.length} objects on ${walkable(layout).length} cells`);
 
   const result = await (await hostedPlacement(configurator, createHybridConstraintSolverAdapter()))(args);
   assert.equal(result.ok, true);
   assert.equal(result.source, "solver");
   const placed = new Map(result.actors.map((entry) => [entry.id, entry.position]));
-  assert.deepEqual(solve(board), {
+  assert.deepEqual(solveApart(board), {
     status: "fulfilled",
     assignment: objects.map(({ id }) => ({ id, position: placed.get(id) })),
   });

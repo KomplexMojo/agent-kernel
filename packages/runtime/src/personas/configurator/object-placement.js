@@ -387,9 +387,17 @@ export function buildObjectPlacementProblem(args = {}) {
   // it depends on the route, not only on who else is placed.
   // #301: an object a relational constraint names keeps every candidate too, since its
   // worth depends on where the others go.
-  const reach = context.pending.length;
+  // #370: hazards and resources are kept from touching (below), so a free cell for an object
+  // must also be clear of every other one's 3x3 neighbourhood: each other object rules out at
+  // most 9 cells, so 9 x (others) + 1 candidates always hold one that touches nothing.
+  const spacedFixed = spacedFixedPoints(context);
+  const others = context.pending.length - 1 + spacedFixed.length;
+  const reach = Math.max(context.pending.length, others > 0 ? 9 * others + 1 : 0);
+  const apart = firstApartCells(context, spacedFixed);
   const placementVariableIds = context.pending.map((object, pendingIndex) => (
-    (object.sealsRoute || context.involved.has(`obj:${object.index}`) ? context.candidates[pendingIndex] : context.candidates[pendingIndex].slice(0, reach)).map((cellIndex) => {
+    (object.sealsRoute || context.involved.has(`obj:${object.index}`)
+      ? context.candidates[pendingIndex]
+      : context.candidates[pendingIndex].slice(0, apart ? apart[pendingIndex] + 1 : reach)).map((cellIndex) => {
       const id = `object_${object.index}_cell_${cellIndex}`;
       variables.push({ id, kind: "integer", min: 0, max: 1 });
       return { id, cellIndex };
@@ -469,9 +477,10 @@ export function buildObjectPlacementProblem(args = {}) {
 
   const relational = encodeRelationalConstraints(context, placementVariableIds, variables, constraints);
   if (relational.failure) return relational.failure;
+  const spacing = encodeSpacing(context, placementVariableIds, spacedFixed, variables, constraints);
   const objective = {
     kind: "lexicographic",
-    priorities: [...relational.priorities, ...context.pending.map((object, index) => ({
+    priorities: [...relational.priorities, ...spacing, ...context.pending.map((object, index) => ({
       id: objectiveId(object.id, index),
       sense: "minimize",
       expression: {
@@ -493,6 +502,91 @@ export function buildObjectPlacementProblem(args = {}) {
     context: { problemKind: "object_placement", objectCount: context.objects.length },
   });
   return { ...context, problem, placementVariableIds };
+}
+
+/**
+ * #370: when nothing seals the route and no relational constraint applies, seat the objects in
+ * order, each on its first candidate touching nothing already seated. If every one finds such a
+ * cell, that is the answer the objective picks (nothing touches, and no object can sit earlier
+ * without touching one seated before it), so no object needs candidates past its own. Returns
+ * the position in each object's candidate list, or null when the bound does not apply.
+ */
+function firstApartCells(context, spacedFixed) {
+  if (context.pending.some((object) => object.sealsRoute || object.kind === "actor"
+    || context.involved.has(`obj:${object.index}`))) return null;
+  const seated = [...spacedFixed];
+  const used = new Set();
+  const positions = [];
+  for (const [pendingIndex] of context.pending.entries()) {
+    const list = context.candidates[pendingIndex];
+    const at = list.findIndex((cellIndex) => !used.has(cellIndex)
+      && seated.every((point) => Math.max(Math.abs(point.x - context.cells[cellIndex].x),
+        Math.abs(point.y - context.cells[cellIndex].y)) > 1));
+    if (at < 0) return null;
+    used.add(list[at]);
+    seated.push(context.cells[list[at]]);
+    positions.push(at);
+  }
+  return positions;
+}
+
+// #370: hazards and resources already in place (authored coordinates, or placed with the layout).
+function spacedFixedPoints(context) {
+  const data = dataOf(context.layout) || {};
+  return [
+    ...(Array.isArray(data.hazards) ? data.hazards : []),
+    ...(Array.isArray(data.resources) ? data.resources : []),
+  ].map(normalizePoint).filter(Boolean)
+    .concat(context.objects.filter((object) => object.kind !== "actor" && context.fixed.has(object.index))
+      .map((object) => context.fixed.get(object.index)));
+}
+
+/**
+ * #370: hazards and resources are seated apart. Two things touch (king-move distance 1) exactly
+ * when some 2x2 window holds both, so each window gets a slack for every object past the
+ * first, and the first priority after any authored arrangement is the least total slack. It is
+ * a preference, never a refusal: a level too small to keep everything apart still builds, as
+ * spread out as it fits.
+ */
+function encodeSpacing(context, placementVariableIds, spacedFixed, variables, constraints) {
+  const windows = new Map();
+  const windowOf = (key) => {
+    if (!windows.has(key)) windows.set(key, { terms: [], constant: 0, sources: new Set() });
+    return windows.get(key);
+  };
+  const eachWindow = ({ x, y }, visit) => {
+    for (const [dx, dy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]]) visit(`${x + dx},${y + dy}`);
+  };
+  spacedFixed.forEach((point, fixedIndex) => eachWindow(point, (key) => {
+    const window = windowOf(key);
+    window.constant += 1;
+    window.sources.add(`fixed_${fixedIndex}`);
+  }));
+  context.pending.forEach((object, pendingIndex) => {
+    if (object.kind === "actor") return;
+    placementVariableIds[pendingIndex].forEach(({ id, cellIndex }) => eachWindow(context.cells[cellIndex], (key) => {
+      const window = windowOf(key);
+      window.terms.push({ variableId: id, coefficient: 1 });
+      window.sources.add(`object_${object.index}`);
+    }));
+  });
+  const slackTerms = [];
+  [...windows.keys()].sort().forEach((key) => {
+    const window = windows.get(key);
+    if (window.terms.length === 0 || window.sources.size < 2) return;
+    const slack = `spacing_${key.replace(/-/g, "m").replace(",", "_")}`;
+    variables.push({ id: slack, kind: "integer", min: 0, max: window.sources.size });
+    constraints.push({
+      id: `${slack}_window`,
+      kind: "linear",
+      relation: "<=",
+      rightHandSide: 1 - window.constant,
+      terms: [...window.terms, { variableId: slack, coefficient: -1 }],
+    });
+    slackTerms.push({ variableId: slack, coefficient: 1 });
+  });
+  if (slackTerms.length === 0) return [];
+  return [{ id: "objects_apart", sense: "minimize", expression: { kind: "linear", terms: slackTerms } }];
 }
 
 /**

@@ -15,8 +15,9 @@
         "decision": "solver",
         "status": "fulfilled",
         "objectiveValues": [
+          0,
           1,
-          2
+          3
         ]
       }
     ],
