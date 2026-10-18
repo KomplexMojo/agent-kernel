@@ -280,7 +280,9 @@ script). The command vocabulary is this persona's (`ACTOR_COMMAND_KINDS`):
   The Actor reads a slot's running level (`equippedAffinityStacks`) when it judges cast reach
 - `{ kind: "unequip_affinity", params: { affinityKey } }`
 - `{ kind: "cast_affinity", params: { targetId, affinityKey? } }`; `affinityKey` names the equipped slot,
-  otherwise core casts the first equipped push or pull
+  otherwise core casts the first equipped push or pull. On its own turns the Actor proposes a cast
+  only from a slot that reaches the target and whose price (the authored `castManaBase` on core's
+  `actorCastManaPrice` curve) the actor's mana covers, so it never wastes a turn on a refused cast (#367)
 - `{ kind: "take", params: { targetId, holdingId } }`
 
 Only the shape is checked. Anything else throws, so a controlled actor never falls back to autonomous

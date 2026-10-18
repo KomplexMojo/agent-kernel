@@ -24,6 +24,7 @@ import {
   getMotivationReasoningClass,
 } from "../../../../core-ts/src/index.ts";
 import { projectActorEquipmentFields, previewActorFieldChanges } from "../../../../core-ts/src/rules/actor-fields.ts";
+import { actorCastManaPrice } from "../../../../core-ts/src/rules/actor-cast.ts";
 import { equipActorAffinity, equippedActorAffinityKeys } from "../../../../core-ts/src/state/actor-inventory.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 import {
@@ -1303,7 +1304,21 @@ function motivationHasCombatRole(motivationKind) {
   return getMotivationCombatTier(code) > 0;
 }
 
-function buildAffinityCastProposal({ actor, actorRecord, hostile }) {
+/**
+ * #367 — can the actor pay for this slot's cast? The price is the authored base
+ * (`simConfig.actionCosts.castManaBase`, set by the Configurator) on core's curve,
+ * the same one core charges. Without an authored base there is nothing to check
+ * against, so reach alone decides, as before.
+ */
+function canAffordCast(actorRecord, entry, castManaBase) {
+  const key = `${String(entry.kind).trim().toLowerCase()}:${String(entry.expression).trim().toLowerCase()}`;
+  const base = castManaBase?.[key];
+  if (!Number.isFinite(base)) return true;
+  const stacks = Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1;
+  return (actorRecord?.vitals?.mana?.current ?? 0) >= actorCastManaPrice(base, stacks);
+}
+
+function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase }) {
   if (actorRecord?.capabilities?.canCast === false) return null;
   const slots = castableSlots(actorRecord);
   if (slots.length === 0) return null;
@@ -1316,7 +1331,8 @@ function buildAffinityCastProposal({ actor, actorRecord, hostile }) {
     );
 
   // The first equipped push/pull that reaches; named only when core would not pick it.
-  const reaching = slots.find((entry) => distance <= (Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1));
+  const reaching = slots.find((entry) => distance <= (Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1)
+    && canAffordCast(actorRecord, entry, castManaBase));
   if (!reaching) return null;
   if (reaching === slots[0]) return { kind: "cast_affinity", params: { targetId: hostile.actor.id } };
   return { kind: "cast_affinity", params: { targetId: hostile.actor.id,
@@ -1345,7 +1361,8 @@ function buildEquipmentProposals(actorRecord, observation, view, payload) {
   const profiles = resolveActorMotivationKinds(view, actorRecord.id, payload)
     .map(kind => buildMotivationProfile(view, actorRecord.id, payload, kind)).filter(Boolean);
   const readiness = (receiver) => {
-    const cast = hostile && buildAffinityCastProposal({ actor: receiver, actorRecord: receiver, hostile });
+    const cast = hostile && buildAffinityCastProposal({ actor: receiver, actorRecord: receiver, hostile,
+      castManaBase: payload?.simConfig?.actionCosts?.castManaBase });
     if (!cast) return ACTOR_INTENT_CLASS.WAIT;
     return Math.max(ACTOR_INTENT_CLASS.WAIT, ...profiles.map(motivationProfile => classifyActorIntent({
       action: cast, actorPosition: receiver.position, actorRecord: receiver, motivationProfile,
@@ -1582,7 +1599,8 @@ function resolveStrategyTurn({ entry, payload, observation, observationView, sim
     tileKinds: resolveTileKinds(observationView, payload),
     baseTiles,
     reservedTargets: payload?.reservedTargets,
-    castAt: (target, distance) => buildAffinityCastProposal({ actor, actorRecord: record, hostile: { actor: target, distance } }),
+    castAt: (target, distance) => buildAffinityCastProposal({ actor, actorRecord: record, hostile: { actor: target, distance },
+      castManaBase: simConfig?.actionCosts?.castManaBase }),
     exitStep: () => {
       const step = buildMoveProposal({ observation, payload, simConfig });
       return step.length > 0 ? step : [{ kind: "wait" }];
@@ -1690,6 +1708,7 @@ function buildCombatProposals({
       actor,
       actorRecord: record,
       hostile,
+      castManaBase: simConfig?.actionCosts?.castManaBase,
     });
     if (cast) proposals.push(cast);
   }
