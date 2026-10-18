@@ -11,7 +11,7 @@ import {
 
 export const AFFINITY_TABLE_DOC_PATH = fileURLToPath(new URL("../../docs/affinity-table.md", import.meta.url));
 
-const INWARD = { drain: "steal into the source", neutralize: "neutralize" };
+const INWARD = { drain: "steal into the source" };
 
 export function renderAffinityTableDoc() {
   const lines = [
@@ -21,7 +21,7 @@ export function renderAffinityTableDoc() {
     "     node scripts/affinity/generate-affinity-table-doc.mjs. Do not edit by hand. -->",
     "",
     "Every affinity kind's effect on a receiver, as core holds it (#352). Outward is push and emit;",
-    "inward is pull and draw. Spill is where outward damage goes once the primary vital is empty:",
+    "inward is pull and draw. Spill is where damage and a harmful steal go once the primary vital is empty (#354):",
     "the receiver's defeat vital (health for delvers and wardens, durability for hazards, resources",
     "and barriers). A receiver without the primary vital takes the whole hit there (#353).",
     "",

@@ -34,16 +34,22 @@ test('absorption caps mana without healing or crediting excess', () => {
   expect(result.absorptions[0]).toEqual({ sourceId: 'source', receiverId: 'receiver', amount: 5, mana: 1 });
   expect(state.getActor('receiver')!.vitals.health!.current).toBe(4);
 });
-test('pull neutralizes pending matching exposure but cannot repair already applied damage', () => {
+// #354: a harmful pull steals the primary vital and spills into the defeat vital. It no
+// longer suppresses the source's emit, so the order of the two passes changes nothing.
+test('a harmful pull steals durability, spills into health, and leaves the emit alone', () => {
   for (const first of [true, false]) {
-    const state = registry([actor('source', emit), actor('puller', { ...draw, expression: 'pull' }), actor('target')]);
+    const puller = actor('puller', { ...draw, expression: 'pull' }); puller.vitals.durability!.current = 1;
+    const state = registry([actor('source', emit), puller, actor('target')]);
     const source = { sourceId: 'source', budget: 5, targets: [{ targetId: 'target', amount: 5 }] };
     const pull = { sourceId: 'puller', budget: 5, targets: [{ targetId: 'source', amount: 5 }] };
-    const result = resolveActorExposures(state, first ? [pull, source] : [source, pull]);
-    expect(state.getActor('target')!.vitals.health!.current).toBe(first ? 10 : 8);
-    expect(state.getActor('target')!.vitals.durability!.current).toBe(first ? 3 : 0);
-    expect(result.suppressions.length).toBe(first ? 1 : 0);
-    expect(state.getActor('puller')!.vitals.mana!.current).toBe(0);
+    resolveActorExposures(state, first ? [pull, source] : [source, pull]);
+    expect(state.getActor('target')!.vitals.health!.current).toBe(8);
+    expect(state.getActor('target')!.vitals.durability!.current).toBe(0);
+    expect(state.getActor('source')!.vitals.durability!.current).toBe(0);
+    expect(state.getActor('source')!.vitals.health!.current).toBe(8);
+    // The puller gains what durability gave up, capped at its max; the spill is not credited.
+    expect(state.getActor('puller')!.vitals.durability!.current).toBe(3);
+    expect(state.getActor('puller')!.vitals.health!.current).toBe(10);
   }
 });
 test('only active pairs apply; defeated sources stop within a pass', () => {
@@ -77,7 +83,10 @@ test('draw cannot harvest a source incapable of producing exposure', () => {
     { sourceId: 'source', budget: 5, targets: [{ targetId: 'receiver', amount: 5 }] },
   ]);
   expect(result.absorptions).toEqual([]);
-  expect(state.snapshot()).toEqual(before);
+  expect(state.getActor('receiver')).toEqual(before.actors.find(a => a.id === 'receiver'));
+  // #354: the receiver's own draw still steals from the source, durability then health.
+  expect(result.changes).toEqual([{ actorId: 'source', vital: 'durability', delta: -3 },
+    { actorId: 'source', vital: 'health', delta: -2 }]);
 });
 
 // ## TODO: Test Permutations

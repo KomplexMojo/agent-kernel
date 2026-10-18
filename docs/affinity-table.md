@@ -4,22 +4,22 @@
      node scripts/affinity/generate-affinity-table-doc.mjs. Do not edit by hand. -->
 
 Every affinity kind's effect on a receiver, as core holds it (#352). Outward is push and emit;
-inward is pull and draw. Spill is where outward damage goes once the primary vital is empty:
+inward is pull and draw. Spill is where damage and a harmful steal go once the primary vital is empty (#354):
 the receiver's defeat vital (health for delvers and wardens, durability for hazards, resources
 and barriers). A receiver without the primary vital takes the whole hit there (#353).
 
 | Kind | Primary vital | Outward (emit / push) | Inward (draw / pull) | Spill |
 |---|---|---|---|---|
-| fire | durability | damage | neutralize | defeat vital |
-| water | stamina | damage | neutralize | defeat vital |
-| earth | durability | damage | neutralize | defeat vital |
-| wind | stamina | damage | neutralize | defeat vital |
+| fire | durability | damage | steal into the source | defeat vital |
+| water | stamina | damage | steal into the source | defeat vital |
+| earth | durability | damage | steal into the source | defeat vital |
+| wind | stamina | damage | steal into the source | defeat vital |
 | growth | health | restore | steal into the source | none |
-| decay | health | damage | neutralize | defeat vital |
-| corrode | durability | damage | neutralize | defeat vital |
+| decay | health | damage | steal into the source | defeat vital |
+| corrode | durability | damage | steal into the source | defeat vital |
 | fortify | durability | restore | steal into the source | none |
 | light | mana | restore | steal into the source | none |
-| dark | mana | damage | neutralize | defeat vital |
+| dark | mana | damage | steal into the source | defeat vital |
 
 ## Receiver rules
 

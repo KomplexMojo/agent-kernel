@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 import { createActorRegistry } from '../../packages/core-ts/src/state/actor-registry.ts';
 import { resolveActorAffinity } from '../../packages/core-ts/src/rules/actor-affinity.ts';
+import { AFFINITY_TABLE } from '../../packages/core-ts/src/state/affinity-table.ts';
 import type { ActorRecord, AffinityKind, AffinityExpression } from '../../packages/core-ts/src/state/actor-types.ts';
 
 function actor(id: string): ActorRecord {
@@ -28,18 +29,22 @@ for (const expression of ['push', 'emit'] as const) {
     expect(['health', 'durability', 'mana', 'stamina'].map(key => pools[key as keyof typeof pools]?.current)).toEqual(expected);
   });
 }
+// #354: every inward use steals its primary vital; a harmful kind spills the rest into
+// the target's defeat vital (health here), and the source is credited only the primary.
 for (const expression of ['pull', 'draw'] as const) {
-  test.each(positive)(`${expression} routes %s without blanket sign reversal`, (kind) => {
+  test.each(positive)(`${expression} routes %s as a steal`, (kind) => {
     const state = registry(); const before = state.snapshot();
-    const result = resolveActorAffinity(state, 'source', 'target', kind, expression, 5);
-    const key = kind === 'growth' ? 'health' : kind === 'fortify' ? 'durability' : kind === 'light' ? 'mana' : null;
-    if (!key) { expect(state.snapshot()).toEqual(before); expect(result.operation).toBe('neutralize'); }
-    else {
-      const initial = before.actors.find(a => a.id === 'target')!.vitals[key]!.current;
-      const removed = Math.min(5, initial);
-      expect(state.getActor('target')!.vitals[key]!.current).toBe(initial - removed);
-      expect(state.getActor('source')!.vitals[key]!.current).toBe(initial + removed);
-    }
+    resolveActorAffinity(state, 'source', 'target', kind, expression, 5);
+    const row = AFFINITY_TABLE.find(entry => entry.kind === kind)!;
+    const key = row.primaryVital;
+    const initial = before.actors.find(a => a.id === 'target')!.vitals[key]!.current;
+    const max = before.actors.find(a => a.id === 'source')!.vitals[key]!.max;
+    const removed = Math.min(5, initial);
+    expect(state.getActor('target')!.vitals[key]!.current).toBe(initial - removed);
+    expect(state.getActor('source')!.vitals[key]!.current).toBe(Math.min(max, initial + removed));
+    const spill = row.spill && key !== 'health' ? 5 - removed : 0;
+    if (key !== 'health') expect(state.getActor('target')!.vitals.health!.current).toBe(10 - spill);
+    if (key !== 'health') expect(state.getActor('source')!.vitals.health!.current).toBe(10);
   });
 }
 

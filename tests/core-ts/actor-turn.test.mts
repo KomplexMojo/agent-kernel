@@ -56,15 +56,19 @@ test('taking consumes one action and cannot be followed by movement', () => {
   expect(turn.apply({ actorId: 'a', tick: 1, kind: 'move', params: { target: { x: 1, y: 0 } } })).toBe(false);
   expect(state.getActor('a')!.affinities[0].stacks).toBe(3);
 });
-test('focused neutralization suppresses a later matching cast without restoring any pools', () => {
+// #354: a fire pull steals durability; b has none, so it all spills into health. Nothing is
+// suppressed, so b's later push still lands in full.
+test('a focused harmful pull steals and suppresses nothing', () => {
   const a = actor('a'); a.activeAffinityKey = 'fire:pull';
-  const state = registry([a, actor('b', 1)]); const turn = createActorTurn(state, 1, costs);
+  const b = actor('b', 1); b.affinities = [{ kind: 'earth', expression: 'push', stacks: 2 }]; b.activeAffinityKey = 'earth:push';
+  const state = registry([a, b]); const turn = createActorTurn(state, 1, { ...costs, castManaBase: { ...costs.castManaBase, 'earth:push': 1 } });
   expect(turn.apply({ actorId: 'a', tick: 1, kind: 'cast_affinity', params: { targetId: 'b' } })).toBe(true);
+  expect(state.getActor('b')!.vitals.health!.current).toBe(8);
   expect(turn.apply({ actorId: 'b', tick: 1, kind: 'cast_affinity', params: { targetId: 'a' } })).toBe(true);
-  expect(state.getActor('a')!.vitals.health!.current).toBe(10);
-  // b still pays its own push: base 1 at 2 stacks is 1 × 2 × 3 / 2 = 3 (#232).
+  expect(state.getActor('a')!.vitals.health!.current).toBeLessThan(10);
+  // b pays its own push: base 1 at 2 stacks is 1 × 2 × 3 / 2 = 3 (#232).
   expect(state.getActor('b')!.vitals.mana!.current).toBe(7);
-  expect(turn.snapshot().suppressions).toEqual([]);
+  expect(turn.snapshot()).not.toHaveProperty('suppressions');
 });
 
 test('equipment then exactly one field pass and regeneration survive snapshot restoration', () => {
@@ -88,16 +92,15 @@ test('equipment then exactly one field pass and regeneration survive snapshot re
   expect(state.getActor('a')!.vitals.mana!.current).toBe(2);
   expect(createActorTurn(state, 1, costs, restored.snapshot()).regenerate()).toBe(false);
 });
-test('focused suppression remains effective across restore and does not destroy equipment', () => {
+test('a focused pull leaves the target emitting after a snapshot restore', () => {
   const a = actor('a'); a.activeAffinityKey = 'fire:pull';
   const b = actor('b'); b.affinities = [{ kind: 'fire', expression: 'emit', stacks: 3 }]; b.activeAffinityKey = 'fire:emit';
   const state = registry([a, b]); const turn = createActorTurn(state, 1, costs);
   turn.apply({ actorId: 'a', tick: 1, kind: 'cast_affinity', params: { targetId: 'b' } });
   const restored = createActorTurn(state, 1, costs, turn.snapshot()); restored.closeActions();
   const result = restored.resolveFields()!;
-  expect(result.suppressions).toEqual([{ sourceId: 'a', targetId: 'b', amount: 1 }]); // all of b's intensity-1 budget
-  expect(result.fields.some(field => field.sourceId === 'b')).toBe(false);
-  expect(state.getActor('a')!.vitals.health!.current).toBe(10);
+  expect(result).not.toHaveProperty('suppressions');
+  expect(result.fields.some(field => field.sourceId === 'b')).toBe(true);
   expect(state.getActor('b')!.affinities[0].stacks).toBe(3);
 });
 test('defeated actors cannot emit or regenerate in a closed turn', () => {

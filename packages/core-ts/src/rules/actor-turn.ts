@@ -1,10 +1,9 @@
 import { readActorOverwhelms, resolveActorFields, type ActorOverwhelm } from './actor-fields.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey } from '../state/actor-types.ts';
-import { affinityIntensity, affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
+import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
-import { actorAffinityMagnitude } from './actor-affinity.ts';
-import { assertActorCastPrices, castFocusedActorAffinity, selectActorCastAffinity, type ActorCastManaBases, type ActorEffectSuppression } from './actor-cast.ts';
+import { assertActorCastPrices, castFocusedActorAffinity, selectActorCastAffinity, type ActorCastManaBases } from './actor-cast.ts';
 import { computeMovementStaminaCost } from './move.ts';
 
 export interface ActorTurnSnapshot {
@@ -16,7 +15,6 @@ export interface ActorTurnSnapshot {
   fieldsResolved: boolean;
   regenerated: boolean;
   exitsResolved: boolean;
-  suppressions: ActorEffectSuppression[];
 }
 export interface ActorTurnCosts {
   /** Per-key base of the escalating cast curve, base × s(s+1)/2 (#232). */
@@ -49,7 +47,7 @@ export function createActorTurn(
       || costs.persistentUpkeep.some(cost => !Number.isSafeInteger(cost) || cost < 0))) throw new Error('invalid action costs');
   assertActorCastPrices(castPrices(costs));
   const prices = copy(costs);
-  const state = saved ? copy(saved) : { tick, acceptedActorIds: [], movedActorIds: [], closed: false, fieldsResolved: false, regenerated: false, exitsResolved: false, suppressions: [] };
+  const state = saved ? copy(saved) : { tick, acceptedActorIds: [], movedActorIds: [], closed: false, fieldsResolved: false, regenerated: false, exitsResolved: false };
   if (state.tick !== tick || typeof state.closed !== 'boolean'
     || typeof state.fieldsResolved !== 'boolean' || typeof state.regenerated !== 'boolean'
     || typeof state.exitsResolved !== 'boolean' || state.exitsResolved && !state.regenerated
@@ -57,22 +55,11 @@ export function createActorTurn(
     || new Set(state.acceptedActorIds).size !== state.acceptedActorIds.length
     || state.acceptedActorIds.some(id => typeof id !== 'string' || !registry.getActor(id))
     || state.movedActorIds !== undefined && (!Array.isArray(state.movedActorIds)
-      || state.movedActorIds.some(id => !state.acceptedActorIds.includes(id)))
-    || !Array.isArray(state.suppressions) || state.suppressions.some(entry => !entry || !Number.isFinite(entry.amount)
-      || entry.amount < 0 || !registry.getActor(entry.sourceId) || !registry.getActor(entry.targetId)?.affinities.some(pair => affinityKey(pair) === entry.affinityKey))) {
+      || state.movedActorIds.some(id => !state.acceptedActorIds.includes(id)))) {
     throw new Error('invalid turn snapshot');
   }
-  function suppressionFor(id: string, key: ActorAffinityKey): number {
-    return state.suppressions.filter(entry => entry.targetId === id && entry.affinityKey === key)
-      .reduce((sum, entry) => sum + entry.amount, 0);
-  }
-  function consumeSuppression(id: string, key: ActorAffinityKey, amount: number): void {
-    for (const entry of state.suppressions) {
-      if (entry.targetId !== id || entry.affinityKey !== key) continue;
-      const removed = Math.min(amount, entry.amount); entry.amount -= removed; amount -= removed;
-    }
-    state.suppressions = state.suppressions.filter(entry => entry.amount > 0);
-  }
+  // #354 retired suppression: a snapshot saved before then may still carry the field.
+  delete (state as { suppressions?: unknown }).suppressions;
   // Why the last apply() was refused, as a ValidationError name, when core can say.
   let lastRejection: string | null = null;
   return {
@@ -133,14 +120,9 @@ export function createActorTurn(
           const pair = selectActorCastAffinity(actor, named);
           if (typeof pair === 'string') { lastRejection = pair; break; }
           const key = affinityKey(pair);
-          const result = castFocusedActorAffinity(registry, actor.id, action.params.targetId, castPrices(prices),
-            suppressionFor(actor.id, key), key);
+          const result = castFocusedActorAffinity(registry, actor.id, action.params.targetId, castPrices(prices), key);
           accepted = result.accepted;
           if (!accepted) lastRejection = result.rejection ?? null;
-          if (accepted) {
-            consumeSuppression(actor.id, key, actorAffinityMagnitude(pair.expression, affinityIntensity(pair)));
-            if (result.suppression && result.suppression.amount > 0) state.suppressions.push(result.suppression);
-          }
           break;
         }
       }
@@ -152,7 +134,7 @@ export function createActorTurn(
     closeActions(): boolean { if (state.closed) return false; state.closed = true; return true; },
     resolveFields() {
       if (!state.closed || state.fieldsResolved) return null;
-      const result = resolveActorFields(registry, state.suppressions);
+      const result = resolveActorFields(registry);
       state.fieldsResolved = true;
       return result;
     },

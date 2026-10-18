@@ -36,8 +36,6 @@ test('a hit is base × intensity², whatever the range', () => {
 test('every kind: a push moves its vital by 2 × intensity², and range changes reach only', () => {
   const costs = { castManaBase: Object.fromEntries(KINDS.map(kind => [`${kind}:push`, 0])) };
   for (const kind of KINDS) {
-    const effect = getActorAffinityEffect(kind, 'push');
-    if (effect.operation === 'neutralize') continue;
     const moved = (range: number, intensity: number, distance: number) => {
       const state = corridor([actor('caster', 0, { kind, expression: 'push', stacks: range, intensity }), actor('target', distance)]);
       const result = castFocusedActorAffinity(state, 'caster', 'target', costs);

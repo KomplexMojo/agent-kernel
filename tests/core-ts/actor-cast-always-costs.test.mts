@@ -52,5 +52,5 @@ test('a light pull that steals more than its price still nets the caster the dif
 
 // ## TODO: Test Permutations
 // - a cast at a same-kind draw holder (absorbed into its mana) costs the caster its price
-// - a neutralizing pull that suppresses costs its price
+// - a harmful pull that steals costs its price
 // - a caster at exactly its price casts once and is left at the steal's amount

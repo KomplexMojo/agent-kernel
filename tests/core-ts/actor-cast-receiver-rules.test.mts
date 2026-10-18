@@ -37,11 +37,8 @@ const RECEIVERS: Record<string, (kind: Kind) => ActorAffinityEntry[]> = {
   opposite: kind => [{ kind: opposite(kind), expression: 'emit', stacks: 1, intensity: 1 }],
 };
 
-// Pull of a harmful kind neutralizes, which casts and fields handle on their own suppression
-// paths; every other cast (all ten pushes, the three restoring pulls) is a direct effect.
-const CASTS = KINDS.flatMap(kind => (['push', 'pull'] as const)
-  .filter(expression => getActorAffinityEffect(kind, expression).operation !== 'neutralize')
-  .map(expression => ({ kind, expression })));
+// Every cast is a direct effect: all ten pushes and all ten pulls, which steal (#354).
+const CASTS = KINDS.flatMap(kind => (['push', 'pull'] as const).map(expression => ({ kind, expression })));
 
 function cast(kind: Kind, expression: 'push' | 'pull', receiverSlots: ActorAffinityEntry[]) {
   const pair = { kind, expression, stacks: 2, intensity: 2 } as const;

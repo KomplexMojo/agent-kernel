@@ -86,12 +86,13 @@ direct vital effects and
 actual-amount transfers. `actor-exposure.ts` applies
 preprojected effects with a per-slot strength that caps what each receiver takes
 (every receiver in range takes its own exposure, never a share consumed in id order,
-#347), capped mana absorption and pending-effect suppression. `actor-fields.ts` uses existing radius, intensity and
+#347) and capped mana absorption. Every pull and draw steals its kind's primary vital, and a
+harmful kind spills the rest into the target's defeat vital; nothing is suppressed (#354). `actor-fields.ts` uses existing radius, intensity and
 local opposition arithmetic to project active living equipment. It retains
 light/dark field observations and re-observes defeat without another pulse.
 
 `castFocusedActorAffinity` checks focused range and the authored mana price before
-writes, spends one actor pool and returns suppression with caster provenance. A cast
+writes, spends one actor pool and returns the vital changes. A cast
 meets the same receiver rules as a field (`rules/actor-receiver.ts`, #348): a same-kind
 draw absorbs it into mana, a same-kind slot the interaction table makes immune takes
 nothing, an opposite slot doubles damage and drain. A cast at oneself meets none of them. The price
@@ -103,7 +104,7 @@ with five-tier `castMana` tables loads on the same curve: `runner/core-setup.mjs
 each table's tier-1 price as the base.
 
 `createActorTurn` dispatches ordered common actions and permits one accepted action
-per actor. Its detached snapshot includes tick, accepted IDs, suppression and phase
+per actor. Its detached snapshot includes tick, accepted IDs and phase
 flags. Moderator closes actions before one field pass and one regeneration pass.
 Restoration preserves these limits. Movement reuses existing diagonal stamina
 costs; primitive registry methods alone do not enforce turn economy.

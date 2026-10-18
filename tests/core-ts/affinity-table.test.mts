@@ -26,17 +26,18 @@ test('the table has one row per kind, in codebook order, and is frozen', () => {
 test('the table holds each kind\'s routing', () => {
   // [kind, primary vital, outward, inward, spill]. #353: harmful kinds hit their own vital
   // first (water now stamina), then every one spills into the target's defeat vital.
+  // #354: every inward use steals ("steal like restorers"); harmful steals spill too.
   expect(AFFINITY_TABLE.map(row => [row.kind, row.primaryVital, row.outward, row.inward, row.spill])).toEqual([
-    ['fire', 'durability', 'damage', 'neutralize', 'defeat'],
-    ['water', 'stamina', 'damage', 'neutralize', 'defeat'],
-    ['earth', 'durability', 'damage', 'neutralize', 'defeat'],
-    ['wind', 'stamina', 'damage', 'neutralize', 'defeat'],
+    ['fire', 'durability', 'damage', 'drain', 'defeat'],
+    ['water', 'stamina', 'damage', 'drain', 'defeat'],
+    ['earth', 'durability', 'damage', 'drain', 'defeat'],
+    ['wind', 'stamina', 'damage', 'drain', 'defeat'],
     ['growth', 'health', 'restore', 'drain', null],
-    ['decay', 'health', 'damage', 'neutralize', 'defeat'],
-    ['corrode', 'durability', 'damage', 'neutralize', 'defeat'],
+    ['decay', 'health', 'damage', 'drain', 'defeat'],
+    ['corrode', 'durability', 'damage', 'drain', 'defeat'],
     ['fortify', 'durability', 'restore', 'drain', null],
     ['light', 'mana', 'restore', 'drain', null],
-    ['dark', 'mana', 'damage', 'neutralize', 'defeat'],
+    ['dark', 'mana', 'damage', 'drain', 'defeat'],
   ]);
   expect(AFFINITY_RECEIVER_RULES.oppositeAmplification).toBe(2);
   expect(OPPOSITE_EXPOSURE_AMPLIFICATION).toBe(AFFINITY_RECEIVER_RULES.oppositeAmplification);
@@ -53,7 +54,9 @@ test('every rule effect is read from the table', () => {
           ? { operation: row.outward, vital: row.primaryVital, overflow: row.spill }
           : { operation: row.outward, vital: row.primaryVital });
       } else {
-        expect(effect).toEqual(row.inward === 'drain' ? { operation: 'drain', vital: row.primaryVital } : { operation: 'neutralize' });
+        expect(effect).toEqual(row.spill
+          ? { operation: row.inward, vital: row.primaryVital, overflow: row.spill }
+          : { operation: row.inward, vital: row.primaryVital });
       }
     }
   }
@@ -93,9 +96,11 @@ function expected(row: typeof AFFINITY_TABLE[number], expression: AffinityExpres
       const removed = take(row.primaryVital, AMOUNT);
       if (row.spill === 'defeat' && defeatVital !== row.primaryVital && AMOUNT > removed) take(defeatVital, AMOUNT - removed);
     }
-  } else if (row.inward === 'drain') {
+  } else {
+    // #354: the source gains what the primary vital gave up; the spill is damage only.
     const removed = take(row.primaryVital, AMOUNT);
     source[row.primaryVital] = Math.min(MAX, source[row.primaryVital]! + removed);
+    if (row.spill === 'defeat' && defeatVital !== row.primaryVital && AMOUNT > removed) take(defeatVital, AMOUNT - removed);
   }
   return { target, source };
 }
@@ -117,6 +122,13 @@ for (const row of AFFINITY_TABLE) {
     }
   }
 }
+
+test('no inward use is left without an effect: the suppression mechanic is retired (#354)', () => {
+  for (const row of AFFINITY_TABLE) {
+    expect(row.inward, row.kind).toBe('drain');
+    for (const expression of ['pull', 'draw'] as const) expect(getActorAffinityEffect(row.kind, expression).operation).toBe('drain');
+  }
+});
 
 test('docs/affinity-table.md is generated from the table', () => {
   expect(readFileSync(AFFINITY_TABLE_DOC_PATH, 'utf8'),
