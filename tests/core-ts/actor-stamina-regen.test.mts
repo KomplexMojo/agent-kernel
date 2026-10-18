@@ -1,6 +1,7 @@
 /**
- * #273: stamina recovers only on turns an actor does not move. Walking drains,
- * waiting (or any other action) refills, for every actor alike.
+ * #407 (replaces #273's rest-only stamina): stamina regenerates every tick, moving or not, so
+ * a plain step at the default cost (1) against the default regen (1) breaks even. A turn
+ * without a move is a rest and restores twice the regen. Every actor alike.
  */
 import { expect, test } from 'vitest';
 import { createActorRegistry } from '../../packages/core-ts/src/state/actor-registry.ts';
@@ -23,58 +24,54 @@ function endTurn(turn: ReturnType<typeof createActorTurn>) {
   turn.closeActions(); turn.resolveFields(); turn.regenerate();
 }
 
-test('a move drains stamina by its cost with no regen that turn; other vitals still regenerate', () => {
+test('a move costs its stamina and regen still returns that turn: walking breaks even', () => {
   const registry = world();
   registry.changeVital('a', 'mana', -5);
-  const turn = createActorTurn(registry, 1, costs);
-  expect(turn.apply({ actorId: 'a', tick: 1, kind: 'move', params: { target: { x: 1, y: 0 } } })).toBe(true);
-  endTurn(turn);
-  expect(registry.getActor('a')!.vitals.stamina!.current).toBe(9);
-  expect(registry.getActor('a')!.vitals.mana!.current).toBe(6);
-});
-
-test('walking keeps draining; resting refills at the regen rate', () => {
-  const registry = world();
   for (let tick = 1; tick <= 3; tick += 1) {
     const turn = createActorTurn(registry, tick, costs);
-    turn.apply({ actorId: 'a', tick, kind: 'move', params: { target: { x: tick, y: 0 } } });
+    expect(turn.apply({ actorId: 'a', tick, kind: 'move', params: { target: { x: tick, y: 0 } } })).toBe(true);
     endTurn(turn);
   }
-  expect(registry.getActor('a')!.vitals.stamina!.current).toBe(7);
-  const rest = createActorTurn(registry, 4, costs);
-  rest.apply({ actorId: 'a', tick: 4, kind: 'wait' });
-  endTurn(rest);
-  expect(registry.getActor('a')!.vitals.stamina!.current).toBe(8);
+  expect(registry.getActor('a')!.vitals.stamina!.current).toBe(10);
+  expect(registry.getActor('a')!.vitals.mana!.current).toBe(8);
 });
 
-test('an actor that did not move regenerates stamina as before, even without acting', () => {
+test('a turn without a move is a rest: twice the regen', () => {
   const registry = world();
+  registry.changeVital('a', 'stamina', -6);
+  const rest = createActorTurn(registry, 1, costs);
+  rest.apply({ actorId: 'a', tick: 1, kind: 'wait' });
+  endTurn(rest);
+  expect(registry.getActor('a')!.vitals.stamina!.current).toBe(6);
+  // Not acting at all rests too; other vitals keep their single regen.
   registry.changeVital('b', 'stamina', -4);
-  const turn = createActorTurn(registry, 1, costs);
-  turn.apply({ actorId: 'a', tick: 1, kind: 'move', params: { target: { x: 1, y: 0 } } });
-  endTurn(turn);
-  expect(registry.getActor('b')!.vitals.stamina!.current).toBe(7);
+  registry.changeVital('b', 'mana', -4);
+  const idle = createActorTurn(registry, 2, costs);
+  endTurn(idle);
+  expect(registry.getActor('b')!.vitals.stamina!.current).toBe(8);
+  expect(registry.getActor('b')!.vitals.mana!.current).toBe(7);
 });
 
-test('a refused move is not a move: stamina still regenerates', () => {
+test('a refused move is not a move: the actor rests', () => {
   const registry = world();
   registry.changeVital('a', 'stamina', -4);
   const turn = createActorTurn(registry, 1, costs);
   expect(turn.apply({ actorId: 'a', tick: 1, kind: 'move', params: { target: { x: 3, y: 0 } } })).toBe(false);
   endTurn(turn);
-  expect(registry.getActor('a')!.vitals.stamina!.current).toBe(7);
+  expect(registry.getActor('a')!.vitals.stamina!.current).toBe(8);
 });
 
 test('the movers survive a snapshot round trip between acting and regen', () => {
   const registry = world();
+  registry.changeVital('a', 'stamina', -4);
   const turn = createActorTurn(registry, 1, costs);
   turn.apply({ actorId: 'a', tick: 1, kind: 'move', params: { target: { x: 1, y: 0 } } });
   const restored = createActorTurn(registry, 1, costs, turn.snapshot());
   endTurn(restored);
-  expect(registry.getActor('a')!.vitals.stamina!.current).toBe(9);
+  expect(registry.getActor('a')!.vitals.stamina!.current).toBe(6);
 });
 
 // ## TODO: Test Permutations
-// - diagonal moves (cost 2 by the movement table) drain 2 with no regen
-// - a mover overwhelmed on stamina (#289) by a restoring kind still gets no stamina regen
+// - diagonal moves (cost 2 by the movement table) drain 1 net at regen 1
+// - a rester overwhelmed on stamina (#289) to a stop still gets no stamina regen
 // - a snapshot saved before #273 (no movedActorIds) restores as "nobody moved"

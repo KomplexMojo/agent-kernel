@@ -9,7 +9,7 @@ import { computeMovementStaminaCost } from './move.ts';
 export interface ActorTurnSnapshot {
   tick: number;
   acceptedActorIds: string[];
-  /** Actors whose move was accepted this turn: they get no stamina regen (#273). Absent in older snapshots. */
+  /** Actors whose move was accepted this turn; the rest rested, doubling stamina regen (#407). Absent in older snapshots. */
   movedActorIds?: string[];
   closed: boolean;
   fieldsResolved: boolean;
@@ -141,7 +141,9 @@ export function createActorTurn(
     regenerate(): boolean {
       if (!state.fieldsResolved || state.regenerated) return false;
       if (prices.persistentUpkeep) registry.chargeAffinityUpkeep(prices.persistentUpkeep);
-      registry.regenerate(regenScales(readActorOverwhelms(registry), state.movedActorIds ?? []));
+      const restedActorIds = registry.snapshot().actors.map(actor => actor.id)
+        .filter(actorId => !(state.movedActorIds ?? []).includes(actorId));
+      registry.regenerate(regenScales(readActorOverwhelms(registry), restedActorIds));
       state.regenerated = true; return true;
     },
     resolveExits(): string[] | null {
@@ -155,17 +157,21 @@ export function createActorTurn(
   };
 }
 
+/** Stamina regen on a turn without a move (#407): resting doubles it. */
+export const STAMINA_REST_REGEN_SCALE = 2;
+
 /**
  * Per actor and vital, the lowest regen scale this turn: a stop beats a doubling on the same vital.
- * Overwhelm (#289) scales any vital; a mover rests no stamina (#273), so walking drains and waiting refills.
+ * Overwhelm (#289) scales any vital. Stamina regenerates every tick (#407, replacing #273's
+ * rest-only rule); an actor that did not move rested and regenerates it twice over.
  */
-function regenScales(overwhelms: readonly ActorOverwhelm[], movedActorIds: readonly string[]): Record<string, Record<string, number>> {
+function regenScales(overwhelms: readonly ActorOverwhelm[], restedActorIds: readonly string[]): Record<string, Record<string, number>> {
   const scales: Record<string, Record<string, number>> = {};
   const lower = (actorId: string, vital: string, scale: number) => {
     const byVital = scales[actorId] ??= {};
     byVital[vital] = Math.min(byVital[vital] ?? Infinity, scale);
   };
   for (const { actorId, vital, regenScale } of overwhelms) lower(actorId, vital, regenScale);
-  for (const actorId of movedActorIds) lower(actorId, 'stamina', 0);
+  for (const actorId of restedActorIds) lower(actorId, 'stamina', STAMINA_REST_REGEN_SCALE);
   return scales;
 }

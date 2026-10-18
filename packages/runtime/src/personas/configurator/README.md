@@ -226,8 +226,9 @@ The exact diagnostic families are
 `affinity_slot_limit_exceeded`, and `stacks_exceed_max`.
 
 The stamina floor (`applyMovementStaminaFloor`) gives a mover a pool and regen that each cover one worst-case
-move. Core regenerates stamina only on turns an actor does not move (#273), so at the floor an actor walks a short
-burst and then rests; a longer burst is a bigger pool, which the Allocator prices like any other vital.
+move. Core regenerates stamina every tick and twice over on a turn without a move (#407, replacing #273's rest-only
+rule), so at the floor a plain step costs no more than the regen it gets back and walking never drains; more regen,
+priced by the Allocator like any other vital, pays for costlier moves.
 
 Authored vitals stand (#371). The stamina regen floor and the cast floor (`applyAffinityDerivedVitalRequirements`,
 mana max raised to one cast) fill only a value left unset at 0; a regen of 1 means more rest turns, and a pool
