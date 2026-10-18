@@ -343,7 +343,7 @@ export async function orchestrateBuild({
     // TypeError on the frozen vital, and the byte-identity check that exists
     // precisely because affinityRules/motivationRules/actors used to be written
     // back over the locked artifact after the Configurator's round had closed.
-    actorsInput.actors = actorsInput.actors.map((actor) => {
+    const prepareForPricing = (actor) => {
       const prepared = prepareAuthoredActor(actor);
       const draft = {
         ...prepared,
@@ -355,7 +355,8 @@ export async function orchestrateBuild({
       };
       vitalsReport.push(...configuratorApplyAuthoredActorVitalFloors(draft));
       return draft;
-    });
+    };
+    actorsInput.actors = actorsInput.actors.map(prepareForPricing);
 
     const affinityPresets = configuratorInputs?.affinityPresets || null;
     const affinityLoadouts = configuratorInputs?.affinityLoadouts || null;
@@ -409,6 +410,10 @@ export async function orchestrateBuild({
       seed,
     });
     compiledTacticReport = compiled.report;
+    // #400: the actors a tactic adds (retinue minions) are priced and floored like authored ones.
+    if (compiled.actors.length > 0) {
+      actorsInput.actors = [...actorsInput.actors, ...compiled.actors.map(prepareForPricing)];
+    }
     // Without a hosted solver the placement still goes through the host, so the build records
     // that the fallback answered and why (no adapter: `solver_domain_unavailable`).
     const objectPlacement = await (typeof placeObjects === "function"
@@ -435,7 +440,7 @@ export async function orchestrateBuild({
       throw error;
     }
     layout = objectPlacement.layout;
-    const placedActors = Array.isArray(objectPlacement.actors) ? objectPlacement.actors : [];
+    let placedActors = Array.isArray(objectPlacement.actors) ? objectPlacement.actors : [];
     // #301: delvers and wardens a placement constraint named were placed with the objects;
     // they keep those cells when the rest of the actors are seated.
     const constrainedActorPositions = objectPlacement.actorPositions || {};
@@ -546,6 +551,34 @@ export async function orchestrateBuild({
     }
 
     if (!budgetReceipt && mapped.budget?.budget && resolvedPriceList) {
+      if (compiled.actors.length > 0) {
+        // #400: a retinue the warden share cannot afford shrinks. The Allocator prices each try;
+        // the Configurator decides which minions go.
+        const fitted = configuratorBuild.fitRetinues({
+          report: compiledTacticReport,
+          affordable: (dropped) => {
+            const { receipt } = evaluateConfiguratorSpend({
+              budget: mapped.budget.budget,
+              priceList: resolvedPriceList,
+              allocation: budgetAllocation,
+              layout,
+              actors: pricedActors().filter((actor) => !dropped.has(actor?.id)),
+              resources: [],
+              motivationRules,
+              affinityRules,
+              proposalMeta: createBuildMeta(spec, producedBy, "spend_proposal_probe"),
+              receiptMeta: createBuildMeta(spec, producedBy, "budget_receipt_probe"),
+              normalizeMotivations: configuratorMotivations,
+            });
+            return buildAllocator.wardenShareApproved({ receipt });
+          },
+        });
+        if (fitted.dropped.size > 0) {
+          actorsInput.actors = actorsInput.actors.filter((actor) => !fitted.dropped.has(actor?.id));
+          placedActors = placedActors.filter((actor) => !fitted.dropped.has(actor?.id));
+          compiledTacticReport = fitted.report;
+        }
+      }
       const spendResult = evaluateConfiguratorSpend({
         budget: mapped.budget.budget,
         priceList: resolvedPriceList,

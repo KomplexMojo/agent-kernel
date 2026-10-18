@@ -583,6 +583,23 @@
         "--seed",
         "3"
       ]
+    },
+    {
+      "id": "sweep-retinue",
+      "note": "an exploring delver meets a decay boss with a shield, a support and a striker within 2 of it (#400)",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=3",
+        "--delver",
+        "count=1;id=ex;affinity=fire;affinities=fire:push:2:2;equip=fire:push;motivation=exploring+attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=boss;affinity=decay;affinities=decay:push:2:2;equip=decay:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "--tactic",
+        "retinue;leader=boss-1;size=3",
+        "--seed",
+        "3"
+      ]
     }
   ]
 }

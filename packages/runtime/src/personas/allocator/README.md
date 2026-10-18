@@ -200,6 +200,8 @@ Two read-only public capabilities keep build glue from making Allocator policy d
   expand actors. The receipt's global remainder is always a ceiling; when delver/warden pool evidence
   exists, their combined non-negative remainder is the second ceiling. Missing actor-pool evidence
   preserves the global remainder.
+- `wardenShareApproved({ receipt })` (#400) says whether the receipt approves the warden pool (true
+  when it has none). The Configurator shrinks a retinue until it holds.
 
 Neither capability registers a budget, issues a receipt, changes FSM state, or mutates caller data.
 `orchestrateBuild` supplies artifacts and consumes the answers; it contains no price-item merge, actor

@@ -483,6 +483,16 @@ light, dark or any affinity. A room that cannot hide every guard hides as many a
 in the open and says so in its row (`hidden`, `note`); the level is not refused. Guards are the
 level's ordinary wardens, priced as such.
 
+`retinue` (#400, `retinue.js`): `leader=<warden id>` (else the first free warden) gets `size=<n>`
+(default 3) new minion wardens, each constrained within 2 of it. Roles fill in order and repeat,
+each loadout derived from core's `AFFINITY_TABLE`, never picked per kind: *shield* emits the leader's
+kind; *support* pushes the restoring kind whose primary vital is the leader's defeat vital; *striker*
+takes the leader's kind in the first harmful expression it lacks (pull and draw steal for every kind,
+push and emit harm only for a damaging kind). A leader with no affinity gets supports only. Minions
+carry the leader's motivations and the actor viability floor, so they are priced like any warden;
+`fitRetinues` drops minions from the end until the Allocator's `wardenShareApproved` holds for the
+receipt, and the row says `the warden share affords k of n minions`.
+
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.

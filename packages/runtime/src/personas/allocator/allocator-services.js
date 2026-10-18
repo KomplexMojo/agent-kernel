@@ -153,6 +153,16 @@ export function attachAllocatorServices({
     return Math.min(globalRemaining, actorPoolRemaining);
   }
 
+  /**
+   * #400: whether the receipt approves the warden share. A receipt with no warden pool has
+   * no share to exceed. The Configurator shrinks a retinue until this holds.
+   */
+  function wardenShareApproved({ receipt } = {}) {
+    const pool = Array.isArray(receipt?.poolStatuses)
+      ? receipt.poolStatuses.find((entry) => entry?.id === "wardens") : null;
+    return !pool || pool.status === "approved";
+  }
+
   function boundPriceMixedRoomDesignSpend(args = {}) {
     return priceMixedRoomDesignSpend(
       withPersonaDefaults(args, { priceList: getPriceList() }),
@@ -588,6 +598,7 @@ export function attachAllocatorServices({
     issueRuntimeBudgetReceipt,
     resolvePriceList,
     resolveActorExpansionAvailability,
+    wardenShareApproved,
     priceMixedRoomDesignSpend: boundPriceMixedRoomDesignSpend,
     registerBudget,
     validateSpend,

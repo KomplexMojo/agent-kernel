@@ -238,7 +238,8 @@ export function checkRules(scenario, analysis) {
     }
   }
   for (const { prefix, vitals } of authoredVitalsById(scenario)) {
-    for (const record of records.filter((entry) => entry.id.startsWith(prefix))) {
+    // `id=boss` authors boss-1, boss-2, ...; actors a tactic adds (boss-1_minion_1, #400) were not authored.
+    for (const record of records.filter((entry) => entry.id.startsWith(prefix) && /^\d+$/.test(entry.id.slice(prefix.length)))) {
       for (const [name, authored] of Object.entries(vitals)) {
         const built = record.vitals?.[name];
         const differs = !built || Object.entries(authored).some(([field, value]) => built[field] !== value);

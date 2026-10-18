@@ -513,7 +513,12 @@ Inputs/outputs:
   many of the level's resources (default 1) in a room (`room=`, else one picked from the seed, never the entry room)
   and seats that many of its wardens (default 2) there out of sight of the room's doorways; `visible=true` seats them
   in the open within 2 of the loot instead. A room that can't hide them all hides what fits and the row says so
-  (`hidden`, `note`). A tactic not compiled yet (`retinue`) is `{ tactic, params?, applied: false, note }`.
+  (`hidden`, `note`). `retinue[;leader=<warden id>][;size=<n>]` (#400) gives the leader (default: the first warden
+  no `--place` constraint names) `size` minions (default 3) seated within 2 of it. Each minion's loadout comes from the
+  affinity table by role, in order: *shield* emits the leader's kind; *support* pushes the restoring kind for the
+  leader's defeat vital; *striker* uses the leader's kind in the first harmful expression the leader lacks. Minions
+  are ordinary wardens (the leader's motivations, floor vitals) priced by the Allocator; a retinue the warden share
+  can't afford shrinks and its row says so (`leader`, `minions: [{ id, role }]`, `note`).
   `--seed N` (`seed` on `ak_create`) fixes the build seed; a tactic with no `--seed` draws one, and the result reports
   it as `seed`, so the same flags plus `--seed` rebuild the level exactly. `--place` also takes `outOfSight=room:<id>`:
   a cell no doorway of that room can see, by core's line of sight.
