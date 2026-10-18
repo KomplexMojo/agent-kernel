@@ -52,7 +52,7 @@
       "args": [
         "--room", "size=large;count=1",
         "--delver", "count=1;id=hero;affinity={A};affinities={A}:push:3:2,{A}:pull:2:1;equip={A}:push;motivation=user_controlled;vitals=health:30:1,mana:40:4,stamina:10:2,durability:10:1",
-        "--warden", "count=1;id=foe;affinity={B};affinities={B}:push:3:1;equip={B}:push;motivation=attacking;vitals=health:30:1,mana:30:3,stamina:10:1,durability:10:1"
+        "--warden", "count=1;id=foe;affinity={B};affinities={B}:push:3:2,{C}:push:2:1;equip={B}:push;motivation=attacking;vitals=health:30:1,mana:40:4,stamina:10:2,durability:10:1"
       ]
     },
     {
