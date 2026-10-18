@@ -37,12 +37,13 @@ test("ak create records the placement decision and inspect prints it", () => {
     "--out-dir", outDir,
   ]);
 
+  // #296: `create` hosts the solver, as `build` and `llm-plan` do.
   const telemetry = JSON.parse(readFileSync(join(outDir, "telemetry.json"), "utf8"));
   assert.deepEqual(telemetry.data.solverDecisions, [{
     domain: "configurator_satisfiability",
-    decision: "fallback",
-    status: "deferred",
-    reason: "solver_domain_unavailable",
+    decision: "solver",
+    status: "fulfilled",
+    objectiveValues: [1],
   }]);
 
   const inspected = runCliOk([
@@ -50,7 +51,7 @@ test("ak create records the placement decision and inspect prints it", () => {
     "--build-dir", outDir,
     "--out-dir", join(outDir, "inspect"),
   ]);
-  assert.equal(inspected.solverDecisions, "placement: fallback (solver_domain_unavailable)");
+  assert.match(inspected.solverDecisions, /^placement: solver/);
   assert.equal(inspected.artifactPaths.build_telemetry, join(outDir, "telemetry.json"));
 });
 

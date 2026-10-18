@@ -451,6 +451,60 @@ test("build glue delegates placement policy to the public Configurator surface",
   ));
 });
 
+// #331 — the problem grows with the objects, not the grid. An object that cannot seal the
+// route only ever needs its first `pending` candidate cells: at most pending-1 others can
+// hold any of them, so the first free one always beats a later cell. A large open level with
+// a handful of objects poses a handful-squared problem and still lands on the same answer.
+function openBoard(width, height) {
+  const terrain = [];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const edge = x === 0 || y === 0 || x === width - 1 || y === height - 1;
+      terrain.push(y === 0 && x === 1 ? "spawn" : y === height - 1 && x === width - 2 ? "exit" : edge ? "wall" : "floor");
+    }
+  }
+  return {
+    width, height, terrain,
+    spawnApproach: { x: 1, y: 1 }, exitApproach: { x: width - 2, y: height - 2 },
+    rooms: [{ id: "corner", x: width - 4, y: 1, width: 2, height: 1 }],
+  };
+}
+
+test("a large level poses a problem sized by its objects, and the answer does not change (#331)", async () => {
+  const { createConfiguratorPersona } = await import(
+    "../../../packages/runtime/src/personas/configurator/persona.js"
+  );
+  const { createHybridConstraintSolverAdapter } = await import(
+    "../../../packages/adapters-cli/src/adapters/z3/index.js"
+  );
+  const layout = openBoard(80, 60);
+  // Hazards first, then resources: the order the Configurator places them in.
+  const objects = [
+    { id: "a", kind: "hazard", affinity: { kind: "earth", expression: "emit", stacks: 1 } },
+    { id: "b", kind: "hazard", roomId: "corner", affinity: { kind: "wind", expression: "emit", stacks: 1 } },
+    { id: "d", kind: "hazard", blocking: true, affinity: { kind: "corrode", expression: "push", stacks: 1 } },
+    { id: "f", kind: "hazard", affinity: { kind: "growth", expression: "emit", stacks: 1 } },
+    { id: "c", kind: "resource", vitals: { durability: { current: 1, max: 1, regen: 0 } }, holdings: [] },
+    { id: "e", kind: "resource", roomId: "corner", vitals: { durability: { current: 1, max: 1, regen: 0 } }, holdings: [] },
+  ];
+  const board = { layout, actors: [{ id: "actor_fixed", position: { x: 2, y: 1 } }], objects };
+  const configurator = createConfiguratorPersona({ clock: () => "2026-09-01T00:00:00.000Z" });
+  const args = { layout, actors: board.actors, ...splitFixtureObjects(board) };
+  const prepared = configurator.prepareObjectPlacement(args);
+  assert.equal(prepared.status, "ready");
+  assert.ok(prepared.problem.variables.length <= objects.length ** 2,
+    `${prepared.problem.variables.length} variables for ${objects.length} objects on ${walkable(layout).length} cells`);
+
+  const result = await (await hostedPlacement(configurator, createHybridConstraintSolverAdapter()))(args);
+  assert.equal(result.ok, true);
+  assert.equal(result.source, "solver");
+  const placed = new Map(result.actors.map((entry) => [entry.id, entry.position]));
+  assert.deepEqual(solve(board), {
+    status: "fulfilled",
+    assignment: objects.map(({ id }) => ({ id, position: placed.get(id) })),
+  });
+});
+
 // ## TODO: Test Permutations
 // - two requested rooms competing for one shared corridor cell report capacity, not containment
 // - multiple complete assignments retain authored-object then row-major lexicographic order

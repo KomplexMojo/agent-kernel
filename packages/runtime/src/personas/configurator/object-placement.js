@@ -226,8 +226,15 @@ export function buildObjectPlacementProblem(args = {}) {
   }
   const variables = [];
   const constraints = [];
+  // #331: an object that cannot seal the route only needs its first `pending` candidate
+  // cells. At most pending-1 other objects can hold any of them, so one is always free, and
+  // moving the object there keeps every constraint and improves its own objective; the
+  // lexicographic answer therefore never lies beyond them. The problem grows with the
+  // objects, not the grid. A route-sealing object keeps every candidate: a cell's worth to
+  // it depends on the route, not only on who else is placed.
+  const reach = context.pending.length;
   const placementVariableIds = context.pending.map((object, pendingIndex) => (
-    context.candidates[pendingIndex].map((cellIndex) => {
+    (object.sealsRoute ? context.candidates[pendingIndex] : context.candidates[pendingIndex].slice(0, reach)).map((cellIndex) => {
       const id = `object_${object.index}_cell_${cellIndex}`;
       variables.push({ id, kind: "integer", min: 0, max: 1 });
       return { id, cellIndex };
@@ -240,10 +247,13 @@ export function buildObjectPlacementProblem(args = {}) {
     rightHandSide: 1,
     terms: entries.map(({ id }) => ({ variableId: id, coefficient: 1 })),
   }));
-  context.cells.forEach((_cell, cellIndex) => {
-    const terms = placementVariableIds.flatMap((entries) => (
-      entries.filter((entry) => entry.cellIndex === cellIndex).map(({ id }) => ({ variableId: id, coefficient: 1 }))
-    ));
+  const termsByCell = new Map();
+  placementVariableIds.forEach((entries) => entries.forEach(({ id, cellIndex }) => {
+    if (!termsByCell.has(cellIndex)) termsByCell.set(cellIndex, []);
+    termsByCell.get(cellIndex).push({ variableId: id, coefficient: 1 });
+  }));
+  [...termsByCell.keys()].sort((left, right) => left - right).forEach((cellIndex) => {
+    const terms = termsByCell.get(cellIndex);
     if (terms.length > 1) constraints.push({
       id: `cell_${cellIndex}_unique`, kind: "linear", relation: "<=", rightHandSide: 1, terms,
     });
@@ -255,7 +265,19 @@ export function buildObjectPlacementProblem(args = {}) {
   if (dynamicBlockers.length > 0) {
     const usable = context.cells.filter((cell) => !context.blocking.has(pointKey(cell)));
     const usableKeys = new Set(usable.map(pointKey));
+    const cellIndexByKey = new Map(context.cells.map((cell, index) => [pointKey(cell), index]));
+    const blockerTermsByCell = new Map();
+    dynamicBlockers.forEach(({ index }) => placementVariableIds[index].forEach(({ id: variableId, cellIndex }) => {
+      if (!blockerTermsByCell.has(cellIndex)) blockerTermsByCell.set(cellIndex, []);
+      blockerTermsByCell.get(cellIndex).push({ variableId, coefficient: 1 });
+    }));
     const edges = [];
+    const outgoing = new Map();
+    const incoming = new Map();
+    const addTerm = (map, key, term) => {
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(term);
+    };
     for (const from of usable) {
       for (const [dx, dy] of [[0, -1], [-1, 0], [1, 0], [0, 1]]) {
         const to = { x: from.x + dx, y: from.y + dy };
@@ -263,12 +285,9 @@ export function buildObjectPlacementProblem(args = {}) {
         const id = `flow_${edges.length}`;
         variables.push({ id, kind: "integer", min: 0, max: 1 });
         edges.push({ id, from: pointKey(from), to: pointKey(to) });
-        const cellIndex = context.cells.findIndex((cell) => pointKey(cell) === pointKey(to));
-        const blockingTerms = dynamicBlockers.flatMap(({ index }) => (
-          placementVariableIds[index]
-            .filter((entry) => entry.cellIndex === cellIndex)
-            .map(({ id: variableId }) => ({ variableId, coefficient: 1 }))
-        ));
+        addTerm(outgoing, pointKey(from), { variableId: id, coefficient: 1 });
+        addTerm(incoming, pointKey(to), { variableId: id, coefficient: -1 });
+        const blockingTerms = blockerTermsByCell.get(cellIndexByKey.get(pointKey(to))) || [];
         if (blockingTerms.length > 0) constraints.push({
           id: `${id}_avoids_blocker`,
           kind: "linear",
@@ -280,10 +299,7 @@ export function buildObjectPlacementProblem(args = {}) {
     }
     for (const cell of usable) {
       const key = pointKey(cell);
-      const terms = [
-        ...edges.filter(({ from }) => from === key).map(({ id }) => ({ variableId: id, coefficient: 1 })),
-        ...edges.filter(({ to }) => to === key).map(({ id }) => ({ variableId: id, coefficient: -1 })),
-      ];
+      const terms = [...(outgoing.get(key) || []), ...(incoming.get(key) || [])];
       if (terms.length === 0) continue;
       const balance = key === pointKey(context.spawn) ? 1 : key === pointKey(context.exit) ? -1 : 0;
       constraints.push({

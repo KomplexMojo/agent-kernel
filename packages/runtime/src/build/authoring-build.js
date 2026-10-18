@@ -199,6 +199,7 @@ export async function runPlanBuild(input = {}) {
     budgetArtifact = null,
     priceListArtifact = null,
     placeObjects,
+    solverDecisions,
   } = input;
 
   const { spec, plan, intent } = assembleSpecThroughDirector({
@@ -214,6 +215,7 @@ export async function runPlanBuild(input = {}) {
     directorRound: { intent, plan },
     // #296: the host's solver round trip for the Configurator's object placement.
     placeObjects,
+    solverDecisions,
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
 
@@ -249,6 +251,7 @@ export async function runAuthoringBuild(input = {}) {
     parsedDelvers = [],
     parsedWardens = [],
     placeObjects,
+    solverDecisions,
   } = input;
 
   const { spec, plan, intent } = assembleSpecThroughDirector({
@@ -289,6 +292,7 @@ export async function runAuthoringBuild(input = {}) {
     // CR.3 — see runPlanBuild.
     directorRound: { intent, plan },
     placeObjects,
+    solverDecisions,
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
   applyMotivationToInitialStateActors(buildResult.initialState, { parsedDelvers, parsedWardens });

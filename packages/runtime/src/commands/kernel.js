@@ -2669,7 +2669,9 @@ export function createCommandKernel(host = {}) {
   // assembly and all writing — so otherwise this is a pass-through to the runtime
   // pipeline (routes translation through the Director controller, like llmPlan).
   async function authoringBuild(input) {
-    return runAuthoringBuild({ ...input, placeObjects: await hostObjectPlacement(input?.createdAt) });
+    const solverDecisions = [];
+    const placeObjects = await hostObjectPlacement(input?.createdAt, (decision) => solverDecisions.push(decision));
+    return runAuthoringBuild({ ...input, placeObjects, solverDecisions });
   }
 
   // Plain authored build (P2.3.3): the *-plan commands' build pipeline
@@ -2677,7 +2679,9 @@ export function createCommandKernel(host = {}) {
   // no Configurator input prep or motivation patching. Hosts object placement
   // and passes through, same as authoringBuild.
   async function planBuild(input) {
-    return runPlanBuild({ ...input, placeObjects: await hostObjectPlacement(input?.createdAt) });
+    const solverDecisions = [];
+    const placeObjects = await hostObjectPlacement(input?.createdAt, (decision) => solverDecisions.push(decision));
+    return runPlanBuild({ ...input, placeObjects, solverDecisions });
   }
 
   return {

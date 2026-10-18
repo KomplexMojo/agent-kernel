@@ -402,6 +402,13 @@ problem uses binary placement variables plus integer path-flow variables, allowi
 adapters to compile it through their generic linear solver without learning Configurator policy.
 `orchestrateBuild` only passes plain inputs and consumes the result; it holds no placement helpers.
 
+The problem is sized by the objects, not the grid (#331). An object that cannot seal the route
+gets variables for only its first `pending` candidate cells (in row-major order): at most
+`pending - 1` other objects can hold any of them, so the lexicographic answer never lies beyond
+them, and the solver lands on the same cells as with the whole grid. Only a route-sealing object
+keeps every candidate cell, and only then is the path-flow network posed. A 5,700-cell level with
+21 objects poses a few hundred variables rather than over a hundred thousand.
+
 When the domain is unavailable, deferred, or errors, completion uses the characterized
 hazards-first row-major fallback. A solver `unsat` is final and reports one actionable family:
 `capacity`, `containment`, `collision`, or `path_obstruction`.
