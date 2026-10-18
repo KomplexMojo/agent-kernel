@@ -85,7 +85,7 @@
     {
       "id": "card_warden_1-1",
       "position": {
-        "x": 27,
+        "x": 26,
         "y": 8
       },
       "alignment": "dungeon",
@@ -139,8 +139,8 @@
     {
       "id": "card_warden_2-1",
       "position": {
-        "x": 26,
-        "y": 8
+        "x": 22,
+        "y": 12
       },
       "alignment": "dungeon",
       "lifecycle": "alive",

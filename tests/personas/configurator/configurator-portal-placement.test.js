@@ -57,7 +57,7 @@ describe("configurator portal placement", () => {
     }
   });
 
-  test("placeActors seats first delver on spawnApproach and first warden on exitApproach", () => {
+  test("placeActors seats first delver on spawnApproach and first warden beside exitApproach, never on it (#397)", () => {
     const layout = {
       width: 7,
       height: 5,
@@ -88,6 +88,6 @@ describe("configurator portal placement", () => {
     });
     assert.equal(changed, true);
     assert.deepEqual(actors.find((a) => a.id === "delver_1").position, { x: 1, y: 1 });
-    assert.deepEqual(actors.find((a) => a.id === "warden_1").position, { x: 5, y: 3 });
+    assert.deepEqual(actors.find((a) => a.id === "warden_1").position, { x: 5, y: 2 });
   });
 });

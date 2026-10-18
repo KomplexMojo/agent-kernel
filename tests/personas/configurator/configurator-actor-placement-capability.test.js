@@ -53,7 +53,8 @@ test("placeActors uses alignment, affinity preference, occupancy, and authored o
         category: "warden",
         motivations: ["defending"],
         affinities: [{ kind: "water", expression: "emit", stacks: 1 }],
-        position: { x: 6, y: 4 },
+        // #397: beside the exit approach (6, 4), never on it.
+        position: { x: 6, y: 3 },
       },
       { id: "mystery_actor", category: "delver", position: { x: 1, y: 0 } },
       { id: "raider_alpha", category: "delver", motivations: ["exploring"], position: { x: 2, y: 0 } },

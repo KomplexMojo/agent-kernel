@@ -355,12 +355,26 @@ function deriveRoomPlacementContext({ data, walkable } = {}) {
   Object.keys(roomAffinityWalkableByKind).forEach((kind) => {
     roomAffinityWalkableByKind[kind] = uniquePositions(roomAffinityWalkableByKind[kind]);
   });
+  // #397: the rooms wardens spread over, every room but the entry room: the exit room first,
+  // then the rest nearest the exit first. Each carries its centre as the seat anchor.
+  const exitCenter = roomCenter(exitRoom);
+  const spreadRooms = rooms
+    .map((room, index) => ({ index, center: roomCenter(room), walkable: uniquePositions(roomWalkableByIndex[index] || []) }))
+    .filter((entry) => entry.index !== entryRoomIndex && entry.walkable.length > 0)
+    .sort((a, b) => (b.index === exitRoomIndex) - (a.index === exitRoomIndex)
+      || manhattanDistance(a.center, exitCenter) - manhattanDistance(b.center, exitCenter)
+      || comparePoints(a.center, b.center));
   return {
     entryRoomWalkable,
     exitRoomWalkable,
     allRoomsWalkable,
     roomAffinityWalkableByKind,
+    spreadRooms,
   };
+}
+
+function roomCenter(room) {
+  return { x: room.x + Math.floor(room.width / 2), y: room.y + Math.floor(room.height / 2) };
 }
 
 function authoredAlignment(actor) {
@@ -560,23 +574,25 @@ export function placeActors({ actors, layout, reservedActors = [], delverCount =
     assignedById.set(actor.id, assigned);
   });
 
+  // #397 (#360): no warden is seated on the exit approach itself, so none can seal the exit.
+  if (exitApproach) used.add(positionKey(exitApproach));
   wardens.forEach((actor, index) => {
-    let assigned = null;
-    if (index === 0 && exitAnchor && !used.has(positionKey(exitAnchor))) {
-      assigned = { x: exitAnchor.x, y: exitAnchor.y };
-    }
-    if (!assigned) {
-      const affinityCandidateSets = collectActorAffinityKinds(actor)
-        .map((kind) => context.roomAffinityWalkableByKind?.[kind])
-        .filter((set) => Array.isArray(set) && set.length > 0);
-      const affinityAnchor = affinityCandidateSets[0]?.[0] || null;
-      assigned = pickPreferredPosition({
-        candidateSets: [...affinityCandidateSets, context.exitRoomWalkable, context.allRoomsWalkable],
-        used,
-        anchor: affinityAnchor || exitAnchor || context.exitRoomWalkable[0]
-          || context.allRoomsWalkable[0] || walkable[0],
-      });
-    }
+    // The first warden guards the exit room, beside the approach. The rest keep their
+    // affinity-room preference, else take the next room in the spread, one room each while
+    // rooms last, so patrol rings do not crowd one another.
+    const room = context.spreadRooms.length > 0
+      ? context.spreadRooms[index % context.spreadRooms.length]
+      : null;
+    const affinityCandidateSets = index === 0 ? [] : collectActorAffinityKinds(actor)
+      .map((kind) => context.roomAffinityWalkableByKind?.[kind])
+      .filter((set) => Array.isArray(set) && set.length > 0);
+    const affinityAnchor = affinityCandidateSets[0]?.[0] || null;
+    const assigned = pickPreferredPosition({
+      candidateSets: [...affinityCandidateSets, room?.walkable || [], context.exitRoomWalkable, context.allRoomsWalkable],
+      used,
+      anchor: (index === 0 ? exitAnchor : null) || affinityAnchor || room?.center || exitAnchor
+        || context.exitRoomWalkable[0] || context.allRoomsWalkable[0] || walkable[0],
+    });
     if (!assigned) {
       throw new Error(
         `configurator inputs could not place actors: insufficient room tiles for warden "${actor.id}" `

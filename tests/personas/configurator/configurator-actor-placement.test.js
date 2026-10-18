@@ -121,10 +121,12 @@ test("orchestrateBuild byte-characterizes role classification, preferences, occu
     ],
     reservedObjectKeys: ["14,10", "3,15", "3,2", "3,4"],
     resolvedActors: [
-      { id: "guard_water", position: { x: 15, y: 11 } },
-      { id: "mystery_beta", position: { x: 13, y: 10 } },
+      // #397: the first warden guards the exit room beside the approach (15, 10), never on it;
+      // the others spread over the rooms other than the entry room, one each.
+      { id: "guard_water", position: { x: 5, y: 13 } },
+      { id: "mystery_beta", position: { x: 13, y: 12 } },
       { id: "raider_alpha", position: { x: 5, y: 2 } },
-      { id: "guard_fire", position: { x: 15, y: 10 } },
+      { id: "guard_fire", position: { x: 15, y: 11 } },
       { id: "mystery_alpha", position: { x: 6, y: 2 } },
     ],
     initialActorIds: [

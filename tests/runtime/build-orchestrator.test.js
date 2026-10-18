@@ -578,7 +578,10 @@ test("orchestrateBuild maps room affinities to warden placement and tile emit ha
   const waterWarden = actors.find((actor) => actor.id === "def_water");
   assert.ok(fireWarden);
   assert.ok(waterWarden);
-  assert.deepEqual(fireWarden.position, layout.exitApproach);
+  // #397: the first warden guards the exit beside its approach, never on it.
+  assert.notDeepEqual(fireWarden.position, layout.exitApproach);
+  assert.ok(Math.max(Math.abs(fireWarden.position.x - layout.exitApproach.x),
+    Math.abs(fireWarden.position.y - layout.exitApproach.y)) <= 1);
   assert.equal(inRoom(waterWarden.position, waterRoom), true);
 
   const generatedHazards = hazardActors.filter((actor) => actor.id !== "def_fire" && actor.id !== "def_water" && actor.id !== "delver_1");

@@ -216,12 +216,6 @@
         "count=1;id=ex;affinity=fire;affinities=fire:push:2:2;equip=fire:push;motivation=exploring+attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
         "count=1;id=st;affinity=water;motivation=stationary;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
-      ],
-      "knownIssues": [
-        {
-          "rule": "no_exit",
-          "issue": "#360"
-        }
       ]
     },
     {
