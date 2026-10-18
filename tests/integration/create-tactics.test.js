@@ -1,6 +1,6 @@
 // #396: `ak create --tactic` / `ak_create { tactics }` carry a tactic list into the plan and the
-// BuildSpec. Tactics are compiled in later steps, so for now the create result reports each one as
-// recorded but not applied, and names the build seed so the level can be rebuilt exactly.
+// BuildSpec. The create result reports what was done with each tactic (#398 ambush, #400 retinue)
+// and names the build seed so the level can be rebuilt exactly.
 
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -36,17 +36,18 @@ async function create(payload) {
 const level = { room: ["size=medium;count=2"], warden: ["count=2;motivation=defending"] };
 
 test("ak_create tactics reach the BuildSpec and each one is reported", async () => {
-  const result = await create({ ...level, tactics: ["ambush;guards=2", "retinue"], seed: 7 });
+  const result = await create({ ...level, tactics: ["ambush;guards=1", "retinue;size=1"], seed: 7 });
   assert.equal(result.status, 0, result.output);
-  const tactics = [{ tactic: "ambush", params: { guards: 2 } }, { tactic: "retinue" }];
+  const tactics = [{ tactic: "ambush", params: { guards: 1 } }, { tactic: "retinue", params: { size: 1 } }];
   assert.deepEqual(result.spec.plan.hints.tactics, tactics);
   assert.deepEqual(result.summary.tactics, tactics);
   assert.equal(result.summary.seed, 7);
   assert.equal(result.spec.configurator.inputs.levelGen.seed, 7);
-  // #398 compiles ambush; retinue is still only recorded.
+  // #398 compiles ambush with the first warden; #400 gives the other a one-minion retinue.
   const tacticRows = result.summary.placementReport.filter((row) => row.tactic);
-  assert.deepEqual(tacticRows.map(({ tactic, applied }) => [tactic, applied]), [["ambush", true], ["retinue", false]]);
-  assert.match(tacticRows[1].note, /not applied/);
+  assert.deepEqual(tacticRows.map(({ tactic, applied }) => [tactic, applied]), [["ambush", true], ["retinue", true]]);
+  assert.equal(tacticRows[1].minions.length, 1);
+  assert.ok(result.initialState.actors.some((actor) => actor.id === tacticRows[1].minions[0].id), "the minion is in the level");
 });
 
 test("the same tactics and seed rebuild the same level", async () => {

@@ -98,6 +98,7 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     reportTactics: services.reportTactics,
     // #398 — tactics it knows (`ambush`) compiled into placement constraints, with a report row each.
     compileTactics: services.compileTactics,
+    fitRetinues: services.fitRetinues,
     // #263 — a hazard authored with no affinity gets one picked from the run seed.
     nameUnnamedHazardAffinities: services.nameUnnamedHazardAffinities,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,
