@@ -104,7 +104,7 @@ corrode() {
 }
 
 stamina() {
-  section "4. Stamina recovers only on turns without a move (#273)"
+  section "4. Stamina regenerates every tick, so walking breaks even (#407; was rest-only, #273)"
   create --budget-tokens 2500 --out-dir "$WORK/stamina" --room "size=large;count=1" \
     --delver "count=1;id=hero;affinity=earth;motivation=user_controlled;vitals=health:10:1,mana:10:1,stamina:10:1,durability:10:1"
   end_session

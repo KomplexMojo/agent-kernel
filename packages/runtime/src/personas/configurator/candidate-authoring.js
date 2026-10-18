@@ -113,9 +113,9 @@ export function hasNonStationaryMobilityMotivation(motivations = []) {
 //   turn must refill that pool.
 //
 // so the pool must cover one worst-case move and regen must refill it.
-// Both derive from movementCost — no second constant to drift. Stamina only
-// regenerates on a turn without a move (#273), so a mover at this floor walks
-// in bursts and rests; a larger pool is a longer burst, bought through vitals.
+// Both derive from movementCost — no second constant to drift. Stamina
+// regenerates every tick and twice over on a rest (#407), so at this floor a
+// plain step costs less than the regen it gets back and walking never drains.
 
 function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
