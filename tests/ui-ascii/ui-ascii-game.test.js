@@ -604,12 +604,12 @@ test("i lists the known affinities for free; a digit equips one and costs the tu
   const game = await createGame({ levels: duelLevels(), fog: false });
   await press(game, "i");
   assert.equal(game.state().turns, 0);
-  assert.match(game.screen(), /1\) water push ×3/);
-  assert.match(game.screen(), /2\) light emit ×1/);
+  assert.match(game.screen(), /1\) water push r3 ×2/);
+  assert.match(game.screen(), /2\) light emit r1 ×1/);
   await press(game, "1");
   assert.equal(game.state().turns, 1);
   assert.doesNotMatch(game.screen(), /1\) water push/, "the panel closes after a choice");
-  assert.match(game.screen(), /Slot 1: water push ×3/);
+  assert.match(game.screen(), /Slot 1: water push r3 ×2/);
   assert.match(game.screen(), /Slot 2: empty/);
 });
 
@@ -617,13 +617,13 @@ test("the HUD shows a row per slot; in the panel a digit equips into a free slot
   const game = await createGame({ levels: duelLevels(), fog: false });
   assert.match(game.screen(), /Slots: all 3 empty \(press i to equip\)/);
   await press(game, "i1i2");
-  assert.match(game.screen(), /Slot 1: water push ×3\n.*Slot 2: light emit ×1\n.*Slot 3: empty/);
+  assert.match(game.screen(), /Slot 1: water push r3 ×2\n.*Slot 2: light emit r1 ×1\n.*Slot 3: empty/);
   await press(game, "i");
-  assert.match(game.screen(), /1\) water push ×3  \[slot 1\]/);
+  assert.match(game.screen(), /1\) water push r3 ×2  \[slot 1\]/);
   await press(game, "1");
   assert.equal(game.state().turns, 3);
   assert.match(game.screen(), /Unequipped water push\./);
-  assert.match(game.screen(), /Slot 1: light emit ×1/);
+  assert.match(game.screen(), /Slot 1: light emit r1 ×1/);
 });
 
 test("outside a panel, a slot's digit aims that slot; Enter casts it", async () => {
@@ -684,30 +684,48 @@ test("g takes the loot of a defeated neighbour", async () => {
   await press(game, "g");
   assert.match(game.screen(), /You take fire push from warden_1\./);
   await press(game, "i");
-  assert.match(game.screen(), /fire push ×1/);
+  assert.match(game.screen(), /fire push r1 ×1/);
 });
 
-// #230: in the affinity list, Tab picks a row and + / - run it at fewer or more stacks.
-test("+ and - re-level the highlighted equipped affinity, a turn each; the HUD shows running/held", async () => {
+// #230, #345: in the affinity list, Tab picks a row, + / - run it at less or more range and
+// ] / [ at more or less intensity.
+test("+ and - re-level the highlighted equipped affinity's range, a turn each; the HUD shows running/held", async () => {
   const game = await createGame({ levels: duelLevels(), fog: false });
   assert.deepEqual(intentForKey("-"), { type: INTENT.LEVEL_DOWN });
   assert.deepEqual(intentForKey("+"), { type: INTENT.LEVEL_UP });
   await press(game, "i1i");
-  assert.match(game.screen(), /> 1\) water push ×3  \[slot 1\]/);
+  assert.match(game.screen(), /> 1\) water push r3 ×2  \[slot 1\]/);
   await press(game, "--");
   assert.equal(game.state().turns, 3);
-  assert.match(game.screen(), /water push now runs at 1 of 3 stacks\./);
-  assert.match(game.screen(), /> 1\) water push ×3  \[slot 1, running 1\]/, "the panel stays open");
+  assert.match(game.screen(), /water push now runs at range 1 of 3\./);
+  assert.match(game.screen(), /> 1\) water push r3 ×2  \[slot 1, running r1 ×2\]/, "the panel stays open");
   await press(game, "-");
-  assert.match(game.screen(), /already runs at its lowest, 1 stack\./);
+  assert.match(game.screen(), /already runs at its lowest range, 1\./);
   assert.equal(game.state().turns, 3, "a refused step is free");
   await press(game, "\u001b");
-  assert.match(game.screen(), /Slot 1: water push ×1\/3/);
+  assert.match(game.screen(), /Slot 1: water push r1\/3 ×2/);
   await press(game, "i+");
-  assert.match(game.screen(), /Slot 1: water push ×2\/3/);
+  assert.match(game.screen(), /Slot 1: water push r2\/3 ×2/);
   await press(game, "\t+");
-  assert.match(game.screen(), /> 2\) light emit ×1/);
+  assert.match(game.screen(), /> 2\) light emit r1 ×1/);
   assert.match(game.screen(), /Equip it first \(press its number\)\./);
+});
+
+test("] and [ re-level intensity on its own, keeping the running range", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  assert.deepEqual(intentForKey("]"), { type: INTENT.INTENSITY_UP });
+  assert.deepEqual(intentForKey("["), { type: INTENT.INTENSITY_DOWN });
+  await press(game, "i1i-[");
+  assert.equal(game.state().turns, 3);
+  assert.match(game.screen(), /water push now runs at intensity 1 of 2\./);
+  assert.match(game.screen(), /\[slot 1, running r2 ×1\]/);
+  await press(game, "[");
+  assert.match(game.screen(), /already runs at its lowest intensity, 1\./);
+  await press(game, "]]");
+  assert.match(game.screen(), /already runs at all the intensity you hold, 2\./);
+  assert.equal(game.state().turns, 4);
+  await press(game, "\u001b");
+  assert.match(game.screen(), /Slot 1: water push r2\/3 ×2/);
 });
 
 test("a cast at a lowered level reaches only that far", async () => {

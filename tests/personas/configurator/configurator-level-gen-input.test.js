@@ -199,3 +199,22 @@ const invalid = normalizeLevelGenInput({
 assert.equal(invalid.ok, false);
 assert.ok(invalid.errors.find((entry) => entry.code === "invalid_target_type"));
 });
+
+// #340: a placed hazard keeps its intensity through level-gen; before #345 it was dropped,
+// so every placed hazard ran at intensity 1 whatever `ak create --hazard ...;intensity=` said.
+test("normalizeLevelGenInput keeps a placed hazard's intensity and refuses a bad one", async () => {const { normalizeLevelGenInput } = await import("../../../packages/runtime/src/personas/configurator/level-gen.js");
+
+const hazard = (intensity) => ({ width: 8, height: 8,
+  hazards: [{ x: 1, y: 1, affinity: { kind: "dark", expression: "emit", stacks: 3, intensity } }] });
+const valid = normalizeLevelGenInput(hazard(4));
+assert.equal(valid.ok, true);
+assert.equal(valid.value.hazards[0].affinity.intensity, 4);
+const absent = normalizeLevelGenInput(hazard(undefined));
+assert.equal(absent.ok, true);
+assert.equal("intensity" in absent.value.hazards[0].affinity, false, "absent reads as 1 downstream");
+for (const bad of [0, 1.5, "2"]) {
+  const invalid = normalizeLevelGenInput(hazard(bad));
+  assert.equal(invalid.ok, false);
+  assert.ok(invalid.errors.find((entry) => entry.code === "invalid_intensity"));
+}
+});

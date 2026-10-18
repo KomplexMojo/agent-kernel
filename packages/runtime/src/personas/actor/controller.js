@@ -621,12 +621,15 @@ function actionCanReachTarget(action, origin, target, actorRecord) {
 function equippedSlots(actorRecord) {
   const affinities = Array.isArray(actorRecord?.affinities) ? actorRecord.affinities : [];
   const running = actorRecord?.equippedAffinityStacks ?? {};
+  const runningIntensity = actorRecord?.equippedAffinityIntensity ?? {};
   return equippedActorAffinityKeys(actorRecord).flatMap((key) => {
     const wanted = String(key).trim().toLowerCase();
     const entry = affinities.find((pair) =>
       `${String(pair?.kind).trim().toLowerCase()}:${String(pair?.expression).trim().toLowerCase()}` === wanted);
     if (!entry) return [];
-    return [Number.isInteger(running[key]) ? { ...entry, stacks: running[key] } : entry];
+    return [{ ...entry,
+      ...(Number.isInteger(running[key]) ? { stacks: running[key] } : {}),
+      ...(Number.isInteger(runningIntensity[key]) ? { intensity: runningIntensity[key] } : {}) }];
   });
 }
 
@@ -639,7 +642,7 @@ function castableSlots(actorRecord) {
 /** The record as core's equip would leave it: a free slot, the named one, or the oldest replaced. */
 function recordAfterEquip(actorRecord, params) {
   const next = structuredClone(actorRecord);
-  if (!equipActorAffinity(next, params.affinityKey, params.replaceKey, params.stacks)) {
+  if (!equipActorAffinity(next, params.affinityKey, params.replaceKey, params.stacks, params.intensity)) {
     return { ...actorRecord, activeAffinityKey: params.affinityKey };
   }
   return next;
@@ -1481,9 +1484,10 @@ const isAffinityKey = (value) => typeof value === "string" && AFFINITY_KEY_PATTE
  * The command vocabulary is the Actor's:
  *   - `{ kind: "move", params: { direction } }` (an EIGHT_WAY direction name)
  *   - `{ kind: "wait" }`
- *   - `{ kind: "equip_affinity", params: { affinityKey, replaceKey?, stacks? } }` ("<kind>:<expression>";
+ *   - `{ kind: "equip_affinity", params: { affinityKey, replaceKey?, stacks?, intensity? } }` ("<kind>:<expression>";
  *     `replaceKey` names the equipped slot to swap out, else core fills a free slot or the oldest;
- *     `stacks` runs it below what is held, and re-equipping an equipped key re-levels it)
+ *     `stacks` (range) and `intensity` run it below what is held, and re-equipping an equipped
+ *     key re-levels it)
  *   - `{ kind: "unequip_affinity", params: { affinityKey } }`
  *   - `{ kind: "cast_affinity", params: { targetId, affinityKey? } }` (`affinityKey` names the
  *     equipped slot; without it core casts the first equipped push or pull)
@@ -1507,6 +1511,7 @@ export function normalizeActorCommand(command) {
       const params = { affinityKey: commandParam(command, "affinityKey", isAffinityKey) };
       if (command.params?.replaceKey !== undefined) params.replaceKey = commandParam(command, "replaceKey", isAffinityKey);
       if (command.params?.stacks !== undefined) params.stacks = commandParam(command, "stacks", isPositiveInteger);
+      if (command.params?.intensity !== undefined) params.intensity = commandParam(command, "intensity", isPositiveInteger);
       return { kind: "equip_affinity", params };
     }
     case "unequip_affinity":

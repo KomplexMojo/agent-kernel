@@ -596,11 +596,13 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
         ...(player.affinityExhausted ? { affinityExhausted: true } : {}),
         // Equipped slots, read through core's helpers: the count (1 when unset), the
         // equipped keys in equip order, the lasting ones off until mana is full, and
-        // the levels of slots run below what is held (#230; full when a key is absent).
+        // the range and intensity of slots run below what is held (#230, #345; full when
+        // a key is absent).
         affinitySlots: player.affinitySlots ?? 1,
         equippedAffinityKeys: equippedActorAffinityKeys(player),
         exhaustedAffinityKeys: exhaustedActorAffinityKeys(player),
         equippedAffinityStacks: { ...(player.equippedAffinityStacks ?? {}) },
+        equippedAffinityIntensity: { ...(player.equippedAffinityIntensity ?? {}) },
         // Core's rules, stated as data so the UI never restates them: which equipped
         // slots can be cast and how far each reaches, and the most slots anyone holds.
         castableAffinities: actorCastableAffinities(player),

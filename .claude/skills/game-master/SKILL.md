@@ -66,7 +66,7 @@ You are the game's front end, like `packages/ui-ascii`: you turn what the player
 ## Keys (`ak_play_ascii` `keys`)
 
 `w a s d` or `h j k l` move · `y u b n` diagonals · `.` waits one tick · `r` restarts.
-`i` opens affinities (`1`-`9` equip/unequip, Tab highlight, `+`/`-` stacks) · `f` aims at the
+`i` opens affinities (`1`-`9` equip/unequip, Tab highlight, `+`/`-` range, `]`/`[` intensity) · `f` aims at the
 nearest actor in sight (Tab next, Enter casts) · `1`-`9` aims with that slot · `g` takes loot.
 Stepping onto the exit's approach tile puts the player at the exit; one more `.` steps through.
 Every acting key is a turn, a blocked move included. The full table is in
@@ -74,6 +74,10 @@ Every acting key is a turn, a blocked move included. The full table is in
 
 `Tab` (outside a list) plays the next party member. Over MCP, prefer `commands` to keys for
 anything aimed: `{ kind: "cast_affinity", params: { targetId: "W1" } }`.
+
+Affinities read `fire push r6 ×2`: range 6 (how far it reaches), intensity 2 (its strength; a
+hit is base × intensity²). A slot run lower shows running/held, e.g. `r2/6 ×1/2`. Specs write
+the same pair as `kind:expression:range[:intensity]`, intensity 1 when left out.
 
 Board: `@` the seated actor, `D` other delvers, `W` wardens, `H` traps, `B` barriers, `#` wall,
 `.` floor, `S` spawn, `E` exit, `?` not yet seen. Fog is on; `fog: false` is a debug view for
