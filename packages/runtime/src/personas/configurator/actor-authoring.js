@@ -84,8 +84,10 @@ export function authorDelverCandidate({
   affinities,
   vitals,
 } = {}) {
-  const affinity = String(rawAffinity || defaultAffinity).trim().toLowerCase();
-  if (!AFFINITY_KINDS.includes(affinity)) {
+  // No affinity named and no default given means none (#263): no kind is a default.
+  const named = isNonEmptyString(rawAffinity) ? rawAffinity : defaultAffinity;
+  const affinity = isNonEmptyString(named) ? String(named).trim().toLowerCase() : null;
+  if (affinity !== null && !AFFINITY_KINDS.includes(affinity)) {
     throw new Error(`delver[${index}] affinity must be one of: ${AFFINITY_KINDS.join(", ")}.`);
   }
 

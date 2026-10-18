@@ -351,15 +351,24 @@ test("new actor cards default vitals to max 10 and regen 2", () => {
   });
 });
 
-test("new delver/warden cards default to light/dark emit affinity", () => {
+// #263: no affinity is a default (affinity-agnostic rule), for any card type.
+test("new delver/warden cards carry no affinity until one is chosen", () => {
   const delver = createDesignCard({ type: "delver" });
   const warden = createDesignCard({ type: "warden" });
 
-  assert.equal(delver.affinity, "light");
-  assert.deepEqual(delver.affinities, [{ kind: "light", expression: "emit", stacks: 1 }]);
+  assert.equal(delver.affinity, null);
+  assert.deepEqual(delver.affinities, []);
 
-  assert.equal(warden.affinity, "dark");
-  assert.deepEqual(warden.affinities, [{ kind: "dark", expression: "emit", stacks: 1 }]);
+  assert.equal(warden.affinity, null);
+  assert.deepEqual(warden.affinities, []);
+});
+
+test("new hazard/resource/room cards carry no affinity until one is chosen", () => {
+  for (const type of ["hazard", "resource", "room"]) {
+    const card = createDesignCard({ type });
+    assert.equal(card.affinity, null, type);
+    assert.deepEqual(card.affinities, [], type);
+  }
 });
 
 test("room cards map to level inputs and room design shape", () => {
@@ -559,8 +568,8 @@ test("wireDesignGuidance uses single active card editor with vitals and stash/pu
   const delver = guidance.getActiveCard();
   assert.equal(delver.type, "delver");
   assert.match(delver.id, /^A-[A-Z0-9]{6}$/);
-  assert.equal(delver.affinity, "light");
-  assert.ok(delver.affinities.some((entry) => entry.kind === "light" && entry.expression === "emit" && entry.stacks === 1));
+  assert.equal(delver.affinity, null);
+  assert.deepEqual(delver.affinities, []);
   const initialConfigurationValue = delver.cardValue.totalTokens;
   let renderedCard = elements["#design-card-grid"].children.find(
     (child) => child.dataset?.cardId === delver.id,
@@ -1782,12 +1791,13 @@ test("stashActiveCard accepts hazard card that already has type, affinities, and
     },
   });
 
-  // Set type=hazard via applyPropertyDrop (injects defaults for type, affinities, mana)
+  // Set type=hazard via applyPropertyDrop (injects defaults for type and mana). No affinity
+  // is injected (#263): the Configurator picks one from the run seed when it builds the level.
   const blank = guidance.getActiveCard();
   guidance.applyPropertyDrop(blank.id, { group: "type", value: "hazard" });
   const active = guidance.getActiveCard();
   assert.equal(active.type, "hazard");
-  assert.ok(Array.isArray(active.affinities) && active.affinities.length > 0, "defaults should be injected");
+  assert.deepEqual(active.affinities, [], "no affinity is a default");
 
   // Card now has type + defaults set → stash should succeed
   const result = guidance.stashActiveCard("hazard");

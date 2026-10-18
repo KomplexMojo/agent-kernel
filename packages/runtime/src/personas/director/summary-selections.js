@@ -279,7 +279,7 @@ function delverConfigToAffinityEntries(config, dungeonAffinity) {
       entries.push({ kind, expression: String(expression).trim(), stacks });
     });
   });
-  if (entries.length > 0) return entries;
+  if (entries.length > 0 || !dungeonAffinity) return entries;
   return [{ kind: dungeonAffinity, expression: DEFAULT_AFFINITY_EXPRESSION, stacks: 1 }];
 }
 

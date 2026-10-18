@@ -23,11 +23,8 @@
   },
   "intent": {
     "goal": "Author resource into a playable dungeon bundle.",
-    "tags": [
-      "fire"
-    ],
+    "tags": [],
     "hints": {
-      "levelAffinity": "fire",
       "budgetTokens": 5000,
       "poolWeights": [
         {
@@ -55,7 +52,6 @@
         },
         "budgetScaffold": true
       },
-      "levelAffinity": "fire",
       "actors": [],
       "actorGroups": [],
       "resources": [
@@ -1984,7 +1980,6 @@
           "kind": "shared_config",
           "prompt": "shared config for create",
           "attributes": {
-            "dungeonAffinity": "fire",
             "budgetTokens": 5000,
             "constraints": {
               "hardBudget": {
@@ -1998,7 +1993,6 @@
         }
       ],
       "sharedConfig": {
-        "dungeonAffinity": "fire",
         "budgetTokens": 5000,
         "constraints": {
           "hardBudget": {

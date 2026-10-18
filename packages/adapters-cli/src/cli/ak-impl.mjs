@@ -1597,8 +1597,9 @@ function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON
     fields.set(key, fieldValue);
   });
 
-  const affinity = String(fields.get("affinity") || defaultAffinity).trim().toLowerCase();
-  if (!ALLOWED_AFFINITIES.includes(affinity)) {
+  const rawAffinity = fields.get("affinity") || defaultAffinity;
+  const affinity = isNonEmptyString(rawAffinity) ? String(rawAffinity).trim().toLowerCase() : null;
+  if (affinity !== null && !ALLOWED_AFFINITIES.includes(affinity)) {
     throw new Error(`warden[${wardenIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -5145,8 +5146,8 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_DUNGEON_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_DUNGEON_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`${commandName} --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -5634,8 +5635,8 @@ async function roomPlanCommand(argv) {
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_ROOM_CARD_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_ROOM_CARD_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`room-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -5747,8 +5748,8 @@ async function hazardPlanCommand(argv) {
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_DUNGEON_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_DUNGEON_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`hazard-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -5850,8 +5851,8 @@ async function resourcePlanCommand(argv) {
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_DUNGEON_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_DUNGEON_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`resource-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -5952,8 +5953,8 @@ async function delverPlanCommand(argv) {
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_DUNGEON_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_DUNGEON_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`delver-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -6083,8 +6084,8 @@ async function wardenPlanCommand(argv) {
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_DUNGEON_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_DUNGEON_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`warden-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
