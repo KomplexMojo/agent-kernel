@@ -67,11 +67,6 @@
       ],
       "knownIssues": [
         {
-          "rule": "refused_streak",
-          "actor": "def-1",
-          "issue": "#367"
-        },
-        {
           "rule": "cast_without_cost",
           "actor": "atk-1",
           "issue": "#369"
@@ -215,13 +210,6 @@
         "count=1;id=multi;affinity=light;slots=4;affinities=light:emit:2,fire:push:3,wind:pull:2,growth:draw:2;equip=light:emit,fire:push,wind:pull,growth:draw;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
         "--warden",
         "count=2;id=w;affinity=dark;affinities=dark:push:2;equip=dark:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
-      ],
-      "knownIssues": [
-        {
-          "rule": "refused_streak",
-          "actor": "multi-1",
-          "issue": "#367"
-        }
       ]
     },
     {
