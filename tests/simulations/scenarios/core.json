@@ -9,9 +9,9 @@
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=fire;affinities=fire:push:3:2;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "count=1;id=atk;affinity=fire;affinities=fire:push:3:2;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=water;affinities=water:push:3:2;equip=water:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+        "count=1;id=def;affinity=water;affinities=water:push:3:2;equip=water:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
       ]
     },
     {
@@ -22,9 +22,9 @@
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=earth;affinities=earth:push:3:2;equip=earth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "count=1;id=atk;affinity=earth;affinities=earth:push:3:2;equip=earth:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=wind;affinities=wind:push:3:2;equip=wind:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+        "count=1;id=def;affinity=wind;affinities=wind:push:3:2;equip=wind:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
       ]
     },
     {
@@ -35,9 +35,9 @@
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "count=1;id=atk;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=decay;affinities=decay:push:3:2;equip=decay:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+        "count=1;id=def;affinity=decay;affinities=decay:push:3:2;equip=decay:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
       ]
     },
     {
@@ -48,9 +48,9 @@
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "count=1;id=atk;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=fortify;affinities=fortify:push:3:2;equip=fortify:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+        "count=1;id=def;affinity=fortify;affinities=fortify:push:3:2;equip=fortify:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
       ]
     },
     {
@@ -61,9 +61,9 @@
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=light;affinities=light:pull:3:2;equip=light:pull;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "count=1;id=atk;affinity=light;affinities=light:pull:3:2;equip=light:pull;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=dark;affinities=dark:pull:3:2;equip=dark:pull;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+        "count=1;id=def;affinity=dark;affinities=dark:pull:3:2;equip=dark:pull;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
       ]
     },
     {
@@ -107,9 +107,9 @@
         "--room",
         "size=medium;count=2",
         "--delver",
-        "count=1;id=ex;affinity=fire;affinities=fire:push:3:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "count=1;id=ex;affinity=fire;affinities=fire:push:3:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
-        "count=1;id=pat;affinity=water;affinities=water:push:3:2;equip=water:push;motivation=patrolling;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+        "count=1;id=pat;affinity=water;affinities=water:push:3:2;equip=water:push;motivation=patrolling;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
       ]
     },
     {
@@ -197,9 +197,9 @@
         "--room",
         "size=medium;count=1",
         "--delver",
-        "count=2;id=d;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "count=2;id=d;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
-        "count=2;id=w;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+        "count=2;id=w;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
       ]
     },
     {
@@ -213,7 +213,7 @@
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=ex;affinity=fire;affinities=fire:push:2:2;equip=fire:push;motivation=exploring+attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "count=1;id=ex;affinity=fire;affinities=fire:push:2:2;equip=fire:push;motivation=exploring+attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
         "count=1;id=st;affinity=water;motivation=stationary;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
       ],
@@ -232,7 +232,7 @@
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+        "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:60:6,stamina:10:1,durability:10:1"
       ]
     }
   ]

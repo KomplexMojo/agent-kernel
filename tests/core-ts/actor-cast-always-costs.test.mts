@@ -19,7 +19,7 @@ function actor(id: string, x: number, kind: AffinityKind, expression: AffinityEx
     motivations: [], affinities: [{ kind, expression, stacks: 3, intensity: 3 }], activeAffinityKey: `${kind}:${expression}`, holdings: [] } as ActorRecord;
 }
 const prices = { castManaBase: Object.fromEntries(KINDS.flatMap(kind => [[`${kind}:pull`, 1], [`${kind}:push`, 1]])) };
-const PRICE = 6; // base 1 × 3·4/2
+const PRICE = 18; // base 1 × intensity 3 × range 3·4/2 (#344)
 
 for (const kind of KINDS) {
   for (const expression of ['pull', 'push'] as const) {
@@ -41,12 +41,12 @@ for (const kind of KINDS) {
 }
 
 test('a light pull that steals more than its price still nets the caster the difference', () => {
-  const caster = actor('caster', 0, 'light', 'pull'); caster.vitals.mana!.current = 10;
+  const caster = actor('caster', 0, 'light', 'pull'); caster.vitals.mana!.current = 20;
   const registry = createActorRegistry({ dimensions: { width: 2, height: 1 }, terrain: ['floor', 'floor'],
     actors: [caster, actor('target', 1, 'dark', 'pull')] });
   castFocusedActorAffinity(registry, 'caster', 'target', prices);
-  // Opposite doubles the drain: 2 × 3² × 2 = 36, of which the target has 30; 10 + 20 (cap) - 6.
-  expect(registry.getActor('caster')!.vitals.mana!.current).toBe(24);
+  // Opposite doubles the drain: 2 × 3² × 2 = 36, of which the target has 30; 20 + 10 (cap) - 18.
+  expect(registry.getActor('caster')!.vitals.mana!.current).toBe(12);
   expect(registry.getActor('target')!.vitals.mana!.current).toBe(0);
 });
 
