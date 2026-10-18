@@ -12,7 +12,10 @@
  *
  * Normalized constraint:
  *   { label, subject: Ref, near?: { target: Ref, distance }, far?: { target: Ref, distance },
- *     count?, route?: "on"|"off", arrange?: "spread"|"clump" }
+ *     count?, route?: "on"|"off", arrange?: "spread"|"clump", outOfSight?: { target: RoomRef } }
+ *
+ * #398: `outOfSight=room:<id>` keeps the subject where no doorway of that room can see it, by
+ * core's line-of-sight rule (doorway-sight.js). It is geometric, never light- or dark-dependent.
  * Ref: { kind: "spawn"|"exit" } | { kind: "room", ref } |
  *      { kind: "hazard"|"resource"|"delver"|"warden", ref }  (ref: id, 1-based ordinal, or "*")
  */
@@ -70,7 +73,8 @@ export function parsePlacementConstraint(text, index = 0) {
     else if (key === "onRoute" && value === undefined) constraint.route = "on";
     else if (key === "offRoute" && value === undefined) constraint.route = "off";
     else if (ARRANGEMENTS.includes(key) && value === undefined) constraint.arrange = key;
-    else throw new Error(`${field} clause "${clause}" is not one of near=, far=, count=, onRoute, offRoute, spread, clump.`);
+    else if (key === "outOfSight" && value !== undefined) constraint.outOfSight = { target: parseRef(value, { field: `${field} outOfSight` }) };
+    else throw new Error(`${field} clause "${clause}" is not one of near=, far=, count=, onRoute, offRoute, spread, clump, outOfSight=.`);
   }
   return normalizePlacementConstraint(constraint, index);
 }
@@ -111,8 +115,13 @@ export function normalizePlacementConstraint(raw, index = 0) {
     if (!ARRANGEMENTS.includes(raw.arrange)) throw new Error(`${field} arrange must be spread or clump.`);
     out.arrange = raw.arrange;
   }
-  if (!out.near && !out.far && !out.route && !out.arrange) {
-    throw new Error(`${field} says nothing about placement: give near=, far=, onRoute, offRoute, spread or clump.`);
+  if (raw.outOfSight !== undefined) {
+    const target = normalizeRef(raw.outOfSight?.target, { allowAll: false, field: `${field} outOfSight.target` });
+    if (target.kind !== "room") throw new Error(`${field} outOfSight must name a room (room:<id>): its doorways are what must not see the subject.`);
+    out.outOfSight = { target };
+  }
+  if (!out.near && !out.far && !out.route && !out.arrange && !out.outOfSight) {
+    throw new Error(`${field} says nothing about placement: give near=, far=, onRoute, offRoute, spread, clump or outOfSight=.`);
   }
   return out;
 }
@@ -135,6 +144,7 @@ function describeConstraint(constraint) {
     ...(constraint.count !== undefined ? [`count=${constraint.count}`] : []),
     ...(constraint.route ? [constraint.route === "on" ? "onRoute" : "offRoute"] : []),
     ...(constraint.arrange ? [constraint.arrange] : []),
+    ...(constraint.outOfSight ? [`outOfSight=${describeRef(constraint.outOfSight.target)}`] : []),
   ].join(";");
 }
 
@@ -184,6 +194,7 @@ export function resolvePlacementConstraints(constraints, { entities = [], rooms 
     for (const key of ["near", "far"]) {
       if (constraint[key]) resolved[key] = { target: target(constraint[key].target, constraint), distance: constraint[key].distance };
     }
+    if (constraint.outOfSight) resolved.outOfSight = { target: target(constraint.outOfSight.target, constraint) };
     if (constraint.count !== undefined && constraint.count > subjects.length) {
       resolved.impossible = `asks for ${constraint.count} but names only ${subjects.length}`;
     }
@@ -260,7 +271,7 @@ export function routeCutCells(cells, spawn, exit, blocking = new Set()) {
  * Check a finished placement against every resolved constraint. `positions` maps entity key
  * to its cell. Returns one report row per constraint, in authored order.
  */
-export function checkPlacementConstraints(resolved, { positions, cutCells, labelOf = (key) => key } = {}) {
+export function checkPlacementConstraints(resolved, { positions, cutCells, labelOf = (key) => key, seenFrom = () => new Set() } = {}) {
   const key = ({ x, y }) => `${x},${y}`;
   return resolved.map((entry) => {
     const { constraint, subjects } = entry;
@@ -293,6 +304,11 @@ export function checkPlacementConstraints(resolved, { positions, cutCells, label
           failures.push(`${labelOf(subject)} is ${onRoute ? "on" : "off"} the only route`);
         }
       });
+    }
+    if (entry.outOfSight) {
+      const seen = seenFrom(entry.outOfSight.target.room);
+      subjects.filter((subject) => seen.has(key(positions.get(subject))))
+        .forEach((subject) => failures.push(`${labelOf(subject)} is in sight of ${entry.outOfSight.target.room.id}'s doorways`));
     }
     if (constraint.arrange) {
       const distances = [];
