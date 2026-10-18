@@ -9,6 +9,14 @@
   },
   "scope": "run",
   "data": {
+    "solverDecisions": [
+      {
+        "domain": "configurator_satisfiability",
+        "decision": "fallback",
+        "status": "deferred",
+        "reason": "solver_domain_unavailable"
+      }
+    ],
     "status": "success",
     "source": "cli-create",
     "artifactRefs": [

@@ -6,6 +6,7 @@ import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
+import { createHostedObjectPlacer } from "../commands/solver-host.js";
 // M9: every value in SCHEMAS below now comes from contracts/artifacts.ts. M8 relocated the
 // two rules schemas here; the other five were the tree-wide retype backlog it deferred.
 import {
@@ -221,6 +222,9 @@ export async function orchestrateBuild({
   producedBy = "runtime-build",
   solver,
   placeObjects,
+  // #299: where this build's solver decisions are recorded. A caller that hosts its own
+  // `placeObjects` passes the same array to that host's `record`; it is returned either way.
+  solverDecisions = [],
   capturedInputs,
   // CR.3: `{intent, plan}` from the Director round that produced this spec, when
   // the caller ran one. Without it map-build-spec reconstructs a plan from the
@@ -396,9 +400,15 @@ export async function orchestrateBuild({
       cardSet: configuratorInputs?.cardSet,
       seed,
     }).layout;
+    // Without a hosted solver the placement still goes through the host, so the build records
+    // that the fallback answered and why (no adapter: `solver_domain_unavailable`).
     const objectPlacement = await (typeof placeObjects === "function"
       ? placeObjects
-      : configuratorBuild.completeObjectPlacement)({
+      : createHostedObjectPlacer({
+        prepare: configuratorBuild.prepareObjectPlacement,
+        complete: configuratorBuild.completeObjectPlacement,
+        record: (decision) => solverDecisions.push(decision),
+      }))({
       layout,
       hazards: unpositionedHazards,
       resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
@@ -665,6 +675,7 @@ export async function orchestrateBuild({
     budget: resolvedBudget,
     solverRequest,
     solverResult,
+    solverDecisions,
     spendProposal,
     budgetReceipt,
     affinityRules,
