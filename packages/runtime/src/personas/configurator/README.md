@@ -397,15 +397,21 @@ hazard/resource actors. Fixed coordinates,
 room containment, unique walkable cells, spawn/exit/actor reservations, and a surviving
 spawn-to-exit path are hard constraints.
 
-The objective is deterministic: authored object order first, row-major cell order second. The
+The objective is deterministic: hazards and resources apart first (#370), then authored object
+order, then row-major cell order. Two things touch exactly when a 2x2 window holds both, so each
+window carries a slack for every object past the first and the total slack is minimised. It is a
+preference, not a refusal: a level too small to keep everything apart still builds. Objects
+already in place (authored, or placed with the layout) count. The
 problem uses binary placement variables plus integer path-flow variables, allowing both platform Z3
 adapters to compile it through their generic linear solver without learning Configurator policy.
 `orchestrateBuild` only passes plain inputs and consumes the result; it holds no placement helpers.
 
 The problem is sized by the objects, not the grid (#331). An object that cannot seal the route
-gets variables for only its first `pending` candidate cells (in row-major order): at most
-`pending - 1` other objects can hold any of them, so the lexicographic answer never lies beyond
-them, and the solver lands on the same cells as with the whole grid. Only a route-sealing object
+gets variables for only its first `9 × others + 1` candidate cells (in row-major order): each other
+object rules out at most its 3x3 neighbourhood, so one of them touches nothing, and the answer never
+lies beyond them (#370 widened this from `pending`). When nothing seals the route and no relational
+constraint applies, seating each object on its first candidate that touches nothing is the answer
+itself, so each object stops at that cell. The solver lands on the same cells as with the whole grid. Only a route-sealing object
 keeps every candidate cell, and only then is the path-flow network posed. A 5,700-cell level with
 21 objects poses a few hundred variables rather than over a hundred thousand.
 

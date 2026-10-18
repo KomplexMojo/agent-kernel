@@ -132,16 +132,6 @@
         "affinity=corrode;expression=pull;proximityRadius=2;mana=regen:40:40:4",
         "--hazard",
         "affinity=dark;expression=draw;proximityRadius=2;mana=regen:40:40:4"
-      ],
-      "knownIssues": [
-        {
-          "rule": "tick_one_defeat",
-          "issue": "#370"
-        },
-        {
-          "rule": "adjacent_objects",
-          "issue": "#370"
-        }
       ]
     },
     {
@@ -183,12 +173,6 @@
         "affinity=growth;expression=emit;stacks=2;mana=40",
         "--resource",
         "slots=1"
-      ],
-      "knownIssues": [
-        {
-          "rule": "adjacent_objects",
-          "issue": "#370"
-        }
       ]
     },
     {

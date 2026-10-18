@@ -41,9 +41,11 @@ const FIRST_STEPS_SOLUTION = "dd.ss.dd.ss.ss.dd.d.";
 /** Move along `path`, resting a turn first whenever the player cannot pay for the step (#273). */
 async function walk(session, path, onMove = () => {}) {
   for (const direction of path) {
-    while ((session.view().player.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1) {
-      // A defeated player never recovers stamina: fail rather than wait forever.
+    for (let waits = 0; (session.view().player.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1; waits += 1) {
+      // A defeated player never recovers stamina, nor does one a field drains faster than it
+      // regenerates: fail rather than wait forever.
       assert.equal((await session.act({ kind: "wait" })).status.defeated, false, "the player was defeated");
+      assert.ok(waits < 50, `the player's stamina never came back at ${JSON.stringify(session.view().player.position)}`);
     }
     onMove(await session.act({ kind: "move", params: { direction } }), direction);
   }
@@ -69,26 +71,40 @@ function solve(level, { othersAreWalls = true, target } = {}) {
     goal = { x: index % width, y: Math.trunc(index / width) };
   }
   // Traps are passable (a destroyable trap does not block a route), but a sensible
-  // player walks round them rather than through them, so the search does too.
+  // player walks round them rather than through them, so the search does too. Where the
+  // level allows it the search also keeps out of each trap's reach (#370: traps are seated
+  // apart now, so their fields no longer cancel or destroy each other on tick 1, and one
+  // that drains stamina faster than it comes back pins a player who stops beside it).
   const isTrap = (actor) => level.initialState.presentation?.[actor.id]?.category === "hazard";
-  const occupied = new Set(othersAreWalls
-    ? level.initialState.actors
-      .filter((actor) => actor.id !== player.id && (actor.capabilities.blocksMovement || isTrap(actor)))
-      .map((actor) => `${actor.position.x},${actor.position.y}`)
-    : []);
+  const others = othersAreWalls
+    ? level.initialState.actors.filter((actor) => actor.id !== player.id && (actor.capabilities.blocksMovement || isTrap(actor)))
+    : [];
+  const occupied = new Set(others.map((actor) => `${actor.position.x},${actor.position.y}`));
   occupied.delete(`${goal.x},${goal.y}`); // a trap that is the goal is walked onto
+  const reach = (actor) => Math.max(0, ...(actor.affinities || []).map((entry) => entry.stacks ?? 1));
+  const inReach = (p) => others.some((actor) => isTrap(actor)
+    && !(actor.position.x === goal.x && actor.position.y === goal.y)
+    && Math.max(Math.abs(actor.position.x - p.x), Math.abs(actor.position.y - p.y)) <= reach(actor));
   const steps = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
   const key = (p) => `${p.x},${p.y}`;
+  // Fewest steps inside a trap's reach first, then fewest steps (a two-cost breadth-first search).
   const prev = new Map([[key(start), null]]);
+  const cost = new Map([[key(start), [0, 0]]]);
+  const better = (left, right) => !right || left[0] < right[0] || (left[0] === right[0] && left[1] < right[1]);
   const queue = [start];
   while (queue.length) {
+    queue.sort((left, right) => (better(cost.get(key(left)), cost.get(key(right))) ? -1 : 1));
     const here = queue.shift();
     if (here.x === goal.x && here.y === goal.y) break;
+    const [exposed, length] = cost.get(key(here));
     for (const [direction, [dx, dy]] of Object.entries(steps)) {
       const next = { x: here.x + dx, y: here.y + dy };
-      if (!["floor", "exit"].includes(at(next)) || prev.has(key(next)) || occupied.has(key(next))) continue;
+      if (!["floor", "exit"].includes(at(next)) || occupied.has(key(next))) continue;
+      const nextCost = [exposed + (inReach(next) ? 1 : 0), length + 1];
+      if (!better(nextCost, cost.get(key(next)))) continue;
+      if (!cost.has(key(next))) queue.push(next);
+      cost.set(key(next), nextCost);
       prev.set(key(next), { at: here, direction });
-      queue.push(next);
     }
   }
   const path = [];
