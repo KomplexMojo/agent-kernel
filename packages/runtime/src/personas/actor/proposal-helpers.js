@@ -354,7 +354,19 @@ function findTerrainRoute(start, goal, tileKinds, baseTiles) {
   if (!tileKinds || !baseTiles) return null;
   const route = findPath(start, goal, null, baseTiles);
   if (!route || route.length < 2) return null;
-  return isPassable(route[1], tileKinds, baseTiles) ? route : null;
+  if (isPassable(route[1], tileKinds, baseTiles)) return route;
+  // #368: the shortest route's next tile is taken (a partner stands on it). Another free
+  // first step keeps the actor moving round it: one that closes in if there is one, else a
+  // sidestep that loses no ground.
+  let sidestep = null;
+  for (const delta of DEFAULT_DELTAS) {
+    const next = { x: start.x + delta.dx, y: start.y + delta.dy };
+    if (!isPassable(next, tileKinds, baseTiles) || !isDiagonalStepAllowed(start, next, tileKinds, baseTiles)) continue;
+    const rest = findPath(next, goal, null, baseTiles);
+    if (rest && rest.length < route.length) return [start, ...rest];
+    if (rest && rest.length === route.length && !sidestep) sidestep = [start, ...rest];
+  }
+  return sidestep;
 }
 
 export function roomPerimeterRing(room, tileKinds, baseTiles) {
