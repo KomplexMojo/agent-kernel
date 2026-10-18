@@ -188,11 +188,20 @@ export function affinityLines(player, { hints = true } = {}) {
     const pair = key && known.find((entry) => `${entry.kind}:${entry.expression}` === key);
     if (!pair) return `Slot ${i + 1}: empty`;
     const note = off.includes(key) ? "  (off until mana is full)" : "";
-    // A slot run below what is held shows running/held (#230).
-    const running = player.equippedAffinityStacks?.[key];
-    const stacks = Number.isInteger(running) && running < pair.stacks ? `${running}/${pair.stacks}` : `${pair.stacks}`;
-    return `Slot ${i + 1}: ${pair.kind} ${pair.expression} ×${stacks}${note}`;
+    return `Slot ${i + 1}: ${pair.kind} ${pair.expression} ${slotLevelLabel(player, pair)}${note}`;
   });
+}
+
+/**
+ * An affinity's range and intensity as `r6 ×2` (#345). A slot run below what is held shows
+ * running/held for that number (#230): `r1/6 ×2`, `r6 ×1/2`.
+ */
+export function slotLevelLabel(player, pair) {
+  const key = `${pair.kind}:${pair.expression}`;
+  const heldIntensity = pair.intensity ?? 1;
+  const level = (running, held) => (Number.isInteger(running) && running < held ? `${running}/${held}` : `${held}`);
+  return `r${level(player?.equippedAffinityStacks?.[key], pair.stacks)}`
+    + ` ×${level(player?.equippedAffinityIntensity?.[key], heldIntensity)}`;
 }
 
 /** An actor's motivation stack, in brackets after its name (#310); nothing when it has none. */

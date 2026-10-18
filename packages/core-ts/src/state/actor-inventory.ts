@@ -50,6 +50,17 @@ export function validateActorInventory(actor: ActorRecord): void {
           || (stacks as number) < 1 || (stacks as number) >= held;
       })) throw new Error('invalid equipped affinity stacks');
   }
+  if (actor.equippedAffinityIntensity !== undefined) {
+    const running = actor.equippedAffinityIntensity;
+    const equipped = equippedActorAffinityKeys(actor);
+    if (!running || typeof running !== 'object' || Array.isArray(running) || !Object.keys(running).length
+      || Object.entries(running).some(([key, intensity]) => {
+        const entry = actor.affinities.find(pair => affinityKey(pair) === key);
+        const held = entry ? affinityIntensity(entry) : 0;
+        return !equipped.includes(key as ActorAffinityKey) || !Number.isSafeInteger(intensity)
+          || (intensity as number) < 1 || (intensity as number) >= held;
+      })) throw new Error('invalid equipped affinity intensity');
+  }
   if (actor.exhaustedAffinityKeys !== undefined) {
     const equipped = equippedActorAffinityKeys(actor);
     const exhausted = actor.exhaustedAffinityKeys;
@@ -69,10 +80,15 @@ export function equippedActorAffinityKeys(actor: ActorRecord): ActorAffinityKey[
   return actor.activeAffinityKey ? [actor.activeAffinityKey] : [];
 }
 
-/** The level an equipped entry runs at: its running stacks (#230), else all it holds. */
+/**
+ * The level an equipped entry runs at: its running range (#230) and running intensity
+ * (#345), each else all it holds.
+ */
 function runningEntry(actor: ActorRecord, entry: ActorAffinityEntry): ActorAffinityEntry {
-  const running = actor.equippedAffinityStacks?.[affinityKey(entry)];
-  return running === undefined ? entry : { ...entry, stacks: running };
+  const stacks = actor.equippedAffinityStacks?.[affinityKey(entry)];
+  const intensity = actor.equippedAffinityIntensity?.[affinityKey(entry)];
+  if (stacks === undefined && intensity === undefined) return entry;
+  return { ...entry, ...(stacks === undefined ? {} : { stacks }), ...(intensity === undefined ? {} : { intensity }) };
 }
 
 /** Equipped entries in equip order, at the stacks they run at; none unless the actor is alive. */
@@ -111,13 +127,16 @@ function setEquippedActorAffinityKeys(actor: ActorRecord, keys: ActorAffinityKey
   if (keys.length > 1) actor.equippedAffinityKeys = [...keys];
   else delete actor.equippedAffinityKeys;
   setExhaustedActorAffinityKeys(actor, exhausted);
-  const running = Object.entries(actor.equippedAffinityStacks ?? {}).filter(([key]) => keys.includes(key as ActorAffinityKey));
-  setRunningStacks(actor, Object.fromEntries(running));
+  const kept = (running: Partial<Record<ActorAffinityKey, number>> | undefined) =>
+    Object.fromEntries(Object.entries(running ?? {}).filter(([key]) => keys.includes(key as ActorAffinityKey)));
+  setRunning(actor, 'equippedAffinityStacks', kept(actor.equippedAffinityStacks));
+  setRunning(actor, 'equippedAffinityIntensity', kept(actor.equippedAffinityIntensity));
 }
 
-function setRunningStacks(actor: ActorRecord, running: Partial<Record<ActorAffinityKey, number>>): void {
-  if (Object.keys(running).length) actor.equippedAffinityStacks = running;
-  else delete actor.equippedAffinityStacks;
+function setRunning(actor: ActorRecord, field: 'equippedAffinityStacks' | 'equippedAffinityIntensity',
+  running: Partial<Record<ActorAffinityKey, number>>): void {
+  if (Object.keys(running).length) actor[field] = running;
+  else delete actor[field];
 }
 
 export function activeActorAffinity(actor: ActorRecord): ActorAffinityEntry | undefined {
@@ -128,7 +147,7 @@ export function activeActorAffinity(actor: ActorRecord): ActorAffinityEntry | un
 
 /** Why an equip is refused, as a ValidationError name; null when it is legal. */
 export function explainEquipActorAffinity(actor: ActorRecord | undefined, key: ActorAffinityKey,
-  replaceKey?: ActorAffinityKey, stacks?: number): string | null {
+  replaceKey?: ActorAffinityKey, stacks?: number, intensity?: number): string | null {
   if (!actor || actor.lifecycle !== 'alive') return 'WrongActor';
   if (!actor.capabilities.canEquip) return 'InvalidCapability';
   const held = actor.affinities.find(entry => affinityKey(entry) === key);
@@ -136,10 +155,15 @@ export function explainEquipActorAffinity(actor: ActorRecord | undefined, key: A
   if (stacks !== undefined && (!Number.isSafeInteger(stacks) || stacks < 1 || stacks > held.stacks)) {
     return 'InvalidAffinityStacks';
   }
+  if (intensity !== undefined && (!Number.isSafeInteger(intensity) || intensity < 1 || intensity > affinityIntensity(held))) {
+    return 'InvalidAffinityIntensity';
+  }
   const equipped = equippedActorAffinityKeys(actor);
-  // An equipped key may be re-equipped at another level (#230); at the same level it is a no-op.
+  // An equipped key may be re-equipped at another level (#230, #345); at the same level it is a no-op.
   if (equipped.includes(key)) {
-    return (stacks ?? held.stacks) === runningEntry(actor, held).stacks ? 'AffinityAlreadyEquipped' : null;
+    const now = runningEntry(actor, held);
+    const same = (stacks ?? held.stacks) === now.stacks && (intensity ?? affinityIntensity(held)) === affinityIntensity(now);
+    return same ? 'AffinityAlreadyEquipped' : null;
   }
   if (replaceKey !== undefined && !equipped.includes(replaceKey)) return 'AffinityNotEquipped';
   return null;
@@ -151,8 +175,8 @@ export function explainEquipActorAffinity(actor: ActorRecord | undefined, key: A
  * slots are full the oldest equipped affinity makes way (one slot: a plain swap).
  */
 export function equipActorAffinity(actor: ActorRecord | undefined, key: ActorAffinityKey,
-  replaceKey?: ActorAffinityKey, stacks?: number): boolean {
-  if (explainEquipActorAffinity(actor, key, replaceKey, stacks) !== null) return false;
+  replaceKey?: ActorAffinityKey, stacks?: number, intensity?: number): boolean {
+  if (explainEquipActorAffinity(actor, key, replaceKey, stacks, intensity) !== null) return false;
   const keys = equippedActorAffinityKeys(actor!);
   if (!keys.includes(key)) {
     if (replaceKey !== undefined) keys[keys.indexOf(replaceKey)] = key;
@@ -162,12 +186,16 @@ export function equipActorAffinity(actor: ActorRecord | undefined, key: ActorAff
     }
     setEquippedActorAffinityKeys(actor!, keys);
   }
-  // The running level: below what is held it is recorded; at full it is not (#230).
-  const held = actor!.affinities.find(entry => affinityKey(entry) === key)!.stacks;
-  const running = { ...(actor!.equippedAffinityStacks ?? {}) };
-  if (stacks !== undefined && stacks < held) running[key] = stacks;
-  else delete running[key];
-  setRunningStacks(actor!, running);
+  // The running levels: below what is held they are recorded; at full they are not (#230, #345).
+  const held = actor!.affinities.find(entry => affinityKey(entry) === key)!;
+  const record = (field: 'equippedAffinityStacks' | 'equippedAffinityIntensity', value: number | undefined, full: number) => {
+    const running = { ...(actor![field] ?? {}) };
+    if (value !== undefined && value < full) running[key] = value;
+    else delete running[key];
+    setRunning(actor!, field, running);
+  };
+  record('equippedAffinityStacks', stacks, held.stacks);
+  record('equippedAffinityIntensity', intensity, affinityIntensity(held));
   return true;
 }
 

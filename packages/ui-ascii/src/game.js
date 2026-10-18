@@ -6,7 +6,7 @@
  */
 import { createPlaySession, replayPlaySession } from "../../runtime/src/runner/play-session.js";
 import { INTENT } from "./keymap.js";
-import { motivationNote, renderScreen } from "./screen.js";
+import { motivationNote, renderScreen, slotLevelLabel } from "./screen.js";
 
 /** Friendlier words for core's rejection codes; the raw name is the fallback. */
 const REJECTION_MESSAGES = Object.freeze({
@@ -25,7 +25,8 @@ const REJECTION_MESSAGES = Object.freeze({
   NotAdjacent: "Too far away to take that.",
   InvalidCapability: "You cannot do that.",
   AffinityNotEquipped: "That affinity is not equipped.",
-  InvalidAffinityStacks: "You cannot run it at that many stacks.",
+  InvalidAffinityStacks: "You cannot run it at that range.",
+  InvalidAffinityIntensity: "You cannot run it at that intensity.",
   not_playable: "Only your party (actors authored user_controlled) takes your commands.",
   unknown_actor: "No actor goes by that name.",
   exited: "They have already left the level.",
@@ -38,14 +39,22 @@ function rejectionMessage(reason, player) {
   return REJECTION_MESSAGES[reason] || `Rejected (${reason}).`;
 }
 
+/** An affinity as held: kind, expression, range and intensity, e.g. `fire push r6 ×2` (#345). */
 export function affinityLabel(pair) {
-  return `${pair.kind} ${pair.expression} ×${pair.stacks}`;
+  return `${pair.kind} ${pair.expression} ${slotLevelLabel(null, pair)}`;
 }
 
-/** The stacks an equipped affinity runs at: what is held unless run lower (#230). */
-function runningStacks(player, pair) {
-  const running = player?.equippedAffinityStacks?.[`${pair.kind}:${pair.expression}`];
-  return Number.isInteger(running) ? running : pair.stacks;
+/**
+ * What an equipped affinity runs at, per number: what is held unless run lower. `stacks`
+ * is its range (#230), `intensity` its strength (#345).
+ */
+const LEVELS = Object.freeze({
+  stacks: { running: "equippedAffinityStacks", held: (pair) => pair.stacks, name: "range" },
+  intensity: { running: "equippedAffinityIntensity", held: (pair) => pair.intensity ?? 1, name: "intensity" },
+});
+function runningLevel(player, pair, field) {
+  const running = player?.[LEVELS[field].running]?.[`${pair.kind}:${pair.expression}`];
+  return Number.isInteger(running) ? running : LEVELS[field].held(pair);
 }
 
 function keyLabel(affinityKey) {
@@ -240,28 +249,33 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     panel = { type: "affinities", items: affinities, index: 0 };
   }
 
-  // + / - in the panel: run the highlighted equipped affinity one stack higher or
-  // lower (#230). Re-equipping at a new level costs the turn; the panel stays open.
-  async function relevel(step) {
+  // In the panel, + / - run the highlighted equipped affinity one range higher or lower
+  // (#230) and ] / [ one intensity higher or lower (#345). Re-equipping at a new level
+  // costs the turn; the panel stays open.
+  async function relevel(field, step) {
     const pair = panel.items[panel.index];
     const player = session.view().player;
-    if (!equippedKeys(player).includes(`${pair.kind}:${pair.expression}`)) {
+    const affinityKey = `${pair.kind}:${pair.expression}`;
+    if (!equippedKeys(player).includes(affinityKey)) {
       message = "Equip it first (press its number).";
       return;
     }
-    const stacks = runningStacks(player, pair) + step;
-    // Core refuses these too (InvalidAffinityStacks), but a refused command still
-    // costs the turn; the bounds come from the view: 1 up to the stacks held.
-    if (stacks < 1) {
-      message = "It already runs at its lowest, 1 stack.";
+    const { name, held } = LEVELS[field];
+    const value = runningLevel(player, pair, field) + step;
+    // Core refuses these too (InvalidAffinityStacks / InvalidAffinityIntensity), but a refused
+    // command still costs the turn; the bounds come from the view: 1 up to what is held.
+    if (value < 1) {
+      message = `It already runs at its lowest ${name}, 1.`;
       return;
     }
-    if (stacks > pair.stacks) {
-      message = `It already runs at all ${pair.stacks} stacks you hold.`;
+    if (value > held(pair)) {
+      message = `It already runs at all the ${name} you hold, ${held(pair)}.`;
       return;
     }
-    await act({ kind: "equip_affinity", params: { affinityKey: `${pair.kind}:${pair.expression}`, stacks } },
-      () => `${keyLabel(`${pair.kind}:${pair.expression}`)} now runs at ${stacks} of ${pair.stacks} stacks.`);
+    // Both numbers go with every re-level, so changing one keeps the other where it runs.
+    const levels = { stacks: runningLevel(player, pair, "stacks"), intensity: runningLevel(player, pair, "intensity"), [field]: value };
+    await act({ kind: "equip_affinity", params: { affinityKey, ...levels } },
+      () => `${keyLabel(affinityKey)} now runs at ${name} ${value} of ${held(pair)}.`);
   }
 
   // Without a slot, core casts the first equipped push or pull.
@@ -353,7 +367,10 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       panel.index = (panel.index + 1) % panel.items.length;
       return true;
     } else if (panel.type === "affinities" && (intent.type === INTENT.LEVEL_UP || intent.type === INTENT.LEVEL_DOWN)) {
-      await relevel(intent.type === INTENT.LEVEL_UP ? 1 : -1);
+      await relevel("stacks", intent.type === INTENT.LEVEL_UP ? 1 : -1);
+      return true;
+    } else if (panel.type === "affinities" && (intent.type === INTENT.INTENSITY_UP || intent.type === INTENT.INTENSITY_DOWN)) {
+      await relevel("intensity", intent.type === INTENT.INTENSITY_UP ? 1 : -1);
       return true;
     } else if (intent.type === INTENT.SELECT) {
       const item = panel.items[intent.index];
@@ -439,11 +456,12 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     if (panel.type === "affinities") {
       const player = session.view().player;
       const equipped = equippedKeys(player);
-      return ["Affinities (a number equips or unequips; Tab picks, + / - change stacks; Esc closes):",
+      return ["Affinities (a number equips or unequips; Tab picks, + / - range, ] / [ intensity; Esc closes):",
         ...panel.items.map((pair, i) => {
           const slot = equipped.indexOf(`${pair.kind}:${pair.expression}`);
-          const running = runningStacks(player, pair);
-          const at = slot >= 0 && running < pair.stacks ? `, running ${running}` : "";
+          const lowered = ["stacks", "intensity"].some((field) => runningLevel(player, pair, field) < LEVELS[field].held(pair));
+          const at = slot >= 0 && lowered
+            ? `, running r${runningLevel(player, pair, "stacks")} ×${runningLevel(player, pair, "intensity")}` : "";
           return `${i === panel.index ? ">" : " "} ${i + 1}) ${affinityLabel(pair)}${slot >= 0 ? `  [slot ${slot + 1}${at}]` : ""}`;
         })];
     }
