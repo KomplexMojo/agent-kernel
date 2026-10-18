@@ -80,8 +80,9 @@ vital grants retain their authored modes; source vital pools are not loot.
 
 `rules/actor-affinity.ts` supplies the explicit effect matrix, durability overflow,
 direct vital effects and actual-amount transfers. `actor-exposure.ts` applies
-preprojected effects with finite source budgets, capped mana absorption and
-pending-effect suppression. `actor-fields.ts` uses existing radius, intensity and
+preprojected effects with a per-slot strength that caps what each receiver takes
+(every receiver in range takes its own exposure, never a share consumed in id order,
+#347), capped mana absorption and pending-effect suppression. `actor-fields.ts` uses existing radius, intensity and
 local opposition arithmetic to project active living equipment. It retains
 light/dark field observations and re-observes defeat without another pulse.
 
