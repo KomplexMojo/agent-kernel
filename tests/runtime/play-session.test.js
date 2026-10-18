@@ -397,6 +397,27 @@ test("a defeated actor next to the player offers its affinities as loot, and tak
   assert.deepEqual(session.view().loot, []);
 });
 
+test("an intact resource next to the player is loot: growth and decay players alike take it unbroken (#406)", async () => {
+  const chest = {
+    category: "resource", id: "chest", position: { x: 3, y: 1 },
+    vitals: { durability: { current: 1, max: 1, regen: 0 } },
+    holdings: [{ id: "heal", kind: "vital", permanenceMode: "consumable", claimedBy: null, vitals: [{ key: "health", delta: 5 }] }],
+  };
+  for (const kind of ["growth", "decay", null]) {
+    const player = { ...PLAYER, vitals: { ...viableVitals(), health: { current: 4, max: 10, regen: 1 } },
+      ...(kind ? { affinities: [{ kind, expression: "push", stacks: 1 }], activeAffinityKey: `${kind}:push` } : {}) };
+    const session = await createPlaySession(buildUnifiedLevel({ id: "chest", tiles: MAZE, actors: [player, chest] }));
+    const label = kind ?? "no affinity";
+    assert.deepEqual(session.view().loot, [{ targetId: "chest", holdingId: "heal", kind: "vital", position: { x: 3, y: 1 } }], label);
+    const result = await session.act({ kind: "take", params: { targetId: "chest", holdingId: "heal" } });
+    assert.deepEqual(result.accepted.map((a) => a.kind), ["take"], label);
+    const health = session.view().player.vitals.find((vital) => vital.key === "health");
+    assert.ok(health.current >= 9, `${label}: ${JSON.stringify(health)}`);
+    assert.ok(session.view().actors.some((a) => a.id === "chest"), `${label}: the resource is still there`);
+    assert.deepEqual(session.view().loot, [], `${label}: nothing left to take`);
+  }
+});
+
 test("view().player reports its slots: how many, what is equipped in order, and which are off", async () => {
   const session = await createPlaySession(buildDuelLevel());
   assert.equal(session.view().player.affinitySlots, 3, "a delver starts with three slots");
