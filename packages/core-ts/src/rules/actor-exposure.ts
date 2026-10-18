@@ -1,7 +1,8 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import type { ActorAffinityKey, ActorRecord } from '../state/actor-types.ts';
+import type { ActorAffinityKey } from '../state/actor-types.ts';
 import { activeActorAffinity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
+import { receiverAbsorbsAffinity } from './actor-receiver.ts';
 
 /** Core-projected exposure; never accepted as an authored action magnitude. */
 export interface ActorExposureSource {
@@ -43,10 +44,6 @@ export function resolveActorExposures(
       ids.add(target.targetId);
     }
     remaining.set(slotOf(source), source.budget);
-  }
-  /** The slot of `receiver` an incoming effect of `kind` meets, by expression. */
-  function receivingSlot(receiver: ActorRecord, kind: string, expressions: string[]) {
-    return equippedActorAffinities(receiver).find(pair => pair.kind === kind && expressions.includes(pair.expression));
   }
   function slotBudgetKey(actorId: string, pair: { kind: string; expression: string }): string {
     const keyed = `${actorId}|${pair.kind}:${pair.expression}`;
@@ -91,8 +88,7 @@ export function resolveActorExposures(
         continue;
       }
       delivered += amount;
-      if (receivingSlot(receiver, pair.kind, ['draw'])
-        && ['push', 'emit'].includes(pair.expression) && source.sourceId !== target.targetId) {
+      if (receiverAbsorbsAffinity(receiver, pair) && source.sourceId !== target.targetId) {
         absorb(source.sourceId, target.targetId, amount);
       } else {
         result.changes.push(...resolveActorAffinity(registry, source.sourceId, target.targetId,

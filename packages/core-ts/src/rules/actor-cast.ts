@@ -2,6 +2,7 @@ import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAffinityEntry, ActorAffinityKey, ActorRecord } from '../state/actor-types.ts';
 import { affinityIntensity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { actorAffinityMagnitude, getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
+import { receiverAbsorbsAffinity, receiverAffinityAmount } from './actor-receiver.ts';
 
 /** Configurator-authored per-kind base prices for the escalating cast curve (#232). */
 export type ActorCastManaBases = Partial<Record<ActorAffinityKey, number>>;
@@ -109,6 +110,14 @@ export function castFocusedActorAffinity(
     return { accepted: true, changes, suppression: { sourceId, targetId, affinityKey: affinityKey(targetPair),
       amount: Math.min(amount, actorAffinityMagnitude(targetPair.expression, affinityIntensity(targetPair))) } };
   }
+  // The receiver rules fields apply (#348): a same-kind draw absorbs into mana, a same-kind
+  // slot the interaction table makes immune takes nothing, an opposite slot doubles harm.
+  // A cast at oneself meets none of them, as a field never exposes its own source.
+  if (sourceId !== targetId && receiverAbsorbsAffinity(target, pair)) {
+    const mana = registry.changeVital(targetId, 'mana', amount);
+    return { accepted: true, changes: mana !== 0 ? [...changes, { actorId: targetId, vital: 'mana', delta: mana }] : changes };
+  }
+  const received = sourceId === targetId ? amount : receiverAffinityAmount(target, pair, amount);
   return { accepted: true, changes: [...changes,
-    ...resolveActorAffinity(registry, sourceId, targetId, pair.kind, pair.expression, amount).changes] };
+    ...resolveActorAffinity(registry, sourceId, targetId, pair.kind, pair.expression, received).changes] };
 }

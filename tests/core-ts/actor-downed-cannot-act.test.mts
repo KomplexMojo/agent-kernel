@@ -8,16 +8,17 @@ import { createActorRegistry } from '../../packages/core-ts/src/state/actor-regi
 import { createActorTurn } from '../../packages/core-ts/src/rules/actor-turn.ts';
 import type { ActorRecord, ActorAction } from '../../packages/core-ts/src/state/actor-types.ts';
 
-function actor(id: string, x: number, health = 10): ActorRecord {
+// The two push different kinds: a same-kind push holder is immune to the other's cast (#348).
+function actor(id: string, x: number, health = 10, push: 'water' | 'decay' = id === 'b' ? 'decay' : 'water'): ActorRecord {
   return { id, alignment: 'external', lifecycle: 'alive', position: { x, y: 0 }, defeatVital: 'health',
     vitals: { health: { current: health, max: 10, regen: 0 }, mana: { current: 10, max: 10, regen: 0 },
       stamina: { current: 10, max: 10, regen: 0 } },
     capabilities: { canMove: true, canCast: true, canEquip: true, canTake: true, canExit: true,
       blocksMovement: false, blocksSight: false }, motivations: [], affinities: [
-      { kind: 'water', expression: 'push', stacks: 1 }, { kind: 'light', expression: 'emit', stacks: 1 }],
-    activeAffinityKey: 'water:push', holdings: [] } as ActorRecord;
+      { kind: push, expression: 'push', stacks: 1 }, { kind: 'light', expression: 'emit', stacks: 1 }],
+    activeAffinityKey: `${push}:push`, holdings: [] } as ActorRecord;
 }
-const costs = { castManaBase: { 'water:push': 1 }, movementStamina: { a: 1, b: 1 } };
+const costs = { castManaBase: { 'water:push': 1, 'decay:push': 1 }, movementStamina: { a: 1, b: 1 } };
 const castAt = (actorId: string, targetId: string, tick = 1) =>
   ({ actorId, tick, kind: 'cast_affinity', params: { targetId } }) as ActorAction;
 
