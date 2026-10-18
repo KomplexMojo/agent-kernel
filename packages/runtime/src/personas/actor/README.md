@@ -145,6 +145,8 @@ Motivations are plain members of a stack: there is no motivation intensity (#309
 
 Posture kinds that move differ from `exploring` (#311). `stealthy` takes, of the steps on a shortest route to the exit, the one furthest from the nearest hostile, then the one with the most wall within two tiles. `friendly` keeps with its side: an ally in sight further than two tiles (`FRIENDLY_REACH`) is gone back to first, otherwise it takes the exit step that keeps within reach of that ally and waits when none does; with no ally in sight it walks like `exploring`. `friendly` is also what makes an actor a **companion**: only a `friendly` actor on the seated actor's side takes orders in a play session (party members, authored `user_controlled`, take them anyway). Allegiance is one rule, `alignmentsAreAllied` in `proposal-helpers.js`, used by proposals and the decision rows alike.
 
+**Ambushers are `defending` actors (#399).** `defending` holds position and casts at a hostile that is in its observation and in reach; observation is sight-scoped by core, so a guard the ambush tactic (#398) hides from a room's doorways waits unseen and strikes once a delver comes into sight. `stationary` alone has no combat role and never casts, by design; `attacking` pursues, so `stationary + attacking` does not hold still. `tests/personas/actor/actor-ambusher-holds.test.js` pins this for every kind; a guard whose only kind restores holds still too (a support role).
+
 Conflicting motivations within the same family are rejected (e.g. `attacking + defending`, `stealthy + friendly`, `random + patrolling`, `reflexive + goal_oriented`). Compatible cross-family combinations are allowed (e.g. `random + attacking`, `goal_oriented + stealthy`).
 
 Motivations are:
