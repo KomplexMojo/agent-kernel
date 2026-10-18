@@ -1,7 +1,7 @@
 /**
  * Affinity Spatial Formulas — pure parametric functions.
  *
- * Visual alpha only: what an aura tile looks like, never what it does. Game
+ * Visual alpha only: what a field tile looks like, never what it does. Game
  * rules (radius, intensity, potency, mana) are core's (core-ts
  * rules/actor-fields.ts, rules/actor-cast.ts); the potency, merge,
  * cancellation and mana-cost copies that used to live here were removed
@@ -100,7 +100,7 @@ export function computeIntensity(d, stacks, expression, weights) {
 /**
  * Compute the alpha multiplier for pixel rendering at a given stack level.
  *
- * stackAlphaMultiplier(stacks) = W.alphaBase + W.alphaGrowth * (stacks - 1)^W.alphaExponent
+ * computeStackAlphaMultiplier(stacks) = W.alphaBase + W.alphaGrowth * (stacks - 1)^W.alphaExponent
  *
  * @param {number} stacks - stack count (>= 1)
  * @param {object} weights - SPATIAL_WEIGHTS
@@ -119,9 +119,9 @@ export function computeStackAlphaMultiplier(stacks, weights) {
 // ---------------------------------------------------------------------------
 
 /**
- * Compute the final visual alpha for an aura tile.
+ * Compute the final visual alpha for a field tile.
  *
- * maskAlpha = clamp(0, 1, intensity_at_tile * stackAlphaMultiplier(stacks))
+ * alpha = clamp(0, 1, intensity_at_tile * computeStackAlphaMultiplier(stacks))
  *
  * @param {number} distance - Chebyshev distance from source
  * @param {number} stacks

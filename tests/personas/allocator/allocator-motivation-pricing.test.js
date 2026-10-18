@@ -69,7 +69,7 @@ test("no price map, no price: resolution is null, stack cost errors — never a 
   assert.ok(r.errors.some((e) => /reflexive/.test(e)));
 });
 
-test("stack cost: line items, intensity scaling, overrides, determinism", async () => {
+test("stack cost: line items, no intensity scaling, overrides, determinism", async () => {
   const { calculateMotivationStackCost, priceMap } = await load();
 
   const single = calculateMotivationStackCost([{ kind: "reflexive", intensity: 1 }], priceMap);
@@ -87,9 +87,10 @@ test("stack cost: line items, intensity scaling, overrides, determinism", async 
   assert.equal(mixed.cost, 9);
   assert.equal(mixed.lineItems.length, 3);
 
-  const scaled = calculateMotivationStackCost([{ kind: "goal_oriented", intensity: 3 }], priceMap);
-  assert.equal(scaled.cost, 15);
-  assert.equal(scaled.lineItems[0].quantity, 3);
+  // #309: motivations have no intensity; one on an older input is ignored.
+  const legacy = calculateMotivationStackCost([{ kind: "goal_oriented", intensity: 3 }], priceMap);
+  assert.equal(legacy.cost, 5);
+  assert.equal(legacy.lineItems[0].quantity, 1);
 
   const overrides = new Map(priceMap);
   overrides.set("motivation:motivation_random", 99);
@@ -106,12 +107,11 @@ test("stack cost: line items, intensity scaling, overrides, determinism", async 
   const r1 = calculateMotivationStackCost(motivations, priceMap);
   const r2 = calculateMotivationStackCost(motivations, priceMap);
   assert.deepEqual(r1, r2, "deterministic");
-  // patrolling 3×2 + stealthy 4 + strategy_focused 10 = 20
-  assert.equal(r1.cost, 20);
+  // patrolling 3 + stealthy 4 + strategy_focused 10 = 17 (the intensity is ignored)
+  assert.equal(r1.cost, 17);
 });
 
 // ## TODO: Test Permutations
 // - number-map vs item-map resolution parity for every kind
-// - intensity 0 / negative / non-integer normalization to 1
 // - overrides map with an entry priced 0 (stationary) — priced, no error
 // - mixed priced/unpriced stack: cost sums priced kinds, errors name the rest

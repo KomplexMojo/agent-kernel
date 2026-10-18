@@ -201,42 +201,48 @@ export function findPath(start, goal, tileKinds, baseTiles) {
   const width = tileKinds && Array.isArray(tileKinds[0]) ? tileKinds[0].length : baseTiles && baseTiles[0] ? String(baseTiles[0]).length : 0;
   if (width === 0 || height === 0) return null;
 
-  const queue = [start];
-  const cameFrom = {};
-  const startKey = `${start.x},${start.y}`;
-  cameFrom[startKey] = null;
-  let head = 0;
-
-  while (head < queue.length) {
-    const current = queue[head];
-    head += 1;
-    if (current.x === goal.x && current.y === goal.y) {
-      const path = [];
-      let key = `${goal.x},${goal.y}`;
-      while (key) {
-        const [x, y] = key.split(",").map((v) => Number(v));
-        path.unshift({ x, y });
-        key = cameFrom[key];
-      }
-      return path;
+  // Breadth-first over cell indexes: visit order matches the eight-way deltas, so
+  // the path is the same one a keyed search finds, without a string per cell.
+  const NONE = -1;
+  const FROM_START = -2;
+  const cells = width * height;
+  const parent = new Int32Array(cells).fill(NONE);
+  const queue = new Int32Array(cells);
+  const inBounds = (x, y) => x >= 0 && y >= 0 && x < width && y < height;
+  const goalIndex = inBounds(goal.x, goal.y) ? goal.y * width + goal.x : NONE;
+  if (inBounds(start.x, start.y)) parent[start.y * width + start.x] = FROM_START;
+  const toPath = (index) => {
+    const path = [];
+    for (let at = index; at !== FROM_START; at = parent[at]) {
+      path.push({ x: at % width, y: Math.floor(at / width) });
     }
+    path.push({ x: start.x, y: start.y });
+    return path.reverse();
+  };
+  let head = 0;
+  let tail = 0;
+  let current = { x: start.x, y: start.y };
+  let currentIndex = FROM_START;
+  for (;;) {
     for (const delta of DEFAULT_DELTAS) {
       const next = { x: current.x + delta.dx, y: current.y + delta.dy };
-      if (next.x < 0 || next.y < 0 || next.x >= width || next.y >= height) {
-        continue;
-      }
-      const key = `${next.x},${next.y}`;
-      if (Object.prototype.hasOwnProperty.call(cameFrom, key)) {
-        continue;
-      }
-      const isGoal = next.x === goal.x && next.y === goal.y;
+      if (!inBounds(next.x, next.y)) continue;
+      const index = next.y * width + next.x;
+      if (parent[index] !== NONE) continue;
+      const isGoal = index === goalIndex;
       if ((!isPassable(next, tileKinds, baseTiles) && !isGoal)
         || !isDiagonalStepAllowed(current, next, tileKinds, baseTiles)) {
         continue;
       }
-      cameFrom[key] = `${current.x},${current.y}`;
-      queue.push(next);
+      parent[index] = currentIndex;
+      if (isGoal) return toPath(index);
+      queue[tail] = index;
+      tail += 1;
     }
+    if (head >= tail) break;
+    currentIndex = queue[head];
+    head += 1;
+    current = { x: currentIndex % width, y: Math.floor(currentIndex / width) };
   }
   return null;
 }
@@ -268,10 +274,99 @@ export function buildMoveProposal({ observation, payload, simConfig }) {
     && chebyshevDistance(actor.position, portal) === 1) {
     return [{ kind: "move", params: { target: portal } }];
   }
-  const path = findPath(actor.position, exit, tileKinds, baseTiles);
+  const path = findPath(actor.position, exit, tileKinds, baseTiles)
+    ?? findTerrainRoute(actor.position, exit, tileKinds, baseTiles);
   if (!path || path.length < 2) return [];
   const to = path[1];
   return [{ kind: "move", params: { target: to } }];
+}
+
+/**
+ * Whether two alignments are on one side. The Actor's single allegiance rule: unknown or
+ * missing alignments are never allied, so a consumer cannot guess "allied" by default.
+ */
+export function alignmentsAreAllied(selfAlignment, otherAlignment) {
+  if (typeof selfAlignment !== "string" || typeof otherAlignment !== "string") return false;
+  const self = selfAlignment.trim().toLowerCase();
+  const other = otherAlignment.trim().toLowerCase();
+  return Boolean(self && other && self === other);
+}
+
+/** Other actors still in the level, split by allegiance to `actorId`, each with its distance. */
+export function sideOf(view, actorId) {
+  const actors = Array.isArray(view?.actors) ? view.actors : [];
+  const self = actors.find((entry) => entry?.id === actorId);
+  const allies = [];
+  const hostiles = [];
+  if (!self?.position) return { allies, hostiles };
+  for (const other of actors) {
+    if (!other?.position || other.id === actorId || ["defeated", "exited"].includes(other.lifecycle)) continue;
+    const entry = { actor: other, distance: chebyshevDistance(self.position, other.position) };
+    (alignmentsAreAllied(self.alignment, other.alignment) ? allies : hostiles).push(entry);
+  }
+  const byDistance = (a, b) => a.distance - b.distance || (a.actor.id < b.actor.id ? -1 : a.actor.id > b.actor.id ? 1 : 0);
+  return { allies: allies.sort(byDistance), hostiles: hostiles.sort(byDistance) };
+}
+
+/**
+ * Every first step on a shortest route to the exit, in step order (#311). Where
+ * `buildMoveProposal` answers with anything other than one routed step (a wait, the
+ * portal step, a blocked route), that answer stands: there is no choice to make.
+ */
+export function buildExitSteps({ observation, payload, simConfig }) {
+  const fallback = buildMoveProposal({ observation, payload, simConfig });
+  const view = resolveObservationView(observation);
+  const actor = resolveActor(view, payload?.actorId, observation);
+  if (fallback.length !== 1 || fallback[0].kind !== "move" || !actor?.position) return { fallback, steps: [] };
+  const baseTiles = resolveBaseTiles(payload, view, simConfig);
+  const exit = resolveExit(payload, view, baseTiles, simConfig);
+  const tileKinds = resolveTileKinds(view, payload);
+  const route = findPath(actor.position, exit, tileKinds, baseTiles);
+  if (!route || route.length < 2) return { fallback, steps: [] };
+  const steps = [];
+  for (const delta of DEFAULT_DELTAS) {
+    const to = { x: actor.position.x + delta.dx, y: actor.position.y + delta.dy };
+    if (!isPassable(to, tileKinds, baseTiles) || !isDiagonalStepAllowed(actor.position, to, tileKinds, baseTiles)) continue;
+    const onward = findPath(to, exit, tileKinds, baseTiles);
+    if (onward && onward.length === route.length - 1) steps.push(to);
+  }
+  return { fallback, steps: steps.length > 0 ? steps : [fallback[0].params.target] };
+}
+
+/** Impassable cells within two tiles of `position`: how close it keeps to the walls. */
+export function wallsNear(position, tileKinds, baseTiles) {
+  let walls = 0;
+  for (let dy = -2; dy <= 2; dy += 1) {
+    for (let dx = -2; dx <= 2; dx += 1) {
+      if (!isPassable({ x: position.x + dx, y: position.y + dy }, tileKinds, baseTiles)) walls += 1;
+    }
+  }
+  return walls;
+}
+
+/**
+ * When actors plug every route (wardens seated around the exit), walk the terrain
+ * route as far as it is free: the actor closes in on whoever holds the way instead
+ * of waiting out the run. Null when terrain itself has no route or the first step
+ * is occupied.
+ */
+function findTerrainRoute(start, goal, tileKinds, baseTiles) {
+  if (!tileKinds || !baseTiles) return null;
+  const route = findPath(start, goal, null, baseTiles);
+  if (!route || route.length < 2) return null;
+  if (isPassable(route[1], tileKinds, baseTiles)) return route;
+  // #368: the shortest route's next tile is taken (a partner stands on it). Another free
+  // first step keeps the actor moving round it: one that closes in if there is one, else a
+  // sidestep that loses no ground.
+  let sidestep = null;
+  for (const delta of DEFAULT_DELTAS) {
+    const next = { x: start.x + delta.dx, y: start.y + delta.dy };
+    if (!isPassable(next, tileKinds, baseTiles) || !isDiagonalStepAllowed(start, next, tileKinds, baseTiles)) continue;
+    const rest = findPath(next, goal, null, baseTiles);
+    if (rest && rest.length < route.length) return [start, ...rest];
+    if (rest && rest.length === route.length && !sidestep) sidestep = [start, ...rest];
+  }
+  return sidestep;
 }
 
 export function roomPerimeterRing(room, tileKinds, baseTiles) {

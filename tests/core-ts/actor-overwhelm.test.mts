@@ -9,7 +9,7 @@ import type { ActorRecord, ActorAffinityEntry } from '../../packages/core-ts/src
 // (restoring emit) for the turn.
 
 const PAIRS = [['fire', 'water'], ['earth', 'wind'], ['growth', 'decay'], ['corrode', 'fortify'], ['light', 'dark']] as const;
-const HARM: Record<string, string> = { fire: 'durability', water: 'health', earth: 'durability', wind: 'stamina',
+const HARM: Record<string, string> = { fire: 'durability', water: 'stamina', earth: 'durability', wind: 'stamina',
   decay: 'health', corrode: 'durability', dark: 'mana' };
 const RESTORE: Record<string, string> = { growth: 'health', fortify: 'durability', light: 'mana' };
 

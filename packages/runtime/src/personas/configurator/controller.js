@@ -91,6 +91,11 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     completeObjectPlacement: services.completeObjectPlacement,
     // #300 — a built level's hazards and resources as placement requests, for `ak solve`.
     levelObjectRequests: services.levelObjectRequests,
+    // #301 — relational placement constraints: the `--place` spec grammar and its canonical shape.
+    parsePlacementConstraint: services.parsePlacementConstraint,
+    normalizePlacementConstraints: services.normalizePlacementConstraints,
+    // #263 — a hazard authored with no affinity gets one picked from the run seed.
+    nameUnnamedHazardAffinities: services.nameUnnamedHazardAffinities,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,
     resolveMotivationRules: services.resolveMotivationRules,
     // CR.7 / WP-5 — the third card-model derivation; its siblings are `deriveRoomLayout` and

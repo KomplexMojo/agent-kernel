@@ -1,7 +1,8 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import type { ActorAffinityKey, ActorRecord } from '../state/actor-types.ts';
+import type { ActorAffinityKey } from '../state/actor-types.ts';
 import { activeActorAffinity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
+import { receiverAbsorbsAffinity } from './actor-receiver.ts';
 
 /** Core-projected exposure; never accepted as an authored action magnitude. */
 export interface ActorExposureSource {
@@ -20,6 +21,12 @@ export interface ActorExposureResult {
 /**
  * A finite batch of active effects. Caller preserves ordered action/field sequencing;
  * neutralization can consume pending exposure but cannot undo historical damage.
+ *
+ * A slot's `budget` is its strength this turn, not a pool its receivers share (#347):
+ * each receiver takes its own exposure, capped by that strength, so who else stands in
+ * range (and how their ids sort) changes nothing. Suppression and neutralization spend
+ * it, because they weaken the field itself; once the slot has pulsed, what it delivered
+ * is no longer pending, so a later neutralizer only finds what the receivers did not take.
  */
 export function resolveActorExposures(
   registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital'>,
@@ -37,10 +44,6 @@ export function resolveActorExposures(
       ids.add(target.targetId);
     }
     remaining.set(slotOf(source), source.budget);
-  }
-  /** The slot of `receiver` an incoming effect of `kind` meets, by expression. */
-  function receivingSlot(receiver: ActorRecord, kind: string, expressions: string[]) {
-    return equippedActorAffinities(receiver).find(pair => pair.kind === kind && expressions.includes(pair.expression));
   }
   function slotBudgetKey(actorId: string, pair: { kind: string; expression: string }): string {
     const keyed = `${actorId}|${pair.kind}:${pair.expression}`;
@@ -61,12 +64,14 @@ export function resolveActorExposures(
     const own = slotOf(source);
     const effect = getActorAffinityEffect(pair.kind, pair.expression);
     const targets = [...source.targets].sort((a, b) => a.targetId < b.targetId ? -1 : a.targetId > b.targetId ? 1 : 0);
+    const strength = remaining.get(own)!;
+    let delivered = 0;
     for (const target of targets) {
       if (registry.getActor(source.sourceId)?.lifecycle !== 'alive') break;
       const receiver = registry.getActor(target.targetId);
       if (!receiver || receiver.lifecycle !== 'alive') continue;
       if (effect.operation === 'drain' && source.sourceId === target.targetId) continue;
-      const amount = Math.min(remaining.get(own)!, target.amount);
+      const amount = Math.min(effect.operation === 'neutralize' ? remaining.get(own)! : strength, target.amount);
       if (amount <= 0) continue;
       if (effect.operation === 'neutralize') {
         // Only a slot with a pending field has exposure left to suppress.
@@ -82,15 +87,15 @@ export function resolveActorExposures(
         if (pair.expression === 'draw') absorb(target.targetId, source.sourceId, suppressed);
         continue;
       }
-      spend(own, amount);
-      if (receivingSlot(receiver, pair.kind, ['draw'])
-        && ['push', 'emit'].includes(pair.expression) && source.sourceId !== target.targetId) {
+      delivered += amount;
+      if (receiverAbsorbsAffinity(receiver, pair) && source.sourceId !== target.targetId) {
         absorb(source.sourceId, target.targetId, amount);
       } else {
         result.changes.push(...resolveActorAffinity(registry, source.sourceId, target.targetId,
           pair.kind, pair.expression, amount).changes);
       }
     }
+    if (delivered > 0) remaining.set(own, Math.max(0, remaining.get(own)! - delivered));
   }
   return result;
 }

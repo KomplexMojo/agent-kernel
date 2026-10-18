@@ -161,6 +161,10 @@ function normalizeHazardList(hazards, width, height, errors) {
     if (!isInteger(stacks) || stacks < 1) {
       pushError(errors, `${base}.affinity.stacks`, "invalid_stacks");
     }
+    const intensity = hazard.affinity.intensity;
+    if (intensity !== undefined && (!isInteger(intensity) || intensity < 1)) {
+      pushError(errors, `${base}.affinity.intensity`, "invalid_intensity");
+    }
     const targetTypeProvided = hazard.affinity.targetType !== undefined;
     const targetType = targetTypeProvided ? hazard.affinity.targetType : undefined;
     if (targetTypeProvided && !AFFINITY_TARGET_TYPES.includes(targetType)) {
@@ -183,6 +187,8 @@ function normalizeHazardList(hazards, width, height, errors) {
         kind: hazard.affinity.kind,
         expression: AFFINITY_EXPRESSIONS.includes(expression) ? expression : DEFAULT_HAZARD_EXPRESSION,
         stacks: isInteger(stacks) && stacks > 0 ? stacks : DEFAULT_HAZARD_STACKS,
+        // #340: absent stays absent (core reads 1).
+        ...(isInteger(intensity) && intensity > 0 ? { intensity } : {}),
         targetType: AFFINITY_TARGET_TYPES.includes(targetType) ? targetType : undefined,
       },
       vitals: hazard.vitals ? hazard.vitals : undefined,

@@ -38,6 +38,20 @@ test("delvers, wardens and hazards carry the authored range and intensity into t
   }
 });
 
+test("a positioned hazard (x=;y=) carries its intensity into the level too", () => {
+  const run = create([
+    "--delver", "count=1;affinity=fire;motivation=user_controlled",
+    "--hazard", "x=2;y=2;affinity=water;expression=emit;stacks=3;intensity=5;vitals=mana:60:10,durability:10:1",
+  ]);
+  try {
+    assert.equal(run.result.status, 0, run.result.stderr);
+    const hazard = run.read("initial-state.json").actors.find((actor) => actor.id === "hazard_1");
+    assert.deepEqual(hazard.affinities, [{ kind: "water", expression: "emit", stacks: 3, intensity: 5 }]);
+  } finally {
+    run.cleanup();
+  }
+});
+
 test("an intensity that is not a whole number from 1 up is refused", () => {
   for (const [flag, spec, message] of [
     ["--delver", "count=1;affinity=fire;affinities=fire:push:6:0", /delver\[1\] affinity\[1\] intensity must be a positive integer/],
@@ -56,6 +70,5 @@ test("an intensity that is not a whole number from 1 up is refused", () => {
 });
 
 // ## TODO: Test Permutations
-// - a positioned hazard (x=;y=) carries intensity the same way.
 // - the same kind:expression given twice adds its range and keeps the stronger intensity.
 // - ak_create (MCP) with a structured delver object carrying intensity reaches the same initial state.

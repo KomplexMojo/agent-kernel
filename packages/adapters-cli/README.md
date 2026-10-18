@@ -182,6 +182,14 @@ Allocator's reference budget (2500 tokens), so it still gets a price list and re
 spec that brings its own receipt and no budget is taken as already priced. `--emit-intermediates` additionally writes `intent.json`,
 `plan.json`, solver artifacts, and captured-input sidecars. Manifest/bundle include a filtered
 `schemas` list for emitted artifacts.
+Every build's `telemetry.json` carries `data.solverDecisions` (#299): one entry per solver-hosted
+decision (object placement, and budget fit for `llm-plan --budget-loop`), each with its `domain`,
+`decision` (`solver` when the solver's answer was used, `fallback` when the persona's characterized
+fallback answered, `none` when no search was posed), the `status` and `reason` behind it (e.g.
+`deferred` / `solver_domain_unavailable`), and the solver's `objectiveValues` when it answered.
+Every build command hosts the solver (`build`, `llm-plan`, `create`, `configure` and the `*-plan`
+commands, #296); `AK_SOLVER_ENGINE=fixture` turns it off, and a placement then reports
+`fallback (solver_domain_unavailable)`.
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
 for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
 
@@ -255,7 +263,8 @@ inspect what a previous run created without rerunning the pipeline.
 Inputs/outputs:
 - Input: `--run-id <runId>`.
 - Stdout: structured JSON including `runId`, `actors[]`, `rooms[]`, `artifactPaths{}`, and
-  `budgetSpend`. A `run --from-run` directory writes no `sim-config.json`/`initial-state.json`;
+  `budgetSpend`. Each `commands[]` entry whose `telemetry.json` records solver decisions carries
+  `solverDecisions`, the one-line summary (e.g. `placement: fallback (solver_domain_unavailable)`). A `run --from-run` directory writes no `sim-config.json`/`initial-state.json`;
   its actors and rooms are read from the level embedded in its `bundle.json`.
 - Error: structured JSON error when the requested run directory does not exist under the selected
   output root.
@@ -309,6 +318,7 @@ Inputs/outputs:
   budget receipt (not built by `ak create`, #279), are reported as `warning:` lines on stderr, and as `warnings`
   with `--json`.
 - `--realtime <ms>` (interactive play only) passes a turn every `<ms>` milliseconds while the player waits; `t` toggles it
+- `--web` plays in a browser tab instead of the terminal, served on `http://localhost:8765` (`--port <n>` to change; `--lan` also serves the local network for a phone on the same Wi-Fi and prints its address); not with `--keys`/`--json`
   in game. Play is turn-based by default (#291).
 - `--record <path>` saves the played commands as a `CapturedInputArtifact`; `--replay <path>` re-runs a saved
   game on its level, then play continues (both pass through to the UI; see `packages/ui-ascii/README.md`).
@@ -344,9 +354,9 @@ ak play-session start --session g2 --load artifacts/games/g.json    # reopen a c
   `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`) or `{ kind: "switch", actorId }`; actor ids and
   targets may be labels, and `actorId` commands that member without seating it. Commands run before `--keys`.
   Every command but a switch is one turn for the whole level.
-- `order --actor <id|label> --strategy <s>` gives a party member, or a companion on the seated actor's side, a new
+- `order --actor <id|label> --strategy <s>` gives a party member, or a companion (a `friendly` actor on the seated actor's side), a new
   strategy (compact goals, JSON or a `.json` file, as `strategy=` on `create` below; ids may be labels). Giving it is
-  the seated actor's turn and taking it the ordered actor's, so one turn passes. A hostile answers `not_yours`, a
+  the seated actor's turn and taking it the ordered actor's, so one turn passes. A hostile, or an actor on your side that is not `friendly`, answers `not_yours`; a
   malformed strategy `invalid_strategy` with the reason. `orders` in the output lists every actor following a
   strategy: the goal it is on (`doing`, `goal` of `goals`) and its status (`active`; `searching`, target out of
   sight; `stalled`, with a reason; `done`; `ignored`, its thinking motivation does not reach the strategy).
@@ -390,7 +400,7 @@ single multi-object entrypoint for automation callers.
 
 Inputs/outputs:
 - Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--hazard`,
-  `--resource`, `--delver`, and `--warden`, optional `--goal`, `--dungeon-affinity`,
+  `--resource`, `--delver`, `--warden` and `--place`, optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard
   `--run-id`, `--created-at`, `--out-dir`.
 - With no budget input (no `--budget-tokens`, `--budget`, or budget in the text), the Allocator's reference
@@ -406,7 +416,9 @@ Inputs/outputs:
   `sim-config.json` hazards carry the mapped absolute coordinates. Coordinates
   outside the room interior are rejected with a structured `hazard_outside_room`
   error. `blocking=true` hazards are valid on floor tiles and do not count toward
-  the `--floor-tile` walkable target.
+  the `--floor-tile` walkable target. A blocking hazard only seals the
+  spawn-to-exit route when it has no durability to lose (durability max 0);
+  a destroyable one is passable, so it never causes `path_obstruction` (#297).
 - In multi-room requests, the `--floor-tile` budget is distributed across all
   declared rooms. Budgets below the minimum viable interior per room are
   rejected instead of leaving declared rooms uncarved.
@@ -479,6 +491,24 @@ Inputs/outputs:
   node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=1" \
     --delver "count=1;affinity=earth;affinities=earth:push:3,growth:emit:1,corrode:draw:1;slots=4;equip=earth:push:2,growth:emit"
   ```
+- `--place` (repeatable, `place` on `ak_create`) asks for placement as relationships, solved by the Configurator's
+  placement search: `<subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump]`.
+  The subject is `hazard|resource|delver|warden:<id|n|*>` (an id, a 1-based number, or all of that kind); a target
+  is `spawn`, `exit`, `room:<id>` or one hazard, resource, delver or warden. Distances are king moves; a room counts
+  from its nearest cell. `count=<n>` with `near=` means at least n of the subjects; `onRoute` is a cell every
+  spawn-to-exit route passes; `spread`/`clump` push the subjects apart or draw them together. A delver or warden
+  named in a constraint is placed by the search instead of being seated by the usual rules. The result's
+  `placementReport` lists how each constraint held; one that cannot hold refuses the level, naming it.
+  ```bash
+  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+    --hazard "id=trap1;affinity=fire;expression=emit;stacks=2;proximityRadius=1" \
+    --delver "count=1;affinity=wind;motivation=exploring+user_controlled" \
+    --warden "count=3;affinity=earth;motivation=stationary" \
+    --place "hazard:trap1;near=exit:1" --place "warden:*;near=hazard:trap1:2;count=2"
+  ```
+- Authored `vitals=` on `--delver` and `--warden` are kept as written (#371): the movement and cast floors fill only
+  a stamina regen or mana pool left at 0. A value you set that a floor still raises (a pool below one step, a vital
+  below the viability floor) is listed in the result's `vitalsReport` as `{ actorId, vital, field, set, built, floor }`.
 - `--delver` and `--warden` accept `strategy=`: standing orders each actor the card makes follows on its own turns.
   Compact goals run in order: `reach:exit|reach:<x>/<y>`, `defeat:<id>`, `take:<id>`, `guard:<id>[:radius]`,
   `follow:<id>[:distance]`, `lead:<id>[:distance]` (to the exit), `hold:<x>/<y>:<ticks>`, `survive[:distance]`.
@@ -534,10 +564,10 @@ Inputs/outputs:
 - Input: one or more `--room` flags (repeatable), optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
-- `--room` format: `size=<small|medium|large>;count=<n>;affinities=<kind>:<expression>:<stacks>,...`
+- `--room` format: `size=<small|medium|large>;count=<n>`
 - Room sides by size: small 3-5, medium 5-8, large 8-12 (the default is medium). A room that
   holds hazards is at least medium, so entrance, exit and hazards fit.
-- If `affinities` are omitted, defaults are applied: `dark:emit:2`.
+- Rooms carry no affinity (#263); place affinity in a room with `--hazard`.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
   from room-plan runs.
 - If `--goal` includes a budget phrase such as `budget 400 tokens`, it must agree with
@@ -597,14 +627,15 @@ Inputs/outputs:
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
 - `--delver` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;setup-mode=<auto|user|hybrid>][;goals=max_mana[:<priority>],mana_regen[:<priority>]][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
-- If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
+- If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `attacking`.
 - `motivation` takes one kind per family, joined with `+` (or `,`): one mobility kind, one posture
   kind, one cognition kind, plus `user_controlled`, e.g. `motivation=exploring+attacking`. Two kinds
   from one family (`exploring+patrolling`) are refused with the Configurator's reason. The
   `motivation=` key itself is given once per spec; repeating it is rejected.
 - Only a delver authored `user_controlled` is playable (`ak play` seats it as `@`); every other
-  delver is a companion acting on its own motivations. Nothing is tagged playable automatically.
+  delver acts on its own motivations. A delver authored `friendly` is a companion: it keeps with its
+  allies and takes orders in play. Nothing is tagged playable or friendly automatically.
   `user_controlled` is priced by the Allocator at the dearest autonomous motivation stack + 1, and a
   playable actor is costed for movement stamina because its player moves it.
 - A vital whose regen is above its max is built and priced as asked, but regen never fills past max, so the
@@ -631,7 +662,7 @@ Inputs/outputs:
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard `--run-id`,
   `--created-at`, `--out-dir`.
 - `--warden` format: `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>][;affinities=<kind>[:<expression>[:<range>[:<intensity>]]],...][;vitals=<vital>:<max>:<regen>,...|<vital>:<current>:<max>:<regen>,...][;slots=<n>][;equip=<kind>:<expression>[:<stacks>],...][;strategy=<goals>|<json>|<file.json>]`
-- If `affinity` is omitted, it falls back to `--dungeon-affinity` (default: `fire`).
+- If `affinity` is omitted, it falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
 - If `motivation` is omitted, default is `defending`.
 - `motivation` follows the same one-per-family `+` rule as `--delver`; the `motivation=` key itself is given once per spec.
 - `--budget` and `--price-list` can be supplied together to emit `budget-receipt.json`
@@ -767,6 +798,10 @@ producing a replay summary and regenerated TickFrames.
 
 ### `inspect`
 Summarize or extract telemetry snapshots for debugging and analysis.
+
+`--build-dir <dir>` names the build that made the level; the stdout summary then carries
+`solverDecisions`, one line naming which build decisions the solver made, e.g.
+`placement: fallback (solver_domain_unavailable); budget fit: solver` (#299).
 
 When the supplied `--tick-frames` file has a sibling `runtime-budget-receipt.json`,
 inspection includes `runtimeBudget` and labels its unit `runtimeBudgetUnits`. Its rows,
@@ -967,7 +1002,7 @@ Expected outputs (defaults when `--out-dir` is set):
 - Resource authoring (`resource-plan`): repeat `--resource` with `permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;id=<id>]`.
   Use `--budget-tokens` or `--budget` + `--price-list` to enforce a resources-only allocation receipt.
 - Delver authoring (`delver-plan`): repeat `--delver` with `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>]`.
-  If `affinity` is omitted, the command falls back to `--dungeon-affinity` (default `fire`).
+  If `affinity` is omitted, the command falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
   If `motivation` is omitted, default is `attacking`.
   Repeating `motivation` inside the same `--delver` spec is rejected.
   Optional advanced fields in `--delver`: `affinities=<kind>[:<expression>[:<stacks>]],...`,
@@ -975,7 +1010,7 @@ Expected outputs (defaults when `--out-dir` is set):
   and `setup-mode=<auto|user|hybrid>`.
   Use `--budget` + `--price-list` together to emit `budget-receipt.json` from the same run.
 - Warden authoring (`warden-plan`): repeat `--warden` with `count=<n>;affinity=<kind>;motivation=<kind>[+<kind>...][;id=<id>]`.
-  If `affinity` is omitted, the command falls back to `--dungeon-affinity` (default `fire`).
+  If `affinity` is omitted, the command falls back to `--dungeon-affinity`; with neither, the actor has no affinity (#263).
   If `motivation` is omitted, default is `defending`.
   Repeating `motivation` inside the same `--warden` spec is rejected.
   Optional advanced fields in `--warden`: `affinities=<kind>[:<expression>[:<stacks>]],...`,

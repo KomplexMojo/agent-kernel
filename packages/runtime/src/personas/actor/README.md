@@ -7,6 +7,9 @@ capabilities govern movement/exit/casting, and terminal actors stop deciding.
 Movement actions contain `params.target`; focused casts contain `params.targetId`.
 Only active push/pull equipment supplies focused casting and its range. Cast
 ranking reads shared actor mana. Ordinary walls and floors remain terrain.
+When other actors plug every route to the exit (wardens seated around it), the
+exit walk follows the terrain route as far as it is free instead of waiting, so
+the actor closes in on whoever holds the way.
 
 Runtime observations now project independent movement and sight grids, active
 fields, and live actor records from core. Observing applies no field effects.
@@ -127,7 +130,18 @@ Dynamic actors express behavior through **stackable motivations** organised into
 | **Posture** | `attacking`, `defending`, `stealthy`, `friendly` | How the actor engages |
 | **Cognition** | `reflexive`, `goal_oriented`, `strategy_focused` | How the actor thinks |
 
-Intelligence is represented through Cognition motivations — there is no separate parallel system for "smartness". A `reflexive` actor reacts instantly; a `strategy_focused` actor plans ahead. What that buys today is how much of a strategy the actor follows (see *Strategies* below).
+Intelligence is represented through Cognition motivations — there is no separate parallel system for "smartness". They change play with or without a strategy (#308):
+
+- `reflexive` reacts to what touches it this tick. Standing in a field that harms it, it steps to the adjacent free cell that harms it least, or holds when no step is better; unharmed, it plays its other motivations.
+- `goal_oriented` with no order or strategy adopts a goal from its other motivations (`attacking` with a hostile in sight: defeat the nearest; `exploring`: reach the exit) and follows it as a planned route until it is done or stalled, then adopts again.
+- `strategy_focused` adopts the same way but re-plans every turn, so it switches goal when the situation changes (an explorer that spots a hostile while attacking turns on it).
+- With nothing to adopt, or as a `user_controlled` actor, it plays its motivations as before. The adopted goal is kept per actor in `context.cognition[actorId]` (`{ adopted, goal, status, ... }`), apart from `context.strategies`, which holds only what was ordered or authored.
+
+With a strategy, cognition sets how much of it the actor follows (see *Strategies* below).
+
+Motivations are plain members of a stack: there is no motivation intensity (#309). An `intensity` (or `stacks`) on an older motivation entry still loads and is ignored by validation, evaluation, proposals and pricing alike.
+
+Posture kinds that move differ from `exploring` (#311). `stealthy` takes, of the steps on a shortest route to the exit, the one furthest from the nearest hostile, then the one with the most wall within two tiles. `friendly` keeps with its side: an ally in sight further than two tiles (`FRIENDLY_REACH`) is gone back to first, otherwise it takes the exit step that keeps within reach of that ally and waits when none does; with no ally in sight it walks like `exploring`. `friendly` is also what makes an actor a **companion**: only a `friendly` actor on the seated actor's side takes orders in a play session (party members, authored `user_controlled`, take them anyway). Allegiance is one rule, `alignmentsAreAllied` in `proposal-helpers.js`, used by proposals and the decision rows alike.
 
 Conflicting motivations within the same family are rejected (e.g. `attacking + defending`, `stealthy + friendly`, `random + patrolling`, `reflexive + goal_oriented`). Compatible cross-family combinations are allowed (e.g. `random + attacking`, `goal_oriented + stealthy`).
 
@@ -150,12 +164,14 @@ The Actor persona follows a simple loop:
 How motivations are resolved (priority, scoring, veto, etc.) is an implementation detail of the Actor persona and may evolve over time.
 
 Each actor receives its own perception-scoped observation. Levels are unlit: core starts with a sight radius
-of one tile, extended by the stacks of light the actor itself emits less the dark stacks at its tile. Per cell,
-core weighs the strongest emitted light reaching it against the strongest emitted dark, stack for stack: more light
-and the cell is lit, seen from any distance; more dark and the cell, and anyone in it, is hidden beyond one tile; a
-tie is neither. Dark from other sources that beats the light on the actor's own tile by two or more stacks blinds
-it: it sees only its own tile, plus lit cells in line of sight (#284); an actor's own dark never blinds it. Light and dark are both powered by their source's mana: they dim as the pool drains and regen
-restores them. Core then applies deterministic line of sight: walls and barriers block actors and hazards behind
+of one tile, extended by the stacks of the actor's own light that survive at its tile. Light and dark come from
+the affinity field, the same projection every vital effect and floor shading read (#288): per cell the field
+cancels the strongest emitted light against the strongest emitted dark, stack for stack, so more light and the cell
+is lit, seen from any distance; more dark and the cell, and anyone in it, is hidden beyond one tile; a tie is
+neither. An emit of s stacks reaches s tiles. Dark from other sources that still survives on the actor's own tile
+by two or more stacks, with its own dark left out, blinds it: it sees only its own tile, plus lit cells in line of
+sight (#284); an actor's own dark never blinds it. Light and dark switch on and off like every lasting affinity:
+full strength while on, dark once a drained source switches off until its mana is full again. Core then applies deterministic line of sight: walls and barriers block actors and hazards behind
 them, including diagonal corner peeking. The shared world snapshot is
 never mutated, and resources remain absent because actor observations do not currently expose them.
 
@@ -213,8 +229,8 @@ at its matching vital's missing capacity.
 Field scoring calls core's `previewActorFieldChanges` with the cells at the
 candidate destination (or current cell for non-moves). This forecasts a detached
 receiver using the same damage/restore/drain routing and vital mutation primitive
-as execution. Fire, earth and corrode consume durability and overflow into health; water/decay
-bypass durability. Only active equipment supplies protection or draw absorption.
+as execution. Each harmful kind hits its own vital first (see `docs/affinity-table.md`) and
+spills the rest into the receiver's defeat vital (#353). Only active equipment supplies protection or draw absorption.
 Owned inactive alternatives confer neither. Matching draw credits mana up to its
 capacity; it never heals health. Missing vitals produce no changes, and terminal
 defeat stops subsequent changes. Field inputs no longer carry legacy `vitalEffects`.
@@ -264,7 +280,9 @@ script). The command vocabulary is this persona's (`ACTOR_COMMAND_KINDS`):
   The Actor reads a slot's running level (`equippedAffinityStacks`) when it judges cast reach
 - `{ kind: "unequip_affinity", params: { affinityKey } }`
 - `{ kind: "cast_affinity", params: { targetId, affinityKey? } }`; `affinityKey` names the equipped slot,
-  otherwise core casts the first equipped push or pull
+  otherwise core casts the first equipped push or pull. On its own turns the Actor proposes a cast
+  only from a slot that reaches the target and whose price (the authored `castManaBase` on core's
+  `actorCastManaPrice` curve) the actor's mana covers, so it never wastes a turn on a refused cast (#367)
 - `{ kind: "take", params: { targetId, holdingId } }`
 
 Only the shape is checked. Anything else throws, so a controlled actor never falls back to autonomous

@@ -23,11 +23,8 @@
   },
   "intent": {
     "goal": "Author room, hazard, delver into a playable dungeon bundle.",
-    "tags": [
-      "fire"
-    ],
+    "tags": [],
     "hints": {
-      "levelAffinity": "fire",
       "budgetTokens": 5000,
       "poolWeights": [
         {
@@ -50,7 +47,7 @@
       "rooms": [
         {
           "motivation": "stationary",
-          "affinity": "dark",
+          "affinity": null,
           "count": 1
         }
       ],
@@ -60,7 +57,7 @@
           "type": "room",
           "source": "room",
           "count": 1,
-          "affinity": "dark",
+          "affinity": null,
           "affinities": [],
           "expressions": [],
           "motivations": [],
@@ -154,7 +151,6 @@
           }
         ]
       },
-      "levelAffinity": "fire",
       "actors": [
         {
           "id": "card_delver_1-1",
@@ -209,7 +205,7 @@
           "type": "room",
           "source": "room",
           "count": 1,
-          "affinity": "dark",
+          "affinity": null,
           "affinities": [],
           "expressions": [],
           "motivations": [],
@@ -2140,7 +2136,6 @@
           "kind": "shared_config",
           "prompt": "shared config for create",
           "attributes": {
-            "dungeonAffinity": "fire",
             "budgetTokens": 5000,
             "roomCount": 1,
             "constraints": {
@@ -2155,7 +2150,6 @@
         }
       ],
       "sharedConfig": {
-        "dungeonAffinity": "fire",
         "budgetTokens": 5000,
         "roomCount": 1,
         "constraints": {

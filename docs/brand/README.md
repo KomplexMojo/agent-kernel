@@ -1,12 +1,13 @@
-# agent-kernel brand kit
+# Deepward brand kit
 
-Assets for the repository README.
+Assets for the repository README. **Deepward** is the game and the public name; **agent-kernel** is its engine and the
+internal name (packages, `ak`, the MCP server, schema ids).
 
 ## Voice
 
 Notes for the person building this — not a product pitch.
 
-- State what the engine is: the core under a future game, with CLI and MCP surfaces.
+- Lead with the game, Deepward; then say what the engine is: agent-kernel, the core under it, with CLI and MCP surfaces.
 - Say the constraints plainly: decentralized, distributed, provably fair, enforced token economics.
 - Do not write as if there is an audience to convert. No “what you get”, no install funnel.
 - Keep personas and package architecture under **For developers**.
@@ -17,7 +18,7 @@ Notes for the person building this — not a product pitch.
 |---|---|---|
 | Slate | `#1A1F2E` | Overlay / panels |
 | Panel | `#2A3142` | Status chip, progress track |
-| Brass | `#C4A35A` | Accent, progress fill, `-kernel` |
+| Brass | `#C4A35A` | Accent, progress fill, `ward` |
 | Parchment | `#E8DFC8` | Secondary text on dark |
 | Muted | `#9AA3B5` | Supporting lines |
 | Signal | `#E8A54B` | Under-development indicator |
@@ -26,7 +27,9 @@ Notes for the person building this — not a product pitch.
 
 | File | Use |
 |---|---|
-| `banner.png` | README header — gameplay board background + title |
+| `banner.png` | README header — gameplay board background + title, rendered from `banner.html` |
+| `banner.html` | Source of `banner.png`: `bash scripts/brand/render-banner.sh` |
+| `banner-background.png` | The gameplay board with no text, the banner's background |
 | `banner.svg` | Legacy vector draft (superseded by `banner.png`) |
 | `progress.svg` | The single overall progress bar (40%) |
 | `status.svg` | Standalone under-development chip (optional) |

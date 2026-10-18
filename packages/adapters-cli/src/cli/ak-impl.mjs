@@ -55,6 +55,7 @@ import { deriveAllowedOptionsFromCatalog, normalizeSummary } from "../../../runt
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../../../runtime/src/commands/llm-host.js";
+import { summarizeSolverDecisions } from "../../../runtime/src/commands/solver-host.js";
 import { beginDirectorRound, directorBuildCapabilities } from "../../../runtime/src/commands/director-round.js";
 import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/persona.js";
 import {
@@ -172,7 +173,7 @@ function usage() {
   node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
   node ${rel} budget --budget path [--price-list path] [--receipt path] [--out-dir dir] [--out path] [--receipt-out path]
   node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--out-dir dir]
-  node ${rel} inspect --tick-frames path [--effects-log path] [--out-dir dir]
+  node ${rel} inspect --tick-frames path [--effects-log path] [--build-dir dir] [--out-dir dir]
   node ${rel} narrate --tick-frames path --initial-state path [--out-dir dir]
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} ipfs-publish --artifact-map path [--path root] [--gateway url] [--fixture-cid cid] [--out path] [--out-dir dir]
@@ -185,15 +186,15 @@ function usage() {
   node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId | --sim-config path --initial-state path) [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
-  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
-  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
+  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} room-plan --room "size=small;count=2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]" [--hazard "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} resource-plan --resource "permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>" [--resource "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} delver-plan --delver "count=2;affinity=fire;motivation=attacking[;goals=max_mana:high,mana_regen:high]" [--delver "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} warden-plan --warden "count=2;affinity=dark;motivation=defending" [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} runs list
-  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--realtime ms] [--record path] [--replay path]
+  node ${rel} play [--dir dir | --from-run id | --sim-config path --initial-state path | --level name] [--keys keys] [--json] [--color | --no-color] [--no-fog] [--realtime ms] [--web [--port n] [--lan]] [--record path] [--replay path]
   node ${rel} play --watch (--dir dir | --from-run id) [--tick N] [--keys keys] [--json] [--color | --no-color]
   node ${rel} play-session start [--session id] (--dir dir | --from-run id | --sim-config path --initial-state path | --level name) [--actor id|label] [--commands json] [--keys keys]
   node ${rel} play-session start [--session id] --load path
@@ -241,6 +242,11 @@ Options:
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
   --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
   --resource      Resource artifact spec for create/configure/resource-plan (repeatable).
+  --place         Placement constraint for create/configure (repeatable): <subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump]
+                  subject: hazard|resource|delver|warden:<id|n|*>; target: spawn, exit, room:<id> or one hazard|resource|delver|warden:<id|n>.
+                  Distances are king moves (a room counts from its nearest cell). count=<n> with near= means at least n of the subjects;
+                  onRoute is a cell every spawn-to-exit route passes. A delver or warden named here is placed by this search, not seated
+                  by the usual rules. A constraint that cannot hold refuses the level, naming it; the result's placementReport says how each held.
                   Vital payload:   permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]
                   permanenceMode governs delta only (consumable raises current, level/permanent raise max).
                   regen is a third, independent grant: the actor permanently gains that regen rate on top
@@ -291,6 +297,7 @@ Options:
   --json          play: print { ok, level, turns, status, screen, launch, warnings? } instead of the screen
   --no-fog        play: debug view of the whole map (play is always under fog of war)
   --realtime      play: a turn passes every <ms> while you wait (interactive only; t toggles)
+  --web           play: play in a browser tab on http://localhost:<port> (--port, default 8765; --lan for a phone on the same network)
   --record        play: save the played commands to this path (CapturedInputArtifact)
   --replay        play: re-run a saved game on its level, then continue
   --watch         play: watch the run \`ak run\` recorded in --dir (or under artifacts/runs/<--from-run>), tick by tick
@@ -330,6 +337,7 @@ function parseArgs(argv) {
     "hazard",
     "hazard",
     "resource",
+    "place",
     "file",
   ]);
   function pushArg(key, value) {
@@ -1595,8 +1603,9 @@ function parseWardenSpec(value, wardenIndex, { defaultAffinity = DEFAULT_DUNGEON
     fields.set(key, fieldValue);
   });
 
-  const affinity = String(fields.get("affinity") || defaultAffinity).trim().toLowerCase();
-  if (!ALLOWED_AFFINITIES.includes(affinity)) {
+  const rawAffinity = fields.get("affinity") || defaultAffinity;
+  const affinity = isNonEmptyString(rawAffinity) ? String(rawAffinity).trim().toLowerCase() : null;
+  if (affinity !== null && !ALLOWED_AFFINITIES.includes(affinity)) {
     throw new Error(`warden[${wardenIndex}] affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -2438,7 +2447,7 @@ async function summarizeRunOutput({ outDir, args, pricingReport } = {}) {
   };
 }
 
-async function summarizeInspectOutput({ outDir, runtimeBudgetReceiptPath = null } = {}) {
+async function summarizeInspectOutput({ outDir, runtimeBudgetReceiptPath = null, buildDir = null } = {}) {
   const inspectSummary = await readJsonIfExists(join(outDir, "inspect-summary.json"));
   const runtimeBudgetReceipt = await readJsonIfExists(runtimeBudgetReceiptPath);
   const runtimeBudget = runtimeBudgetReceipt && typeof runtimeBudgetReceipt === "object"
@@ -2465,6 +2474,12 @@ async function summarizeInspectOutput({ outDir, runtimeBudgetReceiptPath = null 
   if (runtimeBudgetReceiptPath && runtimeBudget) {
     summary.artifactPaths.runtime_budget_receipt = runtimeBudgetReceiptPath;
     summary.runtimeBudget = runtimeBudget;
+  }
+  // #299: the build that made this level, and which of its decisions the solver made.
+  const buildTelemetry = buildDir ? await readJsonIfExists(join(buildDir, "telemetry.json")) : null;
+  if (buildTelemetry) {
+    summary.artifactPaths.build_telemetry = join(buildDir, "telemetry.json");
+    summary.solverDecisions = summarizeSolverDecisions(buildTelemetry.data?.solverDecisions) || "none recorded";
   }
   return summary;
 }
@@ -3140,6 +3155,9 @@ async function summarizeRunIndexCommand({ runId, command, outDir } = {}) {
     roomIds: deriveRoomIds(simConfig),
     ticks: runSummary?.metrics?.ticks,
     budgetSpend: deriveBudgetSpend(budgetReceipt),
+    ...(Array.isArray(telemetry?.data?.solverDecisions)
+      ? { solverDecisions: summarizeSolverDecisions(telemetry.data.solverDecisions) || "none recorded" }
+      : {}),
     inputs,
     outputs,
   };
@@ -3781,6 +3799,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     "resource",
     "delver",
     "warden",
+    "place",
     "goal",
     "dungeon-affinity",
     "budget-tokens",
@@ -3809,7 +3828,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --place, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -4038,11 +4057,15 @@ async function writeBuildOutputs({
     artifactRefs: buildArtifactRefs(manifestEntries),
     producedBy,
     clock: () => spec.meta.createdAt,
+    data: { solverDecisions: Array.isArray(buildResult.solverDecisions) ? buildResult.solverDecisions : [] },
   });
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
   const costSummary = buildCostSummary(buildResult.budgetReceipt, buildResult.spendProposal, outDir);
   const placedObjects = buildPlacedObjectsNote(spec);
+  // #301: how each `--place` constraint came out, from the Configurator's placement decision.
+  const placementReport = (Array.isArray(buildResult.solverDecisions) ? buildResult.solverDecisions : [])
+    .find((decision) => Array.isArray(decision?.placementReport))?.placementReport;
 
   return buildStructuredSuccessSummary({
     command: commandName,
@@ -4055,6 +4078,9 @@ async function writeBuildOutputs({
     extra: {
       ...(costSummary !== undefined ? { cost: costSummary } : {}),
       ...(placedObjects !== undefined ? { placedObjects } : {}),
+      ...(placementReport !== undefined ? { placementReport } : {}),
+      // #371: authored vitals a Configurator floor raised, so none changes silently.
+      ...(buildResult.vitalsReport?.length > 0 ? { vitalsReport: buildResult.vitalsReport } : {}),
     },
   });
 }
@@ -4556,6 +4582,8 @@ async function validateScenarioDryRun(args) {
         // 2026-08-12: taken from the round opened above rather than opening one here —
         // the BuildSpec assembly below runs on that same round and closes it.
         ...directorBuildCapabilities(director),
+        // #296: the budget fit goes to the host's solver, as `ak llm-plan`'s does.
+        fitLayout: await commandKernel.hostLayoutBudgetFit(director, createdAt),
         adapter,
         model,
         baseUrl,
@@ -4713,6 +4741,7 @@ async function validateScenarioDryRun(args) {
     capturedInputs: capturedInputsForBuild,
     // #280: the plan this build persists is the one this round drafted.
     directorRound: director.currentRound(),
+    placeObjects: await commandKernel.hostObjectPlacement(buildSpecResult.spec.meta.createdAt),
   });
 
   return buildDryRunSuccess({
@@ -4946,6 +4975,7 @@ async function inspectCommand(argv) {
   emitJsonStdout(await summarizeInspectOutput({
     outDir: result.outDir,
     runtimeBudgetReceiptPath: tickFramesPath ? join(dirname(tickFramesPath), "runtime-budget-receipt.json") : null,
+    buildDir: resolvePath(args["build-dir"]),
   }));
 }
 
@@ -5132,8 +5162,8 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_DUNGEON_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_DUNGEON_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`${commandName} --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -5211,6 +5241,11 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
     .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
+  // #301: relational placement constraints, parsed by the Configurator's own grammar.
+  const placementConstraints = normalizeList(args.place)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .map((value, index) => configurator.parsePlacementConstraint(value, index));
 
   // No size=small precheck for placed hazards: the Configurator's input preparation
   // bumps roomMinSize to MIN_ROOM_SIZE_WITH_ITEMS when placedHazards are present, so a
@@ -5535,6 +5570,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     maximizeBudget: shouldMaximizeSpend,
     parsedDelvers,
     parsedWardens,
+    placement: placementConstraints,
   });
 
   if (args["dry-run"]) {
@@ -5621,8 +5657,8 @@ async function roomPlanCommand(argv) {
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_ROOM_CARD_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_ROOM_CARD_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`room-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -5734,8 +5770,8 @@ async function hazardPlanCommand(argv) {
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_DUNGEON_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_DUNGEON_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`hazard-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -5837,8 +5873,8 @@ async function resourcePlanCommand(argv) {
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_DUNGEON_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_DUNGEON_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`resource-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -5939,8 +5975,8 @@ async function delverPlanCommand(argv) {
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_DUNGEON_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_DUNGEON_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`delver-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -6070,8 +6106,8 @@ async function wardenPlanCommand(argv) {
 
   const dungeonAffinity = isNonEmptyString(args["dungeon-affinity"])
     ? args["dungeon-affinity"].trim().toLowerCase()
-    : DEFAULT_DUNGEON_AFFINITY;
-  if (!ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
+    : (DEFAULT_DUNGEON_AFFINITY ?? undefined);
+  if (dungeonAffinity !== undefined && !ALLOWED_AFFINITIES.includes(dungeonAffinity)) {
     throw new Error(`warden-plan --dungeon-affinity must be one of: ${ALLOWED_AFFINITIES.join(", ")}.`);
   }
 
@@ -6482,7 +6518,7 @@ async function playCommand(argv) {
     console.log(usage());
     return;
   }
-  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick", "realtime"]);
+  const allowed = new Set(["_", "dir", "from-run", "sim-config", "initial-state", "level", "keys", "json", "color", "no-color", "no-fog", "record", "replay", "watch", "tick", "realtime", "web", "port", "lan"]);
   const unknown = Object.keys(args).filter((key) => !allowed.has(key));
   if (unknown.length > 0) throw new Error(`play does not support: ${unknown.map((key) => `--${key}`).join(", ")}`);
   if (args.watch) {
@@ -6508,8 +6544,10 @@ async function playCommand(argv) {
   if (args.realtime !== undefined && (keys !== undefined || args.json)) {
     throw new Error("play --realtime is for interactive play; drop --keys/--json.");
   }
+  if (args.web && (keys !== undefined || args.json)) throw new Error("play --web is for play in a browser; drop --keys/--json.");
+  if ((args.port !== undefined || args.lan) && !args.web) throw new Error("play --port and --lan need --web.");
   if (keys === undefined && !args.json) {
-    process.exitCode = await playAsciiInteractive({ source, color, fog, realtime: args.realtime, ...capture });
+    process.exitCode = await playAsciiInteractive({ source, color, fog, realtime: args.realtime, web: Boolean(args.web), port: args.port, lan: Boolean(args.lan), ...capture });
     return;
   }
   const result = playAsciiScripted({ source, keys: keys ?? "", color: color === true, fog, ...capture });
@@ -7015,7 +7053,11 @@ export async function compileBuildSpecToGameplayBundle(buildSpec) {
   if (!buildSpec || typeof buildSpec !== "object") {
     throw new Error("compileBuildSpecToGameplayBundle requires a BuildSpec object.");
   }
-  const buildResult = await orchestrateBuild({ spec: buildSpec, producedBy: "sandbox-bridge" });
+  const buildResult = await orchestrateBuild({
+    spec: buildSpec,
+    producedBy: "sandbox-bridge",
+    placeObjects: await commandKernel.hostObjectPlacement(buildSpec.meta?.createdAt),
+  });
   const artifacts = buildBuildArtifacts(buildResult, { includeAffinitySummary: true });
   return { spec: buildSpec, artifacts };
 }

@@ -314,7 +314,7 @@ test("with fog, a lamp that cannot pay its mana upkeep goes dark", async () => {
 });
 
 test("with fog, dark erases remembered cells once they leave sight; undarkened memory stays", async () => {
-  // A 1-stack dark trap at (3,3) darkens cells within 2 steps (Manhattan), (3,2) among them.
+  // A 1-stack dark trap at (3,3) darkens the cells its field reaches, 1 step (Manhattan), (3,2) among them (#288).
   const level = mazeLevel([trap("shade", "dark", { x: 3, y: 3 })]);
   const session = await createPlaySession({ ...level, fog: true });
   assert.equal(session.view().sight[2][3], PLAY_SIGHT.VISIBLE, "adjacent, so seen even in the dark");
@@ -322,7 +322,7 @@ test("with fog, dark erases remembered cells once they leave sight; undarkened m
   const view = session.view();
   assert.equal(view.sight[2][3], PLAY_SIGHT.UNKNOWN, "out of sight under dark: forgotten");
   assert.equal(view.rows[2][3], "?");
-  assert.equal(view.sight[1][3], PLAY_SIGHT.UNKNOWN, "(3,1) is also within the dark");
+  assert.equal(view.sight[1][3], PLAY_SIGHT.REMEMBERED, "(3,1) is two steps off, beyond the dark: remembered");
   assert.equal(view.sight[0][2], PLAY_SIGHT.REMEMBERED, "out of sight (corner), no dark: remembered");
 });
 
@@ -370,7 +370,8 @@ test("a cast spends the player's mana and hurts the target", async () => {
   assert.deepEqual(result.accepted.map((a) => [a.kind, a.params]), [["cast_affinity", { targetId: "warden_1" }]]);
   const view = session.view();
   assert.ok(view.player.vitals.find((v) => v.key === "mana").current < manaBefore);
-  assert.ok(view.actors.find((a) => a.id === "warden_1").vitals.health.current < 10);
+  // #353: water hits stamina first.
+  assert.ok(view.actors.find((a) => a.id === "warden_1").vitals.stamina.current < 10);
 });
 
 test("a refused cast reports core's reason and still costs the turn", async () => {
@@ -381,8 +382,9 @@ test("a refused cast reports core's reason and still costs the turn", async () =
 });
 
 test("a defeated actor next to the player offers its affinities as loot, and take claims one", async () => {
-  const session = await createPlaySession(buildDuelLevel());
-  await session.act(equip("water:push"));
+  // #353: decay hits the defeat vital (health) directly; water would empty stamina first.
+  const session = await createPlaySession(buildDuelLevel({ playerAffinities: [{ kind: "decay", expression: "push", stacks: 3, intensity: 2 }] }));
+  await session.act(equip("decay:push"));
   for (let i = 0; i < 6 && session.view().actors.some((a) => a.id === "warden_1"); i += 1) {
     await session.act(cast("warden_1"));
   }

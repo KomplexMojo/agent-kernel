@@ -198,6 +198,8 @@ export async function runPlanBuild(input = {}) {
     createdAt,
     budgetArtifact = null,
     priceListArtifact = null,
+    placeObjects,
+    solverDecisions,
   } = input;
 
   const { spec, plan, intent } = assembleSpecThroughDirector({
@@ -211,6 +213,9 @@ export async function runPlanBuild(input = {}) {
     // CR.3: the plan this build persists is the one the Director drafted above,
     // not a second Director's reconstruction from the finished spec.
     directorRound: { intent, plan },
+    // #296: the host's solver round trip for the Configurator's object placement.
+    placeObjects,
+    solverDecisions,
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
 
@@ -245,6 +250,9 @@ export async function runAuthoringBuild(input = {}) {
     maximizeBudget = false,
     parsedDelvers = [],
     parsedWardens = [],
+    placement = [],
+    placeObjects,
+    solverDecisions,
   } = input;
 
   const { spec, plan, intent } = assembleSpecThroughDirector({
@@ -272,6 +280,11 @@ export async function runAuthoringBuild(input = {}) {
   if (movementStamina !== undefined) {
     spec.configurator.inputs.movementStamina = structuredClone(movementStamina);
   }
+  // #301 — relational placement constraints, in the Configurator's canonical shape.
+  const placementConstraints = configurator.normalizePlacementConstraints(placement);
+  if (placementConstraints.length > 0) {
+    spec.configurator.inputs.placement = placementConstraints;
+  }
 
   // CR.2 / #280 — the Configurator validates and locks the assembled config inside
   // orchestrateBuild, which every build path runs, so a config it rejects fails the build
@@ -284,6 +297,8 @@ export async function runAuthoringBuild(input = {}) {
     producedBy: `cli-${commandName}`,
     // CR.3 — see runPlanBuild.
     directorRound: { intent, plan },
+    placeObjects,
+    solverDecisions,
   });
   attachMixedRoomAssembliesToBuildResult(buildResult);
   applyMotivationToInitialStateActors(buildResult.initialState, { parsedDelvers, parsedWardens });

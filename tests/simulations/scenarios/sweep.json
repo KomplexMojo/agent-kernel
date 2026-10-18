@@ -1,0 +1,550 @@
+{
+  "description": "Sweep scenarios: run with the core set by `pnpm run sim:sweep`, which reports rules and metrics without failing. Add any level worth watching here.",
+  "scenarios": [
+    {
+      "id": "sweep-duel-fire-water",
+      "note": "fire push attacker vs water push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=fire;affinities=fire:push:3;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=water;affinities=water:push:3;equip=water:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-water-fire",
+      "note": "water push attacker vs fire push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=water;affinities=water:push:3;equip=water:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=fire;affinities=fire:push:3;equip=fire:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-earth-wind",
+      "note": "earth push attacker vs wind push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=earth;affinities=earth:push:3;equip=earth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=wind;affinities=wind:push:3;equip=wind:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-wind-earth",
+      "note": "wind push attacker vs earth push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=wind;affinities=wind:push:3;equip=wind:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=earth;affinities=earth:push:3;equip=earth:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-growth-decay",
+      "note": "growth push attacker vs decay push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=growth;affinities=growth:push:3;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=decay;affinities=decay:push:3;equip=decay:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-decay-growth",
+      "note": "decay push attacker vs growth push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=decay;affinities=decay:push:3;equip=decay:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=growth;affinities=growth:push:3;equip=growth:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-corrode-fortify",
+      "note": "corrode push attacker vs fortify push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=corrode;affinities=corrode:push:3;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=fortify;affinities=fortify:push:3;equip=fortify:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-fortify-corrode",
+      "note": "fortify push attacker vs corrode push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=fortify;affinities=fortify:push:3;equip=fortify:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=corrode;affinities=corrode:push:3;equip=corrode:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-light-dark",
+      "note": "light push attacker vs dark push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=light;affinities=light:push:3;equip=light:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=dark;affinities=dark:push:3;equip=dark:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-dark-light",
+      "note": "dark push attacker vs light push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=dark;affinities=dark:push:3;equip=dark:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=light;affinities=light:push:3;equip=light:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-fire-fire",
+      "note": "fire push attacker vs fire push defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=fire;affinities=fire:push:3;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=fire;affinities=fire:push:3;equip=fire:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-duel-dark-dark",
+      "note": "dark pull attacker vs dark pull defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=dark;affinities=dark:pull:3;equip=dark:pull;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=dark;affinities=dark:pull:3;equip=dark:pull;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-emit-aura",
+      "note": "two emitters standing next to each other (fire vs water emit), attacking",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=fire;affinities=fire:emit:3;equip=fire:emit;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=water;affinities=water:emit:3;equip=water:emit;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-draw-vs-push",
+      "note": "decay draw delver vs growth push warden",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=decay;affinities=decay:draw:3,decay:push:2;equip=decay:draw,decay:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=growth;affinities=growth:push:3;equip=growth:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-explore-exit",
+      "note": "one exploring delver, two rooms, nothing else",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=ex;affinity=wind;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-follow-lead",
+      "note": "leader reach:exit with two followers",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=lead;affinity=light;motivation=exploring+goal_oriented;strategy=reach:exit;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--delver",
+        "count=2;id=f;affinity=earth;motivation=exploring+goal_oriented;strategy=follow:lead-1:2;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-patrol",
+      "note": "patrolling warden, exploring delver, 2 medium rooms",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=ex;affinity=fire;affinities=fire:push:3;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=pat;affinity=water;affinities=water:push:3;equip=water:push;motivation=patrolling;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-random-stealthy-friendly",
+      "note": "random, stealthy, friendly delvers",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=rnd;affinity=fire;motivation=random;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--delver",
+        "count=1;id=st;affinity=dark;motivation=stealthy;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--delver",
+        "count=1;id=fr;affinity=light;motivation=friendly;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-roaming-hazards",
+      "note": "roaming hazards of all expressions with an exploring delver",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=ex;affinity=earth;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--hazard",
+        "affinity=fire;expression=emit;proximityRadius=2;mana=regen:40:40:4",
+        "--hazard",
+        "affinity=wind;expression=push;proximityRadius=2;mana=regen:40:40:4",
+        "--hazard",
+        "affinity=corrode;expression=pull;proximityRadius=2;mana=regen:40:40:4",
+        "--hazard",
+        "affinity=dark;expression=draw;proximityRadius=2;mana=regen:40:40:4"
+      ]
+    },
+    {
+      "id": "sweep-heal-ally",
+      "note": "growth emit healer next to a wounded ally vs a decay warden",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=heal;affinity=growth;affinities=growth:emit:3;equip=growth:emit;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--delver",
+        "count=1;id=hurt;affinity=earth;affinities=earth:push:2;equip=earth:push;motivation=attacking;vitals=health:10:30:1,mana:30:30:3,stamina:10:10:1,durability:10:10:1",
+        "--warden",
+        "count=1;id=w;affinity=decay;affinities=decay:push:3;equip=decay:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-stationary-exit",
+      "note": "stationary warden on exit; exploring delver with push",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=ex;affinity=fire;affinities=fire:push:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=st;affinity=water;motivation=stationary;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-range-intensity",
+      "note": "range/intensity stack fire:push:6:2 vs water push 2:3",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=water;affinities=water:push:2:3;equip=water:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-loot",
+      "note": "exploring delver with vital and affinity resources",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=ex;affinity=fire;slots=3;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=10",
+        "--resource",
+        "permanenceMode=permanent;vital=mana;delta=5;regen=1",
+        "--resource",
+        "affinity=growth;expression=emit;stacks=2;mana=40",
+        "--resource",
+        "slots=1"
+      ],
+      "budget": 8000
+    },
+    {
+      "id": "sweep-many-slots",
+      "note": "delver with 4 equipped slots vs 2 wardens",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=1",
+        "--delver",
+        "count=1;id=multi;affinity=light;slots=4;affinities=light:emit:2,fire:push:3,wind:pull:2,growth:draw:2;equip=light:emit,fire:push,wind:pull,growth:draw;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=2;id=w;affinity=dark;affinities=dark:push:2;equip=dark:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ],
+      "budget": 8000
+    },
+    {
+      "id": "sweep-hazard-field",
+      "note": "delver walks past placed fire emit and decay draw hazards",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=1",
+        "--delver",
+        "count=1;id=ex;affinity=water;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--hazard",
+        "x=1;y=2;affinity=fire;expression=emit;stacks=3;vitals=mana:60:5,durability:30:2",
+        "--hazard",
+        "x=3;y=4;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
+      ]
+    },
+    {
+      "id": "sweep-emit-strong",
+      "note": "fire emit range 2 intensity 3 attacker next to water defender",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=fire;affinities=fire:emit:2:3;equip=fire:emit;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=water;affinities=water:push:1;equip=water:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-push-i3-mirror",
+      "note": "fire:push:3:3 vs water:push:3:3 (same strength, opposed)",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=fire;affinities=fire:push:3:3;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=water;affinities=water:push:3:3;equip=water:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-push-i3-mirror-b",
+      "note": "earth:push:3:3 vs wind:push:3:3",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=earth;affinities=earth:push:3:3;equip=earth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=wind;affinities=wind:push:3:3;equip=wind:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-pull-i3",
+      "note": "dark:pull:3:3 vs light:pull:3:3",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=dark;affinities=dark:pull:3:3;equip=dark:pull;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=light;affinities=light:pull:3:3;equip=light:pull;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-two-v-two",
+      "note": "2 attacking delvers vs 2 attacking wardens in a medium room, i2",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=1",
+        "--delver",
+        "count=2;id=d;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=2;id=w;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-exit-guarded",
+      "note": "attacking delver i2 vs stationary warden on the exit",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=fire;affinities=fire:push:2:2;equip=fire:push;motivation=exploring+attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=st;affinity=water;motivation=stationary;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    },
+    {
+      "id": "sweep-hazard-walk-earth",
+      "note": "earth delver walks past fire emit 3 and decay draw 3 hazards",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=1",
+        "--delver",
+        "count=1;id=ex;affinity=earth;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--hazard",
+        "x=1;y=2;affinity=fire;expression=emit;stacks=3;vitals=mana:60:5,durability:30:2",
+        "--hazard",
+        "x=1;y=3;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
+      ]
+    },
+    {
+      "id": "sweep-hazard-walk-fire",
+      "note": "fire delver walks past fire emit 3 and decay draw 3 hazards",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=1",
+        "--delver",
+        "count=1;id=ex;affinity=fire;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--hazard",
+        "x=1;y=2;affinity=fire;expression=emit;stacks=3;vitals=mana:60:5,durability:30:2",
+        "--hazard",
+        "x=1;y=3;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
+      ]
+    },
+    {
+      "id": "sweep-hazard-walk-water",
+      "note": "water delver walks past fire emit 3 and decay draw 3 hazards",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=1",
+        "--delver",
+        "count=1;id=ex;affinity=water;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--hazard",
+        "x=1;y=2;affinity=fire;expression=emit;stacks=3;vitals=mana:60:5,durability:30:2",
+        "--hazard",
+        "x=1;y=3;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
+      ]
+    },
+    {
+      "id": "sweep-hazard-camp",
+      "note": "stationary earth delver standing next to a fire emit 3:3 hazard",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=st;affinity=earth;motivation=stationary;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "--hazard",
+        "x=1;y=1;affinity=fire;expression=emit;stacks=3;vitals=mana:60:5,durability:30:2"
+      ]
+    },
+    {
+      "id": "sweep-big-20k",
+      "note": "scripts/game/big-20k-sim.sh: 109x109, 37 actors, every affinity, no player",
+      "budget": 20000,
+      "ticks": 150,
+      "args": [
+        "--room",
+        "size=large;count=6",
+        "--floor-tile",
+        "count=5700",
+        "--delver",
+        "count=1;id=hero;affinity=light;affinities=light:emit:4,fire:push:4,growth:emit:3,fortify:emit:2;slots=6;equip=light:emit,fire:push,growth:emit,fortify:emit;motivation=exploring+goal_oriented;strategy=defeat:boss-1,reach:exit;vitals=health:40:3,mana:40:3,stamina:20:2,durability:20:2",
+        "--delver",
+        "count=1;id=scout;affinity=wind;motivation=exploring+goal_oriented;strategy=reach:exit;vitals=health:40:3,mana:40:3,stamina:20:2,durability:20:2",
+        "--delver",
+        "count=5;id=pal;affinity=earth;vitals=health:20:2,mana:20:2,stamina:10:1,durability:10:1;motivation=exploring+goal_oriented;strategy=follow:hero-1:2",
+        "--warden",
+        "count=1;id=boss;affinity=dark;affinities=dark:emit:7,decay:push:7,corrode:pull:5;slots=3;equip=dark:emit,decay:push,corrode:pull;vitals=health:80:6,mana:80:6,stamina:20:2,durability:20:2;motivation=stationary+goal_oriented;strategy=defeat:hero-1",
+        "--warden",
+        "count=4;id=guard;affinity=corrode;affinities=corrode:push:5,fortify:emit:3;equip=corrode:push,fortify:emit;motivation=patrolling;vitals=health:50:4,mana:50:4,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=4;id=sentry;affinity=water;affinities=water:pull:6,earth:push:5;equip=water:pull,earth:push;motivation=defending;vitals=health:60:5,mana:60:5,stamina:10:1,durability:10:1",
+        "--hazard",
+        "x=2;y=2;affinity=light;expression=emit;stacks=5;vitals=mana:120:10,durability:80:6",
+        "--hazard",
+        "x=6;y=4;affinity=dark;expression=emit;stacks=5;vitals=mana:120:10,durability:80:6",
+        "--hazard",
+        "x=4;y=6;affinity=fire;expression=push;stacks=5;blocking=true;vitals=mana:120:10,durability:80:6",
+        "--hazard",
+        "x=8;y=8;affinity=decay;expression=draw;stacks=5;vitals=mana:120:10,durability:80:6",
+        "--hazard",
+        "x=3;y=9;affinity=wind;expression=pull;stacks=5;vitals=mana:120:10,durability:80:6",
+        "--hazard",
+        "affinity=fire;expression=emit;proximityRadius=2;mana=regen:60:60:5",
+        "--hazard",
+        "affinity=decay;expression=push;proximityRadius=1;mana=regen:60:60:5",
+        "--hazard",
+        "affinity=water;expression=pull;proximityRadius=2;mana=regen:60:60:5",
+        "--hazard",
+        "affinity=corrode;expression=emit;proximityRadius=3;mana=regen:80:80:6;durability=regen:40:40:3",
+        "--hazard",
+        "affinity=light;expression=draw;proximityRadius=2;mana=regen:80:80:6;durability=regen:40:40:3",
+        "--resource",
+        "slots=1",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=10",
+        "--resource",
+        "permanenceMode=consumable;vital=mana;delta=20;regen=1",
+        "--resource",
+        "permanenceMode=permanent;vital=mana;delta=5;regen=1",
+        "--resource",
+        "permanenceMode=permanent;vital=health;delta=10;regen=2",
+        "--resource",
+        "permanenceMode=level;vital=health;delta=15;regen=2",
+        "--resource",
+        "affinity=fortify;expression=emit;stacks=2;mana=40",
+        "--resource",
+        "affinity=growth;expression=emit;stacks=2;mana=40",
+        "--resource",
+        "affinity=earth;expression=pull;stacks=2;mana=40;manaRegen=1",
+        "--resource",
+        "affinity=dark;expression=emit;stacks=3;mana=60;manaRegen=3",
+        "--resource",
+        "affinity=wind;expression=push;stacks=3;mana=60;manaRegen=3"
+      ]
+    }
+  ]
+}

@@ -3,12 +3,12 @@ import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorPosition, ActorAffinityEntry, ActorRecord } from '../state/actor-types.ts';
 import { affinityIntensity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { AFFINITY_KIND_BY_CODE, AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
-import { getOppositeAffinityKind, resolveAffinityRelationshipCode, AffinityRelationship } from '../state/affinity.ts';
-import { computeAffinityFalloff, computeAffinityRadius, cancelAffinityOverlap,
-  deriveAffinityInteractionCell, AffinityEffect, OPPOSITE_EXPOSURE_AMPLIFICATION } from '../state/affinity-spatial.ts';
+import { getOppositeAffinityKind } from '../state/affinity.ts';
+import { computeAffinityFalloff, computeAffinityRadius, cancelAffinityOverlap } from '../state/affinity-spatial.ts';
 import { actorAffinityMagnitude, evaluateActorAffinityReceiver, getActorAffinityEffect, type ActorVitalChange } from './actor-affinity.ts';
 import { changeActorVital } from '../state/actor-vitals.ts';
 import { resolveActorExposures, type ActorExposureSource } from './actor-exposure.ts';
+import { receiverAffinityAmount } from './actor-receiver.ts';
 import { litActorAffinities } from './actor-upkeep.ts';
 
 const KIND_CODES = Object.fromEntries(Object.entries(AFFINITY_KIND_BY_CODE).map(([code, name]) => [name, Number(code)]));
@@ -26,30 +26,16 @@ export function fieldSlotKey(sourceId: string, pair: Pick<ActorAffinityEntry, 'k
   return `${sourceId}|${pair.kind}:${pair.expression}`;
 }
 
-/**
- * Receiver rules over every equipped slot: a matching draw absorbs first (the
- * exposure resolver routes it into mana), then a same-kind slot that the
- * interaction table makes immune takes nothing, then any opposite slot doubles
- * damage and drain.
+/** Receiver-local exposure before the source's strength cap and vital routing. No mutation.
+ * Vitals are whole numbers (#283): falloff and cancellation make the raw exposure
+ * fractional, so it rounds to the nearest point here, the one place every field
+ * affinity's exposure passes through. Half rounds up, so the weakest field still lands 1.
  */
-function receiverExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, amount: number, operation: string): number {
-  const equipped = equippedActorAffinities(receiver);
-  if (!equipped.length) return amount;
-  if (equipped.some(pair => pair.kind === cell.kind && pair.expression === 'draw')
-    && (cell.expression === 'push' || cell.expression === 'emit')) return amount;
-  const relationships = equipped.map(pair => {
-    const relationship = resolveAffinityRelationshipCode(KIND_CODES[cell.kind], KIND_CODES[pair.kind]);
-    return { relationship, interaction: deriveAffinityInteractionCell(EXPRESSION_CODES[cell.expression], EXPRESSION_CODES[pair.expression], relationship) };
-  });
-  if (relationships.some(({ relationship, interaction }) => relationship === AffinityRelationship.Same
-    && interaction?.targetEffect === AffinityEffect.None)) return 0;
-  if (relationships.some(({ relationship }) => relationship === AffinityRelationship.Opposite)
-    && (operation === 'damage' || operation === 'drain')) return amount * OPPOSITE_EXPOSURE_AMPLIFICATION;
-  return amount;
+export function actorFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, localCells: readonly ActorFieldCell[]): number {
+  return Math.round(rawFieldExposureAmount(receiver, cell, localCells));
 }
 
-/** Receiver-local exposure before finite source budgets and vital routing. No mutation. */
-export function actorFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, localCells: readonly ActorFieldCell[]): number {
+function rawFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, localCells: readonly ActorFieldCell[]): number {
   if (receiver.lifecycle !== 'alive' || receiver.id === cell.sourceId) return 0;
   const amount = cell.falloff * actorAffinityMagnitude(cell.expression, cell.intensity);
   const operation = getActorAffinityEffect(cell.kind, cell.expression).operation;
@@ -57,10 +43,10 @@ export function actorFieldExposureAmount(receiver: ActorRecord, cell: ActorField
     return localCells.some(pending => pending.sourceId === receiver.id
       && pending.kind === cell.kind && pending.expression === 'emit') ? amount : 0;
   }
-  return receiverExposureAmount(receiver, cell, amount, operation);
+  return receiverAffinityAmount(receiver, cell, amount);
 }
 
-/** Receiver-local forecast from projected cells, before other receivers consume exposure.
+/** Receiver-local forecast from projected cells. Other receivers do not change it (#347).
  * Uses residual observed intensity as a conservative source budget. Does not project new fields.
  */
 export function previewActorFieldChanges(receiver: ActorRecord, localCells: readonly ActorFieldCell[]): ActorVitalChange[] {
@@ -84,7 +70,7 @@ export function previewActorFieldChanges(receiver: ActorRecord, localCells: read
       .some(pair => pair.kind === cell.kind && pair.expression === 'draw')) {
       change('mana', amount);
     } else {
-      evaluateActorAffinityReceiver(cell.kind, cell.expression, amount, change);
+      evaluateActorAffinityReceiver(cell.kind, cell.expression, amount, actor.defeatVital, change);
     }
   }
   return changes;
@@ -127,6 +113,11 @@ export function projectActorEquipmentFields(actor: ActorRecord, position: ActorP
   const others = contributions.filter(cell => cell.sourceId !== actor.id
     && cell.position.x === position.x && cell.position.y === position.y);
   return resolveFieldOverlap([...others, ...sourceContributionsAt(activeFieldSources([actor]), position)]);
+}
+
+/** One cell's fields from raw source contributions, opposite pairs cancelled: the tick's own rule. Pure. */
+export function resolveActorFieldOverlap(contributions: readonly ActorFieldCell[]): ActorFieldCell[] {
+  return resolveFieldOverlap(contributions);
 }
 
 function resolveFieldOverlap(contributions: readonly ActorFieldCell[]): ActorFieldCell[] {

@@ -1,7 +1,7 @@
 {
-  "name": "agent-kernel",
+  "name": "deepward",
   "version": "1.0.0",
-  "description": "Pure TypeScript simulation kernel built around the **Ports & Adapters** architectural pattern.",
+  "description": "Deepward, a dungeon game, and agent-kernel, the deterministic Ports & Adapters simulation engine it runs on.",
   "main": "index.js",
   "directories": {
     "doc": "docs"
@@ -26,17 +26,19 @@
     "config-sweep": "node scripts/testing/run-configuration-permutation-sweep.mjs",
     "logic-sweep": "node scripts/testing/run-logic-sweep.mjs",
     "logic-sweep:dry-run": "node scripts/testing/run-logic-sweep.mjs --dry-run",
+    "sim:sweep": "node scripts/testing/run-simulation-sweep.mjs",
     "config-sweep:dry-run": "node scripts/testing/run-configuration-permutation-sweep.mjs --dry-run",
     "serve:ui": "node scripts/serve-ui.mjs --entry index_c.html",
     "demo:cli": "bash scripts/demo-cli.sh",
     "play:ascii": "node packages/ui-ascii/src/cli.mjs",
+    "play:web": "node packages/ui-ascii/src/cli.mjs --web",
     "levels:ascii": "node scripts/ui-ascii/generate-levels.mjs",
     "mcp:serve": "node packages/adapters-cli/src/mcp/server.mjs",
     "docs:pdf": "mmdc -i WORKFLOW.md -o WORKFLOW-print.md --outputFormat svg && md-to-pdf WORKFLOW-print.md && rm -f WORKFLOW-print.md mermaid-*.svg"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "PolyForm-Strict-1.0.0",
   "private": true,
   "dependencies": {
     "phaser": "^4.1.0"

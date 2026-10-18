@@ -23,11 +23,8 @@
   },
   "intent": {
     "goal": "Author delver into a playable dungeon bundle.",
-    "tags": [
-      "fire"
-    ],
+    "tags": [],
     "hints": {
-      "levelAffinity": "fire",
       "budgetTokens": 2000,
       "delverBudgetTokens": 550,
       "poolWeights": [
@@ -102,7 +99,6 @@
         },
         "budgetScaffold": true
       },
-      "levelAffinity": "fire",
       "actors": [
         {
           "id": "card_delver_1-1",
@@ -2011,7 +2007,6 @@
           "kind": "shared_config",
           "prompt": "shared config for create",
           "attributes": {
-            "dungeonAffinity": "fire",
             "budgetTokens": 2000,
             "constraints": {
               "hardBudget": {
@@ -2025,7 +2020,6 @@
         }
       ],
       "sharedConfig": {
-        "dungeonAffinity": "fire",
         "budgetTokens": 2000,
         "constraints": {
           "hardBudget": {

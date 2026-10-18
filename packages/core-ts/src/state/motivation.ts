@@ -151,17 +151,6 @@ const TIER_TABLE: readonly number[] = Object.freeze([
   MotivationTier.Control,      // 12: UserControlled
 ]);
 
-// ── Intensity normalization ──
-
-const INTENSITY_MIN = 1;
-const INTENSITY_MAX = 10;
-
-export function normalizeMotivationIntensity(raw: number): number {
-  if (raw < INTENSITY_MIN) return INTENSITY_MIN;
-  if (raw > INTENSITY_MAX) return INTENSITY_MAX;
-  return raw;
-}
-
 // ── Tier lookup ──
 
 export function getMotivationTier(kind: number): number {
@@ -346,7 +335,6 @@ export function createMotivationState() {
 
   function addMotivationEvaluationEntry(
     kind: number,
-    _intensity: number,
     _pattern: number,
     flagMask: number,
   ): number {

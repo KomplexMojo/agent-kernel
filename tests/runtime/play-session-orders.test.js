@@ -1,6 +1,6 @@
 /**
  * Orders in a live game (Phase 2b, decisions 5 and 8). `order(actor, strategy)` gives a
- * party member or a companion on the seated actor's side a new strategy; giving it is
+ * party member or a companion (a `friendly` actor on the seated actor's side, #311) a new strategy; giving it is
  * the seated actor's turn and taking it the ordered actor's, so one tick runs. `advance`
  * lets the world run for orders to play out, stopping early at `until`. Both are logged,
  * so a replay reaches the same game.
@@ -21,7 +21,7 @@ const ROOM = [
 ];
 
 const HERO = { category: "delver", id: "hero", position: { x: 1, y: 1 }, vitals: viableVitals(), motivations: ["user_controlled"] };
-const PAL = { category: "delver", id: "pal", position: { x: 1, y: 3 }, vitals: viableVitals(), motivations: ["stationary", "goal_oriented"] };
+const PAL = { category: "delver", id: "pal", position: { x: 1, y: 3 }, vitals: viableVitals(), motivations: ["stationary", "friendly", "goal_oriented"] };
 const GUARD = { category: "warden", id: "guard", position: { x: 9, y: 4 }, vitals: viableVitals(), motivations: ["stationary"] };
 
 const level = (actors = [HERO, PAL, GUARD]) => buildUnifiedLevel({ id: "orders_room", tiles: ROOM, actors });
@@ -55,18 +55,38 @@ test("orders go to your side only, and a malformed one is refused before any tur
   assert.equal(session.status().tick, tick, "no refused order runs a tick");
 });
 
+test("only a friendly actor on your side is a companion you may order (#311)", async () => {
+  const loner = { ...PAL, id: "loner", position: { x: 1, y: 5 }, motivations: ["stationary", "goal_oriented"] };
+  const session = await createPlaySession(level([HERO, PAL, loner, GUARD]));
+  const tick = session.status().tick;
+  assert.deepEqual(session.view().orderable.map((entry) => entry.id), ["pal"]);
+  const refused = await session.order("loner", { goals: [{ kind: "survive" }] });
+  assert.equal(refused.reason, "not_yours", "same side, but not friendly");
+  assert.equal(session.status().tick, tick);
+  assert.equal((await session.order("pal", { goals: [{ kind: "survive" }] })).ok, true);
+});
+
+test("a party member takes orders without being friendly", async () => {
+  const second = { ...HERO, id: "hero-2", position: { x: 2, y: 1 } };
+  const session = await createPlaySession(level([HERO, second, GUARD]));
+  assert.deepEqual(session.view().orderable.map((entry) => entry.id), ["hero-2"]);
+  assert.equal((await session.order("hero-2", { goals: [{ kind: "survive" }] })).ok, true);
+});
+
 test("advance runs until every order has run its course", async () => {
   const session = await createPlaySession(level());
   await session.order("pal", { goals: [{ kind: "reach", place: { x: 5, y: 3 } }] });
   const result = await session.advance({ ticks: 20, until: "orders_done" });
   assert.equal(result.stoppedBy, "orders_done");
   assert.ok(result.ticks < 20);
-  assert.deepEqual(positionOf(session, "pal"), { x: 5, y: 3 });
+  // The turn its order is seen done, pal (friendly, so never still) already acts on its own.
+  const pal = positionOf(session, "pal");
+  assert.ok(Math.max(Math.abs(pal.x - 5), Math.abs(pal.y - 3)) <= 1, `pal reached its place: ${JSON.stringify(pal)}`);
   assert.deepEqual(positionOf(session, "hero"), { x: 1, y: 1 }, "a seated actor with no strategy waits");
 });
 
 test("an order to reach the exit walks onto the exit, leaves the level, and is done", async () => {
-  const scout = { ...PAL, id: "scout", motivations: ["goal_oriented"] };
+  const scout = { ...PAL, id: "scout", motivations: ["friendly", "goal_oriented"] };
   const session = await createPlaySession(buildUnifiedLevel({ id: "exit_room", tiles: ROOM, actors: [HERO, scout],
     approaches: { exitApproach: { x: 10, y: 5 } } }));
   await session.order("scout", { goals: [{ kind: "reach", place: "exit" }] });
@@ -79,7 +99,7 @@ test("an order to reach the exit walks onto the exit, leaves the level, and is d
 test("a leader and its follower keep moving when they lose sight of each other (#338)", async () => {
   // Unlit, sight is one tile, so a leader two tiles ahead is out of its follower's sight
   // every other turn: the follower walks to where it last saw the leader and finds it again.
-  const guide = { ...PAL, id: "guide", position: { x: 2, y: 1 }, motivations: ["goal_oriented"] };
+  const guide = { ...PAL, id: "guide", position: { x: 2, y: 1 }, motivations: ["friendly", "goal_oriented"] };
   const session = await createPlaySession(buildUnifiedLevel({ id: "lead_room", tiles: ROOM, actors: [HERO, guide],
     approaches: { exitApproach: { x: 10, y: 5 } } }));
   await session.order("guide", { goals: [{ kind: "lead", target: "hero", distance: 2 }] });

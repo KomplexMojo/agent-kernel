@@ -103,6 +103,7 @@ test('focused suppression remains effective across restore and does not destroy 
 test('defeated actors cannot emit or regenerate in a closed turn', () => {
   const a = actor('a'); a.activeAffinityKey = 'water:push';
   const b = actor('b', 1); b.vitals.health!.current = 2; b.vitals.health!.regen = 5;
+  b.vitals.stamina!.current = 0; // #353: water hits stamina first, then spills into health
   b.affinities = [{ kind: 'fire', expression: 'emit', stacks: 3 }]; b.activeAffinityKey = 'fire:emit';
   const state = registry([a, b]); const turn = createActorTurn(state, 1, costs);
   turn.apply({ actorId: 'a', tick: 1, kind: 'cast_affinity', params: { targetId: 'b' } });

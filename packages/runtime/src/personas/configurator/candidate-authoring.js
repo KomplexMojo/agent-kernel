@@ -135,7 +135,9 @@ export function applyMovementStaminaFloor(vitals, card = null) {
   const floor = resolveWorstCaseMoveCost(card?.capabilities?.movementCost);
   vitals.stamina.max = Math.max(vitals.stamina.max, floor);
   vitals.stamina.current = Math.max(vitals.stamina.current, vitals.stamina.max);
-  vitals.stamina.regen = Math.max(vitals.stamina.regen, floor);
+  // #371: the regen floor fills only an unset regen. A regen the author set (>= 1) still
+  // refills the pool, just over more rest turns, and is kept as written.
+  if (!(vitals.stamina.regen > 0)) vitals.stamina.regen = floor;
   return vitals;
 }
 
@@ -244,7 +246,7 @@ export function reportActorStrategies(initialState) {
  *
  * Accepts either shape a motivated entity carries in this codebase: the singular
  * `motivation: { kind }` patched onto InitialState actors, or the
- * `motivations: [{ kind, intensity }]` / `motivations: ["random"]` list the
+ * `motivations: [{ kind }]` / `motivations: ["random"]` list the
  * Configurator's actor generator and the parsed CLI cards use. One function for
  * both, so the requirement cannot be enforced on one shape and missed on the
  * other — which is how it came to be enforced on `regen` and missed on `max`.
@@ -297,8 +299,12 @@ export function applyAffinityDerivedVitalRequirements(actor) {
   if (required <= 0) return false;
 
   const before = { ...actor.vitals.mana };
-  actor.vitals.mana.max = Math.max(actor.vitals.mana.max, required);
-  actor.vitals.mana.current = Math.max(actor.vitals.mana.current, actor.vitals.mana.max);
+  // #371: the pool floor fills only an unset pool. A pool the author set stands even when it is
+  // smaller than one cast: that affinity stays off, which is the author's call, not ours.
+  if (!(actor.vitals.mana.max > 0)) {
+    actor.vitals.mana.max = required;
+    actor.vitals.mana.current = Math.max(actor.vitals.mana.current, actor.vitals.mana.max);
+  }
   actor.vitals.mana.regen = Math.max(actor.vitals.mana.regen, 1);
   return (
     before.max !== actor.vitals.mana.max
@@ -324,6 +330,35 @@ export function applyViabilityDerivedVitalRequirements(actor) {
   const before = JSON.stringify(actor.vitals);
   applyActorViabilityFloor(actor.vitals);
   return before !== JSON.stringify(actor.vitals);
+}
+
+const AUTHORED_ACTOR_FLOORS = Object.freeze([
+  ["movement", applyMotivationDerivedVitalRequirements],
+  ["cast", applyAffinityDerivedVitalRequirements],
+  ["viability", applyViabilityDerivedVitalRequirements],
+]);
+
+/**
+ * #371 — every floor `ak create` applies to an authored actor, in order, in place, and what
+ * each did to a value someone set. A value still at DEFAULT_VITALS counts as unset and is
+ * filled silently; one that differs and is raised is reported, never changed in the dark.
+ * Returns `[{ actorId, vital, field, set, built, floor }]` for the max and regen fields.
+ */
+export function applyAuthoredActorVitalFloors(actor) {
+  const findings = [];
+  for (const [floor, apply] of AUTHORED_ACTOR_FLOORS) {
+    const before = JSON.parse(JSON.stringify(actor?.vitals || {}));
+    apply(actor);
+    for (const vital of VITAL_KEYS) {
+      for (const field of ["max", "regen"]) {
+        const set = before[vital]?.[field];
+        const built = actor?.vitals?.[vital]?.[field];
+        if (!Number.isInteger(set) || set === built || set === DEFAULT_VITALS[vital][field]) continue;
+        findings.push({ actorId: actor.id, vital, field, set, built, floor });
+      }
+    }
+  }
+  return findings;
 }
 
 export function applyMotivationDerivedVitalRequirements(actor) {

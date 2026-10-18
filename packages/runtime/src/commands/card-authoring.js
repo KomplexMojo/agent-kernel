@@ -213,9 +213,9 @@ const NEW_CARD_VITALS = Object.freeze(
   }, {}),
 );
 
-const DEFAULT_ATTACKER_CARD_AFFINITY = "light";
+const DEFAULT_ATTACKER_CARD_AFFINITY = null;
 
-const DEFAULT_DEFENDER_CARD_AFFINITY = "dark";
+const DEFAULT_DEFENDER_CARD_AFFINITY = null;
 
 const DEFAULT_ACTOR_CARD_AFFINITY_EXPRESSION = "emit";
 
@@ -391,6 +391,7 @@ function buildCardId(type = "untyped") {
 
 function buildAffinityEntries({ affinity, expressions, stacksByAffinity } = {}) {
   const normalizedAffinity = normalizeAffinity(affinity);
+  if (!normalizedAffinity) return [];
   const normalizedExpressions = normalizeExpressionList(expressions);
   const resolvedStacks = readPositiveInt(stacksByAffinity?.[normalizedAffinity], 1) || 1;
   return normalizedExpressions.map((expression) => ({
@@ -541,7 +542,9 @@ function createDesignCard({
       source: "hazard",
       count: normalizeCardCount(count, 1),
       affinity: hazardAffinity,
-      affinities: [{ kind: hazardAffinity, expression: hazardExpression, stacks: 1 }],
+      // #263: no affinity named stays none on the card; the Configurator picks one from
+      // the run seed when it builds the level.
+      affinities: hazardAffinity ? [{ kind: hazardAffinity, expression: hazardExpression, stacks: 1 }] : [],
       expressions: [hazardExpression],
       motivations: [],
       setupMode: "hybrid",
@@ -569,7 +572,9 @@ function createDesignCard({
       source: "resource",
       count: normalizeCardCount(count, 1),
       affinity: resourceAffinity,
-      affinities: [{ kind: resourceAffinity, expression: resourceExpression, stacks: 1 }],
+      // #263: no affinity named stays none on the card; the Configurator picks one from
+      // the run seed when it builds the level.
+      affinities: resourceAffinity ? [{ kind: resourceAffinity, expression: resourceExpression, stacks: 1 }] : [],
       expressions: [resourceExpression],
       motivations: [],
       setupMode: "hybrid",
@@ -597,6 +602,7 @@ function createDesignCard({
       ? [DEFAULT_ROOM_AFFINITY_EXPRESSION]
       : [DEFAULT_ACTOR_CARD_AFFINITY_EXPRESSION];
   const injectedDefaultActorAffinities = normalizedType !== "room"
+    && normalizedAffinityInput
     && !hasExplicitAffinitiesInput
     && !hasExplicitExpressionsInput
     ? [{

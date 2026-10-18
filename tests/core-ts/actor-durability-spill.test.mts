@@ -1,7 +1,8 @@
 /**
  * Durability is armour: every outward affinity that damages durability spills what
  * armour cannot absorb into health. Corrode joined fire and earth here (Darren,
- * 2026-10-15, "Spill to health"), so standing in acid eventually kills.
+ * 2026-10-15, "Spill to health"), so standing in acid eventually kills. Since #353 the
+ * spill goes to the receiver's defeat vital, which is health for delvers and wardens.
  */
 import { expect, test } from 'vitest';
 import { evaluateActorAffinityReceiver, getActorAffinityEffect } from '../../packages/core-ts/src/rules/actor-affinity.ts';
@@ -28,9 +29,9 @@ test('every kind whose outward effect damages durability spills the excess into 
   expect(armourKinds.sort()).toEqual(['corrode', 'earth', 'fire']);
   for (const kind of armourKinds) {
     for (const expression of ['push', 'emit'] as const) {
-      expect(getActorAffinityEffect(kind, expression)).toMatchObject({ overflow: 'health' });
+      expect(getActorAffinityEffect(kind, expression)).toMatchObject({ overflow: 'defeat' });
       const target = receiver({ durability: 2, health: 10 });
-      evaluateActorAffinityReceiver(kind, expression, 5, target.change);
+      evaluateActorAffinityReceiver(kind, expression, 5, 'health', target.change);
       expect(target.current, `${kind} ${expression}`).toEqual({ durability: 0, health: 7 });
     }
   }
@@ -38,13 +39,13 @@ test('every kind whose outward effect damages durability spills the excess into 
 
 test('corrode on intact armour only strips durability', () => {
   const target = receiver({ durability: 10, health: 10 });
-  evaluateActorAffinityReceiver('corrode', 'emit', 4, target.change);
+  evaluateActorAffinityReceiver('corrode', 'emit', 4, 'health', target.change);
   expect(target.current).toEqual({ durability: 6, health: 10 });
 });
 
 test('an actor with no health (a barrier) just loses its durability', () => {
   const target = receiver({ durability: 2 });
-  evaluateActorAffinityReceiver('corrode', 'push', 5, target.change);
+  evaluateActorAffinityReceiver('corrode', 'push', 5, 'durability', target.change);
   expect(target.current).toEqual({ durability: 0 });
 });
 

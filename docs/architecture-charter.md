@@ -1,5 +1,7 @@
 # Architecture Charter (Ports & Adapters)
 
+This charter governs **agent-kernel**, the engine under **Deepward** (the game and the public name).
+
 `packages/core-ts` is the deterministic core. It must not depend on UI, network, storage, filesystem, clocks, process state, or Node APIs.
 
 ## Core vs Runtime
@@ -497,7 +499,8 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   gates casting. Those are the sites a thirteenth motivation would have to be
   wired into by hand, and the honest statement of the current design rather than the one the
   profile table implies.
-- **There are twelve kinds, and they produce five distinct behaviours** (audited 2026-09-06).
+- **There are twelve kinds, and they produce seven distinct behaviours** (audited 2026-09-06;
+  `stealthy` and `friendly` split from `exploring` in #311).
   Behaviour collapsing is not automatically a defect: kinds sharing a profile *should* behave
   alike, and the axis that separates several of them — cognition — is not yet consumed by the
   Actor.
@@ -506,7 +509,9 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
   |---|---|
   | seed-derived move to a legal adjacent tile | `random` |
   | clockwise circuit of the actor's own room | `patrolling` |
-  | shortest path to the level exit | `exploring`, `stealthy`, `friendly` |
+  | shortest path to the level exit | `exploring` |
+  | shortest path to the exit, keeping furthest from hostiles, then closest to walls | `stealthy` |
+  | back to an ally further than two tiles, else toward the exit within two tiles of it | `friendly` |
   | cast an equipped push or pull at a hostile in range; else pursue (mobility 1) or hold (mobility 0) | `attacking`, `defending` |
   | no movement proposal | `stationary`, `reflexive`, `goal_oriented`, `strategy_focused`, `user_controlled` |
 
@@ -610,7 +615,7 @@ Heavy level synthesis runs behind a builder adapter. UI code hands off summaries
 - A zero-mana hazard remains in state but contributes no active danger field until mana regenerates; zero durability removes it. Opposed hazard fields, including fire and water, resolve deterministically to a net/cancelled overlap zone in `core-ts`.
 - Room affinity wording is derived from the hazards contained in a room. It is a descriptive label (for example, `corrosion affinity room` or `mixed affinity room`), never a room-level affinity property.
 - Runtime facades assemble UI-facing tile visuals from core field records and resource bundles.
-- `observation.auras` is retained only as compatibility input for existing renderers/tests; its JS producer, `packages/runtime/src/render/affinity-aura.js`, was removed in #258. New preview or gameplay surfaces must not recompute JS aura fallbacks in `ui-web`.
+- No aura input exists (`observation.auras` was removed in #260); affinity visuals come only from core field records.
 - **Board tiles are flat fills from `GAME_COLOR_PALETTE.tiles`, not bundle art.** The gameplay renderer draws no tile PNGs. `GAME_COLOR_PALETTE.tiles` holds tile FILLS — the backgrounds an entity can stand on, and the exact set the affinity-contrast gate iterates. `GAME_COLOR_PALETTE.tileBorders` holds strokes, which are held to contrast against the floor instead: a border is not a background, and reusing a fill as one dropped room-outline contrast to ΔE 9.7.
 - **`GAME_COLOR_PALETTE` and `GAME_AFFINITY_COLOR_HEX` in `packages/runtime/src/contracts/game-elements.js` are the single origin for colour** — affinities, tile backgrounds, vitals, types. No surface may declare its own copy. `ui-web` derives Phaser tint integers from these at load; it does not restate values. Three separate duplicates existed before 2026-09-02 and one had silently drifted on three of ten affinities, so board tile tints disagreed with every other surface.
 - Affinity colour separation is **load-bearing, not stylistic**: a board sprite spends its silhouette on role, so colour is the only channel carrying affinity. `tests/runtime/affinity-palette-separation.test.js` enforces measured floors for pairwise separation, separation against every tile colour, opposed-pair distance, outline-vs-fill contrast, and WCAG AA for labels. Colour changes go through `scripts/design/derive-affinity-palette.mjs`, not by hand.

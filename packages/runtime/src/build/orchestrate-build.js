@@ -6,6 +6,7 @@ import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createDefaultResourceBundleArtifact } from "../render/resource-bundle.js";
+import { createHostedObjectPlacer } from "../commands/solver-host.js";
 // M9: every value in SCHEMAS below now comes from contracts/artifacts.ts. M8 relocated the
 // two rules schemas here; the other five were the tree-wide retype backlog it deferred.
 import {
@@ -51,20 +52,11 @@ const configuratorMotivations = configuratorBuild.normalizeMotivations;
 const configuratorMaximizeActorBudget = createConfiguratorPersona({ clock: UNUSED_CLOCK })
   .authorCandidates.maximizeActorBudget;
 
-// AM.2b — what an actor's motivation REQUIRES of its vitals is configuration
-// validity, so it comes off the same public surface for the same reason.
-const configuratorApplyMotivationVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
-  .authorCandidates.applyMotivationDerivedVitalRequirements;
-
-// AM.5/F14 — and what an actor's AFFINITIES require of its mana, for the same
-// reason and at the same point: before anything prices the actor list.
-const configuratorApplyAffinityVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
-  .authorCandidates.applyAffinityDerivedVitalRequirements;
-
-// The viability floor, off the same surface for the same reason. Unlike the two above it is
-// unconditional: a stationary actor with no affinities still has to survive being hit.
-const configuratorApplyViabilityVitalRequirements = createConfiguratorPersona({ clock: UNUSED_CLOCK })
-  .authorCandidates.applyViabilityDerivedVitalRequirements;
+// AM.2b / AM.5 / viability — what an actor's motivation, affinities and survival REQUIRE of its
+// vitals is configuration validity, so it comes off the Configurator's public surface. #371: one
+// call applies all three and says which values someone set were raised, for the create result.
+const configuratorApplyAuthoredActorVitalFloors = createConfiguratorPersona({ clock: UNUSED_CLOCK })
+  .authorCandidates.applyAuthoredActorVitalFloors;
 
 const SCHEMAS = Object.freeze({
   solverRequest: SOLVER_REQUEST_SCHEMA,
@@ -221,6 +213,9 @@ export async function orchestrateBuild({
   producedBy = "runtime-build",
   solver,
   placeObjects,
+  // #299: where this build's solver decisions are recorded. A caller that hosts its own
+  // `placeObjects` passes the same array to that host's `record`; it is returned either way.
+  solverDecisions = [],
   capturedInputs,
   // CR.3: `{intent, plan}` from the Director round that produced this spec, when
   // the caller ran one. Without it map-build-spec reconstructs a plan from the
@@ -242,6 +237,8 @@ export async function orchestrateBuild({
   roundConfigurator.validate();
   roundConfigurator.lock();
 
+  // #371: values someone set that a vital floor raised, for the create result.
+  const vitalsReport = [];
   let solverRequest = null;
   let solverResult = null;
   if (solver?.adapter) {
@@ -298,7 +295,11 @@ export async function orchestrateBuild({
       );
     }
 
-    const authoredHazards = Array.isArray(levelGenInput.hazards) ? levelGenInput.hazards : [];
+    // #263 — the Configurator names any hazard affinity left unnamed, from the run seed.
+    const authoredHazards = configuratorBuild.nameUnnamedHazardAffinities(
+      Array.isArray(levelGenInput.hazards) ? levelGenInput.hazards : [],
+      { seed: levelGenInput.seed },
+    );
     const positionedHazards = authoredHazards.filter(
       (hazard) => Number.isFinite(hazard?.x) && Number.isFinite(hazard?.y),
     );
@@ -349,9 +350,7 @@ export async function orchestrateBuild({
           )
           : prepared?.vitals,
       };
-      configuratorApplyMotivationVitalRequirements(draft);
-      configuratorApplyAffinityVitalRequirements(draft);
-      configuratorApplyViabilityVitalRequirements(draft);
+      vitalsReport.push(...configuratorApplyAuthoredActorVitalFloors(draft));
       return draft;
     });
 
@@ -396,24 +395,36 @@ export async function orchestrateBuild({
       cardSet: configuratorInputs?.cardSet,
       seed,
     }).layout;
+    // Without a hosted solver the placement still goes through the host, so the build records
+    // that the fallback answered and why (no adapter: `solver_domain_unavailable`).
     const objectPlacement = await (typeof placeObjects === "function"
       ? placeObjects
-      : configuratorBuild.completeObjectPlacement)({
+      : createHostedObjectPlacer({
+        prepare: configuratorBuild.prepareObjectPlacement,
+        complete: configuratorBuild.completeObjectPlacement,
+        record: (decision) => solverDecisions.push(decision),
+      }))({
       layout,
       hazards: unpositionedHazards,
       resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
       actors: actorsInput.actors,
       affinityRules,
+      // #301: the authored relational placement constraints, if any.
+      ...(Array.isArray(configuratorInputs?.placement) ? { placement: configuratorInputs.placement } : {}),
       meta: createBuildMeta(spec, producedBy, "object_placement"),
     });
     if (!objectPlacement?.ok) {
-      const error = new Error(`configurator object placement ${objectPlacement?.status || "failed"}: ${objectPlacement?.reason || "unknown"}`);
+      const error = new Error(`configurator object placement ${objectPlacement?.status || "failed"}: ${objectPlacement?.reason || "unknown"}`
+        + (objectPlacement?.detail ? ` — ${objectPlacement.detail}` : ""));
       error.code = objectPlacement?.reason || "configurator_object_placement_failed";
       error.status = objectPlacement?.status || "error";
       throw error;
     }
     layout = objectPlacement.layout;
     const placedActors = Array.isArray(objectPlacement.actors) ? objectPlacement.actors : [];
+    // #301: delvers and wardens a placement constraint named were placed with the objects;
+    // they keep those cells when the rest of the actors are seated.
+    const constrainedActorPositions = objectPlacement.actorPositions || {};
     const baseVitalsByActorId = Object.fromEntries(
       actorsInput.actors
         .filter((actor) => actor?.id && actor.vitals)
@@ -555,6 +566,7 @@ export async function orchestrateBuild({
       layout,
       reservedActors: placedActors,
       delverCount: configuratorInputs?.delverCount,
+      pinnedPositions: constrainedActorPositions,
     });
     if (normalizedActors.changed) {
       actorsInput.actors = normalizedActors.actors;
@@ -665,6 +677,8 @@ export async function orchestrateBuild({
     budget: resolvedBudget,
     solverRequest,
     solverResult,
+    solverDecisions,
+    vitalsReport,
     spendProposal,
     budgetReceipt,
     affinityRules,

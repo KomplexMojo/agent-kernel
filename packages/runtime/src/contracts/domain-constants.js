@@ -10,9 +10,11 @@ import {
 export const AFFINITY_KINDS = GAME_AFFINITY_KINDS;
 export const AFFINITY_EXPRESSIONS = GAME_AFFINITY_EXPRESSIONS;
 export const AFFINITY_TARGET_TYPES = Object.freeze(["self", "ally", "enemy", "area", "barrier", "floor"]);
-export const DEFAULT_DUNGEON_AFFINITY = AFFINITY_KINDS[0];
+// #263 — no affinity is a default (affinity-agnostic rule): a dungeon, room card, delver
+// or warden authored without one has none. `null` is "none" wherever these are read.
+export const DEFAULT_DUNGEON_AFFINITY = null;
 export const DEFAULT_AFFINITY_EXPRESSION = AFFINITY_EXPRESSIONS[0];
-export const DEFAULT_ROOM_CARD_AFFINITY = "dark";
+export const DEFAULT_ROOM_CARD_AFFINITY = null;
 export const DEFAULT_ROOM_AFFINITY_EXPRESSION = "emit";
 export const DEFAULT_ROOM_AFFINITY_STACKS = 2;
 // DS.3 — `DARKNESS_OBSCURE_STACK_THRESHOLD`, `DARKNESS_OBSCURE_RADIUS` and
@@ -25,10 +27,8 @@ export const DEFAULT_ROOM_AFFINITY_STACKS = 2;
 // import from runtime. Moved rather than aliased, so there is exactly one origin
 // — a re-export here would leave two places to edit and one of them wrong.
 //
-// `DEFAULT_ROOM_AFFINITY_STACKS` above stays, and now interacts with them: a
-// default room emits dark at exactly the obscure threshold. Levels are unlit
-// (ruled 2026-10-10), so that dark is what an actor's own emitted light has to
-// cancel before it can see further; see `tests/core-ts/visibility.test.mts`.
+// A room card names no affinity by default (#263), so a default room emits
+// nothing; see `tests/core-ts/visibility.test.mts` for how sight reads fields.
 export const DEFAULT_AFFINITY_TARGET_TYPE_BY_EXPRESSION = Object.freeze({
   push: "enemy",
   pull: "self",

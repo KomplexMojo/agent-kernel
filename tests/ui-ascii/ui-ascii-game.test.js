@@ -41,9 +41,11 @@ const FIRST_STEPS_SOLUTION = "dd.ss.dd.ss.ss.dd.d.";
 /** Move along `path`, resting a turn first whenever the player cannot pay for the step (#273). */
 async function walk(session, path, onMove = () => {}) {
   for (const direction of path) {
-    while ((session.view().player.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1) {
-      // A defeated player never recovers stamina: fail rather than wait forever.
+    for (let waits = 0; (session.view().player.vitals.find((vital) => vital.key === "stamina")?.current ?? 0) < 1; waits += 1) {
+      // A defeated player never recovers stamina, nor does one a field drains faster than it
+      // regenerates: fail rather than wait forever.
       assert.equal((await session.act({ kind: "wait" })).status.defeated, false, "the player was defeated");
+      assert.ok(waits < 50, `the player's stamina never came back at ${JSON.stringify(session.view().player.position)}`);
     }
     onMove(await session.act({ kind: "move", params: { direction } }), direction);
   }
@@ -68,23 +70,41 @@ function solve(level, { othersAreWalls = true, target } = {}) {
     const index = terrain.indexOf("exit");
     goal = { x: index % width, y: Math.trunc(index / width) };
   }
-  const occupied = new Set(othersAreWalls
-    ? level.initialState.actors
-      .filter((actor) => actor.id !== player.id && actor.capabilities.blocksMovement)
-      .map((actor) => `${actor.position.x},${actor.position.y}`)
-    : []);
+  // Traps are passable (a destroyable trap does not block a route), but a sensible
+  // player walks round them rather than through them, so the search does too. Where the
+  // level allows it the search also keeps out of each trap's reach (#370: traps are seated
+  // apart now, so their fields no longer cancel or destroy each other on tick 1, and one
+  // that drains stamina faster than it comes back pins a player who stops beside it).
+  const isTrap = (actor) => level.initialState.presentation?.[actor.id]?.category === "hazard";
+  const others = othersAreWalls
+    ? level.initialState.actors.filter((actor) => actor.id !== player.id && (actor.capabilities.blocksMovement || isTrap(actor)))
+    : [];
+  const occupied = new Set(others.map((actor) => `${actor.position.x},${actor.position.y}`));
+  occupied.delete(`${goal.x},${goal.y}`); // a trap that is the goal is walked onto
+  const reach = (actor) => Math.max(0, ...(actor.affinities || []).map((entry) => entry.stacks ?? 1));
+  const inReach = (p) => others.some((actor) => isTrap(actor)
+    && !(actor.position.x === goal.x && actor.position.y === goal.y)
+    && Math.max(Math.abs(actor.position.x - p.x), Math.abs(actor.position.y - p.y)) <= reach(actor));
   const steps = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
   const key = (p) => `${p.x},${p.y}`;
+  // Fewest steps inside a trap's reach first, then fewest steps (a two-cost breadth-first search).
   const prev = new Map([[key(start), null]]);
+  const cost = new Map([[key(start), [0, 0]]]);
+  const better = (left, right) => !right || left[0] < right[0] || (left[0] === right[0] && left[1] < right[1]);
   const queue = [start];
   while (queue.length) {
+    queue.sort((left, right) => (better(cost.get(key(left)), cost.get(key(right))) ? -1 : 1));
     const here = queue.shift();
     if (here.x === goal.x && here.y === goal.y) break;
+    const [exposed, length] = cost.get(key(here));
     for (const [direction, [dx, dy]] of Object.entries(steps)) {
       const next = { x: here.x + dx, y: here.y + dy };
-      if (!["floor", "exit"].includes(at(next)) || prev.has(key(next)) || occupied.has(key(next))) continue;
+      if (!["floor", "exit"].includes(at(next)) || occupied.has(key(next))) continue;
+      const nextCost = [exposed + (inReach(next) ? 1 : 0), length + 1];
+      if (!better(nextCost, cost.get(key(next)))) continue;
+      if (!cost.has(key(next))) queue.push(next);
+      cost.set(key(next), nextCost);
       prev.set(key(next), { at: here, direction });
-      queue.push(next);
     }
   }
   const path = [];
@@ -125,7 +145,7 @@ test("bundled levels list in play order and every one loads and is winnable", as
     const { path } = solve(level);
     assert.ok(path.length > 0, `${name} has a path to its exit`);
     const session = await createPlaySession(level);
-    await walk(session, path, (result, direction) => assert.equal(result.accepted.length, 1, `${name}: ${direction}`));
+    await walk(session, path, (result, direction) => assert.equal(result.accepted.length, 1, `${name}: ${direction} ${JSON.stringify(result.rejected)} ${JSON.stringify(result.status)}`));
     assert.equal((await session.act({ kind: "wait" })).status.exited, true, `${name} exits`);
   }
 });
@@ -478,7 +498,7 @@ test("generated actors read as wardens from their id when role is unset", () => 
   assert.deepEqual(overlayActors(rows, actors, { x: 1, y: 1 }), ["#####", `#@.${ASCII_ENTITY_GLYPHS.warden}#`, "#####"]);
 });
 
-test("trap-rooms draws each trap as H in its own affinity's fill, and a trap costs health", async () => {
+test("trap-rooms draws each trap as H in its own affinity's fill, and a trap costs a vital", async () => {
   const { GAME_AFFINITY_COLOR_HEX } = require("../../packages/runtime/src/contracts/game-elements.js");
   const level = loadBundledLevel("trap-rooms");
   const session = await createPlaySession(level);
@@ -502,11 +522,15 @@ test("trap-rooms draws each trap as H in its own affinity's fill, and a trap cos
   // Walk onto the first trap along a breadth-first path and let core apply it.
   const trap = view.hazards[0].position;
   const { path } = solve(level, { target: trap });
-  const healthBefore = view.player.vitals.find((vital) => vital.key === "health").current;
-  await walk(session, path);
-  const after = session.view();
-  assert.deepEqual(after.player.position, trap);
-  assert.ok(after.player.vitals.find((vital) => vital.key === "health").current < healthBefore, "the trap hurt");
+  // #353: a trap hits its own kind's vital first and spills into health, so watch every vital.
+  const vitals = () => Object.fromEntries(session.view().player.vitals.map((vital) => [vital.key, vital.current]));
+  const before = vitals();
+  // Track the lowest of each vital on the way: regen heals between traps, and opposed
+  // traps side by side cancel on each other's tiles, so the end tile alone can read full.
+  const lowest = { ...before };
+  await walk(session, path, () => { for (const [key, current] of Object.entries(vitals())) lowest[key] = Math.min(lowest[key], current); });
+  assert.deepEqual(session.view().player.position, trap);
+  assert.ok(Object.keys(before).some((key) => lowest[key] < before[key]), "the trap hurt");
 });
 
 test("the game plays under fog of war by default; --no-fog shows the whole map", async () => {
@@ -541,19 +565,24 @@ test("in colour, remembered cells are dimmed and unseen cells take the fog fill"
   assert.ok(screen.includes(`${ansi(dim.bg, 48)}${ansi(dim.fg, 38)}`), "a remembered floor cell is dimmed");
   assert.ok(screen.includes(`${ansi(GAME_COLOR_PALETTE.tiles.fog, 48)}`), "unseen cells sit on the fog fill");
   const plain = game.screen();
-  assert.equal(screen.replace(/\u001b\[[0-9;]*m/g, ""), plain, "colour adds escapes only");
+  // Without colour there is no dimming, so remembered floor is drawn blank instead (#284).
+  const stripped = screen.replace(/\u001b\[[0-9;]*m/g, "");
+  assert.equal(stripped.length, plain.length, "colour adds escapes, and the plain screen keeps every cell");
+  assert.ok([...plain].every((char, i) => char === stripped[i] || (char === " " && stripped[i] === ".")),
+    "the only plain-text difference is remembered floor drawn blank");
+  assert.ok([...plain].some((char, i) => char !== stripped[i]), "some remembered floor is blank without colour");
   assert.equal(paintBoardRow("..", styles, null, "rv"), `${ansi(dim.bg, 48)}${ansi(dim.fg, 38)}.\u001b[0m${ansi(styles["."].bg, 48)}${ansi(styles["."].fg, 38)}.\u001b[0m`);
 });
 
 // #202: affinities from the keyboard. `i` lists them, a digit equips, `f` aims and casts, `g` takes.
-function duelLevels({ wardenAt = { x: 2, y: 1 } } = {}) {
+function duelLevels({ wardenAt = { x: 2, y: 1 }, pushKind = "water" } = {}) {
   const level = buildUnifiedLevel({
     id: "duel",
     tiles: ["######", "#....#", "#....E", "######"],
     actors: [
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
         vitals: viableVitals({ mana: 80 }), affinities: [
-          { kind: "water", expression: "push", stacks: 3, intensity: 2 }, { kind: "light", expression: "emit", stacks: 1 }] },
+          { kind: pushKind, expression: "push", stacks: 3, intensity: 2 }, { kind: "light", expression: "emit", stacks: 1 }] },
       ...(wardenAt ? [{ category: "warden", id: "warden_1", position: wardenAt, motivations: ["stationary"],
         vitals: viableVitals(), affinities: [{ kind: "fire", expression: "push", stacks: 1 }] }] : []),
     ],
@@ -647,7 +676,8 @@ test("f with nobody in sight, and g with nothing to take, say so without spendin
 });
 
 test("g takes the loot of a defeated neighbour", async () => {
-  const game = await createGame({ levels: duelLevels(), fog: false });
+  // #353: decay hits the defeat vital (health) directly; water would empty stamina first.
+  const game = await createGame({ levels: duelLevels({ pushKind: "decay" }), fog: false });
   await press(game, "i1");
   for (let i = 0; i < 6 && /Target: warden_1/.test((await press(game, "f"), game.screen())); i += 1) await press(game, "\r");
   await press(game, "\u001b");

@@ -43,6 +43,7 @@ import { normalizeMotivations } from "./motivation-loadouts.js";
 import { assessLayoutFeasibility } from "./feasibility.js";
 import {
   applyAffinityDerivedVitalRequirements,
+  applyAuthoredActorVitalFloors,
   applyMotivationDerivedVitalRequirements,
   applyViabilityDerivedVitalRequirements,
   assessDelverStructure,
@@ -87,6 +88,8 @@ import { computeInternalManaUpkeep } from "./cost-model.js";
 import { composeMixedRooms } from "./mixed-room-composition.js";
 import { placeActors } from "./actor-placement.js";
 import { prepareObjectPlacement, completeObjectPlacement, levelObjectRequests } from "./object-placement.js";
+import { parsePlacementConstraint, normalizePlacementConstraints } from "./placement-constraints.js";
+import { nameUnnamedHazardAffinities } from "./unnamed-affinity.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "./motivation-rules.js";
 /**
  * CR.7 / WP-5 — level PREVIEW rendering, published for the web level-builder adapter.
@@ -380,6 +383,8 @@ export function attachConfiguratorServices({ fsm } = {}) {
     reportActorStrategies,
     /** AM.5/F14 — an actor holding an affinity must be able to pay to express it. */
     applyAffinityDerivedVitalRequirements,
+    /** #371 — all three floors on an authored actor, and which set values they raised. */
+    applyAuthoredActorVitalFloors,
     /**
      * "What are this card's vitals, with defaults applied?" — a question about card
      * shape, which is why the Allocator asks it rather than answering it. It priced
@@ -455,6 +460,9 @@ export function attachConfiguratorServices({ fsm } = {}) {
     prepareObjectPlacement,
     completeObjectPlacement,
     levelObjectRequests,
+    parsePlacementConstraint,
+    normalizePlacementConstraints,
+    nameUnnamedHazardAffinities,
     normalizeMotivationRulesArtifact,
     resolveMotivationRules,
     // CR.7 / WP-5 — the third card-model derivation. Its two siblings were already published

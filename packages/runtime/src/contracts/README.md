@@ -78,15 +78,25 @@ Every owned pair exposes one canonical defeat reward regardless of source stacks
 Claimed entries remain in snapshots. New pairs are not auto-equipped. Explicit
 vital grants retain their authored modes; source vital pools are not loot.
 
-`rules/actor-affinity.ts` supplies the explicit effect matrix, durability overflow,
-direct vital effects and actual-amount transfers. `actor-exposure.ts` applies
-preprojected effects with finite source budgets, capped mana absorption and
-pending-effect suppression. `actor-fields.ts` uses existing radius, intensity and
+`state/affinity-table.ts` holds the one affinity table (#352): a row per kind with its
+primary vital, outward and inward operation, spill and named formulas, plus the receiver
+rules; `docs/affinity-table.md` is generated from it. `rules/actor-affinity.ts` builds its
+effect matrix from that table and supplies the spill into the target's defeat vital (#353),
+direct vital effects and
+actual-amount transfers. `actor-exposure.ts` applies
+preprojected effects with a per-slot strength that caps what each receiver takes
+(every receiver in range takes its own exposure, never a share consumed in id order,
+#347), capped mana absorption and pending-effect suppression. `actor-fields.ts` uses existing radius, intensity and
 local opposition arithmetic to project active living equipment. It retains
 light/dark field observations and re-observes defeat without another pulse.
 
 `castFocusedActorAffinity` checks focused range and the authored mana price before
-writes, spends one actor pool and returns suppression with caster provenance. A run's
+writes, spends one actor pool and returns suppression with caster provenance. A cast
+meets the same receiver rules as a field (`rules/actor-receiver.ts`, #348): a same-kind
+draw absorbs it into mana, a same-kind slot the interaction table makes immune takes
+nothing, an opposite slot doubles damage and drain. A cast at oneself meets none of them. The price
+is taken after a cast's effect, so mana the cast brings back to its caster (a mana steal, a mana
+restore on itself) never refunds it: every use costs mana (#369). A run's
 `actionCosts` carries `castManaBase` (per-kind base; a cast costs `base * intensity * r(r+1)/2`
 of its range, uncapped, #232, #340); core has no other cast price model. An artifact written before #232
 with five-tier `castMana` tables loads on the same curve: `runner/core-setup.mjs` takes

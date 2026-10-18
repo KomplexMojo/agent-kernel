@@ -19,7 +19,8 @@ function artifacts() {
         affinities: [{ kind: 'fire', expression: 'push', stacks: 2, intensity: 2 }], activeAffinityKey: 'fire:push' },
       { id: 'reward', category: 'resource', position: { x: 1, y: 0 },
         vitals: { durability: { current: 3, max: 3, regen: 0 } },
-        affinities: [{ kind: 'fire', expression: 'emit', stacks: 8 }], activeAffinityKey: 'fire:emit' },
+        // Earth, not fire: a same-kind emitter is immune to a fire push (#348).
+        affinities: [{ kind: 'earth', expression: 'emit', stacks: 8 }], activeAffinityKey: 'earth:emit' },
     ] });
   return JSON.parse(JSON.stringify({ simConfig, initialState }));
 }
@@ -34,7 +35,7 @@ test('production builders serialize into one common loaded registry and executab
   expect(registry.getActor('reward').lifecycle).toBe('defeated');
   turn.closeActions(); expect(turn.resolveFields().fields).toEqual([]); turn.regenerate(); turn.resolveExits();
   const next = createActorTurn(registry, 2, costs);
-  expect(next.apply({ actorId: 'caster', tick: 2, kind: 'take', params: { targetId: 'reward', holdingId: 'affinity:fire:emit' } })).toBe(true);
+  expect(next.apply({ actorId: 'caster', tick: 2, kind: 'take', params: { targetId: 'reward', holdingId: 'affinity:earth:emit' } })).toBe(true);
   expect(registry.getActor('caster').affinities.find(a => a.expression === 'emit').stacks).toBe(1);
 });
 test('loader rejects broken references, split entity state, incomplete presentation and missing prices', () => {

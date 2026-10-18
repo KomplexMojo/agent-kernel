@@ -176,7 +176,7 @@ At a high level, the Configurator:
 > checked against the vocabulary, repeats collapsed, at most one kind per exclusive family (mobility,
 > posture, cognition), `user_controlled` beside any of them, and the role's default (`attacking` /
 > `defending`) when none is given. Nothing is tagged `user_controlled` automatically: only an actor
-> authored that way is playable, and every other delver is a companion. `parseWardenSpec` calls it too.
+> authored that way is playable. Nothing is tagged `friendly` automatically either: only a delver authored `friendly` is a companion that takes orders (#311); the role default stays `attacking`. `parseWardenSpec` calls it too.
 > `logical-validation.js`'s `requiresMovementStamina` counts `user_controlled` as moving, since its
 > player moves it every turn; the core mobility tier, which drives autonomous movement, is unchanged.
 
@@ -228,6 +228,13 @@ The exact diagnostic families are
 The stamina floor (`applyMovementStaminaFloor`) gives a mover a pool and regen that each cover one worst-case
 move. Core regenerates stamina only on turns an actor does not move (#273), so at the floor an actor walks a short
 burst and then rests; a longer burst is a bigger pool, which the Allocator prices like any other vital.
+
+Authored vitals stand (#371). The stamina regen floor and the cast floor (`applyAffinityDerivedVitalRequirements`,
+mana max raised to one cast) fill only a value left unset at 0; a regen of 1 means more rest turns, and a pool
+smaller than one cast keeps that affinity off, both as the author wrote. `applyAuthoredActorVitalFloors` applies
+the movement, cast and viability floors to each authored actor in `ak create` and returns every max or regen
+someone set (anything other than `DEFAULT_VITALS`) that a floor still raised, such as a pool below one step or
+health below the viability floor; the create result lists them under `vitalsReport`.
 
 The existing `configurator_satisfiability` constraint domain remains reserved for Z9 object-placement
 assignment, which is a genuine combinatorial search. It uses
@@ -398,16 +405,62 @@ hazard/resource actors. Fixed coordinates,
 room containment, unique walkable cells, spawn/exit/actor reservations, and a surviving
 spawn-to-exit path are hard constraints.
 
-The objective is deterministic: authored object order first, row-major cell order second. The
+The objective is deterministic: hazards and resources apart first (#370), then authored object
+order, then row-major cell order. Two things touch exactly when a 2x2 window holds both, so each
+window carries a slack for every object past the first and the total slack is minimised. It is a
+preference, not a refusal: a level too small to keep everything apart still builds. Objects
+already in place (authored, or placed with the layout) count. The
 problem uses binary placement variables plus integer path-flow variables, allowing both platform Z3
 adapters to compile it through their generic linear solver without learning Configurator policy.
 `orchestrateBuild` only passes plain inputs and consumes the result; it holds no placement helpers.
 
+The problem is sized by the objects, not the grid (#331). An object that cannot seal the route
+gets variables for only its first `9 × others + 1` candidate cells (in row-major order): each other
+object rules out at most its 3x3 neighbourhood, so one of them touches nothing, and the answer never
+lies beyond them (#370 widened this from `pending`). When nothing seals the route and no relational
+constraint applies, seating each object on its first candidate that touches nothing is the answer
+itself, so each object stops at that cell. The solver lands on the same cells as with the whole grid. Only a route-sealing object
+keeps every candidate cell, and only then is the path-flow network posed. A 5,700-cell level with
+21 objects poses a few hundred variables rather than over a hundred thousand.
+
 When the domain is unavailable, deferred, or errors, completion uses the characterized
 hazards-first row-major fallback. A solver `unsat` is final and reports one actionable family:
-`capacity`, `containment`, `collision`, or `path_obstruction`. Both surfaces are stateless and pure;
+`capacity`, `containment`, `collision`, or `path_obstruction`.
+
+Both paths share one route test (#297, Darren 2026-10-17): a blocking object counts against the
+spawn-to-exit route only if it can't be destroyed (no durability to lose). A destroyable trap is
+passable, so it never causes `path_obstruction`. The fallback stays first-fit and refuses with
+`path_obstruction` when its cell would seal the route, rather than emitting a level that can't be
+finished. Both surfaces are stateless and pure;
 neither mutates caller-owned layout or object data. Hazard affinities become owned equipment with
 the authored pair active; category-specific hazard/resource collections do not enter SimConfig.
+
+### Relational placement constraints (#301, 2026-10-18)
+
+`placement-constraints.js` owns the shape, the `--place` grammar (`parsePlacementConstraint`,
+`normalizePlacementConstraints`, both on the controller) and the check of a finished placement.
+A constraint names a subject (`hazard|resource|delver|warden:<id|n|*>`) and any of: `near=<target>:<d>`,
+`far=<target>:<d>`, `count=<n>` (with `near`: at least n of the subjects), `onRoute`/`offRoute`, and
+`spread`/`clump`. Targets are `spawn`, `exit` (their approach floors), `room:<id>` (nearest cell), or
+one placed thing. Distances are Chebyshev. `onRoute` is a cell every spawn-to-exit route passes
+(an articulation point between the approaches, computed once).
+
+`orchestrateBuild` passes `configurator.inputs.placement` to `prepareObjectPlacement` as `placement`.
+A constraint whose other side is already in place narrows the subject's candidate cells; one
+relating two things still to be placed is linear on their coordinates (each object's X and Y are
+linear in its own cell variables), and `far`, a count against an unplaced target and `spread` use
+a binary per alternative with a big-M row. `spread` (maximise the closest pair) and `clump`
+(minimise the farthest pair) come before the default cell-order objectives. An object a relational
+constraint names keeps every candidate cell (the #331 trim does not apply to it).
+
+A delver or warden a constraint names is placed by this search: its cell comes back in
+`actorPositions`, and `placeActors({ pinnedPositions })` keeps it while seating the rest as usual.
+Every result carries `placementReport` (one row per constraint: `held`, plus `matched`,
+`closestPair` or `farthestPair`), and the hosted decision record repeats it. A constraint that cannot
+hold is `unsat` with reason `placement_constraint` and the constraint named in `detail`; a bad
+reference is `error`/`placement_constraint_invalid`. The reading-order fallback cannot honour these,
+so without a solver a constrained placement is refused (`placement_constraints_need_solver`), never
+placed as if unconstrained.
 
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.

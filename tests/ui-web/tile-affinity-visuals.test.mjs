@@ -401,15 +401,11 @@ describe("water fire overlap", () => {
   });
 
   it("field-records path: overlap tile contributions contain both water and fire", async () => {
-    const { buildTileAffinityVisualsFromSandboxBundle } = await import(
+    const { buildTileAffinityVisualsFromBundle } = await import(
       "../../packages/ui-web/src/views/affinity-field-bridge.js"
     );
     const { simConfig, initialState } = waterFireOverlapArtifacts();
-    const visuals = await buildTileAffinityVisualsFromSandboxBundle({
-      simConfig,
-      initialState,
-      resourceBundle: null,
-    });
+    const visuals = await buildTileAffinityVisualsFromBundle({ artifacts: [simConfig, initialState] });
     assert.ok(visuals instanceof Map, "must return a Map");
     assert.ok(visuals.size > 0, "must produce tile visuals");
 

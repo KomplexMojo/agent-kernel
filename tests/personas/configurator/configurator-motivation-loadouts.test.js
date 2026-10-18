@@ -15,18 +15,19 @@ test("normalizeMotivations accepts allowed kinds and applies defaults", async ()
   assert.equal(result.errors.length, 0);
   assert.equal(result.value.length, 2);
   assert.equal(result.value[0].kind, "random");
-  assert.equal(result.value[0].intensity, MOTIVATION_DEFAULTS.intensity);
+  // #309: motivations are plain stack members; an authored intensity is ignored.
+  assert.equal(Object.hasOwn(result.value[0], "intensity"), false);
   assert.equal(result.value[1].kind, "attacking");
   // Attacking has no patterns since there is no conventional attack (melee/ranged were
   // never read by core); a pattern given anyway is ignored, so older inputs still load.
   assert.equal(result.value[1].pattern, undefined);
-  assert.equal(result.value[1].intensity, 2);
+  assert.equal(Object.hasOwn(result.value[1], "intensity"), false);
   assert.equal(result.value[1].flags.canMove, false);
   assert.equal(result.value[1].flags.prefersStealth, true);
   assert.equal(result.value[1].flags.prefersCover, MOTIVATION_DEFAULTS.flags.prefersCover);
 });
 
-test("normalizeMotivations surfaces invalid kinds/patterns and clamps intensity", async () => {
+test("normalizeMotivations surfaces invalid kinds/patterns and ignores intensity", async () => {
   const { normalizeMotivations, MOTIVATION_PATTERNS } = await import(
     "../../../packages/runtime/src/personas/configurator/motivation-loadouts.js"
   );
@@ -42,7 +43,9 @@ test("normalizeMotivations surfaces invalid kinds/patterns and clamps intensity"
   assert.equal(result.value.length, 1);
   assert.equal(result.value[0].kind, "patrolling");
   assert.equal(result.value[0].pattern, MOTIVATION_PATTERNS.patrolling[0]);
-  assert.equal(result.value[0].intensity, 10); // clamped to max
+  assert.equal(Object.hasOwn(result.value[0], "intensity"), false);
+  assert.equal(result.errors.some((err) => /intensity/.test(err.field)), false,
+    "an older input's intensity loads without error");
 });
 
 test("normalizeMotivations rejects contradictory motivations from the same exclusive group", async () => {

@@ -129,6 +129,47 @@ test("CR.4: the capture is stamped producedBy 'orchestrator' with no FSM round",
 });
 
 // ---------------------------------------------------------------------------
+// #188: syntax mistakes the parser repairs itself cost no extra model call
+// ---------------------------------------------------------------------------
+
+/**
+ * Each case applies one LLM JSON mistake the issue lists to the recorded summary response
+ * in tests/fixtures/e2e/llm-summary-response.json. No recorded `invalid_json` responses
+ * exist in tests/fixtures, so the mistakes are applied to a real response rather than
+ * hand-writing whole responses.
+ */
+const RECORDED = require("../../fixtures/e2e/llm-summary-response.json").responseRaw;
+const SYNTAX_MISTAKES = Object.freeze({
+  "single-quoted strings": RECORDED.replace(/"/g, "'"),
+  "unquoted object keys": RECORDED.replace(/"([A-Za-z]+)":/g, "$1:"),
+  "an unescaped quote inside a string": RECORDED.replace("\"missing\":[]", "\"missing\":[\"the \"exit\" route\"]"),
+  "missing closing brackets": RECORDED.slice(0, RECORDED.lastIndexOf("}]")),
+  "output truncated mid-object": RECORDED.slice(0, RECORDED.indexOf("\"durability\"")),
+});
+
+for (const [mistake, response] of Object.entries(SYNTAX_MISTAKES)) {
+  test(`#188: ${mistake} parse on the first call, with no retry or repair`, async () => {
+    assert.throws(() => JSON.parse(response), SyntaxError, "the case must really be invalid JSON");
+    const { result, adapter } = await runSession(
+      { repairPromptBuilder: () => "REPAIR" },
+      [{ response }, { response: GOOD }],
+    );
+
+    assert.equal(adapter.calls.length, 1, "a repairable mistake must not cost a model round-trip");
+    assert.equal(result.ok, true);
+    assert.deepEqual({ retried: result.retried, repaired: result.repaired }, { retried: false, repaired: false });
+    assert.equal(result.summary.dungeonAffinity, "fire");
+  });
+}
+
+test("#188: text the repair can only turn into a bare string still escalates", async () => {
+  const { result, adapter } = await runSession({}, [{ response: "not json" }, { response: GOOD }]);
+
+  assert.equal(adapter.calls.length, 2, "only an object counts as a parsed response");
+  assert.equal(result.retried, true);
+});
+
+// ---------------------------------------------------------------------------
 // strict disables the entire ladder
 // ---------------------------------------------------------------------------
 

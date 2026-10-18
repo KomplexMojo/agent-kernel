@@ -1,0 +1,239 @@
+{
+  "description": "Core simulation scenarios: run by tests/simulations/simulation-rules.test.mjs on every pnpm run test. Keep each small (one or two rooms, 40 ticks).",
+  "scenarios": [
+    {
+      "id": "duel-fire-water",
+      "note": "fire push 3:2 attacker against an opposed water push 3:2 defender",
+      "ticks": 40,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=fire;affinities=fire:push:3:2;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=water;affinities=water:push:3:2;equip=water:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "duel-earth-wind",
+      "note": "earth push 3:2 attacker against an opposed wind push 3:2 defender",
+      "ticks": 40,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=earth;affinities=earth:push:3:2;equip=earth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=wind;affinities=wind:push:3:2;equip=wind:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "duel-growth-decay",
+      "note": "growth push 3:2 attacker against an opposed decay push 3:2 defender",
+      "ticks": 40,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=decay;affinities=decay:push:3:2;equip=decay:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "duel-corrode-fortify",
+      "note": "corrode push 3:2 attacker against an opposed fortify push 3:2 defender",
+      "ticks": 40,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=fortify;affinities=fortify:push:3:2;equip=fortify:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "duel-light-dark",
+      "note": "light pull 3:2 attacker against an opposed dark pull 3:2 defender",
+      "ticks": 40,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=atk;affinity=light;affinities=light:pull:3:2;equip=light:pull;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=def;affinity=dark;affinities=dark:pull:3:2;equip=dark:pull;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "explore-exit",
+      "note": "one exploring delver crosses two rooms to the exit",
+      "ticks": 40,
+      "expect": {
+        "exit": true
+      },
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=ex;affinity=wind;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "party-exit",
+      "note": "a goal_oriented leader heads for the exit with two followers",
+      "ticks": 40,
+      "expect": {
+        "exit": true
+      },
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=lead;affinity=light;motivation=exploring+goal_oriented;strategy=reach:exit;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--delver",
+        "count=2;id=f;affinity=earth;motivation=exploring+goal_oriented;strategy=follow:lead-1:2;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "patrol",
+      "note": "a patrolling warden while an exploring delver crosses its rooms",
+      "ticks": 40,
+      "expect": {
+        "exit": true
+      },
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=ex;affinity=fire;affinities=fire:push:3:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=pat;affinity=water;affinities=water:push:3:2;equip=water:push;motivation=patrolling;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "hazards-unplaced",
+      "note": "four unplaced hazards, one per expression, and an exploring delver",
+      "ticks": 40,
+      "expect": {
+        "exit": true
+      },
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=ex;affinity=earth;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--hazard",
+        "affinity=fire;expression=emit;proximityRadius=2;mana=regen:40:40:4",
+        "--hazard",
+        "affinity=wind;expression=push;proximityRadius=2;mana=regen:40:40:4",
+        "--hazard",
+        "affinity=corrode;expression=pull;proximityRadius=2;mana=regen:40:40:4",
+        "--hazard",
+        "affinity=dark;expression=draw;proximityRadius=2;mana=regen:40:40:4"
+      ]
+    },
+    {
+      "id": "hazards-placed",
+      "note": "an exploring delver walks past placed emit and draw hazards",
+      "ticks": 40,
+      "expect": {
+        "exit": true
+      },
+      "args": [
+        "--room",
+        "size=medium;count=1",
+        "--delver",
+        "count=1;id=ex;affinity=growth;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--hazard",
+        "x=1;y=2;affinity=fire;expression=emit;stacks=3;vitals=mana:60:5,durability:30:2",
+        "--hazard",
+        "x=1;y=4;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
+      ]
+    },
+    {
+      "id": "loot",
+      "note": "an exploring delver in a level with vital, affinity and slot resources",
+      "budget": 8000,
+      "ticks": 40,
+      "expect": {
+        "exit": true
+      },
+      "args": [
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=ex;affinity=fire;slots=3;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=10",
+        "--resource",
+        "permanenceMode=permanent;vital=mana;delta=5;regen=1",
+        "--resource",
+        "affinity=growth;expression=emit;stacks=2;mana=40",
+        "--resource",
+        "slots=1"
+      ]
+    },
+    {
+      "id": "four-slots",
+      "note": "a four-slot delver (emit, push, pull, draw) against two attacking wardens",
+      "budget": 8000,
+      "ticks": 40,
+      "args": [
+        "--room",
+        "size=medium;count=1",
+        "--delver",
+        "count=1;id=multi;affinity=light;slots=4;affinities=light:emit:2,fire:push:3,wind:pull:2,growth:draw:2;equip=light:emit,fire:push,wind:pull,growth:draw;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=2;id=w;affinity=dark;affinities=dark:push:2;equip=dark:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "two-v-two",
+      "note": "two attacking delvers against two attacking wardens",
+      "ticks": 40,
+      "args": [
+        "--room",
+        "size=medium;count=1",
+        "--delver",
+        "count=2;id=d;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=2;id=w;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "guarded-exit",
+      "note": "an exploring delver against a stationary warden seated on the exit",
+      "ticks": 40,
+      "expect": {
+        "exit": true
+      },
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=ex;affinity=fire;affinities=fire:push:2:2;equip=fire:push;motivation=exploring+attacking;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=st;affinity=water;motivation=stationary;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1"
+      ],
+      "knownIssues": [
+        {
+          "rule": "no_exit",
+          "issue": "#360"
+        }
+      ]
+    },
+    {
+      "id": "authored-vitals",
+      "note": "authored vitals survive ak create (low stamina regen, a wide cast)",
+      "ticks": 10,
+      "args": [
+        "--room",
+        "size=small;count=1",
+        "--delver",
+        "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+      ]
+    }
+  ]
+}

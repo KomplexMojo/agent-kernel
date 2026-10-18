@@ -35,7 +35,8 @@ test('authored costs compose with lethal combat, atomic competing claims, equipm
   actor('source', 'resource', { position: { x: 1, y: 0 },
     vitals: { health: { current: 4, max: 4, regen: 9 }, durability: { current: 3, max: 3, regen: 9 } },
     capabilities: { blocksMovement: true, canCast: true },
-    affinities: [{ kind: 'fire', expression: 'emit', stacks: 8 }], activeAffinityKey: 'fire:emit' }),
+    // Earth, not fire: a same-kind emitter is immune to a fire push (#348).
+    affinities: [{ kind: 'earth', expression: 'emit', stacks: 8 }], activeAffinityKey: 'earth:emit' }),
   actor('competitor', 'barrier', { position: { x: 2, y: 0 } })];
   const prices = costs(actors); const state = setup(actors);
   const first = createActorTurn(state, 1, prices);
@@ -48,14 +49,14 @@ test('authored costs compose with lethal combat, atomic competing claims, equipm
   expect(finish(first).fields).toEqual([]);
   expect(state.getActor('source').vitals.health.current).toBe(0);
   const second = createActorTurn(state, 2, prices);
-  const claim = { tick: 2, kind: 'take', params: { targetId: 'source', holdingId: 'affinity:fire:emit' } };
+  const claim = { tick: 2, kind: 'take', params: { targetId: 'source', holdingId: 'affinity:earth:emit' } };
   expect(second.apply({ ...claim, actorId: 'caster' })).toBe(true);
   const saved = JSON.parse(JSON.stringify({ registry: state.snapshot(), turn: second.snapshot() }));
   const replay = createActorRegistry(saved.registry);
   const replayTurn = createActorTurn(replay, 2, prices, saved.turn);
   for (const [registry, turn] of [[state, second], [replay, replayTurn]]) {
     expect(turn.apply({ ...claim, actorId: 'competitor' })).toBe(false);
-    expect(turn.apply({ actorId: 'caster', tick: 2, kind: 'equip_affinity', params: { affinityKey: 'fire:emit' } })).toBe(false);
+    expect(turn.apply({ actorId: 'caster', tick: 2, kind: 'equip_affinity', params: { affinityKey: 'earth:emit' } })).toBe(false);
     expect(registry.getActor('caster').affinities.find(a => a.expression === 'emit').stacks).toBe(1);
     expect(registry.getActor('caster').activeAffinityKey).toBe('fire:push');
     finish(turn);
@@ -63,7 +64,7 @@ test('authored costs compose with lethal combat, atomic competing claims, equipm
   expect(replay.snapshot()).toEqual(state.snapshot());
   expect(replayTurn.snapshot()).toEqual(second.snapshot());
   const third = createActorTurn(state, 3, prices);
-  expect(third.apply({ actorId: 'caster', tick: 3, kind: 'equip_affinity', params: { affinityKey: 'fire:emit' } })).toBe(true);
+  expect(third.apply({ actorId: 'caster', tick: 3, kind: 'equip_affinity', params: { affinityKey: 'earth:emit' } })).toBe(true);
   expect(state.getActor('caster').vitals.mana.current).toBe(5);
   expect(finish(third).fields.some(field => field.sourceId === 'caster')).toBe(true);
 });

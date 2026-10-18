@@ -178,7 +178,7 @@ test("a target out of sight is searched for with the actor's own motivations", a
 });
 
 test("a mid-game order replaces the strategy and costs the ordered actor its turn", async () => {
-  const session = await play([HERO, companion("pal", { x: 1, y: 3 }, ["stationary", "goal_oriented"], { goals: [{ kind: "reach", place: { x: 8, y: 3 } }] })]);
+  const session = await play([HERO, companion("pal", { x: 1, y: 3 }, ["stationary", "friendly", "goal_oriented"], { goals: [{ kind: "reach", place: { x: 8, y: 3 } }] })]);
   await waitTurns(session, 1);
   assert.deepEqual(positionOf(session, "pal"), { x: 2, y: 3 });
   const ordered = await session.order("pal", { goals: [{ kind: "reach", place: { x: 2, y: 1 } }] });

@@ -153,6 +153,56 @@ function solve(board) {
   return { status: "unsat", reason: "capacity" };
 }
 
+// #370: the Configurator's objective puts "hazards and resources apart" first: the fewest
+// objects sharing a 2x2 window (two things touch exactly when a window holds both), then the
+// lexicographic cell order. This reference finds that answer by depth-first search, allowing
+// one more unit of crowding per pass, so on a board where nothing need touch it is the
+// lexicographic-first assignment in which nothing touches.
+function crowding(points) {
+  const windows = new Map();
+  points.forEach(({ x, y }) => [[-1, -1], [0, -1], [-1, 0], [0, 0]].forEach(([dx, dy]) => {
+    const key = `${x + dx},${y + dy}`;
+    windows.set(key, (windows.get(key) || 0) + 1);
+  }));
+  return [...windows.values()].reduce((sum, count) => sum + Math.max(0, count - 1), 0);
+}
+
+function solveApart(board) {
+  const pending = board.objects.filter((object) => !object.position);
+  const fixedPoints = board.objects.filter((object) => object.position).map(({ position }) => position);
+  for (let budget = 0; budget <= 4 * board.objects.length * board.objects.length; budget += 1) {
+    const context = placementContext(board);
+    if (context.error) return { status: "unsat", reason: context.error };
+    const placed = [...fixedPoints];
+    const floor = crowding(fixedPoints);
+    const visit = (index) => {
+      if (index === pending.length) {
+        return board.objects.map((object) => ({ id: object.id, position: context.placements.get(object.id) }));
+      }
+      const object = pending[index];
+      for (const cell of candidates(board, object, context)) {
+        placed.push(cell);
+        if (crowding(placed) - floor <= budget) {
+          const key = pointKey(cell);
+          context.occupied.add(key);
+          context.placements.set(object.id, cell);
+          if (object.blocking === true) context.blocking.add(key);
+          const result = pathExists(board.layout, context.blocking) ? visit(index + 1) : null;
+          if (result) return result;
+          context.occupied.delete(key);
+          context.placements.delete(object.id);
+          if (object.blocking === true) context.blocking.delete(key);
+        }
+        placed.pop();
+      }
+      return null;
+    };
+    const assignment = visit(0);
+    if (assignment) return { status: "fulfilled", assignment };
+  }
+  return solve(board);
+}
+
 function greedyFailure(board) {
   const context = placementContext(board);
   if (context.error) return context.error;
@@ -278,8 +328,8 @@ test("the Configurator authors a linear object-placement problem and consumes ge
   assert.ok(prepared.problem.variables.every(({ kind }) => kind === "integer"));
   assert.ok(prepared.problem.constraints.every(({ kind }) => kind === "linear"));
   assert.deepEqual(
-    prepared.problem.objective.priorities.slice(0, 2).map(({ id }) => id),
-    ["place_flexible_hazard", "place_room_resource"],
+    prepared.problem.objective.priorities.slice(0, 3).map(({ id }) => id),
+    ["objects_apart", "place_flexible_hazard", "place_room_resource"],
   );
 
   const adapter = createHybridConstraintSolverAdapter();
@@ -295,10 +345,11 @@ test("the Configurator authors a linear object-placement problem and consumes ge
   const placedById = new Map(
     result.actors.map((entry) => [entry.id, entry]),
   );
-  assert.deepEqual(fixture.expected.assignment.map(({ id }) => ({
+  const expected = solveApart(fixture).assignment;
+  assert.deepEqual(expected.map(({ id }) => ({
     id,
     position: placedById.get(id).position,
-  })), fixture.expected.assignment);
+  })), expected);
   assert.deepEqual(fixture.layout, readPlacementFixture().layout, "placement must not mutate caller layout");
 });
 
@@ -338,7 +389,8 @@ test("solver unsat is final and distinguishes collision, containment, capacity, 
   };
   assert.deepEqual(await placeObjects({
     layout: corridor,
-    hazards: [{ id: "blocker", roomId: "choke", blocking: true }],
+    // #297: only a blocker with no durability to lose seals the route; a destroyable trap is passable.
+    hazards: [{ id: "blocker", roomId: "choke", blocking: true, vitals: { durability: { current: 0, max: 0, regen: 0 } } }],
     resources: [],
     actors: [],
   }), {
@@ -356,6 +408,8 @@ test("solver unsat is final and distinguishes collision, containment, capacity, 
     ok: false,
     status: "unsat",
     reason: "capacity",
+    // #296: a solver-backed refusal carries the same deficit the fallback's error did.
+    detail: "insufficient unoccupied walkable tiles (2 available, 3 requested, 2 placed before running out — raise floorTile.count)",
   });
 });
 
@@ -446,6 +500,63 @@ test("build glue delegates placement policy to the public Configurator surface",
     false,
     `${token} meaning must not enter the generic platform adapter`,
   ));
+});
+
+// #331 — the problem grows with the objects, not the grid. An object that cannot seal the
+// route only ever needs its first `pending` candidate cells: at most pending-1 others can
+// hold any of them, so the first free one always beats a later cell. A large open level with
+// a handful of objects poses a handful-squared problem and still lands on the same answer.
+function openBoard(width, height) {
+  const terrain = [];
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const edge = x === 0 || y === 0 || x === width - 1 || y === height - 1;
+      terrain.push(y === 0 && x === 1 ? "spawn" : y === height - 1 && x === width - 2 ? "exit" : edge ? "wall" : "floor");
+    }
+  }
+  return {
+    width, height, terrain,
+    spawnApproach: { x: 1, y: 1 }, exitApproach: { x: width - 2, y: height - 2 },
+    // Three cells wide, so its two objects can sit apart (#370).
+    rooms: [{ id: "corner", x: width - 5, y: 1, width: 3, height: 1 }],
+  };
+}
+
+test("a large level poses a problem sized by its objects, and the answer does not change (#331)", async () => {
+  const { createConfiguratorPersona } = await import(
+    "../../../packages/runtime/src/personas/configurator/persona.js"
+  );
+  const { createHybridConstraintSolverAdapter } = await import(
+    "../../../packages/adapters-cli/src/adapters/z3/index.js"
+  );
+  const layout = openBoard(80, 60);
+  // Hazards first, then resources: the order the Configurator places them in.
+  const objects = [
+    { id: "a", kind: "hazard", affinity: { kind: "earth", expression: "emit", stacks: 1 } },
+    { id: "b", kind: "hazard", roomId: "corner", affinity: { kind: "wind", expression: "emit", stacks: 1 } },
+    { id: "d", kind: "hazard", blocking: true, affinity: { kind: "corrode", expression: "push", stacks: 1 } },
+    { id: "f", kind: "hazard", affinity: { kind: "growth", expression: "emit", stacks: 1 } },
+    { id: "c", kind: "resource", vitals: { durability: { current: 1, max: 1, regen: 0 } }, holdings: [] },
+    { id: "e", kind: "resource", roomId: "corner", vitals: { durability: { current: 1, max: 1, regen: 0 } }, holdings: [] },
+  ];
+  const board = { layout, actors: [{ id: "actor_fixed", position: { x: 2, y: 1 } }], objects };
+  const configurator = createConfiguratorPersona({ clock: () => "2026-09-01T00:00:00.000Z" });
+  const args = { layout, actors: board.actors, ...splitFixtureObjects(board) };
+  const prepared = configurator.prepareObjectPlacement(args);
+  assert.equal(prepared.status, "ready");
+  // Each object needs 9 candidates per other object to be sure of one touching nothing (#370),
+  // so the problem grows with the square of the objects, never with the grid.
+  assert.ok(prepared.problem.variables.length <= 10 * objects.length ** 2,
+    `${prepared.problem.variables.length} variables for ${objects.length} objects on ${walkable(layout).length} cells`);
+
+  const result = await (await hostedPlacement(configurator, createHybridConstraintSolverAdapter()))(args);
+  assert.equal(result.ok, true);
+  assert.equal(result.source, "solver");
+  const placed = new Map(result.actors.map((entry) => [entry.id, entry.position]));
+  assert.deepEqual(solveApart(board), {
+    status: "fulfilled",
+    assignment: objects.map(({ id }) => ({ id, position: placed.get(id) })),
+  });
 });
 
 // ## TODO: Test Permutations

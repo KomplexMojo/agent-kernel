@@ -9,6 +9,16 @@
   },
   "scope": "run",
   "data": {
+    "solverDecisions": [
+      {
+        "domain": "configurator_satisfiability",
+        "decision": "solver",
+        "status": "fulfilled",
+        "objectiveValues": [
+          1
+        ]
+      }
+    ],
     "status": "success",
     "source": "cli-create",
     "artifactRefs": [
