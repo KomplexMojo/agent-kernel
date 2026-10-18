@@ -250,6 +250,7 @@ export async function runAuthoringBuild(input = {}) {
     maximizeBudget = false,
     parsedDelvers = [],
     parsedWardens = [],
+    placement = [],
     placeObjects,
     solverDecisions,
   } = input;
@@ -278,6 +279,11 @@ export async function runAuthoringBuild(input = {}) {
   }
   if (movementStamina !== undefined) {
     spec.configurator.inputs.movementStamina = structuredClone(movementStamina);
+  }
+  // #301 — relational placement constraints, in the Configurator's canonical shape.
+  const placementConstraints = configurator.normalizePlacementConstraints(placement);
+  if (placementConstraints.length > 0) {
+    spec.configurator.inputs.placement = placementConstraints;
   }
 
   // CR.2 / #280 — the Configurator validates and locks the assembled config inside

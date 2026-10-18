@@ -43,6 +43,8 @@ export function describeSolverDecision({ domain, prepared, solverResult, outcome
     const objectiveValues = solverResult.model?.objectiveValues;
     if (Array.isArray(objectiveValues)) record.objectiveValues = [...objectiveValues];
   }
+  // #301: how each relational placement constraint came out.
+  if (Array.isArray(outcome?.placementReport)) record.placementReport = outcome.placementReport;
   return record;
 }
 

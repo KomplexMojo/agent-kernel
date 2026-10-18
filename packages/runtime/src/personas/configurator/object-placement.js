@@ -13,6 +13,14 @@ import {
   normalizeConstraintResult,
 } from "../../contracts/constraint-problem.js";
 import { UNUSED_CLOCK } from "../_shared/require-clock.js";
+import { leftoverCategory } from "./unified-actors.js";
+import {
+  checkPlacementConstraints,
+  distanceToTarget,
+  normalizePlacementConstraints,
+  resolvePlacementConstraints,
+  routeCutCells,
+} from "./placement-constraints.js";
 
 const DOMAIN = CONSTRAINT_DOMAINS.CONFIGURATOR_SATISFIABILITY;
 
@@ -61,7 +69,7 @@ function sealsRoute(value) {
   return !(max > 0);
 }
 
-function collectObjects(hazards = [], resources = []) {
+function collectObjects(hazards = [], resources = [], actors = []) {
   return [
     ...hazards.map((value, index) => ({
       value,
@@ -73,10 +81,23 @@ function collectObjects(hazards = [], resources = []) {
       kind: "resource",
       id: typeof value?.id === "string" && value.id.trim() ? value.id.trim() : `resource_${index + 1}`,
     })),
-  ].map((entry, index) => ({ ...entry, index, sealsRoute: sealsRoute(entry.value) }));
+    // #301: a delver or warden a placement constraint names is placed here too, so its
+    // relation to everything else is part of the same search. Its value keeps no position:
+    // where it stood before is not a request.
+    ...actors.map(({ position: _position, x: _x, y: _y, ...value }) => ({ value, kind: "actor", id: value.id })),
+  ].map((entry, index) => ({ ...entry, index, sealsRoute: entry.kind !== "actor" && sealsRoute(entry.value) }));
 }
 
-function existingPlacementState(layout, actors = []) {
+// #301: what a placement constraint calls a delver or a warden.
+function actorPlacementKind(actor) {
+  const category = leftoverCategory(actor);
+  if (category === "delver" || category === "warden") return category;
+  if (actor?.alignment === "external") return "delver";
+  if (actor?.alignment === "dungeon" && !category) return "warden";
+  return null;
+}
+
+function existingPlacementState(layout, actors = [], placedActorIds = new Set()) {
   const data = dataOf(layout) || {};
   const occupied = new Set();
   const blocking = new Set();
@@ -88,7 +109,7 @@ function existingPlacementState(layout, actors = []) {
   };
   add(data.spawnApproach || terrainMarker(data, "spawn"));
   add(data.exitApproach || terrainMarker(data, "exit"));
-  actors.forEach((actor) => add(actor));
+  actors.filter((actor) => !placedActorIds.has(actor?.id)).forEach((actor) => add(actor));
   (Array.isArray(data.hazards) ? data.hazards : []).forEach((hazard) => add(hazard, sealsRoute(hazard)));
   (Array.isArray(data.resources) ? data.resources : []).forEach((resource) => add(resource));
   return { occupied, blocking };
@@ -153,7 +174,53 @@ function objectiveId(id, index) {
   return `place_${safe || index + 1}`;
 }
 
-function buildPlacementContext({ layout, hazards = [], resources = [], actors = [], affinityRules } = {}) {
+function constraintFailure(reason, detail) {
+  return { status: "unsat", reason, detail, constraintFailure: true };
+}
+
+/**
+ * #301: resolve the authored placement constraints against this placement's objects and
+ * actors. Returns the actors the constraints name (placed by this search) and the resolved
+ * constraints keyed by provisional entity keys, remapped once objects are indexed.
+ */
+function resolveConstraintEntities({ constraints, objectsWithoutActors, actors, rooms, markers }) {
+  const entities = [
+    ...objectsWithoutActors.map((object) => ({ key: `obj:${object.index}`, id: object.id, kind: object.kind })),
+    ...actors
+      .filter((actor) => typeof actor?.id === "string" && actorPlacementKind(actor))
+      .slice().sort((left, right) => String(left.id).localeCompare(String(right.id)))
+      .map((actor) => ({ key: `actor:${actor.id}`, id: actor.id, kind: actorPlacementKind(actor) })),
+  ];
+  const resolved = resolvePlacementConstraints(constraints, { entities, rooms, markers });
+  const named = new Set();
+  resolved.forEach((entry) => {
+    entry.subjects.forEach((key) => named.add(key));
+    ["near", "far"].forEach((field) => {
+      if (entry[field]?.target.kind === "entity") named.add(entry[field].target.key);
+    });
+  });
+  const placedActorIds = new Set([...named].filter((key) => key.startsWith("actor:")).map((key) => key.slice(6)));
+  return { resolved, placedActorIds };
+}
+
+function remapResolved(resolved, objects) {
+  const keyOf = new Map(objects.map((object) => [
+    object.kind === "actor" ? `actor:${object.id}` : `obj:${object.index}`, `obj:${object.index}`,
+  ]));
+  return resolved.map((entry) => {
+    const out = { ...entry, subjects: entry.subjects.map((key) => keyOf.get(key)) };
+    ["near", "far"].forEach((field) => {
+      if (entry[field]?.target.kind === "entity") {
+        out[field] = { ...entry[field], target: { kind: "entity", key: keyOf.get(entry[field].target.key) } };
+      }
+    });
+    return out;
+  });
+}
+
+const entityIndex = (key) => Number(key.slice(4));
+
+function buildPlacementContext({ layout, hazards = [], resources = [], actors = [], affinityRules, placement } = {}) {
   if (!layout || typeof layout !== "object" || Array.isArray(layout)) {
     return { status: "error", reason: "invalid_layout" };
   }
@@ -161,15 +228,42 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
   const cells = collectWalkablePositions(layout);
   const cellIndexByKey = new Map(cells.map((cell, index) => [pointKey(cell), index]));
   const rooms = new Map((Array.isArray(data?.rooms) ? data.rooms : []).map((room) => [room.id, room]));
+  const actorList = Array.isArray(actors) ? actors : [];
+  // Path endpoints are approach floors; wall portals themselves are non-walkable.
+  const spawn = normalizePoint(
+    data?.spawnApproach || terrainMarker(data, "spawn"),
+  );
+  const exit = normalizePoint(
+    data?.exitApproach || terrainMarker(data, "exit"),
+  );
+  let constraints;
+  let resolvedByProvisionalKey = [];
+  let placedActorIds = new Set();
+  try {
+    constraints = normalizePlacementConstraints(placement);
+    if (constraints.length > 0) {
+      ({ resolved: resolvedByProvisionalKey, placedActorIds } = resolveConstraintEntities({
+        constraints,
+        objectsWithoutActors: collectObjects(Array.isArray(hazards) ? hazards : [], Array.isArray(resources) ? resources : []),
+        actors: actorList,
+        rooms,
+        markers: { spawn, exit },
+      }));
+    }
+  } catch (error) {
+    return { status: "error", reason: "placement_constraint_invalid", detail: error.message };
+  }
   const objects = collectObjects(
     Array.isArray(hazards) ? hazards : [],
     Array.isArray(resources) ? resources : [],
+    actorList.filter((actor) => placedActorIds.has(actor?.id)),
   );
-  const { occupied, blocking } = existingPlacementState(layout, Array.isArray(actors) ? actors : []);
+  const resolved = remapResolved(resolvedByProvisionalKey, objects);
+  const { occupied, blocking } = existingPlacementState(layout, actorList, placedActorIds);
   const fixed = new Map();
 
   for (const object of objects) {
-    const point = normalizePoint(object.value);
+    const point = object.kind === "actor" ? null : normalizePoint(object.value);
     if (!point) continue;
     const room = object.value?.roomId ? rooms.get(object.value.roomId) : null;
     if (!cellIndexByKey.has(pointKey(point)) || (object.value?.roomId && (!room || !roomContains(room, point)))) {
@@ -181,14 +275,71 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
     fixed.set(object.index, point);
   }
 
+  const impossible = resolved.find((entry) => entry.impossible);
+  if (impossible) {
+    return constraintFailure("placement_constraint", `"${impossible.constraint.label}" ${impossible.impossible}`);
+  }
+  const cutCells = resolved.some((entry) => entry.constraint.route)
+    ? routeCutCells(cells, spawn, exit, blocking) : new Set();
+  const isFixedKey = (key) => fixed.has(entityIndex(key));
+  const fixedPositions = new Map([...fixed].map(([index, point]) => [`obj:${index}`, point]));
+  // A constraint whose other side is already in place (a marker, a room, a placed object)
+  // narrows the subject's own cells; it needs no variables. Anything relating two objects
+  // still to be placed, counts and arrangements are encoded in the problem.
+  const filters = new Map();
+  const relational = [];
+  const involved = new Set();
+  for (const entry of resolved) {
+    const { constraint } = entry;
+    const unaryFields = ["near", "far"].filter((field) => entry[field]
+      && (entry[field].target.kind !== "entity" || isFixedKey(entry[field].target.key)));
+    const binaryFields = ["near", "far"].filter((field) => entry[field] && !unaryFields.includes(field));
+    const counted = constraint.count !== undefined;
+    for (const subject of entry.subjects) {
+      if (!filters.has(subject)) filters.set(subject, []);
+      if (!counted) unaryFields.forEach((field) => filters.get(subject).push({ entry, field }));
+      if (constraint.route) filters.get(subject).push({ entry, field: "route" });
+    }
+    if (counted || binaryFields.length > 0 || constraint.arrange) {
+      relational.push({ entry, binaryFields: counted ? [] : binaryFields });
+      entry.subjects.forEach((key) => involved.add(key));
+      binaryFields.forEach((field) => involved.add(entry[field].target.key));
+    }
+  }
+  const passes = (cell, { entry, field }, subject) => {
+    if (field !== "route" && entry[field].target.key === subject) return true;
+    if (field === "route") return cutCells.has(pointKey(cell)) === (entry.constraint.route === "on");
+    const distance = distanceToTarget(cell, entry[field].target, fixedPositions);
+    return field === "near" ? distance <= entry[field].distance : distance >= entry[field].distance;
+  };
+  // Objects already in place are checked, not searched.
+  for (const [subject, subjectFilters] of filters) {
+    if (!isFixedKey(subject)) continue;
+    const failed = subjectFilters.find((filter) => !passes(fixedPositions.get(subject), filter, subject));
+    if (failed) {
+      return constraintFailure("placement_constraint",
+        `"${failed.entry.constraint.label}" does not hold for ${objects[entityIndex(subject)].id} where it was authored`);
+    }
+  }
+
   const pending = objects.filter((object) => !fixed.has(object.index));
   const candidates = pending.map((object) => {
     const room = object.value?.roomId ? rooms.get(object.value.roomId) : null;
     if (object.value?.roomId && !room) return [];
+    const ownFilters = filters.get(`obj:${object.index}`) || [];
     return cells
       .map((_cell, index) => index)
-      .filter((index) => !occupied.has(pointKey(cells[index])) && (!room || roomContains(room, cells[index])));
+      .filter((index) => !occupied.has(pointKey(cells[index])) && (!room || roomContains(room, cells[index]))
+        && ownFilters.every((filter) => passes(cells[index], filter, `obj:${object.index}`)));
   });
+  for (const [pendingIndex, object] of pending.entries()) {
+    if (candidates[pendingIndex].length > 0) continue;
+    const ownFilters = filters.get(`obj:${object.index}`) || [];
+    if (ownFilters.length > 0) {
+      const labels = [...new Set(ownFilters.map(({ entry }) => `"${entry.constraint.label}"`))].join(", ");
+      return constraintFailure("placement_constraint", `${labels} leaves ${object.id} no free cell`);
+    }
+  }
   if (pending.some((object, index) => object.value?.roomId && candidates[index].length === 0)) {
     return { status: "unsat", reason: "containment" };
   }
@@ -196,6 +347,10 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
     // The deficit in the fields the author controls, so a solver-backed refusal says as much
     // as the fallback's did (#296).
     const available = new Set(candidates.flat()).size;
+    if (filters.size > 0) {
+      return constraintFailure("placement_constraint",
+        `the placement constraints leave too few free cells (${available} for ${pending.length} things)`);
+    }
     return {
       status: "unsat",
       reason: "capacity",
@@ -203,25 +358,23 @@ function buildPlacementContext({ layout, hazards = [], resources = [], actors = 
         + `${maximumMatchingSize(candidates)} placed before running out — raise floorTile.count)`,
     };
   }
-  // Path endpoints are approach floors; wall portals themselves are non-walkable.
-  const spawn = normalizePoint(
-    data?.spawnApproach || terrainMarker(data, "spawn"),
-  );
-  const exit = normalizePoint(
-    data?.exitApproach || terrainMarker(data, "exit"),
-  );
   if (!pathExists(cells, spawn, exit, blocking)) {
     return { status: "unsat", reason: "path_obstruction" };
   }
   return { status: pending.length === 0 ? "bypass" : "ready", layout, objects, pending, fixed, cells, candidates, blocking, spawn, exit,
-    affinityRules };
+    affinityRules, constraints: resolved, relational, involved, cutCells };
 }
 
 /** Author the complete binary assignment and reachability problem. */
 export function buildObjectPlacementProblem(args = {}) {
   const context = buildPlacementContext(args);
   if (context.status !== "ready") {
-    if (context.status === "bypass") return { ...context, result: applyPlacements(context, new Map(), "solver") };
+    if (context.status === "bypass") {
+      const result = applyPlacements(context, new Map(), "solver");
+      const broken = (result.placementReport || []).find(({ held }) => !held);
+      if (broken) return constraintFailure("placement_constraint", `"${broken.constraint}" does not hold: ${broken.detail}`);
+      return { ...context, result };
+    }
     return context;
   }
   const variables = [];
@@ -232,9 +385,11 @@ export function buildObjectPlacementProblem(args = {}) {
   // lexicographic answer therefore never lies beyond them. The problem grows with the
   // objects, not the grid. A route-sealing object keeps every candidate: a cell's worth to
   // it depends on the route, not only on who else is placed.
+  // #301: an object a relational constraint names keeps every candidate too, since its
+  // worth depends on where the others go.
   const reach = context.pending.length;
   const placementVariableIds = context.pending.map((object, pendingIndex) => (
-    (object.sealsRoute ? context.candidates[pendingIndex] : context.candidates[pendingIndex].slice(0, reach)).map((cellIndex) => {
+    (object.sealsRoute || context.involved.has(`obj:${object.index}`) ? context.candidates[pendingIndex] : context.candidates[pendingIndex].slice(0, reach)).map((cellIndex) => {
       const id = `object_${object.index}_cell_${cellIndex}`;
       variables.push({ id, kind: "integer", min: 0, max: 1 });
       return { id, cellIndex };
@@ -312,9 +467,11 @@ export function buildObjectPlacementProblem(args = {}) {
     }
   }
 
+  const relational = encodeRelationalConstraints(context, placementVariableIds, variables, constraints);
+  if (relational.failure) return relational.failure;
   const objective = {
     kind: "lexicographic",
-    priorities: context.pending.map((object, index) => ({
+    priorities: [...relational.priorities, ...context.pending.map((object, index) => ({
       id: objectiveId(object.id, index),
       sense: "minimize",
       expression: {
@@ -324,7 +481,7 @@ export function buildObjectPlacementProblem(args = {}) {
           coefficient: cellIndex,
         })),
       },
-    })),
+    }))],
   };
   const problem = buildConstraintProblem({
     domain: DOMAIN,
@@ -338,12 +495,151 @@ export function buildObjectPlacementProblem(args = {}) {
   return { ...context, problem, placementVariableIds };
 }
 
+/**
+ * #301: the relational constraints as linear rows over the placement variables. An object's
+ * coordinate is linear in its own cell variables (exactly one is 1), so "A within d of B" is
+ * four rows on X_A - X_B and Y_A - Y_B. "At least d apart", "n of these within r" and
+ * spread use a binary per alternative with a big-M row; clump bounds every pairwise gap.
+ * Arrangement objectives come before the default cell-order ones.
+ */
+function encodeRelationalConstraints(context, placementVariableIds, variables, constraints) {
+  const priorities = [];
+  if (!context.relational?.length) return { priorities };
+  const data = dataOf(context.layout);
+  const span = Math.max(1, Number(data?.width) || 0) + Math.max(1, Number(data?.height) || 0);
+  const pendingIndexByObject = new Map(context.pending.map((object, index) => [object.index, index]));
+  const position = (key, axis, coefficient = 1) => {
+    const index = entityIndex(key);
+    const point = context.fixed.get(index);
+    if (point) return { terms: [], constant: coefficient * point[axis] };
+    return {
+      terms: placementVariableIds[pendingIndexByObject.get(index)].map(({ id, cellIndex }) => ({
+        variableId: id, coefficient: coefficient * context.cells[cellIndex][axis],
+      })),
+      constant: 0,
+    };
+  };
+  const term = (variableId, coefficient) => ({ terms: [{ variableId, coefficient }], constant: 0 });
+  let failure = null;
+  const add = (id, parts, relation, rightHandSide) => {
+    const merged = new Map();
+    let constant = 0;
+    parts.forEach((part) => {
+      constant += part.constant;
+      part.terms.forEach(({ variableId, coefficient }) => merged.set(variableId, (merged.get(variableId) || 0) + coefficient));
+    });
+    const rhs = rightHandSide - constant;
+    const terms = [...merged].map(([variableId, coefficient]) => ({ variableId, coefficient }));
+    if (terms.length === 0) {
+      const holds = relation === "<=" ? 0 <= rhs : relation === ">=" ? 0 >= rhs : rhs === 0;
+      if (!holds) failure = true;
+      return;
+    }
+    constraints.push({ id, kind: "linear", relation, rightHandSide: rhs, terms });
+  };
+  const binary = (id, max = 1) => {
+    variables.push({ id, kind: "integer", min: 0, max });
+    return id;
+  };
+  // left - right on one axis, as parts.
+  const gap = (left, right, axis) => [position(left, axis), position(right, axis, -1)];
+  const big = 2 * span + 2;
+
+  context.relational.forEach(({ entry, binaryFields }, constraintIndex) => {
+    const { constraint } = entry;
+    const prefix = `rel_${constraintIndex}`;
+    const startFailure = failure;
+    for (const field of binaryFields) {
+      const { target, distance } = entry[field];
+      entry.subjects.filter((subject) => subject !== target.key).forEach((subject, pairIndex) => {
+        const id = `${prefix}_${field}_${pairIndex}`;
+        if (field === "near") {
+          ["x", "y"].forEach((axis) => {
+            add(`${id}_${axis}_upper`, gap(subject, target.key, axis), "<=", distance);
+            add(`${id}_${axis}_lower`, gap(target.key, subject, axis), "<=", distance);
+          });
+          return;
+        }
+        const choices = [["x", subject, target.key], ["x", target.key, subject], ["y", subject, target.key], ["y", target.key, subject]]
+          .map(([axis, left, right], choice) => {
+            const flag = binary(`${id}_side_${choice}`);
+            // left - right >= distance when flag is 1; slack otherwise.
+            add(`${id}_side_${choice}_row`, [...gap(left, right, axis), term(flag, -big)], ">=", distance - big);
+            return flag;
+          });
+        add(`${id}_some_side`, choices.map((flag) => term(flag, 1)), ">=", 1);
+      });
+    }
+    if (constraint.count !== undefined) {
+      const { target, distance } = entry.near;
+      const subjects = entry.subjects.filter((subject) => subject !== target.key);
+      if (target.kind !== "entity" || context.fixed.has(entityIndex(target.key))) {
+        // A target already in place: count each subject's cells within reach directly.
+        const fixedPositions = new Map([...context.fixed].map(([index, point]) => [`obj:${index}`, point]));
+        const parts = subjects.map((subject) => {
+          const point = context.fixed.get(entityIndex(subject));
+          if (point) return { terms: [], constant: distanceToTarget(point, target, fixedPositions) <= distance ? 1 : 0 };
+          return {
+            terms: placementVariableIds[pendingIndexByObject.get(entityIndex(subject))]
+              .filter(({ cellIndex }) => distanceToTarget(context.cells[cellIndex], target, fixedPositions) <= distance)
+              .map(({ id }) => ({ variableId: id, coefficient: 1 })),
+            constant: 0,
+          };
+        });
+        add(`${prefix}_count`, parts, ">=", constraint.count);
+      } else {
+        const flags = subjects.map((subject, subjectIndex) => {
+          const flag = binary(`${prefix}_within_${subjectIndex}`);
+          ["x", "y"].forEach((axis) => {
+            // |subject - target| <= distance when flag is 1.
+            add(`${prefix}_within_${subjectIndex}_${axis}_upper`, [...gap(subject, target.key, axis), term(flag, big)], "<=", distance + big);
+            add(`${prefix}_within_${subjectIndex}_${axis}_lower`, [...gap(target.key, subject, axis), term(flag, big)], "<=", distance + big);
+          });
+          return flag;
+        });
+        add(`${prefix}_count`, flags.map((flag) => term(flag, 1)), ">=", constraint.count);
+      }
+    }
+    if (constraint.arrange) {
+      const measure = binary(`${prefix}_${constraint.arrange}`, span);
+      entry.subjects.forEach((left, leftIndex) => entry.subjects.slice(leftIndex + 1).forEach((right, offset) => {
+        const id = `${prefix}_pair_${leftIndex}_${leftIndex + 1 + offset}`;
+        if (constraint.arrange === "clump") {
+          ["x", "y"].forEach((axis) => {
+            add(`${id}_${axis}_upper`, [...gap(left, right, axis), term(measure, -1)], "<=", 0);
+            add(`${id}_${axis}_lower`, [...gap(right, left, axis), term(measure, -1)], "<=", 0);
+          });
+          return;
+        }
+        // spread: some axis separates the pair by at least the measure.
+        const choices = [["x", left, right], ["x", right, left], ["y", left, right], ["y", right, left]]
+          .map(([axis, from, to], choice) => {
+            const flag = binary(`${id}_side_${choice}`);
+            add(`${id}_side_${choice}_row`, [...gap(from, to, axis), term(measure, -1), term(flag, -big)], ">=", -big);
+            return flag;
+          });
+        add(`${id}_some_side`, choices.map((flag) => term(flag, 1)), ">=", 1);
+      }));
+      priorities.push({
+        id: `${prefix}_${constraint.arrange}`,
+        sense: constraint.arrange === "spread" ? "maximize" : "minimize",
+        expression: { kind: "linear", terms: [{ variableId: measure, coefficient: 1 }] },
+      });
+    }
+    if (failure && !startFailure) failure = constraint.label;
+  });
+  if (failure) {
+    return { priorities, failure: constraintFailure("placement_constraint", `"${failure}" cannot hold for the objects already in place`) };
+  }
+  return { priorities };
+}
+
 /** Produce solver-request data; no adapter enters the persona. */
 export function prepareObjectPlacement({ clock = UNUSED_CLOCK, meta, ...args } = {}) {
   const prepared = buildObjectPlacementProblem({ ...args, meta });
   if (prepared.status !== "ready") return prepared;
   const problemMeta = prepared.problem.meta || {
-    id: `configurator_object_placement_${stableHash({ layout: args.layout, hazards: args.hazards, resources: args.resources, actors: args.actors })}`,
+    id: `configurator_object_placement_${stableHash({ layout: args.layout, hazards: args.hazards, resources: args.resources, actors: args.actors, placement: args.placement })}`,
     runId: "configurator_object_placement",
     createdAt: clock(),
     producedBy: "configurator",
@@ -368,6 +664,22 @@ function hazardActors(placed, affinityRules) {
   })), { affinityRules });
 }
 
+function placementPositions(prepared, solved) {
+  return new Map(prepared.objects.map((object) => [
+    `obj:${object.index}`, prepared.fixed.get(object.index) || solved.get(object.index),
+  ]));
+}
+
+// #301: how each authored placement constraint came out, for the build to report.
+function placementReport(prepared, solved) {
+  if (!prepared.constraints?.length) return [];
+  return checkPlacementConstraints(prepared.constraints, {
+    positions: placementPositions(prepared, solved),
+    cutCells: prepared.cutCells,
+    labelOf: (key) => prepared.objects[entityIndex(key)].id,
+  });
+}
+
 function applyPlacements(prepared, solved, source) {
   const output = clone(prepared.layout);
   const data = dataOf(output);
@@ -377,16 +689,31 @@ function applyPlacements(prepared, solved, source) {
   });
   const hazards = placed.filter((_entry, index) => prepared.objects[index].kind === "hazard");
   const resources = placed.filter((_entry, index) => prepared.objects[index].kind === "resource");
+  const actorPositions = Object.fromEntries(placed
+    .filter((_entry, index) => prepared.objects[index].kind === "actor")
+    .map((entry) => [entry.id, { ...entry.position }]));
   const allHazards = [...(Array.isArray(data.hazards) ? data.hazards : []), ...hazards];
   delete data.hazards;
+  const report = placementReport(prepared, solved);
   return { ok: true, source, layout: output,
-    actors: [...hazardActors(allHazards, prepared.affinityRules), ...resourceActors(resources)] };
+    actors: [...hazardActors(allHazards, prepared.affinityRules), ...resourceActors(resources)],
+    ...(Object.keys(actorPositions).length > 0 ? { actorPositions } : {}),
+    ...(report.length > 0 ? { placementReport: report } : {}) };
+}
+
+function evaluateLinear(expression, assignments) {
+  return expression.terms.reduce((sum, { variableId, coefficient }) => sum + assignments?.[variableId] * coefficient, 0);
 }
 
 /** Re-check every hard constraint before accepting an adapter model. */
 export function consumeObjectPlacementResult({ prepared, rawResult } = {}) {
   const result = normalizeConstraintResult(rawResult, { domain: DOMAIN, meta: prepared?.problem?.meta });
   if (result.status === "unsat") {
+    if (prepared.constraints?.length) {
+      return { ok: false, status: "unsat", reason: "placement_constraint",
+        detail: `these placement constraints cannot all hold with the route kept open: ${prepared.constraints
+          .map(({ constraint }) => `"${constraint.label}"`).join(", ")}` };
+    }
     return { ok: false, status: "unsat", reason: "path_obstruction" };
   }
   if (result.status !== "fulfilled") {
@@ -412,8 +739,8 @@ export function consumeObjectPlacementResult({ prepared, rawResult } = {}) {
       solved.set(prepared.pending[pendingIndex].index, prepared.cells[selected[0].cellIndex]);
     }
   });
-  const expectedObjectives = prepared.placementVariableIds.map((entries) => (
-    entries.reduce((sum, { id, cellIndex }) => sum + assignments?.[id] * cellIndex, 0)
+  const expectedObjectives = prepared.problem.objective.priorities.map(({ expression }) => (
+    evaluateLinear(expression, assignments)
   ));
   const reportedObjectives = result.model?.objectiveValues;
   if (!Array.isArray(reportedObjectives)
@@ -424,6 +751,7 @@ export function consumeObjectPlacementResult({ prepared, rawResult } = {}) {
     if (object.sealsRoute && solved.has(object.index)) blocking.add(pointKey(solved.get(object.index)));
   });
   if (!pathExists(prepared.cells, prepared.spawn, prepared.exit, blocking)) valid = false;
+  if (valid && placementReport(prepared, solved).some(({ held }) => !held)) valid = false;
   if (!valid) return { ok: false, status: "error", reason: "configurator_object_placement_model_invalid" };
   return applyPlacements(prepared, solved, "solver");
 }
@@ -526,18 +854,37 @@ export function levelObjectRequests({ actors = [], presentation = {} } = {}) {
   return { hazards, resources, actors: fixed };
 }
 
+function normalizePlacementConstraintsSafely(placement) {
+  try {
+    return normalizePlacementConstraints(placement);
+  } catch {
+    return [];
+  }
+}
+
 /** Consume host output; deferred/error/capability absence keeps the characterized fallback. */
 export function completeObjectPlacement({ prepared: supplied, solverResult, ...args } = {}) {
   const prepared = supplied || prepareObjectPlacement(args);
   if (prepared.status === "error") {
-    return { ok: false, status: prepared.status, reason: prepared.reason };
+    return { ok: false, status: prepared.status, reason: prepared.reason, ...(prepared.detail ? { detail: prepared.detail } : {}) };
   }
-  if (prepared.status === "unsat" && solverResult?.status === "unsat") {
+  if (prepared.status === "unsat" && (solverResult?.status === "unsat" || prepared.constraintFailure)) {
     return { ok: false, status: "unsat", reason: prepared.reason, ...(prepared.detail ? { detail: prepared.detail } : {}) };
   }
-  if (prepared.status === "unsat") return placeObjectsLegacy(args);
+  // #301: the reading-order fallback cannot honour a relational constraint, so a level that
+  // asks for one is refused rather than placed as if it had not asked.
+  const constrained = normalizePlacementConstraintsSafely(args.placement).length > 0;
+  if (prepared.status === "unsat" && !constrained) return placeObjectsLegacy(args);
+  if (prepared.status === "unsat") {
+    return { ok: false, status: "unsat", reason: prepared.reason, ...(prepared.detail ? { detail: prepared.detail } : {}) };
+  }
   if (prepared.status === "bypass") return prepared.result;
   if (!solverResult || solverResult.status === "deferred" || solverResult.status === "error") {
+    if (constrained) {
+      return { ok: false, status: "error", reason: "placement_constraints_need_solver",
+        detail: `placement constraints need the solver, which answered ${solverResult?.status || "nothing"}`
+          + `${solverResult?.reason ? ` (${solverResult.reason})` : ""}` };
+    }
     return placeObjectsLegacy(args);
   }
   return consumeObjectPlacementResult({ prepared, rawResult: solverResult });

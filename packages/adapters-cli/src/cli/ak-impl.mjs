@@ -186,8 +186,8 @@ function usage() {
   node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId | --sim-config path --initial-state path) [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
-  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
-  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
+  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} room-plan --room "size=small;count=2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]" [--hazard "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} resource-plan --resource "permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>" [--resource "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
@@ -242,6 +242,11 @@ Options:
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
   --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
   --resource      Resource artifact spec for create/configure/resource-plan (repeatable).
+  --place         Placement constraint for create/configure (repeatable): <subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump]
+                  subject: hazard|resource|delver|warden:<id|n|*>; target: spawn, exit, room:<id> or one hazard|resource|delver|warden:<id|n>.
+                  Distances are king moves (a room counts from its nearest cell). count=<n> with near= means at least n of the subjects;
+                  onRoute is a cell every spawn-to-exit route passes. A delver or warden named here is placed by this search, not seated
+                  by the usual rules. A constraint that cannot hold refuses the level, naming it; the result's placementReport says how each held.
                   Vital payload:   permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>[;regen=<n>][;id=<id>]
                   permanenceMode governs delta only (consumable raises current, level/permanent raise max).
                   regen is a third, independent grant: the actor permanently gains that regen rate on top
@@ -332,6 +337,7 @@ function parseArgs(argv) {
     "hazard",
     "hazard",
     "resource",
+    "place",
     "file",
   ]);
   function pushArg(key, value) {
@@ -3793,6 +3799,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     "resource",
     "delver",
     "warden",
+    "place",
     "goal",
     "dungeon-affinity",
     "budget-tokens",
@@ -3821,7 +3828,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --place, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -4056,6 +4063,9 @@ async function writeBuildOutputs({
 
   const costSummary = buildCostSummary(buildResult.budgetReceipt, buildResult.spendProposal, outDir);
   const placedObjects = buildPlacedObjectsNote(spec);
+  // #301: how each `--place` constraint came out, from the Configurator's placement decision.
+  const placementReport = (Array.isArray(buildResult.solverDecisions) ? buildResult.solverDecisions : [])
+    .find((decision) => Array.isArray(decision?.placementReport))?.placementReport;
 
   return buildStructuredSuccessSummary({
     command: commandName,
@@ -4068,6 +4078,7 @@ async function writeBuildOutputs({
     extra: {
       ...(costSummary !== undefined ? { cost: costSummary } : {}),
       ...(placedObjects !== undefined ? { placedObjects } : {}),
+      ...(placementReport !== undefined ? { placementReport } : {}),
     },
   });
 }
@@ -5228,6 +5239,11 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .map((entry) => String(entry || "").trim())
     .filter(Boolean)
     .map((value, index) => ({ prompt: value, value: parseWardenSpec(value, index + 1, { defaultAffinity: dungeonAffinity }) }));
+  // #301: relational placement constraints, parsed by the Configurator's own grammar.
+  const placementConstraints = normalizeList(args.place)
+    .map((entry) => String(entry || "").trim())
+    .filter(Boolean)
+    .map((value, index) => configurator.parsePlacementConstraint(value, index));
 
   // No size=small precheck for placed hazards: the Configurator's input preparation
   // bumps roomMinSize to MIN_ROOM_SIZE_WITH_ITEMS when placedHazards are present, so a
@@ -5552,6 +5568,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     maximizeBudget: shouldMaximizeSpend,
     parsedDelvers,
     parsedWardens,
+    placement: placementConstraints,
   });
 
   if (args["dry-run"]) {

@@ -418,6 +418,8 @@ export async function orchestrateBuild({
       resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
       actors: actorsInput.actors,
       affinityRules,
+      // #301: the authored relational placement constraints, if any.
+      ...(Array.isArray(configuratorInputs?.placement) ? { placement: configuratorInputs.placement } : {}),
       meta: createBuildMeta(spec, producedBy, "object_placement"),
     });
     if (!objectPlacement?.ok) {
@@ -429,6 +431,9 @@ export async function orchestrateBuild({
     }
     layout = objectPlacement.layout;
     const placedActors = Array.isArray(objectPlacement.actors) ? objectPlacement.actors : [];
+    // #301: delvers and wardens a placement constraint named were placed with the objects;
+    // they keep those cells when the rest of the actors are seated.
+    const constrainedActorPositions = objectPlacement.actorPositions || {};
     const baseVitalsByActorId = Object.fromEntries(
       actorsInput.actors
         .filter((actor) => actor?.id && actor.vitals)
@@ -570,6 +575,7 @@ export async function orchestrateBuild({
       layout,
       reservedActors: placedActors,
       delverCount: configuratorInputs?.delverCount,
+      pinnedPositions: constrainedActorPositions,
     });
     if (normalizedActors.changed) {
       actorsInput.actors = normalizedActors.actors;

@@ -400,7 +400,7 @@ single multi-object entrypoint for automation callers.
 
 Inputs/outputs:
 - Input: optional `--text`, repeatable `--room`, `--floor-tile`, `--hazard`,
-  `--resource`, `--delver`, and `--warden`, optional `--goal`, `--dungeon-affinity`,
+  `--resource`, `--delver`, `--warden` and `--place`, optional `--goal`, `--dungeon-affinity`,
   optional `--budget-tokens`, optional `--budget` + `--price-list`, plus standard
   `--run-id`, `--created-at`, `--out-dir`.
 - With no budget input (no `--budget-tokens`, `--budget`, or budget in the text), the Allocator's reference
@@ -490,6 +490,21 @@ Inputs/outputs:
   ```bash
   node packages/adapters-cli/src/cli/ak.mjs create --room "size=small;count=1" \
     --delver "count=1;affinity=earth;affinities=earth:push:3,growth:emit:1,corrode:draw:1;slots=4;equip=earth:push:2,growth:emit"
+  ```
+- `--place` (repeatable, `place` on `ak_create`) asks for placement as relationships, solved by the Configurator's
+  placement search: `<subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump]`.
+  The subject is `hazard|resource|delver|warden:<id|n|*>` (an id, a 1-based number, or all of that kind); a target
+  is `spawn`, `exit`, `room:<id>` or one hazard, resource, delver or warden. Distances are king moves; a room counts
+  from its nearest cell. `count=<n>` with `near=` means at least n of the subjects; `onRoute` is a cell every
+  spawn-to-exit route passes; `spread`/`clump` push the subjects apart or draw them together. A delver or warden
+  named in a constraint is placed by the search instead of being seated by the usual rules. The result's
+  `placementReport` lists how each constraint held; one that cannot hold refuses the level, naming it.
+  ```bash
+  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+    --hazard "id=trap1;affinity=fire;expression=emit;stacks=2;proximityRadius=1" \
+    --delver "count=1;affinity=wind;motivation=exploring+user_controlled" \
+    --warden "count=3;affinity=earth;motivation=stationary" \
+    --place "hazard:trap1;near=exit:1" --place "warden:*;near=hazard:trap1:2;count=2"
   ```
 - `--delver` and `--warden` accept `strategy=`: standing orders each actor the card makes follows on its own turns.
   Compact goals run in order: `reach:exit|reach:<x>/<y>`, `defeat:<id>`, `take:<id>`, `guard:<id>[:radius]`,
