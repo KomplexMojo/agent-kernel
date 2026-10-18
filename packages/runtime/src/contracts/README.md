@@ -81,7 +81,8 @@ vital grants retain their authored modes; source vital pools are not loot.
 `state/affinity-table.ts` holds the one affinity table (#352): a row per kind with its
 primary vital, outward and inward operation, spill and named formulas, plus the receiver
 rules; `docs/affinity-table.md` is generated from it. `rules/actor-affinity.ts` builds its
-effect matrix from that table and supplies durability overflow, direct vital effects and
+effect matrix from that table and supplies the spill into the target's defeat vital (#353),
+direct vital effects and
 actual-amount transfers. `actor-exposure.ts` applies
 preprojected effects with a per-slot strength that caps what each receiver takes
 (every receiver in range takes its own exposure, never a share consumed in id order,

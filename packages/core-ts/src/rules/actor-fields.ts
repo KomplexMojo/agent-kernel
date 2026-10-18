@@ -70,7 +70,7 @@ export function previewActorFieldChanges(receiver: ActorRecord, localCells: read
       .some(pair => pair.kind === cell.kind && pair.expression === 'draw')) {
       change('mana', amount);
     } else {
-      evaluateActorAffinityReceiver(cell.kind, cell.expression, amount, change);
+      evaluateActorAffinityReceiver(cell.kind, cell.expression, amount, actor.defeatVital, change);
     }
   }
   return changes;

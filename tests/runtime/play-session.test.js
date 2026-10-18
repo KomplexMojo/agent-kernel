@@ -370,7 +370,8 @@ test("a cast spends the player's mana and hurts the target", async () => {
   assert.deepEqual(result.accepted.map((a) => [a.kind, a.params]), [["cast_affinity", { targetId: "warden_1" }]]);
   const view = session.view();
   assert.ok(view.player.vitals.find((v) => v.key === "mana").current < manaBefore);
-  assert.ok(view.actors.find((a) => a.id === "warden_1").vitals.health.current < 10);
+  // #353: water hits stamina first.
+  assert.ok(view.actors.find((a) => a.id === "warden_1").vitals.stamina.current < 10);
 });
 
 test("a refused cast reports core's reason and still costs the turn", async () => {
@@ -381,8 +382,9 @@ test("a refused cast reports core's reason and still costs the turn", async () =
 });
 
 test("a defeated actor next to the player offers its affinities as loot, and take claims one", async () => {
-  const session = await createPlaySession(buildDuelLevel());
-  await session.act(equip("water:push"));
+  // #353: decay hits the defeat vital (health) directly; water would empty stamina first.
+  const session = await createPlaySession(buildDuelLevel({ playerAffinities: [{ kind: "decay", expression: "push", stacks: 3, intensity: 2 }] }));
+  await session.act(equip("decay:push"));
   for (let i = 0; i < 6 && session.view().actors.some((a) => a.id === "warden_1"); i += 1) {
     await session.act(cast("warden_1"));
   }

@@ -482,7 +482,7 @@ test("generated actors read as wardens from their id when role is unset", () => 
   assert.deepEqual(overlayActors(rows, actors, { x: 1, y: 1 }), ["#####", `#@.${ASCII_ENTITY_GLYPHS.warden}#`, "#####"]);
 });
 
-test("trap-rooms draws each trap as H in its own affinity's fill, and a trap costs health", async () => {
+test("trap-rooms draws each trap as H in its own affinity's fill, and a trap costs a vital", async () => {
   const { GAME_AFFINITY_COLOR_HEX } = require("../../packages/runtime/src/contracts/game-elements.js");
   const level = loadBundledLevel("trap-rooms");
   const session = await createPlaySession(level);
@@ -506,14 +506,15 @@ test("trap-rooms draws each trap as H in its own affinity's fill, and a trap cos
   // Walk onto the first trap along a breadth-first path and let core apply it.
   const trap = view.hazards[0].position;
   const { path } = solve(level, { target: trap });
-  const health = () => session.view().player.vitals.find((vital) => vital.key === "health").current;
-  const healthBefore = health();
-  // Track the lowest health on the way: regen heals between traps, and opposed
+  // #353: a trap hits its own kind's vital first and spills into health, so watch every vital.
+  const vitals = () => Object.fromEntries(session.view().player.vitals.map((vital) => [vital.key, vital.current]));
+  const before = vitals();
+  // Track the lowest of each vital on the way: regen heals between traps, and opposed
   // traps side by side cancel on each other's tiles, so the end tile alone can read full.
-  let lowest = healthBefore;
-  await walk(session, path, () => { lowest = Math.min(lowest, health()); });
+  const lowest = { ...before };
+  await walk(session, path, () => { for (const [key, current] of Object.entries(vitals())) lowest[key] = Math.min(lowest[key], current); });
   assert.deepEqual(session.view().player.position, trap);
-  assert.ok(lowest < healthBefore, "the trap hurt");
+  assert.ok(Object.keys(before).some((key) => lowest[key] < before[key]), "the trap hurt");
 });
 
 test("the game plays under fog of war by default; --no-fog shows the whole map", async () => {
@@ -558,14 +559,14 @@ test("in colour, remembered cells are dimmed and unseen cells take the fog fill"
 });
 
 // #202: affinities from the keyboard. `i` lists them, a digit equips, `f` aims and casts, `g` takes.
-function duelLevels({ wardenAt = { x: 2, y: 1 } } = {}) {
+function duelLevels({ wardenAt = { x: 2, y: 1 }, pushKind = "water" } = {}) {
   const level = buildUnifiedLevel({
     id: "duel",
     tiles: ["######", "#....#", "#....E", "######"],
     actors: [
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
         vitals: viableVitals({ mana: 40 }), affinities: [
-          { kind: "water", expression: "push", stacks: 3, intensity: 2 }, { kind: "light", expression: "emit", stacks: 1 }] },
+          { kind: pushKind, expression: "push", stacks: 3, intensity: 2 }, { kind: "light", expression: "emit", stacks: 1 }] },
       ...(wardenAt ? [{ category: "warden", id: "warden_1", position: wardenAt, motivations: ["stationary"],
         vitals: viableVitals(), affinities: [{ kind: "fire", expression: "push", stacks: 1 }] }] : []),
     ],
@@ -659,7 +660,8 @@ test("f with nobody in sight, and g with nothing to take, say so without spendin
 });
 
 test("g takes the loot of a defeated neighbour", async () => {
-  const game = await createGame({ levels: duelLevels(), fog: false });
+  // #353: decay hits the defeat vital (health) directly; water would empty stamina first.
+  const game = await createGame({ levels: duelLevels({ pushKind: "decay" }), fog: false });
   await press(game, "i1");
   for (let i = 0; i < 6 && /Target: warden_1/.test((await press(game, "f"), game.screen())); i += 1) await press(game, "\r");
   await press(game, "\u001b");
