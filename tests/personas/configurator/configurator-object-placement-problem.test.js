@@ -357,6 +357,8 @@ test("solver unsat is final and distinguishes collision, containment, capacity, 
     ok: false,
     status: "unsat",
     reason: "capacity",
+    // #296: a solver-backed refusal carries the same deficit the fallback's error did.
+    detail: "insufficient unoccupied walkable tiles (2 available, 3 requested, 2 placed before running out — raise floorTile.count)",
   });
 });
 

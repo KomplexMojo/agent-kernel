@@ -4569,6 +4569,8 @@ async function validateScenarioDryRun(args) {
         // 2026-08-12: taken from the round opened above rather than opening one here —
         // the BuildSpec assembly below runs on that same round and closes it.
         ...directorBuildCapabilities(director),
+        // #296: the budget fit goes to the host's solver, as `ak llm-plan`'s does.
+        fitLayout: await commandKernel.hostLayoutBudgetFit(director, createdAt),
         adapter,
         model,
         baseUrl,
@@ -4726,6 +4728,7 @@ async function validateScenarioDryRun(args) {
     capturedInputs: capturedInputsForBuild,
     // #280: the plan this build persists is the one this round drafted.
     directorRound: director.currentRound(),
+    placeObjects: await commandKernel.hostObjectPlacement(buildSpecResult.spec.meta.createdAt),
   });
 
   return buildDryRunSuccess({
@@ -7031,7 +7034,11 @@ export async function compileBuildSpecToGameplayBundle(buildSpec) {
   if (!buildSpec || typeof buildSpec !== "object") {
     throw new Error("compileBuildSpecToGameplayBundle requires a BuildSpec object.");
   }
-  const buildResult = await orchestrateBuild({ spec: buildSpec, producedBy: "sandbox-bridge" });
+  const buildResult = await orchestrateBuild({
+    spec: buildSpec,
+    producedBy: "sandbox-bridge",
+    placeObjects: await commandKernel.hostObjectPlacement(buildSpec.meta?.createdAt),
+  });
   const artifacts = buildBuildArtifacts(buildResult, { includeAffinitySummary: true });
   return { spec: buildSpec, artifacts };
 }

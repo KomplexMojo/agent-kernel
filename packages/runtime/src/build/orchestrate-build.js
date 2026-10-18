@@ -421,7 +421,8 @@ export async function orchestrateBuild({
       meta: createBuildMeta(spec, producedBy, "object_placement"),
     });
     if (!objectPlacement?.ok) {
-      const error = new Error(`configurator object placement ${objectPlacement?.status || "failed"}: ${objectPlacement?.reason || "unknown"}`);
+      const error = new Error(`configurator object placement ${objectPlacement?.status || "failed"}: ${objectPlacement?.reason || "unknown"}`
+        + (objectPlacement?.detail ? ` — ${objectPlacement.detail}` : ""));
       error.code = objectPlacement?.reason || "configurator_object_placement_failed";
       error.status = objectPlacement?.status || "error";
       throw error;

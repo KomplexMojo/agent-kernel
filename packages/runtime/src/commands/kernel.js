@@ -845,6 +845,33 @@ export function createCommandKernel(host = {}) {
   const warn = typeof host.warn === "function" ? host.warn : () => {};
   const cwd = typeof host.cwd === "function" ? host.cwd : () => ".";
 
+  // The Configurator's object placement, posed to the host's solver adapter. Every build
+  // entry point hosts it the same way (#296): a command that skipped this got the
+  // reading-order fallback for the same persona question the others put to the solver.
+  // `record` receives each solver decision, for commands that report them.
+  async function hostObjectPlacement(createdAt, record) {
+    const configurator = createConfiguratorPersona({ clock: () => createdAt });
+    return createHostedObjectPlacer({
+      prepare: configurator.prepareObjectPlacement,
+      complete: configurator.completeObjectPlacement,
+      adapter: await createSolverAdapter({}),
+      clock: () => createdAt,
+      ...(record ? { record } : {}),
+    });
+  }
+
+  // The Allocator's budget fit (asked through an open Director round), posed to the host's
+  // solver adapter. Unhosted, the Allocator answers with its greedy fallback (#296).
+  async function hostLayoutBudgetFit(director, createdAt, record) {
+    return createHostedLayoutBudgetFitter({
+      prepare: director.prepareLayoutBudgetFit,
+      complete: director.completeLayoutBudgetFit,
+      adapter: await createSolverAdapter({}),
+      clock: () => createdAt,
+      ...(record ? { record } : {}),
+    });
+  }
+
   async function solve(args) {
     const runId = args["run-id"] || makeId("run");
     const scenario = args.scenario || null;
@@ -1075,15 +1102,7 @@ export function createCommandKernel(host = {}) {
         };
       }
 
-      const objectPlacementAdapter = await createSolverAdapter({});
-      const objectPlacementConfigurator = createConfiguratorPersona({ clock: () => spec.meta.createdAt });
-      const placeObjects = createHostedObjectPlacer({
-        prepare: objectPlacementConfigurator.prepareObjectPlacement,
-        complete: objectPlacementConfigurator.completeObjectPlacement,
-        adapter: objectPlacementAdapter,
-        clock: () => spec.meta.createdAt,
-        record: (decision) => solverDecisions.push(decision),
-      });
+      const placeObjects = await hostObjectPlacement(spec.meta.createdAt, (decision) => solverDecisions.push(decision));
       result = await orchestrateBuild({ spec, producedBy, solver, placeObjects, solverDecisions });
       const mixedRoomAssemblies = summarizeMixedRoomAssemblies(result?.simConfig?.layout?.data?.rooms);
       if (result?.affinitySummary && typeof result.affinitySummary === "object") {
@@ -2354,14 +2373,7 @@ export function createCommandKernel(host = {}) {
         // Z7.1: the host owns adapter construction. A fixture/non-capable adapter is still
         // useful here: the Allocator detects the missing domain and takes its characterized
         // fallback, while AK_SOLVER_ENGINE=z3-real exposes the hybrid search path.
-        const solverAdapter = await createSolverAdapter({});
-        const fitLayout = createHostedLayoutBudgetFitter({
-          prepare: director.prepareLayoutBudgetFit,
-          complete: director.completeLayoutBudgetFit,
-          adapter: solverAdapter,
-          clock: () => createdAt,
-          record: (decision) => solverDecisions.push(decision),
-        });
+        const fitLayout = await hostLayoutBudgetFit(director, createdAt, (decision) => solverDecisions.push(decision));
         const loopResult = await runLlmBudgetLoop({
         // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
         runSession: runLlmSessionHosted,
@@ -2547,17 +2559,7 @@ export function createCommandKernel(host = {}) {
     }
 
     const capturedInputsForBuild = captures.length > 0 ? captures : capture ? [capture] : undefined;
-    const objectPlacementAdapter = await createSolverAdapter({});
-    const objectPlacementConfigurator = createConfiguratorPersona({
-      clock: () => buildSpecResult.spec.meta.createdAt,
-    });
-    const placeObjects = createHostedObjectPlacer({
-      prepare: objectPlacementConfigurator.prepareObjectPlacement,
-      complete: objectPlacementConfigurator.completeObjectPlacement,
-      adapter: objectPlacementAdapter,
-      clock: () => buildSpecResult.spec.meta.createdAt,
-      record: (decision) => solverDecisions.push(decision),
-    });
+    const placeObjects = await hostObjectPlacement(buildSpecResult.spec.meta.createdAt, (decision) => solverDecisions.push(decision));
     const buildResult = await orchestrateBuild({
       spec: buildSpecResult.spec,
       producedBy: "cli-llm-plan",
@@ -2662,20 +2664,20 @@ export function createCommandKernel(host = {}) {
   }
 
   // Authoring build (P2.3.2): the create/configure domain build pipeline the
-  // CLI previously reimplemented inline. Needs no host IO of its own — the CLI
-  // keeps parse/maximize/summary+request assembly and all writing — so this is a
-  // thin pass-through to the runtime pipeline (routes translation through the
-  // Director controller, like llmPlan).
+  // CLI previously reimplemented inline. Its only host IO is the solver round trip
+  // for object placement (#296) — the CLI keeps parse/maximize/summary+request
+  // assembly and all writing — so otherwise this is a pass-through to the runtime
+  // pipeline (routes translation through the Director controller, like llmPlan).
   async function authoringBuild(input) {
-    return runAuthoringBuild(input);
+    return runAuthoringBuild({ ...input, placeObjects: await hostObjectPlacement(input?.createdAt) });
   }
 
   // Plain authored build (P2.3.3): the *-plan commands' build pipeline
   // (room/hazard/resource/delver/warden-plan) — Director-routed spec assembly,
-  // no Configurator input prep or motivation patching. Thin pass-through, same
-  // as authoringBuild.
+  // no Configurator input prep or motivation patching. Hosts object placement
+  // and passes through, same as authoringBuild.
   async function planBuild(input) {
-    return runPlanBuild(input);
+    return runPlanBuild({ ...input, placeObjects: await hostObjectPlacement(input?.createdAt) });
   }
 
   return {
@@ -2696,6 +2698,8 @@ export function createCommandKernel(host = {}) {
     llmPlan,
     authoringBuild,
     planBuild,
+    hostObjectPlacement,
+    hostLayoutBudgetFit,
     manualMove,
   };
 }
