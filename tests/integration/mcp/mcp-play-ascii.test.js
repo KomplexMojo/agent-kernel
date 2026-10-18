@@ -149,7 +149,7 @@ test("ak_play_ascii watches an ak_run run by runId, tick by tick, with every act
     assert.equal(start.ok, true, JSON.stringify(start));
     assert.equal(start.tick, 0);
     assert.equal(start.maxTick, 4);
-    assert.match(start.screen, /agent-kernel run/);
+    assert.match(start.screen, /Deepward run/);
     assert.match(start.screen, /W/, "the warden is drawn: a watched run has no fog");
     assert.doesNotMatch(start.screen, /\?{3}/);
     assert.match(start.launch, /play --dir .* --watch --tick 0$/);

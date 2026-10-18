@@ -1,0 +1,35 @@
+<!doctype html>
+<!-- Source of banner.png (#332). Render at 1600x560:
+     bash scripts/brand/render-banner.sh
+     banner-background.png is the gameplay board from run `readme-gameplay-banner` with no text. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Deepward banner</title>
+<style>
+  html, body { margin: 0; background: #1A1F2E; }
+  .banner { position: relative; width: 1600px; height: 560px; background: url(banner-background.png) no-repeat;
+    font-family: "Liberation Sans", Arial, Helvetica, sans-serif; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85); }
+  .text { position: absolute; left: 460px; top: 148px; }
+  .wordmark { margin: 0; font-size: 72px; font-weight: 700; letter-spacing: -1.5px; line-height: 72px; color: #FFFFFF; }
+  .wordmark span { color: #C4A35A; }
+  .tagline { margin: 14px 0 0; font-size: 28px; font-weight: 700; color: #E8DFC8; }
+  .lede { margin: 14px 0 0; font-size: 22px; color: #E8DFC8; }
+  .chip { display: inline-flex; align-items: center; gap: 12px; margin-top: 28px; padding: 9px 16px; border: 2px solid #C4A35A;
+    border-radius: 8px; background: #2A3142; color: #E8DFC8; font-size: 18px; font-weight: 700; text-shadow: none; }
+  .chip i { width: 14px; height: 14px; border-radius: 50%; background: #E8A54B; }
+  .values { margin: 46px 0 0; font-size: 20px; font-weight: 700; color: #C4A35A; }
+</style>
+</head>
+<body>
+<div class="banner">
+  <div class="text">
+    <p class="wordmark">Deep<span>ward</span></p>
+    <p class="tagline">A dungeon game, built on the agent-kernel engine.</p>
+    <p class="lede">Deterministic core. CLI. MCP for AI harnesses. Enforced token economics.</p>
+    <div class="chip"><i></i>Large multi-year project · Under active development</div>
+    <p class="values">Decentralized · Distributed · Provably fair</p>
+  </div>
+</div>
+</body>
+</html>

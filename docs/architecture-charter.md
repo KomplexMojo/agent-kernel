@@ -1,5 +1,7 @@
 # Architecture Charter (Ports & Adapters)
 
+This charter governs **agent-kernel**, the engine under **Deepward** (the game and the public name).
+
 `packages/core-ts` is the deterministic core. It must not depend on UI, network, storage, filesystem, clocks, process state, or Node APIs.
 
 ## Core vs Runtime

@@ -87,7 +87,7 @@ test("the cursor stays inside the run, and each tick draws that tick", () => {
 
 test("the watch screen is the game's screen: wardens drawn, no fog, no play hints", () => {
   const screen = createWatch({ run: loadRunFromDir(dir) }).screen();
-  assert.match(screen, /^agent-kernel run — /);
+  assert.match(screen, /^Deepward run — /);
   assert.match(screen, /W/);
   assert.doesNotMatch(screen, /\?\?\?/);
   assert.doesNotMatch(screen, /press i/);

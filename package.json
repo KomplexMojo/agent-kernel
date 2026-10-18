@@ -1,7 +1,7 @@
 {
-  "name": "agent-kernel",
+  "name": "deepward",
   "version": "1.0.0",
-  "description": "Pure TypeScript simulation kernel built around the **Ports & Adapters** architectural pattern.",
+  "description": "Deepward, a dungeon game, and agent-kernel, the deterministic Ports & Adapters simulation engine it runs on.",
   "main": "index.js",
   "directories": {
     "doc": "docs"
@@ -38,7 +38,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "PolyForm-Strict-1.0.0",
   "private": true,
   "dependencies": {
     "phaser": "^4.1.0"

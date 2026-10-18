@@ -1,6 +1,7 @@
 # CLAUDE.md
 
-Guidance for Claude Code (claude.ai/code) in this repository.
+Guidance for Claude Code (claude.ai/code) in this repository. **Deepward** is the game and the public name;
+**agent-kernel** is its engine and stays the internal name (packages, `ak`, the MCP server, schema ids).
 
 Claude is the **orchestration, implementation, and documentation engine**. Codex drives ideation, adversarial verification, and mechanical implementation from complete milestone specs.
 
