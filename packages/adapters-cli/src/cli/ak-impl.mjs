@@ -55,6 +55,7 @@ import { deriveAllowedOptionsFromCatalog, normalizeSummary } from "../../../runt
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "../../../runtime/src/commands/llm-host.js";
+import { summarizeSolverDecisions } from "../../../runtime/src/commands/solver-host.js";
 import { beginDirectorRound, directorBuildCapabilities } from "../../../runtime/src/commands/director-round.js";
 import { runLlmBudgetLoop } from "../../../runtime/src/personas/orchestrator/persona.js";
 import {
@@ -172,7 +173,7 @@ function usage() {
   node ${rel} configurator --level-gen path --actors path [--plan path] [--budget-receipt path] [--budget path --price-list path --receipt-out path] [--affinity-presets path] [--affinity-loadouts path] [--out-dir dir] [--run-id id]
   node ${rel} budget --budget path [--price-list path] [--receipt path] [--out-dir dir] [--out path] [--receipt-out path]
   node ${rel} replay --sim-config path --initial-state path --tick-frames path [--execution-policy path] [--ticks N] [--seed N] [--out-dir dir]
-  node ${rel} inspect --tick-frames path [--effects-log path] [--out-dir dir]
+  node ${rel} inspect --tick-frames path [--effects-log path] [--build-dir dir] [--out-dir dir]
   node ${rel} narrate --tick-frames path --initial-state path [--out-dir dir]
   node ${rel} ipfs --cid cid [--path path] [--gateway url] [--json] [--fixture path] [--out path] [--out-dir dir]
   node ${rel} ipfs-publish --artifact-map path [--path root] [--gateway url] [--fixture-cid cid] [--out path] [--out-dir dir]
@@ -2439,7 +2440,7 @@ async function summarizeRunOutput({ outDir, args, pricingReport } = {}) {
   };
 }
 
-async function summarizeInspectOutput({ outDir, runtimeBudgetReceiptPath = null } = {}) {
+async function summarizeInspectOutput({ outDir, runtimeBudgetReceiptPath = null, buildDir = null } = {}) {
   const inspectSummary = await readJsonIfExists(join(outDir, "inspect-summary.json"));
   const runtimeBudgetReceipt = await readJsonIfExists(runtimeBudgetReceiptPath);
   const runtimeBudget = runtimeBudgetReceipt && typeof runtimeBudgetReceipt === "object"
@@ -2466,6 +2467,12 @@ async function summarizeInspectOutput({ outDir, runtimeBudgetReceiptPath = null 
   if (runtimeBudgetReceiptPath && runtimeBudget) {
     summary.artifactPaths.runtime_budget_receipt = runtimeBudgetReceiptPath;
     summary.runtimeBudget = runtimeBudget;
+  }
+  // #299: the build that made this level, and which of its decisions the solver made.
+  const buildTelemetry = buildDir ? await readJsonIfExists(join(buildDir, "telemetry.json")) : null;
+  if (buildTelemetry) {
+    summary.artifactPaths.build_telemetry = join(buildDir, "telemetry.json");
+    summary.solverDecisions = summarizeSolverDecisions(buildTelemetry.data?.solverDecisions) || "none recorded";
   }
   return summary;
 }
@@ -3141,6 +3148,9 @@ async function summarizeRunIndexCommand({ runId, command, outDir } = {}) {
     roomIds: deriveRoomIds(simConfig),
     ticks: runSummary?.metrics?.ticks,
     budgetSpend: deriveBudgetSpend(budgetReceipt),
+    ...(Array.isArray(telemetry?.data?.solverDecisions)
+      ? { solverDecisions: summarizeSolverDecisions(telemetry.data.solverDecisions) || "none recorded" }
+      : {}),
     inputs,
     outputs,
   };
@@ -4039,6 +4049,7 @@ async function writeBuildOutputs({
     artifactRefs: buildArtifactRefs(manifestEntries),
     producedBy,
     clock: () => spec.meta.createdAt,
+    data: { solverDecisions: Array.isArray(buildResult.solverDecisions) ? buildResult.solverDecisions : [] },
   });
   await writeJson(join(outDir, "telemetry.json"), telemetry);
 
@@ -4947,6 +4958,7 @@ async function inspectCommand(argv) {
   emitJsonStdout(await summarizeInspectOutput({
     outDir: result.outDir,
     runtimeBudgetReceiptPath: tickFramesPath ? join(dirname(tickFramesPath), "runtime-budget-receipt.json") : null,
+    buildDir: resolvePath(args["build-dir"]),
   }));
 }
 
