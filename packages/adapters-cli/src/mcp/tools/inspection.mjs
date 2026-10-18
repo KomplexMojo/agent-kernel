@@ -27,11 +27,13 @@ export const inspectionTools = [
       properties: withCommonOutput({
         tickFrames: pathSchema("Tick frames path."),
         effectsLog: pathSchema("Effects log path."),
+        buildDir: pathSchema("Build output directory; adds its solver decisions line."),
       }),
     },
     buildArgs: (args) => buildArgv(args, [
       { key: "tickFrames", flag: "tick-frames" },
       { key: "effectsLog", flag: "effects-log" },
+      { key: "buildDir", flag: "build-dir" },
       { key: "outDir", flag: "out-dir" },
     ]),
   }),

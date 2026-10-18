@@ -1036,6 +1036,7 @@ export function createCommandKernel(host = {}) {
     let result = null;
     let manifestEntries = [];
     let capturedInputs = [];
+    const solverDecisions = [];
     const producedBy = "cli-build";
     const baseDir = dirname(specPath);
     const emitIntermediates = Boolean(args["emit-intermediates"]);
@@ -1081,8 +1082,9 @@ export function createCommandKernel(host = {}) {
         complete: objectPlacementConfigurator.completeObjectPlacement,
         adapter: objectPlacementAdapter,
         clock: () => spec.meta.createdAt,
+        record: (decision) => solverDecisions.push(decision),
       });
-      result = await orchestrateBuild({ spec, producedBy, solver, placeObjects });
+      result = await orchestrateBuild({ spec, producedBy, solver, placeObjects, solverDecisions });
       const mixedRoomAssemblies = summarizeMixedRoomAssemblies(result?.simConfig?.layout?.data?.rooms);
       if (result?.affinitySummary && typeof result.affinitySummary === "object") {
         result.affinitySummary = {
@@ -1169,6 +1171,7 @@ export function createCommandKernel(host = {}) {
         artifactRefs,
         producedBy,
         clock: () => spec.meta.createdAt,
+        data: { solverDecisions },
       });
       await writeJson(join(outDir, "telemetry.json"), telemetry);
 
@@ -1193,6 +1196,7 @@ export function createCommandKernel(host = {}) {
         artifactRefs,
         producedBy,
         clock: () => spec?.meta?.createdAt || "1970-01-01T00:00:00.000Z",
+        data: { solverDecisions },
       });
       await writeJson(join(outDir, "telemetry.json"), telemetry);
       throw error;
@@ -2250,6 +2254,8 @@ export function createCommandKernel(host = {}) {
     const allowedPairs = deriveAllowedPairs(catalog);
     const allowedPairsText = allowedPairs.length > 0 ? formatAllowedPairs(allowedPairs) : "";
     const budgetLoopEnabled = Boolean(args["budget-loop"]) || isLlmBudgetLoopEnabled();
+    // #299: every solver-hosted decision this plan's build makes, in the order it was made.
+    const solverDecisions = [];
 
     const goal = isNonEmptyString(goalOverride)
       ? goalOverride
@@ -2354,6 +2360,7 @@ export function createCommandKernel(host = {}) {
           complete: director.completeLayoutBudgetFit,
           adapter: solverAdapter,
           clock: () => createdAt,
+          record: (decision) => solverDecisions.push(decision),
         });
         const loopResult = await runLlmBudgetLoop({
         // CR.4 M5b: the loop no longer performs LLM IO; glue supplies the runner.
@@ -2549,12 +2556,14 @@ export function createCommandKernel(host = {}) {
       complete: objectPlacementConfigurator.completeObjectPlacement,
       adapter: objectPlacementAdapter,
       clock: () => buildSpecResult.spec.meta.createdAt,
+      record: (decision) => solverDecisions.push(decision),
     });
     const buildResult = await orchestrateBuild({
       spec: buildSpecResult.spec,
       producedBy: "cli-llm-plan",
       capturedInputs: capturedInputsForBuild,
       placeObjects,
+      solverDecisions,
       // #280: the plan this build persists is the one this round drafted.
       directorRound: director.currentRound(),
     });
@@ -2618,7 +2627,9 @@ export function createCommandKernel(host = {}) {
       artifactRefs: buildArtifactRefs(manifestEntries),
       producedBy: "cli-llm-plan",
       clock: () => buildResult.spec.meta.createdAt,
-      data: loopTrace ? {
+      data: {
+        solverDecisions,
+        ...(loopTrace ? {
         llm: {
           budgetLoop: true,
           trace: loopTrace,
@@ -2631,7 +2642,8 @@ export function createCommandKernel(host = {}) {
             }
             : undefined,
         },
-      } : undefined,
+      } : {}),
+      },
     });
     await writeJson(join(outDir, "telemetry.json"), telemetry);
 

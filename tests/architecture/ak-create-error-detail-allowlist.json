@@ -1,23 +1,23 @@
 [
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 233,
-    "reason": "orchestrateBuild top-level `!spec` guard -- spec is an internal BuildSpec artifact, not raw model input; nothing else to say when it is simply absent. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary."
+    "line": 237,
+    "reason": "orchestrateBuild top-level `!spec` guard -- spec is an internal BuildSpec artifact, not raw model input; nothing else to say when it is simply absent. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, and again when #299 hosted the default placement."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 295,
-    "reason": "levelGen actors-presence guard (SM2 fix) -- concatenated template literal reports the received kind. The classifier cannot parse the concatenated template as one interpolated message. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary."
+    "line": 299,
+    "reason": "levelGen actors-presence guard (SM2 fix) -- concatenated template literal reports the received kind. The classifier cannot parse the concatenated template as one interpolated message. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, and again when #299 hosted the default placement."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 545,
-    "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier cannot inspect it. formatBudgetReceiptDenial() already reports status/remaining/deniedLines/deniedPools/per-pool shortfall. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary."
+    "line": 555,
+    "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier cannot inspect it. formatBudgetReceiptDenial() already reports status/remaining/deniedLines/deniedPools/per-pool shortfall. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, and again when #299 hosted the default placement."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 549,
-    "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 544. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary."
+    "line": 559,
+    "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 555. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, and again when #299 hosted the default placement."
   },
   {
     "file": "packages/runtime/src/personas/allocator/budget-fulfillment.js",

@@ -182,6 +182,13 @@ Allocator's reference budget (2500 tokens), so it still gets a price list and re
 spec that brings its own receipt and no budget is taken as already priced. `--emit-intermediates` additionally writes `intent.json`,
 `plan.json`, solver artifacts, and captured-input sidecars. Manifest/bundle include a filtered
 `schemas` list for emitted artifacts.
+Every build's `telemetry.json` carries `data.solverDecisions` (#299): one entry per solver-hosted
+decision (object placement, and budget fit for `llm-plan --budget-loop`), each with its `domain`,
+`decision` (`solver` when the solver's answer was used, `fallback` when the persona's characterized
+fallback answered, `none` when no search was posed), the `status` and `reason` behind it (e.g.
+`deferred` / `solver_domain_unavailable`), and the solver's `objectiveValues` when it answered.
+`build` and `llm-plan` host the solver; `create`, `configure` and the `*-plan` commands do not
+yet (#296), so a placement they pose reports `fallback (solver_domain_unavailable)`.
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
 for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
 
@@ -255,7 +262,8 @@ inspect what a previous run created without rerunning the pipeline.
 Inputs/outputs:
 - Input: `--run-id <runId>`.
 - Stdout: structured JSON including `runId`, `actors[]`, `rooms[]`, `artifactPaths{}`, and
-  `budgetSpend`. A `run --from-run` directory writes no `sim-config.json`/`initial-state.json`;
+  `budgetSpend`. Each `commands[]` entry whose `telemetry.json` records solver decisions carries
+  `solverDecisions`, the one-line summary (e.g. `placement: fallback (solver_domain_unavailable)`). A `run --from-run` directory writes no `sim-config.json`/`initial-state.json`;
   its actors and rooms are read from the level embedded in its `bundle.json`.
 - Error: structured JSON error when the requested run directory does not exist under the selected
   output root.
@@ -770,6 +778,10 @@ producing a replay summary and regenerated TickFrames.
 
 ### `inspect`
 Summarize or extract telemetry snapshots for debugging and analysis.
+
+`--build-dir <dir>` names the build that made the level; the stdout summary then carries
+`solverDecisions`, one line naming which build decisions the solver made, e.g.
+`placement: fallback (solver_domain_unavailable); budget fit: solver` (#299).
 
 When the supplied `--tick-frames` file has a sibling `runtime-budget-receipt.json`,
 inspection includes `runtimeBudget` and labels its unit `runtimeBudgetUnits`. Its rows,
