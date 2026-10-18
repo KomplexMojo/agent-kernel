@@ -1182,7 +1182,6 @@ function resolveActorMotivationParams(view, actorId, payload, kind) {
       if (entry && typeof entry === "object" && entry.kind === kind) {
         return {
           pattern: entry.pattern || null,
-          intensity: entry.intensity,
           flags: entry.flags,
           goal: entry.goal,
         };
@@ -1192,7 +1191,6 @@ function resolveActorMotivationParams(view, actorId, payload, kind) {
   if (record?.motivation?.kind === kind) {
     return {
       pattern: record.motivation.pattern || null,
-      intensity: record.motivation.intensity,
       flags: record.motivation.flags,
       goal: record.motivation.goal,
     };

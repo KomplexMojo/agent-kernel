@@ -78,8 +78,8 @@ const defaultPriceMap = normalizePriceItems(
     motivations: [{ kind: "strategy_focused", intensity: 2 }],
   };
   const result = calculateActorConfigurationUnitCost({ entry, priceMap: defaultPriceMap, normalizeMotivations });
-  // strategy_focused(10) * intensity(2) = 20
-  assert.equal(result.detail.motivationCost, 20);
+  // strategy_focused(10); an older input's intensity is ignored (#309)
+  assert.equal(result.detail.motivationCost, 10);
 }
 
 // ── motivation cost preserves legacy cognition ordering ──

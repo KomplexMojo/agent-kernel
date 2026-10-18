@@ -36,7 +36,6 @@ import {
   getMotivationPatternCount,
   getMotivationTier,
   motivationKindsConflict,
-  normalizeMotivationIntensity,
 } from "./state/motivation.ts";
 import { ActionKind, validateAction, validateSeed, ValidationError } from "./validate/inputs.ts";
 
@@ -129,7 +128,6 @@ export const CORE_API_KEYS = [
   "init",
   "memory",
   "motivationKindsConflict",
-  "normalizeMotivationIntensity",
   "resetMotivationEvaluation",
   "resolveAffinityInteraction",
   "resolveAffinityRelationshipCode",
@@ -360,7 +358,6 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getMotivationPatternCodeAt = getMotivationPatternCodeAt as CoreFunction;
   core.getDefaultMotivationPattern = getDefaultMotivationPattern as CoreFunction;
   core.getMotivationTier = getMotivationTier as CoreFunction;
-  core.normalizeMotivationIntensity = normalizeMotivationIntensity as CoreFunction;
   core.getMotivationDefaultFlagMask = getMotivationDefaultFlagMask as CoreFunction;
   core.getMotivationFlagCount = getMotivationFlagCount as CoreFunction;
 

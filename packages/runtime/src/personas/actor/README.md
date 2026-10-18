@@ -139,6 +139,8 @@ Intelligence is represented through Cognition motivations — there is no separa
 
 With a strategy, cognition sets how much of it the actor follows (see *Strategies* below).
 
+Motivations are plain members of a stack: there is no motivation intensity (#309). An `intensity` (or `stacks`) on an older motivation entry still loads and is ignored by validation, evaluation, proposals and pricing alike.
+
 Conflicting motivations within the same family are rejected (e.g. `attacking + defending`, `stealthy + friendly`, `random + patrolling`, `reflexive + goal_oriented`). Compatible cross-family combinations are allowed (e.g. `random + attacking`, `goal_oriented + stealthy`).
 
 Motivations are:

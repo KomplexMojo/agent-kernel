@@ -37,8 +37,9 @@ export const MOTIVATION_GOAL_TYPES = Object.freeze({
   strategy_focused: Object.freeze(["reach_point", "reach_zone", "acquire_item", "defend_point", "defend_zone", "defend_actor", "attack_target", "attack_zone", "patrol_route", "patrol_zone"]),
 });
 
+// #309 — motivations are plain members of a stack: there is no intensity. An `intensity`
+// (or `stacks`) on an older input is ignored, so it still loads.
 export const MOTIVATION_DEFAULTS = Object.freeze({
-  intensity: 1,
   flags: Object.freeze({
     canMove: true,
     prefersStealth: false,
@@ -50,7 +51,6 @@ export const MOTIVATION_DEFAULTS = Object.freeze({
 export const MOTIVATION_KIND_IDS = GAME_MOTIVATION_KIND_IDS;
 
 const MOTIVATION_FLAG_KEYS = Object.freeze(["canMove", "prefersStealth", "prefersCover", "aggroRangeBoost"]);
-const MOTIVATION_MAX_INTENSITY = 10;
 
 function addError(errors, field, code) {
   errors.push({ field, code });
@@ -232,7 +232,6 @@ export function normalizeMotivation(entry, base, errors = []) {
     }
     return {
       kind,
-      intensity: MOTIVATION_DEFAULTS.intensity,
       pattern: normalizePattern(kind, undefined, entryBase, errors),
       flags: MOTIVATION_DEFAULTS.flags,
     };
@@ -249,16 +248,6 @@ export function normalizeMotivation(entry, base, errors = []) {
     return null;
   }
 
-  const intensityRaw = entry.intensity ?? entry.stacks ?? MOTIVATION_DEFAULTS.intensity;
-  const intensity = Number.isInteger(intensityRaw) ? intensityRaw : MOTIVATION_DEFAULTS.intensity;
-  if (!Number.isInteger(intensityRaw) || intensityRaw < 1) {
-    addError(errors, `${entryBase}.intensity`, "invalid_intensity");
-  }
-  if (intensity > MOTIVATION_MAX_INTENSITY) {
-    addError(errors, `${entryBase}.intensity`, "intensity_clamped");
-  }
-  const clampedIntensity = Math.min(Math.max(intensity, 1), MOTIVATION_MAX_INTENSITY);
-
   const pattern = normalizePattern(kind, entry.pattern, entryBase, errors);
   const flags = normalizeFlags(entry.flags, `${entryBase}.flags`, errors);
   const goal = normalizeGoal(kind, entry.goal, entryBase, errors);
@@ -269,7 +258,6 @@ export function normalizeMotivation(entry, base, errors = []) {
 
   const result = {
     kind,
-    intensity: clampedIntensity,
     pattern,
     flags,
     priority: Number.isInteger(priority) && priority >= 0 ? priority : undefined,

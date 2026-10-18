@@ -119,9 +119,10 @@ describe("core-ts API surface permutations", () => {
       callableCount++;
     }
 
-    // At least 66 callable functions (#227 removed the old core world's actor,
+    // At least 65 callable functions (#227 removed the old core world's actor,
     // hazard, resource and tile-actor surface; #258 removed its tile grid; the
-    // 2026-10-13 drift review removed five unused affinity formulas from the surface)
-    expect(callableCount).toBeGreaterThanOrEqual(66);
+    // 2026-10-13 drift review removed five unused affinity formulas from the surface;
+    // #309 removed normalizeMotivationIntensity, as motivations have no intensity)
+    expect(callableCount).toBeGreaterThanOrEqual(65);
   });
 });
