@@ -9,6 +9,11 @@ import {
   buildLlmPhasePromptTemplate,
 } from "../../contracts/domain-constants.js";
 import { buildLlmCaptureArtifact } from "./llm-capture.js";
+// Pure string transform, no IO and no Node built-ins (#188). Imported by path, not by bare
+// specifier: the browser loads the runtime as plain ES modules, including inside module
+// workers (adapters-web cli-worker), and workers cannot use an import map. The path is
+// this package's own pnpm link, so Node and the served page resolve the same file (#314).
+import { jsonrepair } from "../../../node_modules/jsonrepair/lib/esm/index.js";
 
 // ── CR.4 M3: the pure decision layer, shared rather than duplicated ────────────
 // `llm-round.js` runs the SAME escalation ladder without performing IO. Two
@@ -102,7 +107,23 @@ function parseJsonLenient(responseText) {
       }
     }
   }
-  return null;
+  return repairJsonObject(candidates[0]);
+}
+
+/**
+ * Second programmatic attempt (#188), after the cheap repairs above and before the
+ * response is tagged `invalid_json` and costs a model round-trip: single quotes, unquoted
+ * keys, unescaped quotes, missing closing brackets, truncated output. Only an object
+ * counts; repair turns plain prose into a bare string, which is still unparseable here.
+ */
+function repairJsonObject(candidate) {
+  if (!isNonEmptyString(candidate)) return null;
+  try {
+    const value = JSON.parse(jsonrepair(candidate));
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 function extractJsonObject(text) {
