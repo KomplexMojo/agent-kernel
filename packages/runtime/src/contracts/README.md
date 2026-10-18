@@ -94,7 +94,9 @@ light/dark field observations and re-observes defeat without another pulse.
 writes, spends one actor pool and returns suppression with caster provenance. A cast
 meets the same receiver rules as a field (`rules/actor-receiver.ts`, #348): a same-kind
 draw absorbs it into mana, a same-kind slot the interaction table makes immune takes
-nothing, an opposite slot doubles damage and drain. A cast at oneself meets none of them. A run's
+nothing, an opposite slot doubles damage and drain. A cast at oneself meets none of them. The price
+is taken after a cast's effect, so mana the cast brings back to its caster (a mana steal, a mana
+restore on itself) never refunds it: every use costs mana (#369). A run's
 `actionCosts` carries `castManaBase` (per-kind base; a cast costs `base * s(s+1)/2`,
 uncapped, #232); core has no other cast price model. An artifact written before #232
 with five-tier `castMana` tables loads on the same curve: `runner/core-setup.mjs` takes
