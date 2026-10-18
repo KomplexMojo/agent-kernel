@@ -3,12 +3,12 @@ import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorPosition, ActorAffinityEntry, ActorRecord } from '../state/actor-types.ts';
 import { affinityIntensity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { AFFINITY_KIND_BY_CODE, AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
-import { getOppositeAffinityKind, resolveAffinityRelationshipCode, AffinityRelationship } from '../state/affinity.ts';
-import { computeAffinityFalloff, computeAffinityRadius, cancelAffinityOverlap,
-  deriveAffinityInteractionCell, AffinityEffect, OPPOSITE_EXPOSURE_AMPLIFICATION } from '../state/affinity-spatial.ts';
+import { getOppositeAffinityKind } from '../state/affinity.ts';
+import { computeAffinityFalloff, computeAffinityRadius, cancelAffinityOverlap } from '../state/affinity-spatial.ts';
 import { actorAffinityMagnitude, evaluateActorAffinityReceiver, getActorAffinityEffect, type ActorVitalChange } from './actor-affinity.ts';
 import { changeActorVital } from '../state/actor-vitals.ts';
 import { resolveActorExposures, type ActorExposureSource } from './actor-exposure.ts';
+import { receiverAffinityAmount } from './actor-receiver.ts';
 import { litActorAffinities } from './actor-upkeep.ts';
 
 const KIND_CODES = Object.fromEntries(Object.entries(AFFINITY_KIND_BY_CODE).map(([code, name]) => [name, Number(code)]));
@@ -24,28 +24,6 @@ type Registry = ReturnType<typeof createActorRegistry>;
 /** One field per lit slot: exposure budgets are keyed by source and affinity. */
 export function fieldSlotKey(sourceId: string, pair: Pick<ActorAffinityEntry, 'kind' | 'expression'>): string {
   return `${sourceId}|${pair.kind}:${pair.expression}`;
-}
-
-/**
- * Receiver rules over every equipped slot: a matching draw absorbs first (the
- * exposure resolver routes it into mana), then a same-kind slot that the
- * interaction table makes immune takes nothing, then any opposite slot doubles
- * damage and drain.
- */
-function receiverExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, amount: number, operation: string): number {
-  const equipped = equippedActorAffinities(receiver);
-  if (!equipped.length) return amount;
-  if (equipped.some(pair => pair.kind === cell.kind && pair.expression === 'draw')
-    && (cell.expression === 'push' || cell.expression === 'emit')) return amount;
-  const relationships = equipped.map(pair => {
-    const relationship = resolveAffinityRelationshipCode(KIND_CODES[cell.kind], KIND_CODES[pair.kind]);
-    return { relationship, interaction: deriveAffinityInteractionCell(EXPRESSION_CODES[cell.expression], EXPRESSION_CODES[pair.expression], relationship) };
-  });
-  if (relationships.some(({ relationship, interaction }) => relationship === AffinityRelationship.Same
-    && interaction?.targetEffect === AffinityEffect.None)) return 0;
-  if (relationships.some(({ relationship }) => relationship === AffinityRelationship.Opposite)
-    && (operation === 'damage' || operation === 'drain')) return amount * OPPOSITE_EXPOSURE_AMPLIFICATION;
-  return amount;
 }
 
 /** Receiver-local exposure before finite source budgets and vital routing. No mutation.
@@ -65,7 +43,7 @@ function rawFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, loc
     return localCells.some(pending => pending.sourceId === receiver.id
       && pending.kind === cell.kind && pending.expression === 'emit') ? amount : 0;
   }
-  return receiverExposureAmount(receiver, cell, amount, operation);
+  return receiverAffinityAmount(receiver, cell, amount);
 }
 
 /** Receiver-local forecast from projected cells, before other receivers consume exposure.
