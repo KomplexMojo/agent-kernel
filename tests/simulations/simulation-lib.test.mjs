@@ -1,5 +1,6 @@
 // The rule checks the simulation tests rely on, against small hand-built run records.
 import {
+  IDLE_ATTACKER_LIMIT,
   REFUSED_STREAK_LIMIT,
   SILENT_STREAK_LIMIT,
   analyzeRun,
@@ -49,6 +50,48 @@ test("a silent mobile actor is a violation; a silent stationary one is not", () 
   const analysis = analyzeRun({ initialState: { actors: [mover, holder] }, frames: frames(quiet) });
   const silent = checkRules({ args: [] }, analysis).filter((v) => v.rule === "silent_actor").map((v) => v.actor);
   expect(silent).toEqual(["m-1"]);
+});
+
+// #415: an attacking actor with a hostile in its cast reach must land a cast now and then.
+const fighter = (id, alignment, motivations, x) => ({
+  id, alignment, position: { x, y: 1 }, lifecycle: "alive", motivations, capabilities: { canMove: true },
+  vitals: { health: { current: 10, max: 10, regen: 1 }, mana: { current: 10, max: 10, regen: 1 } },
+  affinities: [{ kind: "decay", expression: "pull", stacks: 2 }], activeAffinityKey: "decay:pull",
+});
+
+test("an attacker with a hostile in reach that lands no cast for the limit is a violation", () => {
+  const attacker = fighter("w-1", "dungeon", ["attacking"], 1);
+  const target = fighter("d-1", "external", ["exploring"], 3);
+  const idle = { proposed: { "w-1": 1, "d-1": 1 }, accepted: [{ actorId: "d-1", kind: "move" }], actors: [attacker, target] };
+  const cast = { ...idle, accepted: [{ actorId: "w-1", kind: "cast_affinity" }] };
+  const rules = (ticks) => checkRules({ args: [] }, analyzeRun({ initialState: { actors: [attacker, target] }, frames: frames(ticks) }))
+    .filter((v) => v.rule === "idle_attacker");
+  expect(rules([...Array(IDLE_ATTACKER_LIMIT - 1).fill(idle), cast, ...Array(IDLE_ATTACKER_LIMIT - 1).fill(idle)])).toEqual([]);
+  expect(rules(Array(IDLE_ATTACKER_LIMIT).fill(idle)).map((v) => v.actor)).toEqual(["w-1"]);
+});
+
+test("an attacker with nobody hostile in reach, or a non-attacker in reach, is not an idle attacker", () => {
+  const attacker = fighter("w-1", "dungeon", ["attacking"], 1);
+  const far = fighter("d-1", "external", ["exploring"], 4);
+  const ally = fighter("w-2", "dungeon", ["exploring"], 2);
+  const holder = fighter("w-3", "dungeon", ["defending"], 5);
+  const actors = [attacker, far, ally, holder];
+  const analysis = analyzeRun({ initialState: { actors }, frames: frames(Array(IDLE_ATTACKER_LIMIT).fill({ actors })) });
+  expect(checkRules({ args: [] }, analysis).filter((v) => v.rule === "idle_attacker")).toEqual([]);
+});
+
+test("an attacker whose hostile is in reach but out of its sight (an unlit room) is not an idle attacker", () => {
+  const full = (actor) => ({ ...actor, defeatVital: "health", holdings: [],
+    capabilities: { canMove: true, canCast: true, canEquip: true, canTake: true, canExit: true, blocksMovement: true, blocksSight: false } });
+  const attacker = full(fighter("w-1", "dungeon", ["attacking"], 1));
+  const target = full(fighter("d-1", "external", ["exploring"], 3));
+  const snapshot = (actors) => ({ dimensions: { width: 5, height: 3 }, terrain: Array(15).fill("floor"), actors });
+  const ticks = Array.from({ length: IDLE_ATTACKER_LIMIT }, (_, index) => [
+    { tick: index + 1, phaseDetail: "decide", personaActions: [{ actorId: "w-1", kind: "wait" }] },
+    { tick: index + 1, phaseDetail: "apply", acceptedActions: [], emittedSnapshot: { view: { registry: snapshot([attacker, target]) } } },
+  ]).flat();
+  const analysis = analyzeRun({ initialState: { actors: [attacker, target] }, frames: ticks });
+  expect(checkRules({ args: [] }, analysis).filter((v) => v.rule === "idle_attacker")).toEqual([]);
 });
 
 test("objects seated touching are a violation; a gap of one tile is not", () => {
