@@ -168,7 +168,9 @@ The Actor persona follows a simple loop:
 How motivations are resolved (priority, scoring, veto, etc.) is an implementation detail of the Actor persona and may evolve over time.
 
 Each actor receives its own perception-scoped observation. Levels are unlit: core starts with a sight radius
-of one tile, extended by the stacks of the actor's own light that survive at its tile. Light and dark come from
+of one tile, extended by the stacks of the actor's own light that survive at its tile. Which kinds light a cell and
+which hide one are columns of the affinity table (`illuminates`: fire and light; `conceals`: dark; #416), and sight
+reads those columns; below, "light" means any illuminating kind and "dark" any concealing one. Light and dark come from
 the affinity field, the same projection every vital effect and floor shading read (#288): per cell the field
 cancels the strongest emitted light against the strongest emitted dark, stack for stack, so more light and the cell
 is lit, seen from any distance; more dark and the cell, and anyone in it, is hidden beyond one tile; a tie is
@@ -177,7 +179,9 @@ by two or more stacks, with its own dark left out, blinds it: it sees only its o
 sight (#284); an actor's own dark never blinds it, and never hides a cell from it either: each actor sees the field
 re-resolved without its own dark, while everyone else sees that dark (#409). Light and dark switch on and off like every lasting affinity:
 full strength while on, dark once a drained source switches off until its mana is full again. Core then applies deterministic line of sight: walls and barriers block actors and hazards behind
-them, including diagonal corner peeking. The shared world snapshot is
+them, including diagonal corner peeking. Seeing an actor is not knowing it: a `reveals` kind (light) on its cell, net of
+concealing intensity there, reveals its properties up to that intensity (`readActorRegistryRevealLevels`); the observer's
+own dark is left out. At level 0 only its glyph, colour and role show (#416). The shared world snapshot is
 never mutated, and resources remain absent because actor observations do not currently expose them.
 
 When runtime decisioning is enabled for an actor or boss, the Actor persona now constructs a `runtime-decision-v1`

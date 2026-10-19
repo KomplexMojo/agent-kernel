@@ -21,6 +21,26 @@ and barriers). A receiver without the primary vital takes the whole hit there (#
 | light | mana | restore | steal into the source | none |
 | dark | mana | damage | steal into the source | defeat vital |
 
+## Sight
+
+What a kind's emitted field does to what others see (#416). Illuminates: lights the cell, so what is
+there is seen even under dark. Reveals: shows the properties of an actor on the cell, any value above
+the field's net intensity reading as that intensity with a `+`. Conceals: darkens the cell and hides
+what stands in it; it cancels illumination and revealing by intensity.
+
+| Kind | Illuminates | Reveals | Conceals |
+|---|---|---|---|
+| fire | yes | no | no |
+| water | no | no | no |
+| earth | no | no | no |
+| wind | no | no | no |
+| growth | no | no | no |
+| decay | no | no | no |
+| corrode | no | no | no |
+| fortify | no | no | no |
+| light | yes | yes | no |
+| dark | no | no | yes |
+
 ## Receiver rules
 
 The same for fields and casts:

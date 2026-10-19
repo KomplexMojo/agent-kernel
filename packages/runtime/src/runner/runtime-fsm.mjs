@@ -23,6 +23,7 @@ import {
   readActorRegistryDarkCells,
   readActorRegistryFieldCells,
   readActorRegistryObservation,
+  readActorRegistryRevealLevels,
   readActorRegistryVisibleCells,
   scopeActorRegistryObservation,
 } from "../../../core-ts/src/rules/actor-observation.ts";
@@ -1567,6 +1568,14 @@ export function createFsmRuntime({
      */
     readVisibleCells(actorId) {
       return readVisibleCellsForActor(actorId);
+    },
+
+    /**
+     * How much of each other living actor `actorId` can read right now (#416): core's
+     * reveal level by actor id (`readActorRegistryRevealLevels`); `{}` without the registry.
+     */
+    readRevealLevels(actorId) {
+      return actorRegistry ? readActorRegistryRevealLevels(readActorRegistryObservation(actorRegistry, tick), actorId) : {};
     },
 
     /**

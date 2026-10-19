@@ -68,17 +68,19 @@ test('solver receives the same equipment candidate and its field evaluation', ()
 });
 
 test('equipment evaluation retains contributions when the source actor is unseen', () => {
-  const snapshot = setup({ active: 'water:emit', alternatives: [
-    { kind: 'fire', expression: 'draw', stacks: 2 }, { kind: 'water', expression: 'emit', stacks: 8 },
+  // An opposed pair that does not illuminate (#416), so the emitter stays unseen.
+  const snapshot = setup({ active: 'earth:emit', alternatives: [
+    { kind: 'wind', expression: 'draw', stacks: 2 }, { kind: 'earth', expression: 'emit', stacks: 8 },
   ] }).snapshot();
   snapshot.dimensions.width = 12; snapshot.terrain = Array(12).fill('floor');
   const source = snapshot.actors.find(actor => actor.id === 'source');
   // Intensity 2 so the field still lands a whole point five tiles out (#283 rounds exposure).
-  source.position.x = 5; source.affinities[0].stacks = 8; source.affinities[0].intensity = 2;
+  source.position.x = 5; source.affinities[0] = { kind: 'wind', expression: 'emit', stacks: 8, intensity: 2 };
+  source.activeAffinityKey = 'wind:emit';
   const registry = createActorRegistry(snapshot);
   const observed = scopeActorRegistryObservation(readActorRegistryObservation(registry, 0), 'self');
   expect(observed.actors.some(actor => actor.id === 'source')).toBe(false);
-  expect(decide(registry).actions[0]).toMatchObject({ kind: 'equip_affinity', params: { affinityKey: 'fire:draw' } });
+  expect(decide(registry).actions[0]).toMatchObject({ kind: 'equip_affinity', params: { affinityKey: 'wind:draw' } });
 });
 
 // ## TODO: Test Permutations

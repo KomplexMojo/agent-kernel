@@ -70,6 +70,7 @@ import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
 import { actorCastableAffinities } from "../../../core-ts/src/rules/actor-cast.ts";
 import { actorHoldingsOpen } from "../../../core-ts/src/state/actor-holdings.ts";
+import { revealedValue } from "../../../core-ts/src/rules/actor-observation.ts";
 
 export const PLAY_COMMAND_KINDS = ACTOR_COMMAND_KINDS;
 
@@ -435,6 +436,10 @@ export async function createPlaySession({
         status: status(),
         visible: fogOn ? readVisible() : null,
         explored: fogOn ? explored.get(activeId) ?? null : null,
+        // #416: with fog, others show what light reveals of them; your own party, everything.
+        reveal: fogOn && typeof runtime.readRevealLevels === "function"
+          ? Object.fromEntries(Object.entries(runtime.readRevealLevels(activeId)).filter(([id]) => !partyIds.includes(id)))
+          : null,
         labels,
         field: typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null,
       }),
@@ -527,17 +532,28 @@ function applyFog(frame, visible, explored) {
 }
 
 // One actor as the UI sees it: plain data, vitals as records, the active pair named.
-function toViewActor(actor, presentation, labels) {
+// `revealLevel` is core's reveal level for this actor (#416), or undefined when everything
+// shows (no fog, or one's own party). At 0 only its glyph and role show (and its colour,
+// the kind it has equipped); above 0 its properties show, and any affinity range or
+// intensity above the level reads as the level with a `+` (core's `revealedValue`).
+function toViewActor(actor, presentation, labels, revealLevel) {
   const category = categoryOf(actor, presentation) ?? null;
-  return {
+  const shown = {
     id: actor.id,
     ...(labels?.has(actor.id) ? { label: labels.get(actor.id) } : {}),
     role: category,
     position: { ...actor.position },
-    vitals: structuredClone(actor.vitals),
-    affinities: actor.affinities.map((pair) => ({ ...pair })),
     activeAffinityKey: actor.activeAffinityKey,
     ...(actor.affinityExhausted ? { affinityExhausted: true } : {}),
+  };
+  if (revealLevel === 0) return { ...shown, revealed: 0 };
+  const capped = (value) => (revealLevel === undefined ? value : revealedValue(value, revealLevel));
+  return {
+    ...shown,
+    ...(revealLevel !== undefined ? { revealed: revealLevel } : {}),
+    vitals: structuredClone(actor.vitals),
+    affinities: actor.affinities.map((pair) => ({ ...pair, stacks: capped(pair.stacks),
+      ...(pair.intensity !== undefined || revealLevel !== undefined ? { intensity: capped(pair.intensity ?? 1) } : {}) })),
     // The stack that explains its behaviour (#310); the board glyph never encodes it.
     motivations: [...(actor.motivations ?? [])],
   };
@@ -579,7 +595,7 @@ function lootNextTo(snapshot, player) {
  * @param {object} args.status        { tick, exited, atExit, defeated }
  * @param {Map}    [args.labels]      actor id -> short label; worked out from the snapshot when absent
  */
-export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null }) {
+export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null }) {
   const frame = renderBoard(snapshot, { presentation, legend, playerId });
   const fogged = applyFog(frame, visible, explored);
   const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
@@ -597,7 +613,7 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     status,
     // With fog, only traps in sight right now.
     hazards: others.filter((actor) => categoryOf(actor, presentation) === HAZARD_CATEGORY)
-      .map((actor) => toViewActor(actor, presentation, labels)),
+      .map((actor) => toViewActor(actor, presentation, labels, reveal?.[actor.id])),
     player: player
       ? {
         ...buildActorHudModel({ ...toViewActor(player, presentation, labels), role: categoryOf(player, presentation) }),
@@ -627,7 +643,7 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     // Every OTHER living actor in sight (id, role, position, vitals, affinities), for the
     // UI to draw over the board. Traps are reported in `hazards` instead.
     actors: others.filter((actor) => categoryOf(actor, presentation) !== HAZARD_CATEGORY)
-      .map((actor) => toViewActor(actor, presentation, labels)),
+      .map((actor) => toViewActor(actor, presentation, labels, reveal?.[actor.id])),
   };
 }
 

@@ -13,6 +13,7 @@ const { join, resolve } = require("node:path");
 const { createGame } = require("../../packages/ui-ascii/src/game.js");
 const { INTENT, intentForKey } = require("../../packages/ui-ascii/src/keymap.js");
 const { buildUnifiedLevel, viableVitals } = require("../fixtures/ui-ascii/unified-level.mjs");
+const { AFFINITY_TABLE } = require("../../packages/core-ts/src/state/affinity-table.ts");
 
 const ROOT = resolve(__dirname, "../..");
 const CLI = resolve(ROOT, "packages/ui-ascii/src/cli.mjs");
@@ -32,13 +33,20 @@ const ACTORS = [
   { category: "warden", id: "guard", position: { x: 2, y: 2 }, vitals: viableVitals(), motivations: ["stationary"] },
 ];
 
+// Under fog an unlit actor shows only its glyph and role (#416); a guard carrying a revealing
+// emit lights its own cell, so what it is about can be read.
+const REVEALING_KIND = AFFINITY_TABLE.find((row) => row.reveals).kind;
+const LIT_GUARD = { ...ACTORS[2], affinitySlots: 1, affinities: [{ kind: REVEALING_KIND, expression: "emit", stacks: 1, intensity: 2 }],
+  activeAffinityKey: `${REVEALING_KIND}:emit` };
+const LIT_ACTORS = [ACTORS[0], ACTORS[1], LIT_GUARD];
+
 function partyLevel(actors = ACTORS) {
   return { name: "party-room", ...buildUnifiedLevel({ id: "party_room", tiles: ROOM, actors }) };
 }
 
-function levelFiles() {
+function levelFiles(actors = ACTORS) {
   const dir = mkdtempSync(join(tmpdir(), "ui-ascii-party-"));
-  const { simConfig, initialState } = partyLevel();
+  const { simConfig, initialState } = partyLevel(actors);
   writeFileSync(join(dir, "sim-config.json"), JSON.stringify(simConfig));
   writeFileSync(join(dir, "initial-state.json"), JSON.stringify(initialState));
   return dir;
@@ -78,7 +86,9 @@ test("the screen names everyone in sight by label", async () => {
 
 test("motivations explain behaviour: in sight, in the target panel and in the party line beyond user_controlled (#310)", async () => {
   const pal = { category: "delver", id: "hero-c", position: { x: 2, y: 3 }, vitals: viableVitals(), motivations: ["user_controlled", "exploring"] };
-  const game = await createGame({ levels: [partyLevel([...ACTORS, pal])], showHelp: false });
+  const unlit = await createGame({ levels: [partyLevel([...ACTORS, pal])], showHelp: false });
+  assert.match(unlit.screen(), /In sight: .*W1 guard \(\?\)/, "an unlit guard keeps its motivations hidden");
+  const game = await createGame({ levels: [partyLevel([...LIT_ACTORS, pal])], showHelp: false });
   assert.match(game.screen(), /In sight: .*W1 guard \(stationary\)/);
   assert.match(game.screen(), /Party: \[D1 hero-a\] {2}D2 hero-b {2}D3 hero-c \(exploring\)/,
     "every party member is user_controlled, so only the rest of the stack is shown");
@@ -156,7 +166,7 @@ test("without colour, remembered floor is drawn blank so it never reads as floor
 });
 
 test("--session keeps one game across calls and reopens its own level", () => {
-  const dir = levelFiles();
+  const dir = levelFiles(LIT_ACTORS);
   const session = join(dir, "game.json");
   const first = cli(["--session", session, "--sim-config", join(dir, "sim-config.json"),
     "--initial-state", join(dir, "initial-state.json"), "--keys", "d", "--json", "--no-help"]);
