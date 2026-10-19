@@ -421,10 +421,16 @@ function normalizeUnifiedActorAction(action, defaultTick) {
     return { ...envelope, kind: "move", params: { target: { ...params.target } } };
   }
   if (kind === "cast_affinity") {
-    if (!onlyParams(params, ["targetId"], ["affinityKey"]) || typeof params.targetId !== "string"
-      || (params.affinityKey !== undefined && typeof params.affinityKey !== "string")) return null;
-    return { ...envelope, kind: "cast_affinity", params: { targetId: params.targetId,
-      ...(params.affinityKey !== undefined ? { affinityKey: params.affinityKey } : {}) } };
+    // At an actor (`targetId`) or at a tile (`target`, #413), never both.
+    const atTile = onlyParams(params, ["target"], ["affinityKey"]);
+    if (params.affinityKey !== undefined && typeof params.affinityKey !== "string") return null;
+    const named = params.affinityKey !== undefined ? { affinityKey: params.affinityKey } : {};
+    if (atTile) {
+      if (!params.target || typeof params.target !== "object") return null;
+      return { ...envelope, kind: "cast_affinity", params: { target: { x: params.target.x, y: params.target.y }, ...named } };
+    }
+    if (!onlyParams(params, ["targetId"], ["affinityKey"]) || typeof params.targetId !== "string") return null;
+    return { ...envelope, kind: "cast_affinity", params: { targetId: params.targetId, ...named } };
   }
   if (kind === "equip_affinity") {
     if (!onlyParams(params, ["affinityKey"], ["replaceKey", "stacks", "intensity"]) || typeof params.affinityKey !== "string"

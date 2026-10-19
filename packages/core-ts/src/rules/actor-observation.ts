@@ -4,19 +4,23 @@ import { computeVisibleCells, NET_DARK_OBSCURE_INTENSITY_THRESHOLD, resolveNetLi
   resolveVisibilityRadius, scopeObservation, SIGHT_LIGHT_EXPRESSION } from '../state/visibility.ts';
 import type { ActorRecord, ActorRegistrySnapshot } from '../state/actor-types.ts';
 import { litActorAffinities } from './actor-upkeep.ts';
+import { RAISED_BARRIER_TILE_KIND } from './actor-cast.ts';
 import { AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 
 /** Detached facts; reading an observation never applies exposure or advances time. */
 export function readActorRegistryObservation(registry: Pick<ReturnType<typeof createActorRegistry>, 'snapshot'>, tick: number) {
   const snapshot = registry.snapshot();
   const { width, height } = snapshot.dimensions;
-  const terrainKinds = Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) =>
+  const terrainKinds = Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x): number =>
     snapshot.terrain[y * width + x] === 'wall' || snapshot.terrain[y * width + x] === 'spawn' ? 1 : 0));
   const movementKinds = terrainKinds.map(row => [...row]);
   const sightKinds = terrainKinds.map(row => [...row]);
   for (const actor of snapshot.actors) {
     if (actor.lifecycle !== 'alive') continue;
-    if (actor.capabilities.blocksMovement) movementKinds[actor.position.y][actor.position.x] = 1;
+    // A raised barrier (#413) blocks now but erodes in time: its own kind, unless a wall is there too.
+    if (actor.capabilities.blocksMovement && movementKinds[actor.position.y][actor.position.x] !== 1) {
+      movementKinds[actor.position.y][actor.position.x] = actor.raisedBy !== undefined ? RAISED_BARRIER_TILE_KIND : 1;
+    }
     if (actor.capabilities.blocksSight) sightKinds[actor.position.y][actor.position.x] = 1;
   }
   const projection = projectActorFields(registry);
@@ -119,7 +123,16 @@ export function scopeActorRegistryObservation(observation: RegistryObservation, 
   const scoped = scopeObservation({ ...observation, tiles: { kinds: observation.sightKinds } }, actorId, radius, options);
   const contributions = scopeObservation({ ...observation, affinityFields: observation.affinityContributions,
     tiles: { kinds: observation.sightKinds } }, actorId, radius, options);
-  return { ...scoped, tiles: observation.tiles, affinityContributions: contributions.affinityFields };
+  // The observer walks through the barriers it raised (#413); anything else blocking there still counts.
+  const own = observation.actors.filter(actor => actor.lifecycle === 'alive' && actor.raisedBy === actorId);
+  const kinds = own.length ? observation.tiles.kinds.map(row => [...row]) : observation.tiles.kinds;
+  for (const barrier of own) {
+    const { x, y } = barrier.position;
+    if (kinds[y][x] === RAISED_BARRIER_TILE_KIND && !observation.actors.some(other => other.lifecycle === 'alive'
+      && other.id !== barrier.id && other.raisedBy !== actorId && other.id !== actorId
+      && other.capabilities.blocksMovement && other.position.x === x && other.position.y === y)) kinds[y][x] = 0;
+  }
+  return { ...scoped, tiles: own.length ? { kinds } : observation.tiles, affinityContributions: contributions.affinityFields };
 }
 
 /**

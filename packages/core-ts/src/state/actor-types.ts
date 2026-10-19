@@ -89,6 +89,11 @@ export interface ActorRecordBase {
    * while `affinityExhausted` is true means every equipped slot is off.
    */
   exhaustedAffinityKeys?: ActorAffinityKey[];
+  /**
+   * The actor whose push raised this barrier (#413). Its owner walks through it; it
+   * pays its invested mana down a turn at a time, then erodes. Omitted on authored actors.
+   */
+  raisedBy?: string;
   /** How many affinities the actor can equip at once, 1..6; omitted means 1. */
   affinitySlots?: number;
   capabilities: ActorCapabilities;
@@ -137,7 +142,8 @@ export interface ActorRegistrySnapshot {
 export type ActorAction = { actorId: string; tick: number } & (
   | { kind: "wait"; params?: never }
   | { kind: "move"; params: { target: ActorPosition } }
-  | { kind: "cast_affinity"; params: { targetId: string; affinityKey?: ActorAffinityKey } }
+  | { kind: "cast_affinity"; params: { targetId: string; target?: never; affinityKey?: ActorAffinityKey }
+    | { target: ActorPosition; targetId?: never; affinityKey?: ActorAffinityKey } }
   | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey; replaceKey?: ActorAffinityKey; stacks?: number; intensity?: number } }
   | { kind: "unequip_affinity"; params: { affinityKey: ActorAffinityKey } }
   | { kind: "take"; params: { targetId: string; holdingId: string } }

@@ -1,5 +1,6 @@
 import { EIGHT_WAY_DELTAS } from "../_shared/movement-directions.js";
 import { ASCII_TERRAIN_GLYPHS } from "../../render/visualization-snapshot.js";
+import { RAISED_BARRIER_TILE_KIND } from "../../../../core-ts/src/rules/actor-cast.ts";
 
 /**
  * Proposal geometry helpers for Actor motivation modules.
@@ -194,7 +195,20 @@ export function isDiagonalStepAllowed(current, next, tileKinds, baseTiles) {
     && isPassable({ x: current.x, y: current.y + dy }, tileKinds, baseTiles);
 }
 
+/**
+ * A route from `start` to `goal`. A raised barrier (#413) blocks now but erodes in time:
+ * the route goes round one when it can, and through it only when there is no other way,
+ * so the actor waits it out at the barrier rather than deciding the goal is unreachable.
+ */
 export function findPath(start, goal, tileKinds, baseTiles) {
+  const route = findOpenPath(start, goal, tileKinds, baseTiles);
+  if (route || !tileKinds?.some?.((row) => Array.isArray(row) && row.includes(RAISED_BARRIER_TILE_KIND))) return route;
+  const opened = tileKinds.map((row) => (Array.isArray(row)
+    ? row.map((kind) => (kind === RAISED_BARRIER_TILE_KIND ? 0 : kind)) : row));
+  return findOpenPath(start, goal, opened, baseTiles);
+}
+
+function findOpenPath(start, goal, tileKinds, baseTiles) {
   if (!start || !goal) return null;
   if (start.x === goal.x && start.y === goal.y) return [start];
   const height = tileKinds ? tileKinds.length : baseTiles ? baseTiles.length : 0;

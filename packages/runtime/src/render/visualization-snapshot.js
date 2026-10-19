@@ -33,6 +33,8 @@ export const ASCII_TERRAIN_GLYPHS = Object.freeze({
 
 /** The glyph for a cell the viewer has not seen (fog of war); `resource-bundle.js` maps it to the `fog` tile. */
 export const ASCII_FOG_GLYPH = "?";
+/** The tile a cast is being aimed at (#413), drawn over the board while aiming. */
+export const ASCII_AIM_GLYPH = "+";
 
 /**
  * An actor's glyph, read the way this snapshot reads it (`inferKind`): a role
