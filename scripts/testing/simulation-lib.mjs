@@ -14,6 +14,9 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { actorCastableAffinities } from "../../packages/core-ts/src/rules/actor-cast.ts";
+import { readActorRegistryObservation, readActorRegistryVisibleCells } from "../../packages/core-ts/src/rules/actor-observation.ts";
+import { createActorRegistry } from "../../packages/core-ts/src/state/actor-registry.ts";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -23,6 +26,8 @@ export const SCENARIO_DIR = join(ROOT, "tests/simulations/scenarios");
 export const REFUSED_STREAK_LIMIT = 5;
 /** Longest run of turns a mobile or fighting actor may propose nothing at all. */
 export const SILENT_STREAK_LIMIT = 20;
+/** Longest run of turns an attacking actor may have a hostile in sight and cast reach without landing a cast (#415). */
+export const IDLE_ATTACKER_LIMIT = 10;
 /** Accepted casts after which an actor must have spent some mana. */
 export const FREE_CAST_LIMIT = 10;
 
@@ -36,6 +41,7 @@ export const RULES = Object.freeze({
   adjacent_objects: "two hazards or resources were seated touching each other",
   authored_vitals: "an actor's vitals differ from the ones its spec authored",
   no_exit: "the scenario expects a delver to leave, and none did",
+  idle_attacker: `an attacking actor had a hostile in sight and cast reach for ${IDLE_ATTACKER_LIMIT}+ turns in a row and landed no cast`,
 });
 
 // Motivations that never move or fight on their own; an actor with only these may stay silent.
@@ -101,7 +107,7 @@ export function analyzeRun({ initialState, frames }) {
       position: actor.position,
       vitals: actor.vitals,
       proposed: 0, accepted: 0, casts: 0, moves: 0,
-      refusedStreak: 0, maxRefusedStreak: 0, silentStreak: 0, maxSilentStreak: 0,
+      refusedStreak: 0, maxRefusedStreak: 0, silentStreak: 0, maxSilentStreak: 0, idleStreak: 0, maxIdleStreak: 0, idleNote: null,
       minVitals: {}, lifecycle: actor.lifecycle, exitedAt: null, defeatedAt: null,
     };
   }
@@ -141,6 +147,7 @@ export function analyzeRun({ initialState, frames }) {
       record.lifecycle = entry.lifecycle;
       record.final = { position: entry.position, vitals: entry.vitals };
     }
+    trackIdleAttackers(actors, frame.emittedSnapshot?.view?.registry, frame.acceptedActions ?? []);
     for (const record of Object.values(actors)) {
       if (record.object || lifecycleBefore.get(record.id) !== "alive") continue;
       const p = proposed[record.id] ?? 0;
@@ -154,6 +161,34 @@ export function analyzeRun({ initialState, frames }) {
     }
   }
   return { ticks, actors, metrics: summarizeMetrics(actors, ticks) };
+}
+
+/**
+ * #415: for each living attacking actor, whether a living actor of another alignment stands
+ * in its sight and within the reach of one of its equipped casts (core's own sight and reach
+ * rules) after this tick, and whether it landed a cast this tick. A streak of such turns
+ * without a cast is counted. A snapshot without terrain (a hand-built record) has no fog.
+ */
+function trackIdleAttackers(actors, snapshot, acceptedActions) {
+  const alive = (snapshot?.actors ?? []).filter((entry) => entry.lifecycle === "alive" && entry.position);
+  const attackers = alive.filter((entry) => actors[entry.id]?.motivations.includes("attacking"));
+  if (!attackers.length) return;
+  const observation = snapshot.dimensions && snapshot.terrain
+    ? readActorRegistryObservation(createActorRegistry(snapshot), 0) : null;
+  for (const entry of attackers) {
+    const record = actors[entry.id];
+    const visible = observation ? readActorRegistryVisibleCells(observation, entry.id) : null;
+    const reach = Math.max(0, ...Object.values(actorCastableAffinities(entry)).map(({ range }) => range));
+    const hostile = alive.find((other) => other.id !== entry.id && other.alignment !== entry.alignment
+      && (!visible || visible[other.position.y]?.[other.position.x])
+      && Math.max(Math.abs(other.position.x - entry.position.x), Math.abs(other.position.y - entry.position.y)) <= reach);
+    const cast = acceptedActions.some((action) => action.actorId === entry.id && action.kind === "cast_affinity");
+    record.idleStreak = hostile && !cast ? record.idleStreak + 1 : 0;
+    if (record.idleStreak > record.maxIdleStreak) {
+      record.maxIdleStreak = record.idleStreak;
+      record.idleNote = `${hostile.id} in reach ${reach}, mana ${entry.vitals?.mana?.current ?? 0}/${entry.vitals?.mana?.max ?? 0}`;
+    }
+  }
 }
 
 function summarizeMetrics(actors, ticks) {
@@ -222,6 +257,9 @@ export function checkRules(scenario, analysis) {
     const mana = record.vitals?.mana;
     if (record.casts >= FREE_CAST_LIMIT && mana && record.minVitals.mana >= mana.max) {
       violations.push({ rule: "cast_without_cost", actor: record.id, detail: `${record.casts} casts` });
+    }
+    if (record.maxIdleStreak >= IDLE_ATTACKER_LIMIT) {
+      violations.push({ rule: "idle_attacker", actor: record.id, detail: `${record.maxIdleStreak} turns; ${record.idleNote}` });
     }
     if (record.defeatedAt !== null && record.defeatedAt <= 1) {
       violations.push({ rule: "tick_one_defeat", actor: record.id });
