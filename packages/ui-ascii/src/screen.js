@@ -17,7 +17,7 @@ import {
   buildAsciiCellStyles,
 } from "../../runtime/src/render/ascii-cell-style.js";
 import { PLAY_SIGHT, PLAYER_MOTIVATION } from "../../runtime/src/runner/play-session.js";
-import { ASCII_ENTITY_GLYPHS, ASCII_TERRAIN_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
+import { ASCII_AIM_GLYPH, ASCII_ENTITY_GLYPHS, ASCII_TERRAIN_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
 
 const BAR_WIDTH = 10;
@@ -300,6 +300,7 @@ export function renderScreen({
   showHelp = true,
   color = false,
   panel = null,
+  aim = null,
   title = `Deepward — ${levelName} (${levelIndex + 1}/${levelCount})`,
   tickLine = `Tick ${view.tick}   Turns ${turns}`,
   helpLines = HELP_LINES,
@@ -311,7 +312,12 @@ export function renderScreen({
   const styles = color ? buildAsciiCellStyles(view.legend) : null;
   const actorCells = color ? actorCellStyles(view) : null;
   const playerPosition = view.player?.position;
-  overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition).forEach((row, y) => {
+  const board = [...overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition)];
+  // The tile a cast is being aimed at (#413).
+  if (aim && typeof board[aim.y] === "string" && aim.x >= 0 && aim.x < board[aim.y].length) {
+    board[aim.y] = `${board[aim.y].slice(0, aim.x)}${ASCII_AIM_GLYPH}${board[aim.y].slice(aim.x + 1)}`;
+  }
+  board.forEach((row, y) => {
     lines.push(`  ${styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y], depthOf(color), view.field?.[y], view.legend?.floor)
       : monoBoardRow(row, view.sight?.[y], view.legend?.floor)}`);
   });

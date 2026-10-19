@@ -1,5 +1,5 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import type { ActorAffinityEntry, ActorAffinityKey, ActorRecord } from '../state/actor-types.ts';
+import type { ActorAffinityEntry, ActorAffinityKey, ActorPosition, ActorRecord } from '../state/actor-types.ts';
 import { affinityIntensity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { actorAffinityMagnitude, getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
 import { receiverAbsorbsAffinity, receiverAffinityAmount } from './actor-receiver.ts';
@@ -98,6 +98,12 @@ export function castFocusedActorAffinity(
   if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');
   const changes: ActorVitalChange[] = [];
   const pay = () => { if (cost > 0) changes.push({ actorId: sourceId, vital: 'mana', delta: registry.changeVital(sourceId, 'mana', -cost) }); };
+  // #413: a pull on a barrier, of any kind, takes it down.
+  if (pair.expression === 'pull' && sourceId !== targetId && isBarrierActor(target)) {
+    pay();
+    const down = registry.changeVital(targetId, target.defeatVital, -target.vitals[target.defeatVital]!.current);
+    return { accepted: true, changes: down !== 0 ? [...changes, { actorId: targetId, vital: target.defeatVital, delta: down }] : changes };
+  }
   const amount = actorAffinityMagnitude(pair.expression, affinityIntensity(pair));
   // The receiver rules fields apply (#348): a same-kind draw absorbs into mana, a same-kind
   // slot the interaction table makes immune takes nothing, an opposite slot doubles harm.
@@ -114,4 +120,102 @@ export function castFocusedActorAffinity(
   const paid = cost > 0 ? registry.changeVital(sourceId, 'mana', -cost) : 0;
   return { accepted: true, changes: [...changes, ...effects,
     ...(paid !== 0 ? [{ actorId: sourceId, vital: 'mana' as const, delta: paid }] : [])] };
+}
+
+/** A barrier: it stands in the way and never moves (the `barrier` preset, authored or raised). */
+export function isBarrierActor(actor: Pick<ActorRecord, 'capabilities'>): boolean {
+  return actor.capabilities.blocksMovement && !actor.capabilities.canMove;
+}
+
+/**
+ * A raised barrier's numbers (#413, Darren 2026-10-18): it is invested with 10 × intensity²
+ * mana and has 10 × intensity² durability. It pays `RAISED_BARRIER_UPKEEP` mana a turn; once
+ * the investment is spent it erodes `RAISED_BARRIER_EROSION` durability a turn until gone.
+ */
+export const RAISED_BARRIER_INVESTMENT_PER_INTENSITY_SQUARED = 10;
+export const RAISED_BARRIER_UPKEEP = 1;
+export const RAISED_BARRIER_EROSION = 1;
+/**
+ * The movement-kind a raised barrier's cell carries in an observation: it blocks now and
+ * erodes in time, so an Actor may route through it when there is no other way (#413).
+ */
+export const RAISED_BARRIER_TILE_KIND = 2;
+
+export function raisedBarrierStats(intensity: number): { mana: number; durability: number } {
+  const amount = RAISED_BARRIER_INVESTMENT_PER_INTENSITY_SQUARED * intensity * intensity;
+  return { mana: amount, durability: amount };
+}
+
+/**
+ * The cells a raise covers (#413): `range` cells in a line across the cast, centred on the
+ * target tile, alternating sides (target, one side, the other, ...). A side stops at the
+ * first cell `isOpen` refuses.
+ */
+export function raisedBarrierCells(from: ActorPosition, target: ActorPosition, range: number,
+  isOpen: (cell: ActorPosition) => boolean = () => true): ActorPosition[] {
+  if (range <= 0 || !isOpen(target)) return [];
+  const dx = Math.sign(target.x - from.x); const dy = Math.sign(target.y - from.y);
+  const across = { x: -dy, y: dx };
+  const cells = [{ x: target.x, y: target.y }];
+  const open = [true, true];
+  for (let step = 1; cells.length < range && (open[0] || open[1]); step += 1) {
+    for (const [side, sign] of [[0, 1], [1, -1]] as const) {
+      if (!open[side] || cells.length >= range) continue;
+      const cell = { x: target.x + sign * step * across.x, y: target.y + sign * step * across.y };
+      if ((across.x === 0 && across.y === 0) || !isOpen(cell)) { open[side] = false; continue; }
+      cells.push(cell);
+    }
+  }
+  return cells;
+}
+
+export interface ActorTileCastResult extends ActorCastResult { raised: string[] }
+
+/**
+ * A cast aimed at a tile (#413). A tile holding a living barrier is a cast at that
+ * barrier. A push into an empty, open tile within range raises a line of barriers of the
+ * caster's kind, owned by the caster, for the push's ordinary price. Anything else is
+ * refused: aiming at other actors by tile is free aim (#414).
+ */
+export function castActorAffinityAtTile(
+  registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital' | 'getActorsAt'
+    | 'isMovementBlocked' | 'raiseBarrierAt'>,
+  sourceId: string, target: ActorPosition, manaCosts: ActorCastPrices, castKey?: ActorAffinityKey,
+): ActorTileCastResult {
+  assertActorCastPrices(manaCosts);
+  const reject = (rejection: string): ActorTileCastResult => ({ accepted: false, changes: [], raised: [], rejection });
+  const source = registry.getActor(sourceId);
+  if (source?.lifecycle !== 'alive') return reject('WrongActor');
+  if (!source.capabilities.canCast) return reject('InvalidCapability');
+  const pair = selectActorCastAffinity(source, castKey);
+  if (typeof pair === 'string') return reject(pair);
+  if (!target || !Number.isSafeInteger(target.x) || !Number.isSafeInteger(target.y)) return reject('InvalidTarget');
+  if (Math.max(Math.abs(source.position.x - target.x), Math.abs(source.position.y - target.y)) > actorCastRange(pair)) {
+    return reject('TargetOutOfRange');
+  }
+  const living = registry.getActorsAt(target).filter(actor => actor.lifecycle === 'alive');
+  const barrier = living.find(isBarrierActor);
+  if (barrier) return { ...castFocusedActorAffinity(registry, sourceId, barrier.id, manaCosts, affinityKey(pair)), raised: [] };
+  const empty = (cell: ActorPosition) => !registry.isMovementBlocked(cell)
+    && !registry.getActorsAt(cell).some(actor => actor.lifecycle === 'alive');
+  if (pair.expression !== 'push' || living.length || !empty(target)) return reject('InvalidTarget');
+  const cost = castManaCost(manaCosts, pair);
+  if (cost === undefined) return reject('InvalidActionValue');
+  if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');
+  const intensity = affinityIntensity(pair);
+  const { mana, durability } = raisedBarrierStats(intensity);
+  const raised: string[] = [];
+  for (const cell of raisedBarrierCells(source.position, target, actorCastRange(pair), empty)) {
+    const id = registry.raiseBarrierAt(cell, {
+      alignment: source.alignment, lifecycle: 'alive', raisedBy: sourceId, defeatVital: 'durability',
+      vitals: { durability: { current: durability, max: durability, regen: 0 }, mana: { current: mana, max: mana, regen: 0 } },
+      capabilities: { canMove: false, canCast: false, canEquip: false, canTake: false, canExit: false,
+        blocksMovement: true, blocksSight: true },
+      motivations: [], affinities: [{ kind: pair.kind, expression: 'push', stacks: 1, intensity }],
+      activeAffinityKey: `${pair.kind}:push`, holdings: [],
+    });
+    if (id) raised.push(id);
+  }
+  const paid = cost > 0 ? registry.changeVital(sourceId, 'mana', -cost) : 0;
+  return { accepted: true, raised, changes: paid !== 0 ? [{ actorId: sourceId, vital: 'mana', delta: paid }] : [] };
 }

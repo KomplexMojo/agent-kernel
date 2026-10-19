@@ -29,7 +29,7 @@ const actingProperties = {
   commands: {
     type: "array",
     description: "Commands to play in order, before keys. Each is { kind, params?, actorId? } with kind move (params.direction: north|south|east|west|northeast|northwest|southeast|southwest), wait, "
-      + "equip_affinity (params.affinityKey \"kind:expression\", optional params.stacks (range) and params.intensity to run it below what it holds), unequip_affinity (params.affinityKey), cast_affinity (params.targetId, optional params.affinityKey) "
+      + "equip_affinity (params.affinityKey \"kind:expression\", optional params.stacks (range) and params.intensity to run it below what it holds), unequip_affinity (params.affinityKey), cast_affinity (params.targetId, or params.target {x,y} for a tile: a push into an empty tile raises barriers, any cast at a barrier's tile hits it; optional params.affinityKey) "
       + "or take (params.targetId, params.holdingId); or { kind: \"switch\", actorId } to change the seat. actorId commands that party member without seating it. Ids may be labels (W1). "
       + "Every command except switch is one turn for the whole level, refused or not.",
     items: { type: "object", additionalProperties: true },

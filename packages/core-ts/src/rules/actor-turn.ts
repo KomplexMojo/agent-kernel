@@ -3,7 +3,8 @@ import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey } from '../state/actor-types.ts';
 import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
-import { assertActorCastPrices, castFocusedActorAffinity, selectActorCastAffinity, type ActorCastManaBases } from './actor-cast.ts';
+import { assertActorCastPrices, castActorAffinityAtTile, castFocusedActorAffinity, selectActorCastAffinity,
+  RAISED_BARRIER_EROSION, RAISED_BARRIER_UPKEEP, type ActorCastManaBases } from './actor-cast.ts';
 import { computeMovementStaminaCost } from './move.ts';
 
 export interface ActorTurnSnapshot {
@@ -114,13 +115,19 @@ export function createActorTurn(
           break;
         }
         case 'cast_affinity': {
-          if (!hasParams(action, ['targetId'], ['affinityKey']) || typeof action.params.targetId !== 'string') break;
+          // A cast names an actor (`targetId`) or a tile (`target`, #413), never both.
+          const atTile = hasParams(action, ['target'], ['affinityKey']);
+          if (!atTile && (!hasParams(action, ['targetId'], ['affinityKey']) || typeof action.params.targetId !== 'string')) break;
+          const tile = atTile ? action.params.target : undefined;
+          if (atTile && (!tile || typeof tile !== 'object' || !Number.isSafeInteger(tile.x) || !Number.isSafeInteger(tile.y))) break;
           const named = action.params.affinityKey;
           if (named !== undefined && !isKey(named)) break;
           const pair = selectActorCastAffinity(actor, named);
           if (typeof pair === 'string') { lastRejection = pair; break; }
           const key = affinityKey(pair);
-          const result = castFocusedActorAffinity(registry, actor.id, action.params.targetId, castPrices(prices), key);
+          const result = tile
+            ? castActorAffinityAtTile(registry, actor.id, { x: tile.x, y: tile.y }, castPrices(prices), key)
+            : castFocusedActorAffinity(registry, actor.id, action.params.targetId!, castPrices(prices), key);
           accepted = result.accepted;
           if (!accepted) lastRejection = result.rejection ?? null;
           break;
@@ -141,6 +148,7 @@ export function createActorTurn(
     regenerate(): boolean {
       if (!state.fieldsResolved || state.regenerated) return false;
       if (prices.persistentUpkeep) registry.chargeAffinityUpkeep(prices.persistentUpkeep);
+      registry.erodeRaisedBarriers(RAISED_BARRIER_UPKEEP, RAISED_BARRIER_EROSION);
       const restedActorIds = registry.snapshot().actors.map(actor => actor.id)
         .filter(actorId => !(state.movedActorIds ?? []).includes(actorId));
       registry.regenerate(regenScales(readActorOverwhelms(registry), restedActorIds));

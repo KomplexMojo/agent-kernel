@@ -666,13 +666,43 @@ test("a cast core refuses says why and costs the turn", async () => {
   assert.match(game.screen(), /Nothing is equipped\. Press i to equip an affinity\./);
 });
 
-test("f with nobody in sight, and g with nothing to take, say so without spending a turn", async () => {
+test("f with nobody in sight aims at a tile, and g with nothing to take says so, without spending a turn", async () => {
   const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: false });
   await press(game, "f");
-  assert.match(game.screen(), /Nothing in sight to cast at\./);
+  assert.equal(game.state().panel, "aim");
+  assert.match(game.screen(), /Aim: the tile under you/);
+  await press(game, "\u001b");
   await press(game, "g");
   assert.match(game.screen(), /Nothing here to take\./);
   assert.equal(game.state().turns, 0);
+});
+
+// #413: aiming at a tile. A move key moves the cursor; Enter casts there. A push into an
+// empty tile raises a barrier; a pull at it would take it down.
+test("aiming a push at an empty tile raises a barrier there for one turn", async () => {
+  const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: false });
+  await press(game, "i1");
+  const turns = game.state().turns;
+  await press(game, "fll");
+  assert.match(game.screen(), /Aim: the tile 2 east of you with water push \(2 tiles away, reaches 3 tiles\)/);
+  assert.match(game.screen(), /  #@\.\+\.#/);
+  assert.equal(game.state().turns, turns);
+  await press(game, "\r");
+  assert.equal(game.state().turns, turns + 1);
+  assert.match(game.screen(), /You cast water push 2 east of you\./);
+  assert.equal(game.view().rows[1][3], game.view().legend.barrier);
+});
+
+test("in the target list a move key switches to aiming at a tile, and Tab goes back", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "i1");
+  await press(game, "f");
+  assert.equal(game.state().panel, "target");
+  await press(game, "j");
+  assert.equal(game.state().panel, "aim");
+  assert.match(game.screen(), /Aim: the tile 1 south of you/);
+  await press(game, "\t");
+  assert.equal(game.state().panel, "target");
 });
 
 test("g takes the loot of a defeated neighbour", async () => {

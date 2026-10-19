@@ -4,7 +4,7 @@
 
 The active implementation reads one actor registry: alignment governs hostility,
 capabilities govern movement/exit/casting, and terminal actors stop deciding.
-Movement actions contain `params.target`; focused casts contain `params.targetId`.
+Movement actions contain `params.target`; focused casts contain `params.targetId`, and casts at a tile (#413) contain `params.target`.
 Only active push/pull equipment supplies focused casting and its range. Cast
 ranking reads shared actor mana. Ordinary walls and floors remain terrain.
 When other actors plug every route to the exit (wardens seated around it), the
@@ -288,6 +288,12 @@ script). The command vocabulary is this persona's (`ACTOR_COMMAND_KINDS`):
   otherwise core casts the first equipped push or pull. On its own turns the Actor proposes a cast
   only from a slot that reaches the target and whose price (the authored `castManaBase` on core's
   `actorCastManaPrice` curve) the actor's mana covers, so it never wastes a turn on a refused cast (#367)
+- `{ kind: "cast_affinity", params: { target: { x, y }, affinityKey? } }` at a tile (#413): a push into an
+  empty tile raises a line of barriers of its kind, any cast at a barrier's tile hits that barrier. The
+  Actor never proposes one on its own turns. Pathing treats a raised barrier (movement kind 2 in the
+  observation, core's `RAISED_BARRIER_TILE_KIND`) as temporary: `findPath` goes round it when it can and
+  through it only when there is no other way, so the actor waits at it rather than giving up; its owner's
+  scoped observation shows it open, since the owner walks through
 - `{ kind: "take", params: { targetId, holdingId } }`
 
 Only the shape is checked. Anything else throws, so a controlled actor never falls back to autonomous

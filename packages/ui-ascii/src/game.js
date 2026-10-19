@@ -4,7 +4,7 @@
  * terminal IO and no rules — `cli.mjs` owns the terminal, the runtime play
  * session owns the simulation.
  */
-import { createPlaySession, replayPlaySession } from "../../runtime/src/runner/play-session.js";
+import { createPlaySession, PLAY_DIRECTION_STEPS, replayPlaySession } from "../../runtime/src/runner/play-session.js";
 import { INTENT } from "./keymap.js";
 import { motivationNote, renderScreen, slotLevelLabel } from "./screen.js";
 
@@ -55,6 +55,15 @@ const LEVELS = Object.freeze({
 function runningLevel(player, pair, field) {
   const running = player?.[LEVELS[field].running]?.[`${pair.kind}:${pair.expression}`];
   return Number.isInteger(running) ? running : LEVELS[field].held(pair);
+}
+
+/** Where an aimed tile is from the player, in steps: "2 east, 1 north of you". */
+function aimLabel(from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const parts = [...(dx ? [`${Math.abs(dx)} ${dx > 0 ? "east" : "west"}`] : []),
+    ...(dy ? [`${Math.abs(dy)} ${dy > 0 ? "south" : "north"}`] : [])];
+  return parts.length ? `${parts.join(", ")} of you` : "under you";
 }
 
 function keyLabel(affinityKey) {
@@ -278,14 +287,34 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       () => `${keyLabel(affinityKey)} now runs at ${name} ${value} of ${held(pair)}.`);
   }
 
-  // Without a slot, core casts the first equipped push or pull.
+  // Without a slot, core casts the first equipped push or pull. With nothing in sight the
+  // cast aims at a tile instead (#413).
   function openTargets(affinityKey) {
     const targets = targetsInSight(session.view());
     if (targets.length === 0) {
-      message = "Nothing in sight to cast at.";
+      openAim(affinityKey);
       return;
     }
     panel = { type: "target", items: targets, index: 0, ...(affinityKey ? { affinityKey } : {}) };
+  }
+
+  // Aiming at a tile (#413): the cursor starts on the player and moves with the move keys.
+  // A push into an empty tile raises a barrier; any cast at a barrier's tile hits it.
+  function openAim(affinityKey, step = null) {
+    const at = session.view().player?.position;
+    if (!at) return;
+    panel = { type: "aim", cursor: { x: at.x + (step?.dx ?? 0), y: at.y + (step?.dy ?? 0) },
+      ...(affinityKey ? { affinityKey } : {}) };
+  }
+
+  async function castAtTile() {
+    const { cursor, affinityKey: named } = panel;
+    panel = null;
+    const player = session.view().player;
+    const used = named ?? equippedKeys(player).find((key) => castable(player)[key]);
+    const at = player?.position ?? cursor;
+    await act({ kind: "cast_affinity", params: { target: { ...cursor }, ...(named ? { affinityKey: named } : {}) } },
+      () => `You cast ${keyLabel(used)} ${aimLabel(at, cursor)}.`);
   }
 
   // A slot's digit outside a panel: aim that slot. Emit and draw need no cast.
@@ -354,7 +383,30 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       panel = null;
       return true;
     }
+    if (panel.type === "aim") {
+      if (intent.type === INTENT.MOVE) {
+        const step = PLAY_DIRECTION_STEPS[intent.direction];
+        panel.cursor = { x: panel.cursor.x + step.dx, y: panel.cursor.y + step.dy };
+        return true;
+      }
+      if (intent.type === INTENT.NEXT_LEVEL || intent.type === INTENT.CAST) {
+        await castAtTile();
+        return true;
+      }
+      if (intent.type === INTENT.NEXT_TARGET) {
+        const { affinityKey } = panel;
+        panel = null;
+        if (targetsInSight(session.view()).length > 0) openTargets(affinityKey);
+        else openAim(affinityKey);
+        return true;
+      }
+    }
     if (panel.type === "target") {
+      // A move key leaves the target list to aim at a tile, one step that way (#413).
+      if (intent.type === INTENT.MOVE) {
+        openAim(panel.affinityKey, PLAY_DIRECTION_STEPS[intent.direction]);
+        return true;
+      }
       if (intent.type === INTENT.NEXT_TARGET) {
         panel.index = (panel.index + 1) % panel.items.length;
         return true;
@@ -477,11 +529,17 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       return ["Take (a number picks, Esc closes):",
         ...panel.items.map((item, i) => `  ${i + 1}) ${item.kind === "vital" ? item.holdingId : lootLabel(item)} from ${item.targetId}`)];
     }
-    const target = panel.items[panel.index];
     const player = session.view().player;
     const key = panel.affinityKey ?? equippedKeys(player).find((k) => castable(player)[k]);
     const reach = key ? castable(player)[key]?.range : undefined;
     const tiles = (n) => `${n} ${n === 1 ? "tile" : "tiles"}`;
+    if (panel.type === "aim") {
+      const at = player?.position ?? panel.cursor;
+      const away = Math.max(Math.abs(panel.cursor.x - at.x), Math.abs(panel.cursor.y - at.y));
+      return [`Aim: the tile ${aimLabel(at, panel.cursor)}${key ? ` with ${keyLabel(key)}` : ""} (${tiles(away)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})`,
+        "  Move keys aim, Enter casts (a push raises a barrier, a pull takes one down), Tab targets, Esc cancels"];
+    }
+    const target = panel.items[panel.index];
     return [`Target: ${target.id}${motivationNote(target.motivations)}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${tiles(target.distance)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})   Tab next, Enter cast, Esc cancel`];
   }
 
@@ -496,6 +554,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       showHelp,
       color,
       panel: panelLines(),
+      aim: panel?.type === "aim" ? panel.cursor : null,
     });
   }
 

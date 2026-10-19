@@ -81,6 +81,9 @@ const reportActorViabilityFloor = createConfiguratorPersona({ clock: UNUSED_CLOC
   .authorCandidates.reportActorViabilityFloor;
 
 export const PLAY_DIRECTIONS = Object.freeze(EIGHT_WAY_DELTAS.map((delta) => delta.direction));
+/** Each direction's step, for a UI moving an aim cursor over the board (#413). */
+export const PLAY_DIRECTION_STEPS = Object.freeze(Object.fromEntries(EIGHT_WAY_DELTAS.map(({ direction, dx, dy }) =>
+  [direction, Object.freeze({ dx, dy })])));
 
 /** An absent command is a wait; everything else is the Actor's vocabulary. */
 export function normalizePlayCommand(command) {
@@ -104,6 +107,12 @@ function toPlayRejection({ action, reason }) {
 const HAZARD_CATEGORY = "hazard";
 const BARRIER_CATEGORY = "barrier";
 export const PLAYER_MOTIVATION = "user_controlled";
+
+// The level's presentation names what each authored actor is; a barrier raised in play
+// (#413) is not in it, and core marks it by its owner.
+function categoryOf(actor, presentation) {
+  return presentation[actor.id]?.category ?? (actor.raisedBy !== undefined ? BARRIER_CATEGORY : null);
+}
 /** The motivation that makes an actor on your side a companion you may order (Darren, #311). */
 export const COMPANION_MOTIVATION = "friendly";
 
@@ -482,7 +491,7 @@ function renderBoard(snapshot, { presentation, legend, playerId }) {
   const grid = baseTiles.map((row) => row.split(""));
   for (const actor of snapshot.actors) {
     if (actor.lifecycle !== "alive") continue;
-    if (presentation[actor.id]?.category === BARRIER_CATEGORY) grid[actor.position.y][actor.position.x] = legend.barrier;
+    if (categoryOf(actor, presentation) === BARRIER_CATEGORY) grid[actor.position.y][actor.position.x] = legend.barrier;
   }
   const player = snapshot.actors.find((actor) => actor.id === playerId && actor.lifecycle !== "exited");
   if (player) grid[player.position.y][player.position.x] = legend.actor;
@@ -519,7 +528,7 @@ function applyFog(frame, visible, explored) {
 
 // One actor as the UI sees it: plain data, vitals as records, the active pair named.
 function toViewActor(actor, presentation, labels) {
-  const category = presentation[actor.id]?.category ?? null;
+  const category = categoryOf(actor, presentation) ?? null;
   return {
     id: actor.id,
     ...(labels?.has(actor.id) ? { label: labels.get(actor.id) } : {}),
@@ -576,7 +585,7 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
   const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
   const player = snapshot.actors.find((actor) => actor.id === playerId && actor.lifecycle !== "exited") || null;
   const others = snapshot.actors.filter((actor) => actor.id !== playerId && actor.lifecycle === "alive"
-    && presentation[actor.id]?.category !== BARRIER_CATEGORY && inSight(actor));
+    && categoryOf(actor, presentation) !== BARRIER_CATEGORY && inSight(actor));
   return {
     tick,
     rows: fogged.rows,
@@ -587,11 +596,11 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     legend: { ...legend, fog: ASCII_FOG_GLYPH },
     status,
     // With fog, only traps in sight right now.
-    hazards: others.filter((actor) => presentation[actor.id]?.category === HAZARD_CATEGORY)
+    hazards: others.filter((actor) => categoryOf(actor, presentation) === HAZARD_CATEGORY)
       .map((actor) => toViewActor(actor, presentation, labels)),
     player: player
       ? {
-        ...buildActorHudModel({ ...toViewActor(player, presentation, labels), role: presentation[player.id]?.category ?? null }),
+        ...buildActorHudModel({ ...toViewActor(player, presentation, labels), role: categoryOf(player, presentation) }),
         ...(labels.has(player.id) ? { label: labels.get(player.id) } : {}),
         affinities: player.affinities.map((pair) => ({ ...pair })),
         activeAffinityKey: player.activeAffinityKey,
@@ -617,7 +626,7 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     loot: player && player.lifecycle === "alive" ? lootNextTo(snapshot, player) : [],
     // Every OTHER living actor in sight (id, role, position, vitals, affinities), for the
     // UI to draw over the board. Traps are reported in `hazards` instead.
-    actors: others.filter((actor) => presentation[actor.id]?.category !== HAZARD_CATEGORY)
+    actors: others.filter((actor) => categoryOf(actor, presentation) !== HAZARD_CATEGORY)
       .map((actor) => toViewActor(actor, presentation, labels)),
   };
 }

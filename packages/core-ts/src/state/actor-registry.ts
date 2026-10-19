@@ -16,7 +16,7 @@ export type ActorMoveRejection = 'WrongActor' | 'InvalidCapability' | 'OutOfBoun
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
   'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'affinityExhausted',
-  'affinitySlots', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks', 'equippedAffinityIntensity',
+  'affinitySlots', 'raisedBy', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks', 'equippedAffinityIntensity',
 ]);
 
 /** Reject values JSON cannot faithfully represent before taking ownership. */
@@ -40,6 +40,11 @@ function assertJson(value: unknown, ancestors = new Set<object>()): void {
 }
 
 function copy<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }
+
+/** True when `barrier` was raised by `owner`, who walks through it (#413). */
+function ownsBarrier(owner: ActorRecord, barrier: ActorRecord): boolean {
+  return barrier.raisedBy === owner.id;
+}
 
 /**
  * Registry component for the unified engine. No action execution or tick advance.
@@ -75,6 +80,9 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     if (record.affinityExhausted !== undefined && record.affinityExhausted !== true) {
       throw new Error('invalid affinity exhaustion');
     }
+    if (record.raisedBy !== undefined && (typeof record.raisedBy !== 'string' || !record.raisedBy)) {
+      throw new Error('invalid raised barrier owner');
+    }
     const actor = copy(record);
     validateActorRecordVitals(actor);
     validateActorInventory(actor);
@@ -84,7 +92,8 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     const cell = index(actor.position);
     const occupants = occupancy.get(cell) ?? [];
     if (actor.lifecycle === 'alive' && actor.capabilities.blocksMovement
-      && occupants.some(other => other.lifecycle === 'alive' && other.capabilities.blocksMovement)) {
+      && occupants.some(other => other.lifecycle === 'alive' && other.capabilities.blocksMovement
+        && !ownsBarrier(actor, other) && !ownsBarrier(other, actor))) {
       throw new Error('conflicting blocking occupancy');
     }
     actors.set(actor.id, actor);
@@ -113,7 +122,7 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     if (Math.max(Math.abs(actor.position.x - target.x), Math.abs(actor.position.y - target.y)) !== 1) return 'NotAdjacent';
     if (terrainBlocks(target)) return 'BlockedByWall';
     if (actor.capabilities.blocksMovement && (occupancy.get(index(target)) ?? []).some(other => other.lifecycle === 'alive'
-      && other.capabilities.blocksMovement)) return 'ActorCollision';
+      && other.capabilities.blocksMovement && !ownsBarrier(actor, other))) return 'ActorCollision';
     return null;
   }
   return {
@@ -146,6 +155,38 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     /** Lasting affinities pay their per-turn upkeep; call before regenerate(). */
     chargeAffinityUpkeep(upkeepByStacks: readonly number[]): void {
       for (const actor of ordered) chargeActorAffinityUpkeep(actor, upkeepByStacks);
+    },
+    /**
+     * Raised barriers (#413) pay `upkeep` mana a turn from what they were invested with;
+     * one that cannot pay erodes `erosion` durability instead, until it is gone.
+     */
+    erodeRaisedBarriers(upkeep: number, erosion: number): void {
+      for (const actor of ordered) {
+        if (actor.lifecycle !== 'alive' || actor.raisedBy === undefined) continue;
+        const mana = actor.vitals.mana;
+        if (mana && mana.current >= upkeep) changeActorVital(actor, 'mana', -upkeep);
+        else changeActorVital(actor, actor.defeatVital, -erosion);
+        exposeDefeatHoldings(actor);
+      }
+    },
+    /**
+     * Raise one barrier actor at an empty, open cell (#413); false when the cell is a wall,
+     * out of bounds or holds a living actor. Ids are `barrier:x:y`, suffixed when reused.
+     */
+    raiseBarrierAt(point: ActorPosition, record: Omit<ActorRecord, 'id' | 'position'>): string | null {
+      if (terrainBlocks(point) || (occupancy.get(index(point)) ?? []).some(actor => actor.lifecycle === 'alive')) return null;
+      let id = `barrier:${point.x}:${point.y}`;
+      for (let n = 1; actors.has(id); n += 1) id = `barrier:${point.x}:${point.y}:${n}`;
+      const actor = copy({ ...record, id, position: { x: point.x, y: point.y } }) as ActorRecord;
+      validateActorRecordVitals(actor);
+      validateActorInventory(actor);
+      validateActorHoldings(actor);
+      actors.set(id, actor);
+      const occupants = occupancy.get(index(point)) ?? [];
+      occupants.push(actor);
+      occupancy.set(index(point), occupants);
+      refreshOrder();
+      return id;
     },
     /** `scaleByActor` multiplies regen per actor and vital this turn (overwhelm, #289). */
     regenerate(scaleByActor: Readonly<Record<string, Partial<Record<ActorVitalKind, number>>>> = {}): void {

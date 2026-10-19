@@ -73,7 +73,11 @@ Every acting key is a turn, a blocked move included. The full table is in
 `packages/ui-ascii/README.md`.
 
 `Tab` (outside a list) plays the next party member. Over MCP, prefer `commands` to keys for
-anything aimed: `{ kind: "cast_affinity", params: { targetId: "W1" } }`.
+anything aimed: `{ kind: "cast_affinity", params: { targetId: "W1" } }`. A cast at a tile is
+`params: { target: { x, y } }`: a push into an empty tile raises barriers its caster walks through,
+any cast at a barrier's tile hits it, and a pull takes it down (#413). A cast at a tile is
+`params: { target: { x, y } }`: a push into an empty tile raises barriers its caster walks through,
+any cast at a barrier's tile hits it, and a pull takes it down (#413).
 
 Affinities read `fire push r6 ×2`: range 6 (how far it reaches), intensity 2 (its strength; a
 hit is base × intensity²). A slot run lower shows running/held, e.g. `r2/6 ×1/2`. Specs write
