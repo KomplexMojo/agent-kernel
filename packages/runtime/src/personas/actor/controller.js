@@ -1486,7 +1486,8 @@ const isAffinityKey = (value) => typeof value === "string" && AFFINITY_KEY_PATTE
 
 /**
  * The command vocabulary is the Actor's:
- *   - `{ kind: "move", params: { direction } }` (an EIGHT_WAY direction name)
+ *   - `{ kind: "move", params: { direction, sprint? } }` (an EIGHT_WAY direction name; `sprint: true`
+ *     takes two steps that way in one turn for more stamina, #437)
  *   - `{ kind: "wait" }`
  *   - `{ kind: "equip_affinity", params: { affinityKey, replaceKey?, stacks?, intensity? } }` ("<kind>:<expression>";
  *     `replaceKey` names the equipped slot to swap out, else core fills a free slot or the oldest;
@@ -1540,7 +1541,11 @@ export function normalizeActorCommand(command) {
       if (!DEFAULT_DELTAS.some((entry) => entry.direction === direction)) {
         throw new Error(`Actor command: unknown direction ${JSON.stringify(direction)} (expected ${DEFAULT_DELTAS.map((e) => e.direction).join(", ")}).`);
       }
-      return { kind: "move", params: { direction } };
+      const sprint = command.params?.sprint;
+      if (sprint !== undefined && typeof sprint !== "boolean") {
+        throw new Error(`Actor command: move needs params.sprint to be true or false (received ${JSON.stringify(sprint)}).`);
+      }
+      return { kind: "move", params: { direction, ...(sprint ? { sprint: true } : {}) } };
     }
   }
 }
@@ -1561,10 +1566,12 @@ function buildCommandProposals({ command, observationView, observation, actorId 
   const delta = DEFAULT_DELTAS.find((entry) => entry.direction === direction);
   const from = resolveActor(observationView, actorId, observation)?.position;
   if (!from) return [];
-  return [{
-    kind: "move",
-    params: { target: { x: from.x + delta.dx, y: from.y + delta.dy } },
-  }];
+  const step = { x: from.x + delta.dx, y: from.y + delta.dy };
+  // A sprint (#437) is two steps the same way; core checks both and prices it.
+  if (normalized.params.sprint) {
+    return [{ kind: "move", params: { target: { x: step.x + delta.dx, y: step.y + delta.dy }, via: step } }];
+  }
+  return [{ kind: "move", params: { target: step } }];
 }
 
 /**

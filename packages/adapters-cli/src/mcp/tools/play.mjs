@@ -28,13 +28,13 @@ const actingProperties = {
   actor: stringSchema("Seat this party member first (its id or label, e.g. D2). Free: no turn passes. Only actors authored user_controlled can be seated."),
   commands: {
     type: "array",
-    description: "Commands to play in order, before keys. Each is { kind, params?, actorId? } with kind move (params.direction: north|south|east|west|northeast|northwest|southeast|southwest), wait, "
+    description: "Commands to play in order, before keys. Each is { kind, params?, actorId? } with kind move (params.direction: north|south|east|west|northeast|northwest|southeast|southwest; params.sprint true takes two tiles in one turn for more stamina), wait, "
       + "equip_affinity (params.affinityKey \"kind:expression\", optional params.stacks (range) and params.intensity to run it below what it holds), unequip_affinity (params.affinityKey), cast_affinity (params.targetId, or params.target {x,y} for a tile: a push into an empty tile raises barriers, any cast at a barrier's tile hits it; optional params.affinityKey) "
       + "or take (params.targetId, params.holdingId); or { kind: \"switch\", actorId } to change the seat. actorId commands that party member without seating it. Ids may be labels (W1). "
       + "Every command except switch is one turn for the whole level, refused or not.",
     items: { type: "object", additionalProperties: true },
   },
-  keys: stringSchema("Keys to play after commands, as in ak_play_ascii: w/a/s/d or h/j/k/l move, y/u/b/n diagonals, '.' waits, g takes loot. Each acting key is one turn."),
+  keys: stringSchema("Keys to play after commands, as in ak_play_ascii: w/a/s/d or h/j/k/l move, y/u/b/n diagonals, upper case (or x before a move) sprints two tiles, '.' waits, g takes loot. Each acting key is one turn."),
 };
 
 const playSpec = [

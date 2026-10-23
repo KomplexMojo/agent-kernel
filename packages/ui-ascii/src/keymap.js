@@ -22,10 +22,12 @@ export const INTENT = Object.freeze({
   ORDER: "order",
   INTENSITY_UP: "intensity_up",
   INTENSITY_DOWN: "intensity_down",
+  SPRINT: "sprint",
 });
 
 const MOVE_KEYS = Object.freeze({
-  // Arrow keys (ANSI cursor sequences, normal and application mode)
+  // Arrow keys (ANSI cursor sequences, normal and application mode); shift+arrow is the
+  // same with modifier 2 (`\u001b[1;2A`), read as a sprint below
   "\u001b[A": "north",
   "\u001b[B": "south",
   "\u001b[C": "east",
@@ -67,6 +69,7 @@ const OTHER_KEYS = Object.freeze({
   "-": INTENT.LEVEL_DOWN,
   "]": INTENT.INTENSITY_UP,
   "[": INTENT.INTENSITY_DOWN,
+  x: INTENT.SPRINT,
   q: INTENT.QUIT,
   "\u0003": INTENT.QUIT, // Ctrl-C
   "\u001b": INTENT.QUIT, // bare Esc
@@ -75,8 +78,11 @@ const OTHER_KEYS = Object.freeze({
 /** @returns {{type: string, direction?: string, index?: number} | null} */
 export function intentForKey(key) {
   if (typeof key !== "string" || key.length === 0) return null;
+  // Sprint (#437): shift with a move key, i.e. an upper-case letter or shift+arrow.
+  const shiftedArrow = /^\u001b\[1;2([ABCD])$/.exec(key);
+  if (shiftedArrow) return { type: INTENT.MOVE, direction: MOVE_KEYS[`\u001b[${shiftedArrow[1]}`], sprint: true };
   const direction = MOVE_KEYS[key] ?? MOVE_KEYS[key.toLowerCase()];
-  if (direction) return { type: INTENT.MOVE, direction };
+  if (direction) return { type: INTENT.MOVE, direction, ...(key.length === 1 && key !== key.toLowerCase() ? { sprint: true } : {}) };
   if (/^[1-9]$/.test(key)) return { type: INTENT.SELECT, index: Number(key) - 1 };
   const type = OTHER_KEYS[key] ?? OTHER_KEYS[key.toLowerCase()];
   return type ? { type } : null;
@@ -90,7 +96,12 @@ export function splitKeys(chunk) {
   const keys = [];
   const text = String(chunk ?? "");
   for (let i = 0; i < text.length; i += 1) {
-    if (text[i] === "\u001b" && (text[i + 1] === "[" || text[i + 1] === "O") && i + 2 < text.length) {
+    // A CSI sequence may carry parameters before its final letter (shift+arrow is `\u001b[1;2A`).
+    const csi = text[i] === "\u001b" && text[i + 1] === "[" ? /^\u001b\[[0-9;]*[A-Za-z~]/.exec(text.slice(i)) : null;
+    if (csi) {
+      keys.push(csi[0]);
+      i += csi[0].length - 1;
+    } else if (text[i] === "\u001b" && text[i + 1] === "O" && i + 2 < text.length) {
       keys.push(text.slice(i, i + 3));
       i += 2;
     } else {
@@ -101,7 +112,7 @@ export function splitKeys(chunk) {
 }
 
 export const HELP_LINES = Object.freeze([
-  "Move: arrows / WASD / hjkl   Diagonals: y u b n",
+  "Move: arrows / WASD / hjkl   Diagonals: y u b n   Sprint 2 tiles: shift+move, or x then a move",
   "Wait: . or space   Restart: r   Next level: Enter   Quit: q",
   "Affinities: i, then 1-9 to equip or unequip   Take: g",
   "In the affinity list: Tab picks a row, + / - run it at more or less range, ] / [ at more or less intensity",

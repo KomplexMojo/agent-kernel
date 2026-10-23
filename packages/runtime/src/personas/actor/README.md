@@ -281,7 +281,8 @@ That explicit manual mode now runs on the same `solver_request` transport:
 A `propose` payload may carry `command`, the decision of whoever controls that actor (a player, a
 script). The command vocabulary is this persona's (`ACTOR_COMMAND_KINDS`):
 
-- `{ kind: "move", params: { direction } }` with an eight-way direction name
+- `{ kind: "move", params: { direction, sprint? } }` with an eight-way direction name; `sprint: true`
+  proposes two steps that way (`params: { target, via }`), which core checks and prices as a sprint (#437)
 - `{ kind: "wait" }`
 - `{ kind: "equip_affinity", params: { affinityKey, replaceKey?, stacks? } }` with `"<kind>:<expression>"` keys;
   `replaceKey` names the equipped slot to swap out, otherwise core fills a free slot or replaces the oldest;

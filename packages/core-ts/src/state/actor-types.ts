@@ -146,7 +146,8 @@ export interface ActorRegistrySnapshot {
 /** Mechanical action vocabulary; runtime supplies artifact envelopes. */
 export type ActorAction = { actorId: string; tick: number } & (
   | { kind: "wait"; params?: never }
-  | { kind: "move"; params: { target: ActorPosition } }
+  // `via` makes it a sprint (#437): two steps in one turn, `via` then `target`.
+  | { kind: "move"; params: { target: ActorPosition; via?: ActorPosition } }
   | { kind: "cast_affinity"; params: { targetId: string; target?: never; affinityKey?: ActorAffinityKey }
     | { target: ActorPosition; targetId?: never; affinityKey?: ActorAffinityKey } }
   | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey; replaceKey?: ActorAffinityKey; stacks?: number; intensity?: number } }
