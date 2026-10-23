@@ -97,7 +97,10 @@ meets the same receiver rules as a field (`rules/actor-receiver.ts`, #348): a sa
 draw absorbs it into mana, a same-kind slot the interaction table makes immune takes
 nothing, an opposite slot doubles damage and drain. A cast at oneself meets none of them. The price
 is taken after a cast's effect, so mana the cast brings back to its caster (a mana steal, a mana
-restore on itself) never refunds it: every use costs mana (#369). A run's
+restore on itself) never refunds it: every use costs mana (#369). A kind whose table row has the
+`displace` trait (#419) also moves what its cast hits: a push one cell away from the caster, a pull
+one cell toward it, two cells at intensity 3 or more, each step only into a free cell; the result
+lists the move as `displaced`. A run's
 `actionCosts` carries `castManaBase` (per-kind base; a cast costs `base * intensity * r(r+1)/2`
 of its range, uncapped, #232, #340); core has no other cast price model. An artifact written before #232
 with five-tier `castMana` tables loads on the same curve: `runner/core-setup.mjs` takes

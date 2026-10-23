@@ -25,9 +25,15 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from './actor-t
  *   the field's net intensity; `conceals` darkens the cell and hides what stands in it. Light
  *   has all but conceals, fire only illuminates, dark only conceals. Sight and reveal read
  *   these columns, so a kind opts in by its row, never by code.
+ * - `trait` (#419, Darren 2026-10-18): the kind's physical identity beyond the vital it hits,
+ *   or null. `displace` (wind): a push moves what it hits one cell away from the caster, a pull
+ *   one cell toward it (rules/actor-cast.ts). `soak` (water, #420), `spread` (fire, #421) and
+ *   `raise` (earth; raising barriers itself is open to every kind, #442) are recorded here;
+ *   only `displace` has a rule so far. Code reads the column, never a kind name.
  */
 export type AffinityOutwardOperation = 'damage' | 'restore';
 export type AffinityInwardOperation = 'drain';
+export type AffinityTrait = 'displace' | 'soak' | 'spread' | 'raise';
 export type AffinityFormulaId = keyof typeof AFFINITY_FORMULAS;
 
 export interface AffinityTableRow {
@@ -39,6 +45,7 @@ export interface AffinityTableRow {
   readonly illuminates: boolean;
   readonly reveals: boolean;
   readonly conceals: boolean;
+  readonly trait: AffinityTrait | null;
   readonly formulas: Readonly<Record<'magnitude' | 'reach' | 'castMana' | 'upkeep', AffinityFormulaId>>;
 }
 
@@ -73,18 +80,18 @@ const FORMULAS = Object.freeze({
   upkeep: 'upkeep_table_at_range_plus_intensity',
 } as const);
 
-type SightColumns = { illuminates?: boolean; reveals?: boolean; conceals?: boolean };
+type RowColumns = { illuminates?: boolean; reveals?: boolean; conceals?: boolean; trait?: AffinityTrait | null };
 const row = (kind: AffinityKind, primaryVital: ActorVitalKind, outward: AffinityOutwardOperation,
   inward: AffinityInwardOperation, spill: 'defeat' | null,
-  { illuminates = false, reveals = false, conceals = false }: SightColumns = {}): AffinityTableRow =>
-  Object.freeze({ kind, primaryVital, outward, inward, spill, illuminates, reveals, conceals, formulas: FORMULAS });
+  { illuminates = false, reveals = false, conceals = false, trait = null }: RowColumns = {}): AffinityTableRow =>
+  Object.freeze({ kind, primaryVital, outward, inward, spill, illuminates, reveals, conceals, trait, formulas: FORMULAS });
 
 /** In affinity-codebook order. */
 export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
-  row('fire', 'durability', 'damage', 'drain', 'defeat', { illuminates: true }),
-  row('water', 'stamina', 'damage', 'drain', 'defeat'),
-  row('earth', 'durability', 'damage', 'drain', 'defeat'),
-  row('wind', 'stamina', 'damage', 'drain', 'defeat'),
+  row('fire', 'durability', 'damage', 'drain', 'defeat', { illuminates: true, trait: 'spread' }),
+  row('water', 'stamina', 'damage', 'drain', 'defeat', { trait: 'soak' }),
+  row('earth', 'durability', 'damage', 'drain', 'defeat', { trait: 'raise' }),
+  row('wind', 'stamina', 'damage', 'drain', 'defeat', { trait: 'displace' }),
   row('growth', 'health', 'restore', 'drain', null),
   row('decay', 'health', 'damage', 'drain', 'defeat'),
   row('corrode', 'durability', 'damage', 'drain', 'defeat'),
