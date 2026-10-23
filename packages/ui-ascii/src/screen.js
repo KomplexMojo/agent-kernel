@@ -256,7 +256,7 @@ export function partyLine(party) {
 export function hudLine(view, { turns } = {}) {
   const player = view.player;
   const who = player ? `${player.label ? `${player.label} ` : ""}${player.id}` : "nobody seated";
-  const vitals = presentVitals(player).map((vital) => `${vital.label} ${vitalAmount(vital)}`).join(" ");
+  const vitals = presentVitals(player).map((vital) => `${vital.label} ${vitalAmount(vital)}`).join(" ") + soakedNote(player);
   const state = view.status?.exited ? "escaped" : view.status?.defeated ? "defeated" : view.status?.atExit ? "at the exit" : "";
   return [who, vitals, `tick ${view.tick}${Number.isInteger(turns) ? `, ${turns} ${turns === 1 ? "turn" : "turns"}` : ""}`, state].filter(Boolean).join(" · ");
 }
@@ -287,15 +287,22 @@ export function ordersLine(orders) {
   }).join("  ")}`;
 }
 
+/** #420: ` soaked N` while an actor is soaked (each move costs more stamina); nothing when dry. */
+export function soakedNote(actor) {
+  return Number.isInteger(actor?.soaked) && actor.soaked > 0 ? ` soaked ${actor.soaked}` : "";
+}
+
 /**
  * Everyone in sight right now, by label, so a person or Claude can name them; a source
- * that is off until its mana is full says so, like the player's own slot line (#412).
+ * that is off until its mana is full says so, like the player's own slot line (#412),
+ * and a soaked actor says how many turns it stays soaked (#420).
  */
 export function inSightLine(view) {
   const seen = [...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.label);
   if (seen.length === 0) return null;
   return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}${revealNote(actor)}`
-    + (actor.affinityOff ? " (off until mana is full)" : "")).join("  ")}`;
+    + (actor.affinityOff ? " (off until mana is full)" : "")
+    + (soakedNote(actor) ? ` (${soakedNote(actor).trim()})` : "")).join("  ")}`;
 }
 
 /**
@@ -347,6 +354,7 @@ export function renderScreen({
   });
   lines.push("");
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
+  if (soakedNote(view.player)) vitals.push(soakedNote(view.player).trim());
   if (vitals.length > 0) lines.push(vitals.join("   "));
   lines.push(...affinityLines(view.player, { hints }));
   for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view)]) if (line) lines.push(line);

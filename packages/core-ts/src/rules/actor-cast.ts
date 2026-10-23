@@ -36,9 +36,12 @@ function castManaCost(prices: ActorCastPrices, pair: ActorAffinityEntry): number
   return base === undefined ? undefined : actorCastManaPrice(base, pair.stacks, affinityIntensity(pair));
 }
 export interface ActorDisplacement { actorId: string; from: ActorPosition; to: ActorPosition }
+export interface ActorSoak { actorId: string; turns: number }
 export interface ActorCastResult {
   accepted: boolean;
   changes: ActorVitalChange[];
+  /** #420: whom a soaking cast soaked, and for how many turns. */
+  soaked?: ActorSoak[];
   /** #419: where a displacing cast moved its target; empty when it moved nothing. */
   displaced?: ActorDisplacement[];
   /** Why the cast was refused, as a ValidationError name; absent when accepted. */
@@ -81,10 +84,19 @@ export function selectActorCastAffinity(actor: ActorRecord, key?: ActorAffinityK
  * Focused effect primitive. Every cast is a direct effect (#354): a pull steals like any
  * other inward use; nothing is suppressed or carried to a later action.
  */
+/** #420: extra stamina each move costs while soaked. */
+export const SOAK_MOVE_STAMINA = 1;
+
+/** #420: the `soak` trait soaks what it lands on for its intensity in turns. */
+export function soakTurns(pair: Pick<ActorAffinityEntry, 'kind'> & Partial<ActorAffinityEntry>, intensity: number): number {
+  return affinityTableRow(pair.kind)?.trait === 'soak' && intensity > 0 ? intensity : 0;
+}
+
 /** #419: intensity at which a displacing cast moves its target two cells instead of one. */
 export const DISPLACE_FAR_INTENSITY = 3;
 
 type DisplaceRegistry = Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'explainMove' | 'moveActor' | 'getActorsAt'>;
+type SoakRegistry = Pick<ReturnType<typeof createActorRegistry>, 'soakActor'>;
 
 /**
  * #419: the `displace` trait. A push moves the target away from the caster, a pull toward it,
@@ -114,7 +126,7 @@ function displaceTarget(registry: DisplaceRegistry, sourceId: string, targetId: 
 }
 
 export function castFocusedActorAffinity(
-  registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital'> & Partial<DisplaceRegistry>,
+  registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital'> & Partial<DisplaceRegistry> & Partial<SoakRegistry>,
   sourceId: string, targetId: string, manaCosts: ActorCastPrices, castKey?: ActorAffinityKey,
 ): ActorCastResult {
   assertActorCastPrices(manaCosts);
@@ -155,10 +167,14 @@ export function castFocusedActorAffinity(
   const effects = resolveActorAffinity(registry, sourceId, targetId, pair.kind, pair.expression, received).changes;
   const paid = cost > 0 ? registry.changeVital(sourceId, 'mana', -cost) : 0;
   // #419: a hit that lands (not a self-cast, not one the receiver takes nothing from) displaces.
-  const displaced = sourceId !== targetId && received > 0 && registry.moveActor
+  const lands = sourceId !== targetId && received > 0;
+  // #420: a landed soak-trait push soaks its target (before any displacement, on the actor hit).
+  const turns = lands && pair.expression === 'push' ? soakTurns(pair, affinityIntensity(pair)) : 0;
+  const soaked = turns > 0 && registry.soakActor?.(targetId, turns) ? [{ actorId: targetId, turns }] : [];
+  const displaced = lands && registry.moveActor
     ? displaceTarget(registry as DisplaceRegistry, sourceId, targetId, pair) : [];
   return { accepted: true, changes: [...changes, ...effects,
-    ...(paid !== 0 ? [{ actorId: sourceId, vital: 'mana' as const, delta: paid }] : [])], displaced };
+    ...(paid !== 0 ? [{ actorId: sourceId, vital: 'mana' as const, delta: paid }] : [])], displaced, soaked };
 }
 
 /** A barrier: it stands in the way and never moves (the `barrier` preset, authored or raised). */

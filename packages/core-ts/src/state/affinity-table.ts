@@ -27,9 +27,11 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from './actor-t
  *   these columns, so a kind opts in by its row, never by code.
  * - `trait` (#419, Darren 2026-10-18): the kind's physical identity beyond the vital it hits,
  *   or null. `displace` (wind): a push moves what it hits one cell away from the caster, a pull
- *   one cell toward it (rules/actor-cast.ts). `soak` (water, #420), `spread` (fire, #421) and
- *   `raise` (earth; raising barriers itself is open to every kind, #442) are recorded here;
- *   only `displace` has a rule so far. Code reads the column, never a kind name.
+ *   one cell toward it (rules/actor-cast.ts). `soak` (water, #420): a push that lands, or an
+ *   emit field the receiver takes something from, soaks it for `intensity` turns, each move
+ *   costing SOAK_MOVE_STAMINA more (rules/actor-cast.ts, rules/actor-fields.ts). `spread`
+ *   (fire, #421) and `raise` (earth; raising barriers itself is open to every kind, #442) are
+ *   recorded here without a rule yet. Code reads the column, never a kind name.
  */
 export type AffinityOutwardOperation = 'damage' | 'restore';
 export type AffinityInwardOperation = 'drain';
