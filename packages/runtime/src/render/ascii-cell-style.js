@@ -29,6 +29,9 @@
  * remembered cell (seen before, out of sight now) is its usual style dimmed
  * toward that same fog colour, so memory reads as fading into the dark.
  *
+ * A source whose affinity is off until its mana is full (`affinityOff` on the view
+ * actor, #412) takes that same dimmed look, so a drained trap or warden reads as idle.
+ *
  * Output is plain data: `{ [char]: { fg, bg } }` with hex strings.
  */
 import { GAME_COLOR_PALETTE } from "../contracts/game-elements.js";
@@ -127,7 +130,10 @@ export function asciiRememberedCellStyle(style) {
 export function asciiActorCellStyle(entity) {
   const affinity = resolveEquippedAffinity(entity);
   const fill = affinity ? AFFINITY_COLOR_HEX[affinity] : null;
-  return fill ? { fg: outlineForFill(fill), bg: fill, affinity } : null;
+  if (!fill) return null;
+  const style = { fg: outlineForFill(fill), bg: fill };
+  // A source that is off until its mana is full (#412) is drawn dimmed, like memory.
+  return { ...(entity?.affinityOff ? asciiRememberedCellStyle(style) : style), affinity };
 }
 
 // How far a cell's fill moves toward its field colour: a floor plus a share per unit of

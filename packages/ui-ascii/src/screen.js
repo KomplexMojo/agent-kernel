@@ -287,11 +287,15 @@ export function ordersLine(orders) {
   }).join("  ")}`;
 }
 
-/** Everyone in sight right now, by label, so a person or Claude can name them. */
+/**
+ * Everyone in sight right now, by label, so a person or Claude can name them; a source
+ * that is off until its mana is full says so, like the player's own slot line (#412).
+ */
 export function inSightLine(view) {
   const seen = [...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.label);
   if (seen.length === 0) return null;
-  return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}${revealNote(actor)}`).join("  ")}`;
+  return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}${revealNote(actor)}`
+    + (actor.affinityOff ? " (off until mana is full)" : "")).join("  ")}`;
 }
 
 /**

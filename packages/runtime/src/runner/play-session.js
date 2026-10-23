@@ -536,8 +536,13 @@ function applyFog(frame, visible, explored) {
 // shows (no fog, or one's own party). At 0 only its glyph and role show (and its colour,
 // the kind it has equipped); above 0 its properties show, and any affinity range or
 // intensity above the level reads as the level with a `+` (core's `revealedValue`).
-function toViewActor(actor, presentation, labels, revealLevel) {
+export function toViewActor(actor, presentation, labels, revealLevel) {
   const category = categoryOf(actor, presentation) ?? null;
+  // Off (#412): every equipped slot ran out of mana and waits for a full pool, so the
+  // source has no field; read through core's helpers, never recomputed.
+  const equipped = equippedActorAffinityKeys(actor);
+  const exhausted = exhaustedActorAffinityKeys(actor);
+  const off = equipped.length > 0 && equipped.every((key) => exhausted.includes(key));
   const shown = {
     id: actor.id,
     ...(labels?.has(actor.id) ? { label: labels.get(actor.id) } : {}),
@@ -545,6 +550,7 @@ function toViewActor(actor, presentation, labels, revealLevel) {
     position: { ...actor.position },
     activeAffinityKey: actor.activeAffinityKey,
     ...(actor.affinityExhausted ? { affinityExhausted: true } : {}),
+    ...(off ? { affinityOff: true } : {}),
   };
   if (revealLevel === 0) return { ...shown, revealed: 0 };
   const capped = (value) => (revealLevel === undefined ? value : revealedValue(value, revealLevel));
