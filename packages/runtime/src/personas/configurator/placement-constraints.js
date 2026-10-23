@@ -18,6 +18,10 @@
  * core's line-of-sight rule (doorway-sight.js). It is geometric, never light- or dark-dependent.
  * Ref: { kind: "spawn"|"exit" } | { kind: "room", ref } |
  *      { kind: "hazard"|"resource"|"delver"|"warden", ref }  (ref: id, 1-based ordinal, or "*")
+ *
+ * #418: a near/far target may also be `{ kind: "cells", cells: [{ x, y }] }`, as near as its
+ * nearest cell. Only compiled tactics use it (a minefield seats its hazards on chosen cells,
+ * clear of its safe line); the spec-string grammar has no form for it.
  */
 
 export const PLACEMENT_SUBJECT_KINDS = Object.freeze(["hazard", "resource", "delver", "warden"]);
@@ -79,9 +83,17 @@ export function parsePlacementConstraint(text, index = 0) {
   return normalizePlacementConstraint(constraint, index);
 }
 
-function normalizeRef(ref, { allowAll, field }) {
+function normalizeCells(cells, field) {
+  const valid = Array.isArray(cells) && cells.length > 0
+    && cells.every((cell) => Number.isInteger(cell?.x) && Number.isInteger(cell?.y));
+  if (!valid) throw new Error(`${field} cells must be a non-empty list of { x, y } whole-number cells.`);
+  return { kind: "cells", cells: cells.map(({ x, y }) => ({ x, y })) };
+}
+
+function normalizeRef(ref, { allowAll, field, allowCells = false }) {
   if (!ref || typeof ref !== "object") throw new Error(`${field} must be an object.`);
   if (MARKER_KINDS.includes(ref.kind)) return { kind: ref.kind };
+  if (ref.kind === "cells" && allowCells) return normalizeCells(ref.cells, field);
   const value = typeof ref.ref === "number" ? String(ref.ref) : ref.ref;
   return parseRef(`${ref.kind}:${value ?? ""}`, { allowAll, field });
 }
@@ -100,7 +112,7 @@ export function normalizePlacementConstraint(raw, index = 0) {
     if (raw[key] === undefined) continue;
     const distance = raw[key]?.distance;
     if (!Number.isInteger(distance) || distance < 0) throw new Error(`${field} ${key}.distance must be a whole number >= 0.`);
-    out[key] = { target: normalizeRef(raw[key].target, { allowAll: false, field: `${field} ${key}.target` }), distance };
+    out[key] = { target: normalizeRef(raw[key].target, { allowAll: false, field: `${field} ${key}.target`, allowCells: true }), distance };
   }
   if (raw.count !== undefined) {
     if (!Number.isInteger(raw.count) || raw.count < 1) throw new Error(`${field} count must be a whole number >= 1.`);
@@ -133,6 +145,7 @@ export function normalizePlacementConstraints(entries) {
 }
 
 function describeRef(ref) {
+  if (ref.kind === "cells") return `cells:${ref.cells.map(({ x, y }) => `${x},${y}`).join("|")}`;
   return MARKER_KINDS.includes(ref.kind) ? ref.kind : `${ref.kind}:${ref.ref}`;
 }
 
@@ -181,6 +194,7 @@ export function resolvePlacementConstraints(constraints, { entities = [], rooms 
       if (!markers[ref.kind]) throw new Error(`placement constraint "${constraint.label}": this level has no ${ref.kind}.`);
       return { kind: "point", point: markers[ref.kind] };
     }
+    if (ref.kind === "cells") return { kind: "cells", cells: ref.cells };
     if (ref.kind === "room") {
       const room = rooms.get(ref.ref);
       if (!room) throw new Error(`placement constraint "${constraint.label}": no room "${ref.ref}" in this level.`);
@@ -207,6 +221,7 @@ export function resolvePlacementConstraints(constraints, { entities = [], rooms 
 export function distanceToTarget(point, target, positions) {
   if (target.kind === "point") return chebyshev(point, target.point);
   if (target.kind === "room") return distanceToRoom(point, target.room);
+  if (target.kind === "cells") return Math.min(...target.cells.map((cell) => chebyshev(point, cell)));
   const other = positions.get(target.key);
   return other ? chebyshev(point, other) : Infinity;
 }

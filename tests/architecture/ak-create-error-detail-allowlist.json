@@ -11,13 +11,13 @@
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 603,
-    "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier cannot inspect it. formatBudgetReceiptDenial() already reports status/remaining/deniedLines/deniedPools/per-pool shortfall. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, again when #299 hosted the default placement, and again when #263 named unnamed hazard affinities, and again when #296 added the capacity detail, and again when #301 passed placement constraints through, and again when #371 folded the three vital floors into one call, and again when #396/#398 added the plan tactics before object placement, and again when #400 added retinue minions and their fit to the warden share."
+    "line": 641,
+    "reason": "throw new Error(formatBudgetReceiptDenial(budgetReceipt)) -- a function call, not a literal, so the classifier cannot inspect it. formatBudgetReceiptDenial() already reports status/remaining/deniedLines/deniedPools/per-pool shortfall. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, again when #299 hosted the default placement, and again when #263 named unnamed hazard affinities, and again when #296 added the capacity detail, and again when #301 passed placement constraints through, and again when #371 folded the three vital floors into one call, and again when #396/#398 added the plan tactics before object placement, and again when #400 added retinue minions and their fit to the warden share, and again when #418 added minefield hazards and their fit to the hazard share."
   },
   {
     "file": "packages/runtime/src/build/orchestrate-build.js",
-    "line": 607,
-    "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 556. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, again when #299 hosted the default placement, and again when #263 named unnamed hazard affinities, and again when #296 added the capacity detail, and again when #301 passed placement constraints through, and again when #371 folded the three vital floors into one call, and again when #396/#398 added the plan tactics before object placement, and again when #400 added retinue minions and their fit to the warden share."
+    "line": 645,
+    "reason": "Second call site of formatBudgetReceiptDenial() -- same as line 556. Line shifted when Z9.1 moved object-placement policy behind the Configurator boundary, again when #299 hosted the default placement, and again when #263 named unnamed hazard affinities, and again when #296 added the capacity detail, and again when #301 passed placement constraints through, and again when #371 folded the three vital floors into one call, and again when #396/#398 added the plan tactics before object placement, and again when #400 added retinue minions and their fit to the warden share, and again when #418 added minefield hazards and their fit to the hazard share."
   },
   {
     "file": "packages/runtime/src/personas/allocator/budget-fulfillment.js",

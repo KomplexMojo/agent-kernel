@@ -494,6 +494,22 @@ carry the leader's motivations and the actor viability floor, so they are priced
 `fitRetinues` drops minions from the end until the Allocator's `wardenShareApproved` holds for the
 receipt, and the row says `the warden share affords k of n minions`.
 
+`minefield` (#418, `minefield.js`): a room the spawn-to-exit route passes through (`room=<id>`, else
+one picked from the seed, inner rooms first, with at least two doorways) gets `hazards=<n>`
+(default 4) new emit hazards of range `range=<n>` (default 1). The safe line runs from the doorway
+the route enters by to the one it leaves by, along the room's edge: the long way round first, so
+the short way through is left for the minefield, then the short way, then the short route itself,
+whichever seats everything first. Each hazard is seated on a chosen cell (a `cells` near-target,
+#301's internal form) at least the *clearance* from every line cell: the Chebyshev distance at which
+core's `computeAffinityFalloff` reaches zero, so the line carries no field for any kind. The seats
+cluster around the cell nearest the short route and never touch (#370), so neighbouring fields
+overlap. Kinds come from the affinity table's damaging rows by the seed, skipping any opposite of
+one already drawn; `kinds=a+b` names them instead. One free resource is seated in the cluster as
+the reward. Hazards carry the actor viability floor and mana regen equal to their upkeep
+(`computeInternalManaUpkeep`), so the field stays lit. The Director names the hazard share as a
+pool the tactic spends from (`tacticBudgetPools`); `fitMinefields` drops hazards from the end until
+the Allocator's `hazardShareApproved` holds, and the row says `the hazard share affords k of n hazards`.
+
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
 - Keep README, contracts, fixtures, and any state-diagram metadata in sync when states/events/subscriptions change.

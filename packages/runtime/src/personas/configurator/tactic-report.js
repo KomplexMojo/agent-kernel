@@ -17,9 +17,16 @@
  * minions composed by role from the affinity table (retinue.js), each within 2 of it. The
  * minions are new wardens returned in `actors`; the Allocator prices them, and `fitRetinues`
  * shrinks a retinue the warden share cannot afford.
+ *
+ * `minefield` (#418): a room on the spawn-to-exit route (`room=`, else picked from the seed)
+ * gets `hazards=<n>` (4) new emit hazards of range `range=<n>` (1) seated in a cluster clear of
+ * a safe line through the room, and one of the level's free resources as the reward
+ * (minefield.js). The hazards are returned in `hazards`; the Allocator prices them, and
+ * `fitMinefields` shrinks a minefield the hazard share cannot afford.
  */
 import { hiddenRoomCells } from "./doorway-sight.js";
 import { composeRetinue, readRetinueParams } from "./retinue.js";
+import { composeMinefield, pickMinefieldRoom, readMinefieldParams } from "./minefield.js";
 import { leftoverCategory } from "./unified-actors.js";
 
 const NOT_APPLIED_NOTE = "recorded but not applied: the Configurator does not compile this tactic yet";
@@ -76,12 +83,13 @@ function inRoom(room) {
 }
 
 /**
- * Compile the tactics into placement constraints. Returns `{ placement, report }`: the authored
- * constraints followed by the compiled ones, one report row per tactic in order, and the
- * actors the tactics add (retinue minions).
+ * Compile the tactics into placement constraints. Returns `{ placement, report, actors, hazards }`:
+ * the authored constraints followed by the compiled ones, one report row per tactic in order,
+ * the actors the tactics add (retinue minions) and the hazards they add (minefields).
+ * `hazards` are the level's authored hazards, so new ids and cells stay clear of them.
  */
-export function compileTactics({ tactics = [], layout, actors = [], resources = [], placement = [], seed = 0 } = {}) {
-  if (!Array.isArray(tactics) || tactics.length === 0) return { placement, report: [], actors: [] };
+export function compileTactics({ tactics = [], layout, actors = [], resources = [], hazards = [], placement = [], seed = 0 } = {}) {
+  if (!Array.isArray(tactics) || tactics.length === 0) return { placement, report: [], actors: [], hazards: [] };
   const data = layout?.data || layout || {};
   const rooms = (Array.isArray(data.rooms) ? data.rooms : []).filter((room) => typeof room?.id === "string");
   const named = new Set((Array.isArray(placement) ? placement : [])
@@ -101,7 +109,25 @@ export function compileTactics({ tactics = [], layout, actors = [], resources = 
   const compiled = [];
   const added = [];
   const takenIds = new Set(actors.map((actor) => actor?.id).filter((id) => typeof id === "string"));
+  const addedHazards = [];
+  const hazardIds = new Set([...hazards, ...(Array.isArray(data.hazards) ? data.hazards : [])]
+    .map((hazard) => hazard?.id).filter((id) => typeof id === "string"));
+  const hazardCells = new Set((Array.isArray(data.hazards) ? data.hazards : [])
+    .filter((hazard) => Number.isFinite(hazard?.x) && Number.isFinite(hazard?.y)).map(({ x, y }) => `${x},${y}`));
   const report = tactics.map((entry, index) => {
+    if (entry?.tactic === "minefield") {
+      const params = readMinefieldParams(entry.params);
+      const room = params.room ? rooms.find((candidate) => candidate.id === params.room) : pickMinefieldRoom(layout, rooms, seed, index);
+      if (params.room && !room) throw new Error(`tactic minefield: no room "${params.room}" in this level.`);
+      if (!room) return { tactic: "minefield", ...withParams(entry), applied: false, note: "this level has no room with two doorways for a minefield" };
+      const reward = take(loot, 1)[0] ?? null;
+      const minefield = composeMinefield({ layout, room, params, seed, reward, takenIds: hazardIds, occupied: hazardCells });
+      if (reward && minefield.row.reward !== reward) claimed.delete(reward);
+      addedHazards.push(...(minefield.hazards || []));
+      compiled.push(...(minefield.placement || []));
+      (minefield.placement || []).forEach((constraint) => constraint.near.target.cells.forEach(({ x, y }) => hazardCells.add(`${x},${y}`)));
+      return { tactic: "minefield", ...withParams(entry), ...(minefield.row.applied ? {} : { room: room.id }), ...minefield.row };
+    }
     if (entry?.tactic === "retinue") {
       const params = readRetinueParams(entry.params);
       const leaderId = params.leader ?? wardens.find((id) => !claimed.has(id));
@@ -159,5 +185,5 @@ export function compileTactics({ tactics = [], layout, actors = [], resources = 
       ...(notes.length > 0 ? { note: notes.join("; ") } : {}),
     };
   });
-  return { placement: [...placement, ...compiled], report, actors: added };
+  return { placement: [...placement, ...compiled], report, actors: added, hazards: addedHazards };
 }

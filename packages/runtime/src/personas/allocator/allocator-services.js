@@ -163,6 +163,16 @@ export function attachAllocatorServices({
     return !pool || pool.status === "approved";
   }
 
+  /**
+   * #418: whether the receipt approves the hazard share. A receipt with no hazard pool has
+   * no share to exceed. The Configurator shrinks a minefield until this holds.
+   */
+  function hazardShareApproved({ receipt } = {}) {
+    const pool = Array.isArray(receipt?.poolStatuses)
+      ? receipt.poolStatuses.find((entry) => entry?.id === "hazards") : null;
+    return !pool || pool.status === "approved";
+  }
+
   function boundPriceMixedRoomDesignSpend(args = {}) {
     return priceMixedRoomDesignSpend(
       withPersonaDefaults(args, { priceList: getPriceList() }),
@@ -599,6 +609,7 @@ export function attachAllocatorServices({
     resolvePriceList,
     resolveActorExpansionAvailability,
     wardenShareApproved,
+    hazardShareApproved,
     priceMixedRoomDesignSpend: boundPriceMixedRoomDesignSpend,
     registerBudget,
     validateSpend,

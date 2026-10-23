@@ -91,6 +91,7 @@ import { prepareObjectPlacement, completeObjectPlacement, levelObjectRequests } 
 import { parsePlacementConstraint, normalizePlacementConstraints } from "./placement-constraints.js";
 import { reportTactics, compileTactics } from "./tactic-report.js";
 import { fitRetinues } from "./retinue.js";
+import { fitMinefields } from "./minefield.js";
 import { nameUnnamedHazardAffinities } from "./unnamed-affinity.js";
 import { normalizeMotivationRulesArtifact, resolveMotivationRules } from "./motivation-rules.js";
 /**
@@ -467,6 +468,7 @@ export function attachConfiguratorServices({ fsm } = {}) {
     reportTactics,
     compileTactics,
     fitRetinues,
+    fitMinefields,
     nameUnnamedHazardAffinities,
     normalizeMotivationRulesArtifact,
     resolveMotivationRules,

@@ -5,7 +5,7 @@ import { createAllocatorPersona } from "../allocator/persona.js";
 import { createConfiguratorPersona } from "../configurator/persona.js";
 import { requireClock, UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { attachDirectorServices } from "./director-services.js";
-import { parseTactic, normalizeTactics } from "./tactics.js";
+import { parseTactic, normalizeTactics, tacticBudgetPools } from "./tactics.js";
 import {
   INTENT_ENVELOPE_SCHEMA as INTENT_SCHEMA,
   PLAN_ARTIFACT_SCHEMA,
@@ -341,5 +341,6 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     // #396 — the authored tactic list, read and checked against the tactics that exist.
     parseTactic,
     normalizeTactics,
+    tacticBudgetPools,
   };
 }

@@ -506,7 +506,7 @@ Inputs/outputs:
     --warden "count=3;affinity=earth;motivation=stationary" \
     --place "hazard:trap1;near=exit:1" --place "warden:*;near=hazard:trap1:2;count=2"
   ```
-- `--tactic` (repeatable, `tactics` on `ak_create`) asks for a placement tactic: `<ambush|retinue>[;key=value...]`.
+- `--tactic` (repeatable, `tactics` on `ak_create`) asks for a placement tactic: `<ambush|retinue|minefield>[;key=value...]`.
   The Director reads it and refuses an unknown tactic, naming the known ones; the list rides in the plan
   (`directives.tactics`) and the BuildSpec (`plan.hints.tactics`), and the result echoes it as `tactics`. Each tactic
   gets a row in `placementReport`. `ambush[;guards=<n>][;resources=<n>][;room=<id>][;visible=true]` (#398) puts that
@@ -519,6 +519,14 @@ Inputs/outputs:
   leader's defeat vital; *striker* uses the leader's kind in the first harmful expression the leader lacks. Minions
   are ordinary wardens (the leader's motivations, floor vitals) priced by the Allocator; a retinue the warden share
   can't afford shrinks and its row says so (`leader`, `minions: [{ id, role }]`, `note`).
+  `minefield[;room=<id>][;hazards=<n>][;range=<n>][;kinds=<kind>+<kind>...]` (#418) fills one room on the
+  spawn-to-exit route (`room=`, else picked from the seed) with `hazards` emit hazards (default 4) of range `range`
+  (default 1), seated in a cluster across the short way through, none touching another, and every one far enough from
+  a safe line (doorway to doorway along the room's edge) that its field has faded to nothing there, by core's falloff.
+  One free resource sits in the minefield as the reward. Kinds are drawn from the affinity table's damaging kinds by
+  the seed, no two opposite, unless `kinds=` names them. A minefield needs no `--hazard`: the tactic adds the hazard
+  share, the Allocator prices the hazards from it, and one it can't afford shrinks. The row has `room`,
+  `hazards: [{ id, kind }]`, `reward`, `safeLine: { length, from, to, clearance, cells }`, `shortRoute: { length }`, `note`.
   `--seed N` (`seed` on `ak_create`) fixes the build seed; a tactic with no `--seed` draws one, and the result reports
   it as `seed`, so the same flags plus `--seed` rebuild the level exactly. `--place` also takes `outOfSight=room:<id>`:
   a cell no doorway of that room can see, by core's line of sight.

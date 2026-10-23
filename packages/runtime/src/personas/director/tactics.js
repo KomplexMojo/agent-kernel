@@ -2,7 +2,8 @@
  * #396 — the tactic list a plan carries (strategic placement, tracker #395).
  *
  * A tactic is a named, parameterised placement pattern: `ambush` (a resource room with
- * hidden guards), `retinue` (a boss with minions). The Director owns which tactics exist
+ * hidden guards), `retinue` (a boss with minions), `minefield` (a room of hazards with a
+ * safe line through it). The Director owns which tactics exist
  * and puts the authored list in the plan (`directives.tactics`) and the BuildSpec
  * (`plan.hints.tactics`); the Configurator compiles them into roles and placement
  * constraints in later steps. Until it does, a known tactic is carried and reported, not
@@ -10,7 +11,17 @@
  */
 import { validateTacticList } from "../../contracts/build-spec.js";
 
-export const PLAN_TACTIC_IDS = Object.freeze(["ambush", "retinue"]);
+export const PLAN_TACTIC_IDS = Object.freeze(["ambush", "retinue", "minefield"]);
+
+// #418: the budget pools a tactic spends from because it adds things of its own (a minefield
+// adds hazards). A tactic that only seats the level's own things spends from no new pool.
+const TACTIC_BUDGET_POOLS = Object.freeze({ minefield: Object.freeze(["hazards"]) });
+
+/** The budget pools the tactics add things to, in first-asked order, each once. */
+export function tacticBudgetPools(tactics) {
+  if (!Array.isArray(tactics)) return [];
+  return [...new Set(tactics.flatMap((entry) => TACTIC_BUDGET_POOLS[entry?.tactic] || []))];
+}
 
 function refuseUnknown(tactic) {
   if (!PLAN_TACTIC_IDS.includes(tactic)) {
