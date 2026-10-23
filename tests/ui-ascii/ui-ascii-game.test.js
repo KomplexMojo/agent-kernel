@@ -115,7 +115,7 @@ function solve(level, { othersAreWalls = true, target } = {}) {
 test("keys map to intents: arrows, WASD, vi keys, diagonals, wait, quit", () => {
   assert.deepEqual(intentForKey("\u001b[A"), { type: INTENT.MOVE, direction: "north" });
   assert.deepEqual(intentForKey("a"), { type: INTENT.MOVE, direction: "west" });
-  assert.deepEqual(intentForKey("J"), { type: INTENT.MOVE, direction: "south" });
+  assert.deepEqual(intentForKey("j"), { type: INTENT.MOVE, direction: "south" });
   assert.deepEqual(intentForKey("n"), { type: INTENT.MOVE, direction: "southeast" });
   assert.deepEqual(intentForKey("."), { type: INTENT.WAIT });
   assert.deepEqual(intentForKey("\u0003"), { type: INTENT.QUIT });

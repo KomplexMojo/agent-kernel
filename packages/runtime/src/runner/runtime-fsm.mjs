@@ -418,8 +418,9 @@ function normalizeUnifiedActorAction(action, defaultTick) {
     return { ...envelope, kind: "wait" };
   }
   if (kind === "move") {
-    if (Object.keys(params).length !== 1 || !params.target) return null;
-    return { ...envelope, kind: "move", params: { target: { ...params.target } } };
+    // `via` makes it a sprint (#437): two steps, `via` then `target`.
+    if (!onlyParams(params, ["target"], ["via"]) || !params.target || (params.via !== undefined && !params.via)) return null;
+    return { ...envelope, kind: "move", params: { target: { ...params.target }, ...(params.via ? { via: { ...params.via } } : {}) } };
   }
   if (kind === "cast_affinity") {
     // At an actor (`targetId`) or at a tile (`target`, #413), never both.

@@ -117,12 +117,14 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       .some(actor => actor.lifecycle === 'alive' && actor.capabilities[capability]);
   }
   /** Why a one-step move would be refused, as a ValidationError name; null when it is legal. */
-  function explainMove(id: string, target: ActorPosition): ActorMoveRejection | null {
+  // `from` asks about a step that starts somewhere else, as a sprint's second step does (#437).
+  function explainMove(id: string, target: ActorPosition, from?: ActorPosition): ActorMoveRejection | null {
     const actor = actors.get(id);
     if (!actor || actor.lifecycle !== 'alive') return 'WrongActor';
     if (!actor.capabilities.canMove) return 'InvalidCapability';
     if (!withinBounds(target)) return 'OutOfBounds';
-    if (Math.max(Math.abs(actor.position.x - target.x), Math.abs(actor.position.y - target.y)) !== 1) return 'NotAdjacent';
+    const origin = from ?? actor.position;
+    if (Math.max(Math.abs(origin.x - target.x), Math.abs(origin.y - target.y)) !== 1) return 'NotAdjacent';
     if (terrainBlocks(target)) return 'BlockedByWall';
     if (actor.capabilities.blocksMovement && (occupancy.get(index(target)) ?? []).some(other => other.lifecycle === 'alive'
       && other.capabilities.blocksMovement && !ownsBarrier(actor, other))) return 'ActorCollision';

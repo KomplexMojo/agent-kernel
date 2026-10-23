@@ -56,7 +56,7 @@ export function lanAddresses(interfaces = networkInterfaces()) {
 // Touch buttons: each sends one terminal key. Directions in compass layout, wait in the middle.
 const PAD = [["y", "↖"], ["k", "↑"], ["u", "↗"], ["h", "←"], [".", "·"], ["l", "→"], ["b", "↙"], ["j", "↓"], ["n", "↘"]];
 const ACTIONS = [["i", "i"], ["f", "f"], ["\t", "Tab"], ["\r", "Enter"], ["\u001b", "Esc"], ["1", "1"], ["2", "2"], ["3", "3"],
-  ["g", "g"], ["o", "o"], ["+", "+"], ["-", "-"], ["t", "t"], ["r", "r"], ["?", "?"]];
+  ["g", "g"], ["o", "o"], ["x", "x"], ["+", "+"], ["-", "-"], ["t", "t"], ["r", "r"], ["?", "?"]];
 const button = ([key, label]) => `<button data-key="${encodeURIComponent(key)}">${label}</button>`;
 
 // Browser key names -> the keys the terminal keymap reads.

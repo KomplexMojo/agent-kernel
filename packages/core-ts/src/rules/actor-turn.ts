@@ -1,11 +1,11 @@
 import { readActorFieldSoaks, readActorOverwhelms, resolveActorFields, type ActorOverwhelm } from './actor-fields.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import type { ActorAction, ActorAffinityKey } from '../state/actor-types.ts';
+import type { ActorAction, ActorAffinityKey, ActorPosition } from '../state/actor-types.ts';
 import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
 import { assertActorCastPrices, castActorAffinityAtTile, castFocusedActorAffinity, selectActorCastAffinity,
   RAISED_BARRIER_EROSION, RAISED_BARRIER_UPKEEP, SOAK_MOVE_STAMINA, type ActorCastManaBases } from './actor-cast.ts';
-import { computeMovementStaminaCost } from './move.ts';
+import { computeMovementStaminaCost, computeSprintStaminaCost } from './move.ts';
 
 export interface ActorTurnSnapshot {
   tick: number;
@@ -104,18 +104,26 @@ export function createActorTurn(
           }
           break;
         case 'move': {
-          if (!hasParams(action, ['target']) || !action.params.target) break;
-          const target = action.params.target;
+          if (!hasParams(action, ['target'], ['via']) || !action.params.target) break;
+          const { target, via } = action.params;
           if (!Number.isSafeInteger(target.x) || !Number.isSafeInteger(target.y)) break;
+          if (via !== undefined && (!via || !Number.isSafeInteger(via.x) || !Number.isSafeInteger(via.y))) break;
           const cardinal = Object.hasOwn(prices.movementStamina, actor.id) ? prices.movementStamina[actor.id] : undefined;
           if (cardinal === undefined) break;
-          lastRejection = registry.explainMove(actor.id, target);
+          const origin = { ...actor.position };
+          const diagonal = (from: ActorPosition, to: ActorPosition) => from.x !== to.x && from.y !== to.y;
+          // #437: a sprint (`via`) is two steps, both checked before either is taken.
+          if (via && target.x === origin.x && target.y === origin.y) { lastRejection = 'NotAdjacent'; break; }
+          lastRejection = via ? registry.explainMove(actor.id, via) ?? registry.explainMove(actor.id, target, via)
+            : registry.explainMove(actor.id, target);
           if (lastRejection) break;
-          // #420: a soaked actor pays more for every move.
-          const cost = computeMovementStaminaCost(actor.position.x !== target.x && actor.position.y !== target.y, cardinal)
-            + (actor.soaked ? SOAK_MOVE_STAMINA : 0);
+          // #420: a soaked actor pays more for every step.
+          const soak = actor.soaked ? SOAK_MOVE_STAMINA : 0;
+          const cost = via ? computeSprintStaminaCost(diagonal(origin, via), diagonal(via, target), cardinal) + 2 * soak
+            : computeMovementStaminaCost(diagonal(origin, target), cardinal) + soak;
           if ((actor.vitals.stamina?.current ?? 0) < cost) { lastRejection = 'InsufficientStamina'; break; }
-          accepted = registry.moveActor(actor.id, target);
+          accepted = via ? registry.moveActor(actor.id, via) && registry.moveActor(actor.id, target)
+            : registry.moveActor(actor.id, target);
           if (accepted && cost > 0) registry.changeVital(actor.id, 'stamina', -cost);
           if (accepted) (state.movedActorIds ??= []).push(actor.id);
           break;

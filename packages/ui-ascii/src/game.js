@@ -137,6 +137,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   // An open panel: the affinity list, the target picker or the loot list. Opening,
   // browsing and closing one is free; only the command it sends takes a turn.
   let panel = null;
+  // `x` arms a sprint for the next move (#437), for keyboards and screens without shift.
+  let sprintArmed = false;
 
   async function startLevel(index) {
     levelIndex = index;
@@ -145,6 +147,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     turns = 0;
     message = "";
     panel = null;
+    sprintArmed = false;
   }
 
   await startLevel(levelIndex);
@@ -477,8 +480,17 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       case INTENT.WAIT:
         await act({ kind: "wait" });
         break;
-      case INTENT.MOVE:
-        await act({ kind: "move", params: { direction: intent.direction } });
+      case INTENT.MOVE: {
+        // Sprint (#437): shift+move, or x armed before the move; two tiles for more stamina.
+        const sprint = Boolean(intent.sprint) || sprintArmed;
+        sprintArmed = false;
+        await act({ kind: "move", params: { direction: intent.direction, ...(sprint ? { sprint: true } : {}) } },
+          () => (sprint ? "You sprint." : ""));
+        break;
+      }
+      case INTENT.SPRINT:
+        sprintArmed = !sprintArmed;
+        message = sprintArmed ? "Sprint: your next move takes two tiles, for more stamina." : "Sprint off.";
         break;
       case INTENT.AFFINITIES:
         openAffinities();
