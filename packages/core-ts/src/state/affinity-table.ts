@@ -19,6 +19,12 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from './actor-t
  *   hazards, resources and barriers); a target without the primary vital takes it all
  *   there (#353).
  * - `formulas`: the named formula for each stack-driven quantity (AFFINITY_FORMULAS).
+ * - `illuminates`, `reveals`, `conceals` (#416, Darren 2026-10-18): what the kind's emitted
+ *   field does to what others see. `illuminates` lights a cell for sight (you see what is
+ *   there, even under dark); `reveals` shows the properties of an actor on the cell, up to
+ *   the field's net intensity; `conceals` darkens the cell and hides what stands in it. Light
+ *   has all but conceals, fire only illuminates, dark only conceals. Sight and reveal read
+ *   these columns, so a kind opts in by its row, never by code.
  */
 export type AffinityOutwardOperation = 'damage' | 'restore';
 export type AffinityInwardOperation = 'drain';
@@ -30,6 +36,9 @@ export interface AffinityTableRow {
   readonly outward: AffinityOutwardOperation;
   readonly inward: AffinityInwardOperation;
   readonly spill: 'defeat' | null;
+  readonly illuminates: boolean;
+  readonly reveals: boolean;
+  readonly conceals: boolean;
   readonly formulas: Readonly<Record<'magnitude' | 'reach' | 'castMana' | 'upkeep', AffinityFormulaId>>;
 }
 
@@ -64,13 +73,15 @@ const FORMULAS = Object.freeze({
   upkeep: 'upkeep_table_at_range_plus_intensity',
 } as const);
 
+type SightColumns = { illuminates?: boolean; reveals?: boolean; conceals?: boolean };
 const row = (kind: AffinityKind, primaryVital: ActorVitalKind, outward: AffinityOutwardOperation,
-  inward: AffinityInwardOperation, spill: 'defeat' | null): AffinityTableRow =>
-  Object.freeze({ kind, primaryVital, outward, inward, spill, formulas: FORMULAS });
+  inward: AffinityInwardOperation, spill: 'defeat' | null,
+  { illuminates = false, reveals = false, conceals = false }: SightColumns = {}): AffinityTableRow =>
+  Object.freeze({ kind, primaryVital, outward, inward, spill, illuminates, reveals, conceals, formulas: FORMULAS });
 
 /** In affinity-codebook order. */
 export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
-  row('fire', 'durability', 'damage', 'drain', 'defeat'),
+  row('fire', 'durability', 'damage', 'drain', 'defeat', { illuminates: true }),
   row('water', 'stamina', 'damage', 'drain', 'defeat'),
   row('earth', 'durability', 'damage', 'drain', 'defeat'),
   row('wind', 'stamina', 'damage', 'drain', 'defeat'),
@@ -78,8 +89,8 @@ export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
   row('decay', 'health', 'damage', 'drain', 'defeat'),
   row('corrode', 'durability', 'damage', 'drain', 'defeat'),
   row('fortify', 'durability', 'restore', 'drain', null),
-  row('light', 'mana', 'restore', 'drain', null),
-  row('dark', 'mana', 'damage', 'drain', 'defeat'),
+  row('light', 'mana', 'restore', 'drain', null, { illuminates: true, reveals: true }),
+  row('dark', 'mana', 'damage', 'drain', 'defeat', { conceals: true }),
 ]);
 
 /**
@@ -97,6 +108,11 @@ export const AFFINITY_RECEIVER_RULES = Object.freeze({
 });
 
 const BY_KIND = new Map(AFFINITY_TABLE.map(entry => [entry.kind, entry]));
+
+/** The kinds whose row sets a sight column (#416), in table order. */
+export function affinityKindsWith(column: 'illuminates' | 'reveals' | 'conceals'): AffinityKind[] {
+  return AFFINITY_TABLE.filter(entry => entry[column]).map(entry => entry.kind);
+}
 
 /** The table row for `kind`; undefined for an unknown kind. */
 export function affinityTableRow(kind: AffinityKind): AffinityTableRow | undefined {

@@ -5,6 +5,13 @@ import { computeVisibleCells, NET_DARK_OBSCURE_INTENSITY_THRESHOLD, resolveNetLi
 import type { ActorRecord, ActorRegistrySnapshot } from '../state/actor-types.ts';
 import { litActorAffinities } from './actor-upkeep.ts';
 import { RAISED_BARRIER_TILE_KIND } from './actor-cast.ts';
+import { affinityTableRow } from '../state/affinity-table.ts';
+import type { AffinityKind } from '../state/actor-types.ts';
+
+/** Which table column (#416) a sight map reads: lit cells, revealed actors, darkened cells. */
+type SightColumn = 'illuminates' | 'reveals' | 'conceals';
+const hasColumn = (kind: string | undefined, column: SightColumn) =>
+  kind !== undefined && affinityTableRow(kind as AffinityKind)?.[column] === true;
 import { AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 
 /** Detached facts; reading an observation never applies exposure or advances time. */
@@ -42,10 +49,10 @@ type RegistryObservation = ReturnType<typeof readActorRegistryObservation>;
  * drains (the generic switch-off), and light reaches as far as its field does.
  */
 function fieldIntensityByCell(fields: readonly { kind: string; expression: string; intensity: number; falloff: number;
-  position: { x: number; y: number } }[], kind: 'light' | 'dark'): Record<string, number> {
+  position: { x: number; y: number } }[], column: SightColumn): Record<string, number> {
   const reached: Record<string, number> = {};
   for (const field of fields) {
-    if (field.kind !== kind || field.expression !== AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]
+    if (!hasColumn(field.kind, column) || field.expression !== AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]
       || field.intensity <= 0 || field.falloff <= 0) continue;
     const key = `${field.position.x},${field.position.y}`;
     if (field.intensity > (reached[key] ?? 0)) reached[key] = field.intensity;
@@ -55,18 +62,18 @@ function fieldIntensityByCell(fields: readonly { kind: string; expression: strin
 
 /** Net emitted light intensity on each cell of a registry snapshot, from the field (#288). Read-only. */
 export function readActorRegistryLightByCell(snapshot: ActorRegistrySnapshot): Record<string, number> {
-  return fieldIntensityByCell(projectActorFields({ snapshot: () => snapshot }).fields, 'light');
+  return fieldIntensityByCell(projectActorFields({ snapshot: () => snapshot }).fields, 'illuminates');
 }
 
 /** Net emitted dark intensity on each cell of a registry snapshot, from the field (#288). Read-only. */
 export function readActorRegistryDarkByCell(snapshot: ActorRegistrySnapshot): Record<string, number> {
-  return fieldIntensityByCell(projectActorFields({ snapshot: () => snapshot }).fields, 'dark');
+  return fieldIntensityByCell(projectActorFields({ snapshot: () => snapshot }).fields, 'conceals');
 }
 
 /** The range of the light an actor emits right now: its widest lit light emit slot, 0 if none. */
 function litLightRange(actor: ActorRecord): number {
   if (actor.lifecycle !== 'alive') return 0;
-  return Math.max(0, ...litActorAffinities(actor).filter(pair => pair.kind === 'light'
+  return Math.max(0, ...litActorAffinities(actor).filter(pair => hasColumn(pair.kind, 'illuminates')
     && pair.expression === AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]).map(pair => pair.stacks));
 }
 
@@ -74,8 +81,8 @@ function litLightRange(actor: ActorRecord): number {
 function resolveRegistryLightDark(observation: RegistryObservation) {
   const { width, height } = observation.sightKinds.length
     ? { width: observation.sightKinds[0].length, height: observation.sightKinds.length } : { width: 0, height: 0 };
-  const darkByCell = fieldIntensityByCell(observation.affinityFields, 'dark');
-  return { width, height, darkByCell, ...resolveNetLightDark(fieldIntensityByCell(observation.affinityFields, 'light'), darkByCell) };
+  const darkByCell = fieldIntensityByCell(observation.affinityFields, 'conceals');
+  return { width, height, darkByCell, ...resolveNetLightDark(fieldIntensityByCell(observation.affinityFields, 'illuminates'), darkByCell) };
 }
 
 /**
@@ -88,7 +95,7 @@ function resolveRegistryLightDark(observation: RegistryObservation) {
  * threshold leaves it its own tile only (#284).
  */
 function resolveRegistrySight(observation: RegistryObservation, self: ActorRecord) {
-  const ownDark = (cell: { sourceId?: string; kind?: string }) => cell.sourceId === self.id && cell.kind === 'dark';
+  const ownDark = (cell: { sourceId?: string; kind?: string }) => cell.sourceId === self.id && hasColumn(cell.kind, 'conceals');
   // Without dark of its own the observer sees the field as it stands; with some, the field is
   // re-resolved from every contribution but its own dark.
   const { lightByCell, darkStacksByCell } = observation.affinityContributions.some(ownDark)
@@ -101,7 +108,7 @@ function resolveRegistrySight(observation: RegistryObservation, self: ActorRecor
         byCell.set(key, [...(byCell.get(key) ?? []), cell]);
       }
       const others = [...byCell.values()].flatMap(cells => resolveActorFieldOverlap(cells));
-      return resolveNetLightDark(fieldIntensityByCell(others, 'light'), fieldIntensityByCell(others, 'dark'));
+      return resolveNetLightDark(fieldIntensityByCell(others, 'illuminates'), fieldIntensityByCell(others, 'conceals'));
     })()
     : resolveRegistryLightDark(observation);
   const tile = `${self.position.x},${self.position.y}`;
@@ -109,7 +116,7 @@ function resolveRegistrySight(observation: RegistryObservation, self: ActorRecor
   // Blinding dark (#284): the field at the tile re-resolved without the observer's own dark.
   const atTile = observation.affinityContributions.filter(cell => cell.position.x === self.position.x
     && cell.position.y === self.position.y && !ownDark(cell));
-  const othersDark = fieldIntensityByCell(resolveActorFieldOverlap(atTile), 'dark')[tile] ?? 0;
+  const othersDark = fieldIntensityByCell(resolveActorFieldOverlap(atTile), 'conceals')[tile] ?? 0;
   return {
     radius: resolveVisibilityRadius({ lightStacks: ownLight, blindingDarkIntensity: othersDark }),
     options: { darkStacksByCell, lightByCell, darkObscureThreshold: NET_DARK_OBSCURE_INTENSITY_THRESHOLD },
@@ -145,6 +152,34 @@ export function readActorRegistryVisibleCells(observation: RegistryObservation, 
   if (!self || self.lifecycle === 'exited') return [];
   const { radius, options } = resolveRegistrySight(observation, self);
   return computeVisibleCells(observation.sightKinds, self.position, radius, options);
+}
+
+/**
+ * How much of each other living actor `observerId` can read right now (#416, Darren
+ * 2026-10-18): the net intensity of revealing fields on the actor's cell after concealing
+ * ones cancel them, 0 when nothing reveals it or concealment wins. Any property above the
+ * level reads as the level with a `+`; at 0 only its glyph and role show. An actor's own
+ * concealing field hides it from others; the observer's own never hides anyone from it,
+ * as it never darkens its own sight (#409). Whether the observer sees the actor at all is
+ * sight's call; this does not say. Who counts as one's own party is the caller's.
+ */
+export function readActorRegistryRevealLevels(observation: RegistryObservation, observerId: string): Record<string, number> {
+  const byCell = new Map<string, typeof observation.affinityContributions>();
+  for (const cell of observation.affinityContributions) {
+    if (cell.sourceId === observerId && hasColumn(cell.kind, 'conceals')) continue;
+    const key = `${cell.position.x},${cell.position.y}`;
+    byCell.set(key, [...(byCell.get(key) ?? []), cell]);
+  }
+  const fields = [...byCell.values()].flatMap(cells => resolveActorFieldOverlap(cells));
+  const { lightByCell } = resolveNetLightDark(fieldIntensityByCell(fields, 'reveals'), fieldIntensityByCell(fields, 'conceals'));
+  return Object.fromEntries(observation.actors
+    .filter(actor => actor.id !== observerId && actor.lifecycle === 'alive')
+    .map(actor => [actor.id, lightByCell[`${actor.position.x},${actor.position.y}`] ?? 0]));
+}
+
+/** A property's value as an observer at reveal `level` reads it (#416): above the level, `level+`. */
+export function revealedValue(value: number, level: number): number | `${number}+` {
+  return value > level ? `${level}+` : value;
 }
 
 /**

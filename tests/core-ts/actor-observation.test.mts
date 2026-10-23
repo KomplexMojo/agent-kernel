@@ -67,20 +67,21 @@ test('defeated actors never block movement or sight and never project fields', (
 
 // ## TODO: Test Permutations
 test('visible contributions retain unseen emitters and reappear after switching away from cancellation', () => {
+  // An opposed pair that does not illuminate (#416), so the emitter stays unseen.
   const self = actor('self', 0);
-  self.affinities = [{ kind: 'water', expression: 'emit', stacks: 8 }, { kind: 'fire', expression: 'draw', stacks: 2 }];
-  self.activeAffinityKey = 'water:emit';
+  self.affinities = [{ kind: 'earth', expression: 'emit', stacks: 8 }, { kind: 'wind', expression: 'draw', stacks: 2 }];
+  self.activeAffinityKey = 'earth:emit';
   const source = actor('unseen', 5);
-  source.affinities = [{ kind: 'fire', expression: 'emit', stacks: 8 }];
-  source.activeAffinityKey = 'fire:emit';
+  source.affinities = [{ kind: 'wind', expression: 'emit', stacks: 8 }];
+  source.activeAffinityKey = 'wind:emit';
   const registry = createActorRegistry({ dimensions: { width: 12, height: 1 }, terrain: Array(12).fill('floor'), actors: [self, source] });
   const observation = scopeActorRegistryObservation(readActorRegistryObservation(registry, 0), self.id);
   expect(observation.actors.some(entry => entry.id === source.id)).toBe(false);
   expect(observation.affinityContributions.some(field => field.sourceId === source.id && field.position.x === 0)).toBe(true);
   expect(observation.affinityContributions.some(field => field.position.x === 11)).toBe(false);
-  const alternate = { ...self, activeAffinityKey: 'fire:draw' as const };
+  const alternate = { ...self, activeAffinityKey: 'wind:draw' as const };
   expect(projectActorEquipmentFields(alternate, self.position, observation.affinityContributions)
-    .some(field => field.sourceId === source.id && field.kind === 'fire')).toBe(true);
+    .some(field => field.sourceId === source.id && field.kind === 'wind')).toBe(true);
 });
 // - Surviving dark obscures a distant target after light/dark cancellation.
 

@@ -6,7 +6,7 @@
  */
 import { createPlaySession, PLAY_DIRECTION_STEPS, replayPlaySession } from "../../runtime/src/runner/play-session.js";
 import { INTENT } from "./keymap.js";
-import { motivationNote, renderScreen, slotLevelLabel } from "./screen.js";
+import { renderScreen, revealedDetail, revealNote, slotLevelLabel } from "./screen.js";
 
 /** Friendlier words for core's rejection codes; the raw name is the fallback. */
 const REJECTION_MESSAGES = Object.freeze({
@@ -89,7 +89,8 @@ function targetsInSight(view) {
   const from = view.player?.position;
   if (!from) return [];
   return [...(view.actors || []), ...(view.hazards || [])]
-    .map((actor) => ({ id: actor.id, distance: chebyshev(from, actor.position), motivations: actor.motivations ?? [] }))
+    .map((actor) => ({ id: actor.id, distance: chebyshev(from, actor.position), motivations: actor.motivations ?? [],
+      ...(actor.revealed !== undefined ? { revealed: actor.revealed } : {}), vitals: actor.vitals, affinities: actor.affinities }))
     .sort((a, b) => a.distance - b.distance || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
@@ -540,7 +541,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         "  Move keys aim, Enter casts (a push raises a barrier, a pull takes one down), Tab targets, Esc cancels"];
     }
     const target = panel.items[panel.index];
-    return [`Target: ${target.id}${motivationNote(target.motivations)}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${tiles(target.distance)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})   Tab next, Enter cast, Esc cancel`];
+    return [`Target: ${target.id}${revealNote(target)}${target.revealed !== undefined ? revealedDetail(target) : ""}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${tiles(target.distance)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})   Tab next, Enter cast, Esc cancel`];
   }
 
   function screen({ color = false } = {}) {

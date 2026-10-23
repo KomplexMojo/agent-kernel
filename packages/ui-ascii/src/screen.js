@@ -209,6 +209,26 @@ export function motivationNote(motivations) {
   return Array.isArray(motivations) && motivations.length > 0 ? ` (${motivations.join(", ")})` : "";
 }
 
+/**
+ * What you can read of an actor you see (#416): its motivations once light reveals it, `(?)`
+ * while nothing does (the view leaves its properties out).
+ */
+export function revealNote(actor) {
+  return actor?.revealed === 0 ? " (?)" : motivationNote(actor?.motivations);
+}
+
+/**
+ * A revealed actor's properties, for the target picker (#416): health and each affinity as
+ * `kind expression rR ×I`. Values light could not reach read `n+`; hidden ones `?`.
+ */
+export function revealedDetail(actor) {
+  if (!actor || actor.revealed === 0) return " HP ?";
+  const health = actor.vitals?.health;
+  const parts = [...(health ? [`HP ${health.current}/${health.max}`] : []),
+    ...(actor.affinities ?? []).map((pair) => `${pair.kind} ${pair.expression} r${pair.stacks} ×${pair.intensity ?? 1}`)];
+  return parts.length ? ` ${parts.join(", ")}` : "";
+}
+
 function memberNote(status) {
   if (status?.defeated) return " (defeated)";
   if (status?.exited) return " (escaped)";
@@ -271,7 +291,7 @@ export function ordersLine(orders) {
 export function inSightLine(view) {
   const seen = [...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.label);
   if (seen.length === 0) return null;
-  return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}${motivationNote(actor.motivations)}`).join("  ")}`;
+  return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}${revealNote(actor)}`).join("  ")}`;
 }
 
 /**

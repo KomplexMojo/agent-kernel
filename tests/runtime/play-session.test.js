@@ -13,6 +13,7 @@ const {
   replayPlaySession,
 } = require("../../packages/runtime/src/runner/play-session.js");
 const { buildUnifiedLevel, viableVitals } = require("../fixtures/ui-ascii/unified-level.mjs");
+const { AFFINITY_TABLE } = require("../../packages/core-ts/src/state/affinity-table.ts");
 
 // The MVP maze as a unified-actor level: the player's delver seated at (2,1),
 // the exit terrain at (8,7).
@@ -295,9 +296,12 @@ test("with fog, a light-emitting trap lights its cells, which the player sees fr
   assert.equal(lit.sight[3][1], PLAY_SIGHT.VISIBLE, "a cell the lamp lights, in line of sight");
   assert.deepEqual(lit.hazards.map((h) => h.id), ["lamp"]);
 
-  const unlit = (await createPlaySession({ ...lamp("fire"), fog: true })).view();
-  assert.notEqual(unlit.sight[3][3], PLAY_SIGHT.VISIBLE, "fire emits no light");
-  assert.deepEqual(unlit.hazards, []);
+  // #416: a kind lights its cells only when its table row illuminates (light and fire).
+  for (const { kind, illuminates } of AFFINITY_TABLE.filter((row) => row.kind !== "light")) {
+    const view = (await createPlaySession({ ...lamp(kind), fog: true })).view();
+    assert.equal(view.sight[3][3] === PLAY_SIGHT.VISIBLE, illuminates, `${kind} lights its cell: ${illuminates}`);
+    assert.deepEqual(view.hazards.map((h) => h.id), illuminates ? ["lamp"] : []);
+  }
 });
 
 test("with fog, a lamp that cannot pay its mana upkeep goes dark", async () => {

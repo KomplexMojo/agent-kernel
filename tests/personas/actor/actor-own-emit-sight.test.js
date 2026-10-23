@@ -8,6 +8,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const { affinityTableRow } = require("../../../packages/core-ts/src/state/affinity-table.ts");
 
 const FIXED = "2026-01-01T00:00:00.000Z";
 const KINDS = ["fire", "water", "earth", "wind", "growth", "decay", "corrode", "fortify", "light", "dark"];
@@ -71,7 +72,8 @@ test("an actor's own emit never narrows what it sees, for every kind", async () 
     const { eye } = await sight(kind);
     const lost = [...bare].filter((cell) => !eye.has(cell));
     assert.deepEqual(lost, [], `${kind}: own emit hid ${lost.join(" ")}`);
-    if (kind !== "light") assert.equal(eye.size, bare.size, `${kind}: own emit changed the view`);
+    // Only a kind whose table row illuminates (#416) widens the emitter's own view.
+    if (!affinityTableRow(kind).illuminates) assert.equal(eye.size, bare.size, `${kind}: own emit changed the view`);
   }
 });
 
