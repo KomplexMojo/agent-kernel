@@ -551,6 +551,8 @@ export function toViewActor(actor, presentation, labels, revealLevel) {
     activeAffinityKey: actor.activeAffinityKey,
     ...(actor.affinityExhausted ? { affinityExhausted: true } : {}),
     ...(off ? { affinityOff: true } : {}),
+    // Soaked (#420): turns left during which each move costs more stamina; plain to see.
+    ...(actor.soaked ? { soaked: actor.soaked } : {}),
   };
   if (revealLevel === 0) return { ...shown, revealed: 0 };
   const capped = (value) => (revealLevel === undefined ? value : revealedValue(value, revealLevel));
@@ -627,6 +629,7 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
         affinities: player.affinities.map((pair) => ({ ...pair })),
         activeAffinityKey: player.activeAffinityKey,
         ...(player.affinityExhausted ? { affinityExhausted: true } : {}),
+        ...(player.soaked ? { soaked: player.soaked } : {}),
         // Equipped slots, read through core's helpers: the count (1 when unset), the
         // equipped keys in equip order, the lasting ones off until mana is full, and
         // the range and intensity of slots run below what is held (#230, #345; full when

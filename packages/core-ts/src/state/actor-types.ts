@@ -94,6 +94,11 @@ export interface ActorRecordBase {
    * pays its invested mana down a turn at a time, then erodes. Omitted on authored actors.
    */
   raisedBy?: string;
+  /**
+   * #420: turns left soaked by a `soak`-trait affinity; each move costs more stamina while
+   * soaked. Omitted means dry.
+   */
+  soaked?: number;
   /** How many affinities the actor can equip at once, 1..6; omitted means 1. */
   affinitySlots?: number;
   capabilities: ActorCapabilities;

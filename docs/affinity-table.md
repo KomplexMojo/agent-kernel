@@ -45,8 +45,10 @@ what stands in it; it cancels illumination and revealing by intensity.
 
 A kind's physical identity beyond the vital it hits (#419), or none. Displace: a push moves what it
 hits one cell away from the caster and a pull one cell toward it (two cells at intensity 3 or more),
-only into a free cell; a wall, the board's edge or an actor stops it. Soak (#420) and spread (#421)
-are recorded but have no rule yet; raise is recorded, and raising barriers is open to every kind (#442).
+only into a free cell; a wall, the board's edge or an actor stops it. Soak (#420): a push that lands,
+or an emit field the receiver takes something from, soaks it for the hit's intensity in turns (a field
+keeps it soaked while it stands there); each move costs one more stamina while soaked. Spread (#421) is
+recorded but has no rule yet; raise is recorded, and raising barriers is open to every kind (#442).
 
 | Kind | Trait |
 |---|---|

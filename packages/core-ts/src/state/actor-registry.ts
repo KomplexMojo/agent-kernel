@@ -16,7 +16,7 @@ export type ActorMoveRejection = 'WrongActor' | 'InvalidCapability' | 'OutOfBoun
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
   'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'affinityExhausted',
-  'affinitySlots', 'raisedBy', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks', 'equippedAffinityIntensity',
+  'affinitySlots', 'raisedBy', 'soaked', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks', 'equippedAffinityIntensity',
 ]);
 
 /** Reject values JSON cannot faithfully represent before taking ownership. */
@@ -82,6 +82,9 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     }
     if (record.raisedBy !== undefined && (typeof record.raisedBy !== 'string' || !record.raisedBy)) {
       throw new Error('invalid raised barrier owner');
+    }
+    if (record.soaked !== undefined && (!Number.isSafeInteger(record.soaked) || record.soaked < 1)) {
+      throw new Error('invalid soak turns');
     }
     const actor = copy(record);
     validateActorRecordVitals(actor);
@@ -187,6 +190,21 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       occupancy.set(index(point), occupants);
       refreshOrder();
       return id;
+    },
+    /** #420: soak a living actor for `turns` turns; a longer soak already running is kept. */
+    soakActor(id: string, turns: number): boolean {
+      const actor = actors.get(id);
+      if (!actor || actor.lifecycle !== 'alive' || !Number.isSafeInteger(turns) || turns < 1) return false;
+      actor.soaked = Math.max(actor.soaked ?? 0, turns);
+      return true;
+    },
+    /** #420: one turn of drying for every soaked actor not soaked again this turn. */
+    drySoaked(soakedThisTurn: readonly string[] = []): void {
+      for (const actor of ordered) {
+        if (actor.soaked === undefined || soakedThisTurn.includes(actor.id)) continue;
+        if (actor.soaked > 1) actor.soaked -= 1;
+        else delete actor.soaked;
+      }
     },
     /** `scaleByActor` multiplies regen per actor and vital this turn (overwhelm, #289). */
     regenerate(scaleByActor: Readonly<Record<string, Partial<Record<ActorVitalKind, number>>>> = {}): void {

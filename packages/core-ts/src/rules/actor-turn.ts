@@ -1,10 +1,10 @@
-import { readActorOverwhelms, resolveActorFields, type ActorOverwhelm } from './actor-fields.ts';
+import { readActorFieldSoaks, readActorOverwhelms, resolveActorFields, type ActorOverwhelm } from './actor-fields.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey } from '../state/actor-types.ts';
 import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
 import { assertActorCastPrices, castActorAffinityAtTile, castFocusedActorAffinity, selectActorCastAffinity,
-  RAISED_BARRIER_EROSION, RAISED_BARRIER_UPKEEP, type ActorCastManaBases } from './actor-cast.ts';
+  RAISED_BARRIER_EROSION, RAISED_BARRIER_UPKEEP, SOAK_MOVE_STAMINA, type ActorCastManaBases } from './actor-cast.ts';
 import { computeMovementStaminaCost } from './move.ts';
 
 export interface ActorTurnSnapshot {
@@ -12,6 +12,8 @@ export interface ActorTurnSnapshot {
   acceptedActorIds: string[];
   /** Actors whose move was accepted this turn; the rest rested, doubling stamina regen (#407). Absent in older snapshots. */
   movedActorIds?: string[];
+  /** #420: actors soaked this turn, by a cast or a field; they do not dry this turn. Absent in older snapshots. */
+  soakedActorIds?: string[];
   closed: boolean;
   fieldsResolved: boolean;
   regenerated: boolean;
@@ -56,7 +58,9 @@ export function createActorTurn(
     || new Set(state.acceptedActorIds).size !== state.acceptedActorIds.length
     || state.acceptedActorIds.some(id => typeof id !== 'string' || !registry.getActor(id))
     || state.movedActorIds !== undefined && (!Array.isArray(state.movedActorIds)
-      || state.movedActorIds.some(id => !state.acceptedActorIds.includes(id)))) {
+      || state.movedActorIds.some(id => !state.acceptedActorIds.includes(id)))
+    || state.soakedActorIds !== undefined && (!Array.isArray(state.soakedActorIds)
+      || state.soakedActorIds.some(id => typeof id !== 'string'))) {
     throw new Error('invalid turn snapshot');
   }
   // #354 retired suppression: a snapshot saved before then may still carry the field.
@@ -107,7 +111,9 @@ export function createActorTurn(
           if (cardinal === undefined) break;
           lastRejection = registry.explainMove(actor.id, target);
           if (lastRejection) break;
-          const cost = computeMovementStaminaCost(actor.position.x !== target.x && actor.position.y !== target.y, cardinal);
+          // #420: a soaked actor pays more for every move.
+          const cost = computeMovementStaminaCost(actor.position.x !== target.x && actor.position.y !== target.y, cardinal)
+            + (actor.soaked ? SOAK_MOVE_STAMINA : 0);
           if ((actor.vitals.stamina?.current ?? 0) < cost) { lastRejection = 'InsufficientStamina'; break; }
           accepted = registry.moveActor(actor.id, target);
           if (accepted && cost > 0) registry.changeVital(actor.id, 'stamina', -cost);
@@ -130,6 +136,7 @@ export function createActorTurn(
             : castFocusedActorAffinity(registry, actor.id, action.params.targetId!, castPrices(prices), key);
           accepted = result.accepted;
           if (!accepted) lastRejection = result.rejection ?? null;
+          for (const soak of result.soaked ?? []) (state.soakedActorIds ??= []).push(soak.actorId);
           break;
         }
       }
@@ -142,6 +149,9 @@ export function createActorTurn(
     resolveFields() {
       if (!state.closed || state.fieldsResolved) return null;
       const result = resolveActorFields(registry);
+      for (const { actorId, turns } of readActorFieldSoaks(registry, result.fields)) {
+        if (registry.soakActor(actorId, turns)) (state.soakedActorIds ??= []).push(actorId);
+      }
       state.fieldsResolved = true;
       return result;
     },
@@ -149,6 +159,7 @@ export function createActorTurn(
       if (!state.fieldsResolved || state.regenerated) return false;
       if (prices.persistentUpkeep) registry.chargeAffinityUpkeep(prices.persistentUpkeep);
       registry.erodeRaisedBarriers(RAISED_BARRIER_UPKEEP, RAISED_BARRIER_EROSION);
+      registry.drySoaked(state.soakedActorIds ?? []);
       const restedActorIds = registry.snapshot().actors.map(actor => actor.id)
         .filter(actorId => !(state.movedActorIds ?? []).includes(actorId));
       registry.regenerate(regenScales(readActorOverwhelms(registry), restedActorIds));

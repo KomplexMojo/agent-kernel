@@ -9,6 +9,7 @@ import { changeActorVital } from '../state/actor-vitals.ts';
 import { resolveActorExposures, type ActorExposureSource } from './actor-exposure.ts';
 import { receiverAffinityAmount } from './actor-receiver.ts';
 import { litActorAffinities } from './actor-upkeep.ts';
+import { soakTurns } from './actor-cast.ts';
 
 const KIND_CODES = Object.fromEntries(Object.entries(AFFINITY_KIND_BY_CODE).map(([code, name]) => [name, Number(code)]));
 const EXPRESSION_CODES = Object.fromEntries(Object.entries(AFFINITY_EXPRESSION_BY_CODE).map(([code, name]) => [name, Number(code)]));
@@ -165,6 +166,25 @@ export function projectActorFields(registry: Pick<Registry, 'snapshot'>): { fiel
     }
   }
   return { fields, contributions, sources: [...exposures.values()] };
+}
+
+/**
+ * #420: who stands in a `soak`-trait emit field and takes something from it (the exposure the
+ * tick's own rule computes, after opposite cancellation and receiver rules), and for how many
+ * turns: the field's net intensity on that cell. A source never soaks itself. Read-only.
+ */
+export function readActorFieldSoaks(registry: Pick<Registry, 'snapshot'>, fields: readonly ActorFieldCell[]): { actorId: string; turns: number }[] {
+  const soaks = new Map<string, number>();
+  for (const receiver of registry.snapshot().actors.filter(actor => actor.lifecycle === 'alive')) {
+    const local = fields.filter(cell => cell.position.x === receiver.position.x && cell.position.y === receiver.position.y);
+    for (const cell of local) {
+      const turns = cell.expression === 'emit' ? soakTurns(cell, Math.round(cell.intensity)) : 0;
+      if (turns > 0 && actorFieldExposureAmount(receiver, cell, local) > 0) {
+        soaks.set(receiver.id, Math.max(soaks.get(receiver.id) ?? 0, turns));
+      }
+    }
+  }
+  return [...soaks].map(([actorId, turns]) => ({ actorId, turns }));
 }
 
 /** One field pass; Moderator remains responsible for calling once after ordered actions. */
