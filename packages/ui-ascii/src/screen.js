@@ -305,6 +305,17 @@ export function inSightLine(view) {
     + (soakedNote(actor) ? ` (${soakedNote(actor).trim()})` : "")).join("  ")}`;
 }
 
+// How each kind of thing leaves (#428): an exit is a departure, never mistaken for a defeat.
+const GONE_PHRASE = Object.freeze({ delver: "was defeated", warden: "was defeated", hazard: "was destroyed", barrier: "was destroyed" });
+
+/** Who left during the last turn, one event each: `D3 pal-1 left by the exit` (#428). */
+export function departuresLine(view) {
+  const gone = Array.isArray(view.departures) ? view.departures : [];
+  if (gone.length === 0) return null;
+  return gone.map((entry) => `${entry.label ? `${entry.label} ` : ""}${entry.id} `
+    + (entry.how === "exited" ? "left by the exit" : GONE_PHRASE[entry.role] ?? "is gone")).join("; ");
+}
+
 /**
  * @param {object} args
  * @param {object} args.view        createPlaySession().view()
@@ -357,7 +368,7 @@ export function renderScreen({
   if (soakedNote(view.player)) vitals.push(soakedNote(view.player).trim());
   if (vitals.length > 0) lines.push(vitals.join("   "));
   lines.push(...affinityLines(view.player, { hints }));
-  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view)]) if (line) lines.push(line);
+  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), departuresLine(view)]) if (line) lines.push(line);
   lines.push(tickLine);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
   if (Array.isArray(panel) && panel.length > 0) {

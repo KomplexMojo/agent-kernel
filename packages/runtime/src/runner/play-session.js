@@ -207,6 +207,34 @@ export async function createPlaySession({
   const rememberParty = () => partyIds.forEach(rememberVisible);
   rememberParty();
 
+  // Who left the level during the last command (#428): `{ id, label?, role, how }`, `how`
+  // being "exited" or "defeated" (core's lifecycle verdict). Watched are the actors on the
+  // seated actor's side, wherever they are, and any other the seat could see before the tick,
+  // so the fog leaks nothing.
+  let departures = [];
+  function watchedIds() {
+    const actors = readSnapshot().actors;
+    const seat = actors.find((actor) => actor.id === activeId);
+    const visible = fog && !runtime.hasActorExited(activeId) ? readVisible() : null;
+    return actors.filter((actor) => actor.lifecycle === "alive" && actor.id !== activeId
+      && ((seat && actor.alignment === seat.alignment) || !visible || visible[actor.position.y]?.[actor.position.x]))
+      .map((actor) => actor.id);
+  }
+
+  // One tick of the world, then the party's memory and the departures it caused.
+  async function stepWorld(args) {
+    const watched = watchedIds();
+    await runtime.step(args);
+    rememberParty();
+    const actors = readSnapshot().actors;
+    for (const id of watched) {
+      const actor = actors.find((entry) => entry.id === id);
+      if (!actor || actor.lifecycle === "alive") continue;
+      departures.push({ id, ...(labels.has(id) ? { label: labels.get(id) } : {}),
+        role: categoryOf(actor, presentation) ?? null, how: actor.lifecycle });
+    }
+  }
+
   function readSnapshot() {
     return runtime.getActorSnapshot();
   }
@@ -289,9 +317,9 @@ export async function createPlaySession({
     const seat = statusOf(activeId);
     const actorCommands = { [actorId]: { kind: "wait" } };
     if (!seat.exited && !seat.defeated) actorCommands[activeId] = { kind: "wait" };
-    await runtime.step({ actorCommands, actorStrategies: { [actorId]: normalized } });
+    departures = [];
+    await stepWorld({ actorCommands, actorStrategies: { [actorId]: normalized } });
     commandLog.push({ tick: currentTick(), actorId, seat: activeId, order: structuredClone(normalized) });
-    rememberParty();
     return { ok: true, actorId, tick: currentTick(), strategy: normalized, status: status() };
   }
 
@@ -325,6 +353,7 @@ export async function createPlaySession({
       || (until === "contact" && hostileInSight());
     let ran = 0;
     let stoppedBy = "ticks";
+    departures = [];
     while (ran < ticks) {
       const seat = statusOf(activeId);
       if (seat.exited || seat.defeated) {
@@ -336,10 +365,9 @@ export async function createPlaySession({
         break;
       }
       const auto = Boolean(strategies()[activeId] || initialState.strategies?.[activeId]);
-      await runtime.step(auto ? {} : { actorCommands: { [activeId]: { kind: "wait" } } });
+      await stepWorld(auto ? {} : { actorCommands: { [activeId]: { kind: "wait" } } });
       commandLog.push(auto ? { tick: currentTick(), actorId: activeId, auto: true }
         : { tick: currentTick(), actorId: activeId, command: { kind: "wait" } });
-      rememberParty();
       ran += 1;
     }
     if (ran === ticks && until && reached()) stoppedBy = until;
@@ -348,9 +376,9 @@ export async function createPlaySession({
 
   /** Replay one logged tick the seated actor spent on its own strategy. */
   async function autoTick(actorId) {
-    await runtime.step({});
+    departures = [];
+    await stepWorld({});
     commandLog.push({ tick: currentTick(), actorId, auto: true });
-    rememberParty();
     return { tick: currentTick() };
   }
 
@@ -393,9 +421,9 @@ export async function createPlaySession({
     // That actor's game is over once it has left the level or been defeated: no more ticks for it.
     const before = statusOf(actorId);
     if (before.exited || before.defeated) return refuse(before.exited ? "exited" : "defeated");
-    await runtime.step({ actorCommands: { [actorId]: normalized } });
+    departures = [];
+    await stepWorld({ actorCommands: { [actorId]: normalized } });
     commandLog.push({ tick: currentTick(), actorId, command: structuredClone(normalized) });
-    rememberParty();
     const applyFrame = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "apply").at(-1) || {};
     const accepted = (applyFrame.acceptedActions || [])
       .filter((action) => action?.actorId === actorId && isGameplayAction(action))
@@ -444,6 +472,7 @@ export async function createPlaySession({
         field: typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null,
       }),
       party: partyView(snapshot),
+      departures: departures.map((entry) => ({ ...entry })),
       orders: ordersView(),
       orderable: orderableView(snapshot),
     };
