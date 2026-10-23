@@ -3,6 +3,7 @@ import type { ActorAffinityEntry, ActorAffinityKey, ActorPosition, ActorRecord }
 import { affinityIntensity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { actorAffinityMagnitude, getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
 import { receiverAbsorbsAffinity, receiverAffinityAmount } from './actor-receiver.ts';
+import { affinityTableRow } from '../state/affinity-table.ts';
 
 /** Configurator-authored per-kind base prices for the escalating cast curve (#232). */
 export type ActorCastManaBases = Partial<Record<ActorAffinityKey, number>>;
@@ -34,9 +35,12 @@ function castManaCost(prices: ActorCastPrices, pair: ActorAffinityEntry): number
   const base = prices.castManaBase[affinityKey(pair)];
   return base === undefined ? undefined : actorCastManaPrice(base, pair.stacks, affinityIntensity(pair));
 }
+export interface ActorDisplacement { actorId: string; from: ActorPosition; to: ActorPosition }
 export interface ActorCastResult {
   accepted: boolean;
   changes: ActorVitalChange[];
+  /** #419: where a displacing cast moved its target; empty when it moved nothing. */
+  displaced?: ActorDisplacement[];
   /** Why the cast was refused, as a ValidationError name; absent when accepted. */
   rejection?: string;
 }
@@ -77,8 +81,40 @@ export function selectActorCastAffinity(actor: ActorRecord, key?: ActorAffinityK
  * Focused effect primitive. Every cast is a direct effect (#354): a pull steals like any
  * other inward use; nothing is suppressed or carried to a later action.
  */
+/** #419: intensity at which a displacing cast moves its target two cells instead of one. */
+export const DISPLACE_FAR_INTENSITY = 3;
+
+type DisplaceRegistry = Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'explainMove' | 'moveActor' | 'getActorsAt'>;
+
+/**
+ * #419: the `displace` trait. A push moves the target away from the caster, a pull toward it,
+ * one cell a step (king moves, along the sign of each axis), two steps at intensity
+ * DISPLACE_FAR_INTENSITY or more. A step goes only into a free cell: a wall, the board's edge,
+ * any living actor (the caster included) or a target that cannot move stops it there, with no
+ * extra harm. Costs the target no stamina.
+ */
+function displaceTarget(registry: DisplaceRegistry, sourceId: string, targetId: string,
+  pair: ActorAffinityEntry): ActorDisplacement[] {
+  if (affinityTableRow(pair.kind)?.trait !== 'displace') return [];
+  const source = registry.getActor(sourceId)!;
+  const from = registry.getActor(targetId)?.position;
+  if (!from) return [];
+  const away = pair.expression === 'push' ? 1 : -1;
+  const step = { x: Math.sign(from.x - source.position.x) * away, y: Math.sign(from.y - source.position.y) * away };
+  if (step.x === 0 && step.y === 0) return [];
+  let at = from;
+  for (let moved = 0; moved < (affinityIntensity(pair) >= DISPLACE_FAR_INTENSITY ? 2 : 1); moved += 1) {
+    const next = { x: at.x + step.x, y: at.y + step.y };
+    if (registry.explainMove(targetId, next) !== null
+      || registry.getActorsAt(next).some(other => other.lifecycle === 'alive')) break;
+    registry.moveActor(targetId, next);
+    at = next;
+  }
+  return at === from ? [] : [{ actorId: targetId, from: { ...from }, to: { ...at } }];
+}
+
 export function castFocusedActorAffinity(
-  registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital'>,
+  registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital'> & Partial<DisplaceRegistry>,
   sourceId: string, targetId: string, manaCosts: ActorCastPrices, castKey?: ActorAffinityKey,
 ): ActorCastResult {
   assertActorCastPrices(manaCosts);
@@ -118,8 +154,11 @@ export function castFocusedActorAffinity(
   // back to the caster (a mana steal, a mana restore on itself) cannot refund it.
   const effects = resolveActorAffinity(registry, sourceId, targetId, pair.kind, pair.expression, received).changes;
   const paid = cost > 0 ? registry.changeVital(sourceId, 'mana', -cost) : 0;
+  // #419: a hit that lands (not a self-cast, not one the receiver takes nothing from) displaces.
+  const displaced = sourceId !== targetId && received > 0 && registry.moveActor
+    ? displaceTarget(registry as DisplaceRegistry, sourceId, targetId, pair) : [];
   return { accepted: true, changes: [...changes, ...effects,
-    ...(paid !== 0 ? [{ actorId: sourceId, vital: 'mana' as const, delta: paid }] : [])] };
+    ...(paid !== 0 ? [{ actorId: sourceId, vital: 'mana' as const, delta: paid }] : [])], displaced };
 }
 
 /** A barrier: it stands in the way and never moves (the `barrier` preset, authored or raised). */

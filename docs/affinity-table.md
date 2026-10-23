@@ -41,6 +41,26 @@ what stands in it; it cancels illumination and revealing by intensity.
 | light | yes | yes | no |
 | dark | no | no | yes |
 
+## Traits
+
+A kind's physical identity beyond the vital it hits (#419), or none. Displace: a push moves what it
+hits one cell away from the caster and a pull one cell toward it (two cells at intensity 3 or more),
+only into a free cell; a wall, the board's edge or an actor stops it. Soak (#420) and spread (#421)
+are recorded but have no rule yet; raise is recorded, and raising barriers is open to every kind (#442).
+
+| Kind | Trait |
+|---|---|
+| fire | spread |
+| water | soak |
+| earth | raise |
+| wind | displace |
+| growth | none |
+| decay | none |
+| corrode | none |
+| fortify | none |
+| light | none |
+| dark | none |
+
 ## Receiver rules
 
 The same for fields and casts:
