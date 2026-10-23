@@ -1,6 +1,6 @@
 // #396: `ak create --tactic` / `ak_create { tactics }` carry a tactic list into the plan and the
-// BuildSpec. The create result reports what was done with each tactic (#398 ambush, #400 retinue)
-// and names the build seed so the level can be rebuilt exactly.
+// BuildSpec. The create result reports what was done with each tactic (#398 ambush, #400 retinue,
+// #418 minefield) and names the build seed so the level can be rebuilt exactly.
 
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -50,6 +50,19 @@ test("ak_create tactics reach the BuildSpec and each one is reported", async () 
   assert.ok(result.initialState.actors.some((actor) => actor.id === tacticRows[1].minions[0].id), "the minion is in the level");
 });
 
+test("a minefield needs no authored hazard: the tactic brings its own hazard share (#418)", async () => {
+  const result = await create({ room: ["size=medium;count=3"], resource: ["permanenceMode=consumable;vital=health;delta=5"],
+    delver: ["count=1;affinity=wind;motivation=exploring"], tactics: ["minefield;hazards=3"], seed: 4 });
+  assert.equal(result.status, 0, result.output);
+  const row = result.summary.placementReport.find((entry) => entry.tactic === "minefield");
+  assert.equal(row.applied, true, row.note);
+  assert.equal(row.hazards.length, 3);
+  assert.ok(row.safeLine.length >= 2 && typeof row.room === "string", JSON.stringify(row.safeLine));
+  for (const { id } of row.hazards) {
+    assert.ok(result.initialState.actors.some((actor) => actor.id === id), `${id} is in the level`);
+  }
+});
+
 test("the same tactics and seed rebuild the same level", async () => {
   const first = await create({ ...level, tactics: ["ambush"], seed: 11 });
   const second = await create({ ...level, tactics: ["ambush"], seed: 11 });
@@ -75,7 +88,7 @@ test("a build without tactics or a seed reports neither", async () => {
 test("an unknown tactic or a bad seed is refused with a reason", async () => {
   const unknown = await create({ ...level, tactics: ["flank"] });
   assert.notEqual(unknown.status, 0);
-  assert.match(unknown.output, /unknown tactic "flank".*ambush, retinue/);
+  assert.match(unknown.output, /unknown tactic "flank".*ambush, retinue, minefield/);
   const cli = spawnSync(process.execPath, [AK_CLI, "create", ...["--room", "size=small;count=1", "--seed", "-3"]],
     { cwd: ROOT, encoding: "utf8" });
   assert.notEqual(cli.status, 0);

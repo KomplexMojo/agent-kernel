@@ -266,6 +266,23 @@
         "--seed",
         "3"
       ]
+    },
+    {
+      "id": "minefield",
+      "note": "an exploring delver crosses a room of overlapping hazard fields with a safe line along its edge (#418)",
+      "ticks": 40,
+      "args": [
+        "--room",
+        "size=medium;count=3",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=5",
+        "--delver",
+        "count=1;id=ex;affinity=wind;motivation=exploring;vitals=health:30:2,mana:20:2,stamina:10:2,durability:10:1",
+        "--tactic",
+        "minefield",
+        "--seed",
+        "4"
+      ]
     }
   ]
 }

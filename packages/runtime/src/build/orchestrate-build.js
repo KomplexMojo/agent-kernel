@@ -406,6 +406,7 @@ export async function orchestrateBuild({
       layout,
       actors: actorsInput.actors,
       resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
+      hazards: authoredHazards,
       placement: Array.isArray(configuratorInputs?.placement) ? configuratorInputs.placement : [],
       seed,
     });
@@ -424,7 +425,8 @@ export async function orchestrateBuild({
         record: (decision) => solverDecisions.push(decision),
       }))({
       layout,
-      hazards: unpositionedHazards,
+      // #418: the hazards a tactic adds (minefields) are placed and priced like authored ones.
+      hazards: [...unpositionedHazards, ...compiled.hazards],
       resources: Array.isArray(configuratorInputs?.resources) ? configuratorInputs.resources : [],
       actors: actorsInput.actors,
       affinityRules,
@@ -576,6 +578,42 @@ export async function orchestrateBuild({
         if (fitted.dropped.size > 0) {
           actorsInput.actors = actorsInput.actors.filter((actor) => !fitted.dropped.has(actor?.id));
           placedActors = placedActors.filter((actor) => !fitted.dropped.has(actor?.id));
+          compiledTacticReport = fitted.report;
+        }
+      }
+      if (compiled.hazards.length > 0) {
+        // #418: a minefield the hazard share cannot afford shrinks. The Allocator prices each
+        // try; the Configurator decides which hazards go.
+        const withoutHazards = (dropped) => ({
+          ...layout,
+          hazards: (Array.isArray(layout.hazards) ? layout.hazards : []).filter((hazard) => !dropped.has(hazard?.id)),
+        });
+        const fitted = configuratorBuild.fitMinefields({
+          report: compiledTacticReport,
+          affordable: (dropped) => {
+            const { receipt } = evaluateConfiguratorSpend({
+              budget: mapped.budget.budget,
+              priceList: resolvedPriceList,
+              allocation: budgetAllocation,
+              layout: withoutHazards(dropped),
+              actors: pricedActors().filter((actor) => !dropped.has(actor?.id)),
+              resources: [],
+              motivationRules,
+              affinityRules,
+              proposalMeta: createBuildMeta(spec, producedBy, "spend_proposal_probe"),
+              receiptMeta: createBuildMeta(spec, producedBy, "budget_receipt_probe"),
+              normalizeMotivations: configuratorMotivations,
+            });
+            return buildAllocator.hazardShareApproved({ receipt });
+          },
+        });
+        if (fitted.dropped.size > 0) {
+          layout = withoutHazards(fitted.dropped);
+          actorsInput.actors = actorsInput.actors.filter((actor) => !fitted.dropped.has(actor?.id));
+          placedActors = placedActors.filter((actor) => !fitted.dropped.has(actor?.id));
+          if (Array.isArray(resolvedEffects.hazards)) {
+            resolvedEffects = { ...resolvedEffects, hazards: resolvedEffects.hazards.filter((hazard) => !fitted.dropped.has(hazard?.id)) };
+          }
           compiledTacticReport = fitted.report;
         }
       }

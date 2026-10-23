@@ -87,11 +87,12 @@ The Director produces plans that are:
 Plans describe *what is desired*, not *how it will be built* or *how it will be enforced*.
 
 **Placement tactics (#396).** The Director owns which tactics exist (`PLAN_TACTIC_IDS`: `ambush`,
-`retinue`) and reads the authored list (`parseTactic` for `"<tactic>[;key=value...]"`,
+`retinue`, `minefield`) and reads the authored list (`parseTactic` for `"<tactic>[;key=value...]"`,
 `normalizeTactics` for strings or `{ tactic, params }`), refusing an unknown tactic with the known
 ones named. The list rides in the plan as `directives.tactics` and in the BuildSpec as
 `plan.hints.tactics` (`tactics.js`; shape checked by `contracts/build-spec.js`). Compiling a tactic
-into placement is the Configurator's.
+into placement is the Configurator's. `tacticBudgetPools` (#418) names the budget pools a tactic adds
+things to (`minefield`: `hazards`), so a level asking for one gets that share without authoring a hazard.
 
 ### Prompt Plan Authoring (LLM)
 When using an LLM (e.g. Ollama), the Director owns the prompt plan:

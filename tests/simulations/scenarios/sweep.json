@@ -600,6 +600,23 @@
         "--seed",
         "3"
       ]
+    },
+    {
+      "id": "sweep-minefield",
+      "note": "an exploring delver crosses a room of four overlapping hazard fields with a safe line along its edge and a reward inside (#418)",
+      "ticks": 80,
+      "args": [
+        "--room",
+        "size=medium;count=4",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=5",
+        "--delver",
+        "count=1;id=ex;affinity=wind;motivation=exploring;vitals=health:30:2,mana:20:2,stamina:10:2,durability:10:1",
+        "--tactic",
+        "minefield;hazards=4",
+        "--seed",
+        "7"
+      ]
     }
   ]
 }

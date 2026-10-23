@@ -23,8 +23,8 @@ test("a tactic spec reads as { tactic, params }, numbers kept as numbers", async
 test("an unknown tactic, an empty one or a bad param is refused with a reason", async () => {
   const { createDirectorPersona, PLAN_TACTIC_IDS } = await load();
   const director = createDirectorPersona({ clock: () => CREATED_AT });
-  assert.deepEqual([...PLAN_TACTIC_IDS], ["ambush", "retinue"]);
-  assert.throws(() => director.parseTactic("flank"), /unknown tactic "flank".*ambush, retinue/);
+  assert.deepEqual([...PLAN_TACTIC_IDS], ["ambush", "retinue", "minefield"]);
+  assert.throws(() => director.parseTactic("flank"), /unknown tactic "flank".*ambush, retinue, minefield/);
   assert.throws(() => director.parseTactic(""), /tactic/);
   assert.throws(() => director.parseTactic("ambush;guards"), /guards.*key=value/);
   assert.throws(() => director.normalizeTactics([{ tactic: "ambush", params: { guards: [2] } }]), /guards/);
@@ -52,6 +52,14 @@ test("the plan carries the tactics as directives, and the BuildSpec as plan hint
   const built = director.assembleBuildSpec({ summary: { goal: "tactics", tactics }, runId: "run_t", createdAt: CREATED_AT, source: "cli-create" });
   assert.equal(built.ok, true, built.errors?.join("; "));
   assert.deepEqual(built.spec.plan.hints.tactics, tactics);
+});
+
+test("a tactic that adds things of its own names the budget pool it spends from (#418)", async () => {
+  const { createDirectorPersona } = await load();
+  const director = createDirectorPersona({ clock: () => CREATED_AT });
+  assert.deepEqual(director.tacticBudgetPools([{ tactic: "minefield" }, { tactic: "ambush" }, { tactic: "minefield" }]), ["hazards"]);
+  assert.deepEqual(director.tacticBudgetPools([{ tactic: "ambush" }, { tactic: "retinue" }]), []);
+  assert.deepEqual(director.tacticBudgetPools(undefined), []);
 });
 
 test("a BuildSpec without tactics carries no tactic field", async () => {
