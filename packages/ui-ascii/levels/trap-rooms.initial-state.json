@@ -127,7 +127,7 @@
     {
       "id": "hazard_2",
       "position": {
-        "x": 15,
+        "x": 16,
         "y": 4
       },
       "alignment": "dungeon",
@@ -169,7 +169,7 @@
     {
       "id": "hazard_3",
       "position": {
-        "x": 17,
+        "x": 19,
         "y": 4
       },
       "alignment": "dungeon",

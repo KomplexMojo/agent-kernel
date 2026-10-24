@@ -81,6 +81,47 @@ test("a level too small to keep them apart still builds, as spread as it fits", 
   assert.equal(new Set(cells).size, 5);
 });
 
+// #403: a lasting field reaches its range, so two objects sit further apart than the larger
+// reach of the pair (and never touching). A range-2 emit two cells from its neighbour hit it on tick 1.
+const reachOf = (actor) => (actor.affinities || [])
+  .filter(({ expression }) => expression === "emit" || expression === "draw")
+  .reduce((most, { stacks }) => Math.max(most, stacks), 1);
+function pairsInReach(actors) {
+  const pairs = [];
+  actors.forEach((left, index) => actors.slice(index + 1).forEach((right) => {
+    if (chebyshev(left.position, right.position) <= Math.max(reachOf(left), reachOf(right))) pairs.push(`${left.id}/${right.id}`);
+  }));
+  return pairs;
+}
+const fieldHazards = (count, stacks, expression = "emit") => hazards(count).map((hazard) => ({
+  ...hazard, affinity: { ...hazard.affinity, expression, stacks },
+}));
+
+test.each(["emit", "draw"])("unplaced %s hazards are seated out of each other's reach (#403)", async (expression) => {
+  const place = await placer();
+  const result = await place({ layout: board(14, 10), hazards: fieldHazards(3, 2, expression), resources: [], actors: [] });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.deepEqual(pairsInReach(result.actors), []);
+});
+
+test("only a field's own reach spreads things out: objects with none just keep from touching (#403)", async () => {
+  const place = await placer();
+  const result = await place({ layout: board(14, 10), hazards: fieldHazards(1, 3), resources: resources(3), actors: [] });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.deepEqual(pairsInReach(result.actors), []);
+  const plain = result.actors.filter(({ id }) => id.startsWith("resource_"));
+  const closest = Math.min(...plain.flatMap((left, index) => plain.slice(index + 1).map((right) => chebyshev(left.position, right.position))));
+  assert.equal(closest, 2, "resources sit two apart, not three: they have no field");
+});
+
+test("a field already in place keeps new objects out of its reach (#403)", async () => {
+  const place = await placer();
+  const fixed = { ...fieldHazards(1, 3)[0], id: "fixed", position: { x: 2, y: 2 } };
+  const result = await place({ layout: board(14, 10), hazards: [fixed], resources: resources(3), actors: [] });
+  assert.equal(result.ok, true, JSON.stringify(result));
+  assert.deepEqual(pairsInReach(result.actors), []);
+});
+
 // ## TODO: Test Permutations
 // - two objects restricted to one room two cells wide touch, and nothing else does
 // - a route-sealing hazard keeps the route open while staying apart from the rest

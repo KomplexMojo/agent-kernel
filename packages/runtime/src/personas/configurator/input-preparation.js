@@ -310,7 +310,7 @@ function mechanicalVitals(vitals = {}) {
   return next;
 }
 
-function authoredAffinity(entry) {
+export function authoredAffinity(entry) {
   const stack = Array.isArray(entry?.affinityStacks) ? entry.affinityStacks[0] : null;
   if (stack && typeof stack === "object" && !Array.isArray(stack)
     && typeof stack.kind === "string" && stack.kind.trim()

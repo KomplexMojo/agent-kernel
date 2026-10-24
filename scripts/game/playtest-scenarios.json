@@ -29,7 +29,6 @@
         "Leave your emit on until mana drains: does it switch off, and back on when full?"
       ],
       "budgetTokens": 4000,
-      "knownIssues": [{ "rule": "tick_one_defeat", "issue": "#403", "note": "hazards seated inside each other's reach; on some seeds only" }],
       "args": [
         "--room", "size=small;count=3",
         "--delver", "count=1;id=hero;affinity={A};affinities={A}:emit:2:2;equip={A}:emit;motivation=user_controlled;vitals=health:25:1,mana:40:5,stamina:10:2,durability:15:1",
