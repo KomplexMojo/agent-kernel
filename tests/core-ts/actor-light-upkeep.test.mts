@@ -130,6 +130,31 @@ test('a lasting affinity with no mana pool cannot pay and stays off', () => {
   expect(readActorRegistryObservation(registry, 2).affinityFields).toEqual([]);
 });
 
+// #441: an upkeep above max mana can never be paid, so full mana does not switch it back on.
+const KINDS = ['fire', 'water', 'earth', 'wind', 'growth', 'decay', 'corrode', 'fortify', 'light', 'dark'] as const;
+test.each(KINDS.flatMap(kind => (['emit', 'draw'] as const).map(expression => [kind, expression] as const)))(
+  'a %s %s whose upkeep exceeds max mana stays off and never runs for free (#441)', (kind, expression) => {
+    const record = actor('src', 0);
+    record.vitals.mana = { current: 4, max: 4, regen: 0 }; // r2 x1 costs 2 + 2 + 1 = 5
+    record.affinities = [{ kind, expression, stacks: 2 }]; record.activeAffinityKey = `${kind}:${expression}`;
+    const registry = corridor(6, [record]);
+    for (let tick = 0; tick < 4; tick += 1) closeTurn(registry, tick);
+    expect(registry.getActor('src')!.affinityExhausted).toBe(true);
+    expect(registry.getActor('src')!.vitals.mana!.current).toBe(4);
+    expect(readActorRegistryObservation(registry, 4).affinityFields).toEqual([]);
+  });
+
+test('of two exhausted slots, only the one full mana can pay comes back on (#441)', () => {
+  const record = actor('src', 0);
+  record.vitals.mana = { current: 4, max: 4, regen: 0 };
+  record.affinities = [{ kind: 'earth', expression: 'emit', stacks: 2 }, { kind: 'wind', expression: 'draw', stacks: 1 }];
+  record.activeAffinityKey = 'earth:emit'; record.affinitySlots = 2; record.equippedAffinityKeys = ['earth:emit', 'wind:draw'];
+  record.affinityExhausted = true; // both off; wind draw r1 x1 costs 4, earth emit r2 x1 costs 5
+  const registry = corridor(6, [record]);
+  closeTurn(registry, 0);
+  expect(registry.getActor('src')!.exhaustedAffinityKeys).toEqual(['earth:emit']);
+});
+
 test('an exhausted flag survives a snapshot round trip and rejects non-booleans', () => {
   const record = lamp('lamp', 0, 3); record.affinityExhausted = true;
   expect(corridor(4, [record]).snapshot().actors[0].affinityExhausted).toBe(true);

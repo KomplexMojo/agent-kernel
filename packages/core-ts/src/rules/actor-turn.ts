@@ -170,7 +170,7 @@ export function createActorTurn(
       registry.drySoaked(state.soakedActorIds ?? []);
       const restedActorIds = registry.snapshot().actors.map(actor => actor.id)
         .filter(actorId => !(state.movedActorIds ?? []).includes(actorId));
-      registry.regenerate(regenScales(readActorOverwhelms(registry), restedActorIds));
+      registry.regenerate(regenScales(readActorOverwhelms(registry), restedActorIds), prices.persistentUpkeep ?? []);
       state.regenerated = true; return true;
     },
     resolveExits(): string[] | null {
