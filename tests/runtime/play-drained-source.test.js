@@ -55,6 +55,31 @@ test("a source with one of two lasting slots off is still on", async () => {
   assert.equal(toViewActor({ ...actor, exhaustedAffinityKeys: undefined }, {}, new Map()).affinityOff, true);
 });
 
+// #454: a lasting slot whose upkeep is above max mana never comes back (#441), so it isn't
+// named "until mana is full"; the line gives the upkeep and the max instead.
+test("a source whose upkeep is above its max mana is named off for good, with the numbers, for every affinity", async () => {
+  for (const kind of AFFINITY_KINDS) {
+    const poor = { ...trap(kind), vitals: { durability: { current: 10, max: 10, regen: 1 }, mana: { current: 4, max: 4, regen: 1 } } };
+    const session = await createPlaySession(buildUnifiedLevel({ id: "poor", tiles: HALL, actors: [PLAYER, poor] }));
+    for (let i = 0; i < 3; i += 1) await session.act({ kind: "wait" });
+    const view = session.view();
+    assert.deepEqual(view.hazards[0].affinityUnpayable, { upkeep: 5, maxMana: 4 }, kind);
+    assert.match(inSightLine(view), /t \(off: upkeep 5 > max mana 4\)/, kind);
+  }
+});
+
+test("the player's own slot that full mana can't pay says so", async () => {
+  const hero = { ...PLAYER, vitals: { ...viableVitals(), mana: { current: 4, max: 4, regen: 1 } },
+    affinities: [{ kind: "light", expression: "emit", stacks: 2 }], activeAffinityKey: "light:emit" };
+  const session = await createPlaySession(buildUnifiedLevel({ id: "poor-hero", tiles: HALL, actors: [hero] }));
+  for (let i = 0; i < 3; i += 1) await session.act({ kind: "wait" });
+  const { player } = session.view();
+  assert.deepEqual(player.unpayableAffinities, [{ key: "light:emit", upkeep: 5, maxMana: 4 }]);
+  assert.ok(player.exhaustedAffinityKeys.includes("light:emit"));
+  const { renderScreen } = await import("../../packages/ui-ascii/src/screen.js");
+  assert.match(renderScreen({ view: session.view(), title: "poor" }), /light emit .*\(off: upkeep 5 > max mana 4\)/);
+});
+
 // ## TODO: Test Permutations
 // - a drained source comes back on, undimmed, once its mana is full
 // - a drained warden (not a trap) is dimmed and named off too

@@ -208,7 +208,9 @@ export function affinityLines(player, { hints = true } = {}) {
     const key = equipped[i];
     const pair = key && known.find((entry) => `${entry.kind}:${entry.expression}` === key);
     if (!pair) return `Slot ${i + 1}: empty`;
-    const note = off.includes(key) ? "  (off until mana is full)" : "";
+    const unpayable = (player.unpayableAffinities || []).find((entry) => entry.key === key);
+    const note = !off.includes(key) ? ""
+      : unpayable ? `  (off: upkeep ${unpayable.upkeep} > max mana ${unpayable.maxMana})` : "  (off until mana is full)";
     return `Slot ${i + 1}: ${pair.kind} ${pair.expression} ${slotLevelLabel(player, pair)}${note}`;
   });
 }
@@ -322,7 +324,8 @@ export function inSightLine(view) {
   const seen = [...(view.actors || []), ...(view.hazards || [])].filter((actor) => actor.label);
   if (seen.length === 0) return null;
   return `In sight: ${seen.map((actor) => `${actor.label} ${actor.id}${revealNote(actor)}`
-    + (actor.affinityOff ? " (off until mana is full)" : "")
+    + (actor.affinityUnpayable ? ` (off: upkeep ${actor.affinityUnpayable.upkeep} > max mana ${actor.affinityUnpayable.maxMana})`
+      : actor.affinityOff ? " (off until mana is full)" : "")
     + (soakedNote(actor) ? ` (${soakedNote(actor).trim()})` : "")).join("  ")}`;
 }
 

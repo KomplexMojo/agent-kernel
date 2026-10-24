@@ -1607,6 +1607,11 @@ export function createFsmRuntime({
       return actorRegistry ? readActorRegistryFieldCells(readActorRegistryObservation(actorRegistry, tick)) : [];
     },
 
+    /** The lasting-affinity upkeep table core charges from, indexed by range + intensity (#454). */
+    readAffinityUpkeepTable() {
+      return [...persistentAffinityUpkeepTable];
+    },
+
     /** Core's verdict on whether `actorId` has left the level. */
     hasActorExited(actorId) {
       return hasExited(actorId);
