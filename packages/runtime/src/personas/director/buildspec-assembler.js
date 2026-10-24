@@ -439,6 +439,7 @@ export function buildBuildSpecFromSummary({
         budgetTokens: resolvedSummary?.budgetTokens,
         dungeonBudgetTokens: resolvedSummary?.dungeonBudgetTokens,
         delverBudgetTokens: resolvedSummary?.delverBudgetTokens,
+        ...(typeof resolvedSummary?.grade === "string" ? { grade: resolvedSummary.grade } : {}),
         poolWeights: resolvedSummary?.poolWeights,
         delverCount,
         delverSetupMode: delverConfig?.setupMode,

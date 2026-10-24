@@ -50,16 +50,20 @@ export function affinitiesForSeed(seed) {
   return { A, B, C, D };
 }
 
-/** The scenario's level arguments with the seed's affinities filled in. */
-export function scenarioArgs(scenario, seed) {
+/**
+ * The scenario's level arguments with the seed's affinities filled in. A grade (#422)
+ * takes the place of the scenario's own budget: the Allocator sets budget and split.
+ */
+export function scenarioArgs(scenario, seed, grade) {
   const picks = affinitiesForSeed(seed);
   const fill = (text) => text.replace(/\{([ABCD])\}/g, (_, key) => picks[key]);
-  return ["--budget-tokens", String(scenario.budgetTokens), ...scenario.args.map(fill)];
+  const budget = grade ? ["--grade", grade] : ["--budget-tokens", String(scenario.budgetTokens)];
+  return [...budget, ...scenario.args.map(fill)];
 }
 
 /** The full `ak create` arguments: the same scenario, seed and createdAt always build the same level. */
-export function createArgs(scenario, seed, createdAt) {
-  return ["--run-id", `playtest-${scenario.id}-s${seed}`, "--created-at", createdAt, ...scenarioArgs(scenario, seed)];
+export function createArgs(scenario, seed, createdAt, grade) {
+  return ["--run-id", `playtest-${scenario.id}-s${seed}`, "--created-at", createdAt, ...scenarioArgs(scenario, seed, grade)];
 }
 
 export function fillFocus(scenario, seed) {
@@ -90,8 +94,8 @@ function lastJson(text) {
   try { return JSON.parse(line); } catch { return null; }
 }
 
-function build(scenario, seed, levelDir, createdAt) {
-  const result = ak(["create", ...createArgs(scenario, seed, createdAt), "--out-dir", levelDir]);
+function build(scenario, seed, levelDir, createdAt, grade) {
+  const result = ak(["create", ...createArgs(scenario, seed, createdAt, grade), "--out-dir", levelDir]);
   const parsed = lastJson(result.stdout);
   if (result.status !== 0 || parsed?.ok === false) {
     throw new Error(`ak create refused ${scenario.id} (seed ${seed}):\n${result.stderr || result.stdout}`);
@@ -118,6 +122,7 @@ function parseArgs(argv) {
     if (arg === "--seed") options.seed = Number(argv[++i]);
     else if (arg === "--open") options.open = argv[++i];
     else if (arg === "--keys") options.keys = argv[++i];
+    else if (arg === "--grade") options.grade = argv[++i];
     else if (arg === "--help" || arg === "-h") options.help = true;
     else rest.push(arg);
   }
@@ -126,7 +131,7 @@ function parseArgs(argv) {
 }
 
 function listScenarios(catalog) {
-  console.log("Playtest scenarios (bash scripts/game/playtest.sh <id> [--seed N]):\n");
+  console.log("Playtest scenarios (bash scripts/game/playtest.sh <id> [--seed N] [--grade H..S]):\n");
   for (const scenario of catalog.scenarios) {
     console.log(`  ${scenario.id.padEnd(12)} ${scenario.title}`);
   }
@@ -149,13 +154,14 @@ async function askNotes() {
   return notes;
 }
 
-export function renderReport({ scenario, seed, commit, branch, createdAt, playedAt, picks, final, notes, replayCode, cost }) {
+export function renderReport({ scenario, seed, grade, commit, branch, createdAt, playedAt, picks, final, notes, replayCode, cost }) {
   const lines = [
     `# Playtest: ${scenario.title} (${scenario.id}, seed ${seed})`,
     "",
     `- Played: ${playedAt}`,
     `- Commit: ${commit} (${branch})`,
     `- Affinities: you ${picks.A} vs ${picks.B}; other pair ${picks.C}/${picks.D}`,
+    ...(grade ? [`- Grade: ${grade}`] : []),
     `- Level cost: ${cost ? `${cost.totalSpend} of ${cost.budgetTokens} tokens (${cost.status})` : "unknown"}`,
     `- Ended: turn ${final?.turns ?? "?"}, ${describeStatus(final?.status)}`,
     "",
@@ -175,7 +181,7 @@ export function renderReport({ scenario, seed, commit, branch, createdAt, played
     `bash scripts/game/playtest.sh --open <this file>`,
     "```",
     "",
-    `<!-- playtest ${JSON.stringify({ scenario: scenario.id, seed, commit, createdAt })} -->`,
+    `<!-- playtest ${JSON.stringify({ scenario: scenario.id, seed, ...(grade ? { grade } : {}), commit, createdAt })} -->`,
     `<!-- replay ${replayCode} -->`,
     "",
   ];
@@ -211,7 +217,8 @@ async function playScenario(catalog, options) {
   const recordingPath = join(outDir, "recording.json");
   mkdirSync(outDir, { recursive: true });
 
-  const created = build(scenario, seed, levelDir, catalog.createdAt);
+  const grade = options.grade;
+  const created = build(scenario, seed, levelDir, catalog.createdAt, grade);
   console.log(`\n${scenario.title} (seed ${seed}): you are ${picks.A}, against ${picks.B}; other pair ${picks.C}/${picks.D}.`);
   console.log("Things to try:");
   for (const line of fillFocus(scenario, seed)) console.log(`  - ${line}`);
@@ -232,7 +239,7 @@ async function playScenario(catalog, options) {
   const final = recorded ? finalState(levelDir, recordingPath) : null;
   const notes = await askNotes();
   const report = renderReport({
-    scenario, seed, picks, final, notes,
+    scenario, seed, grade: created?.grade?.grade ?? grade, picks, final, notes,
     commit: git(["rev-parse", "--short", "HEAD"]),
     branch: git(["rev-parse", "--abbrev-ref", "HEAD"]),
     createdAt: catalog.createdAt,
@@ -263,7 +270,7 @@ async function openReport(catalog, options) {
   const levelDir = join(outDir, "level");
   const recordingPath = join(outDir, "recording.json");
   mkdirSync(outDir, { recursive: true });
-  build(scenario, parsed.seed, levelDir, parsed.createdAt ?? catalog.createdAt);
+  build(scenario, parsed.seed, levelDir, parsed.createdAt ?? catalog.createdAt, parsed.grade);
   const capture = {
     schema: "agent-kernel/CapturedInputArtifact",
     schemaVersion: 1,
