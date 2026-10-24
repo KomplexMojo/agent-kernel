@@ -1,5 +1,5 @@
 import { advanceActorExit, EXIT_DWELL_TICKS } from "../rules/actor-exit.ts";
-import type { ActorPosition, ActorRecord, ActorRegistrySnapshot, ActorVitalKind, ActorAffinityKey, TerrainKind, AffinityKind, AffinityExpression, ActorVitalRecord } from './actor-types.ts';
+import type { ActorCastTrail, ActorPosition, ActorRecord, ActorRegistrySnapshot, ActorVitalKind, ActorAffinityKey, TerrainKind, AffinityKind, AffinityExpression, ActorVitalRecord } from './actor-types.ts';
 
 import { validateActorRecordVitals, changeActorVital, regenerateActor } from './actor-vitals.ts';
 import { chargeActorAffinityUpkeep, recoverActorAffinity } from '../rules/actor-upkeep.ts';
@@ -59,6 +59,7 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     throw new Error('invalid terrain');
   }
   const terrain = [...input.terrain];
+  let castTrails: ActorCastTrail[] = copy(input.castTrails ?? []);
   const actors = new Map<string, ActorRecord>();
   const occupancy = new Map<number, ActorRecord[]>();
   function withinBounds(point: ActorPosition): boolean {
@@ -231,6 +232,8 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       return copy(withinBounds(point) ? occupancy.get(index(point)) ?? [] : []);
     },
     isMovementBlocked(point: ActorPosition): boolean { return blocks(point, 'blocksMovement'); },
+    /** A wall or off the map: terrain alone, whoever stands there. */
+    isWall(point: ActorPosition): boolean { return terrainBlocks(point); },
     isSightBlocked(point: ActorPosition): boolean { return blocks(point, 'blocksSight'); },
     persistOrSpawnHazardAt(point: ActorPosition, spec: {
       kind: AffinityKind; expression: AffinityExpression; stacks: number; manaReserve: number;
@@ -276,8 +279,13 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       refreshOrder();
       return true;
     },
+    /** A push that hit no actor leaves its one-turn field (#461); the next tick's turn clears it. */
+    leaveCastTrail(trail: ActorCastTrail): void {
+      if (trail.cells.length > 0) castTrails.push(copy(trail));
+    },
+    clearCastTrails(): void { castTrails = []; },
     snapshot(): ActorRegistrySnapshot {
-      return copy({ dimensions: { width, height }, terrain, actors: ordered });
+      return copy({ dimensions: { width, height }, terrain, actors: ordered, ...(castTrails.length ? { castTrails } : {}) });
     },
   };
 }

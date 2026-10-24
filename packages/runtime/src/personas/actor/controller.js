@@ -1498,8 +1498,8 @@ const isAffinityKey = (value) => typeof value === "string" && AFFINITY_KEY_PATTE
  *   - `{ kind: "unequip_affinity", params: { affinityKey } }`
  *   - `{ kind: "cast_affinity", params: { targetId, affinityKey? } }` (`affinityKey` names the
  *     equipped slot; without it core casts the first equipped push or pull), or
- *     `{ kind: "cast_affinity", params: { target: { x, y }, affinityKey? } }` at a barrier's tile,
- *     which hits that barrier (#413)
+ *     `{ kind: "cast_affinity", params: { target: { x, y }, affinityKey? } }` at a tile (#413): it
+ *     travels the line and hits the first actor on it or stops at a wall (#461)
  *   - `{ kind: "raise_barrier", params: { target: { x, y }, affinityKey? } }` (#460): a push
  *     into an empty tile raises barriers there
  *   - `{ kind: "take", params: { targetId, holdingId } }`
@@ -1528,7 +1528,7 @@ export function normalizeActorCommand(command) {
     case "unequip_affinity":
       return { kind: "unequip_affinity", params: { affinityKey: commandParam(command, "affinityKey", isAffinityKey) } };
     case "cast_affinity": {
-      // A tile (`target`, #413) instead of an actor: hits the barrier standing there.
+      // A tile (`target`, #413) instead of an actor: travels the line to the first actor or wall (#461).
       const params = command.params?.target !== undefined && command.params?.targetId === undefined
         ? { target: { ...commandParam(command, "target", isTile) } }
         : { targetId: commandParam(command, "targetId", isId) };

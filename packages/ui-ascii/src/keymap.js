@@ -119,7 +119,7 @@ export const HELP_LINES = Object.freeze([
   "Affinities: i, then 1-9 to equip or unequip   Take: g",
   "In the affinity list: Tab picks a row, + / - run it at more or less range, ] / [ at more or less intensity",
   "Cast: f (or a slot's number), then Tab for the next target, Enter to cast, Esc to cancel",
-  "Aim at a tile: a move key while casting, Enter hits the barrier there   Raise a barrier: z, aim, Enter",
+  "Aim at a tile: a move key while casting; the cast hits the first actor or wall   Raise a barrier: z, aim, Enter",
   "Party: Tab (outside a list) plays your next user_controlled actor",
   "Order: o, then a number for who and a number for what (follow, guard, ...); costs a turn",
 ]);

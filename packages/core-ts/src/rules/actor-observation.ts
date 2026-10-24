@@ -52,8 +52,9 @@ function fieldIntensityByCell(fields: readonly { kind: string; expression: strin
   position: { x: number; y: number } }[], column: SightColumn): Record<string, number> {
   const reached: Record<string, number> = {};
   for (const field of fields) {
-    if (!hasColumn(field.kind, column) || field.expression !== AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]
-      || field.intensity <= 0 || field.falloff <= 0) continue;
+    // A push's one-turn trail (#461) shines like an emitted field while it lasts.
+    if (!hasColumn(field.kind, column) || (field.expression !== AFFINITY_EXPRESSION_BY_CODE[SIGHT_LIGHT_EXPRESSION]
+      && field.expression !== 'push') || field.intensity <= 0 || field.falloff <= 0) continue;
     const key = `${field.position.x},${field.position.y}`;
     if (field.intensity > (reached[key] ?? 0)) reached[key] = field.intensity;
   }
