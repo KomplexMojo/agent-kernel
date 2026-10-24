@@ -83,7 +83,7 @@ function stripTrailingCommas(text) {
   return output;
 }
 
-function parseJsonLenient(responseText) {
+export function parseJsonLenient(responseText) {
   const raw = isNonEmptyString(responseText) ? responseText : "";
   if (!raw) return null;
   const unwrapped = normalizeJsonPunctuation(unwrapCodeFence(raw)).trim();

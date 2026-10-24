@@ -476,6 +476,9 @@ compiles each it knows into #301 placement constraints over the level's own ward
 placement search seats them. Every tactic gets a report row, which the build returns as
 `tacticReport` and `ak create` appends to its `placementReport`; one not compiled yet is
 `{ tactic, params?, applied: false, note }`, so an asked-for tactic is never silently dropped.
+`validateTactics(tactics, { wardens, resources })` (#402) checks a plan the Configurator didn't author (the
+model's, under `--tactic llm`) before the build: params through the same readers the compile uses, and the
+wardens and resources it claims against the level's; it returns the reasons, `[]` when valid.
 
 `ambush` (#398): `guards=<n>` (default 2) of the wardens and `resources=<n>` (default 1) of the
 resources no `--place` constraint names, in id order, go to one room: `room=<id>`, else one picked

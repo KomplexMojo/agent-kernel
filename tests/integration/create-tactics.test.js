@@ -122,3 +122,35 @@ test("tactics [\"auto\", ...]: auto stands alone (#401)", async () => {
   assert.notEqual(result.status, 0);
   assert.match(result.output, /auto.*can't be combined/);
 });
+
+// #402: `--tactic llm` — the model's plan, checked; any failure falls back to the seeded plan.
+const llmLevel = { room: ["size=medium;count=3"], resource: ["permanenceMode=consumable;vital=health;delta=5"],
+  warden: ["count=2;motivation=defending"], seed: 5 };
+
+test("tactics [\"llm\"] with a recorded reply: the model's plan decides and is recorded (#402)", async () => {
+  const result = await create({ ...llmLevel, tactics: ["llm"], tacticFixture: join(ROOT, "tests/fixtures/llm/tactic-plan-valid.json") });
+  assert.equal(result.status, 0, result.output);
+  const plan = [{ tactic: "retinue", params: { size: 2 } }, { tactic: "minefield", params: { hazards: 3 } }];
+  assert.deepEqual(result.summary.tactics, plan);
+  assert.equal(result.summary.tacticPlan.decidedBy, "llm");
+  assert.deepEqual(result.summary.tacticPlan.response, plan);
+  // Replay needs no model: the recorded list and seed rebuild the level.
+  const replay = await create({ ...llmLevel, tactics: ["retinue;size=2", "minefield;hazards=3"] });
+  assert.equal(replay.status, 0, replay.output);
+  assert.deepEqual(replay.initialState, result.initialState);
+});
+
+test("tactics [\"llm\"] with an invalid reply or no model falls back to the seeded plan (#402)", async () => {
+  const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.js");
+  const seeded = createDirectorPersona({ clock: () => "2026-10-18T00:00:00.000Z" }).pickSeededTactics(5, { wardens: 2, resources: 1 });
+  const invalid = await create({ ...llmLevel, tactics: ["llm"], tacticFixture: join(ROOT, "tests/fixtures/llm/tactic-plan-invalid.json") });
+  assert.equal(invalid.status, 0, invalid.output);
+  assert.deepEqual(invalid.summary.tactics, seeded);
+  assert.equal(invalid.summary.tacticPlan.decidedBy, "seeded");
+  assert.match(invalid.summary.tacticPlan.reasons.join(";"), /unknown tactic "flank"/);
+  assert.deepEqual(invalid.summary.tacticPlan.response, [{ tactic: "flank" }]);
+  const offline = await create({ ...llmLevel, tactics: ["llm"] });
+  assert.equal(offline.status, 0, offline.output);
+  assert.deepEqual(offline.summary.tactics, seeded);
+  assert.match(offline.summary.tacticPlan.reasons[0], /no model/);
+});
