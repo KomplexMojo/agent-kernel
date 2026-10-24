@@ -95,6 +95,25 @@ export function battleLines(view) {
   return lines;
 }
 
+const signed = (value) => `${value < 0 ? "\u2212" : "+"}${Math.abs(value)}`;
+const VITAL_LINE_LIMIT = 3;
+
+/**
+ * What hit whom last tick and what regen gave back (#410), e.g. `W1 DU 10/10 (−1 +1)`, so a
+ * hit regen cancels is still seen landing. The player's own line comes first (`You HP ...`);
+ * only vitals that were hit are named, at most three.
+ */
+export function vitalChangeLine(view) {
+  const me = view.player?.id;
+  const hits = (view.vitalChanges || []).filter((change) => change.hit !== 0)
+    .sort((left, right) => Number(right.actorId === me) - Number(left.actorId === me));
+  return hits.slice(0, VITAL_LINE_LIMIT).map((change) => {
+    const who = change.actorId === me ? "You" : change.label ?? change.actorId;
+    const regen = change.regen !== 0 ? ` ${signed(change.regen)}` : "";
+    return `${who} ${HUD_VITAL_LABELS[change.vital] ?? change.vital} ${change.current}/${change.max} (${signed(change.hit)}${regen})`;
+  }).join("  ");
+}
+
 /** The equipped slots core would cast, with their reach, as the play session reports them. */
 const castable = (player) => player?.castableAffinities || {};
 
@@ -193,7 +212,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     if (result.tick !== before.tick && !result.status.defeated) {
       const battle = battleLines(session.view());
       if (battle.own && result.accepted.length > 0) message = battle.own;
-      message = [message, ...battle.others].filter(Boolean).join("   ");
+      message = [message, ...battle.others, vitalChangeLine(session.view())].filter(Boolean).join("   ");
     }
     return result;
   }

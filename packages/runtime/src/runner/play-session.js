@@ -480,6 +480,24 @@ export async function createPlaySession({
     });
   }
 
+  /**
+   * What hit each actor last tick and what it regenerated, per vital (#410), as core's turn
+   * recorded them: a hit regen cancels still shows. Kept to the seated actor and the living
+   * actors it sees, with the vital's pool after the tick.
+   */
+  function vitalChangesView(snapshot, visible) {
+    const frames = typeof runtime.getTickFrames === "function" ? runtime.getTickFrames() : [];
+    const changes = frames.filter((frame) => frame?.phaseDetail === "apply").at(-1)?.emittedSnapshot?.view?.turn?.vitalChanges ?? [];
+    return changes.flatMap((change) => {
+      const actor = snapshot.actors.find((entry) => entry.id === change.actorId);
+      const pool = actor?.vitals?.[change.vital];
+      if (!actor || !pool || actor.lifecycle !== "alive") return [];
+      if (actor.id !== activeId && visible && !visible[actor.position.y]?.[actor.position.x]) return [];
+      return [{ actorId: actor.id, label: labels.get(actor.id) ?? null, vital: change.vital,
+        hit: change.hit, regen: change.regen, current: pool.current, max: pool.max }];
+    });
+  }
+
   function view() {
     const fogOn = fog && !runtime.hasActorExited(activeId);
     const snapshot = readSnapshot();
@@ -502,6 +520,7 @@ export async function createPlaySession({
       }),
       party: partyView(snapshot),
       casts: castsView(snapshot, fogOn ? readVisible() : null),
+      vitalChanges: vitalChangesView(snapshot, fogOn ? readVisible() : null),
       departures: departures.map((entry) => ({ ...entry })),
       orders: ordersView(),
       orderable: orderableView(snapshot),
