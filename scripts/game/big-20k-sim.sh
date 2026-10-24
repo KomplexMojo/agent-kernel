@@ -19,7 +19,7 @@ PLAYER="vitals=health:40:3,mana:40:3,stamina:20:2,durability:20:2"
 $AK create --run-id big-sim --budget-tokens 20000 "$@" \
   `# Rooms pool (5,800): six large rooms, and floor tiles at 1 token each.` \
   --room "size=large;count=6" \
-  --floor-tile "count=5700" \
+  --floor-tile "count=5399" \
   `# Delver pool (5,000): two autonomous delvers (D1 with 6 slots, 4 equipped) and five followers.` \
   --delver "count=1;id=hero;affinity=light;affinities=light:emit:4,fire:push:4,growth:emit:3,fortify:emit:2;slots=6;equip=light:emit,fire:push,growth:emit,fortify:emit;motivation=exploring+goal_oriented;strategy=defeat:boss-1,reach:exit;$PLAYER" \
   --delver "count=1;id=scout;affinity=wind;motivation=exploring+goal_oriented;strategy=reach:exit;$PLAYER" \
@@ -29,16 +29,16 @@ $AK create --run-id big-sim --budget-tokens 20000 "$@" \
   --warden "count=4;id=guard;affinity=corrode;affinities=corrode:push:5,fortify:emit:3;equip=corrode:push,fortify:emit;motivation=patrolling;vitals=health:50:4,mana:50:4,stamina:10:1,durability:10:1" \
   --warden "count=4;id=sentry;affinity=water;affinities=water:pull:6,earth:push:5;equip=water:pull,earth:push;motivation=defending;vitals=health:60:5,mana:60:5,stamina:10:1,durability:10:1" \
   `# Hazard pool (3,000): five placed traps in room 1, five roaming ones with mana to burn.` \
-  --hazard "x=2;y=2;affinity=light;expression=emit;stacks=5;vitals=mana:120:10,durability:80:6" \
-  --hazard "x=6;y=4;affinity=dark;expression=emit;stacks=5;vitals=mana:120:10,durability:80:6" \
-  --hazard "x=4;y=6;affinity=fire;expression=push;stacks=5;blocking=true;vitals=mana:120:10,durability:80:6" \
-  --hazard "x=8;y=8;affinity=decay;expression=draw;stacks=5;vitals=mana:120:10,durability:80:6" \
-  --hazard "x=3;y=9;affinity=wind;expression=pull;stacks=5;vitals=mana:120:10,durability:80:6" \
+  --hazard "x=2;y=2;affinity=light;expression=emit;stacks=5;vitals=mana:120:10,durability:80:5" \
+  --hazard "x=6;y=4;affinity=dark;expression=emit;stacks=5;vitals=mana:120:10,durability:80:5" \
+  --hazard "x=4;y=6;affinity=fire;expression=push;stacks=5;blocking=true;vitals=mana:120:10,durability:80:5" \
+  --hazard "x=8;y=8;affinity=decay;expression=draw;stacks=5;vitals=mana:120:10,durability:80:5" \
+  --hazard "x=3;y=9;affinity=wind;expression=pull;stacks=5;vitals=mana:120:10,durability:80:5" \
   --hazard "affinity=fire;expression=emit;proximityRadius=2;mana=regen:60:60:5" \
   --hazard "affinity=decay;expression=push;proximityRadius=1;mana=regen:60:60:5" \
   --hazard "affinity=water;expression=pull;proximityRadius=2;mana=regen:60:60:5" \
-  --hazard "affinity=corrode;expression=emit;proximityRadius=3;mana=regen:80:80:6;durability=regen:40:40:3" \
-  --hazard "affinity=light;expression=draw;proximityRadius=2;mana=regen:80:80:6;durability=regen:40:40:3" \
+  --hazard "affinity=corrode;expression=emit;proximityRadius=3;mana=regen:80:80:5;durability=regen:40:40:3" \
+  --hazard "affinity=light;expression=draw;proximityRadius=2;mana=regen:80:80:5;durability=regen:40:40:3" \
   `# Resource pool (1,600): a slot unlock, vitals, and temporary and permanent affinities.` \
   --resource "slots=1" \
   --resource "permanenceMode=consumable;vital=health;delta=10" \
