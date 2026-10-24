@@ -9,6 +9,7 @@ import {
   parseReport,
   renderReport,
   scenarioArgs,
+  traitKinds,
 } from "../../scripts/game/playtest.mjs";
 import { RULES, checkRules, compareWithKnown, runScenarios } from "../../scripts/testing/simulation-lib.mjs";
 import { AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../../packages/runtime/src/contracts/domain-constants.js";
@@ -44,11 +45,29 @@ test("seeds pick an opposed pair for the player and a different opposed pair bes
   expect([...players].sort()).toEqual([...AFFINITY_KINDS].sort());
 });
 
+test("seeds pick two different trait kinds, and every trait kind comes up", () => {
+  const seen = new Set();
+  for (let seed = 0; seed < SEEDS.length; seed += 1) {
+    const { T1, T2 } = affinitiesForSeed(seed);
+    expect(T1).not.toBe(T2);
+    seen.add(T1);
+  }
+  expect([...seen].sort()).toEqual(traitKinds().map((row) => row.kind).sort());
+});
+
+test("a scenario with a tactic is built at its own seed, so the placement replays", () => {
+  for (const scenario of catalog.scenarios.filter((entry) => entry.args.includes("--tactic"))) {
+    const args = scenarioArgs(scenario, 7);
+    expect(args[args.indexOf("--seed") + 1]).toBe("7");
+  }
+});
+
 test("the catalogue is well formed", () => {
   const ids = catalog.scenarios.map((scenario) => scenario.id);
   expect(new Set(ids).size).toBe(ids.length);
   for (const scenario of catalog.scenarios) {
     expect(scenario.focus.length).toBeGreaterThan(0);
+    expect(scenario.shows).toBeTruthy();
     expect(scenario.args.some((arg) => arg.includes("motivation=user_controlled"))).toBe(true);
     for (const entry of scenario.knownIssues ?? []) {
       expect(Object.keys(RULES)).toContain(entry.rule);

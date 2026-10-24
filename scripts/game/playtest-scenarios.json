@@ -1,94 +1,191 @@
 {
-  "about": "Playtest scenarios for `bash scripts/game/playtest.sh`. Each is `ak create` run with these arguments, so the Allocator prices every level and the personas build it as they would for a player. {A} is the player's affinity and {B} its opposite; {C} and {D} are another opposed pair. The seed picks the affinities, so every affinity comes up across runs. tests/simulations/playtest-scenarios.test.mjs builds and runs each one with every affinity as the player's; `knownIssues` lists rule breaks still open, as tests/simulations/scenarios do.",
+  "about": "Playtest scenarios for `bash scripts/game/playtest.sh`. Each is `ak create` run with these arguments, so the Allocator prices every level and the personas build it as they would for a player. {A} is the player's affinity and {B} its opposite; {C} and {D} are another opposed pair; {T1} and {T2} are two kinds whose affinity-table row carries a trait (displace, soak, spread, raise), so every trait comes up across seeds. The seed picks the affinities, so every affinity comes up across runs. tests/simulations/playtest-scenarios.test.mjs builds and runs each one with every affinity as the player's; `knownIssues` lists rule breaks still open, as tests/simulations/scenarios do. A scenario with --tactic is built with --seed set to its seed, so the tactic's placement replays too. `shows` is the one-line summary the scenario list prints.",
   "createdAt": "2026-10-18T00:00:00.000Z",
   "scenarios": [
     {
       "id": "first-look",
       "title": "First look",
+      "shows": "fog and sight, the HUD (hits and regen per vital), sprint, loot, the exit/defeat line",
       "focus": [
         "Walk both rooms and find the exit: does fog and sight feel right?",
-        "Read the HUD: do the vitals, regen and slot lines match what happens?",
-        "Take the resource (g) and check the vital it raises.",
-        "Get near the warden: does it notice you, and what does its push do?"
+        "Read the HUD: each vital shows what hit it and what regen gave back, e.g. HP 18/20 (−2 +1). Does it match what happened?",
+        "Sprint: shift + a move (or x, then a move) goes two tiles for 3× the stamina. Worth it?",
+        "Take the resource (g): it stays intact, and the vital it raises goes up.",
+        "Get near the warden: does it notice you, and what does its push do? The in-sight line says what you can see of it.",
+        "Reach the exit (or fall): the event line should say who left or was defeated."
       ],
       "budgetTokens": 4000,
       "args": [
-        "--room", "size=medium;count=2",
-        "--delver", "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:1;equip={A}:emit;motivation=user_controlled;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1",
-        "--warden", "count=1;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
-        "--resource", "permanenceMode=consumable;vital=health;delta=10"
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:1;equip={A}:emit;motivation=user_controlled;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=10"
       ]
     },
     {
       "id": "fields",
       "title": "Walking through fields",
+      "shows": "hazard fields, a minefield room with a safe line, drained sources going dim and off",
       "focus": [
+        "One room is a minefield: overlapping hazard fields with a safe line along its edge, and a reward inside. Find the line.",
         "Stand in each hazard's field: does the HUD change the way the colour suggests?",
         "Walk your own {A} field into the {B} hazard: do they cancel on the cells between?",
         "Watch durability and health: which vital takes the hit first?",
-        "Leave your emit on until mana drains: does it switch off, and back on when full?"
+        "Leave your emit on until mana drains: does it switch off, and back on when full? A drained hazard dims, drops its field and shows as off."
       ],
-      "budgetTokens": 4000,
+      "budgetTokens": 5000,
       "args": [
-        "--room", "size=small;count=3",
-        "--delver", "count=1;id=hero;affinity={A};affinities={A}:emit:2:2;equip={A}:emit;motivation=user_controlled;vitals=health:25:1,mana:40:5,stamina:10:2,durability:15:1",
-        "--hazard", "affinity={B};expression=emit;stacks=2;intensity=2;proximityRadius=1;mana=regen:40:40:6",
-        "--hazard", "affinity={C};expression=emit;stacks=2;intensity=1;proximityRadius=1;mana=regen:40:40:5",
-        "--hazard", "affinity={D};expression=emit;stacks=2;intensity=1;proximityRadius=1;mana=regen:40:40:5",
-        "--resource", "permanenceMode=consumable;vital=health;delta=10"
+        "--room",
+        "size=medium;count=3",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:emit:2:2;equip={A}:emit;motivation=user_controlled;vitals=health:25:1,mana:40:5,stamina:10:2,durability:15:1",
+        "--hazard",
+        "affinity={B};expression=emit;stacks=2;intensity=2;proximityRadius=1;mana=regen:40:40:6",
+        "--hazard",
+        "affinity={C};expression=emit;stacks=2;intensity=1;proximityRadius=1;mana=regen:40:40:5",
+        "--hazard",
+        "affinity={D};expression=emit;stacks=2;intensity=1;proximityRadius=1;mana=regen:40:40:5",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=10",
+        "--tactic",
+        "minefield;hazards=3"
       ]
     },
     {
       "id": "duel",
       "title": "Duel with a warden",
+      "shows": "free aim, cast arrows and hit lines, push and pull, raising barriers (z), range and intensity",
       "focus": [
-        "Cast push and pull at the warden (f, Tab, Enter): does the hit match the panel?",
+        "Cast push and pull at the warden (f, Tab, Enter): the path shows as arrows for a turn and the hit is named. Does it match the panel?",
+        "Aim at an empty tile (f, then move keys, Enter): the cast travels the line; a push that meets nobody leaves a one-turn field.",
+        "A pull draws only its own row's vital from the warden: check which one moves.",
+        "Raise a barrier line between you (z, aim, Enter), then fight round it.",
         "Change range and intensity in the list (i, then + - ] [): does the mana cost follow?",
-        "Run out of mana mid-fight: what can you still do?",
-        "Win or lose: is the end of the fight clear on screen?"
+        "Run out of mana mid-fight, then win or lose: is the end of the fight clear on screen?"
       ],
       "budgetTokens": 5000,
       "args": [
-        "--room", "size=large;count=1",
-        "--delver", "count=1;id=hero;affinity={A};affinities={A}:push:3:2,{A}:pull:2:1;equip={A}:push;motivation=user_controlled;vitals=health:30:1,mana:40:4,stamina:10:2,durability:10:1",
-        "--warden", "count=1;id=foe;affinity={B};affinities={B}:push:3:2,{C}:push:2:1;equip={B}:push;motivation=attacking;vitals=health:30:1,mana:40:4,stamina:10:2,durability:10:1"
+        "--room",
+        "size=large;count=1",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:push:3:2,{A}:pull:2:1;equip={A}:push;motivation=user_controlled;vitals=health:30:1,mana:40:4,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=foe;affinity={B};affinities={B}:push:3:2,{C}:push:2:1;equip={B}:push;motivation=attacking;vitals=health:30:1,mana:40:4,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "traits",
+      "title": "Affinity traits",
+      "shows": "two trait kinds in your hands: displace shoves or drags, soak slows, spread creeps (raise has no effect yet)",
+      "focus": [
+        "You carry {T1} and {T2} pushes (the start line names their traits). Hit the wardens with each and watch what the trait adds.",
+        "displace: a push shoves the target away, a pull drags it in. soak: a soaked actor pays more stamina per move for a few turns.",
+        "spread: where the push lands a field creeps on, a tile a turn, weaker each step. raise has no effect of its own yet (any kind can raise barriers with z).",
+        "The wardens fight back with {B} and {D}: does anything stack up unfairly?"
+      ],
+      "budgetTokens": 6000,
+      "args": [
+        "--room",
+        "size=large;count=2",
+        "--delver",
+        "count=1;id=hero;affinity={T1};affinities={T1}:push:3:2,{T2}:push:3:2,{T1}:pull:2:1;equip={T1}:push;motivation=user_controlled;vitals=health:30:1,mana:50:5,stamina:12:2,durability:10:1",
+        "--warden",
+        "count=1;id=brute;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=attacking;vitals=health:25:1,mana:20:2,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=keeper;affinity={D};affinities={D}:push:2:1;equip={D}:push;motivation=defending;vitals=health:25:1,mana:20:2,stamina:10:1,durability:10:1"
       ]
     },
     {
       "id": "party",
       "title": "Party and orders",
+      "shows": "switching delvers, companion orders, companions taking loot",
       "focus": [
         "Switch between your two delvers (Tab): does the view and HUD follow?",
         "Order the companion (o): follow, guard, then change its order mid-game.",
-        "Does the companion help, get in the way, or get stuck?",
-        "Get everyone to the exit: is it clear who has left?"
+        "Does the companion help, get in the way, or get stuck? Does it take the resource, leaving it intact?",
+        "Get everyone to the exit: the event line should say who has left."
       ],
-      "budgetTokens": 6000,
+      "budgetTokens": 6500,
       "args": [
-        "--room", "size=medium;count=2",
-        "--delver", "count=2;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:2:1;equip={A}:emit;motivation=user_controlled;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1",
-        "--delver", "count=1;id=pal;affinity={C};affinities={C}:push:2:1;equip={C}:push;motivation=exploring+friendly+goal_oriented;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1",
-        "--warden", "count=1;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=patrolling;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1"
+        "--room",
+        "size=medium;count=2",
+        "--delver",
+        "count=2;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:2:1;equip={A}:emit;motivation=user_controlled;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1",
+        "--delver",
+        "count=1;id=pal;affinity={C};affinities={C}:push:2:1;equip={C}:push;motivation=exploring+friendly+goal_oriented;vitals=health:20:1,mana:30:3,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=patrolling;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=10"
+      ]
+    },
+    {
+      "id": "tactics",
+      "title": "Ambush and retinue",
+      "shows": "a loot room with guards hidden out of doorway sight, and a boss warden with minions",
+      "focus": [
+        "One room holds loot with two guards hidden out of sight of its doorways: they hold until they see you, then strike. Can you spot the trap?",
+        "A boss warden leads a retinue: a shield emitting its kind, a support restoring it, a striker. Who do you take out first?",
+        "Is the loot worth the fight, and can you sneak round it?"
+      ],
+      "budgetTokens": 8000,
+      "args": [
+        "--room",
+        "size=large;count=3",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:2,{A}:pull:2:1;equip={A}:emit;motivation=user_controlled;vitals=health:30:1,mana:40:4,stamina:12:2,durability:15:1",
+        "--warden",
+        "count=2;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:15:1,mana:15:2,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=boss;affinity={C};affinities={C}:emit:2:1,{C}:push:3:2;equip={C}:push;motivation=defending;vitals=health:30:1,mana:30:3,stamina:10:1,durability:15:1",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=10;id=loot",
+        "--tactic",
+        "ambush;guards=2;resources=1",
+        "--tactic",
+        "retinue;leader=boss-1;size=2"
       ]
     },
     {
       "id": "long-haul",
       "title": "Long haul",
+      "shows": "a long level whose tactics the Director picks from the seed (--tactic auto), at your chosen grade",
       "focus": [
         "Play to the exit or to defeat: is the pacing fun, or does it drag?",
         "Rest when stamina runs low: is recovery worth the turns?",
         "Do the wardens defend sensibly, or loop or stall?",
-        "Note anything priced oddly: too strong, too weak, too cheap."
+        "Note anything priced oddly: too strong, too weak, too cheap.",
+        "The Director picked this level's tactics from the seed (the start line names them): did they make it more interesting?",
+        "Try a grade: --grade H (easiest) to S. Does the difficulty step feel right?"
       ],
       "budgetTokens": 8000,
       "args": [
-        "--room", "size=large;count=4",
-        "--delver", "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:2;equip={A}:push;motivation=user_controlled;vitals=health:30:1,mana:40:4,stamina:12:2,durability:15:1",
-        "--warden", "count=2;id=keeper;affinity={B};affinities={B}:push:2:2;equip={B}:push;motivation=defending;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
-        "--warden", "count=1;id=hunter;affinity={D};affinities={D}:pull:2:2;equip={D}:pull;motivation=attacking;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
-        "--hazard", "affinity={C};expression=emit;stacks=2;intensity=1;proximityRadius=1;mana=regen:40:40:5",
-        "--resource", "permanenceMode=consumable;vital=health;delta=10",
-        "--resource", "permanenceMode=permanent;vital=mana;delta=5;regen=1"
+        "--room",
+        "size=large;count=4",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:2;equip={A}:push;motivation=user_controlled;vitals=health:30:1,mana:40:4,stamina:12:2,durability:15:1",
+        "--warden",
+        "count=2;id=keeper;affinity={B};affinities={B}:push:2:2;equip={B}:push;motivation=defending;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
+        "--warden",
+        "count=1;id=hunter;affinity={D};affinities={D}:pull:2:2;equip={D}:pull;motivation=attacking;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
+        "--hazard",
+        "affinity={C};expression=emit;stacks=2;intensity=1;proximityRadius=1;mana=regen:40:40:5",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=10",
+        "--resource",
+        "permanenceMode=permanent;vital=mana;delta=5;regen=1",
+        "--tactic",
+        "auto"
+      ],
+      "knownIssues": [
+        {
+          "rule": "tick_one_defeat",
+          "issue": "#473"
+        }
       ]
     }
   ]

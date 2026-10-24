@@ -8,7 +8,7 @@
  *   node scripts/game/playtest.mjs --open <report.md> [--keys keys]
  *
  * The seed picks the affinities ({A} the player's, {B} its opposite, {C}/{D} another opposed
- * pair) and is printed, so a run is rebuilt exactly from scenario, seed and commit. The report
+ * pair, {T1}/{T2} two kinds whose affinity-table row carries a trait) and is printed, so a run is rebuilt exactly from scenario, seed and commit. The report
  * carries those three and a replay code (the recorded commands, gzipped), so `--open` rebuilds
  * the level and replays the game to where it ended, here or on any other checkout.
  */
@@ -19,6 +19,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { gunzipSync, gzipSync } from "node:zlib";
 import { AFFINITY_KINDS, AFFINITY_OPPOSITES } from "../../packages/runtime/src/contracts/domain-constants.js";
+import { AFFINITY_TABLE } from "../../packages/core-ts/src/state/affinity-table.ts";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -38,7 +39,15 @@ function opposedPairs() {
   return pairs;
 }
 
-/** {A, B, C, D} for a seed: A/B one opposed pair (either way round), C/D a different one. */
+/** The kinds whose table row carries a trait (#419-#421), with the trait: the table decides, never a kind name. */
+export function traitKinds() {
+  return AFFINITY_TABLE.filter((row) => row.trait).map((row) => ({ kind: row.kind, trait: row.trait }));
+}
+
+/**
+ * {A, B, C, D, T1, T2} for a seed: A/B one opposed pair (either way round), C/D a different one,
+ * T1/T2 two different trait-bearing kinds.
+ */
 export function affinitiesForSeed(seed) {
   const pairs = opposedPairs();
   const n = pairs.length;
@@ -47,18 +56,26 @@ export function affinitiesForSeed(seed) {
   const [A, B] = Math.floor(s / n) % 2 ? [first[1], first[0]] : first;
   const second = pairs[(s % n + 1 + (Math.floor(s / (2 * n)) % (n - 1))) % n];
   const [C, D] = Math.floor(s / (2 * n * (n - 1))) % 2 ? [second[1], second[0]] : second;
-  return { A, B, C, D };
+  const traits = traitKinds();
+  const t = traits.length;
+  const T1 = traits[s % t].kind;
+  const T2 = traits[(s % t + 1 + (Math.floor(s / t) % (t - 1))) % t].kind;
+  return { A, B, C, D, T1, T2 };
 }
 
 /**
  * The scenario's level arguments with the seed's affinities filled in. A grade (#422)
  * takes the place of the scenario's own budget: the Allocator sets budget and split.
  */
+const PLACEHOLDER = /\{(A|B|C|D|T1|T2)\}/g;
+
 export function scenarioArgs(scenario, seed, grade) {
   const picks = affinitiesForSeed(seed);
-  const fill = (text) => text.replace(/\{([ABCD])\}/g, (_, key) => picks[key]);
+  const fill = (text) => text.replace(PLACEHOLDER, (_, key) => picks[key]);
   const budget = grade ? ["--grade", grade] : ["--budget-tokens", String(scenario.budgetTokens)];
-  return [...budget, ...scenario.args.map(fill)];
+  // A tactic with no --seed draws one, so a scenario with tactics pins the build to its seed.
+  const tacticSeed = scenario.args.includes("--tactic") ? ["--seed", String(seed)] : [];
+  return [...budget, ...tacticSeed, ...scenario.args.map(fill)];
 }
 
 /** The full `ak create` arguments: the same scenario, seed and createdAt always build the same level. */
@@ -68,7 +85,15 @@ export function createArgs(scenario, seed, createdAt, grade) {
 
 export function fillFocus(scenario, seed) {
   const picks = affinitiesForSeed(seed);
-  return scenario.focus.map((line) => line.replace(/\{([ABCD])\}/g, (_, key) => picks[key]));
+  return scenario.focus.map((line) => line.replace(PLACEHOLDER, (_, key) => picks[key]));
+}
+
+/** "fire (spread), wind (displace)" for the trait kinds a scenario uses, or "" when it uses none. */
+export function traitsInPlay(scenario, seed) {
+  const picks = affinitiesForSeed(seed);
+  const used = ["T1", "T2"].filter((key) => scenario.args.some((arg) => arg.includes(`{${key}}`)));
+  const byKind = Object.fromEntries(traitKinds().map((row) => [row.kind, row.trait]));
+  return used.map((key) => `${picks[key]} (${byKind[picks[key]]})`).join(", ");
 }
 
 /** The recorded commands as one pasteable line, and back. */
@@ -134,6 +159,7 @@ function listScenarios(catalog) {
   console.log("Playtest scenarios (bash scripts/game/playtest.sh <id> [--seed N] [--grade H..S]):\n");
   for (const scenario of catalog.scenarios) {
     console.log(`  ${scenario.id.padEnd(12)} ${scenario.title}`);
+    if (scenario.shows) console.log(`  ${"".padEnd(12)} shows: ${scenario.shows}`);
   }
   console.log("\nAfter you quit (q) you are asked what you noticed; the report lands in artifacts/playtest/.");
   console.log("Re-open a report: bash scripts/game/playtest.sh --open <report.md>");
@@ -161,6 +187,7 @@ export function renderReport({ scenario, seed, grade, commit, branch, createdAt,
     `- Played: ${playedAt}`,
     `- Commit: ${commit} (${branch})`,
     `- Affinities: you ${picks.A} vs ${picks.B}; other pair ${picks.C}/${picks.D}`,
+    ...(traitsInPlay(scenario, seed) ? [`- Traits: ${traitsInPlay(scenario, seed)}`] : []),
     ...(grade ? [`- Grade: ${grade}`] : []),
     `- Level cost: ${cost ? `${cost.totalSpend} of ${cost.budgetTokens} tokens (${cost.status})` : "unknown"}`,
     `- Ended: turn ${final?.turns ?? "?"}, ${describeStatus(final?.status)}`,
@@ -219,7 +246,11 @@ async function playScenario(catalog, options) {
 
   const grade = options.grade;
   const created = build(scenario, seed, levelDir, catalog.createdAt, grade);
-  console.log(`\n${scenario.title} (seed ${seed}): you are ${picks.A}, against ${picks.B}; other pair ${picks.C}/${picks.D}.`);
+  const traits = traitsInPlay(scenario, seed);
+  console.log(traits
+    ? `\n${scenario.title} (seed ${seed}): you carry ${traits}; the wardens carry ${picks.B} and ${picks.D}.`
+    : `\n${scenario.title} (seed ${seed}): you are ${picks.A}, against ${picks.B}; other pair ${picks.C}/${picks.D}.`);
+  if (created?.tactics?.length) console.log(`Tactics: ${created.tactics.map((entry) => entry.tactic).join(", ")}.`);
   console.log("Things to try:");
   for (const line of fillFocus(scenario, seed)) console.log(`  - ${line}`);
   console.log("Note the turn number (bottom of the HUD) when something looks wrong. Quit with q.");
