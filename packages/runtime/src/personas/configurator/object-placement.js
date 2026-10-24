@@ -634,9 +634,13 @@ function encodeFieldReach(context, placementVariableIds, spacedFixed, variables,
       .map(({ id }) => ({ variableId: id, coefficient: 1 })));
   const slackTerms = [];
   const bound = spaced.length + spacedFixed.length;
-  spaced.forEach(({ object, pendingIndex }) => {
+  // #473: an actor the search seats (a tactic's guard or retinue minion) with a lasting field
+  // keeps it off hazards and resources too, from reach 1: touching is only kept apart between objects.
+  const sources = [...spaced, ...context.pending.map((object, pendingIndex) => ({ object, pendingIndex }))
+    .filter(({ object }) => object.kind === "actor" && fieldReach(object.value) >= 1)];
+  sources.forEach(({ object, pendingIndex }) => {
     const reach = fieldReach(object.value);
-    if (reach < 2) return;
+    if (reach < (object.kind === "actor" ? 1 : 2)) return;
     const slack = `reach_${object.index}`;
     let used = false;
     placementVariableIds[pendingIndex].forEach(({ id, cellIndex }, cellOrder) => {

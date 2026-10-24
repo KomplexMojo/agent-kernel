@@ -154,3 +154,33 @@ test("tactics [\"llm\"] with an invalid reply or no model falls back to the seed
   assert.deepEqual(offline.summary.tactics, seeded);
   assert.match(offline.summary.tacticPlan.reasons[0], /no model/);
 });
+
+// #473: objects the tactics seat (minions, guards) with a lasting field keep it off the level's
+// resources and hazards, as #403 does between objects; the playtest long-haul level with
+// `--tactic auto` destroyed a resource on turn 1 for seeds 1 and 6.
+test("tactic-seated emitters keep their fields off resources and hazards (#473)", async () => {
+  const { loadPlaytestScenarios, scenarioArgs } = await import("../../scripts/game/playtest.mjs");
+  const scenario = loadPlaytestScenarios().scenarios.find((entry) => entry.id === "long-haul");
+  for (const seed of [1, 6]) {
+    const outDir = mkdtempSync(join(tmpdir(), "ak-tactic-reach-"));
+    try {
+      const result = spawnSync(process.execPath, [AK_CLI, "create", "--out-dir", outDir, "--run-id", "reach",
+        "--created-at", "2026-10-24T00:00:00.000Z", ...scenarioArgs(scenario, seed), "--tactic", "auto", "--seed", String(seed)],
+      { cwd: ROOT, encoding: "utf8" });
+      assert.equal(result.status, 0, `${result.stderr}${result.stdout}`);
+      const { actors } = JSON.parse(readFileSync(join(outDir, "initial-state.json"), "utf8"));
+      const objects = actors.filter((actor) => actor.capabilities?.canMove === false && (actor.motivations ?? []).length === 0);
+      for (const source of actors.filter((actor) => !objects.includes(actor))) {
+        const reach = Math.max(0, ...(source.affinities || [])
+          .filter((entry) => entry.expression === "emit" || entry.expression === "draw").map((entry) => entry.stacks));
+        if (reach === 0) continue;
+        for (const object of objects) {
+          const gap = Math.max(Math.abs(object.position.x - source.position.x), Math.abs(object.position.y - source.position.y));
+          assert.ok(gap > reach, `seed ${seed}: ${source.id} (reach ${reach}) at ${JSON.stringify(source.position)} reaches ${object.id} at ${JSON.stringify(object.position)}`);
+        }
+      }
+    } finally {
+      rmSync(outDir, { recursive: true, force: true });
+    }
+  }
+});

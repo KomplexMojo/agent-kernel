@@ -3,7 +3,7 @@
  * resources, and its guards are seated where no doorway of the room can see them, by core's
  * own line-of-sight rule. `visible=true` seats them in the open near the loot instead. A room
  * that cannot hide every guard hides as many as fit and says so; the level is never refused.
- * Hiding is geometric, so every affinity (and none) gets the same seats.
+ * Hiding is geometric, so every affinity gets the same seats (a fieldless guard may sit closer to the loot, #473).
  */
 "use strict";
 
@@ -120,10 +120,12 @@ test("room= names the room; an unknown room or param is refused with a reason", 
   await assert.rejects(build({ tactics: [{ tactic: "ambush", params: { gaurds: 2 } }] }), /unknown param gaurds/);
 });
 
-test("both variants seat the same for every affinity, and for none", async () => {
+// #473: a guard with a lasting field keeps it off the loot, so a fieldless guard (no affinity)
+// may sit closer; every affinity still seats the same.
+test("both variants seat the same for every affinity", async () => {
   for (const params of [{ guards: 2 }, { guards: 2, visible: "true" }]) {
-    const baseline = (await build({ tactics: [{ tactic: "ambush", params }] })).seats;
-    for (const kind of KINDS.slice(1)) {
+    const baseline = (await build({ tactics: [{ tactic: "ambush", params }], kind: KINDS[1] })).seats;
+    for (const kind of KINDS.slice(2)) {
       assert.deepEqual((await build({ tactics: [{ tactic: "ambush", params }], kind })).seats, baseline, `${kind} ${params.visible || "hidden"}`);
     }
   }
