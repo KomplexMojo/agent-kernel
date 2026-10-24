@@ -142,15 +142,20 @@ function strongerField(cell: ActorFieldCell, current: ActorFieldCell): boolean {
 
 /**
  * #461: the one-turn fields of push casts that met no actor this tick, as push cells at full
- * strength on every cell they crossed, from casters still alive. They resolve with the
- * lasting fields: same overlap, same receiver rules, the push's own effect.
+ * strength on every cell they crossed, from casters still alive; and #421's creeping fields,
+ * one cell each. They resolve with the lasting fields: same overlap, same receiver rules,
+ * the push's own effect.
  */
 function trailContributions(snapshot: ActorRegistrySnapshot, actors: readonly ActorRecord[]): ActorFieldCell[] {
   const alive = new Set(actors.map(actor => actor.id));
-  return (snapshot.castTrails ?? []).filter(trail => alive.has(trail.sourceId)).flatMap(trail => trail.cells.map(cell => ({
-    kind: trail.kind, expression: 'push' as const, stacks: trail.stacks, intensity: trail.intensity,
-    sourceId: trail.sourceId, position: { x: cell.x, y: cell.y }, falloff: 1,
-  })));
+  const cells = [
+    ...(snapshot.castTrails ?? []).flatMap(trail => trail.cells.map(cell => ({ ...trail, cell }))),
+    ...(snapshot.spreadEmbers ?? []).filter(ember => !ember.fresh).map(ember => ({ ...ember, cell: ember.position })),
+  ];
+  return cells.filter(entry => alive.has(entry.sourceId)).map(entry => ({
+    kind: entry.kind, expression: 'push' as const, stacks: entry.stacks, intensity: entry.intensity,
+    sourceId: entry.sourceId, position: { x: entry.cell.x, y: entry.cell.y }, falloff: 1,
+  }));
 }
 
 /** Current-position projection. No equipment, vitality, or historical field mutation. */

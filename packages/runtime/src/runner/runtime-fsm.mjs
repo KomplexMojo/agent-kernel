@@ -557,6 +557,8 @@ export function createFsmRuntime({
   }
 
   let tick = 0;
+  // The run's seed: core's creeping fields (#421) pick their way by it.
+  let runSeed = 0;
   let moderator = null;
   let annotator = null;
   let allocator = null;
@@ -1061,7 +1063,8 @@ export function createFsmRuntime({
     const outcomes = [];
     const defaultTick = tick;
     const actorTurn = actorRegistry && actorCosts
-      ? createActorTurn(actorRegistry, defaultTick, { ...actorCosts, persistentUpkeep: [...persistentAffinityUpkeepTable] })
+      ? createActorTurn(actorRegistry, defaultTick, { ...actorCosts, persistentUpkeep: [...persistentAffinityUpkeepTable] },
+        undefined, { seed: runSeed })
       : null;
 
     function recordOutcome(action, outcome, reason, appliedAction = action) {
@@ -1169,6 +1172,7 @@ export function createFsmRuntime({
         activeClock = options.clock;
       }
       const seed = Number.isFinite(options.seed) ? options.seed : 0;
+      runSeed = Number.isSafeInteger(seed) ? seed : 0;
       tick = 0;
       effectLog.length = 0;
       tickFrames.length = 0;

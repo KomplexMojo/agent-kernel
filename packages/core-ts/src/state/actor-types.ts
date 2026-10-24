@@ -143,6 +143,22 @@ export interface ActorRegistrySnapshot {
   actors: ActorRecord[];
   /** One-turn fields push casts that hit no actor left this tick (#461); absent when none. */
   castTrails?: ActorCastTrail[];
+  /** Creeping fields `spread`-trait pushes left where they landed (#421); absent when none. */
+  spreadEmbers?: ActorSpreadEmber[];
+}
+
+/**
+ * Where a `spread`-trait push lands (#421) its field creeps on: each new tick it moves to a
+ * neighbouring cell, one intensity weaker, until it reaches 0. It burns where it is that tick.
+ * `fresh` marks the tick it landed: the push itself already hit there, so it burns from its first move.
+ */
+export interface ActorSpreadEmber {
+  sourceId: string;
+  kind: AffinityKind;
+  stacks: number;
+  intensity: number;
+  position: ActorPosition;
+  fresh?: boolean;
 }
 
 /**

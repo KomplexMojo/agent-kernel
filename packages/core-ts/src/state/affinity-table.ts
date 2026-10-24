@@ -30,8 +30,9 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from './actor-t
  *   one cell toward it (rules/actor-cast.ts). `soak` (water, #420): a push that lands, or an
  *   emit field the receiver takes something from, soaks it for `intensity` turns, each move
  *   costing SOAK_MOVE_STAMINA more (rules/actor-cast.ts, rules/actor-fields.ts). `spread`
- *   (fire, #421) and `raise` (earth; raising barriers itself is open to every kind, #442) are
- *   recorded here without a rule yet. Code reads the column, never a kind name.
+ *   (fire, #421): where a push lands its field creeps on, a cell and one intensity a turn, by
+ *   the run's seed (rules/actor-spread.ts). `raise` (earth; raising barriers itself is open to
+ *   every kind, #442) is recorded here without a rule yet. Code reads the column, never a kind name.
  */
 export type AffinityOutwardOperation = 'damage' | 'restore';
 export type AffinityInwardOperation = 'drain';
