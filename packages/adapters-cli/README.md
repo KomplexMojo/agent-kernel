@@ -538,6 +538,11 @@ Inputs/outputs:
   `hazards: [{ id, kind }]`, `reward`, `safeLine: { length, from, to, clearance, cells }`, `shortRoute: { length }`, `note`.
   `--tactic auto` (alone; #401) lets the Director pick the mix from the build seed: a minefield always fits, a retinue
   needs a warden, an ambush a warden and a resource, each with a seeded size. The result's `tactics` lists the picks.
+  `--tactic llm` (alone; #402) asks a model for the mix instead (`--fixture` replays a recorded reply; live needs
+  `AK_LLM_LIVE=1`, with `--model`/`--base-url`). The Director refuses unknown tactics and the Configurator checks params
+  and the wardens and resources the plan claims; no model, a failed call or an invalid reply falls back to the seeded
+  pick. The result's `tacticPlan` says which decided (`decidedBy: llm|seeded`, `reasons`, the model's `response`), and
+  `tactics` replays the build with no model.
   `--seed N` (`seed` on `ak_create`) fixes the build seed; a tactic with no `--seed` draws one, and the result reports
   it as `seed`, so the same flags plus `--seed` rebuild the level exactly. `--place` also takes `outOfSight=room:<id>`:
   a cell no doorway of that room can see, by core's line of sight.

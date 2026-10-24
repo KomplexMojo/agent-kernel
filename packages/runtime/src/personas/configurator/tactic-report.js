@@ -71,6 +71,41 @@ function readAmbushParams(params = {}) {
   };
 }
 
+const PARAM_READERS = Object.freeze({ ambush: readAmbushParams, retinue: readRetinueParams, minefield: readMinefieldParams });
+
+/**
+ * #402 — check a tactic list before the build, for a plan the Configurator didn't author (the
+ * LLM's). Each entry's params go through the same readers the compile uses, and the level must
+ * have the wardens and resources the plan claims: a guard or a leader each takes a warden of its
+ * own, and an ambush's loot takes resources. Returns the reasons it can't be used; [] is valid.
+ */
+export function validateTactics(tactics, { wardens = 0, resources = 0 } = {}) {
+  if (!Array.isArray(tactics) || tactics.length === 0) return ["no tactics"];
+  const errors = [];
+  let wardensClaimed = 0;
+  let resourcesClaimed = 0;
+  for (const entry of tactics) {
+    const read = PARAM_READERS[entry?.tactic];
+    if (!read) {
+      errors.push(`unknown tactic "${entry?.tactic}"`);
+      continue;
+    }
+    try {
+      const params = read(entry.params || {});
+      if (entry.tactic === "ambush") {
+        wardensClaimed += params.guards;
+        resourcesClaimed += params.resources;
+      }
+      if (entry.tactic === "retinue") wardensClaimed += 1;
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+  if (wardensClaimed > wardens) errors.push(`the plan needs ${wardensClaimed} warden(s); the level has ${wardens}`);
+  if (resourcesClaimed > resources) errors.push(`the plan needs ${resourcesClaimed} resource(s); the level has ${resources}`);
+  return errors;
+}
+
 function pickRoom(rooms, data, seed, index) {
   const nonEntry = rooms.filter((room) => room.id !== data.entryRoomId);
   const inner = nonEntry.filter((room) => room.id !== data.exitRoomId);

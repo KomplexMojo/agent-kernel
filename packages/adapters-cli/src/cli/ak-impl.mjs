@@ -52,7 +52,7 @@ import {
   MOTIVATION_KINDS as ALLOWED_MOTIVATIONS,
 } from "../../../runtime/src/contracts/domain-constants.js";
 // Genuinely Orchestrator law — the prompt contract itself — so taken from its barrel.
-import { deriveAllowedOptionsFromCatalog, normalizeSummary } from "../../../runtime/src/personas/orchestrator/persona.js";
+import { deriveAllowedOptionsFromCatalog, normalizeSummary, buildTacticPlanPrompt, readTacticPlanResponse } from "../../../runtime/src/personas/orchestrator/persona.js";
 // CR.4 M5: the LLM session runs as an Orchestrator round; this host dispatches its
 // `llm_request` effects through ports/effects.js so the IO happens in the adapter.
 // Drop-in for runLlmSession (differential: tests/runtime/llm-host-loop.test.js).
@@ -188,7 +188,7 @@ function usage() {
   node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId | --sim-config path --initial-state path) [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
-  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--tactic "..."] [--seed N] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--grade H..S] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
+  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--tactic "..."] [--fixture path] [--model model] [--base-url url] [--seed N] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--grade H..S] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
   node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--tactic "..."] [--seed N] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--grade H..S] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} room-plan --room "size=small;count=2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]" [--hazard "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
@@ -261,6 +261,8 @@ Options:
                   kinds are drawn from the table's damaging kinds, no two opposite, unless kinds= names them. The Allocator
                   prices them from the hazard share, which shrinks a minefield it can't afford; the row names the room and
                   the safe line (safeLine: length, cells) and the short route's length.
+                  llm (alone) asks the model (--fixture, or AK_LLM_LIVE=1; --model, --base-url) for the mix; an invalid reply
+                  or no model falls back to auto's seeded pick, and the result's tacticPlan says which decided.
                   auto (alone) lets the Director pick a mix of these, with their sizes, from the seed; the result lists the picks.
                   With a tactic and no --seed, a seed is drawn; the result reports it (seed) so --seed rebuilds the level exactly.
   --place         Placement constraint for create/configure (repeatable): <subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump][;outOfSight=room:<id>]
@@ -3845,6 +3847,9 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     "warden",
     "place",
     "tactic",
+    "fixture",
+    "model",
+    "base-url",
     "seed",
     "goal",
     "dungeon-affinity",
@@ -3875,7 +3880,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --place, --tactic, --seed, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --grade, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --place, --tactic, --fixture, --model, --base-url, --seed, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --grade, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -4034,6 +4039,7 @@ async function writeBuildOutputs({
   emitIntermediates = false,
   commandName,
   producedBy,
+  tacticPlan,
 } = {}) {
   await writeJson(join(outDir, "spec.json"), spec);
 
@@ -4139,6 +4145,7 @@ async function writeBuildOutputs({
       ...(placedObjects !== undefined ? { placedObjects } : {}),
       ...(placementReport !== undefined ? { placementReport } : {}),
       ...(Array.isArray(tactics) && tactics.length > 0 ? { tactics } : {}),
+      ...(tacticPlan ? { tacticPlan } : {}),
       ...(Number.isSafeInteger(buildSeed) ? { seed: buildSeed } : {}),
       ...(grade ? { grade } : {}),
       // #371: authored vitals a Configurator floor raised, so none changes silently.
@@ -5209,6 +5216,50 @@ async function llmCommand(argv) {
   console.log(`llm: wrote ${outPath}`);
 }
 
+/**
+ * #402: `--tactic llm`. The Orchestrator's prompt asks the model for a tactic plan; the Director
+ * reads the tactics (unknown ones refused) and the Configurator checks params and counts. With no
+ * model (no --fixture and AK_LLM_LIVE off, or a non-local URL without AK_ALLOW_NETWORK), a failed
+ * call or an invalid reply, the seeded plan (#401) decides. `tacticPlan` records which path decided
+ * and what the model returned; the result's `tactics` replays the build with no model.
+ */
+async function resolveLlmTacticPlan({ args, seededTactics, levelCounts, rooms }) {
+  const fallback = (reasons, extra = {}) => ({
+    tactics: seededTactics,
+    tacticPlan: { decidedBy: "seeded", reasons, ...extra },
+  });
+  const fixturePath = args.fixture;
+  const baseUrl = args["base-url"] || process.env.AK_LLM_BASE_URL || DEFAULT_LLM_BASE_URL;
+  if (!fixturePath && !isLlmLiveEnabled()) {
+    return fallback(["no model: pass --fixture or set AK_LLM_LIVE=1"]);
+  }
+  if (!fixturePath && !allowNetworkRequests() && !isLocalBaseUrl(baseUrl)) {
+    return fallback(["no model: a non-local --base-url needs AK_ALLOW_NETWORK=1"]);
+  }
+  const model = args.model || process.env.AK_LLM_MODEL || DEFAULT_LLM_MODEL;
+  const prompt = buildTacticPlanPrompt({ ...levelCounts, rooms, goal: args.goal });
+  let payload;
+  try {
+    const adapter = fixturePath
+      ? createLlmAdapter({ fixture: JSON.parse(await readText(fixturePath)) })
+      : createLlmAdapter({ baseUrl });
+    payload = await adapter.generate({ model, prompt, stream: false });
+  } catch (error) {
+    return fallback([`model call failed: ${error.message}`], { model });
+  }
+  const reply = readTacticPlanResponse(payload);
+  if (reply.errors) return fallback(reply.errors, { model });
+  let tactics;
+  try {
+    tactics = tacticDirector.normalizeTactics(reply.tactics);
+  } catch (error) {
+    return fallback([error.message], { model, response: reply.tactics });
+  }
+  const errors = configurator.validateTactics(tactics, levelCounts);
+  if (errors.length > 0) return fallback(errors, { model, response: reply.tactics });
+  return { tactics, tacticPlan: { decidedBy: "llm", model, response: reply.tactics } };
+}
+
 async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = false } = {}) {
   const args = parseArgs(argv);
   if (args.help) {
@@ -5319,10 +5370,11 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   const tacticSpecs = normalizeList(args.tactic)
     .map((entry) => String(entry || "").trim())
     .filter(Boolean);
-  // #401: `--tactic auto` stands alone; the Director picks the mix from the build seed below.
-  const autoTactics = tacticSpecs.includes("auto");
+  // #401/#402: `--tactic auto` or `--tactic llm` stands alone; the mix is picked from the build seed below.
+  const tacticMode = tacticSpecs.find((value) => value === "auto" || value === "llm");
+  const autoTactics = tacticMode !== undefined;
   if (autoTactics && tacticSpecs.length > 1) {
-    throw new Error(`${commandName}: --tactic auto picks the whole mix, so it can't be combined with other tactics.`);
+    throw new Error(`${commandName}: --tactic ${tacticMode} picks the whole mix, so it can't be combined with other tactics.`);
   }
   let tactics = autoTactics ? [] : tacticSpecs.map((value) => tacticDirector.parseTactic(value));
   let buildSeed;
@@ -5334,11 +5386,18 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   } else if (tactics.length > 0 || autoTactics) {
     buildSeed = randomInt(0, 2 ** 31 - 1);
   }
+  let tacticPlan;
   if (autoTactics) {
-    tactics = tacticDirector.pickSeededTactics(buildSeed, {
+    const levelCounts = {
       wardens: parsedWardens.reduce((sum, entry) => sum + (Number(entry.value.count) || 1), 0),
       resources: parsedResources.length,
-    });
+    };
+    tactics = tacticDirector.pickSeededTactics(buildSeed, levelCounts);
+    if (tacticMode === "llm") {
+      ({ tactics, tacticPlan } = await resolveLlmTacticPlan({
+        args, seededTactics: tactics, levelCounts, rooms: normalizeList(args.room).length,
+      }));
+    }
   }
 
   // No size=small precheck for placed hazards: the Configurator's input preparation
@@ -5698,6 +5757,7 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     emitIntermediates: Boolean(args["emit-intermediates"]),
     commandName,
     producedBy: `cli-${commandName}`,
+    tacticPlan,
   });
 
   await writeHazardArtifactFiles({
