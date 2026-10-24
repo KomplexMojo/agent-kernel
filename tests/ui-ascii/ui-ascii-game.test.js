@@ -17,7 +17,7 @@ const {
   loadBundledLevels,
   loadLevelFromRunDir,
 } = require("../../packages/ui-ascii/src/levels.js");
-const { createGame } = require("../../packages/ui-ascii/src/game.js");
+const { battleLines, createGame } = require("../../packages/ui-ascii/src/game.js");
 const { hudLine, overlayActors, paintBoardRow, renderScreen, xterm256Index } = require("../../packages/ui-ascii/src/screen.js");
 const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/game-elements.js");
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
@@ -641,7 +641,7 @@ test("outside a panel, a slot's digit aims that slot; Enter casts it", async () 
   assert.match(game.screen(), /Target: warden_1/);
   await press(game, "\r");
   assert.equal(game.state().turns, 3);
-  assert.match(game.screen(), /You cast water push at warden_1\./);
+  assert.match(game.screen(), /You hit W1 with water push: ST −\d+/);
 });
 
 test("Esc closes a panel instead of quitting", async () => {
@@ -659,7 +659,31 @@ test("f aims at the nearest actor in sight and Enter casts at it", async () => {
   assert.equal(game.state().turns, 1, "aiming is free");
   await press(game, "\r");
   assert.equal(game.state().turns, 2);
-  assert.match(game.screen(), /You cast water push at warden_1\./);
+  assert.match(game.screen(), /You hit W1 with water push: ST −\d+/);
+});
+
+// #463: show the battle. A cast's floor cells show arrows for its turn; the next turn redraws
+// floor. The message line names what a hit did.
+test("a cast shows its path as arrows for one turn and names its hit", async () => {
+  const game = await createGame({ levels: duelLevels({ wardenAt: { x: 4, y: 1 } }), fog: false });
+  await press(game, "i1f\r");
+  assert.match(game.screen(), /  #@>>W#/);
+  assert.match(game.screen(), /You hit W1 with water push: ST −\d+/);
+  assert.equal(game.view().casts[0].path.at(-1).x, 4);
+  await press(game, ".");
+  assert.match(game.screen(), /  #@\.\.W#/);
+});
+
+test("battle lines name the player's hit and every hit on the player, by label, with HUD vitals", () => {
+  const view = { player: { id: "delver_1" }, casts: [
+    { sourceId: "delver_1", kind: "decay", expression: "push", targetId: "warden_1", targetLabel: "W1",
+      changes: [{ actorId: "warden_1", vital: "health", delta: -8 }, { actorId: "delver_1", vital: "mana", delta: -6 }] },
+    { sourceId: "warden_1", sourceLabel: "W1", kind: "growth", expression: "push", targetId: "delver_1",
+      changes: [{ actorId: "delver_1", vital: "health", delta: 3 }] },
+    { sourceId: "warden_2", sourceLabel: "W2", kind: "fire", expression: "push", targetId: "warden_1", changes: [] },
+    { sourceId: "delver_1", kind: "light", expression: "push", changes: [] },
+  ] };
+  assert.deepEqual(battleLines(view), { own: "You hit W1 with decay push: HP −8", others: ["W1 hits you with growth push: HP +3"] });
 });
 
 test("a cast core refuses says why and costs the turn", async () => {

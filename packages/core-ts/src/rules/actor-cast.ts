@@ -225,7 +225,13 @@ export function raisedBarrierCells(from: ActorPosition, target: ActorPosition, r
   return cells;
 }
 
-export interface ActorTileCastResult extends ActorCastResult { raised: string[] }
+export interface ActorTileCastResult extends ActorCastResult {
+  raised: string[];
+  /** #463: the cells the cast crossed, the struck actor's cell included; empty for a self-cast. */
+  path?: ActorPosition[];
+  /** #463: the actor the cast struck, if any. */
+  struckId?: string;
+}
 
 type TileCastRegistry = Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital' | 'getActorsAt'
   | 'isMovementBlocked' | 'isWall' | 'raiseBarrierAt' | 'leaveCastTrail'>;
@@ -263,9 +269,9 @@ export function castActorAffinityAtTile(
   const pair = tileCastPair(registry, sourceId, target, castKey);
   if (typeof pair === 'string') return reject(pair);
   const source = registry.getActor(sourceId)!;
-  const hit = (targetId: string): ActorTileCastResult =>
-    ({ ...castFocusedActorAffinity(registry, sourceId, targetId, manaCosts, affinityKey(pair)), raised: [] });
-  if (source.position.x === target.x && source.position.y === target.y) return hit(sourceId);
+  const hit = (targetId: string, path: ActorPosition[]): ActorTileCastResult =>
+    ({ ...castFocusedActorAffinity(registry, sourceId, targetId, manaCosts, affinityKey(pair)), raised: [], path, struckId: targetId });
+  if (source.position.x === target.x && source.position.y === target.y) return hit(sourceId, []);
   const cost = castManaCost(manaCosts, pair);
   if (cost === undefined) return reject('InvalidActionValue');
   if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');
@@ -273,7 +279,7 @@ export function castActorAffinityAtTile(
   for (const { cell, corner } of lineOfSightSteps(source.position, target)) {
     if (corner && (registry.isWall(corner[0]) || registry.isWall(corner[1]))) break;
     const struck = registry.getActorsAt(cell).find(actor => actor.lifecycle === 'alive' && actor.id !== sourceId);
-    if (struck) return hit(struck.id);
+    if (struck) return hit(struck.id, [...crossed, { x: cell.x, y: cell.y }]);
     if (registry.isWall(cell)) break;
     crossed.push(cell);
   }
@@ -281,7 +287,8 @@ export function castActorAffinityAtTile(
     registry.leaveCastTrail({ sourceId, kind: pair.kind, stacks: pair.stacks, intensity: affinityIntensity(pair), cells: crossed });
   }
   const paid = cost > 0 ? registry.changeVital(sourceId, 'mana', -cost) : 0;
-  return { accepted: true, raised: [], changes: paid !== 0 ? [{ actorId: sourceId, vital: 'mana', delta: paid }] : [] };
+  return { accepted: true, raised: [], path: crossed,
+    changes: paid !== 0 ? [{ actorId: sourceId, vital: 'mana', delta: paid }] : [] };
 }
 
 /**

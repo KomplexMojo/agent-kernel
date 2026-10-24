@@ -7,6 +7,7 @@
 import { createPlaySession, PLAY_DIRECTION_STEPS, replayPlaySession } from "../../runtime/src/runner/play-session.js";
 import { INTENT } from "./keymap.js";
 import { renderScreen, revealedDetail, revealNote, slotLevelLabel } from "./screen.js";
+import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
 
 /** Friendlier words for core's rejection codes; the raw name is the fallback. */
 const REJECTION_MESSAGES = Object.freeze({
@@ -68,6 +69,30 @@ function aimLabel(from, to) {
 
 function keyLabel(affinityKey) {
   return String(affinityKey || "").replace(":", " ");
+}
+
+/** A vital change as the HUD names it: `HP −8`, `MP +3` (#463). */
+function changeLabel({ vital, delta }) {
+  return `${HUD_VITAL_LABELS[vital] ?? vital} ${delta < 0 ? "\u2212" : "+"}${Math.abs(delta)}`;
+}
+
+/**
+ * The battle lines of the last tick (#463): the player's own hit (`You hit W1 with decay push:
+ * HP −8`) and every hit on the player by others (`W1 hits you with growth push: HP +3`),
+ * from the casts the play session reports. Self-casts and casts at nobody have no line.
+ */
+export function battleLines(view) {
+  const me = view.player?.id;
+  const name = (id, label) => label ?? id;
+  const lines = { own: null, others: [] };
+  for (const cast of view.casts || []) {
+    if (!cast.targetId || cast.targetId === cast.sourceId || !me) continue;
+    const changes = cast.changes.filter((change) => change.actorId === cast.targetId);
+    const what = `${cast.kind} ${cast.expression}: ${changes.length ? changes.map(changeLabel).join(", ") : "no effect"}`;
+    if (cast.sourceId === me) lines.own = `You hit ${name(cast.targetId, cast.targetLabel)} with ${what}`;
+    else if (cast.targetId === me) lines.others.push(`${name(cast.sourceId, cast.sourceLabel)} hits you with ${what}`);
+  }
+  return lines;
 }
 
 /** The equipped slots core would cast, with their reach, as the play session reports them. */
@@ -164,6 +189,12 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     if (result.status.defeated) message = "";
     else if (rejected && !result.status.atExit) message = rejectionMessage(rejected.reason, session.view().player);
     else if (result.accepted.length > 0) message = describe();
+    // #463: name what the tick's casts did to and by the player.
+    if (result.tick !== before.tick && !result.status.defeated) {
+      const battle = battleLines(session.view());
+      if (battle.own && result.accepted.length > 0) message = battle.own;
+      message = [message, ...battle.others].filter(Boolean).join("   ");
+    }
     return result;
   }
 

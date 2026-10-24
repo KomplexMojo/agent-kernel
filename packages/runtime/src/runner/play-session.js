@@ -64,7 +64,7 @@ import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
-import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS } from "../render/visualization-snapshot.js";
+import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS, asciiCastPathGlyph } from "../render/visualization-snapshot.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
@@ -451,6 +451,35 @@ export async function createPlaySession({
     });
   }
 
+  /**
+   * The casts of the last tick (#463), as core's turn recorded them: who cast what at whom,
+   * what changed on whom, and each path cell with its arrow. Under fog only the cells the
+   * seated actor sees are kept, and a cast is shown when any of it is seen or it involves
+   * that actor.
+   */
+  function castsView(snapshot, visible) {
+    const frames = typeof runtime.getTickFrames === "function" ? runtime.getTickFrames() : [];
+    const casts = frames.filter((frame) => frame?.phaseDetail === "apply").at(-1)?.emittedSnapshot?.view?.turn?.casts ?? [];
+    return casts.flatMap((cast) => {
+      const source = snapshot.actors.find((actor) => actor.id === cast.sourceId);
+      if (!source) return [];
+      const path = cast.path.map((cell, index) => ({ x: cell.x, y: cell.y,
+        glyph: asciiCastPathGlyph(index === 0 ? source.position : cast.path[index - 1], cell, cast.expression) }))
+        .filter((cell) => !visible || visible[cell.y]?.[cell.x]);
+      const involved = cast.sourceId === activeId || cast.targetId === activeId;
+      if (path.length === 0 && !involved) return [];
+      return [{
+        sourceId: cast.sourceId,
+        sourceLabel: labels.get(cast.sourceId) ?? null,
+        kind: cast.kind,
+        expression: cast.expression,
+        ...(cast.targetId ? { targetId: cast.targetId, targetLabel: labels.get(cast.targetId) ?? null } : {}),
+        path,
+        changes: cast.changes.map((change) => ({ ...change })),
+      }];
+    });
+  }
+
   function view() {
     const fogOn = fog && !runtime.hasActorExited(activeId);
     const snapshot = readSnapshot();
@@ -472,6 +501,7 @@ export async function createPlaySession({
         field: typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null,
       }),
       party: partyView(snapshot),
+      casts: castsView(snapshot, fogOn ? readVisible() : null),
       departures: departures.map((entry) => ({ ...entry })),
       orders: ordersView(),
       orderable: orderableView(snapshot),

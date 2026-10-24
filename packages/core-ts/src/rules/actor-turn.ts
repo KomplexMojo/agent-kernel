@@ -1,6 +1,8 @@
 import { readActorFieldSoaks, readActorOverwhelms, resolveActorFields, type ActorOverwhelm } from './actor-fields.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import type { ActorAction, ActorAffinityKey, ActorPosition } from '../state/actor-types.ts';
+import type { ActorAction, ActorAffinityKey, ActorPosition, AffinityExpression, AffinityKind } from '../state/actor-types.ts';
+import type { ActorVitalChange } from './actor-affinity.ts';
+import { lineOfSightSteps } from '../state/visibility.ts';
 import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
 import { assertActorCastPrices, castActorAffinityAtTile, castFocusedActorAffinity, raiseActorBarriersAt, selectActorCastAffinity,
@@ -14,10 +16,24 @@ export interface ActorTurnSnapshot {
   movedActorIds?: string[];
   /** #420: actors soaked this turn, by a cast or a field; they do not dry this turn. Absent in older snapshots. */
   soakedActorIds?: string[];
+  /** #463: the casts accepted this turn, in order, for a surface to show. Absent when none. */
+  casts?: ActorTurnCast[];
   closed: boolean;
   fieldsResolved: boolean;
   regenerated: boolean;
   exitsResolved: boolean;
+}
+/**
+ * One accepted cast (#463): who cast what, the cells it crossed (the struck actor's cell
+ * included), whom it struck, and what changed on whom (the caster's price included).
+ */
+export interface ActorTurnCast {
+  sourceId: string;
+  kind: AffinityKind;
+  expression: AffinityExpression;
+  path: ActorPosition[];
+  targetId?: string;
+  changes: ActorVitalChange[];
 }
 export interface ActorTurnCosts {
   /** Per-key base of the escalating cast curve, base × s(s+1)/2 (#232). */
@@ -62,7 +78,8 @@ export function createActorTurn(
     || state.movedActorIds !== undefined && (!Array.isArray(state.movedActorIds)
       || state.movedActorIds.some(id => !state.acceptedActorIds.includes(id)))
     || state.soakedActorIds !== undefined && (!Array.isArray(state.soakedActorIds)
-      || state.soakedActorIds.some(id => typeof id !== 'string'))) {
+      || state.soakedActorIds.some(id => typeof id !== 'string'))
+    || state.casts !== undefined && !Array.isArray(state.casts)) {
     throw new Error('invalid turn snapshot');
   }
   // #354 retired suppression: a snapshot saved before then may still carry the field.
@@ -141,11 +158,20 @@ export function createActorTurn(
           const pair = selectActorCastAffinity(actor, named);
           if (typeof pair === 'string') { lastRejection = pair; break; }
           const key = affinityKey(pair);
+          // A cast at an actor travels the same line a tile cast does; read it before a hit displaces.
+          const aimed = tile ? null : registry.getActor(action.params.targetId!);
+          const line = aimed && aimed.id !== actor.id ? lineOfSightSteps(actor.position, aimed.position).map(({ cell }) => cell) : [];
           const result = tile
             ? castActorAffinityAtTile(registry, actor.id, { x: tile.x, y: tile.y }, castPrices(prices), key)
             : castFocusedActorAffinity(registry, actor.id, action.params.targetId!, castPrices(prices), key);
           accepted = result.accepted;
           if (!accepted) lastRejection = result.rejection ?? null;
+          if (accepted) {
+            const struck = tile ? (result as { struckId?: string }).struckId : aimed?.id;
+            (state.casts ??= []).push({ sourceId: actor.id, kind: pair.kind, expression: pair.expression,
+              path: tile ? (result as { path?: ActorPosition[] }).path ?? [] : line,
+              ...(struck ? { targetId: struck } : {}), changes: result.changes });
+          }
           for (const soak of result.soaked ?? []) (state.soakedActorIds ??= []).push(soak.actorId);
           break;
         }

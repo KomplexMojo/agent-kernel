@@ -70,6 +70,10 @@ Characters come from core's frame legend and the `ASCII_ENTITY_GLYPHS` that
 Under fog of war the play session's `?` takes `tiles.fog`, and
 `asciiRememberedCellStyle` fades a remembered cell's colours toward `tiles.fog`
 (`ASCII_REMEMBERED_FADE`), so a cell the player only remembers reads dimmed.
+A cast's path (#463) shows, for its turn, the arrow `asciiCastPathGlyph` picks from
+`ASCII_CAST_PATH_GLYPHS` in `visualization-snapshot.js` (away from the caster for a push,
+back toward it for a pull) on each floor cell, in `asciiCastPathCellStyle`: the cast
+affinity's `GAME_AFFINITY_COLOR_HEX` fill at the strongest field tint.
 
 ## UI icons
 
