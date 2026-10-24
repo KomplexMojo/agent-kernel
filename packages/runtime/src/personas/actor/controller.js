@@ -46,6 +46,8 @@ import {
   isOccupied,
   isPassable,
   alignmentsAreAllied,
+  deterministicRandom,
+  resolveActorRandomSeed,
 } from "./proposal-helpers.js";
 import { getMotivationModule } from "./motivations/index.js";
 import {
@@ -1735,6 +1737,14 @@ function buildReflexProposals({ record, observation, view, payload, baseTiles })
 }
 
 /** Keep a follower's own moves within `distance` of `center`; everything else stays. */
+const YIELD_SALT = 457;
+
+/** #457 — last turn's move was proposed from where the actor still stands, so core refused it. */
+function moveWasRefused(entry, position, tick) {
+  return Boolean(entry && position && Number.isFinite(tick) && entry.tick === tick - 1
+    && entry.from.x === position.x && entry.from.y === position.y);
+}
+
 function keepProposalsNear(proposals, { center, distance }) {
   return proposals.filter((proposal) => proposal?.kind !== "move" || !proposal.params?.target
     || chebyshevDistance(proposal.params.target, center) <= distance);
@@ -1873,6 +1883,15 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       }
       // An actor with a strategy always takes its turn, so its progress is always kept.
       if (strategyTurn && derivedProposals.length === 0) derivedProposals = [{ kind: "wait" }];
+      // #457 — a move refused last turn (the actor still stands where it proposed it from)
+      // may yield this turn: in a crowd the cells it wants are taken first, turn after turn.
+      // A seeded coin, not always, so two actors yielding to each other don't fall in step.
+      if (!commandProposals && derivedProposals[0]?.kind === "move"
+        && moveWasRefused(view().context.moves?.[strategyActorId], decidingActor?.position, tick)
+        && deterministicRandom(resolveActorRandomSeed(observationView, strategyActorId, payload, personaSeed),
+          strategyActorId, tick, YIELD_SALT) < 0.5) {
+        derivedProposals = [{ kind: "wait" }];
+      }
     }
     // CR.6 — the Actor derives CANDIDATE proposals. Budget admissibility used to
     // be decided here by a local filterBudgetedProposals; the policy now lives in
@@ -1936,6 +1955,10 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       ...(strategyEntry ? { strategyEntry: { actorId: strategyActorId, entry: strategyEntry } } : {}),
       ...(cognitionTurn ? { cognitionEntry: { actorId: strategyActorId, entry: cognitionTurn.entry } } : {}),
       ...(escortTurn ? { escortEntry: { actorId: strategyActorId, entry: escortTurn.entry } } : {}),
+      // #457 — where a move was proposed from, so next turn can tell it was refused.
+      ...(shouldEmitActions && strategyActorId && !commandProposals ? { moveEntry: { actorId: strategyActorId,
+        entry: transitionProposals?.[0]?.kind === "move" && decidingActor?.position
+          ? { tick, from: { x: decidingActor.position.x, y: decidingActor.position.y } } : null } } : {}),
     };
     const result = fsm.advance(event, fsmPayload);
     if (!shouldEmitActions) {

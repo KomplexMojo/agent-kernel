@@ -53,6 +53,7 @@ export function createActorStateMachine({ initialState = ActorStates.IDLE, clock
     if (context.strategies) copy.strategies = structuredClone(context.strategies);
     if (context.cognition) copy.cognition = structuredClone(context.cognition);
     if (context.escorts) copy.escorts = structuredClone(context.escorts);
+    if (context.moves) copy.moves = structuredClone(context.moves);
     return { state, context: copy };
   }
 
@@ -89,6 +90,16 @@ export function createActorStateMachine({ initialState = ActorStates.IDLE, clock
     const escortEntry = payload.escortEntry;
     if (escortEntry && typeof escortEntry.actorId === "string" && escortEntry.actorId) {
       nextContext.escorts = { ...(context.escorts || {}), [escortEntry.actorId]: structuredClone(escortEntry.entry) };
+    }
+
+    // #457 — per actor, where its last proposed move was proposed from (null: it proposed none).
+    const moveEntry = payload.moveEntry;
+    if (moveEntry && typeof moveEntry.actorId === "string" && moveEntry.actorId) {
+      const moves = { ...(context.moves || {}) };
+      if (moveEntry.entry) moves[moveEntry.actorId] = structuredClone(moveEntry.entry);
+      else delete moves[moveEntry.actorId];
+      if (Object.keys(moves).length > 0) nextContext.moves = moves;
+      else delete nextContext.moves;
     }
 
     state = nextState;
