@@ -303,7 +303,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   }
 
   // Aiming at a tile (#413): the cursor starts on the player and moves with the move keys.
-  // A cast at a barrier's tile hits it; `raise` (key z, #460) raises barriers there instead.
+  // A cast travels the line and hits the first actor or wall (#461); `raise` (key z, #460)
+  // raises barriers there instead.
   function openAim(affinityKey, step = null, raise = false) {
     const at = session.view().player?.position;
     if (!at) return;
@@ -569,7 +570,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       const away = Math.max(Math.abs(panel.cursor.x - at.x), Math.abs(panel.cursor.y - at.y));
       return [`${panel.raise ? "Raise" : "Aim"}: the tile ${aimLabel(at, panel.cursor)}${key ? ` with ${keyLabel(key)}` : ""} (${tiles(away)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})`,
         panel.raise ? "  Move keys aim, Enter raises a barrier line there, Esc cancels"
-          : "  Move keys aim, Enter casts at the barrier there, Tab targets, Esc cancels"];
+          : "  Move keys aim, Enter casts along the line: it hits the first actor or wall, Tab targets, Esc cancels"];
     }
     const target = panel.items[panel.index];
     return [`Target: ${target.id}${revealNote(target)}${target.revealed !== undefined ? revealedDetail(target) : ""}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${tiles(target.distance)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})   Tab next, Enter cast, Esc cancel`];

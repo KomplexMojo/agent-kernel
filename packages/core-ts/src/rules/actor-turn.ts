@@ -50,6 +50,8 @@ export function createActorTurn(
       || costs.persistentUpkeep.some(cost => !Number.isSafeInteger(cost) || cost < 0))) throw new Error('invalid action costs');
   assertActorCastPrices(castPrices(costs));
   const prices = copy(costs);
+  // A new tick ends the last one's one-turn cast fields (#461).
+  if (!saved) registry.clearCastTrails();
   const state = saved ? copy(saved) : { tick, acceptedActorIds: [], movedActorIds: [], closed: false, fieldsResolved: false, regenerated: false, exitsResolved: false };
   if (state.tick !== tick || typeof state.closed !== 'boolean'
     || typeof state.fieldsResolved !== 'boolean' || typeof state.regenerated !== 'boolean'

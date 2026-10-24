@@ -4,6 +4,7 @@ import { affinityIntensity, affinityKey, equippedActorAffinities } from '../stat
 import { actorAffinityMagnitude, getActorAffinityEffect, resolveActorAffinity, type ActorVitalChange } from './actor-affinity.ts';
 import { receiverAbsorbsAffinity, receiverAffinityAmount } from './actor-receiver.ts';
 import { affinityTableRow } from '../state/affinity-table.ts';
+import { lineOfSightSteps } from '../state/visibility.ts';
 
 /** Configurator-authored per-kind base prices for the escalating cast curve (#232). */
 export type ActorCastManaBases = Partial<Record<ActorAffinityKey, number>>;
@@ -227,7 +228,7 @@ export function raisedBarrierCells(from: ActorPosition, target: ActorPosition, r
 export interface ActorTileCastResult extends ActorCastResult { raised: string[] }
 
 type TileCastRegistry = Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital' | 'getActorsAt'
-  | 'isMovementBlocked' | 'raiseBarrierAt'>;
+  | 'isMovementBlocked' | 'isWall' | 'raiseBarrierAt' | 'leaveCastTrail'>;
 
 // The checks a cast and a raise at a tile share: a living caster that can cast, its slot, and reach.
 function tileCastPair(registry: TileCastRegistry, sourceId: string, target: ActorPosition,
@@ -245,9 +246,13 @@ function tileCastPair(registry: TileCastRegistry, sourceId: string, target: Acto
 }
 
 /**
- * A cast aimed at a tile (#413). A tile holding a living barrier is a cast at that barrier.
- * Anything else is refused until free aim (#414): raising barriers is its own action since
- * #460, `raiseActorBarriersAt`.
+ * A cast aimed at a tile: free aim (#414, #461). It travels the line sight uses from the caster
+ * and stops at the first living actor, which it hits as a cast at that actor does (a friendly
+ * included, #336; a pull on a barrier takes it down), or at a wall, landing on the last free
+ * cell. A push that meets no actor leaves a one-turn field of its kind and intensity on every
+ * cell it crossed (`leaveCastTrail`): light lights it, a harmful kind harms whoever is in it
+ * when the tick's fields resolve. A pull that meets no actor does nothing. The price is the
+ * same whether it hits or not. A cast at the caster's own tile is a cast at itself.
  */
 export function castActorAffinityAtTile(
   registry: TileCastRegistry,
@@ -257,9 +262,26 @@ export function castActorAffinityAtTile(
   const reject = (rejection: string): ActorTileCastResult => ({ accepted: false, changes: [], raised: [], rejection });
   const pair = tileCastPair(registry, sourceId, target, castKey);
   if (typeof pair === 'string') return reject(pair);
-  const barrier = registry.getActorsAt(target).find(actor => actor.lifecycle === 'alive' && isBarrierActor(actor));
-  if (barrier) return { ...castFocusedActorAffinity(registry, sourceId, barrier.id, manaCosts, affinityKey(pair)), raised: [] };
-  return reject('InvalidTarget');
+  const source = registry.getActor(sourceId)!;
+  const hit = (targetId: string): ActorTileCastResult =>
+    ({ ...castFocusedActorAffinity(registry, sourceId, targetId, manaCosts, affinityKey(pair)), raised: [] });
+  if (source.position.x === target.x && source.position.y === target.y) return hit(sourceId);
+  const cost = castManaCost(manaCosts, pair);
+  if (cost === undefined) return reject('InvalidActionValue');
+  if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');
+  const crossed: ActorPosition[] = [];
+  for (const { cell, corner } of lineOfSightSteps(source.position, target)) {
+    if (corner && (registry.isWall(corner[0]) || registry.isWall(corner[1]))) break;
+    const struck = registry.getActorsAt(cell).find(actor => actor.lifecycle === 'alive' && actor.id !== sourceId);
+    if (struck) return hit(struck.id);
+    if (registry.isWall(cell)) break;
+    crossed.push(cell);
+  }
+  if (pair.expression === 'push') {
+    registry.leaveCastTrail({ sourceId, kind: pair.kind, stacks: pair.stacks, intensity: affinityIntensity(pair), cells: crossed });
+  }
+  const paid = cost > 0 ? registry.changeVital(sourceId, 'mana', -cost) : 0;
+  return { accepted: true, raised: [], changes: paid !== 0 ? [{ actorId: sourceId, vital: 'mana', delta: paid }] : [] };
 }
 
 /**

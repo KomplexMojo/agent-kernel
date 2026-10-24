@@ -145,14 +145,13 @@ test('a tile cast at a barrier hits that barrier', () => {
   expect(raised(registry)[0].lifecycle).toBe('defeated');
 });
 
-test('a push cast at an empty tile no longer raises anything (#460): raising is its own command', () => {
+test('a push cast at an empty tile raises nothing (#460): raising is its own command', () => {
   for (const kind of KINDS) {
     const registry = room(5, 1, [caster('me', 0, 0, kind, 'push', 2, 1)]);
     const turn = createActorTurn(registry, 0, costs);
-    expect(turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 2, y: 0 } } })).toBe(false);
-    expect(turn.lastRejection()).toBe('InvalidTarget');
+    // Since #461 the cast travels and leaves a one-turn field instead (actor-free-aim.test.mts).
+    expect(turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 2, y: 0 } } })).toBe(true);
     expect(raised(registry)).toEqual([]);
-    expect(registry.getActor('me')!.vitals.mana!.current).toBe(100);
   }
 });
 

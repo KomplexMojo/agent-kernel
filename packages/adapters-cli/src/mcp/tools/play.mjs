@@ -29,7 +29,7 @@ const actingProperties = {
   commands: {
     type: "array",
     description: "Commands to play in order, before keys. Each is { kind, params?, actorId? } with kind move (params.direction: north|south|east|west|northeast|northwest|southeast|southwest; params.sprint true takes two tiles in one turn for more stamina), wait, "
-      + "equip_affinity (params.affinityKey \"kind:expression\", optional params.stacks (range) and params.intensity to run it below what it holds), unequip_affinity (params.affinityKey), cast_affinity (params.targetId, or params.target {x,y} for a barrier's tile, which it hits; optional params.affinityKey), raise_barrier (params.target {x,y}: an equipped push raises a line of barriers into empty tiles; optional params.affinityKey) "
+      + "equip_affinity (params.affinityKey \"kind:expression\", optional params.stacks (range) and params.intensity to run it below what it holds), unequip_affinity (params.affinityKey), cast_affinity (params.targetId, or params.target {x,y} for a tile: it travels the line and hits the first actor or wall, a push that meets nobody leaving a one-turn field on its path; optional params.affinityKey), raise_barrier (params.target {x,y}: an equipped push raises a line of barriers into empty tiles; optional params.affinityKey) "
       + "or take (params.targetId, params.holdingId); or { kind: \"switch\", actorId } to change the seat. actorId commands that party member without seating it. Ids may be labels (W1). "
       + "Every command except switch is one turn for the whole level, refused or not.",
     items: { type: "object", additionalProperties: true },

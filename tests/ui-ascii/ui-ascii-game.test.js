@@ -697,10 +697,12 @@ test("z aims a push at an empty tile and Enter raises a barrier there for one tu
   assert.equal(game.view().rows[1][3], game.view().legend.barrier);
 });
 
-test("f at an empty tile no longer raises a barrier (#460)", async () => {
+test("f at an empty tile casts along the line and raises no barrier (#460, #461)", async () => {
   const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: false });
-  await press(game, "i1fll\r");
-  assert.match(game.screen(), /That cannot be targeted\./);
+  await press(game, "i1fll");
+  assert.match(game.screen(), /Enter casts along the line: it hits the first actor or wall/);
+  await press(game, "\r");
+  assert.match(game.screen(), /You cast water push 2 east of you\./);
   assert.notEqual(game.view().rows[1][3], game.view().legend.barrier);
 });
 

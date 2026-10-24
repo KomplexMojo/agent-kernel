@@ -141,6 +141,20 @@ export interface ActorRegistrySnapshot {
   dimensions: { width: number; height: number };
   terrain: TerrainKind[];
   actors: ActorRecord[];
+  /** One-turn fields push casts that hit no actor left this tick (#461); absent when none. */
+  castTrails?: ActorCastTrail[];
+}
+
+/**
+ * A push cast at a tile that met no actor (#461) leaves a one-turn field of its kind and
+ * intensity on every cell it travelled, landing cell included, until the next tick begins.
+ */
+export interface ActorCastTrail {
+  sourceId: string;
+  kind: AffinityKind;
+  stacks: number;
+  intensity: number;
+  cells: ActorPosition[];
 }
 
 /** Mechanical action vocabulary; runtime supplies artifact envelopes. */

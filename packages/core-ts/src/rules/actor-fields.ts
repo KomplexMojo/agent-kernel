@@ -1,5 +1,5 @@
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import type { ActorPosition, ActorAffinityEntry, ActorRecord } from '../state/actor-types.ts';
+import type { ActorPosition, ActorAffinityEntry, ActorRecord, ActorRegistrySnapshot } from '../state/actor-types.ts';
 import { affinityIntensity, affinityKey, equippedActorAffinities } from '../state/actor-inventory.ts';
 import { AFFINITY_KIND_BY_CODE, AFFINITY_EXPRESSION_BY_CODE } from '../affinity-readers.ts';
 import { getOppositeAffinityKind } from '../state/affinity.ts';
@@ -140,20 +140,40 @@ function strongerField(cell: ActorFieldCell, current: ActorFieldCell): boolean {
   return cell.intensity !== current.intensity ? cell.intensity > current.intensity : cell.falloff > current.falloff;
 }
 
+/**
+ * #461: the one-turn fields of push casts that met no actor this tick, as push cells at full
+ * strength on every cell they crossed, from casters still alive. They resolve with the
+ * lasting fields: same overlap, same receiver rules, the push's own effect.
+ */
+function trailContributions(snapshot: ActorRegistrySnapshot, actors: readonly ActorRecord[]): ActorFieldCell[] {
+  const alive = new Set(actors.map(actor => actor.id));
+  return (snapshot.castTrails ?? []).filter(trail => alive.has(trail.sourceId)).flatMap(trail => trail.cells.map(cell => ({
+    kind: trail.kind, expression: 'push' as const, stacks: trail.stacks, intensity: trail.intensity,
+    sourceId: trail.sourceId, position: { x: cell.x, y: cell.y }, falloff: 1,
+  })));
+}
+
 /** Current-position projection. No equipment, vitality, or historical field mutation. */
 export function projectActorFields(registry: Pick<Registry, 'snapshot'>): { fields: ActorFieldCell[]; contributions: ActorFieldCell[]; sources: ActorExposureSource[] } {
   const snapshot = registry.snapshot();
   const actors = snapshot.actors.filter(actor => actor.lifecycle === 'alive');
   const sources = activeFieldSources(actors);
+  const trails = trailContributions(snapshot, actors);
   const exposures = new Map(sources.map(({ actor, pair }) => [fieldSlotKey(actor.id, pair), {
     sourceId: actor.id, affinityKey: affinityKey(pair), budget: actorAffinityMagnitude(pair.expression, affinityIntensity(pair)), targets: [],
   } as ActorExposureSource]));
+  for (const trail of trails) {
+    const slot = fieldSlotKey(trail.sourceId, trail);
+    if (!exposures.has(slot)) exposures.set(slot, { sourceId: trail.sourceId, affinityKey: affinityKey(trail),
+      budget: actorAffinityMagnitude(trail.expression, trail.intensity), targets: [] });
+  }
   const fields: ActorFieldCell[] = [];
   const contributions: ActorFieldCell[] = [];
   for (let y = 0; y < snapshot.dimensions.height; y++) {
     for (let x = 0; x < snapshot.dimensions.width; x++) {
       const position = { x, y };
-      const local = sourceContributionsAt(sources, position);
+      const local = [...sourceContributionsAt(sources, position),
+        ...trails.filter(cell => cell.position.x === x && cell.position.y === y)];
       contributions.push(...local);
       const cells = resolveFieldOverlap(local);
       fields.push(...cells);

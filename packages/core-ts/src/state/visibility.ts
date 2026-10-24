@@ -286,6 +286,25 @@ function hasLineOfSight(
   origin: { x: number; y: number },
   target: { x: number; y: number },
 ): boolean {
+  const blocked = (cell: { x: number; y: number }): boolean => {
+    if (cell.x === target.x && cell.y === target.y) return false;
+    return isOpaqueTile(tileKinds[cell.y]?.[cell.x]);
+  };
+  return lineOfSightSteps(origin, target)
+    .every(({ cell, corner }) => !(corner && (blocked(corner[0]) || blocked(corner[1]))) && !blocked(cell));
+}
+
+type GridCell = { x: number; y: number };
+export interface LineOfSightStep { cell: GridCell; corner?: [GridCell, GridCell] }
+
+/**
+ * The cells a line from `origin` to `target` crosses, in order, origin excluded and target
+ * included: the supercover ray sight uses. A step through an exact corner carries the two
+ * side-adjacent cells it squeezes between (`corner`); sight is blocked if either is opaque.
+ * A cast at a tile travels these same cells (#461).
+ */
+export function lineOfSightSteps(origin: GridCell, target: GridCell): LineOfSightStep[] {
+  const steps: LineOfSightStep[] = [];
   const dx = target.x - origin.x;
   const dy = target.y - origin.y;
   const nx = Math.abs(dx);
@@ -297,15 +316,11 @@ function hasLineOfSight(
   let ix = 0;
   let iy = 0;
 
-  const blocked = (cellX: number, cellY: number): boolean => {
-    if (cellX === target.x && cellY === target.y) return false;
-    return isOpaqueTile(tileKinds[cellY]?.[cellX]);
-  };
-
   while (ix < nx || iy < ny) {
     const decision = (1 + 2 * ix) * ny - (1 + 2 * iy) * nx;
+    let corner: [GridCell, GridCell] | undefined;
     if (decision === 0) {
-      if (blocked(x + stepX, y) || blocked(x, y + stepY)) return false;
+      corner = [{ x: x + stepX, y }, { x, y: y + stepY }];
       x += stepX;
       y += stepY;
       ix += 1;
@@ -317,9 +332,9 @@ function hasLineOfSight(
       y += stepY;
       iy += 1;
     }
-    if (blocked(x, y)) return false;
+    steps.push(corner ? { cell: { x, y }, corner } : { cell: { x, y } });
   }
-  return true;
+  return steps;
 }
 
 /**
