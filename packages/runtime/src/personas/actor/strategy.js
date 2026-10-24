@@ -29,6 +29,7 @@ import {
   isOccupied,
   isPassable,
 } from "./proposal-helpers.js";
+import { actorHoldingsOpen } from "../../../../core-ts/src/state/actor-holdings.ts";
 
 export const STRATEGY_GOAL_KINDS = Object.freeze(["reach", "defeat", "guard", "follow", "lead", "take", "hold", "survive"]);
 export const STRATEGY_VITALS = Object.freeze(["health", "mana", "stamina", "durability"]);
@@ -301,7 +302,8 @@ function evaluateGoal(goal, entry, context) {
     case "take": {
       if (!target) return searching;
       if (target.lifecycle === "exited") return stalled("target_gone");
-      if (target.lifecycle !== "defeated") return active(attackProposals(self, target, context));
+      // A source core keeps closed (a living actor that can move) is defeated first (#435).
+      if (!actorHoldingsOpen(target)) return active(attackProposals(self, target, context));
       const loot = (Array.isArray(target.holdings) ? target.holdings : [])
         .filter((holding) => holding.claimedBy === null)
         .sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));

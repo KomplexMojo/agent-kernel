@@ -92,6 +92,23 @@ test("goal_oriented: goals run in order, and a finished goal hands over to the n
   assert.equal(session.strategies().pal.status, "done");
 });
 
+test("take on an intact resource beside it takes it unbroken, whatever the taker carries (#435)", async () => {
+  for (const kind of [null, "growth", "decay"]) {
+    // Levels are unlit and an actor sees one tile, so the resource starts beside it.
+    const chest = { category: "resource", id: "chest", position: { x: 3, y: 3 },
+      vitals: { durability: { current: 1, max: 1, regen: 0 } },
+      holdings: [{ id: "heal", kind: "vital", permanenceMode: "consumable", claimedBy: null, vitals: [{ key: "health", delta: 5 }] }] };
+    const carried = kind ? { affinities: [{ kind, expression: "push", stacks: 1 }], activeAffinityKey: `${kind}:push` } : {};
+    const strategy = { goals: [{ kind: "take", target: "chest" }] };
+    const session = await play([HERO, chest, companion("pal", { x: 2, y: 3 }, ["stationary", "goal_oriented"], strategy, carried)]);
+    const label = kind ?? "no affinity";
+    for (let turn = 0; turn < 8 && session.strategies().pal?.status !== "done"; turn += 1) await session.act({ kind: "wait" });
+    assert.equal(session.strategies().pal.status, "done", label);
+    const left = session.view().actors.find((actor) => actor.id === "chest");
+    assert.ok(left && left.lifecycle !== "defeated", `${label}: the resource is still there`);
+  }
+});
+
 test("follow keeps a companion beside its ally as the ally moves", async () => {
   const strategy = { goals: [{ kind: "follow", target: "hero", distance: 1 }] };
   const session = await play([HERO, companion("pal", { x: 6, y: 4 }, ["exploring", "goal_oriented"], strategy, LANTERN)]);
@@ -201,7 +218,7 @@ test("user_controlled follows its own strategy only on turns it is not commanded
 // ## TODO: Test Permutations
 // - guard: a hostile entering the radius around the guarded ally is engaged; with none, the guard returns to the ally.
 // - lead: the leader waits for an ally more than `distance` behind, and walks on when it catches up.
-// - take: an alive target is defeated first, then each unclaimed holding is taken in id order; done when none are left.
+// - take: a living target that can move is defeated first, then each unclaimed holding is taken in id order; done when none are left.
 // - survive: a hostile within `distance` makes the actor step to the neighbour farthest from it.
 // - tactics: vital/below, defeated, tickAtLeast conditions; a cast_affinity at "nearest_hostile"; the first matching tactic wins.
 // - a stalled "no_route" goal (a place walled off) and a "target_gone" follow (the ally exits).

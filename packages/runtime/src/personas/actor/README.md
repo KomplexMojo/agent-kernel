@@ -36,7 +36,8 @@ safety and benefit, in existing tuple order. Readiness uses the ordinary nearest
 hostile proposal and motivation intent classifier. Only strict improvement over
 the current pair creates a candidate; ties retain equipment. Equip competes in the common
 tuple as a stationary action, and core consumes the turn when it is accepted.
-Taking candidates enumerate unclaimed holdings on defeated sources in the same
+Taking candidates enumerate unclaimed holdings on the sources core keeps open (`actorHoldingsOpen`:
+a defeated actor, or an intact one that cannot move, #435) in the same
 or an adjacent cell for living actors with `canTake`. They use the stationary
 intent class and existing tuple. Source and holding IDs determine stable ordering;
 solver candidate IDs distinguish separate holdings. Core owns atomic claims,
@@ -329,7 +330,7 @@ checked by the exported `normalizeActorStrategy`), like the command vocabulary.
 |---|---|---|
 | `reach {place}` | walks to `{x,y}`, or onto the exit and waits there until it leaves | on arrival; for the exit, on the turn it leaves |
 | `defeat {target}` | closes in and casts | when the target is defeated |
-| `take {target}` | defeats it, then takes each unclaimed holding | when nothing is left |
+| `take {target}` | defeats it first unless core already lets it be taken (an intact resource, #435), then takes each unclaimed holding | when nothing is left |
 | `guard {target, radius=2}` | engages hostiles near the target, else stays within `radius` | never |
 | `follow {target, distance=1}` | stays within `distance`; its motivations play inside that. Out of sight, it walks to where it last saw the target | never |
 | `lead {target, place="exit", distance=3}` | walks to the place, waiting for an ally that falls behind. An ally out of sight gets one turn to catch up, then the leader goes back toward where it last saw it | on arrival; for the exit, on the turn it leaves |

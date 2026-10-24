@@ -48,7 +48,8 @@ test.each(['living_source', 'exited_source', 'distant', 'claimed', 'disabled', '
   const observation = readActorRegistryObservation(setup(), 0);
   const self = observation.actors.find(actor => actor.id === 'self');
   const source = observation.actors.find(actor => actor.id === 'source');
-  if (scenario === 'living_source') { source.lifecycle = 'alive'; source.vitals.health.current = 10; }
+  // A living source that can move keeps its holdings; one that cannot is a resource (#435).
+  if (scenario === 'living_source') { source.lifecycle = 'alive'; source.vitals.health.current = 10; source.capabilities.canMove = true; }
   if (scenario === 'exited_source') source.lifecycle = 'exited';
   if (scenario === 'distant') source.position.x = 3;
   if (scenario === 'claimed') source.holdings.forEach(holding => { holding.claimedBy = 'other'; });
@@ -87,6 +88,20 @@ test('explicit vital holding retains its authored grant semantics', () => {
   expect(action.params.holdingId).toBe('a_health');
   expect(createActorTurn(registry, 0, { castManaBase: {}, movementStamina: {} }).apply(action)).toBe(true);
   expect(registry.getActor('self').vitals.health).toEqual({ current: 8, max: 12, regen: 0 });
+});
+
+test('an intact resource is open: its authored holdings are proposed without defeating it (#435)', () => {
+  const snapshot = setup().snapshot();
+  const source = snapshot.actors.find(actor => actor.id === 'source');
+  Object.assign(source, { lifecycle: 'alive', holdings: [{ id: 'a_health', kind: 'vital', claimedBy: null,
+    permanenceMode: 'consumable', vitals: [{ key: 'health', delta: 2 }] }] });
+  source.vitals.health.current = 10;
+  source.alignment = 'external'; // not a hostile, so taking is the only thing to do with it
+  const registry = createActorRegistry(snapshot);
+  const action = decide(readActorRegistryObservation(registry, 0)).actions[0];
+  expect(action).toMatchObject({ kind: 'take', params: { targetId: 'source', holdingId: 'a_health' } });
+  expect(createActorTurn(registry, 0, { castManaBase: {}, movementStamina: {} }).apply(action)).toBe(true);
+  expect(registry.getActor('source').lifecycle).toBe('alive');
 });
 
 // ## TODO: Test Permutations
