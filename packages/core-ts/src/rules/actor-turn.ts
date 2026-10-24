@@ -1,6 +1,6 @@
 import { readActorFieldSoaks, readActorOverwhelms, resolveActorFields, type ActorOverwhelm } from './actor-fields.ts';
 import type { createActorRegistry } from '../state/actor-registry.ts';
-import type { ActorAction, ActorAffinityKey, ActorPosition, AffinityExpression, AffinityKind } from '../state/actor-types.ts';
+import type { ActorAction, ActorAffinityKey, ActorPosition, ActorVitalKind, AffinityExpression, AffinityKind } from '../state/actor-types.ts';
 import type { ActorVitalChange } from './actor-affinity.ts';
 import { lineOfSightSteps } from '../state/visibility.ts';
 import { affinitySpreads, creepSpreadEmbers } from './actor-spread.ts';
@@ -19,6 +19,8 @@ export interface ActorTurnSnapshot {
   soakedActorIds?: string[];
   /** #463: the casts accepted this turn, in order, for a surface to show. Absent when none. */
   casts?: ActorTurnCast[];
+  /** #410: per actor and vital, what hit it this turn (fields and others' casts) and what it regenerated. Absent when none. */
+  vitalChanges?: ActorTurnVitalChange[];
   closed: boolean;
   fieldsResolved: boolean;
   regenerated: boolean;
@@ -35,6 +37,45 @@ export interface ActorTurnCast {
   path: ActorPosition[];
   targetId?: string;
   changes: ActorVitalChange[];
+}
+/**
+ * #410: one actor's vital this turn: `hit` is the net of the fields on it and the casts others
+ * landed on it, `regen` what regeneration then restored. A hit that regen cancels still shows.
+ */
+export interface ActorTurnVitalChange {
+  actorId: string;
+  vital: ActorVitalKind;
+  hit: number;
+  regen: number;
+}
+type VitalReading = Record<string, Partial<Record<ActorVitalKind, number>>>;
+function readVitals(registry: ReturnType<typeof createActorRegistry>): VitalReading {
+  const reading: VitalReading = {};
+  for (const actor of registry.snapshot().actors) {
+    const byVital: Partial<Record<ActorVitalKind, number>> = reading[actor.id] = {};
+    for (const [vital, pool] of Object.entries(actor.vitals)) if (pool) byVital[vital as ActorVitalKind] = pool.current;
+  }
+  return reading;
+}
+function addVitalChanges(state: { vitalChanges?: ActorTurnVitalChange[] }, before: VitalReading, after: VitalReading,
+  field: 'hit' | 'regen') {
+  for (const [actorId, byVital] of Object.entries(after)) {
+    for (const [vital, current] of Object.entries(byVital)) {
+      const delta = (current ?? 0) - (before[actorId]?.[vital as ActorVitalKind] ?? current ?? 0);
+      if (delta !== 0) addVitalChange(state, actorId, vital as ActorVitalKind, field, delta);
+    }
+  }
+}
+function addVitalChange(state: { vitalChanges?: ActorTurnVitalChange[] }, actorId: string, vital: ActorVitalKind,
+  field: 'hit' | 'regen', delta: number) {
+  const list = state.vitalChanges ??= [];
+  let entry = list.find(change => change.actorId === actorId && change.vital === vital);
+  if (!entry) list.push(entry = { actorId, vital, hit: 0, regen: 0 });
+  entry[field] += delta;
+}
+function vitalChangesOf(state: { vitalChanges?: ActorTurnVitalChange[] }): { vitalChanges?: ActorTurnVitalChange[] } {
+  const changes = (state.vitalChanges ?? []).filter(change => change.hit !== 0 || change.regen !== 0);
+  return changes.length > 0 ? { vitalChanges: changes } : {};
 }
 export interface ActorTurnCosts {
   /** Per-key base of the escalating cast curve, base × s(s+1)/2 (#232). */
@@ -84,7 +125,8 @@ export function createActorTurn(
       || state.movedActorIds.some(id => !state.acceptedActorIds.includes(id)))
     || state.soakedActorIds !== undefined && (!Array.isArray(state.soakedActorIds)
       || state.soakedActorIds.some(id => typeof id !== 'string'))
-    || state.casts !== undefined && !Array.isArray(state.casts)) {
+    || state.casts !== undefined && !Array.isArray(state.casts)
+    || state.vitalChanges !== undefined && !Array.isArray(state.vitalChanges)) {
     throw new Error('invalid turn snapshot');
   }
   // #354 retired suppression: a snapshot saved before then may still carry the field.
@@ -176,6 +218,10 @@ export function createActorTurn(
             (state.casts ??= []).push({ sourceId: actor.id, kind: pair.kind, expression: pair.expression,
               path: tile ? (result as { path?: ActorPosition[] }).path ?? [] : line,
               ...(struck ? { targetId: struck } : {}), changes: result.changes });
+            // #410: what the cast did to others is their hit this turn; the caster's price is not.
+            for (const change of result.changes) {
+              if (change.actorId !== actor.id) addVitalChange(state, change.actorId, change.vital, 'hit', change.delta);
+            }
             // #421: a spread-trait push creeps on from where it landed: the cell it struck, or its last.
             const path = tile ? (result as { path?: ActorPosition[] }).path ?? [] : line;
             const landing = path.at(-1);
@@ -210,7 +256,9 @@ export function createActorTurn(
     closeActions(): boolean { if (state.closed) return false; state.closed = true; return true; },
     resolveFields() {
       if (!state.closed || state.fieldsResolved) return null;
+      const before = readVitals(registry);
       const result = resolveActorFields(registry);
+      addVitalChanges(state, before, readVitals(registry), 'hit');
       for (const { actorId, turns } of readActorFieldSoaks(registry, result.fields)) {
         if (registry.soakActor(actorId, turns)) (state.soakedActorIds ??= []).push(actorId);
       }
@@ -224,7 +272,9 @@ export function createActorTurn(
       registry.drySoaked(state.soakedActorIds ?? []);
       const restedActorIds = registry.snapshot().actors.map(actor => actor.id)
         .filter(actorId => !(state.movedActorIds ?? []).includes(actorId));
+      const before = readVitals(registry);
       registry.regenerate(regenScales(readActorOverwhelms(registry), restedActorIds), prices.persistentUpkeep ?? []);
+      addVitalChanges(state, before, readVitals(registry), 'regen');
       state.regenerated = true; return true;
     },
     resolveExits(): string[] | null {
@@ -234,6 +284,7 @@ export function createActorTurn(
       return exited;
     },
     snapshot(): ActorTurnSnapshot { return copy({ ...state, acceptedActorIds: [...state.acceptedActorIds].sort(),
+      ...vitalChangesOf(state),
       ...(state.movedActorIds ? { movedActorIds: [...state.movedActorIds].sort() } : {}) }); },
   };
 }

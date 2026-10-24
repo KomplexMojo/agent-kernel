@@ -17,7 +17,7 @@ const {
   loadBundledLevels,
   loadLevelFromRunDir,
 } = require("../../packages/ui-ascii/src/levels.js");
-const { battleLines, createGame } = require("../../packages/ui-ascii/src/game.js");
+const { battleLines, createGame, vitalChangeLine } = require("../../packages/ui-ascii/src/game.js");
 const { hudLine, overlayActors, paintBoardRow, renderScreen, xterm256Index } = require("../../packages/ui-ascii/src/screen.js");
 const { GAME_COLOR_PALETTE } = require("../../packages/runtime/src/contracts/game-elements.js");
 const { ASCII_ENTITY_GLYPHS } = require("../../packages/runtime/src/render/visualization-snapshot.js");
@@ -684,6 +684,37 @@ test("battle lines name the player's hit and every hit on the player, by label, 
     { sourceId: "delver_1", kind: "light", expression: "push", changes: [] },
   ] };
   assert.deepEqual(battleLines(view), { own: "You hit W1 with decay push: HP −8", others: ["W1 hits you with growth push: HP +3"] });
+});
+
+// #410 (Darren chose A): intensity 1 lands 1 and regen 1 cancels it; the message line shows both.
+test("a corrode emit ×1 on a fortify warden with regen 1 shows the hit and the regen that cancels it", async () => {
+  const level = buildUnifiedLevel({
+    id: "corrode-fortify",
+    tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+        vitals: viableVitals({ mana: 80 }), affinities: [{ kind: "corrode", expression: "emit", stacks: 2 }] },
+      { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["stationary"],
+        vitals: viableVitals(), affinities: [{ kind: "fortify", expression: "push", stacks: 2 }] },
+    ],
+  });
+  const game = await createGame({ levels: [{ name: "corrode-fortify", ...level }], fog: false });
+  await press(game, "i1");
+  const change = game.view().vitalChanges.find((entry) => entry.actorId === "warden_1" && entry.vital === "durability");
+  assert.deepEqual([change.hit, change.regen], [-1, 1]);
+  assert.match(game.screen(), new RegExp(`W1 DU ${change.current}/${change.max} \\(\u22121 \\+1\\)`));
+});
+
+test("the vital line puts the player first, names only hit vitals and keeps to three", () => {
+  const view = { player: { id: "delver_1" }, vitalChanges: [
+    { actorId: "warden_1", label: "W1", vital: "durability", hit: -1, regen: 1, current: 10, max: 10 },
+    { actorId: "warden_1", label: "W1", vital: "mana", hit: 0, regen: 2, current: 20, max: 20 },
+    { actorId: "delver_1", vital: "health", hit: -3, regen: 0, current: 7, max: 10 },
+    { actorId: "warden_2", label: "W2", vital: "health", hit: 2, regen: 1, current: 9, max: 10 },
+    { actorId: "warden_3", label: "W3", vital: "health", hit: -1, regen: 0, current: 9, max: 10 },
+  ] };
+  assert.equal(vitalChangeLine(view), "You HP 7/10 (\u22123)  W1 DU 10/10 (\u22121 +1)  W2 HP 9/10 (+2 +1)");
+  assert.equal(vitalChangeLine({ player: { id: "delver_1" }, vitalChanges: [] }), "");
 });
 
 test("a cast core refuses says why and costs the turn", async () => {
