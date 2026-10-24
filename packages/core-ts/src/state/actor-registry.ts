@@ -208,9 +208,13 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
         else delete actor.soaked;
       }
     },
-    /** `scaleByActor` multiplies regen per actor and vital this turn (overwhelm, #289). */
-    regenerate(scaleByActor: Readonly<Record<string, Partial<Record<ActorVitalKind, number>>>> = {}): void {
-      for (const actor of ordered) { regenerateActor(actor, scaleByActor[actor.id]); recoverActorAffinity(actor); }
+    /**
+     * `scaleByActor` multiplies regen per actor and vital this turn (overwhelm, #289);
+     * `upkeepByStacks` is the table chargeAffinityUpkeep read, so recovery knows what full mana pays (#441).
+     */
+    regenerate(scaleByActor: Readonly<Record<string, Partial<Record<ActorVitalKind, number>>>> = {},
+      upkeepByStacks: readonly number[] = []): void {
+      for (const actor of ordered) { regenerateActor(actor, scaleByActor[actor.id]); recoverActorAffinity(actor, upkeepByStacks); }
     },
     advanceExitDwell(): string[] {
       const exited: string[] = [];

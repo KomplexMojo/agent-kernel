@@ -50,9 +50,18 @@ export function chargeActorAffinityUpkeep(actor: ActorRecord, upkeepByStacks: re
   if (changed) setExhaustedActorAffinityKeys(actor, off);
 }
 
-/** After regeneration: every exhausted slot comes back on once mana is full again. */
-export function recoverActorAffinity(actor: ActorRecord): void {
+/**
+ * After regeneration: an exhausted slot comes back on once mana is full again, and
+ * only if full mana can pay its upkeep (#441); one that costs more than max mana
+ * would otherwise be back on before every field resolve and never pay.
+ */
+export function recoverActorAffinity(actor: ActorRecord, upkeepByStacks: readonly number[] = []): void {
   if (actor.affinityExhausted !== true || actor.lifecycle !== 'alive') return;
   const mana = actor.vitals.mana;
-  if (mana && mana.max > 0 && mana.current >= mana.max) setExhaustedActorAffinityKeys(actor, []);
+  if (!mana || mana.max <= 0 || mana.current < mana.max) return;
+  const unpayable = equippedActorAffinities(actor)
+    .filter(pair => isLastingAffinityExpression(pair.expression)
+      && affinityUpkeepForStacks(upkeepByStacks, pair.stacks + affinityIntensity(pair)) > mana.max)
+    .map(affinityKey);
+  setExhaustedActorAffinityKeys(actor, exhaustedActorAffinityKeys(actor).filter(key => unpayable.includes(key)));
 }
