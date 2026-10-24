@@ -1,5 +1,5 @@
 import { advanceActorExit, EXIT_DWELL_TICKS } from "../rules/actor-exit.ts";
-import type { ActorCastTrail, ActorPosition, ActorRecord, ActorRegistrySnapshot, ActorVitalKind, ActorAffinityKey, TerrainKind, AffinityKind, AffinityExpression, ActorVitalRecord } from './actor-types.ts';
+import type { ActorCastTrail, ActorSpreadEmber, ActorPosition, ActorRecord, ActorRegistrySnapshot, ActorVitalKind, ActorAffinityKey, TerrainKind, AffinityKind, AffinityExpression, ActorVitalRecord } from './actor-types.ts';
 
 import { validateActorRecordVitals, changeActorVital, regenerateActor } from './actor-vitals.ts';
 import { chargeActorAffinityUpkeep, recoverActorAffinity } from '../rules/actor-upkeep.ts';
@@ -60,6 +60,7 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
   }
   const terrain = [...input.terrain];
   let castTrails: ActorCastTrail[] = copy(input.castTrails ?? []);
+  let spreadEmbers: ActorSpreadEmber[] = copy(input.spreadEmbers ?? []);
   const actors = new Map<string, ActorRecord>();
   const occupancy = new Map<number, ActorRecord[]>();
   function withinBounds(point: ActorPosition): boolean {
@@ -284,8 +285,15 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       if (trail.cells.length > 0) castTrails.push(copy(trail));
     },
     clearCastTrails(): void { castTrails = []; },
+    /** A `spread`-trait push leaves a creeping field where it lands (#421); `creepSpreadEmbers` moves it on. */
+    leaveSpreadEmber(ember: ActorSpreadEmber): void {
+      if (ember.intensity > 0 && withinBounds(ember.position)) spreadEmbers.push(copy(ember));
+    },
+    spreadEmbers(): ActorSpreadEmber[] { return copy(spreadEmbers); },
+    replaceSpreadEmbers(next: ActorSpreadEmber[]): void { spreadEmbers = copy(next); },
     snapshot(): ActorRegistrySnapshot {
-      return copy({ dimensions: { width, height }, terrain, actors: ordered, ...(castTrails.length ? { castTrails } : {}) });
+      return copy({ dimensions: { width, height }, terrain, actors: ordered,
+        ...(castTrails.length ? { castTrails } : {}), ...(spreadEmbers.length ? { spreadEmbers } : {}) });
     },
   };
 }

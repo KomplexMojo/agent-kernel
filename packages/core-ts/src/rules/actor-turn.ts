@@ -3,7 +3,8 @@ import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey, ActorPosition, AffinityExpression, AffinityKind } from '../state/actor-types.ts';
 import type { ActorVitalChange } from './actor-affinity.ts';
 import { lineOfSightSteps } from '../state/visibility.ts';
-import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
+import { affinitySpreads, creepSpreadEmbers } from './actor-spread.ts';
+import { affinityIntensity, affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
 import { assertActorCastPrices, castActorAffinityAtTile, castFocusedActorAffinity, raiseActorBarriersAt, selectActorCastAffinity,
   RAISED_BARRIER_EROSION, RAISED_BARRIER_UPKEEP, SOAK_MOVE_STAMINA, type ActorCastManaBases } from './actor-cast.ts';
@@ -57,7 +58,7 @@ const isKey = (value: unknown): value is ActorAffinityKey => typeof value === 's
 /** Core action legality/exclusivity; Moderator supplies the ordered actions and tick. */
 export function createActorTurn(
   registry: ReturnType<typeof createActorRegistry>, tick: number, costs: ActorTurnCosts,
-  saved?: ActorTurnSnapshot,
+  saved?: ActorTurnSnapshot, options: { seed?: number } = {},
 ) {
   if (!Number.isSafeInteger(tick) || tick < 0) throw new Error('invalid turn tick');
   if (Object.values(costs.movementStamina).some(cost => !Number.isSafeInteger(cost) || cost < 0)
@@ -67,7 +68,11 @@ export function createActorTurn(
   assertActorCastPrices(castPrices(costs));
   const prices = copy(costs);
   // A new tick ends the last one's one-turn cast fields (#461).
-  if (!saved) registry.clearCastTrails();
+  // Creeping fields (#421) move on, by the run's seed.
+  if (!saved) {
+    registry.clearCastTrails();
+    creepSpreadEmbers(registry, tick, Number.isSafeInteger(options.seed) ? options.seed! : 0);
+  }
   const state = saved ? copy(saved) : { tick, acceptedActorIds: [], movedActorIds: [], closed: false, fieldsResolved: false, regenerated: false, exitsResolved: false };
   if (state.tick !== tick || typeof state.closed !== 'boolean'
     || typeof state.fieldsResolved !== 'boolean' || typeof state.regenerated !== 'boolean'
@@ -171,6 +176,13 @@ export function createActorTurn(
             (state.casts ??= []).push({ sourceId: actor.id, kind: pair.kind, expression: pair.expression,
               path: tile ? (result as { path?: ActorPosition[] }).path ?? [] : line,
               ...(struck ? { targetId: struck } : {}), changes: result.changes });
+            // #421: a spread-trait push creeps on from where it landed: the cell it struck, or its last.
+            const path = tile ? (result as { path?: ActorPosition[] }).path ?? [] : line;
+            const landing = path.at(-1);
+            if (pair.expression === 'push' && affinitySpreads(pair.kind) && landing) {
+              registry.leaveSpreadEmber({ sourceId: actor.id, kind: pair.kind, stacks: pair.stacks,
+                intensity: affinityIntensity(pair), position: { ...landing }, fresh: true });
+            }
           }
           for (const soak of result.soaked ?? []) (state.soakedActorIds ??= []).push(soak.actorId);
           break;
