@@ -27,6 +27,7 @@ import { projectActorEquipmentFields, previewActorFieldChanges } from "../../../
 import { actorCastManaPrice } from "../../../../core-ts/src/rules/actor-cast.ts";
 import { equipActorAffinity, equippedActorAffinityKeys } from "../../../../core-ts/src/state/actor-inventory.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
+import { actorHoldingsOpen } from "../../../../core-ts/src/state/actor-holdings.ts";
 import {
   DEFAULT_DELTAS,
   buildMoveProposal,
@@ -1350,8 +1351,9 @@ function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase }
 function buildTakingProposals(receiver, view) {
   if (receiver?.lifecycle !== "alive" || !receiver.capabilities?.canTake) return [];
   const sources = (Array.isArray(view?.actors) ? view.actors : [])
-    .filter(source => source.lifecycle === "defeated"
-      && chebyshevDistance(receiver.position, source.position) <= 1)
+    // Core's take rule (#406, #435): a defeated actor's holdings, or an intact resource's.
+    .filter(source => source.id !== receiver.id
+      && chebyshevDistance(receiver.position, source.position) <= 1 && actorHoldingsOpen(source))
     .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
   return sources.flatMap(source => (Array.isArray(source.holdings) ? source.holdings : [])
     .filter(holding => holding.claimedBy === null)
