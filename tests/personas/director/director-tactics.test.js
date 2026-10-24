@@ -78,3 +78,36 @@ test("a BuildSpec without tactics carries no tactic field", async () => {
 // - params with negative and decimal numbers keep their sign and fraction
 // - a duplicate tactic id is kept twice, in order
 // - an object tactic with an unknown id is refused like the string form
+
+// #401: `--tactic auto` — the Director picks a seeded mix from the catalogue.
+test("pickSeededTactics: same seed, same plan; picks fit the level's wardens and resources", async () => {
+  const { createDirectorPersona } = await load();
+  const director = createDirectorPersona({ clock: () => CREATED_AT });
+  const counts = { wardens: 3, resources: 2 };
+  for (let seed = 0; seed < 50; seed += 1) {
+    const plan = director.pickSeededTactics(seed, counts);
+    assert.deepEqual(director.pickSeededTactics(seed, counts), plan);
+    assert.ok(plan.length >= 1);
+    // An ordinary tactic list: it normalizes to itself, in catalogue order.
+    assert.deepEqual(director.normalizeTactics(plan), plan);
+    const ids = plan.map((entry) => entry.tactic);
+    assert.deepEqual(ids, ["ambush", "retinue", "minefield"].filter((id) => ids.includes(id)));
+  }
+  // No warden: only the minefield fits. A warden but no resource: no ambush.
+  for (let seed = 0; seed < 20; seed += 1) {
+    assert.deepEqual(director.pickSeededTactics(seed, { wardens: 0, resources: 3 }).map((e) => e.tactic), ["minefield"]);
+    assert.ok(!director.pickSeededTactics(seed, { wardens: 2, resources: 0 }).some((e) => e.tactic === "ambush"));
+    // One warden can't both lead a retinue and guard an ambush.
+    const one = director.pickSeededTactics(seed, { wardens: 1, resources: 1 }).map((e) => e.tactic);
+    assert.ok(!(one.includes("ambush") && one.includes("retinue")), one.join(","));
+  }
+  assert.throws(() => director.pickSeededTactics(-1, counts), /seed/);
+});
+
+test("pickSeededTactics: different seeds usually give different plans", async () => {
+  const { createDirectorPersona } = await load();
+  const director = createDirectorPersona({ clock: () => CREATED_AT });
+  const plans = new Set();
+  for (let seed = 0; seed < 100; seed += 1) plans.add(JSON.stringify(director.pickSeededTactics(seed, { wardens: 3, resources: 2 })));
+  assert.ok(plans.size >= 25, `only ${plans.size} distinct plans over 100 seeds`);
+});

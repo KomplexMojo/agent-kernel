@@ -536,6 +536,8 @@ Inputs/outputs:
   the seed, no two opposite, unless `kinds=` names them. A minefield needs no `--hazard`: the tactic adds the hazard
   share, the Allocator prices the hazards from it, and one it can't afford shrinks. The row has `room`,
   `hazards: [{ id, kind }]`, `reward`, `safeLine: { length, from, to, clearance, cells }`, `shortRoute: { length }`, `note`.
+  `--tactic auto` (alone; #401) lets the Director pick the mix from the build seed: a minefield always fits, a retinue
+  needs a warden, an ambush a warden and a resource, each with a seeded size. The result's `tactics` lists the picks.
   `--seed N` (`seed` on `ak_create`) fixes the build seed; a tactic with no `--seed` draws one, and the result reports
   it as `seed`, so the same flags plus `--seed` rebuild the level exactly. `--place` also takes `outOfSight=room:<id>`:
   a cell no doorway of that room can see, by core's line of sight.

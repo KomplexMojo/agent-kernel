@@ -5,7 +5,7 @@ import { createAllocatorPersona } from "../allocator/persona.js";
 import { createConfiguratorPersona } from "../configurator/persona.js";
 import { requireClock, UNUSED_CLOCK } from "../_shared/require-clock.js";
 import { attachDirectorServices } from "./director-services.js";
-import { parseTactic, normalizeTactics, tacticBudgetPools } from "./tactics.js";
+import { parseTactic, normalizeTactics, tacticBudgetPools, pickSeededTactics } from "./tactics.js";
 import {
   INTENT_ENVELOPE_SCHEMA as INTENT_SCHEMA,
   PLAN_ARTIFACT_SCHEMA,
@@ -206,7 +206,7 @@ function buildArtifactProposalEffects({ intentEnvelope, planRef, personaRef = "d
 
 // Phases this persona listens to (others are ignored).
 // #396 — the tactic vocabulary a plan carries. Pure readers, ungated: they stamp nothing.
-export { PLAN_TACTIC_IDS } from "./tactics.js";
+export { PLAN_TACTIC_IDS, AUTO_TACTIC } from "./tactics.js";
 
 export const directorSubscribePhases = Object.freeze([TickPhases.DECIDE]);
 
@@ -342,5 +342,7 @@ export function createDirectorPersona({ initialState = DirectorStates.UNINITIALI
     parseTactic,
     normalizeTactics,
     tacticBudgetPools,
+    // #401 — `--tactic auto`: a seeded tactic mix.
+    pickSeededTactics,
   };
 }
