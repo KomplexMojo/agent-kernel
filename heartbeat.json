@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "agent-kernel-benchmark-heartbeat/v1",
+  "publishedAt": "2026-10-24T20:20:24.327Z",
+  "status": "idle",
+  "dryRun": false,
+  "source": {
+    "commit": "4e624cf598942b132075ce568e0ec02067e5463f",
+    "ref": "main"
+  },
+  "runKey": null,
+  "triggerReasons": [],
+  "identity": {
+    "scenarioSetHash": "d839c42a9932ce0c82d43d58c6cceca4b2191ba965d3f01773ce7d2feca3a001",
+    "matrixHash": "3def36d7d6cd0fca73a357bf1080887c3e191505814167fc60fbe211b05efc4e",
+    "executionSuiteHash": "95cfb306e9c29ea0dfce932db0eba43a22f6419c87b2dd70b81de1b1a85a5e1d"
+  },
+  "lastPublishedRunId": "2026-10-11T16-40-53-504Z-4e624cf59894-e17a4f27f2de",
+  "agent": {
+    "installedCommit": "817e609d170599f1f91ccb78a2bf9042d83f1ae0",
+    "installedAt": "2026-09-06T17:50:47Z"
+  },
+  "progress": null,
+  "error": null
+}
