@@ -133,6 +133,8 @@ Dynamic actors express behavior through **stackable motivations** organised into
 
 `escorting` (#251) keeps near one ally: the one named in `initialState.escorts`, else the playable delver (the first `user_controlled` actor). It runs the `follow` goal on that ally whatever the actor's thinking, before motivations are asked: further than its distance (default 2 tiles, `ESCORT_DEFAULT_DISTANCE`) it steps toward the ally; within it, it holds, and any other motivation's moves are kept within reach. Out of sight it walks to where it last saw the ally; with no ally, or the ally gone, the turn goes to its other motivations. Its affinities play no part. Bare sight in an unlit level is one tile, so an escort keeps sight of an ally further off only where the ally stands in light.
 
+**Yielding in a crowd (#457).** The Actor keeps, per actor, where it last proposed a move from (`context.moves`). If the actor still stands there next turn, core refused the move (another actor took the cell first); on a seeded coin (`deterministicRandom`, salt 457) it waits this turn instead of trying again, so a crowd sorts itself out and two actors yielding to each other don't fall in step. A commanded actor never yields.
+
 Intelligence is represented through Cognition motivations — there is no separate parallel system for "smartness". They change play with or without a strategy (#308):
 
 - `reflexive` reacts to what touches it this tick. Standing in a field that harms it, it steps to the adjacent free cell that harms it least, or holds when no step is better; unharmed, it plays its other motivations.

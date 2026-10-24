@@ -36,7 +36,9 @@ function observationFor(tick = 0) {
     tick,
     actorId: "actor_1",
     // kind 2 == MOTIVATED_KIND; a non-eligible kind silently yields no proposals.
-    actors: [{ kind: 2, id: "actor_1", position: { x: 1, y: 1 } }],
+    // Tick 1 has it one step on, as if its tick-0 move happened: a move refused last turn is
+    // decision-relevant history (#457, kept in view().context.moves), which this file isn't about.
+    actors: [{ kind: 2, id: "actor_1", position: { x: 1 + Math.min(tick, 1), y: 1 } }],
     hazards: [],
   };
 }
