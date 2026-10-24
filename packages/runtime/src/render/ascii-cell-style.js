@@ -171,3 +171,18 @@ export function asciiFieldCellStyle(style, fields) {
   // The glyph leans toward the sprite outline for the new fill, so it stays legible on a pale tint.
   return { fg: mixHex(style.fg, outlineForFill(bg), 0.5), bg };
 }
+
+/**
+ * A cell on a cast's path for the turn of the cast (#463): the fill takes the cast
+ * affinity's colour (`GAME_AFFINITY_COLOR_HEX`) at the strongest field tint, and the arrow
+ * the outline for that fill. Every affinity alike; an unknown kind leaves the style as it is.
+ *
+ * @param {{fg: string, bg: string} | null} style
+ * @param {string} kind
+ * @returns {{fg: string, bg: string} | null}
+ */
+export function asciiCastPathCellStyle(style, kind) {
+  if (!style || !AFFINITY_COLOR_HEX[kind]) return style;
+  const bg = mixHex(style.bg, AFFINITY_COLOR_HEX[kind], ASCII_FIELD_TINT_MAX);
+  return { fg: outlineForFill(bg), bg };
+}

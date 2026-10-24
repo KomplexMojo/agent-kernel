@@ -37,6 +37,26 @@ export const ASCII_FOG_GLYPH = "?";
 export const ASCII_AIM_GLYPH = "+";
 
 /**
+ * The arrow a floor cell on a cast's path shows for the turn of the cast (#463), by the
+ * direction it points: away from the caster for a push, back toward it for a pull, so what
+ * a pull extracts is seen coming home. Diagonals read as `/` and `\` either way.
+ */
+export const ASCII_CAST_PATH_GLYPHS = Object.freeze({
+  east: ">", west: "<", north: "^", south: "v",
+  northeast: "/", southwest: "/", northwest: "\\", southeast: "\\",
+});
+
+/** The arrow for one step of a cast's path, `from` the previous cell `to` this one. */
+export function asciiCastPathGlyph(from, to, expression) {
+  const sign = expression === "pull" || expression === "draw" ? -1 : 1;
+  const dx = sign * Math.sign(to.x - from.x);
+  const dy = sign * Math.sign(to.y - from.y);
+  const vertical = dy < 0 ? "north" : dy > 0 ? "south" : "";
+  const horizontal = dx > 0 ? "east" : dx < 0 ? "west" : "";
+  return ASCII_CAST_PATH_GLYPHS[`${vertical}${horizontal}`] ?? null;
+}
+
+/**
  * An actor's glyph, read the way this snapshot reads it (`inferKind`): a role
  * naming a hazard or resource takes that glyph; a role, kind or id naming a
  * warden makes a warden; anything else is a delver. Generated levels leave

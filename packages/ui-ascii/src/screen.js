@@ -12,6 +12,7 @@
 import {
   ASCII_REMEMBERED_FLOOR_MONO,
   asciiActorCellStyle,
+  asciiCastPathCellStyle,
   asciiFieldCellStyle,
   asciiRememberedCellStyle,
   buildAsciiCellStyles,
@@ -151,6 +152,26 @@ function actorCellStyles(view) {
     byRow.get(y).set(x, style);
   }
   return byRow;
+}
+
+/**
+ * The casts of the last tick on the board (#463): each floor cell on a path shows its arrow
+ * (`view.casts[].path[].glyph`, from runtime render) for that turn. Actors, traps and walls
+ * keep their own glyphs. With colour, the cell takes the cast affinity's tint.
+ */
+export function overlayCastPaths(rows, casts, floorChar, styles = null, cellStyles = null) {
+  if (!Array.isArray(casts) || casts.length === 0 || !floorChar) return rows;
+  const grid = rows.map((row) => row.split(""));
+  for (const cast of casts) {
+    for (const cell of cast.path || []) {
+      if (!cell.glyph || grid[cell.y]?.[cell.x] !== floorChar) continue;
+      grid[cell.y][cell.x] = cell.glyph;
+      if (!styles || !cellStyles) continue;
+      if (!cellStyles.has(cell.y)) cellStyles.set(cell.y, new Map());
+      cellStyles.get(cell.y).set(cell.x, asciiCastPathCellStyle(styles[floorChar] || null, cast.kind));
+    }
+  }
+  return grid.map((cells) => cells.join(""));
 }
 
 /** Vitals the actor actually has: a 0/0 pool is absent, not empty. */
@@ -356,7 +377,8 @@ export function renderScreen({
   const styles = color ? buildAsciiCellStyles(view.legend) : null;
   const actorCells = color ? actorCellStyles(view) : null;
   const playerPosition = view.player?.position;
-  const board = [...overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition)];
+  const board = overlayCastPaths(overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition),
+    view.casts, view.legend?.floor, styles, actorCells);
   // The tile a cast is being aimed at (#413).
   if (aim && typeof board[aim.y] === "string" && aim.x >= 0 && aim.x < board[aim.y].length) {
     board[aim.y] = `${board[aim.y].slice(0, aim.x)}${ASCII_AIM_GLYPH}${board[aim.y].slice(aim.x + 1)}`;
