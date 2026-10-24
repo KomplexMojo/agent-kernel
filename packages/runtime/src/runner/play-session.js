@@ -68,6 +68,7 @@ import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS, asciiCastPathGlyph } from "../re
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
 import { equippedActorAffinityKeys, exhaustedActorAffinityKeys, MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
+import { unpayableActorAffinities } from "../../../core-ts/src/rules/actor-upkeep.ts";
 import { actorCastableAffinities } from "../../../core-ts/src/rules/actor-cast.ts";
 import { actorHoldingsOpen } from "../../../core-ts/src/state/actor-holdings.ts";
 import { revealedValue } from "../../../core-ts/src/rules/actor-observation.ts";
@@ -517,6 +518,7 @@ export async function createPlaySession({
           : null,
         labels,
         field: typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null,
+        upkeepTable: typeof runtime.readAffinityUpkeepTable === "function" ? runtime.readAffinityUpkeepTable() : [],
       }),
       party: partyView(snapshot),
       casts: castsView(snapshot, fogOn ? readVisible() : null),
@@ -614,13 +616,16 @@ function applyFog(frame, visible, explored) {
 // shows (no fog, or one's own party). At 0 only its glyph and role show (and its colour,
 // the kind it has equipped); above 0 its properties show, and any affinity range or
 // intensity above the level reads as the level with a `+` (core's `revealedValue`).
-export function toViewActor(actor, presentation, labels, revealLevel) {
+export function toViewActor(actor, presentation, labels, revealLevel, upkeepTable = []) {
   const category = categoryOf(actor, presentation) ?? null;
   // Off (#412): every equipped slot ran out of mana and waits for a full pool, so the
   // source has no field; read through core's helpers, never recomputed.
   const equipped = equippedActorAffinityKeys(actor);
   const exhausted = exhaustedActorAffinityKeys(actor);
   const off = equipped.length > 0 && equipped.every((key) => exhausted.includes(key));
+  // #454: off for good when full mana can't pay any of its off slots; the dearest upkeep is named.
+  const unpayable = off ? unpayableActorAffinities(actor, upkeepTable).filter((entry) => exhausted.includes(entry.key)) : [];
+  const offForGood = unpayable.length > 0 && unpayable.length === exhausted.filter((key) => equipped.includes(key)).length;
   const shown = {
     id: actor.id,
     ...(labels?.has(actor.id) ? { label: labels.get(actor.id) } : {}),
@@ -629,6 +634,7 @@ export function toViewActor(actor, presentation, labels, revealLevel) {
     activeAffinityKey: actor.activeAffinityKey,
     ...(actor.affinityExhausted ? { affinityExhausted: true } : {}),
     ...(off ? { affinityOff: true } : {}),
+    ...(offForGood ? { affinityUnpayable: { upkeep: Math.max(...unpayable.map((entry) => entry.upkeep)), maxMana: actor.vitals.mana?.max ?? 0 } } : {}),
     // Soaked (#420): turns left during which each move costs more stamina; plain to see.
     ...(actor.soaked ? { soaked: actor.soaked } : {}),
   };
@@ -681,7 +687,7 @@ function lootNextTo(snapshot, player) {
  * @param {object} args.status        { tick, exited, atExit, defeated }
  * @param {Map}    [args.labels]      actor id -> short label; worked out from the snapshot when absent
  */
-export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null }) {
+export function buildPlayView({ snapshot, presentation = {}, legend, playerId, tick, status, visible = null, explored = null, labels = playActorLabels(snapshot.actors, presentation), field = null, reveal = null, upkeepTable = [] }) {
   const frame = renderBoard(snapshot, { presentation, legend, playerId });
   const fogged = applyFog(frame, visible, explored);
   const inSight = (actor) => !fogged.visible || Boolean(fogged.visible[actor.position?.y]?.[actor.position?.x]);
@@ -699,10 +705,10 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     status,
     // With fog, only traps in sight right now.
     hazards: others.filter((actor) => categoryOf(actor, presentation) === HAZARD_CATEGORY)
-      .map((actor) => toViewActor(actor, presentation, labels, reveal?.[actor.id])),
+      .map((actor) => toViewActor(actor, presentation, labels, reveal?.[actor.id], upkeepTable)),
     player: player
       ? {
-        ...buildActorHudModel({ ...toViewActor(player, presentation, labels), role: categoryOf(player, presentation) }),
+        ...buildActorHudModel({ ...toViewActor(player, presentation, labels, undefined, upkeepTable), role: categoryOf(player, presentation) }),
         ...(labels.has(player.id) ? { label: labels.get(player.id) } : {}),
         affinities: player.affinities.map((pair) => ({ ...pair })),
         activeAffinityKey: player.activeAffinityKey,
@@ -715,6 +721,9 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
         affinitySlots: player.affinitySlots ?? 1,
         equippedAffinityKeys: equippedActorAffinityKeys(player),
         exhaustedAffinityKeys: exhaustedActorAffinityKeys(player),
+        // #454: off slots whose upkeep is above max mana never come back; each with its upkeep.
+        unpayableAffinities: unpayableActorAffinities(player, upkeepTable)
+          .map((entry) => ({ ...entry, maxMana: player.vitals.mana?.max ?? 0 })),
         equippedAffinityStacks: { ...(player.equippedAffinityStacks ?? {}) },
         equippedAffinityIntensity: { ...(player.equippedAffinityIntensity ?? {}) },
         // Core's rules, stated as data so the UI never restates them: which equipped
@@ -730,7 +739,7 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     // Every OTHER living actor in sight (id, role, position, vitals, affinities), for the
     // UI to draw over the board. Traps are reported in `hazards` instead.
     actors: others.filter((actor) => categoryOf(actor, presentation) !== HAZARD_CATEGORY)
-      .map((actor) => toViewActor(actor, presentation, labels, reveal?.[actor.id])),
+      .map((actor) => toViewActor(actor, presentation, labels, reveal?.[actor.id], upkeepTable)),
   };
 }
 
