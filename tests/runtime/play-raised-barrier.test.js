@@ -28,9 +28,9 @@ function level(kind) {
 }
 
 for (const kind of KINDS) {
-  test(`a ${kind} push at an empty tile raises a barrier the player can walk through, and a pull takes it down`, async () => {
+  test(`a ${kind} push raised at an empty tile is a barrier the player can walk through, and a pull takes it down`, async () => {
     const session = await createPlaySession(level(kind));
-    const raised = await session.act({ kind: "cast_affinity", params: { target: { x: 2, y: 2 }, affinityKey: `${kind}:push` } });
+    const raised = await session.act({ kind: "raise_barrier", params: { target: { x: 2, y: 2 }, affinityKey: `${kind}:push` } });
     assert.equal(raised.accepted.length, 1, JSON.stringify(raised.rejected));
     assert.equal(session.view().rows[2][2], session.view().legend.barrier);
     assert.equal(session.view().actors.some((actor) => actor.position.x === 2 && actor.position.y === 2), false);
@@ -46,9 +46,9 @@ for (const kind of KINDS) {
   });
 }
 
-test("a push at a tile out of reach is core's refusal", async () => {
+test("a raise at a tile out of reach is core's refusal", async () => {
   const session = await createPlaySession(level("earth"));
-  const result = await session.act({ kind: "cast_affinity", params: { target: { x: 4, y: 2 }, affinityKey: "earth:push" } });
+  const result = await session.act({ kind: "raise_barrier", params: { target: { x: 4, y: 2 }, affinityKey: "earth:push" } });
   assert.equal(result.rejected[0].reason, "TargetOutOfRange");
 });
 

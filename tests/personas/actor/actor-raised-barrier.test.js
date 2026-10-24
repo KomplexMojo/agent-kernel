@@ -24,6 +24,15 @@ test("a cast command at a tile keeps its tile and its named slot", async () => {
   assert.throws(() => normalizeActorCommand({ kind: "cast_affinity", params: { target: { x: 1.5, y: 0 } } }), /params.target/);
 });
 
+test("a raise command (#460) takes a tile and an optional slot, and nothing else", async () => {
+  const [{ normalizeActorCommand }] = await loadModules();
+  assert.deepEqual(normalizeActorCommand({ kind: "raise_barrier", params: { target: { x: 3, y: 1 }, affinityKey: "earth:push" } }),
+    { kind: "raise_barrier", params: { target: { x: 3, y: 1 }, affinityKey: "earth:push" } });
+  assert.deepEqual(normalizeActorCommand({ kind: "raise_barrier", params: { target: { x: 3, y: 1 } } }),
+    { kind: "raise_barrier", params: { target: { x: 3, y: 1 } } });
+  assert.throws(() => normalizeActorCommand({ kind: "raise_barrier", params: { targetId: "W1" } }), /params.target/);
+});
+
 test("a route goes round a raised barrier when it can", async () => {
   const [, { findPath }, { RAISED_BARRIER_TILE_KIND: B }] = await loadModules();
   const kinds = [

@@ -7,8 +7,9 @@ import {
 } from '../../packages/core-ts/src/rules/actor-cast.ts';
 import type { ActorRecord, AffinityKind, AffinityExpression } from '../../packages/core-ts/src/state/actor-types.ts';
 
-// #413 (Darren, 2026-10-18): any affinity raises and removes barriers. A push into an empty
-// tile raises a line of `range` barrier actors of the caster's kind, each invested with
+// #413 (Darren, 2026-10-18): any affinity raises and removes barriers. Since #460 raising is
+// its own action, `raise_barrier` (Darren, 2026-10-24: separate raise command): with a push it
+// raises a line of `range` barrier actors of the caster's kind, each invested with
 // 10 × intensity² mana that pays 1 a turn; once spent, it erodes 1 durability a turn. A pull
 // on a barrier takes it down. The caster walks through its own barriers. Every kind alike.
 
@@ -34,10 +35,10 @@ function endTurn(turn: ReturnType<typeof createActorTurn>) {
 const raised = (registry: ReturnType<typeof room>) => registry.snapshot().actors.filter(actor => actor.raisedBy);
 
 for (const kind of KINDS) {
-  test(`a ${kind} push into an empty tile raises a ${kind} barrier the caster owns`, () => {
+  test(`a ${kind} push raised into an empty tile is a ${kind} barrier the caster owns`, () => {
     const registry = room(5, 1, [caster('me', 0, 0, kind, 'push', 2, 2)]);
     const turn = createActorTurn(registry, 0, costs);
-    expect(turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 2, y: 0 } } })).toBe(true);
+    expect(turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 2, y: 0 } } })).toBe(true);
     const [barrier] = raised(registry).filter(actor => actor.position.x === 2);
     expect(barrier).toMatchObject({ raisedBy: 'me', defeatVital: 'durability', lifecycle: 'alive',
       affinities: [{ kind, expression: 'push' }] });
@@ -51,7 +52,7 @@ for (const kind of KINDS) {
   test(`a ${kind} pull on a barrier takes it down`, () => {
     const registry = room(5, 1, [caster('me', 0, 0, kind, 'push', 2, 1)]);
     const turn = createActorTurn(registry, 0, costs);
-    turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 1, y: 0 } } });
+    turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 1, y: 0 } } });
     endTurn(turn);
     const remover = caster('other', 3, 0, KINDS[(KINDS.indexOf(kind) + 3) % KINDS.length], 'pull', 2, 1);
     const withRemover = createActorRegistry({ ...registry.snapshot(), actors: [...registry.snapshot().actors, remover] });
@@ -67,7 +68,7 @@ test('the raised line runs across the cast, centred on the target tile, and stop
   expect(raisedBarrierCells({ x: 0, y: 0 }, { x: 1, y: 1 }, 2)).toEqual([{ x: 1, y: 1 }, { x: 0, y: 2 }]);
   const registry = room(5, 5, [caster('me', 0, 2, 'earth', 'push', 3, 1), caster('other', 2, 3, 'fire', 'pull')]);
   const turn = createActorTurn(registry, 0, costs);
-  expect(turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 2, y: 2 } } })).toBe(true);
+  expect(turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 2, y: 2 } } })).toBe(true);
   // The cell below holds an actor, so that side stops and the other side takes the rest.
   expect(raised(registry).map(actor => actor.position)).toEqual([{ x: 2, y: 0 }, { x: 2, y: 1 }, { x: 2, y: 2 }]);
 });
@@ -80,7 +81,7 @@ test('barrier stats grow with intensity squared', () => {
 test('an invested barrier pays 1 mana a turn, then erodes 1 durability a turn until it is gone', () => {
   const registry = room(3, 1, [caster('me', 0, 0, 'growth', 'push', 1, 1)]);
   let turn = createActorTurn(registry, 0, costs);
-  turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 1, y: 0 } } });
+  turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 1, y: 0 } } });
   endTurn(turn);
   const id = raised(registry)[0].id;
   expect(registry.getActor(id)!.vitals.mana!.current).toBe(9);
@@ -95,7 +96,7 @@ test('an invested barrier pays 1 mana a turn, then erodes 1 durability a turn un
 test('the caster walks through its own barrier; anyone else is blocked', () => {
   const registry = room(4, 1, [caster('me', 0, 0, 'wind', 'push', 1, 1), caster('other', 3, 0, 'water', 'pull')]);
   let turn = createActorTurn(registry, 0, costs);
-  turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 1, y: 0 } } });
+  turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 1, y: 0 } } });
   turn.apply({ actorId: 'other', tick: 0, kind: 'move', params: { target: { x: 2, y: 0 } } });
   endTurn(turn);
   turn = createActorTurn(registry, 1, costs);
@@ -105,7 +106,7 @@ test('the caster walks through its own barrier; anyone else is blocked', () => {
   expect(() => createActorRegistry(registry.snapshot())).not.toThrow();
   const blocked = room(4, 1, [caster('me', 0, 0, 'wind', 'push', 1, 1), caster('other', 2, 0, 'water', 'pull')]);
   turn = createActorTurn(blocked, 0, costs);
-  turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 1, y: 0 } } });
+  turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 1, y: 0 } } });
   endTurn(turn);
   turn = createActorTurn(blocked, 1, costs);
   expect(turn.apply({ actorId: 'other', tick: 1, kind: 'move', params: { target: { x: 1, y: 0 } } })).toBe(false);
@@ -115,33 +116,44 @@ test('the caster walks through its own barrier; anyone else is blocked', () => {
 test('observation marks raised barriers as temporary, and open for their owner', () => {
   const registry = room(4, 1, [caster('me', 0, 0, 'dark', 'push', 1, 1), caster('other', 3, 0, 'light', 'pull')]);
   const turn = createActorTurn(registry, 0, costs);
-  turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 1, y: 0 } } });
+  turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 1, y: 0 } } });
   const observation = readActorRegistryObservation(registry, 0);
   expect(observation.tiles.kinds[0][1]).toBe(RAISED_BARRIER_TILE_KIND);
   expect(scopeActorRegistryObservation(observation, 'me').tiles.kinds[0][1]).toBe(0);
   expect(scopeActorRegistryObservation(observation, 'other').tiles.kinds[0][1]).toBe(RAISED_BARRIER_TILE_KIND);
 });
 
-test('a tile cast is refused out of range, at an occupied tile, and as a pull into an empty tile', () => {
+test('a raise is refused out of range, at an occupied tile, and with a pull', () => {
   const registry = room(5, 1, [caster('me', 0, 0, 'fire', 'push', 1, 1), caster('other', 1, 0, 'water', 'pull')]);
   const turn = createActorTurn(registry, 0, costs);
-  expect(turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 3, y: 0 } } })).toBe(false);
+  expect(turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 3, y: 0 } } })).toBe(false);
   expect(turn.lastRejection()).toBe('TargetOutOfRange');
-  expect(turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 1, y: 0 } } })).toBe(false);
+  expect(turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 1, y: 0 } } })).toBe(false);
   expect(turn.lastRejection()).toBe('InvalidTarget');
-  expect(turn.apply({ actorId: 'other', tick: 0, kind: 'cast_affinity', params: { target: { x: 2, y: 0 } } })).toBe(false);
+  expect(turn.apply({ actorId: 'other', tick: 0, kind: 'raise_barrier', params: { target: { x: 2, y: 0 } } })).toBe(false);
   expect(turn.lastRejection()).toBe('InvalidTarget');
-  expect(turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 0, y: 0 }, targetId: 'other' } } as never)).toBe(false);
+  expect(turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 0, y: 0 }, targetId: 'other' } } as never)).toBe(false);
 });
 
 test('a tile cast at a barrier hits that barrier', () => {
   const registry = room(4, 1, [caster('me', 0, 0, 'corrode', 'push', 1, 1), caster('other', 3, 0, 'fortify', 'pull', 2, 1)]);
   let turn = createActorTurn(registry, 0, costs);
-  turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 1, y: 0 } } });
+  turn.apply({ actorId: 'me', tick: 0, kind: 'raise_barrier', params: { target: { x: 1, y: 0 } } });
   endTurn(turn);
   turn = createActorTurn(registry, 1, costs);
   expect(turn.apply({ actorId: 'other', tick: 1, kind: 'cast_affinity', params: { target: { x: 1, y: 0 } } })).toBe(true);
   expect(raised(registry)[0].lifecycle).toBe('defeated');
+});
+
+test('a push cast at an empty tile no longer raises anything (#460): raising is its own command', () => {
+  for (const kind of KINDS) {
+    const registry = room(5, 1, [caster('me', 0, 0, kind, 'push', 2, 1)]);
+    const turn = createActorTurn(registry, 0, costs);
+    expect(turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { target: { x: 2, y: 0 } } })).toBe(false);
+    expect(turn.lastRejection()).toBe('InvalidTarget');
+    expect(raised(registry)).toEqual([]);
+    expect(registry.getActor('me')!.vitals.mana!.current).toBe(100);
+  }
 });
 
 // ## TODO: Test Permutations

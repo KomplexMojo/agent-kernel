@@ -23,6 +23,7 @@ export const INTENT = Object.freeze({
   INTENSITY_UP: "intensity_up",
   INTENSITY_DOWN: "intensity_down",
   SPRINT: "sprint",
+  RAISE: "raise",
 });
 
 const MOVE_KEYS = Object.freeze({
@@ -70,6 +71,7 @@ const OTHER_KEYS = Object.freeze({
   "]": INTENT.INTENSITY_UP,
   "[": INTENT.INTENSITY_DOWN,
   x: INTENT.SPRINT,
+  z: INTENT.RAISE,
   q: INTENT.QUIT,
   "\u0003": INTENT.QUIT, // Ctrl-C
   "\u001b": INTENT.QUIT, // bare Esc
@@ -117,7 +119,7 @@ export const HELP_LINES = Object.freeze([
   "Affinities: i, then 1-9 to equip or unequip   Take: g",
   "In the affinity list: Tab picks a row, + / - run it at more or less range, ] / [ at more or less intensity",
   "Cast: f (or a slot's number), then Tab for the next target, Enter to cast, Esc to cancel",
-  "Aim at a tile: a move key while casting; a push raises a barrier, a pull takes one down",
+  "Aim at a tile: a move key while casting, Enter hits the barrier there   Raise a barrier: z, aim, Enter",
   "Party: Tab (outside a list) plays your next user_controlled actor",
   "Order: o, then a number for who and a number for what (follow, guard, ...); costs a turn",
 ]);

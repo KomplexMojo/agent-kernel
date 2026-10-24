@@ -373,8 +373,8 @@ function buildCandidateActionId(proposal, index, actorPosition = null) {
       if (direction) return `move_${direction}`;
     }
   }
-  if (kind === "cast_affinity" && isObject(params.target) && Number.isInteger(params.target.x)
-    && Number.isInteger(params.target.y)) return `cast_affinity_at_${params.target.x}_${params.target.y}`;
+  if ((kind === "cast_affinity" || kind === "raise_barrier") && isObject(params.target) && Number.isInteger(params.target.x)
+    && Number.isInteger(params.target.y)) return `${kind}_at_${params.target.x}_${params.target.y}`;
   const targetId = typeof params.targetId === "string" && params.targetId.trim()
     ? params.targetId.trim()
     : null;
@@ -1468,7 +1468,7 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
   return buildMoveProposal({ observation, payload, simConfig });
 }
 
-export const ACTOR_COMMAND_KINDS = Object.freeze(["move", "wait", "equip_affinity", "unequip_affinity", "cast_affinity", "take"]);
+export const ACTOR_COMMAND_KINDS = Object.freeze(["move", "wait", "equip_affinity", "unequip_affinity", "cast_affinity", "raise_barrier", "take"]);
 
 const AFFINITY_KEY_PATTERN = /^[a-z]+:[a-z]+$/;
 
@@ -1498,8 +1498,10 @@ const isAffinityKey = (value) => typeof value === "string" && AFFINITY_KEY_PATTE
  *   - `{ kind: "unequip_affinity", params: { affinityKey } }`
  *   - `{ kind: "cast_affinity", params: { targetId, affinityKey? } }` (`affinityKey` names the
  *     equipped slot; without it core casts the first equipped push or pull), or
- *     `{ kind: "cast_affinity", params: { target: { x, y }, affinityKey? } }` at a tile (#413): a
- *     push into an empty tile raises barriers, any cast at a barrier's tile hits that barrier
+ *     `{ kind: "cast_affinity", params: { target: { x, y }, affinityKey? } }` at a barrier's tile,
+ *     which hits that barrier (#413)
+ *   - `{ kind: "raise_barrier", params: { target: { x, y }, affinityKey? } }` (#460): a push
+ *     into an empty tile raises barriers there
  *   - `{ kind: "take", params: { targetId, holdingId } }`
  * Only the SHAPE is checked here; whether the actor knows that affinity, can reach that
  * target or afford the cast is core's call. Exported so the runner can refuse a malformed
@@ -1526,12 +1528,17 @@ export function normalizeActorCommand(command) {
     case "unequip_affinity":
       return { kind: "unequip_affinity", params: { affinityKey: commandParam(command, "affinityKey", isAffinityKey) } };
     case "cast_affinity": {
-      // A tile (`target`, #413) instead of an actor: a push into an empty tile raises a barrier.
+      // A tile (`target`, #413) instead of an actor: hits the barrier standing there.
       const params = command.params?.target !== undefined && command.params?.targetId === undefined
         ? { target: { ...commandParam(command, "target", isTile) } }
         : { targetId: commandParam(command, "targetId", isId) };
       if (command.params?.affinityKey !== undefined) params.affinityKey = commandParam(command, "affinityKey", isAffinityKey);
       return { kind: "cast_affinity", params };
+    }
+    case "raise_barrier": {
+      const params = { target: { ...commandParam(command, "target", isTile) } };
+      if (command.params?.affinityKey !== undefined) params.affinityKey = commandParam(command, "affinityKey", isAffinityKey);
+      return { kind: "raise_barrier", params };
     }
     case "take":
       return { kind: "take", params: {
