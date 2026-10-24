@@ -644,6 +644,14 @@ test("outside a panel, a slot's digit aims that slot; Enter casts it", async () 
   assert.match(game.screen(), /You hit W1 with water push: ST −\d+/);
 });
 
+test("a slot's digit while aiming at a tile does not crash (playtest duel seed 52)", async () => {
+  const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: false });
+  await press(game, "f");
+  assert.equal(game.state().panel, "aim");
+  await press(game, "2");
+  assert.equal(game.state().turns, 0);
+});
+
 test("Esc closes a panel instead of quitting", async () => {
   const game = await createGame({ levels: duelLevels(), fog: false });
   await press(game, "i");

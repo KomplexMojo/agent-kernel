@@ -495,7 +495,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       await relevel("intensity", intent.type === INTENT.INTENSITY_UP ? 1 : -1);
       return true;
     } else if (intent.type === INTENT.SELECT) {
-      const item = panel.items[intent.index];
+      const item = panel.items?.[intent.index]; // the aim panel has no list (a digit there is ignored)
       if (!item) return true;
       if (panel.type === "order_actor") {
         openOrderChoices(item);
