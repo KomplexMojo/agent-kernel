@@ -99,3 +99,26 @@ test("an unknown tactic or a bad seed is refused with a reason", async () => {
 // - `ak configure --tactic` carries the same list
 // - --dry-run with a tactic still validates the tactic list
 // - a tactic param that is a word stays a string in the plan
+
+test("tactics [\"auto\"]: the Director picks the mix from the seed, recorded and rebuilt by --seed (#401)", async () => {
+  const payload = { room: ["size=medium;count=3"], resource: ["permanenceMode=consumable;vital=health;delta=5"],
+    warden: ["count=3;motivation=defending"], tactics: ["auto"], seed: 11 };
+  const first = await create(payload);
+  assert.equal(first.status, 0, first.output);
+  const { createDirectorPersona } = await import("../../packages/runtime/src/personas/director/controller.js");
+  const picked = createDirectorPersona({ clock: () => "2026-10-18T00:00:00.000Z" }).pickSeededTactics(11, { wardens: 3, resources: 1 });
+  assert.deepEqual(first.summary.tactics, picked);
+  assert.deepEqual(first.spec.plan.hints.tactics, picked);
+  assert.equal(first.summary.seed, 11);
+  // The recorded list, given back with the same seed, builds the same level.
+  const again = await create({ ...payload, tactics: picked.map(({ tactic, params }) =>
+    [tactic, ...Object.entries(params || {}).map(([k, v]) => `${k}=${v}`)].join(";")) });
+  assert.equal(again.status, 0, again.output);
+  assert.deepEqual(again.initialState, first.initialState);
+});
+
+test("tactics [\"auto\", ...]: auto stands alone (#401)", async () => {
+  const result = await create({ ...level, tactics: ["auto", "retinue"], seed: 1 });
+  assert.notEqual(result.status, 0);
+  assert.match(result.output, /auto.*can't be combined/);
+});

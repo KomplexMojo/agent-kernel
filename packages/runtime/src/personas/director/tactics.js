@@ -13,6 +13,9 @@ import { validateTacticList } from "../../contracts/build-spec.js";
 
 export const PLAN_TACTIC_IDS = Object.freeze(["ambush", "retinue", "minefield"]);
 
+// #401: `--tactic auto` asks the Director for a seeded mix instead of an authored list.
+export const AUTO_TACTIC = "auto";
+
 // #418: the budget pools a tactic spends from because it adds things of its own (a minefield
 // adds hazards). A tactic that only seats the level's own things spends from no new pool.
 const TACTIC_BUDGET_POOLS = Object.freeze({ minefield: Object.freeze(["hazards"]) });
@@ -65,5 +68,49 @@ export function normalizeTactics(entries) {
       ? { tactic: entry.tactic, params: { ...entry.params } }
       : { tactic: entry.tactic };
   });
+  return tactics;
+}
+
+// #401: the same small LCG the Configurator's level generator uses, so a seed means one thing.
+function createRng(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+function between(rng, min, max) {
+  return min + Math.floor(rng() * (max - min + 1));
+}
+
+/**
+ * #401 — `--tactic auto`: the seed picks a mix of tactics, with their sizes, for a level with
+ * `wardens` wardens and `resources` resources. An ambush needs both and a retinue needs a
+ * warden of its own; a minefield brings its own hazards. The picks come back in catalogue
+ * order as an ordinary tactic list, so the plan records them and `--seed` rebuilds them.
+ * Rooms are left to the Configurator, which picks them from the same seed.
+ */
+export function pickSeededTactics(seed, { wardens = 0, resources = 0 } = {}) {
+  if (!Number.isSafeInteger(seed) || seed < 0) throw new Error("tactic auto: needs a non-negative integer seed");
+  const rng = createRng(seed);
+  const candidates = ["minefield"];
+  if (wardens >= 1) candidates.push("retinue");
+  if (wardens >= 1 && resources >= 1) candidates.push("ambush");
+  for (let i = candidates.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  const chosen = new Set(candidates.slice(0, between(rng, 1, candidates.length)));
+  // The retinue's leader is a free warden, so an ambush keeps one back for it.
+  const guardsFree = wardens - (chosen.has("retinue") ? 1 : 0);
+  if (chosen.has("ambush") && guardsFree < 1) chosen.delete("ambush");
+  const tactics = [];
+  for (const tactic of PLAN_TACTIC_IDS) {
+    if (!chosen.has(tactic)) continue;
+    if (tactic === "ambush") tactics.push({ tactic, params: { guards: between(rng, 1, Math.min(2, guardsFree)) } });
+    if (tactic === "retinue") tactics.push({ tactic, params: { size: between(rng, 1, 3) } });
+    if (tactic === "minefield") tactics.push({ tactic, params: { hazards: between(rng, 2, 5) } });
+  }
   return tactics;
 }

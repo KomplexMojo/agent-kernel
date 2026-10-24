@@ -261,6 +261,7 @@ Options:
                   kinds are drawn from the table's damaging kinds, no two opposite, unless kinds= names them. The Allocator
                   prices them from the hazard share, which shrinks a minefield it can't afford; the row names the room and
                   the safe line (safeLine: length, cells) and the short route's length.
+                  auto (alone) lets the Director pick a mix of these, with their sizes, from the seed; the result lists the picks.
                   With a tactic and no --seed, a seed is drawn; the result reports it (seed) so --seed rebuilds the level exactly.
   --place         Placement constraint for create/configure (repeatable): <subject>[;near=<target>:<d>][;far=<target>:<d>][;count=<n>][;onRoute|offRoute][;spread|clump][;outOfSight=room:<id>]
                   subject: hazard|resource|delver|warden:<id|n|*>; target: spawn, exit, room:<id> or one hazard|resource|delver|warden:<id|n>.
@@ -5315,18 +5316,29 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
     .map((value, index) => configurator.parsePlacementConstraint(value, index));
   // #396: tactics, read by the Director's own grammar. A tactic with no --seed draws one
   // here, in the adapter, so no persona ever reads randomness.
-  const tactics = normalizeList(args.tactic)
+  const tacticSpecs = normalizeList(args.tactic)
     .map((entry) => String(entry || "").trim())
-    .filter(Boolean)
-    .map((value) => tacticDirector.parseTactic(value));
+    .filter(Boolean);
+  // #401: `--tactic auto` stands alone; the Director picks the mix from the build seed below.
+  const autoTactics = tacticSpecs.includes("auto");
+  if (autoTactics && tacticSpecs.length > 1) {
+    throw new Error(`${commandName}: --tactic auto picks the whole mix, so it can't be combined with other tactics.`);
+  }
+  let tactics = autoTactics ? [] : tacticSpecs.map((value) => tacticDirector.parseTactic(value));
   let buildSeed;
   if (args.seed !== undefined) {
     buildSeed = Number(args.seed);
     if (!Number.isSafeInteger(buildSeed) || buildSeed < 0) {
       throw new Error(`${commandName} requires --seed to be a non-negative integer.`);
     }
-  } else if (tactics.length > 0) {
+  } else if (tactics.length > 0 || autoTactics) {
     buildSeed = randomInt(0, 2 ** 31 - 1);
+  }
+  if (autoTactics) {
+    tactics = tacticDirector.pickSeededTactics(buildSeed, {
+      wardens: parsedWardens.reduce((sum, entry) => sum + (Number(entry.value.count) || 1), 0),
+      resources: parsedResources.length,
+    });
   }
 
   // No size=small precheck for placed hazards: the Configurator's input preparation

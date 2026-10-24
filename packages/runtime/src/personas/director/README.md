@@ -93,6 +93,8 @@ ones named. The list rides in the plan as `directives.tactics` and in the BuildS
 `plan.hints.tactics` (`tactics.js`; shape checked by `contracts/build-spec.js`). Compiling a tactic
 into placement is the Configurator's. `tacticBudgetPools` (#418) names the budget pools a tactic adds
 things to (`minefield`: `hazards`), so a level asking for one gets that share without authoring a hazard.
+`pickSeededTactics(seed, { wardens, resources })` (#401) answers `--tactic auto`: the seed picks a mix of
+tactics that fit the level, with their sizes, as an ordinary tactic list in catalogue order.
 
 ### Prompt Plan Authoring (LLM)
 When using an LLM (e.g. Ollama), the Director owns the prompt plan:
