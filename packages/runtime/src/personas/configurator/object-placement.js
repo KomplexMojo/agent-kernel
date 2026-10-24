@@ -1,4 +1,4 @@
-import { mapHazards, mapResources } from "./input-preparation.js";
+import { authoredAffinity, mapHazards, mapResources } from "./input-preparation.js";
 import { terrainPositions, terrainMarker } from "./terrain-layout.js";
 /**
  * Z9.1 — Configurator-owned object-placement search.
@@ -399,9 +399,12 @@ export function buildObjectPlacementProblem(args = {}) {
   // #370: hazards and resources are kept from touching (below), so a free cell for an object
   // must also be clear of every other one's 3x3 neighbourhood: each other object rules out at
   // most 9 cells, so 9 x (others) + 1 candidates always hold one that touches nothing.
+  // #403: and out of every field's reach R, which widens the neighbourhood to (2R + 1)^2.
   const spacedFixed = spacedFixedPoints(context);
   const others = context.pending.length - 1 + spacedFixed.length;
-  const reach = Math.max(context.pending.length, others > 0 ? 9 * others + 1 : 0);
+  const widest = Math.max(1, ...spacedFixed.map((point) => point.reach),
+    ...context.pending.map((object) => (object.kind === "actor" ? 0 : fieldReach(object.value))));
+  const reach = Math.max(context.pending.length, others > 0 ? (2 * widest + 1) ** 2 * others + 1 : 0);
   const apart = firstApartCells(context, spacedFixed);
   const placementVariableIds = context.pending.map((object, pendingIndex) => (
     (object.sealsRoute || context.involved.has(`obj:${object.index}`)
@@ -526,28 +529,41 @@ function firstApartCells(context, spacedFixed) {
   const seated = [...spacedFixed];
   const used = new Set();
   const positions = [];
-  for (const [pendingIndex] of context.pending.entries()) {
+  for (const [pendingIndex, object] of context.pending.entries()) {
     const list = context.candidates[pendingIndex];
+    const own = fieldReach(object.value);
     const at = list.findIndex((cellIndex) => !used.has(cellIndex)
       && seated.every((point) => Math.max(Math.abs(point.x - context.cells[cellIndex].x),
-        Math.abs(point.y - context.cells[cellIndex].y)) > 1));
+        Math.abs(point.y - context.cells[cellIndex].y)) > Math.max(1, own, point.reach)));
     if (at < 0) return null;
     used.add(list[at]);
-    seated.push(context.cells[list[at]]);
+    seated.push({ ...context.cells[list[at]], reach: own });
     positions.push(at);
   }
   return positions;
 }
 
-// #370: hazards and resources already in place (authored coordinates, or placed with the layout).
+/**
+ * #403: how far an object's lasting field (emit or draw) reaches: its range, 0 with none.
+ * Push and pull are aimed casts, so they leave no field to sit in.
+ */
+function fieldReach(value) {
+  const entries = [authoredAffinity(value), ...(Array.isArray(value?.affinities) ? value.affinities : [])];
+  return entries.reduce((most, entry) => ((entry?.expression === "emit" || entry?.expression === "draw")
+    && Number.isSafeInteger(entry.stacks) && entry.stacks > most ? entry.stacks : most), 0);
+}
+
+// #370: hazards and resources already in place (authored coordinates, or placed with the layout),
+// each with its field's reach (#403).
 function spacedFixedPoints(context) {
   const data = dataOf(context.layout) || {};
   return [
     ...(Array.isArray(data.hazards) ? data.hazards : []),
     ...(Array.isArray(data.resources) ? data.resources : []),
-  ].map(normalizePoint).filter(Boolean)
+  ].map((value) => { const point = normalizePoint(value); return point && { ...point, reach: fieldReach(value) }; })
+    .filter(Boolean)
     .concat(context.objects.filter((object) => object.kind !== "actor" && context.fixed.has(object.index))
-      .map((object) => context.fixed.get(object.index)));
+      .map((object) => ({ ...context.fixed.get(object.index), reach: fieldReach(object.value) })));
 }
 
 /**
@@ -594,8 +610,61 @@ function encodeSpacing(context, placementVariableIds, spacedFixed, variables, co
     });
     slackTerms.push({ variableId: slack, coefficient: 1 });
   });
-  if (slackTerms.length === 0) return [];
-  return [{ id: "objects_apart", sense: "minimize", expression: { kind: "linear", terms: slackTerms } }];
+  const priorities = slackTerms.length === 0 ? []
+    : [{ id: "objects_apart", sense: "minimize", expression: { kind: "linear", terms: slackTerms } }];
+  const outOfReach = encodeFieldReach(context, placementVariableIds, spacedFixed, variables, constraints);
+  return outOfReach ? [...priorities, outOfReach] : priorities;
+}
+
+/**
+ * #403: after touching, nothing sits inside another's field. For each object whose field
+ * reaches R >= 2 (1 is touching, above), one slack counts the others seated within R of it:
+ * a row per candidate cell c, sum(others within R of c) + M * x_c - slack <= M - (fixed
+ * others within R of c), which binds only on the cell the object takes. A field already in
+ * place gets one row over the cells around it. Like touching, a preference, never a refusal.
+ */
+function encodeFieldReach(context, placementVariableIds, spacedFixed, variables, constraints) {
+  const spaced = context.pending.map((object, pendingIndex) => ({ object, pendingIndex }))
+    .filter(({ object }) => object.kind !== "actor");
+  const within = (point, cell, reach) => Math.max(Math.abs(point.x - cell.x), Math.abs(point.y - cell.y)) <= reach;
+  const othersNear = (point, reach, exceptIndex) => spaced
+    .filter(({ pendingIndex }) => pendingIndex !== exceptIndex)
+    .flatMap(({ pendingIndex }) => placementVariableIds[pendingIndex]
+      .filter(({ cellIndex }) => within(point, context.cells[cellIndex], reach))
+      .map(({ id }) => ({ variableId: id, coefficient: 1 })));
+  const slackTerms = [];
+  const bound = spaced.length + spacedFixed.length;
+  spaced.forEach(({ object, pendingIndex }) => {
+    const reach = fieldReach(object.value);
+    if (reach < 2) return;
+    const slack = `reach_${object.index}`;
+    let used = false;
+    placementVariableIds[pendingIndex].forEach(({ id, cellIndex }, cellOrder) => {
+      const cell = context.cells[cellIndex];
+      const terms = othersNear(cell, reach, pendingIndex);
+      const fixedNear = spacedFixed.filter((point) => within(point, cell, reach)).length;
+      if (terms.length === 0 && fixedNear === 0) return;
+      used = true;
+      constraints.push({ id: `${slack}_cell_${cellOrder}`, kind: "linear", relation: "<=",
+        rightHandSide: bound - fixedNear,
+        terms: [...terms, { variableId: id, coefficient: bound }, { variableId: slack, coefficient: -1 }] });
+    });
+    if (!used) return;
+    variables.push({ id: slack, kind: "integer", min: 0, max: bound });
+    slackTerms.push({ variableId: slack, coefficient: 1 });
+  });
+  spacedFixed.forEach((point, fixedIndex) => {
+    if (point.reach < 2) return;
+    const terms = othersNear(point, point.reach, -1);
+    if (terms.length === 0) return;
+    const slack = `reach_fixed_${fixedIndex}`;
+    variables.push({ id: slack, kind: "integer", min: 0, max: bound });
+    constraints.push({ id: `${slack}_cells`, kind: "linear", relation: "<=", rightHandSide: 0,
+      terms: [...terms, { variableId: slack, coefficient: -1 }] });
+    slackTerms.push({ variableId: slack, coefficient: 1 });
+  });
+  if (slackTerms.length === 0) return null;
+  return { id: "objects_out_of_reach", sense: "minimize", expression: { kind: "linear", terms: slackTerms } };
 }
 
 /**
