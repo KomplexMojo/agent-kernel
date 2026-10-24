@@ -434,7 +434,7 @@
         "--hazard",
         "x=1;y=2;affinity=fire;expression=emit;stacks=3;vitals=mana:60:5,durability:30:2",
         "--hazard",
-        "x=1;y=3;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
+        "x=1;y=6;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
       ]
     },
     {
@@ -449,7 +449,7 @@
         "--hazard",
         "x=1;y=2;affinity=fire;expression=emit;stacks=3;vitals=mana:60:5,durability:30:2",
         "--hazard",
-        "x=1;y=3;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
+        "x=1;y=6;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
       ]
     },
     {
@@ -464,7 +464,7 @@
         "--hazard",
         "x=1;y=2;affinity=fire;expression=emit;stacks=3;vitals=mana:60:5,durability:30:2",
         "--hazard",
-        "x=1;y=3;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
+        "x=1;y=6;affinity=decay;expression=draw;stacks=3;vitals=mana:60:5,durability:30:2"
       ]
     },
     {
