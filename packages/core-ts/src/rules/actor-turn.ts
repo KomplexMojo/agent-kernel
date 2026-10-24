@@ -3,7 +3,7 @@ import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey, ActorPosition } from '../state/actor-types.ts';
 import { affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
-import { assertActorCastPrices, castActorAffinityAtTile, castFocusedActorAffinity, selectActorCastAffinity,
+import { assertActorCastPrices, castActorAffinityAtTile, castFocusedActorAffinity, raiseActorBarriersAt, selectActorCastAffinity,
   RAISED_BARRIER_EROSION, RAISED_BARRIER_UPKEEP, SOAK_MOVE_STAMINA, type ActorCastManaBases } from './actor-cast.ts';
 import { computeMovementStaminaCost, computeSprintStaminaCost } from './move.ts';
 
@@ -145,6 +145,20 @@ export function createActorTurn(
           accepted = result.accepted;
           if (!accepted) lastRejection = result.rejection ?? null;
           for (const soak of result.soaked ?? []) (state.soakedActorIds ??= []).push(soak.actorId);
+          break;
+        }
+        case 'raise_barrier': {
+          // #460: raising barriers is its own action, at a tile with an equipped push.
+          if (!hasParams(action, ['target'], ['affinityKey'])) break;
+          const tile = action.params.target;
+          if (!tile || typeof tile !== 'object' || !Number.isSafeInteger(tile.x) || !Number.isSafeInteger(tile.y)) break;
+          const named = action.params.affinityKey;
+          if (named !== undefined && !isKey(named)) break;
+          const pair = selectActorCastAffinity(actor, named);
+          if (typeof pair === 'string') { lastRejection = pair; break; }
+          const result = raiseActorBarriersAt(registry, actor.id, { x: tile.x, y: tile.y }, castPrices(prices), affinityKey(pair));
+          accepted = result.accepted;
+          if (!accepted) lastRejection = result.rejection ?? null;
           break;
         }
       }

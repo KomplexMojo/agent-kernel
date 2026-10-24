@@ -153,4 +153,6 @@ export type ActorAction = { actorId: string; tick: number } & (
   | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey; replaceKey?: ActorAffinityKey; stacks?: number; intensity?: number } }
   | { kind: "unequip_affinity"; params: { affinityKey: ActorAffinityKey } }
   | { kind: "take"; params: { targetId: string; holdingId: string } }
+  // #460: raise a line of barriers at a tile with an equipped push (#413's raise, now its own action).
+  | { kind: "raise_barrier"; params: { target: ActorPosition; affinityKey?: ActorAffinityKey } }
 );

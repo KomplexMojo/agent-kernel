@@ -402,7 +402,7 @@ function resolveActionKind(action) {
   return null;
 }
 
-const UNIFIED_ACTOR_ACTIONS = new Set(["move", "cast_affinity", "equip_affinity", "unequip_affinity", "take", "wait"]);
+const UNIFIED_ACTOR_ACTIONS = new Set(["move", "cast_affinity", "raise_barrier", "equip_affinity", "unequip_affinity", "take", "wait"]);
 const onlyParams = (params, required, optional = []) => required.every((key) => Object.hasOwn(params, key))
   && Object.keys(params).every((key) => required.includes(key) || optional.includes(key));
 
@@ -421,6 +421,13 @@ function normalizeUnifiedActorAction(action, defaultTick) {
     // `via` makes it a sprint (#437): two steps, `via` then `target`.
     if (!onlyParams(params, ["target"], ["via"]) || !params.target || (params.via !== undefined && !params.via)) return null;
     return { ...envelope, kind: "move", params: { target: { ...params.target }, ...(params.via ? { via: { ...params.via } } : {}) } };
+  }
+  if (kind === "raise_barrier") {
+    // A push raised into an empty tile (#460).
+    if (!onlyParams(params, ["target"], ["affinityKey"]) || !params.target || typeof params.target !== "object") return null;
+    if (params.affinityKey !== undefined && typeof params.affinityKey !== "string") return null;
+    const named = params.affinityKey !== undefined ? { affinityKey: params.affinityKey } : {};
+    return { ...envelope, kind: "raise_barrier", params: { target: { x: params.target.x, y: params.target.y }, ...named } };
   }
   if (kind === "cast_affinity") {
     // At an actor (`targetId`) or at a tile (`target`, #413), never both.

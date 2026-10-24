@@ -351,7 +351,7 @@ ak play-session start --session g2 --load artifacts/games/g.json    # reopen a c
   with labels and motivations (the stack that explains how each acts on its own).
 - `--actor <id|label>` seats a party member before anything is played; a companion or warden answers `not_playable`
   in `results`. `--commands` is a JSON array of `{ kind, params?, actorId? }` (the play commands `move`, `wait`,
-  `equip_affinity`, `unequip_affinity`, `cast_affinity`, `take`) or `{ kind: "switch", actorId }`; actor ids and
+  `equip_affinity`, `unequip_affinity`, `cast_affinity`, `raise_barrier` (a push raising barriers into an empty tile, `params.target {x,y}`, #460), `take`) or `{ kind: "switch", actorId }`; actor ids and
   targets may be labels, and `actorId` commands that member without seating it. Commands run before `--keys`.
   Every command but a switch is one turn for the whole level.
 - `order --actor <id|label> --strategy <s>` gives a party member, or a companion (a `friendly` actor on the seated actor's side), a new

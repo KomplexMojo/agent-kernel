@@ -120,7 +120,8 @@ test("keys map to intents: arrows, WASD, vi keys, diagonals, wait, quit", () => 
   assert.deepEqual(intentForKey("."), { type: INTENT.WAIT });
   assert.deepEqual(intentForKey("\u0003"), { type: INTENT.QUIT });
   assert.deepEqual(intentForKey("\r"), { type: INTENT.NEXT_LEVEL });
-  assert.equal(intentForKey("z"), null);
+  assert.deepEqual(intentForKey("z"), { type: INTENT.RAISE }); // #460
+  assert.equal(intentForKey("v"), null);
   assert.equal(intentForKey(""), null);
 });
 
@@ -679,20 +680,36 @@ test("f with nobody in sight aims at a tile, and g with nothing to take says so,
   assert.equal(game.state().turns, 0);
 });
 
-// #413: aiming at a tile. A move key moves the cursor; Enter casts there. A push into an
-// empty tile raises a barrier; a pull at it would take it down.
-test("aiming a push at an empty tile raises a barrier there for one turn", async () => {
+// #413/#460: aiming at a tile. A move key moves the cursor. Raising is its own key, z: Enter
+// raises a barrier line there. A cast (f) at an empty tile is refused until free aim lands.
+test("z aims a push at an empty tile and Enter raises a barrier there for one turn", async () => {
   const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: false });
   await press(game, "i1");
   const turns = game.state().turns;
-  await press(game, "fll");
-  assert.match(game.screen(), /Aim: the tile 2 east of you with water push \(2 tiles away, reaches 3 tiles\)/);
+  await press(game, "zll");
+  assert.match(game.screen(), /Raise: the tile 2 east of you with water push \(2 tiles away, reaches 3 tiles\)/);
+  assert.match(game.screen(), /Enter raises a barrier line there/);
   assert.match(game.screen(), /  #@\.\+\.#/);
   assert.equal(game.state().turns, turns);
   await press(game, "\r");
   assert.equal(game.state().turns, turns + 1);
-  assert.match(game.screen(), /You cast water push 2 east of you\./);
+  assert.match(game.screen(), /You raise water push 2 east of you\./);
   assert.equal(game.view().rows[1][3], game.view().legend.barrier);
+});
+
+test("f at an empty tile no longer raises a barrier (#460)", async () => {
+  const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: false });
+  await press(game, "i1fll\r");
+  assert.match(game.screen(), /That cannot be targeted\./);
+  assert.notEqual(game.view().rows[1][3], game.view().legend.barrier);
+});
+
+test("z with no push equipped says so and costs no turn (#460)", async () => {
+  const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: false });
+  await press(game, "z");
+  assert.equal(game.state().panel, null);
+  assert.match(game.screen(), /Equip a push to raise a barrier\./);
+  assert.equal(game.state().turns, 0);
 });
 
 test("in the target list a move key switches to aiming at a tile, and Tab goes back", async () => {

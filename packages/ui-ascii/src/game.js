@@ -303,22 +303,37 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   }
 
   // Aiming at a tile (#413): the cursor starts on the player and moves with the move keys.
-  // A push into an empty tile raises a barrier; any cast at a barrier's tile hits it.
-  function openAim(affinityKey, step = null) {
+  // A cast at a barrier's tile hits it; `raise` (key z, #460) raises barriers there instead.
+  function openAim(affinityKey, step = null, raise = false) {
     const at = session.view().player?.position;
     if (!at) return;
     panel = { type: "aim", cursor: { x: at.x + (step?.dx ?? 0), y: at.y + (step?.dy ?? 0) },
-      ...(affinityKey ? { affinityKey } : {}) };
+      ...(affinityKey ? { affinityKey } : {}), ...(raise ? { raise: true } : {}) };
+  }
+
+  // z (#460): aim the first equipped push at a tile to raise barriers there.
+  function openRaise() {
+    const player = session.view().player;
+    const key = equippedKeys(player).find((k) => k.endsWith(":push"));
+    if (!key) {
+      message = "Equip a push to raise a barrier.";
+      return;
+    }
+    openAim(key, null, true);
   }
 
   async function castAtTile() {
-    const { cursor, affinityKey: named } = panel;
+    const { cursor, affinityKey: named, raise } = panel;
     panel = null;
     const player = session.view().player;
     const used = named ?? equippedKeys(player).find((key) => castable(player)[key]);
     const at = player?.position ?? cursor;
-    await act({ kind: "cast_affinity", params: { target: { ...cursor }, ...(named ? { affinityKey: named } : {}) } },
-      () => `You cast ${keyLabel(used)} ${aimLabel(at, cursor)}.`);
+    const params = { target: { ...cursor }, ...(named ? { affinityKey: named } : {}) };
+    if (raise) {
+      await act({ kind: "raise_barrier", params }, () => `You raise ${keyLabel(used)} ${aimLabel(at, cursor)}.`);
+      return;
+    }
+    await act({ kind: "cast_affinity", params }, () => `You cast ${keyLabel(used)} ${aimLabel(at, cursor)}.`);
   }
 
   // A slot's digit outside a panel: aim that slot. Emit and draw need no cast.
@@ -393,11 +408,11 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         panel.cursor = { x: panel.cursor.x + step.dx, y: panel.cursor.y + step.dy };
         return true;
       }
-      if (intent.type === INTENT.NEXT_LEVEL || intent.type === INTENT.CAST) {
+      if (intent.type === INTENT.NEXT_LEVEL || intent.type === INTENT.CAST || (panel.raise && intent.type === INTENT.RAISE)) {
         await castAtTile();
         return true;
       }
-      if (intent.type === INTENT.NEXT_TARGET) {
+      if (intent.type === INTENT.NEXT_TARGET && !panel.raise) {
         const { affinityKey } = panel;
         panel = null;
         if (targetsInSight(session.view()).length > 0) openTargets(affinityKey);
@@ -498,6 +513,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       case INTENT.CAST:
         openTargets();
         break;
+      case INTENT.RAISE:
+        openRaise();
+        break;
       case INTENT.SELECT:
         aimSlot(intent.index);
         break;
@@ -549,8 +567,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     if (panel.type === "aim") {
       const at = player?.position ?? panel.cursor;
       const away = Math.max(Math.abs(panel.cursor.x - at.x), Math.abs(panel.cursor.y - at.y));
-      return [`Aim: the tile ${aimLabel(at, panel.cursor)}${key ? ` with ${keyLabel(key)}` : ""} (${tiles(away)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})`,
-        "  Move keys aim, Enter casts (a push raises a barrier, a pull takes one down), Tab targets, Esc cancels"];
+      return [`${panel.raise ? "Raise" : "Aim"}: the tile ${aimLabel(at, panel.cursor)}${key ? ` with ${keyLabel(key)}` : ""} (${tiles(away)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})`,
+        panel.raise ? "  Move keys aim, Enter raises a barrier line there, Esc cancels"
+          : "  Move keys aim, Enter casts at the barrier there, Tab targets, Esc cancels"];
     }
     const target = panel.items[panel.index];
     return [`Target: ${target.id}${revealNote(target)}${target.revealed !== undefined ? revealedDetail(target) : ""}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${tiles(target.distance)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})   Tab next, Enter cast, Esc cancel`];

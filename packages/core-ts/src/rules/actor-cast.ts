@@ -226,34 +226,59 @@ export function raisedBarrierCells(from: ActorPosition, target: ActorPosition, r
 
 export interface ActorTileCastResult extends ActorCastResult { raised: string[] }
 
+type TileCastRegistry = Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital' | 'getActorsAt'
+  | 'isMovementBlocked' | 'raiseBarrierAt'>;
+
+// The checks a cast and a raise at a tile share: a living caster that can cast, its slot, and reach.
+function tileCastPair(registry: TileCastRegistry, sourceId: string, target: ActorPosition,
+  castKey?: ActorAffinityKey): ActorAffinityEntry | string {
+  const source = registry.getActor(sourceId);
+  if (source?.lifecycle !== 'alive') return 'WrongActor';
+  if (!source.capabilities.canCast) return 'InvalidCapability';
+  const pair = selectActorCastAffinity(source, castKey);
+  if (typeof pair === 'string') return pair;
+  if (!target || !Number.isSafeInteger(target.x) || !Number.isSafeInteger(target.y)) return 'InvalidTarget';
+  if (Math.max(Math.abs(source.position.x - target.x), Math.abs(source.position.y - target.y)) > actorCastRange(pair)) {
+    return 'TargetOutOfRange';
+  }
+  return pair;
+}
+
 /**
- * A cast aimed at a tile (#413). A tile holding a living barrier is a cast at that
- * barrier. A push into an empty, open tile within range raises a line of barriers of the
- * caster's kind, owned by the caster, for the push's ordinary price. Anything else is
- * refused: aiming at other actors by tile is free aim (#414).
+ * A cast aimed at a tile (#413). A tile holding a living barrier is a cast at that barrier.
+ * Anything else is refused until free aim (#414): raising barriers is its own action since
+ * #460, `raiseActorBarriersAt`.
  */
 export function castActorAffinityAtTile(
-  registry: Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'changeVital' | 'getActorsAt'
-    | 'isMovementBlocked' | 'raiseBarrierAt'>,
+  registry: TileCastRegistry,
   sourceId: string, target: ActorPosition, manaCosts: ActorCastPrices, castKey?: ActorAffinityKey,
 ): ActorTileCastResult {
   assertActorCastPrices(manaCosts);
   const reject = (rejection: string): ActorTileCastResult => ({ accepted: false, changes: [], raised: [], rejection });
-  const source = registry.getActor(sourceId);
-  if (source?.lifecycle !== 'alive') return reject('WrongActor');
-  if (!source.capabilities.canCast) return reject('InvalidCapability');
-  const pair = selectActorCastAffinity(source, castKey);
+  const pair = tileCastPair(registry, sourceId, target, castKey);
   if (typeof pair === 'string') return reject(pair);
-  if (!target || !Number.isSafeInteger(target.x) || !Number.isSafeInteger(target.y)) return reject('InvalidTarget');
-  if (Math.max(Math.abs(source.position.x - target.x), Math.abs(source.position.y - target.y)) > actorCastRange(pair)) {
-    return reject('TargetOutOfRange');
-  }
-  const living = registry.getActorsAt(target).filter(actor => actor.lifecycle === 'alive');
-  const barrier = living.find(isBarrierActor);
+  const barrier = registry.getActorsAt(target).find(actor => actor.lifecycle === 'alive' && isBarrierActor(actor));
   if (barrier) return { ...castFocusedActorAffinity(registry, sourceId, barrier.id, manaCosts, affinityKey(pair)), raised: [] };
+  return reject('InvalidTarget');
+}
+
+/**
+ * Raise barriers at a tile (#413; its own action since #460, Darren 2026-10-24). An equipped
+ * push into an empty, open tile within range raises a line of barriers of the caster's kind,
+ * owned by the caster, for the push's ordinary price. Anything else is refused.
+ */
+export function raiseActorBarriersAt(
+  registry: TileCastRegistry,
+  sourceId: string, target: ActorPosition, manaCosts: ActorCastPrices, castKey?: ActorAffinityKey,
+): ActorTileCastResult {
+  assertActorCastPrices(manaCosts);
+  const reject = (rejection: string): ActorTileCastResult => ({ accepted: false, changes: [], raised: [], rejection });
+  const pair = tileCastPair(registry, sourceId, target, castKey);
+  if (typeof pair === 'string') return reject(pair);
+  const source = registry.getActor(sourceId)!;
   const empty = (cell: ActorPosition) => !registry.isMovementBlocked(cell)
     && !registry.getActorsAt(cell).some(actor => actor.lifecycle === 'alive');
-  if (pair.expression !== 'push' || living.length || !empty(target)) return reject('InvalidTarget');
+  if (pair.expression !== 'push' || !empty(target)) return reject('InvalidTarget');
   const cost = castManaCost(manaCosts, pair);
   if (cost === undefined) return reject('InvalidActionValue');
   if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');

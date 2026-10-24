@@ -294,8 +294,9 @@ script). The command vocabulary is this persona's (`ACTOR_COMMAND_KINDS`):
   otherwise core casts the first equipped push or pull. On its own turns the Actor proposes a cast
   only from a slot that reaches the target and whose price (the authored `castManaBase` on core's
   `actorCastManaPrice` curve) the actor's mana covers, so it never wastes a turn on a refused cast (#367)
-- `{ kind: "cast_affinity", params: { target: { x, y }, affinityKey? } }` at a tile (#413): a push into an
-  empty tile raises a line of barriers of its kind, any cast at a barrier's tile hits that barrier. The
+- `{ kind: "cast_affinity", params: { target: { x, y }, affinityKey? } }` at a tile (#413): it hits the
+  barrier on that tile; any other tile is refused. `{ kind: "raise_barrier", params: { target: { x, y },
+  affinityKey? } }` (#460) is how a push raises a line of barriers of its kind into empty tiles. The
   Actor never proposes one on its own turns. Pathing treats a raised barrier (movement kind 2 in the
   observation, core's `RAISED_BARRIER_TILE_KIND`) as temporary: `findPath` goes round it when it can and
   through it only when there is no other way, so the actor waits at it rather than giving up; its owner's
