@@ -414,7 +414,9 @@ window carries a slack for every object past the first and the total slack is mi
 preference, not a refusal: a level too small to keep everything apart still builds. Next, nothing
 sits inside another's lasting field (#403): an object whose emit or draw reaches R >= 2 gets a slack
 counting the others within R of the cell it takes (one big-M row per candidate cell), and the total
-is minimised; objects with no field only keep from touching. Objects
+is minimised; objects with no field only keep from touching. An actor the search seats (a tactic's
+guard or retinue minion) with a lasting field of reach R >= 1 gets the same slack over the hazards and
+resources within R (#473), so a tactic never seats a field on the loot. Objects
 already in place (authored, or placed with the layout) count, their fields too. The
 problem uses binary placement variables plus integer path-flow variables, allowing both platform Z3
 adapters to compile it through their generic linear solver without learning Configurator policy.
