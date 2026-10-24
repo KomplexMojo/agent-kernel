@@ -70,6 +70,19 @@ test("a report carries its scenario, seed and replay back out", () => {
   expect(parseReport(report)).toEqual({ scenario: scenario.id, seed: 7, commit: "abc1234", createdAt: catalog.createdAt, commands });
 });
 
+test("a grade (#422) takes the place of the scenario's budget, and rides in the report", () => {
+  const scenario = catalog.scenarios[0];
+  const graded = scenarioArgs(scenario, 7, "C");
+  expect(graded.slice(0, 2)).toEqual(["--grade", "C"]);
+  expect(graded).not.toContain("--budget-tokens");
+  const report = renderReport({
+    scenario, seed: 7, grade: "C", commit: "abc1234", branch: "main", createdAt: catalog.createdAt, playedAt: "2026-10-18T00:00:00.000Z",
+    picks: affinitiesForSeed(7), final: null, notes: [], replayCode: encodeReplay([]), cost: null,
+  });
+  expect(report).toContain("- Grade: C");
+  expect(parseReport(report).grade).toBe("C");
+});
+
 describe.each(runs.map((run, index) => [run.id, index]))("%s", (_id, index) => {
   test("builds, runs and breaks no rule beyond its known issues", () => {
     const run = runs[index];

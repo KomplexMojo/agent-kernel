@@ -320,6 +320,7 @@ export function departuresLine(view) {
  * @param {object} args
  * @param {object} args.view        createPlaySession().view()
  * @param {string} args.levelName
+ * @param {string} [args.grade]   the level's difficulty grade (H..S, #422), from its sim-config
  * @param {number} [args.levelIndex]
  * @param {number} [args.levelCount]
  * @param {number} [args.turns]
@@ -343,7 +344,8 @@ export function renderScreen({
   color = false,
   panel = null,
   aim = null,
-  title = `Deepward — ${levelName} (${levelIndex + 1}/${levelCount})`,
+  grade = null,
+  title = `Deepward — ${levelName}${grade ? ` (grade ${grade})` : ""} (${levelIndex + 1}/${levelCount})`,
   tickLine = `Tick ${view.tick}   Turns ${turns}`,
   helpLines = HELP_LINES,
   hints = true,

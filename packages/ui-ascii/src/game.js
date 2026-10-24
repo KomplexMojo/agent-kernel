@@ -560,6 +560,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     return renderScreen({
       view: session.view(),
       levelName: levels[levelIndex].name,
+      grade: levels[levelIndex].simConfig?.meta?.cost?.grade ?? null,
       levelIndex,
       levelCount: levels.length,
       turns,

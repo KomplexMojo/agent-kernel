@@ -724,6 +724,8 @@ export async function orchestrateBuild({
     const runCostContext = {
       runTotalTokens: budgetReceipt.totalCost,
       budgetTokens: budgetReceipt.totalCost + (budgetReceipt.remaining ?? 0),
+      // #422: the grade that set the budget, stamped on the level and listed on the receipt.
+      ...(typeof spec?.intent?.hints?.grade === "string" ? { grade: spec.intent.hints.grade } : {}),
       receiptRef: toRef(budgetReceipt),
       proposalRef: toRef(spendProposal),
     };
@@ -732,6 +734,7 @@ export async function orchestrateBuild({
         artifact.meta.cost = runCostContext;
       }
     }
+    if (runCostContext.grade && budgetReceipt.meta) budgetReceipt.meta.cost = { grade: runCostContext.grade };
   }
 
   // ── PX.6: what the build RESOLVED, published as output ──────────────────────────

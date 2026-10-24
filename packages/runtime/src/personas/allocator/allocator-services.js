@@ -38,6 +38,7 @@ import {
 import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from "./budget-fulfillment.js";
 import { reconcileBudget } from "./reconciliation.js";
 import { priceMixedRoomDesignSpend } from "./mixed-room-spend.js";
+import { LEVEL_GRADES, applyLevelGradePoolWeights, reportLevelGrade, resolveLevelGrade } from "./level-grades.js";
 import { billedLayoutTiles, evaluateConfiguratorSpend } from "./spend-proposal.js";
 import { BUDGET_ARTIFACT_SCHEMA, BUDGET_RECEIPT_ARTIFACT_SCHEMA, RUNTIME_BUDGET_RECEIPT_SCHEMA } from "../../contracts/artifacts.ts";
 
@@ -247,6 +248,18 @@ export function attachAllocatorServices({
       // NUMBER, so a nested split object would be formula selection in JSON.
       budgetSplitPercent: { ...BASE_COSTS.levelBudgetSplitPercent },
     }),
+
+    /**
+     * #422: level difficulty grades H..S. `levelGrades()` lists them easiest first;
+     * `levelGrade(id)` is one grade's budget and dungeon/delver percent (unknown → throws,
+     * naming the known ones); `levelGradePoolWeights(weights, id)` re-weights a build's
+     * pools so the delver pool holds the grade's delver share; `levelGradeReport(id, tokens)`
+     * is the grade as a build reports it, with `budgetOverride` when the build's budget differs.
+     */
+    levelGrades: () => [...LEVEL_GRADES],
+    levelGrade: (grade) => resolveLevelGrade(grade),
+    levelGradeReport: (grade, builtTokens) => reportLevelGrade(grade, builtTokens),
+    levelGradePoolWeights: (poolWeights, grade) => applyLevelGradePoolWeights(poolWeights, grade),
   };
 
   function registerBudget(budget) {

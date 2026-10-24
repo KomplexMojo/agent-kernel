@@ -188,8 +188,8 @@ function usage() {
   node ${rel} scenario (--text text --catalog path [--model model] [--goal text] [--budget-tokens N] [--base-url url] [--fixture path] [--budget-loop] [--budget-pool id=weight --budget-reserve N] [--created-at iso] [--emit-intermediates] | --from-run runId | --sim-config path --initial-state path) [--ticks N] [--seed N] [--out-dir dir] [--run-id id] [--dry-run]
   node ${rel} show --run-id id
   node ${rel} diff --run-a id --run-b id
-  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--tactic "..."] [--seed N] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
-  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--tactic "..."] [--seed N] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
+  node ${rel} create [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--tactic "..."] [--seed N] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--grade H..S] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates] [--dry-run]
+  node ${rel} configure [--text text] [--room "..."] [--floor-tile "..."] [--hazard "..."] [--resource "..."] [--delver "..."] [--warden "..."] [--place "..."] [--tactic "..."] [--seed N] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--dungeon-budget-tokens N] [--delver-budget-tokens N] [--grade H..S] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} room-plan --room "size=small;count=2" [--room "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} hazard-plan --hazard "affinity=fire;expression=emit;proximityRadius=2[;mana=one-time:<amount>|regen:<current>:<max>:<regen>]" [--hazard "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
   node ${rel} resource-plan --resource "permanenceMode=<consumable|level|permanent>;vital=<health|mana|stamina>;delta=<n>" [--resource "..."] [--goal text] [--dungeon-affinity affinity] [--budget-tokens N] [--budget path --price-list path] [--out-dir dir] [--run-id id] [--created-at iso] [--emit-intermediates]
@@ -240,6 +240,8 @@ Options:
   --budget-tokens Hard budget cap in tokens. If freeform text also states a budget, they must match.
   --dungeon-budget-tokens Separate hard budget cap for dungeon-side objects (rooms, tiles, placedHazards, hazards).
   --delver-budget-tokens  Separate hard budget cap for delver-side objects (delvers, wardens).
+  --grade             Level difficulty grade H (easiest) to S (ultra hard): the Allocator's budget and
+                      dungeon/delver split for that grade (#422). --budget-tokens still wins (an override).
   --emit-intermediates Persist non-canonical sidecar artifacts such as request/intent/plan/solver/captured-input files
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
   --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
@@ -1704,6 +1706,8 @@ function parseWardenSpecs(rawWardens, { defaultAffinity = DEFAULT_DUNGEON_AFFINI
 const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
 // #396: the Director's tactic grammar, ungated (it stamps nothing).
 const tacticDirector = createDirectorPersona({ clock: UNUSED_CLOCK });
+// #422: the Allocator's level grades (read-only pricing, ungated).
+const gradeAllocator = createAllocatorPersona({ clock: UNUSED_CLOCK });
 // D8.3 — the Director refuses to derive level geometry from room cards; it asks the
 // Configurator. Taken from the PUBLIC persona barrel, so no boundary is crossed.
 const configuratorRoomGeometry = Object.freeze({
@@ -3846,6 +3850,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     "budget-tokens",
     "dungeon-budget-tokens",
     "delver-budget-tokens",
+    "grade",
     "budget",
     "price-list",
     "out-dir",
@@ -3869,7 +3874,7 @@ function assertAllowedAgentAuthoringArgs(command, args, { allowDryRun = false } 
     unknown.push(...args._);
   }
   if (unknown.length > 0) {
-    throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --place, --tactic, --seed, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
+    throw new Error(`${command} only accepts --text, --room, --floor-tile, --hazard, --resource, --delver, --warden, --place, --tactic, --seed, --goal, --dungeon-affinity, --budget-tokens, --dungeon-budget-tokens, --delver-budget-tokens, --grade, --budget, --price-list, --out-dir, --run-id, --created-at, --emit-intermediates${allowDryRun ? ", and --dry-run" : ""}. Unknown: ${unknown.join(", ")}`);
   }
 }
 
@@ -4115,6 +4120,10 @@ async function writeBuildOutputs({
   // #396: the tactic plan the build used and its seed, so the level can be rebuilt exactly.
   const tactics = buildResult.plan?.directives?.tactics;
   const buildSeed = spec?.configurator?.inputs?.levelGen?.seed;
+  // #422: the grade and its numbers, and the Allocator's word on a --budget-tokens override.
+  const gradeId = spec?.intent?.hints?.grade;
+  const builtTokens = spec?.intent?.hints?.budgetTokens;
+  const grade = typeof gradeId === "string" ? gradeAllocator.pricing.levelGradeReport(gradeId, builtTokens) : undefined;
 
   return buildStructuredSuccessSummary({
     command: commandName,
@@ -4130,6 +4139,7 @@ async function writeBuildOutputs({
       ...(placementReport !== undefined ? { placementReport } : {}),
       ...(Array.isArray(tactics) && tactics.length > 0 ? { tactics } : {}),
       ...(Number.isSafeInteger(buildSeed) ? { seed: buildSeed } : {}),
+      ...(grade ? { grade } : {}),
       // #371: authored vitals a Configurator floor raised, so none changes silently.
       ...(buildResult.vitalsReport?.length > 0 ? { vitalsReport: buildResult.vitalsReport } : {}),
     },
@@ -5232,6 +5242,10 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
   if (args["delver-budget-tokens"] !== undefined) {
     delverBudgetTokensFlag = parsePositiveIntStrict(args["delver-budget-tokens"], `${commandName} --delver-budget-tokens`);
   }
+  // #422: a grade is the Allocator's: its budget, and the dungeon/delver split applied to the
+  // pools below. An explicit --budget-tokens still wins, and the result says it overrode.
+  const levelGrade = args.grade !== undefined ? gradeAllocator.pricing.levelGrade(String(args.grade)) : null;
+  budgetTokensFlag ??= levelGrade?.budgetTokens;
   if ((budgetPath && !priceListPath) || (!budgetPath && priceListPath)) {
     throw new Error(`${commandName} requires both --budget and --price-list.`);
   }
@@ -5492,6 +5506,10 @@ async function agentAuthoringCommand(argv, { commandName, action, allowDryRun = 
       tacticPools: tacticDirector.tacticBudgetPools(tactics),
     }),
   };
+  if (levelGrade) {
+    summary.poolWeights = gradeAllocator.pricing.levelGradePoolWeights(summary.poolWeights, levelGrade.grade);
+    summary.grade = levelGrade.grade;
+  }
   if (parsedRooms.length === 0 && parsedFloorTiles.length === 0 && parsedHazards.length === 0) {
     summary.budgetScaffold = true;
   }

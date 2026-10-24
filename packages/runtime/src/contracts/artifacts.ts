@@ -92,6 +92,8 @@ export interface ArtifactCostContextV1 {
   runTotalTokens?: number;
   /** Total token budget for the run. */
   budgetTokens?: number;
+  /** #422: the level's difficulty grade (H..S), when one set the budget. */
+  grade?: string;
   /** Spend category this artifact belongs to (e.g. "rooms", "hazards", "delvers"). */
   category?: string;
   /** Reference to the canonical BudgetReceiptArtifact for this run. */
@@ -799,6 +801,8 @@ export interface BuildSpecAgentHintsV1 extends Record<string, unknown> {
   dungeonBudgetTokens?: number;
   /** Optional separate budget cap for delver-side objects (delvers, wardens). */
   delverBudgetTokens?: number;
+  /** #422: the level's difficulty grade (H..S), when one set the budget. */
+  grade?: string;
   levelSize?: string;
   levelAffinity?: string;
   roomCount?: number;

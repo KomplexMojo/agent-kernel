@@ -72,5 +72,28 @@
     "warden": 24,
     "hazard": 15,
     "resource": 9
+  },
+  "_levelGradeNote": "#422 (Darren, 2026-10-18; scaled x10/9 on 2026-10-24): levels are graded H (easiest) to S (ultra hard). Each grade is a total budget and the percent of it the dungeon side (rooms, hazards, wardens, resources) gets; the delver side gets the rest. Two flat groups because the base-cost standard requires every item to be a NUMBER. Calibration: at H, two light delvers (496 tokens) fit the 500 delver share and three (736) do not.",
+  "levelGradeBudgetTokens": {
+    "H": 1000,
+    "G": 1350,
+    "F": 1800,
+    "E": 2350,
+    "D": 3100,
+    "C": 4100,
+    "B": 5450,
+    "A": 7100,
+    "S": 9450
+  },
+  "levelGradeDungeonPercent": {
+    "H": 50,
+    "G": 50,
+    "F": 55,
+    "E": 55,
+    "D": 60,
+    "C": 60,
+    "B": 65,
+    "A": 65,
+    "S": 80
   }
 }

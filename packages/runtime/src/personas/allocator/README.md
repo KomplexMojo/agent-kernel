@@ -327,6 +327,16 @@ place so a third shape has one home rather than a second charging site.
 published price may be zero, every published price id must be charged by some real payload
 (with a written exception list), and a bare entity must still pay its base.
 
+### Level grades (#422)
+
+`base-costs.json` holds the difficulty grades H (easiest) to S (ultra hard) as two flat groups,
+`levelGradeBudgetTokens` and `levelGradeDungeonPercent`; `level-grades.js` reads them.
+`pricing.levelGrades()` lists them, `pricing.levelGrade(id)` gives one grade's budget and
+dungeon/delver percent (an unknown id throws, naming the known ones), and
+`pricing.levelGradePoolWeights(weights, id)` re-weights a build's pools so the `delver` pool
+holds the delver share and the dungeon pools share the rest in their own proportions. Calibration
+(Darren): at H, two light delvers (496 tokens) fit the 500-token delver share and three do not.
+
 ### The budget split follows the prices (CR.9 M5 retune)
 
 `levelBudgetSplitPercent` moved **room 44 → 41, hazard 12 → 15**. The old split was set when

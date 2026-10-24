@@ -232,6 +232,7 @@ function validateAgentHints(value, path, errors) {
   validateOptionalNumber(value.budgetTokens, `${path}.budgetTokens`, errors);
   validateOptionalNumber(value.dungeonBudgetTokens, `${path}.dungeonBudgetTokens`, errors);
   validateOptionalNumber(value.delverBudgetTokens, `${path}.delverBudgetTokens`, errors);
+  validateOptionalString(value.grade, `${path}.grade`, errors);
   validateOptionalString(value.levelSize, `${path}.levelSize`, errors);
   validateOptionalString(value.levelAffinity, `${path}.levelAffinity`, errors);
   validateOptionalNumber(value.roomCount, `${path}.roomCount`, errors);
