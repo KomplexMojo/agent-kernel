@@ -120,10 +120,20 @@ const castable = (player) => player?.castableAffinities || {};
 /** Equipped keys in equip order, as the play session reports them. */
 const equippedKeys = (player) => player?.equippedAffinityKeys || [];
 
+/** What a vital grant changes: `MP max +5, regen +1` for a lasting grant, `HP +5` for a consumable (#487). */
+function grantLabel(item) {
+  const lasting = item.permanenceMode !== "consumable";
+  return (item.vitals || []).map((grant) => {
+    const name = HUD_VITAL_LABELS[grant.key] ?? grant.key;
+    const sign = (n) => `${n < 0 ? "\u2212" : "+"}${Math.abs(n)}`;
+    return [`${name}${lasting ? " max" : ""} ${sign(grant.delta)}`, ...(grant.regen ? [`regen ${sign(grant.regen)}`] : [])].join(", ");
+  }).join("; ");
+}
+
 function lootLabel(item) {
   if (item.kind === "affinity") return `${item.affinity} ${item.expression}`;
   if (item.kind === "slot") return item.slots === 1 ? "a new affinity slot" : `${item.slots} new affinity slots`;
-  return "a vital boost";
+  return item.vitals?.length ? grantLabel(item) : "a vital boost";
 }
 
 const chebyshev = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
@@ -430,7 +440,13 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   async function take(item) {
     panel = null;
     await act({ kind: "take", params: { targetId: item.targetId, holdingId: item.holdingId } },
-      () => `You take ${lootLabel(item)} from ${item.targetId}.`);
+      () => {
+        // An intact resource stays standing after it is taken from; say so once nothing is left in it.
+        const spent = item.intact && !(session.view().loot || []).some((other) => other.targetId === item.targetId);
+        return item.kind === "vital"
+          ? `You take ${item.targetId}: ${lootLabel(item)}.${item.intact ? ` It stays on the floor${spent ? ", spent" : ""}.` : ""}`
+          : `You take ${lootLabel(item)} from ${item.targetId}.`;
+      });
   }
 
   async function openLoot() {
@@ -609,7 +625,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     }
     if (panel.type === "loot") {
       return ["Take (a number picks, Esc closes):",
-        ...panel.items.map((item, i) => `  ${i + 1}) ${item.kind === "vital" ? item.holdingId : lootLabel(item)} from ${item.targetId}`)];
+        ...panel.items.map((item, i) => `  ${i + 1}) ${lootLabel(item)} from ${item.targetId}`)];
     }
     const player = session.view().player;
     const key = panel.affinityKey ?? equippedKeys(player).find((k) => castable(player)[k]);
