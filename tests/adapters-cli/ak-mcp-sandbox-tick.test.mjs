@@ -1296,7 +1296,6 @@ test("S2 ak_sandbox_place at corner position 0,0 rejects leftover wall-rim occup
   assert.match(String(result.error || ""), /invalid actor position/);
 });
 
-test.skip("S2 ak_sandbox_place hazard preserves proximityRadius trait", () => {});
 
 test("S3 ak_sandbox_move northeast diagonal updates position by +1,-1", async () => {
   const { executeSandboxMove } = await import(

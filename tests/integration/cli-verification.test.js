@@ -309,7 +309,6 @@ test("10-tick ring tick state before forward returns tick 0 and null tickFrame",
   assert.equal(output.tickFrame, null);
 });
 
-test.skip("10-tick ring create with an auto-placed hazard still produces valid sim-config", () => {});
 
 test("10-tick ring run ticks=1 then tick forward advances to maxTick boundary", () => {
   const workDir = makeWorkDir("agent-kernel-10tick-one-");

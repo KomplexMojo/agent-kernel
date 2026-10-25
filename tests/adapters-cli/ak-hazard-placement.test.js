@@ -435,8 +435,6 @@ for (const [axis, x, y] of [["x", 8, 2], ["y", 2, 8]]) {
   });
 }
 
-test.skip("hazard on exit tile is rejected", () => {});
-test.skip("hazard on spawn tile is rejected", () => {});
 test.skip("hazard count exceeding available floor tiles is rejected", () => {});
 
 test("hazard vitals=mana:0:0 is accepted as an explicit empty mana pool", () => {
@@ -465,8 +463,6 @@ test("hazard may declare durability without a mana vital", () => {
   assert.equal(JSON.parse(result.stdout).ok, true);
 });
 
-test.skip("hazard coordinates adjacent to exit tile are accepted", () => {});
-test.skip("hazard coordinates adjacent to spawn tile are accepted", () => {});
 
 // ---------------------------------------------------------------------------
 // placedObjects note (Finding #4 ruling: placed hazards/resources are
