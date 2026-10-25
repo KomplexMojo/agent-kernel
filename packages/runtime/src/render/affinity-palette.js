@@ -95,23 +95,6 @@ export function getAffinityRgba(kind, alpha = 255) {
 }
 
 /**
- * Resolve RGBA from a field cell with intensity-based alpha.
- *
- * @param {{ kind: string, stacks: number }} resolvedAuraCell - field cell data
- * @param {number} [baseAlpha=1.0] - base alpha multiplier in [0, 1]
- * @returns {[number, number, number, number]} RGBA with intensity-scaled alpha
- */
-export function resolveAuraRgba(resolvedAuraCell, baseAlpha = 1.0) {
-  const kind = resolvedAuraCell?.kind;
-  const stacks = Math.max(1, Math.round(Number(resolvedAuraCell?.stacks) || 1));
-  const tier = resolveStackIntensity(stacks);
-  // Scale alpha by tier glow + base (tier glow 0-10 maps to 0.6-1.0 range)
-  const glowAlpha = 0.6 + (tier.glow / 10) * 0.4;
-  const alpha = Math.min(255, Math.round(baseAlpha * glowAlpha * 255));
-  return getAffinityRgba(kind, alpha);
-}
-
-/**
  * Validate that all canonical affinity kinds have palette entries.
  * @returns {{ok: boolean, missing: string[]}}
  */
