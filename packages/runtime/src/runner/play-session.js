@@ -214,6 +214,9 @@ export async function createPlaySession({
   // seated actor's side, wherever they are, and any other the seat could see before the tick,
   // so the fog leaks nothing.
   let departures = [];
+  // #490: where a defeat happened stays marked for a few ticks: `{ x, y, role, age }`.
+  const DEFEAT_MARK_TICKS = 3;
+  let defeatMarks = [];
   function watchedIds() {
     const actors = readSnapshot().actors;
     const seat = actors.find((actor) => actor.id === activeId);
@@ -229,12 +232,24 @@ export async function createPlaySession({
     await runtime.step(args);
     rememberParty();
     const actors = readSnapshot().actors;
+    defeatMarks = defeatMarks.map((mark) => ({ ...mark, age: mark.age + 1 })).filter((mark) => mark.age < DEFEAT_MARK_TICKS);
     for (const id of watched) {
       const actor = actors.find((entry) => entry.id === id);
       if (!actor || actor.lifecycle === "alive") continue;
-      departures.push({ id, ...(labels.has(id) ? { label: labels.get(id) } : {}),
-        role: categoryOf(actor, presentation) ?? null, how: actor.lifecycle });
+      const role = categoryOf(actor, presentation) ?? null;
+      const defeat = actor.lifecycle === "defeated" ? { position: { ...actor.position }, by: defeatedBy(actor, actors) } : {};
+      departures.push({ id, ...(labels.has(id) ? { label: labels.get(id) } : {}), role, how: actor.lifecycle, ...defeat });
+      if (defeat.position) defeatMarks.push({ ...defeat.position, role, age: 0 });
     }
+  }
+
+  // Who or what defeated it: the last cast of the tick that landed on it, else the field it lay in.
+  function defeatedBy(actor, actors) {
+    const cast = rawCasts().filter((entry) => entry.targetId === actor.id && entry.sourceId !== actor.id).at(-1);
+    if (cast) return { id: cast.sourceId, ...(labels.has(cast.sourceId) ? { label: labels.get(cast.sourceId) } : {}), kind: cast.kind, expression: cast.expression };
+    const field = typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null;
+    const sources = (field?.[actor.position.y]?.[actor.position.x] || []).flatMap((entry) => entry.sources || []).filter((id) => id !== actor.id);
+    return sources.length ? { id: sources[0], ...(labels.has(sources[0]) ? { label: labels.get(sources[0]) } : {}), field: true } : null;
   }
 
   function readSnapshot() {
@@ -459,10 +474,13 @@ export async function createPlaySession({
    * seated actor sees are kept, and a cast is shown when any of it is seen or it involves
    * that actor.
    */
-  function castsView(snapshot, visible) {
+  function rawCasts() {
     const frames = typeof runtime.getTickFrames === "function" ? runtime.getTickFrames() : [];
-    const casts = frames.filter((frame) => frame?.phaseDetail === "apply").at(-1)?.emittedSnapshot?.view?.turn?.casts ?? [];
-    return casts.flatMap((cast) => {
+    return frames.filter((frame) => frame?.phaseDetail === "apply").at(-1)?.emittedSnapshot?.view?.turn?.casts ?? [];
+  }
+
+  function castsView(snapshot, visible) {
+    return rawCasts().flatMap((cast) => {
       const source = snapshot.actors.find((actor) => actor.id === cast.sourceId);
       if (!source) return [];
       const path = cast.path.map((cell, index) => ({ x: cell.x, y: cell.y,
@@ -525,6 +543,7 @@ export async function createPlaySession({
       casts: castsView(snapshot, fogOn ? readVisible() : null),
       vitalChanges: vitalChangesView(snapshot, fogOn ? readVisible() : null),
       departures: departures.map((entry) => ({ ...entry })),
+      defeatMarks: defeatMarks.filter((mark) => !fogOn || readVisible()?.[mark.y]?.[mark.x]).map((mark) => ({ ...mark })),
       orders: ordersView(),
       orderable: orderableView(snapshot),
     };

@@ -176,6 +176,21 @@ export function overlayCastPaths(rows, casts, floorChar, styles = null, cellStyl
   return grid.map((cells) => cells.join(""));
 }
 
+/** #490: an `x` on the floor tile of a recent defeat, in the palette's hazard colour, until it ages out. */
+const DEFEAT_MARK_GLYPH = "x";
+export function overlayDefeatMarks(rows, marks, floorChar, styles = null, cellStyles = null) {
+  if (!Array.isArray(marks) || marks.length === 0 || !floorChar) return rows;
+  const grid = rows.map((row) => row.split(""));
+  for (const mark of marks) {
+    if (grid[mark.y]?.[mark.x] !== floorChar) continue;
+    grid[mark.y][mark.x] = DEFEAT_MARK_GLYPH;
+    if (!styles || !cellStyles) continue;
+    if (!cellStyles.has(mark.y)) cellStyles.set(mark.y, new Map());
+    cellStyles.get(mark.y).set(mark.x, { fg: GAME_COLOR_PALETTE.items.hazard, bg: styles[floorChar]?.bg ?? "#241f22" });
+  }
+  return grid.map((cells) => cells.join(""));
+}
+
 /**
  * #479: the arrows (`> < ^ v / \\`) a cast leaves on the board are named while they show:
  * `Cast path: / \\ > < ^ v mark where the last cast went (a push points away from the caster, a pull back).`
@@ -363,12 +378,19 @@ export function inSightLine(view) {
 // How each kind of thing leaves (#428): an exit is a departure, never mistaken for a defeat.
 const GONE_PHRASE = Object.freeze({ delver: "was defeated", warden: "was defeated", hazard: "was destroyed", barrier: "was destroyed" });
 
+function defeatByPhrase(by) {
+  if (!by) return "";
+  const who = `${by.label ? `${by.label} ` : ""}${by.id}`;
+  return by.field ? ` by ${who}'s field` : ` by ${who}'s ${by.kind} ${by.expression}`;
+}
+
 /** Who left during the last turn, one event each: `D3 pal-1 left by the exit` (#428). */
 export function departuresLine(view) {
   const gone = Array.isArray(view.departures) ? view.departures : [];
   if (gone.length === 0) return null;
   return gone.map((entry) => `${entry.label ? `${entry.label} ` : ""}${entry.id} `
-    + (entry.how === "exited" ? "left by the exit" : GONE_PHRASE[entry.role] ?? "is gone")).join("; ");
+    + (entry.how === "exited" ? "left by the exit" : GONE_PHRASE[entry.role] ?? "is gone")
+    + defeatByPhrase(entry.by)).join("; ");
 }
 
 // #488: the picture that takes the board's place when the player is defeated.
@@ -442,8 +464,8 @@ export function renderScreen({
   const styles = color ? buildAsciiCellStyles(view.legend) : null;
   const actorCells = color ? actorCellStyles(view) : null;
   const playerPosition = view.player?.position;
-  const board = overlayCastPaths(overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition),
-    view.casts, view.legend?.floor, styles, actorCells);
+  const board = overlayDefeatMarks(overlayCastPaths(overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition),
+    view.casts, view.legend?.floor, styles, actorCells), view.defeatMarks, view.legend?.floor, styles, actorCells);
   // The tile a cast is being aimed at (#413).
   if (aim && typeof board[aim.y] === "string" && aim.x >= 0 && aim.x < board[aim.y].length) {
     board[aim.y] = `${board[aim.y].slice(0, aim.x)}${ASCII_AIM_GLYPH}${board[aim.y].slice(aim.x + 1)}`;
