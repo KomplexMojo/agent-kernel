@@ -20,10 +20,13 @@ import { describe, expect, test } from "vitest";
 import {
   AffinityExpression,
   AffinityKind,
-  getAffinityVitalEffect,
-  getAffinityTargetVital,
+  getAffinityExpressionBaseMagnitude,
   getOppositeAffinityKind,
+  scaleAffinityVitalEffect,
 } from "../../packages/core-ts/src/state/affinity.ts";
+import { AFFINITY_KIND_BY_CODE } from "../../packages/core-ts/src/affinity-readers.ts";
+import type { AffinityKind as AffinityKindName } from "../../packages/core-ts/src/state/actor-types.ts";
+import { affinityTableRow } from "../../packages/core-ts/src/state/affinity-table.ts";
 import { resolveExposureVitalDeltas } from "../../packages/core-ts/src/state/affinity-spatial.ts";
 import { VitalKind } from "../../packages/core-ts/src/state/vitals.ts";
 
@@ -35,8 +38,22 @@ type Delta = { vital: number; effect: number };
 const effectOn = (vital: number, deltas: Delta[]) =>
   deltas.filter((delta) => delta.vital === vital).reduce((sum, delta) => sum + delta.effect, 0);
 
-const baseline = (kind: number, expression: number, vital: number, stacks: number) =>
-  getAffinityVitalEffect(kind, expression, vital, stacks);
+// #384: which vital a kind hits, and whether the effect helps or harms, come from the one
+// affinity table; this test no longer reads a second numeric table of them.
+const TABLE_VITAL = { health: VitalKind.Health, mana: VitalKind.Mana, stamina: VitalKind.Stamina,
+  durability: VitalKind.Durability } as const;
+const getAffinityTargetVital = (kind: number): number =>
+  TABLE_VITAL[affinityTableRow(AFFINITY_KIND_BY_CODE[kind] as AffinityKindName)!.primaryVital];
+
+// Signed field effect on the kind's primary vital; zero on any other vital.
+const baseline = (kind: number, expression: number, vital: number, stacks: number) => {
+  if (vital !== getAffinityTargetVital(kind)) return 0;
+  const row = affinityTableRow(AFFINITY_KIND_BY_CODE[kind] as AffinityKindName)!;
+  const helps = (expression === AffinityExpression.Push || expression === AffinityExpression.Emit)
+    && row.outward === "restore";
+  const magnitude = scaleAffinityVitalEffect(getAffinityExpressionBaseMagnitude(expression), stacks);
+  return helps ? magnitude : -magnitude;
+};
 
 function exposure(args: {
   fieldKind: number; fieldExpression: number; observerKind: number;

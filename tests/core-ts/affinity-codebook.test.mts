@@ -14,7 +14,6 @@ import {
   AffinityRelationship,
   AffinityTargetType,
 } from "../../packages/core-ts/src/state/affinity.ts";
-import { VitalKind } from "../../packages/core-ts/src/state/vitals.ts";
 
 describe("core-ts affinity codebook", () => {
   test("reports affinity codebook counts", () => {
@@ -61,23 +60,6 @@ describe("core-ts affinity codebook", () => {
       AffinityRelationship.Neutral,
     );
     expect(call(core.resolveAffinityRelationshipCode, 0, AffinityKind.Fire)).toBe(-1);
-  });
-
-  test("maps affinity kinds to target vitals", () => {
-    const core = createCore();
-
-    expect(call(core.getAffinityTargetVital, AffinityKind.Fire)).toBe(
-      VitalKind.Health,
-    );
-    expect(call(core.getAffinityTargetVital, AffinityKind.Earth)).toBe(
-      VitalKind.Stamina,
-    );
-    expect(call(core.getAffinityTargetVital, AffinityKind.Corrode)).toBe(
-      VitalKind.Durability,
-    );
-    expect(call(core.getAffinityTargetVital, AffinityKind.Light)).toBe(
-      VitalKind.Mana,
-    );
   });
 
   test("maps affinity expressions to default target types", () => {
@@ -151,38 +133,12 @@ function call(fn: unknown, ...args: unknown[]): unknown {
 }
 
 describe("core-ts affinity codebook permutations", () => {
-  test("invalid affinity kinds return sentinel vital", () => {
-    const core = createCore();
-    expect(call(core.getAffinityTargetVital, 0)).toBe(-1);
-    expect(call(core.getAffinityTargetVital, 11)).toBe(-1);
-    expect(call(core.getAffinityTargetVital, -1)).toBe(-1);
-  });
-
   test("invalid affinity expressions return false flags", () => {
     const core = createCore();
     expect(call(core.affinityExpressionAllowsEnvironmentMutation, 0)).toBe(false);
     expect(call(core.affinityExpressionAllowsEnvironmentMutation, 5)).toBe(false);
     expect(call(core.affinityExpressionAllowsHazardArming, 0)).toBe(false);
     expect(call(core.affinityExpressionIsPersistentField, 0)).toBe(false);
-  });
-
-  test("every affinity kind maps to the expected vital", () => {
-    const core = createCore();
-    const expected: Array<[number, number]> = [
-      [AffinityKind.Fire, VitalKind.Health],
-      [AffinityKind.Water, VitalKind.Health],
-      [AffinityKind.Earth, VitalKind.Stamina],
-      [AffinityKind.Wind, VitalKind.Stamina],
-      [AffinityKind.Growth, VitalKind.Health],
-      [AffinityKind.Decay, VitalKind.Health],
-      [AffinityKind.Corrode, VitalKind.Durability],
-      [AffinityKind.Fortify, VitalKind.Durability],
-      [AffinityKind.Light, VitalKind.Mana],
-      [AffinityKind.Dark, VitalKind.Mana],
-    ];
-    for (const [kind, vital] of expected) {
-      expect(call(core.getAffinityTargetVital, kind)).toBe(vital);
-    }
   });
 
   test("reader utilities return undefined for unmapped codes", () => {
