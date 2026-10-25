@@ -152,7 +152,7 @@ export const ASCII_FIELD_TINT_MAX = 0.7;
  * legible. Null style in, null out.
  *
  * @param {{fg: string, bg: string} | null} style
- * @param {Array<{kind: string, falloff: number}> | null} fields
+ * @param {Array<{kind: string, falloff: number, restores?: boolean}> | null} fields
  * @returns {{fg: string, bg: string} | null}
  */
 export function asciiFieldCellStyle(style, fields) {
@@ -169,7 +169,13 @@ export function asciiFieldCellStyle(style, fields) {
   const tint = Math.min(ASCII_FIELD_TINT_MAX, ASCII_FIELD_TINT_BASE + ASCII_FIELD_TINT_PER_INTENSITY * total);
   const bg = mixHex(style.bg, mix, tint);
   // The glyph leans toward the sprite outline for the new fill, so it stays legible on a pale tint.
-  return { fg: mixHex(style.fg, outlineForFill(bg), 0.5), bg };
+  const fg = mixHex(style.fg, outlineForFill(bg), 0.5);
+  // #485: a field that helps whoever stands in it reads differently from one that harms, in
+  // the palette's own resource and hazard colours, whatever the affinity (from the affinity table).
+  const helps = coloured.every((entry) => entry.restores === true);
+  const harms = coloured.some((entry) => entry.restores === false);
+  if (!helps && !harms) return { fg, bg };
+  return { fg: mixHex(fg, helps ? items.resource : items.hazard, 0.75), bg };
 }
 
 /**

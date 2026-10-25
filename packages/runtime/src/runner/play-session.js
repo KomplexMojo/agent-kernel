@@ -58,6 +58,7 @@
  * re-runs it on the same level. The simulation is deterministic, so a replay
  * reaches the same state. Writing the artifact to disk is the caller's job.
  */
+import { AFFINITY_TABLE } from "../../../core-ts/src/state/affinity-table.ts";
 import { ACTOR_COMMAND_KINDS, normalizeActorCommand, normalizeActorStrategy } from "../personas/actor/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { createAllocatorPersona } from "../personas/allocator/persona.js";
@@ -747,11 +748,18 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
   };
 }
 
+// #485: whether a field helps or harms, and which vital, from the one affinity table (never per kind).
+function withHelp(entry) {
+  const row = AFFINITY_TABLE.find((candidate) => candidate.kind === entry.kind);
+  return { ...entry, ...(entry.sources ? { sources: [...entry.sources] } : {}),
+    ...(row ? { restores: row.outward === "restore", vital: row.primaryVital } : {}) };
+}
+
 /** Core's per-cell field grid, emptied outside the visible set (all of it without fog). */
 function playField(field, visible) {
   if (!Array.isArray(field) || field.length === 0) return null;
   return field.map((row, y) => row.map((cell, x) =>
-    (visible && !visible[y]?.[x] ? [] : cell.map((entry) => ({ ...entry })))));
+    (visible && !visible[y]?.[x] ? [] : cell.map((entry) => withHelp(entry)))));
 }
 
 /**

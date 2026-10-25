@@ -79,6 +79,43 @@ test("the screen tints floor under a field and leaves the text unchanged", async
   assert.equal(strip(tinted), strip(bare));
 });
 
+// #485: a field that helps whoever stands in it reads differently from one that harms, read from
+// the affinity table for every kind alike; and the HUD names it even at full vitals.
+test("each field cell says whether it restores a vital, from the affinity table, for every kind", async () => {
+  const restoring = [];
+  for (const kind of AFFINITY_KINDS) {
+    const view = (await session([trap("t", kind, 6)])).view();
+    const entry = view.field[1][5][0];
+    assert.equal(typeof entry.restores, "boolean", kind);
+    assert.ok(["health", "mana", "stamina", "durability"].includes(entry.vital), `${kind} names its vital`);
+    assert.deepEqual(entry.sources, ["t"], `${kind} names its source`);
+    if (entry.restores) restoring.push(kind);
+  }
+  assert.ok(restoring.length > 0 && restoring.length < AFFINITY_KINDS.length, "some kinds help and some harm");
+});
+
+test("a helping field draws its glyph toward the resource colour and a harming one toward the hazard colour", () => {
+  const floor = { fg: "#8a8588", bg: "#241f22" };
+  const helped = asciiFieldCellStyle(floor, [{ kind: "growth", falloff: 1, restores: true }]);
+  const harmed = asciiFieldCellStyle(floor, [{ kind: "decay", falloff: 1, restores: false }]);
+  const plain = asciiFieldCellStyle(floor, [{ kind: "growth", falloff: 1 }]);
+  assert.notEqual(helped.fg, plain.fg);
+  assert.notEqual(helped.fg, harmed.fg);
+  const channel = (hex, i) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  assert.ok(channel(helped.fg, 1) > channel(helped.fg, 0), "helping reads green-ish");
+  assert.ok(channel(harmed.fg, 0) > channel(harmed.fg, 1), "harming reads red-ish");
+});
+
+test("standing in someone else's restoring field says so at full vitals; a harmful or own field does not", async () => {
+  const helpful = (await session([trap("t", "fortify", 2)])).view();
+  assert.match(renderScreen({ view: helpful, levelName: "field" }), /Field here: restores DU/);
+  const harmful = (await session([trap("t", "corrode", 2)])).view();
+  assert.doesNotMatch(renderScreen({ view: harmful, levelName: "field" }), /Field here:/);
+  const own = (await createPlaySession({ ...buildUnifiedLevel({ id: "own", tiles: HALL, actors: [
+    { ...PLAYER, affinities: [{ kind: "fortify", expression: "emit", stacks: 2 }], activeAffinityKey: "fortify:emit" }] }) })).view();
+  assert.doesNotMatch(renderScreen({ view: own, levelName: "own" }), /Field here:/);
+});
+
 // ## TODO: Test Permutations
 // - a stronger opposite leaves its remainder tinted at the meeting tile
 // - draw expressions never tint the floor
