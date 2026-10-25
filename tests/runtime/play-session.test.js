@@ -412,7 +412,8 @@ test("an intact resource next to the player is loot: growth and decay players al
       ...(kind ? { affinities: [{ kind, expression: "push", stacks: 1 }], activeAffinityKey: `${kind}:push` } : {}) };
     const session = await createPlaySession(buildUnifiedLevel({ id: "chest", tiles: MAZE, actors: [player, chest] }));
     const label = kind ?? "no affinity";
-    assert.deepEqual(session.view().loot, [{ targetId: "chest", holdingId: "heal", kind: "vital", position: { x: 3, y: 1 } }], label);
+    assert.deepEqual(session.view().loot, [{ targetId: "chest", holdingId: "heal", kind: "vital",
+      permanenceMode: "consumable", vitals: [{ key: "health", delta: 5 }], intact: true, position: { x: 3, y: 1 } }], label);
     const result = await session.act({ kind: "take", params: { targetId: "chest", holdingId: "heal" } });
     assert.deepEqual(result.accepted.map((a) => a.kind), ["take"], label);
     const health = session.view().player.vitals.find((vital) => vital.key === "health");

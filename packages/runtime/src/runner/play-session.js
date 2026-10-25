@@ -668,6 +668,10 @@ function lootNextTo(snapshot, player) {
         kind: holding.kind,
         ...(holding.kind === "affinity" ? { affinity: holding.affinity, expression: holding.expression } : {}),
         ...(holding.kind === "slot" ? { slots: holding.slots } : {}),
+        // #487: what a vital grant changes, so the take message can name it; and whether the
+        // source stays on the floor (an intact resource keeps standing once its holdings go).
+        ...(holding.kind === "vital" ? { permanenceMode: holding.permanenceMode, vitals: holding.vitals.map((grant) => ({ ...grant })) } : {}),
+        ...(actor.lifecycle === "alive" ? { intact: true } : {}),
         position: { ...actor.position },
       })));
 }

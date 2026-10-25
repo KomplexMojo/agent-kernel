@@ -801,6 +801,39 @@ test("g takes the loot of a defeated neighbour", async () => {
   assert.match(game.screen(), /fire push r1 ×1/);
 });
 
+// #487: taking from a resource names every vital it changed, and says it stays on the floor.
+test("g on a resource names the vitals it changed and says the resource stays (#487)", async () => {
+  const level = buildUnifiedLevel({
+    id: "chest",
+    tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals() },
+      { category: "resource", id: "resource_2", position: { x: 2, y: 1 }, vitals: { durability: { current: 1, max: 1, regen: 0 } },
+        holdings: [{ id: "boost", kind: "vital", permanenceMode: "permanent", claimedBy: null,
+          vitals: [{ key: "mana", delta: 5, regen: 1 }] }] },
+    ],
+  });
+  const game = await createGame({ levels: [{ name: "chest", ...level }], fog: false });
+  await press(game, "g");
+  assert.match(game.screen(), /You take resource_2: MP max \+5, regen \+1\. It stays on the floor, spent\./);
+});
+
+test("g on a consumable resource names the vital without 'max' (#487)", async () => {
+  const level = buildUnifiedLevel({
+    id: "potion",
+    tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+        vitals: viableVitals({ health: 4 }) },
+      { category: "resource", id: "resource_1", position: { x: 2, y: 1 }, vitals: { durability: { current: 1, max: 1, regen: 0 } },
+        holdings: [{ id: "heal", kind: "vital", permanenceMode: "consumable", claimedBy: null, vitals: [{ key: "health", delta: 5 }] }] },
+    ],
+  });
+  const game = await createGame({ levels: [{ name: "potion", ...level }], fog: false });
+  await press(game, "g");
+  assert.match(game.screen(), /You take resource_1: HP \+5\./);
+});
+
 // #230, #345: in the affinity list, Tab picks a row, + / - run it at less or more range and
 // ] / [ at more or less intensity.
 test("+ and - re-level the highlighted equipped affinity's range, a turn each; the HUD shows running/held", async () => {
