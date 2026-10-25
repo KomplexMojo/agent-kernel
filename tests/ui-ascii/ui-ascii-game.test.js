@@ -676,10 +676,12 @@ test("a cast shows its path as arrows for one turn and names its hit", async () 
   const game = await createGame({ levels: duelLevels({ wardenAt: { x: 4, y: 1 } }), fog: false });
   await press(game, "i1f\r");
   assert.match(game.screen(), /  #@>>W#/);
+  assert.match(game.screen(), /Cast path: > mark where the last cast went/, "the arrows are named while they show (#479)");
   assert.match(game.screen(), /You hit W1 with water push: ST −\d+/);
   assert.equal(game.view().casts[0].path.at(-1).x, 4);
   await press(game, ".");
   assert.match(game.screen(), /  #@\.\.W#/);
+  assert.doesNotMatch(game.screen(), /Cast path:/);
 });
 
 test("battle lines name the player's hit and every hit on the player, by label, with HUD vitals", () => {
@@ -832,6 +834,25 @@ test("g on a consumable resource names the vital without 'max' (#487)", async ()
   const game = await createGame({ levels: [{ name: "potion", ...level }], fog: false });
   await press(game, "g");
   assert.match(game.screen(), /You take resource_1: HP \+5\./);
+});
+
+// #479: a refused take says why.
+test("g next to a standing warden or a spent resource says why nothing can be taken (#479)", async () => {
+  const standing = await createGame({ levels: duelLevels(), fog: false });
+  await press(standing, "g");
+  assert.match(standing.screen(), /warden_1 is still standing: defeat it first|W1 is still standing: defeat it first/);
+  const level = buildUnifiedLevel({
+    id: "spent",
+    tiles: ["######", "#....#", "#....E", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals() },
+      { category: "resource", id: "resource_2", position: { x: 2, y: 1 }, vitals: { durability: { current: 1, max: 1, regen: 0 } },
+        holdings: [{ id: "boost", kind: "vital", permanenceMode: "permanent", claimedBy: null, vitals: [{ key: "mana", delta: 5 }] }] },
+    ],
+  });
+  const game = await createGame({ levels: [{ name: "spent", ...level }], fog: false });
+  await press(game, "gg");
+  assert.match(game.screen(), /resource_2 has nothing left to take\./);
 });
 
 // #230, #345: in the affinity list, Tab picks a row, + / - run it at less or more range and
