@@ -41,6 +41,17 @@ test("an authored stamina regen below one move's cost is kept, for delvers and w
   assert.equal(summary.vitalsReport, undefined, "nothing set was changed, so nothing is reported");
 });
 
+// #333: a starting `current` below max is kept for every vital, not only health.
+test("a delver's authored starting current is kept for all four vitals", () => {
+  const { vitals, summary } = create([
+    "--delver", "count=1;id=hero;motivation=user_controlled;vitals=health:12:20:1,mana:12:20:1,stamina:12:20:1,durability:12:20:1",
+  ]);
+  for (const key of ["health", "mana", "stamina", "durability"]) {
+    assert.deepEqual(vitals["hero-1"][key], { current: 12, max: 20, regen: 1 }, key);
+  }
+  assert.equal(summary.vitalsReport, undefined);
+});
+
 test("an authored mana pool smaller than one cast is kept", () => {
   const { vitals } = create([
     "--delver", "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:30:3,stamina:10:2,durability:10:1",

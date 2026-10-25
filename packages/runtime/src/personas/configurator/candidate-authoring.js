@@ -134,7 +134,9 @@ export function applyMovementStaminaFloor(vitals, card = null) {
   if (!vitals?.stamina || !requiresMovementStamina(card)) return vitals;
   const floor = resolveWorstCaseMoveCost(card?.capabilities?.movementCost);
   vitals.stamina.max = Math.max(vitals.stamina.max, floor);
-  vitals.stamina.current = Math.max(vitals.stamina.current, vitals.stamina.max);
+  // #333: raise a pool below the floor up to the floor, never up to max: an authored starting
+  // current above the floor is kept, as applyActorViabilityFloor keeps one.
+  vitals.stamina.current = Math.max(vitals.stamina.current, Math.min(vitals.stamina.max, floor));
   // #371: the regen floor fills only an unset regen. A regen the author set (>= 1) still
   // refills the pool, just over more rest turns, and is kept as written.
   if (!(vitals.stamina.regen > 0)) vitals.stamina.regen = floor;
