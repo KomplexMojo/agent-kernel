@@ -7,7 +7,7 @@ test('assembles a base price for every pair, including equipment acquired later'
   const costs = c.resolveActorTurnCosts({ movementStamina: { delver: 2, resource: 0 } });
   expect(costs.castMana).toBeUndefined();
   expect(Object.keys(costs.castManaBase)).toHaveLength(40);
-  expect(costs.castManaBase['fire:push']).toBe(3);
+  expect(costs.castManaBase['fire:push']).toBe(2);
   for (const base of Object.values(costs.castManaBase)) {
     expect(Number.isSafeInteger(base) && base >= 0).toBe(true);
   }
@@ -47,8 +47,21 @@ test('no default push or pull is free', () => {
 });
 test('the cast price escalates past five stacks', () => {
   expect([1, 2, 5, 6, 8].map(stacks => c.resolveAffinityManaCost({ kind: 'fire', expression: 'push', stacks })))
-    .toEqual([3, 9, 45, 63, 108]);
+    .toEqual([2, 6, 30, 42, 72]);
   expect(c.resolveAffinityManaCost({ kind: 'fire', expression: 'emit', stacks: 8 })).toBe(10);
 });
 // ## TODO: Test Permutations
 // - Verify startup passes this exact configuration through runtime replay artifacts.
+// #477: one price for every kind; no affinity is cheaper to play than another.
+test('every kind has identical cast and emit prices per expression', () => {
+  const { castManaBase } = c.resolveActorTurnCosts({ movementStamina: {} });
+  const kinds = [...new Set(Object.keys(castManaBase).map(key => key.split(':')[0]))];
+  expect(kinds).toHaveLength(10);
+  for (const expression of ['push', 'pull', 'emit', 'draw']) {
+    const prices = new Set(kinds.map(kind => castManaBase[`${kind}:${expression}`]));
+    expect([...prices], expression).toHaveLength(1);
+  }
+  const tiers = kind => [1, 2, 3, 4, 5].map(stacks => ['push', 'pull', 'emit', 'draw']
+    .map(expression => c.resolveAffinityManaCost({ kind, expression, stacks })));
+  for (const kind of kinds) expect(tiers(kind), kind).toEqual(tiers(kinds[0]));
+});

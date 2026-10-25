@@ -986,7 +986,7 @@
   },
   "actionCosts": {
     "castManaBase": {
-      "fire:push": 3,
+      "fire:push": 2,
       "fire:pull": 1,
       "fire:emit": 2,
       "fire:draw": 1,
@@ -994,7 +994,7 @@
       "water:pull": 1,
       "water:emit": 2,
       "water:draw": 1,
-      "earth:push": 3,
+      "earth:push": 2,
       "earth:pull": 1,
       "earth:emit": 2,
       "earth:draw": 1,
@@ -1005,7 +1005,7 @@
       "growth:push": 2,
       "growth:pull": 1,
       "growth:emit": 2,
-      "growth:draw": 0,
+      "growth:draw": 1,
       "decay:push": 2,
       "decay:pull": 1,
       "decay:emit": 2,

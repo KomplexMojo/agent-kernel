@@ -10,7 +10,7 @@ test('production artifact builders emit deterministic unified state and authored
   const initial = c.buildInitialStateArtifact(fixture.input.initialState);
   assert.deepEqual(initial, fixture.expected.initialState);
   assert.deepEqual(sim.layout.data, fixture.input.simConfig.layout);
-  assert.equal(sim.actionCosts.castManaBase['fire:push'], 3);
+  assert.equal(sim.actionCosts.castManaBase['fire:push'], 2);
   assert.deepEqual(sim.actionCosts.movementStamina, { actor: 1 });
   assert.deepEqual(c.buildInitialStateArtifact(fixture.input.initialState), initial);
   assert.deepEqual(c.buildSimConfigArtifact(fixture.input.simConfig), sim);
