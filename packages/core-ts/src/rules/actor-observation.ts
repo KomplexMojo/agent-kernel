@@ -195,7 +195,7 @@ export function readActorRegistryDarkCells(observation: RegistryObservation): nu
 }
 
 /** One affinity's net presence on a cell: what survives opposite-kind cancellation there. */
-export interface FieldCellReading { kind: string; stacks: number; intensity: number; falloff: number }
+export interface FieldCellReading { kind: string; stacks: number; intensity: number; falloff: number; sources: string[] }
 
 /**
  * Every affinity field on each cell right now, for every kind alike (#287): a
@@ -216,8 +216,12 @@ export function readActorRegistryFieldCells(observation: RegistryObservation): F
     const cell = grid[y][x];
     const existing = cell.find(entry => entry.kind === field.kind);
     const reading = { stacks: field.stacks, intensity: field.intensity, falloff: field.falloff };
-    if (!existing) cell.push({ kind: field.kind, ...reading });
-    else if (strength(reading) > strength(existing)) Object.assign(existing, reading);
+    // #485: who emits it, so a reader can tell a field that acts on you from your own (which never does).
+    if (!existing) cell.push({ kind: field.kind, ...reading, sources: [field.sourceId] });
+    else {
+      if (!existing.sources.includes(field.sourceId)) existing.sources.push(field.sourceId);
+      if (strength(reading) > strength(existing)) Object.assign(existing, reading);
+    }
   }
   for (const row of grid) for (const cell of row) cell.sort((a, b) => strength(b) - strength(a) || (a.kind < b.kind ? -1 : 1));
   return grid;

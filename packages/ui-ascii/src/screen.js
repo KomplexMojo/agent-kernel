@@ -20,6 +20,7 @@ import {
 import { PLAY_SIGHT, PLAYER_MOTIVATION } from "../../runtime/src/runner/play-session.js";
 import { ASCII_AIM_GLYPH, ASCII_ENTITY_GLYPHS, ASCII_TERRAIN_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
+import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
 
 const BAR_WIDTH = 10;
 const RESET = "\u001b[0m";
@@ -183,6 +184,24 @@ export function castPathLine(casts) {
   for (const cast of Array.isArray(casts) ? casts : []) for (const cell of cast.path || []) if (cell.glyph) glyphs.add(cell.glyph);
   if (glyphs.size === 0) return null;
   return `Cast path: ${[...glyphs].join(" ")} mark where the last cast went (a push points away from the caster, a pull back).`;
+}
+
+/**
+ * #485: `Field here: restores DU` while the player stands in someone else's restoring field,
+ * even at full vitals, so a field that is working but has nothing to mend is not read as broken.
+ * The player's own emit never acts on them, so it is not named. Read from the view's field cells.
+ */
+export function fieldHereLine(view) {
+  const at = view.player?.position;
+  const cell = at ? view.field?.[at.y]?.[at.x] : null;
+  if (!Array.isArray(cell)) return null;
+  const vitals = new Set();
+  for (const entry of cell) {
+    if (entry.restores !== true || !entry.vital) continue;
+    if (Array.isArray(entry.sources) && entry.sources.every((id) => id === view.player.id)) continue;
+    vitals.add(HUD_VITAL_LABELS[entry.vital] ?? entry.vital);
+  }
+  return vitals.size ? `Field here: restores ${[...vitals].join(", ")}` : null;
 }
 
 /** Vitals the actor actually has: a 0/0 pool is absent, not empty. */
@@ -406,7 +425,7 @@ export function renderScreen({
   if (soakedNote(view.player)) vitals.push(soakedNote(view.player).trim());
   if (vitals.length > 0) lines.push(vitals.join("   "));
   lines.push(...affinityLines(view.player, { hints }));
-  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), departuresLine(view), castPathLine(view.casts)]) if (line) lines.push(line);
+  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)]) if (line) lines.push(line);
   lines.push(tickLine);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
   if (Array.isArray(panel) && panel.length > 0) {
