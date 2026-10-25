@@ -239,6 +239,8 @@ function runInteractive(game, { color, recordPath, keyIntent = intentForKey, rea
           process.exit(0);
         }
       }
+      // #483: keep the recording current, so a crash on a later turn still leaves a replayable game.
+      if (recordPath) { try { recordGame(game, recordPath); } catch { /* best effort */ } }
       draw();
     });
   });

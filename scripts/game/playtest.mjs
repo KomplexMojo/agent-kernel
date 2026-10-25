@@ -109,6 +109,18 @@ function ak(args, { inherit = false } = {}) {
   return { status: result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
 }
 
+/**
+ * Run `ak play` on the terminal. stderr is kept (and shown once play ends) so a crash can go
+ * into the report; `akPath` lets a test stand in a fake `ak`.
+ */
+export function runPlay(args, { akPath = AK } = {}) {
+  const result = spawnSync(process.execPath, [akPath, "play", ...args], { cwd: ROOT, stdio: ["inherit", "inherit", "pipe"], encoding: "utf8" });
+  const stderr = result.stderr ?? "";
+  if (stderr) process.stderr.write(stderr);
+  const status = result.status ?? (result.error ? 1 : 0);
+  return { status, stderrTail: status === 0 ? "" : stderr.trimEnd().split("\n").slice(-20).join("\n") };
+}
+
 function git(args) {
   const result = spawnSync("git", args, { cwd: ROOT, encoding: "utf8" });
   return result.status === 0 ? result.stdout.trim() : "unknown";
@@ -180,7 +192,7 @@ async function askNotes() {
   return notes;
 }
 
-export function renderReport({ scenario, seed, grade, commit, branch, createdAt, playedAt, picks, final, notes, replayCode, cost }) {
+export function renderReport({ scenario, seed, grade, commit, branch, createdAt, playedAt, picks, final, notes, replayCode, cost, crash }) {
   const lines = [
     `# Playtest: ${scenario.title} (${scenario.id}, seed ${seed})`,
     "",
@@ -196,6 +208,7 @@ export function renderReport({ scenario, seed, grade, commit, branch, createdAt,
     "",
     ...(notes.length ? notes.map((note, index) => `${index + 1}. ${note}`) : ["(none written)"]),
     "",
+    ...(crash ? ["## Crash", "", `\`ak play\` exited with code ${crash.status}. The replay code below holds the commands recorded before it stopped.`, "", "```", crash.stderrTail || "(no stderr)", "```", ""] : []),
     "## Final screen",
     "",
     "```",
@@ -264,7 +277,8 @@ async function playScenario(catalog, options) {
   }
 
   const record = options.playArgs.includes("--web") ? [] : ["--record", recordingPath];
-  ak(["play", "--dir", levelDir, ...record, ...options.playArgs], { inherit: true });
+  const played = runPlay(["--dir", levelDir, ...record, ...options.playArgs]);
+  if (played.status !== 0) console.log(`\nak play stopped with exit code ${played.status}; the report will say so.`);
 
   const recorded = existsSync(recordingPath) ? JSON.parse(readFileSync(recordingPath, "utf8")) : null;
   const final = recorded ? finalState(levelDir, recordingPath) : null;
@@ -277,6 +291,7 @@ async function playScenario(catalog, options) {
     playedAt: now.toISOString(),
     replayCode: encodeReplay(recorded?.payload?.commands ?? []),
     cost: created?.cost,
+    crash: played.status !== 0 ? played : undefined,
   });
   const reportPath = join(outDir, "report.md");
   writeFileSync(reportPath, report);
