@@ -158,6 +158,11 @@ test("tactics [\"llm\"] with an invalid reply or no model falls back to the seed
 // #473: objects the tactics seat (minions, guards) with a lasting field keep it off the level's
 // resources and hazards, as #403 does between objects; the playtest long-haul level with
 // `--tactic auto` destroyed a resource on turn 1 for seeds 1 and 6.
+// `auto` stands alone, so the scenario's own `--tactic <name>` pairs are dropped.
+function withoutTactics(args) {
+  return args.filter((arg, i) => arg !== "--tactic" && args[i - 1] !== "--tactic");
+}
+
 test("tactic-seated emitters keep their fields off resources and hazards (#473)", async () => {
   const { loadPlaytestScenarios, scenarioArgs } = await import("../../scripts/game/playtest.mjs");
   const scenario = loadPlaytestScenarios().scenarios.find((entry) => entry.id === "long-haul");
@@ -165,7 +170,7 @@ test("tactic-seated emitters keep their fields off resources and hazards (#473)"
     const outDir = mkdtempSync(join(tmpdir(), "ak-tactic-reach-"));
     try {
       const result = spawnSync(process.execPath, [AK_CLI, "create", "--out-dir", outDir, "--run-id", "reach",
-        "--created-at", "2026-10-24T00:00:00.000Z", ...scenarioArgs(scenario, seed), "--tactic", "auto", "--seed", String(seed)],
+        "--created-at", "2026-10-24T00:00:00.000Z", ...withoutTactics(scenarioArgs(scenario, seed)), "--tactic", "auto", "--seed", String(seed)],
       { cwd: ROOT, encoding: "utf8" });
       assert.equal(result.status, 0, `${result.stderr}${result.stdout}`);
       const { actors } = JSON.parse(readFileSync(join(outDir, "initial-state.json"), "utf8"));
