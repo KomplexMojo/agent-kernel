@@ -20,6 +20,7 @@ import {
 import { PLAY_SIGHT, PLAYER_MOTIVATION } from "../../runtime/src/runner/play-session.js";
 import { ASCII_AIM_GLYPH, ASCII_ENTITY_GLYPHS, ASCII_TERRAIN_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
+import { GAME_COLOR_PALETTE } from "../../runtime/src/contracts/game-elements.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
 
 const BAR_WIDTH = 10;
@@ -370,6 +371,36 @@ export function departuresLine(view) {
     + (entry.how === "exited" ? "left by the exit" : GONE_PHRASE[entry.role] ?? "is gone")).join("; ");
 }
 
+// #488: the picture that takes the board's place when the player is defeated.
+const SKULL = Object.freeze([
+  "      _______      ",
+  "    /         \\    ",
+  "   |  ()   ()  |   ",
+  "   |     ^     |   ",
+  "    \\   ===   /    ",
+  "     |_|_|_|_|     ",
+  "  \\_           _/  ",
+  "     \\_______/     ",
+  "     /       \\     ",
+  "  __/         \\__  ",
+]);
+
+/** Who or what defeated the player: the last cast that landed on them, else a field they stood in. */
+export function defeatCause(view) {
+  const id = view.player?.id;
+  const cast = [...(view.casts || [])].reverse().find((entry) => entry.targetId === id && entry.sourceId !== id);
+  if (cast) return `${cast.sourceLabel ? `${cast.sourceLabel} ` : ""}${cast.sourceId}'s ${cast.kind} ${cast.expression}`;
+  const at = view.player?.position;
+  const sources = (at && view.field?.[at.y]?.[at.x] || []).flatMap((entry) => entry.sources || []).filter((source) => source !== id);
+  return sources.length ? `${[...new Set(sources)].join(", ")}'s field` : null;
+}
+
+function defeatScreen({ view, title, tickLine, color, message }) {
+  const cause = defeatCause(view);
+  return [title, "", ...SKULL.map((row) => `  ${paint(row, GAME_COLOR_PALETTE.items.hazard, color)}`), "",
+    cause ? `Defeated by ${cause}.` : "Defeated.", tickLine, statusLine(view.status, message)].join("\n");
+}
+
 /**
  * @param {object} args
  * @param {object} args.view        createPlaySession().view()
@@ -404,6 +435,7 @@ export function renderScreen({
   helpLines = HELP_LINES,
   hints = true,
 }) {
+  if (view.status?.defeated) return defeatScreen({ view, title, tickLine, color, message });
   const lines = [];
   lines.push(title);
   lines.push("");
