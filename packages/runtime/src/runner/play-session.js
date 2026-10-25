@@ -229,7 +229,9 @@ export async function createPlaySession({
   // One tick of the world, then the party's memory and the departures it caused.
   async function stepWorld(args) {
     const watched = watchedIds();
+    const before = readSnapshot().actors.map((actor) => [actor.id, actor.lifecycle, runtime.hasActorExited(actor.id)]);
     await runtime.step(args);
+    recordEvents(before);
     rememberParty();
     const actors = readSnapshot().actors;
     defeatMarks = defeatMarks.map((mark) => ({ ...mark, age: mark.age + 1 })).filter((mark) => mark.age < DEFEAT_MARK_TICKS);
@@ -241,6 +243,29 @@ export async function createPlaySession({
       departures.push({ id, ...(labels.has(id) ? { label: labels.get(id) } : {}), role, how: actor.lifecycle, ...defeat });
       if (defeat.position) defeatMarks.push({ ...defeat.position, role, age: 0 });
     }
+  }
+
+  // #500: every cast, take, defeat and exit of every actor, whoever could see it. It feeds
+  // `debugView()` only; no player-facing view reads it.
+  const eventLog = [];
+  function recordEvents(before) {
+    const tick = currentTick();
+    const apply = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "apply").at(-1) || {};
+    for (const cast of rawCasts()) {
+      eventLog.push({ tick, event: "cast", sourceId: cast.sourceId, targetId: cast.targetId ?? null, kind: cast.kind,
+        expression: cast.expression, changes: (cast.changes || []).map((change) => ({ ...change })) });
+    }
+    for (const action of apply.acceptedActions || []) {
+      if (action?.kind === "take") eventLog.push({ tick, event: "take", actorId: action.actorId, params: { ...action.params } });
+    }
+    const actors = readSnapshot().actors;
+    for (const [id, lifecycle, exited] of before) {
+      const actor = actors.find((entry) => entry.id === id);
+      if (!actor) continue;
+      if (lifecycle === "alive" && actor.lifecycle === "defeated") eventLog.push({ tick, event: "defeat", actorId: id, by: defeatedBy(actor, actors) });
+      if (!exited && runtime.hasActorExited(id)) eventLog.push({ tick, event: "exit", actorId: id });
+    }
+    if (eventLog.length > 1000) eventLog.splice(0, eventLog.length - 1000);
   }
 
   // Who or what defeated it: the last cast of the tick that landed on it, else the field it lay in.
@@ -549,6 +574,42 @@ export async function createPlaySession({
     };
   }
 
+  /**
+   * #500: the whole level as the analysis console shows it, with no fog and no revealing:
+   * every actor in full, the field on every cell, the event log. For evaluation only; the
+   * player-facing `view()` never carries any of it.
+   */
+  function debugView() {
+    return {
+      tick: currentTick(),
+      seed: simConfig.seed ?? 0,
+      budgetReceiptRef: simConfig.budgetReceiptRef ?? null,
+      actionCosts: simConfig.actionCosts ? structuredClone(simConfig.actionCosts) : null,
+      actors: readSnapshot().actors.map((actor) => ({ ...structuredClone(actor), label: labels.get(actor.id) ?? null,
+        role: categoryOf(actor, presentation) ?? null, exited: runtime.hasActorExited(actor.id) })),
+      field: typeof runtime.readFieldCells === "function" ? structuredClone(runtime.readFieldCells()) : null,
+      events: eventLog.map((entry) => structuredClone(entry)),
+    };
+  }
+
+  /**
+   * #500: the whole level as the analysis console shows it, with no fog and no revealing:
+   * every actor in full, the field on every cell, the event log. For evaluation only; the
+   * player-facing `view()` never carries any of it.
+   */
+  function debugView() {
+    return {
+      tick: currentTick(),
+      seed: simConfig.seed ?? 0,
+      budgetReceiptRef: simConfig.budgetReceiptRef ?? null,
+      actionCosts: simConfig.actionCosts ? structuredClone(simConfig.actionCosts) : null,
+      actors: readSnapshot().actors.map((actor) => ({ ...structuredClone(actor), label: labels.get(actor.id) ?? null,
+        role: categoryOf(actor, presentation) ?? null, exited: runtime.hasActorExited(actor.id) })),
+      field: typeof runtime.readFieldCells === "function" ? structuredClone(runtime.readFieldCells()) : null,
+      events: eventLog.map((entry) => structuredClone(entry)),
+    };
+  }
+
   /** The played commands as a CapturedInputArtifact; `meta` comes from the caller (no clock here). */
   function captureInput({ meta } = {}) {
     if (!meta || ["id", "runId", "createdAt"].some((key) => typeof meta[key] !== "string" || !meta[key])) {
@@ -575,6 +636,7 @@ export async function createPlaySession({
     switchTo,
     resolveActorRef,
     activeActorId: () => activeId,
+    debugView,
     captureInput,
     playerActorId: playerId,
     viabilityReport,

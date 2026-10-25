@@ -59,8 +59,44 @@ const ACTIONS = [["i", "i"], ["f", "f"], ["\t", "Tab"], ["\r", "Enter"], ["\u001
   ["g", "g"], ["o", "o"], ["x", "x"], ["+", "+"], ["-", "-"], ["t", "t"], ["r", "r"], ["?", "?"]];
 const button = ([key, label]) => `<button data-key="${encodeURIComponent(key)}">${label}</button>`;
 
+// #500: the analysis console, only in a `--debug` page. Evaluation, not play: it shows what
+// the player is not told. The panel reads `/debug` (the play session's debugView).
+const DEBUG_STYLE = `
+  body.debug main { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+  #debug { font-size: 12px; max-width: 520px; max-height: 92vh; overflow: auto; border-left: 1px solid #3a3a44; padding-left: 12px; }
+  #debug h3 { margin: 8px 0 4px; font-size: 12px; color: #9a9ab0; }
+  #debug table { border-collapse: collapse; } #debug td, #debug th { padding: 1px 6px 1px 0; text-align: left; vertical-align: top; }
+  #debug .log div { white-space: pre-wrap; }`;
+const DEBUG_PANEL = `<aside id="debug"><b>ANALYSIS (debug)</b><div id="tile">Click a board tile for everything on it.</div><div id="level"></div><div id="actors"></div><div class="log" id="log"></div></aside>`;
+const DEBUG_SCRIPT = `
+let dbg = null;
+const esc = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+const vit = (a) => Object.entries(a.vitals || {}).map(([k, v]) => k + " " + v.current + "/" + v.max + " +" + v.regen).join(", ");
+const aff = (a) => (a.affinities || []).map((f) => f.kind + ":" + f.expression + " r" + f.stacks + (f.intensity ? " i" + f.intensity : "")).join(", ");
+async function refreshDebug() {
+  dbg = await (await fetch("/debug")).json();
+  document.getElementById("level").innerHTML = "<h3>Level</h3>tick " + dbg.tick + ", seed " + dbg.seed + ", receipt "
+    + esc(dbg.budgetReceiptRef ? dbg.budgetReceiptRef.id : "none") + (dbg.actionCosts ? ", action costs " + esc(JSON.stringify(dbg.actionCosts)) : "");
+  document.getElementById("actors").innerHTML = "<h3>Actors</h3><table>" + dbg.actors.map((a) => "<tr><td>" + esc((a.label || "") + " " + a.id)
+    + "</td><td>" + esc(a.role + " " + a.lifecycle + (a.exited ? " exited" : "") + " @" + a.position.x + "," + a.position.y)
+    + "</td><td>" + esc((a.motivations || []).join("+")) + "</td><td>" + esc(vit(a)) + "</td><td>" + esc(aff(a))
+    + (a.activeAffinityKey ? esc(" [active " + a.activeAffinityKey + "]") : "") + "</td></tr>").join("") + "</table>";
+  document.getElementById("log").innerHTML = "<h3>Events</h3>" + dbg.events.slice(-60).reverse().map((e) => "<div>" + esc(JSON.stringify(e)) + "</div>").join("");
+}
+screen.addEventListener("click", (event) => {
+  if (!dbg) return;
+  const probe = document.createElement("span"); probe.textContent = "M".repeat(20); probe.style.visibility = "hidden"; screen.appendChild(probe);
+  const box = probe.getBoundingClientRect(); screen.removeChild(probe);
+  const rect = screen.getBoundingClientRect(); const charW = box.width / 20; const lineH = parseFloat(getComputedStyle(screen).lineHeight) || box.height;
+  const x = Math.floor((event.clientX - rect.left + screen.scrollLeft) / charW) - 2, y = Math.floor((event.clientY - rect.top) / lineH) - 2;
+  const here = dbg.actors.filter((a) => a.position.x === x && a.position.y === y);
+  const field = ((dbg.field && dbg.field[y] && dbg.field[y][x]) || []);
+  document.getElementById("tile").innerHTML = "<h3>Tile " + x + "," + y + "</h3>" + (here.map((a) => esc(JSON.stringify(a))).join("<br>") || "no actor")
+    + "<br>field: " + (field.map((f) => esc(f.kind + " x" + f.stacks + " from " + (f.sources || []).join(","))).join("; ") || "none");
+});`;
+
 // Browser key names -> the keys the terminal keymap reads.
-const PAGE = `<!doctype html>
+const pageFor = (debug) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Deepward</title>
 <style>
@@ -77,15 +113,16 @@ const PAGE = `<!doctype html>
   button:active { background: #33333c; }
   @media (max-width: 600px) { body { font-size: 12px; } main { padding: 8px 16px; } }
   @media (hover: hover) and (pointer: fine) { #touch { display: none; } }
+${debug ? DEBUG_STYLE : ""}
 </style></head>
-<body><main><pre id="screen">Loading…</pre>
+<body${debug ? ' class="debug"' : ""}><main><div><pre id="screen">Loading…</pre>
 <div id="touch"><div id="pad">${PAD.map(button).join("")}</div><div id="actions">${ACTIONS.map(button).join("")}</div></div>
-<div id="note">Same keys as the terminal; ? shows them. On a phone, use the buttons.</div></main>
+<div id="note">Same keys as the terminal; ? shows them. On a phone, use the buttons.</div></div>${debug ? DEBUG_PANEL : ""}</main>
 <script>
 const KEYS = { ArrowUp: "\\u001b[A", ArrowDown: "\\u001b[B", ArrowRight: "\\u001b[C", ArrowLeft: "\\u001b[D",
   Enter: "\\r", Escape: "\\u001b", Tab: "\\t" };
 const screen = document.getElementById("screen");
-const show = (html) => { screen.innerHTML = html; };
+const show = (html) => { screen.innerHTML = html; if (window.refreshDebug) window.refreshDebug(); };
 let queue = Promise.resolve();
 const send = (key) => { queue = queue.then(() => fetch("/key", { method: "POST", body: key }).then((r) => r.text()).then(show)).catch(() => {}); };
 document.addEventListener("keydown", (event) => {
@@ -100,6 +137,7 @@ for (const el of document.querySelectorAll("button[data-key]")) {
 }
 const events = new EventSource("/events");
 events.onmessage = (event) => show(JSON.parse(event.data));
+${debug ? DEBUG_SCRIPT.replace("async function refreshDebug", "window.refreshDebug = async function refreshDebug") : ""}
 </script></body></html>`;
 
 /**
@@ -107,7 +145,8 @@ events.onmessage = (event) => show(JSON.parse(event.data));
  * chain, as in the terminal; real time (`t`, or `realtimeMs`) beats on the same chain.
  * `q` does not quit (the tab is closed instead). Resolves with the server once listening.
  */
-export function startWebGame(game, { port = DEFAULT_WEB_PORT, host = "127.0.0.1", realtimeMs = null } = {}) {
+export function startWebGame(game, { port = DEFAULT_WEB_PORT, host = "127.0.0.1", realtimeMs = null, debug = false } = {}) {
+  const page = pageFor(debug);
   const realtime = { on: realtimeMs !== null, intervalMs: realtimeMs ?? DEFAULT_REALTIME_MS, timer: null };
   const listeners = new Set();
   const render = () => ansiToHtml(`${game.screen({ color: "truecolor" })}\n\n${realtimeLine(realtime)}`);
@@ -141,7 +180,13 @@ export function startWebGame(game, { port = DEFAULT_WEB_PORT, host = "127.0.0.1"
   const server = createServer((request, response) => {
     if (request.method === "GET" && request.url === "/") {
       response.writeHead(200, { "content-type": "text/html; charset=utf-8" });
-      response.end(PAGE);
+      response.end(page);
+      return;
+    }
+    // #500: the analysis data exists only when the server was started with `--debug`.
+    if (debug && request.method === "GET" && request.url === "/debug") {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify(game.debugView()));
       return;
     }
     if (request.method === "GET" && request.url === "/screen") {

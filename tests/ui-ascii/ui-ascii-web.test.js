@@ -68,6 +68,24 @@ test("--lan prints the machine's external IPv4 addresses only", () => {
   }), ["192.168.1.20"]);
 });
 
+// #500: the analysis console is evaluation only, so it exists only with --debug.
+test("the analysis console is absent without --debug and present with it", async () => {
+  const plain = await serve();
+  try {
+    assert.doesNotMatch(await (await fetch(`${plain.base}/`)).text(), /id="debug"/);
+    assert.equal((await fetch(`${plain.base}/debug`)).status, 404);
+  } finally { await plain.stop(); }
+  const debug = await serve({ debug: true });
+  try {
+    assert.match(await (await fetch(`${debug.base}/`)).text(), /id="debug"/);
+    await fetch(`${debug.base}/key`, { method: "POST", body: "." });
+    const data = await (await fetch(`${debug.base}/debug`)).json();
+    assert.ok(data.actors.length > 0 && data.actors.every((actor) => actor.vitals && Array.isArray(actor.affinities)));
+    assert.equal(data.tick, 1);
+    assert.ok(Array.isArray(data.events) && Array.isArray(data.field));
+  } finally { await debug.stop(); }
+});
+
 // ## TODO: Test Permutations
 // - t switches real time on and the events stream pushes a new screen each beat
 // - Esc closes an open panel without ending the game

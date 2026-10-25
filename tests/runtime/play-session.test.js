@@ -422,6 +422,18 @@ test("a warden the player defeats is reported with who did it and marks its tile
   assert.deepEqual(session.view().defeatMarks, [], "the mark clears after a few ticks");
 });
 
+// #500: the debug view logs every cast and defeat of every actor, in full.
+test("debugView lists every actor in full and logs casts and defeats", async () => {
+  const session = await createPlaySession(buildDuelLevel({ playerAffinities: [{ kind: "decay", expression: "push", stacks: 3, intensity: 2 }] }));
+  await session.act(equip("decay:push"));
+  for (let i = 0; i < 6 && !session.view().departures.length; i += 1) await session.act(cast("warden_1"));
+  const debug = session.debugView();
+  assert.deepEqual(debug.actors.map((actor) => actor.id).sort(), ["delver_1", "warden_1"]);
+  assert.ok(debug.actors.every((actor) => actor.vitals.health && Array.isArray(actor.affinities) && actor.role));
+  assert.ok(debug.events.some((entry) => entry.event === "cast" && entry.sourceId === "delver_1" && entry.changes.length > 0));
+  assert.ok(debug.events.some((entry) => entry.event === "defeat" && entry.actorId === "warden_1" && entry.by.id === "delver_1"));
+});
+
 test("a warden a field defeats is reported as the field's doing", async () => {
   const warden = { category: "warden", id: "guard", position: { x: 6, y: 1 }, vitals: viableVitals({ health: 10 }), motivations: ["defending"] };
   const trap = { category: "hazard", id: "rot", position: { x: 7, y: 1 },

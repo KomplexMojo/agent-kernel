@@ -41,6 +41,8 @@ const USAGE = `Usage: ak-maze [options]
                           turn-based by default)
   --web                   play in a browser tab instead: serves the game on http://localhost:<port>
   --port <n>              with --web: the port (default ${DEFAULT_WEB_PORT})
+  --debug                 with --web: add the analysis console (every actor in full, the field on every
+                          tile, an event log); evaluation only, off by default
   --lan                   with --web: also serve the local network, so a phone on the same
                           Wi-Fi can play (prints the address to open)
   --watch                 with --run: watch the run \`ak run\` recorded there, tick by tick
@@ -88,6 +90,7 @@ export function parseArgs(argv) {
       case "--watch": options.watch = true; break;
       case "--web": options.web = true; break;
       case "--lan": options.lan = true; break;
+      case "--debug": options.debug = true; break;
       case "--port": {
         const value = next();
         if (!/^\d+$/.test(value) || Number(value) > 65535) throw new Error(`--port needs a port number, got ${value}`);
@@ -309,17 +312,18 @@ export async function main(argv = process.argv.slice(2)) {
     return 2;
   }
   if (options.web) {
-    const server = await startWebGame(game, { port: options.port ?? DEFAULT_WEB_PORT, realtimeMs: options.realtimeMs ?? null,
+    const server = await startWebGame(game, { port: options.port ?? DEFAULT_WEB_PORT, realtimeMs: options.realtimeMs ?? null, debug: options.debug === true,
       host: options.lan ? "0.0.0.0" : "127.0.0.1" });
     const { port } = server.address();
     console.log(`Playing in your browser: http://localhost:${port}  (Ctrl-C here to stop)`);
+    if (options.debug) console.log("DEBUG: the analysis console is on. This is an evaluation game, not a normal one.");
     if (options.lan) {
       for (const address of lanAddresses()) console.log(`On a phone on the same network: http://${address}:${port}`);
     }
     return null; // keeps serving until stopped
   }
-  if (options.port !== undefined || options.lan) {
-    console.error(`--port and --lan need --web.\n\n${USAGE}`);
+  if (options.port !== undefined || options.lan || options.debug) {
+    console.error(`--port, --lan and --debug need --web.\n\n${USAGE}`);
     return 2;
   }
   if (!process.stdin.isTTY) {

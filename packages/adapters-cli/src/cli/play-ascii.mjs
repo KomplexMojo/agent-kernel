@@ -117,7 +117,7 @@ export function watchAsciiInteractive({ runDir, tick, color }) {
 }
 
 /** Hand the terminal to the UI; resolves with its exit code. */
-export function playAsciiInteractive({ source, color, fog = true, realtime, web = false, port, lan = false, recordPath, replayPath }) {
+export function playAsciiInteractive({ source, color, fog = true, realtime, web = false, port, lan = false, debug = false, recordPath, replayPath }) {
   const colorArgs = [
     ...(color === false ? ["--no-color"] : color === true ? ["--color"] : []),
     ...(fog ? [] : ["--no-fog"]),
@@ -125,6 +125,7 @@ export function playAsciiInteractive({ source, color, fog = true, realtime, web 
     ...(web ? ["--web"] : []),
     ...(port === undefined ? [] : ["--port", String(port)]),
     ...(lan ? ["--lan"] : []),
+    ...(debug ? ["--debug"] : []),
     ...captureArgs({ recordPath, replayPath }),
   ];
   return new Promise((resolveExit, reject) => {

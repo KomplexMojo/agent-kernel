@@ -712,5 +712,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   /** The play session's current view (board, player, party, actors in sight). */
   const view = () => session.view();
 
-  return { handle, command, switchTo, screen, state, view, captureInput, replay };
+  /** #500: the whole level for the analysis console (`--debug`), read from the play session. */
+  const debugView = () => session.debugView();
+  return { handle, command, switchTo, screen, state, view, debugView, captureInput, replay };
 }
