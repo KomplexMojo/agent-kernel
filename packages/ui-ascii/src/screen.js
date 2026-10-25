@@ -174,6 +174,17 @@ export function overlayCastPaths(rows, casts, floorChar, styles = null, cellStyl
   return grid.map((cells) => cells.join(""));
 }
 
+/**
+ * #479: the arrows (`> < ^ v / \\`) a cast leaves on the board are named while they show:
+ * `Cast path: / \\ > < ^ v mark where the last cast went (a push points away from the caster, a pull back).`
+ */
+export function castPathLine(casts) {
+  const glyphs = new Set();
+  for (const cast of Array.isArray(casts) ? casts : []) for (const cell of cast.path || []) if (cell.glyph) glyphs.add(cell.glyph);
+  if (glyphs.size === 0) return null;
+  return `Cast path: ${[...glyphs].join(" ")} mark where the last cast went (a push points away from the caster, a pull back).`;
+}
+
 /** Vitals the actor actually has: a 0/0 pool is absent, not empty. */
 function presentVitals(player) {
   return (player?.vitals || []).filter((vital) => vital.max > 0);
@@ -395,7 +406,7 @@ export function renderScreen({
   if (soakedNote(view.player)) vitals.push(soakedNote(view.player).trim());
   if (vitals.length > 0) lines.push(vitals.join("   "));
   lines.push(...affinityLines(view.player, { hints }));
-  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), departuresLine(view)]) if (line) lines.push(line);
+  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), departuresLine(view), castPathLine(view.casts)]) if (line) lines.push(line);
   lines.push(tickLine);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
   if (Array.isArray(panel) && panel.length > 0) {

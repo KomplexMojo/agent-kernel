@@ -136,6 +136,18 @@ function lootLabel(item) {
   return item.vitals?.length ? grantLabel(item) : "a vital boost";
 }
 
+/** Why `g` finds nothing (#479): who is next to the player and why their holdings are closed. */
+function takeRefusal(view) {
+  const from = view.player?.position;
+  const near = from ? [...(view.actors || []), ...(view.hazards || [])]
+    .filter((actor) => actor.position && Math.max(Math.abs(actor.position.x - from.x), Math.abs(actor.position.y - from.y)) <= 1) : [];
+  if (near.length === 0) return "Nothing here to take.";
+  const spent = near.filter((actor) => actor.role === "resource");
+  if (spent.length > 0) return `${spent[0].id} has nothing left to take.`;
+  const other = near[0];
+  return `${other.label ?? other.id} is still standing: defeat it first, then g takes what it held.`;
+}
+
 const chebyshev = (a, b) => Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y));
 
 /** Everyone in sight the player could aim at, nearest first. Range is core's to judge. */
@@ -450,9 +462,10 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   }
 
   async function openLoot() {
-    const loot = session.view().loot || [];
+    const view = session.view();
+    const loot = view.loot || [];
     if (loot.length === 0) {
-      message = "Nothing here to take.";
+      message = takeRefusal(view);
       return;
     }
     if (loot.length === 1) {
