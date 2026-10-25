@@ -59,7 +59,7 @@ test('artifact loading does not pulse fields or share mutable input state', () =
   input.simConfig.actionCosts.castManaBase['fire:push'] = 0;
   expect(loaded.registry.getActor('caster').vitals.health.current).toBe(10);
   expect(loaded.presentation.caster.category).toBe('delver');
-  expect(loaded.costs.castManaBase['fire:push']).toBe(3);
+  expect(loaded.costs.castManaBase['fire:push']).toBe(2);
 });
 test('the production loader consumes the file-backed valid and invalid actor artifacts', () => {
   const read = name => JSON.parse(readFileSync(new URL(`../fixtures/artifacts/${name}`, import.meta.url), 'utf8'));

@@ -431,52 +431,22 @@ export function normalizeAffinityRulesArtifact(input = {}) {
  * potencies where a kind authors them, the expression ids, and any mana scaling.
  */
 const LINEAR_TIERS = Object.freeze([1, 2, 3, 4, 5]);
+// #477: one price for every kind. The rows differ only in their ids; each expression's tiers are
+// the same shape for every affinity, so no kind is cheaper to play than another.
+const UNIFORM_MANA_COST = Object.freeze({
+  push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS,
+});
 const DEFAULT_AFFINITY_ROWS = Object.freeze({
-  fire: {
-    ids: ["flame_surge", "ember_grasp", "pyre_field", "ember_siphon"],
-    manaCost: { push: [3, 6, 9, 12, 15], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
-    potency: { push: [1, 2, 4, 8, 16], pull: LINEAR_TIERS, emit: LINEAR_TIERS, draw: LINEAR_TIERS },
-    manaScaling: { emit: { persistentAreaSurcharge: 2, environmentMutationSurcharge: 1 } },
-  },
-  water: {
-    ids: ["tidal_ram", "current_draw", "tidal_veil", "tide_siphon"],
-    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 3, 5, 7, 9], draw: LINEAR_TIERS },
-    potency: { push: LINEAR_TIERS, pull: LINEAR_TIERS, emit: LINEAR_TIERS, draw: LINEAR_TIERS },
-    manaScaling: { emit: { persistentAreaSurcharge: 1 } },
-  },
-  earth: {
-    ids: ["stone_ram", "stone_draw", "stone_field", "bedrock_siphon"],
-    manaCost: { push: [3, 5, 7, 9, 11], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
-  },
-  wind: {
-    ids: ["gust_lance", "draft_pull", "storm_ring", "breeze_siphon"],
-    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
-  },
-  growth: {
-    ids: ["bloom_strike", "vital_draw", "verdant_aura", "vitality_siphon"],
-    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: [0, 1, 2, 3, 4] },
-    potency: { pull: LINEAR_TIERS, draw: LINEAR_TIERS },
-  },
-  decay: {
-    ids: ["rot_strike", "wither_draw", "blight_mist", "wither_siphon"],
-    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
-  },
-  corrode: {
-    ids: ["rust_blow", "etch_draw", "acid_haze", "rust_siphon"],
-    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
-  },
-  fortify: {
-    ids: ["bulwark_drive", "anchor_draw", "bulwark_field", "bulwark_siphon"],
-    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
-  },
-  light: {
-    ids: ["prism_burst", "lumen_draw", "radiant_field", "radiance_siphon"],
-    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
-  },
-  dark: {
-    ids: ["shade_lash", "gloom_draw", "umbral_field", "shadow_siphon"],
-    manaCost: { push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS },
-  },
+  fire: { ids: ["flame_surge", "ember_grasp", "pyre_field", "ember_siphon"], manaCost: UNIFORM_MANA_COST },
+  water: { ids: ["tidal_ram", "current_draw", "tidal_veil", "tide_siphon"], manaCost: UNIFORM_MANA_COST },
+  earth: { ids: ["stone_ram", "stone_draw", "stone_field", "bedrock_siphon"], manaCost: UNIFORM_MANA_COST },
+  wind: { ids: ["gust_lance", "draft_pull", "storm_ring", "breeze_siphon"], manaCost: UNIFORM_MANA_COST },
+  growth: { ids: ["bloom_strike", "vital_draw", "verdant_aura", "vitality_siphon"], manaCost: UNIFORM_MANA_COST },
+  decay: { ids: ["rot_strike", "wither_draw", "blight_mist", "wither_siphon"], manaCost: UNIFORM_MANA_COST },
+  corrode: { ids: ["rust_blow", "etch_draw", "acid_haze", "rust_siphon"], manaCost: UNIFORM_MANA_COST },
+  fortify: { ids: ["bulwark_drive", "anchor_draw", "bulwark_field", "bulwark_siphon"], manaCost: UNIFORM_MANA_COST },
+  light: { ids: ["prism_burst", "lumen_draw", "radiant_field", "radiance_siphon"], manaCost: UNIFORM_MANA_COST },
+  dark: { ids: ["shade_lash", "gloom_draw", "umbral_field", "shadow_siphon"], manaCost: UNIFORM_MANA_COST },
 });
 const DEFAULT_TARGET_TYPE_BY_VERB = Object.freeze({ push: "enemy", pull: "self", emit: "area", draw: "self" });
 

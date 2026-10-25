@@ -232,32 +232,27 @@
                 "stackTiers": [
                   {
                     "tier": 1,
-                    "manaCost": 3,
-                    "potency": 1,
+                    "manaCost": 2,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
-                    "manaCost": 6,
-                    "potency": 2,
+                    "manaCost": 4,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
-                    "manaCost": 9,
-                    "potency": 4,
+                    "manaCost": 6,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
-                    "manaCost": 12,
-                    "potency": 8,
+                    "manaCost": 8,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
-                    "manaCost": 15,
-                    "potency": 16,
+                    "manaCost": 10,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -270,31 +265,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "potency": 1,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "potency": 2,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "potency": 3,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "potency": 4,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "potency": 5,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -307,38 +297,29 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "potency": 1,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "potency": 2,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "potency": 3,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "potency": 4,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "potency": 5,
                     "complexityClass": "strategic"
                   }
-                ],
-                "manaScaling": {
-                  "persistentAreaSurcharge": 2,
-                  "environmentMutationSurcharge": 1
-                }
+                ]
               },
               {
                 "id": "ember_siphon",
@@ -348,31 +329,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "potency": 1,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "potency": 2,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "potency": 3,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "potency": 4,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "potency": 5,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -392,31 +368,26 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "potency": 1,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 4,
-                    "potency": 2,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 6,
-                    "potency": 3,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 8,
-                    "potency": 4,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 10,
-                    "potency": 5,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -429,31 +400,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "potency": 1,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "potency": 2,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "potency": 3,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "potency": 4,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "potency": 5,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -466,37 +432,29 @@
                   {
                     "tier": 1,
                     "manaCost": 2,
-                    "potency": 1,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
-                    "manaCost": 3,
-                    "potency": 2,
+                    "manaCost": 4,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
-                    "manaCost": 5,
-                    "potency": 3,
+                    "manaCost": 6,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
-                    "manaCost": 7,
-                    "potency": 4,
+                    "manaCost": 8,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
-                    "manaCost": 9,
-                    "potency": 5,
+                    "manaCost": 10,
                     "complexityClass": "strategic"
                   }
-                ],
-                "manaScaling": {
-                  "persistentAreaSurcharge": 1
-                }
+                ]
               },
               {
                 "id": "tide_siphon",
@@ -506,31 +464,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "potency": 1,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "potency": 2,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "potency": 3,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "potency": 4,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "potency": 5,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -549,27 +502,27 @@
                 "stackTiers": [
                   {
                     "tier": 1,
-                    "manaCost": 3,
+                    "manaCost": 2,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
-                    "manaCost": 5,
+                    "manaCost": 4,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
-                    "manaCost": 7,
+                    "manaCost": 6,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
-                    "manaCost": 9,
+                    "manaCost": 8,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
-                    "manaCost": 11,
+                    "manaCost": 10,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -852,31 +805,26 @@
                   {
                     "tier": 1,
                     "manaCost": 1,
-                    "potency": 1,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
                     "manaCost": 2,
-                    "potency": 2,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
                     "manaCost": 3,
-                    "potency": 3,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
                     "manaCost": 4,
-                    "potency": 4,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
                     "manaCost": 5,
-                    "potency": 5,
                     "complexityClass": "strategic"
                   }
                 ]
@@ -920,32 +868,27 @@
                 "stackTiers": [
                   {
                     "tier": 1,
-                    "manaCost": 0,
-                    "potency": 1,
+                    "manaCost": 1,
                     "complexityClass": "instinctual"
                   },
                   {
                     "tier": 2,
-                    "manaCost": 1,
-                    "potency": 2,
+                    "manaCost": 2,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 3,
-                    "manaCost": 2,
-                    "potency": 3,
+                    "manaCost": 3,
                     "complexityClass": "tactical"
                   },
                   {
                     "tier": 4,
-                    "manaCost": 3,
-                    "potency": 4,
+                    "manaCost": 4,
                     "complexityClass": "strategic"
                   },
                   {
                     "tier": 5,
-                    "manaCost": 4,
-                    "potency": 5,
+                    "manaCost": 5,
                     "complexityClass": "strategic"
                   }
                 ]
