@@ -1659,7 +1659,7 @@
       },
       "motivationRules": {
         "schema": "agent-kernel/MotivationRulesArtifact",
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "meta": {
           "id": "motivation_rules_basic",
           "runId": "run_motivation_rules_basic",
@@ -1670,8 +1670,6 @@
         "contentHash": "sha256:motivation-rules-basic",
         "rulesetName": "Basic Motivation Rules",
         "globals": {
-          "defaultIntensity": 1,
-          "maxIntensity": 10,
           "reasoningClasses": {
             "none": "instinctual",
             "reflexive": "instinctual",
