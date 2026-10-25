@@ -919,11 +919,23 @@ test("a defeated player sees the defeat line; moves do nothing and r restarts th
   const game = await createGame({ levels: [{ name: "ambush", ...level }], fog: false });
   for (let i = 0; i < 30 && !/defeated/.test(game.screen()); i += 1) await press(game, ".");
   assert.match(game.screen(), /You were defeated\. Press r to try the level again, q to quit\./);
+  // #488: the skull replaces the board and the cause is named.
+  assert.match(game.screen(), /\(\)   \(\)/);
+  assert.doesNotMatch(game.screen(), /###/);
+  assert.match(game.screen(), /Defeated by .*warden_1's fire push/);
   const turns = game.state().turns;
   await press(game, "d");
   assert.equal(game.state().turns, turns, "a move after defeat is ignored");
   await press(game, "r");
   assert.doesNotMatch(game.screen(), /You were defeated/);
+});
+
+test("the defeat cause names the casting actor, else the field the player stood in", async () => {
+  const { defeatCause } = await import("../../packages/ui-ascii/src/screen.js");
+  const player = { id: "hero", position: { x: 1, y: 0 } };
+  assert.equal(defeatCause({ player, casts: [{ sourceId: "w1", sourceLabel: "W1", targetId: "hero", kind: "fire", expression: "push" }] }), "W1 w1's fire push");
+  assert.equal(defeatCause({ player, casts: [], field: [[[], [{ sources: ["trap_1"] }]]] }), "trap_1's field");
+  assert.equal(defeatCause({ player, casts: [], field: [[[], []]] }), null);
 });
 
 // ## TODO: Test Permutations
