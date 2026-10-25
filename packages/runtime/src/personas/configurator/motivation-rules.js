@@ -161,20 +161,9 @@ function normalizeGlobals(globals, errors) {
     addError(errors, "globals", "invalid_globals");
     return null;
   }
-  const defaultIntensity = globals.defaultIntensity;
-  const maxIntensity = globals.maxIntensity;
-  if (!Number.isInteger(defaultIntensity) || defaultIntensity < 1) {
-    addError(errors, "globals.defaultIntensity", "invalid_positive_int");
-  }
-  if (!Number.isInteger(maxIntensity) || maxIntensity < 1) {
-    addError(errors, "globals.maxIntensity", "invalid_positive_int");
-  }
-  if (Number.isInteger(defaultIntensity) && Number.isInteger(maxIntensity) && defaultIntensity > maxIntensity) {
-    addError(errors, "globals.maxIntensity", "less_than_default_intensity");
-  }
+  // #377: v1 carried defaultIntensity/maxIntensity, which nothing reads; v2 drops them and a v1
+  // artifact still loads with them ignored.
   return {
-    defaultIntensity: Number.isInteger(defaultIntensity) && defaultIntensity > 0 ? defaultIntensity : 1,
-    maxIntensity: Number.isInteger(maxIntensity) && maxIntensity > 0 ? maxIntensity : 10,
     reasoningClasses: normalizeReasoningClasses(globals.reasoningClasses, "globals.reasoningClasses", errors),
   };
 }
@@ -223,7 +212,7 @@ export function normalizeMotivationRulesArtifact(input = {}) {
   if (input.schema !== MOTIVATION_RULES_ARTIFACT_SCHEMA) {
     addError(errors, "schema", "invalid_schema");
   }
-  if (input.schemaVersion !== 1) {
+  if (input.schemaVersion !== 1 && input.schemaVersion !== 2) {
     addError(errors, "schemaVersion", "invalid_schema_version");
   }
   if (!isPlainObject(input.meta) || !isNonEmptyString(input.meta.id)) {
@@ -295,7 +284,7 @@ export function resolveMotivationRules(rules) {
 
 export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
   schema: MOTIVATION_RULES_ARTIFACT_SCHEMA,
-  schemaVersion: 1,
+  schemaVersion: 2,
   meta: Object.freeze({
     id: "motivation_rules_basic",
     runId: "run_motivation_rules_basic",
@@ -306,8 +295,6 @@ export const DEFAULT_MOTIVATION_RULES_ARTIFACT = Object.freeze({
   contentHash: "sha256:motivation-rules-basic",
   rulesetName: "Basic Motivation Rules",
   globals: Object.freeze({
-    defaultIntensity: 1,
-    maxIntensity: 10,
     reasoningClasses: Object.freeze({
       none: "instinctual",
       reflexive: "instinctual",
