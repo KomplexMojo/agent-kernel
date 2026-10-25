@@ -5,7 +5,6 @@ import {
   getAffinityExpressionCount,
   getAffinityKindCount,
   getAffinityTargetTypeCount,
-  getAffinityTargetVital,
   getDefaultAffinityTargetType,
   getOppositeAffinityKind,
   resolveAffinityRelationshipCode,
@@ -86,7 +85,6 @@ export const CORE_API_KEYS = [
   "getAffinityMatrixUsesStackCancellation",
   "getAffinityMatrixVisualState",
   "getAffinityTargetTypeCount",
-  "getAffinityTargetVital",
   "getAffinityVisualStateCount",
   "getBudget",
   "getBudgetUsage",
@@ -303,7 +301,6 @@ export function createCore(): Record<(typeof CORE_API_KEYS)[number], CoreExport>
   core.getOppositeAffinityKind = getOppositeAffinityKind as CoreFunction;
   core.resolveAffinityRelationshipCode =
     resolveAffinityRelationshipCode as CoreFunction;
-  core.getAffinityTargetVital = getAffinityTargetVital as CoreFunction;
   core.getDefaultAffinityTargetType =
     getDefaultAffinityTargetType as CoreFunction;
   core.affinityExpressionAllowsEnvironmentMutation =
