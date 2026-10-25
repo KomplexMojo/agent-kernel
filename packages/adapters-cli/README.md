@@ -1111,10 +1111,7 @@ Example `InitialStateArtifact.actors[].traits` snippet:
 ```json
 {
   "traits": {
-    "affinities": { "fire:push": 2, "growth:pull": 1 },
-    "abilities": [
-      { "id": "fire_bolt", "kind": "attack", "affinityKind": "fire", "expression": "push", "potency": 4, "manaCost": 6 }
-    ]
+    "affinities": { "fire:push": 2, "growth:pull": 1 }
   }
 }
 ```

@@ -55,7 +55,7 @@ The lists below name the fixtures with a documented purpose; the directory holds
 - actor-loadouts-artifact-v1-basic.json: actor loadouts referencing affinity presets and stacks.
 - sim-config-artifact-v1-configurator-hazard.json: grid layout with kinds and hazard metadata.
 - initial-state-artifact-v1-affinity-base.json: base vitals for affinity resolution before applying presets.
-- initial-state-artifact-v1-configurator-affinity.json: actors seeded with affinity traits and abilities.
+- initial-state-artifact-v1-configurator-affinity.json: actors seeded with affinity traits.
 - sim-config-artifact-v1-unified-run.json / initial-state-artifact-v1-unified-run.json: a 5x5 unified level (terrain, action costs, one delver and one warden) built by the Configurator, for `run` with actor overrides.
 
 ## Solver

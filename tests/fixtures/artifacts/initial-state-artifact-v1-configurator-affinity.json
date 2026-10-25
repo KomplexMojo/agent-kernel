@@ -51,26 +51,6 @@
           "fire:push:enemy": 2,
           "growth:pull:self": 1
         },
-        "abilities": [
-          {
-            "id": "fire_bolt",
-            "kind": "attack",
-            "affinityKind": "fire",
-            "expression": "push",
-            "targetType": "enemy",
-            "potency": 4,
-            "manaCost": 6
-          },
-          {
-            "id": "growth_surge",
-            "kind": "buff",
-            "affinityKind": "growth",
-            "expression": "pull",
-            "targetType": "self",
-            "potency": 1,
-            "manaCost": 0
-          }
-        ],
         "resolvedEffects": [
           {
             "id": "fire:push:enemy:vital",
@@ -137,17 +117,6 @@
         "affinityTargets": {
           "decay:emit:area": 1
         },
-        "abilities": [
-          {
-            "id": "decay_field",
-            "kind": "area",
-            "affinityKind": "decay",
-            "expression": "emit",
-            "targetType": "area",
-            "potency": 1,
-            "manaCost": 2
-          }
-        ],
         "resolvedEffects": [
           {
             "id": "decay:emit:area:vital",
