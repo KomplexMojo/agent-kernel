@@ -14,7 +14,7 @@
 //                sweep").
 //
 // Usage:
-//   node scripts/testing/run-configuration-permutation-sweep.mjs [--dry-run] [--ticks N] [--seed N]
+//   node scripts/testing/run-configuration-permutation-sweep.mjs [--dry-run] [--ticks N] [--seed N] [--only <scenario-id>]
 //
 // acceptedActions/emittedEffects counts are recorded as INFORMATIONAL metadata only, never as a
 // pass/fail signal — treating "an actor did nothing" as itself suspect is exactly the
@@ -70,6 +70,7 @@ const args = process.argv.slice(2);
 const DRY_RUN = args.includes("--dry-run");
 const TICKS = Number(args[args.indexOf("--ticks") + 1] ?? 5) || 5;
 const SEED = Number(args[args.indexOf("--seed") + 1] ?? 0) || 0;
+const ONLY = args.includes("--only") ? args[args.indexOf("--only") + 1] : null;
 
 function buildCreateArgv(scenario, outDir) {
   const { args: a } = scenario;
@@ -195,7 +196,9 @@ function stepLevelCheck(createOutDir, runOutDir, ticksRequested) {
   // Cumulative position replay, tick by tick — the same approach ak_show_state's own (correct)
   // resolveActorPositionsAtTick() uses, applied here as an assertion instead of a rendering.
   const positions = new Map();
+  const solid = new Set();
   for (const actor of initialState?.actors || []) {
+    if (actor?.id && actor.capabilities?.blocksMovement) solid.add(actor.id);
     if (actor?.id && Number.isFinite(actor?.position?.x) && Number.isFinite(actor?.position?.y)) {
       positions.set(actor.id, { x: actor.position.x, y: actor.position.y });
     }
@@ -204,7 +207,7 @@ function stepLevelCheck(createOutDir, runOutDir, ticksRequested) {
   for (const frame of applyFrames) {
     for (const action of frame.acceptedActions || []) {
       if (action.kind !== "move") continue;
-      const to = action.params?.to;
+      const to = action.params?.target;
       if (!to || !Number.isFinite(to.x) || !Number.isFinite(to.y)) {
         violations.push(`tick ${frame.tick}: accepted move for ${action.actorId} has a malformed destination`);
         continue;
@@ -219,6 +222,7 @@ function stepLevelCheck(createOutDir, runOutDir, ticksRequested) {
     // Collision check, after this tick's moves are applied — two solid actors on one tile.
     const occupied = new Map();
     for (const [actorId, pos] of positions) {
+      if (!solid.has(actorId)) continue;
       const key = `${pos.x},${pos.y}`;
       if (occupied.has(key)) {
         violations.push(`tick ${frame.tick}: ${actorId} and ${occupied.get(key)} both occupy (${key}) after accepted moves`);
@@ -320,7 +324,7 @@ rmSync(OUT_ROOT, { recursive: true, force: true });
 mkdirSync(OUT_ROOT, { recursive: true });
 
 const results = [];
-for (const scenario of MATRIX) {
+for (const scenario of MATRIX.filter((entry) => !ONLY || entry.id === ONLY)) {
   const base = resolve(OUT_ROOT, "runs", scenario.id);
   const createOutDir = resolve(base, "create");
   const runOutDir = resolve(base, "run");
