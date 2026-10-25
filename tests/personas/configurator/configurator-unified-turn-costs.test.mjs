@@ -52,3 +52,16 @@ test('the cast price escalates past five stacks', () => {
 });
 // ## TODO: Test Permutations
 // - Verify startup passes this exact configuration through runtime replay artifacts.
+// #477: one price for every kind; no affinity is cheaper to play than another.
+test('every kind has identical cast and emit prices per expression', () => {
+  const { castManaBase } = c.resolveActorTurnCosts({ movementStamina: {} });
+  const kinds = [...new Set(Object.keys(castManaBase).map(key => key.split(':')[0]))];
+  expect(kinds).toHaveLength(10);
+  for (const expression of ['push', 'pull', 'emit', 'draw']) {
+    const prices = new Set(kinds.map(kind => castManaBase[`${kind}:${expression}`]));
+    expect([...prices], expression).toHaveLength(1);
+  }
+  const tiers = kind => [1, 2, 3, 4, 5].map(stacks => ['push', 'pull', 'emit', 'draw']
+    .map(expression => c.resolveAffinityManaCost({ kind, expression, stacks })));
+  for (const kind of kinds) expect(tiers(kind), kind).toEqual(tiers(kinds[0]));
+});

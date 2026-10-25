@@ -28,7 +28,7 @@ function finish(turn) {
   return fields;
 }
 test('authored costs compose with lethal combat, atomic competing claims, equipment and replay', () => {
-  // A range-5 fire push at intensity 2 costs 3 × 2 × 15 = 90 (#232, #340), leaving 5 of 95; it hits for 2 × 2² = 8.
+  // A range-5 fire push at intensity 2 costs 2 × 2 × 15 = 60 (#232, #340, #477), leaving 35 of 95; it hits for 2 × 2² = 8.
   const actors = [actor('caster', 'delver', {
     vitals: { health: { current: 10, max: 10, regen: 0 }, mana: { current: 95, max: 95, regen: 0 } },
     affinities: [{ kind: 'fire', expression: 'push', stacks: 5, intensity: 2 }], activeAffinityKey: 'fire:push' }),
@@ -41,7 +41,7 @@ test('authored costs compose with lethal combat, atomic competing claims, equipm
   const prices = costs(actors); const state = setup(actors);
   const first = createActorTurn(state, 1, prices);
   expect(first.apply({ actorId: 'caster', tick: 1, kind: 'cast_affinity', params: { targetId: 'source' } })).toBe(true);
-  expect(state.getActor('caster').vitals.mana.current).toBe(5);
+  expect(state.getActor('caster').vitals.mana.current).toBe(35);
   expect(state.getActor('source')).toMatchObject({ lifecycle: 'defeated', vitals: {
     durability: { current: 0 }, health: { current: 0 } } });
   expect(state.isMovementBlocked({ x: 1, y: 0 })).toBe(false);
@@ -65,7 +65,7 @@ test('authored costs compose with lethal combat, atomic competing claims, equipm
   expect(replayTurn.snapshot()).toEqual(second.snapshot());
   const third = createActorTurn(state, 3, prices);
   expect(third.apply({ actorId: 'caster', tick: 3, kind: 'equip_affinity', params: { affinityKey: 'earth:emit' } })).toBe(true);
-  expect(state.getActor('caster').vitals.mana.current).toBe(5);
+  expect(state.getActor('caster').vitals.mana.current).toBe(35);
   expect(finish(third).fields.some(field => field.sourceId === 'caster')).toBe(true);
 });
 test('one authored inventory can equip fire draw for absorption or water emit for opposition', () => {
