@@ -401,6 +401,42 @@ test("a defeated actor next to the player offers its affinities as loot, and tak
   assert.deepEqual(session.view().loot, []);
 });
 
+// #490: a defeat is announced with its cause and leaves a mark on the tile for a few ticks.
+test("a warden the player defeats is reported with who did it and marks its tile until it ages out", async () => {
+  const session = await createPlaySession(buildDuelLevel({ playerAffinities: [{ kind: "decay", expression: "push", stacks: 3, intensity: 2 }] }));
+  await session.act(equip("decay:push"));
+  let view = session.view();
+  for (let i = 0; i < 6 && !view.departures.length; i += 1) {
+    await session.act(cast("warden_1"));
+    view = session.view();
+  }
+  assert.equal(view.departures.length, 1);
+  assert.equal(view.departures[0].how, "defeated");
+  assert.equal(view.departures[0].by.id, "delver_1");
+  assert.deepEqual(view.departures[0].position, { x: 2, y: 1 });
+  assert.deepEqual(view.defeatMarks.map(({ x, y }) => ({ x, y })), [{ x: 2, y: 1 }]);
+  const { departuresLine, renderScreen } = require("../../packages/ui-ascii/src/screen.js");
+  assert.match(departuresLine(view), /warden_1 was defeated by D1 delver_1's decay push/);
+  assert.match(renderScreen({ view, levelName: "duel" }), /x/);
+  for (let i = 0; i < 3; i += 1) await session.act({ kind: "wait" });
+  assert.deepEqual(session.view().defeatMarks, [], "the mark clears after a few ticks");
+});
+
+test("a warden a field defeats is reported as the field's doing", async () => {
+  const warden = { category: "warden", id: "guard", position: { x: 6, y: 1 }, vitals: viableVitals({ health: 10 }), motivations: ["defending"] };
+  const trap = { category: "hazard", id: "rot", position: { x: 7, y: 1 },
+    vitals: { durability: { current: 10, max: 10, regen: 1 }, mana: { current: 100, max: 100, regen: 100 } },
+    affinities: [{ kind: "decay", expression: "emit", stacks: 3, intensity: 3 }], activeAffinityKey: "decay:emit" };
+  const session = await createPlaySession(buildUnifiedLevel({ id: "rot", tiles: MAZE, actors: [PLAYER, warden, trap] }));
+  let seen = null;
+  for (let i = 0; i < 20 && !seen; i += 1) {
+    await session.act({ kind: "wait" });
+    seen = session.view().departures.find((entry) => entry.id === "guard") ?? null;
+  }
+  assert.ok(seen, "the field defeated the warden");
+  assert.deepEqual(seen.by, { id: "rot", label: "H1", field: true });
+});
+
 test("an intact resource next to the player is loot: growth and decay players alike take it unbroken (#406)", async () => {
   const chest = {
     category: "resource", id: "chest", position: { x: 3, y: 1 },
