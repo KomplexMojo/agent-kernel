@@ -1,5 +1,5 @@
 {
-  "about": "Playtest scenarios for `bash scripts/game/playtest.sh`. Each is `ak create` run with these arguments, so the Allocator prices every level and the personas build it as they would for a player. {A} is the player's affinity and {B} its opposite; {C} and {D} are another opposed pair; {T1} and {T2} are two kinds whose affinity-table row carries a trait (displace, soak, spread, raise), so every trait comes up across seeds. The seed picks the affinities, so every affinity comes up across runs. tests/simulations/playtest-scenarios.test.mjs builds and runs each one with every affinity as the player's; `knownIssues` lists rule breaks still open, as tests/simulations/scenarios do. A scenario with --tactic is built with --seed set to its seed, so the tactic's placement replays too. `shows` is the one-line summary the scenario list prints.",
+  "about": "Playtest scenarios for `bash scripts/game/playtest.sh`. Each is `ak create` run with these arguments, so the Allocator prices every level and the personas build it as they would for a player. {A} is the player's affinity and {B} its opposite; {C} and {D} are another opposed pair; {T1} and {T2} are two kinds whose affinity-table row carries a trait (soak, spread, raise), so every trait comes up across seeds. The seed picks the affinities, so every affinity comes up across runs. tests/simulations/playtest-scenarios.test.mjs builds and runs each one with every affinity as the player's; `knownIssues` lists rule breaks still open, as tests/simulations/scenarios do. A scenario with --tactic is built with --seed set to its seed, so the tactic's placement replays too. `shows` is the one-line summary the scenario list prints.",
   "createdAt": "2026-10-18T00:00:00.000Z",
   "scenarios": [
     {
@@ -80,10 +80,10 @@
     {
       "id": "traits",
       "title": "Affinity traits",
-      "shows": "two trait kinds in your hands: displace shoves or drags, soak slows, spread creeps (raise has no effect yet)",
+      "shows": "two trait kinds in your hands: soak slows, spread creeps (raise has no effect yet)",
       "focus": [
         "You carry {T1} and {T2} pushes (the start line names their traits). Hit the wardens with each and watch what the trait adds.",
-        "displace: a push shoves the target away, a pull drags it in. soak: a soaked actor pays more stamina per move for a few turns.",
+        "soak: a soaked actor pays more stamina per move for a few turns.",
         "spread: where the push lands a field creeps on, a tile a turn, weaker each step. raise has no effect of its own yet (any kind can raise barriers with z).",
         "The wardens fight back with {B} and {D}: does anything stack up unfairly?"
       ],

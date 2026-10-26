@@ -1,7 +1,6 @@
-// #419 — the affinity table's `trait` column. A kind with the `displace` trait moves what its
-// cast hits: a push one cell away from the caster, a pull one cell toward it, two cells at
-// intensity 3 or more, each step only into a free cell (a wall or an actor stops it, with no
-// extra harm). The rule reads the column, never a kind name, so the kinds are read off the table.
+// #419, #482 (Darren, 2026-10-26) — every kind's landed cast moves what it hits: a push away
+// from the caster, a pull toward it, one cell per point of intensity, each step only into a
+// free cell (a wall or an actor stops it, with no extra harm). Kinds are read off the table.
 import { expect, test } from 'vitest';
 import { createActorRegistry } from '../../packages/core-ts/src/state/actor-registry.ts';
 import { castFocusedActorAffinity } from '../../packages/core-ts/src/rules/actor-cast.ts';
@@ -10,8 +9,7 @@ import type { ActorRecord, ActorAffinityEntry, AffinityKind } from '../../packag
 
 const W = 9;
 const CENTRE = { x: 4, y: 4 };
-const DISPLACERS = AFFINITY_TABLE.filter(row => row.trait === 'displace').map(row => row.kind);
-const OTHERS = AFFINITY_TABLE.filter(row => row.trait !== 'displace').map(row => row.kind);
+const DISPLACERS = AFFINITY_TABLE.map(row => row.kind);
 
 function actor(id: string, position: { x: number; y: number }, pair?: ActorAffinityEntry): ActorRecord {
   return { id, alignment: id === 'source' ? 'external' : 'dungeon', lifecycle: 'alive', position: { ...position },
@@ -36,12 +34,12 @@ function cast(kind: AffinityKind, expression: 'push' | 'pull', { target = { x: 5
 
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
 
-test('the table names a trait per row, from a fixed set, and some kind displaces', () => {
-  for (const row of AFFINITY_TABLE) expect([null, 'displace', 'soak', 'spread', 'raise']).toContain(row.trait);
-  expect(DISPLACERS.length).toBeGreaterThan(0);
+test('the table names a trait per row, from a fixed set, and every kind displaces', () => {
+  for (const row of AFFINITY_TABLE) expect([null, 'soak', 'spread', 'raise']).toContain(row.trait);
+  expect(DISPLACERS.length).toBe(10);
 });
 
-test('a displacing push moves the target one cell away from the caster, in every direction', () => {
+test('a push moves the target one cell away from the caster, in every direction', () => {
   for (const kind of DISPLACERS) {
     for (const [dx, dy] of DIRECTIONS) {
       const target = { x: CENTRE.x + dx * 2, y: CENTRE.y + dy * 2 };
@@ -52,7 +50,7 @@ test('a displacing push moves the target one cell away from the caster, in every
   }
 });
 
-test('a displacing pull moves the target one cell toward the caster, in every direction', () => {
+test('a pull moves the target one cell toward the caster, in every direction', () => {
   for (const kind of DISPLACERS) {
     for (const [dx, dy] of DIRECTIONS) {
       const target = { x: CENTRE.x + dx * 3, y: CENTRE.y + dy * 3 };
@@ -61,11 +59,12 @@ test('a displacing pull moves the target one cell toward the caster, in every di
   }
 });
 
-test('intensity 3 or more moves two cells', () => {
+test('the move is one cell per point of intensity', () => {
   for (const kind of DISPLACERS) {
-    expect(cast(kind, 'push', { target: { x: 5, y: 4 }, intensity: 3 }).at).toEqual({ x: 7, y: 4 });
-    expect(cast(kind, 'pull', { target: { x: 7, y: 4 }, intensity: 3 }).at).toEqual({ x: 5, y: 4 });
-    expect(cast(kind, 'push', { target: { x: 5, y: 4 }, intensity: 2 }).at).toEqual({ x: 6, y: 4 });
+    expect(cast(kind, 'push', { target: { x: 5, y: 4 }, intensity: 1 }).at).toEqual({ x: 6, y: 4 });
+    expect(cast(kind, 'push', { target: { x: 5, y: 4 }, intensity: 2 }).at).toEqual({ x: 7, y: 4 });
+    expect(cast(kind, 'push', { target: { x: 5, y: 4 }, intensity: 3 }).at).toEqual({ x: 8, y: 4 });
+    expect(cast(kind, 'pull', { target: { x: 8, y: 4 }, intensity: 3 }).at).toEqual({ x: 5, y: 4 });
   }
 });
 
@@ -86,16 +85,6 @@ test('a wall or an actor stops the move, with no extra harm; a far move stops wh
     expect(adjacent.source).toEqual(CENTRE);
     // The board's edge stops it too.
     expect(cast(kind, 'push', { target: { x: 8, y: 4 } }).at).toEqual({ x: 8, y: 4 });
-  }
-});
-
-test('kinds without the trait move nothing', () => {
-  for (const kind of OTHERS) {
-    for (const expression of ['push', 'pull'] as const) {
-      const { at, result } = cast(kind, expression, { target: { x: 6, y: 4 } });
-      expect(at, `${kind} ${expression}`).toEqual({ x: 6, y: 4 });
-      expect(result.displaced ?? []).toEqual([]);
-    }
   }
 });
 

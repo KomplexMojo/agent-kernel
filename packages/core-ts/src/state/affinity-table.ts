@@ -26,8 +26,8 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from './actor-t
  *   has all but conceals, fire only illuminates, dark only conceals. Sight and reveal read
  *   these columns, so a kind opts in by its row, never by code.
  * - `trait` (#419, Darren 2026-10-18): the kind's physical identity beyond the vital it hits,
- *   or null. `displace` (wind): a push moves what it hits one cell away from the caster, a pull
- *   one cell toward it (rules/actor-cast.ts). `soak` (water, #420): a push that lands, or an
+ *   or null. Displacement (a landed push moves its target away from the caster, a pull toward
+ *   it, one cell per intensity) is not a trait: every kind does it (#482, rules/actor-cast.ts). `soak` (water, #420): a push that lands, or an
  *   emit field the receiver takes something from, soaks it for `intensity` turns, each move
  *   costing SOAK_MOVE_STAMINA more (rules/actor-cast.ts, rules/actor-fields.ts). `spread`
  *   (fire, #421): where a push lands its field creeps on, a cell and one intensity a turn, by
@@ -36,7 +36,7 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from './actor-t
  */
 export type AffinityOutwardOperation = 'damage' | 'restore';
 export type AffinityInwardOperation = 'drain';
-export type AffinityTrait = 'displace' | 'soak' | 'spread' | 'raise';
+export type AffinityTrait = 'soak' | 'spread' | 'raise';
 export type AffinityFormulaId = keyof typeof AFFINITY_FORMULAS;
 
 export interface AffinityTableRow {
@@ -94,7 +94,7 @@ export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
   row('fire', 'durability', 'damage', 'drain', 'defeat', { illuminates: true, trait: 'spread' }),
   row('water', 'stamina', 'damage', 'drain', 'defeat', { trait: 'soak' }),
   row('earth', 'durability', 'damage', 'drain', 'defeat', { trait: 'raise' }),
-  row('wind', 'stamina', 'damage', 'drain', 'defeat', { trait: 'displace' }),
+  row('wind', 'stamina', 'damage', 'drain', 'defeat'),
   row('growth', 'health', 'restore', 'drain', null),
   row('decay', 'health', 'damage', 'drain', 'defeat'),
   row('corrode', 'durability', 'damage', 'drain', 'defeat'),

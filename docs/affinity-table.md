@@ -43,9 +43,10 @@ what stands in it; it cancels illumination and revealing by intensity.
 
 ## Traits
 
-A kind's physical identity beyond the vital it hits (#419), or none. Displace: a push moves what it
-hits one cell away from the caster and a pull one cell toward it (two cells at intensity 3 or more),
-only into a free cell; a wall, the board's edge or an actor stops it. Soak (#420): a push that lands,
+A kind's physical identity beyond the vital it hits (#419), or none. Displacement is not a trait
+(#482): every kind's landed push moves what it hits away from the caster and every pull toward it, one
+cell per point of intensity, only into free cells; a wall, the board's edge or an actor stops it, with
+no extra harm. Soak (#420): a push that lands,
 or an emit field the receiver takes something from, soaks it for the hit's intensity in turns (a field
 keeps it soaked while it stands there); each move costs one more stamina while soaked. Spread (#421):
 where a push lands, its field creeps each turn to a seeded random neighbour that is not a wall, one
@@ -57,7 +58,7 @@ it reaches for no further mana. Raise is recorded, and raising barriers is open 
 | fire | spread |
 | water | soak |
 | earth | raise |
-| wind | displace |
+| wind | none |
 | growth | none |
 | decay | none |
 | corrode | none |

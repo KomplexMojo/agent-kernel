@@ -578,10 +578,11 @@ test("in colour, remembered cells are dimmed and unseen cells take the fog fill"
 });
 
 // #202: affinities from the keyboard. `i` lists them, a digit equips, `f` aims and casts, `g` takes.
-function duelLevels({ wardenAt = { x: 2, y: 1 }, pushKind = "water" } = {}) {
+const WALLED_DUEL = ["#####", "#..##", "#...E", "#####"];
+function duelLevels({ wardenAt = { x: 2, y: 1 }, pushKind = "water", tiles = ["######", "#....#", "#....E", "######"] } = {}) {
   const level = buildUnifiedLevel({
     id: "duel",
-    tiles: ["######", "#....#", "#....E", "######"],
+    tiles,
     actors: [
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
         vitals: viableVitals({ mana: 80 }), affinities: [
@@ -793,7 +794,7 @@ test("in the target list a move key switches to aiming at a tile, and Tab goes b
 
 test("g takes the loot of a defeated neighbour", async () => {
   // #353: decay hits the defeat vital (health) directly; water would empty stamina first.
-  const game = await createGame({ levels: duelLevels({ pushKind: "decay" }), fog: false });
+  const game = await createGame({ levels: duelLevels({ pushKind: "decay", tiles: WALLED_DUEL }) /* #482: a hit knocks its target back; a wall behind it keeps it in reach */, fog: false });
   await press(game, "i1");
   for (let i = 0; i < 6 && /Target: warden_1/.test((await press(game, "f"), game.screen())); i += 1) await press(game, "\r");
   await press(game, "\u001b");

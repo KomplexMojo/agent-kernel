@@ -339,7 +339,8 @@ test("without fog, every cell is visible", async () => {
 function buildDuelLevel({ playerAffinities = [{ kind: "water", expression: "push", stacks: 3, intensity: 2 }, { kind: "light", expression: "emit", stacks: 1 }] } = {}) {
   return buildUnifiedLevel({
     id: "duel",
-    tiles: ["######", "#....#", "#....E", "######"],
+    // #482: a hit knocks its target back, so the warden stands against a wall and stays in reach.
+    tiles: ["#####", "#..##", "#...E", "#####"],
     actors: [
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
         vitals: viableVitals({ mana: 80 }), affinities: playerAffinities },
@@ -515,11 +516,12 @@ test("a level below the viability floor still plays as written; the floor is onl
 // #201: the game can be lost. Defeat is core's verdict (the player's lifecycle); once it
 // lands, status() says so and the session refuses further commands without ticking.
 test("a player worn down by a warden is defeated, and the session then refuses to act", async () => {
-  const warden = { category: "warden", id: "warden_1", position: { x: 3, y: 1 }, motivations: ["attacking"],
+  // #482: a hit knocks the player back, so the player stands against a wall and stays in reach.
+  const warden = { category: "warden", id: "warden_1", position: { x: 2, y: 2 }, motivations: ["attacking"],
     vitals: viableVitals({ mana: 200 }), affinities: [{ kind: "fire", expression: "push", stacks: 3, intensity: 2 }],
     activeAffinityKey: "fire:push" };
   const level = buildUnifiedLevel({ id: "mvp_maze", tiles: MAZE,
-    actors: [{ ...PLAYER, vitals: viableVitals({ health: 10 }) }, warden] });
+    actors: [{ ...PLAYER, position: { x: 1, y: 2 }, vitals: viableVitals({ health: 10 }) }, warden] });
   const session = await createPlaySession(level);
   assert.equal(session.status().defeated, false);
   let result;
