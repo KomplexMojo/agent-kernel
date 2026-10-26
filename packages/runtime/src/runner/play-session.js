@@ -471,7 +471,51 @@ export async function createPlaySession({
     return { ...command, params: { ...command.params, targetId: resolved } };
   }
 
+  // #497 (Darren, 2026-10-26): a one-turn look at one target. It runs a waiting tick for the
+  // seated actor, then records what the seat can read of the target: its vitals, affinities
+  // and motivations, capped by the reveal level there (at least 1, so a look always shows
+  // the basics). The reading is the seat's memory of that moment, never live state.
+  const inspections = new Map();
+  async function inspect(command, actorRef) {
+    const actorId = actorRef === undefined ? activeId : resolveActorRef(actorRef);
+    const targetId = resolveActorRef(command.params?.targetId);
+    const refuse = (reason) => ({ tick: currentTick(), accepted: [], status: status(),
+      rejected: [{ actorId: actorId ?? actorRef, tick: currentTick() + 1, kind: "inspect", params: { targetId: command.params?.targetId }, reason }] });
+    if (actorId === undefined) return refuse("unknown_actor");
+    if (!partyIds.includes(actorId)) return refuse("not_playable");
+    const before = statusOf(actorId);
+    if (before.exited || before.defeated) return refuse(before.exited ? "exited" : "defeated");
+    const actors = readSnapshot().actors;
+    const target = actors.find((actor) => actor.id === targetId && actor.lifecycle === "alive" && actor.id !== actorId);
+    if (!target) return refuse("InvalidTarget");
+    const visible = fog ? readVisible() : null;
+    if (visible && !visible[target.position.y]?.[target.position.x]) return refuse("TargetNotInSight");
+    departures = [];
+    const wait = { kind: "wait" };
+    await stepWorld({ actorCommands: { [actorId]: wait } });
+    commandLog.push({ tick: currentTick(), actorId, command: wait });
+    const after = readSnapshot().actors.find((actor) => actor.id === targetId);
+    if (after && after.lifecycle === "alive") {
+      const levels = fog && typeof runtime.readRevealLevels === "function" ? runtime.readRevealLevels(actorId) : null;
+      const level = levels && !partyIds.includes(targetId) ? Math.max(1, levels[targetId] ?? 0) : undefined;
+      if (!inspections.has(actorId)) inspections.set(actorId, new Map());
+      inspections.get(actorId).set(targetId, { tick: currentTick(),
+        reading: toViewActor(after, presentation, labels, level, typeof runtime.readAffinityUpkeepTable === "function" ? runtime.readAffinityUpkeepTable() : []) });
+    }
+    return { tick: currentTick(), rejected: [], status: status(),
+      accepted: [{ actorId, tick: currentTick(), kind: "inspect", params: { targetId } }] };
+  }
+
+  function inspectionsView(snapshot) {
+    const kept = inspections.get(activeId);
+    if (!kept) return [];
+    return [...kept].filter(([id]) => snapshot.actors.some((actor) => actor.id === id && actor.lifecycle === "alive"))
+      .sort(([left], [right]) => compareIds(left, right))
+      .map(([, entry]) => ({ ...structuredClone(entry.reading), inspectedAt: entry.tick, age: currentTick() - entry.tick }));
+  }
+
   async function act(command, { actorId: actorRef } = {}) {
+    if (command?.kind === "inspect") return inspect(command, actorRef);
     const normalized = withTargetResolved(normalizePlayCommand(command));
     const actorId = actorRef === undefined ? activeId : resolveActorRef(actorRef);
     const refuse = (reason, who = actorId ?? actorRef) => {
@@ -586,6 +630,7 @@ export async function createPlaySession({
     return {
       ...built,
       party: partyView(snapshot),
+      inspections: inspectionsView(snapshot),
       lastSeen: lastSeenView(built.actors, snapshot, fogOn ? readVisible() : null),
       casts: castsView(snapshot, fogOn ? readVisible() : null),
       vitalChanges: vitalChangesView(snapshot, fogOn ? readVisible() : null),

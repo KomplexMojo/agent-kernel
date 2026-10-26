@@ -121,7 +121,8 @@ test("keys map to intents: arrows, WASD, vi keys, diagonals, wait, quit", () => 
   assert.deepEqual(intentForKey("\u0003"), { type: INTENT.QUIT });
   assert.deepEqual(intentForKey("\r"), { type: INTENT.NEXT_LEVEL });
   assert.deepEqual(intentForKey("z"), { type: INTENT.RAISE }); // #460
-  assert.equal(intentForKey("v"), null);
+  assert.deepEqual(intentForKey("v"), { type: INTENT.INSPECT }); // #497
+  assert.equal(intentForKey("t"), null);
   assert.equal(intentForKey(""), null);
 });
 
@@ -713,7 +714,9 @@ test("a corrode emit ×1 on a fortify warden with regen 1 shows the hit and the 
   await press(game, "i1");
   const change = game.view().vitalChanges.find((entry) => entry.actorId === "warden_1" && entry.vital === "durability");
   assert.deepEqual([change.hit, change.regen], [-1, 1]);
-  assert.match(game.screen(), new RegExp(`W1 DU ${change.current}/${change.max} \\(\u22121 \\+1\\)`));
+  // #497: a hit on someone else shows what it did, not their state.
+  assert.match(game.screen(), /W1 DU \(\u22121 \+1\)/);
+  assert.doesNotMatch(game.screen(), new RegExp(`W1 DU ${change.current}/${change.max}`));
 });
 
 test("the vital line puts the player first, names only hit vitals and keeps to three", () => {
@@ -724,7 +727,7 @@ test("the vital line puts the player first, names only hit vitals and keeps to t
     { actorId: "warden_2", label: "W2", vital: "health", hit: 2, regen: 1, current: 9, max: 10 },
     { actorId: "warden_3", label: "W3", vital: "health", hit: -1, regen: 0, current: 9, max: 10 },
   ] };
-  assert.equal(vitalChangeLine(view), "You HP 7/10 (\u22123)  W1 DU 10/10 (\u22121 +1)  W2 HP 9/10 (+2 +1)");
+  assert.equal(vitalChangeLine(view), "You HP 7/10 (\u22123)  W1 DU (\u22121 +1)  W2 HP (+2 +1)");
   assert.equal(vitalChangeLine({ player: { id: "delver_1" }, vitalChanges: [] }), "");
 });
 
@@ -937,6 +940,31 @@ test("the defeat cause names the casting actor, else the field the player stood 
   assert.equal(defeatCause({ player, casts: [{ sourceId: "w1", sourceLabel: "W1", targetId: "hero", kind: "fire", expression: "push" }] }), "W1 w1's fire push");
   assert.equal(defeatCause({ player, casts: [], field: [[[], [{ sources: ["trap_1"] }]]] }), "trap_1's field");
   assert.equal(defeatCause({ player, casts: [], field: [[[], []]] }), null);
+});
+
+// #497: `v` picks a target and spends a turn looking; the reading stays on screen with its age,
+// and a cast picker shows nothing of the target's state.
+test("v spends a turn to read a target, and the reading stays with its age", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  await press(game, "f");
+  assert.doesNotMatch(game.screen(), /Target: warden_1.*HP/);
+  await press(game, "\u001b");
+  const turns = game.state().turns;
+  await press(game, "v");
+  assert.match(game.screen(), /Inspect: warden_1/);
+  await press(game, "\r");
+  assert.equal(game.state().turns, turns + 1, "looking costs the turn");
+  assert.match(game.screen(), /Inspected W1 warden_1 \(now\): HP 10\/10.*fire push r1/);
+  await press(game, ".");
+  assert.match(game.screen(), /Inspected W1 warden_1 \(1 turn ago\)/);
+});
+
+test("v with nothing in sight says so and costs nothing", async () => {
+  const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: false });
+  const turns = game.state().turns;
+  await press(game, "v");
+  assert.match(game.screen(), /Nothing in sight to inspect\./);
+  assert.equal(game.state().turns, turns);
 });
 
 // ## TODO: Test Permutations

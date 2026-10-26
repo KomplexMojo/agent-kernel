@@ -435,6 +435,30 @@ test("debugView lists every actor in full and logs casts and defeats", async () 
   assert.ok(debug.events.some((entry) => entry.event === "defeat" && entry.actorId === "warden_1" && entry.by.id === "delver_1"));
 });
 
+// #497: an inspection is one turn, capped by the reveal level (at least 1) and kept with its age.
+test("inspect costs a turn and records a reading; without light it reads at the basic level", async () => {
+  const session = await createPlaySession({ ...buildDuelLevel(), fog: true });
+  assert.equal(session.view().inspections.length, 0);
+  const result = await session.act({ kind: "inspect", params: { targetId: "warden_1" } });
+  assert.deepEqual(result.accepted.map((a) => a.kind), ["inspect"]);
+  assert.equal(result.tick, 1);
+  const [reading] = session.view().inspections;
+  assert.equal(reading.id, "warden_1");
+  assert.equal(reading.revealed, 1, "no light: the basic level");
+  assert.ok(reading.vitals.health && reading.affinities.length > 0 && reading.age === 0);
+  await session.act({ kind: "wait" });
+  assert.equal(session.view().inspections[0].age, 1);
+});
+
+test("inspect refuses what is not there, yourself, or what you cannot see, with no tick", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  for (const targetId of ["nobody", "delver_1"]) {
+    const result = await session.act({ kind: "inspect", params: { targetId } });
+    assert.deepEqual(result.rejected.map((r) => r.reason), ["InvalidTarget"], targetId);
+    assert.equal(result.tick, 0);
+  }
+});
+
 test("a warden a field defeats is reported as the field's doing", async () => {
   const warden = { category: "warden", id: "guard", position: { x: 6, y: 1 }, vitals: viableVitals({ health: 10 }), motivations: ["defending"] };
   const trap = { category: "hazard", id: "rot", position: { x: 7, y: 1 },

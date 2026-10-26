@@ -305,6 +305,18 @@ export function revealedDetail(actor) {
   return parts.length ? ` ${parts.join(", ")}` : "";
 }
 
+/** #497: what an inspection read, kept with its age: `Inspected W1 warden_1 (2 turns ago): HP 7/10 ...`. */
+export function inspectionLines(view) {
+  return (Array.isArray(view.inspections) ? view.inspections : []).map((entry) => {
+    const age = entry.age === 0 ? "now" : `${entry.age} ${entry.age === 1 ? "turn" : "turns"} ago`;
+    const vitals = Object.entries(entry.vitals ?? {}).filter(([, vital]) => vital.max > 0)
+      .map(([key, vital]) => `${HUD_VITAL_LABELS[key] ?? key} ${vital.current}/${vital.max}`);
+    const affinities = (entry.affinities ?? []).map((pair) => `${pair.kind} ${pair.expression} r${pair.stacks} ×${pair.intensity ?? 1}`);
+    const body = entry.revealed === 0 ? "nothing readable" : [...vitals, ...affinities].join(", ") || "nothing readable";
+    return `Inspected ${entry.label ? `${entry.label} ` : ""}${entry.id} (${age}): ${body}${entry.revealed === 0 ? "" : motivationNote(entry.motivations)}`;
+  });
+}
+
 function memberNote(status) {
   if (status?.defeated) return " (defeated)";
   if (status?.exited) return " (escaped)";
@@ -488,7 +500,7 @@ export function renderScreen({
   if (soakedNote(view.player)) vitals.push(soakedNote(view.player).trim());
   if (vitals.length > 0) lines.push(vitals.join("   "));
   lines.push(...affinityLines(view.player, { hints }));
-  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)]) if (line) lines.push(line);
+  for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)]) if (line) lines.push(line);
   lines.push(tickLine);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
   if (Array.isArray(panel) && panel.length > 0) {
