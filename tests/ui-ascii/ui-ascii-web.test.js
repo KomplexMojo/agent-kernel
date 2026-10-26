@@ -86,6 +86,31 @@ test("the analysis console is absent without --debug and present with it", async
   } finally { await debug.stop(); }
 });
 
+// #514: a level built with `ak create --out-dir` carries its receipt and price list into the console.
+test("the analysis console carries the build's budget receipt and price list", async () => {
+  const { copyFileSync, mkdtempSync, rmSync } = require("node:fs");
+  const { tmpdir } = require("node:os");
+  const { join } = require("node:path");
+  const { BUNDLED_LEVELS_DIR, loadLevelFromRunDir } = require("../../packages/ui-ascii/src/levels.js");
+  const dir = mkdtempSync(join(tmpdir(), "ak-costing-"));
+  try {
+    copyFileSync(join(BUNDLED_LEVELS_DIR, "first-steps.sim-config.json"), join(dir, "sim-config.json"));
+    copyFileSync(join(BUNDLED_LEVELS_DIR, "first-steps.initial-state.json"), join(dir, "initial-state.json"));
+    copyFileSync(join(__dirname, "../fixtures/artifacts/budget-receipt-artifact-v1-basic.json"), join(dir, "budget-receipt.json"));
+    copyFileSync(join(__dirname, "../fixtures/artifacts/price-list-artifact-v1-basic.json"), join(dir, "price-list.json"));
+    const level = loadLevelFromRunDir(dir);
+    assert.equal(level.costing.receipt.status, "approved");
+    const game = await createGame({ levels: [level], showHelp: false });
+    const server = await startWebGame(game, { port: 0, debug: true });
+    try {
+      const data = await (await fetch(`http://127.0.0.1:${server.address().port}/debug`)).json();
+      assert.equal(data.costing.receipt.totalCost, 0);
+      assert.equal(data.costing.prices.items.length, 2);
+    } finally { server.closeAllConnections(); await new Promise((done) => server.close(done)); }
+    assert.equal(loadBundledLevels()[0].costing, undefined, "bundled levels carry none");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 // ## TODO: Test Permutations
 // - t switches real time on and the events stream pushes a new screen each beat
 // - Esc closes an open panel without ending the game

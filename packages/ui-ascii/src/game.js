@@ -211,7 +211,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
   async function startLevel(index) {
     levelIndex = index;
     const level = levels[levelIndex];
-    session = await createSession({ simConfig: level.simConfig, initialState: level.initialState, fog });
+    session = await createSession({ simConfig: level.simConfig, initialState: level.initialState, fog,
+      ...(level.costing ? { costing: level.costing } : {}) });
     turns = 0;
     message = "";
     panel = null;

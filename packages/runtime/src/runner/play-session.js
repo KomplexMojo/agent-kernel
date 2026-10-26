@@ -138,6 +138,7 @@ export async function createPlaySession({
   clock,
   adapters = {},
   fog = false,
+  costing = null,
 } = {}) {
   if (!simConfig || !initialState) {
     throw new Error("createPlaySession: simConfig and initialState are required");
@@ -652,24 +653,8 @@ export async function createPlaySession({
       seed: simConfig.seed ?? 0,
       budgetReceiptRef: simConfig.budgetReceiptRef ?? null,
       actionCosts: simConfig.actionCosts ? structuredClone(simConfig.actionCosts) : null,
-      actors: readSnapshot().actors.map((actor) => ({ ...structuredClone(actor), label: labels.get(actor.id) ?? null,
-        role: categoryOf(actor, presentation) ?? null, exited: runtime.hasActorExited(actor.id) })),
-      field: typeof runtime.readFieldCells === "function" ? structuredClone(runtime.readFieldCells()) : null,
-      events: eventLog.map((entry) => structuredClone(entry)),
-    };
-  }
-
-  /**
-   * #500: the whole level as the analysis console shows it, with no fog and no revealing:
-   * every actor in full, the field on every cell, the event log. For evaluation only; the
-   * player-facing `view()` never carries any of it.
-   */
-  function debugView() {
-    return {
-      tick: currentTick(),
-      seed: simConfig.seed ?? 0,
-      budgetReceiptRef: simConfig.budgetReceiptRef ?? null,
-      actionCosts: simConfig.actionCosts ? structuredClone(simConfig.actionCosts) : null,
+      // #514: the build's receipt and price list when the caller loaded them (evaluation only).
+      costing: costing ? structuredClone(costing) : null,
       actors: readSnapshot().actors.map((actor) => ({ ...structuredClone(actor), label: labels.get(actor.id) ?? null,
         role: categoryOf(actor, presentation) ?? null, exited: runtime.hasActorExited(actor.id) })),
       field: typeof runtime.readFieldCells === "function" ? structuredClone(runtime.readFieldCells()) : null,
