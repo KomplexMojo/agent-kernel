@@ -77,6 +77,11 @@ async function refreshDebug() {
   dbg = await (await fetch("/debug")).json();
   document.getElementById("level").innerHTML = "<h3>Level</h3>tick " + dbg.tick + ", seed " + dbg.seed + ", receipt "
     + esc(dbg.budgetReceiptRef ? dbg.budgetReceiptRef.id : "none") + (dbg.actionCosts ? ", action costs " + esc(JSON.stringify(dbg.actionCosts)) : "");
+  const rc = dbg.costing && dbg.costing.receipt, pl = dbg.costing && dbg.costing.prices;
+  document.getElementById("level").innerHTML += rc ? "<h3>Budget receipt</h3>" + esc(rc.status + ", total " + rc.totalCost + ", remaining " + rc.remaining)
+    + (rc.lineItems || []).map((i) => "<div>" + esc(JSON.stringify(i)) + "</div>").join("") : "";
+  document.getElementById("level").innerHTML += pl ? "<h3>Price list (" + (pl.items || []).length + ")</h3>"
+    + (pl.items || []).map((i) => "<div>" + esc(i.id + " " + i.kind + " " + i.costTokens) + "</div>").join("") : "";
   document.getElementById("actors").innerHTML = "<h3>Actors</h3><table>" + dbg.actors.map((a) => "<tr><td>" + esc((a.label || "") + " " + a.id)
     + "</td><td>" + esc(a.role + " " + a.lifecycle + (a.exited ? " exited" : "") + " @" + a.position.x + "," + a.position.y)
     + "</td><td>" + esc((a.motivations || []).join("+")) + "</td><td>" + esc(vit(a)) + "</td><td>" + esc(aff(a))

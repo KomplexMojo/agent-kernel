@@ -38,6 +38,14 @@ export function loadBundledLevels(dir = BUNDLED_LEVELS_DIR) {
   return listBundledLevels(dir).map((name) => loadBundledLevel(name, dir));
 }
 
+// #514: the budget receipt and price list an `ak create` build leaves beside its level, for the
+// analysis console. Absent for bundled levels; never read for play.
+function readCosting(dir) {
+  const read = (file) => (existsSync(join(dir, file)) ? readJson(join(dir, file)) : null);
+  const costing = { receipt: read("budget-receipt.json"), prices: read("price-list.json") };
+  return costing.receipt || costing.prices ? { costing } : {};
+}
+
 export function loadLevelFromFiles({ simConfigPath, initialStatePath, name } = {}) {
   if (!simConfigPath || !initialStatePath) {
     throw new Error("Both --sim-config and --initial-state are required together");
@@ -46,6 +54,7 @@ export function loadLevelFromFiles({ simConfigPath, initialStatePath, name } = {
     name: name || basename(simConfigPath).replace(/\.json$/, ""),
     simConfig: readJson(simConfigPath),
     initialState: readJson(initialStatePath),
+    ...readCosting(dirname(simConfigPath)),
   };
 }
 
