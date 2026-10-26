@@ -110,7 +110,9 @@ export function vitalChangeLine(view) {
   return hits.slice(0, VITAL_LINE_LIMIT).map((change) => {
     const who = change.actorId === me ? "You" : change.label ?? change.actorId;
     const regen = change.regen !== 0 ? ` ${signed(change.regen)}` : "";
-    return `${who} ${HUD_VITAL_LABELS[change.vital] ?? change.vital} ${change.current}/${change.max} (${signed(change.hit)}${regen})`;
+    // #497: what a hit did to someone else, not their state; only your own vitals show current/max.
+    const amount = change.actorId === me ? ` ${change.current}/${change.max}` : "";
+    return `${who} ${HUD_VITAL_LABELS[change.vital] ?? change.vital}${amount} (${signed(change.hit)}${regen})`;
   }).join("  ");
 }
 
@@ -374,6 +376,22 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     panel = { type: "target", items: targets, index: 0, ...(affinityKey ? { affinityKey } : {}) };
   }
 
+  // #497: `v` picks a target in sight and spends a turn looking at it.
+  function openInspect() {
+    const targets = targetsInSight(session.view());
+    if (targets.length === 0) {
+      message = "Nothing in sight to inspect.";
+      return;
+    }
+    panel = { type: "target", items: targets, index: 0, inspect: true };
+  }
+
+  async function inspectTarget() {
+    const target = panel.items[panel.index];
+    panel = null;
+    await act({ kind: "inspect", params: { targetId: target.id } }, () => `You study ${target.id}.`);
+  }
+
   // Aiming at a tile (#413): the cursor starts on the player and moves with the move keys.
   // A cast travels the line and hits the first actor or wall (#461); `raise` (key z, #460)
   // raises barriers there instead.
@@ -502,7 +520,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     }
     if (panel.type === "target") {
       // A move key leaves the target list to aim at a tile, one step that way (#413).
-      if (intent.type === INTENT.MOVE) {
+      if (intent.type === INTENT.MOVE && !panel.inspect) {
         openAim(panel.affinityKey, PLAY_DIRECTION_STEPS[intent.direction]);
         return true;
       }
@@ -510,8 +528,8 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         panel.index = (panel.index + 1) % panel.items.length;
         return true;
       }
-      if (intent.type === INTENT.NEXT_LEVEL || intent.type === INTENT.CAST) {
-        await castAtTarget();
+      if (intent.type === INTENT.NEXT_LEVEL || intent.type === INTENT.CAST || (panel.inspect && intent.type === INTENT.INSPECT)) {
+        await (panel.inspect ? inspectTarget() : castAtTarget());
         return true;
       }
     } else if (panel.type === "affinities" && intent.type === INTENT.NEXT_TARGET) {
@@ -596,6 +614,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       case INTENT.RAISE:
         openRaise();
         break;
+      case INTENT.INSPECT:
+        openInspect();
+        break;
       case INTENT.SELECT:
         aimSlot(intent.index);
         break;
@@ -652,7 +673,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
           : "  Move keys aim, Enter casts along the line: it hits the first actor or wall, Tab targets, Esc cancels"];
     }
     const target = panel.items[panel.index];
-    return [`Target: ${target.id}${revealNote(target)}${target.revealed !== undefined ? revealedDetail(target) : ""}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${tiles(target.distance)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})   Tab next, Enter cast, Esc cancel`];
+    // #497: looking costs a turn, so the picker shows what is plainly in view, never the target's state.
+    if (panel.inspect) return [`Inspect: ${target.id}${revealNote(target)} (${tiles(target.distance)} away)   Tab next, Enter spend a turn looking, Esc cancel`];
+    return [`Target: ${target.id}${revealNote(target)}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${tiles(target.distance)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})   Tab next, Enter cast, Esc cancel`];
   }
 
   function screen({ color = false } = {}) {
