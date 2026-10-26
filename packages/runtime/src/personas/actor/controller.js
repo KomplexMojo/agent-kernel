@@ -25,6 +25,7 @@ import {
 } from "../../../../core-ts/src/index.ts";
 import { projectActorEquipmentFields, previewActorFieldChanges } from "../../../../core-ts/src/rules/actor-fields.ts";
 import { actorCastManaPrice } from "../../../../core-ts/src/rules/actor-cast.ts";
+import { computeActorMoveStaminaCost } from "../../../../core-ts/src/rules/move.ts";
 import { equipActorAffinity, equippedActorAffinityKeys } from "../../../../core-ts/src/state/actor-inventory.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 import { actorHoldingsOpen } from "../../../../core-ts/src/state/actor-holdings.ts";
@@ -1013,7 +1014,7 @@ function buildRuntimeDecisionSolverRequest({ envelope, payload, actorId, tick, c
   return request;
 }
 
-function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick, baseTiles, exit }) {
+function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick, baseTiles, exit, rememberedContact = null }) {
   const decisionConfig = resolveRuntimeDecisionConfig({ payload, actorId, view, observation });
   if (!decisionConfig) {
     return null;
@@ -1051,7 +1052,9 @@ function buildRuntimeDecisionEffect({ payload, observation, view, actorId, tick,
     motivationProfiles: resolveActorMotivationKinds(view, actorId, payload)
       .map((kind) => buildMotivationProfile(view, actorId, payload, kind))
       .filter(Boolean),
-    visibleActors,
+    // #516 — a sighting ranks the decision as a seen hostile would; the envelope's
+    // `visibleActors` stays what the actor sees.
+    visibleActors: withRememberedContact(visibleActors, rememberedContact),
     affinityFields,
     affinityContributions: observation?.affinityContributions,
     candidateActions,
@@ -1312,6 +1315,63 @@ function motivationHasCombatRole(motivationKind) {
   return getMotivationCombatTier(code) > 0;
 }
 
+/** #516 — combat tier 1 (attacking): an actor that closes on what it fights. */
+function motivationPursues(motivationKind) {
+  if (typeof motivationKind !== "string" || !motivationKind.trim()) return false;
+  const code = MOTIVATION_KIND_CODES[motivationKind.trim().toLowerCase()];
+  if (!Number.isFinite(code)) return false;
+  return getMotivationCombatTier(code) === 1;
+}
+
+/**
+ * #516 — where an actor that pursues last saw a hostile. Levels are unlit, so without light an
+ * actor sees only what is adjacent, and a push or pull of two or more tiles (#482) takes the
+ * target out of sight. The nearest hostile in sight replaces the sighting; coming back in sight
+ * of that tile and seeing no one forgets it, as a follower does with its ally (strategy
+ * `follow`). An actor that does not pursue, or cannot move, keeps none. Returns the entry to
+ * keep, or null.
+ */
+function resolveContactEntry({ entry, observationView, observation, actorId, payload, tick }) {
+  const self = resolveActorRecord(observationView, actorId, observation);
+  if (!self?.position || self.capabilities?.canMove === false
+    || !resolveActorMotivationKinds(observationView, actorId, payload).some(motivationPursues)) return null;
+  const hostile = resolveNearestHostile(observationView, actorId);
+  if (hostile) {
+    const { x, y } = hostile.actor.position;
+    return { targetId: hostile.actor.id, position: { x, y }, tick: Number.isFinite(tick) ? tick : null };
+  }
+  // Next to the sighting it sees that tile again; an actor it remembers that is in sight and
+  // not hostile now (defeated, gone) is no longer pursued either.
+  if (!entry?.position || chebyshevDistance(self.position, entry.position) <= 1) return null;
+  if ((observationView?.actors ?? []).some((other) => other?.id === entry.targetId)) return null;
+  return entry;
+}
+
+/**
+ * #516 — a sighting as the decision ranks it: a hostile at the remembered tile, with nothing
+ * else known (no vitals), so a step towards it is hostile progress. Never a cast target: the
+ * Actor only casts at what it sees.
+ */
+function withRememberedContact(visibleActors, contact) {
+  if (!contact?.position || visibleActors.some((entry) => entry?.id === contact.targetId)) return visibleActors;
+  return [...visibleActors, { id: contact.targetId, position: { ...contact.position }, hostile: true, remembered: true }];
+}
+
+/**
+ * #516 — can the actor pay for this move? As with casts (#367): the price is the authored
+ * cardinal cost (`simConfig.actionCosts.movementStamina`, set by the Configurator) on core's own
+ * rule, diagonal, sprint and soak included. Without an authored cost or a stamina reading there
+ * is nothing to check against, so the route alone decides, as before.
+ */
+function canAffordMove(proposal, actorRecord, movementStamina) {
+  if (proposal?.kind !== "move" || !proposal.params?.target || !actorRecord?.position) return true;
+  const cardinal = movementStamina?.[actorRecord.id];
+  const stamina = actorRecord.vitals?.stamina?.current;
+  if (!Number.isFinite(cardinal) || !Number.isFinite(stamina)) return true;
+  return stamina >= computeActorMoveStaminaCost(actorRecord.position, proposal.params.target, proposal.params.via,
+    cardinal, Boolean(actorRecord.soaked));
+}
+
 /**
  * #367 — can the actor pay for this slot's cast? The price is the authored base
  * (`simConfig.actionCosts.castManaBase`, set by the Configurator) on core's curve,
@@ -1397,7 +1457,7 @@ function buildEquipmentProposals(actorRecord, observation, view, payload) {
   });
 }
 
-function buildMotivatedProposals({ observation, payload, simConfig, personaSeed }) {
+function buildMotivatedProposals({ observation, payload, simConfig, personaSeed, rememberedContact = null }) {
   const view = resolveObservationView(observation);
   if (!view) return buildMoveProposal({ observation, payload, simConfig });
 
@@ -1458,6 +1518,7 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
       kinds,
       holdsPosition,
       hasCombatRole,
+      rememberedContact,
     }));
   }
 
@@ -1764,12 +1825,19 @@ function buildCombatProposals({
   kinds,
   holdsPosition,
   hasCombatRole,
+  rememberedContact,
 }) {
   const combatKinds = kinds.filter((kind) => motivationHasCombatRole(kind));
   if (combatKinds.length === 0) return [];
 
   const hostile = resolveNearestHostile(view, actorId);
-  if (!hostile) return [];
+  if (!hostile) {
+    // #516 — out of sight is not out of mind: an attacker walks to where it last saw one.
+    if (!rememberedContact || holdsPosition || !combatKinds.some(motivationPursues)) return [];
+    const path = findPath(actor.position, rememberedContact.position,
+      resolveTileKinds(view, payload), resolveBaseTiles(payload, view, simConfig));
+    return path && path.length >= 2 ? [{ kind: "move", params: { target: path[1] } }] : [];
+  }
 
   const adjacent = hostile.distance <= 1;
   const proposals = [];
@@ -1855,6 +1923,16 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       }
     }
     const followsStrategy = strategyTurn && strategyTurn.depth !== STRATEGY_DEPTH.NONE;
+    // #516 — the sighting is kept when the actor decides and pursued when it proposes; both
+    // events carry the same observation. A commanded actor keeps none.
+    const contactEntry = event === "decide" && strategyActorId && payload.command === undefined
+      ? { actorId: strategyActorId, entry: resolveContactEntry({ entry: view().context.contacts?.[strategyActorId],
+        observationView, observation, actorId: strategyActorId, payload, tick }) }
+      : null;
+    const rememberedContact = shouldEmitActions && strategyActorId && !commandProposals
+      && !resolveNearestHostile(observationView, strategyActorId)
+      ? view().context.contacts?.[strategyActorId] ?? null
+      : null;
     // #251 — with no order and no strategy, an escort keeps to its ally before anything else.
     const escortTurn = shouldEmitActions && strategyActorId && !commandProposals && !strategyTurn
       && payload.strategyOrder === undefined
@@ -1881,9 +1959,16 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
           : [];
         derivedProposals = reflex.length > 0
           ? reflex
-          : buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed });
+          : buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed, rememberedContact });
         if (followsStrategy && strategyTurn.keepNear) derivedProposals = keepProposalsNear(derivedProposals, strategyTurn.keepNear);
         if (escortTurn?.keepNear) derivedProposals = keepProposalsNear(derivedProposals, escortTurn.keepNear);
+      }
+      // #516 — a move core would refuse for stamina is not proposed; with none left, the actor
+      // waits, which is how stamina recovers.
+      if (!commandProposals && derivedProposals.length > 0) {
+        const movementStamina = simConfig?.actionCosts?.movementStamina;
+        const affordable = derivedProposals.filter((proposal) => canAffordMove(proposal, decidingActor, movementStamina));
+        derivedProposals = affordable.length > 0 ? affordable : [{ kind: "wait" }];
       }
       // An actor with a strategy always takes its turn, so its progress is always kept.
       if (strategyTurn && derivedProposals.length === 0) derivedProposals = [{ kind: "wait" }];
@@ -1941,6 +2026,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
           tick,
           baseTiles,
           exit,
+          rememberedContact,
         })
       : null;
     if (shouldEmitActions && (!Array.isArray(candidateProposals) || candidateProposals.length === 0) && !runtimeDecisionEffect) {
@@ -1959,6 +2045,7 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       ...(strategyEntry ? { strategyEntry: { actorId: strategyActorId, entry: strategyEntry } } : {}),
       ...(cognitionTurn ? { cognitionEntry: { actorId: strategyActorId, entry: cognitionTurn.entry } } : {}),
       ...(escortTurn ? { escortEntry: { actorId: strategyActorId, entry: escortTurn.entry } } : {}),
+      ...(contactEntry ? { contactEntry } : {}),
       // #457 — where a move was proposed from, so next turn can tell it was refused.
       ...(shouldEmitActions && strategyActorId && !commandProposals ? { moveEntry: { actorId: strategyActorId,
         entry: transitionProposals?.[0]?.kind === "move" && decidingActor?.position
@@ -2005,7 +2092,8 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
           proposals: proposalList.filter((proposal) => (proposal.actorId || baseActorId) === actorId),
           motivationProfiles: resolveActorMotivationKinds(observationView, actorId, payload)
             .map((kind) => buildMotivationProfile(observationView, actorId, payload, kind)).filter(Boolean),
-          visibleActors: resolveVisibleActors(observationView, actorId),
+          visibleActors: withRememberedContact(resolveVisibleActors(observationView, actorId),
+            actorId === strategyActorId ? rememberedContact : null),
           affinityFields: Array.isArray(observation?.affinityFields) ? observation.affinityFields : [],
           affinityContributions: observation?.affinityContributions,
           exit: actorCanExit(actorRecord) ? resolveExit(payload, observationView, baseTiles, simConfig) : null,

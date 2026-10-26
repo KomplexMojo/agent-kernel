@@ -54,6 +54,7 @@ export function createActorStateMachine({ initialState = ActorStates.IDLE, clock
     if (context.cognition) copy.cognition = structuredClone(context.cognition);
     if (context.escorts) copy.escorts = structuredClone(context.escorts);
     if (context.moves) copy.moves = structuredClone(context.moves);
+    if (context.contacts) copy.contacts = structuredClone(context.contacts);
     return { state, context: copy };
   }
 
@@ -100,6 +101,16 @@ export function createActorStateMachine({ initialState = ActorStates.IDLE, clock
       else delete moves[moveEntry.actorId];
       if (Object.keys(moves).length > 0) nextContext.moves = moves;
       else delete nextContext.moves;
+    }
+
+    // #516 — per actor, where it last saw a hostile (null: it has none to pursue).
+    const contactEntry = payload.contactEntry;
+    if (contactEntry && typeof contactEntry.actorId === "string" && contactEntry.actorId) {
+      const contacts = { ...(context.contacts || {}) };
+      if (contactEntry.entry) contacts[contactEntry.actorId] = structuredClone(contactEntry.entry);
+      else delete contacts[contactEntry.actorId];
+      if (Object.keys(contacts).length > 0) nextContext.contacts = contacts;
+      else delete nextContext.contacts;
     }
 
     state = nextState;
