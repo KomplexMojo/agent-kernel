@@ -116,6 +116,22 @@ test("actors a tactic adds beside an authored one are not held to its authored v
   expect(checkRules(scenario, analysis).filter((v) => v.rule === "authored_vitals")).toEqual([]);
 });
 
+test("an equipped push or pull that costs more than max mana can never be cast, so it is a violation (#478)", () => {
+  // Price is base × intensity × range(range + 1)/2: fire:push 3:3 at base 2 costs 36, against max mana 30.
+  const caster = (id, intensity) => ({ ...delver(id), vitals: { mana: { current: 30, max: 30, regen: 3 } },
+    affinities: [{ kind: "fire", expression: "push", stacks: 3, intensity }], equippedAffinityKeys: ["fire:push"] });
+  const actors = [caster("over-1", 3), caster("fits-1", 2)];
+  const analysis = analyzeRun({ initialState: { actors }, frames: frames([{ actors }]), castManaBase: { "fire:push": 2 } });
+  expect(checkRules({ args: [] }, analysis).filter((v) => v.rule === "unaffordable_cast"))
+    .toEqual([{ rule: "unaffordable_cast", actor: "over-1", detail: "fire:push costs 36, max mana 30" }]);
+});
+
+test("without cast prices nothing is judged unaffordable", () => {
+  const actor = { ...delver("a-1"), affinities: [{ kind: "fire", expression: "push", stacks: 9, intensity: 9 }], equippedAffinityKeys: ["fire:push"] };
+  const analysis = analyzeRun({ initialState: { actors: [actor] }, frames: frames([{ actors: [actor] }]) });
+  expect(checkRules({ args: [] }, analysis).filter((v) => v.rule === "unaffordable_cast")).toEqual([]);
+});
+
 test("known issues hide their violations and are reported once they stop happening", () => {
   const scenario = { knownIssues: [{ rule: "no_exit", issue: "#1" }, { rule: "silent_actor", actor: "x-1", issue: "#2" }] };
   const { unexpected, fixed } = compareWithKnown(scenario, [{ rule: "no_exit" }, { rule: "refused_streak", actor: "y-1" }]);

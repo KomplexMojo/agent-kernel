@@ -14,8 +14,9 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { actorCastableAffinities } from "../../packages/core-ts/src/rules/actor-cast.ts";
+import { actorCastManaPrice, actorCastableAffinities, isCastableExpression } from "../../packages/core-ts/src/rules/actor-cast.ts";
 import { readActorRegistryObservation, readActorRegistryVisibleCells } from "../../packages/core-ts/src/rules/actor-observation.ts";
+import { affinityIntensity, affinityKey, equippedActorAffinities } from "../../packages/core-ts/src/state/actor-inventory.ts";
 import { createActorRegistry } from "../../packages/core-ts/src/state/actor-registry.ts";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -42,6 +43,7 @@ export const RULES = Object.freeze({
   authored_vitals: "an actor's vitals differ from the ones its spec authored",
   no_exit: "the scenario expects a delver to leave, and none did",
   idle_attacker: `an attacking actor had a hostile in sight and cast reach for ${IDLE_ATTACKER_LIMIT}+ turns in a row and landed no cast`,
+  unaffordable_cast: "an actor has a push or pull equipped that costs more than its max mana, so it can never cast it",
 });
 
 // Motivations that never move or fight on their own; an actor with only these may stay silent.
@@ -88,7 +90,8 @@ export async function runScenario(scenario, { keep = false } = {}) {
     }
     const initialState = JSON.parse(readFileSync(join(createDir, "initial-state.json"), "utf8"));
     const frames = JSON.parse(readFileSync(join(runDir, "tick-frames.json"), "utf8"));
-    return { ...result, ...analyzeRun({ initialState, frames }) };
+    const castManaBase = JSON.parse(readFileSync(join(createDir, "sim-config.json"), "utf8")).actionCosts?.castManaBase;
+    return { ...result, ...analyzeRun({ initialState, frames, castManaBase }) };
   } finally {
     if (!keep) rmSync(outRoot, { recursive: true, force: true });
   }
@@ -96,8 +99,22 @@ export async function runScenario(scenario, { keep = false } = {}) {
 
 const isObjectActor = (actor) => actor?.capabilities?.canMove === false && (actor.motivations ?? []).length === 0;
 
+/**
+ * #478: each equipped push or pull whose price on core's curve is above the actor's max mana.
+ * Without the run's cast prices (`castManaBase` from the sim config) nothing is judged.
+ */
+function unaffordableCasts(actor, castManaBase) {
+  const maxMana = actor.vitals?.mana?.max ?? 0;
+  if (!castManaBase) return [];
+  return equippedActorAffinities(actor).filter((pair) => isCastableExpression(pair.expression)).flatMap((pair) => {
+    const base = castManaBase[affinityKey(pair)];
+    const price = base === undefined ? undefined : actorCastManaPrice(base, pair.stacks, affinityIntensity(pair));
+    return price !== undefined && price > maxMana ? [`${affinityKey(pair)} costs ${price}, max mana ${maxMana}`] : [];
+  });
+}
+
 /** Per-actor timelines and run metrics, read from the initial state and the tick frames. */
-export function analyzeRun({ initialState, frames }) {
+export function analyzeRun({ initialState, frames, castManaBase = null }) {
   const actors = {};
   for (const actor of initialState.actors ?? []) {
     actors[actor.id] = {
@@ -109,6 +126,7 @@ export function analyzeRun({ initialState, frames }) {
       proposed: 0, accepted: 0, casts: 0, moves: 0,
       refusedStreak: 0, maxRefusedStreak: 0, silentStreak: 0, maxSilentStreak: 0, idleStreak: 0, maxIdleStreak: 0, idleNote: null,
       minVitals: {}, lifecycle: actor.lifecycle, exitedAt: null, defeatedAt: null,
+      unaffordable: isObjectActor(actor) ? [] : unaffordableCasts(actor, castManaBase),
     };
   }
   const proposedByTick = new Map();
@@ -261,6 +279,7 @@ export function checkRules(scenario, analysis) {
     if (record.maxIdleStreak >= IDLE_ATTACKER_LIMIT) {
       violations.push({ rule: "idle_attacker", actor: record.id, detail: `${record.maxIdleStreak} turns; ${record.idleNote}` });
     }
+    for (const detail of record.unaffordable ?? []) violations.push({ rule: "unaffordable_cast", actor: record.id, detail });
     if (record.defeatedAt !== null && record.defeatedAt <= 1) {
       violations.push({ rule: "tick_one_defeat", actor: record.id });
     }
