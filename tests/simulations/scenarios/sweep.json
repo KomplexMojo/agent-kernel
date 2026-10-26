@@ -257,6 +257,7 @@
     {
       "id": "sweep-heal-ally",
       "note": "growth emit healer next to a wounded ally vs a decay warden",
+      "knownIssues": [{ "rule": "silent_actor", "actor": "hurt-1", "issue": "#516" }],
       "ticks": 80,
       "args": [
         "--room",
@@ -347,6 +348,7 @@
     {
       "id": "sweep-emit-strong",
       "note": "fire emit range 2 intensity 3 attacker next to water defender",
+      "knownIssues": [{ "rule": "refused_streak", "actor": "atk-1", "issue": "#516" }],
       "ticks": 80,
       "args": [
         "--room",

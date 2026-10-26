@@ -97,10 +97,10 @@ meets the same receiver rules as a field (`rules/actor-receiver.ts`, #348): a sa
 draw absorbs it into mana, a same-kind slot the interaction table makes immune takes
 nothing, an opposite slot doubles damage and drain. A cast at oneself meets none of them. The price
 is taken after a cast's effect, so mana the cast brings back to its caster (a mana steal, a mana
-restore on itself) never refunds it: every use costs mana (#369). A kind whose table row has the
-`displace` trait (#419) also moves what its cast hits: a push one cell away from the caster, a pull
-one cell toward it, two cells at intensity 3 or more, each step only into a free cell; the result
-lists the move as `displaced`. A landed push of a `soak`-trait kind (#420) soaks its target for
+restore on itself) never refunds it: every use costs mana (#369). Every landed
+push or pull (#419, #482) also moves what it hits: a push away from the caster, a pull toward it,
+one cell per point of intensity, each step only into a free cell; the result lists the move as
+`displaced`. A landed push of a `soak`-trait kind (#420) soaks its target for
 its intensity in turns (`soaked` on the result and the actor); so does standing in that kind's
 emit field, which keeps the actor soaked while it stays. Each move costs one more stamina while
 soaked. A run's

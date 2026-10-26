@@ -94,15 +94,19 @@ test("out-of-range affinity does not appear as an accepted cast", async () => {
   assert.equal(health(runtime, "warden_1"), 6);
 });
 
-test("two ticks of casts keep decrementing warden health", async () => {
+test("further casts keep decrementing warden health, even after a knockback", async () => {
   const runtime = await startRuntime([
     actor("delver_1", "delver", { x: 1, y: 2 }),
     actor("warden_1", "warden", { x: 2, y: 2 }, { motivation: "defending", health: 6 }),
   ]);
   await runtime.step();
   const afterFirst = health(runtime, "warden_1");
-  await runtime.step();
-  const afterSecond = health(runtime, "warden_1");
+  // #482: the first hit knocks the warden back, so the delver may close in before it casts again.
+  let afterSecond = afterFirst;
+  for (let tick = 0; tick < 4 && afterSecond >= afterFirst; tick += 1) {
+    await runtime.step();
+    afterSecond = health(runtime, "warden_1");
+  }
   assert.ok(afterFirst < 6);
   assert.ok(afterSecond < afterFirst);
   assert.ok(accepted(runtime, "cast_affinity").length >= 2);

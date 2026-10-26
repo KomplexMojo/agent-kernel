@@ -93,22 +93,18 @@ export function soakTurns(pair: Pick<ActorAffinityEntry, 'kind'> & Partial<Actor
   return affinityTableRow(pair.kind)?.trait === 'soak' && intensity > 0 ? intensity : 0;
 }
 
-/** #419: intensity at which a displacing cast moves its target two cells instead of one. */
-export const DISPLACE_FAR_INTENSITY = 3;
-
 type DisplaceRegistry = Pick<ReturnType<typeof createActorRegistry>, 'getActor' | 'explainMove' | 'moveActor' | 'getActorsAt'>;
 type SoakRegistry = Pick<ReturnType<typeof createActorRegistry>, 'soakActor'>;
 
 /**
- * #419: the `displace` trait. A push moves the target away from the caster, a pull toward it,
- * one cell a step (king moves, along the sign of each axis), two steps at intensity
- * DISPLACE_FAR_INTENSITY or more. A step goes only into a free cell: a wall, the board's edge,
- * any living actor (the caster included) or a target that cannot move stops it there, with no
- * extra harm. Costs the target no stamina.
+ * #419, #482 (Darren, 2026-10-26): every kind's landed push moves the target away from the
+ * caster and every pull toward it, one cell a step (king moves, along the sign of each axis),
+ * as many steps as the cast's intensity. A step goes only into a free cell: a wall, the board's
+ * edge, any living actor (the caster included) or a target that cannot move stops it there,
+ * with no extra harm. Costs the target no stamina.
  */
 function displaceTarget(registry: DisplaceRegistry, sourceId: string, targetId: string,
   pair: ActorAffinityEntry): ActorDisplacement[] {
-  if (affinityTableRow(pair.kind)?.trait !== 'displace') return [];
   const source = registry.getActor(sourceId)!;
   const from = registry.getActor(targetId)?.position;
   if (!from) return [];
@@ -116,7 +112,7 @@ function displaceTarget(registry: DisplaceRegistry, sourceId: string, targetId: 
   const step = { x: Math.sign(from.x - source.position.x) * away, y: Math.sign(from.y - source.position.y) * away };
   if (step.x === 0 && step.y === 0) return [];
   let at = from;
-  for (let moved = 0; moved < (affinityIntensity(pair) >= DISPLACE_FAR_INTENSITY ? 2 : 1); moved += 1) {
+  for (let moved = 0; moved < Math.max(1, affinityIntensity(pair)); moved += 1) {
     const next = { x: at.x + step.x, y: at.y + step.y };
     if (registry.explainMove(targetId, next) !== null
       || registry.getActorsAt(next).some(other => other.lifecycle === 'alive')) break;

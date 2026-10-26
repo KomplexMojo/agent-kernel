@@ -88,7 +88,7 @@ export function fillFocus(scenario, seed) {
   return scenario.focus.map((line) => line.replace(PLACEHOLDER, (_, key) => picks[key]));
 }
 
-/** "fire (spread), wind (displace)" for the trait kinds a scenario uses, or "" when it uses none. */
+/** "fire (spread), water (soak)" for the trait kinds a scenario uses, or "" when it uses none. */
 export function traitsInPlay(scenario, seed) {
   const picks = affinitiesForSeed(seed);
   const used = ["T1", "T2"].filter((key) => scenario.args.some((arg) => arg.includes(`{${key}}`)));
