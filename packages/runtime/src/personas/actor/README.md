@@ -11,6 +11,15 @@ When other actors plug every route to the exit (wardens seated around it), the
 exit walk follows the terrain route as far as it is free instead of waiting, so
 the actor closes in on whoever holds the way.
 
+An attacker remembers where it last saw a hostile (#516), per actor in the view's
+`contacts` (`{ targetId, position, tick }`). Levels are unlit, so a push or pull of
+two or more tiles takes the target out of sight; the attacker then walks to the
+sighting and looks again. It forgets once that tile is back in sight with no one
+there, once it sees that actor defeated or gone, or when a new sighting replaces
+it. A sighting is never cast at, and a defender still holds. Moves are proposed
+only when the actor can pay core's stamina price for them (diagonal, sprint and
+soak included); a turn whose every move is too dear waits.
+
 Runtime observations now project independent movement and sight grids, active
 fields, and live actor records from core. Observing applies no field effects.
 The Actor suite passes including production movement and the Actor ablation.

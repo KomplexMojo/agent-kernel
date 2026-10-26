@@ -7,8 +7,8 @@ import { affinitySpreads, creepSpreadEmbers } from './actor-spread.ts';
 import { affinityIntensity, affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
 import { assertActorCastPrices, castActorAffinityAtTile, castFocusedActorAffinity, raiseActorBarriersAt, selectActorCastAffinity,
-  RAISED_BARRIER_EROSION, RAISED_BARRIER_UPKEEP, SOAK_MOVE_STAMINA, type ActorCastManaBases } from './actor-cast.ts';
-import { computeMovementStaminaCost, computeSprintStaminaCost } from './move.ts';
+  RAISED_BARRIER_EROSION, RAISED_BARRIER_UPKEEP, type ActorCastManaBases } from './actor-cast.ts';
+import { computeActorMoveStaminaCost } from './move.ts';
 
 export interface ActorTurnSnapshot {
   tick: number;
@@ -187,16 +187,13 @@ export function createActorTurn(
           const cardinal = Object.hasOwn(prices.movementStamina, actor.id) ? prices.movementStamina[actor.id] : undefined;
           if (cardinal === undefined) break;
           const origin = { ...actor.position };
-          const diagonal = (from: ActorPosition, to: ActorPosition) => from.x !== to.x && from.y !== to.y;
           // #437: a sprint (`via`) is two steps, both checked before either is taken.
           if (via && target.x === origin.x && target.y === origin.y) { lastRejection = 'NotAdjacent'; break; }
           lastRejection = via ? registry.explainMove(actor.id, via) ?? registry.explainMove(actor.id, target, via)
             : registry.explainMove(actor.id, target);
           if (lastRejection) break;
           // #420: a soaked actor pays more for every step.
-          const soak = actor.soaked ? SOAK_MOVE_STAMINA : 0;
-          const cost = via ? computeSprintStaminaCost(diagonal(origin, via), diagonal(via, target), cardinal) + 2 * soak
-            : computeMovementStaminaCost(diagonal(origin, target), cardinal) + soak;
+          const cost = computeActorMoveStaminaCost(origin, target, via, cardinal, Boolean(actor.soaked));
           if ((actor.vitals.stamina?.current ?? 0) < cost) { lastRejection = 'InsufficientStamina'; break; }
           accepted = via ? registry.moveActor(actor.id, via) && registry.moveActor(actor.id, target)
             : registry.moveActor(actor.id, target);

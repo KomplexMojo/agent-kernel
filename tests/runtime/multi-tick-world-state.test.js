@@ -60,7 +60,7 @@ function actor(id, position, motivationKind, vitals = makeVitals()) {
   };
 }
 
-async function runScenario({ actors, ticks = TICK_COUNT, seed = 0, movementStamina } = {}) {
+async function runScenario({ actors, ticks = TICK_COUNT, seed = 0, movementStamina, actorCommands } = {}) {
   const { simConfig, initialState } = await artifacts(actors, { movementStamina });
   const [{ createRuntime }, { createCore }] = await Promise.all([
     import("../../packages/runtime/src/runner/runtime.js"),
@@ -69,7 +69,7 @@ async function runScenario({ actors, ticks = TICK_COUNT, seed = 0, movementStami
   const runtime = createRuntime({ core: createCore(), adapters: {} });
   await runtime.init({ seed, simConfig, initialState });
   for (let t = 0; t < ticks; t += 1) {
-    await runtime.step();
+    await runtime.step(actorCommands ? { actorCommands } : undefined);
   }
   return { runtime, frames: runtime.getTickFrames(), snapshot: runtime.getActorSnapshot() };
 }
@@ -211,10 +211,13 @@ test("a move core rejects is recorded in preCoreRejections with its reason, not 
   const noStamina = makeVitals({ hp: 10, regen: 0 });
   noStamina.stamina = { current: 0, max: 0, regen: 0 };
 
+  // #516: the Actor no longer proposes a move it cannot pay for, so the refused move is a
+  // command (a player's turn), which the Actor passes to core as given.
   const { runtime, snapshot } = await runScenario({
     actors: [actor("delver_1", { x: 4, y: 4 }, "random", noStamina)],
     ticks: TICK_COUNT,
     movementStamina: { delver_1: 1 },
+    actorCommands: { delver_1: { kind: "move", params: { direction: "east" } } },
   });
 
   const frames = runtime.getTickFrames();
