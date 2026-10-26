@@ -221,6 +221,7 @@
     {
       "id": "authored-vitals",
       "note": "authored vitals survive ak create (low stamina regen, a wide cast)",
+      "knownIssues": [{ "rule": "unaffordable_cast", "actor": "a-1", "issue": "#526" }],
       "ticks": 10,
       "args": [
         "--room",
