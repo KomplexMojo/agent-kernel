@@ -35,6 +35,8 @@ export const ASCII_TERRAIN_GLYPHS = Object.freeze({
 export const ASCII_FOG_GLYPH = "?";
 /** The tile a cast is being aimed at (#413), drawn over the board while aiming. */
 export const ASCII_AIM_GLYPH = "+";
+/** An empty floor tile inside an active affinity field (#479): the tint says which kind, this says there is one. */
+export const ASCII_FIELD_MARK_GLYPH = ":";
 
 /**
  * The arrow a floor cell on a cast's path shows for the turn of the cast (#463), by the

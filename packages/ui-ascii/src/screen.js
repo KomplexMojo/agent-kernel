@@ -18,7 +18,7 @@ import {
   buildAsciiCellStyles,
 } from "../../runtime/src/render/ascii-cell-style.js";
 import { PLAY_SIGHT, PLAYER_MOTIVATION } from "../../runtime/src/runner/play-session.js";
-import { ASCII_AIM_GLYPH, ASCII_ENTITY_GLYPHS, ASCII_TERRAIN_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
+import { ASCII_AIM_GLYPH, ASCII_ENTITY_GLYPHS, ASCII_FIELD_MARK_GLYPH, ASCII_TERRAIN_GLYPHS, asciiGlyphForActor } from "../../runtime/src/render/visualization-snapshot.js";
 import { HELP_LINES } from "./keymap.js";
 import { GAME_COLOR_PALETTE } from "../../runtime/src/contracts/game-elements.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
@@ -77,7 +77,7 @@ export function paintBoardRow(row, styles, cellStyles = null, sightRow = null, d
   for (let x = 0; x < row.length; x += 1) {
     const char = row[x];
     // Floor shows the affinity fields on it (#287); actors and traps keep their own fill.
-    const tile = char === floorChar ? asciiFieldCellStyle(styles[char] || null, fieldRow?.[x]) : styles[char] || null;
+    const tile = char === floorChar || char === ASCII_FIELD_MARK_GLYPH ? asciiFieldCellStyle(styles[floorChar] || null, fieldRow?.[x]) : styles[char] || null;
     const base = cellStyles?.get(x) || tile;
     const style = sightRow?.[x] === PLAY_SIGHT.REMEMBERED ? asciiRememberedCellStyle(base) : base;
     const code = style ? `${ansiForHex(style.bg, 48, depth)}${ansiForHex(style.fg, 38, depth)}` : "";
@@ -143,6 +143,7 @@ function actorCellStyles(view) {
   const byRow = new Map();
   const entities = [
     ...(Array.isArray(view.hazards) ? view.hazards : []),
+    ...(Array.isArray(view.lastSeen) ? view.lastSeen : []),
     ...(Array.isArray(view.actors) ? view.actors : []),
     view.player,
   ].filter(Boolean);
@@ -174,6 +175,12 @@ export function overlayCastPaths(rows, casts, floorChar, styles = null, cellStyl
     }
   }
   return grid.map((cells) => cells.join(""));
+}
+
+/** #479: `:` on each empty floor cell an active field covers, so a field shows without colour. */
+export function overlayFieldMarks(rows, field, floorChar) {
+  if (!Array.isArray(field) || !floorChar) return rows;
+  return rows.map((row, y) => [...row].map((char, x) => (char === floorChar && field[y]?.[x]?.length ? ASCII_FIELD_MARK_GLYPH : char)).join(""));
 }
 
 /** #490: an `x` on the floor tile of a recent defeat, in the palette's hazard colour, until it ages out. */
@@ -464,8 +471,10 @@ export function renderScreen({
   const styles = color ? buildAsciiCellStyles(view.legend) : null;
   const actorCells = color ? actorCellStyles(view) : null;
   const playerPosition = view.player?.position;
-  const board = overlayDefeatMarks(overlayCastPaths(overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.actors, playerPosition),
-    view.casts, view.legend?.floor, styles, actorCells), view.defeatMarks, view.legend?.floor, styles, actorCells);
+  // #479: a warden last seen stays at that spot (the remembered cell dims it).
+  const seen = overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.lastSeen, playerPosition);
+  const board = overlayFieldMarks(overlayDefeatMarks(overlayCastPaths(overlayActors(seen, view.actors, playerPosition),
+    view.casts, view.legend?.floor, styles, actorCells), view.defeatMarks, view.legend?.floor, styles, actorCells), view.field, view.legend?.floor);
   // The tile a cast is being aimed at (#413).
   if (aim && typeof board[aim.y] === "string" && aim.x >= 0 && aim.x < board[aim.y].length) {
     board[aim.y] = `${board[aim.y].slice(0, aim.x)}${ASCII_AIM_GLYPH}${board[aim.y].slice(aim.x + 1)}`;

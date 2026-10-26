@@ -268,6 +268,26 @@ export async function createPlaySession({
     if (eventLog.length > 1000) eventLog.splice(0, eventLog.length - 1000);
   }
 
+  // #479: a mobile actor the seat has seen stays known at its last position until the seat
+  // sees that cell empty (it left, or hid in dark), or it is gone. Per seat; fog only.
+  const lastSeen = new Map();
+  function lastSeenView(actors, snapshot, visible) {
+    if (!visible) return [];
+    const memory = lastSeen.get(activeId) ?? new Map();
+    lastSeen.set(activeId, memory);
+    for (const actor of actors) memory.set(actor.id, actor);
+    const inView = new Set(actors.map((actor) => actor.id));
+    const out = [];
+    for (const [id, actor] of [...memory]) {
+      if (inView.has(id)) continue;
+      const live = snapshot.actors.find((entry) => entry.id === id);
+      const { x, y } = actor.position;
+      if (!live || live.lifecycle !== "alive" || runtime.hasActorExited(id) || visible[y]?.[x]) memory.delete(id);
+      else out.push({ ...actor, lastSeen: true });
+    }
+    return out;
+  }
+
   // Who or what defeated it: the last cast of the tick that landed on it, else the field it lay in.
   function defeatedBy(actor, actors) {
     const cast = rawCasts().filter((entry) => entry.targetId === actor.id && entry.sourceId !== actor.id).at(-1);
@@ -546,25 +566,27 @@ export async function createPlaySession({
   function view() {
     const fogOn = fog && !runtime.hasActorExited(activeId);
     const snapshot = readSnapshot();
-    return {
-      ...buildPlayView({
+    const built = buildPlayView({
         snapshot,
-        presentation,
-        legend,
-        playerId: activeId,
-        tick: currentTick(),
-        status: status(),
-        visible: fogOn ? readVisible() : null,
-        explored: fogOn ? explored.get(activeId) ?? null : null,
-        // #416: with fog, others show what light reveals of them; your own party, everything.
-        reveal: fogOn && typeof runtime.readRevealLevels === "function"
-          ? Object.fromEntries(Object.entries(runtime.readRevealLevels(activeId)).filter(([id]) => !partyIds.includes(id)))
-          : null,
-        labels,
-        field: typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null,
+      presentation,
+      legend,
+      playerId: activeId,
+      tick: currentTick(),
+      status: status(),
+      visible: fogOn ? readVisible() : null,
+      explored: fogOn ? explored.get(activeId) ?? null : null,
+      // #416: with fog, others show what light reveals of them; your own party, everything.
+      reveal: fogOn && typeof runtime.readRevealLevels === "function"
+        ? Object.fromEntries(Object.entries(runtime.readRevealLevels(activeId)).filter(([id]) => !partyIds.includes(id)))
+        : null,
+      labels,
+      field: typeof runtime.readFieldCells === "function" ? runtime.readFieldCells() : null,
         upkeepTable: typeof runtime.readAffinityUpkeepTable === "function" ? runtime.readAffinityUpkeepTable() : [],
-      }),
+    });
+    return {
+      ...built,
       party: partyView(snapshot),
+      lastSeen: lastSeenView(built.actors, snapshot, fogOn ? readVisible() : null),
       casts: castsView(snapshot, fogOn ? readVisible() : null),
       vitalChanges: vitalChangesView(snapshot, fogOn ? readVisible() : null),
       departures: departures.map((entry) => ({ ...entry })),
