@@ -221,13 +221,12 @@
     {
       "id": "authored-vitals",
       "note": "authored vitals survive ak create (low stamina regen, a wide cast)",
-      "knownIssues": [{ "rule": "unaffordable_cast", "actor": "a-1", "issue": "#526" }],
       "ticks": 10,
       "args": [
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:60:6,stamina:10:1,durability:10:1"
+        "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:90:6,stamina:10:1,durability:10:1"
       ]
     },
     {
