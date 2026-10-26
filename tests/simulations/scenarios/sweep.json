@@ -286,13 +286,12 @@
     {
       "id": "sweep-range-intensity",
       "note": "range/intensity stack fire:push:6:2 vs water push 2:3",
-      "knownIssues": [{ "rule": "unaffordable_cast", "actor": "atk-1", "issue": "#526" }],
       "ticks": 80,
       "args": [
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "count=1;id=atk;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:90:3,stamina:10:1,durability:10:1",
         "--warden",
         "count=1;id=def;affinity=water;affinities=water:push:2:3;equip=water:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
       ]
@@ -363,29 +362,27 @@
     {
       "id": "sweep-push-i3-mirror",
       "note": "fire:push:3:3 vs water:push:3:3 (same strength, opposed)",
-      "knownIssues": [{ "rule": "unaffordable_cast", "actor": "atk-1", "issue": "#526" }, { "rule": "unaffordable_cast", "actor": "def-1", "issue": "#526" }],
       "ticks": 80,
       "args": [
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=fire;affinities=fire:push:3:3;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "count=1;id=atk;affinity=fire;affinities=fire:push:3:3;equip=fire:push;motivation=attacking;vitals=health:30:2,mana:40:3,stamina:10:1,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=water;affinities=water:push:3:3;equip=water:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+        "count=1;id=def;affinity=water;affinities=water:push:3:3;equip=water:push;motivation=defending;vitals=health:30:2,mana:40:3,stamina:10:1,durability:10:1"
       ]
     },
     {
       "id": "sweep-push-i3-mirror-b",
       "note": "earth:push:3:3 vs wind:push:3:3",
-      "knownIssues": [{ "rule": "unaffordable_cast", "actor": "atk-1", "issue": "#526" }, { "rule": "unaffordable_cast", "actor": "def-1", "issue": "#526" }],
       "ticks": 80,
       "args": [
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=earth;affinities=earth:push:3:3;equip=earth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "count=1;id=atk;affinity=earth;affinities=earth:push:3:3;equip=earth:push;motivation=attacking;vitals=health:30:2,mana:40:3,stamina:10:1,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=wind;affinities=wind:push:3:3;equip=wind:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+        "count=1;id=def;affinity=wind;affinities=wind:push:3:3;equip=wind:push;motivation=defending;vitals=health:30:2,mana:40:3,stamina:10:1,durability:10:1"
       ]
     },
     {

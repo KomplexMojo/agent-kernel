@@ -43,7 +43,7 @@ export const RULES = Object.freeze({
   authored_vitals: "an actor's vitals differ from the ones its spec authored",
   no_exit: "the scenario expects a delver to leave, and none did",
   idle_attacker: `an attacking actor had a hostile in sight and cast reach for ${IDLE_ATTACKER_LIMIT}+ turns in a row and landed no cast`,
-  unaffordable_cast: "an actor has a push or pull equipped that costs more than its max mana, so it can never cast it",
+  unaffordable_cast: "the scenario equips a push or pull that costs more than its actor's max mana, so the run never exercises it",
 });
 
 // Motivations that never move or fight on their own; an actor with only these may stay silent.
@@ -101,7 +101,9 @@ const isObjectActor = (actor) => actor?.capabilities?.canMove === false && (acto
 
 /**
  * #478: each equipped push or pull whose price on core's curve is above the actor's max mana.
- * Without the run's cast prices (`castManaBase` from the sim config) nothing is judged.
+ * Such a build is valid (Darren, 2026-10-26: weak builds are allowed, #526); the rule keeps the
+ * test levels honest, since a cast that is never paid for is never measured. Without the run's
+ * cast prices (`castManaBase` from the sim config) nothing is judged.
  */
 function unaffordableCasts(actor, castManaBase) {
   const maxMana = actor.vitals?.mana?.max ?? 0;
