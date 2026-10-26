@@ -169,6 +169,16 @@ export function createActorTurn(
             }
           }
           break;
+        case 'watch':
+          if (hasParams(action, ['targetId']) && typeof action.params.targetId === 'string') {
+            // Beginning a watch needs the first turn's upkeep; ending one is free.
+            if (!actor.watching?.includes(action.params.targetId) && (actor.vitals.mana?.current ?? 0) < WATCH_MANA_UPKEEP) {
+              lastRejection = 'InsufficientMana'; break;
+            }
+            accepted = registry.toggleWatch(actor.id, action.params.targetId);
+            if (!accepted) lastRejection = 'InvalidTarget';
+          }
+          break;
         case 'move': {
           if (!hasParams(action, ['target'], ['via']) || !action.params.target) break;
           const { target, via } = action.params;
@@ -268,6 +278,7 @@ export function createActorTurn(
     regenerate(): boolean {
       if (!state.fieldsResolved || state.regenerated) return false;
       if (prices.persistentUpkeep) registry.chargeAffinityUpkeep(prices.persistentUpkeep);
+      registry.chargeWatchUpkeep(WATCH_MANA_UPKEEP);
       registry.erodeRaisedBarriers(RAISED_BARRIER_UPKEEP, RAISED_BARRIER_EROSION);
       registry.drySoaked(state.soakedActorIds ?? []);
       const restedActorIds = registry.snapshot().actors.map(actor => actor.id)
@@ -288,6 +299,9 @@ export function createActorTurn(
       ...(state.movedActorIds ? { movedActorIds: [...state.movedActorIds].sort() } : {}) }); },
   };
 }
+
+/** #519 (Darren, 2026-10-26): mana a turn for each actor a watcher keeps watching. */
+export const WATCH_MANA_UPKEEP = 1;
 
 /** Stamina regen on a turn without a move (#407): resting doubles it. */
 export const STAMINA_REST_REGEN_SCALE = 2;

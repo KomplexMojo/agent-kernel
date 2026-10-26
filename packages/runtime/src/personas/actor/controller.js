@@ -249,7 +249,7 @@ export function classifyActorIntent({ action, actorPosition, actorRecord, motiva
     }
     return { intentClass: ACTOR_INTENT_CLASS.MOBILE_LATERAL, intentTag: "mobile_lateral" };
   }
-  if (action.kind === "equip_affinity" || action.kind === "take") {
+  if (action.kind === "equip_affinity" || action.kind === "take" || action.kind === "watch") {
     return { intentClass: ACTOR_INTENT_CLASS.WAIT, intentTag: action.kind };
   }
   if (action.kind === "wait") {
@@ -1470,7 +1470,7 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed 
   return buildMoveProposal({ observation, payload, simConfig });
 }
 
-export const ACTOR_COMMAND_KINDS = Object.freeze(["move", "wait", "equip_affinity", "unequip_affinity", "cast_affinity", "raise_barrier", "take"]);
+export const ACTOR_COMMAND_KINDS = Object.freeze(["move", "wait", "equip_affinity", "unequip_affinity", "cast_affinity", "raise_barrier", "take", "watch"]);
 
 const AFFINITY_KEY_PATTERN = /^[a-z]+:[a-z]+$/;
 
@@ -1505,6 +1505,8 @@ const isAffinityKey = (value) => typeof value === "string" && AFFINITY_KEY_PATTE
  *   - `{ kind: "raise_barrier", params: { target: { x, y }, affinityKey? } }` (#460): a push
  *     into an empty tile raises barriers there
  *   - `{ kind: "take", params: { targetId, holdingId } }`
+ *   - `{ kind: "watch", params: { targetId } }` (#519): keep watching that actor for a mana upkeep
+ *     each turn, or stop if already watching it
  * Only the SHAPE is checked here; whether the actor knows that affinity, can reach that
  * target or afford the cast is core's call. Exported so the runner can refuse a malformed
  * command BEFORE a tick starts rather than half-way through DECIDE. Throws rather than
@@ -1542,6 +1544,8 @@ export function normalizeActorCommand(command) {
       if (command.params?.affinityKey !== undefined) params.affinityKey = commandParam(command, "affinityKey", isAffinityKey);
       return { kind: "raise_barrier", params };
     }
+    case "watch":
+      return { kind: "watch", params: { targetId: commandParam(command, "targetId", isId) } };
     case "take":
       return { kind: "take", params: {
         targetId: commandParam(command, "targetId", isId),

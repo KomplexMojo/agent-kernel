@@ -402,7 +402,7 @@ function resolveActionKind(action) {
   return null;
 }
 
-const UNIFIED_ACTOR_ACTIONS = new Set(["move", "cast_affinity", "raise_barrier", "equip_affinity", "unequip_affinity", "take", "wait"]);
+const UNIFIED_ACTOR_ACTIONS = new Set(["move", "cast_affinity", "raise_barrier", "equip_affinity", "unequip_affinity", "take", "watch", "wait"]);
 const onlyParams = (params, required, optional = []) => required.every((key) => Object.hasOwn(params, key))
   && Object.keys(params).every((key) => required.includes(key) || optional.includes(key));
 
@@ -454,6 +454,10 @@ function normalizeUnifiedActorAction(action, defaultTick) {
   if (kind === "unequip_affinity") {
     if (!onlyParams(params, ["affinityKey"]) || typeof params.affinityKey !== "string") return null;
     return { ...envelope, kind: "unequip_affinity", params: { affinityKey: params.affinityKey } };
+  }
+  if (kind === "watch") {
+    if (!onlyParams(params, ["targetId"]) || typeof params.targetId !== "string") return null;
+    return { ...envelope, kind: "watch", params: { targetId: params.targetId } };
   }
   if (Object.keys(params).length !== 2 || typeof params.targetId !== "string"
     || typeof params.holdingId !== "string") return null;

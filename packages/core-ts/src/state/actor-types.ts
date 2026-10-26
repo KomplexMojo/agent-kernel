@@ -99,6 +99,11 @@ export interface ActorRecordBase {
    * soaked. Omitted means dry.
    */
   soaked?: number;
+  /**
+   * #519: the actors this one keeps watching, by id, in the order it began. Each pays a mana
+   * upkeep a turn; a watch ends when mana cannot pay it or the target is gone. Omitted means none.
+   */
+  watching?: string[];
   /** How many affinities the actor can equip at once, 1..6; omitted means 1. */
   affinitySlots?: number;
   capabilities: ActorCapabilities;
@@ -183,6 +188,8 @@ export type ActorAction = { actorId: string; tick: number } & (
   | { kind: "equip_affinity"; params: { affinityKey: ActorAffinityKey; replaceKey?: ActorAffinityKey; stacks?: number; intensity?: number } }
   | { kind: "unequip_affinity"; params: { affinityKey: ActorAffinityKey } }
   | { kind: "take"; params: { targetId: string; holdingId: string } }
+  // #519: begin watching an actor, or stop if already watching it.
+  | { kind: "watch"; params: { targetId: string } }
   // #460: raise a line of barriers at a tile with an equipped push (#413's raise, now its own action).
   | { kind: "raise_barrier"; params: { target: ActorPosition; affinityKey?: ActorAffinityKey } }
 );

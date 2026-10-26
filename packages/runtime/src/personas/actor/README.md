@@ -305,6 +305,7 @@ script). The command vocabulary is this persona's (`ACTOR_COMMAND_KINDS`):
   through it only when there is no other way, so the actor waits at it rather than giving up; its owner's
   scoped observation shows it open, since the owner walks through
 - `{ kind: "take", params: { targetId, holdingId } }`
+- `{ kind: "watch", params: { targetId } }` (#519): keep watching that actor for 1 mana a turn, or stop; core charges it
 
 Only the shape is checked. Anything else throws, so a controlled actor never falls back to autonomous
 play by accident.
