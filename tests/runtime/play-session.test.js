@@ -459,6 +459,39 @@ test("inspect refuses what is not there, yourself, or what you cannot see, with 
   }
 });
 
+// #519: a watch is live while in sight, costs 1 mana a turn, and ends on the same command.
+test("watch reads live, costs mana a turn, and stops on the same command", async () => {
+  // No mana regen, so the upkeep shows (regen would refill it within the tick).
+  const level = buildUnifiedLevel({ id: "watch", tiles: ["#####", "#..##", "#...E", "#####"], actors: [
+    { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+      vitals: { ...viableVitals(), mana: { current: 10, max: 10, regen: 0 } } },
+    { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["stationary"], vitals: viableVitals() },
+  ] });
+  const session = await createPlaySession({ ...level, fog: true });
+  const mana = () => session.debugView().actors.find((actor) => actor.id === "delver_1").vitals.mana.current;
+  const before = mana();
+  const result = await session.act({ kind: "watch", params: { targetId: "warden_1" } });
+  assert.deepEqual(result.accepted.map((a) => a.kind), ["watch"]);
+  const [reading] = session.view().inspections;
+  assert.ok(reading.watched && reading.age === 0 && reading.id === "warden_1");
+  assert.equal(mana(), before - 1, "the watch is paid in mana");
+  await session.act({ kind: "wait" });
+  assert.equal(mana(), before - 2, "and again every turn");
+  assert.equal(session.view().inspections[0].age, 0, "live while watched");
+  await session.act({ kind: "watch", params: { targetId: "warden_1" } });
+  assert.equal(mana(), before - 2, "stopping costs nothing");
+  assert.ok(!session.view().inspections.some((entry) => entry.watched));
+});
+
+test("watch refuses a missing target and yourself, with no tick", async () => {
+  const session = await createPlaySession(buildDuelLevel());
+  for (const targetId of ["nobody", "delver_1"]) {
+    const result = await session.act({ kind: "watch", params: { targetId } });
+    assert.equal(result.accepted.length, 0, targetId);
+    assert.equal(result.tick, 0);
+  }
+});
+
 test("a warden a field defeats is reported as the field's doing", async () => {
   const warden = { category: "warden", id: "guard", position: { x: 6, y: 1 }, vitals: viableVitals({ health: 10 }), motivations: ["defending"] };
   const trap = { category: "hazard", id: "rot", position: { x: 7, y: 1 },

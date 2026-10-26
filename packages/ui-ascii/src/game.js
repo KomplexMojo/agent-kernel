@@ -387,6 +387,25 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     panel = { type: "target", items: targets, index: 0, inspect: true };
   }
 
+  // #519: `e` picks a target in sight to watch (a mana upkeep a turn) or, if already watched, to stop watching.
+  function openWatch() {
+    const view = session.view();
+    const targets = targetsInSight(view);
+    if (targets.length === 0) {
+      message = "Nothing in sight to watch.";
+      return;
+    }
+    const watched = new Set((view.inspections ?? []).filter((entry) => entry.watched).map((entry) => entry.id));
+    panel = { type: "target", items: targets.map((target) => ({ ...target, watched: watched.has(target.id) })), index: 0, watch: true };
+  }
+
+  async function watchTarget() {
+    const target = panel.items[panel.index];
+    panel = null;
+    await act({ kind: "watch", params: { targetId: target.id } },
+      () => (target.watched ? `You stop watching ${target.id}.` : `You watch ${target.id}.`));
+  }
+
   async function inspectTarget() {
     const target = panel.items[panel.index];
     panel = null;
@@ -521,7 +540,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     }
     if (panel.type === "target") {
       // A move key leaves the target list to aim at a tile, one step that way (#413).
-      if (intent.type === INTENT.MOVE && !panel.inspect) {
+      if (intent.type === INTENT.MOVE && !panel.inspect && !panel.watch) {
         openAim(panel.affinityKey, PLAY_DIRECTION_STEPS[intent.direction]);
         return true;
       }
@@ -529,8 +548,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
         panel.index = (panel.index + 1) % panel.items.length;
         return true;
       }
-      if (intent.type === INTENT.NEXT_LEVEL || intent.type === INTENT.CAST || (panel.inspect && intent.type === INTENT.INSPECT)) {
-        await (panel.inspect ? inspectTarget() : castAtTarget());
+      if (intent.type === INTENT.NEXT_LEVEL || intent.type === INTENT.CAST || (panel.inspect && intent.type === INTENT.INSPECT)
+        || (panel.watch && intent.type === INTENT.WATCH)) {
+        await (panel.inspect ? inspectTarget() : panel.watch ? watchTarget() : castAtTarget());
         return true;
       }
     } else if (panel.type === "affinities" && intent.type === INTENT.NEXT_TARGET) {
@@ -618,6 +638,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       case INTENT.INSPECT:
         openInspect();
         break;
+      case INTENT.WATCH:
+        openWatch();
+        break;
       case INTENT.SELECT:
         aimSlot(intent.index);
         break;
@@ -676,6 +699,7 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     const target = panel.items[panel.index];
     // #497: looking costs a turn, so the picker shows what is plainly in view, never the target's state.
     if (panel.inspect) return [`Inspect: ${target.id}${revealNote(target)} (${tiles(target.distance)} away)   Tab next, Enter spend a turn looking, Esc cancel`];
+    if (panel.watch) return [`${target.watched ? "Stop watching" : "Watch"}: ${target.id}${revealNote(target)} (${tiles(target.distance)} away)   Tab next, Enter ${target.watched ? "to stop" : "to begin, 1 mana a turn"}, Esc cancel`];
     return [`Target: ${target.id}${revealNote(target)}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${tiles(target.distance)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})   Tab next, Enter cast, Esc cancel`];
   }
 

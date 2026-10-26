@@ -122,6 +122,7 @@ test("keys map to intents: arrows, WASD, vi keys, diagonals, wait, quit", () => 
   assert.deepEqual(intentForKey("\r"), { type: INTENT.NEXT_LEVEL });
   assert.deepEqual(intentForKey("z"), { type: INTENT.RAISE }); // #460
   assert.deepEqual(intentForKey("v"), { type: INTENT.INSPECT }); // #497
+  assert.deepEqual(intentForKey("e"), { type: INTENT.WATCH }); // #519
   assert.equal(intentForKey("t"), null);
   assert.equal(intentForKey(""), null);
 });
@@ -964,6 +965,31 @@ test("v with nothing in sight says so and costs nothing", async () => {
   const turns = game.state().turns;
   await press(game, "v");
   assert.match(game.screen(), /Nothing in sight to inspect\./);
+  assert.equal(game.state().turns, turns);
+});
+
+// #519: `e` begins a watch (a turn, a mana upkeep); the same again stops it.
+test("e watches a target live and a second e stops the watch", async () => {
+  const game = await createGame({ levels: duelLevels(), fog: false });
+  const turns = game.state().turns;
+  await press(game, "e");
+  assert.match(game.screen(), /Watch: warden_1/);
+  await press(game, "\r");
+  assert.equal(game.state().turns, turns + 1);
+  assert.match(game.screen(), /Watching W1 warden_1 \(now\): HP 10\/10/);
+  await press(game, ".");
+  assert.match(game.screen(), /Watching W1 warden_1 \(now\)/, "live while watched");
+  await press(game, "e");
+  assert.match(game.screen(), /Stop watching: warden_1/);
+  await press(game, "\r");
+  assert.match(game.screen(), /Inspected W1 warden_1/, "the last reading stays, with its age");
+});
+
+test("e with nothing in sight says so and costs nothing", async () => {
+  const game = await createGame({ levels: duelLevels({ wardenAt: null }), fog: false });
+  const turns = game.state().turns;
+  await press(game, "e");
+  assert.match(game.screen(), /Nothing in sight to watch\./);
   assert.equal(game.state().turns, turns);
 });
 

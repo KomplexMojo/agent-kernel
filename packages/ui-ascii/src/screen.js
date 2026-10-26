@@ -313,7 +313,7 @@ export function inspectionLines(view) {
       .map(([key, vital]) => `${HUD_VITAL_LABELS[key] ?? key} ${vital.current}/${vital.max}`);
     const affinities = (entry.affinities ?? []).map((pair) => `${pair.kind} ${pair.expression} r${pair.stacks} ×${pair.intensity ?? 1}`);
     const body = entry.revealed === 0 ? "nothing readable" : [...vitals, ...affinities].join(", ") || "nothing readable";
-    return `Inspected ${entry.label ? `${entry.label} ` : ""}${entry.id} (${age}): ${body}${entry.revealed === 0 ? "" : motivationNote(entry.motivations)}`;
+    return `${entry.watched ? "Watching" : "Inspected"} ${entry.label ? `${entry.label} ` : ""}${entry.id} (${age}): ${body}${entry.revealed === 0 ? "" : motivationNote(entry.motivations)}`;
   });
 }
 

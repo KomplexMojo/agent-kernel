@@ -16,7 +16,7 @@ export type ActorMoveRejection = 'WrongActor' | 'InvalidCapability' | 'OutOfBoun
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
   'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'affinityExhausted',
-  'affinitySlots', 'raisedBy', 'soaked', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks', 'equippedAffinityIntensity',
+  'affinitySlots', 'raisedBy', 'soaked', 'watching', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks', 'equippedAffinityIntensity',
 ]);
 
 /** Reject values JSON cannot faithfully represent before taking ownership. */
@@ -87,6 +87,11 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     }
     if (record.soaked !== undefined && (!Number.isSafeInteger(record.soaked) || record.soaked < 1)) {
       throw new Error('invalid soak turns');
+    }
+    if (record.watching !== undefined && (!Array.isArray(record.watching) || record.watching.length === 0
+      || new Set(record.watching).size !== record.watching.length
+      || record.watching.some(id => typeof id !== 'string' || !id || id === record.id))) {
+      throw new Error('invalid watching');
     }
     const actor = copy(record);
     validateActorRecordVitals(actor);
@@ -201,6 +206,41 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       if (!actor || actor.lifecycle !== 'alive' || !Number.isSafeInteger(turns) || turns < 1) return false;
       actor.soaked = Math.max(actor.soaked ?? 0, turns);
       return true;
+    },
+    /**
+     * #519: begin watching `targetId`, or stop if already watching it. False when either is not
+     * alive or they are the same actor; ending a watch never needs mana.
+     */
+    toggleWatch(id: string, targetId: string): boolean {
+      const actor = actors.get(id);
+      const target = actors.get(targetId);
+      if (!actor || actor.lifecycle !== 'alive' || !target || id === targetId) return false;
+      const watching = actor.watching ?? [];
+      if (watching.includes(targetId)) {
+        const rest = watching.filter(entry => entry !== targetId);
+        if (rest.length > 0) actor.watching = rest; else delete actor.watching;
+        return true;
+      }
+      if (target.lifecycle !== 'alive') return false;
+      actor.watching = [...watching, targetId];
+      return true;
+    },
+    /**
+     * #519: every watch pays `upkeep` mana a turn, in the order begun. A watch whose target is
+     * gone ends, and so do the ones mana cannot pay; call before regenerate().
+     */
+    chargeWatchUpkeep(upkeep: number): void {
+      for (const actor of ordered) {
+        if (actor.lifecycle !== 'alive' || !actor.watching) continue;
+        const kept: string[] = [];
+        for (const targetId of actor.watching) {
+          if (actors.get(targetId)?.lifecycle !== 'alive') continue;
+          if ((actor.vitals.mana?.current ?? 0) < upkeep) continue;
+          changeActorVital(actor, 'mana', -upkeep);
+          kept.push(targetId);
+        }
+        if (kept.length > 0) actor.watching = kept; else delete actor.watching;
+      }
     },
     /** #420: one turn of drying for every soaked actor not soaked again this turn. */
     drySoaked(soakedThisTurn: readonly string[] = []): void {
