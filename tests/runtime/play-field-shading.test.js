@@ -76,7 +76,10 @@ test("the screen tints floor under a field and leaves the text unchanged", async
   const bare = renderScreen({ view: { ...view, field: null }, levelName: "field", color: true });
   assert.notEqual(tinted, bare);
   const strip = (text) => text.replace(/\u001b\[[0-9;]*m/g, "");
-  assert.equal(strip(tinted), strip(bare));
+  // #479: the covered floor also carries a plain-text mark; apart from it the text is the same.
+  const boardOf = (text) => text.split("\n").slice(0, 5).join("\n");
+  assert.equal(boardOf(strip(tinted)).replace(/:/g, "."), boardOf(strip(bare)));
+  assert.equal(strip(tinted).split("\n").slice(5).join("\n"), strip(bare).split("\n").slice(5).join("\n"));
 });
 
 // #485: a field that helps whoever stands in it reads differently from one that harms, read from
@@ -114,6 +117,29 @@ test("standing in someone else's restoring field says so at full vitals; a harmf
   const own = (await createPlaySession({ ...buildUnifiedLevel({ id: "own", tiles: HALL, actors: [
     { ...PLAYER, affinities: [{ kind: "fortify", expression: "emit", stacks: 2 }], activeAffinityKey: "fortify:emit" }] }) })).view();
   assert.doesNotMatch(renderScreen({ view: own, levelName: "own" }), /Field here:/);
+});
+
+// #479: an active field is marked in plain text on empty floor, for every kind alike.
+test("a field marks the empty floor it covers with a colourless glyph, for every kind", async () => {
+  const board = (view) => renderScreen({ view, levelName: "field", color: false }).split("\n").slice(2, 5).join("\n");
+  for (const kind of AFFINITY_KINDS) assert.match(board((await session([trap("t", kind, 6)])).view()), /:/, `${kind} marks its floor`);
+  assert.doesNotMatch(board((await session([])).view()), /:/);
+});
+
+// #479: a warden once seen stays at its last known spot until that cell is seen empty.
+test("a seen warden stays known where it was last seen until the cell is seen empty", async () => {
+  const warden = { category: "warden", id: "guard", position: { x: 2, y: 1 }, vitals: viableVitals(), motivations: ["defending"] };
+  const play = await session([warden], { fog: true });
+  assert.equal(play.view().actors.length, 1);
+  await play.act({ kind: "move", params: { direction: "west" } });
+  let view = play.view();
+  assert.equal(view.actors.length, 0, "out of sight now");
+  assert.deepEqual(view.lastSeen.map((a) => [a.id, a.position.x, a.position.y]), [["guard", 2, 1]]);
+  assert.match(renderScreen({ view, levelName: "field" }), /\n  @\.W/);
+  await play.act({ kind: "move", params: { direction: "east" } });
+  view = play.view();
+  assert.equal(view.actors.length, 1);
+  assert.deepEqual(view.lastSeen, [], "seen again, no stale copy");
 });
 
 // ## TODO: Test Permutations
