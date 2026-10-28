@@ -50,6 +50,34 @@ test("the yield is only for the very next turn", async () => {
   }
 });
 
+// #524: the yield reads last turn's chosen action, not its first candidate. An actor whose
+// motivations list a move first but whose turn went to a cast proposed no move, so standing
+// still next turn is not a refusal.
+test("a turn that went to a cast is not a refused move next turn", async () => {
+  const { createActorPersona } = await import("../../../packages/runtime/src/personas/actor/persona.js");
+  const { TickPhases } = await import("../../../packages/runtime/src/personas/_shared/tick-state-machine.mts");
+  const self = { id: actorId, category: "delver", alignment: "external", lifecycle: "alive", position: { x: 1, y: 1 },
+    capabilities: { canMove: true, canCast: true, canEquip: true, canTake: true, canExit: true },
+    motivations: ["exploring", "attacking"], affinities: [{ kind: "fire", expression: "push", stacks: 1 }],
+    activeAffinityKey: "fire:push", vitals: { mana: { current: 10, max: 10, regen: 0 } } };
+  const enemy = { ...self, id: "enemy", alignment: "dungeon", position: { x: 2, y: 1 }, motivations: ["stationary"] };
+  const turn = (actor, tick, others) => {
+    const actors = [self, ...others];
+    const payload = { actorId, baseTiles, observation: { tick, actors, tiles: { kinds } }, initialState: { actors } };
+    actor.advance({ phase: TickPhases.OBSERVE, event: "observe", payload, tick });
+    actor.advance({ phase: TickPhases.DECIDE, event: "decide", payload, tick });
+    const { actions } = actor.advance({ phase: TickPhases.DECIDE, event: "propose", payload, tick });
+    actor.advance({ phase: TickPhases.DECIDE, event: "cooldown", payload, tick });
+    return actions.filter((action) => action.kind !== "emit_log" && action.kind !== "emit_telemetry");
+  };
+  for (let tick = 2; tick <= 21; tick += 1) {
+    const actor = createActorPersona({ clock: () => "fixed" });
+    assert.equal(turn(actor, tick - 1, [enemy])[0].kind, "cast_affinity");
+    assert.equal(turn(actor, tick, [])[0].kind, "move", `tick ${tick}: no move was proposed last turn`);
+  }
+});
+
 // ## TODO: Test Permutations
 // - a follower within its follow distance yields too
 // - two actors refused into the same cell both yield, then one gets through
+// - a turn that went to take or equip is not a refused move either
