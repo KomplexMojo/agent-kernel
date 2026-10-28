@@ -187,6 +187,157 @@
           "issue": "#473"
         }
       ]
+    },
+    {
+      "id": "regen-pause",
+      "title": "Hits pause regen",
+      "shows": "a push or pull hit stops regen for 3 turns (#478); pull costs the same mana as push (#532)",
+      "focus": [
+        "Open the panel (i): your {A} push and pull at the same range and intensity now show the same mana cost (#532).",
+        "Hit the warden with a push (f, Tab, Enter). Its HUD vitals should show regen 0 on the vital that was hit, plus health, durability and stamina, for that turn and the next 3. Mana keeps regenerating.",
+        "Hit it again before the 3 turns end: the pause restarts from that hit.",
+        "Keep hitting every few turns: its health should now fall to defeat instead of regenerating back (it used to stalemate).",
+        "Stand in a field instead of casting: fields do not pause regen (only cast hits do).",
+        "The warden hits you too: the same pause shows on your HUD."
+      ],
+      "budgetTokens": 5000,
+      "args": [
+        "--room",
+        "size=large;count=1",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:push:3:1,{A}:pull:3:1;equip={A}:push;motivation=user_controlled;vitals=health:30:1,mana:50:5,stamina:12:2,durability:15:1",
+        "--warden",
+        "count=1;id=foe;affinity={B};affinities={B}:push:2:1,{B}:pull:2:1;equip={B}:push;motivation=attacking;vitals=health:30:1,mana:40:4,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "draw-reach",
+      "title": "Draw reach",
+      "shows": "a draw of range r reaches r+1 tiles and eases off in a line (#533)",
+      "focus": [
+        "You emit a {A} draw at range 3 (start line, panel i). Stand a warden-free distance away and walk toward the hazard-free board edge: the draw field should cover 4 tiles from you, weaker toward the edge (colour dims).",
+        "Walk the warden's {B} hazard emit into your field: cells nearer you should steal more than the far ones.",
+        "Draw used to reach one tile only, at full strength: a field one tile out should now be weaker than at your own tile, and tiles 2-4 out should still show.",
+        "Draw still steals and absorbs; check the warden's vital moves while it stands inside your reach."
+      ],
+      "budgetTokens": 5000,
+      "args": [
+        "--room",
+        "size=large;count=1",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:draw:3:1;equip={A}:draw;motivation=user_controlled;vitals=health:30:1,mana:60:6,stamina:12:2,durability:15:1",
+        "--warden",
+        "count=1;id=foe;affinity={B};affinities={B}:emit:2:1;equip={B}:emit;motivation=defending;vitals=health:30:1,mana:40:4,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "structures",
+      "title": "Earth builds, corrode breaks",
+      "shows": "earth raises barriers with twice the durability (#534); corrode does double harm to structures (#535)",
+      "focus": [
+        "Raise a barrier with earth (equip earth:push in the panel i, then z, aim, Enter). Note its durability in inspect/panel; compare with a barrier raised by another kind (the warden's {B} push, or any non-earth slot): earth's is about twice as strong for twice the mana.",
+        "Switch to corrode:push (i) and hit your earth barrier, then the hazard and the resource: each takes about twice the damage a non-corrode push of the same range and intensity does.",
+        "Corrode hitting the warden is normal strength (its defeat vital is health): the double applies to barriers, hazards and resources only.",
+        "Same-kind immunity still holds: a corrode barrier is not breached by corrode."
+      ],
+      "budgetTokens": 6000,
+      "args": [
+        "--room",
+        "size=large;count=2",
+        "--delver",
+        "count=1;id=hero;affinity=earth;affinities=earth:push:3:2,corrode:push:3:2,{B}:push:3:2;equip=earth:push;motivation=user_controlled;vitals=health:30:1,mana:60:6,stamina:12:2,durability:15:1",
+        "--warden",
+        "count=1;id=foe;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:25:1,mana:30:3,stamina:10:2,durability:10:1",
+        "--hazard",
+        "affinity={C};expression=emit;stacks=2;intensity=1;proximityRadius=1;mana=regen:40:40:5",
+        "--resource",
+        "permanenceMode=consumable;vital=health;delta=10"
+      ]
+    },
+    {
+      "id": "wind-knockback",
+      "title": "Wind knockback",
+      "shows": "wind knocks back twice as far as other kinds (#536)",
+      "focus": [
+        "Push the warden with wind at intensity 2 (f, Tab, Enter): it should fly 4 cells (intensity x2 steps), stopping early at a wall or actor.",
+        "Switch to the {B} push at the same intensity (i, then equip): it moves 2 cells. Every kind still knocks back, wind just goes further.",
+        "A pull from wind drags the target toward you by the same extra distance.",
+        "Push it into a wall: it stops there. Push so it lands in a hazard field if you can."
+      ],
+      "budgetTokens": 5000,
+      "args": [
+        "--room",
+        "size=large;count=1",
+        "--delver",
+        "count=1;id=hero;affinity=wind;affinities=wind:push:3:2,wind:pull:3:2,{B}:push:3:2;equip=wind:push;motivation=user_controlled;vitals=health:30:1,mana:60:6,stamina:12:2,durability:15:1",
+        "--warden",
+        "count=1;id=foe;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:40:1,mana:40:4,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "top-up",
+      "title": "Restoring steals top up",
+      "shows": "a restoring kind (growth, fortify, light) steals only what it lacks (#537)",
+      "focus": [
+        "You carry growth pulls. At full health, pull the warden (f, Tab, Enter): you gain nothing and its health is untouched (a full caster takes nothing).",
+        "Let the warden hurt you (it pushes decay/{B}), then pull again: you take only as much health as you lack, never past your max.",
+        "Check the warden: it loses exactly what you gained, not the full pull amount.",
+        "A harmful kind's steal (the warden's pull, if it has one) still takes the whole amount regardless of room."
+      ],
+      "budgetTokens": 5000,
+      "args": [
+        "--room",
+        "size=large;count=1",
+        "--delver",
+        "count=1;id=hero;affinity=growth;affinities=growth:pull:3:2,growth:push:2:1;equip=growth:pull;motivation=user_controlled;vitals=health:30:1,mana:50:5,stamina:12:2,durability:15:1",
+        "--warden",
+        "count=1;id=foe;affinity=decay;affinities=decay:push:2:2,decay:pull:2:1;equip=decay:push;motivation=attacking;vitals=health:40:1,mana:40:4,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "line-of-fire",
+      "title": "Line of fire",
+      "shows": "a warden's cast at you follows the tile line: walls and allies in between stop or take it (#538)",
+      "focus": [
+        "Two wardens hunt you. Stand with a wall corner between you and one of them: its cast stops at the wall instead of reaching you (it used to ignore walls).",
+        "Line the wardens up so one stands between you and the other: the front one takes the back one's cast (friendly fire), and the price is paid either way.",
+        "Raise a barrier (z) across the line: casts at you should hit it.",
+        "Casts at yourself (own emit) still work as before."
+      ],
+      "budgetTokens": 6000,
+      "args": [
+        "--room",
+        "size=large;count=2",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:push:3:1,{A}:emit:2:1;equip={A}:emit;motivation=user_controlled;vitals=health:40:1,mana:50:5,stamina:12:2,durability:15:1",
+        "--warden",
+        "count=1;id=front;affinity={B};affinities={B}:push:3:1;equip={B}:push;motivation=attacking;vitals=health:25:1,mana:40:4,stamina:10:2,durability:10:1",
+        "--warden",
+        "count=1;id=back;affinity={D};affinities={D}:push:3:1;equip={D}:push;motivation=attacking;vitals=health:25:1,mana:40:4,stamina:10:2,durability:10:1"
+      ]
+    },
+    {
+      "id": "shrines",
+      "title": "Shrines and healing wells",
+      "shows": "restoring hazards off the route (#486); --tactic auto can pick them too (#531)",
+      "focus": [
+        "The level has shrine hazards in a room off the spawn-to-exit route (the start line names them; a health one is a healing well). Find one.",
+        "Stand in its field: the HUD should show the vital it restores climbing each turn. Is it worth the detour?",
+        "Hurt yourself on the warden first, then visit it.",
+        "Run again with other --seed values: the shrine kinds are drawn from the restoring rows (growth, fortify, light) by the seed.",
+        "For the auto mix run `long-haul` on several seeds: shrines can now appear among its tactics (#531)."
+      ],
+      "budgetTokens": 7000,
+      "args": [
+        "--room",
+        "size=large;count=3",
+        "--delver",
+        "count=1;id=hero;affinity={A};affinities={A}:push:3:1;equip={A}:push;motivation=user_controlled;vitals=health:25:1,mana:40:4,stamina:12:2,durability:10:1",
+        "--warden",
+        "count=1;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:15:1,mana:15:2,stamina:10:2,durability:10:1",
+        "--tactic",
+        "shrine;count=2"
+      ]
     }
   ]
 }
