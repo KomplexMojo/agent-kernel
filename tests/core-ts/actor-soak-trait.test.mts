@@ -62,7 +62,9 @@ test('stamina still regenerates every tick while soaked (#407)', () => {
   for (const kind of SOAKERS) {
     const target = actor('target', 2); target.vitals.stamina = { current: 20, max: 100, regen: 1 };
     const registry = board([actor('caster', 0, [{ kind, expression: 'push', stacks: 3, intensity: 2 }]), target]);
-    tick(registry, 1, [{ actorId: 'caster', kind: 'cast_affinity', params: { targetId: 'target' } }], kind);
+    // Soaked directly, not by a hit: a cast hit pauses stamina regen for a while (#478).
+    registry.soakActor('target', 2);
+    tick(registry, 1, [], kind);
     const afterHit = stamina(registry);
     tick(registry, 2, [step(3)]);
     expect(stamina(registry)).toBe(afterHit - (2 + SOAK_MOVE_STAMINA) + 1);

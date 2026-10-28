@@ -16,7 +16,7 @@ export type ActorMoveRejection = 'WrongActor' | 'InvalidCapability' | 'OutOfBoun
 const ACTOR_FIELDS = new Set([
   'id', 'alignment', 'position', 'lifecycle', 'defeatVital', 'vitals',
   'capabilities', 'motivations', 'affinities', 'activeAffinityKey', 'holdings', 'exitDwell', 'affinityExhausted',
-  'affinitySlots', 'raisedBy', 'soaked', 'watching', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks', 'equippedAffinityIntensity',
+  'affinitySlots', 'raisedBy', 'soaked', 'regenPaused', 'watching', 'equippedAffinityKeys', 'exhaustedAffinityKeys', 'equippedAffinityStacks', 'equippedAffinityIntensity',
 ]);
 
 /** Reject values JSON cannot faithfully represent before taking ownership. */
@@ -87,6 +87,12 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     }
     if (record.soaked !== undefined && (!Number.isSafeInteger(record.soaked) || record.soaked < 1)) {
       throw new Error('invalid soak turns');
+    }
+    if (record.regenPaused !== undefined && (!record.regenPaused || typeof record.regenPaused !== 'object'
+      || Array.isArray(record.regenPaused) || Object.keys(record.regenPaused).length === 0
+      || Object.entries(record.regenPaused).some(([vital, turns]) => !record.vitals[vital as ActorVitalKind]
+        || !Number.isSafeInteger(turns) || (turns as number) < 1))) {
+      throw new Error('invalid regen pause');
     }
     if (record.watching !== undefined && (!Array.isArray(record.watching) || record.watching.length === 0
       || new Set(record.watching).size !== record.watching.length
@@ -208,6 +214,18 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
       return true;
     },
     /**
+     * #478: `vitals` of a living actor regenerate nothing for the next `phases` regen phases; a
+     * longer pause already running on a vital is kept. Vitals the actor lacks are skipped.
+     */
+    pauseRegen(id: string, vitals: readonly ActorVitalKind[], phases: number): boolean {
+      const actor = actors.get(id);
+      if (!actor || actor.lifecycle !== 'alive' || !Number.isSafeInteger(phases) || phases < 1) return false;
+      const paused = { ...(actor.regenPaused ?? {}) };
+      for (const vital of vitals) if (actor.vitals[vital]) paused[vital] = Math.max(paused[vital] ?? 0, phases);
+      if (Object.keys(paused).length > 0) actor.regenPaused = paused;
+      return true;
+    },
+    /**
      * #519: begin watching `targetId`, or stop if already watching it. False when either is not
      * alive or they are the same actor; ending a watch never needs mana.
      */
@@ -253,10 +271,21 @@ export function createActorRegistry(input: ActorRegistrySnapshot) {
     /**
      * `scaleByActor` multiplies regen per actor and vital this turn (overwhelm, #289);
      * `upkeepByStacks` is the table chargeAffinityUpkeep read, so recovery knows what full mana pays (#441).
+     * A paused vital (#478) regenerates nothing, and each pause counts down one phase.
      */
     regenerate(scaleByActor: Readonly<Record<string, Partial<Record<ActorVitalKind, number>>>> = {},
       upkeepByStacks: readonly number[] = []): void {
-      for (const actor of ordered) { regenerateActor(actor, scaleByActor[actor.id]); recoverActorAffinity(actor, upkeepByStacks); }
+      for (const actor of ordered) {
+        const paused = actor.regenPaused ?? {};
+        const scale = { ...(scaleByActor[actor.id] ?? {}) };
+        for (const vital of Object.keys(paused) as ActorVitalKind[]) scale[vital] = 0;
+        regenerateActor(actor, scale);
+        recoverActorAffinity(actor, upkeepByStacks);
+        if (!actor.regenPaused) continue;
+        const left = Object.fromEntries(Object.entries(paused).filter(([, turns]) => turns! > 1)
+          .map(([vital, turns]) => [vital, turns! - 1]));
+        if (Object.keys(left).length > 0) actor.regenPaused = left; else delete actor.regenPaused;
+      }
     },
     advanceExitDwell(): string[] {
       const exited: string[] = [];

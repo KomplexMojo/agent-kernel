@@ -44,6 +44,36 @@ test('taking claims one stack and one turn; competing claims cannot duplicate it
   expect(observation.actors.find(actor => actor.id === 'source').holdings[0].claimedBy).toBe(null);
   expect(decide(readActorRegistryObservation(registry, 1)).actions[0].params.holdingId).toBe('affinity:growth:draw');
 });
+// #478 surfaced it: two wardens beside one defeated delver, out of each other's sight, both
+// proposed its first holding every turn, and the one that resolved second was refused turn after
+// turn. A taker refused last turn takes from the other end, so the two split the holdings.
+test('a taker refused last turn does not stay in step with the taker that beat it', () => {
+  const kinds = ['fire', 'growth', 'light', 'water', 'wind', 'earth', 'decay', 'dark'];
+  const snapshot = setup().snapshot();
+  Object.assign(snapshot.actors.find(actor => actor.id === 'source'), {
+    affinities: kinds.map(kind => ({ kind, expression: 'emit', stacks: 1 })), activeAffinityKey: 'fire:emit', holdings: [] });
+  const world = createActorRegistry(snapshot);
+  const personas = { self: createActorPersona({ clock: () => 'fixed' }), other: createActorPersona({ clock: () => 'fixed' }) };
+  const propose = (id, tick) => {
+    const payload = { actorId: id, observation: readActorRegistryObservation(world, tick) };
+    personas[id].advance({ phase: TickPhases.OBSERVE, event: 'observe', payload, tick });
+    personas[id].advance({ phase: TickPhases.DECIDE, event: 'decide', payload, tick });
+    const action = personas[id].advance({ phase: TickPhases.DECIDE, event: 'propose', payload, tick }).actions[0];
+    personas[id].advance({ phase: TickPhases.DECIDE, event: 'cooldown', payload, tick });
+    return action;
+  };
+  let streak = 0; let longest = 0; let taken = 0;
+  for (let tick = 0; tick < kinds.length && taken < kinds.length; tick += 1) {
+    const first = propose('self', tick); const second = propose('other', tick);
+    expect(first.kind).toBe('take');
+    const turn = createActorTurn(world, tick, { castManaBase: {}, movementStamina: {} });
+    expect(turn.apply(first)).toBe(true); taken += 1;
+    if (second?.kind === 'take' && turn.apply(second)) { taken += 1; streak = 0; } else streak += 1;
+    longest = Math.max(longest, streak);
+  }
+  expect(longest).toBe(1);
+});
+
 test.each(['living_source', 'exited_source', 'distant', 'claimed', 'disabled', 'defeated_receiver'])('%s is not a taking candidate', scenario => {
   const observation = readActorRegistryObservation(setup(), 0);
   const self = observation.actors.find(actor => actor.id === 'self');
@@ -105,4 +135,7 @@ test('an intact resource is open: its authored holdings are proposed without def
 });
 
 // ## TODO: Test Permutations
+// - a lone taker that was never refused keeps id order on every turn
+// - a refused taker beside two sources reverses both
+// - three takers: the two refused at the front meet again at the back
 // - Permuting source and holding enumeration preserves deterministic claim ordering.
