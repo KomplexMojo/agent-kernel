@@ -434,7 +434,8 @@ const LINEAR_TIERS = Object.freeze([1, 2, 3, 4, 5]);
 // #477: one price for every kind. The rows differ only in their ids; each expression's tiers are
 // the same shape for every affinity, so no kind is cheaper to play than another.
 const UNIFORM_MANA_COST = Object.freeze({
-  push: [2, 4, 6, 8, 10], pull: LINEAR_TIERS, emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS,
+  // #532 (#496 audit): pull costs what push does; it was half, for the same hit plus a steal.
+  push: [2, 4, 6, 8, 10], pull: [2, 4, 6, 8, 10], emit: [2, 4, 6, 8, 10], draw: LINEAR_TIERS,
 });
 const DEFAULT_AFFINITY_ROWS = Object.freeze({
   fire: { ids: ["flame_surge", "ember_grasp", "pyre_field", "ember_siphon"], manaCost: UNIFORM_MANA_COST },
