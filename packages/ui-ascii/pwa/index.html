@@ -11,6 +11,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="stylesheet" href="style.css">
 </head><body>
+<div id="update" hidden><span id="update-text"></span><button id="update-apply">Update</button><button id="update-later">Later</button></div>
 <section id="picker" hidden>
   <h1>Deepward playtest</h1>
   <p class="lead">Pick a scenario, play it, then send the report. Add this page to your home screen to play offline.</p>
@@ -30,14 +31,21 @@
   <button id="start" class="primary">Start</button>
 </section>
 <section id="game" hidden>
-  <div id="bar"><button id="menu">☰ Menu</button></div>
-  <div id="board"><pre id="screen"></pre></div>
-  <div id="controls"><div id="pad"></div><div id="actions"></div></div>
+  <div id="bar"><span id="title"></span><button id="menu">☰</button></div>
+  <div id="board"><pre id="boardtext"></pre></div>
+  <div id="vitals"></div>
+  <div id="msg"></div>
+  <div id="slots"></div>
+  <div id="tune" class="tune hint"></div>
+  <div id="controls"></div>
 </section>
 <dialog id="menu-dialog">
+  <p id="menu-version" class="dim"></p>
   <button id="menu-brief">Things to try</button>
+  <button id="menu-help">Keys and help</button>
   <button id="menu-report" class="primary">Report what I found</button>
   <button id="menu-scenarios">Pick another scenario</button>
+  <button id="menu-restart">Restart this level</button>
 </dialog>
 <dialog id="report-dialog">
   <h2>Report</h2>
@@ -47,6 +55,11 @@
   <p id="report-status" class="dim"></p>
   <textarea id="report-text" rows="6" readonly></textarea>
   <div class="row"><button id="report-close">Close</button></div>
+</dialog>
+<dialog id="help-dialog">
+  <h2>Keys</h2>
+  <pre id="help-text"></pre>
+  <div class="row"><button id="help-close">Close</button></div>
 </dialog>
 <script src="app.js"></script>
 </body></html>

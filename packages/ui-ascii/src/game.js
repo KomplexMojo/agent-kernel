@@ -8,6 +8,7 @@ import { createPlaySession, PLAY_DIRECTION_STEPS, replayPlaySession } from "../.
 import { INTENT } from "./keymap.js";
 import { renderScreen, revealedDetail, revealNote, slotLevelLabel } from "./screen.js";
 import { HUD_VITAL_LABELS } from "../../runtime/src/render/actor-hud-model.js";
+import { AFFINITY_COLOR_HEX } from "../../runtime/src/render/affinity-palette.js";
 
 /** Friendlier words for core's rejection codes; the raw name is the fallback. */
 const REJECTION_MESSAGES = Object.freeze({
@@ -703,8 +704,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
     return [`Target: ${target.id}${revealNote(target)}${panel.affinityKey ? ` with ${keyLabel(panel.affinityKey)}` : ""} (${tiles(target.distance)} away${reach !== undefined ? `, reaches ${tiles(reach)}` : ""})   Tab next, Enter cast, Esc cancel`];
   }
 
-  function screen({ color = false } = {}) {
+  function screen({ color = false, parts = false } = {}) {
     return renderScreen({
+      parts,
       view: session.view(),
       levelName: levels[levelIndex].name,
       grade: levels[levelIndex].simConfig?.meta?.cost?.grade ?? null,
@@ -728,6 +730,9 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
       finished,
       message,
       panel: panel?.type ?? null,
+      // What the open panel is for, so a touch UI can label its keys: casting, raising, looking, watching.
+      panelFlags: { raise: Boolean(panel?.raise), inspect: Boolean(panel?.inspect), watch: Boolean(panel?.watch) },
+      sprintArmed,
       active: session.activeActorId?.() ?? null,
       party: session.view().party ?? [],
       orders: session.view().orders ?? [],
@@ -762,5 +767,65 @@ export async function createGame({ levels, startIndex = 0, createSession = creat
 
   /** #500: the whole level for the analysis console (`--debug`), read from the play session. */
   const debugView = () => session.debugView();
-  return { handle, command, switchTo, screen, state, view, debugView, captureInput, replay };
+  /**
+   * The seated actor's affinity slots as buttons need them (the phone app, #552): each slot's
+   * kind and expression, range and intensity (running of held), whether it is cast, whether it
+   * is drained, and the known affinities that are not equipped (what an empty slot can take).
+   */
+  function slots() {
+    const player = session.view().player;
+    const known = player?.affinities || [];
+    const equipped = equippedKeys(player);
+    const off = Array.isArray(player?.exhaustedAffinityKeys) ? player.exhaustedAffinityKeys : (player?.affinityExhausted ? equipped : []);
+    const count = Math.max(player?.affinitySlots ?? 1, equipped.length);
+    const level = (pair, field) => ({ running: runningLevel(player, pair, field), held: LEVELS[field].held(pair) });
+    const entry = (pair) => {
+      const key = `${pair.kind}:${pair.expression}`;
+      return { key, kind: pair.kind, expression: pair.expression, color: AFFINITY_COLOR_HEX[pair.kind] ?? null,
+        stacks: level(pair, "stacks"), intensity: level(pair, "intensity"), label: affinityLabel(pair) };
+    };
+    return {
+      slots: Array.from({ length: count }, (_, index) => {
+        const pair = known.find((candidate) => `${candidate.kind}:${candidate.expression}` === equipped[index]);
+        if (!pair) return { index, empty: true };
+        const item = entry(pair);
+        return { index, ...item, castable: Boolean(castable(player)[item.key]), reach: castable(player)[item.key]?.range ?? null, off: off.includes(item.key) };
+      }),
+      picks: known.filter((pair) => !equipped.includes(`${pair.kind}:${pair.expression}`)).map(entry),
+    };
+  }
+
+  /** Equip a known affinity into a free slot, or unequip it if it is equipped (a turn, as with its number). */
+  async function toggleSlotAffinity(affinityKey) {
+    panel = null;
+    message = "";
+    const pair = (session.view().player?.affinities || []).find((candidate) => `${candidate.kind}:${candidate.expression}` === affinityKey);
+    if (pair) await toggleAffinity(pair);
+  }
+
+  /** Run an equipped affinity one range or intensity higher or lower, as the affinity list's + - ] [ do. */
+  async function tuneSlot(affinityKey, field, step) {
+    const items = session.view().player?.affinities || [];
+    const index = items.findIndex((candidate) => `${candidate.kind}:${candidate.expression}` === affinityKey);
+    message = "";
+    if (index < 0 || !LEVELS[field]) return;
+    panel = { type: "affinities", items, index };
+    await relevel(field, step);
+    panel = null;
+  }
+
+  /** What a list panel offers as buttons (loot, orders, the affinity list): one label each, picked by its number. */
+  function panelChoices() {
+    if (!panel || !Array.isArray(panel.items) || !["loot", "order_actor", "order_goal", "affinities"].includes(panel.type)) return null;
+    const player = session.view().player;
+    const labels = {
+      loot: (item) => `${lootLabel(item)} from ${item.targetId}`,
+      order_actor: (item) => `${item.label ? `${item.label} ` : ""}${item.id}`,
+      order_goal: (item) => item.label,
+      affinities: (pair) => affinityLabel(pair) + (equippedKeys(player).includes(`${pair.kind}:${pair.expression}`) ? " (equipped)" : ""),
+    };
+    return { type: panel.type, items: panel.items.map(labels[panel.type]) };
+  }
+
+  return { handle, command, switchTo, screen, state, view, debugView, captureInput, replay, slots, toggleSlotAffinity, tuneSlot, panelChoices };
 }
