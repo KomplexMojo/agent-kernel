@@ -458,6 +458,7 @@ function defeatScreen({ view, title, tickLine, color, message }) {
  * @param {string} [args.tickLine]   replaces the "Tick n   Turns n" line
  * @param {string[]} [args.helpLines] replaces the game's key help
  * @param {boolean} [args.hints]     the HUD's "press i" hints (off when watching a run)
+ * @param {boolean} [args.parts]     return the screen in its parts, not as one string (the phone app lays them out itself)
  */
 export function renderScreen({
   view,
@@ -475,8 +476,12 @@ export function renderScreen({
   tickLine = `Tick ${view.tick}   Turns ${turns}`,
   helpLines = HELP_LINES,
   hints = true,
+  parts = false,
 }) {
-  if (view.status?.defeated) return defeatScreen({ view, title, tickLine, color, message });
+  if (view.status?.defeated) {
+    const defeat = defeatScreen({ view, title, tickLine, color, message });
+    return parts ? { defeat } : defeat;
+  }
   const lines = [];
   lines.push(title);
   lines.push("");
@@ -496,6 +501,21 @@ export function renderScreen({
       : monoBoardRow(row, view.sight?.[y], view.legend?.floor)}`);
   });
   lines.push("");
+  if (parts) {
+    const info = [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)].filter(Boolean);
+    return {
+      title,
+      board: board.map((row, y) => (styles ? paintBoardRow(row, styles, actorCells.get(y), view.sight?.[y], depthOf(color), view.field?.[y], view.legend?.floor)
+        : monoBoardRow(row, view.sight?.[y], view.legend?.floor))),
+      vitals: presentVitals(view.player).map((vital) => ({ label: vital.label, text: vitalAmount(vital), fraction: vital.fraction, colorHex: vital.colorHex })),
+      soaked: soakedNote(view.player).trim(),
+      info,
+      tick: tickLine,
+      status: statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }),
+      panel: Array.isArray(panel) ? panel : [],
+      help: helpLines,
+    };
+  }
   const vitals = presentVitals(view.player).map((vital) => vitalBar(vital, color));
   if (soakedNote(view.player)) vitals.push(soakedNote(view.player).trim());
   if (vitals.length > 0) lines.push(vitals.join("   "));

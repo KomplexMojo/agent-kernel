@@ -16,5 +16,7 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  // version.json says which build is live, so it always comes from the network.
+  if (new URL(event.request.url).pathname.endsWith("/version.json")) return;
   event.respondWith(caches.match(event.request).then((hit) => hit || fetch(event.request)));
 });

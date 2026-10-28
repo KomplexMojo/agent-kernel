@@ -124,7 +124,10 @@ export async function buildPwa({ out = join(ROOT, "dist/pwa"), seeds = DEFAULT_S
   const catalog = catalogFor(scenarios, catalogSource.createdAt, commit, entries);
   writeFileSync(join(out, "catalog.json"), JSON.stringify(catalog));
 
+  // The page reads its own build from the bundle, and version.json (never cached) says which build is live.
+  writeFileSync(join(out, "version.json"), JSON.stringify({ commit, builtAt: new Date().toISOString().slice(0, 10) }));
   await esbuild({ entryPoints: [join(ROOT, "packages/ui-ascii/src/browser.js")], bundle: true, format: "iife", minify: true,
+    define: { __BUILD__: JSON.stringify(commit) },
     target: "es2022", outfile: join(out, "app.js"), legalComments: "none", logLevel: "warning" });
   cpSync(STATIC_DIR, out, { recursive: true });
   for (const size of [180, 192, 512]) writeFileSync(join(out, `icon-${size}.png`), iconPng(size));

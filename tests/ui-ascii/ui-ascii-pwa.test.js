@@ -62,7 +62,7 @@ test("the built app plays: a level from the build runs in the game controller, a
   const out = mkdtempSync(join(tmpdir(), "pwa-build-"));
   try {
     await buildPwa({ out, seeds: 1, only: ["first-look"], log: () => {} });
-    for (const file of ["index.html", "app.js", "catalog.json", "sw.js", "manifest.webmanifest", "icon-192.png", ".nojekyll", "levels/first-look-s0.json"]) {
+    for (const file of ["index.html", "app.js", "catalog.json", "sw.js", "manifest.webmanifest", "icon-192.png", "version.json", ".nojekyll", "levels/first-look-s0.json"]) {
       assert.ok(existsSync(join(out, file)), `${file} is built`);
     }
     // The runtime play session still has debugView(); only the console that shows it (web.mjs) must stay out.
@@ -70,6 +70,9 @@ test("the built app plays: a level from the build runs in the game controller, a
     const sw = readFileSync(join(out, "sw.js"), "utf8");
     assert.doesNotMatch(sw, /__CACHE__|__PRECACHE__/);
     assert.match(sw, /levels\/first-look-s0\.json/);
+    const { commit } = JSON.parse(readFileSync(join(out, "version.json"), "utf8"));
+    assert.match(readFileSync(join(out, "app.js"), "utf8"), new RegExp(commit), "the bundle knows its own build");
+    assert.doesNotMatch(sw.match(/const FILES = (.*);/)[1], /version\.json/, "version.json is never cached");
     const level = JSON.parse(readFileSync(join(out, "levels/first-look-s0.json"), "utf8"));
     const game = await createGame({ levels: [{ name: "pwa", ...level }], fog: true, showHelp: false });
     await game.handle({ type: "wait" });
@@ -78,4 +81,55 @@ test("the built app plays: a level from the build runs in the game controller, a
   } finally {
     rmSync(out, { recursive: true, force: true });
   }
+});
+
+// The controller's side of the phone layout: slots as buttons, tuning, list choices, the screen in parts.
+async function pwaGame() {
+  const { loadBundledLevels } = require("../../packages/ui-ascii/src/levels.js");
+  return createGame({ levels: loadBundledLevels(), showHelp: false });
+}
+
+test("slots() lists the slots and the affinities an empty one could take", async () => {
+  const game = await pwaGame();
+  const { slots, picks } = game.slots();
+  assert.ok(slots.length >= 1);
+  assert.ok(slots.every((slot) => slot.empty || (slot.key && slot.stacks.running >= 1 && slot.intensity.held >= 1)));
+  const before = game.view().player.equippedAffinityKeys.length;
+  if (picks.length) {
+    await game.toggleSlotAffinity(picks[0].key);
+    assert.equal(game.view().player.equippedAffinityKeys.length, before + 1, "equipping fills a slot");
+    assert.equal(game.slots().slots.some((slot) => slot.key === picks[0].key), true);
+  }
+});
+
+test("screen({ parts }) hands back the board, vitals and message band separately", async () => {
+  const game = await pwaGame();
+  const parts = game.screen({ color: false, parts: true });
+  assert.ok(Array.isArray(parts.board) && parts.board.length > 3);
+  assert.ok(parts.vitals.every((vital) => vital.label && vital.text));
+  assert.equal(typeof parts.status, "string");
+  assert.equal(game.screen({ color: false, parts: false }).split("\n")[0], parts.title);
+});
+
+test("tuneSlot runs an equipped affinity lower and back, as the list's - and + do", async () => {
+  const game = await pwaGame();
+  const slot = game.slots().slots.find((entry) => !entry.empty && entry.stacks.held > 1);
+  if (!slot) return; // the first bundled level holds nothing to tune
+  await game.tuneSlot(slot.key, "stacks", -1);
+  assert.equal(game.slots().slots.find((entry) => entry.key === slot.key).stacks.running, slot.stacks.held - 1);
+  await game.tuneSlot(slot.key, "stacks", 1);
+  assert.equal(game.slots().slots.find((entry) => entry.key === slot.key).stacks.running, slot.stacks.held);
+  assert.equal(game.state().panel, null, "tuning leaves no panel open");
+});
+
+test("a list panel is offered as choices, and the state names what an open panel is for", async () => {
+  const game = await pwaGame();
+  assert.equal(game.panelChoices(), null);
+  await game.handle({ type: "affinities" });
+  const choices = game.panelChoices();
+  assert.equal(choices?.type, "affinities");
+  assert.ok(choices.items.length >= 1);
+  assert.deepEqual(game.state().panelFlags, { raise: false, inspect: false, watch: false });
+  await game.handle({ type: "quit" });
+  assert.equal(game.panelChoices(), null);
 });
