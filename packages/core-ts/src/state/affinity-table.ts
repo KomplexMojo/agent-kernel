@@ -32,11 +32,17 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from './actor-t
  *   costing SOAK_MOVE_STAMINA more (rules/actor-cast.ts, rules/actor-fields.ts). `spread`
  *   (fire, #421): where a push lands its field creeps on, a cell and one intensity a turn, by
  *   the run's seed (rules/actor-spread.ts). `raise` (earth; raising barriers itself is open to
- *   every kind, #442) is recorded here without a rule yet. Code reads the column, never a kind name.
+ *   every kind, #442) is what the `raiseScale` column carries out. `breach` (corrode, #535, Darren
+ *   2026-10-28): its harm (damage and steal, fields and casts alike) is multiplied by
+ *   AFFINITY_RECEIVER_RULES.breachAmplification against a receiver whose defeat vital is
+ *   durability: barriers, hazards and resources (rules/actor-receiver.ts). Code reads the column,
+ *   never a kind name.
+ * - `raiseScale` (#534, Darren 2026-10-28): a barrier this kind raises gets its investment and
+ *   durability times this (rules/actor-cast.ts raisedBarrierStats). 1 for every kind, 2 for earth.
  */
 export type AffinityOutwardOperation = 'damage' | 'restore';
 export type AffinityInwardOperation = 'drain';
-export type AffinityTrait = 'soak' | 'spread' | 'raise';
+export type AffinityTrait = 'soak' | 'spread' | 'raise' | 'breach';
 export type AffinityFormulaId = keyof typeof AFFINITY_FORMULAS;
 
 export interface AffinityTableRow {
@@ -98,7 +104,7 @@ export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
   row('wind', 'stamina', 'damage', 'drain', 'defeat'),
   row('growth', 'health', 'restore', 'drain', null),
   row('decay', 'health', 'damage', 'drain', 'defeat'),
-  row('corrode', 'durability', 'damage', 'drain', 'defeat'),
+  row('corrode', 'durability', 'damage', 'drain', 'defeat', { trait: 'breach' }),
   row('fortify', 'durability', 'restore', 'drain', null),
   row('light', 'mana', 'restore', 'drain', null, { illuminates: true, reveals: true }),
   row('dark', 'mana', 'damage', 'drain', 'defeat', { conceals: true }),
@@ -108,7 +114,9 @@ export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
  * The receiver rules every effect meets, from a field or a cast alike (#348):
  * - a same-kind `draw` on the receiver absorbs an incoming outward effect into its mana;
  * - a same-kind slot the expression interaction table marks immune takes nothing;
- * - any opposite slot multiplies `amplifies` operations by `oppositeAmplification`.
+ * - any opposite slot multiplies `amplifies` operations by `oppositeAmplification`;
+ * - a `breach` kind multiplies them by `breachAmplification` against a receiver whose defeat
+ *   vital is `breachesDefeatVital` (#535).
  */
 export const AFFINITY_RECEIVER_RULES = Object.freeze({
   absorbedBy: 'draw' as AffinityExpression,
@@ -116,6 +124,9 @@ export const AFFINITY_RECEIVER_RULES = Object.freeze({
   sameKindImmunity: 'expression interaction table (AffinityEffect.None)',
   oppositeAmplification: 2,
   amplifies: Object.freeze(['damage', 'drain'] as const),
+  // #535: a `breach` kind's harm against a structure (a receiver whose defeat vital is this).
+  breachAmplification: 2,
+  breachesDefeatVital: 'durability' as ActorVitalKind,
 });
 
 const BY_KIND = new Map(AFFINITY_TABLE.map(entry => [entry.kind, entry]));

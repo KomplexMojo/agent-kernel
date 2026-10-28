@@ -53,6 +53,8 @@ where a push lands, its field creeps each turn to a seeded random neighbour that
 intensity weaker, until 0; an opposite field at least as strong there puts it out, and it harms whoever
 it reaches for no further mana. Raising barriers is open to every kind (#442, #460); a barrier gets
 10 × intensity² mana and durability times its kind's raise scale, so raise (earth) builds sturdier ones (#534).
+Breach (#535): the kind's damage and steal, from fields and casts alike, are multiplied against structures
+(receivers whose defeat vital is durability: barriers, hazards, resources), as the receiver rules below say.
 
 | Kind | Trait | Raise scale |
 |---|---|---|
@@ -62,7 +64,7 @@ it reaches for no further mana. Raising barriers is open to every kind (#442, #4
 | wind | none | ×1 |
 | growth | none | ×1 |
 | decay | none | ×1 |
-| corrode | none | ×1 |
+| corrode | breach | ×1 |
 | fortify | none | ×1 |
 | light | none | ×1 |
 | dark | none | ×1 |
@@ -74,6 +76,7 @@ The same for fields and casts:
 - A same-kind `draw` on the receiver absorbs an incoming push or emit into its mana.
 - A same-kind slot is immune where the expression interaction table (AffinityEffect.None) says so.
 - Any opposite slot multiplies damage and drain by 2.
+- A breach kind multiplies damage and drain by 2 against a receiver whose defeat vital is durability.
 
 ## Formulas
 

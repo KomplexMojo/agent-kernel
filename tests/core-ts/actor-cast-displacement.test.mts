@@ -35,7 +35,7 @@ function cast(kind: AffinityKind, expression: 'push' | 'pull', { target = { x: 5
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]];
 
 test('the table names a trait per row, from a fixed set, and every kind displaces', () => {
-  for (const row of AFFINITY_TABLE) expect([null, 'soak', 'spread', 'raise']).toContain(row.trait);
+  for (const row of AFFINITY_TABLE) expect([null, 'soak', 'spread', 'raise', 'breach']).toContain(row.trait);
   expect(DISPLACERS.length).toBe(10);
 });
 
