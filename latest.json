@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-28T05-24-28-640Z-c1d9ee78a5d8-a9bb7df03b9f",
-    "key": "a9bb7df03b9f4622b33428bc9f877a4fe4456290a978445d1090dd16816ab8a8",
+    "id": "2026-10-28T05-53-30-817Z-a00b1d0dd98a-27d65bb1c713",
+    "key": "27d65bb1c713e713fde8c9d638330c269700716eadfdbdc17c5327b939d3bb5c",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-28T05:24:28.640Z",
-    "completedAt": "2026-10-28T05:24:53.103Z",
-    "durationMs": 24463,
+    "startedAt": "2026-10-28T05:53:30.817Z",
+    "completedAt": "2026-10-28T05:53:55.331Z",
+    "durationMs": 24514,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "c1d9ee78a5d8e653112b8998aa19e0ef9e7e0d49",
-    "tree": "b576f92e94852f7036d88f0075a5bd3c0f3846dd"
+    "commit": "a00b1d0dd98a532d1cf5967f762902c634aaa8ac",
+    "tree": "e76ebe9f32b6762094c92c64819f1316e53e9be9"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -140,6 +140,7 @@
       "packages/runtime/src/personas/configurator/object-placement.js",
       "packages/runtime/src/personas/configurator/placement-constraints.js",
       "packages/runtime/src/personas/configurator/retinue.js",
+      "packages/runtime/src/personas/configurator/shrine.js",
       "packages/runtime/src/personas/configurator/tactic-report.js",
       "packages/runtime/src/personas/configurator/terrain-layout.js",
       "packages/runtime/src/personas/configurator/unified-actors.js",
@@ -257,7 +258,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/a9bb7df03b9f4622b33428bc9f877a4fe4456290a978445d1090dd16816ab8a8"
+    "retentionId": "preflights/27d65bb1c713e713fde8c9d638330c269700716eadfdbdc17c5327b939d3bb5c"
   },
   "qualifies": false
 }
