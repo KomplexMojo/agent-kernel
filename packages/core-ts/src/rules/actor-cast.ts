@@ -99,7 +99,8 @@ type SoakRegistry = Pick<ReturnType<typeof createActorRegistry>, 'soakActor'>;
 /**
  * #419, #482 (Darren, 2026-10-26): every kind's landed push moves the target away from the
  * caster and every pull toward it, one cell a step (king moves, along the sign of each axis),
- * as many steps as the cast's intensity. A step goes only into a free cell: a wall, the board's
+ * as many steps as the cast's intensity times its kind's `displaceSteps` (#536: wind 2, the
+ * rest 1). A step goes only into a free cell: a wall, the board's
  * edge, any living actor (the caster included) or a target that cannot move stops it there,
  * with no extra harm. Costs the target no stamina.
  */
@@ -112,7 +113,8 @@ function displaceTarget(registry: DisplaceRegistry, sourceId: string, targetId: 
   const step = { x: Math.sign(from.x - source.position.x) * away, y: Math.sign(from.y - source.position.y) * away };
   if (step.x === 0 && step.y === 0) return [];
   let at = from;
-  for (let moved = 0; moved < Math.max(1, affinityIntensity(pair)); moved += 1) {
+  const steps = Math.max(1, affinityIntensity(pair)) * (affinityTableRow(pair.kind)?.displaceSteps ?? 1);
+  for (let moved = 0; moved < steps; moved += 1) {
     const next = { x: at.x + step.x, y: at.y + step.y };
     if (registry.explainMove(targetId, next) !== null
       || registry.getActorsAt(next).some(other => other.lifecycle === 'alive')) break;

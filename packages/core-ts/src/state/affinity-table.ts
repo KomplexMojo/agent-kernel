@@ -37,6 +37,9 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from './actor-t
  *   AFFINITY_RECEIVER_RULES.breachAmplification against a receiver whose defeat vital is
  *   durability: barriers, hazards and resources (rules/actor-receiver.ts). Code reads the column,
  *   never a kind name.
+ * - `displaceSteps` (#536, Darren 2026-10-28): a landed push or pull of this kind moves its
+ *   target this many cells per point of intensity (rules/actor-cast.ts displaceTarget). 1 for
+ *   every kind, 2 for wind: every kind knocks back (#482), wind twice as far.
  * - `raiseScale` (#534, Darren 2026-10-28): a barrier this kind raises gets its investment and
  *   durability times this (rules/actor-cast.ts raisedBarrierStats). 1 for every kind, 2 for earth.
  */
@@ -56,6 +59,7 @@ export interface AffinityTableRow {
   readonly conceals: boolean;
   readonly trait: AffinityTrait | null;
   readonly raiseScale: number;
+  readonly displaceSteps: number;
   readonly formulas: Readonly<Record<'magnitude' | 'reach' | 'castMana' | 'upkeep', AffinityFormulaId>>;
 }
 
@@ -90,18 +94,19 @@ const FORMULAS = Object.freeze({
   upkeep: 'upkeep_table_at_range_plus_intensity',
 } as const);
 
-type RowColumns = { illuminates?: boolean; reveals?: boolean; conceals?: boolean; trait?: AffinityTrait | null; raiseScale?: number };
+type RowColumns = { illuminates?: boolean; reveals?: boolean; conceals?: boolean; trait?: AffinityTrait | null; raiseScale?: number; displaceSteps?: number };
 const row = (kind: AffinityKind, primaryVital: ActorVitalKind, outward: AffinityOutwardOperation,
   inward: AffinityInwardOperation, spill: 'defeat' | null,
-  { illuminates = false, reveals = false, conceals = false, trait = null, raiseScale = 1 }: RowColumns = {}): AffinityTableRow =>
-  Object.freeze({ kind, primaryVital, outward, inward, spill, illuminates, reveals, conceals, trait, raiseScale, formulas: FORMULAS });
+  { illuminates = false, reveals = false, conceals = false, trait = null, raiseScale = 1, displaceSteps = 1 }: RowColumns = {}): AffinityTableRow =>
+  Object.freeze({ kind, primaryVital, outward, inward, spill, illuminates, reveals, conceals, trait, raiseScale,
+    displaceSteps, formulas: FORMULAS });
 
 /** In affinity-codebook order. */
 export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
   row('fire', 'durability', 'damage', 'drain', 'defeat', { illuminates: true, trait: 'spread' }),
   row('water', 'stamina', 'damage', 'drain', 'defeat', { trait: 'soak' }),
   row('earth', 'durability', 'damage', 'drain', 'defeat', { trait: 'raise', raiseScale: 2 }),
-  row('wind', 'stamina', 'damage', 'drain', 'defeat'),
+  row('wind', 'stamina', 'damage', 'drain', 'defeat', { displaceSteps: 2 }),
   row('growth', 'health', 'restore', 'drain', null),
   row('decay', 'health', 'damage', 'drain', 'defeat'),
   row('corrode', 'durability', 'damage', 'drain', 'defeat', { trait: 'breach' }),

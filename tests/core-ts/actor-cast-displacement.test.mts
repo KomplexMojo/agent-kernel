@@ -1,6 +1,7 @@
 // #419, #482 (Darren, 2026-10-26) — every kind's landed cast moves what it hits: a push away
 // from the caster, a pull toward it, one cell per point of intensity, each step only into a
 // free cell (a wall or an actor stops it, with no extra harm). Kinds are read off the table.
+// #536 (Darren, 2026-10-28): times the kind's `displaceSteps` column, so wind moves it twice as far.
 import { expect, test } from 'vitest';
 import { createActorRegistry } from '../../packages/core-ts/src/state/actor-registry.ts';
 import { castFocusedActorAffinity } from '../../packages/core-ts/src/rules/actor-cast.ts';
@@ -10,6 +11,7 @@ import type { ActorRecord, ActorAffinityEntry, AffinityKind } from '../../packag
 const W = 9;
 const CENTRE = { x: 4, y: 4 };
 const DISPLACERS = AFFINITY_TABLE.map(row => row.kind);
+const steps = (kind: AffinityKind) => AFFINITY_TABLE.find(row => row.kind === kind)!.displaceSteps;
 
 function actor(id: string, position: { x: number; y: number }, pair?: ActorAffinityEntry): ActorRecord {
   return { id, alignment: id === 'source' ? 'external' : 'dungeon', lifecycle: 'alive', position: { ...position },
@@ -37,35 +39,41 @@ const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1],
 test('the table names a trait per row, from a fixed set, and every kind displaces', () => {
   for (const row of AFFINITY_TABLE) expect([null, 'soak', 'spread', 'raise', 'breach']).toContain(row.trait);
   expect(DISPLACERS.length).toBe(10);
+  // #536: wind knocks back twice as far; every other kind one cell per intensity.
+  expect(DISPLACERS.filter(kind => steps(kind) !== 1)).toEqual(['wind']);
+  expect(steps('wind')).toBe(2);
 });
 
-test('a push moves the target one cell away from the caster, in every direction', () => {
+test('a push moves the target its kind\'s steps away from the caster, in every direction', () => {
   for (const kind of DISPLACERS) {
     for (const [dx, dy] of DIRECTIONS) {
       const target = { x: CENTRE.x + dx * 2, y: CENTRE.y + dy * 2 };
       const { at, result } = cast(kind, 'push', { target });
-      expect(at, `${kind} push ${dx},${dy}`).toEqual({ x: target.x + dx, y: target.y + dy });
+      expect(at, `${kind} push ${dx},${dy}`).toEqual({ x: target.x + dx * steps(kind), y: target.y + dy * steps(kind) });
       expect(result.displaced).toEqual([{ actorId: 'target', from: target, to: at }]);
     }
   }
 });
 
-test('a pull moves the target one cell toward the caster, in every direction', () => {
+test('a pull moves the target its kind\'s steps toward the caster, in every direction', () => {
   for (const kind of DISPLACERS) {
     for (const [dx, dy] of DIRECTIONS) {
       const target = { x: CENTRE.x + dx * 3, y: CENTRE.y + dy * 3 };
-      expect(cast(kind, 'pull', { target }).at, `${kind} pull ${dx},${dy}`).toEqual({ x: target.x - dx, y: target.y - dy });
+      expect(cast(kind, 'pull', { target }).at, `${kind} pull ${dx},${dy}`)
+        .toEqual({ x: target.x - dx * steps(kind), y: target.y - dy * steps(kind) });
     }
   }
 });
 
-test('the move is one cell per point of intensity', () => {
+test('the move is the kind\'s steps per point of intensity, up to the board\'s edge or the caster', () => {
   for (const kind of DISPLACERS) {
-    expect(cast(kind, 'push', { target: { x: 5, y: 4 }, intensity: 1 }).at).toEqual({ x: 6, y: 4 });
-    expect(cast(kind, 'push', { target: { x: 5, y: 4 }, intensity: 2 }).at).toEqual({ x: 7, y: 4 });
-    expect(cast(kind, 'push', { target: { x: 5, y: 4 }, intensity: 3 }).at).toEqual({ x: 8, y: 4 });
-    expect(cast(kind, 'pull', { target: { x: 8, y: 4 }, intensity: 3 }).at).toEqual({ x: 5, y: 4 });
+    for (const intensity of [1, 2, 3]) {
+      // The board's edge is x 8; a pull stops beside the caster at x 4.
+      expect(cast(kind, 'push', { target: { x: 5, y: 4 }, intensity }).at).toEqual({ x: Math.min(8, 5 + intensity * steps(kind)), y: 4 });
+      expect(cast(kind, 'pull', { target: { x: 8, y: 4 }, intensity }).at).toEqual({ x: Math.max(5, 8 - intensity * steps(kind)), y: 4 });
+    }
   }
+  expect(cast('wind', 'push', { target: { x: 5, y: 4 }, intensity: 1 }).at).toEqual({ x: 7, y: 4 });
 });
 
 test('a wall or an actor stops the move, with no extra harm; a far move stops where it is blocked', () => {

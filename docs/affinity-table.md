@@ -45,8 +45,8 @@ what stands in it; it cancels illumination and revealing by intensity.
 
 A kind's physical identity beyond the vital it hits (#419), or none. Displacement is not a trait
 (#482): every kind's landed push moves what it hits away from the caster and every pull toward it, one
-cell per point of intensity, only into free cells; a wall, the board's edge or an actor stops it, with
-no extra harm. Soak (#420): a push that lands,
+cell per point of intensity times its kind's displace steps (wind 2, the rest 1, #536), only into free
+cells; a wall, the board's edge or an actor stops it, with no extra harm. Soak (#420): a push that lands,
 or an emit field the receiver takes something from, soaks it for the hit's intensity in turns (a field
 keeps it soaked while it stands there); each move costs one more stamina while soaked. Spread (#421):
 where a push lands, its field creeps each turn to a seeded random neighbour that is not a wall, one
@@ -56,18 +56,18 @@ it reaches for no further mana. Raising barriers is open to every kind (#442, #4
 Breach (#535): the kind's damage and steal, from fields and casts alike, are multiplied against structures
 (receivers whose defeat vital is durability: barriers, hazards, resources), as the receiver rules below say.
 
-| Kind | Trait | Raise scale |
-|---|---|---|
-| fire | spread | ×1 |
-| water | soak | ×1 |
-| earth | raise | ×2 |
-| wind | none | ×1 |
-| growth | none | ×1 |
-| decay | none | ×1 |
-| corrode | breach | ×1 |
-| fortify | none | ×1 |
-| light | none | ×1 |
-| dark | none | ×1 |
+| Kind | Trait | Raise scale | Displace steps |
+|---|---|---|---|
+| fire | spread | ×1 | ×1 |
+| water | soak | ×1 | ×1 |
+| earth | raise | ×2 | ×1 |
+| wind | none | ×1 | ×2 |
+| growth | none | ×1 | ×1 |
+| decay | none | ×1 | ×1 |
+| corrode | breach | ×1 | ×1 |
+| fortify | none | ×1 | ×1 |
+| light | none | ×1 | ×1 |
+| dark | none | ×1 | ×1 |
 
 ## Receiver rules
 
