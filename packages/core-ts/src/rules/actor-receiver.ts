@@ -4,7 +4,7 @@ import { AFFINITY_KIND_BY_CODE, AFFINITY_EXPRESSION_BY_CODE } from '../affinity-
 import { resolveAffinityRelationshipCode, AffinityRelationship } from '../state/affinity.ts';
 import { deriveAffinityInteractionCell, AffinityEffect, OPPOSITE_EXPOSURE_AMPLIFICATION } from '../state/affinity-spatial.ts';
 import { getActorAffinityEffect } from './actor-affinity.ts';
-import { AFFINITY_RECEIVER_RULES } from '../state/affinity-table.ts';
+import { AFFINITY_RECEIVER_RULES, affinityTableRow } from '../state/affinity-table.ts';
 
 const KIND_CODES = Object.fromEntries(Object.entries(AFFINITY_KIND_BY_CODE).map(([code, name]) => [name, Number(code)]));
 const EXPRESSION_CODES = Object.fromEntries(Object.entries(AFFINITY_EXPRESSION_BY_CODE).map(([code, name]) => [name, Number(code)]));
@@ -22,11 +22,21 @@ export function receiverAbsorbsAffinity(receiver: ActorRecord, incoming: Incomin
  * The receiver rules every affinity effect meets, from a field or a cast alike (#348), over
  * every equipped slot: a matching draw absorbs first (the caller routes it into mana), then
  * a same-kind slot that the interaction table makes immune takes nothing, then any opposite
- * slot doubles damage and drain. Returns the amount that reaches the receiver.
+ * slot doubles damage and drain, and a breach kind doubles them again against a structure (#535).
+ * Returns the amount that reaches the receiver.
  */
 export function receiverAffinityAmount(receiver: ActorRecord, incoming: Incoming, amount: number): number {
+  if (receiverAbsorbsAffinity(receiver, incoming)) return amount;
+  const reached = slotAffinityAmount(receiver, incoming, amount);
+  // #535: a breach kind's harm against a structure (barrier, hazard, resource) is amplified.
+  return affinityTableRow(incoming.kind)?.trait === 'breach' && receiver.defeatVital === AFFINITY_RECEIVER_RULES.breachesDefeatVital
+    && (AFFINITY_RECEIVER_RULES.amplifies as readonly string[]).includes(getActorAffinityEffect(incoming.kind, incoming.expression).operation)
+    ? reached * AFFINITY_RECEIVER_RULES.breachAmplification : reached;
+}
+
+function slotAffinityAmount(receiver: ActorRecord, incoming: Incoming, amount: number): number {
   const equipped = equippedActorAffinities(receiver);
-  if (!equipped.length || receiverAbsorbsAffinity(receiver, incoming)) return amount;
+  if (!equipped.length) return amount;
   const operation = getActorAffinityEffect(incoming.kind, incoming.expression).operation;
   const relationships = equipped.map(pair => {
     const relationship = resolveAffinityRelationshipCode(KIND_CODES[incoming.kind], KIND_CODES[pair.kind]);
