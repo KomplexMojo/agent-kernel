@@ -257,7 +257,6 @@
     {
       "id": "sweep-heal-ally",
       "note": "growth emit healer next to a wounded ally vs a decay warden",
-      "knownIssues": [{ "rule": "silent_actor", "actor": "hurt-1", "issue": "#522" }],
       "ticks": 80,
       "args": [
         "--room",

@@ -144,6 +144,8 @@ Dynamic actors express behavior through **stackable motivations** organised into
 
 **Yielding in a crowd (#457).** The Actor keeps, per actor, where it last proposed a move from (`context.moves`). If the actor still stands there next turn, core refused the move (another actor took the cell first); on a seeded coin (`deterministicRandom`, salt 457) it waits this turn instead of trying again, so a crowd sorts itself out and two actors yielding to each other don't fall in step. A commanded actor never yields.
 
+**Nothing to do (#522).** An actor with a motivation of its own (anything but `user_controlled`) that finds nothing it can do, boxed into a dead end for instance, proposes `wait` rather than nothing, so its turn and the telemetry say it waited. Objects and the player's actor still propose nothing. On the solver route every wait is the candidate `wait_here`.
+
 **Sharing a source (#478).** The same memory keeps which holding a take claimed. If another actor holds it next turn, the take was refused, and the actor switches ends: it works through the sources and their holdings from the other end of id order, and stays there until refused again. Two takers beside one source, who often cannot see each other, then split its holdings from both ends instead of one being refused turn after turn. A taker never refused takes holdings in id order.
 
 Intelligence is represented through Cognition motivations — there is no separate parallel system for "smartness". They change play with or without a strategy (#308):

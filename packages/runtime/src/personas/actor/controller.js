@@ -368,6 +368,8 @@ function buildCandidateActionId(proposal, index, actorPosition = null) {
     ? proposal.kind.trim().toLowerCase()
     : "candidate";
   const params = isObject(proposal.params) ? proposal.params : proposal;
+  // #522: a wait is the one way to hold, whoever proposed it, so it is always `wait_here`.
+  if (kind === "wait") return "wait_here";
   if (kind === "move") {
     const target = isObject(params.target) ? params.target : null;
     if (actorPosition && Number.isInteger(target?.x) && Number.isInteger(target?.y)) {
@@ -1997,8 +1999,11 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
         const affordable = derivedProposals.filter((proposal) => canAffordMove(proposal, decidingActor, movementStamina));
         derivedProposals = affordable.length > 0 ? affordable : [{ kind: "wait" }];
       }
-      // An actor with a strategy always takes its turn, so its progress is always kept.
-      if (strategyTurn && derivedProposals.length === 0) derivedProposals = [{ kind: "wait" }];
+      // An actor with a strategy always takes its turn, so its progress is always kept. #522 —
+      // so does any actor with a motivation of its own that finds nothing it can do (boxed in,
+      // say): it says it waits rather than nothing. Objects and the player's actor stay silent.
+      if (derivedProposals.length === 0 && (strategyTurn || resolveActorMotivationKinds(observationView, strategyActorId, payload)
+        .some((kind) => kind !== "user_controlled"))) derivedProposals = [{ kind: "wait" }];
       // #457 — a move refused last turn (the actor still stands where it proposed it from)
       // may yield this turn: in a crowd the cells it wants are taken first, turn after turn.
       // A seeded coin, not always, so two actors yielding to each other don't fall in step.
