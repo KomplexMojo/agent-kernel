@@ -31,6 +31,7 @@ for (const expression of ['push', 'emit'] as const) {
 }
 // #354: every inward use steals its primary vital; a harmful kind spills the rest into
 // the target's defeat vital (health here), and the source is credited only the primary.
+// #537: a restoring kind (no spill) takes at most what the source lacks of that vital.
 for (const expression of ['pull', 'draw'] as const) {
   test.each(positive)(`${expression} routes %s as a steal`, (kind) => {
     const state = registry(); const before = state.snapshot();
@@ -38,21 +39,32 @@ for (const expression of ['pull', 'draw'] as const) {
     const row = AFFINITY_TABLE.find(entry => entry.kind === kind)!;
     const key = row.primaryVital;
     const initial = before.actors.find(a => a.id === 'target')!.vitals[key]!.current;
-    const max = before.actors.find(a => a.id === 'source')!.vitals[key]!.max;
-    const removed = Math.min(5, initial);
+    const sourcePool = before.actors.find(a => a.id === 'source')!.vitals[key]!;
+    const removed = Math.min(5, initial, row.spill ? Infinity : sourcePool.max - sourcePool.current);
     expect(state.getActor('target')!.vitals[key]!.current).toBe(initial - removed);
-    expect(state.getActor('source')!.vitals[key]!.current).toBe(Math.min(max, initial + removed));
+    expect(state.getActor('source')!.vitals[key]!.current).toBe(Math.min(sourcePool.max, sourcePool.current + removed));
     const spill = row.spill && key !== 'health' ? 5 - removed : 0;
     if (key !== 'health') expect(state.getActor('target')!.vitals.health!.current).toBe(10 - spill);
     if (key !== 'health') expect(state.getActor('source')!.vitals.health!.current).toBe(10);
   });
 }
 
-test('actual growth drain kills through durability and caps receiver credit', () => {
+// #537: a restoring steal is a top-up, never a weapon: it takes only what the source lacks.
+test('a growth pull takes only the health its source lacks; a full source takes nothing', () => {
   const source = actor('source'); source.vitals.health!.current = 19;
   const target = actor('target'); target.vitals.health!.current = 2;
   const state = registry([source, target]);
-  const result = resolveActorAffinity(state, 'source', 'target', 'growth', 'pull', 5);
+  expect(resolveActorAffinity(state, 'source', 'target', 'growth', 'pull', 5).changes).toEqual([
+    { actorId: 'target', vital: 'health', delta: -1 }, { actorId: 'source', vital: 'health', delta: 1 }]);
+  expect(state.getActor('target')!.lifecycle).toBe('alive');
+  expect(resolveActorAffinity(state, 'source', 'target', 'growth', 'pull', 5).changes).toEqual([]);
+});
+
+test('actual decay drain kills and caps receiver credit', () => {
+  const source = actor('source'); source.vitals.health!.current = 19;
+  const target = actor('target'); target.vitals.health!.current = 2;
+  const state = registry([source, target]);
+  const result = resolveActorAffinity(state, 'source', 'target', 'decay', 'pull', 5);
   expect(result.changes).toEqual([{ actorId: 'target', vital: 'health', delta: -2 },
     { actorId: 'source', vital: 'health', delta: 1 }]);
   expect(state.getActor('target')!.lifecycle).toBe('defeated');

@@ -12,7 +12,8 @@ import type { AffinityKind, AffinityExpression, ActorVitalKind } from './actor-t
  * - `outward` (push, emit): `damage` the primary vital, or `restore` it up to max.
  * - `inward` (pull, draw): `drain`, steal the primary vital into the source, for every kind
  *   (#354, Darren: "steal like restorers"). The source gains only what the primary vital
- *   gave up; it is capped at the source's max, and spill is not credited.
+ *   gave up; it is capped at the source's max, and spill is not credited. A restoring kind (no
+ *   spill) takes at most what the source lacks of the vital, a top-up rather than a weapon (#537).
  * - `spill`: where damage goes once the primary vital is empty, or null: outward damage
  *   and a harmful kind's steal alike (#354). `defeat`
  *   is the target's own defeat vital (health for delvers and wardens, durability for

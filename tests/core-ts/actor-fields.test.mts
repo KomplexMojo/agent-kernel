@@ -62,7 +62,12 @@ test('receiver forecast agrees with a real field pass for all area affinities wi
       health: { current: 5, max: 10, regen: 0 }, durability: { current: 2, max: 5, regen: 0 },
       mana: { current: 2, max: 5, regen: 0 }, stamina: { current: 2, max: 5, regen: 0 },
     };
-    const state = registry([actor('source', 0, { kind, expression, stacks: 3 }), receiver]);
+    // The forecast cannot see its source (#497), so it reads a restoring steal whole; a source
+    // with room for all of it (#537: the steal takes only what the source lacks) agrees.
+    const source = actor('source', 0, { kind, expression, stacks: 3 });
+    source.vitals = { health: { current: 1, max: 30, regen: 0 }, mana: { current: 0, max: 30, regen: 0 },
+      durability: { current: 0, max: 30, regen: 0 }, stamina: { current: 0, max: 30, regen: 0 } };
+    const state = registry([source, receiver]);
     const cells = projectActorFields(state).fields.filter(cell => cell.position.x === 0);
     const predicted = previewActorFieldChanges(receiver, cells);
     const actual = resolveActorFields(state).changes.filter(change => change.actorId === receiver.id);

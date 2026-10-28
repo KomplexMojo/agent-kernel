@@ -59,6 +59,12 @@ export function resolveActorAffinity(
     if (actual !== 0) changes.push({ actorId, vital, delta: actual });
     return actual;
   }
+  // #537: a restoring kind's steal (a row with no spill: growth, fortify, light) is a top-up. It
+  // takes from the target at most what the source lacks of that vital; a harmful steal stays whole.
+  if (effect.operation === 'drain' && !effect.overflow) {
+    const pool = registry.getActor(sourceId)!.vitals[effect.vital];
+    amount = Math.min(amount, pool ? Math.max(0, pool.max - pool.current) : 0);
+  }
   applyEffect(effect, amount, registry.getActor(targetId)!.defeatVital, (vital, delta) => change(targetId, vital, delta),
     (vital, removed) => { change(sourceId, vital, removed); });
   return { operation: effect.operation, changes };

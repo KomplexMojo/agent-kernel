@@ -6,7 +6,8 @@
 Every affinity kind's effect on a receiver, as core holds it (#352). Outward is push and emit;
 inward is pull and draw. Spill is where damage and a harmful steal go once the primary vital is empty (#354):
 the receiver's defeat vital (health for delvers and wardens, durability for hazards, resources
-and barriers). A receiver without the primary vital takes the whole hit there (#353).
+and barriers). A receiver without the primary vital takes the whole hit there (#353). A kind with no spill
+(a restoring kind) takes at most what the source lacks of the vital: a top-up, not a weapon (#537).
 
 | Kind | Primary vital | Outward (emit / push) | Inward (draw / pull) | Spill |
 |---|---|---|---|---|
