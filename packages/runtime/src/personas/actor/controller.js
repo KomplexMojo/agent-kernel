@@ -2040,22 +2040,8 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       : Array.isArray(runtimeCandidates)
         ? runtimeCandidates.map((entry) => entry.action)
         : candidateProposals;
-    const fsmPayload = {
-      ...(shouldEmitActions && Array.isArray(transitionProposals) ? { ...payload, proposals: transitionProposals } : payload),
-      ...(strategyEntry ? { strategyEntry: { actorId: strategyActorId, entry: strategyEntry } } : {}),
-      ...(cognitionTurn ? { cognitionEntry: { actorId: strategyActorId, entry: cognitionTurn.entry } } : {}),
-      ...(escortTurn ? { escortEntry: { actorId: strategyActorId, entry: escortTurn.entry } } : {}),
-      ...(contactEntry ? { contactEntry } : {}),
-      // #457 — where a move was proposed from, so next turn can tell it was refused.
-      ...(shouldEmitActions && strategyActorId && !commandProposals ? { moveEntry: { actorId: strategyActorId,
-        entry: transitionProposals?.[0]?.kind === "move" && decidingActor?.position
-          ? { tick, from: { x: decidingActor.position.x, y: decidingActor.position.y } } : null } } : {}),
-    };
-    const result = fsm.advance(event, fsmPayload);
-    if (!shouldEmitActions) {
-      return { ...result, tick, actions: [], effects: [], telemetry: null };
-    }
-
+    // #524 — the deterministic path chooses before the turn is recorded, so the yield below
+    // reads last turn's chosen action, not its first candidate.
     const baseActorId = payload.actorId || observation?.actorId || "actor";
     const baseIsMotivated = isEligibleActor(baseActorId, observationView, observation);
     const actions = [];
@@ -2105,7 +2091,25 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
         actions.push(selected.action);
         selectedRanks.set(actorId, winner);
       }
-    } else {
+    }
+    const fsmPayload = {
+      ...(shouldEmitActions && Array.isArray(transitionProposals) ? { ...payload, proposals: transitionProposals } : payload),
+      ...(strategyEntry ? { strategyEntry: { actorId: strategyActorId, entry: strategyEntry } } : {}),
+      ...(cognitionTurn ? { cognitionEntry: { actorId: strategyActorId, entry: cognitionTurn.entry } } : {}),
+      ...(escortTurn ? { escortEntry: { actorId: strategyActorId, entry: escortTurn.entry } } : {}),
+      ...(contactEntry ? { contactEntry } : {}),
+      // #457 — where a move was proposed from, so next turn can tell it was refused.
+      ...(shouldEmitActions && strategyActorId && !commandProposals ? { moveEntry: { actorId: strategyActorId,
+        entry: (runtimeDecisionEffect ? transitionProposals?.[0]
+          : actions.find((action) => action.actorId === strategyActorId))?.kind === "move" && decidingActor?.position
+          ? { tick, from: { x: decidingActor.position.x, y: decidingActor.position.y } } : null } } : {}),
+    };
+    const result = fsm.advance(event, fsmPayload);
+    if (!shouldEmitActions) {
+      return { ...result, tick, actions: [], effects: [], telemetry: null };
+    }
+
+    if (runtimeDecisionEffect) {
       effects.push(runtimeDecisionEffect.solverEffect);
       result.context = {
         ...result.context,
