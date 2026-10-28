@@ -331,7 +331,7 @@ test("a non-move evaluates the field at the Actor's current cell", async () => {
     }],
   });
 
-  assert.deepEqual(row(envelope, "wait_1").rank.slice(0, 6), [100, 0, 0, 0, -9, 0]); // 1 × 3²
+  assert.deepEqual(row(envelope, "wait_here").rank.slice(0, 6), [100, 0, 0, 0, -9, 0]); // 1 × 3²
 });
 
 test("field benefit cannot override a stronger primary intent", async () => {

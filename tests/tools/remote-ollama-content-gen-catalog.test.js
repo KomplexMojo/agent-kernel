@@ -374,7 +374,7 @@ test("generated execution routes bind 26 exact semantic counterparts to the bala
         `${key} lost affinity during canonical authoring`);
     }
   }
-});
+}, 180_000); // ~10s alone, over 60s under the full suite's load
 
 test("scenario questions load without runtime vault paths", () => {
   const scenarios = loadScenarios();
