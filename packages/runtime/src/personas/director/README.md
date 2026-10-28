@@ -94,7 +94,8 @@ ones named. The list rides in the plan as `directives.tactics` and in the BuildS
 into placement is the Configurator's. `tacticBudgetPools` (#418) names the budget pools a tactic adds
 things to (`minefield` and `shrine`: `hazards`), so a level asking for one gets that share without authoring a hazard.
 `pickSeededTactics(seed, { wardens, resources })` (#401) answers `--tactic auto`: the seed picks a mix of
-tactics that fit the level, with their sizes, as an ordinary tactic list in catalogue order.
+tactics that fit the level, with their sizes, as an ordinary tactic list in catalogue order. A minefield and a
+shrine (#531, `count` 1 or 2) always fit, since they bring their own hazards.
 For `--tactic llm` (#402) the Orchestrator's `buildTacticPlanPrompt`/`readTacticPlanResponse` ask for and read
 the model's plan, the Director's `normalizeTactics` refuses unknown tactics, and the Configurator's
 `validateTactics` checks params and counts; any failure falls back to the seeded pick.
