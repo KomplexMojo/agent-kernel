@@ -5,6 +5,7 @@
 The active implementation reads one actor registry: alignment governs hostility,
 capabilities govern movement/exit/casting, and terminal actors stop deciding.
 Movement actions contain `params.target`; focused casts contain `params.targetId`, and casts at a tile (#413) contain `params.target`.
+A cast at another actor travels the same line a tile cast does and hits the first wall or living actor it meets (#538), so an ally in between takes it.
 Only active push/pull equipment supplies focused casting and its range. Cast
 ranking reads shared actor mana. Ordinary walls and floors remain terrain.
 When other actors plug every route to the exit (wardens seated around it), the

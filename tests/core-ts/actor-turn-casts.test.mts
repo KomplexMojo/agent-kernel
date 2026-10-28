@@ -50,6 +50,35 @@ for (const kind of KINDS) {
   });
 }
 
+// #538 (Darren, 2026-10-28): one cast, one rule. A cast at an actor travels the tile cast's line
+// and hits what it meets first: a living actor in between takes it, a wall stops it short.
+for (const kind of KINDS) {
+  for (const expression of ['push', 'pull'] as const) {
+    test(`a ${kind} ${expression} at an actor hits whoever stands in between first`, () => {
+      const registry = room([actor('me', 0, kind, expression), actor('friend', 2, neutral(kind), 'pull'), actor('W', 3, neutral(kind), 'pull')]);
+      const before = structuredClone(registry.getActor('W')!.vitals);
+      const turn = createActorTurn(registry, 0, costs);
+      expect(turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { targetId: 'W' } })).toBe(true);
+      expect(turn.snapshot().casts![0]).toMatchObject({ targetId: 'friend', path: [{ x: 1, y: 0 }, { x: 2, y: 0 }] });
+      expect(registry.getActor('W')!.vitals).toEqual(before);
+    });
+
+    test(`a ${kind} ${expression} at an actor behind a wall stops at the wall and still costs`, () => {
+      const terrain = ['floor', 'floor', 'wall', 'floor', 'floor'] as const;
+      const registry = createActorRegistry({ dimensions: { width: 5, height: 1 }, terrain: [...terrain],
+        actors: [actor('me', 0, kind, expression), actor('W', 3, neutral(kind), 'pull')] });
+      const before = structuredClone(registry.getActor('W')!.vitals);
+      const turn = createActorTurn(registry, 0, costs);
+      expect(turn.apply({ actorId: 'me', tick: 0, kind: 'cast_affinity', params: { targetId: 'W' } })).toBe(true);
+      const [cast] = turn.snapshot().casts!;
+      expect(cast.targetId).toBeUndefined();
+      expect(cast.path).toEqual([{ x: 1, y: 0 }]);
+      expect(cast.changes).toEqual([{ actorId: 'me', vital: 'mana', delta: -6 }]);
+      expect(registry.getActor('W')!.vitals).toEqual(before);
+    });
+  }
+}
+
 test('a refused cast, or a turn with no cast, records none', () => {
   const registry = room([actor('me', 0, 'fire', 'push')]);
   const turn = createActorTurn(registry, 0, costs);

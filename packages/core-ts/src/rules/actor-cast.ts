@@ -257,7 +257,8 @@ function tileCastPair(registry: TileCastRegistry, sourceId: string, target: Acto
  * cell. A push that meets no actor leaves a one-turn field of its kind and intensity on every
  * cell it crossed (`leaveCastTrail`): light lights it, a harmful kind harms whoever is in it
  * when the tick's fields resolve. A pull that meets no actor does nothing. The price is the
- * same whether it hits or not. A cast at the caster's own tile is a cast at itself.
+ * same whether it hits or not. A cast at the caster's own tile is a cast at itself. A turn's cast
+ * aimed at another actor (`targetId`) travels this same line to that actor's tile (#538).
  */
 export function castActorAffinityAtTile(
   registry: TileCastRegistry,
