@@ -43,6 +43,7 @@ function rawFieldExposureAmount(receiver: ActorRecord, cell: ActorFieldCell, loc
 
 /** Receiver-local forecast from projected cells. Other receivers do not change it (#347).
  * Uses residual observed intensity as a conservative source budget. Does not project new fields.
+ * A restoring steal is forecast whole: the receiver cannot see how much its source lacks (#537).
  */
 export function previewActorFieldChanges(receiver: ActorRecord, localCells: readonly ActorFieldCell[]): ActorVitalChange[] {
   const actor: ActorRecord = JSON.parse(JSON.stringify(receiver));

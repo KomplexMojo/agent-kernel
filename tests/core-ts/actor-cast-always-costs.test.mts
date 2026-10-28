@@ -45,9 +45,10 @@ test('a light pull that steals more than its price still nets the caster the dif
   const registry = createActorRegistry({ dimensions: { width: 2, height: 1 }, terrain: ['floor', 'floor'],
     actors: [caster, actor('target', 1, 'dark', 'pull')] });
   castFocusedActorAffinity(registry, 'caster', 'target', prices);
-  // Opposite doubles the drain: 2 × 3² × 2 = 36, of which the target has 30; 20 + 10 (cap) - 18.
+  // Opposite doubles the drain: 2 × 3² × 2 = 36, but a light pull takes only the 10 the caster
+  // lacks (#537): 20 + 10 - 18.
   expect(registry.getActor('caster')!.vitals.mana!.current).toBe(12);
-  expect(registry.getActor('target')!.vitals.mana!.current).toBe(0);
+  expect(registry.getActor('target')!.vitals.mana!.current).toBe(20);
 });
 
 // ## TODO: Test Permutations

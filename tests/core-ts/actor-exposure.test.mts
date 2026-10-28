@@ -65,13 +65,16 @@ test('only active pairs apply; defeated sources stop within a pass', () => {
   expect(live.getActor('target')!.vitals.health!.current).toBe(10);
 });
 test('prevalidates the complete batch before mutating and uses shared transfer routing', () => {
-  const state = registry([actor('source', { kind: 'growth', expression: 'draw', stacks: 5 }), actor('target')]);
+  // A growth draw takes only what its source lacks (#537), so the source is hurt first.
+  const source = actor('source', { kind: 'growth', expression: 'draw', stacks: 5 }); source.vitals.health!.current = 5;
+  const state = registry([source, actor('target')]);
   const before = state.snapshot();
   expect(() => resolveActorExposures(state, [{ sourceId: 'source', budget: 5, targets: [{ targetId: 'target', amount: 5 }] },
     { sourceId: 'source', budget: -1, targets: [] }])).toThrow();
   expect(state.snapshot()).toEqual(before);
   const result = resolveActorExposures(state, [{ sourceId: 'source', budget: 5, targets: [{ targetId: 'target', amount: 5 }] }]);
-  expect(result.changes).toEqual([{ actorId: 'target', vital: 'health', delta: -5 }]);
+  expect(result.changes).toEqual([{ actorId: 'target', vital: 'health', delta: -5 },
+    { actorId: 'source', vital: 'health', delta: 5 }]);
 });
 
 test('draw cannot harvest a source incapable of producing exposure', () => {
