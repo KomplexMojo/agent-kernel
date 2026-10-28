@@ -1,6 +1,6 @@
 // #396: `ak create --tactic` / `ak_create { tactics }` carry a tactic list into the plan and the
 // BuildSpec. The create result reports what was done with each tactic (#398 ambush, #400 retinue,
-// #418 minefield) and names the build seed so the level can be rebuilt exactly.
+// #418 minefield, #486 shrine) and names the build seed so the level can be rebuilt exactly.
 
 const assert = require("node:assert/strict");
 const { spawnSync } = require("node:child_process");
@@ -27,6 +27,7 @@ async function create(payload) {
       summary: result.status === 0 ? JSON.parse(result.stdout.trim().split("\n").pop()) : null,
       spec: result.status === 0 ? read("spec.json") : null,
       initialState: result.status === 0 ? read("initial-state.json") : null,
+      receipt: result.status === 0 ? read("budget-receipt.json") : null,
     };
   } finally {
     rmSync(outDir, { recursive: true, force: true });
@@ -61,6 +62,21 @@ test("a minefield needs no authored hazard: the tactic brings its own hazard sha
   for (const { id } of row.hazards) {
     assert.ok(result.initialState.actors.some((actor) => actor.id === id), `${id} is in the level`);
   }
+});
+
+test("a shrine is a restoring hazard in the level, priced by the Allocator from the hazard share (#486)", async () => {
+  const result = await create({ room: ["size=medium;count=3"], delver: ["count=1;affinity=wind;motivation=exploring"],
+    tactics: ["shrine"], seed: 4 });
+  assert.equal(result.status, 0, result.output);
+  const row = result.summary.placementReport.find((entry) => entry.tactic === "shrine");
+  assert.equal(row.applied, true, row.note);
+  const [shrine] = row.shrines;
+  assert.ok(["growth", "fortify", "light"].includes(shrine.kind), shrine.kind);
+  const hazard = result.initialState.actors.find((actor) => actor.id === shrine.id);
+  assert.ok(hazard, `${shrine.id} is in the level`);
+  assert.ok(hazard.affinities.some((pair) => pair.kind === shrine.kind && pair.expression === "emit"), JSON.stringify(hazard.affinities));
+  const lines = result.receipt.lineItems.filter((line) => line.subjectRef?.id === shrine.id);
+  assert.ok(lines.length > 0 && lines.every((line) => line.status === "approved" && line.category === "hazards"), JSON.stringify(lines));
 });
 
 test("the same tactics and seed rebuild the same level", async () => {

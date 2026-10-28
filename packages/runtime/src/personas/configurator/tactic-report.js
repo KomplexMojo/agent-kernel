@@ -22,11 +22,17 @@
  * gets `hazards=<n>` (4) new emit hazards of range `range=<n>` (1) seated in a cluster clear of
  * a safe line through the room, and one of the level's free resources as the reward
  * (minefield.js). The hazards are returned in `hazards`; the Allocator prices them, and
- * `fitMinefields` shrinks a minefield the hazard share cannot afford.
+ * `fitTacticHazards` shrinks a minefield the hazard share cannot afford.
+ *
+ * `shrine` (#486): a room off the spawn-to-exit route (`room=`, else picked from the seed; a
+ * route room when there is no other) gets `count=<n>` (1) emit hazards of a restoring kind,
+ * range `range=<n>` (1), drawn from the affinity table by the seed (shrine.js). A health shrine is
+ * reported as a healing well. Priced from the hazard share like a minefield's hazards.
  */
 import { hiddenRoomCells } from "./doorway-sight.js";
 import { composeRetinue, readRetinueParams } from "./retinue.js";
 import { composeMinefield, pickMinefieldRoom, readMinefieldParams } from "./minefield.js";
+import { composeShrines, pickShrineRoom, readShrineParams } from "./shrine.js";
 import { leftoverCategory } from "./unified-actors.js";
 
 const NOT_APPLIED_NOTE = "recorded but not applied: the Configurator does not compile this tactic yet";
@@ -71,7 +77,8 @@ function readAmbushParams(params = {}) {
   };
 }
 
-const PARAM_READERS = Object.freeze({ ambush: readAmbushParams, retinue: readRetinueParams, minefield: readMinefieldParams });
+const PARAM_READERS = Object.freeze({ ambush: readAmbushParams, retinue: readRetinueParams, minefield: readMinefieldParams,
+  shrine: readShrineParams });
 
 /**
  * #402 — check a tactic list before the build, for a plan the Configurator didn't author (the
@@ -120,7 +127,7 @@ function inRoom(room) {
 /**
  * Compile the tactics into placement constraints. Returns `{ placement, report, actors, hazards }`:
  * the authored constraints followed by the compiled ones, one report row per tactic in order,
- * the actors the tactics add (retinue minions) and the hazards they add (minefields).
+ * the actors the tactics add (retinue minions) and the hazards they add (minefields, shrines).
  * `hazards` are the level's authored hazards, so new ids and cells stay clear of them.
  */
 export function compileTactics({ tactics = [], layout, actors = [], resources = [], hazards = [], placement = [], seed = 0 } = {}) {
@@ -162,6 +169,17 @@ export function compileTactics({ tactics = [], layout, actors = [], resources = 
       compiled.push(...(minefield.placement || []));
       (minefield.placement || []).forEach((constraint) => constraint.near.target.cells.forEach(({ x, y }) => hazardCells.add(`${x},${y}`)));
       return { tactic: "minefield", ...withParams(entry), ...(minefield.row.applied ? {} : { room: room.id }), ...minefield.row };
+    }
+    if (entry?.tactic === "shrine") {
+      const params = readShrineParams(entry.params);
+      const room = params.room ? rooms.find((candidate) => candidate.id === params.room) : pickShrineRoom(layout, rooms, seed, index);
+      if (params.room && !room) throw new Error(`tactic shrine: no room "${params.room}" in this level.`);
+      if (!room) return { tactic: "shrine", ...withParams(entry), applied: false, note: "this level has no room for a shrine" };
+      const shrine = composeShrines({ layout, room, params, seed, takenIds: hazardIds, occupied: hazardCells });
+      addedHazards.push(...(shrine.hazards || []));
+      compiled.push(...(shrine.placement || []));
+      (shrine.placement || []).forEach((constraint) => constraint.near.target.cells.forEach(({ x, y }) => hazardCells.add(`${x},${y}`)));
+      return { tactic: "shrine", ...withParams(entry), ...(shrine.row.applied ? {} : { room: room.id }), ...shrine.row };
     }
     if (entry?.tactic === "retinue") {
       const params = readRetinueParams(entry.params);

@@ -87,12 +87,12 @@ The Director produces plans that are:
 Plans describe *what is desired*, not *how it will be built* or *how it will be enforced*.
 
 **Placement tactics (#396).** The Director owns which tactics exist (`PLAN_TACTIC_IDS`: `ambush`,
-`retinue`, `minefield`) and reads the authored list (`parseTactic` for `"<tactic>[;key=value...]"`,
+`retinue`, `minefield`, `shrine`) and reads the authored list (`parseTactic` for `"<tactic>[;key=value...]"`,
 `normalizeTactics` for strings or `{ tactic, params }`), refusing an unknown tactic with the known
 ones named. The list rides in the plan as `directives.tactics` and in the BuildSpec as
 `plan.hints.tactics` (`tactics.js`; shape checked by `contracts/build-spec.js`). Compiling a tactic
 into placement is the Configurator's. `tacticBudgetPools` (#418) names the budget pools a tactic adds
-things to (`minefield`: `hazards`), so a level asking for one gets that share without authoring a hazard.
+things to (`minefield` and `shrine`: `hazards`), so a level asking for one gets that share without authoring a hazard.
 `pickSeededTactics(seed, { wardens, resources })` (#401) answers `--tactic auto`: the seed picks a mix of
 tactics that fit the level, with their sizes, as an ordinary tactic list in catalogue order.
 For `--tactic llm` (#402) the Orchestrator's `buildTacticPlanPrompt`/`readTacticPlanResponse` ask for and read

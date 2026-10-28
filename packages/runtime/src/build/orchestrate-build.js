@@ -582,13 +582,13 @@ export async function orchestrateBuild({
         }
       }
       if (compiled.hazards.length > 0) {
-        // #418: a minefield the hazard share cannot afford shrinks. The Allocator prices each
+        // #418, #486: tactic hazards (minefields, shrines) the hazard share cannot afford are dropped. The Allocator prices each
         // try; the Configurator decides which hazards go.
         const withoutHazards = (dropped) => ({
           ...layout,
           hazards: (Array.isArray(layout.hazards) ? layout.hazards : []).filter((hazard) => !dropped.has(hazard?.id)),
         });
-        const fitted = configuratorBuild.fitMinefields({
+        const fitted = configuratorBuild.fitTacticHazards({
           report: compiledTacticReport,
           affordable: (dropped) => {
             const { receipt } = evaluateConfiguratorSpend({

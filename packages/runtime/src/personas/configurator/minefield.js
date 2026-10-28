@@ -14,7 +14,7 @@
  *
  * Hazards are ordinary hazards with the actor viability floor and enough mana regen to keep
  * their field lit (the Configurator's own upkeep rule). The Allocator prices them from the
- * hazard share; `fitMinefields` drops hazards until the share is approved.
+ * hazard share; `fitTacticHazards` drops hazards until the share is approved.
  */
 import { AFFINITY_TABLE } from "../../../../core-ts/src/state/affinity-table.ts";
 import { getOppositeAffinityKind } from "../../../../core-ts/src/state/affinity.ts";
@@ -153,7 +153,11 @@ function drawKinds(count, seed) {
   return Array.from({ length: count }, (_, index) => picked[index % picked.length].row.kind);
 }
 
-function minefieldHazard(id, kind, range) {
+/**
+ * An ordinary emit hazard of `kind` at range `range`, intensity 1: the viability floor, and mana
+ * regen that covers its field's upkeep so the field stays lit. Minefields and shrines (#486) alike.
+ */
+export function composeFieldHazard(id, kind, range) {
   const upkeep = computeInternalManaUpkeep(range + INTENSITY);
   const mana = Math.max(ACTOR_VIABILITY_FLOOR.mana.max, upkeep);
   const { max: durability, regen: durabilityRegen } = ACTOR_VIABILITY_FLOOR.durability;
@@ -240,7 +244,7 @@ export function composeMinefield({ layout, room, params, seed = 0, reward = null
     let ordinal = index;
     do { ordinal += 1; id = `minefield_${room.id}_${ordinal}`; } while (takenIds.has(id));
     takenIds.add(id);
-    hazards.push(minefieldHazard(id, kinds[index], params.range));
+    hazards.push(composeFieldHazard(id, kinds[index], params.range));
     ids.push({ id, kind: kinds[index] });
     placement.push({ label: `minefield ${room.id}: hazard:${id} (${kinds[index]}) at ${key(cluster[index])}`,
       subject: { kind: "hazard", ref: id }, near: { target: { kind: "cells", cells: [cluster[index]] }, distance: 0 } });
@@ -266,6 +270,12 @@ export function composeMinefield({ layout, room, params, seed = 0, reward = null
   };
 }
 
+/** Every room the spawn-to-exit route passes through, the entry and exit rooms included. */
+export function roomsOnRoute(layout, rooms) {
+  const { route } = routeCells(layout);
+  return route ? rooms.filter((room) => route.some((cell) => inRoom(room, cell))) : [];
+}
+
 /** The room a minefield goes in: `room=`, else one the route passes, picked from the seed. */
 export function pickMinefieldRoom(layout, rooms, seed, index) {
   const data = layout?.data || layout || {};
@@ -276,12 +286,13 @@ export function pickMinefieldRoom(layout, rooms, seed, index) {
 }
 
 /**
- * Drop minefield hazards until the Allocator approves the hazard share. `affordable(dropped)`
- * prices the level without the dropped hazard ids; hazards go from the end of the last
- * minefield first. Returns the dropped ids and the report rows with a note per shrunk minefield.
+ * Drop the hazards tactics added (minefields, shrines #486) until the Allocator approves the
+ * hazard share. `affordable(dropped)` prices the level without the dropped hazard ids; hazards go
+ * from the end of the last such tactic first. Returns the dropped ids and the report rows with a
+ * note per shrunk tactic.
  */
-export function fitMinefields({ report = [], affordable }) {
-  const order = report.filter((row) => row?.tactic === "minefield" && Array.isArray(row.hazards))
+export function fitTacticHazards({ report = [], affordable }) {
+  const order = report.filter((row) => Array.isArray(row?.hazards))
     .flatMap((row) => row.hazards.map((hazard) => hazard.id));
   const dropped = new Set();
   while (order.length > dropped.size && !affordable(dropped)) dropped.add(order[order.length - 1 - dropped.size]);
@@ -289,11 +300,13 @@ export function fitMinefields({ report = [], affordable }) {
   return {
     dropped,
     report: report.map((row) => {
-      if (row?.tactic !== "minefield" || !Array.isArray(row.hazards)) return row;
+      if (!Array.isArray(row?.hazards)) return row;
       const kept = row.hazards.filter((hazard) => !dropped.has(hazard.id));
       if (kept.length === row.hazards.length) return row;
       const note = `the hazard share affords ${kept.length} of ${row.hazards.length} hazards`;
-      return { ...row, hazards: kept, note: row.note ? `${row.note}; ${note}` : note };
+      return { ...row, hazards: kept,
+        ...(Array.isArray(row.shrines) ? { shrines: row.shrines.filter((shrine) => !dropped.has(shrine.id)) } : {}),
+        note: row.note ? `${row.note}; ${note}` : note };
     }),
   };
 }
