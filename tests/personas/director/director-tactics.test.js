@@ -23,8 +23,8 @@ test("a tactic spec reads as { tactic, params }, numbers kept as numbers", async
 test("an unknown tactic, an empty one or a bad param is refused with a reason", async () => {
   const { createDirectorPersona, PLAN_TACTIC_IDS } = await load();
   const director = createDirectorPersona({ clock: () => CREATED_AT });
-  assert.deepEqual([...PLAN_TACTIC_IDS], ["ambush", "retinue", "minefield"]);
-  assert.throws(() => director.parseTactic("flank"), /unknown tactic "flank".*ambush, retinue, minefield/);
+  assert.deepEqual([...PLAN_TACTIC_IDS], ["ambush", "retinue", "minefield", "shrine"]);
+  assert.throws(() => director.parseTactic("flank"), /unknown tactic "flank".*ambush, retinue, minefield, shrine/);
   assert.throws(() => director.parseTactic(""), /tactic/);
   assert.throws(() => director.parseTactic("ambush;guards"), /guards.*key=value/);
   assert.throws(() => director.normalizeTactics([{ tactic: "ambush", params: { guards: [2] } }]), /guards/);
@@ -59,6 +59,8 @@ test("a tactic that adds things of its own names the budget pool it spends from 
   const director = createDirectorPersona({ clock: () => CREATED_AT });
   assert.deepEqual(director.tacticBudgetPools([{ tactic: "minefield" }, { tactic: "ambush" }, { tactic: "minefield" }]), ["hazards"]);
   assert.deepEqual(director.tacticBudgetPools([{ tactic: "ambush" }, { tactic: "retinue" }]), []);
+  // #486: a shrine adds hazards of its own too.
+  assert.deepEqual(director.tacticBudgetPools([{ tactic: "shrine" }]), ["hazards"]);
   assert.deepEqual(director.tacticBudgetPools(undefined), []);
 });
 

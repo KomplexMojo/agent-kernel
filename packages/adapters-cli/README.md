@@ -515,7 +515,7 @@ Inputs/outputs:
     --warden "count=3;affinity=earth;motivation=stationary" \
     --place "hazard:trap1;near=exit:1" --place "warden:*;near=hazard:trap1:2;count=2"
   ```
-- `--tactic` (repeatable, `tactics` on `ak_create`) asks for a placement tactic: `<ambush|retinue|minefield>[;key=value...]`.
+- `--tactic` (repeatable, `tactics` on `ak_create`) asks for a placement tactic: `<ambush|retinue|minefield|shrine>[;key=value...]`.
   The Director reads it and refuses an unknown tactic, naming the known ones; the list rides in the plan
   (`directives.tactics`) and the BuildSpec (`plan.hints.tactics`), and the result echoes it as `tactics`. Each tactic
   gets a row in `placementReport`. `ambush[;guards=<n>][;resources=<n>][;room=<id>][;visible=true]` (#398) puts that
@@ -536,6 +536,13 @@ Inputs/outputs:
   the seed, no two opposite, unless `kinds=` names them. A minefield needs no `--hazard`: the tactic adds the hazard
   share, the Allocator prices the hazards from it, and one it can't afford shrinks. The row has `room`,
   `hazards: [{ id, kind }]`, `reward`, `safeLine: { length, from, to, clearance, cells }`, `shortRoute: { length }`, `note`.
+  `shrine[;room=<id>][;count=<n>][;range=<n>][;kinds=<kind>+<kind>...]` (#486) seats `count` emit hazards (default 1)
+  of range `range` (default 1) whose field restores a vital, in a room the spawn-to-exit route does not pass through
+  (`room=`, else picked from the seed; a route room when the level has no other), near the room's centre and touching
+  no other hazard. Kinds are drawn from the affinity table's restoring kinds by the seed unless `kinds=` names them;
+  `kinds=` must name restoring kinds. A shrine that restores health is reported as a healing well. Like a minefield it
+  needs no `--hazard`: the Allocator prices it from the hazard share, and one the share can't afford is dropped. The row
+  has `room`, `hazards: [{ id, kind }]`, `shrines: [{ id, kind, restores, name }]`, `note`.
   `--tactic auto` (alone; #401) lets the Director pick the mix from the build seed: a minefield always fits, a retinue
   needs a warden, an ambush a warden and a resource, each with a seeded size. The result's `tactics` lists the picks.
   `--tactic llm` (alone; #402) asks a model for the mix instead (`--fixture` replays a recorded reply; live needs

@@ -101,7 +101,7 @@ export function createConfiguratorPersona({ initialState = ConfiguratorStates.UN
     // #402 — a tactic list it didn't author (the LLM's) checked before the build.
     validateTactics: services.validateTactics,
     fitRetinues: services.fitRetinues,
-    fitMinefields: services.fitMinefields,
+    fitTacticHazards: services.fitTacticHazards,
     // #263 — a hazard authored with no affinity gets one picked from the run seed.
     nameUnnamedHazardAffinities: services.nameUnnamedHazardAffinities,
     normalizeMotivationRulesArtifact: services.normalizeMotivationRulesArtifact,

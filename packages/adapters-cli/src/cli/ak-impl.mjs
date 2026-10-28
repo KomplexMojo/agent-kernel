@@ -246,7 +246,7 @@ Options:
   --floor-tile    Floor tile spec for create/configure (repeatable): count=<n>[;id=<id>]
   --hazard        Hazard spec for create/configure/hazard-plan (repeatable): affinity=<kind>;expression=<push|pull|emit|draw>;proximityRadius=<n>[;stacks=<range>][;intensity=<n>][;mana=one-time:<amount>|regen:<current>:<max>:<regen>]
   --resource      Resource artifact spec for create/configure/resource-plan (repeatable).
-  --tactic        Placement tactic for create/configure (repeatable): <ambush|retinue|minefield>[;key=value...]. The Director refuses an
+  --tactic        Placement tactic for create/configure (repeatable): <ambush|retinue|minefield|shrine>[;key=value...]. The Director refuses an
                   unknown tactic, naming the known ones. The plan records each tactic and the placementReport says how it was
                   handled. ambush[;guards=<n>][;resources=<n>][;room=<id>][;visible=true] puts that many of the level's resources in
                   a room (room=, else picked from the seed) and seats that many of its wardens there out of sight of the room's
@@ -261,6 +261,12 @@ Options:
                   kinds are drawn from the table's damaging kinds, no two opposite, unless kinds= names them. The Allocator
                   prices them from the hazard share, which shrinks a minefield it can't afford; the row names the room and
                   the safe line (safeLine: length, cells) and the short route's length.
+                  shrine[;room=<id>][;count=<n>][;range=<n>][;kinds=<kind>+<kind>...] seats that many emit hazards (default 1,
+                  range default 1) whose field restores a vital in a room off the spawn-to-exit route (room=, else picked from
+                  the seed; a route room when there is no other), none touching another hazard; kinds are drawn from the
+                  table's restoring kinds by the seed unless kinds= names them (restoring kinds only). A health shrine is
+                  reported as a healing well. Priced from the hazard share like a minefield's hazards; the row lists shrines
+                  (id, kind, restores, name).
                   llm (alone) asks the model (--fixture, or AK_LLM_LIVE=1; --model, --base-url) for the mix; an invalid reply
                   or no model falls back to auto's seeded pick, and the result's tacticPlan says which decided.
                   auto (alone) lets the Director pick a mix of these, with their sizes, from the seed; the result lists the picks.
@@ -4279,7 +4285,7 @@ function buildPoolWeightsForAuthoredKinds({
   if (carvesLevel || rooms.length > 0 || floorTiles.length > 0 || placedHazards.length > 0) {
     weights.push({ id: "rooms", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.rooms });
   }
-  // #418: a tactic that adds hazards (minefield) needs the hazard share as authored ones do.
+  // #418: a tactic that adds hazards (minefield, shrine #486) needs the hazard share as authored ones do.
   if (hazards.length > 0 || tacticPools.includes("hazards")) weights.push({ id: "hazards", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.hazards });
   if (wardens.length > 0) weights.push({ id: "wardens", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.wardens });
   if (resources.length > 0) weights.push({ id: "resources", weight: AUTHORING_POOL_WEIGHT_DEFAULTS.resources });

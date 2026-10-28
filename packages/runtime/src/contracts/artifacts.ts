@@ -969,7 +969,7 @@ export interface PlanArtifactV1 {
 
 /**
  * #396 — one placement tactic in a plan: a named, parameterised pattern such as `ambush`,
- * `retinue` or `minefield`. The Director owns which ids exist; params are a flat map of strings and numbers.
+ * `retinue`, `minefield` or `shrine`. The Director owns which ids exist; params are a flat map of strings and numbers.
  * Additive and optional, so PlanArtifact and BuildSpec stay at schemaVersion 1.
  */
 export interface PlanTacticV1 {

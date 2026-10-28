@@ -134,11 +134,11 @@ test("a bad minefield is refused with a reason", async () => {
   assert.equal(none.report[0].applied, false);
 });
 
-test("fitMinefields drops hazards from the end until the share is approved", async () => {
+test("fitTacticHazards drops hazards from the end until the share is approved", async () => {
   const { createConfiguratorPersona } = await import("../../../packages/runtime/src/personas/configurator/controller.js");
   const configurator = createConfiguratorPersona({ clock: () => CREATED_AT });
   const report = [{ tactic: "minefield", applied: true, hazards: [{ id: "a" }, { id: "b" }, { id: "c" }] }];
-  const fitted = configurator.fitMinefields({ report, affordable: (dropped) => dropped.size >= 2 });
+  const fitted = configurator.fitTacticHazards({ report, affordable: (dropped) => dropped.size >= 2 });
   assert.deepEqual([...fitted.dropped], ["c", "b"]);
   assert.deepEqual(fitted.report[0].hazards, [{ id: "a" }]);
   assert.equal(fitted.report[0].note, "the hazard share affords 1 of 3 hazards");

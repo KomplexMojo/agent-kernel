@@ -516,8 +516,19 @@ overlap. Kinds come from the affinity table's damaging rows by the seed, skippin
 one already drawn; `kinds=a+b` names them instead. One free resource is seated in the cluster as
 the reward. Hazards carry the actor viability floor and mana regen equal to their upkeep
 (`computeInternalManaUpkeep`), so the field stays lit. The Director names the hazard share as a
-pool the tactic spends from (`tacticBudgetPools`); `fitMinefields` drops hazards from the end until
+pool the tactic spends from (`tacticBudgetPools`); `fitTacticHazards` drops hazards from the end until
 the Allocator's `hazardShareApproved` holds, and the row says `the hazard share affords k of n hazards`.
+
+`shrine` (#486, `shrine.js`): helping hazards are a placement role, not a new actor type. A room the
+spawn-to-exit route does not pass through (`room=<id>`, else one picked from the seed; a route room
+other than the entry and exit when there is no detour) gets `count=<n>` (default 1) emit hazards of
+range `range=<n>` (default 1) whose kind restores a vital: drawn from the affinity table's restoring
+rows by the seed, or named with `kinds=a+b` (restoring kinds only). They sit nearest the room's centre
+and touch no other hazard (#370), on `cells` near-targets like a minefield's. They are the same field
+hazards as a minefield's (`composeFieldHazard`: viability floor, mana regen covering upkeep). The row
+lists `shrines: [{ id, kind, restores, name }]`; `name` is `healing well` when the table's
+`primaryVital` is health, else `shrine`. The hazard share prices them, and `fitTacticHazards` drops
+shrines and minefield hazards alike from the end of the last such tactic.
 
 ## Drift guardrails
 - Canonical source: `controller.js` + `state-machine.js` + `contracts.ts`. The 1-line `.mts` re-export shims were deleted 2026-08-01; consumers import `persona.js` (the controller barrel), not the state machine.
