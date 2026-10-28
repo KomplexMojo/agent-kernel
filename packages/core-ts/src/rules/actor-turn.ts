@@ -2,7 +2,6 @@ import { readActorFieldSoaks, readActorOverwhelms, resolveActorFields, type Acto
 import type { createActorRegistry } from '../state/actor-registry.ts';
 import type { ActorAction, ActorAffinityKey, ActorPosition, ActorVitalKind, AffinityExpression, AffinityKind } from '../state/actor-types.ts';
 import type { ActorVitalChange } from './actor-affinity.ts';
-import { lineOfSightSteps } from '../state/visibility.ts';
 import { affinitySpreads, creepSpreadEmbers } from './actor-spread.ts';
 import { affinityIntensity, affinityKey, explainEquipActorAffinity, explainUnequipActorAffinity } from '../state/actor-inventory.ts';
 import { explainTakeActorHolding } from '../state/actor-holdings.ts';
@@ -212,25 +211,26 @@ export function createActorTurn(
           const pair = selectActorCastAffinity(actor, named);
           if (typeof pair === 'string') { lastRejection = pair; break; }
           const key = affinityKey(pair);
-          // A cast at an actor travels the same line a tile cast does; read it before a hit displaces.
+          // #538: a cast at another living actor is one cast, one rule: it travels the line to that
+          // actor's tile, as a tile cast does, and hits the first wall or living actor it meets.
+          // Only a cast at oneself (or at no living actor, refused) stays focused.
           const aimed = tile ? null : registry.getActor(action.params.targetId!);
-          const line = aimed && aimed.id !== actor.id ? lineOfSightSteps(actor.position, aimed.position).map(({ cell }) => cell) : [];
-          const result = tile
-            ? castActorAffinityAtTile(registry, actor.id, { x: tile.x, y: tile.y }, castPrices(prices), key)
+          const along = aimed && aimed.id !== actor.id && aimed.lifecycle === 'alive' ? aimed.position : tile;
+          const result = along
+            ? castActorAffinityAtTile(registry, actor.id, { x: along.x, y: along.y }, castPrices(prices), key)
             : castFocusedActorAffinity(registry, actor.id, action.params.targetId!, castPrices(prices), key);
           accepted = result.accepted;
           if (!accepted) lastRejection = result.rejection ?? null;
           if (accepted) {
-            const struck = tile ? (result as { struckId?: string }).struckId : aimed?.id;
+            const struck = along ? (result as { struckId?: string }).struckId : aimed?.id;
+            const path = along ? (result as { path?: ActorPosition[] }).path ?? [] : [];
             (state.casts ??= []).push({ sourceId: actor.id, kind: pair.kind, expression: pair.expression,
-              path: tile ? (result as { path?: ActorPosition[] }).path ?? [] : line,
-              ...(struck ? { targetId: struck } : {}), changes: result.changes });
+              path, ...(struck ? { targetId: struck } : {}), changes: result.changes });
             // #410: what the cast did to others is their hit this turn; the caster's price is not.
             for (const change of result.changes) {
               if (change.actorId !== actor.id) addVitalChange(state, change.actorId, change.vital, 'hit', change.delta);
             }
             // #421: a spread-trait push creeps on from where it landed: the cell it struck, or its last.
-            const path = tile ? (result as { path?: ActorPosition[] }).path ?? [] : line;
             const landing = path.at(-1);
             if (pair.expression === 'push' && affinitySpreads(pair.kind) && landing) {
               registry.leaveSpreadEmber({ sourceId: actor.id, kind: pair.kind, stacks: pair.stacks,
