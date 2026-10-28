@@ -100,6 +100,11 @@ export interface ActorRecordBase {
    */
   soaked?: number;
   /**
+   * #478: per vital, regen phases left without regeneration after a hit (health, durability,
+   * stamina and the vital the hit took). Omitted means none paused.
+   */
+  regenPaused?: Partial<Record<ActorVitalKind, number>>;
+  /**
    * #519: the actors this one keeps watching, by id, in the order it began. Each pays a mana
    * upkeep a turn; a watch ends when mana cannot pay it or the target is gone. Omitted means none.
    */

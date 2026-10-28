@@ -204,4 +204,4 @@ test("tactic-seated emitters keep their fields off resources and hazards (#473)"
       rmSync(outDir, { recursive: true, force: true });
     }
   }
-});
+}, 180_000); // two long-haul `ak create` runs: ~30s alone, over 60s under the full suite's load

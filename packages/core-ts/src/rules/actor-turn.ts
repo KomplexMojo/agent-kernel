@@ -280,6 +280,12 @@ export function createActorTurn(
       registry.drySoaked(state.soakedActorIds ?? []);
       const restedActorIds = registry.snapshot().actors.map(actor => actor.id)
         .filter(actorId => !(state.movedActorIds ?? []).includes(actorId));
+      // #478: a vital another actor's cast took this turn pauses its owner's harm vitals and itself.
+      for (const cast of state.casts ?? []) for (const change of cast.changes) {
+        if (change.actorId !== cast.sourceId && change.delta < 0) {
+          registry.pauseRegen(change.actorId, [...HIT_REGEN_PAUSE_VITALS, change.vital], HIT_REGEN_PAUSE_TURNS + 1);
+        }
+      }
       const before = readVitals(registry);
       registry.regenerate(regenScales(readActorOverwhelms(registry), restedActorIds), prices.persistentUpkeep ?? []);
       addVitalChanges(state, before, readVitals(registry), 'regen');
@@ -296,6 +302,16 @@ export function createActorTurn(
       ...(state.movedActorIds ? { movedActorIds: [...state.movedActorIds].sort() } : {}) }); },
   };
 }
+
+/**
+ * #478 (Darren chose proposal A, 2026-10-28): after another actor's push or pull takes a vital,
+ * the target's health, durability and stamina, and the vital the cast took, regenerate nothing on
+ * the turn it landed and the HIT_REGEN_PAUSE_TURNS turns after; a new hit restarts it. Mana
+ * otherwise keeps regenerating, so casting goes on. Fields (emit, draw, embers) do not pause:
+ * they have overwhelm for regen, and a field that paused stamina would pin anyone at 0 stamina.
+ */
+export const HIT_REGEN_PAUSE_TURNS = 3;
+const HIT_REGEN_PAUSE_VITALS: readonly ActorVitalKind[] = Object.freeze(['health', 'durability', 'stamina']);
 
 /** #519 (Darren, 2026-10-26): mana a turn for each actor a watcher keeps watching. */
 export const WATCH_MANA_UPKEEP = 1;

@@ -1410,16 +1410,34 @@ function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase }
 }
 
 
-function buildTakingProposals(receiver, view) {
+/**
+ * #478: a take refused last turn (the holding went to another taker) works through the source's
+ * holdings from the other end this turn. Two takers beside one source otherwise propose the same
+ * first holding every turn, and the one that resolves second is refused turn after turn; takers
+ * often cannot see each other, so the refusal is what the Actor knows. The winner keeps id order
+ * from the front, the refused one keeps taking from the back, and they meet only at the last holding.
+ */
+/** Which end of the holdings this turn's takes start from: last turn's, flipped if refused. */
+function takesFromBack(entry, receiverId, view, tick) {
+  if (!entry?.take || !Number.isFinite(tick) || entry.tick !== tick - 1) return false;
+  const source = (Array.isArray(view?.actors) ? view.actors : []).find(actor => actor.id === entry.take.targetId);
+  const holding = (Array.isArray(source?.holdings) ? source.holdings : []).find(item => item.id === entry.take.holdingId);
+  const refused = Boolean(holding && holding.claimedBy !== null && holding.claimedBy !== receiverId);
+  return refused ? !entry.take.fromBack : Boolean(entry.take.fromBack);
+}
+
+function buildTakingProposals(receiver, view, { lastTurn = null, tick } = {}) {
   if (receiver?.lifecycle !== "alive" || !receiver.capabilities?.canTake) return [];
+  const order = takesFromBack(lastTurn, receiver.id, view, tick) ? -1 : 1;
+  const byId = (left, right) => order * (left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
   const sources = (Array.isArray(view?.actors) ? view.actors : [])
     // Core's take rule (#406, #435): a defeated actor's holdings, or an intact resource's.
     .filter(source => source.id !== receiver.id
       && chebyshevDistance(receiver.position, source.position) <= 1 && actorHoldingsOpen(source))
-    .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+    .sort(byId);
   return sources.flatMap(source => (Array.isArray(source.holdings) ? source.holdings : [])
     .filter(holding => holding.claimedBy === null)
-    .sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0)
+    .sort(byId)
     .map(holding => ({ kind: "take", params: { targetId: source.id, holdingId: holding.id } })));
 }
 
@@ -1457,7 +1475,7 @@ function buildEquipmentProposals(actorRecord, observation, view, payload) {
   });
 }
 
-function buildMotivatedProposals({ observation, payload, simConfig, personaSeed, rememberedContact = null }) {
+function buildMotivatedProposals({ observation, payload, simConfig, personaSeed, rememberedContact = null, lastTurn = null }) {
   const view = resolveObservationView(observation);
   if (!view) return buildMoveProposal({ observation, payload, simConfig });
 
@@ -1502,7 +1520,7 @@ function buildMotivatedProposals({ observation, payload, simConfig, personaSeed,
   }
 
   pushUnique(buildEquipmentProposals(record, observation, view, payload));
-  pushUnique(buildTakingProposals(record, view));
+  pushUnique(buildTakingProposals(record, view, { lastTurn, tick: payload?.tick }));
 
   // Combat stays owned by the controller for now (MC.3/MC.5): collect proposals
   // into the same candidate set so the existing intentClass tuple can arbitrate
@@ -1806,8 +1824,16 @@ const YIELD_SALT = 457;
 
 /** #457 — last turn's move was proposed from where the actor still stands, so core refused it. */
 function moveWasRefused(entry, position, tick) {
-  return Boolean(entry && position && Number.isFinite(tick) && entry.tick === tick - 1
+  return Boolean(entry?.from && position && Number.isFinite(tick) && entry.tick === tick - 1
     && entry.from.x === position.x && entry.from.y === position.y);
+}
+
+/** What next turn needs to tell this turn's move (#457) or take (#478) was refused; else null. */
+function lastTurnEntry(action, position, tick, fromBack) {
+  if (action?.kind === "move" && position) return { tick, from: { x: position.x, y: position.y } };
+  if (action?.kind === "take") return { tick, take: { targetId: action.params.targetId, holdingId: action.params.holdingId,
+    ...(fromBack ? { fromBack } : {}) } };
+  return null;
 }
 
 function keepProposalsNear(proposals, { center, distance }) {
@@ -1959,7 +1985,8 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
           : [];
         derivedProposals = reflex.length > 0
           ? reflex
-          : buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed, rememberedContact });
+          : buildMotivatedProposals({ observation, payload: { ...payload, tick }, simConfig, personaSeed, rememberedContact,
+            lastTurn: strategyActorId ? view().context.moves?.[strategyActorId] ?? null : null });
         if (followsStrategy && strategyTurn.keepNear) derivedProposals = keepProposalsNear(derivedProposals, strategyTurn.keepNear);
         if (escortTurn?.keepNear) derivedProposals = keepProposalsNear(derivedProposals, escortTurn.keepNear);
       }
@@ -2098,11 +2125,12 @@ export function createActorPersona({ initialState = ActorStates.IDLE, clock, see
       ...(cognitionTurn ? { cognitionEntry: { actorId: strategyActorId, entry: cognitionTurn.entry } } : {}),
       ...(escortTurn ? { escortEntry: { actorId: strategyActorId, entry: escortTurn.entry } } : {}),
       ...(contactEntry ? { contactEntry } : {}),
-      // #457 — where a move was proposed from, so next turn can tell it was refused.
+      // #457 — where a move was proposed from, and #478 which holding a take claimed, so next
+      // turn can tell it was refused.
       ...(shouldEmitActions && strategyActorId && !commandProposals ? { moveEntry: { actorId: strategyActorId,
-        entry: (runtimeDecisionEffect ? transitionProposals?.[0]
-          : actions.find((action) => action.actorId === strategyActorId))?.kind === "move" && decidingActor?.position
-          ? { tick, from: { x: decidingActor.position.x, y: decidingActor.position.y } } : null } } : {}),
+        entry: lastTurnEntry(runtimeDecisionEffect ? transitionProposals?.[0]
+          : actions.find((action) => action.actorId === strategyActorId), decidingActor?.position, tick,
+        takesFromBack(view().context.moves?.[strategyActorId], strategyActorId, observationView, tick)) } } : {}),
     };
     const result = fsm.advance(event, fsmPayload);
     if (!shouldEmitActions) {
