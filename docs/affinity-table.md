@@ -51,20 +51,21 @@ or an emit field the receiver takes something from, soaks it for the hit's inten
 keeps it soaked while it stands there); each move costs one more stamina while soaked. Spread (#421):
 where a push lands, its field creeps each turn to a seeded random neighbour that is not a wall, one
 intensity weaker, until 0; an opposite field at least as strong there puts it out, and it harms whoever
-it reaches for no further mana. Raise is recorded, and raising barriers is open to every kind (#442, #460).
+it reaches for no further mana. Raising barriers is open to every kind (#442, #460); a barrier gets
+10 × intensity² mana and durability times its kind's raise scale, so raise (earth) builds sturdier ones (#534).
 
-| Kind | Trait |
-|---|---|
-| fire | spread |
-| water | soak |
-| earth | raise |
-| wind | none |
-| growth | none |
-| decay | none |
-| corrode | none |
-| fortify | none |
-| light | none |
-| dark | none |
+| Kind | Trait | Raise scale |
+|---|---|---|
+| fire | spread | ×1 |
+| water | soak | ×1 |
+| earth | raise | ×2 |
+| wind | none | ×1 |
+| growth | none | ×1 |
+| decay | none | ×1 |
+| corrode | none | ×1 |
+| fortify | none | ×1 |
+| light | none | ×1 |
+| dark | none | ×1 |
 
 ## Receiver rules
 
