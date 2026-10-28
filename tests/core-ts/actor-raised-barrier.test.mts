@@ -5,12 +5,13 @@ import { readActorRegistryObservation, scopeActorRegistryObservation } from '../
 import {
   RAISED_BARRIER_TILE_KIND, raisedBarrierStats, raisedBarrierCells,
 } from '../../packages/core-ts/src/rules/actor-cast.ts';
+import { affinityTableRow } from '../../packages/core-ts/src/state/affinity-table.ts';
 import type { ActorRecord, AffinityKind, AffinityExpression } from '../../packages/core-ts/src/state/actor-types.ts';
 
 // #413 (Darren, 2026-10-18): any affinity raises and removes barriers. Since #460 raising is
 // its own action, `raise_barrier` (Darren, 2026-10-24: separate raise command): with a push it
 // raises a line of `range` barrier actors of the caster's kind, each invested with
-// 10 × intensity² mana that pays 1 a turn; once spent, it erodes 1 durability a turn. A pull
+// 10 × intensity² mana (times the kind's raise scale, #534) that pays 1 a turn; once spent, it erodes 1 durability a turn. A pull
 // on a barrier takes it down. The caster walks through its own barriers. Every kind alike.
 
 const KINDS: AffinityKind[] = ['fire', 'water', 'earth', 'wind', 'growth', 'decay', 'corrode', 'fortify', 'light', 'dark'];
@@ -34,6 +35,12 @@ function endTurn(turn: ReturnType<typeof createActorTurn>) {
 }
 const raised = (registry: ReturnType<typeof room>) => registry.snapshot().actors.filter(actor => actor.raisedBy);
 
+test('earth raises barriers with twice the investment and durability; every other kind once (#534)', () => {
+  expect(KINDS.filter(kind => affinityTableRow(kind)!.raiseScale !== 1)).toEqual(['earth']);
+  expect(affinityTableRow('earth')!.raiseScale).toBe(2);
+  expect(raisedBarrierStats(2, 2)).toEqual({ mana: 80, durability: 80 });
+});
+
 for (const kind of KINDS) {
   test(`a ${kind} push raised into an empty tile is a ${kind} barrier the caster owns`, () => {
     const registry = room(5, 1, [caster('me', 0, 0, kind, 'push', 2, 2)]);
@@ -43,8 +50,10 @@ for (const kind of KINDS) {
     expect(barrier).toMatchObject({ raisedBy: 'me', defeatVital: 'durability', lifecycle: 'alive',
       affinities: [{ kind, expression: 'push' }] });
     expect(barrier.capabilities).toMatchObject({ blocksMovement: true, canMove: false, canCast: false });
-    expect(barrier.vitals.mana).toEqual({ current: 40, max: 40, regen: 0 });
-    expect(barrier.vitals.durability).toEqual({ current: 40, max: 40, regen: 0 });
+    // #534: the kind's raise scale multiplies the investment and durability (earth ×2).
+    const amount = 40 * affinityTableRow(kind)!.raiseScale;
+    expect(barrier.vitals.mana).toEqual({ current: amount, max: amount, regen: 0 });
+    expect(barrier.vitals.durability).toEqual({ current: amount, max: amount, regen: 0 });
     // The Allocator's push price: base 1 × intensity 2 × range 2·3/2.
     expect(registry.getActor('me')!.vitals.mana!.current).toBe(100 - 6);
   });

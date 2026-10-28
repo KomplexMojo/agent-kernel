@@ -193,8 +193,9 @@ export const RAISED_BARRIER_EROSION = 1;
  */
 export const RAISED_BARRIER_TILE_KIND = 2;
 
-export function raisedBarrierStats(intensity: number): { mana: number; durability: number } {
-  const amount = RAISED_BARRIER_INVESTMENT_PER_INTENSITY_SQUARED * intensity * intensity;
+/** #534: `raiseScale` is the raising kind's table column (2 for earth, 1 for the rest). */
+export function raisedBarrierStats(intensity: number, raiseScale = 1): { mana: number; durability: number } {
+  const amount = RAISED_BARRIER_INVESTMENT_PER_INTENSITY_SQUARED * intensity * intensity * raiseScale;
   return { mana: amount, durability: amount };
 }
 
@@ -308,7 +309,7 @@ export function raiseActorBarriersAt(
   if (cost === undefined) return reject('InvalidActionValue');
   if ((source.vitals.mana?.current ?? 0) < cost) return reject('InsufficientMana');
   const intensity = affinityIntensity(pair);
-  const { mana, durability } = raisedBarrierStats(intensity);
+  const { mana, durability } = raisedBarrierStats(intensity, affinityTableRow(pair.kind)?.raiseScale ?? 1);
   const raised: string[] = [];
   for (const cell of raisedBarrierCells(source.position, target, actorCastRange(pair), empty)) {
     const id = registry.raiseBarrierAt(cell, {

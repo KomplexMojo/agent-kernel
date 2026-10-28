@@ -49,6 +49,7 @@ export interface AffinityTableRow {
   readonly reveals: boolean;
   readonly conceals: boolean;
   readonly trait: AffinityTrait | null;
+  readonly raiseScale: number;
   readonly formulas: Readonly<Record<'magnitude' | 'reach' | 'castMana' | 'upkeep', AffinityFormulaId>>;
 }
 
@@ -83,17 +84,17 @@ const FORMULAS = Object.freeze({
   upkeep: 'upkeep_table_at_range_plus_intensity',
 } as const);
 
-type RowColumns = { illuminates?: boolean; reveals?: boolean; conceals?: boolean; trait?: AffinityTrait | null };
+type RowColumns = { illuminates?: boolean; reveals?: boolean; conceals?: boolean; trait?: AffinityTrait | null; raiseScale?: number };
 const row = (kind: AffinityKind, primaryVital: ActorVitalKind, outward: AffinityOutwardOperation,
   inward: AffinityInwardOperation, spill: 'defeat' | null,
-  { illuminates = false, reveals = false, conceals = false, trait = null }: RowColumns = {}): AffinityTableRow =>
-  Object.freeze({ kind, primaryVital, outward, inward, spill, illuminates, reveals, conceals, trait, formulas: FORMULAS });
+  { illuminates = false, reveals = false, conceals = false, trait = null, raiseScale = 1 }: RowColumns = {}): AffinityTableRow =>
+  Object.freeze({ kind, primaryVital, outward, inward, spill, illuminates, reveals, conceals, trait, raiseScale, formulas: FORMULAS });
 
 /** In affinity-codebook order. */
 export const AFFINITY_TABLE: readonly AffinityTableRow[] = Object.freeze([
   row('fire', 'durability', 'damage', 'drain', 'defeat', { illuminates: true, trait: 'spread' }),
   row('water', 'stamina', 'damage', 'drain', 'defeat', { trait: 'soak' }),
-  row('earth', 'durability', 'damage', 'drain', 'defeat', { trait: 'raise' }),
+  row('earth', 'durability', 'damage', 'drain', 'defeat', { trait: 'raise', raiseScale: 2 }),
   row('wind', 'stamina', 'damage', 'drain', 'defeat'),
   row('growth', 'health', 'restore', 'drain', null),
   row('decay', 'health', 'damage', 'drain', 'defeat'),
