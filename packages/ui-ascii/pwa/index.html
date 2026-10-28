@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Deepward playtest</title>
+<meta name="theme-color" content="#0d0d0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Deepward">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="stylesheet" href="style.css">
+</head><body>
+<section id="picker" hidden>
+  <h1>Deepward playtest</h1>
+  <p class="lead">Pick a scenario, play it, then send the report. Add this page to your home screen to play offline.</p>
+  <button id="resume" class="card resume" hidden></button>
+  <div id="scenarios"></div>
+  <p id="version" class="dim"></p>
+</section>
+<section id="brief" hidden>
+  <button id="back-picker" class="link">‹ Scenarios</button>
+  <h1 id="brief-title"></h1>
+  <p id="brief-who"></p>
+  <h2>Seed</h2>
+  <div id="seeds"></div>
+  <h2>Things to try</h2>
+  <ul id="brief-focus"></ul>
+  <p class="dim">Note the turn number (shown under the board) when something looks wrong. Fog of war is on.</p>
+  <button id="start" class="primary">Start</button>
+</section>
+<section id="game" hidden>
+  <div id="bar"><button id="menu">☰ Menu</button></div>
+  <div id="board"><pre id="screen"></pre></div>
+  <div id="controls"><div id="pad"></div><div id="actions"></div></div>
+</section>
+<dialog id="menu-dialog">
+  <button id="menu-brief">Things to try</button>
+  <button id="menu-report" class="primary">Report what I found</button>
+  <button id="menu-scenarios">Pick another scenario</button>
+</dialog>
+<dialog id="report-dialog">
+  <h2>Report</h2>
+  <p class="dim">One finding per line, with the turn number if you have it.</p>
+  <textarea id="report-notes" rows="5" placeholder="turn 12: the push did nothing"></textarea>
+  <div class="row"><button id="report-copy" class="primary">Copy</button><button id="report-share">Share</button><button id="report-download">Save .md</button></div>
+  <p id="report-status" class="dim"></p>
+  <textarea id="report-text" rows="6" readonly></textarea>
+  <div class="row"><button id="report-close">Close</button></div>
+</dialog>
+<script src="app.js"></script>
+</body></html>

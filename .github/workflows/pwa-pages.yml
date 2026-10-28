@@ -1,0 +1,48 @@
+# Publish the Deepward playtest app (a PWA, packages/ui-ascii/src/browser.js) to GitHub Pages.
+# One-time setup: repo Settings -> Pages -> Build and deployment -> Source: GitHub Actions.
+name: Playtest app (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/**"
+      - "scripts/game/**"
+      - "scripts/pwa/**"
+      - ".github/workflows/pwa-pages.yml"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build the app (every scenario level is built by `ak create`)
+        run: node scripts/pwa/build-pwa.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/pwa
+      - id: deployment
+        uses: actions/deploy-pages@v4
