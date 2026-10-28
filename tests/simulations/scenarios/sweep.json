@@ -391,9 +391,9 @@
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=dark;affinities=dark:pull:3:3;equip=dark:pull;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "count=1;id=atk;affinity=dark;affinities=dark:pull:3:3;equip=dark:pull;motivation=attacking;vitals=health:30:2,mana:40:3,stamina:10:1,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=light;affinities=light:pull:3:3;equip=light:pull;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+        "count=1;id=def;affinity=light;affinities=light:pull:3:3;equip=light:pull;motivation=defending;vitals=health:30:2,mana:40:3,stamina:10:1,durability:10:1"
       ]
     },
     {
