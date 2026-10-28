@@ -18,14 +18,16 @@ export const AffinityEffect = {
   AmplifiedDamage: 6,
 } as const;
 
+// Push, pull, emit, draw. #533 (#496 audit): draw takes emit's reach (range + 1) and linear
+// falloff, so the range it pays for buys reach; it used to reach one tile at full strength.
 const RADIUS_BASE = Object.freeze([0.5, 0.5, 1.0, 1.0]);
-const RADIUS_GROWTH = Object.freeze([0.5, 0.5, 1.0, 0.0]);
+const RADIUS_GROWTH = Object.freeze([0.5, 0.5, 1.0, 1.0]);
 const RADIUS_EXPONENT = Object.freeze([1.0, 1.0, 1.0, 1.0]);
 
 // Falloff is shape only: 1 at the source, easing to 0 at the edge of the radius.
 // Strength lives in intensity (#340), so range no longer adds to it.
 const FALLOFF_BUFFER = Object.freeze([0, 0, 0, 0]);
-const FALLOFF_CURVE = Object.freeze([2.0, 2.0, 1.0, 0.0]);
+const FALLOFF_CURVE = Object.freeze([2.0, 2.0, 1.0, 1.0]);
 
 const MATRIX_CELL_COUNT = 48;
 

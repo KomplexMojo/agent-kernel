@@ -48,7 +48,14 @@ describe("core-ts affinity spatial formulas", () => {
 
     expect(call(computeAffinityRadius, AffinityExpression.Emit, 2)).toBe(3);
     expect(call(computeAffinityRadius, AffinityExpression.Push, 1)).toBe(1);
-    expect(call(computeAffinityRadius, AffinityExpression.Draw, 8)).toBe(1);
+    // #533: draw reaches range + 1 like emit, with emit's linear falloff.
+    expect(call(computeAffinityRadius, AffinityExpression.Draw, 8)).toBe(9);
+    for (const stacks of [1, 2, 3]) {
+      for (let distance = 1; distance <= stacks + 1; distance += 1) {
+        expect(call(computeAffinityFalloff, distance, stacks, AffinityExpression.Draw))
+          .toBe(call(computeAffinityFalloff, distance, stacks, AffinityExpression.Emit));
+      }
+    }
   });
 
   test("computes intensity falloff", () => {
@@ -231,8 +238,8 @@ describe("core-ts affinity spatial permutations", () => {
     // Emit: radius = floor(1.0 + 1.0 * stacks) — stacks=1→2
     expect(call(computeAffinityRadius, AffinityExpression.Emit, 1)).toBe(2);
     expect(call(computeAffinityRadius, AffinityExpression.Emit, 2)).toBe(3);
-    // Draw: radius = floor(0.5 + 0.5 * stacks) — stacks=1→1
-    expect(call(computeAffinityRadius, AffinityExpression.Draw, 1)).toBe(1);
+    // Draw (#533): radius = floor(1.0 + 1.0 * stacks) like emit — stacks=1→2
+    expect(call(computeAffinityRadius, AffinityExpression.Draw, 1)).toBe(2);
   });
 
   test("stack cancellation: Fire vs Water (opposite) cancels stacks", () => {
