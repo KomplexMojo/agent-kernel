@@ -89,14 +89,14 @@ function between(rng, min, max) {
 /**
  * #401 — `--tactic auto`: the seed picks a mix of tactics, with their sizes, for a level with
  * `wardens` wardens and `resources` resources. An ambush needs both and a retinue needs a
- * warden of its own; a minefield brings its own hazards. The picks come back in catalogue
+ * warden of its own; a minefield and a shrine (#531) bring their own hazards. The picks come back in catalogue
  * order as an ordinary tactic list, so the plan records them and `--seed` rebuilds them.
  * Rooms are left to the Configurator, which picks them from the same seed.
  */
 export function pickSeededTactics(seed, { wardens = 0, resources = 0 } = {}) {
   if (!Number.isSafeInteger(seed) || seed < 0) throw new Error("tactic auto: needs a non-negative integer seed");
   const rng = createRng(seed);
-  const candidates = ["minefield"];
+  const candidates = ["minefield", "shrine"];
   if (wardens >= 1) candidates.push("retinue");
   if (wardens >= 1 && resources >= 1) candidates.push("ambush");
   for (let i = candidates.length - 1; i > 0; i -= 1) {
@@ -113,6 +113,7 @@ export function pickSeededTactics(seed, { wardens = 0, resources = 0 } = {}) {
     if (tactic === "ambush") tactics.push({ tactic, params: { guards: between(rng, 1, Math.min(2, guardsFree)) } });
     if (tactic === "retinue") tactics.push({ tactic, params: { size: between(rng, 1, 3) } });
     if (tactic === "minefield") tactics.push({ tactic, params: { hazards: between(rng, 2, 5) } });
+    if (tactic === "shrine") tactics.push({ tactic, params: { count: between(rng, 1, 2) } });
   }
   return tactics;
 }

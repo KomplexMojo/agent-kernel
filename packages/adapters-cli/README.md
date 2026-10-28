@@ -543,8 +543,8 @@ Inputs/outputs:
   `kinds=` must name restoring kinds. A shrine that restores health is reported as a healing well. Like a minefield it
   needs no `--hazard`: the Allocator prices it from the hazard share, and one the share can't afford is dropped. The row
   has `room`, `hazards: [{ id, kind }]`, `shrines: [{ id, kind, restores, name }]`, `note`.
-  `--tactic auto` (alone; #401) lets the Director pick the mix from the build seed: a minefield always fits, a retinue
-  needs a warden, an ambush a warden and a resource, each with a seeded size. The result's `tactics` lists the picks.
+  `--tactic auto` (alone; #401) lets the Director pick the mix from the build seed: a minefield and a shrine (#531) always
+  fit, a retinue needs a warden, an ambush a warden and a resource, each with a seeded size (a shrine's `count` is 1 or 2). The result's `tactics` lists the picks.
   `--tactic llm` (alone; #402) asks a model for the mix instead (`--fixture` replays a recorded reply; live needs
   `AK_LLM_LIVE=1`, with `--model`/`--base-url`). The Director refuses unknown tactics and the Configurator checks params
   and the wardens and resources the plan claims; no model, a failed call or an invalid reply falls back to the seeded

@@ -93,11 +93,18 @@ test("pickSeededTactics: same seed, same plan; picks fit the level's wardens and
     // An ordinary tactic list: it normalizes to itself, in catalogue order.
     assert.deepEqual(director.normalizeTactics(plan), plan);
     const ids = plan.map((entry) => entry.tactic);
-    assert.deepEqual(ids, ["ambush", "retinue", "minefield"].filter((id) => ids.includes(id)));
+    assert.deepEqual(ids, ["ambush", "retinue", "minefield", "shrine"].filter((id) => ids.includes(id)));
+    const shrine = plan.find((entry) => entry.tactic === "shrine");
+    if (shrine) assert.ok([1, 2].includes(shrine.params.count), JSON.stringify(shrine));
   }
-  // No warden: only the minefield fits. A warden but no resource: no ambush.
+  // #531: shrines are a full candidate, so some seeds pick one.
+  assert.ok(Array.from({ length: 50 }, (_, seed) => director.pickSeededTactics(seed, counts))
+    .some((plan) => plan.some((entry) => entry.tactic === "shrine")), "some seed picks a shrine");
+  // No warden: only the minefield and the shrine fit, which bring their own hazards. A warden
+  // but no resource: no ambush.
   for (let seed = 0; seed < 20; seed += 1) {
-    assert.deepEqual(director.pickSeededTactics(seed, { wardens: 0, resources: 3 }).map((e) => e.tactic), ["minefield"]);
+    const unguarded = director.pickSeededTactics(seed, { wardens: 0, resources: 3 }).map((e) => e.tactic);
+    assert.ok(unguarded.length >= 1 && unguarded.every((id) => ["minefield", "shrine"].includes(id)), unguarded.join(","));
     assert.ok(!director.pickSeededTactics(seed, { wardens: 2, resources: 0 }).some((e) => e.tactic === "ambush"));
     // One warden can't both lead a retinue and guard an ambush.
     const one = director.pickSeededTactics(seed, { wardens: 1, resources: 1 }).map((e) => e.tactic);
