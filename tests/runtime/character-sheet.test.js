@@ -120,6 +120,27 @@ test("+ on a kind steps through none as well as every kind", async () => {
   assert.doesNotMatch(sheet.spec(), /:1;equip/);
 });
 
+test("a tap steps a choice (none, every kind, none again) and only lights a number for − and +", async () => {
+  const { createCharacterSheet, SHEET_INTENT } = await load();
+  const { AFFINITY_KINDS, AFFINITY_EXPRESSIONS } = await import("../../packages/runtime/src/contracts/domain-constants.js");
+  const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 5000 });
+  const kind = () => sheet.view().rows[2].fields[0].value;
+  const seen = [];
+  for (let i = 0; i <= AFFINITY_KINDS.length; i += 1) { sheet.tap(2, 0); seen.push(kind()); }
+  assert.deepEqual(seen, [...AFFINITY_KINDS, "none"]);
+  assert.equal(sheet.view().cursorNumeric, false, "− and + mean nothing on a kind");
+  sheet.tap(0, 1);
+  assert.equal(sheet.view().rows[0].fields[1].value, AFFINITY_EXPRESSIONS[(AFFINITY_EXPRESSIONS.indexOf("emit") + 1) % AFFINITY_EXPRESSIONS.length]);
+  sheet.tap(1, 4);
+  assert.equal(sheet.view().rows[1].fields[4].value, "equipped", "on/off toggles");
+  const before = sheet.spec();
+  sheet.tap(0, 2);
+  assert.equal(sheet.spec(), before, "a tap on a number changes nothing");
+  assert.equal(sheet.view().cursorNumeric, true);
+  sheet.apply(SHEET_INTENT.INC);
+  assert.notEqual(sheet.spec(), before);
+});
+
 test("reset returns to the opening character", async () => {
   const { createCharacterSheet, SHEET_INTENT } = await load();
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });

@@ -67,9 +67,60 @@ test("the session exposes the log as words, from the Annotator's entries", async
   const lines = session.view().battleLog;
   assert.ok(lines.length >= 2, "casts and the defeat are logged");
   assert.match(lines[0].text, /^You cast decay push and struck D?\w* ?warden_1\.$|^You cast decay push and struck .*warden_1\.$/);
-  assert.match(lines.at(-1).text, /warden_1 was defeated by you's decay push\.$/);
+  assert.match(lines.at(-1).text, /warden_1 was defeated by your decay push\.$/);
   assert.ok(lines.every((line) => Number.isInteger(line.tick)));
   assert.ok(!lines.some((line) => /\d+\/\d+|[−-]\d/.test(line.text.replace(/warden_1|delver_1/g, ""))), "no vitals in the words");
+});
+
+test("a resource worn down in the seat's emit field is logged as destroyed by that emit (playtest 2026-10-29)", async () => {
+  const level = buildUnifiedLevel({
+    id: "aura", tiles: ["######", "#...E#", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
+        vitals: viableVitals({ mana: 40 }), affinities: [{ kind: "decay", expression: "emit", stacks: 2 }] },
+      { category: "resource", id: "resource_1", position: { x: 2, y: 1 },
+        vitals: { durability: { current: 1, max: 1, regen: 0 } } },
+    ],
+  });
+  const session = await createPlaySession(level);
+  await session.act(equip("decay:emit"));
+  for (let i = 0; i < 8 && !session.view().departures.length; i += 1) await session.act({ kind: "wait" });
+  const lines = session.view().battleLog.map((line) => line.text);
+  assert.ok(lines.some((line) => /resource_1 was destroyed by your decay emit\.$/.test(line)), lines.join(" | "));
+});
+
+test("words: a defeat says whose attack, and what lives on durability is destroyed", async () => {
+  const { battleLogLine } = await import("../../../packages/runtime/src/render/battle-log-lines.js");
+  const entry = (extra) => ({ event: "defeat", targetId: "t", sourceId: "me", kind: "fire", expression: "push", ...extra });
+  assert.equal(battleLogLine(entry({}), { seatId: "me" }), "T was defeated by your fire push.");
+  assert.equal(battleLogLine(entry({ defeatVital: "durability" }), { seatId: "other" }), "T was destroyed by me's fire push.");
+  assert.equal(battleLogLine(entry({ defeatVital: "health", sourceId: "w" }), { seatId: "me", labelOf: (id) => (id === "w" ? "W1" : null) }),
+    "T was defeated by W1 w's fire push.");
+  assert.equal(battleLogLine({ event: "defeat", targetId: "t", defeatVital: "durability" }), "T was destroyed.");
+});
+
+test("a take names what it gave (playtest 2026-10-29)", async () => {
+  const { battleLogLine } = await import("../../../packages/runtime/src/render/battle-log-lines.js");
+  const take = (taken) => battleLogLine({ event: "take", sourceId: "me", targetId: "r", taken }, { seatId: "me", labelOf: () => "R1" });
+  assert.equal(take({ kind: "vital", permanenceMode: "consumable", vitals: [{ key: "health", delta: 10 }] }), "You took +10 health from R1 r.");
+  assert.equal(take({ kind: "vital", permanenceMode: "permanent", vitals: [{ key: "mana", delta: 5, regen: 1 }] }), "You took +5 max mana, +1 mana regen from R1 r.");
+  assert.equal(take({ kind: "affinity", affinity: "fire", expression: "push" }), "You took fire push from R1 r.");
+  assert.equal(take({ kind: "slot", slots: 1 }), "You took an affinity slot from R1 r.");
+  assert.equal(take(undefined), "You took from R1 r.");
+});
+
+test("a take in a played level carries the holding core granted", async () => {
+  const level = buildUnifiedLevel({
+    id: "loot", tiles: ["######", "#...E#", "######"],
+    actors: [
+      { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"], vitals: viableVitals() },
+      { category: "resource", id: "resource_1", position: { x: 2, y: 1 }, vitals: { durability: { current: 5, max: 5, regen: 0 } },
+        holdings: [{ id: "heal", kind: "vital", permanenceMode: "consumable", vitals: [{ key: "health", delta: 10 }], claimedBy: null }] },
+    ],
+  });
+  const session = await createPlaySession(level);
+  await session.act({ kind: "take", params: { targetId: "resource_1", holdingId: "heal" } });
+  assert.ok(session.view().battleLog.some((line) => /^You took \+10 health from .*resource_1\.$/.test(line.text)), JSON.stringify(session.view().battleLog));
 });
 
 test("fog: a cast out of sight and out of the party is not logged", async () => {
