@@ -39,7 +39,7 @@ import { ensureBudgetedFulfillmentFeasible, applyBudgetCappedFulfillment } from 
 import { reconcileBudget } from "./reconciliation.js";
 import { priceMixedRoomDesignSpend } from "./mixed-room-spend.js";
 import { LEVEL_GRADES, applyLevelGradePoolWeights, reportLevelGrade, resolveLevelGrade } from "./level-grades.js";
-import { billedLayoutTiles, evaluateConfiguratorSpend } from "./spend-proposal.js";
+import { billedLayoutTiles, calculateActorConfigurationUnitCost, evaluateConfiguratorSpend } from "./spend-proposal.js";
 import { BUDGET_ARTIFACT_SCHEMA, BUDGET_RECEIPT_ARTIFACT_SCHEMA, RUNTIME_BUDGET_RECEIPT_SCHEMA } from "../../contracts/artifacts.ts";
 
 const RUNTIME_BUDGET_UNIT = "runtimeBudgetUnits";
@@ -190,6 +190,18 @@ export function attachAllocatorServices({
     /** Motivation stack quote against the persona's own price map. */
     quoteMotivations: (motivations) =>
       calculateMotivationStackCost(motivations, buildPriceMap(getPriceList())),
+    /**
+     * One actor, spawn included, priced line by line against the persona's own price map:
+     * `{ cost, detail: { lineItems }, errors? }`. What an editing screen shows per choice.
+     */
+    quoteActor: (entry) => {
+      const priceMap = normalizePriceItems(getPriceList());
+      const quote = calculateActorConfigurationUnitCost({ entry, priceMap, normalizeMotivations });
+      const spawn = priceMap.get("actor:actor_spawn");
+      if (!spawn) return { ...quote, errors: [...(quote.errors ?? []), 'no price list entry (expected actor:actor_spawn)'] };
+      const lineItems = [{ category: "actor", id: spawn.id, label: "actor spawn", quantity: 1, unitCostTokens: spawn.unitCost, spendTokens: spawn.unitCost }, ...quote.detail.lineItems];
+      return { ...quote, cost: quote.cost + spawn.unitCost, detail: { ...quote.detail, lineItems } };
+    },
     /**
      * Runtime action costs charged against core's per-run budget ledger.
      * Distinct from the authoring price list: these are the per-action units
