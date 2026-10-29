@@ -554,7 +554,7 @@ export async function orchestrateBuild({
 
     if (!budgetReceipt && mapped.budget?.budget && resolvedPriceList) {
       if (compiled.actors.length > 0) {
-        // #400: a retinue the warden share cannot afford shrinks. The Allocator prices each try;
+        // #400: a retinue its share (warden, or delver for a delver's minions) cannot afford shrinks. The Allocator prices each try;
         // the Configurator decides which minions go.
         const fitted = configuratorBuild.fitRetinues({
           report: compiledTacticReport,
@@ -572,7 +572,7 @@ export async function orchestrateBuild({
               receiptMeta: createBuildMeta(spec, producedBy, "budget_receipt_probe"),
               normalizeMotivations: configuratorMotivations,
             });
-            return buildAllocator.wardenShareApproved({ receipt });
+            return buildAllocator.wardenShareApproved({ receipt }) && buildAllocator.delverShareApproved({ receipt });
           },
         });
         if (fitted.dropped.size > 0) {

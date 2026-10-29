@@ -26,7 +26,7 @@ export function sheetIntentForKey(key) {
 }
 
 export const SHEET_HELP_LINES = Object.freeze([
-  "↑↓ (w s j k) row   ←→ (a d h l, Tab) field   + − change (kind: none, then each)   ] [ by 5",
+  "↑↓ (w s j k) row   ←→ (a d h l, Tab) field   + − change (kind, role: none, then each)   ] [ by 5",
   "x set slot to none   r reset   Enter play   q or Esc back",
 ]);
 
@@ -71,6 +71,13 @@ export function renderCharacterScreen(view, { color = false, title = "Your delve
     const mark = row.active ? ">" : " ";
     const cells = row.fields.map((field, index) => cell(field.value, WIDTHS[field.name], { selected: row.active && view.cursor.field === index, color }));
     lines.push(`  ${mark} ${pad(row.label, 14)}${cells.join("")}${String(row.price).padStart(26)}`);
+  }
+  lines.push("");
+  lines.push(`    ${pad("Minions (each follows you and takes orders)", 58)}${"price".padStart(8)}`);
+  for (const row of view.rows.filter((entry) => entry.kind === "minion")) {
+    const mark = row.active ? ">" : " ";
+    const role = cell(row.fields[0].value, 10, { selected: row.active, color });
+    lines.push(`  ${mark} ${pad(row.label, 3)}${role}${pad(row.loadout ?? "", 45)}${String(row.price).padStart(8)}`);
   }
   lines.push("─".repeat(78));
   if (view.problems.length > 0) view.problems.forEach((problem) => lines.push(paint(`! ${problem}`, GAME_COLOR_PALETTE.items.hazard, color)));

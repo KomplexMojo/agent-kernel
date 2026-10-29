@@ -57,6 +57,10 @@ function isWarden(actor) {
   return actor?.alignment === "dungeon";
 }
 
+function isDelver(actor) {
+  return leftoverCategory(actor) === "delver";
+}
+
 function readCount(params, name) {
   if (params[name] === undefined) return AMBUSH_PARAMS[name];
   const value = Number(params[name]);
@@ -184,13 +188,16 @@ export function compileTactics({ tactics = [], layout, actors = [], resources = 
     if (entry?.tactic === "retinue") {
       const params = readRetinueParams(entry.params);
       const leaderId = params.leader ?? wardens.find((id) => !claimed.has(id));
-      if (params.leader && !actors.some((actor) => actor?.id === params.leader && isWarden(actor))) {
-        throw new Error(`tactic retinue: no warden "${params.leader}" in this level.`);
+      // A named leader may be a warden or a delver (the player's own minions); an unnamed one is a free warden.
+      const named = params.leader ? actors.find((actor) => actor?.id === params.leader && (isWarden(actor) || isDelver(actor))) : null;
+      if (params.leader && !named) {
+        throw new Error(`tactic retinue: no warden or delver "${params.leader}" in this level.`);
       }
       if (!leaderId) return { tactic: "retinue", ...withParams(entry), applied: false, note: "this level has no warden to lead a retinue" };
       claimed.add(leaderId);
       const leader = actors.find((actor) => actor?.id === leaderId);
-      const retinue = composeRetinue({ leader, size: params.size, takenIds });
+      const retinue = composeRetinue({ leader, size: params.size, roles: params.roles, takenIds,
+        category: isDelver(leader) ? "delver" : "warden" });
       added.push(...retinue.minions);
       compiled.push(...retinue.placement);
       return {

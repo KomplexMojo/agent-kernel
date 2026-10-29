@@ -1200,7 +1200,7 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
       throw new Error(`delver[${delverIndex}] requires a non-empty spec.`);
     }
 
-    const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip", "strategy", "escort"]);
+    const allowedFields = new Set(["id", "count", "affinity", "affinities", "motivation", "vitals", "setup-mode", "setupmode", "goals", "slots", "equip", "strategy", "escort", "minions"]);
     const fields = new Map();
     const segments = raw.split(";").map((segment) => segment.trim()).filter(Boolean);
     if (segments.length === 0) {
@@ -1270,11 +1270,16 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
     if (delverStrategy !== undefined) delver.strategy = delverStrategy;
     const delverEscort = parseActorEscort(fields.get("escort"), "delver", delverIndex);
     if (delverEscort !== undefined) delver.escort = delverEscort;
+    // 2026-10-29: `minions=shield+support`, the delver's own retinue (the Configurator composes it).
+    if (fields.has("minions") && count !== 1) {
+      throw new Error(`delver[${delverIndex}] minions need count=1: they follow one delver.`);
+    }
 
     return {
       value: delver,
       optimizationGoals,
       vitalsFlexible: !fields.has("vitals"),
+      ...(fields.has("minions") ? { minions: fields.get("minions") } : {}),
     };
   }
 
@@ -1770,6 +1775,11 @@ export function createAuthoringSpecs({ makeId, readStrategyFile = NO_STRATEGY_FI
         }));
       }
     }
+    // 2026-10-29: a delver's own minions are a retinue it leads, added after the mix is picked, so
+    // they join any tactic (`auto` included) and draw no seed (a named leader and roles pick nothing).
+    parsedDelvers.forEach((entry) => {
+      if (entry.minions) tactics = [...tactics, { tactic: "retinue", params: { leader: `${entry.value.id}-1`, roles: entry.minions } }];
+    });
 
     // No size=small precheck for placed hazards: the Configurator's input preparation
     // bumps roomMinSize to MIN_ROOM_SIZE_WITH_ITEMS when placedHazards are present, so a

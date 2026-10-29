@@ -80,7 +80,7 @@ test("roles repeat in order past three; the leader defaults to the first free wa
 });
 
 test("a bad retinue is refused with a reason", async () => {
-  await assert.rejects(compile({ params: { leader: "ghost" } }), /no warden "ghost"/);
+  await assert.rejects(compile({ params: { leader: "ghost" } }), /no warden or delver "ghost"/);
   await assert.rejects(compile({ params: { szie: 2 } }), /unknown param szie/);
   await assert.rejects(compile({ params: { size: -1 } }), /size must be a whole number/);
   const none = await compile({ actors: [] });
@@ -156,3 +156,30 @@ test("a retinue the warden share cannot afford shrinks, and the row says so", as
 // - a leader named by an authored --place constraint still gets its retinue
 // - size=0 leaves the leader alone and applied
 // - a leader with no affinity: support and striker only, shield skipped with a note
+
+// 2026-10-29: the player's own minions. A delver may lead a retinue; its minions are delvers
+// that escort it and take its orders, never playable, with the same role loadouts.
+test("a delver leads a retinue of escorting, orderable delvers in the roles it names", async () => {
+  const hero = { id: "hero-1", category: "delver", motivations: ["user_controlled"], vitals: vitals(),
+    affinities: [{ kind: "fire", expression: "push", stacks: 2 }], activeAffinityKey: "fire:push" };
+  const { actors, placement, report } = await compile({ actors: [hero], params: { leader: "hero-1", roles: "striker+shield" } });
+  const expected = await expectedRoles("fire", ["push"]);
+  assert.deepEqual(report[0].minions.map((minion) => minion.role), ["striker", "shield"]);
+  for (const { id, role } of report[0].minions) {
+    const minion = actors.find((actor) => actor.id === id);
+    assert.equal(minion.category, "delver");
+    assert.deepEqual(minion.motivations, ["escorting", "friendly"], "never user_controlled");
+    assert.deepEqual(minion.escort, { target: "hero-1", distance: 2 });
+    assert.deepEqual({ kind: minion.affinities[0].kind, expression: minion.affinities[0].expression }, expected[role]);
+  }
+  assert.deepEqual(placement, [], "they start with it, seated as delvers are: no placement question");
+});
+
+test("roles must be known, joined with +, and agree with size", async () => {
+  await assert.rejects(compile({ params: { leader: "boss", roles: "shield+healer" } }), /unknown role healer/);
+  await assert.rejects(compile({ params: { leader: "boss", roles: "shield", size: 2 } }), /size 2 does not match the 1 roles/);
+  const noKind = { id: "hero-1", category: "delver", motivations: ["user_controlled"], vitals: vitals(), affinities: [] };
+  const { report } = await compile({ actors: [noKind], params: { leader: "hero-1", roles: "shield+support" } });
+  assert.deepEqual(report[0].minions.map((minion) => minion.role), ["support"], "a role the leader cannot fill is left out");
+  assert.match(report[0].note, /1 of 2 named roles need an affinity kind hero-1 lacks/);
+});

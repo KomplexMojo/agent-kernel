@@ -174,6 +174,7 @@ export function createAllocatorPersona({
     resolvePriceList: services.resolvePriceList,
     resolveActorExpansionAvailability: services.resolveActorExpansionAvailability,
     wardenShareApproved: services.wardenShareApproved,
+    delverShareApproved: services.delverShareApproved,
     hazardShareApproved: services.hazardShareApproved,
     priceMixedRoomDesignSpend: services.priceMixedRoomDesignSpend,
     registerBudget: services.registerBudget,

@@ -14,12 +14,21 @@
  * Minions are ordinary wardens: the leader's motivations, the actor viability floor for
  * vitals, and one affinity slot. The Allocator prices them like any warden; a retinue the
  * warden share cannot afford is shrunk by `fitRetinues` against the Allocator's receipt.
+ *
+ * A delver may lead one too (the player's own minions, 2026-10-29): its minions are delvers
+ * that escort it and take its orders (`escorting` + `friendly`, never `user_controlled`), with
+ * the same loadouts, floor and slot, priced from the delver share. They start with it, seated as
+ * delvers are, so they pose no placement question (and the phone app, which has no solver,
+ * builds the same level). `roles` names the roles
+ * in order (`shield+support`) instead of filling them by count.
  */
 import { AFFINITY_TABLE } from "../../../../core-ts/src/state/affinity-table.ts";
 import { ACTOR_VIABILITY_FLOOR } from "../../contracts/domain-constants.js";
 
 export const RETINUE_ROLES = Object.freeze(["shield", "support", "striker"]);
-const RETINUE_PARAMS = Object.freeze(["leader", "size"]);
+const RETINUE_PARAMS = Object.freeze(["leader", "size", "roles"]);
+// What a delver's minions do: keep near it and take its orders.
+const DELVER_MINION_MOTIVATIONS = Object.freeze(["escorting", "friendly"]);
 const DEFAULT_SIZE = RETINUE_ROLES.length;
 export const RETINUE_DISTANCE = 2;
 // Reach 2 covers the leader from any seat within RETINUE_DISTANCE; intensity 1 is the base.
@@ -31,9 +40,13 @@ const OUTWARD = new Set(["push", "emit"]);
 export function readRetinueParams(params = {}) {
   const unknown = Object.keys(params).filter((name) => !RETINUE_PARAMS.includes(name));
   if (unknown.length > 0) throw new Error(`tactic retinue: unknown param ${unknown.join(", ")} (${RETINUE_PARAMS.join(", ")}).`);
-  const size = params.size === undefined ? DEFAULT_SIZE : Number(params.size);
+  const roles = params.roles === undefined ? null : String(params.roles).split("+").map((role) => role.trim()).filter(Boolean);
+  const unknownRole = (roles ?? []).find((role) => !RETINUE_ROLES.includes(role));
+  if (unknownRole) throw new Error(`tactic retinue: unknown role ${unknownRole} (${RETINUE_ROLES.join(", ")}, joined with +).`);
+  const size = params.size === undefined ? (roles ? roles.length : DEFAULT_SIZE) : Number(params.size);
   if (!Number.isSafeInteger(size) || size < 0) throw new Error("tactic retinue: size must be a whole number >= 0.");
-  return { leader: params.leader === undefined ? null : String(params.leader), size };
+  if (roles && size !== roles.length) throw new Error(`tactic retinue: size ${size} does not match the ${roles.length} roles named.`);
+  return { leader: params.leader === undefined ? null : String(params.leader), size, roles };
 }
 
 function leaderKind(leader) {
@@ -74,32 +87,39 @@ function floorVitals() {
  * warden actors, `{ id, role }` per minion (the role stays in the report, never on the actor),
  * a near-the-leader constraint per minion, and any notes for the report row.
  */
-export function composeRetinue({ leader, size, takenIds = new Set() }) {
+export function composeRetinue({ leader, size, roles: named = null, category = "warden", takenIds = new Set() }) {
   const usable = RETINUE_ROLES.filter((role) => roleLoadout(role, leader));
   const notes = usable.length < RETINUE_ROLES.length
     ? [`${leader.id} has no affinity kind, so its retinue is ${usable.join(" and ")} only`] : [];
+  // Named roles keep their order; one the leader cannot fill (no kind to shield or strike with) is left out.
+  const order = named ? named.filter((role) => usable.includes(role)) : null;
+  if (named && order.length < named.length) notes.push(`${named.length - order.length} of ${named.length} named roles need an affinity kind ${leader.id} lacks`);
+  const count = order ? order.length : size;
   const minions = [];
   const roles = [];
   const placement = [];
   let ordinal = 0;
-  for (let index = 0; index < size && usable.length > 0; index += 1) {
-    const role = usable[index % usable.length];
+  for (let index = 0; index < count && usable.length > 0; index += 1) {
+    const role = order ? order[index] : usable[index % usable.length];
     let id;
     do { ordinal += 1; id = `${leader.id}_minion_${ordinal}`; } while (takenIds.has(id));
     takenIds.add(id);
     const { kind, expression } = roleLoadout(role, leader);
+    const delver = category === "delver";
     minions.push({
       id,
-      category: "warden",
-      motivations: Array.isArray(leader.motivations) ? [...leader.motivations] : [],
+      category,
+      motivations: delver ? [...DELVER_MINION_MOTIVATIONS] : Array.isArray(leader.motivations) ? [...leader.motivations] : [],
       vitals: floorVitals(),
       affinities: [{ kind, expression, stacks: MINION_RANGE, intensity: MINION_INTENSITY }],
       activeAffinityKey: `${kind}:${expression}`,
+      ...(delver ? { escort: { target: leader.id, distance: RETINUE_DISTANCE } } : {}),
     });
     roles.push({ id, role });
-    placement.push({ label: `retinue ${leader.id}: warden:${id} (${role}) within ${RETINUE_DISTANCE} of warden:${leader.id}`,
-      subject: { kind: "warden", ref: id },
-      near: { target: { kind: "warden", ref: leader.id }, distance: RETINUE_DISTANCE } });
+    // A delver's minions start with it, seated as delvers are; a warden's are posed to the solver.
+    if (!delver) placement.push({ label: `retinue ${leader.id}: ${category}:${id} (${role}) within ${RETINUE_DISTANCE} of ${category}:${leader.id}`,
+      subject: { kind: category, ref: id },
+      near: { target: { kind: category, ref: leader.id }, distance: RETINUE_DISTANCE } });
   }
   return { minions, roles, placement, notes };
 }

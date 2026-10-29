@@ -501,7 +501,13 @@ takes the leader's kind in the first harmful expression it lacks (pull and draw 
 push and emit harm only for a damaging kind). A leader with no affinity gets supports only. Minions
 carry the leader's motivations and the actor viability floor, so they are priced like any warden;
 `fitRetinues` drops minions from the end until the Allocator's `wardenShareApproved` holds for the
-receipt, and the row says `the warden share affords k of n minions`.
+receipt, and the row says `the warden share affords k of n minions`. `roles=shield+support` names
+the roles in order instead of `size` (a role the leader cannot fill is left out, with a note). A
+named `leader` may be a delver (the player's own minions, set on the character sheet): its minions
+are delvers that escort it and take its orders (`escorting` + `friendly`, an `escort` on the leader),
+with the same loadouts, floor and slot, and `fitRetinues` checks the Allocator's
+`delverShareApproved` too. `composeRetinue` is published so the character sheet prices exactly the
+minions the build adds.
 
 `minefield` (#418, `minefield.js`): a room the spawn-to-exit route passes through (`room=<id>`, else
 one picked from the seed, inner rooms first, with at least two doorways) gets `hazards=<n>`

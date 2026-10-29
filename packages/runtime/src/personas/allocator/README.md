@@ -202,6 +202,8 @@ Two read-only public capabilities keep build glue from making Allocator policy d
   preserves the global remainder.
 - `wardenShareApproved({ receipt })` (#400) says whether the receipt approves the warden pool (true
   when it has none). The Configurator shrinks a retinue until it holds.
+- `delverShareApproved({ receipt })`, the same question for the delver pool, which pays for a
+  delver's own minions (a retinue led by a delver).
 - `hazardShareApproved({ receipt })` (#418), the same question for the hazard pool. The Configurator
   drops tactic hazards (minefields, shrines) until it holds.
 
