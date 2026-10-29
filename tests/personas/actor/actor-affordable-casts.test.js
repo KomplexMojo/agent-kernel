@@ -33,9 +33,11 @@ const enemy = (x = 2) => actor({ id: "enemy", alignment: "dungeon", position: { 
 const casts = (actions) => actions.filter((action) => action.kind === "cast_affinity").map((action) => action.params);
 
 for (const kind of ["fire", "water", "earth", "wind", "growth", "decay", "corrode", "fortify", "light", "dark"]) {
-  test(`a ${kind} push the actor cannot afford is not proposed; one it can afford is`, async () => {
-    const affinities = [{ kind, expression: "push", stacks: 3 }];
-    const castManaBase = { [`${kind}:push`]: 3 }; // 3 × 3·4/2 = 18 mana
+  // A restoring kind harms by pulling: its push heals, so it is never aimed at a hostile.
+  const expression = ["growth", "fortify", "light"].includes(kind) ? "pull" : "push";
+  test(`a ${kind} ${expression} the actor cannot afford is not proposed; one it can afford is`, async () => {
+    const affinities = [{ kind, expression, stacks: 3 }];
+    const castManaBase = { [`${kind}:${expression}`]: 3 }; // 3 × 3·4/2 = 18 mana
     assert.deepEqual(casts(await propose({ self: actor({ mana: 17, affinities }), others: [enemy()], castManaBase })), []);
     assert.deepEqual(casts(await propose({ self: actor({ mana: 18, affinities }), others: [enemy()], castManaBase })),
       [{ targetId: "enemy" }]);

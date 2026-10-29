@@ -29,20 +29,20 @@
     },
     {
       "id": "duel-growth-decay",
-      "note": "growth push 3:2 attacker against an opposed decay push 3:2 defender",
+      "note": "growth pull 3:2 attacker against an opposed decay push 3:2 defender",
       "ticks": 40,
       "args": [
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
+        "count=1;id=atk;affinity=growth;affinities=growth:pull:3:2;equip=growth:pull;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
         "count=1;id=def;affinity=decay;affinities=decay:push:3:2;equip=decay:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
       ]
     },
     {
       "id": "duel-corrode-fortify",
-      "note": "corrode push 3:2 attacker against an opposed fortify push 3:2 defender",
+      "note": "corrode push 3:2 attacker against an opposed fortify pull 3:2 defender",
       "ticks": 40,
       "args": [
         "--room",
@@ -50,7 +50,7 @@
         "--delver",
         "count=1;id=atk;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=fortify;affinities=fortify:push:3:2;equip=fortify:push;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
+        "count=1;id=def;affinity=fortify;affinities=fortify:pull:3:2;equip=fortify:pull;motivation=defending;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
       ]
     },
     {
@@ -199,7 +199,7 @@
         "--delver",
         "count=2;id=d;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1",
         "--warden",
-        "count=2;id=w;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
+        "count=2;id=w;affinity=growth;affinities=growth:pull:3:2;equip=growth:pull;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:2,durability:10:1"
       ]
     },
     {

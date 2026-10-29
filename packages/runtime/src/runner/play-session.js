@@ -174,6 +174,9 @@ export async function createPlaySession({
   // The party: every playable actor, and the seated one even when it is not (a caller's choice).
   const partyIds = playableActorIds(initialState);
   if (playerId !== undefined && !partyIds.includes(playerId)) partyIds.unshift(playerId);
+  // A party member's escorts (its minions) report to it: their events are its to read.
+  const escortsOf = (pid) => Object.entries(initialState?.escorts ?? {})
+    .filter(([, escort]) => escort?.target === pid).map(([id]) => id);
   let activeId = playerId;
 
   // Explored memory, per party member: a cell stays explored once that actor has seen it.
@@ -289,6 +292,7 @@ export async function createPlaySession({
       const cells = involved.map((id) => actors.find((actor) => actor.id === id)?.position).filter(Boolean);
       // Fog hides what no one on the party saw or was part of (#497).
       const readers = partyIds.filter((pid) => involved.includes(pid) || !fog
+        || escortsOf(pid).some((id) => involved.includes(id))
         || cells.some((cell) => readVisible(pid)?.[cell.y]?.[cell.x]));
       battleLog.push({ entry, readers });
     }

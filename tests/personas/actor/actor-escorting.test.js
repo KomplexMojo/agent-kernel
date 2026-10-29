@@ -151,6 +151,18 @@ test("in the dark an escort walks to where it last saw its ally", async () => {
   assert.ok(trail.some((cells) => cells.pal.x === 2 && cells.pal.y === 2), JSON.stringify(trail));
 });
 
+test("lost in the dark, an escort holds where it last saw its ally instead of wandering off (seed 11)", async () => {
+  // Unlit: the ally walks east out of the escort's one-tile sight. `friendly` with no ally in
+  // sight would walk to the exit; the escort holds at the last-seen cell and never leaves.
+  const { trail } = await run({
+    ticks: 20,
+    actors: [delver("ally", { x: 2, y: 2 }, ["exploring"]), delver("pal", { x: 1, y: 2 }, ["escorting", "friendly"])],
+    escorts: { pal: { target: "ally", distance: 1 } },
+  });
+  assert.ok(trail.every((cells) => cells.pal.lifecycle === "alive"), `it never exits: ${JSON.stringify(trail.map((c) => c.pal))}`);
+  assert.deepEqual(trail.at(-1).pal, trail.at(-2).pal, "it holds still once lost");
+});
+
 // ## TODO: Test Permutations
 // - an escort of a warden (same behaviour on the other side)
 // - two escorts of one ally do not block each other's steps

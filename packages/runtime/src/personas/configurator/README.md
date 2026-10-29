@@ -504,7 +504,8 @@ carry the leader's motivations and the actor viability floor, so they are priced
 receipt, and the row says `the warden share affords k of n minions`. `roles=shield+support` names
 the roles in order instead of `size` (a role the leader cannot fill is left out, with a note). A
 named `leader` may be a delver (the player's own minions, set on the character sheet): its minions
-are delvers that escort it and take its orders (`escorting` + `friendly`, an `escort` on the leader),
+are delvers that escort it and take its orders (`escorting` + `friendly`, an `escort` on the leader
+at distance 1, since bare sight is one tile),
 with the same loadouts, floor and slot, and `fitRetinues` checks the Allocator's
 `delverShareApproved` too. `composeRetinue` is published so the character sheet prices exactly the
 minions the build adds.
