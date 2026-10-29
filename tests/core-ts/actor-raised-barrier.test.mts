@@ -54,8 +54,8 @@ for (const kind of KINDS) {
     const amount = 40 * affinityTableRow(kind)!.raiseScale;
     expect(barrier.vitals.mana).toEqual({ current: amount, max: amount, regen: 0 });
     expect(barrier.vitals.durability).toEqual({ current: amount, max: amount, regen: 0 });
-    // The Allocator's push price: base 1 × intensity 2 × range 2·3/2.
-    expect(registry.getActor('me')!.vitals.mana!.current).toBe(100 - 6);
+    // The Allocator's push price: base 1 × intensity² 4 × range 2·3/2.
+    expect(registry.getActor('me')!.vitals.mana!.current).toBe(100 - 12);
   });
 
   test(`a ${kind} pull on a barrier takes it down`, () => {

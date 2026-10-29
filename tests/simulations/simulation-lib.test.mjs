@@ -117,13 +117,13 @@ test("actors a tactic adds beside an authored one are not held to its authored v
 });
 
 test("an equipped push or pull that costs more than max mana can never be cast, so it is a violation (#478)", () => {
-  // Price is base × intensity × range(range + 1)/2: fire:push 3:3 at base 2 costs 36, against max mana 30.
+  // Price is base × intensity² × range(range + 1)/2: fire:push 3:2 at base 2 costs 48, against max mana 30.
   const caster = (id, intensity) => ({ ...delver(id), vitals: { mana: { current: 30, max: 30, regen: 3 } },
     affinities: [{ kind: "fire", expression: "push", stacks: 3, intensity }], equippedAffinityKeys: ["fire:push"] });
-  const actors = [caster("over-1", 3), caster("fits-1", 2)];
+  const actors = [caster("over-1", 2), caster("fits-1", 1)];
   const analysis = analyzeRun({ initialState: { actors }, frames: frames([{ actors }]), castManaBase: { "fire:push": 2 } });
   expect(checkRules({ args: [] }, analysis).filter((v) => v.rule === "unaffordable_cast"))
-    .toEqual([{ rule: "unaffordable_cast", actor: "over-1", detail: "fire:push costs 36, max mana 30" }]);
+    .toEqual([{ rule: "unaffordable_cast", actor: "over-1", detail: "fire:push costs 48, max mana 30" }]);
 });
 
 test("without cast prices nothing is judged unaffordable", () => {

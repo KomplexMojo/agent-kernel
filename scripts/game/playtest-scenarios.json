@@ -72,9 +72,9 @@
         "--room",
         "size=large;count=1",
         "--delver",
-        "count=1;id=hero;affinity={A};affinities={A}:push:3:2,{A}:pull:2:1;equip={A}:push;motivation=user_controlled;vitals=health:30:1,mana:40:4,stamina:10:2,durability:10:1",
+        "count=1;id=hero;affinity={A};affinities={A}:push:3:2,{A}:pull:2:1;equip={A}:push;motivation=user_controlled;vitals=health:30:1,mana:60:4,stamina:10:2,durability:10:1",
         "--warden",
-        "count=1;id=foe;affinity={B};affinities={B}:push:3:2,{C}:push:2:1;equip={B}:push;motivation=attacking;vitals=health:30:1,mana:40:4,stamina:10:2,durability:10:1"
+        "count=1;id=foe;affinity={B};affinities={B}:push:3:2,{C}:push:2:1;equip={B}:push;motivation=attacking;vitals=health:30:1,mana:60:4,stamina:10:2,durability:10:1"
       ]
     },
     {
@@ -141,7 +141,7 @@
         "--warden",
         "count=2;id=guard;affinity={B};affinities={B}:push:2:1;equip={B}:push;motivation=defending;vitals=health:15:1,mana:15:2,stamina:10:1,durability:10:1",
         "--warden",
-        "count=1;id=boss;affinity={C};affinities={C}:emit:2:1,{C}:push:3:2;equip={C}:push;motivation=defending;vitals=health:30:1,mana:30:3,stamina:10:1,durability:15:1",
+        "count=1;id=boss;affinity={C};affinities={C}:emit:2:1,{C}:push:3:2;equip={C}:push;motivation=defending;vitals=health:30:1,mana:60:3,stamina:10:1,durability:15:1",
         "--resource",
         "permanenceMode=consumable;vital=health;delta=10;id=loot",
         "--tactic",
@@ -167,11 +167,11 @@
         "--room",
         "size=large;count=4",
         "--delver",
-        "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:2;equip={A}:push;motivation=user_controlled;vitals=health:30:1,mana:40:4,stamina:12:2,durability:15:1",
+        "count=1;id=hero;affinity={A};affinities={A}:emit:2:1,{A}:push:3:2;equip={A}:push;motivation=user_controlled;vitals=health:30:1,mana:60:4,stamina:12:2,durability:15:1",
         "--warden",
-        "count=2;id=keeper;affinity={B};affinities={B}:push:2:2;equip={B}:push;motivation=defending;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
+        "count=2;id=keeper;affinity={B};affinities={B}:push:2:2;equip={B}:push;motivation=defending;vitals=health:20:1,mana:30:2,stamina:10:1,durability:10:1",
         "--warden",
-        "count=1;id=hunter;affinity={D};affinities={D}:pull:2:2;equip={D}:pull;motivation=attacking;vitals=health:20:1,mana:20:2,stamina:10:1,durability:10:1",
+        "count=1;id=hunter;affinity={D};affinities={D}:pull:2:2;equip={D}:pull;motivation=attacking;vitals=health:20:1,mana:30:2,stamina:10:1,durability:10:1",
         "--hazard",
         "affinity={C};expression=emit;stacks=2;intensity=1;proximityRadius=1;mana=regen:40:40:5",
         "--resource",

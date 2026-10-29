@@ -87,5 +87,5 @@ Every row names one formula per stack-driven quantity. Token prices are the Allo
 |---|---|---|---|
 | `expression_base_times_intensity_squared` | effect magnitude | expression base (push/pull 2, emit/draw 1) × intensity² | rules/actor-affinity.ts actorAffinityMagnitude |
 | `range_tiles` | field reach and cast range | range tiles (Chebyshev) | rules/actor-cast.ts actorCastRange; rules/actor-fields.ts |
-| `cast_base_times_triangular_range` | cast mana (push, pull) | cast base × range × (range + 1) / 2 | rules/actor-cast.ts actorCastManaPrice |
-| `upkeep_table_at_range_plus_intensity` | upkeep (emit, draw), mana a turn | upkeep table at range + intensity (the Configurator table is 2 + n) | rules/actor-upkeep.ts chargeActorAffinityUpkeep |
+| `cast_base_times_triangular_range` | cast mana (push, pull) | cast base × intensity² × range × (range + 1) / 2 | rules/actor-cast.ts actorCastManaPrice |
+| `upkeep_table_at_range_plus_intensity` | upkeep (emit, draw), mana a turn | upkeep table at range + intensity² (the Configurator table is 2 + n) | rules/actor-upkeep.ts chargeActorAffinityUpkeep |

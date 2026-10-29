@@ -570,7 +570,7 @@ export function findExpressionRule(rules, kind, expression) {
  * decides no outcome, and spends nothing: applying an interaction is Moderator
  * work through core's matrix, and pricing in tokens is the Allocator's.
  *
- * Core owns the curve (`actorCastManaPrice`, base × intensity × r(r+1)/2, #340) but not the base:
+ * Core owns the curve (`actorCastManaPrice`, base × intensity² × r(r+1)/2, #340, 2026-10-29) but not the base:
  * mana is campaign-tunable data, and this artifact is where it is authored.
  *
  * A push or pull costs the kind's tier-1 price times its intensity times r(r+1)/2

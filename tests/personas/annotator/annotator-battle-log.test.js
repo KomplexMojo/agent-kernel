@@ -17,7 +17,7 @@ const duel = () => buildUnifiedLevel({
   tiles: ["#####", "#..##", "#...E", "#####"],
   actors: [
     { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
-      vitals: viableVitals({ mana: 80 }), affinities: [{ kind: "decay", expression: "push", stacks: 3, intensity: 2 }] },
+      vitals: viableVitals({ mana: 200 }), affinities: [{ kind: "decay", expression: "push", stacks: 3, intensity: 2 }] },
     { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["stationary"],
       vitals: viableVitals(), affinities: [{ kind: "fire", expression: "push", stacks: 1 }] },
   ],

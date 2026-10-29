@@ -24,12 +24,12 @@ async function battleArtifacts() {
         category: "delver",
         position: { x: 1, y: 2 },
         motivations: ["attacking"],
-        // #340: range 2 reaches the warden; intensity 2 hits for 2 × 2² = 8.
+        // #340: range 2 reaches the warden; intensity 2 hits for 2 × 2² = 8 and costs base × 2² × 3.
         affinities: [{ kind: "fire", expression: "push", stacks: 2, intensity: 2 }],
         activeAffinityKey: "fire:push",
         vitals: {
           health: { current: 10, max: 10, regen: 0 },
-          mana: { current: 20, max: 20, regen: 0 },
+          mana: { current: 30, max: 30, regen: 0 },
           stamina: { current: 10, max: 10, regen: 0 },
         },
       },

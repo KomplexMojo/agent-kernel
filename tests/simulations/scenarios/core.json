@@ -226,7 +226,7 @@
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:90:6,stamina:10:1,durability:10:1"
+        "count=1;id=a;affinity=fire;affinities=fire:push:6:2;equip=fire:push;motivation=exploring;vitals=health:30:2,mana:180:6,stamina:10:1,durability:10:1"
       ]
     },
     {

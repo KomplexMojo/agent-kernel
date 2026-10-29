@@ -177,10 +177,14 @@ export function overlayCastPaths(rows, casts, floorChar, styles = null, cellStyl
   return grid.map((cells) => cells.join(""));
 }
 
-/** #479: `:` on each empty floor cell an active field covers, so a field shows without colour. */
-export function overlayFieldMarks(rows, field, floorChar) {
+/**
+ * #479: `:` on each empty floor cell an active field covers, so a field shows without colour.
+ * Out of sight only your own field's reach is kept (play-session), so it shows on fog too.
+ */
+export function overlayFieldMarks(rows, field, floorChar, fogChar = null) {
   if (!Array.isArray(field) || !floorChar) return rows;
-  return rows.map((row, y) => [...row].map((char, x) => (char === floorChar && field[y]?.[x]?.length ? ASCII_FIELD_MARK_GLYPH : char)).join(""));
+  return rows.map((row, y) => [...row].map((char, x) => ((char === floorChar || (fogChar && char === fogChar)) && field[y]?.[x]?.length
+    ? ASCII_FIELD_MARK_GLYPH : char)).join(""));
 }
 
 /** #490: an `x` on the floor tile of a recent defeat, in the palette's hazard colour, until it ages out. */
@@ -497,7 +501,7 @@ export function renderScreen({
   // #479: a warden last seen stays at that spot (the remembered cell dims it).
   const seen = overlayActors(overlayHazards(view.rows, view.hazards, playerPosition), view.lastSeen, playerPosition);
   const board = overlayFieldMarks(overlayDefeatMarks(overlayCastPaths(overlayActors(seen, view.actors, playerPosition),
-    view.casts, view.legend?.floor, styles, actorCells), view.defeatMarks, view.legend?.floor, styles, actorCells), view.field, view.legend?.floor);
+    view.casts, view.legend?.floor, styles, actorCells), view.defeatMarks, view.legend?.floor, styles, actorCells), view.field, view.legend?.floor, view.legend?.fog);
   // The tile a cast is being aimed at (#413).
   if (aim && typeof board[aim.y] === "string" && aim.x >= 0 && aim.x < board[aim.y].length) {
     board[aim.y] = `${board[aim.y].slice(0, aim.x)}${ASCII_AIM_GLYPH}${board[aim.y].slice(aim.x + 1)}`;

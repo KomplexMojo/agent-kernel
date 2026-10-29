@@ -13,7 +13,7 @@ import {
 // Maintainer rulings: levels are unlit; any emitted light makes the cells it
 // reaches visible in line of sight; a light shines while its affinity is on and
 // goes dark when it drains (sight reads the field, #288); every lasting affinity
-// (emit, draw) pays 2 + range + intensity a turn (#340), and one that cannot pay
+// (emit, draw) pays 2 + range + intensity² a turn (#340; intensity² since 2026-10-29), and one that cannot pay
 // stays off until its mana regenerates to full.
 
 function actor(id: string, x: number, y = 0): ActorRecord {
@@ -34,8 +34,8 @@ function corridor(width: number, actors: ActorRecord[]) {
   return createActorRegistry({ dimensions: { width, height: 1 }, terrain: Array(width).fill('floor'), actors });
 }
 
-// 2 + n, read at n = range + intensity (what the runtime builds from the Configurator).
-const UPKEEP = Array.from({ length: 11 }, (_, stacks) => (stacks === 0 ? 0 : 2 + stacks));
+// 2 + n, read at n = range + intensity² (what the runtime builds from the Configurator).
+const UPKEEP = Array.from({ length: 101 }, (_, stacks) => (stacks === 0 ? 0 : 2 + stacks));
 const costs = { castManaBase: {}, movementStamina: {}, persistentUpkeep: UPKEEP };
 
 function closeTurn(registry: ReturnType<typeof corridor>, tick: number) {
@@ -81,7 +81,7 @@ test("an observer's own sight radius follows its lit light", () => {
     .toEqual([1, 1, 0, 0, 0, 0]);
 });
 
-test('a lasting affinity pays 2 + range + intensity each turn before regen; push pays nothing', () => {
+test('a lasting affinity pays 2 + range + intensity² each turn before regen; push pays nothing', () => {
   const emitter = lamp('lamp', 0, 3); emitter.vitals.mana = { current: 20, max: 20, regen: 1 };
   const pusher = actor('pusher', 3);
   pusher.affinities = [{ kind: 'fire', expression: 'push', stacks: 3 }];
@@ -93,7 +93,8 @@ test('a lasting affinity pays 2 + range + intensity each turn before regen; push
   const strong = lamp('lamp', 0, 3); strong.affinities[0].intensity = 3; strong.vitals.mana = { current: 20, max: 20, regen: 1 };
   const second = corridor(6, [strong]);
   closeTurn(second, 0);
-  expect(second.getActor('lamp')!.vitals.mana!.current).toBe(20 - 8 + 1);
+  // Range 3, intensity 3: 2 + 3 + 9 = 14.
+  expect(second.getActor('lamp')!.vitals.mana!.current).toBe(20 - 14 + 1);
   expect(registry.getActor('pusher')!.vitals.mana!.current).toBe(10);
 });
 

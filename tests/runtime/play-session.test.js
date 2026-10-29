@@ -343,7 +343,7 @@ function buildDuelLevel({ playerAffinities = [{ kind: "water", expression: "push
     tiles: ["#####", "#..##", "#...E", "#####"],
     actors: [
       { category: "delver", id: "delver_1", position: { x: 1, y: 1 }, motivations: ["user_controlled"],
-        vitals: viableVitals({ mana: 80 }), affinities: playerAffinities },
+        vitals: viableVitals({ mana: 200 }), affinities: playerAffinities },
       { category: "warden", id: "warden_1", position: { x: 2, y: 1 }, motivations: ["stationary"],
         vitals: viableVitals(), affinities: [{ kind: "fire", expression: "push", stacks: 1 }] },
     ],
