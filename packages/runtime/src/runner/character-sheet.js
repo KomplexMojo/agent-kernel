@@ -27,6 +27,7 @@ export const SHEET_INTENT = Object.freeze({
 const BIG_STEP = 5;
 export const SLOT_FIELDS = Object.freeze(["kind", "expression", "range", "intensity", "start"]);
 export const VITAL_FIELDS = Object.freeze(["max", "regen"]);
+export const MINION_FIELDS = Object.freeze(["role"]);
 /** Fields that hold a number (− and + change them); the rest are choices a tap steps through. */
 export const NUMERIC_FIELDS = Object.freeze(["range", "intensity", "max", "regen"]);
 /** What a slot's kind can be set to: no affinity, or any kind (none of them is a default). */
@@ -43,7 +44,7 @@ function cycle(list, current, step) {
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
-/** The tuples of a `--delver` spec's `affinities=`, `equip=`, `vitals=` and `slots=` fields. */
+/** The tuples of a `--delver` spec's `affinities=`, `equip=`, `vitals=`, `slots=` and `minions=` fields. */
 export function sheetChoicesFromSpec(spec) {
   const fields = new Map();
   String(spec || "").split(";").forEach((segment) => {
@@ -69,7 +70,8 @@ export function sheetChoicesFromSpec(spec) {
     vitals[key] = numbers.length >= 3 ? { max: numbers[1], regen: numbers[2] } : { max: numbers[0], regen: numbers[1] };
   });
   const slotCount = Math.max(Number(fields.get("slots")) || 0, PRESET_AFFINITY_SLOTS.delver, slots.length);
-  return { slots, vitals, slotCount };
+  const minions = String(fields.get("minions") || "").split("+").map((role) => role.trim()).filter(Boolean);
+  return { slots, vitals, slotCount, minions };
 }
 
 /** The caller's figure, else the delver pool of the Allocator's reference budget. */
@@ -81,8 +83,9 @@ function allowanceFor(requested, allocator) {
 
 /**
  * @param {{ spec?: string, budgetTokens?: number, id?: string }} options
- *   `spec` is the starting character (a scenario's own delver); `budgetTokens` is what the
- *   Allocator allots this character (the delver pool of the level it joins); `id` is the actor id written into the spec.
+ *   `spec` is the starting character (a scenario's own delver, `minions=` included); `budgetTokens`
+ *   is what the Allocator allots this character and its minions (the delver pool of the level it
+ *   joins); `id` is the actor id written into the spec.
  */
 export function createCharacterSheet({ spec = "", budgetTokens: requested, id = "hero" } = {}) {
   const configurator = createConfiguratorPersona({ clock: UNUSED_CLOCK });
@@ -90,7 +93,9 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
   // What the Allocator allots a delver: the caller's figure (a level's own delver pool), else the
   // delver pool of the Allocator's reference budget. Never "no limit".
   const allowance = allowanceFor(requested, allocator);
-  const initial = sheetChoicesFromSpec(spec);
+  const roleChoices = ["none", ...configurator.retinueRoles()];
+  const parsed = sheetChoicesFromSpec(spec);
+  const initial = { ...parsed, minions: parsed.minions.filter((role) => roleChoices.includes(role) && role !== "none") };
   let choices = clone(initial);
   const cursor = { row: 0, field: 0 };
 
@@ -98,8 +103,34 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
   // PRESET_AFFINITY_SLOTS.delver come with the delver, and the Allocator prices each one past that.
   const slotRows = () => Array.from({ length: MAX_AFFINITY_SLOTS }, (_, index) => ({ kind: "slot", index }));
   const slotsBought = () => Math.max(PRESET_AFFINITY_SLOTS.delver, choices.slots.filter(held).length);
-  const rows = () => [...slotRows(), ...GAME_VITAL_KEYS.map((key) => ({ kind: "vital", key }))];
-  const fieldsOf = (row) => (row.kind === "slot" ? SLOT_FIELDS : VITAL_FIELDS);
+  // Minions: each one picked so far, then one more row (set to none) to add another. The
+  // allowance is the only limit.
+  const minionRows = () => Array.from({ length: choices.minions.length + 1 }, (_, index) => ({ kind: "minion", index }));
+  const rows = () => [...slotRows(), ...GAME_VITAL_KEYS.map((key) => ({ kind: "vital", key })), ...minionRows()];
+  const fieldsOf = (row) => (row.kind === "slot" ? SLOT_FIELDS : row.kind === "minion" ? MINION_FIELDS : VITAL_FIELDS);
+
+  // The minions as the build composes them (the Configurator's retinue for this delver), so the
+  // sheet prices exactly what `ak create` adds.
+  function composedMinions() {
+    if (choices.minions.length === 0) return { minions: [], roles: [], notes: [] };
+    const owned = choices.slots.filter(held);
+    const equipped = owned.find((slot) => slot.start) ?? owned[0];
+    const leader = {
+      id: `${id}-1`,
+      category: "delver",
+      defeatVital: "health",
+      motivations: ["user_controlled"],
+      affinities: owned.map((slot) => ({ kind: slot.kind, expression: slot.expression, stacks: slot.range, intensity: slot.intensity })),
+      ...(equipped ? { activeAffinityKey: `${equipped.kind}:${equipped.expression}` } : {}),
+    };
+    return configurator.composeRetinue({ leader, size: choices.minions.length, roles: choices.minions, category: "delver" });
+  }
+
+  function minionQuote(minion) {
+    const vitals = {};
+    Object.entries(minion.vitals).forEach(([key, vital]) => { vitals[key] = { max: vital.max, regen: vital.regen }; });
+    return allocator.pricing.quoteActor({ type: "delver", vitals, affinities: minion.affinities, affinitySlots: 1, motivations: minion.motivations });
+  }
 
   function entry() {
     const vitals = {};
@@ -128,8 +159,9 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     };
   }
 
-  function problems(total) {
+  function problems(total, retinue) {
     const found = [];
+    retinue.notes.forEach((note) => found.push(`Minions: ${note}.`));
     const seen = new Set();
     choices.slots.filter(held).forEach((slot) => {
       const key = `${slot.kind} ${slot.expression}`;
@@ -146,7 +178,16 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
 
   function view() {
     const cost = priced();
-    const total = cost.quote.cost;
+    const retinue = composedMinions();
+    const minionPrices = retinue.minions.map((minion) => minionQuote(minion).cost);
+    const total = cost.quote.cost + minionPrices.reduce((sum, price) => sum + price, 0);
+    // Which composed minion each picked role became: the retinue keeps the order and leaves out
+    // a role this delver cannot fill.
+    const composedAt = [];
+    let next = 0;
+    choices.minions.forEach((role, index) => {
+      if (retinue.roles[next]?.role === role) { composedAt[index] = next; next += 1; }
+    });
     const list = rows().map((row, rowIndex) => {
       const active = rowIndex === cursor.row;
       if (row.kind === "slot") {
@@ -161,6 +202,17 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
           price: held(slot) ? cost.slot(row.index) : 0,
         };
       }
+      if (row.kind === "minion") {
+        const role = choices.minions[row.index] ?? "none";
+        const at = composedAt[row.index] ?? -1;
+        const affinity = at >= 0 ? retinue.minions[at].affinities?.[0] : null;
+        return {
+          id: `minion-${row.index + 1}`, kind: "minion", label: `${row.index + 1}`, active, empty: role === "none",
+          fields: [{ name: "role", value: role }],
+          loadout: affinity ? `${affinity.kind} ${affinity.expression} r${affinity.stacks}` : null,
+          price: at >= 0 ? minionPrices[at] : 0,
+        };
+      }
       const vital = choices.vitals[row.key];
       return {
         id: `vital-${row.key}`, kind: "vital", label: row.key, active,
@@ -168,7 +220,7 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
         price: cost.vital(row.key, "max") + cost.vital(row.key, "regen"),
       };
     });
-    const found = problems(total);
+    const found = problems(total, retinue);
     return {
       rows: list,
       cursor: { ...cursor },
@@ -184,7 +236,8 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
       slotCount: slotsBought(),
       freeSlots: PRESET_AFFINITY_SLOTS.delver,
       maxSlots: MAX_AFFINITY_SLOTS,
-      choices: { kind: SLOT_KIND_CHOICES, expression: AFFINITY_EXPRESSIONS },
+      choices: { kind: SLOT_KIND_CHOICES, expression: AFFINITY_EXPRESSIONS, role: roleChoices },
+      minions: [...choices.minions],
     };
   }
 
@@ -200,6 +253,14 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     if (row.kind === "vital") {
       const vital = choices.vitals[row.key];
       vital[name] = Math.max(name === "max" ? 1 : 0, vital[name] + step);
+      return;
+    }
+    if (row.kind === "minion") {
+      const next = cycle(roleChoices, choices.minions[row.index] ?? "none", Math.sign(step));
+      // none takes the minion out; the rest close up.
+      if (next === "none") choices.minions.splice(row.index, 1);
+      else choices.minions[row.index] = next;
+      cursor.row = Math.min(cursor.row, rows().length - 1);
       return;
     }
     const slot = slotAt(row.index);
@@ -281,9 +342,11 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     }
     if (slotsBought() > PRESET_AFFINITY_SLOTS.delver) parts.push(`slots=${slotsBought()}`);
     parts.push("motivation=user_controlled");
+    // The Configurator composes them as a retinue this delver leads; the Allocator prices them.
+    if (choices.minions.length > 0) parts.push(`minions=${choices.minions.join("+")}`);
     parts.push(`vitals=${GAME_VITAL_KEYS.map((key) => `${key}:${choices.vitals[key].max}:${choices.vitals[key].regen}`).join(",")}`);
     return parts.join(";");
   }
 
-  return { view, apply, select, tap, choose, spec: spec_ };
+  return { view, apply, select, tap, choose, spec: spec_, minions: () => [...choices.minions] };
 }

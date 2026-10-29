@@ -310,15 +310,22 @@ function renderSheet() {
   const label = { kind: (v) => v, expression: (v) => v, range: (v) => `range ${v}`, intensity: (v) => `×${v}`, start: (v) => (v === "equipped" ? "on" : "off"), max: (v) => `max ${v}`, regen: (v) => `+${v}` };
   const rows = view.rows.map((row, rowIndex) => {
     const on = (fieldIndex) => row.active && view.cursor.field === fieldIndex;
+    if (row.kind === "minion") {
+      return `<div class="srow minion${row.empty ? " empty" : ""}"><span>${esc(row.label)}</span>${fieldButton(rowIndex, 0, row.fields[0].value, { on: on(0) })}`
+        + `<span class="dim">${esc(row.loadout ?? (row.empty ? "tap to add a minion" : ""))}</span><em>${row.price}</em></div>`;
+    }
     const fields = row.fields.map((field, fieldIndex) => fieldButton(rowIndex, fieldIndex, label[field.name](field.value), {
       on: on(fieldIndex), kind: field.name === "kind", color: field.name === "kind" ? GAME_AFFINITY_COLOR_HEX[field.value] : null,
     })).join("");
     return `<div class="srow ${row.kind === "vital" ? "vital" : "aff"}${row.empty ? " empty" : ""}"><span>${esc(row.label)}</span>${fields}<em>${row.price}</em></div>`;
   });
   const slotCount = view.rows.filter((row) => row.kind === "slot").length;
+  const vitalEnd = slotCount + view.rows.filter((row) => row.kind === "vital").length;
   $("sheet").innerHTML = `<h2>Affinity slots (first ${view.freeSlots} free)</h2>${rows.slice(0, slotCount).join("")}`
     + (view.slotsExtraPrice ? `<div class="srow"><span></span><span class="dim">extra slots</span><em>${view.slotsExtraPrice}</em></div>` : "")
-    + `<h2>Vitals</h2>${rows.slice(slotCount).join("")}`
+    + `<h2>Vitals</h2>${rows.slice(slotCount, vitalEnd).join("")}`
+    + `<h2>Minions</h2>${rows.slice(vitalEnd).join("")}`
+    + `<p class="dim">A minion follows you and takes your orders. Its affinity comes from yours: a shield emits your kind, a support heals you, a striker hits with your kind.</p>`
     + `<p class="dim">${esc(view.motivation.name)} (you play it): ${view.motivation.price}. "on" slots start equipped. Every price is the Allocator's.</p>`;
   $("sheet-note").innerHTML = sheetState.note
     ? esc(sheetState.note)

@@ -65,6 +65,35 @@ for (const id of ["first-look", "fields"]) {
   }, 60_000);
 }
 
+// 2026-10-29: minions. A delver's minions start beside it, seated as delvers are, so they pose no
+// placement question: the level's own recorded answers build it, priced as the sheet priced it.
+for (const id of ["first-look", "fields"]) test(`${id} with minions: the browser build matches ak create from the level's own answers, and the sheet's total is the delver share's spend`, async () => {
+  const { loadPlaytestScenarios, createArgs, playerDelverSpec, authorLevel, createRecordedSolverAdapter } = await load();
+  const { createCharacterSheet } = await import("../../packages/runtime/src/runner/character-sheet.js");
+  const scenario = loadPlaytestScenarios().scenarios.find((entry) => entry.id === id);
+  const dir = mkdtempSync(join(tmpdir(), "author-level-minions-"));
+  try {
+    const recorded = akCreate(join(dir, "default"), createArgs(scenario, 1, CREATED_AT));
+    const character = playerDelverSpec(scenario, 1).replace(/mana:(\d+)/, (_, max) => `mana:${Number(max) + 5}`)
+      .replace("motivation=user_controlled", "motivation=user_controlled;minions=shield+striker");
+    const terminal = akCreate(join(dir, "picked"), createArgs(scenario, 1, CREATED_AT, undefined, character));
+    const phone = await authorLevel(createArgs(scenario, 1, CREATED_AT, undefined, character), { adapter: createRecordedSolverAdapter(recorded.answers) });
+    assert.deepEqual(asWritten(phone.buildResult.simConfig), terminal.simConfig);
+    assert.deepEqual(asWritten(phone.buildResult.initialState), terminal.initialState);
+    const minions = terminal.initialState.actors.filter((actor) => actor.id.startsWith("hero-1_minion_"));
+    assert.equal(minions.length, 2);
+    assert.ok(minions.every((actor) => actor.motivations.includes("escorting") && !actor.motivations.includes("user_controlled")));
+    const hero = terminal.initialState.actors.find((actor) => actor.id === "hero-1");
+    assert.ok(minions.every((actor) => Math.max(Math.abs(actor.position.x - hero.position.x), Math.abs(actor.position.y - hero.position.y)) <= 2), "they start beside you");
+    const receipt = phone.buildResult.budgetReceipt;
+    const delverPool = receipt.poolStatuses.find((pool) => pool.id === "delver");
+    const sheet = createCharacterSheet({ spec: character, budgetTokens: delverPool.capTokens });
+    assert.equal(sheet.view().total, delverPool.spentTokens, "the sheet prices the minions as the build does");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}, 90_000);
+
 test("a question with no recorded answer is deferred: the fallback places, or a level that needs the solver is refused", async () => {
   const { loadPlaytestScenarios, createArgs, authorLevel, createRecordedSolverAdapter } = await load();
   const scenario = (id) => loadPlaytestScenarios().scenarios.find((entry) => entry.id === id);

@@ -165,6 +165,16 @@ export function attachAllocatorServices({
   }
 
   /**
+   * Whether the receipt approves the delver share, which pays for a delver's own minions
+   * (2026-10-29). A receipt with no delver pool has no share to exceed.
+   */
+  function delverShareApproved({ receipt } = {}) {
+    const pool = Array.isArray(receipt?.poolStatuses)
+      ? receipt.poolStatuses.find((entry) => entry?.id === "delver") : null;
+    return !pool || pool.status === "approved";
+  }
+
+  /**
    * #418: whether the receipt approves the hazard share. A receipt with no hazard pool has
    * no share to exceed. The Configurator shrinks a minefield until this holds.
    */
@@ -634,6 +644,7 @@ export function attachAllocatorServices({
     resolvePriceList,
     resolveActorExpansionAvailability,
     wardenShareApproved,
+    delverShareApproved,
     hazardShareApproved,
     priceMixedRoomDesignSpend: boundPriceMixedRoomDesignSpend,
     registerBudget,

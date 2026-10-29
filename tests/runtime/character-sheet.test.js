@@ -19,7 +19,7 @@ test("a scenario's delver opens as the sheet, priced by the Allocator", async ()
   assert.equal(view.ok, true);
   assert.equal(view.remaining, 766);
   assert.deepEqual(view.rows.map((row) => row.id), [
-    "slot-1", "slot-2", "slot-3", "slot-4", "slot-5", "slot-6", "vital-health", "vital-mana", "vital-stamina", "vital-durability",
+    "slot-1", "slot-2", "slot-3", "slot-4", "slot-5", "slot-6", "vital-health", "vital-mana", "vital-stamina", "vital-durability", "minion-1",
   ]);
   assert.equal(view.rows.find((row) => row.id === "vital-mana").price, 30 + 9);
 });
@@ -139,6 +139,27 @@ test("a tap steps a choice (none, every kind, none again) and only lights a numb
   assert.equal(sheet.view().cursorNumeric, true);
   sheet.apply(SHEET_INTENT.INC);
   assert.notEqual(sheet.spec(), before);
+});
+
+test("minions: a tap cycles a role, each one adds a row, none takes it out, and the Configurator's loadouts are priced", async () => {
+  const { createCharacterSheet } = await load();
+  const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 5000 });
+  const minionRows = () => sheet.view().rows.filter((row) => row.kind === "minion");
+  const at = (n) => sheet.view().rows.findIndex((row) => row.id === `minion-${n}`);
+  const base = sheet.view().total;
+  sheet.tap(at(1), 0);
+  assert.deepEqual(minionRows().map((row) => row.fields[0].value), ["shield", "none"]);
+  assert.equal(minionRows()[0].loadout, "fire emit r2", "a shield emits the delver's own kind");
+  assert.ok(minionRows()[0].price > 0 && sheet.view().total === base + minionRows()[0].price);
+  sheet.tap(at(2), 0); sheet.tap(at(2), 0); // support
+  sheet.tap(at(3), 0); sheet.tap(at(3), 0); sheet.tap(at(3), 0); // striker
+  assert.equal(minionRows().length, 4, "three minions and a row to add another");
+  assert.deepEqual(sheet.minions(), ["shield", "support", "striker"]);
+  sheet.tap(at(1), 0); sheet.tap(at(1), 0); sheet.tap(at(1), 0); // shield -> none
+  assert.deepEqual(sheet.minions(), ["support", "striker"], "none takes the minion out and the rest close up");
+  assert.match(sheet.spec(), /;minions=support\+striker;/, "the spec carries them, for ak create");
+  assert.deepEqual(createCharacterSheet({ spec: sheet.spec(), budgetTokens: 5000 }).minions(), ["support", "striker"], "and reads them back");
+  assert.equal(sheet.view().cursorNumeric, false);
 });
 
 test("reset returns to the opening character", async () => {
