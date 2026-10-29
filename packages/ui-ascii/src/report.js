@@ -39,8 +39,9 @@ export function describeStatus(status) {
  * @param {string[]} args.notes
  * @param {string} args.replayCode
  * @param {string} [args.device]
+ * @param {string} [args.character] the `--delver` spec of a character configured on the character screen (#557)
  */
-export function renderReport({ scenario, seed, picks, traits, cost, commit, createdAt, playedAt, final, screen, notes, replayCode, device }) {
+export function renderReport({ scenario, seed, picks, traits, cost, commit, createdAt, playedAt, final, screen, notes, replayCode, device, character }) {
   const { totalSpend = "?", budgetTokens = "?", status: costStatus = "unknown" } = cost ?? {};
   return [
     `# Playtest: ${scenario.title} (${scenario.id}, seed ${seed})`,
@@ -50,6 +51,7 @@ export function renderReport({ scenario, seed, picks, traits, cost, commit, crea
     ...(device ? [`- Device: ${device}`] : []),
     `- Affinities: you ${picks.A} vs ${picks.B}; other pair ${picks.C}/${picks.D}`,
     ...(traits ? [`- Traits: ${traits}`] : []),
+    ...(character ? [`- Character: \`${character}\``] : []),
     `- Level cost: ${totalSpend} of ${budgetTokens} tokens (${costStatus})`,
     `- Ended: turn ${final?.turns ?? "?"}, ${describeStatus(final?.status)}`,
     "",
@@ -69,7 +71,7 @@ export function renderReport({ scenario, seed, picks, traits, cost, commit, crea
     "bash scripts/game/playtest.sh --open <this file>",
     "```",
     "",
-    `<!-- playtest ${JSON.stringify({ scenario: scenario.id, seed, commit, createdAt })} -->`,
+    `<!-- playtest ${JSON.stringify({ scenario: scenario.id, seed, ...(character ? { character } : {}), commit, createdAt })} -->`,
     `<!-- replay ${replayCode} -->`,
     "",
   ].join("\n");

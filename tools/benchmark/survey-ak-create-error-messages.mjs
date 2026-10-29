@@ -27,8 +27,9 @@ const OUT_DEFAULT = join(REPO_ROOT, "error-message-quality-sweep-worklist.json")
 // Configurator/Allocator persona files listed are wholly part of the build/budget resolution create
 // invokes).
 const SCOPE = [
+  // #557: the spec grammar and request assembly moved from ak-impl.mjs into runtime.
   {
-    file: "packages/adapters-cli/src/cli/ak-impl.mjs",
+    file: "packages/runtime/src/commands/authoring-specs.js",
     functions: [
       "parseOptimizationPriority", "parseOptimizationGoalEntry", "parseOptimizationGoalList",
       "parsePositiveIntStrict", "parseNonNegativeIntStrict", "parseActorAffinityTuple",
@@ -37,7 +38,7 @@ const SCOPE = [
       "parsePlacedHazardSpec", "parseHazardVitalSpec", "parseHazardSpec",
       "parseAuthoringHazardSpec", "parseResourceAffinityPayload",
       "parseResourceSpec", "parseDelverSpec",
-      "parseWardenSpec", "agentAuthoringCommand", "createCommand",
+      "parseWardenSpec", "prepareAuthoringBuild",
       // NOT in scope, verified by call-site trace (SM2 correction, 2026-08-31): parseRoomSpecs,
       // parseHazardSpecs, parseResourceSpecs, parseDelverSpecs, parseWardenSpecs -- the plural
       // "at least one X entry" wrapper functions -- are called ONLY from their own standalone
@@ -47,6 +48,7 @@ const SCOPE = [
       // normalizeList(...).map(parseXSpec), never via the plural wrappers.
     ],
   },
+  { file: "packages/adapters-cli/src/cli/ak-impl.mjs", functions: ["agentAuthoringCommand", "createCommand"] },
   { file: "packages/runtime/src/build/orchestrate-build.js", wholeFile: true },
   { file: "packages/runtime/src/personas/configurator/actor-authoring.js", wholeFile: true },
   { file: "packages/runtime/src/personas/configurator/artifact-builders.js", wholeFile: true },
@@ -146,7 +148,8 @@ function matchBracket(text, openIndex, openChar, closeChar) {
 }
 
 function findFunctionRange(text, functionName) {
-  const re = new RegExp(`^(?:async\\s+)?function\\s+${functionName}\\s*\\(`, "m");
+  // Indented too: authoring-specs.js declares its functions inside a factory (#557).
+  const re = new RegExp(`^[ \\t]*(?:async\\s+)?function\\s+${functionName}\\s*\\(`, "m");
   const declMatch = re.exec(text);
   if (!declMatch) return null;
   // The parameter list can itself contain `{` (a destructured default, e.g.

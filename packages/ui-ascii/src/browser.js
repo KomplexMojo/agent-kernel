@@ -4,11 +4,17 @@
  * `scripts/pwa/build-pwa.mjs` built ahead of time with `ak create`. This file owns the page only:
  * the scenario picker, touch keys, saving a game on the device and the playtest report. It decides
  * no rule, imports runtime and this package only, and has no analysis console (#500).
+ *
+ * The character screen (#557) draws runtime's character sheet (the Allocator prices every row)
+ * and, on Play, hands the scenario's `ak create` arguments with your delver in them to the host's
+ * `buildLevel`, which `scripts/pwa/app-entry.js` wires to the same authoring code `ak create` runs.
  */
 import { createGame } from "./game.js";
 import { ansiToHtml } from "./html.js";
 import { HELP_LINES, intentForKey } from "./keymap.js";
 import { encodeReplay, renderReport } from "./report.js";
+import { createCharacterSheet } from "../../runtime/src/runner/character-sheet.js";
+import { GAME_AFFINITY_COLOR_HEX } from "../../runtime/src/contracts/game-elements.js";
 
 // The build this page was bundled from (the build script defines it); "dev" when run unbundled.
 const BUILD = typeof __BUILD__ === "undefined" ? "dev" : __BUILD__;
@@ -23,8 +29,10 @@ const MORE = [["v", "Look"], ["e", "Watch"], ["o", "Order"], ["z", "Barrier"], [
 const KEEP_OUT_OF_BOARD = 8; // px gutter either side of the board
 const KEYS = { ArrowUp: "\u001b[A", ArrowDown: "\u001b[B", ArrowRight: "\u001b[C", ArrowLeft: "\u001b[D", Enter: "\r", Escape: "\u001b", Tab: "\t" };
 
+let host = {};
 let catalog = null;
-let current = null; // { scenario, entry, game }
+let current = null; // { scenario, entry, game, character?, cost? }
+let sheetState = null; // { scenario, entry, level, sheet } while the character screen is open
 let queue = Promise.resolve();
 
 const safe = (action) => { try { return action(); } catch { return null; } };
@@ -32,7 +40,7 @@ const readSave = () => safe(() => JSON.parse(localStorage.getItem(SAVE_KEY)));
 const writeSave = (value) => safe(() => (value ? localStorage.setItem(SAVE_KEY, JSON.stringify(value)) : localStorage.removeItem(SAVE_KEY)));
 
 function show(view) {
-  for (const id of ["picker", "brief", "game"]) $(id).hidden = id !== view;
+  for (const id of ["picker", "brief", "character", "game"]) $(id).hidden = id !== view;
 }
 
 function levelLabel(entry) {
@@ -81,6 +89,7 @@ function openBrief(scenario, seed = Math.floor(Math.random() * scenario.seeds.le
     item.textContent = line;
     $("brief-focus").appendChild(item);
   }
+  $("configure").hidden = typeof host.buildLevel !== "function";
   show("brief");
 }
 
@@ -90,11 +99,12 @@ async function loadLevel(entry) {
   return response.json();
 }
 
-async function startGame(scenario, entry, capture = null) {
-  const level = { name: `${scenario.title}, seed ${entry.seed}`, ...(await loadLevel(entry)) };
+// `custom` is a level the character screen built: { level, character, cost }.
+async function startGame(scenario, entry, capture = null, custom = null) {
+  const level = { name: `${scenario.title}, seed ${entry.seed}`, ...(custom?.level ?? (await loadLevel(entry))) };
   const game = await createGame({ levels: [level], fog: true, showHelp: false });
   if (capture) await game.replay(capture);
-  current = { scenario, entry, game, selected: null, sheet: null };
+  current = { scenario, entry, game, selected: null, sheet: null, character: custom?.character ?? null, cost: custom?.cost ?? null };
   show("game");
   fitBoard();
   render();
@@ -191,7 +201,7 @@ function render() {
 function persist() {
   const { scenario, entry, game } = current;
   const capture = game.captureInput({ id: `pwa_${scenario.id}_${entry.seed}`, runId: `playtest-${scenario.id}-s${entry.seed}`, createdAt: catalog.createdAt });
-  writeSave({ scenario: scenario.id, seed: entry.seed, capture });
+  writeSave({ scenario: scenario.id, seed: entry.seed, capture, ...(current.character ? { character: current.character } : {}) });
 }
 
 // Everything that changes the game runs on one chain, in order, then the screen is redrawn.
@@ -255,7 +265,8 @@ async function buildReport(notes) {
   const state = game.state();
   const capture = game.captureInput({ id: "pwa_report", runId: "pwa_report", createdAt: catalog.createdAt });
   return renderReport({
-    scenario, seed: entry.seed, picks: entry.picks, traits: entry.traits, cost: entry.cost,
+    scenario, seed: entry.seed, picks: entry.picks, traits: entry.traits, cost: current.cost ?? entry.cost,
+    ...(current.character ? { character: current.character } : {}),
     commit: catalog.commit, createdAt: catalog.createdAt, playedAt: new Date().toISOString(),
     final: { turns: state.turns, status: state.status }, screen: game.screen({ color: false }),
     notes, replayCode: await encodeReplay(capture.payload.commands),
@@ -272,6 +283,90 @@ function openReport() {
 async function reportText() {
   const notes = $("report-notes").value.split("\n").map((line) => line.trim()).filter(Boolean);
   return buildReport(notes);
+}
+
+// The character screen (#557). The sheet holds the choices; this only draws them as tappable fields.
+async function openCharacter(scenario, entry) {
+  const level = await loadLevel(entry);
+  if (!level.character) {
+    $("brief-who").textContent = "This build has no character data for this level; update the app.";
+    return;
+  }
+  sheetState = { scenario, entry, level, sheet: createCharacterSheet({ spec: level.character.hero, budgetTokens: level.character.allowance ?? undefined }), note: "" };
+  renderSheet();
+  show("character");
+  window.scrollTo(0, 0);
+}
+
+function fieldButton(rowIndex, fieldIndex, label, { on, kind, color } = {}) {
+  return `<button class="f${on ? " on" : ""}${kind ? " kind" : ""}" data-row="${rowIndex}" data-field="${fieldIndex}"${color ? ` style="--c:${color}"` : ""}>${esc(label)}</button>`;
+}
+
+function renderSheet() {
+  const view = sheetState.sheet.view();
+  const used = Math.min(1, view.total / Math.max(1, view.allowance));
+  $("allowance").innerHTML = `Budget ${view.total} of ${view.allowance} tokens · ${view.remaining >= 0 ? `${view.remaining} left` : `${-view.remaining} over`}`
+    + `<i><b style="width:${Math.round(used * 100)}%;--c:${view.remaining >= 0 ? "var(--accent)" : "#e07a6a"}"></b></i>`;
+  const label = { kind: (v) => v, expression: (v) => v, range: (v) => `range ${v}`, intensity: (v) => `×${v}`, start: (v) => (v === "equipped" ? "on" : "off"), max: (v) => `max ${v}`, regen: (v) => `+${v}` };
+  const rows = view.rows.map((row, rowIndex) => {
+    const on = (fieldIndex) => row.active && view.cursor.field === fieldIndex;
+    if (row.kind === "slot" && row.empty) {
+      return `<div class="srow"><span>${row.label}</span><button class="f empty${row.active ? " on" : ""}" data-row="${rowIndex}" data-field="0">+ affinity${row.extra ? " (extra slot)" : ""}</button><em></em></div>`;
+    }
+    const fields = row.fields.map((field, fieldIndex) => fieldButton(rowIndex, fieldIndex, label[field.name](field.value), {
+      on: on(fieldIndex), kind: field.name === "kind", color: field.name === "kind" ? GAME_AFFINITY_COLOR_HEX[field.value] : null,
+    })).join("");
+    return `<div class="srow${row.kind === "vital" ? " vital" : ""}"><span>${esc(row.label)}</span>${fields}<em>${row.price}</em></div>`;
+  });
+  const slotCount = view.rows.filter((row) => row.kind === "slot").length;
+  $("sheet").innerHTML = `<h2>Affinity slots (${view.slotCount} of ${view.maxSlots})</h2>${rows.slice(0, slotCount).join("")}`
+    + (view.slotsExtraPrice ? `<div class="srow"><span></span><span class="dim">extra slots</span><em>${view.slotsExtraPrice}</em></div>` : "")
+    + `<h2>Vitals</h2>${rows.slice(slotCount).join("")}`
+    + `<p class="dim">${esc(view.motivation.name)} (you play it): ${view.motivation.price}. "on" slots start equipped. Every price is the Allocator's.</p>`;
+  $("sheet-note").innerHTML = sheetState.note
+    ? esc(sheetState.note)
+    : view.problems.map((problem) => `<div class="bad">${esc(problem)}</div>`).join("") || "Tap a field, then − or + to change it.";
+}
+
+/** The level cost line of a report, from the receipt the Allocator issued for a level built here. */
+function reportedCost(receipt) {
+  if (!receipt) return null;
+  return { totalSpend: receipt.totalCost, budgetTokens: receipt.totalCost + receipt.remaining, status: receipt.status };
+}
+
+async function buildCustom(scenario, entry, character, level = null) {
+  const source = level ?? (await loadLevel(entry));
+  const argv = source.character.argv.map((arg) => (arg === source.character.hero ? character : arg));
+  const built = await host.buildLevel({ argv, solverAnswers: source.character.solverAnswers });
+  if (built.budgetReceipt?.status && built.budgetReceipt.status !== "approved") throw new Error(`the Allocator did not approve this level (${built.budgetReceipt.status})`);
+  return {
+    level: { simConfig: built.simConfig, initialState: built.initialState },
+    character,
+    cost: reportedCost(built.budgetReceipt),
+    // A placement the recorded answers could not settle would differ from `playtest.sh --open`.
+    placementDiffers: (built.solverDecisions ?? []).some((decision) => decision.reason === "no_recorded_answer"),
+  };
+}
+
+async function sheetTap(intent) {
+  sheetState.note = "";
+  const outcome = sheetState.sheet.apply(intent);
+  if (outcome.done !== "confirm") { renderSheet(); return; }
+  sheetState.building = true;
+  sheetState.note = "Building your level…";
+  renderSheet();
+  try {
+    const { scenario, entry, level } = sheetState;
+    const custom = await buildCustom(scenario, entry, outcome.spec, level);
+    writeSave(null);
+    await startGame(scenario, entry, null, custom);
+    if (custom.placementDiffers) $("msg").textContent = "Note: this level's layout may differ from the terminal's for the same seed.";
+  } catch (error) {
+    sheetState.note = `Could not build this level: ${error.message}`;
+    renderSheet();
+  } finally {
+    sheetState.building = false;
+  }
 }
 
 function setup() {
@@ -300,10 +395,21 @@ function setup() {
     const save = readSave();
     const scenario = catalog.scenarios.find((entry) => entry.id === save?.scenario);
     const entry = scenario?.seeds.find((candidate) => candidate.seed === save.seed);
-    if (entry) await startGame(scenario, entry, save.capture).catch(() => { writeSave(null); renderPicker(); });
+    if (!entry) return;
+    const custom = save.character ? await buildCustom(scenario, entry, save.character).catch(() => null) : null;
+    if (save.character && !custom) { writeSave(null); renderPicker(); return; }
+    await startGame(scenario, entry, save.capture, custom).catch(() => { writeSave(null); renderPicker(); });
   });
   $("start").addEventListener("click", () => startGame(briefScenario, briefScenario.seeds[briefSeed], null).then(() => writeSave(null) || persist()));
   $("back-picker").addEventListener("click", renderPicker);
+  $("configure").addEventListener("click", () => openCharacter(briefScenario, briefScenario.seeds[briefSeed]));
+  $("back-brief").addEventListener("click", () => openBrief(sheetState.scenario, sheetState.entry.seed));
+  $("character").addEventListener("click", (event) => {
+    const el = event.target.closest("button");
+    if (!el || !sheetState || sheetState.building) return;
+    if (el.dataset.row !== undefined) { sheetState.sheet.select(Number(el.dataset.row), Number(el.dataset.field)); renderSheet(); }
+    else if (el.dataset.sheet !== undefined) sheetTap(el.dataset.sheet);
+  });
   $("menu-dialog").addEventListener("click", (event) => { if (event.target === $("menu-dialog")) $("menu-dialog").close(); });
   $("menu-help").addEventListener("click", () => { $("menu-dialog").close(); $("help-dialog").showModal(); });
   $("menu-restart").addEventListener("click", () => {
@@ -362,7 +468,9 @@ async function applyUpdate() {
   location.reload();
 }
 
-async function main() {
+/** Start the page. `appHost.buildLevel({ argv, solverAnswers })` builds a level from `ak create` arguments. */
+export async function startApp(appHost = {}) {
+  host = appHost;
   setup();
   catalog = await (await fetch("catalog.json")).json();
   renderPicker();
@@ -375,4 +483,6 @@ async function main() {
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 }
 
-main().catch((error) => { document.body.textContent = `Deepward could not start: ${error.message}`; });
+export function startAppSafely(appHost) {
+  return startApp(appHost).catch((error) => { document.body.textContent = `Deepward could not start: ${error.message}`; });
+}

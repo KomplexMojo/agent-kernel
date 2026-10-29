@@ -31,7 +31,8 @@ const AUTHORING_FILE = "packages/runtime/src/personas/configurator/actor-authori
 // layer imports the authoring module, and controller.js re-exposes it from `services` —
 // so the service layer is the sole importer, not controller.js directly.
 const PUBLISHING_FILE = "packages/runtime/src/personas/configurator/configurator-services.js";
-const EXPECTED_CONSUMER_SITES = ["packages/adapters-cli/src/cli/ak-impl.mjs"];
+// #557: parseDelverSpec moved with the rest of the spec grammar into runtime.
+const EXPECTED_CONSUMER_SITES = ["packages/runtime/src/commands/authoring-specs.js"];
 
 function sourceFiles(directory, found = []) {
   for (const entry of readdirSync(directory)) {

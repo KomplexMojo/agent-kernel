@@ -5,19 +5,21 @@
  *   node scripts/pwa/build-pwa.mjs [--out dist/pwa] [--seeds 12] [--scenario id]...
  *
  * A static host has no Node, so the game runs in the browser: esbuild bundles the game
- * controller (packages/ui-ascii/src/browser.js, which imports runtime only) and every level
- * is built here, ahead of time, by `ak create` with the playtest scenarios' own arguments
- * (scripts/game/playtest.mjs), so the Allocator prices each one exactly as it does for
- * `bash scripts/game/playtest.sh`. Seed N here is seed N there. No analysis console is built.
+ * controller (packages/ui-ascii/src/browser.js, which imports runtime only, wired up by
+ * app-entry.js) and every level is built here, ahead of time, by `ak create` with the playtest
+ * scenarios' own arguments (scripts/game/playtest.mjs), so the Allocator prices each one exactly
+ * as it does for `bash scripts/game/playtest.sh`. Seed N here is seed N there. Each level also
+ * carries its `ak create` arguments and z3's recorded answers, so the character screen can build
+ * it again on the phone with your own delver, by the same code (#557). No analysis console is built.
  */
 import { spawn, spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import { PNG } from "pngjs";
-import { affinitiesForSeed, createArgs, fillFocus, loadPlaytestScenarios, traitsInPlay } from "../game/playtest.mjs";
+import { affinitiesForSeed, createArgs, fillFocus, loadPlaytestScenarios, playerDelverSpec, traitsInPlay } from "../game/playtest.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -50,8 +52,11 @@ export function catalogFor(scenarios, createdAt, commit, seedEntries) {
 
 function runCreate(scenario, seed, createdAt) {
   const dir = mkdtempSync(join(tmpdir(), `pwa-${scenario.id}-${seed}-`));
+  const argv = createArgs(scenario, seed, createdAt);
+  // #557: z3's answers, so the phone (which has no solver) rebuilds this level with a configured character exactly.
+  const answersPath = join(dir, "solver-answers.jsonl");
   return new Promise((resolveRun, reject) => {
-    const child = spawn(process.execPath, [AK, "create", ...createArgs(scenario, seed, createdAt), "--out-dir", dir], { cwd: ROOT });
+    const child = spawn(process.execPath, [AK, "create", ...argv, "--out-dir", dir], { cwd: ROOT, env: { ...process.env, AK_SOLVER_RECORD: answersPath } });
     let out = "";
     let err = "";
     child.stdout.on("data", (chunk) => { out += chunk; });
@@ -64,9 +69,17 @@ function runCreate(scenario, seed, createdAt) {
         reject(new Error(`ak create refused ${scenario.id} (seed ${seed}):\n${err || out}`));
         return;
       }
+      const receipt = JSON.parse(readFileSync(join(dir, "budget-receipt.json"), "utf8"));
       const level = {
         simConfig: JSON.parse(readFileSync(join(dir, "sim-config.json"), "utf8")),
         initialState: JSON.parse(readFileSync(join(dir, "initial-state.json"), "utf8")),
+        // What the character screen needs to build this level again with your own delver.
+        character: {
+          argv,
+          hero: playerDelverSpec(scenario, seed),
+          allowance: receipt.poolStatuses?.find((pool) => pool.id === "delver")?.capTokens ?? null,
+          solverAnswers: existsSync(answersPath) ? readFileSync(answersPath, "utf8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line)) : [],
+        },
       };
       rmSync(dir, { recursive: true, force: true });
       resolveRun({ created, level });
@@ -126,7 +139,7 @@ export async function buildPwa({ out = join(ROOT, "dist/pwa"), seeds = DEFAULT_S
 
   // The page reads its own build from the bundle, and version.json (never cached) says which build is live.
   writeFileSync(join(out, "version.json"), JSON.stringify({ commit, builtAt: new Date().toISOString().slice(0, 10) }));
-  await esbuild({ entryPoints: [join(ROOT, "packages/ui-ascii/src/browser.js")], bundle: true, format: "iife", minify: true,
+  await esbuild({ entryPoints: [join(ROOT, "scripts/pwa/app-entry.js")], bundle: true, format: "iife", minify: true,
     define: { __BUILD__: JSON.stringify(commit) },
     target: "es2022", outfile: join(out, "app.js"), legalComments: "none", logLevel: "warning" });
   cpSync(STATIC_DIR, out, { recursive: true });

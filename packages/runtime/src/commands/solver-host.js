@@ -10,6 +10,7 @@ import { dispatchEffect } from "../ports/effects.js";
 import { adapterHandlesDomain } from "../ports/solver-conformance.js";
 import { createSolverPort } from "../ports/solver.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
+import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 
 const DECISION_LABELS = Object.freeze({
   [CONSTRAINT_DOMAINS.CONFIGURATOR_SATISFIABILITY]: "placement",
@@ -148,4 +149,20 @@ export function createHostedObjectPlacer({
       : { status: dispatched.status, reason: dispatched.reason };
     return finish({ ...args, prepared, solverResult });
   };
+}
+
+/**
+ * The Configurator's object placement, posed to `adapter` (#296). Every build entry point hosts
+ * it the same way, whichever adapter the host has: the CLI's z3, or answers recorded from it.
+ * `record` receives each solver decision, for commands that report them.
+ */
+export function hostConfiguratorPlacement({ createdAt, adapter, record } = {}) {
+  const configurator = createConfiguratorPersona({ clock: () => createdAt });
+  return createHostedObjectPlacer({
+    prepare: configurator.prepareObjectPlacement,
+    complete: configurator.completeObjectPlacement,
+    adapter,
+    clock: () => createdAt,
+    ...(record ? { record } : {}),
+  });
 }

@@ -83,3 +83,15 @@ test("reset returns to the opening character", async () => {
   sheet.apply(SHEET_INTENT.RESET);
   assert.equal(sheet.view().total, 234);
 });
+
+test("select puts the cursor on a tapped row and field, within bounds", async () => {
+  const { createCharacterSheet, SHEET_INTENT } = await load();
+  const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });
+  sheet.select(4, 0); // mana max
+  sheet.apply(SHEET_INTENT.INC);
+  assert.match(sheet.spec(), /mana:31:3/);
+  sheet.select(0, 9);
+  assert.deepEqual(sheet.view().cursor, { row: 0, field: 4 }, "a field past the end lands on the last one");
+  sheet.select(99, 0);
+  assert.deepEqual(sheet.view().cursor, { row: 0, field: 4 }, "an unknown row is ignored");
+});

@@ -27,7 +27,8 @@ const { extname, join, relative, sep } = require("node:path");
 
 const ROOT = join(__dirname, "..", "..");
 const CLI_SRC = join(ROOT, "packages", "adapters-cli", "src");
-const AK_IMPL = join(CLI_SRC, "cli", "ak-impl.mjs");
+// #557: the spec grammar moved from ak-impl.mjs into runtime, shared with the browser.
+const AUTHORING_SPECS = join(ROOT, "packages", "runtime", "src", "commands", "authoring-specs.js");
 const SOURCE_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".mts"]);
 const SKIPPED = new Set(["node_modules", "dist", "build"]);
 
@@ -106,7 +107,7 @@ test("adapters-cli assembles no delver candidate object directly", () => {
 });
 
 test("parseDelverSpec sources its candidate from the Configurator, not from inline validation", () => {
-  const source = readFileSync(AK_IMPL, "utf8");
+  const source = readFileSync(AUTHORING_SPECS, "utf8");
   const body = extractFunctionBody(source, "parseDelverSpec");
   assert.match(
     body,
