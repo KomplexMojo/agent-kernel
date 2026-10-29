@@ -909,9 +909,10 @@ export function buildPlayView({ snapshot, presentation = {}, legend, playerId, t
     tick,
     rows: fogged.rows,
     sight: fogged.sight,
-    // Every affinity field on each cell (#287), only where the player sees now:
-    // a remembered or unknown cell shows no live field.
-    field: playField(field, fogged.visible),
+    // Every affinity field on each cell (#287), only where the player sees now: a remembered
+    // or unknown cell shows no live field, except the reach of the player's own (Darren,
+    // 2026-10-29: you know where your own aura reaches; it tells you nothing about the cell).
+    field: playField(field, fogged.visible, player?.id),
     legend: { ...legend, fog: ASCII_FOG_GLYPH },
     status,
     // With fog, only traps in sight right now.
@@ -961,11 +962,18 @@ function withHelp(entry) {
     ...(row ? { restores: row.outward === "restore", vital: row.primaryVital } : {}) };
 }
 
-/** Core's per-cell field grid, emptied outside the visible set (all of it without fog). */
-function playField(field, visible) {
+/**
+ * Core's per-cell field grid, emptied outside the visible set (all of it without fog). Out of
+ * sight, a cell keeps only the kind of the viewer's own field there, marked `own`: no strength,
+ * and no other source.
+ */
+function playField(field, visible, viewerId = null) {
   if (!Array.isArray(field) || field.length === 0) return null;
-  return field.map((row, y) => row.map((cell, x) =>
-    (visible && !visible[y]?.[x] ? [] : cell.map((entry) => withHelp(entry)))));
+  return field.map((row, y) => row.map((cell, x) => {
+    if (!visible || visible[y]?.[x]) return cell.map((entry) => withHelp(entry));
+    return viewerId ? cell.filter((entry) => entry.sources?.includes(viewerId))
+      .map((entry) => withHelp({ kind: entry.kind, sources: [viewerId], own: true })) : [];
+  }));
 }
 
 /**

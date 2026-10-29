@@ -78,12 +78,12 @@ export const AFFINITY_FORMULAS = Object.freeze({
   }),
   cast_base_times_triangular_range: Object.freeze({
     quantity: 'cast mana (push, pull)',
-    formula: 'cast base × range × (range + 1) / 2',
+    formula: 'cast base × intensity² × range × (range + 1) / 2',
     source: 'rules/actor-cast.ts actorCastManaPrice',
   }),
   upkeep_table_at_range_plus_intensity: Object.freeze({
     quantity: 'upkeep (emit, draw), mana a turn',
-    formula: 'upkeep table at range + intensity (the Configurator table is 2 + n)',
+    formula: 'upkeep table at range + intensity² (the Configurator table is 2 + n)',
     source: 'rules/actor-upkeep.ts chargeActorAffinityUpkeep',
   }),
 });

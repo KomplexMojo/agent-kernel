@@ -12,13 +12,15 @@ export type ActorCastManaBases = Partial<Record<ActorAffinityKey, number>>;
 export type ActorCastPrices = { castManaBase: ActorCastManaBases };
 
 /**
- * The mana a push or pull costs (maintainer, 2026-10-13, #232; #340): the kind's base
- * times its intensity times the triangular number r(r+1)/2 of its range, with no cap,
- * so every tile of reach costs more than the last and a harder hit costs in step with
- * its intensity. The curve is the rule; the base is the Configurator's tuning.
+ * The mana a push or pull costs (maintainer, 2026-10-13, #232; #340; Darren, 2026-10-29):
+ * the kind's base times its intensity squared times the triangular number r(r+1)/2 of its
+ * range, with no cap, so every tile of reach costs more than the last and a harder hit
+ * costs in step with what it does (the effect is base × intensity²). The curve is the
+ * rule; the base is the Configurator's tuning.
  */
 export function actorCastManaPrice(base: number, range: number, intensity = 1): number {
-  return base * intensity * range * (range + 1) / 2;
+  // Mana follows the effect, base × intensity² (Darren, 2026-10-29), times the triangular range.
+  return base * intensity * intensity * range * (range + 1) / 2;
 }
 
 const isPrice = (value: unknown): boolean => Number.isSafeInteger(value) && (value as number) >= 0;

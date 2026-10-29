@@ -80,7 +80,7 @@ export interface ActorTurnCosts {
   /** Per-key base of the escalating cast curve, base × s(s+1)/2 (#232). */
   castManaBase: ActorCastManaBases;
   movementStamina: Record<string, number>;
-  /** Per-turn mana upkeep of a lasting affinity, indexed by range + intensity; absent means none. */
+  /** Per-turn mana upkeep of a lasting affinity, indexed by range + intensity²; absent means none. */
   persistentUpkeep?: number[];
 }
 function copy<T>(value: T): T { return JSON.parse(JSON.stringify(value)) as T; }

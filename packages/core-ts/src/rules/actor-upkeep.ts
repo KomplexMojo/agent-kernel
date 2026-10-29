@@ -6,11 +6,17 @@ import { affinityIntensity, affinityKey, equippedActorAffinities, exhaustedActor
  * cast; emit and draw are lasting, so they pay an upkeep every turn, charged
  * before regeneration. The amount is Configurator tuning handed in as a table
  * (the last entry covers anything higher); core invents none. A slot reads the
- * table at its range plus its intensity (#340), so with the `2 + n` table the
- * upkeep is `2 + range + intensity` mana a turn.
+ * table at its range plus its intensity squared (Darren, 2026-10-29: mana follows
+ * the effect, which is base × intensity²), so with the `2 + n` table the upkeep is
+ * `2 + range + intensity²` mana a turn.
  */
 export function isLastingAffinityExpression(expression: string): boolean {
   return expression === 'emit' || expression === 'draw';
+}
+
+/** Where a slot reads the upkeep table: its range plus its intensity squared. */
+export function affinityUpkeepIndex(range: number, intensity: number): number {
+  return range + intensity * intensity;
 }
 
 export function affinityUpkeepForStacks(upkeepByStacks: readonly number[], stacks: number): number {
@@ -41,7 +47,7 @@ export function chargeActorAffinityUpkeep(actor: ActorRecord, upkeepByStacks: re
   const off = exhaustedActorAffinityKeys(actor);
   let changed = false;
   for (const pair of litActorAffinities(actor)) {
-    const cost = affinityUpkeepForStacks(upkeepByStacks, pair.stacks + affinityIntensity(pair));
+    const cost = affinityUpkeepForStacks(upkeepByStacks, affinityUpkeepIndex(pair.stacks, affinityIntensity(pair)));
     if (cost <= 0) continue;
     const mana = actor.vitals.mana;
     if (mana && mana.current >= cost) mana.current -= cost;
@@ -58,7 +64,7 @@ export function unpayableActorAffinities(actor: ActorRecord, upkeepByStacks: rea
   const max = actor.vitals.mana?.max ?? 0;
   return equippedActorAffinities(actor)
     .filter(pair => isLastingAffinityExpression(pair.expression))
-    .map(pair => ({ key: affinityKey(pair), upkeep: affinityUpkeepForStacks(upkeepByStacks, pair.stacks + affinityIntensity(pair)) }))
+    .map(pair => ({ key: affinityKey(pair), upkeep: affinityUpkeepForStacks(upkeepByStacks, affinityUpkeepIndex(pair.stacks, affinityIntensity(pair))) }))
     .filter(entry => entry.upkeep > max);
 }
 

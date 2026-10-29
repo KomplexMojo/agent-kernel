@@ -116,8 +116,8 @@ test("hazard vitals computation scales with stack levels", async () => {
     });
 
     const hazard = result.hazards[0];
-    // #340: upkeep is 2 + range + intensity; an omitted intensity reads 1.
-    const expectedUpkeep = 2 + stacks + (intensity ?? 1);
+    // #340: upkeep is 2 + range + intensity² (2026-10-29); an omitted intensity reads 1.
+    const expectedUpkeep = 2 + stacks + (intensity ?? 1) ** 2;
     const expectedPool = expectedUpkeep * 3;
     const expectedRegen = expectedUpkeep;
     const expectedDurability = stacks * 5;

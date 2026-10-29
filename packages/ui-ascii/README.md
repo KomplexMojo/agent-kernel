@@ -115,7 +115,7 @@ The simulation side is `packages/runtime/src/runner/play-session.js`: `await cre
 
 ## Other actors and traps
 
-The play session's rows draw the terrain, barriers (`B`) and the player (`@`). Other actors (`view().actors`) are drawn on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden (read from the role, or the id when a generated level leaves the role unset). Traps are the level's hazard actors (`view().hazards`), drawn as `H` under any actor. A trap's field hurts whoever stands in it each turn, so an `emit` trap costs the vital its affinity targets, spilling into health once that is empty (`docs/affinity-table.md`), and it pays `2 + range + intensity` mana a turn to stay on. Whether actors move is the play session's business, not this package's.
+The play session's rows draw the terrain, barriers (`B`) and the player (`@`). Other actors (`view().actors`) are drawn on top with the same letters as `ak tick`'s ASCII snapshot: `D` for a delver, `W` for a warden (read from the role, or the id when a generated level leaves the role unset). Traps are the level's hazard actors (`view().hazards`), drawn as `H` under any actor. A trap's field hurts whoever stands in it each turn, so an `emit` trap costs the vital its affinity targets, spilling into health once that is empty (`docs/affinity-table.md`), and it pays `2 + range + intensity²` mana a turn to stay on. Whether actors move is the play session's business, not this package's.
 
 ## Bundled levels
 

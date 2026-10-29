@@ -63,8 +63,8 @@ for (const kind of SPREADING) {
       const a = seen[at][0].position; const b = seen[next][0].position;
       expect(Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y))).toBe(1);
     }
-    // No mana after the cast: the price is the push's alone.
-    expect(registry.getActor('me')!.vitals.mana!.current).toBe(100 - 3 * 3);
+    // No mana after the cast: the price is the push's alone (base 1 × 3² × 2·3/2).
+    expect(registry.getActor('me')!.vitals.mana!.current).toBe(100 - 9 * 3);
   });
 
   test(`a ${kind} creep is the same for the same seed, and the seed chooses the way`, () => {

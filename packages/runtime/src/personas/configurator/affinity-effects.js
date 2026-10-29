@@ -10,6 +10,7 @@ import {
   resolveAffinityTargetEffectsForEntry,
 } from "../moderator/persona.js";
 import { computeInternalManaUpkeep } from "./cost-model.js";
+import { affinityUpkeepIndex } from "../../../../core-ts/src/rules/actor-upkeep.ts";
 import { resolveAffinityManaCost } from "./affinity-rules.js";
 
 function isNumber(value) {
@@ -139,8 +140,8 @@ export function computeHazardVitals(expression, stacks, kind, rules, intensity =
   const i = Number.isInteger(intensity) && intensity >= 1 ? intensity : 1;
 
   if (expression === "emit" || expression === "draw") {
-    // Persistent expressions: core charges the upkeep at range + intensity (2 + r + i, #340).
-    const upkeep = computeInternalManaUpkeep(s + i);
+    // Persistent expressions: core charges the upkeep at range + intensity² (2 + r + i², 2026-10-29).
+    const upkeep = computeInternalManaUpkeep(affinityUpkeepIndex(s, i));
     const manaPool = upkeep * 3; // 3 ticks worth
     const manaRegen = upkeep; // Sustain indefinitely
     const durability = s * 5; // Structural integrity

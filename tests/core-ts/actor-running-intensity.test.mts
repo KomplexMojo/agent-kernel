@@ -18,7 +18,7 @@ function actor(id: string, x: number, overrides: Partial<ActorRecord> = {}): Act
       { kind: 'water', expression: 'push', stacks: 2, intensity: 3 }],
     activeAffinityKey: null, holdings: [], ...overrides } as ActorRecord;
 }
-const UPKEEP = Array.from({ length: 11 }, (_, stacks) => (stacks === 0 ? 0 : 2 + stacks));
+const UPKEEP = Array.from({ length: 101 }, (_, stacks) => (stacks === 0 ? 0 : 2 + stacks));
 const costs = { castManaBase: { 'water:push': 1 }, movementStamina: {}, persistentUpkeep: UPKEEP };
 const corridor = (actors: ActorRecord[]) =>
   createActorRegistry({ dimensions: { width: 8, height: 1 }, terrain: Array(8).fill('floor'), actors });
@@ -32,7 +32,7 @@ function act(registry: ReturnType<typeof corridor>, tick: number, action: object
 const equip = (affinityKey: string, params: { stacks?: number; intensity?: number } = {}) =>
   ({ kind: 'equip_affinity', params: { affinityKey, ...params } });
 
-test('equipping at a lower intensity runs it there and pays 2 + range + running intensity', () => {
+test('equipping at a lower intensity runs it there and pays 2 + range + running intensity²', () => {
   const registry = corridor([actor('a', 0)]);
   expect(act(registry, 1, equip('fire:emit', { intensity: 1 })).accepted).toBe(true);
   const record = registry.getActor('a')!;
@@ -54,13 +54,13 @@ test('a cast at a lower intensity pays and hits at that intensity', () => {
   const low = corridor([actor('a', 0, { activeAffinityKey: 'water:push', equippedAffinityIntensity: { 'water:push': 1 } }),
     actor('b', 1, { affinities: [] })]);
   expect(act(low, 1, { kind: 'cast_affinity', params: { targetId: 'b' } }).accepted).toBe(true);
-  // base 1 × intensity 1 × range 2·3/2 = 3 mana; 2 × 1² = 2 harm.
+  // base 1 × intensity² 1 × range 2·3/2 = 3 mana; 2 × 1² = 2 harm.
   expect(low.getActor('a')!.vitals.mana!.current).toBe(40 - 3);
   expect(low.getActor('b')!.vitals.health!.current).toBe(30 - 2);
   const full = corridor([actor('a', 0, { activeAffinityKey: 'water:push' }), actor('b', 1, { affinities: [] })]);
   expect(act(full, 1, { kind: 'cast_affinity', params: { targetId: 'b' } }).accepted).toBe(true);
-  // base 1 × intensity 3 × 3 = 9 mana; 2 × 3² = 18 harm.
-  expect(full.getActor('a')!.vitals.mana!.current).toBe(40 - 9);
+  // base 1 × intensity² 9 × 3 = 27 mana; 2 × 3² = 18 harm.
+  expect(full.getActor('a')!.vitals.mana!.current).toBe(40 - 27);
   expect(full.getActor('b')!.vitals.health!.current).toBe(30 - 18);
 });
 

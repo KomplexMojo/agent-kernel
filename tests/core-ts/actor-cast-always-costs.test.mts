@@ -13,13 +13,13 @@ const OPPOSITE: Record<AffinityKind, AffinityKind> = { fire: 'water', water: 'fi
 
 function actor(id: string, x: number, kind: AffinityKind, expression: AffinityExpression): ActorRecord {
   return { id, alignment: id === 'caster' ? 'dungeon' : 'external', lifecycle: 'alive', position: { x, y: 0 },
-    defeatVital: 'health', vitals: { health: { current: 30, max: 30, regen: 0 }, mana: { current: 30, max: 30, regen: 0 },
+    defeatVital: 'health', vitals: { health: { current: 30, max: 30, regen: 0 }, mana: { current: 60, max: 60, regen: 0 },
       stamina: { current: 10, max: 10, regen: 0 }, durability: { current: 10, max: 10, regen: 0 } },
     capabilities: { canMove: true, canCast: true, canEquip: true, canTake: true, canExit: true, blocksMovement: false, blocksSight: false },
     motivations: [], affinities: [{ kind, expression, stacks: 3, intensity: 3 }], activeAffinityKey: `${kind}:${expression}`, holdings: [] } as ActorRecord;
 }
 const prices = { castManaBase: Object.fromEntries(KINDS.flatMap(kind => [[`${kind}:pull`, 1], [`${kind}:push`, 1]])) };
-const PRICE = 18; // base 1 × intensity 3 × range 3·4/2 (#344)
+const PRICE = 54; // base 1 × intensity² 9 × range 3·4/2 (#344)
 
 for (const kind of KINDS) {
   for (const expression of ['pull', 'push'] as const) {
@@ -27,7 +27,7 @@ for (const kind of KINDS) {
       const registry = createActorRegistry({ dimensions: { width: 2, height: 1 }, terrain: ['floor', 'floor'],
         actors: [actor('caster', 0, kind, expression), actor('target', 1, OPPOSITE[kind], 'pull')] });
       expect(castFocusedActorAffinity(registry, 'caster', 'target', prices).accepted).toBe(true);
-      expect(registry.getActor('caster')!.vitals.mana!.current).toBe(30 - PRICE);
+      expect(registry.getActor('caster')!.vitals.mana!.current).toBe(60 - PRICE);
     });
   }
   test(`a full caster's ${kind} push at itself costs its price`, () => {
@@ -36,19 +36,20 @@ for (const kind of KINDS) {
     expect(castFocusedActorAffinity(registry, 'caster', 'caster', prices).accepted).toBe(true);
     const mana = registry.getActor('caster')!.vitals.mana!.current;
     // A mana-damaging push on oneself takes its hit too; never a free cast.
-    expect(mana).toBeLessThanOrEqual(30 - PRICE);
+    expect(mana).toBeLessThanOrEqual(60 - PRICE);
   });
 }
 
 test('a light pull that steals more than its price still nets the caster the difference', () => {
+  // At range 1 the price is 1 × 3² × 1 = 9, below what the pull steals.
   const caster = actor('caster', 0, 'light', 'pull'); caster.vitals.mana!.current = 20;
+  caster.affinities[0].stacks = 1;
   const registry = createActorRegistry({ dimensions: { width: 2, height: 1 }, terrain: ['floor', 'floor'],
     actors: [caster, actor('target', 1, 'dark', 'pull')] });
   castFocusedActorAffinity(registry, 'caster', 'target', prices);
-  // Opposite doubles the drain: 2 × 3² × 2 = 36, but a light pull takes only the 10 the caster
-  // lacks (#537): 20 + 10 - 18.
-  expect(registry.getActor('caster')!.vitals.mana!.current).toBe(12);
-  expect(registry.getActor('target')!.vitals.mana!.current).toBe(20);
+  // Opposite doubles the drain: 2 × 3² × 2 = 36, within the 40 the caster lacks (#537): 20 + 36 - 9.
+  expect(registry.getActor('caster')!.vitals.mana!.current).toBe(47);
+  expect(registry.getActor('target')!.vitals.mana!.current).toBe(24);
 });
 
 // ## TODO: Test Permutations
