@@ -584,6 +584,16 @@ Inputs/outputs:
     --delver "count=1;id=hero;affinity=light;motivation=user_controlled" \
     --delver "count=1;id=pal;affinity=growth;motivation=escorting;escort=hero-1:2"
   ```
+- `--delver` accepts `minions=<role>[+<role>...]` (roles `shield`, `support`, `striker`; `count=1` only): the delver
+  leads a retinue of that many minions, added after any `--tactic` mix (so `--tactic auto` takes them too). The
+  Configurator derives each loadout from the delver (a shield emits its kind, a support pushes the restoring kind
+  for its health, a striker its kind in a harmful form it lacks); each minion is a delver at the viability floor
+  with one slot, `escorting` + `friendly` (it follows the leader and takes orders), seated beside it, and priced from
+  the delver share. A role the delver cannot fill (no affinity kind) is left out and the tactic row says so.
+  ```bash
+  node packages/adapters-cli/src/cli/ak.mjs create --room "size=medium;count=2" \
+    --delver "count=1;id=hero;affinities=fire:emit:2,fire:push:3;equip=fire:emit;motivation=user_controlled;minions=shield+support"
+  ```
 - Hard constraints are recorded separately from optimization goals in the embedded authoring request under `spec.json`.
   The current contract treats total budget as a hard constraint and maximize-spend / mana goals as
   optimization directions for later fulfillment waves. A hard budget alone does not imply
