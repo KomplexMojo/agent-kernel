@@ -23,7 +23,10 @@ test("the screen shows every row with its price, the budget, and the keys", asyn
   assert.match(text, /YOUR DELVER\s+Budget 234 \/ 942/);
   assert.match(text, /Affinity slots \(first 3 free; none is not bought\)/);
   assert.match(text, /> 1\s+\[fire\]/, "the cursor opens on the first slot's kind");
-  assert.match(text, /    3   none      push    1     1     equipped         0/, "an empty slot is kind none at the default form, range and start");
+  assert.match(text, /    3   none      push    1     1                      0/, "an empty slot is kind none at the default form and range, and spends no mana");
+  assert.match(text, /\[fire\]     emit    2     1     5\/tick          53/, "an emit's mana is per tick");
+  assert.match(text, /fire      push    3     1     12\/cast         73/, "a push's mana is per cast");
+  assert.match(text, /emits and draws together: 5 mana a tick, against mana regen 3/);
   assert.match(text, /mana\s+30\s+3\s+39/);
   assert.match(text, /Ready: 708 tokens left/);
   assert.match(text, /Enter play/);

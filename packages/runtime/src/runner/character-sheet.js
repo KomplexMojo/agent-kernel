@@ -17,6 +17,7 @@ import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { createConfiguratorPersona } from "../personas/configurator/persona.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { MAX_AFFINITY_SLOTS } from "../../../core-ts/src/state/actor-inventory.ts";
+import { affinityUpkeepIndex, isLastingAffinityExpression } from "../../../core-ts/src/rules/actor-upkeep.ts";
 
 export const SHEET_INTENT = Object.freeze({
   UP: "up", DOWN: "down", LEFT: "left", RIGHT: "right",
@@ -25,7 +26,8 @@ export const SHEET_INTENT = Object.freeze({
 });
 
 const BIG_STEP = 5;
-export const SLOT_FIELDS = Object.freeze(["kind", "expression", "range", "intensity", "start"]);
+// Every slot you hold starts equipped (Darren, 2026-10-29): emits are on, casts are ready.
+export const SLOT_FIELDS = Object.freeze(["kind", "expression", "range", "intensity"]);
 export const VITAL_FIELDS = Object.freeze(["max", "regen"]);
 export const MINION_FIELDS = Object.freeze(["role"]);
 /** Fields that hold a number (− and + change them); the rest are choices a tap steps through. */
@@ -34,7 +36,7 @@ export const NUMERIC_FIELDS = Object.freeze(["range", "intensity", "max", "regen
 export const SLOT_KIND_CHOICES = Object.freeze(["none", ...AFFINITY_KINDS]);
 
 // An empty slot still shows its other fields, at these values, ready for a kind to be chosen.
-const blankSlot = () => ({ kind: null, expression: AFFINITY_EXPRESSIONS[0], range: 1, intensity: 1, start: true });
+const blankSlot = () => ({ kind: null, expression: AFFINITY_EXPRESSIONS[0], range: 1, intensity: 1 });
 const held = (slot) => Boolean(slot?.kind);
 
 function cycle(list, current, step) {
@@ -52,13 +54,9 @@ export function sheetChoicesFromSpec(spec) {
     if (at > 0) fields.set(segment.slice(0, at).trim().toLowerCase(), segment.slice(at + 1).trim());
   });
   const slots = [];
-  const equipped = new Set(String(fields.get("equip") || "").split(",").filter(Boolean).map((entry) => entry.split(":").slice(0, 2).join(":")));
   String(fields.get("affinities") || "").split(",").filter(Boolean).forEach((entry) => {
     const [kind, expression, range, intensity] = entry.split(":");
-    slots.push({
-      kind, expression, range: Number(range) || 1, intensity: Number(intensity) || 1,
-      start: equipped.size === 0 || equipped.has(`${kind}:${expression}`),
-    });
+    slots.push({ kind, expression, range: Number(range) || 1, intensity: Number(intensity) || 1 });
   });
   const vitals = {};
   GAME_VITAL_KEYS.forEach((key) => { vitals[key] = { max: ACTOR_VIABILITY_FLOOR[key]?.max ?? 10, regen: ACTOR_VIABILITY_FLOOR[key]?.regen ?? 1 }; });
@@ -109,12 +107,25 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
   const rows = () => [...slotRows(), ...GAME_VITAL_KEYS.map((key) => ({ kind: "vital", key })), ...minionRows()];
   const fieldsOf = (row) => (row.kind === "slot" ? SLOT_FIELDS : row.kind === "minion" ? MINION_FIELDS : VITAL_FIELDS);
 
+  // What a held slot spends in mana, as core charges it: an emit or draw pays the Configurator's
+  // upkeep at range + intensity² every tick it is on; a push or pull pays its cast price
+  // (base × intensity² × r(r+1)/2) each time it is cast.
+  function manaCost(slot) {
+    if (isLastingAffinityExpression(slot.expression)) {
+      return { amount: configurator.computeInternalManaUpkeep(affinityUpkeepIndex(slot.range, slot.intensity)), per: "tick" };
+    }
+    const amount = configurator.resolveAffinityManaCost({ kind: slot.kind, expression: slot.expression, stacks: slot.range, intensity: slot.intensity });
+    return Number.isFinite(amount) ? { amount, per: "cast" } : null;
+  }
+  // Above max mana it can never be paid: an emit stays off, a cast is never made.
+  const withReach = (mana) => (mana ? { ...mana, overMax: mana.amount > choices.vitals.mana.max } : null);
+
   // The minions as the build composes them (the Configurator's retinue for this delver), so the
   // sheet prices exactly what `ak create` adds.
   function composedMinions() {
     if (choices.minions.length === 0) return { minions: [], roles: [], notes: [] };
     const owned = choices.slots.filter(held);
-    const equipped = owned.find((slot) => slot.start) ?? owned[0];
+    const equipped = owned[0];
     const leader = {
       id: `${id}-1`,
       category: "delver",
@@ -197,8 +208,9 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
           fields: [
             { name: "kind", value: slot.kind ?? "none" }, { name: "expression", value: slot.expression },
             { name: "range", value: slot.range }, { name: "intensity", value: slot.intensity },
-            { name: "start", value: slot.start ? "equipped" : "carried" },
           ],
+          // A guide, not a price: the mana the slot spends, per tick while on or per cast.
+          mana: held(slot) ? withReach(manaCost(slot)) : null,
           price: held(slot) ? cost.slot(row.index) : 0,
         };
       }
@@ -227,6 +239,8 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
       // Whether − and + mean anything for the field under the cursor.
       cursorNumeric: NUMERIC_FIELDS.includes(fieldsOf(rows()[cursor.row])[cursor.field]),
       motivation: { name: "user_controlled", price: cost.motivation },
+      // What every emit and draw costs together each tick, against the mana regen bought.
+      manaPerTick: list.reduce((sum, row) => sum + (row.mana?.per === "tick" ? row.mana.amount : 0), 0),
       slotsExtraPrice: cost.slotsExtra,
       total,
       allowance,
@@ -267,7 +281,6 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     const sign = Math.sign(step);
     if (name === "kind") slot.kind = kindOf(cycle(SLOT_KIND_CHOICES, slot.kind ?? "none", sign));
     else if (name === "expression") slot.expression = cycle(AFFINITY_EXPRESSIONS, slot.expression, sign);
-    else if (name === "start") slot.start = !slot.start;
     else slot[name] = Math.max(1, slot[name] + step);
   }
 
@@ -309,7 +322,7 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
   }
 
   /**
-   * A tap on one field: it takes the cursor, and a choice (kind, form, at start) steps to its
+   * A tap on one field: it takes the cursor, and a choice (kind, form, minion role) steps to its
    * next value (kind: none, then each kind, then none again). A number only takes the cursor,
    * for − and + to change.
    */
@@ -337,8 +350,7 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     if (kept.length > 0) {
       parts.push(`affinity=${kept[0].kind}`);
       parts.push(`affinities=${kept.map((slot) => `${slot.kind}:${slot.expression}:${slot.range}${slot.intensity > 1 ? `:${slot.intensity}` : ""}`).join(",")}`);
-      const equipped = kept.filter((slot) => slot.start);
-      if (equipped.length > 0) parts.push(`equip=${equipped.map((slot) => `${slot.kind}:${slot.expression}`).join(",")}`);
+      parts.push(`equip=${kept.map((slot) => `${slot.kind}:${slot.expression}`).join(",")}`);
     }
     if (slotsBought() > PRESET_AFFINITY_SLOTS.delver) parts.push(`slots=${slotsBought()}`);
     parts.push("motivation=user_controlled");
