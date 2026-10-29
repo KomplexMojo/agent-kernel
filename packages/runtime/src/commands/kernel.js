@@ -1,6 +1,7 @@
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { orchestrateBuild } from "../build/orchestrate-build.js";
-import { runAuthoringBuild, runPlanBuild } from "../build/authoring-build.js";
+import { runPlanBuild } from "../build/authoring-build.js";
+import { runHostedAuthoringBuild } from "./author-level.js";
 import { summarizeMixedRoomAssemblies, formatMixedRoomAssembliesCliLines } from "../build/mixed-room-summary.js";
 import { buildBuildTelemetryRecord } from "../build/telemetry.js";
 import { buildManualMoveAction } from "./manual-movement.js";
@@ -28,7 +29,7 @@ import { evaluateConfiguratorSpend } from "../personas/allocator/persona.js";
 // same arguments, same result shape (proven by the differential in
 // tests/runtime/llm-host-loop.test.js).
 import { runLlmSessionHosted } from "./llm-host.js";
-import { createHostedLayoutBudgetFitter, createHostedObjectPlacer } from "./solver-host.js";
+import { createHostedLayoutBudgetFitter, createHostedObjectPlacer, hostConfiguratorPlacement } from "./solver-host.js";
 import { runLlmBudgetLoop } from "../personas/orchestrator/persona.js";
 import { createRuntime } from "../runner/runtime.js";
 // CR.7 / WP-5 — the vocabulary comes from CONTRACTS, not from the Orchestrator's alias of
@@ -850,14 +851,7 @@ export function createCommandKernel(host = {}) {
   // reading-order fallback for the same persona question the others put to the solver.
   // `record` receives each solver decision, for commands that report them.
   async function hostObjectPlacement(createdAt, record) {
-    const configurator = createConfiguratorPersona({ clock: () => createdAt });
-    return createHostedObjectPlacer({
-      prepare: configurator.prepareObjectPlacement,
-      complete: configurator.completeObjectPlacement,
-      adapter: await createSolverAdapter({}),
-      clock: () => createdAt,
-      ...(record ? { record } : {}),
-    });
+    return hostConfiguratorPlacement({ createdAt, adapter: await createSolverAdapter({}), record });
   }
 
   // The Allocator's budget fit (asked through an open Director round), posed to the host's
@@ -2669,9 +2663,7 @@ export function createCommandKernel(host = {}) {
   // assembly and all writing — so otherwise this is a pass-through to the runtime
   // pipeline (routes translation through the Director controller, like llmPlan).
   async function authoringBuild(input) {
-    const solverDecisions = [];
-    const placeObjects = await hostObjectPlacement(input?.createdAt, (decision) => solverDecisions.push(decision));
-    return runAuthoringBuild({ ...input, placeObjects, solverDecisions });
+    return runHostedAuthoringBuild(input, { adapter: await createSolverAdapter({}) });
   }
 
   // Plain authored build (P2.3.3): the *-plan commands' build pipeline

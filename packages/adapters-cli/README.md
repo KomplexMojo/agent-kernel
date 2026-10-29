@@ -189,7 +189,7 @@ fallback answered, `none` when no search was posed), the `status` and `reason` b
 `deferred` / `solver_domain_unavailable`), and the solver's `objectiveValues` when it answered.
 Every build command hosts the solver (`build`, `llm-plan`, `create`, `configure` and the `*-plan`
 commands, #296); `AK_SOLVER_ENGINE=fixture` turns it off, and a placement then reports
-`fallback (solver_domain_unavailable)`.
+`fallback (solver_domain_unavailable)`. `AK_SOLVER_RECORD=<file>` appends every solver answer to `<file>` as a JSON line `{ key, result }` (keyed by runtime `ports/solver.js#solverAnswerKey`) without changing it; the phone app build uses it so the browser, which has no solver, replays z3's placement (#557).
 Build specs may include `adapters.capture` entries for ipfs/blockchain/llm; provide fixture paths
 for deterministic runs (live network requires `AK_ALLOW_NETWORK=1`).
 

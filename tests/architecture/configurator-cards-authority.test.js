@@ -36,7 +36,8 @@ const PUBLISHING_FILE = "packages/runtime/src/personas/configurator/controller.j
 // threading a REAL Configurator persona's own authorCandidates into the Allocator —
 // two legitimate callers of the same public surface, not two authors.
 const EXPECTED_CONSUMER_SITES = [
-  "packages/adapters-cli/src/cli/ak-impl.mjs",
+  // #557: the CLI's wiring moved with the spec grammar into runtime.
+  "packages/runtime/src/commands/authoring-specs.js",
   CARD_AUTHORING_FILE,
 ];
 

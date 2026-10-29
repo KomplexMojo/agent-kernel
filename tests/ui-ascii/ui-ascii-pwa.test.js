@@ -45,6 +45,18 @@ test("a PWA report is one playtest.mjs reads back, with the commands that were p
   assert.match(report, /1\. turn 2: odd/);
 });
 
+test("a PWA report keeps a configured character, and playtest.mjs reads it back to rebuild that level", async () => {
+  const scenario = loadPlaytestScenarios().scenarios[0];
+  const character = "count=1;id=hero;motivation=user_controlled;vitals=health:30:1,mana:30:3,stamina:10:2,durability:10:1";
+  const report = renderReport({
+    scenario, seed: 2, picks: affinitiesForSeed(2), commit: "abc1234", createdAt: "2026-10-18T00:00:00.000Z",
+    playedAt: "2026-10-29T00:00:00.000Z", final: { turns: 0, status: {} }, screen: "board", notes: [],
+    replayCode: await encodeReplay([]), character,
+  });
+  assert.match(report, /- Character: `count=1;id=hero/);
+  assert.equal(parseReport(report).character, character);
+});
+
 test("the catalog lists each scenario's seeds with the affinities and focus lines the playtest prints", () => {
   const { scenarios, createdAt } = loadPlaytestScenarios();
   const entries = scenarios.flatMap((scenario) => [0, 1].map((seed) => ({ scenarioId: scenario.id, ...seedEntry(scenario, seed, { cost: { totalSpend: 1, budgetTokens: 2, status: "approved" } }) })));
@@ -74,6 +86,11 @@ test("the built app plays: a level from the build runs in the game controller, a
     assert.match(readFileSync(join(out, "app.js"), "utf8"), new RegExp(commit), "the bundle knows its own build");
     assert.doesNotMatch(sw.match(/const FILES = (.*);/)[1], /version\.json/, "version.json is never cached");
     const level = JSON.parse(readFileSync(join(out, "levels/first-look-s0.json"), "utf8"));
+    // #557: what the character screen needs to build this level again on the phone.
+    assert.ok(level.character.argv.includes(level.character.hero), "the default delver's spec is one of the level's ak create arguments");
+    assert.ok(level.character.allowance > 0, "the delver pool the Allocator allotted");
+    assert.ok(Array.isArray(level.character.solverAnswers));
+    assert.match(readFileSync(join(out, "index.html"), "utf8"), /id="configure"/);
     const game = await createGame({ levels: [{ name: "pwa", ...level }], fog: true, showHelp: false });
     await game.handle({ type: "wait" });
     assert.equal(game.state().turns, 1);

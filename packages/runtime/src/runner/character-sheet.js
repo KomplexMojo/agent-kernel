@@ -234,6 +234,14 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     return { done: null };
   }
 
+  /** Put the cursor on one row and field, for a screen that is tapped rather than stepped. */
+  function select(row, field = 0) {
+    const all = rows();
+    if (!Number.isInteger(row) || row < 0 || row >= all.length) return;
+    cursor.row = row;
+    cursor.field = Math.max(0, Math.min(fieldsOf(all[row]).length - 1, Number.isInteger(field) ? field : 0));
+  }
+
   /** The `--delver` spec for the character as it stands. */
   function spec_() {
     const held = choices.slots.filter(Boolean);
@@ -250,5 +258,5 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     return parts.join(";");
   }
 
-  return { view, apply, spec: spec_ };
+  return { view, apply, select, spec: spec_ };
 }

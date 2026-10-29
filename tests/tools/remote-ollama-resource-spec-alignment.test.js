@@ -11,7 +11,8 @@ const { normalizeToolArgs, REPO_ROOT } = require("../../tools/remote-ollama-cont
 // advertised and the parser rejected.
 function cliV3ResourceFields() {
   const source = readFileSync(
-    join(REPO_ROOT, "packages/adapters-cli/src/cli/ak-impl.mjs"),
+    // #557: the resource parser moved from ak-impl.mjs into runtime with the rest of the spec grammar.
+    join(REPO_ROOT, "packages/runtime/src/commands/authoring-specs.js"),
     "utf8",
   );
   const marker = "// V3: a vital payload";

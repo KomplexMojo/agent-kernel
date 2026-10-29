@@ -29,6 +29,18 @@
   <ul id="brief-focus"></ul>
   <p class="dim">Note the turn number (shown under the board) when something looks wrong. Fog of war is on.</p>
   <button id="start" class="primary">Start</button>
+  <button id="configure" class="wide" hidden>Configure your own delver</button>
+</section>
+<section id="character" hidden>
+  <button id="back-brief" class="link">‹ Back</button>
+  <h1>Your delver</h1>
+  <div id="allowance"></div>
+  <div id="sheet"></div>
+  <div id="sheet-note" class="dim"></div>
+  <div id="sheet-keys">
+    <button data-sheet="decBig">−5</button><button data-sheet="dec">−</button><button data-sheet="inc">+</button><button data-sheet="incBig">+5</button>
+    <button data-sheet="addSlot">New slot</button><button data-sheet="clearSlot">Clear slot</button><button data-sheet="reset">Reset</button><button data-sheet="confirm" class="go">Play ✓</button>
+  </div>
 </section>
 <section id="game" hidden>
   <div id="bar"><span id="title"></span><button id="menu">☰</button></div>
