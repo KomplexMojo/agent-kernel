@@ -33,7 +33,7 @@ test("editing a value reprices through the Allocator and the spec round-trips", 
   assert.ok(sheet.view().total > before);
   assert.match(sheet.spec(), /affinities=fire:emit:3,fire:push:3/);
   assert.match(sheet.spec(), /motivation=user_controlled/);
-  assert.match(sheet.spec(), /equip=fire:emit(;|$)/);
+  assert.match(sheet.spec(), /equip=fire:emit,fire:push;/, "every slot held starts equipped");
 });
 
 test("confirm is refused over budget, below the viability floor, and for a duplicate slot", async () => {
@@ -87,8 +87,9 @@ test("an empty slot shows kind none with its other fields at their defaults, and
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });
   const third = sheet.view().rows[2];
   assert.equal(third.empty, true);
-  assert.deepEqual(third.fields.map((field) => field.value), ["none", "push", 1, 1, "equipped"]);
+  assert.deepEqual(third.fields.map((field) => field.value), ["none", "push", 1, 1]);
   assert.equal(third.price, 0);
+  assert.equal(third.mana, null);
   assert.ok(sheet.view().choices.kind.includes("none"));
 });
 
@@ -131,8 +132,6 @@ test("a tap steps a choice (none, every kind, none again) and only lights a numb
   assert.equal(sheet.view().cursorNumeric, false, "− and + mean nothing on a kind");
   sheet.tap(0, 1);
   assert.equal(sheet.view().rows[0].fields[1].value, AFFINITY_EXPRESSIONS[(AFFINITY_EXPRESSIONS.indexOf("emit") + 1) % AFFINITY_EXPRESSIONS.length]);
-  sheet.tap(1, 4);
-  assert.equal(sheet.view().rows[1].fields[4].value, "equipped", "on/off toggles");
   const before = sheet.spec();
   sheet.tap(0, 2);
   assert.equal(sheet.spec(), before, "a tap on a number changes nothing");
@@ -162,6 +161,28 @@ test("minions: a tap cycles a role, each one adds a row, none takes it out, and 
   assert.equal(sheet.view().cursorNumeric, false);
 });
 
+// Darren, 2026-10-29: the mana each slot spends, as a guide: per tick for an emit or draw,
+// per cast for a push or pull. It is what core charges, for every kind.
+test("each held slot shows its mana: an emit or draw per tick, a push or pull per cast", async () => {
+  const { createCharacterSheet } = await load();
+  const { AFFINITY_KINDS } = await import("../../packages/runtime/src/contracts/domain-constants.js");
+  const { actorCastManaPrice } = await import("../../packages/core-ts/src/rules/actor-cast.ts");
+  const { createConfiguratorPersona } = await import("../../packages/runtime/src/personas/configurator/persona.js");
+  const { castManaBase } = createConfiguratorPersona({ clock: () => "2026-10-29T00:00:00.000Z" }).resolveActorTurnCosts({ movementStamina: {} });
+  for (const kind of AFFINITY_KINDS) {
+    const sheet = createCharacterSheet({ spec: `count=1;affinities=${kind}:emit:3:2,${kind}:draw:1,${kind}:push:3:2,${kind}:pull:2;vitals=health:10:1,mana:20:2,stamina:5:1,durability:10:1`, budgetTokens: 9000 });
+    const [emit, draw, push, pull] = sheet.view().rows.slice(0, 4).map((row) => row.mana);
+    assert.deepEqual(emit, { amount: 2 + 3 + 4, per: "tick", overMax: false }, `${kind}: 2 + range + intensity²`);
+    assert.deepEqual(draw, { amount: 2 + 1 + 1, per: "tick", overMax: false });
+    const pushPrice = actorCastManaPrice(castManaBase[`${kind}:push`], 3, 2);
+    assert.deepEqual(push, { amount: pushPrice, per: "cast", overMax: pushPrice > 20 });
+    assert.equal(pull.amount, actorCastManaPrice(castManaBase[`${kind}:pull`], 2, 1));
+    assert.equal(sheet.view().manaPerTick, 9 + 4, "emits and draws together");
+  }
+  const strong = createCharacterSheet({ spec: "count=1;affinities=dark:emit:3:12;vitals=health:10:1,mana:40:4,stamina:5:1,durability:10:1", budgetTokens: 9000 });
+  assert.deepEqual(strong.view().rows[0].mana, { amount: 149, per: "tick", overMax: true }, "above max mana it can never run");
+});
+
 test("reset returns to the opening character", async () => {
   const { createCharacterSheet, SHEET_INTENT } = await load();
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });
@@ -177,7 +198,7 @@ test("select puts the cursor on a tapped row and field, within bounds", async ()
   sheet.apply(SHEET_INTENT.INC);
   assert.match(sheet.spec(), /mana:31:3/);
   sheet.select(0, 9);
-  assert.deepEqual(sheet.view().cursor, { row: 0, field: 4 }, "a field past the end lands on the last one");
+  assert.deepEqual(sheet.view().cursor, { row: 0, field: 3 }, "a field past the end lands on the last one");
   sheet.select(99, 0);
-  assert.deepEqual(sheet.view().cursor, { row: 0, field: 4 }, "an unknown row is ignored");
+  assert.deepEqual(sheet.view().cursor, { row: 0, field: 3 }, "an unknown row is ignored");
 });

@@ -44,7 +44,7 @@ function cell(text, width, { selected, hex, color }) {
   return hex ? paint(body, hex, color) : body;
 }
 
-const WIDTHS = { kind: 10, expression: 8, range: 6, intensity: 6, start: 11, max: 7, regen: 7 };
+const WIDTHS = { kind: 10, expression: 8, range: 6, intensity: 6, mana: 11, max: 7, regen: 7 };
 
 /** @param {object} view the character sheet's `view()`; @param {{ color?: false|string, title?: string }} options */
 export function renderCharacterScreen(view, { color = false, title = "Your delver" } = {}) {
@@ -54,7 +54,7 @@ export function renderCharacterScreen(view, { color = false, title = "Your delve
   lines.push(`Motivation   ${view.motivation.name} (the playable right)${" ".repeat(34)}${String(view.motivation.price).padStart(5)}`);
   lines.push("");
   lines.push(`Affinity slots (first ${view.freeSlots} free; none is not bought)`);
-  lines.push(`    ${pad("", 3)}${pad(" kind", WIDTHS.kind)}${pad(" form", WIDTHS.expression)}${pad(" range", WIDTHS.range)}${pad(" int", WIDTHS.intensity)}${pad(" at start", WIDTHS.start)}${"price".padStart(8)}`);
+  lines.push(`    ${pad("", 3)}${pad(" kind", WIDTHS.kind)}${pad(" form", WIDTHS.expression)}${pad(" range", WIDTHS.range)}${pad(" int", WIDTHS.intensity)}${pad(" mana", WIDTHS.mana)}${"price".padStart(8)}`);
   for (const row of view.rows.filter((entry) => entry.kind === "slot")) {
     const mark = row.active ? ">" : " ";
     const cells = row.fields.map((field, index) => cell(field.value, WIDTHS[field.name], {
@@ -62,8 +62,11 @@ export function renderCharacterScreen(view, { color = false, title = "Your delve
       hex: field.name === "kind" ? GAME_AFFINITY_COLOR_HEX[field.value] : null,
       color,
     }));
-    lines.push(`  ${mark} ${pad(row.label, 3)}${cells.join("")}${String(row.price).padStart(8)}`);
+    // The slot's mana, a guide: per tick for an emit or draw, per cast for a push or pull.
+    const mana = row.mana ? paint(pad(` ${row.mana.amount}/${row.mana.per}`, WIDTHS.mana), row.mana.overMax ? GAME_COLOR_PALETTE.items.hazard : null, row.mana.overMax && color) : pad("", WIDTHS.mana);
+    lines.push(`  ${mark} ${pad(row.label, 3)}${cells.join("")}${mana}${String(row.price).padStart(8)}`);
   }
+  if (view.manaPerTick > 0) lines.push(`    emits and draws together: ${view.manaPerTick} mana a tick, against mana regen ${view.rows.find((row) => row.id === "vital-mana")?.fields[1].value}`);
   if (view.slotsExtraPrice > 0) lines.push(`${" ".repeat(46)}extra slots${String(view.slotsExtraPrice).padStart(11)}`);
   lines.push("");
   lines.push(`    ${pad("Vitals", 14)}${pad(" max", WIDTHS.max)}${pad(" regen", WIDTHS.regen)}${"price".padStart(26)}`);

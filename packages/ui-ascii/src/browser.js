@@ -307,7 +307,7 @@ function renderSheet() {
   const used = Math.min(1, view.total / Math.max(1, view.allowance));
   $("allowance").innerHTML = `Budget ${view.total} of ${view.allowance} tokens · ${view.remaining >= 0 ? `${view.remaining} left` : `${-view.remaining} over`}`
     + `<i><b style="width:${Math.round(used * 100)}%;--c:${view.remaining >= 0 ? "var(--accent)" : "#e07a6a"}"></b></i>`;
-  const label = { kind: (v) => v, expression: (v) => v, range: (v) => `range ${v}`, intensity: (v) => `×${v}`, start: (v) => (v === "equipped" ? "on" : "off"), max: (v) => `max ${v}`, regen: (v) => `+${v}` };
+  const label = { kind: (v) => v, expression: (v) => v, range: (v) => `range ${v}`, intensity: (v) => `×${v}`, max: (v) => `max ${v}`, regen: (v) => `+${v}` };
   const rows = view.rows.map((row, rowIndex) => {
     const on = (fieldIndex) => row.active && view.cursor.field === fieldIndex;
     if (row.kind === "minion") {
@@ -317,19 +317,23 @@ function renderSheet() {
     const fields = row.fields.map((field, fieldIndex) => fieldButton(rowIndex, fieldIndex, label[field.name](field.value), {
       on: on(fieldIndex), kind: field.name === "kind", color: field.name === "kind" ? GAME_AFFINITY_COLOR_HEX[field.value] : null,
     })).join("");
-    return `<div class="srow ${row.kind === "vital" ? "vital" : "aff"}${row.empty ? " empty" : ""}"><span>${esc(row.label)}</span>${fields}<em>${row.price}</em></div>`;
+    // A slot's mana, a guide: per tick for an emit or draw, per cast for a push or pull.
+    const mana = row.kind === "slot"
+      ? `<span class="mana${row.mana?.overMax ? " bad" : ""}">${row.mana ? `${row.mana.amount}/${row.mana.per}` : ""}</span>` : "";
+    return `<div class="srow ${row.kind === "vital" ? "vital" : "aff"}${row.empty ? " empty" : ""}"><span>${esc(row.label)}</span>${fields}${mana}<em>${row.price}</em></div>`;
   });
   const slotCount = view.rows.filter((row) => row.kind === "slot").length;
   const vitalEnd = slotCount + view.rows.filter((row) => row.kind === "vital").length;
   $("sheet").innerHTML = `<h2>Affinity slots (first ${view.freeSlots} free)</h2>${rows.slice(0, slotCount).join("")}`
+    + (view.manaPerTick ? `<p class="dim">Emits and draws: ${view.manaPerTick} mana a tick together. Mana in a slot is per tick (emit, draw) or per cast (push, pull).</p>` : "")
     + (view.slotsExtraPrice ? `<div class="srow"><span></span><span class="dim">extra slots</span><em>${view.slotsExtraPrice}</em></div>` : "")
     + `<h2>Vitals</h2>${rows.slice(slotCount, vitalEnd).join("")}`
     + `<h2>Minions</h2>${rows.slice(vitalEnd).join("")}`
     + `<p class="dim">A minion follows you and takes your orders. Its affinity comes from yours: a shield emits your kind, a support heals you, a striker hits with your kind.</p>`
-    + `<p class="dim">${esc(view.motivation.name)} (you play it): ${view.motivation.price}. "on" slots start equipped. Every price is the Allocator's.</p>`;
+    + `<p class="dim">${esc(view.motivation.name)} (you play it): ${view.motivation.price}. Every slot you hold starts on. Every price is the Allocator's.</p>`;
   $("sheet-note").innerHTML = sheetState.note
     ? esc(sheetState.note)
-    : view.problems.map((problem) => `<div class="bad">${esc(problem)}</div>`).join("") || "Tap an affinity, form or on/off to change it; tap a number, then − or +.";
+    : view.problems.map((problem) => `<div class="bad">${esc(problem)}</div>`).join("") || "Tap an affinity or form to change it; tap a number, then − or +.";
   // − and + are for numbers only.
   document.querySelectorAll("#sheet-keys .num")
     .forEach((button) => { button.disabled = !view.cursorNumeric; });
@@ -414,7 +418,7 @@ function setup() {
   $("character").addEventListener("click", (event) => {
     const el = event.target.closest("button");
     if (!el || !sheetState || sheetState.building) return;
-    // A tap on an affinity, form or on/off steps it; on a number it lights it for − and +.
+    // A tap on an affinity or form steps it; on a number it lights it for − and +.
     if (el.dataset.row !== undefined) { sheetState.sheet.tap(Number(el.dataset.row), Number(el.dataset.field)); renderSheet(); }
     else if (el.dataset.sheet !== undefined) sheetTap(el.dataset.sheet);
   });
