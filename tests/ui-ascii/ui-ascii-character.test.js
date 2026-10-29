@@ -21,8 +21,9 @@ test("the screen shows every row with its price, the budget, and the keys", asyn
   const { createCharacterSheet } = await import(SHEET);
   const text = renderCharacterScreen(createCharacterSheet({ spec: HERO, budgetTokens: 942 }).view());
   assert.match(text, /YOUR DELVER\s+Budget 234 \/ 942/);
-  assert.match(text, /Affinity slots \(3 of 6\)/);
+  assert.match(text, /Affinity slots \(first 3 free; none is not bought\)/);
   assert.match(text, /> 1\s+\[fire\]/, "the cursor opens on the first slot's kind");
+  assert.match(text, /    3   none      push    1     1     equipped         0/, "an empty slot is kind none at the default form, range and start");
   assert.match(text, /mana\s+30\s+3\s+39/);
   assert.match(text, /Ready: 708 tokens left/);
   assert.match(text, /Enter play/);
@@ -53,8 +54,8 @@ test("the scripted CLI applies keys and the confirmed spec builds that delver th
   const dir = mkdtempSync(join(tmpdir(), "character-screen-"));
   try {
     const specFile = join(dir, "spec.txt");
-    // Right twice to slot 1's range and one up; down four rows to mana, left to its max, five more.
-    const run = spawnSync(process.execPath, [CLI, "--spec", HERO, "--budget", "942", "--keys", "dd+ssssh]\r", "--out", specFile, "--no-color"], { encoding: "utf8" });
+    // Right twice to slot 1's range and one up; down seven rows (three more slots, health) to mana, left to its max, five more.
+    const run = spawnSync(process.execPath, [CLI, "--spec", HERO, "--budget", "942", "--keys", "dd+sssssssh]\r", "--out", specFile, "--no-color"], { encoding: "utf8" });
     assert.equal(run.status, 0, run.stderr);
     const spec = readFileSync(specFile, "utf8").trim();
     assert.match(spec, /affinities=fire:emit:3,fire:push:3/);

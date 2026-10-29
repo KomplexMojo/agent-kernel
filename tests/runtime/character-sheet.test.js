@@ -19,7 +19,7 @@ test("a scenario's delver opens as the sheet, priced by the Allocator", async ()
   assert.equal(view.ok, true);
   assert.equal(view.remaining, 766);
   assert.deepEqual(view.rows.map((row) => row.id), [
-    "slot-1", "slot-2", "slot-3", "vital-health", "vital-mana", "vital-stamina", "vital-durability",
+    "slot-1", "slot-2", "slot-3", "slot-4", "slot-5", "slot-6", "vital-health", "vital-mana", "vital-stamina", "vital-durability",
   ]);
   assert.equal(view.rows.find((row) => row.id === "vital-mana").price, 30 + 9);
 });
@@ -40,7 +40,7 @@ test("confirm is refused over budget, below the viability floor, and for a dupli
   const { createCharacterSheet, SHEET_INTENT } = await load();
   assert.equal(createCharacterSheet({ spec: HERO, budgetTokens: 100 }).apply(SHEET_INTENT.CONFIRM).done, null);
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });
-  for (let i = 0; i < 4; i += 1) sheet.apply(SHEET_INTENT.DOWN); // vital-mana
+  for (let i = 0; i < 7; i += 1) sheet.apply(SHEET_INTENT.DOWN); // vital-mana
   for (let i = 0; i < 40; i += 1) sheet.apply(SHEET_INTENT.DEC);
   const refused = sheet.apply(SHEET_INTENT.CONFIRM);
   assert.equal(refused.done, null);
@@ -50,17 +50,23 @@ test("confirm is refused over budget, below the viability floor, and for a dupli
   assert.match(dup.view().problems.join(" "), /fire push is held twice/);
 });
 
-test("extra slots are priced by the Allocator and capped by core", async () => {
-  const { createCharacterSheet, SHEET_INTENT } = await load();
+test("every slot up to core's cap is listed; a kind past the free ones buys a slot the Allocator prices", async () => {
+  const { createCharacterSheet } = await load();
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 5000 });
   const base = sheet.view();
-  sheet.apply(SHEET_INTENT.ADD_SLOT);
+  assert.equal(base.rows.filter((row) => row.kind === "slot").length, base.maxSlots);
+  assert.equal(base.slotCount, base.freeSlots);
+  sheet.choose(2, "kind", "water");
+  assert.equal(sheet.view().slotCount, base.freeSlots, "the third affinity fills a free slot");
+  sheet.choose(5, "kind", "light");
   const more = sheet.view();
   assert.equal(more.slotCount, 4);
   assert.ok(more.slotsExtraPrice > 0 && more.total > base.total);
   assert.match(sheet.spec(), /slots=4/);
-  for (let i = 0; i < 10; i += 1) sheet.apply(SHEET_INTENT.ADD_SLOT);
-  assert.equal(sheet.view().slotCount, more.maxSlots);
+  sheet.choose(5, "kind", "none");
+  assert.equal(sheet.view().slotCount, base.freeSlots, "back to none, the slot is not bought");
+  assert.equal(sheet.view().slotsExtraPrice, 0);
+  assert.doesNotMatch(sheet.spec(), /slots=/);
 });
 
 test("every affinity kind and expression can be chosen, none is a default", async () => {
@@ -76,6 +82,44 @@ test("every affinity kind and expression can be chosen, none is a default", asyn
   assert.deepEqual([...seen].sort(), [...AFFINITY_KINDS].sort());
 });
 
+test("an empty slot shows kind none with its other fields at their defaults, and costs nothing", async () => {
+  const { createCharacterSheet } = await load();
+  const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });
+  const third = sheet.view().rows[2];
+  assert.equal(third.empty, true);
+  assert.deepEqual(third.fields.map((field) => field.value), ["none", "push", 1, 1, "equipped"]);
+  assert.equal(third.price, 0);
+  assert.ok(sheet.view().choices.kind.includes("none"));
+});
+
+test("choose sets a slot's kind by name, and none empties it again", async () => {
+  const { createCharacterSheet } = await load();
+  const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });
+  const base = sheet.view().total;
+  sheet.choose(2, "kind", "water");
+  assert.match(sheet.spec(), /affinities=fire:emit:2,fire:push:3,water:push:1;/);
+  assert.ok(sheet.view().total > base, "the Allocator prices the new slot");
+  sheet.choose(0, "kind", "light");
+  assert.match(sheet.spec(), /affinities=light:emit:2,fire:push:3,water:push:1;/, "the slot keeps its form, range and start");
+  sheet.choose(2, "kind", "none");
+  assert.equal(sheet.view().rows[2].empty, true, "none empties the slot");
+  assert.match(sheet.spec(), /affinities=light:emit:2,fire:push:3;/);
+  sheet.choose(2, "kind", "plasma");
+  sheet.choose(7, "kind", "fire");
+  assert.match(sheet.spec(), /affinities=light:emit:2,fire:push:3;/, "an unknown kind or a vital row is ignored");
+});
+
+test("+ on a kind steps through none as well as every kind", async () => {
+  const { createCharacterSheet, SHEET_INTENT } = await load();
+  const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 5000 });
+  sheet.select(2, 0);
+  sheet.apply(SHEET_INTENT.DEC);
+  assert.notEqual(sheet.view().rows[2].fields[0].value, "none");
+  sheet.apply(SHEET_INTENT.INC);
+  assert.equal(sheet.view().rows[2].fields[0].value, "none");
+  assert.doesNotMatch(sheet.spec(), /:1;equip/);
+});
+
 test("reset returns to the opening character", async () => {
   const { createCharacterSheet, SHEET_INTENT } = await load();
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });
@@ -87,7 +131,7 @@ test("reset returns to the opening character", async () => {
 test("select puts the cursor on a tapped row and field, within bounds", async () => {
   const { createCharacterSheet, SHEET_INTENT } = await load();
   const sheet = createCharacterSheet({ spec: HERO, budgetTokens: 1000 });
-  sheet.select(4, 0); // mana max
+  sheet.select(7, 0); // mana max
   sheet.apply(SHEET_INTENT.INC);
   assert.match(sheet.spec(), /mana:31:3/);
   sheet.select(0, 9);
