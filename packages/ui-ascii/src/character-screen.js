@@ -15,7 +15,7 @@ const KEY_INTENTS = Object.freeze({
   "\u001b[C": SHEET_INTENT.RIGHT, l: SHEET_INTENT.RIGHT, d: SHEET_INTENT.RIGHT, "\t": SHEET_INTENT.RIGHT,
   "+": SHEET_INTENT.INC, "=": SHEET_INTENT.INC, "-": SHEET_INTENT.DEC, _: SHEET_INTENT.DEC,
   "]": SHEET_INTENT.INC_BIG, "[": SHEET_INTENT.DEC_BIG,
-  n: SHEET_INTENT.ADD_SLOT, x: SHEET_INTENT.CLEAR_SLOT, r: SHEET_INTENT.RESET,
+  x: SHEET_INTENT.CLEAR_SLOT, r: SHEET_INTENT.RESET,
   "\r": SHEET_INTENT.CONFIRM, "\n": SHEET_INTENT.CONFIRM,
   q: SHEET_INTENT.CANCEL, "\u001b": SHEET_INTENT.CANCEL, "\u0003": SHEET_INTENT.CANCEL,
 });
@@ -26,8 +26,8 @@ export function sheetIntentForKey(key) {
 }
 
 export const SHEET_HELP_LINES = Object.freeze([
-  "↑↓ (w s j k) row   ←→ (a d h l, Tab) field   + − change   ] [ change by 5",
-  "n new slot   x clear slot   r reset   Enter play   q or Esc back",
+  "↑↓ (w s j k) row   ←→ (a d h l, Tab) field   + − change (kind: none, then each)   ] [ by 5",
+  "x set slot to none   r reset   Enter play   q or Esc back",
 ]);
 
 const pad = (text, width) => String(text).padEnd(width);
@@ -53,14 +53,10 @@ export function renderCharacterScreen(view, { color = false, title = "Your delve
   lines.push("─".repeat(78));
   lines.push(`Motivation   ${view.motivation.name} (the playable right)${" ".repeat(34)}${String(view.motivation.price).padStart(5)}`);
   lines.push("");
-  lines.push(`Affinity slots (${view.slotCount} of ${view.maxSlots})`);
+  lines.push(`Affinity slots (first ${view.freeSlots} free; none is not bought)`);
   lines.push(`    ${pad("", 3)}${pad(" kind", WIDTHS.kind)}${pad(" form", WIDTHS.expression)}${pad(" range", WIDTHS.range)}${pad(" int", WIDTHS.intensity)}${pad(" at start", WIDTHS.start)}${"price".padStart(8)}`);
   for (const row of view.rows.filter((entry) => entry.kind === "slot")) {
     const mark = row.active ? ">" : " ";
-    if (row.empty) {
-      lines.push(`  ${mark} ${pad(row.label, 3)}${row.active ? "[ (empty: + to fill) ]" : "  (empty)"}${row.extra ? "   extra slot" : ""}`);
-      continue;
-    }
     const cells = row.fields.map((field, index) => cell(field.value, WIDTHS[field.name], {
       selected: row.active && view.cursor.field === index,
       hex: field.name === "kind" ? GAME_AFFINITY_COLOR_HEX[field.value] : null,

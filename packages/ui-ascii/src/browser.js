@@ -32,7 +32,7 @@ const KEYS = { ArrowUp: "\u001b[A", ArrowDown: "\u001b[B", ArrowRight: "\u001b[C
 let host = {};
 let catalog = null;
 let current = null; // { scenario, entry, game, character?, cost? }
-let sheetState = null; // { scenario, entry, level, sheet } while the character screen is open
+let sheetState = null; // { scenario, entry, level, sheet, picking (the slot row whose kind list is open) } while the character screen is open
 let queue = Promise.resolve();
 
 const safe = (action) => { try { return action(); } catch { return null; } };
@@ -292,7 +292,7 @@ async function openCharacter(scenario, entry) {
     $("brief-who").textContent = "This build has no character data for this level; update the app.";
     return;
   }
-  sheetState = { scenario, entry, level, sheet: createCharacterSheet({ spec: level.character.hero, budgetTokens: level.character.allowance ?? undefined }), note: "" };
+  sheetState = { scenario, entry, level, sheet: createCharacterSheet({ spec: level.character.hero, budgetTokens: level.character.allowance ?? undefined }), note: "", picking: null };
   renderSheet();
   show("character");
   window.scrollTo(0, 0);
@@ -310,22 +310,24 @@ function renderSheet() {
   const label = { kind: (v) => v, expression: (v) => v, range: (v) => `range ${v}`, intensity: (v) => `×${v}`, start: (v) => (v === "equipped" ? "on" : "off"), max: (v) => `max ${v}`, regen: (v) => `+${v}` };
   const rows = view.rows.map((row, rowIndex) => {
     const on = (fieldIndex) => row.active && view.cursor.field === fieldIndex;
-    if (row.kind === "slot" && row.empty) {
-      return `<div class="srow"><span>${row.label}</span><button class="f empty${row.active ? " on" : ""}" data-row="${rowIndex}" data-field="0">+ affinity${row.extra ? " (extra slot)" : ""}</button><em></em></div>`;
-    }
     const fields = row.fields.map((field, fieldIndex) => fieldButton(rowIndex, fieldIndex, label[field.name](field.value), {
       on: on(fieldIndex), kind: field.name === "kind", color: field.name === "kind" ? GAME_AFFINITY_COLOR_HEX[field.value] : null,
     })).join("");
-    return `<div class="srow${row.kind === "vital" ? " vital" : ""}"><span>${esc(row.label)}</span>${fields}<em>${row.price}</em></div>`;
+    const line = `<div class="srow${row.kind === "vital" ? " vital" : ""}${row.empty ? " empty" : ""}"><span>${esc(row.label)}</span>${fields}<em>${row.price}</em></div>`;
+    if (sheetState.picking !== rowIndex) return line;
+    // The kind box was tapped: every kind (and none) is offered under it; a tap sets it.
+    const current = row.fields[0].value;
+    return line + `<div class="kinds">${view.choices.kind.map((kind) => `<button class="f kind${kind === current ? " on" : ""}" data-pick="${esc(kind)}"`
+      + `${GAME_AFFINITY_COLOR_HEX[kind] ? ` style="--c:${GAME_AFFINITY_COLOR_HEX[kind]}"` : ""}>${esc(kind)}</button>`).join("")}</div>`;
   });
   const slotCount = view.rows.filter((row) => row.kind === "slot").length;
-  $("sheet").innerHTML = `<h2>Affinity slots (${view.slotCount} of ${view.maxSlots})</h2>${rows.slice(0, slotCount).join("")}`
+  $("sheet").innerHTML = `<h2>Affinity slots (first ${view.freeSlots} free)</h2>${rows.slice(0, slotCount).join("")}`
     + (view.slotsExtraPrice ? `<div class="srow"><span></span><span class="dim">extra slots</span><em>${view.slotsExtraPrice}</em></div>` : "")
     + `<h2>Vitals</h2>${rows.slice(slotCount).join("")}`
     + `<p class="dim">${esc(view.motivation.name)} (you play it): ${view.motivation.price}. "on" slots start equipped. Every price is the Allocator's.</p>`;
   $("sheet-note").innerHTML = sheetState.note
     ? esc(sheetState.note)
-    : view.problems.map((problem) => `<div class="bad">${esc(problem)}</div>`).join("") || "Tap a field, then − or + to change it.";
+    : view.problems.map((problem) => `<div class="bad">${esc(problem)}</div>`).join("") || "Tap an affinity to pick it; tap any other field, then − or + to change it.";
 }
 
 /** The level cost line of a report, from the receipt the Allocator issued for a level built here. */
@@ -407,8 +409,18 @@ function setup() {
   $("character").addEventListener("click", (event) => {
     const el = event.target.closest("button");
     if (!el || !sheetState || sheetState.building) return;
-    if (el.dataset.row !== undefined) { sheetState.sheet.select(Number(el.dataset.row), Number(el.dataset.field)); renderSheet(); }
-    else if (el.dataset.sheet !== undefined) sheetTap(el.dataset.sheet);
+    if (el.dataset.pick !== undefined) {
+      sheetState.sheet.choose(sheetState.picking, "kind", el.dataset.pick);
+      sheetState.picking = null;
+      renderSheet();
+    } else if (el.dataset.row !== undefined) {
+      const row = Number(el.dataset.row);
+      const field = Number(el.dataset.field);
+      const isKind = sheetState.sheet.view().rows[row]?.kind === "slot" && field === 0;
+      sheetState.picking = isKind && sheetState.picking !== row ? row : null;
+      sheetState.sheet.select(row, field);
+      renderSheet();
+    } else if (el.dataset.sheet !== undefined) { sheetState.picking = null; sheetTap(el.dataset.sheet); }
   });
   $("menu-dialog").addEventListener("click", (event) => { if (event.target === $("menu-dialog")) $("menu-dialog").close(); });
   $("menu-help").addEventListener("click", () => { $("menu-dialog").close(); $("help-dialog").showModal(); });
