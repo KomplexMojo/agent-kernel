@@ -11,6 +11,9 @@ export { isLlmCaptureArtifact } from "./llm-trace.js";
 import { TickPhases } from "../_shared/tick-state-machine.mts";
 import { buildTelemetry } from "../_shared/persona-helpers.mts";
 import { attachAnnotatorServices } from "./annotator-services.js";
+import { buildBattleLogEntries } from "./battle-log.js";
+
+const observationsOf = (payload) => (Array.isArray(payload.observations) ? payload.observations : []);
 
 export const annotatorSubscribePhases = Object.freeze([TickPhases.EMIT, TickPhases.SUMMARIZE]);
 
@@ -27,9 +30,11 @@ export function createAnnotatorPersona({ initialState = AnnotatorStates.IDLE, cl
       const snapshot = view();
       return { ...snapshot, tick, actions: [], effects: [], telemetry: null };
     }
-    const result = fsm.advance(event, payload);
+    const previous = fsm.view().context.lifecycles ?? {};
+    const battle = phase === "emit" ? observationsOf(payload).at(-1)?.battle : undefined;
+    const result = fsm.advance(event, battle ? { ...payload, lifecycles: battle.lifecycles } : payload);
     let telemetry = null;
-    const observations = Array.isArray(payload.observations) ? payload.observations : [];
+    const observations = observationsOf(payload);
     if (observations.length > 0) {
       telemetry = buildTelemetry({
         observations,
@@ -37,6 +42,8 @@ export function createAnnotatorPersona({ initialState = AnnotatorStates.IDLE, cl
         clock,
         personaRef: "annotator",
       });
+      // #554: the battle log rides with the tick's telemetry, so a silent Annotator leaves none.
+      if (battle) telemetry.battleLog = buildBattleLogEntries({ battle, previous, runId: payload.runId || "run", clock });
     }
     return {
       ...result,

@@ -166,7 +166,7 @@ function renderMessage(parts) {
   const panel = parts.panel
     .filter((line) => !/^\s+Move keys aim/.test(line))
     .map((line) => line.replace(/\s+Tab next.*$/, "").replace(/\s*\((?:a number|Tab picks)[^)]*\)/, ""));
-  return [parts.status, ...panel, ...parts.info];
+  return [parts.status, ...panel, ...parts.info, ...(parts.log?.length ? ["Battle log", ...parts.log] : [])];
 }
 
 function render() {

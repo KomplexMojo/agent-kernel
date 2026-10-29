@@ -866,6 +866,26 @@ const REGISTRY = Object.freeze([
     },
   },
   {
+    id: "annotator/battle-log",
+    chartered: "annotator/battle-log",
+    persona: "annotator",
+    behavior: "Battle-log entries are derived by the Annotator, not worded or assembled by play-session or a UI",
+    criteria: ["A2", "A5"],
+    productionEntryPoint: "packages/runtime/src/runner/runtime-fsm.mjs",
+    invocation: "cli",
+    status: {
+      owned: true,
+      since: "#554 (2026-10-29)",
+      provenBy: "tests/personas/annotator/annotator-battle-log.test.js",
+      why:
+        "Ablation: with the Annotator silent the session's battle log is empty, so play-session "
+        + "keeps no fallback that builds entries from the casts it already reads. Provenance: every "
+        + "entry is stamped `meta.producedBy: annotator`. Entries carry no vitals (#497). "
+        + "⚠️ SCOPE: like per-tick telemetry, the tick loop drives the Annotator itself, so there is "
+        + "no glue-side call to intercept; an out-of-band emit would need CR.8's refusal.",
+    },
+  },
+  {
     id: "annotator/run-summary-provenance",
     chartered: "annotator/run-summary",
     persona: "annotator",

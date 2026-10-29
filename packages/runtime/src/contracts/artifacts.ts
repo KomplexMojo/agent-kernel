@@ -2177,6 +2177,7 @@ export type TickFrame = TickFrameV1;
 
 export const TELEMETRY_RECORD_SCHEMA = "agent-kernel/TelemetryRecord";
 export const RUN_SUMMARY_SCHEMA = "agent-kernel/RunSummary";
+export const BATTLE_LOG_ENTRY_SCHEMA = "agent-kernel/BattleLogEntry";
 export const WORLD_STATE_SCHEMA = "agent-kernel/WorldStateArtifact";
 // Z.1 — the constraint-problem family. Declared here like every other schema:
 // `contracts/constraint-problem.js` imports these rather than writing the
@@ -2248,7 +2249,30 @@ export interface RunSummaryV1 {
   artifacts?: Array<ArtifactRef>;
 }
 
+/**
+ * #554: one line of the battle log, derived by the Annotator from the tick's applied casts, takes
+ * and lifecycle changes. Structured, never text (message text lives in runtime render), and never a
+ * vital: a cast shows the attack's affinity and whether it struck, not what it did to anyone (#497).
+ */
+export interface BattleLogEntryV1 {
+  schema: typeof BATTLE_LOG_ENTRY_SCHEMA;
+  schemaVersion: 1;
+  meta: ArtifactMeta;
+  tick: number;
+  event: "cast" | "take" | "defeat" | "exit";
+  /** Who acted (a defeat's source is whoever's cast last landed on it, absent for a field or hazard). */
+  sourceId?: string;
+  /** Who it was done to (the actor that left, for a defeat or an exit). */
+  targetId?: string;
+  /** cast and defeat: the affinity and expression that did it. */
+  kind?: string;
+  expression?: string;
+  /** cast: whether it landed on another actor. */
+  struck?: boolean;
+}
+
 export type TelemetryRecord = TelemetryRecordV1;
+export type BattleLogEntry = BattleLogEntryV1;
 export type RunSummary = RunSummaryV1;
 
 /**

@@ -403,6 +403,12 @@ function defeatByPhrase(by) {
   return by.field ? ` by ${who}'s field` : ` by ${who}'s ${by.kind} ${by.expression}`;
 }
 
+/** #554: the battle log's last `limit` lines, newest last (`T3 You cast ...`). The runtime words them; this only lays them out. */
+export function battleLogLines(view, limit = 4) {
+  const log = Array.isArray(view.battleLog) ? view.battleLog : [];
+  return log.slice(-limit).map((entry) => `T${entry.tick} ${entry.text}`);
+}
+
 /** Who left during the last turn, one event each: `D3 pal-1 left by the exit` (#428). */
 export function departuresLine(view) {
   const gone = Array.isArray(view.departures) ? view.departures : [];
@@ -510,6 +516,7 @@ export function renderScreen({
       vitals: presentVitals(view.player).map((vital) => ({ label: vital.label, text: vitalAmount(vital), fraction: vital.fraction, colorHex: vital.colorHex })),
       soaked: soakedNote(view.player).trim(),
       info,
+      log: battleLogLines(view, 30).reverse(),
       tick: tickLine,
       status: statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }),
       panel: Array.isArray(panel) ? panel : [],
@@ -523,6 +530,7 @@ export function renderScreen({
   for (const line of [partyLine(view.party), ordersLine(view.orders), inSightLine(view), ...inspectionLines(view), departuresLine(view), fieldHereLine(view), castPathLine(view.casts)]) if (line) lines.push(line);
   lines.push(tickLine);
   lines.push(statusLine(view.status, message, { traps: Array.isArray(view.hazards) && view.hazards.length > 0 }));
+  lines.push(...battleLogLines(view));
   if (Array.isArray(panel) && panel.length > 0) {
     lines.push("");
     lines.push(...panel);

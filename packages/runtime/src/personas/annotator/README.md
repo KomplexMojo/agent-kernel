@@ -35,6 +35,8 @@ behavior with no G1 test is not owned**. The rows below mirror
 | `annotator/run-summary-provenance` — the end-of-run RunSummary is produced by the instance that observed the run | A2, A5 | ✅ owned (CR.8) | `tests/architecture/persona-authority.test.js` |
 | `annotator/per-tick-telemetry` — per-tick TelemetryRecords are captured by the Annotator, not assembled by the runner | A2, A5 | ✅ owned (P5.4) | `tests/personas/annotator/annotator-per-tick-telemetry.test.js` |
 
+| `annotator/battle-log` — battle-log entries are derived by the Annotator, not worded or assembled by play-session or a UI | A2, A5 | ✅ owned (#554) | `tests/personas/annotator/annotator-battle-log.test.js` |
+
 <!-- /A1-A5-STATUS -->
 
 ⚠️ **Provenance is why the first row exists, and why an output test could never have settled it.**
@@ -49,6 +51,14 @@ assembles them from the observations it already holds, which it could trivially 
 refusal to add here because the tick loop drives the Annotator itself: unlike `summarizeRun`, no
 glue-side call exists to intercept. **If one is ever added** — an out-of-band emit for a run someone
 else ticked — it needs CR.8's refusal, and this ablation will not catch it.
+
+**The battle log (#554) is the same shape as per-tick telemetry.** On the EMIT phase the Annotator
+turns what the tick applied (casts, takes, lifecycle changes, exits; supplied on the observation as
+`battle`) into `agent-kernel/BattleLogEntry` artifacts, carried on the tick's telemetry as
+`battleLog`. Entries are structured and carry no vitals: a cast shows its affinity and whether it
+struck (#497). The words live in `render/battle-log-lines.js`; `play-session` keeps the entries, filters
+them to what the seat may read, and `ui-ascii` and the phone app only render. The Annotator remembers
+the last roster lifecycles in its context to spot a defeat; observation only, never fed back.
 
 **Build-scope `telemetry.json` is deliberately absent from this table.** It is glue-owned by charter
 rule 3 (the plane boundary): `build`/`llm-plan` run no tick, and the Annotator subscribes only to the

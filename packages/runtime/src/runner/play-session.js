@@ -65,6 +65,7 @@ import { createAllocatorPersona } from "../personas/allocator/persona.js";
 import { UNUSED_CLOCK } from "../personas/_shared/require-clock.js";
 import { EIGHT_WAY_DELTAS } from "../personas/_shared/movement-directions.js";
 import { buildActorHudModel } from "../render/actor-hud-model.js";
+import { battleLogLine } from "../render/battle-log-lines.js";
 import { ASCII_FOG_GLYPH, ASCII_TERRAIN_GLYPHS, asciiCastPathGlyph } from "../render/visualization-snapshot.js";
 import { createPlaybackRuntime, createRuntimeCore } from "./core-facade.js";
 import { CAPTURED_INPUT_SCHEMA } from "../contracts/artifacts.ts";
@@ -127,6 +128,7 @@ export const COMPANION_MOTIVATION = "friendly";
  *                                     `user_controlled` actor, else the first delver, else the first actor
  * @param {object} [args.core]         a core to drive; a fresh one by default
  * @param {Function} [args.clock]      injected clock for the runtime
+ * @param {object}   [args.personas]   persona registry override (ablation tests); the real one by default
  * @param {boolean}  [args.fog]        apply fog of war to view(); off by default so a
  *                                     caller opts in when it draws `sight`
  */
@@ -137,6 +139,7 @@ export async function createPlaySession({
   core = createRuntimeCore(),
   clock,
   adapters = {},
+  personas,
   fog = false,
   costing = null,
 } = {}) {
@@ -151,7 +154,7 @@ export async function createPlaySession({
     throw new Error(`createPlaySession: playerActorId "${playerId}" is not an actor in this level`);
   }
 
-  const runtime = createPlaybackRuntime({ core, adapters, clock });
+  const runtime = createPlaybackRuntime({ core, adapters, clock, ...(personas ? { personas } : {}) });
   try {
     await runtime.init({ seed: simConfig.seed ?? 0, simConfig, initialState });
   } catch (error) {
@@ -234,6 +237,7 @@ export async function createPlaySession({
     await runtime.step(args);
     recordEvents(before);
     rememberParty();
+    recordBattleLog();
     const actors = readSnapshot().actors;
     defeatMarks = defeatMarks.map((mark) => ({ ...mark, age: mark.age + 1 })).filter((mark) => mark.age < DEFEAT_MARK_TICKS);
     for (const id of watched) {
@@ -267,6 +271,34 @@ export async function createPlaySession({
       if (!exited && runtime.hasActorExited(id)) eventLog.push({ tick, event: "exit", actorId: id });
     }
     if (eventLog.length > 1000) eventLog.splice(0, eventLog.length - 1000);
+  }
+
+  // #554: the Annotator's battle-log entries, each with the party members who may read it. The
+  // session only keeps and filters what the Annotator derived (it words and derives nothing).
+  const battleLog = [];
+  let battleLogTick = -1;
+  function recordBattleLog() {
+    const emit = runtime.getTickFrames().filter((frame) => frame?.phaseDetail === "emit").at(-1);
+    const entries = [emit?.telemetry].flat().filter(Boolean).flatMap((telemetry) => telemetry.battleLog ?? [])
+      .filter((entry, index, all) => entry.tick > battleLogTick && all.findIndex((other) => other.meta.id === entry.meta.id) === index);
+    if (entries.length === 0) return;
+    battleLogTick = Math.max(...entries.map((entry) => entry.tick));
+    const actors = readSnapshot().actors;
+    for (const entry of entries) {
+      const involved = [entry.sourceId, entry.targetId].filter(Boolean);
+      const cells = involved.map((id) => actors.find((actor) => actor.id === id)?.position).filter(Boolean);
+      // Fog hides what no one on the party saw or was part of (#497).
+      const readers = partyIds.filter((pid) => involved.includes(pid) || !fog
+        || cells.some((cell) => readVisible(pid)?.[cell.y]?.[cell.x]));
+      battleLog.push({ entry, readers });
+    }
+    if (battleLog.length > 500) battleLog.splice(0, battleLog.length - 500);
+  }
+
+  /** The last `limit` battle-log lines the seat may read, oldest first: `{ tick, event, text }`. */
+  function battleLogView(limit = 30) {
+    return battleLog.filter(({ readers }) => readers.includes(activeId)).slice(-limit)
+      .map(({ entry }) => ({ tick: entry.tick, event: entry.event, text: battleLogLine(entry, { seatId: activeId, labelOf: (id) => labels.get(id) ?? null }) }));
   }
 
   // #479: a mobile actor the seat has seen stays known at its last position until the seat
@@ -679,6 +711,7 @@ export async function createPlaySession({
       defeatMarks: defeatMarks.filter((mark) => !fogOn || readVisible()?.[mark.y]?.[mark.x]).map((mark) => ({ ...mark })),
       orders: ordersView(),
       orderable: orderableView(snapshot),
+      battleLog: battleLogView(),
     };
   }
 
