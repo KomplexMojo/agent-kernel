@@ -1484,7 +1484,20 @@ export function createFsmRuntime({
       const frameEffects = flushEffects({ core, adapters, effectFactory, tick, effectLog, moderator });
       lastEffects = frameEffects.emittedEffects;
       lastFulfilled = frameEffects.fulfilledEffects;
-      observationLog.push({ tick, effects: lastEffects, fulfilledEffects: lastFulfilled, persona: "core" });
+      observationLog.push({
+        tick, effects: lastEffects, fulfilledEffects: lastFulfilled, persona: "core",
+        // #554: what the tick applied, for the Annotator's battle log (facts only; it words nothing).
+        ...(applied.actorSnapshot ? {
+          battle: {
+            tick,
+            casts: applied.actorTurn?.casts ?? [],
+            takes: applied.acceptedActions.filter((action) => action?.kind === "take")
+              .map((action) => ({ actorId: action.actorId, targetId: action.params?.targetId })),
+            lifecycles: Object.fromEntries(applied.actorSnapshot.actors.map((actor) => [actor.id, actor.lifecycle])),
+            exitedActorIds: applied.exitedActorIds ?? [],
+          },
+        } : {}),
+      });
 
       const emitPersonaPayloads = buildPersonaPayloads({
         phase: TickPhases.EMIT,

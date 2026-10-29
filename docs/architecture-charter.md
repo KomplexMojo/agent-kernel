@@ -83,6 +83,7 @@ mirror, and something refuses to let it drift.
 | `moderator/effect-fulfillment` | Effect fulfilment disposition |
 | `moderator/pausing` | Pausing — a real gate that refuses to advance `step()` |
 | `annotator/per-tick-telemetry` | Per-tick TelemetryRecords |
+| `annotator/battle-log` | Per-tick battle-log entries (#554): what the tick's casts, takes, defeats and exits were, no vitals |
 | `annotator/run-summary` | The end-of-run RunSummary, including its derived `outcome` |
 
 <!-- CHARTER-ROSTER:END -->
