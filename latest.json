@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-29T20-03-57-980Z-002819166c65-3da0cd83f4f9",
-    "key": "3da0cd83f4f97154f16bea5c751272e01c597bb21683e14107d5402acf966981",
+    "id": "2026-10-29T20-33-57-275Z-c4521bfb79a9-aac2c9c74cc6",
+    "key": "aac2c9c74cc6f59a1161599054fdc2e363d8cafa57ae73021ede99529225cee8",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-29T20:03:57.980Z",
-    "completedAt": "2026-10-29T20:04:22.574Z",
-    "durationMs": 24594,
+    "startedAt": "2026-10-29T20:33:57.275Z",
+    "completedAt": "2026-10-29T20:34:21.724Z",
+    "durationMs": 24449,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "002819166c65fcefd2ab5c10e2c19d9de6235124",
-    "tree": "304a81f66d504f82c7863ff41798eb2f6d9930f3"
+    "commit": "c4521bfb79a96376e52418c453dc2b17b99134b1",
+    "tree": "9eb8a56670d317c1840cac691d8b7cab6a73aebd"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -199,6 +199,7 @@
       "packages/runtime/src/render/visual-assets/tiles/overlays/large/wall-affinity-growth.png",
       "packages/runtime/src/render/visual-assets/tiles/overlays/wall-affinity-growth.png",
       "packages/runtime/src/render/visualization-snapshot.js",
+      "packages/runtime/src/runner/character-sheet.js",
       "packages/runtime/src/runner/core-facade.js",
       "packages/runtime/src/runner/core-setup.mjs",
       "packages/runtime/src/runner/play-session.js",
@@ -262,7 +263,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/3da0cd83f4f97154f16bea5c751272e01c597bb21683e14107d5402acf966981"
+    "retentionId": "preflights/aac2c9c74cc6f59a1161599054fdc2e363d8cafa57ae73021ede99529225cee8"
   },
   "qualifies": false
 }
