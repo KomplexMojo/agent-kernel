@@ -1,19 +1,19 @@
 {
   "schemaVersion": "agent-kernel-benchmark-result/v2",
   "run": {
-    "id": "2026-10-29T02-11-13-956Z-111eb3d1f66a-e331c875489a",
-    "key": "e331c875489afec5ce309c2bffa26c819e420bcafd7b891b94614b253be5bfce",
+    "id": "2026-10-29T02-41-17-273Z-002819166c65-3da0cd83f4f9",
+    "key": "3da0cd83f4f97154f16bea5c751272e01c597bb21683e14107d5402acf966981",
     "status": "infrastructure_error",
-    "startedAt": "2026-10-29T02:11:13.956Z",
-    "completedAt": "2026-10-29T02:11:38.680Z",
-    "durationMs": 24724,
+    "startedAt": "2026-10-29T02:41:17.273Z",
+    "completedAt": "2026-10-29T02:41:41.890Z",
+    "durationMs": 24617,
     "runnerContractVersion": "benchmark-agent-v2"
   },
   "source": {
     "repository": "KomplexMojo/agent-kernel",
     "ref": "main",
-    "commit": "111eb3d1f66ad092058ed7abca1abf687044cbf8",
-    "tree": "3146231cfccd7303281cd8428808ce7d34744104"
+    "commit": "002819166c65fcefd2ab5c10e2c19d9de6235124",
+    "tree": "304a81f66d504f82c7863ff41798eb2f6d9930f3"
   },
   "runner": {
     "id": "871bf244fdb6d05d",
@@ -110,6 +110,9 @@
       "packages/runtime/src/personas/allocator/spend-proposal.js",
       "packages/runtime/src/personas/allocator/validate-spend.js",
       "packages/runtime/src/personas/annotator/README.md",
+      "packages/runtime/src/personas/annotator/battle-log.js",
+      "packages/runtime/src/personas/annotator/controller.js",
+      "packages/runtime/src/personas/annotator/state-machine.js",
       "packages/runtime/src/personas/annotator/world-state.js",
       "packages/runtime/src/personas/configurator/README.md",
       "packages/runtime/src/personas/configurator/actor-authoring.js",
@@ -169,6 +172,7 @@
       "packages/runtime/src/render/affinity-spatial-formulas.js",
       "packages/runtime/src/render/affinity-tile-mask.js",
       "packages/runtime/src/render/ascii-cell-style.js",
+      "packages/runtime/src/render/battle-log-lines.js",
       "packages/runtime/src/render/entity-sprite-composer.js",
       "packages/runtime/src/render/generated/affinity-sprite-assets.js",
       "packages/runtime/src/render/generated/game-sprite-assets.js",
@@ -258,7 +262,7 @@
     }
   },
   "artifacts": {
-    "retentionId": "preflights/e331c875489afec5ce309c2bffa26c819e420bcafd7b891b94614b253be5bfce"
+    "retentionId": "preflights/3da0cd83f4f97154f16bea5c751272e01c597bb21683e14107d5402acf966981"
   },
   "qualifies": false
 }
