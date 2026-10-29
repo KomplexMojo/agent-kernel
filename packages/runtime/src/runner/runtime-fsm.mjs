@@ -97,6 +97,30 @@ const DEFAULT_LOG_LEVELS = Object.freeze({
 });
 
 
+// #554: for each defeated actor, its defeat vital and the fields that lay on its cell (whose emit it
+// stood in), so the battle log can say what destroyed a resource or a hazard. Fields are read
+// only on a tick with a defeat.
+function defeatedReadings(snapshot, readFields) {
+  const down = snapshot.actors.filter((actor) => actor.lifecycle === "defeated");
+  if (down.length === 0) return {};
+  const cells = readFields();
+  return Object.fromEntries(down.map((actor) => [actor.id, {
+    defeatVital: actor.defeatVital,
+    fields: (cells?.[actor.position.y]?.[actor.position.x] || [])
+      .flatMap((entry) => (entry.sources || []).map((sourceId) => ({ sourceId, kind: entry.kind })))
+      .filter((field) => field.sourceId !== actor.id),
+  }]));
+}
+
+// What a take gave (playtest 2026-10-29): the holding as core has it, so the log can name it.
+function takenHolding(snapshot, params) {
+  const holding = snapshot.actors.find((actor) => actor.id === params?.targetId)?.holdings
+    ?.find((entry) => entry.id === params?.holdingId);
+  if (!holding) return {};
+  const { id, claimedBy, ...what } = holding;
+  return { taken: JSON.parse(JSON.stringify(what)) };
+}
+
 function toInt(value) {
   const num = Number(value);
   return Number.isFinite(num) ? Math.trunc(num) : null;
@@ -1492,9 +1516,12 @@ export function createFsmRuntime({
             tick,
             casts: applied.actorTurn?.casts ?? [],
             takes: applied.acceptedActions.filter((action) => action?.kind === "take")
-              .map((action) => ({ actorId: action.actorId, targetId: action.params?.targetId })),
+              .map((action) => ({ actorId: action.actorId, targetId: action.params?.targetId,
+                ...takenHolding(applied.actorSnapshot, action.params) })),
             lifecycles: Object.fromEntries(applied.actorSnapshot.actors.map((actor) => [actor.id, actor.lifecycle])),
             exitedActorIds: applied.exitedActorIds ?? [],
+            defeated: defeatedReadings(applied.actorSnapshot,
+              () => (actorRegistry ? readActorRegistryFieldCells(readActorRegistryObservation(actorRegistry, tick)) : [])),
           },
         } : {}),
       });

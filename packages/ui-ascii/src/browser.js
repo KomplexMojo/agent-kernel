@@ -32,7 +32,7 @@ const KEYS = { ArrowUp: "\u001b[A", ArrowDown: "\u001b[B", ArrowRight: "\u001b[C
 let host = {};
 let catalog = null;
 let current = null; // { scenario, entry, game, character?, cost? }
-let sheetState = null; // { scenario, entry, level, sheet, picking (the slot row whose kind list is open) } while the character screen is open
+let sheetState = null; // { scenario, entry, level, sheet } while the character screen is open
 let queue = Promise.resolve();
 
 const safe = (action) => { try { return action(); } catch { return null; } };
@@ -292,7 +292,7 @@ async function openCharacter(scenario, entry) {
     $("brief-who").textContent = "This build has no character data for this level; update the app.";
     return;
   }
-  sheetState = { scenario, entry, level, sheet: createCharacterSheet({ spec: level.character.hero, budgetTokens: level.character.allowance ?? undefined }), note: "", picking: null };
+  sheetState = { scenario, entry, level, sheet: createCharacterSheet({ spec: level.character.hero, budgetTokens: level.character.allowance ?? undefined }), note: "" };
   renderSheet();
   show("character");
   window.scrollTo(0, 0);
@@ -313,12 +313,7 @@ function renderSheet() {
     const fields = row.fields.map((field, fieldIndex) => fieldButton(rowIndex, fieldIndex, label[field.name](field.value), {
       on: on(fieldIndex), kind: field.name === "kind", color: field.name === "kind" ? GAME_AFFINITY_COLOR_HEX[field.value] : null,
     })).join("");
-    const line = `<div class="srow${row.kind === "vital" ? " vital" : ""}${row.empty ? " empty" : ""}"><span>${esc(row.label)}</span>${fields}<em>${row.price}</em></div>`;
-    if (sheetState.picking !== rowIndex) return line;
-    // The kind box was tapped: every kind (and none) is offered under it; a tap sets it.
-    const current = row.fields[0].value;
-    return line + `<div class="kinds">${view.choices.kind.map((kind) => `<button class="f kind${kind === current ? " on" : ""}" data-pick="${esc(kind)}"`
-      + `${GAME_AFFINITY_COLOR_HEX[kind] ? ` style="--c:${GAME_AFFINITY_COLOR_HEX[kind]}"` : ""}>${esc(kind)}</button>`).join("")}</div>`;
+    return `<div class="srow ${row.kind === "vital" ? "vital" : "aff"}${row.empty ? " empty" : ""}"><span>${esc(row.label)}</span>${fields}<em>${row.price}</em></div>`;
   });
   const slotCount = view.rows.filter((row) => row.kind === "slot").length;
   $("sheet").innerHTML = `<h2>Affinity slots (first ${view.freeSlots} free)</h2>${rows.slice(0, slotCount).join("")}`
@@ -327,7 +322,10 @@ function renderSheet() {
     + `<p class="dim">${esc(view.motivation.name)} (you play it): ${view.motivation.price}. "on" slots start equipped. Every price is the Allocator's.</p>`;
   $("sheet-note").innerHTML = sheetState.note
     ? esc(sheetState.note)
-    : view.problems.map((problem) => `<div class="bad">${esc(problem)}</div>`).join("") || "Tap an affinity to pick it; tap any other field, then − or + to change it.";
+    : view.problems.map((problem) => `<div class="bad">${esc(problem)}</div>`).join("") || "Tap an affinity, form or on/off to change it; tap a number, then − or +.";
+  // − and + are for numbers only.
+  document.querySelectorAll("#sheet-keys .num")
+    .forEach((button) => { button.disabled = !view.cursorNumeric; });
 }
 
 /** The level cost line of a report, from the receipt the Allocator issued for a level built here. */
@@ -409,18 +407,9 @@ function setup() {
   $("character").addEventListener("click", (event) => {
     const el = event.target.closest("button");
     if (!el || !sheetState || sheetState.building) return;
-    if (el.dataset.pick !== undefined) {
-      sheetState.sheet.choose(sheetState.picking, "kind", el.dataset.pick);
-      sheetState.picking = null;
-      renderSheet();
-    } else if (el.dataset.row !== undefined) {
-      const row = Number(el.dataset.row);
-      const field = Number(el.dataset.field);
-      const isKind = sheetState.sheet.view().rows[row]?.kind === "slot" && field === 0;
-      sheetState.picking = isKind && sheetState.picking !== row ? row : null;
-      sheetState.sheet.select(row, field);
-      renderSheet();
-    } else if (el.dataset.sheet !== undefined) { sheetState.picking = null; sheetTap(el.dataset.sheet); }
+    // A tap on an affinity, form or on/off steps it; on a number it lights it for − and +.
+    if (el.dataset.row !== undefined) { sheetState.sheet.tap(Number(el.dataset.row), Number(el.dataset.field)); renderSheet(); }
+    else if (el.dataset.sheet !== undefined) sheetTap(el.dataset.sheet);
   });
   $("menu-dialog").addEventListener("click", (event) => { if (event.target === $("menu-dialog")) $("menu-dialog").close(); });
   $("menu-help").addEventListener("click", () => { $("menu-dialog").close(); $("help-dialog").showModal(); });

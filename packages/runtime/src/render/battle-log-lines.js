@@ -4,6 +4,24 @@
  * them, and never adds what the entry does not carry (no vitals, #497).
  */
 
+const signed = (n) => `${n >= 0 ? "+" : "−"}${Math.abs(n)}`;
+
+/** What a take gave: `+10 health`, `+5 max mana, +1 mana regen`, `fire push`, `an affinity slot`. */
+function takenWords(taken) {
+  if (!taken) return "";
+  if (taken.kind === "affinity") return `${taken.affinity} ${taken.expression}`;
+  if (taken.kind === "slot") return taken.slots === 1 ? "an affinity slot" : `${taken.slots} affinity slots`;
+  if (taken.kind === "vital") {
+    // A consumable fills the vital; a level or permanent grant raises its max.
+    const max = taken.permanenceMode === "consumable" ? "" : "max ";
+    return (taken.vitals ?? []).flatMap((grant) => [
+      ...(grant.delta ? [`${signed(grant.delta)} ${max}${grant.key}`] : []),
+      ...(grant.regen ? [`${signed(grant.regen)} ${grant.key} regen`] : []),
+    ]).join(", ");
+  }
+  return "";
+}
+
 /**
  * @param {object} entry   an `agent-kernel/BattleLogEntry`
  * @param {object} [who]
@@ -17,6 +35,7 @@ export function battleLogLine(entry, { seatId, labelOf = () => null } = {}) {
     return label ? `${label} ${id}` : id;
   };
   const cap = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+  const whose = (id) => (id === seatId ? "your" : `${name(id)}'s`);
   const attack = entry.kind ? `${entry.kind} ${entry.expression}` : null;
   switch (entry.event) {
     case "cast": {
@@ -24,11 +43,15 @@ export function battleLogLine(entry, { seatId, labelOf = () => null } = {}) {
       if (entry.struck) return `${cap(source)} cast ${attack} and struck ${name(entry.targetId)}.`;
       return `${cap(source)} cast ${attack}${entry.targetId ? ` at ${name(entry.targetId)}` : ""}.`;
     }
-    case "take":
-      return `${cap(name(entry.sourceId))} took from ${name(entry.targetId)}.`;
+    case "take": {
+      const what = takenWords(entry.taken);
+      return `${cap(name(entry.sourceId))} took ${what ? `${what} ` : ""}from ${name(entry.targetId)}.`;
+    }
     case "defeat": {
-      const by = entry.sourceId ? ` by ${name(entry.sourceId)}${attack ? `'s ${attack}` : ""}` : "";
-      return `${cap(name(entry.targetId))} ${entry.targetId === seatId ? "were" : "was"} defeated${by}.`;
+      const by = entry.sourceId ? ` by ${attack ? `${whose(entry.sourceId)} ${attack}` : name(entry.sourceId)}` : "";
+      // What lives on durability (hazards, resources, barriers) is destroyed; delvers and wardens are defeated (#428).
+      const how = entry.defeatVital === "durability" ? "destroyed" : "defeated";
+      return `${cap(name(entry.targetId))} ${entry.targetId === seatId ? "were" : "was"} ${how}${by}.`;
     }
     case "exit":
       return `${cap(name(entry.targetId))} left by the exit.`;

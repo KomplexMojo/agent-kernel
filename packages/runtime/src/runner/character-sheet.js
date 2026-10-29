@@ -27,6 +27,8 @@ export const SHEET_INTENT = Object.freeze({
 const BIG_STEP = 5;
 export const SLOT_FIELDS = Object.freeze(["kind", "expression", "range", "intensity", "start"]);
 export const VITAL_FIELDS = Object.freeze(["max", "regen"]);
+/** Fields that hold a number (− and + change them); the rest are choices a tap steps through. */
+export const NUMERIC_FIELDS = Object.freeze(["range", "intensity", "max", "regen"]);
 /** What a slot's kind can be set to: no affinity, or any kind (none of them is a default). */
 export const SLOT_KIND_CHOICES = Object.freeze(["none", ...AFFINITY_KINDS]);
 
@@ -170,6 +172,8 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     return {
       rows: list,
       cursor: { ...cursor },
+      // Whether − and + mean anything for the field under the cursor.
+      cursorNumeric: NUMERIC_FIELDS.includes(fieldsOf(rows()[cursor.row])[cursor.field]),
       motivation: { name: "user_controlled", price: cost.motivation },
       slotsExtraPrice: cost.slotsExtra,
       total,
@@ -244,6 +248,17 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
   }
 
   /**
+   * A tap on one field: it takes the cursor, and a choice (kind, form, at start) steps to its
+   * next value (kind: none, then each kind, then none again). A number only takes the cursor,
+   * for − and + to change.
+   */
+  function tap(row, field = 0) {
+    select(row, field);
+    if (cursor.row !== row) return;
+    if (!NUMERIC_FIELDS.includes(fieldsOf(rows()[row])[cursor.field])) change(1);
+  }
+
+  /**
    * Set one slot field to a named value, for a screen that offers the choices as a list: `kind`
    * takes any of `SLOT_KIND_CHOICES` ("none" empties the slot), `expression` any expression.
    */
@@ -270,5 +285,5 @@ export function createCharacterSheet({ spec = "", budgetTokens: requested, id = 
     return parts.join(";");
   }
 
-  return { view, apply, select, choose, spec: spec_ };
+  return { view, apply, select, tap, choose, spec: spec_ };
 }

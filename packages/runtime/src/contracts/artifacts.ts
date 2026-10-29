@@ -2260,15 +2260,22 @@ export interface BattleLogEntryV1 {
   meta: ArtifactMeta;
   tick: number;
   event: "cast" | "take" | "defeat" | "exit";
-  /** Who acted (a defeat's source is whoever's cast last landed on it, absent for a field or hazard). */
+  /** Who acted (a defeat's source is whoever's cast last landed on it, else whose emit field it stood in). */
   sourceId?: string;
   /** Who it was done to (the actor that left, for a defeat or an exit). */
   targetId?: string;
+  /** defeat: the vital whose loss ended it; a thing that lives on durability (hazard, resource, barrier) reads "destroyed". */
+  defeatVital?: string;
   /** cast and defeat: the affinity and expression that did it. */
   kind?: string;
   expression?: string;
   /** cast: whether it landed on another actor. */
   struck?: boolean;
+  /**
+   * take: what it gave, as core's holding: `{ kind: "vital", vitals: [{ key, delta, regen? }], permanenceMode }`,
+   * `{ kind: "affinity", affinity, expression }` or `{ kind: "slot", slots }`.
+   */
+  taken?: { kind: string; vitals?: { key: string; delta: number; regen?: number }[]; permanenceMode?: string; affinity?: string; expression?: string; slots?: number };
 }
 
 export type TelemetryRecord = TelemetryRecordV1;
