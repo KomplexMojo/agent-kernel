@@ -13,11 +13,14 @@ const assert = require("node:assert/strict");
 const baseTiles = ["#########", "#.......#", "#########"];
 const kinds = [[1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 0, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1]];
 
+// A restoring kind harms by pulling: its push heals, so it is never aimed at a hostile.
+const RESTORING = new Set(["growth", "fortify", "light"]);
 function actor({ kind = "fire", motivations = ["attacking"], ...overrides } = {}) {
+  const expression = RESTORING.has(kind) ? "pull" : "push";
   return {
     id: "self", category: "warden", alignment: "dungeon", lifecycle: "alive", position: { x: 1, y: 1 },
     capabilities: { canMove: true, canCast: true, canEquip: true, canTake: true, canExit: false },
-    motivations, affinities: [{ kind, expression: "push", stacks: 3 }], activeAffinityKey: `${kind}:push`,
+    motivations, affinities: [{ kind, expression, stacks: 3 }], activeAffinityKey: `${kind}:${expression}`,
     vitals: { mana: { current: 40, max: 40, regen: 0 } }, ...overrides,
   };
 }

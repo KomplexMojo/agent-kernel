@@ -29,6 +29,7 @@ import { computeActorMoveStaminaCost } from "../../../../core-ts/src/rules/move.
 import { equipActorAffinity, equippedActorAffinityKeys } from "../../../../core-ts/src/state/actor-inventory.ts";
 import { VitalKind } from "../../../../core-ts/src/state/vitals.ts";
 import { actorHoldingsOpen } from "../../../../core-ts/src/state/actor-holdings.ts";
+import { affinityTableRow } from "../../../../core-ts/src/state/affinity-table.ts";
 import {
   DEFAULT_DELTAS,
   buildMoveProposal,
@@ -642,6 +643,12 @@ function equippedSlots(actorRecord) {
 }
 
 /** Equipped push/pull slots in equip order; core casts the first unless a cast names one. */
+/** A push of a restoring kind gives its target the primary vital back (core's affinity table). */
+function restoresTarget(entry) {
+  return String(entry?.expression).trim().toLowerCase() === "push"
+    && affinityTableRow(String(entry?.kind).trim().toLowerCase())?.outward === "restore";
+}
+
 function castableSlots(actorRecord) {
   return equippedSlots(actorRecord).filter((entry) =>
     ["push", "pull"].includes(String(entry.expression).trim().toLowerCase()));
@@ -1402,9 +1409,11 @@ function buildAffinityCastProposal({ actor, actorRecord, hostile, castManaBase }
       Math.abs((hostile?.actor?.position?.y ?? 0) - actor.position.y),
     );
 
-  // The first equipped push/pull that reaches; named only when core would not pick it.
+  // The first equipped push/pull that reaches; named only when core would not pick it. A
+  // restoring push (it heals what it hits) is never aimed at a hostile (seed-11 playtest,
+  // 2026-10-29: a warden kept healing the delver with a looted growth push).
   const reaching = slots.find((entry) => distance <= (Number.isInteger(entry.stacks) && entry.stacks > 0 ? entry.stacks : 1)
-    && canAffordCast(actorRecord, entry, castManaBase));
+    && !restoresTarget(entry) && canAffordCast(actorRecord, entry, castManaBase));
   if (!reaching) return null;
   if (reaching === slots[0]) return { kind: "cast_affinity", params: { targetId: hostile.actor.id } };
   return { kind: "cast_affinity", params: { targetId: hostile.actor.id,
@@ -1794,6 +1803,9 @@ function resolveEscortTurn({ entry, payload, observationView, actorId, ...rest }
   const turn = resolveStrategyTurn({ ...rest, payload, observationView, actorId, entry: entry ?? {},
     adopted: { goals: [goal] }, depth: STRATEGY_DEPTH.GOALS });
   if (!turn || turn.entry?.status === STRATEGY_STATUS.STALLED) return null;
+  // Lost where it last saw its ally, it holds there and looks again rather than wandering
+  // off on its other motivations (seed-11 playtest, 2026-10-29: minions walked out the exit).
+  if (!turn.proposals && turn.entry?.status === STRATEGY_STATUS.SEARCHING) return { ...turn, proposals: [{ kind: "wait" }] };
   return turn;
 }
 

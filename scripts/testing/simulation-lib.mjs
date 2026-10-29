@@ -18,6 +18,7 @@ import { actorCastManaPrice, actorCastableAffinities, isCastableExpression } fro
 import { readActorRegistryObservation, readActorRegistryVisibleCells } from "../../packages/core-ts/src/rules/actor-observation.ts";
 import { affinityIntensity, affinityKey, equippedActorAffinities } from "../../packages/core-ts/src/state/actor-inventory.ts";
 import { createActorRegistry } from "../../packages/core-ts/src/state/actor-registry.ts";
+import { affinityTableRow } from "../../packages/core-ts/src/state/affinity-table.ts";
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
@@ -185,8 +186,8 @@ export function analyzeRun({ initialState, frames, castManaBase = null }) {
 
 /**
  * #415: for each living attacking actor, whether a living actor of another alignment stands
- * in its sight and within the reach of one of its equipped casts (core's own sight and reach
- * rules) after this tick, and whether it landed a cast this tick. A streak of such turns
+ * in its sight and within the reach of one of its equipped harmful casts (core's own sight and
+ * reach rules) after this tick, and whether it landed a cast this tick. A streak of such turns
  * without a cast is counted. A snapshot without terrain (a hand-built record) has no fog.
  */
 function trackIdleAttackers(actors, snapshot, acceptedActions) {
@@ -198,7 +199,12 @@ function trackIdleAttackers(actors, snapshot, acceptedActions) {
   for (const entry of attackers) {
     const record = actors[entry.id];
     const visible = observation ? readActorRegistryVisibleCells(observation, entry.id) : null;
-    const reach = Math.max(0, ...Object.values(actorCastableAffinities(entry)).map(({ range }) => range));
+    // A restoring push heals what it hits, so it is no weapon: the Actor never aims one at a hostile.
+    const weapons = Object.entries(actorCastableAffinities(entry)).filter(([key]) => {
+      const [kind, expression] = key.split(":");
+      return !(expression === "push" && affinityTableRow(kind)?.outward === "restore");
+    });
+    const reach = Math.max(0, ...weapons.map(([, { range }]) => range));
     const hostile = alive.find((other) => other.id !== entry.id && other.alignment !== entry.alignment
       && (!visible || visible[other.position.y]?.[other.position.x])
       && Math.max(Math.abs(other.position.x - entry.position.x), Math.abs(other.position.y - entry.position.y)) <= reach);

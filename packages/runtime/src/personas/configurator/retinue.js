@@ -31,6 +31,9 @@ const RETINUE_PARAMS = Object.freeze(["leader", "size", "roles"]);
 const DELVER_MINION_MOTIVATIONS = Object.freeze(["escorting", "friendly"]);
 const DEFAULT_SIZE = RETINUE_ROLES.length;
 export const RETINUE_DISTANCE = 2;
+// A delver's minion keeps beside it: bare sight is one tile, so one any further loses its
+// leader in the dark (seed-11 playtest, 2026-10-29).
+const DELVER_MINION_ESCORT_DISTANCE = 1;
 // Reach 2 covers the leader from any seat within RETINUE_DISTANCE; intensity 1 is the base.
 const MINION_RANGE = RETINUE_DISTANCE;
 const MINION_INTENSITY = 1;
@@ -113,7 +116,7 @@ export function composeRetinue({ leader, size, roles: named = null, category = "
       vitals: floorVitals(),
       affinities: [{ kind, expression, stacks: MINION_RANGE, intensity: MINION_INTENSITY }],
       activeAffinityKey: `${kind}:${expression}`,
-      ...(delver ? { escort: { target: leader.id, distance: RETINUE_DISTANCE } } : {}),
+      ...(delver ? { escort: { target: leader.id, distance: DELVER_MINION_ESCORT_DISTANCE } } : {}),
     });
     roles.push({ id, role });
     // A delver's minions start with it, seated as delvers are; a warden's are posed to the solver.

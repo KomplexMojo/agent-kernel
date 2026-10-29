@@ -55,20 +55,20 @@
     },
     {
       "id": "sweep-duel-growth-decay",
-      "note": "growth push attacker vs decay push defender",
+      "note": "growth pull attacker vs decay push defender",
       "ticks": 80,
       "args": [
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=growth;affinities=growth:push:3;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "count=1;id=atk;affinity=growth;affinities=growth:pull:3;equip=growth:pull;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
         "--warden",
         "count=1;id=def;affinity=decay;affinities=decay:push:3;equip=decay:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
       ]
     },
     {
       "id": "sweep-duel-decay-growth",
-      "note": "decay push attacker vs growth push defender",
+      "note": "decay push attacker vs growth pull defender",
       "ticks": 80,
       "args": [
         "--room",
@@ -76,12 +76,12 @@
         "--delver",
         "count=1;id=atk;affinity=decay;affinities=decay:push:3;equip=decay:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=growth;affinities=growth:push:3;equip=growth:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+        "count=1;id=def;affinity=growth;affinities=growth:pull:3;equip=growth:pull;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
       ]
     },
     {
       "id": "sweep-duel-corrode-fortify",
-      "note": "corrode push attacker vs fortify push defender",
+      "note": "corrode push attacker vs fortify pull defender",
       "ticks": 80,
       "args": [
         "--room",
@@ -89,38 +89,38 @@
         "--delver",
         "count=1;id=atk;affinity=corrode;affinities=corrode:push:3;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=fortify;affinities=fortify:push:3;equip=fortify:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+        "count=1;id=def;affinity=fortify;affinities=fortify:pull:3;equip=fortify:pull;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
       ]
     },
     {
       "id": "sweep-duel-fortify-corrode",
-      "note": "fortify push attacker vs corrode push defender",
+      "note": "fortify pull attacker vs corrode push defender",
       "ticks": 80,
       "args": [
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=fortify;affinities=fortify:push:3;equip=fortify:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "count=1;id=atk;affinity=fortify;affinities=fortify:pull:3;equip=fortify:pull;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
         "--warden",
         "count=1;id=def;affinity=corrode;affinities=corrode:push:3;equip=corrode:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
       ]
     },
     {
       "id": "sweep-duel-light-dark",
-      "note": "light push attacker vs dark push defender",
+      "note": "light pull attacker vs dark push defender",
       "ticks": 80,
       "args": [
         "--room",
         "size=small;count=1",
         "--delver",
-        "count=1;id=atk;affinity=light;affinities=light:push:3;equip=light:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
+        "count=1;id=atk;affinity=light;affinities=light:pull:3;equip=light:pull;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
         "--warden",
         "count=1;id=def;affinity=dark;affinities=dark:push:3;equip=dark:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
       ]
     },
     {
       "id": "sweep-duel-dark-light",
-      "note": "dark push attacker vs light push defender",
+      "note": "dark push attacker vs light pull defender",
       "ticks": 80,
       "args": [
         "--room",
@@ -128,7 +128,7 @@
         "--delver",
         "count=1;id=atk;affinity=dark;affinities=dark:push:3;equip=dark:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=light;affinities=light:push:3;equip=light:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+        "count=1;id=def;affinity=light;affinities=light:pull:3;equip=light:pull;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
       ]
     },
     {
@@ -172,7 +172,7 @@
     },
     {
       "id": "sweep-draw-vs-push",
-      "note": "decay draw delver vs growth push warden",
+      "note": "decay draw delver vs growth pull warden",
       "ticks": 80,
       "args": [
         "--room",
@@ -180,7 +180,7 @@
         "--delver",
         "count=1;id=atk;affinity=decay;affinities=decay:draw:3,decay:push:2;equip=decay:draw,decay:push;motivation=attacking;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1",
         "--warden",
-        "count=1;id=def;affinity=growth;affinities=growth:push:3;equip=growth:push;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
+        "count=1;id=def;affinity=growth;affinities=growth:pull:3;equip=growth:pull;motivation=defending;vitals=health:30:2,mana:30:3,stamina:10:1,durability:10:1"
       ]
     },
     {
@@ -404,9 +404,9 @@
         "--room",
         "size=medium;count=1",
         "--delver",
-        "count=2;id=d;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:60:3,stamina:10:1,durability:10:1",
+        "count=2;id=d;affinity=corrode;affinities=corrode:push:3:2;equip=corrode:push;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:1,durability:10:1",
         "--warden",
-        "count=2;id=w;affinity=growth;affinities=growth:push:3:2;equip=growth:push;motivation=attacking;vitals=health:30:2,mana:60:3,stamina:10:1,durability:10:1"
+        "count=2;id=w;affinity=growth;affinities=growth:pull:3:2;equip=growth:pull;motivation=attacking;vitals=health:30:2,mana:60:6,stamina:10:1,durability:10:1"
       ]
     },
     {
