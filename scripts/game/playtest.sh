@@ -3,7 +3,8 @@
 # you quit (artifacts/playtest/<when>-<scenario>-s<seed>/report.md). Paste or attach the report
 # in the playtest thread to log what you found.
 # Usage: bash scripts/game/playtest.sh                       list the scenarios
-#        bash scripts/game/playtest.sh <scenario> [--seed N] [--grade H..S] [-- <ak play options, e.g. --no-fog>]
+#        bash scripts/game/playtest.sh <scenario> [--seed N] [--grade H..S] [--character] [-- <ak play options, e.g. --no-fog>]
+#          --character: configure your own delver first (priced by the Allocator), then play it
 #        bash scripts/game/playtest.sh --open <report.md>     rebuild the level and replay that game
 set -euo pipefail
 cd "$(dirname "$0")/../.."

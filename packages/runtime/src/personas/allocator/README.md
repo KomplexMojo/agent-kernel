@@ -331,6 +331,8 @@ published price may be zero, every published price id must be charged by some re
 
 `base-costs.json` holds the difficulty grades H (easiest) to S (ultra hard) as two flat groups,
 `levelGradeBudgetTokens` and `levelGradeDungeonPercent`; `level-grades.js` reads them.
+`pricing.quoteActor(entry)` prices one actor, spawn included, line by line (vitals, regen, each affinity, extra slots, motivations), so a screen that edits a character shows the Allocator's price for every choice and prices nothing itself.
+
 `pricing.levelGrades()` lists them, `pricing.levelGrade(id)` gives one grade's budget and
 dungeon/delver percent (an unknown id throws, naming the known ones), and
 `pricing.levelGradePoolWeights(weights, id)` re-weights a build's pools so the `delver` pool

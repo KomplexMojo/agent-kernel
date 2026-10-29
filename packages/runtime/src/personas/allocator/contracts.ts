@@ -157,6 +157,7 @@ export interface AllocatorPricingSurface {
   priceMap(): Map<string, PriceListItem>;
   unitCosts(): Map<string, number>;
   quoteMotivations(motivations: Array<{ kind: string }>): MotivationQuote;
+  quoteActor(entry: unknown): { cost: number; detail: { lineItems: Array<{ label: string; spendTokens: number }> }; errors?: string[] };
   runtimeActionCosts(): RuntimeActionCosts;
 }
 

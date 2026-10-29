@@ -58,7 +58,7 @@ function ansiForHex(hex, layer = 38, depth = "truecolor") {
   return `\u001b[${layer};2;${r};${g};${b}m`;
 }
 
-function paint(text, hex, color) {
+export function paint(text, hex, color) {
   if (!color) return text;
   const code = ansiForHex(hex, 38, depthOf(color));
   return code ? `${code}${text}${RESET}` : text;

@@ -23,6 +23,7 @@ import { AFFINITY_TABLE } from "../../packages/core-ts/src/state/affinity-table.
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const AK = join(ROOT, "packages/adapters-cli/src/cli/ak.mjs");
+const CHARACTER_CLI = join(ROOT, "packages/ui-ascii/src/character-cli.mjs");
 const SCENARIOS_PATH = join(ROOT, "scripts/game/playtest-scenarios.json");
 
 export function loadPlaytestScenarios() {
@@ -69,9 +70,26 @@ export function affinitiesForSeed(seed) {
  */
 const PLACEHOLDER = /\{(A|B|C|D|T1|T2)\}/g;
 
-export function scenarioArgs(scenario, seed, grade) {
+/** The scenario's playable delver spec (the one with `user_controlled`), seed's affinities filled in. */
+function playerDelverIndex(scenario) {
+  const at = scenario.args.findIndex((arg, index) => scenario.args[index - 1] === "--delver" && /motivation=user_controlled/.test(arg));
+  if (at < 0) throw new Error(`scenario "${scenario.id}" has no playable delver to configure.`);
+  return at;
+}
+
+export function playerDelverSpec(scenario, seed) {
   const picks = affinitiesForSeed(seed);
-  const fill = (text) => text.replace(PLACEHOLDER, (_, key) => picks[key]);
+  return scenario.args[playerDelverIndex(scenario)].replace(PLACEHOLDER, (_, key) => picks[key]);
+}
+
+/**
+ * The scenario's level arguments with the seed's affinities filled in. A `character` (the delver
+ * spec the character screen wrote) takes the place of the scenario's own playable delver.
+ */
+export function scenarioArgs(scenario, seed, grade, character) {
+  const picks = affinitiesForSeed(seed);
+  const ownAt = character ? playerDelverIndex(scenario) : -1;
+  const fill = (text, index) => (index === ownAt ? character : text.replace(PLACEHOLDER, (_, key) => picks[key]));
   const budget = grade ? ["--grade", grade] : ["--budget-tokens", String(scenario.budgetTokens)];
   // A tactic with no --seed draws one, so a scenario with tactics pins the build to its seed.
   const tacticSeed = scenario.args.includes("--tactic") ? ["--seed", String(seed)] : [];
@@ -79,8 +97,8 @@ export function scenarioArgs(scenario, seed, grade) {
 }
 
 /** The full `ak create` arguments: the same scenario, seed and createdAt always build the same level. */
-export function createArgs(scenario, seed, createdAt, grade) {
-  return ["--run-id", `playtest-${scenario.id}-s${seed}`, "--created-at", createdAt, ...scenarioArgs(scenario, seed, grade)];
+export function createArgs(scenario, seed, createdAt, grade, character) {
+  return ["--run-id", `playtest-${scenario.id}-s${seed}`, "--created-at", createdAt, ...scenarioArgs(scenario, seed, grade, character)];
 }
 
 export function fillFocus(scenario, seed) {
@@ -131,8 +149,8 @@ function lastJson(text) {
   try { return JSON.parse(line); } catch { return null; }
 }
 
-function build(scenario, seed, levelDir, createdAt, grade) {
-  const result = ak(["create", ...createArgs(scenario, seed, createdAt, grade), "--out-dir", levelDir]);
+function build(scenario, seed, levelDir, createdAt, grade, character) {
+  const result = ak(["create", ...createArgs(scenario, seed, createdAt, grade, character), "--out-dir", levelDir]);
   const parsed = lastJson(result.stdout);
   if (result.status !== 0 || parsed?.ok === false) {
     throw new Error(`ak create refused ${scenario.id} (seed ${seed}):\n${result.stderr || result.stdout}`);
@@ -144,6 +162,23 @@ function build(scenario, seed, levelDir, createdAt, grade) {
 function finalState(levelDir, recordingPath) {
   const result = ak(["play", "--dir", levelDir, "--replay", recordingPath, "--keys", "", "--json", "--no-color"]);
   return lastJson(result.stdout) ?? { screen: result.stdout || result.stderr };
+}
+
+/**
+ * The character screen: build the scenario once as written to learn what the Allocator allots the
+ * delver, then let the player configure theirs against that. Returns the `--delver` spec, or null
+ * when they go back. The screen is the ui-ascii program; this script never imports it.
+ */
+function configureCharacter(scenario, seed, createdAt, grade, defaultDir) {
+  const built = build(scenario, seed, defaultDir, createdAt, grade);
+  const receipt = JSON.parse(readFileSync(join(defaultDir, "budget-receipt.json"), "utf8"));
+  const pool = receipt.poolStatuses?.find((entry) => entry.id === "delver");
+  const specPath = join(defaultDir, "character-spec.txt");
+  const result = spawnSync(process.execPath, [
+    CHARACTER_CLI, "--spec", playerDelverSpec(scenario, seed), "--budget", String(pool?.capTokens ?? built?.cost?.budgetTokens ?? 0), "--out", specPath,
+  ], { cwd: ROOT, stdio: "inherit" });
+  if (result.status !== 0 || !existsSync(specPath)) return null;
+  return readFileSync(specPath, "utf8").trim();
 }
 
 function stamp(date) {
@@ -160,6 +195,7 @@ function parseArgs(argv) {
     else if (arg === "--open") options.open = argv[++i];
     else if (arg === "--keys") options.keys = argv[++i];
     else if (arg === "--grade") options.grade = argv[++i];
+    else if (arg === "--character") options.character = true;
     else if (arg === "--help" || arg === "-h") options.help = true;
     else rest.push(arg);
   }
@@ -168,7 +204,7 @@ function parseArgs(argv) {
 }
 
 function listScenarios(catalog) {
-  console.log("Playtest scenarios (bash scripts/game/playtest.sh <id> [--seed N] [--grade H..S]):\n");
+  console.log("Playtest scenarios (bash scripts/game/playtest.sh <id> [--seed N] [--grade H..S] [--character]):\n");
   for (const scenario of catalog.scenarios) {
     console.log(`  ${scenario.id.padEnd(12)} ${scenario.title}`);
     if (scenario.shows) console.log(`  ${"".padEnd(12)} shows: ${scenario.shows}`);
@@ -192,7 +228,7 @@ async function askNotes() {
   return notes;
 }
 
-export function renderReport({ scenario, seed, grade, commit, branch, createdAt, playedAt, picks, final, notes, replayCode, cost, crash }) {
+export function renderReport({ scenario, seed, grade, commit, branch, createdAt, playedAt, picks, final, notes, replayCode, cost, crash, character }) {
   const lines = [
     `# Playtest: ${scenario.title} (${scenario.id}, seed ${seed})`,
     "",
@@ -201,6 +237,7 @@ export function renderReport({ scenario, seed, grade, commit, branch, createdAt,
     `- Affinities: you ${picks.A} vs ${picks.B}; other pair ${picks.C}/${picks.D}`,
     ...(traitsInPlay(scenario, seed) ? [`- Traits: ${traitsInPlay(scenario, seed)}`] : []),
     ...(grade ? [`- Grade: ${grade}`] : []),
+    ...(character ? [`- Character: \`${character}\``] : []),
     `- Level cost: ${cost ? `${cost.totalSpend} of ${cost.budgetTokens} tokens (${cost.status})` : "unknown"}`,
     `- Ended: turn ${final?.turns ?? "?"}, ${describeStatus(final?.status)}`,
     "",
@@ -221,7 +258,7 @@ export function renderReport({ scenario, seed, grade, commit, branch, createdAt,
     `bash scripts/game/playtest.sh --open <this file>`,
     "```",
     "",
-    `<!-- playtest ${JSON.stringify({ scenario: scenario.id, seed, ...(grade ? { grade } : {}), commit, createdAt })} -->`,
+    `<!-- playtest ${JSON.stringify({ scenario: scenario.id, seed, ...(grade ? { grade } : {}), ...(character ? { character } : {}), commit, createdAt })} -->`,
     `<!-- replay ${replayCode} -->`,
     "",
   ];
@@ -258,9 +295,15 @@ async function playScenario(catalog, options) {
   mkdirSync(outDir, { recursive: true });
 
   const grade = options.grade;
-  const created = build(scenario, seed, levelDir, catalog.createdAt, grade);
+  let character;
+  if (options.character) {
+    character = configureCharacter(scenario, seed, catalog.createdAt, grade, join(outDir, "default-level"));
+    if (character === null) { console.log("Back to the shell; nothing was built."); return; }
+  }
+  const created = build(scenario, seed, levelDir, catalog.createdAt, grade, character);
   const traits = traitsInPlay(scenario, seed);
-  console.log(traits
+  if (character) console.log(`\n${scenario.title} (seed ${seed}): you play the character you configured; the wardens carry ${picks.B} and ${picks.D}.`);
+  else console.log(traits
     ? `\n${scenario.title} (seed ${seed}): you carry ${traits}; the wardens carry ${picks.B} and ${picks.D}.`
     : `\n${scenario.title} (seed ${seed}): you are ${picks.A}, against ${picks.B}; other pair ${picks.C}/${picks.D}.`);
   if (created?.tactics?.length) console.log(`Tactics: ${created.tactics.map((entry) => entry.tactic).join(", ")}.`);
@@ -291,6 +334,7 @@ async function playScenario(catalog, options) {
     playedAt: now.toISOString(),
     replayCode: encodeReplay(recorded?.payload?.commands ?? []),
     cost: created?.cost,
+    character,
     crash: played.status !== 0 ? played : undefined,
   });
   const reportPath = join(outDir, "report.md");
@@ -316,7 +360,7 @@ async function openReport(catalog, options) {
   const levelDir = join(outDir, "level");
   const recordingPath = join(outDir, "recording.json");
   mkdirSync(outDir, { recursive: true });
-  build(scenario, parsed.seed, levelDir, parsed.createdAt ?? catalog.createdAt, parsed.grade);
+  build(scenario, parsed.seed, levelDir, parsed.createdAt ?? catalog.createdAt, parsed.grade, parsed.character);
   const capture = {
     schema: "agent-kernel/CapturedInputArtifact",
     schemaVersion: 1,
